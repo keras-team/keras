@@ -2125,3 +2125,9 @@ def sobel_edges(images, data_format=None):
             edges, ov_opset.constant([0, 2, 3, 1, 4], Type.i32)
         ).output(0)
     return OpenVINOKerasTensor(edges)
+
+
+def euclidean_dist_transform(images, dtype="float32", data_format=None):
+    raise NotImplementedError(
+        "`euclidean_dist_transform` is not supported with openvino backend"
+    )

@@ -2410,6 +2410,81 @@ def _ssim(
     return ops.cast(ssim_result, original_dtype)
 
 
+class EuclideanDistTransform(Operation):
+    def __init__(self, dtype="float32", data_format=None, *, name=None):
+        super().__init__(name=name)
+        self.dtype = dtype
+        self.data_format = backend.standardize_data_format(data_format)
+
+    def call(self, images):
+        return backend.image.euclidean_dist_transform(
+            images, dtype=self.dtype, data_format=self.data_format
+        )
+
+    def compute_output_spec(self, images):
+        images_shape = list(images.shape)
+        if len(images_shape) not in (3, 4):
+            raise ValueError(
+                "Invalid images rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). "
+                f"Received: images.shape={images_shape}"
+            )
+        return KerasTensor(shape=images_shape, dtype=self.dtype)
+
+
+@keras_export("keras.ops.image.euclidean_dist_transform")
+def euclidean_dist_transform(images, dtype="float32", data_format=None):
+    """Compute the Euclidean distance transform of binary images.
+
+    For each non-background pixel, this returns the Euclidean distance to the
+    nearest background (zero-valued) pixel. Each channel is processed
+    independently.
+
+    Args:
+        images: Input image or batch of images. Must be 3D (single image) or
+            4D (batch of images) with an integer dtype, where `0` denotes a
+            background pixel.
+        dtype: Floating-point dtype of the output. Defaults to `"float32"`.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
+
+    Returns:
+        Tensor of distances with the same shape as `images` and dtype `dtype`.
+
+    Example:
+
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[[[0], [1], [1]],
+    ...                [[1], [1], [1]],
+    ...                [[1], [1], [0]]]], dtype="uint8")
+    >>> ops.image.euclidean_dist_transform(x)
+    array([[[[0.        ],
+             [1.        ],
+             [2.        ]],
+            [[1.        ],
+             [1.4142135 ],
+             [1.        ]],
+            [[2.        ],
+             [1.        ],
+             [0.        ]]]], dtype=float32)
+    """
+    if any_symbolic_tensors((images,)):
+        return EuclideanDistTransform(
+            dtype=dtype, data_format=data_format
+        ).symbolic_call(images)
+    return backend.image.euclidean_dist_transform(
+        images,
+        dtype=dtype,
+        data_format=backend.standardize_data_format(data_format),
+    )
+
+
 def _create_gaussian_kernel(size, sigma, dtype):
     """Create a 2D Gaussian kernel."""
     # Create 1D Gaussian

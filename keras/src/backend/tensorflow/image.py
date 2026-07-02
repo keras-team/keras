@@ -1095,3 +1095,48 @@ def sobel_edges(images, data_format=None):
         edges = tf.transpose(edges, (0, 3, 1, 2, 4))
 
     return edges
+
+
+def euclidean_dist_transform(images, dtype="float32", data_format=None):
+    from scipy import ndimage
+
+    data_format = backend.standardize_data_format(data_format)
+    images = convert_to_tensor(images)
+    if images.shape.rank not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) or rank 4 "
+            f"(batch of images). Received: images.shape={images.shape}"
+        )
+    if not images.dtype.is_integer:
+        raise TypeError(
+            "`euclidean_dist_transform` expects an integer-dtype input. "
+            f"Received: images.dtype={images.dtype.name}"
+        )
+
+    unbatched = images.shape.rank == 3
+    if unbatched:
+        images = images[tf.newaxis, ...]
+    if data_format == "channels_first":
+        images = tf.transpose(images, (0, 2, 3, 1))
+
+    np_dtype = backend.standardize_dtype(dtype)
+    tf_dtype = tf.as_dtype(np_dtype)
+
+    def _scipy_edt(np_images):
+        np_images = np.asarray(np_images)
+        out = np.empty(np_images.shape, dtype=np_dtype)
+        for b in range(np_images.shape[0]):
+            for c in range(np_images.shape[-1]):
+                out[b, :, :, c] = ndimage.distance_transform_edt(
+                    np_images[b, :, :, c] != 0
+                )
+        return out
+
+    out = tf.numpy_function(_scipy_edt, [images], Tout=tf_dtype)
+    out.set_shape(images.shape.with_rank(4))
+
+    if data_format == "channels_first":
+        out = tf.transpose(out, (0, 3, 1, 2))
+    if unbatched:
+        out = tf.squeeze(out, axis=0)
+    return out

@@ -1233,3 +1233,43 @@ def sobel_edges(images, data_format=None):
         edges = edges.permute(0, 2, 3, 1, 4)
 
     return edges
+
+
+def euclidean_dist_transform(images, dtype="float32", data_format=None):
+    from scipy import ndimage
+
+    data_format = backend.standardize_data_format(data_format)
+    images = convert_to_tensor(images)
+    if images.ndim not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) or rank 4 "
+            f"(batch of images). Received: images.shape={tuple(images.shape)}"
+        )
+    if images.dtype.is_floating_point or images.dtype.is_complex:
+        raise TypeError(
+            "`euclidean_dist_transform` expects an integer-dtype input. "
+            f"Received: images.dtype={backend.standardize_dtype(images.dtype)}"
+        )
+
+    unbatched = images.ndim == 3
+    if unbatched:
+        images = images.unsqueeze(0)
+    if data_format == "channels_first":
+        images = images.permute(0, 2, 3, 1).contiguous()
+
+    np_dtype = backend.standardize_dtype(dtype)
+    np_images = images.cpu().numpy()
+    out = np.empty(np_images.shape, dtype=np_dtype)
+    for b in range(np_images.shape[0]):
+        for c in range(np_images.shape[-1]):
+            out[b, :, :, c] = ndimage.distance_transform_edt(
+                np_images[b, :, :, c] != 0
+            )
+
+    out = torch.from_numpy(out).to(images.device)
+
+    if data_format == "channels_first":
+        out = out.permute(0, 3, 1, 2).contiguous()
+    if unbatched:
+        out = out.squeeze(0)
+    return out
