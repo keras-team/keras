@@ -6735,7 +6735,10 @@ class Pad(Operation):
         if isinstance(pad_width, (tuple, list)) and isinstance(
             pad_width[0], int
         ):
-            return (pad_width,)
+            if len(pad_width) == 1:
+                # A single `(pad,)` means pad before and after, like `np.pad`.
+                return ((pad_width[0], pad_width[0]),)
+            return (tuple(pad_width),)
         first_len = len(pad_width[0])
         for i, pw in enumerate(pad_width):
             if len(pw) != first_len:
