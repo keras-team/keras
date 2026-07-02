@@ -642,8 +642,31 @@ class IndexLookup(Layer):
         output_shape = self.compute_output_shape(inputs.shape)
         return backend.KerasTensor(output_shape, dtype=output_dtype)
 
+    def _ensure_adapt_tables(self):
+        if self.token_counts is None:
+            self.token_counts = tf.lookup.experimental.MutableHashTable(
+                key_dtype=self.vocabulary_dtype,
+                value_dtype="int64",
+                default_value=0,
+            )
+        if self.output_mode == "tf_idf" and self.token_document_counts is None:
+            self.token_document_counts = (
+                tf.lookup.experimental.MutableHashTable(
+                    key_dtype=self.vocabulary_dtype,
+                    value_dtype="int64",
+                    default_value=0,
+                )
+            )
+
     def adapt(self, data, steps=None):
+        if self._has_input_vocabulary:
+            raise ValueError(
+                f"Cannot adapt layer '{self.name}' after setting a static "
+                "vocabulary via `vocabulary` argument or "
+                "`set_vocabulary()` method."
+            )
         self.reset_state()
+        self._ensure_adapt_tables()
         if isinstance(data, tf.data.Dataset):
             if steps is not None:
                 data = data.take(steps)
@@ -707,7 +730,11 @@ class IndexLookup(Layer):
                 )
 
     def finalize_state(self):
-        if self._has_input_vocabulary or tf.equal(self.token_counts.size(), 0):
+        if (
+            self._has_input_vocabulary
+            or self.token_counts is None
+            or tf.equal(self.token_counts.size(), 0)
+        ):
             # Finalize idf_weights to a const for call even if we don't need to
             # compute a new vocabulary.
             if self.output_mode == "tf_idf":
@@ -769,17 +796,26 @@ class IndexLookup(Layer):
         # we don't want to keep every token we've seen in separate lookup
         # tables.
         self.reset_state()
+
+        # Dispose of mutable hash tables to release any lingering TF
+        # resources that could interfere with subsequent tf.data pipelines.
+        self.token_counts = None
+        if self.output_mode == "tf_idf":
+            self.token_document_counts = None
+
         self._record_vocabulary_size()
 
     def reset_state(self):
         if self._has_input_vocabulary:
             return
 
-        self.token_counts.remove(self.token_counts.export()[0])
+        if self.token_counts is not None:
+            self.token_counts.remove(self.token_counts.export()[0])
         if self.output_mode == "tf_idf":
-            self.token_document_counts.remove(
-                self.token_document_counts.export()[0]
-            )
+            if self.token_document_counts is not None:
+                self.token_document_counts.remove(
+                    self.token_document_counts.export()[0]
+                )
             self.num_documents.assign(0)
 
     def call(self, inputs):
