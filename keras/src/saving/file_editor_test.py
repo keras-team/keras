@@ -161,3 +161,67 @@ class SavingTest(testing.TestCase):
 
         with self.assertRaisesRegex(ValueError, "virtual"):
             KerasFileEditor(virtual_fpath)
+
+    def test_rejects_shape_bomb(self):
+        # A few-KB file whose dataset declares far more than it stores on disk
+        # (chunked + gzip + fillvalue) must be rejected before the editor reads
+        # it into memory.
+        bomb_fpath = os.path.join(self.get_temp_dir(), "bomb.weights.h5")
+        with h5py.File(bomb_fpath, "w") as f:
+            vars_group = (
+                f.create_group("layers")
+                .create_group("dense")
+                .create_group("vars")
+            )
+            vars_group.create_dataset(
+                "0",
+                shape=(128 * (1 << 20),),  # 128 MiB declared, ~0 stored
+                dtype="uint8",
+                chunks=(1 << 20,),
+                compression="gzip",
+                fillvalue=0,
+            )
+        self.assertLess(os.path.getsize(bomb_fpath), 1 << 20)  # tiny on disk
+        with self.assertRaisesRegex(ValueError, "shape bomb"):
+            KerasFileEditor(bomb_fpath)
+
+    def test_rejects_cumulative_shape_bomb(self):
+        # Several datasets that each declare under the floor but jointly declare
+        # far more than is stored: the cumulative guard must reject them.
+        bomb_fpath = os.path.join(
+            self.get_temp_dir(), "cumulative_bomb.weights.h5"
+        )
+        with h5py.File(bomb_fpath, "w") as f:
+            vars_group = (
+                f.create_group("layers")
+                .create_group("dense")
+                .create_group("vars")
+            )
+            for i in range(3):  # 3 x 32 MiB declared = 96 MiB total
+                vars_group.create_dataset(
+                    str(i),
+                    shape=(32 * (1 << 20),),
+                    dtype="uint8",
+                    chunks=(1 << 20,),
+                    compression="gzip",
+                    fillvalue=0,
+                )
+        self.assertLess(os.path.getsize(bomb_fpath), 1 << 20)  # tiny on disk
+        with self.assertRaisesRegex(ValueError, "shape bomb"):
+            KerasFileEditor(bomb_fpath)
+
+    def test_shape_bomb_guard_rejects_external_link(self):
+        # The guard traverses the group manually and rejects an external/soft
+        # link itself (without resolving it), rather than relying only on
+        # `_extract_weights_from_store` to catch it.
+        from keras.src.saving.file_editor import _reject_h5_shape_bomb
+
+        secret_fpath = os.path.join(self.get_temp_dir(), "secret.h5")
+        with h5py.File(secret_fpath, "w") as f:
+            f.create_dataset("k", data=np.zeros((2, 2), "float32"))
+        mal_fpath = os.path.join(self.get_temp_dir(), "mal.weights.h5")
+        with h5py.File(mal_fpath, "w") as f:
+            f["ext"] = h5py.ExternalLink(secret_fpath, "/")
+        with h5py.File(mal_fpath, "r") as f:
+            with self.assertRaisesRegex(ValueError, "ExternalLink"):
+                _reject_h5_shape_bomb(f, file_size=os.path.getsize(mal_fpath))
