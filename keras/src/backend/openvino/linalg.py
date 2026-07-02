@@ -1662,9 +1662,7 @@ def pinv(x, rcond=None):
             "or pre-computed tensors). Runtime input is not supported "
             "because OpenVINO has no SVD op."
         )
-    pinv_np = np.linalg.pinv(
-        np.asarray(x_node.data), rcond=rcond if rcond is not None else 1e-15
-    )
+    pinv_np = np.linalg.pinv(np.asarray(x_node.data), rcond=rcond)
     return OpenVINOKerasTensor(ov_opset.constant(pinv_np).output(0))
 
 
