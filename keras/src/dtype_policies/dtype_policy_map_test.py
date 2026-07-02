@@ -123,6 +123,32 @@ class DTypePolicyMapTest(testing.TestCase):
         ):
             dtype_policy_map["layer/dense_3"] = 123
 
+    def test_rejects_redos_pattern_key(self):
+        # Keys are matched as regexes against layer paths while loading a model,
+        # so a backtracking-prone pattern (or an overly long key) could cause
+        # catastrophic ReDoS on an untrusted config. Anything outside the
+        # documented "exact path / `prefix/.*`" contract is rejected.
+        policy = dtype_policies.DTypePolicy("float16")
+        for bad in (
+            "(a+)+$",  # nested quantifier (exponential)
+            ".*.*.*.*",  # multiple wildcards (polynomial)
+            "a*a*a*a*b",  # group-free polynomial backtracking
+            "encoder/(layer_0|layer_1)",  # alternation group
+        ):
+            with self.assertRaisesRegex(ValueError, "ReDoS"):
+                DTypePolicyMap()[bad] = policy
+        # The deserialization path passes `policy_map` straight to `__init__`.
+        with self.assertRaisesRegex(ValueError, "ReDoS"):
+            DTypePolicyMap(policy_map={"(a+)+$": policy})
+        with self.assertRaisesRegex(ValueError, "at most"):
+            DTypePolicyMap()["a" * 1000] = policy
+        # Exact paths and simple `prefix/.*` globs are still accepted.
+        dtype_policy_map = DTypePolicyMap()
+        dtype_policy_map["encoder/.*"] = policy
+        dtype_policy_map["model/encoder/layer_0/dense"] = policy
+        dtype_policy_map[".*"] = policy
+        self.assertLen(dtype_policy_map, 3)
+
     def test_get(self):
         # 1. Setup
         bfloat16_policy = dtype_policies.DTypePolicy("bfloat16")

@@ -5,6 +5,39 @@ from keras.src import dtype_policies
 from keras.src.api_export import keras_export
 from keras.src.dtype_policies import DTypePolicy
 
+# `DTypePolicyMap` keys are matched against layer paths with `re.fullmatch`, and
+# both keys and paths come from a (possibly untrusted) model config, so a
+# crafted key can cause catastrophic regex backtracking (ReDoS, CWE-1333) that
+# hangs `load_model`. Keys are documented to be only exact layer paths or a
+# simple `prefix/.*` glob, so we enforce that contract with an allowlist: a key
+# must be a run of path characters, optionally ending in `.*` (or be `.*`
+# itself). This admits every legitimate key while making any backtracking-prone
+# construct impossible. The allowlist regex itself is linear (one quantifier
+# over a character class), so validation cannot be turned into a ReDoS.
+_MAX_DTYPE_POLICY_KEY_LENGTH = 256
+_SAFE_KEY_RE = re.compile(r"^(?:[a-zA-Z0-9_./-]+(?:\.\*)?|\.\*)$")
+
+
+def _validate_dtype_policy_map_key(key):
+    if not isinstance(key, str):
+        return
+    if len(key) > _MAX_DTYPE_POLICY_KEY_LENGTH:
+        raise ValueError(
+            "A `DTypePolicyMap` key must be at most "
+            f"{_MAX_DTYPE_POLICY_KEY_LENGTH} characters; received a key of "
+            f"length {len(key)}. Keys are matched as regular expressions "
+            "against layer paths; an overly long key can cause catastrophic "
+            "backtracking when loading a model."
+        )
+    if not _SAFE_KEY_RE.match(key):
+        raise ValueError(
+            f"Unsafe or invalid `DTypePolicyMap` key '{key}'. Keys must be "
+            "exact paths (alphanumeric characters, underscores, slashes, "
+            "hyphens, or dots) or a simple prefix pattern ending in `.*`, so "
+            "that matching them cannot cause regular-expression backtracking "
+            "(ReDoS)."
+        )
+
 
 @keras_export(["keras.dtype_policies.DTypePolicyMap"])
 class DTypePolicyMap(DTypePolicy, MutableMapping):
@@ -96,6 +129,10 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
         self._default_policy_arg = default_policy
         self._default_policy = dtype_policies.get(default_policy)
         self._policy_map = policy_map or dict()
+        # `policy_map` may come straight from a deserialized config (this is the
+        # path `from_config` takes), bypassing `__setitem__`, so validate here.
+        for key in self._policy_map:
+            _validate_dtype_policy_map_key(key)
 
     @property
     def name(self):
@@ -190,6 +227,12 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
         if key in self._policy_map:
             return self._policy_map[key]
 
+        # An exact match has already been ruled out; skip the regex fallback for
+        # an implausibly long path so the (backtracking-safe) patterns are never
+        # run against a huge subject.
+        if isinstance(key, str) and len(key) > _MAX_DTYPE_POLICY_KEY_LENGTH:
+            return self.default_policy
+
         # 2. Fallback to a full regex match.
         matching_keys = [
             pattern
@@ -218,6 +261,7 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
             key: String key for the `DTypePolicy`.
             policy: The `DTypePolicy`.
         """
+        _validate_dtype_policy_map_key(key)
         if key in self._policy_map:
             raise ValueError(
                 f"{key} already exist in the DTypePolicyMap with "
