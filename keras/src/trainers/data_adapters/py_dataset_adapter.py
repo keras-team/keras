@@ -9,6 +9,7 @@ from contextlib import closing
 
 import numpy as np
 
+from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.distribution import distribution_lib
 from keras.src.trainers.data_adapters import data_adapter_utils
@@ -36,6 +37,9 @@ class PyDataset:
             This is necessary to gain compute-level (rather than I/O level)
             benefits from parallelism. However it can only be set to
             `True` if your dataset can be safely pickled.
+            With the JAX backend on GPU or TPU, `fit()` falls back to
+            thread-based workers when this is `True` to avoid unsafe process
+            forking.
         max_queue_size: Maximum number of batches to keep in the queue
             when iterating over the dataset in a multithreaded or
             multiprocessed setting.
@@ -224,6 +228,14 @@ class PyDatasetAdapter(DataAdapter):
 
         workers = self.py_dataset.workers
         use_multiprocessing = self.py_dataset.use_multiprocessing
+        if use_multiprocessing and _is_jax_accelerator_backend():
+            warnings.warn(
+                "`use_multiprocessing=True` is not supported with the JAX "
+                "backend on GPU or TPU. Falling back to thread-based workers "
+                "to avoid unsafe process forking after JAX initialization.",
+                stacklevel=3,
+            )
+            use_multiprocessing = False
         if workers > 1 or (workers > 0 and use_multiprocessing):
             self.enqueuer = OrderedEnqueuer(
                 self.py_dataset,
@@ -390,6 +402,18 @@ _SEQUENCE_COUNTER = None
 _DATA_POOLS = weakref.WeakSet()
 _WORKER_ID_QUEUE = None  # Only created if needed.
 _FORCE_THREADPOOL = False
+
+
+def _is_jax_accelerator_backend():
+    if backend.backend() != "jax":
+        return False
+
+    try:
+        import jax
+
+        return any(device.platform != "cpu" for device in jax.local_devices())
+    except Exception:
+        return False
 
 
 def get_pool_class(use_multiprocessing):

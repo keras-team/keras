@@ -1,5 +1,6 @@
 import math
 import time
+from unittest import mock
 
 import jax
 import numpy as np
@@ -394,11 +395,6 @@ class PyDatasetAdapterTest(testing.TestCase):
         use_multiprocessing=False,
         max_queue_size=0,
     ):
-        if backend.backend() == "jax" and use_multiprocessing is True:
-            self.skipTest(
-                "The CI failed for an unknown reason with "
-                "`use_multiprocessing=True` in the jax backend"
-            )
         dataset = ExceptionPyDataset(
             workers=workers,
             use_multiprocessing=use_multiprocessing,
@@ -425,6 +421,74 @@ class PyDatasetAdapterTest(testing.TestCase):
             expected_exception_class, "Expected exception"
         ):
             next(it)
+
+    def test_jax_accelerator_multiprocessing_falls_back_to_threads(self):
+        dataset = ExamplePyDataset(
+            np.ones((6, 11), dtype="int32"),
+            np.zeros((6, 11), dtype="int32"),
+            batch_size=2,
+            workers=2,
+            use_multiprocessing=True,
+        )
+
+        with (
+            mock.patch.object(
+                py_dataset_adapter,
+                "_is_jax_accelerator_backend",
+                return_value=True,
+            ),
+            mock.patch.object(
+                py_dataset_adapter,
+                "OrderedEnqueuer",
+                wraps=py_dataset_adapter.OrderedEnqueuer,
+            ) as enqueuer_cls,
+            pytest.warns(
+                UserWarning, match="Falling back to thread-based workers"
+            ),
+        ):
+            py_dataset_adapter.PyDatasetAdapter(dataset, shuffle=False)
+
+        self.assertFalse(enqueuer_cls.call_args.kwargs["use_multiprocessing"])
+
+    def test_is_jax_accelerator_backend(self):
+        with mock.patch.object(
+            py_dataset_adapter.backend, "backend", return_value="numpy"
+        ):
+            self.assertFalse(py_dataset_adapter._is_jax_accelerator_backend())
+
+        with (
+            mock.patch.object(
+                py_dataset_adapter.backend, "backend", return_value="jax"
+            ),
+            mock.patch.object(
+                jax,
+                "local_devices",
+                return_value=[mock.Mock(platform="cpu")],
+            ),
+        ):
+            self.assertFalse(py_dataset_adapter._is_jax_accelerator_backend())
+
+        with (
+            mock.patch.object(
+                py_dataset_adapter.backend, "backend", return_value="jax"
+            ),
+            mock.patch.object(
+                jax,
+                "local_devices",
+                return_value=[mock.Mock(platform="tpu")],
+            ),
+        ):
+            self.assertTrue(py_dataset_adapter._is_jax_accelerator_backend())
+
+        with (
+            mock.patch.object(
+                py_dataset_adapter.backend, "backend", return_value="jax"
+            ),
+            mock.patch.object(
+                jax, "local_devices", side_effect=RuntimeError("unavailable")
+            ),
+        ):
+            self.assertFalse(py_dataset_adapter._is_jax_accelerator_backend())
 
     def test_iterate_finite(self):
         py_dataset = ExamplePyDataset(
