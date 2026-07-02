@@ -447,6 +447,7 @@ class AffineTransform(Operation):
         self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images, transform):
+        _check_transform_finite(transform)
         return backend.image.affine_transform(
             images,
             transform,
@@ -470,6 +471,22 @@ class AffineTransform(Operation):
                 f"transform.shape={transform.shape}"
             )
         return KerasTensor(images.shape, dtype=images.dtype)
+
+
+def _check_transform_finite(transform):
+    import numpy as np
+
+    # Only validate plain Python/NumPy inputs to avoid:
+    # - Compilation crashes with symbolic tracers (jax.jit, tf.function)
+    # - Synchronous device-to-host copies with GPU/TPU tensors
+    if not isinstance(transform, (list, tuple, np.ndarray)):
+        return
+    transform = np.asarray(transform)
+    if not np.all(np.isfinite(transform)):
+        raise ValueError(
+            "Invalid transform: all values must be finite. "
+            "Received non-finite values (NaN or Inf) in the transform."
+        )
 
 
 @keras_export("keras.ops.image.affine_transform")
@@ -562,6 +579,7 @@ def affine_transform(
             fill_value=fill_value,
             data_format=data_format,
         ).symbolic_call(images, transform)
+    _check_transform_finite(transform)
     return backend.image.affine_transform(
         images,
         transform,
