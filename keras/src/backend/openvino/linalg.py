@@ -1752,7 +1752,23 @@ def matrix_rank(x, tol=None):
 
 
 def pinv(x, rcond=None):
-    raise NotImplementedError("`pinv` is not supported with openvino backend")
+    # Pseudoinverse requires SVD, which OpenVINO doesn't have. When the
+    # input is a Constant we can fall back to numpy and return the result
+    # as a Constant node — this covers the common case of computing the
+    # pseudoinverse of a known matrix at model-build time. Runtime inputs
+    # (Parameters) remain unsupported until OpenVINO gains an SVD op.
+    x = convert_to_tensor(x)
+    x_ov = get_ov_output(x)
+    x_node = x_ov.get_node()
+    if x_node.get_type_name() != "Constant":
+        raise NotImplementedError(
+            "`pinv` on the OpenVINO backend only supports inputs that "
+            "fold to a constant at model-build time (e.g. numpy arrays "
+            "or pre-computed tensors). Runtime input is not supported "
+            "because OpenVINO has no SVD op."
+        )
+    pinv_np = np.linalg.pinv(np.asarray(x_node.data), rcond=rcond)
+    return OpenVINOKerasTensor(ov_opset.constant(pinv_np).output(0))
 
 
 def jvp(fun, primals, tangents, has_aux=False):
