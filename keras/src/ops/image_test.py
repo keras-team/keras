@@ -2639,6 +2639,37 @@ class ImageOpsBehaviorTests(testing.TestCase):
         ):
             kimage.affine_transform(images, invalid_transform)
 
+    def test_affine_transform_non_finite_transform(self):
+        images = np.ones((1, 64, 64, 3), dtype="float32")
+
+        # Test with NaN
+        transform_nan = np.array([[1.0, 0, 0, 0, 1.0, 0, np.nan, 0]])
+        with self.assertRaisesRegex(ValueError, "Invalid transform"):
+            kimage.affine_transform(images, transform_nan)
+        with self.assertRaisesRegex(ValueError, "Invalid transform"):
+            kimage.AffineTransform()(images, transform_nan)
+
+        # Test with Inf
+        transform_inf = np.array([[np.inf, 0, 0, 0, 1.0, 0, 0, 0]])
+        with self.assertRaisesRegex(ValueError, "Invalid transform"):
+            kimage.affine_transform(images, transform_inf)
+        with self.assertRaisesRegex(ValueError, "Invalid transform"):
+            kimage.AffineTransform()(images, transform_inf)
+
+        # Test with -Inf
+        transform_neginf = np.array([[-np.inf, 0, 0, 0, 1.0, 0, 0, 0]])
+        with self.assertRaisesRegex(ValueError, "Invalid transform"):
+            kimage.affine_transform(images, transform_neginf)
+        with self.assertRaisesRegex(ValueError, "Invalid transform"):
+            kimage.AffineTransform()(images, transform_neginf)
+
+        # Test valid transform works
+        valid_transform = np.array([[1.0, 0, 0, 0, 1.0, 0, 0, 0]])
+        try:
+            kimage.affine_transform(images, valid_transform)
+        except ValueError:
+            self.fail("affine_transform raised ValueError for valid transform")
+
     def test_extract_patches_invalid_size(self):
         size = "5"  # Invalid size type
         image = np.random.uniform(size=(2, 20, 20, 3))
