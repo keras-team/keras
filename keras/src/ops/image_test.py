@@ -3257,10 +3257,6 @@ class ExtractPatches3DTest(testing.TestCase):
 
 
 class SobelEdgesTest(testing.TestCase):
-    def setUp(self):
-        if backend.backend() == "openvino":
-            self.skipTest("sobel_edges is not supported with openvino backend")
-
     def test_sobel_edges_shape_channels_last(self):
         image = np.random.random((2, 16, 16, 3)).astype("float32")
         edges = kimage.sobel_edges(image, data_format="channels_last")
