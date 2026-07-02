@@ -11,6 +11,7 @@ from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import cast
+from keras.src.backend.openvino.core import convert_to_numpy
 from keras.src.backend.openvino.core import convert_to_tensor
 from keras.src.backend.openvino.core import get_ov_output
 
@@ -1219,11 +1220,28 @@ def norm(x, ord=None, axis=None, keepdims=False):
                 row_sum, row_axis_const, keep_dims=keepdims
             ).output(0)
         elif ord in ("nuc", 2, -2):
-            # Nuclear norm, spectral norm, and minimum singular value
-            # These require SVD which is not supported in OpenVINO backend
-            raise NotImplementedError(
-                f"`norm` with ord={ord} for matrix norms requires SVD "
-                "which is not supported with openvino backend"
+            # Nuclear norm, spectral norm, and minimum singular value all
+            # require SVD, which OpenVINO doesn't have. When the input
+            # has no runtime Parameter dependencies we delegate to
+            # numpy.linalg.norm — `convert_to_numpy` materializes the
+            # subgraph as a constant — so the common case (computing a
+            # norm of a known matrix) still works.
+            try:
+                x_np = convert_to_numpy(OpenVINOKerasTensor(x_ov))
+            except Exception as err:
+                raise NotImplementedError(
+                    f"`norm` with ord={ord} for matrix norms on the "
+                    "OpenVINO backend only supports inputs that fold to "
+                    "a constant at model-build time. Runtime input is "
+                    "not supported because OpenVINO has no SVD op."
+                ) from err
+            norm_np = np.linalg.norm(
+                x_np, ord=ord, axis=axis, keepdims=keepdims
+            )
+            return OpenVINOKerasTensor(
+                ov_opset.constant(np.asarray(norm_np, dtype=np.float32)).output(
+                    0
+                )
             )
         else:
             raise ValueError(
