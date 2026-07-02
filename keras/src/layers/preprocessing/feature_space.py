@@ -12,6 +12,7 @@ from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils import backend_utils
 from keras.src.utils.module_utils import tensorflow as tf
 from keras.src.utils.naming import auto_name
+from keras.src.utils.progbar import Progbar
 
 
 class Cross(KerasSaveable):
@@ -507,7 +508,7 @@ class FeatureSpace(Layer):
                 adaptable_preprocessors.append(name)
         return adaptable_preprocessors
 
-    def adapt(self, dataset):
+    def adapt(self, dataset, verbose=1):
         if not isinstance(dataset, tf.data.Dataset):
             if isinstance(dataset, dict):
                 dataset = tf.data.Dataset.from_tensor_slices(dataset)
@@ -518,30 +519,80 @@ class FeatureSpace(Layer):
                     f"Received instead: {dataset} (of type {type(dataset)})"
                 )
 
-        for name in self._list_adaptable_preprocessors():
-            # Call adapt() on each individual adaptable layer.
+        adaptable_preprocessors = self._list_adaptable_preprocessors()
+        if not adaptable_preprocessors:
+            self._is_adapted = True
+            self.get_encoded_features()
+            self.built = True
+            self._sublayers_built = True
+            return
 
-            # TODO: consider rewriting this to instead iterate on the
-            # dataset once, split each batch into individual features,
-            # and call the layer's `_adapt_function` on each batch
-            # to simulate the behavior of adapt() in a more performant fashion.
+        # Check if the dataset needs batching
+        x = next(iter(dataset))
+        if len(x[adaptable_preprocessors[0]].shape) == 0:
+            dataset = dataset.batch(32)
 
-            feature_dataset = dataset.map(lambda x: x[name])
+        steps = None
+        if hasattr(dataset, "cardinality"):
+            cardinality = dataset.cardinality()
+            if cardinality.numpy() not in (
+                tf.data.UNKNOWN_CARDINALITY,
+                tf.data.INFINITE_CARDINALITY,
+            ):
+                steps = int(cardinality.numpy())
+
+        if verbose:
+            progbar = Progbar(
+                target=steps,
+                unit_name="step",
+            )
+
+        for name in adaptable_preprocessors:
             preprocessor = self.preprocessors[name]
-            # TODO: consider adding an adapt progress bar.
-            # Sample 1 element to check the rank
+            if hasattr(preprocessor, "reset_state"):
+                preprocessor.reset_state()
+            else:
+                # Some layers expose adapt() without state-update hooks.
+                pass
+
+        # Handle layers without state-update hooks separately.
+        # Let's check which adaptable preprocessors have `update_state`
+        stateful_preprocessors = [
+            name
+            for name in adaptable_preprocessors
+            if hasattr(self.preprocessors[name], "update_state")
+        ]
+        stateless_adapt_preprocessors = [
+            name
+            for name in adaptable_preprocessors
+            if not hasattr(self.preprocessors[name], "update_state")
+        ]
+
+        for i, batch in enumerate(dataset):
+            for name in stateful_preprocessors:
+                feature_batch = batch[name]
+                if len(feature_batch.shape) in {0, 1}:
+                    feature_batch = tf.expand_dims(feature_batch, -1)
+                self.preprocessors[name].update_state(feature_batch)
+            if verbose:
+                progbar.update(i + 1)
+
+        for name in stateful_preprocessors:
+            self.preprocessors[name].finalize_state()
+
+        # Handle layers that only have `adapt` (like Normalization)
+        for name in stateless_adapt_preprocessors:
+            feature_dataset = dataset.map(lambda x: x[name])
             x = next(iter(feature_dataset))
-            if len(x.shape) == 0:
-                # The dataset yields unbatched scalars; batch it.
-                feature_dataset = feature_dataset.batch(32)
             if len(x.shape) in {0, 1}:
-                # If the rank is 1, add a dimension
-                # so we can reduce on axis=-1.
-                # Note: if rank was previously 0, it is now 1.
                 feature_dataset = feature_dataset.map(
                     lambda x: tf.expand_dims(x, -1)
                 )
-            preprocessor.adapt(feature_dataset)
+            self.preprocessors[name].adapt(feature_dataset)
+
+        if verbose:
+            progbar.update(steps if steps is not None else i + 1, finalize=True)
+
         self._is_adapted = True
         self.get_encoded_features()  # Finish building the layer
         self.built = True
