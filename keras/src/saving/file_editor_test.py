@@ -161,3 +161,35 @@ class SavingTest(testing.TestCase):
 
         with self.assertRaisesRegex(ValueError, "virtual"):
             KerasFileEditor(virtual_fpath)
+
+    def test_rejects_config_decompression_bomb(self):
+        # A `config.json` / `metadata.json` member that decompresses to far
+        # more than it stores on disk must be rejected before the editor
+        # materializes it in memory (the editor reads these through the
+        # loader's decompression-bomb guard, not a raw read).
+        import zipfile
+        from unittest import mock
+
+        from keras.src.saving import saving_lib
+
+        model = keras.Sequential(
+            [keras.Input((4,)), keras.layers.Dense(3, name="d")]
+        )
+        good_fpath = os.path.join(self.get_temp_dir(), "good.keras")
+        model.save(good_fpath)
+        with zipfile.ZipFile(good_fpath) as zin:
+            members = {n: zin.read(n) for n in zin.namelist()}
+
+        for bomb in ("config.json", "metadata.json"):
+            evil_fpath = os.path.join(self.get_temp_dir(), f"evil_{bomb}.keras")
+            with zipfile.ZipFile(evil_fpath, "w", zipfile.ZIP_DEFLATED) as zout:
+                for name, data in members.items():
+                    # The bombed member stores ~nothing but declares 200 KiB.
+                    zout.writestr(
+                        name, b" " * 200_000 if name == bomb else data
+                    )
+            with mock.patch.object(
+                saving_lib, "_ZIP_MEMBER_BOMB_FLOOR_BYTES", 64
+            ):
+                with self.assertRaisesRegex(ValueError, "decompression bomb"):
+                    KerasFileEditor(evil_fpath)
