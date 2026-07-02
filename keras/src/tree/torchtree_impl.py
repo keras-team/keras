@@ -33,10 +33,12 @@ def _dict_to_ordered_dict(structure):
             )
         return None
 
+    structure_id = id(structure)
+
     def traverse_children():
         children, treedef = torch_tree.tree_flatten(
             structure,
-            is_leaf=lambda x: x is not structure,
+            is_leaf=lambda x: id(x) != structure_id,
         )
         if treedef.num_nodes == 1 and treedef.num_leaves == 1:
             return structure
@@ -59,10 +61,13 @@ def is_nested(structure):
 
 
 def traverse(func, structure, top_down=True):
+    structure = _dict_to_ordered_dict(structure)
+    structure_id = id(structure)
+
     def traverse_children():
         children, treedef = torch_tree.tree_flatten(
             structure,
-            is_leaf=lambda x: x is not structure,
+            is_leaf=lambda x: id(x) != structure_id,
         )
         if treedef.num_nodes == 1 and treedef.num_leaves == 1:
             return structure
@@ -72,7 +77,6 @@ def traverse(func, structure, top_down=True):
                 treedef,
             )
 
-    structure = _dict_to_ordered_dict(structure)
     if top_down:
         ret = func(structure)
         if ret is None:
