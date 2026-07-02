@@ -1165,11 +1165,44 @@ def _ctc_beam_search_decode(
     top_paths=1,
     mask_index=0,
 ):
-    raise NotImplementedError(
-        "OpenVINO CTC beam-search decode is not yet supported. "
-        "The current Keras beam-search algorithm requires path dedup/merge "
-        "via `unique`, and OpenVINO backend `unique` is not implemented yet."
+    # The Keras beam-search algorithm needs path dedup/merge via `unique`,
+    # which is not implemented in the OpenVINO backend. When all inputs
+    # fold to constants at model-build time (numpy arrays, pre-computed
+    # tensors) we delegate to the numpy backend so the common case still
+    # works. Runtime input remains unsupported.
+    inputs_ov = get_ov_output(inputs)
+    seq_ov = get_ov_output(sequence_lengths)
+    if (
+        inputs_ov.get_node().get_type_name() != "Constant"
+        or seq_ov.get_node().get_type_name() != "Constant"
+    ):
+        raise NotImplementedError(
+            "OpenVINO CTC beam-search decode on runtime tensors is not "
+            "supported (the Keras beam-search algorithm requires the "
+            "`unique` op, which is not implemented in the OpenVINO "
+            "backend). Pass constant `inputs` and `sequence_lengths` to "
+            "evaluate at model-build time, or use `strategy='greedy'`."
+        )
+    # Importing the numpy backend's nn module triggers loading of its
+    # package `__init__`, which rebinds `backend.numpy` away from the
+    # active OpenVINO submodule. Save and restore it around the import
+    # so the rest of the OpenVINO dispatch stays intact.
+    saved_backend_numpy = backend.numpy
+    from keras.src.backend.numpy import nn as numpy_nn
+
+    backend.numpy = saved_backend_numpy
+
+    decoded_np, scores_np = numpy_nn.ctc_decode(
+        np.asarray(inputs_ov.get_node().data),
+        np.asarray(seq_ov.get_node().data),
+        strategy="beam_search",
+        beam_width=beam_width,
+        top_paths=top_paths,
+        mask_index=mask_index,
     )
+    decoded_ov = ov_opset.constant(np.asarray(decoded_np)).output(0)
+    scores_ov = ov_opset.constant(np.asarray(scores_np)).output(0)
+    return OpenVINOKerasTensor(decoded_ov), OpenVINOKerasTensor(scores_ov)
 
 
 def ctc_decode(
