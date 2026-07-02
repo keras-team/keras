@@ -1627,6 +1627,33 @@ class Layer(BackendLayer, Operation):
         if name != "_tracker":
             if not hasattr(self, "_tracker"):
                 self._initialize_tracker()
+            # Reassigning an existing tracked sublayer/variable (e.g. swapping
+            # a Dense for a LoRA-wrapped variant after `build()`) needs to
+            # update the tracker in place rather than appending — the latter
+            # is blocked once the tracker is locked. See
+            # keras-team/keras#18601.
+            old_value = (
+                getattr(self, name, None) if hasattr(self, name) else None
+            )
+            if (
+                old_value is not None
+                and old_value is not value
+                and self._tracker.locked
+            ):
+                for store_name, (
+                    is_attr_type,
+                    _,
+                ) in self._tracker.config.items():
+                    if (
+                        is_attr_type(old_value)
+                        and self._tracker.is_in_store(store_name, old_value)
+                        and is_attr_type(value)
+                    ):
+                        self._tracker.replace_tracked_value(
+                            store_name, old_value, value
+                        )
+                        super().__setattr__(name, value)
+                        return
             value = self._tracker.track(value)
 
         # NNX-specific bypass for `_called` and `built` attributes
