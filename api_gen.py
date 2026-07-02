@@ -162,6 +162,7 @@ def build():
             exclude_directories=[
                 os.path.join("src", "backend", "jax"),
                 os.path.join("src", "backend", "openvino"),
+                os.path.join("src", "backend", "paddle"),
                 os.path.join("src", "backend", "tensorflow"),
                 os.path.join("src", "backend", "torch"),
             ],

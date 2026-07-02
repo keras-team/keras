@@ -14,6 +14,10 @@ BACKEND_REQ = {
     ),
     "jax": ("jax[cpu]", ""),
     "openvino": ("openvino", ""),
+    "paddle": (
+        "paddlepaddle==3.3.0",
+        "-i https://www.paddlepaddle.org.cn/packages/stable/cpu/ ",
+    ),
 }
 
 
