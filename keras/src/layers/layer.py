@@ -21,6 +21,10 @@ import functools
 import inspect
 import warnings
 from functools import wraps
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Union
 
 from keras.src import backend
 from keras.src import constraints
@@ -870,7 +874,11 @@ class Layer(BackendLayer, Operation):
         return self.compute_output_spec(*args, **kwargs)
 
     @traceback_utils.filter_traceback
-    def __call__(self, *args, **kwargs):
+    def __call__(
+        self, *args: Any, **kwargs: Any
+    ) -> Union[
+        "KerasTensor", List["KerasTensor"], Dict[str, "KerasTensor"], Any
+    ]:
         self._check_super_called()
         self._called = True
 

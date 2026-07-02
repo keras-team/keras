@@ -2,12 +2,15 @@ import warnings
 
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.layers.layer import Layer
 from keras.src.ops.node import Node
 
 
 @keras_export("keras.layers.InputLayer")
 class InputLayer(Layer):
+    output: "KerasTensor"
+
     def __init__(
         self,
         shape=None,
@@ -95,12 +98,15 @@ class InputLayer(Layer):
         self._batch_shape = backend.standardize_shape(batch_shape)
         self._dtype = backend.standardize_dtype(dtype)
         self.sparse = bool(sparse)
+
         if self.sparse and not backend.SUPPORTS_SPARSE_TENSORS:
             raise ValueError(
                 f"`sparse=True` is not supported with the {backend.backend()} "
                 "backend"
             )
+
         self.ragged = bool(ragged)
+
         if self.ragged and not backend.SUPPORTS_RAGGED_TENSORS:
             raise ValueError(
                 f"`ragged=True` is not supported with the {backend.backend()} "
@@ -115,13 +121,16 @@ class InputLayer(Layer):
                 ragged=ragged,
                 name=name,
             )
+
         self._input_tensor = input_tensor
+
         Node(operation=self, call_args=(), call_kwargs={}, outputs=input_tensor)
+
         self.built = True
         self.optional = optional
 
-    def call(self):
-        return
+    def call(self, *args, **kwargs) -> None:
+        return None
 
     @property
     def batch_shape(self):
@@ -142,7 +151,7 @@ class InputLayer(Layer):
         }
 
 
-@keras_export(["keras.layers.Input", "keras.Input"])
+@keras_export(["keras.Input", "keras.layers.Input"])
 def Input(
     shape=None,
     batch_size=None,
@@ -153,7 +162,7 @@ def Input(
     name=None,
     tensor=None,
     optional=False,
-):
+) -> "KerasTensor":
     """Used to instantiate a Keras tensor.
 
     A Keras tensor is a symbolic tensor-like object, which we augment with
