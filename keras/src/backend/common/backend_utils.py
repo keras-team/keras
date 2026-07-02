@@ -268,6 +268,61 @@ def compute_conv_transpose_output_crops_for_torch(
     return crops
 
 
+def compute_conv_transpose_padding_args_for_mlx(
+    padding,
+    num_spatial_dims,
+    kernel_spatial_shape,
+    dilation_rate,
+    strides,
+    output_padding,
+):
+    # The per-dimension padding is the same as for jax. mlx only differs in how
+    # the paddings are packaged, as separate start and end lists.
+    start_paddings = []
+    end_paddings = []
+    for i in range(num_spatial_dims):
+        output_padding_i = None if output_padding is None else output_padding[i]
+        pad_left, pad_right = (
+            _convert_conv_transpose_padding_args_from_keras_to_jax(
+                kernel_size=kernel_spatial_shape[i],
+                stride=strides[i],
+                dilation_rate=dilation_rate[i],
+                padding=padding,
+                output_padding=output_padding_i,
+            )
+        )
+        start_paddings.append(pad_left)
+        end_paddings.append(pad_right)
+    return (start_paddings, end_paddings)
+
+
+def compute_conv_padding_args_for_mlx(
+    padding,
+    input_spatial_shape,
+    kernel_spatial_shape,
+    dilation_rate,
+    strides,
+):
+    if padding == "valid":
+        return 0
+    elif padding == "same":
+        start_paddings = []
+        end_paddings = []
+        for dim_size, k_size, d_rate, s in zip(
+            input_spatial_shape, kernel_spatial_shape, dilation_rate, strides
+        ):
+            out_size = (dim_size + s - 1) // s
+            effective_k_size = (k_size - 1) * d_rate + 1
+            total_pad = max(0, (out_size - 1) * s + effective_k_size - dim_size)
+            pad_start = total_pad // 2
+            pad_end = total_pad - pad_start
+            start_paddings.append(pad_start)
+            end_paddings.append(pad_end)
+        return (start_paddings, end_paddings)
+    else:
+        raise ValueError(f"Invalid padding value: {padding}")
+
+
 def _get_output_shape_given_tf_padding(
     input_size, kernel_size, strides, padding, output_padding, dilation_rate
 ):

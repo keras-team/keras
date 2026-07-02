@@ -137,6 +137,11 @@ class GrainDatasetAdapter(DataAdapter):
             )
         return dataset
 
+    def get_mlx_iterator(self):
+        # Reuse the numpy iterator (which yields numpy batches) and convert
+        # each leaf to an mlx array.
+        return data_adapter_utils.get_mlx_iterator(self.get_numpy_iterator())
+
     def get_tf_dataset(self):
         def convert_to_tf(x):
             if x is None:

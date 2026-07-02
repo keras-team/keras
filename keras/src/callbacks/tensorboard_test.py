@@ -467,6 +467,10 @@ class TestTensorBoardV2(testing.TestCase):
                     # TODO: Use device scope after the API is added.
                     if tensor.is_cuda:
                         tensor = tensor.cpu()
+                if backend.backend() == "mlx":
+                    # summary.write can't write mlx array directly,
+                    # assuming scalar array, retrieve value first
+                    tensor = tensor.item()
                 summary.write(
                     tag=tag,
                     tensor=tensor,
@@ -610,6 +614,11 @@ class TestTensorBoardV2(testing.TestCase):
     @pytest.mark.skipif(
         backend.backend() == "torch",
         reason="Torch backend requires blocking numpy conversion.",
+    )
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason="mlx arrays have no settable numpy attribute, so the blocking "
+        "trap cannot be installed.",
     )
     @pytest.mark.requires_trainable_backend
     def test_TensorBoard_non_blocking(self):

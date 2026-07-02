@@ -1458,6 +1458,8 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(out.shape, (2, 3, 25, 25))
 
         x = np.ones((2, 3, 10, 10)) * 128
+        if backend.backend() == "mlx":
+            x = x.astype(np.float32)  # mlx backend does not support float64
         out = kimage.resize(
             x, size=(4, 4), pad_to_aspect_ratio=True, fill_value=fill_value
         )
@@ -1465,6 +1467,8 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(out[:, 0, :, :], np.ones((2, 4, 4)) * 128)
 
         x = np.ones((2, 3, 10, 8)) * 128
+        if backend.backend() == "mlx":
+            x = x.astype(np.float32)  # mlx backend does not support float64
         out = kimage.resize(
             x, size=(4, 4), pad_to_aspect_ratio=True, fill_value=fill_value
         )
