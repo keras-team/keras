@@ -2223,6 +2223,23 @@ class TestTrainer(testing.TestCase):
         out3 = model.predict_on_batch(np.ones((2, 20)))
         self.assertGreater(5, np.sum(np.abs(out2 - out3)))
 
+    def test_invalid_target_shape_compatibility_checking(self):
+        inputs = layers.Input(shape=(3,))
+        outputs = layers.Dense(3)(inputs)
+        model = models.Model(inputs, outputs)
+        model.compile(optimizer="adam", loss="mse")
+        bad_y = np.ones((10, 5, 5))
+
+        if backend.backend() == "tensorflow":
+            with self.assertRaisesRegex(ValueError, "Target shape mismatch"):
+                model.fit(np.ones((10, 3)), bad_y, epochs=1, verbose=0)
+        else:
+            with self.assertRaises((ValueError, RuntimeError, TypeError)):
+                model.fit(np.ones((10, 3)), bad_y, epochs=1, verbose=0)
+        dict_y = {"wrong_key_name": np.ones((10, 3))}
+        with self.assertRaises((ValueError, TypeError, RuntimeError)):
+            model.fit(np.ones((10, 3)), dict_y, epochs=1, verbose=0)
+
     @pytest.mark.requires_trainable_backend
     def test_recompile(self):
         model = ExampleModel(units=3)
