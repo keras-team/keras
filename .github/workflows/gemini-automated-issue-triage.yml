@@ -121,38 +121,47 @@ jobs:
         with:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
           script: |-
-            const fs = require('fs');
-            const path = require('path');
-            const { execSync } = require('child_process');
+            const { execFileSync } = require('child_process');
 
             const title = process.env.ISSUE_TITLE || '';
             const body = process.env.ISSUE_BODY || '';
-            const searchTerms = (title + ' ' + body).split(/\W+/).filter(word => word.length > 3).slice(0, 5); // Take first 5 long words
+
+            // Security: extract only safe alphanumeric search terms from user-controlled content.
+            // Use execFileSync (not execSync) to prevent shell injection — args passed as array,
+            // never interpolated into a shell string.
+            const searchTerms = (title + ' ' + body)
+              .split(/\W+/)
+              .filter(word => word.length > 3 && /^[a-zA-Z0-9_]+$/.test(word))
+              .slice(0, 5);
 
             core.info(`Searching for terms: ${searchTerms.join(', ')}`);
 
-            let searchContext = '### Relevant Code Snippets\n\n';
+            let searchContext = '### Relevant Files\n\n';
             let filesFound = new Set();
 
             if (searchTerms.length > 0) {
-              const query = searchTerms.join(' ');
               try {
-                // Use git grep to find matches in tracked files
-                const gitGrepOutput = execSync(`git grep -l "${searchTerms[0]}" -- keras/ || true`, { encoding: 'utf-8' });
-                const files = gitGrepOutput.split('\n').filter(Boolean).slice(0, 3); // Top 3 files
-                
+                // Security: use execFileSync with args array — no shell interpolation.
+                // Only output filenames (not file contents) to prevent sensitive code
+                // from flowing into the AI prompt via SEARCH_CONTEXT.
+                const gitGrepOutput = execFileSync(
+                  'git',
+                  ['grep', '-l', '--', searchTerms[0], 'keras/'],
+                  { encoding: 'utf-8' }
+                );
+                const files = gitGrepOutput.split('\n').filter(Boolean).slice(0, 5);
                 for (const file of files) {
                   filesFound.add(file);
-                  const content = fs.readFileSync(file, 'utf8');
-                  searchContext += `#### File: [${file}](file:///${file})\n\`\`\`python\n${content.split('\n').slice(0, 50).join('\n')}\n\`\`\`\n\n`; // First 50 lines
+                  searchContext += `- \`${file}\`\n`;
                 }
               } catch (e) {
-                core.warning(`Error running git grep: ${e.message}`);
+                // git grep exits non-zero when no matches found
+                core.info(`git grep found no matches: ${e.message}`);
               }
             }
 
             if (filesFound.size === 0) {
-              searchContext += 'No specific code snippets found for these terms.\n';
+              searchContext += 'No specific files found for these terms.\n';
             }
 
             core.setOutput('search_context', searchContext);
