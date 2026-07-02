@@ -451,7 +451,11 @@ _ZIP_MEMBER_MAX_EXPANSION = 100
 
 def _reject_zip_bomb(archive, name):
     """Raise if a ZIP member is a decompression bomb (see CWE-409)."""
-    info = archive.getinfo(name)
+    if isinstance(name, zipfile.ZipInfo):
+        info = name
+        name = info.filename
+    else:
+        info = archive.getinfo(name)
     if (
         info.file_size > _ZIP_MEMBER_BOMB_FLOOR_BYTES
         and info.file_size > _ZIP_MEMBER_MAX_EXPANSION * info.compress_size
@@ -1092,6 +1096,18 @@ class DiskIOStore:
         if self.archive:
             self.tmp_dir = get_temp_dir()
             if self.mode == "r":
+                if isinstance(self.archive, zipfile.ZipFile):
+                    for zinfo in self.archive.infolist():
+                        if (
+                            zinfo.file_size > _ZIP_MEMBER_BOMB_FLOOR_BYTES
+                            and zinfo.file_size > _ZIP_MEMBER_MAX_EXPANSION * zinfo.compress_size
+                        ):
+                            raise ValueError(
+                                f"Not allowed: ZIP member '{zinfo.filename}' declares "
+                                f"{readable_memory_size(zinfo.file_size)} but only "
+                                f"{readable_memory_size(zinfo.compress_size)} are stored on disk; "
+                                "refusing to load a potential decompression bomb."
+                            )
                 file_utils.extract_open_archive(self.archive, self.tmp_dir)
             self.working_dir = file_utils.join(
                 self.tmp_dir, self.root_path
