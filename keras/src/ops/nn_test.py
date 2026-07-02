@@ -1,5 +1,6 @@
 import math
 from itertools import combinations
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -1828,6 +1829,38 @@ class NNOpsCorrectnessTest(testing.TestCase):
             groups=1,
         )
         self.assertAllClose(outputs, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
+
+    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only")
+    def test_torch_channels_last_pointwise_conv_direct_path(self):
+        from keras.src.backend.torch import nn as torch_nn
+
+        inputs_2d = np.arange(120, dtype="float32").reshape((2, 4, 5, 3))
+        kernel = np.arange(6, dtype="float32").reshape((1, 1, 3, 2))
+
+        with mock.patch.object(
+            torch_nn.tnn,
+            "conv2d",
+            side_effect=AssertionError("conv2d should not be called"),
+        ):
+            outputs = knn.conv(
+                inputs_2d,
+                kernel,
+                strides=(2, 3),
+                padding="same",
+                data_format="channels_last",
+            )
+
+        expected = np_conv2d(
+            inputs_2d,
+            kernel,
+            bias_weights=np.zeros((2,)),
+            strides=(2, 3),
+            padding="same",
+            data_format="channels_last",
+            dilation_rate=1,
+            groups=1,
+        )
+        self.assertAllClose(outputs, expected)
 
     @parameterized.product(strides=(1, 2), dilation_rate=(1, (2, 1)))
     def test_conv_2d_group_2(self, strides, dilation_rate):
