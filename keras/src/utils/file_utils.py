@@ -123,19 +123,103 @@ def filter_safe_tarinfos(members, base_dir):
             )
 
 
+# An archive member whose declared (uncompressed) size exceeds this floor and
+# more than `_EXTRACT_BOMB_MAX_EXPANSION` times the bytes stored on disk is
+# treated as a decompression bomb (CWE-409), as is any archive whose members
+# cumulatively do (CWE-400). Genuine archives store their data at a ratio far
+# below this, so the guard is false-positive-free; the 256 MiB floor matches
+# the `.keras` asset-extraction guard.
+_EXTRACT_BOMB_FLOOR_BYTES = 1 << 28  # 256 MiB
+_EXTRACT_BOMB_MAX_EXPANSION = 100
+
+
+def _archive_stored_size(archive):
+    """Best-effort on-disk (compressed) size of an open archive.
+
+    Used as the denominator of the decompression-ratio check. Returns `None`
+    if it cannot be determined, which disables the cumulative ratio check (the
+    per-member zip check still applies).
+    """
+    name = getattr(archive, "name", None) or getattr(archive, "filename", None)
+    try:
+        if name is not None and os.path.exists(name):
+            return os.path.getsize(name)
+    except (OSError, TypeError, ValueError):
+        pass
+    if isinstance(archive, zipfile.ZipFile):
+        return sum(info.compress_size for info in archive.infolist())
+    return None
+
+
+def _reject_extraction_bombs(members, stored_size):
+    """Yield path-filtered members, refusing to extract a decompression bomb.
+
+    Bounds the declared (uncompressed) size of each member, and the running
+    total across members, against the archive's stored size on disk, so
+    neither a single oversized member nor many smaller ones can write
+    unbounded data to disk (CWE-409 / CWE-400). Members are consumed lazily,
+    so a tar member is rejected from its header before its data is extracted.
+    `stored_size` of `None` (unknown) disables the cumulative ratio check.
+    """
+    cap = None
+    if stored_size is not None:
+        cap = max(
+            _EXTRACT_BOMB_FLOOR_BYTES,
+            _EXTRACT_BOMB_MAX_EXPANSION * stored_size,
+        )
+    total = 0
+    for finfo in members:
+        # `ZipInfo.file_size` / `TarInfo.size`: the declared uncompressed size,
+        # available from the member header before any data is read.
+        declared = getattr(finfo, "file_size", None)
+        if declared is None:
+            declared = getattr(finfo, "size", 0) or 0
+        # Clamp a negative size from a malformed archive: it would otherwise
+        # decrease the running total and let a later oversized member slip past
+        # the cumulative cap.
+        declared = max(0, declared)
+        name = getattr(finfo, "filename", None) or getattr(finfo, "name", "?")
+        # Per-member ratio: a zip member carries its own stored size, so a
+        # single hugely-expanding member is a bomb regardless of the others.
+        compress_size = getattr(finfo, "compress_size", None)
+        if (
+            compress_size is not None
+            and declared > _EXTRACT_BOMB_FLOOR_BYTES
+            and declared > _EXTRACT_BOMB_MAX_EXPANSION * compress_size
+        ):
+            raise ValueError(
+                f"Not allowed: archive member '{name}' declares "
+                f"{declared / (1 << 20):.1f} MiB but only "
+                f"{compress_size / (1 << 20):.1f} MiB are stored on disk; "
+                "refusing to extract a decompression bomb."
+            )
+        total += declared
+        if cap is not None and total > cap:
+            raise ValueError(
+                f"Not allowed: extracting '{name}' would write "
+                f"{total / (1 << 20):.1f} MiB from a "
+                f"{stored_size / (1 << 20):.1f} MiB archive; refusing to "
+                "extract a potential decompression bomb."
+            )
+        yield finfo
+
+
 def extract_open_archive(archive, path="."):
     """Extracts an open tar or zip archive to the provided directory.
 
-    This function filters unsafe paths during extraction.
+    This function filters unsafe paths and rejects decompression bombs during
+    extraction.
 
     Args:
         archive: The archive object, either a `TarFile` or a `ZipFile`.
         path: Where to extract the archive file.
     """
+    stored_size = _archive_stored_size(archive)
     if isinstance(archive, zipfile.ZipFile):
         # Zip archive.
+        members = filter_safe_zipinfos(archive.infolist(), path)
         archive.extractall(
-            path, members=filter_safe_zipinfos(archive.infolist(), path)
+            path, members=_reject_extraction_bombs(members, stored_size)
         )
     else:
         # Tar archive.
@@ -150,9 +234,10 @@ def extract_open_archive(archive, path="."):
             and "filter" in inspect.signature(archive.extractall).parameters
         ):
             extractall_kwargs = {"filter": "data"}
+        members = filter_safe_tarinfos(archive, path)
         archive.extractall(
             path,
-            members=filter_safe_tarinfos(archive, path),
+            members=_reject_extraction_bombs(members, stored_size),
             **extractall_kwargs,
         )
 
@@ -199,7 +284,12 @@ def extract_archive(file_path, path=".", archive_format="auto"):
             with open_fn(file_path) as archive:
                 try:
                     extract_open_archive(archive, path)
-                except (tarfile.TarError, RuntimeError, KeyboardInterrupt):
+                except (
+                    tarfile.TarError,
+                    RuntimeError,
+                    KeyboardInterrupt,
+                    ValueError,
+                ):
                     if os.path.exists(path):
                         if os.path.isfile(path):
                             os.remove(path)
