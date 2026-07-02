@@ -16,6 +16,9 @@ from keras.src.callbacks.lambda_callback import LambdaCallback as LambdaCallback
 from keras.src.callbacks.learning_rate_scheduler import (
     LearningRateScheduler as LearningRateScheduler,
 )
+from keras.src.callbacks.memory_usage_callback import (
+    MemoryUsageCallback as MemoryUsageCallback,
+)
 from keras.src.callbacks.model_checkpoint import (
     ModelCheckpoint as ModelCheckpoint,
 )
