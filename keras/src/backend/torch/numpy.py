@@ -2480,3 +2480,8 @@ def dsplit(x, indices_or_sections):
     if not isinstance(indices_or_sections, int):
         indices_or_sections = convert_to_tensor(indices_or_sections).tolist()
     return list(torch.dsplit(x, indices_or_sections))
+
+
+def column_stack(xs):
+    xs = [convert_to_tensor(x) for x in xs]
+    return torch.column_stack(xs)
