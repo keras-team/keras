@@ -270,7 +270,7 @@ class RandomCrop(BaseImagePreprocessingLayer):
         masks = self.backend.convert_to_tensor(segmentation_masks)
         in_dtype = masks.dtype
         outputs = self.transform_images(
-            masks, transformation, interpolation="nearest"
+            masks, transformation, training=training, interpolation="nearest"
         )
         return self.backend.cast(outputs, in_dtype)
 

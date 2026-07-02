@@ -177,3 +177,11 @@ class RandomCropTest(testing.TestCase):
         result = backend.convert_to_numpy(out["segmentation_masks"])
         self.assertEqual(result.dtype, np.uint8)
         self.assertTrue(set(np.unique(result).tolist()).issubset({0, 4}))
+
+        # With training=False the layer is a no-op: images and masks must
+        # pass through unchanged (and keep matching shapes).
+        out_eval = layer(
+            {"images": images, "segmentation_masks": masks}, training=False
+        )
+        self.assertAllClose(out_eval["images"], images)
+        self.assertAllClose(out_eval["segmentation_masks"], masks)
