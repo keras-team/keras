@@ -1,5 +1,6 @@
 import numpy as np
 import openvino.opset16 as ov_opset
+import openvino.opset17 as ov_opset17
 import scipy.signal
 from openvino import Type
 
@@ -928,55 +929,8 @@ def erfc(x):
 
 
 def erfinv(x):
-    # TODO: Float64 infinity values are clamped on CPU backend,
-    # breaking erfinv(±1) = ±inf
-    # See https://github.com/openvinotoolkit/openvino/issues/34138
-    # Tests excluded: test_erfinv_operation_basic, test_erfinv_operation_dtype
     x = get_ov_output(x)
-    dtype = x.get_element_type()
-
-    a = 0.147
-    two_over_pi_a = 2.0 / (np.pi * a)
-    two_over_sqrt_pi = 2.0 / np.sqrt(np.pi)
-
-    one = ov_opset.constant(1.0, dtype).output(0)
-    half = ov_opset.constant(0.5, dtype).output(0)
-
-    x_sq = ov_opset.multiply(x, x).output(0)
-    log_term = ov_opset.log(ov_opset.subtract(one, x_sq).output(0)).output(0)
-
-    k = ov_opset.add(
-        ov_opset.constant(two_over_pi_a, dtype).output(0),
-        ov_opset.multiply(half, log_term).output(0),
-    ).output(0)
-
-    inner = ov_opset.subtract(
-        ov_opset.multiply(k, k).output(0),
-        ov_opset.multiply(
-            ov_opset.constant(1.0 / a, dtype).output(0), log_term
-        ).output(0),
-    ).output(0)
-
-    y0 = ov_opset.multiply(
-        ov_opset.sign(x).output(0),
-        ov_opset.sqrt(
-            ov_opset.subtract(ov_opset.sqrt(inner).output(0), k).output(0)
-        ).output(0),
-    ).output(0)
-
-    erf_err = ov_opset.subtract(ov_opset.erf(y0).output(0), x).output(0)
-
-    y0_sq = ov_opset.multiply(y0, y0).output(0)
-    exp_term = ov_opset.exp(ov_opset.negative(y0_sq).output(0)).output(0)
-    deriv = ov_opset.multiply(
-        ov_opset.constant(two_over_sqrt_pi, dtype).output(0),
-        exp_term,
-    ).output(0)
-    y1 = ov_opset.subtract(
-        y0, ov_opset.divide(erf_err, deriv).output(0)
-    ).output(0)
-
-    return OpenVINOKerasTensor(y1)
+    return OpenVINOKerasTensor(ov_opset17.erfinv(x).output(0))
 
 
 def logdet(x):

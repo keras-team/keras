@@ -50,10 +50,15 @@ def export_onnx(
     optimize the ONNX artifact using the ONNX toolkit. Learn more here:
     [https://onnxruntime.ai/docs/performance/](https://onnxruntime.ai/docs/performance/).
 
-    **Note:** The dynamic shape feature is not yet supported with Torch
-    backend. As a result, you must fully define the shapes of the inputs using
-    `input_signature`. If `input_signature` is not provided, all instances of
-    `None` (such as the batch size) will be replaced with `1`.
+    **Note:** With the Torch backend, dynamic input shapes are supported for
+    non-recurrent models, so the exported graph accepts variable batch,
+    spatial, or sequence dimensions. Recurrent layers (e.g. `SimpleRNN`,
+    `LSTM`, `GRU`) are an exception: their time dimension must be static,
+    because TorchScript bakes the sequence length into the exported graph.
+    Exporting a recurrent model whose time axis is dynamic raises a
+    `ValueError`, so leave only the batch dimension as `None` in that case.
+    If `input_signature` is not provided, all instances of `None` (such as
+    the batch size) are replaced with `1`.
 
     Example:
 
@@ -144,6 +149,39 @@ def export_onnx(
             if dynamic_dims:
                 dynamic_axes[input_names[input_idx]] = dynamic_dims
 
+        # TorchScript bakes the build-time sequence length into recurrent
+        # layers, so exporting an RNN whose time axis is dynamic silently
+        # produces wrong outputs or fails at runtime. Raise for that case.
+        # A dynamic batch dimension, or dynamic axes on non-recurrent layers,
+        # export correctly and are left alone, so each recurrent layer is
+        # checked against its own input sequence shape.
+        from keras.src.layers.rnn.rnn import RNN
+
+        dynamic_recurrent_layers = set()
+        for layer in model._flatten_layers():
+            if not isinstance(layer, RNN):
+                continue
+            build_shapes = getattr(layer, "_build_shapes_dict", None) or {}
+            sequences_shape = build_shapes.get("sequences_shape")
+            # The sequence (time) axis is dimension 1: `[batch, time, ...]`.
+            if (
+                sequences_shape is not None
+                and len(sequences_shape) > 1
+                and sequences_shape[1] is None
+            ):
+                dynamic_recurrent_layers.add(layer.__class__.__name__)
+
+        if dynamic_recurrent_layers:
+            raise ValueError(
+                "ONNX export with the torch backend does not support a "
+                "dynamic time dimension for recurrent layers (found: "
+                f"{sorted(dynamic_recurrent_layers)}). TorchScript bakes in "
+                "the sequence length at export time, which yields incorrect "
+                "results for other lengths. Provide a static sequence length "
+                "in `input_signature`; only the batch dimension may be "
+                "dynamic for models with recurrent layers."
+            )
+
         sample_inputs = tree.map_structure(
             lambda x: convert_spec_to_tensor(x, replace_none_number=1),
             input_signature,
@@ -220,55 +258,56 @@ def export_onnx(
                 category=torch.jit.TracerWarning,
             )
 
-        # When dynamic shapes are present, prefer TorchScript over
-        # TorchDynamo because TorchDynamo has constraint inference issues
-        # with dynamic dimensions
-        if not dynamic_axes:
-            try:
-                # Try the TorchDynamo-based ONNX exporter first for static
-                # shapes
-                export_kwargs = {
-                    "verbose": actual_verbose,
-                    "opset_version": opset_version,
-                    "input_names": input_names,
-                    "dynamo": True,
-                }
+            # When dynamic shapes are present, prefer TorchScript over
+            # TorchDynamo because TorchDynamo has constraint inference issues
+            # with dynamic dimensions
+            if not dynamic_axes:
+                try:
+                    # Try the TorchDynamo-based ONNX exporter first for static
+                    # shapes
+                    export_kwargs = {
+                        "verbose": actual_verbose,
+                        "opset_version": opset_version,
+                        "input_names": input_names,
+                        "dynamo": True,
+                    }
 
-                onnx_program = torch.onnx.export(
-                    export_model, sample_inputs, **export_kwargs
-                )
-                if hasattr(onnx_program, "optimize"):
-                    onnx_program.optimize()  # Only supported by torch>=2.6.0.
-                onnx_program.save(filepath)
+                    onnx_program = torch.onnx.export(
+                        export_model, sample_inputs, **export_kwargs
+                    )
+                    if hasattr(onnx_program, "optimize"):
+                        # Only supported by torch>=2.6.0.
+                        onnx_program.optimize()
+                    onnx_program.save(filepath)
 
-                return
-            except Exception:
-                pass
+                    return
+                except Exception:
+                    pass
 
-        """Export using TorchScript-based ONNX exporter."""
-        # Set verbose to False for TorchScript due to file system leakage
-        torchscript_verbose = verbose
-        if verbose is None:
-            # Set to `False` due to file system leakage issue:
-            # https://github.com/keras-team/keras/issues/20826
-            torchscript_verbose = False
+            # Export using the TorchScript-based ONNX exporter.
+            # Set verbose to False for TorchScript due to file system leakage
+            torchscript_verbose = verbose
+            if verbose is None:
+                # Set to `False` due to file system leakage issue:
+                # https://github.com/keras-team/keras/issues/20826
+                torchscript_verbose = False
 
-        export_kwargs = {
-            "verbose": torchscript_verbose,
-            "opset_version": opset_version,
-            "input_names": input_names,
-            "export_params": True,
-            "do_constant_folding": True,
-            "dynamo": False,
-        }
+            export_kwargs = {
+                "verbose": torchscript_verbose,
+                "opset_version": opset_version,
+                "input_names": input_names,
+                "export_params": True,
+                "do_constant_folding": True,
+                "dynamo": False,
+            }
 
-        # For TorchScript (dynamo=False), use dynamic_axes parameter
-        if dynamic_axes:
-            export_kwargs["dynamic_axes"] = dynamic_axes
+            # For TorchScript (dynamo=False), use dynamic_axes parameter
+            if dynamic_axes:
+                export_kwargs["dynamic_axes"] = dynamic_axes
 
-        torch.onnx.export(
-            export_model, sample_inputs, filepath, **export_kwargs
-        )
+            torch.onnx.export(
+                export_model, sample_inputs, filepath, **export_kwargs
+            )
     else:
         raise NotImplementedError(
             "`export_onnx` is only compatible with TensorFlow, JAX and "

@@ -1,5 +1,6 @@
 import warnings
 
+import numpy as np
 import openvino as ov
 import openvino.opset16 as ov_opset
 from openvino import Model
@@ -1636,13 +1637,118 @@ def svd(x, full_matrices=True, compute_uv=True):
 
 
 def lstsq(a, b, rcond=None):
-    raise NotImplementedError("`lstsq` is not supported with openvino backend")
+    # OpenVINO has no SVD op, so the symbolic path is QR-based. For
+    # full-rank `a` this matches `numpy.linalg.lstsq` (including the
+    # minimum-norm solution in the under-determined case). `rcond` is
+    # accepted for API parity but ignored — it only affects the SVD-based
+    # rank truncation that this implementation cannot do.
+    a = convert_to_tensor(a)
+    b = convert_to_tensor(b)
+    if a.ndim != 2:
+        raise TypeError(
+            f"{a.ndim}-dimensional array given. Array must be two-dimensional"
+        )
+    if b.ndim not in (1, 2):
+        raise TypeError(
+            f"{b.ndim}-dimensional array given. "
+            "Array must be one or two-dimensional"
+        )
+    if a.shape[0] != b.shape[0]:
+        raise ValueError("Leading dimensions of input arrays must match")
+
+    a_ov = get_ov_output(a)
+    b_ov = get_ov_output(b)
+
+    # Constant-folding fast path: chained Transpose + Inverse + MatMul on
+    # constants triggers a CPU plugin folding bug that returns zeros, so
+    # fall back to numpy whenever both inputs are constant. The symbolic
+    # OpenVINO graph below is correct at runtime (with Parameter inputs).
+    a_node = a_ov.get_node()
+    b_node = b_ov.get_node()
+    if (
+        a_node.get_type_name() == "Constant"
+        and b_node.get_type_name() == "Constant"
+    ):
+        x_np = np.linalg.lstsq(
+            np.asarray(a_node.data), np.asarray(b_node.data), rcond=rcond
+        )[0]
+        return OpenVINOKerasTensor(ov_opset.constant(x_np).output(0))
+
+    del rcond  # Ignored on the symbolic path; see note above.
+
+    m, n = a.shape
+    squeeze_out = b.ndim == 1
+    if squeeze_out:
+        b_ov = ov_opset.unsqueeze(
+            b_ov, ov_opset.constant([-1], Type.i32)
+        ).output(0)
+
+    orig_type = a_ov.get_element_type()
+    if orig_type == Type.f64:
+        a_ov = ov_opset.convert(a_ov, Type.f32).output(0)
+        b_ov = ov_opset.convert(b_ov, Type.f32).output(0)
+
+    if m >= n:
+        # Over-determined / square: A = Q R (Q is (M, N), R is (N, N)).
+        # Solve `R x = Q^T b` with an upper-triangular solve.
+        q, r = qr(OpenVINOKerasTensor(a_ov), mode="reduced")
+        q_ov = get_ov_output(q)
+        rhs = OpenVINOKerasTensor(
+            ov_opset.matmul(q_ov, b_ov, True, False).output(0)
+        )
+        x_ov = get_ov_output(solve_triangular(r, rhs, lower=False))
+    else:
+        # Under-determined: take QR of A^T to get the minimum-norm
+        # solution. A^T = Q R, then A = R^T Q^T, so `A x = b` gives
+        # `R^T z = b` with `x = Q z`.
+        a_t_ov = ov_opset.transpose(
+            a_ov, ov_opset.constant([1, 0], Type.i32)
+        ).output(0)
+        q, r = qr(OpenVINOKerasTensor(a_t_ov), mode="reduced")
+        r_t = OpenVINOKerasTensor(
+            ov_opset.transpose(
+                get_ov_output(r), ov_opset.constant([1, 0], Type.i32)
+            ).output(0)
+        )
+        z_ov = get_ov_output(
+            solve_triangular(r_t, OpenVINOKerasTensor(b_ov), lower=True)
+        )
+        x_ov = ov_opset.matmul(get_ov_output(q), z_ov, False, False).output(0)
+
+    if orig_type == Type.f64:
+        x_ov = ov_opset.convert(x_ov, Type.f64).output(0)
+    if squeeze_out:
+        x_ov = ov_opset.squeeze(x_ov, ov_opset.constant([-1], Type.i32)).output(
+            0
+        )
+    return OpenVINOKerasTensor(x_ov)
 
 
 def matrix_rank(x, tol=None):
-    raise NotImplementedError(
-        "`matrix_rank` is not supported with openvino backend"
+    # Matrix rank requires SVD, which OpenVINO doesn't have. When the input
+    # is a Constant we can fall back to numpy and return the result as a
+    # Constant node — this covers the common case of computing the rank
+    # of a known matrix at model-build time. Runtime inputs (Parameters)
+    # remain unsupported until OpenVINO gains an SVD op.
+    x = convert_to_tensor(x)
+    if x.ndim < 2:
+        raise ValueError(
+            "Expected input to have rank >= 2. "
+            f"Received input with shape {x.shape}."
+        )
+    x_ov = get_ov_output(x)
+    x_node = x_ov.get_node()
+    if x_node.get_type_name() != "Constant":
+        raise NotImplementedError(
+            "`matrix_rank` on the OpenVINO backend only supports inputs "
+            "that fold to a constant at model-build time (e.g. numpy "
+            "arrays or pre-computed tensors). Runtime input is not "
+            "supported because OpenVINO has no SVD op."
+        )
+    rank_np = np.linalg.matrix_rank(np.asarray(x_node.data), tol=tol).astype(
+        "int32"
     )
+    return OpenVINOKerasTensor(ov_opset.constant(rank_np).output(0))
 
 
 def pinv(x, rcond=None):
