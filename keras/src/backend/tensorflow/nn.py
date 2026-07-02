@@ -998,14 +998,24 @@ def _conv_stride_dilation_decomposition(
             f"`padding` must be 'valid' or 'same'. Received: padding={padding}"
         )
 
-    outputs = tf.nn.convolution(
-        inputs,
-        kernel,
-        strides=1,
-        padding="VALID",
-        data_format=_convert_data_format("channels_last", num_spatial_dims + 2),
-        dilations=dilation_rate,
-    )
+    def _run_conv():
+        return tf.nn.convolution(
+            inputs,
+            kernel,
+            strides=1,
+            padding="VALID",
+            data_format=_convert_data_format(
+                "channels_last", num_spatial_dims + 2
+            ),
+            dilations=dilation_rate,
+        )
+
+    # Grouped convolutions are broken on CPU without XLA (see `conv`).
+    # `inputs` is already `channels_last` at this point.
+    if inputs.shape[-1] != kernel.shape[-2]:
+        outputs = tf.function(_run_conv, jit_compile=True)()
+    else:
+        outputs = _run_conv()
 
     slices = [slice(None)]
     slices.extend(slice(None, None, s) for s in strides)
