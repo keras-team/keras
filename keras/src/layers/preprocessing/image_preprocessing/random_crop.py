@@ -128,7 +128,9 @@ class RandomCrop(BaseImagePreprocessingLayer):
 
         return h_start, w_start
 
-    def transform_images(self, images, transformation, training=True):
+    def transform_images(
+        self, images, transformation, training=True, interpolation="bilinear"
+    ):
         if training:
             images = self.backend.cast(images, self.compute_dtype)
             crop_box_hstart, crop_box_wstart = transformation
@@ -179,6 +181,7 @@ class RandomCrop(BaseImagePreprocessingLayer):
                 images = self.backend.image.resize(
                     images,
                     size=(self.height, self.width),
+                    interpolation=interpolation,
                     data_format=self.data_format,
                 )
                 # Resize may have upcasted the outputs
@@ -262,7 +265,14 @@ class RandomCrop(BaseImagePreprocessingLayer):
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
-        return self.transform_images(segmentation_masks, transformation)
+        # Use nearest-neighbor interpolation on the resize fallback so masks
+        # keep their discrete class indices, and restore the original dtype.
+        masks = self.backend.convert_to_tensor(segmentation_masks)
+        in_dtype = masks.dtype
+        outputs = self.transform_images(
+            masks, transformation, training=training, interpolation="nearest"
+        )
+        return self.backend.cast(outputs, in_dtype)
 
     def compute_output_shape(self, input_shape, *args, **kwargs):
         input_shape = list(input_shape)
