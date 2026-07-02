@@ -2715,22 +2715,38 @@ def _normalize(x, axis=-1, order=2, epsilon=None):
             f"Argument `order` must be an int >= 1. Received: order={order}"
         )
     x = backend.convert_to_tensor(x)
-    if len(x.shape) == 0:
-        x = backend.numpy.expand_dims(x, axis=0)
     if epsilon is None:
         epsilon = backend.epsilon()
+    # Compute in at least float32 precision for stability in half precision:
+    # `epsilon ** 2` below underflows to 0 in float16, which would let `rsqrt`
+    # see 0 again and reintroduce the NaN gradients this guards against.
+    original_dtype = backend.standardize_dtype(x.dtype)
+    compute_dtype = backend.result_type(x.dtype, "float32")
+    x = backend.cast(x, compute_dtype)
+    if len(x.shape) == 0:
+        x = backend.numpy.expand_dims(x, axis=0)
     if 2 == order:
         # A special case: L2 normalization with `x * rsqrt(...)`
-        # instead of `x / sqrt(...)`
+        # instead of `x / sqrt(...)`.
+        # Clamp the squared norm *before* the rsqrt rather than clamping
+        # its output afterwards. `rsqrt(0)` is `inf`, and its derivative
+        # involves `0 * inf = NaN`, so a zero vector produces NaN gradients
+        # that a `minimum` on the output cannot undo (see #23075). Lower-
+        # bounding the input at `epsilon ** 2` keeps the gradient finite and
+        # yields the same value as the previous `minimum(inv_norm, 1/epsilon)`
+        # clamp, since `rsqrt(epsilon ** 2) == 1 / epsilon`.
         square_sum = backend.numpy.sum(
             backend.numpy.square(x), axis=axis, keepdims=True
         )
-        inv_norm = backend.math.rsqrt(square_sum)
-        inv_norm = backend.numpy.minimum(inv_norm, 1.0 / epsilon)
-        return x * inv_norm
-    norm = backend.linalg.norm(x, ord=order, axis=axis, keepdims=True)
-    denom = backend.numpy.maximum(norm, epsilon)
-    return backend.numpy.divide(x, denom)
+        inv_norm = backend.math.rsqrt(
+            backend.numpy.maximum(square_sum, epsilon * epsilon)
+        )
+        outputs = x * inv_norm
+    else:
+        norm = backend.linalg.norm(x, ord=order, axis=axis, keepdims=True)
+        denom = backend.numpy.maximum(norm, epsilon)
+        outputs = backend.numpy.divide(x, denom)
+    return backend.cast(outputs, original_dtype)
 
 
 class PSNR(Operation):
