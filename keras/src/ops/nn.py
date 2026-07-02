@@ -708,10 +708,12 @@ class Glu(Operation):
         self.axis = axis
 
     def call(self, x):
+        canonicalize_axis(self.axis, len(x.shape))
         return backend.nn.glu(x, axis=self.axis)
 
     def compute_output_spec(self, x):
         output_shape = list(x.shape)
+        canonicalize_axis(self.axis, len(output_shape))
         if output_shape[self.axis] is not None:
             if output_shape[self.axis] % 2 != 0:
                 raise ValueError(
@@ -748,6 +750,7 @@ def glu(x, axis=-1):
     """
     if any_symbolic_tensors((x,)):
         return Glu(axis).symbolic_call(x)
+    canonicalize_axis(axis, len(x.shape))
     return backend.nn.glu(x, axis=axis)
 
 
