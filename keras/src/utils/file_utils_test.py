@@ -476,6 +476,46 @@ class GetFileTest(test_case.TestCase):
         ):
             _ = file_utils.get_file("test.txt", origin, file_hash=hashval)
 
+    def test_get_file_rejects_path_segments_in_fname(self):
+        orig_dir = self.get_temp_dir()
+        file_path = os.path.join(orig_dir, "test.txt")
+        with open(file_path, "w") as text_file:
+            text_file.write("Float like a butterfly, sting like a bee.")
+
+        origin = urllib.parse.urljoin(
+            "file://", urllib.request.pathname2url(os.path.abspath(file_path))
+        )
+
+        with self.assertRaisesRegex(
+            ValueError, "Paths are no longer accepted as the `fname` argument"
+        ):
+            _ = file_utils.get_file("..\\evil.txt", origin)
+
+        with self.assertRaisesRegex(
+            ValueError, "Paths are no longer accepted as the `fname` argument"
+        ):
+            _ = file_utils.get_file("../evil.txt", origin)
+
+    def test_get_file_rejects_relative_cache_subdir_traversal(self):
+        orig_dir = self.get_temp_dir()
+        file_path = os.path.join(orig_dir, "test.txt")
+        with open(file_path, "w") as text_file:
+            text_file.write("Float like a butterfly, sting like a bee.")
+
+        origin = urllib.parse.urljoin(
+            "file://", urllib.request.pathname2url(os.path.abspath(file_path))
+        )
+
+        with self.assertRaisesRegex(
+            ValueError, "The `cache_subdir` argument must stay within `cache_dir`"
+        ):
+            _ = file_utils.get_file(
+                "test.txt",
+                origin,
+                cache_dir=self.get_temp_dir(),
+                cache_subdir="../outside",
+            )
+
     def _create_tar_file(self, directory):
         """Helper function to create a tar file."""
         text_file_path = os.path.join(directory, "test.txt")
