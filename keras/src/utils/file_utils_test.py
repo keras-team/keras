@@ -507,7 +507,9 @@ class GetFileTest(test_case.TestCase):
         )
 
         with self.assertRaisesRegex(
-            ValueError, "The `cache_subdir` argument must stay within `cache_dir`"
+            ValueError,
+            "The `cache_subdir` argument must stay within "
+            "`cache_dir`",
         ):
             _ = file_utils.get_file(
                 "test.txt",
