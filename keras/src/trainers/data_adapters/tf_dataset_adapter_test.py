@@ -216,6 +216,7 @@ class TestTFDatasetAdapter(testing.TestCase):
         data_distribution = mock.Mock()
         data_distribution.num_processes = 2
         data_distribution.num_model_replicas = 2
+        data_distribution.num_data_shards = 2
         data_distribution.data_shard_id = 0
         # Mimic that there are 2 worker, and each of the worker will get batch
         # size of 8

@@ -24,23 +24,10 @@ class TorchDataLoaderAdapter(DataAdapter):
         self._num_data_shards = 1
         self._data_shard_id = 0
         if dist is not None and getattr(dist, "auto_shard_dataset", False):
-            self._num_data_shards = min(
-                dist.num_model_replicas, dist.num_processes
-            )
+            self._num_data_shards = dist.num_data_shards
             self._data_shard_id = dist.data_shard_id
 
-        if (
-            dist is not None
-            and dist._is_multi_process
-            and getattr(dist, "auto_shard_dataset", False)
-        ):
-            # Detect shuffle from dataloader
-            shuffle = False
-            if hasattr(dataloader, "sampler") and isinstance(
-                dataloader.sampler, torch.utils.data.RandomSampler
-            ):
-                shuffle = True
-
+        if self._num_data_shards > 1:
             dataset = dataloader.dataset
             if isinstance(dataset, torch.utils.data.IterableDataset):
 
@@ -73,14 +60,24 @@ class TorchDataLoaderAdapter(DataAdapter):
                     ),
                     batch_size=dataloader.batch_size,
                     num_workers=dataloader.num_workers,
+                    collate_fn=dataloader.collate_fn,
                     pin_memory=dataloader.pin_memory,
                     drop_last=dataloader.drop_last,
                     timeout=dataloader.timeout,
                     worker_init_fn=dataloader.worker_init_fn,
+                    multiprocessing_context=dataloader.multiprocessing_context,
+                    generator=dataloader.generator,
                     prefetch_factor=dataloader.prefetch_factor,
                     persistent_workers=dataloader.persistent_workers,
                 )
             else:
+                # Detect shuffle from dataloader
+                shuffle = False
+                if hasattr(dataloader, "sampler") and isinstance(
+                    dataloader.sampler, torch.utils.data.RandomSampler
+                ):
+                    shuffle = True
+
                 sampler = torch.utils.data.distributed.DistributedSampler(
                     dataset,
                     num_replicas=self._num_data_shards,
@@ -92,10 +89,13 @@ class TorchDataLoaderAdapter(DataAdapter):
                     batch_size=dataloader.batch_size,
                     sampler=sampler,
                     num_workers=dataloader.num_workers,
+                    collate_fn=dataloader.collate_fn,
                     pin_memory=dataloader.pin_memory,
                     drop_last=dataloader.drop_last,
                     timeout=dataloader.timeout,
                     worker_init_fn=dataloader.worker_init_fn,
+                    multiprocessing_context=dataloader.multiprocessing_context,
+                    generator=dataloader.generator,
                     prefetch_factor=dataloader.prefetch_factor,
                     persistent_workers=dataloader.persistent_workers,
                 )
@@ -117,11 +117,13 @@ class TorchDataLoaderAdapter(DataAdapter):
         if hasattr(self._dataloader, "sampler") and hasattr(
             self._dataloader.sampler, "set_epoch"
         ):
+            # DistributedSampler requires `set_epoch` to be called at the
+            # beginning of each epoch to ensure that the data is shuffled
+            # differently across epochs.
             self._dataloader.sampler.set_epoch(self._epoch)
 
     def on_epoch_end(self):
         self._epoch += 1
-        self._output_signature = None
 
     def get_numpy_iterator(self):
         for batch in self._dataloader:
