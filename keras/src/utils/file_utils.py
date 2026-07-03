@@ -306,13 +306,6 @@ def get_file(
         datadir_base = os.path.join(
             "/tmp" if os.path.isdir("/tmp") else tempfile.gettempdir(), ".keras"
         )
-    cache_subdir = path_to_string(cache_subdir)
-    if not os.path.isabs(cache_subdir):
-        if resolve_sub_path(resolve_path(datadir_base), cache_subdir) is None:
-            raise ValueError(
-                "The `cache_subdir` argument must stay within `cache_dir` "
-                f"when relative. Received: cache_subdir={cache_subdir}"
-            )
     datadir = os.path.join(datadir_base, cache_subdir)
     os.makedirs(datadir, exist_ok=True)
 
@@ -328,14 +321,7 @@ def get_file(
                 "Please specify the `fname` argument."
             )
     else:
-        fname = str(fname)
-        separators = [os.sep]
-        if os.altsep:
-            separators.append(os.altsep)
-        has_path_segments = any(sep in fname for sep in separators) or any(
-            part in (".", "..") for part in re.split(r"[\\/]", fname)
-        )
-        if has_path_segments:
+        if os.sep in fname:
             raise ValueError(
                 "Paths are no longer accepted as the `fname` argument. "
                 "To specify the file's parent directory, use "
