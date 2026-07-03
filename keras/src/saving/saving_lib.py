@@ -916,10 +916,33 @@ def _get_unique_name(name, used_names):
     return name
 
 
+_GENERIC_SAVEABLE_BASE_CLASSES = {
+    "Layer",
+    "Model",
+    "Loss",
+    "Metric",
+    "Optimizer",
+    "Operation",
+}
+
+
+def _container_base_class_name(saveable):
+    class_name = saveable.__class__.__name__
+    for cls in saveable.__class__.__mro__:
+        if cls is object:
+            continue
+        # If a custom class subclasses a built-in Keras implementation (e.g.
+        # `MyCustomLSTM` -> `LSTM`), serialize under the built-in class name.
+        # This preserves compatibility when loading into the built-in class.
+        if cls.__module__.startswith("keras.src"):
+            if cls.__name__ in _GENERIC_SAVEABLE_BASE_CLASSES:
+                break
+            return cls.__name__
+    return class_name
+
+
 def _container_saveable_name(saveable, used_names):
-    # Use `_obj_type()` (e.g. "Layer", "Optimizer") rather than concrete
-    # class names so swapping compatible subclasses keeps the same path keys.
-    base_name = naming.to_snake_case(saveable._obj_type())
+    base_name = naming.to_snake_case(_container_base_class_name(saveable))
     return _get_unique_name(base_name, used_names)
 
 
