@@ -1033,7 +1033,9 @@ def _load_container_state(
     for saveable in container:
         if isinstance(saveable, KerasSaveable):
             name = _container_saveable_name(saveable, used_names)
-            name_suffix = used_names[naming.to_snake_case(saveable.__class__.__name__)]
+            name_suffix = used_names[
+                naming.to_snake_case(saveable.__class__.__name__)
+            ]
             candidate_names = [name]
             for alias in _container_alias_names(saveable, name_suffix):
                 if alias not in candidate_names:
