@@ -65,7 +65,7 @@ def resolve_sub_path(base_dir, relative_path):
         return None
 
 
-def contains_path_segments(path):
+def _contains_path_segments(path):
     """Whether a path-like input contains path separators or traversal."""
     path = path_to_string(path)
     if path is None:
@@ -344,7 +344,7 @@ def get_file(
                 "Please specify the `fname` argument."
             )
     else:
-        if contains_path_segments(fname):
+        if _contains_path_segments(fname):
             raise ValueError(
                 "Paths are no longer accepted as the `fname` argument. "
                 "To specify the file's parent directory, use "
