@@ -65,22 +65,6 @@ def resolve_sub_path(base_dir, relative_path):
         return None
 
 
-def _contains_path_segments(path):
-    """Whether a path-like input contains path separators or traversal."""
-    path = path_to_string(path)
-    if path is None:
-        return False
-    path = str(path)
-
-    separators = [os.sep]
-    if os.altsep:
-        separators.append(os.altsep)
-    if any(sep in path for sep in separators):
-        return True
-
-    return any(part in (".", "..") for part in re.split(r"[\\/]", path))
-
-
 def is_link_in_dir(info, base_dir):
     if info.islnk():
         # Hard links resolve relative to the root. Verify both the link
@@ -344,7 +328,14 @@ def get_file(
                 "Please specify the `fname` argument."
             )
     else:
-        if _contains_path_segments(fname):
+        fname = str(fname)
+        separators = [os.sep]
+        if os.altsep:
+            separators.append(os.altsep)
+        has_path_segments = any(sep in fname for sep in separators) or any(
+            part in (".", "..") for part in re.split(r"[\\/]", fname)
+        )
+        if has_path_segments:
             raise ValueError(
                 "Paths are no longer accepted as the `fname` argument. "
                 "To specify the file's parent directory, use "
