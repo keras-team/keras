@@ -99,12 +99,14 @@ def cdist(x, y):
     x = np.asarray(x)
     y = np.asarray(y)
     dtype = dtypes.result_type(x.dtype, y.dtype, float)
+    x = x.astype(dtype)
+    y = y.astype(dtype)
     if x.ndim < 2 or y.ndim < 2:
         raise ValueError("`cdist` inputs must have rank >= 2")
     if x.shape[-1] != y.shape[-1]:
         raise ValueError("Last dimension of inputs to `cdist` must match")
     diff = x[..., :, None, :] - y[..., None, :, :]
-    return np.sqrt(np.sum(diff * diff, axis=-1)).astype(dtype)
+    return np.sqrt(np.sum(diff * diff, axis=-1))
 
 
 def extract_sequences(x, sequence_length, sequence_stride):
