@@ -916,6 +916,11 @@ def _get_unique_name(name, used_names):
     return name
 
 
+def _container_saveable_name(saveable, used_names):
+    base_name = naming.to_snake_case(saveable.__class__.__name__)
+    return _get_unique_name(base_name, used_names)
+
+
 _GENERIC_SAVEABLE_BASE_CLASSES = {
     "Layer",
     "Model",
@@ -926,24 +931,26 @@ _GENERIC_SAVEABLE_BASE_CLASSES = {
 }
 
 
-def _container_base_class_name(saveable):
-    class_name = saveable.__class__.__name__
+def _container_alias_names(saveable, suffix):
+    alias_roots = []
     for cls in saveable.__class__.__mro__:
         if cls is object:
             continue
-        # If a custom class subclasses a built-in Keras implementation (e.g.
-        # `MyCustomLSTM` -> `LSTM`), serialize under the built-in class name.
-        # This preserves compatibility when loading into the built-in class.
-        if cls.__module__.startswith("keras.src"):
-            if cls.__name__ in _GENERIC_SAVEABLE_BASE_CLASSES:
-                break
-            return cls.__name__
-    return class_name
+        if not cls.__module__.startswith("keras.src"):
+            continue
+        if cls.__name__ in _GENERIC_SAVEABLE_BASE_CLASSES:
+            break
+        root = naming.to_snake_case(cls.__name__)
+        if root not in alias_roots:
+            alias_roots.append(root)
 
-
-def _container_saveable_name(saveable, used_names):
-    base_name = naming.to_snake_case(_container_base_class_name(saveable))
-    return _get_unique_name(base_name, used_names)
+    aliases = []
+    for root in alias_roots:
+        if suffix > 0:
+            aliases.append(f"{root}_{suffix}")
+        else:
+            aliases.append(root)
+    return aliases
 
 
 def _container_path_present(weights_store, assets_store, path):
@@ -1026,11 +1033,30 @@ def _load_container_state(
     for saveable in container:
         if isinstance(saveable, KerasSaveable):
             name = _container_saveable_name(saveable, used_names)
+            name_suffix = used_names[naming.to_snake_case(saveable.__class__.__name__)]
+            candidate_names = [name]
+            for alias in _container_alias_names(saveable, name_suffix):
+                if alias not in candidate_names:
+                    candidate_names.append(alias)
+
+            resolved_name = name
+            for candidate in candidate_names:
+                candidate_path = file_utils.join(inner_path, candidate).replace(
+                    "\\", "/"
+                )
+                if _container_path_present(
+                    weights_store, assets_store, candidate_path
+                ):
+                    resolved_name = candidate
+                    break
+
             _load_state(
                 saveable,
                 weights_store,
                 assets_store,
-                inner_path=file_utils.join(inner_path, name).replace("\\", "/"),
+                inner_path=file_utils.join(inner_path, resolved_name).replace(
+                    "\\", "/"
+                ),
                 skip_mismatch=skip_mismatch,
                 visited_saveables=visited_saveables,
                 failed_saveables=failed_saveables,
