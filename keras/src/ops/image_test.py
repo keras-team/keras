@@ -1980,6 +1980,51 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(out, ref_out, atol=1e-2, rtol=1e-2)
 
+    def test_perspective_transform_bfloat16_no_crash(self):
+        """Regression test for numpy backend crash with bfloat16 inputs.
+
+        Previously, the homography matrix was built in bfloat16 precision,
+        which could round a perspective transform into a configuration whose
+        denominator vanished inside the output image. That produced infinite
+        source coordinates and caused `np.pad` to fail with
+        "Maximum allowed dimension exceeded".
+        """
+        if backend.backend() != "numpy":
+            self.skipTest(
+                "Test is specific to numpy backend, current backend: "
+                f"{backend.backend()}"
+            )
+
+        images = np.ones((10, 10, 3), dtype="bfloat16")
+        start_points = np.array(
+            [
+                [
+                    [0.95703125, 0.2080078125],
+                    [0.828125, 0.1494140625],
+                    [0.51171875, 0.1357421875],
+                    [0.6875, 0.83984375],
+                ]
+            ],
+            dtype="bfloat16",
+        )
+        end_points = np.array(
+            [
+                [
+                    [0.42578125, 0.95703125],
+                    [0.82421875, 0.337890625],
+                    [0.57421875, 0.75390625],
+                    [0.828125, 0.93359375],
+                ]
+            ],
+            dtype="bfloat16",
+        )
+
+        out = kimage.perspective_transform(
+            images, start_points, end_points, interpolation="bilinear"
+        )
+        self.assertEqual(tuple(out.shape), tuple(images.shape))
+        self.assertEqual(backend.standardize_dtype(out.dtype), "bfloat16")
+
     def test_gaussian_blur(self):
         # Test channels_last
         backend.set_image_data_format("channels_last")
