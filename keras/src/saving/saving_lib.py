@@ -1049,30 +1049,48 @@ def _load_container_state(
             for alias in _container_alias_names(saveable, name_suffix):
                 if alias not in candidate_names:
                     candidate_names.append(alias)
-
-            resolved_name = name
+            attempted_candidate = False
             for candidate in candidate_names:
                 candidate_path = file_utils.join(inner_path, candidate).replace(
                     "\\", "/"
                 )
-                if _container_path_present(
+                if not _container_path_present(
                     weights_store, assets_store, candidate_path
                 ):
-                    resolved_name = candidate
+                    continue
+
+                attempted_candidate = True
+                _load_state(
+                    saveable,
+                    weights_store,
+                    assets_store,
+                    inner_path=candidate_path,
+                    skip_mismatch=skip_mismatch,
+                    visited_saveables=visited_saveables,
+                    failed_saveables=failed_saveables,
+                    error_msgs=error_msgs,
+                )
+                # If this candidate loaded cleanly (or if failures aren't being
+                # tracked), keep it and stop trying aliases.
+                if (
+                    failed_saveables is None
+                    or id(saveable) not in failed_saveables
+                ):
                     break
 
-            _load_state(
-                saveable,
-                weights_store,
-                assets_store,
-                inner_path=file_utils.join(inner_path, resolved_name).replace(
-                    "\\", "/"
-                ),
-                skip_mismatch=skip_mismatch,
-                visited_saveables=visited_saveables,
-                failed_saveables=failed_saveables,
-                error_msgs=error_msgs,
-            )
+            if not attempted_candidate:
+                _load_state(
+                    saveable,
+                    weights_store,
+                    assets_store,
+                    inner_path=file_utils.join(inner_path, name).replace(
+                        "\\", "/"
+                    ),
+                    skip_mismatch=skip_mismatch,
+                    visited_saveables=visited_saveables,
+                    failed_saveables=failed_saveables,
+                    error_msgs=error_msgs,
+                )
         elif isinstance(saveable, (list, dict, tuple)):
             name = _get_unique_name("container", used_names)
             nested_path = file_utils.join(inner_path, name).replace("\\", "/")
