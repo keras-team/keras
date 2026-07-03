@@ -1,13 +1,48 @@
+import os
+
 import numpy as np
 import pytest
 from absl.testing import parameterized
 
 from keras.src import initializers
 from keras.src import layers
+from keras.src import models
 from keras.src import testing
 
 
 class LSTMTest(testing.TestCase):
+    def test_load_weights_from_custom_lstm_into_base_lstm(self):
+        class MyCustomLSTM(layers.LSTM):
+            pass
+
+        def make_model(use_custom_lstm):
+            inputs = layers.Input(shape=(None, 4), name="inputs")
+            lstm_cls = MyCustomLSTM if use_custom_lstm else layers.LSTM
+            outputs = lstm_cls(
+                units=8,
+                return_sequences=True,
+                name="my_lstm",
+            )(inputs)
+            return models.Model(inputs=inputs, outputs=outputs)
+
+        x = np.random.random((2, 3, 4)).astype("float32")
+        weights_path = os.path.join(
+            self.get_temp_dir(), "custom_lstm.weights.h5"
+        )
+
+        source_model = make_model(use_custom_lstm=True)
+        source_model(x)
+        source_model.save_weights(weights_path)
+
+        dest_model = make_model(use_custom_lstm=False)
+        dest_model(x)
+        dest_model.load_weights(weights_path)
+
+        for source_var, dest_var in zip(
+            source_model.weights, dest_model.weights
+        ):
+            self.assertAllClose(source_var, dest_var)
+
     def test_basics(self):
         self.run_layer_test(
             layers.LSTM,
