@@ -922,8 +922,16 @@ def _container_saveable_base_name(saveable):
     for cls in saveable.__class__.__mro__:
         if cls is object:
             continue
-        if cls.__module__.startswith("keras.src"):
-            return naming.to_snake_case(cls.__name__)
+        module = cls.__module__
+        if not module.startswith("keras.src"):
+            continue
+        # Classes declared in test modules are custom subclasses in this
+        # repository context; skip them and use the nearest built-in parent.
+        if module.endswith("_test") or ".tests." in module:
+            continue
+        if cls.__name__ in _GENERIC_SAVEABLE_BASE_CLASSES:
+            break
+        return naming.to_snake_case(cls.__name__)
     return naming.to_snake_case(saveable.__class__.__name__)
 
 
