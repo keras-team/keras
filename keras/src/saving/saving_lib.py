@@ -916,8 +916,19 @@ def _get_unique_name(name, used_names):
     return name
 
 
+def _container_saveable_base_name(saveable):
+    # For user-defined subclasses, use the first Keras class in the MRO
+    # so container paths stay compatible with the built-in class hierarchy.
+    for cls in saveable.__class__.__mro__:
+        if cls is object:
+            continue
+        if cls.__module__.startswith("keras.src"):
+            return naming.to_snake_case(cls.__name__)
+    return naming.to_snake_case(saveable.__class__.__name__)
+
+
 def _container_saveable_name(saveable, used_names):
-    base_name = naming.to_snake_case(saveable.__class__.__name__)
+    base_name = _container_saveable_base_name(saveable)
     return _get_unique_name(base_name, used_names)
 
 
@@ -1033,9 +1044,7 @@ def _load_container_state(
     for saveable in container:
         if isinstance(saveable, KerasSaveable):
             name = _container_saveable_name(saveable, used_names)
-            name_suffix = used_names[
-                naming.to_snake_case(saveable.__class__.__name__)
-            ]
+            name_suffix = used_names[_container_saveable_base_name(saveable)]
             candidate_names = [name]
             for alias in _container_alias_names(saveable, name_suffix):
                 if alias not in candidate_names:
