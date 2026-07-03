@@ -448,6 +448,23 @@ class SerializationLibTest(testing.TestCase):
             restored_dense_relu_string.activation, keras.activations.relu
         )
 
+    def test_trainable_validation(self):
+        """Tests that invalid `trainable` types raise a TypeError."""
+        layer = keras.layers.Dense(units=4)
+        config = keras.saving.serialize_keras_object(layer)
+
+        # Test valid boolean
+        config["config"]["trainable"] = True
+        restored = keras.saving.deserialize_keras_object(config)
+        self.assertTrue(restored.trainable)
+
+        # Test invalid type (string)
+        config["config"]["trainable"] = "true"
+        with self.assertRaisesRegex(
+            TypeError, "Invalid type for `trainable` field"
+        ):
+            keras.saving.deserialize_keras_object(config)
+
     def test_missing_name_for_sequential_model(self):
         """Tests serialization when sequential model has no name."""
         serialized = {
