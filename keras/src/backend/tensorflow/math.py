@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 from keras.src.backend import standardize_dtype
+from keras.src.backend.common import dtypes
 from keras.src.backend.tensorflow.core import cast
 from keras.src.backend.tensorflow.core import convert_to_tensor
 
@@ -81,6 +82,9 @@ def logsumexp(x, axis=None, keepdims=False):
 def cdist(x, y):
     x = convert_to_tensor(x)
     y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype, float)
+    x = cast(x, dtype)
+    y = cast(y, dtype)
     if x.shape.rank < 2 or y.shape.rank < 2:
         raise ValueError("`cdist` inputs must have rank >= 2")
     if x.shape[-1] != y.shape[-1]:

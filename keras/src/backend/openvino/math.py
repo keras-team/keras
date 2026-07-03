@@ -4,9 +4,12 @@ import openvino.opset17 as ov_opset17
 import scipy.signal
 from openvino import Type
 
+from keras.src.backend.common import dtypes
+from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import cast
 from keras.src.backend.openvino.core import get_ov_output
+from keras.src.backend.openvino.core import ov_to_keras_type
 from keras.src.backend.openvino.core import standardize_dtype
 from keras.src.backend.openvino.numpy import stack
 
@@ -228,6 +231,14 @@ def logsumexp(x, axis=None, keepdims=False):
 def cdist(x, y):
     x = get_ov_output(x)
     y = get_ov_output(y)
+
+    x_type = ov_to_keras_type(x.get_element_type())
+    y_type = ov_to_keras_type(y.get_element_type())
+    result_type = dtypes.result_type(x_type, y_type, float)
+    result_type = OPENVINO_DTYPES[result_type]
+    x = ov_opset.convert(x, result_type).output(0)
+    y = ov_opset.convert(y, result_type).output(0)
+
     x_shape = x.get_partial_shape()
     y_shape = y.get_partial_shape()
     if x_shape.rank.is_static and x_shape.rank.get_length() < 2:
