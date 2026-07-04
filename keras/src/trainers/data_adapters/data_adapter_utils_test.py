@@ -129,12 +129,39 @@ class TestClassWeightToSampleWeights(testing.TestCase):
                 {},
                 np.array([1.0, 1.0, 1.0, 1.0]),
             ),
+            (
+                "string_number_keys",
+                np.array([0, 1, 0, 2]),
+                {"0": 1.0, "1": 2.0, "2": 3.0},
+                np.array([1.0, 2.0, 1.0, 3.0]),
+            ),
+            (
+                "float_number_keys",
+                np.array([0, 1, 0, 2]),
+                {0.0: 1.0, 1.0: 2.0, 2.0: 3.0},
+                np.array([1.0, 2.0, 1.0, 3.0]),
+            ),
         ]
     )
     def test_class_weight_to_sample_weights(self, y, class_weight, expected):
         self.assertAllClose(
             class_weight_to_sample_weights(y, class_weight), expected
         )
+
+    def test_class_weight_to_sample_weights_invalid_key(self):
+        y = np.array([0, 1, 0, 2])
+        with self.assertRaisesRegex(ValueError, "integer keys"):
+            class_weight_to_sample_weights(y, {"invalid": 0.5})
+
+    def test_class_weight_to_sample_weights_non_dict(self):
+        y = np.array([0, 1, 0, 2])
+        with self.assertRaisesRegex(ValueError, "dict-like mapping"):
+            class_weight_to_sample_weights(y, "not_a_dict")
+
+    def test_class_weight_to_sample_weights_none_key(self):
+        y = np.array([0, 1, 0, 2])
+        with self.assertRaisesRegex(ValueError, "integer keys"):
+            class_weight_to_sample_weights(y, {None: 0.5})
 
     @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
     def test_class_weight_to_sample_weights_torch_specific(self):
