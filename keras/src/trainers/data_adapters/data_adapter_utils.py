@@ -118,6 +118,19 @@ def check_data_cardinality(data):
 
 
 def class_weight_to_sample_weights(y, class_weight):
+    # Validate that class_weight keys are valid class indices before using
+    # them. Without this check, invalid keys are silently ignored and
+    # `sample_weight` defaults to 1.0 for every sample, hiding real bugs.
+    for key in class_weight.keys():
+        try:
+            int(key)
+        except (TypeError, ValueError):
+            raise ValueError(
+                "`class_weight` must be a dictionary with integer keys "
+                "representing class indices. Received an invalid key: "
+                f"{key!r} of type {type(key)}."
+            )
+
     # Convert to numpy to ensure consistent handling of operations
     # (e.g., np.round()) across frameworks like TensorFlow, JAX, and PyTorch
 
@@ -133,7 +146,6 @@ def class_weight_to_sample_weights(y, class_weight):
     for i in range(y_numpy.shape[0]):
         sample_weight[i] = class_weight.get(int(y_numpy[i]), 1.0)
     return sample_weight
-
 
 def get_keras_tensor_spec(batches):
     """Return the KerasTensor spec for a list of batches.
