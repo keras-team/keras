@@ -677,10 +677,9 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
     x1 = cast(x1, compute_dtype)
     x2 = cast(x2, compute_dtype)
     if axis is None:
-        # match numpy default (last axis); avoids torch's deprecated
-        # "first dimension of size 3" behavior when dim is unset
+        # match numpy default (last axis)
         axis = -1
-    return cast(torch.cross(x1, x2, dim=axis), result_dtype)
+    return cast(torch.linalg.cross(x1, x2, dim=axis), result_dtype)
 
 
 def cumprod(x, axis=None, dtype=None):
