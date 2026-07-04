@@ -23,6 +23,7 @@ from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
 from keras.src.saving.saving_api import load_model
+from keras.src.utils.rng_utils import set_random_seed
 
 
 class EinsumDenseTest(testing.TestCase):
@@ -677,6 +678,11 @@ class EinsumDenseTest(testing.TestCase):
         input_shape,
         error_threshold,
     ):
+        # Seed so both the kernel init and the input draw are deterministic.
+        # The int4 cases use tiny tensors (as few as 8 output elements), so
+        # with an unseeded RNG the MSE occasionally crosses the tolerance and
+        # the test flakes (~1% of draws for the smallest equations).
+        set_random_seed(1337)
         layer = layers.EinsumDense(equation=equation, output_shape=output_shape)
         layer.build(input_shape)
         x = ops.random.uniform(input_shape)
