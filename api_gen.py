@@ -13,22 +13,28 @@ import shutil
 import namex
 import namex.generate
 
+import sys
+
 # Patch namex for Windows support
-orig_join = namex.generate.os.path.join
-orig_walk = namex.generate.os.walk
+if sys.platform == "win32":
+    orig_join = namex.generate.os.path.join
+    orig_walk = namex.generate.os.walk
 
+    def forward_slash_join(*args):
+        res = orig_join(*args)
+        if isinstance(res, bytes):
+            return res.replace(b"\\", b"/")
+        return res.replace("\\", "/")
 
-def forward_slash_join(*args):
-    return orig_join(*args).replace("\\", "/")
+    def forward_slash_walk(top, *args, **kwargs):
+        for root, dirs, files in orig_walk(top, *args, **kwargs):
+            if isinstance(root, bytes):
+                yield root.replace(b"\\", b"/"), dirs, files
+            else:
+                yield root.replace("\\", "/"), dirs, files
 
-
-def forward_slash_walk(top, *args, **kwargs):
-    for root, dirs, files in orig_walk(top, *args, **kwargs):
-        yield root.replace("\\", "/"), dirs, files
-
-
-namex.generate.os.path.join = forward_slash_join
-namex.generate.os.walk = forward_slash_walk
+    namex.generate.os.path.join = forward_slash_join
+    namex.generate.os.walk = forward_slash_walk
 
 PACKAGE = "keras"
 BUILD_DIR_NAME = "tmp_build_dir"
