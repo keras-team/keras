@@ -9,11 +9,10 @@ It generates API and formats user and generated APIs.
 import os
 import re
 import shutil
+import sys
 
 import namex
 import namex.generate
-
-import sys
 
 # Patch namex for Windows support
 if sys.platform == "win32":
