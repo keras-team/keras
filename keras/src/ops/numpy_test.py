@@ -8502,6 +8502,13 @@ class NumpyDtypeTest(testing.TestCase):
         expected_dtype = backend.result_type(x1.dtype, x2.dtype)
 
         self.assertDType(op(x1, x2), expected_dtype)
+        self.assertDType(
+            op(
+                [np.float64(3.0), np.float64(4.0)],
+                [np.float64(5.0), np.float64(6.0)],
+            ),
+            expected_dtype,
+        )
 
         symbolic_x1 = KerasTensor((2,), dtype="float64")
         symbolic_x2 = KerasTensor((2,), dtype="float64")
