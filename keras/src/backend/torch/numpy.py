@@ -26,6 +26,21 @@ TORCH_INT_TYPES = (
 )
 
 
+def _dtype_or_type(x):
+    if hasattr(x, "dtype") or isinstance(x, (bool, int, float, complex)):
+        return getattr(x, "dtype", type(x))
+    return convert_to_tensor(x).dtype
+
+
+def _result_type_inputs(x1, x2, *additional_dtypes):
+    dtype = dtypes.result_type(
+        _dtype_or_type(x1),
+        _dtype_or_type(x2),
+        *additional_dtypes,
+    )
+    return convert_to_tensor(x1, dtype), convert_to_tensor(x2, dtype), dtype
+
+
 def rot90(array, k=1, axes=(0, 1)):
     """Rotate an array by 90 degrees in the specified plane using PyTorch.
 
@@ -66,8 +81,7 @@ def rot90(array, k=1, axes=(0, 1)):
 
 
 def add(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    x1, x2, _ = _result_type_inputs(x1, x2)
     return torch.add(x1, x2)
 
 
@@ -88,8 +102,7 @@ def einsum(subscripts, *operands, **kwargs):
 
 
 def subtract(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    x1, x2, _ = _result_type_inputs(x1, x2)
     # TODO: torch.subtract doesn't support bool
     if standardize_dtype(x1.dtype) == "bool":
         x1 = cast(x1, x2.dtype)
@@ -158,8 +171,7 @@ def matmul(x1, x2):
 
 
 def multiply(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    x1, x2, _ = _result_type_inputs(x1, x2)
     return torch.multiply(x1, x2)
 
 
@@ -1392,9 +1404,7 @@ def fmin(x1, x2):
 
 
 def mod(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1, x2, dtype = _result_type_inputs(x1, x2)
     if dtype == "bool":
         x1 = cast(x1, "int32")
         x2 = cast(x2, "int32")
@@ -1402,9 +1412,7 @@ def mod(x1, x2):
 
 
 def fmod(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1, x2, dtype = _result_type_inputs(x1, x2)
     if dtype == "bool":
         x1 = cast(x1, "int32")
         x2 = cast(x2, "int32")
@@ -2197,10 +2205,7 @@ def where(condition, x1=None, x2=None):
 
 
 def divide(x1, x2):
-    if not isinstance(x1, (int, float)):
-        x1 = convert_to_tensor(x1)
-    if not isinstance(x2, (int, float)):
-        x2 = convert_to_tensor(x2)
+    x1, x2, _ = _result_type_inputs(x1, x2, float)
     return torch.divide(x1, x2)
 
 
@@ -2221,7 +2226,7 @@ def true_divide(x1, x2):
 
 
 def power(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    x1, x2, _ = _result_type_inputs(x1, x2)
     return torch.pow(x1, x2)
 
 
