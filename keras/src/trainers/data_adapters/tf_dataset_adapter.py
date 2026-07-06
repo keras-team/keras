@@ -160,12 +160,17 @@ def make_class_weight_map_fn(class_weight):
     """
     from keras.src.utils.module_utils import tensorflow as tf
 
-    class_weight_tensor = tf.convert_to_tensor(
-        [
-            class_weight.get(int(c), 1.0)
-            for c in range(max(class_weight.keys()) + 1)
-        ]
-    )
+    class_weight = data_adapter_utils.validate_class_weight(class_weight)
+
+    if class_weight:
+        class_weight_tensor = tf.convert_to_tensor(
+            [
+                class_weight.get(int(c), 1.0)
+                for c in range(max(class_weight.keys()) + 1)
+            ]
+        )
+    else:
+        class_weight_tensor = None
 
     def class_weights_map_fn(*data):
         """Convert `class_weight` to `sample_weight`."""
@@ -191,7 +196,10 @@ def make_class_weight_map_fn(class_weight):
             # Special casing for rank 1, where we can guarantee sparse encoding.
             y_classes = tf.cast(tf.round(y), tf.int32)
 
-        cw = tf.gather(class_weight_tensor, y_classes)
+        if class_weight_tensor is not None:
+            cw = tf.gather(class_weight_tensor, y_classes)
+        else:
+            cw = tf.ones_like(y_classes, dtype=tf.float32)
         return x, y, cw
 
     return class_weights_map_fn

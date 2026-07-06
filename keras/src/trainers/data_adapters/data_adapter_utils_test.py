@@ -225,3 +225,37 @@ class TestDataAdapterFactory(testing.TestCase):
         # "generator"
         with self.assertRaisesRegex(ValueError, "providing `x` as a generator"):
             get_data_adapter(generator(), y=np.ones((10, 1)))
+
+
+class TestClassWeightValidation(testing.TestCase):
+    def test_validate_class_weight_errors(self):
+        from keras.src.trainers.data_adapters.data_adapter_utils import (
+            validate_class_weight,
+        )
+
+        # Non-dict type
+        with self.assertRaisesRegex(
+            ValueError, "Expected `class_weight` to be a dict"
+        ):
+            validate_class_weight("invalid")
+
+        # Non-integer keys
+        with self.assertRaisesRegex(ValueError, "keys to be integers"):
+            validate_class_weight({"invalid": 1.0})
+
+        # Disjoint keys
+        y_classes = np.array([0, 1, 0, 1])
+        with self.assertRaisesRegex(
+            ValueError, "None of the keys in `class_weight` match"
+        ):
+            validate_class_weight({2: 1.0, 3: 2.0}, y_classes=y_classes)
+
+        # String representation of integers (valid)
+        validated = validate_class_weight(
+            {"0": 1.0, "1": 2.0}, y_classes=y_classes
+        )
+        self.assertEqual(validated, {0: 1.0, 1: 2.0})
+
+        # Empty dict (valid)
+        validated_empty = validate_class_weight({}, y_classes=y_classes)
+        self.assertEqual(validated_empty, {})

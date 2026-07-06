@@ -117,21 +117,63 @@ def check_data_cardinality(data):
         raise ValueError(msg)
 
 
+def validate_class_weight(class_weight, y_classes=None):
+    if class_weight is None:
+        return None
+
+    if not isinstance(class_weight, dict):
+        raise ValueError(
+            "Expected `class_weight` to be a dict. "
+            f"Received: class_weight={class_weight} "
+            f"of type {type(class_weight)}"
+        )
+
+    # Convert keys to integers and validate them
+    class_weight_int = {}
+    for key, val in class_weight.items():
+        try:
+            class_weight_int[int(key)] = val
+        except (ValueError, TypeError):
+            raise ValueError(
+                "Expected `class_weight` keys to be integers "
+                "(or values that can be cast to integers). "
+                f"Received invalid key: {key} (of type {type(key)})"
+            )
+
+    if y_classes is not None:
+        unique_classes = set(int(c) for c in np.unique(y_classes))
+        if unique_classes and class_weight_int:
+            intersection = unique_classes.intersection(class_weight_int.keys())
+            if not intersection:
+                raise ValueError(
+                    f"None of the keys in `class_weight` match any class index "
+                    f"present in the target labels. "
+                    f"class_weight keys: {list(class_weight_int.keys())}. "
+                    f"Unique classes in target data: {list(unique_classes)}."
+                )
+
+    return class_weight_int
+
+
 def class_weight_to_sample_weights(y, class_weight):
     # Convert to numpy to ensure consistent handling of operations
     # (e.g., np.round()) across frameworks like TensorFlow, JAX, and PyTorch
-
     y_numpy = ops.convert_to_numpy(y)
-    sample_weight = np.ones(shape=(y_numpy.shape[0],), dtype=backend.floatx())
-    if len(y_numpy.shape) > 1:
-        if y_numpy.shape[-1] != 1:
-            y_numpy = np.argmax(y_numpy, axis=-1)
-        else:
-            y_numpy = np.squeeze(y_numpy, axis=-1)
-    y_numpy = np.round(y_numpy).astype("int32")
 
-    for i in range(y_numpy.shape[0]):
-        sample_weight[i] = class_weight.get(int(y_numpy[i]), 1.0)
+    y_classes = y_numpy
+    if len(y_classes.shape) > 1:
+        if y_classes.shape[-1] != 1:
+            y_classes = np.argmax(y_classes, axis=-1)
+        else:
+            y_classes = np.squeeze(y_classes, axis=-1)
+    y_classes = np.round(y_classes).astype("int32")
+
+    class_weight = validate_class_weight(class_weight, y_classes=y_classes)
+
+    sample_weight = np.ones(shape=(y_numpy.shape[0],), dtype=backend.floatx())
+    if class_weight is not None:
+        for i in range(y_classes.shape[0]):
+            sample_weight[i] = class_weight.get(int(y_classes[i]), 1.0)
     return sample_weight
 
 
