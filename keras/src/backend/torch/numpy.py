@@ -32,9 +32,13 @@ def _dtype_or_type(x):
 
 
 def _result_type_inputs(x1, x2, *additional_dtypes):
-    if not hasattr(x1, "dtype") and not isinstance(x1, (bool, int, float, complex)):
+    if not hasattr(x1, "dtype") and not isinstance(
+        x1, (bool, int, float, complex)
+    ):
         x1 = convert_to_tensor(x1)
-    if not hasattr(x2, "dtype") and not isinstance(x2, (bool, int, float, complex)):
+    if not hasattr(x2, "dtype") and not isinstance(
+        x2, (bool, int, float, complex)
+    ):
         x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(
         _dtype_or_type(x1),
