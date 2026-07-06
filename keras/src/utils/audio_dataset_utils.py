@@ -1,9 +1,20 @@
+import pathlib
+
 import numpy as np
 
 from keras.src.api_export import keras_export
 from keras.src.utils import dataset_utils
+from keras.src.utils.grain_utils import make_batch
+from keras.src.utils.module_utils import grain
 from keras.src.utils.module_utils import tensorflow as tf
 from keras.src.utils.module_utils import tensorflow_io as tfio
+
+try:
+    from scipy import signal
+    from scipy.io import wavfile
+except ImportError:
+    signal = None
+    wavfile = None
 
 ALLOWED_FORMATS = (".wav",)
 
@@ -23,9 +34,10 @@ def audio_dataset_from_directory(
     validation_split=None,
     subset=None,
     follow_links=False,
+    format="tf",
     verbose=True,
 ):
-    """Generates a `tf.data.Dataset` from audio files in a directory.
+    """Generates a dataset from audio files in a directory.
 
     If your directory structure is:
 
@@ -41,11 +53,15 @@ def audio_dataset_from_directory(
 
     Then calling `audio_dataset_from_directory(main_directory,
     labels='inferred')`
-    will return a `tf.data.Dataset` that yields batches of audio files from
+    will return a dataset that yields batches of audio files from
     the subdirectories `class_a` and `class_b`, together with labels
     0 and 1 (0 corresponding to `class_a` and 1 corresponding to `class_b`).
 
     Only `.wav` files are supported at this time.
+
+    By default, this function will return a `tf.data.Dataset` object. You can
+    set `format="grain"` to return a `grain.IterDataset` object instead, which
+    removes the TensorFlow dependency.
 
     Args:
         directory: Directory where the data is located.
@@ -93,12 +109,19 @@ def audio_dataset_from_directory(
             `"validation"` or `"both"`. Only used if `validation_split` is set.
         follow_links: Whether to visits subdirectories pointed to by symlinks.
             Defaults to `False`.
+        format: The format of the return object. Defaults to `"tf"`. Available
+            options are:
+            - `"tf"`: returns a `tf.data.Dataset` object. Requires
+                TensorFlow to be installed.
+            - `"grain"`: returns a `grain.IterDataset` object. Requires
+                Grain to be installed.
         verbose: Whether to display number information on classes and
             number of files found. Defaults to `True`.
 
     Returns:
 
-    A `tf.data.Dataset` object.
+    A `tf.data.Dataset` (`format="tf"`) or `grain.IterDataset`
+    (`format="grain"`) object.
 
     - If `label_mode` is `None`, it yields `string` tensors of shape
       `(batch_size,)`, containing the contents of a batch of audio files.
@@ -146,6 +169,11 @@ def audio_dataset_from_directory(
             "Cannot set both `ragged` and `output_sequence_length`"
         )
 
+    if format == "grain" and ragged:
+        raise ValueError(
+            "Ragged datasets are not supported when `format='grain'`."
+        )
+
     if sampling_rate is not None:
         if not isinstance(sampling_rate, int):
             raise ValueError(
@@ -159,7 +187,7 @@ def audio_dataset_from_directory(
                 f"Received: sampling_rate={sampling_rate}"
             )
 
-        if not tfio.available:
+        if format == "tf" and not tfio.available:
             raise ImportError(
                 "To use the argument `sampling_rate`, you should install "
                 "tensorflow_io. You can install it via `pip install "
@@ -212,21 +240,36 @@ def audio_dataset_from_directory(
             shuffle=shuffle,
             shuffle_buffer_size=shuffle_buffer_size,
             seed=seed,
+            format=format,
         )
-        train_dataset = prepare_dataset(
-            dataset=train_dataset,
-            batch_size=batch_size,
-            class_names=class_names,
-            output_sequence_length=output_sequence_length,
-            ragged=ragged,
-        )
-        val_dataset = prepare_dataset(
-            dataset=val_dataset,
-            batch_size=batch_size,
-            class_names=class_names,
-            output_sequence_length=output_sequence_length,
-            ragged=ragged,
-        )
+        if format == "tf":
+            train_dataset = _prepare_dataset_tf(
+                dataset=train_dataset,
+                batch_size=batch_size,
+                class_names=class_names,
+                output_sequence_length=output_sequence_length,
+                ragged=ragged,
+            )
+            val_dataset = _prepare_dataset_tf(
+                dataset=val_dataset,
+                batch_size=batch_size,
+                class_names=class_names,
+                output_sequence_length=output_sequence_length,
+                ragged=ragged,
+            )
+        else:
+            train_dataset = _prepare_dataset_grain(
+                dataset=train_dataset,
+                batch_size=batch_size,
+                class_names=class_names,
+                output_sequence_length=output_sequence_length,
+            )
+            val_dataset = _prepare_dataset_grain(
+                dataset=val_dataset,
+                batch_size=batch_size,
+                class_names=class_names,
+                output_sequence_length=output_sequence_length,
+            )
         return train_dataset, val_dataset
 
     else:
@@ -244,18 +287,27 @@ def audio_dataset_from_directory(
             shuffle=shuffle,
             shuffle_buffer_size=shuffle_buffer_size,
             seed=seed,
+            format=format,
         )
-        dataset = prepare_dataset(
-            dataset=dataset,
-            batch_size=batch_size,
-            class_names=class_names,
-            output_sequence_length=output_sequence_length,
-            ragged=ragged,
-        )
+        if format == "tf":
+            dataset = _prepare_dataset_tf(
+                dataset=dataset,
+                batch_size=batch_size,
+                class_names=class_names,
+                output_sequence_length=output_sequence_length,
+                ragged=ragged,
+            )
+        else:
+            dataset = _prepare_dataset_grain(
+                dataset=dataset,
+                batch_size=batch_size,
+                class_names=class_names,
+                output_sequence_length=output_sequence_length,
+            )
         return dataset
 
 
-def prepare_dataset(
+def _prepare_dataset_tf(
     dataset,
     batch_size,
     class_names,
@@ -268,6 +320,26 @@ def prepare_dataset(
             dataset = dataset.padded_batch(batch_size)
         else:
             dataset = dataset.batch(batch_size)
+
+    # Users may need to reference `class_names`.
+    dataset.class_names = class_names
+    return dataset
+
+
+def _prepare_dataset_grain(
+    dataset,
+    batch_size,
+    class_names,
+    output_sequence_length,
+):
+    dataset = dataset.to_iter_dataset()
+    if batch_size is not None:
+        if output_sequence_length is None:
+            dataset = dataset.batch(
+                batch_size, batch_fn=_make_audio_padded_batch_grain
+            )
+        else:
+            dataset = dataset.batch(batch_size, batch_fn=make_batch)
 
     # Users may need to reference `class_names`.
     dataset.class_names = class_names
@@ -287,6 +359,7 @@ def get_training_and_validation_dataset(
     shuffle=False,
     shuffle_buffer_size=None,
     seed=None,
+    format="tf",
 ):
     (
         file_paths_train,
@@ -320,6 +393,7 @@ def get_training_and_validation_dataset(
         shuffle=shuffle,
         shuffle_buffer_size=shuffle_buffer_size,
         seed=seed,
+        format=format,
     )
 
     val_dataset = paths_and_labels_to_dataset(
@@ -331,6 +405,7 @@ def get_training_and_validation_dataset(
         output_sequence_length=output_sequence_length,
         ragged=ragged,
         shuffle=False,
+        format=format,
     )
 
     return train_dataset, val_dataset
@@ -350,6 +425,7 @@ def get_dataset(
     shuffle=False,
     shuffle_buffer_size=None,
     seed=None,
+    format="tf",
 ):
     file_paths, labels = dataset_utils.get_training_or_validation_split(
         file_paths, labels, validation_split, subset
@@ -371,10 +447,114 @@ def get_dataset(
         shuffle=shuffle,
         shuffle_buffer_size=shuffle_buffer_size,
         seed=seed,
+        format=format,
     )
 
 
-def read_and_decode_audio(
+def paths_and_labels_to_dataset(
+    file_paths,
+    labels,
+    label_mode,
+    num_classes,
+    sampling_rate,
+    output_sequence_length,
+    ragged,
+    shuffle=False,
+    shuffle_buffer_size=None,
+    seed=None,
+    format="tf",
+):
+    """Constructs a fixed-size dataset of audio and labels."""
+    if format == "tf":
+        return _paths_and_labels_to_dataset_tf(
+            file_paths=file_paths,
+            labels=labels,
+            label_mode=label_mode,
+            num_classes=num_classes,
+            sampling_rate=sampling_rate,
+            output_sequence_length=output_sequence_length,
+            ragged=ragged,
+            shuffle=shuffle,
+            shuffle_buffer_size=shuffle_buffer_size,
+            seed=seed,
+        )
+    elif format == "grain":
+        return _paths_and_labels_to_dataset_grain(
+            file_paths=file_paths,
+            labels=labels,
+            label_mode=label_mode,
+            num_classes=num_classes,
+            sampling_rate=sampling_rate,
+            output_sequence_length=output_sequence_length,
+            shuffle=shuffle,
+            seed=seed,
+        )
+    else:
+        raise ValueError(
+            '`format` should be either "tf" or "grain". '
+            f"Received: format={format}"
+        )
+
+
+def _paths_and_labels_to_dataset_tf(
+    file_paths,
+    labels,
+    label_mode,
+    num_classes,
+    sampling_rate,
+    output_sequence_length,
+    ragged,
+    shuffle=False,
+    shuffle_buffer_size=None,
+    seed=None,
+):
+    path_ds = tf.data.Dataset.from_tensor_slices(file_paths)
+    if label_mode:
+        label_ds = dataset_utils.labels_to_dataset_tf(
+            labels, label_mode, num_classes
+        )
+        ds = tf.data.Dataset.zip((path_ds, label_ds))
+    else:
+        ds = path_ds
+
+    if shuffle:
+        ds = ds.shuffle(buffer_size=shuffle_buffer_size or 1024, seed=seed)
+
+    if label_mode:
+        ds = ds.map(
+            lambda x, y: (
+                _read_and_decode_audio_tf(
+                    x, sampling_rate, output_sequence_length
+                ),
+                y,
+            ),
+            num_parallel_calls=tf.data.AUTOTUNE,
+        )
+
+        if ragged:
+            ds = ds.map(
+                lambda x, y: (tf.RaggedTensor.from_tensor(x), y),
+                num_parallel_calls=tf.data.AUTOTUNE,
+            )
+
+    else:
+        ds = ds.map(
+            lambda x: _read_and_decode_audio_tf(
+                x, sampling_rate, output_sequence_length
+            ),
+            num_parallel_calls=tf.data.AUTOTUNE,
+        )
+
+        if ragged:
+            ds = ds.map(
+                lambda x: tf.RaggedTensor.from_tensor(x),
+                num_parallel_calls=tf.data.AUTOTUNE,
+            )
+
+    return ds
+
+
+def _read_and_decode_audio_tf(
     path, sampling_rate=None, output_sequence_length=None
 ):
     """Reads and decodes audio file."""
@@ -407,58 +587,123 @@ def _trim_and_pad_audio(audio, output_sequence_length):
     return audio
 
 
-def paths_and_labels_to_dataset(
+def _paths_and_labels_to_dataset_grain(
     file_paths,
     labels,
     label_mode,
     num_classes,
     sampling_rate,
     output_sequence_length,
-    ragged,
     shuffle=False,
-    shuffle_buffer_size=None,
     seed=None,
 ):
-    """Constructs a fixed-size dataset of audio and labels."""
-    path_ds = tf.data.Dataset.from_tensor_slices(file_paths)
+    """Constructs a dataset of audio and labels using grain."""
+    path_ds = grain.MapDataset.source(file_paths)
     if label_mode:
-        label_ds = dataset_utils.labels_to_dataset_tf(
+        label_ds = dataset_utils.labels_to_dataset_grain(
             labels, label_mode, num_classes
         )
-        ds = tf.data.Dataset.zip((path_ds, label_ds))
+        ds = grain.experimental.ZipMapDataset([path_ds, label_ds])
     else:
         ds = path_ds
 
     if shuffle:
-        ds = ds.shuffle(buffer_size=shuffle_buffer_size or 1024, seed=seed)
+        ds = ds.shuffle(seed=seed)
 
+    args = (sampling_rate, output_sequence_length)
     if label_mode:
         ds = ds.map(
-            lambda x, y: (
-                read_and_decode_audio(x, sampling_rate, output_sequence_length),
-                y,
-            ),
-            num_parallel_calls=tf.data.AUTOTUNE,
-        )
-
-        if ragged:
-            ds = ds.map(
-                lambda x, y: (tf.RaggedTensor.from_tensor(x), y),
-                num_parallel_calls=tf.data.AUTOTUNE,
+            lambda data: (
+                _read_and_decode_audio_grain(data[0], *args),
+                data[1],
             )
-
+        )
     else:
-        ds = ds.map(
-            lambda x: read_and_decode_audio(
-                x, sampling_rate, output_sequence_length
-            ),
-            num_parallel_calls=tf.data.AUTOTUNE,
-        )
-
-        if ragged:
-            ds = ds.map(
-                lambda x: tf.RaggedTensor.from_tensor(x),
-                num_parallel_calls=tf.data.AUTOTUNE,
-            )
+        ds = ds.map(lambda x: _read_and_decode_audio_grain(x, *args))
 
     return ds
+
+
+def _read_and_decode_audio_grain(
+    path, sampling_rate=None, output_sequence_length=None
+):
+    """Reads and decodes audio file using scipy."""
+    from keras.src import backend
+    from keras.src import ops
+
+    if wavfile is None or signal is None:
+        raise ImportError(
+            "To use the grain audio dataset, you should install scipy. "
+            "You can install it via `pip install scipy`."
+        )
+
+    if isinstance(path, bytes):
+        path = path.decode("utf-8")
+    elif isinstance(path, pathlib.Path):
+        path = str(path.resolve())
+
+    default_audio_rate, audio = wavfile.read(path)
+
+    # Ensure audio is float32 and normalized between -1.0 and 1.0
+    if audio.dtype == np.int16:
+        audio = audio.astype("float32") / 32768.0
+    elif audio.dtype == np.int32:
+        audio = audio.astype("float32") / 2147483648.0
+    elif audio.dtype == np.uint8:
+        audio = (audio.astype("float32") - 128.0) / 128.0
+    elif audio.dtype == np.float32:
+        audio = audio.astype("float32")
+    else:
+        audio = audio.astype("float32")
+
+    if len(audio.shape) == 1:
+        audio = np.expand_dims(audio, axis=-1)
+
+    # Decode_wav's desired_samples is applied before resampling in TF
+    if output_sequence_length is not None:
+        diff = output_sequence_length - len(audio)
+        if diff > 0:
+            padding = np.zeros((diff, audio.shape[1]), dtype=audio.dtype)
+            audio = np.concatenate([audio, padding], axis=0)
+        elif diff < 0:
+            audio = audio[:output_sequence_length]
+
+    # Resample if needed
+    if sampling_rate is not None and default_audio_rate != sampling_rate:
+        num_samples = int(
+            round(len(audio) * sampling_rate / default_audio_rate)
+        )
+        audio = signal.resample(audio, num_samples, axis=0)
+        audio = audio.astype("float32")
+
+    with backend.device_scope("cpu"):
+        audio = ops.convert_to_tensor(audio, dtype="float32")
+
+    return audio
+
+
+def _make_audio_padded_batch_grain(values):
+    from keras.src import backend
+    from keras.src import ops
+    from keras.src import tree
+
+    if not values:
+        raise ValueError("Cannot batch 0 values. Please file a bug.")
+
+    def pad_and_stack(*xs):
+        shapes = [x.shape for x in xs]
+        if len(shapes[0]) == 2:
+            max_len = max(shape[0] for shape in shapes)
+            padded_xs = []
+            for x in xs:
+                pad_len = max_len - x.shape[0]
+                if pad_len > 0:
+                    padded_xs.append(ops.pad(x, [[0, pad_len], [0, 0]]))
+                else:
+                    padded_xs.append(x)
+            return ops.stack(padded_xs)
+        else:
+            return ops.stack(xs)
+
+    with backend.device_scope("cpu"):
+        return tree.map_structure(pad_and_stack, *values)
