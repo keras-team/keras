@@ -952,6 +952,10 @@ class ReconstructPatches(Operation):
         self.strides = tuple(strides)
         self.padding = padding
         self.data_format = backend.standardize_data_format(data_format)
+        if self.data_format == "channels_first":
+            raise NotImplementedError(
+                "reconstruct_patches does not yet support channels_first."
+            )
 
     def call(self, patches):
         return _reconstruct_patches(
@@ -998,6 +1002,34 @@ class ReconstructPatches(Operation):
                 f"Received shape: {patches.shape}"
             )
 
+        if flat is not None and flat % patch_volume != 0:
+            raise ValueError(
+                f"`patches` last dim ({flat}) is not divisible by "
+                f"prod(size) ({patch_volume})."
+            )
+
+        grid_offset = 1 if original_ndim == expected_ndim_batched else 0
+        grid = patches_shape[grid_offset : grid_offset + len(self.size)]
+        dim_names = ("depth", "height", "width")[-len(self.size) :]
+        for g, p, o, dim_name in zip(
+            grid, self.size, self.output_size, dim_names
+        ):
+            if not isinstance(g, int):
+                continue
+            if self.padding == "valid":
+                if g * p != o:
+                    raise ValueError(
+                        f"`padding='valid'` requires output_size to equal "
+                        f"size * grid. Got output_size={self.output_size}, "
+                        f"grid {dim_name}={g}, size={self.size}."
+                    )
+            elif not (g * p - p < o <= g * p):
+                raise ValueError(
+                    f"For `padding='same'`, `output_size` {dim_name} ({o}) "
+                    f"must be in the range ((g-1)*p, g*p], i.e. "
+                    f"({g * p - p}, {g * p}]. Got: grid={g}, patch={p}."
+                )
+
         if self.data_format == "channels_last":
             out_shape = list(spatial) + [channels_out]
         else:
@@ -1039,15 +1071,19 @@ def reconstruct_patches(
             5D `(N, gD, gH, gW, pD*pH*pW*C)`.
         size: Patch size, matching the `size` used for extraction.
             Length 2 tuple for 2D, length 3 tuple for 3D, or int.
-        output_size: Spatial shape of the original image/volume before
-            extraction. Length 2 tuple `(H, W)` for 2D, length 3 tuple
-            `(D, H, W)` for 3D. Required so that `"same"` padding can be
-            unambiguously inverted.
+        output_size: Target spatial shape of the reconstruction. Length 2
+            tuple `(H, W)` for 2D, length 3 tuple `(D, H, W)` for 3D. With
+            `padding="valid"` this must equal `grid * size` — the region
+            covered by the extracted patches, i.e. the original size
+            cropped down to a multiple of `size`. With `padding="same"`,
+            pass the original spatial shape so the padding added during
+            extraction can be unambiguously removed.
         strides: Currently must equal `size` (non-overlapping). Defaults
             to `size`.
         padding: `"same"` or `"valid"`, matching the extraction.
         data_format: A string specifying the data format of the input tensor.
-            It can be either `"channels_last"` or `"channels_first"`.
+            Only `"channels_last"` is currently supported;
+            `"channels_first"` raises a `NotImplementedError`.
             If not specified, defaults to `keras.config.image_data_format`.
 
     Returns:
@@ -1122,11 +1158,14 @@ def reconstruct_patches_3d(
             (unbatched) or 5D `(N, gD, gH, gW, pD*pH*pW*C)` (batched).
         size: int or tuple `(patch_depth, patch_height, patch_width)`,
             matching the `size` used for extraction.
-        output_size: tuple `(D, H, W)` — the original spatial shape before
-            extraction.
+        output_size: tuple `(D, H, W)`. With `padding="valid"` this must
+            equal `grid * size` (the region covered by the patches, i.e.
+            the original size cropped down to a multiple of `size`); with
+            `padding="same"`, the original spatial shape before extraction.
         strides: Currently must equal `size`. Defaults to `size`.
         padding: `"same"` or `"valid"`, matching the extraction.
-        data_format: `"channels_last"` or `"channels_first"`.
+        data_format: Only `"channels_last"` is currently supported;
+            `"channels_first"` raises a `NotImplementedError`.
 
     Returns:
         Reconstructed volume, 4D (if not batched) or 5D (if batched).
@@ -1243,6 +1282,13 @@ def _reconstruct_patches_2d(
     pH, pW = size
     H, W = output_size
 
+    if len(patches.shape) not in (3, 4):
+        raise ValueError(
+            "`patches` has unexpected rank for 2D reconstruction. "
+            "Expected 3 (unbatched) or 4 (batched). "
+            f"Received shape: {patches.shape}"
+        )
+
     _unbatched = False
     if len(patches.shape) == 3:
         _unbatched = True
@@ -1337,6 +1383,13 @@ def _reconstruct_patches_3d(
 
     pD, pH, pW = size
     D, H, W = output_size
+
+    if len(patches.shape) not in (4, 5):
+        raise ValueError(
+            "`patches` has unexpected rank for 3D reconstruction. "
+            "Expected 4 (unbatched) or 5 (batched). "
+            f"Received shape: {patches.shape}"
+        )
 
     _unbatched = False
     if len(patches.shape) == 4:

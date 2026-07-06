@@ -674,6 +674,127 @@ class ImageOpsStaticShapeTest(testing.TestCase):
                 padding="valid",
             )
 
+    def test_reconstruct_patches_symbolic_validation(self):
+        # The symbolic path mirrors the eager checks when dims are static,
+        # so invalid graphs fail at build time instead of at run time.
+        patches = KerasTensor([None, 4, 4, 80])  # 80 not divisible by 25
+        with self.assertRaisesRegex(ValueError, "not divisible"):
+            kimage.reconstruct_patches(
+                patches,
+                size=(5, 5),
+                output_size=(20, 20),
+                padding="valid",
+            )
+        patches = KerasTensor([None, 4, 4, 75])
+        with self.assertRaisesRegex(ValueError, "size \\* grid"):
+            kimage.reconstruct_patches(
+                patches,
+                size=(5, 5),
+                output_size=(19, 20),
+                padding="valid",
+            )
+        with self.assertRaisesRegex(ValueError, "padding='same'.*height"):
+            kimage.reconstruct_patches(
+                patches,
+                size=(5, 5),
+                output_size=(30, 20),
+                padding="same",
+            )
+        patches_3d = KerasTensor([None, 4, 4, 4, 375])
+        with self.assertRaisesRegex(ValueError, "size \\* grid"):
+            kimage.reconstruct_patches_3d(
+                patches_3d,
+                size=(5, 5, 5),
+                output_size=(20, 19, 20),
+                padding="valid",
+            )
+        with self.assertRaisesRegex(ValueError, "padding='same'.*depth"):
+            kimage.reconstruct_patches_3d(
+                patches_3d,
+                size=(5, 5, 5),
+                output_size=(10, 20, 20),
+                padding="same",
+            )
+
+    def test_reconstruct_patches_channels_first_not_implemented(self):
+        # Op-level guard, eager and symbolic.
+        patches = np.zeros((1, 75, 4, 4), dtype="float32")
+        with self.assertRaisesRegex(NotImplementedError, "channels_first"):
+            kimage.reconstruct_patches(
+                patches,
+                size=(5, 5),
+                output_size=(20, 20),
+                data_format="channels_first",
+            )
+        patches_3d = np.zeros((1, 375, 4, 4, 4), dtype="float32")
+        with self.assertRaisesRegex(NotImplementedError, "channels_first"):
+            kimage.reconstruct_patches_3d(
+                patches_3d,
+                size=(5, 5, 5),
+                output_size=(20, 20, 20),
+                data_format="channels_first",
+            )
+        patches_sym = KerasTensor([None, 75, 4, 4])
+        with self.assertRaisesRegex(NotImplementedError, "channels_first"):
+            kimage.reconstruct_patches(
+                patches_sym,
+                size=(5, 5),
+                output_size=(20, 20),
+                data_format="channels_first",
+            )
+
+    def test_reconstruct_patches_strides_overlap_not_implemented(self):
+        # Overlapping strides (strides != size) are rejected at the op level.
+        patches = np.zeros((1, 4, 4, 75), dtype="float32")
+        with self.assertRaisesRegex(NotImplementedError, "non-overlapping"):
+            kimage.reconstruct_patches(
+                patches,
+                size=(5, 5),
+                output_size=(20, 20),
+                strides=(2, 2),
+            )
+        patches_3d = np.zeros((1, 4, 4, 4, 375), dtype="float32")
+        with self.assertRaisesRegex(NotImplementedError, "non-overlapping"):
+            kimage.reconstruct_patches_3d(
+                patches_3d,
+                size=(5, 5, 5),
+                output_size=(20, 20, 20),
+                strides=(2, 2, 2),
+            )
+
+    def test_reconstruct_patches_wrong_rank(self):
+        # Eager and symbolic wrong-rank inputs get a clear ValueError.
+        with self.assertRaisesRegex(ValueError, "unexpected rank"):
+            kimage.reconstruct_patches(
+                np.zeros((1, 2, 4, 4, 75), dtype="float32"),
+                size=(5, 5),
+                output_size=(20, 20),
+            )
+        with self.assertRaisesRegex(ValueError, "unexpected rank"):
+            kimage.reconstruct_patches_3d(
+                np.zeros((4, 4, 375), dtype="float32"),
+                size=(5, 5, 5),
+                output_size=(20, 20, 20),
+            )
+        with self.assertRaisesRegex(ValueError, "unexpected rank"):
+            kimage.reconstruct_patches(
+                KerasTensor([1, 2, 4, 4, 75]),
+                size=(5, 5),
+                output_size=(20, 20),
+            )
+
+    def test_reconstruct_patches_op_class(self):
+        # Direct use of the Operation class (eager `call` + `get_config`).
+        op = kimage.ReconstructPatches(size=(5, 5), output_size=(20, 20))
+        patches = np.zeros((1, 4, 4, 75), dtype="float32")
+        out = op(patches)
+        self.assertEqual(tuple(out.shape), (1, 20, 20, 3))
+        config = op.get_config()
+        self.assertEqual(config["size"], (5, 5))
+        self.assertEqual(config["output_size"], (20, 20))
+        self.assertEqual(config["strides"], (5, 5))
+        self.assertEqual(config["padding"], "valid")
+
     def test_map_coordinates(self):
         input = KerasTensor([20, 20, 3])
         coordinates = KerasTensor([3, 15, 15, 3])
@@ -2458,6 +2579,68 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(out, ref_out, atol=1e-4)
+
+    def test_reconstruct_patches(self):
+        # Eager extract -> reconstruct round-trips exactly, 2D.
+        for h, w, c, size, padding in [
+            (20, 20, 3, (5, 5), "valid"),
+            (32, 48, 1, (4, 8), "valid"),
+            (59, 55, 3, (8, 8), "same"),
+            (33, 41, 2, (5, 7), "same"),
+        ]:
+            x = np.random.random((2, h, w, c)).astype("float32")
+            patches = kimage.extract_patches(x, size=size, padding=padding)
+            out = kimage.reconstruct_patches(
+                patches, size=size, output_size=(h, w), padding=padding
+            )
+            self.assertEqual(tuple(out.shape), x.shape)
+            self.assertAllClose(out, x, atol=1e-6)
+
+        # Unbatched round-trip.
+        x = np.random.random((16, 16, 3)).astype("float32")
+        patches = kimage.extract_patches(x, size=(4, 4), padding="valid")
+        out = kimage.reconstruct_patches(
+            patches, size=(4, 4), output_size=(16, 16)
+        )
+        self.assertEqual(tuple(out.shape), x.shape)
+        self.assertAllClose(out, x, atol=1e-6)
+
+        # Valid padding with non-divisible dims reconstructs the covered
+        # (cropped) region: output_size is grid * size, not the original.
+        x = np.random.random((2, 10, 11, 3)).astype("float32")
+        patches = kimage.extract_patches(x, size=(4, 4), padding="valid")
+        out = kimage.reconstruct_patches(
+            patches, size=(4, 4), output_size=(8, 8)
+        )
+        self.assertAllClose(out, x[:, :8, :8, :], atol=1e-6)
+
+    def test_reconstruct_patches_3d(self):
+        # Eager extract -> reconstruct round-trips exactly, 3D.
+        for d, h, w, c, size, padding in [
+            (20, 20, 20, 1, (5, 5, 5), "valid"),
+            (9, 12, 15, 2, (3, 4, 5), "valid"),
+            (11, 13, 15, 2, (4, 5, 6), "same"),
+        ]:
+            x = np.random.random((2, d, h, w, c)).astype("float32")
+            patches = kimage.extract_patches_3d(x, size=size, padding=padding)
+            out = kimage.reconstruct_patches_3d(
+                patches, size=size, output_size=(d, h, w), padding=padding
+            )
+            self.assertEqual(tuple(out.shape), x.shape)
+            self.assertAllClose(out, x, atol=1e-6)
+
+    def test_reconstruct_patches_int_dtype(self):
+        # reconstruct_patches only reshapes/transposes/slices, so integer
+        # inputs survive exactly. Build the patches layout manually to stay
+        # independent of conv-based extract_patches dtype support.
+        x = np.arange(2 * 8 * 8 * 3, dtype="int32").reshape(2, 8, 8, 3)
+        patches = x.reshape(2, 2, 4, 2, 4, 3)
+        patches = patches.transpose(0, 1, 3, 2, 4, 5).reshape(2, 2, 2, 48)
+        out = kimage.reconstruct_patches(
+            patches, size=(4, 4), output_size=(8, 8)
+        )
+        self.assertEqual(backend.standardize_dtype(out.dtype), "int32")
+        self.assertAllClose(out, x)
 
 
 class ImageOpsDtypeTest(testing.TestCase):
