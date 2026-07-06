@@ -772,6 +772,49 @@ class ImageOpsStaticShapeTest(testing.TestCase):
                 data_format="channels_first",
             )
 
+    def test_reconstruct_patches_autoinfer_valid(self):
+        # output_size omitted -> inferred from the (static) patch grid.
+        patches = KerasTensor([2, 4, 4, 75])
+        out = kimage.reconstruct_patches(patches, size=(5, 5), padding="valid")
+        self.assertEqual(out.shape, (2, 20, 20, 3))
+        patches_3d = KerasTensor([2, 4, 4, 4, 375])
+        out = kimage.reconstruct_patches(
+            patches_3d, size=(5, 5, 5), padding="valid"
+        )
+        self.assertEqual(out.shape, (2, 20, 20, 20, 3))
+        # channels_first: grid dims are the trailing axes.
+        patches_cf = KerasTensor([2, 75, 4, 4])
+        out = kimage.reconstruct_patches(
+            patches_cf,
+            size=(5, 5),
+            padding="valid",
+            data_format="channels_first",
+        )
+        self.assertEqual(out.shape, (2, 3, 20, 20))
+
+    def test_reconstruct_patches_autoinfer_dynamic_grid_symbolic(self):
+        # Dynamic grid + auto-infer -> spatial dims stay unknown (no raise).
+        patches = KerasTensor([2, None, None, 75])
+        out = kimage.reconstruct_patches(patches, size=(5, 5), padding="valid")
+        self.assertEqual(out.shape, (2, None, None, 3))
+
+    def test_reconstruct_patches_autoinfer_same_raises(self):
+        # Auto-infer is valid-only; same requires explicit output_size.
+        patches = np.zeros((2, 4, 4, 75), dtype="float32")
+        with self.assertRaisesRegex(ValueError, "only supported for"):
+            kimage.reconstruct_patches(patches, size=(5, 5), padding="same")
+        patches_3d = np.zeros((2, 4, 4, 4, 375), dtype="float32")
+        with self.assertRaisesRegex(ValueError, "only supported for"):
+            kimage.reconstruct_patches(
+                patches_3d, size=(5, 5, 5), padding="same"
+            )
+        # The symbolic path raises at graph-construction time too, so a
+        # functional model can't be built that only fails on first call.
+        with self.assertRaisesRegex(ValueError, "only supported for"):
+            kimage.reconstruct_patches(
+                KerasTensor([2, 4, 4, 75]), size=(5, 5), padding="same"
+            )
+
     def test_reconstruct_patches_strides_overlap_not_implemented(self):
         # Overlapping strides (strides != size) are rejected at the op level.
         patches = np.zeros((1, 4, 4, 75), dtype="float32")
@@ -2753,6 +2796,30 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
         self.assertEqual(tuple(recon_cf.shape), (2, 6, 6, 6))
         self.assertAllClose(recon_cf, np.transpose(x, (3, 0, 1, 2)), atol=1e-6)
+
+    def test_reconstruct_patches_autoinfer(self):
+        # Omitting output_size reproduces the explicit result for valid.
+        x = _bf16_exact((2, 20, 20, 3))
+        patches = kimage.extract_patches(x, size=(5, 5), padding="valid")
+        out = kimage.reconstruct_patches(patches, size=(5, 5))
+        self.assertEqual(tuple(out.shape), x.shape)
+        self.assertAllClose(out, x, atol=1e-6)
+
+        # channels_first + auto-infer.
+        patches_cf = knp.transpose(patches, (0, 3, 1, 2))
+        out_cf = kimage.reconstruct_patches(
+            patches_cf, size=(5, 5), data_format="channels_first"
+        )
+        self.assertAllClose(out_cf, np.transpose(x, (0, 3, 1, 2)), atol=1e-6)
+
+        # 3D.
+        v = _bf16_exact((2, 9, 9, 9, 1))
+        patches_3d = kimage.extract_patches_3d(
+            v, size=(3, 3, 3), padding="valid"
+        )
+        out_3d = kimage.reconstruct_patches(patches_3d, size=(3, 3, 3))
+        self.assertEqual(tuple(out_3d.shape), v.shape)
+        self.assertAllClose(out_3d, v, atol=1e-6)
 
     def test_reconstruct_patches_int_dtype(self):
         # reconstruct_patches only reshapes/transposes/slices, so integer
