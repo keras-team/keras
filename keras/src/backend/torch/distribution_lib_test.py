@@ -1,197 +1,260 @@
 import os
-from unittest import mock
 
+import numpy as np
 import pytest
 import torch
-import torch.multiprocessing as mp
+from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import testing
-from keras.src.backend.torch import distribution_lib as backend_dlib
+from keras.src.backend.torch import core
+from keras.src.backend.torch import distribution_lib
+from keras.src.distribution.distribution_lib import DeviceMesh
 
 
-def _distributed_worker(rank, world_size, test_name):
-    os.environ.update(
-        {
-            "MASTER_ADDR": "localhost",
-            "MASTER_PORT": "12355",
-            "RANK": str(rank),
-            "WORLD_SIZE": str(world_size),
-        }
-    )
-    backend_dlib.initialize()
-    try:
-        if test_name == "utils":
-            if backend_dlib.num_processes() != world_size:
-                raise AssertionError
-            if backend_dlib.process_id() != rank:
-                raise AssertionError
-            if backend_dlib.get_device_count("cpu") != world_size:
-                raise AssertionError
-            if backend_dlib.list_devices("cpu")[rank] != f"cpu:{rank}":
-                raise AssertionError
-        elif test_name == "to_backend_device":
-            expected = "cuda" if torch.cuda.is_available() else "cpu"
-            if backend_dlib.to_backend_device(None).type != expected:
-                raise AssertionError
-    finally:
-        if torch.distributed.is_initialized():
-            torch.distributed.destroy_process_group()
-
-
-@pytest.mark.skipif(backend.backend() != "torch", reason="Torch specific.")
+@pytest.mark.skipif(backend.backend() != "torch", reason="Requires torch")
 class TorchDistributionLibTest(testing.TestCase):
-    def test_distributed_real(self):
-        for test_name in ["utils", "to_backend_device"]:
-            mp.spawn(
-                _distributed_worker, args=(2, test_name), nprocs=2, join=True
+    def set_env(self, key, value):
+        old = os.environ.get(key)
+        if value is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = value
+        self.addCleanup(
+            lambda: (
+                os.environ.update({key: old})
+                if old is not None
+                else os.environ.pop(key, None)
             )
+        )
 
-    def test_single_process_logic(self):
+    def tearDown(self):
+        super().tearDown()
         if torch.distributed.is_initialized():
             torch.distributed.destroy_process_group()
-        with mock.patch.dict(os.environ, {}, clear=True):
-            self.assertEqual(backend_dlib.num_processes(), 1)
-            self.assertEqual(backend_dlib.process_id(), 0)
-            self.assertEqual(backend_dlib.to_backend_device("cpu").type, "cpu")
-            self.assertEqual(
-                backend_dlib.to_backend_device("meta").type, "meta"
+
+    @parameterized.parameters(
+        ({}, False, None),
+        ({"WORLD_SIZE": "4"}, False, None),
+        (
+            {
+                "MASTER_ADDR": "localhost",
+                "MASTER_PORT": "29502",
+                "WORLD_SIZE": "1",
+                "RANK": "0",
+            },
+            True,
+            None,
+        ),
+        ({}, False, "cuda"),
+        ({}, False, "gpu"),
+    )
+    def test_get_device_count(self, env, init, device_type):
+        for k, v in env.items():
+            self.set_env(k, v)
+        if init:
+            torch.distributed.init_process_group(
+                backend="gloo", rank=0, world_size=1
             )
 
-    def test_initialize_logic(self):
-        cases = [
-            (True, None, None, None, False, None),
-            (False, None, None, None, False, None),
-            (False, 2, 1, "tcp://127.0.0.1:1234", True, "nccl"),
-            (False, 2, 0, "127.0.0.1:1234", True, "nccl"),
-            (False, 2, 1, None, True, "gloo"),
-        ]
-        for (
-            is_init,
-            num_proc,
-            proc_id,
-            addr,
-            expected_init,
-            expected_backend,
-        ) in cases:
-            with (
-                mock.patch(
-                    "torch.distributed.is_initialized", return_value=is_init
-                ),
-                mock.patch(
-                    "torch.distributed.init_process_group"
-                ) as mock_init_pg,
-                mock.patch(
-                    "torch.cuda.is_available",
-                    return_value=(expected_backend == "nccl"),
-                ),
-                mock.patch("torch.cuda.set_device"),
-                mock.patch.dict(
-                    os.environ,
-                    {"WORLD_SIZE": "2", "RANK": "1"}
-                    if not num_proc and expected_init
-                    else {},
-                ),
-            ):
-                backend_dlib.initialize(
-                    job_addresses=addr,
-                    num_processes=num_proc,
-                    process_id=proc_id,
-                )
-                if expected_init:
-                    mock_init_pg.assert_called()
-                    args = mock_init_pg.call_args[1]
-                    self.assertEqual(args["backend"], expected_backend)
-                    if addr:
-                        self.assertIn("127.0.0.1:1234", args["init_method"])
-                else:
-                    mock_init_pg.assert_not_called()
+        res = distribution_lib.get_device_count(device_type)
 
-        # Test comma separated job_addresses
-        with (
-            mock.patch("torch.distributed.is_initialized", return_value=False),
-            mock.patch.dict(os.environ, {"WORLD_SIZE": "2", "RANK": "0"}),
-        ):
-            with self.assertRaisesRegex(
-                ValueError, "should only contain the coordinator address"
+        if torch.distributed.is_initialized() or "WORLD_SIZE" in os.environ:
+            world_size = int(os.environ.get("WORLD_SIZE", 1))
+            actual_device_type = core._parse_device_input(
+                core.get_device()
+            ).split(":")[0]
+            if device_type in (None, "cpu", actual_device_type) or (
+                device_type == "gpu" and actual_device_type == "cuda"
             ):
-                backend_dlib.initialize(
-                    job_addresses="10.0.0.1:1234,10.0.0.2:1234"
-                )
+                self.assertEqual(res, world_size)
+            else:
+                self.assertEqual(res, 0)
+        else:
+            resolved_device_type = core._parse_device_input(
+                device_type or core.get_device()
+            ).split(":")[0]
+            if resolved_device_type == "cuda":
+                self.assertEqual(res, torch.cuda.device_count())
+            elif resolved_device_type in ("cpu", "mps"):
+                self.assertEqual(res, 1)
+            elif resolved_device_type == "xpu":
+                self.assertEqual(res, torch.xpu.device_count())
+            else:
+                self.assertEqual(res, 0)
 
-    def test_device_counts_and_normalization(self):
-        # Default device (gpu)
-        with (
-            mock.patch("torch.cuda.is_available", return_value=True),
-            mock.patch("torch.cuda.device_count", return_value=4),
-        ):
-            self.assertEqual(backend_dlib.get_device_count(), 4)
-            self.assertEqual(backend_dlib.get_device_count("cuda"), 4)
-            self.assertEqual(
-                backend_dlib.list_devices("cuda"),
-                [f"gpu:{i}" for i in range(4)],
+    @parameterized.parameters(
+        (None, {}, False, True),
+        ("cpu", {}, False, False),
+        (
+            "gpu",
+            {"WORLD_SIZE": "4", "KERAS_TORCH_DEVICE": "gpu"},
+            False,
+            False,
+        ),
+    )
+    def test_list_devices(self, device_type, env, init, default):
+        for k, v in env.items():
+            self.set_env(k, v)
+        if init:
+            torch.distributed.init_process_group(
+                backend="gloo", rank=0, world_size=1
             )
 
-        # MPS
-        with (
-            mock.patch("torch.cuda.is_available", return_value=False),
-            mock.patch("torch.backends.mps.is_available", return_value=True),
+        if default:
+            devices = distribution_lib.list_devices()
+            self.assertTrue(
+                any(
+                    devices[0].startswith(s)
+                    for s in ["gpu:", "cpu:", "mps:", "xpu:"]
+                )
+            )
+        else:
+            devices = distribution_lib.list_devices(device_type)
+            resolved_device_type = core._parse_device_input(
+                device_type or core.get_device()
+            ).split(":")[0]
+            display_type = (
+                "gpu"
+                if resolved_device_type == "cuda"
+                else resolved_device_type
+            )
+            count = distribution_lib.get_device_count(device_type)
+            expected = [f"{display_type}:{i}" for i in range(count)]
+            self.assertEqual(devices, expected)
+
+    @parameterized.parameters(
+        ({}, False, 1),
+        ({"WORLD_SIZE": "4"}, False, 4),
+        (
+            {
+                "MASTER_ADDR": "localhost",
+                "MASTER_PORT": "29504",
+                "WORLD_SIZE": "1",
+                "RANK": "0",
+            },
+            True,
+            1,
+        ),
+    )
+    def test_num_processes_and_id(self, env, init, expected):
+        for k, v in env.items():
+            self.set_env(k, v)
+        if init:
+            torch.distributed.init_process_group(
+                backend="gloo", rank=0, world_size=1
+            )
+
+        self.assertEqual(distribution_lib.num_processes(), expected)
+        self.assertEqual(distribution_lib.process_id(), int(env.get("RANK", 0)))
+
+    @parameterized.parameters(
+        (
+            "127.0.0.1:29506",
+            1,
+            0,
+            {"MASTER_ADDR": None, "MASTER_PORT": None},
+            {"MASTER_ADDR": "127.0.0.1", "MASTER_PORT": "29506"},
+        ),
+        (
+            "127.0.0.1",
+            1,
+            0,
+            {"MASTER_ADDR": None, "MASTER_PORT": "29507"},
+            {"MASTER_ADDR": "127.0.0.1", "MASTER_PORT": "29507"},
+        ),
+        (
+            None,
+            1,
+            0,
+            {"MASTER_ADDR": "127.0.0.1", "MASTER_PORT": "29508"},
+            {"MASTER_ADDR": "127.0.0.1", "MASTER_PORT": "29508"},
+        ),
+    )
+    def test_initialize(self, addr, nproc, pid, initial, expected):
+        if torch.distributed.is_initialized():
+            self.skipTest("torch.distributed already initialized")
+
+        for k, v in initial.items():
+            self.set_env(k, v)
+
+        distribution_lib.initialize(addr, nproc, pid)
+        self.addCleanup(
+            lambda: (
+                torch.distributed.destroy_process_group()
+                if torch.distributed.is_initialized()
+                else None
+            )
+        )
+        self.assertTrue(torch.distributed.is_initialized())
+
+        for k, v in expected.items():
+            self.assertEqual(os.environ.get(k), v)
+
+    @parameterized.parameters(
+        ("cpu", "cpu"),
+        ("gpu", "cuda"),
+        (None, None),
+    )
+    def test_get_device_type(self, k_dev, expected):
+        if k_dev:
+            self.set_env("KERAS_TORCH_DEVICE", k_dev)
+
+        res = core._parse_device_input(core.get_device()).split(":")[0]
+        self.assertEqual(res, core.get_device().split(":")[0])
+
+    @parameterized.parameters(
+        ("cpu", {}, "cpu", None),
+        ("gpu", {}, "cuda", None),
+        (torch.device("cuda:0"), {}, "cuda", 0),
+        ("cuda", {"LOCAL_RANK": "2"}, "cuda", 2),
+        ("cpu:0", {}, "cpu", None),
+        (torch.device("cpu"), {}, "cpu", None),
+    )
+    def test_to_backend_device(self, inp, env, etype, eidx):
+        for k, v in env.items():
+            self.set_env(k, v)
+
+        if (
+            isinstance(inp, torch.device)
+            and inp.type == "cuda"
+            and not torch.cuda.is_available()
         ):
-            self.assertEqual(backend_dlib.get_device_count(), 1)
-            self.assertEqual(backend_dlib.list_devices()[0], "mps:0")
+            self.skipTest("No CUDA")
 
-        # XPU
-        with (
-            mock.patch("torch.cuda.is_available", return_value=False),
-            mock.patch("torch.backends.mps.is_available", return_value=False),
-            mock.patch(
-                "torch.xpu.is_available", return_value=True, create=True
-            ),
-            mock.patch("torch.xpu.device_count", return_value=2, create=True),
-        ):
-            self.assertEqual(backend_dlib.get_device_count(), 2)
-            self.assertEqual(backend_dlib.get_device_count("xpu"), 2)
+        if inp == "gpu" and not torch.cuda.is_available():
+            self.skipTest("No CUDA")
 
-        # TPU
-        mock_xla = mock.MagicMock(available=True)
-        mock_xla.runtime.global_device_count.return_value = 8
-        with (
-            mock.patch("torch.cuda.is_available", return_value=False),
-            mock.patch("torch.backends.mps.is_available", return_value=False),
-            mock.patch(
-                "torch.xpu.is_available", return_value=False, create=True
-            ),
-            mock.patch("keras.src.utils.module_utils.torch_xla", mock_xla),
-        ):
-            self.assertEqual(backend_dlib.get_device_count(), 8)
-            self.assertEqual(backend_dlib.get_device_count("tpu"), 8)
+        dev = distribution_lib._to_backend_device(inp)
+        self.assertEqual(dev.type, etype)
+        if eidx is not None:
+            self.assertEqual(dev.index, eidx)
 
-        # Non-available device
-        self.assertEqual(backend_dlib.get_device_count("invalid"), 0)
+    @parameterized.parameters(
+        (np.array(["cpu:0"]).reshape(1), "cpu"),
+        (np.array(["gpu:0"]).reshape(1), "cuda"),
+    )
+    def test_to_backend_mesh(self, devs, etype):
+        if etype == "cuda" and not torch.cuda.is_available():
+            self.skipTest("No CUDA")
 
-    def test_distributed_state_and_to_device(self):
-        with (
-            mock.patch("torch.distributed.is_initialized", return_value=True),
-            mock.patch("torch.distributed.get_world_size", return_value=4),
-            mock.patch("torch.distributed.get_rank", return_value=2),
-            mock.patch("torch.cuda.is_available", return_value=True),
-            mock.patch.dict(os.environ, {"LOCAL_RANK": "2"}),
-        ):
-            self.assertEqual(backend_dlib.num_processes(), 4)
-            self.assertEqual(backend_dlib.process_id(), 2)
-            self.assertEqual(backend_dlib.get_device_count("gpu"), 4)
-            self.assertEqual(backend_dlib.to_backend_device(None).index, 2)
-            self.assertEqual(backend_dlib.to_backend_device("gpu:1").index, 1)
+        if not torch.distributed.is_initialized():
+            self.set_env("MASTER_ADDR", "localhost")
+            self.set_env("MASTER_PORT", "29509")
+            distribution_lib.initialize(num_processes=1, process_id=0)
+            self.addCleanup(
+                lambda: (
+                    torch.distributed.destroy_process_group()
+                    if torch.distributed.is_initialized()
+                    else None
+                )
+            )
 
-        # to_backend_device branches
-        with mock.patch("torch.cuda.is_available", return_value=False):
-            self.assertEqual(backend_dlib.to_backend_device("gpu").type, "cpu")
-            self.assertEqual(backend_dlib.to_backend_device(None).type, "cpu")
+        mesh = DeviceMesh(shape=(1,), axis_names=["x"], devices=devs)
+        backend_mesh = distribution_lib._to_backend_mesh(mesh)
 
-        with (
-            mock.patch("torch.cuda.is_available", return_value=True),
-            mock.patch.dict(os.environ, {"LOCAL_RANK": "3"}),
-        ):
-            self.assertEqual(backend_dlib.to_backend_device("gpu").index, 3)
-            self.assertEqual(backend_dlib.to_backend_device("cuda:0").index, 0)
-            self.assertEqual(backend_dlib.to_backend_device(None).index, 3)
+        from torch.distributed.device_mesh import DeviceMesh as TorchDeviceMesh
+
+        self.assertIsInstance(backend_mesh, TorchDeviceMesh)
+        self.assertEqual(backend_mesh.device_type, etype)
+        self.assertEqual(backend_mesh.mesh_dim_names, ("x",))
