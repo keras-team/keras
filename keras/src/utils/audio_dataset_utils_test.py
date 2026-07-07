@@ -593,6 +593,17 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
             _ = audio_dataset_utils.audio_dataset_from_directory(
                 directory, validation_split=0.2, subset="training"
             )
+        with self.assertRaisesRegex(ValueError, "`format` should be either"):
+            _ = audio_dataset_utils.audio_dataset_from_directory(
+                directory, format="invalid"
+            )
+
+        with self.assertRaisesRegex(
+            ValueError, "Remote directories are not supported"
+        ):
+            _ = audio_dataset_utils.audio_dataset_from_directory(
+                "gs://bucket/remote/path", format="grain"
+            )
 
     @parameterized.named_parameters(
         ("tf", "tf"),

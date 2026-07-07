@@ -1,9 +1,8 @@
-import pathlib
-
 import numpy as np
 
 from keras.src.api_export import keras_export
 from keras.src.utils import dataset_utils
+from keras.src.utils import file_utils
 from keras.src.utils.grain_utils import make_batch
 from keras.src.utils.module_utils import grain
 from keras.src.utils.module_utils import tensorflow as tf
@@ -140,6 +139,27 @@ def audio_dataset_from_directory(
       of shape `(batch_size, num_classes)`, representing a one-hot
       encoding of the class index.
     """
+    if format not in ("tf", "grain"):
+        raise ValueError(
+            '`format` should be either "tf" or "grain". '
+            f"Received: format={format}"
+        )
+
+    if format == "grain":
+        if ragged:
+            raise ValueError(
+                "Ragged datasets are not supported when `format='grain'`."
+            )
+        if wavfile is None or signal is None:
+            raise ImportError(
+                "To use the grain audio dataset, you should install scipy. "
+                "You can install it via `pip install scipy`."
+            )
+        if file_utils.is_remote_path(directory):
+            raise ValueError(
+                "Remote directories are not supported when `format='grain'`."
+            )
+
     if labels not in ("inferred", None):
         if not isinstance(labels, (list, tuple)):
             raise ValueError(
@@ -167,11 +187,6 @@ def audio_dataset_from_directory(
     if ragged and output_sequence_length is not None:
         raise ValueError(
             "Cannot set both `ragged` and `output_sequence_length`"
-        )
-
-    if format == "grain" and ragged:
-        raise ValueError(
-            "Ragged datasets are not supported when `format='grain'`."
         )
 
     if sampling_rate is not None:
@@ -637,10 +652,10 @@ def _read_and_decode_audio_grain(
             "You can install it via `pip install scipy`."
         )
 
-    if isinstance(path, bytes):
+    if hasattr(path, "decode"):
         path = path.decode("utf-8")
-    elif isinstance(path, pathlib.Path):
-        path = str(path.resolve())
+    else:
+        path = str(path)
 
     default_audio_rate, audio = wavfile.read(path)
 
@@ -670,11 +685,13 @@ def _read_and_decode_audio_grain(
 
     # Resample if needed
     if sampling_rate is not None and default_audio_rate != sampling_rate:
-        num_samples = int(
-            round(len(audio) * sampling_rate / default_audio_rate)
-        )
-        audio = signal.resample(audio, num_samples, axis=0)
-        audio = audio.astype("float32")
+        if len(audio) > 0:
+            num_samples = int(
+                round(len(audio) * sampling_rate / default_audio_rate)
+            )
+            num_samples = max(1, num_samples)
+            audio = signal.resample(audio, num_samples, axis=0)
+            audio = audio.astype("float32")
 
     with backend.device_scope("cpu"):
         audio = ops.convert_to_tensor(audio, dtype="float32")
