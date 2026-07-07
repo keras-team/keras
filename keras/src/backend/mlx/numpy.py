@@ -1415,7 +1415,9 @@ def correlate(x1, x2, mode="valid"):
         x1 = mx.pad(x1, pad_width)
 
     output_size = len(x1) - len(x2) + 1
-    window_indices = mx.arange(output_size)[:, None] + mx.arange(len(x2))[None, :]
+    window_indices = (
+        mx.arange(output_size)[:, None] + mx.arange(len(x2))[None, :]
+    )
     windows = x1[window_indices]
     result = mx.sum(windows * x2, axis=1).astype(mlx_dtype)
 
