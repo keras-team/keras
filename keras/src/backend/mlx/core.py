@@ -251,26 +251,48 @@ def compute_output_spec(fn, *args, **kwargs):
 
 
 def cond(pred, true_fn, false_fn):
-    # TODO: How should we avoid evaluating pred in case we are tracing?
-    if pred:
-        return true_fn()
-    return false_fn()
+    try:
+        pred_value = bool(pred)
+    except ValueError:
+        pred_value = None
+
+    if pred_value is not None:
+        # Eager execution. Only the taken branch is evaluated, matching the
+        # semantics of every other backend's `cond`.
+        return true_fn() if pred_value else false_fn()
+
+    # Forcing `pred` to a concrete bool raised, which means we are being
+    # traced by `mx.compile` or `mx.vmap`. MLX has no primitive for
+    # data-dependent control flow, so both branches are evaluated and their
+    # outputs are selected with `mx.where` instead.
+    true_out = true_fn()
+    false_out = false_fn()
+    return tree.map_structure(
+        lambda t, f: mx.where(pred, t, f), true_out, false_out
+    )
 
 
 def vectorized_map(function, elements):
     return mx.vmap(function)(elements)
 
 
+# GPU scatter does not yet support int64, uint64, or complex64 for the
+# input or updates, so those dtypes are scattered on the CPU stream.
+_SCATTER_UNSUPPORTED_GPU_DTYPES = (mx.int64, mx.uint64, mx.complex64)
+
+
 def scatter(indices, values, shape):
     indices = convert_to_tensor(indices)
     values = convert_to_tensor(values)
-    if values.dtype == mx.int64:
-        values = values.astype(mx.int32)
-    elif values.dtype == mx.uint64:
-        values = values.astype(mx.uint32)
     zeros = mx.zeros(shape, dtype=values.dtype)
     indices = tuple(indices[..., i] for i in range(indices.shape[-1]))
-    zeros = zeros.at[indices].add(values)
+    stream = (
+        mx.cpu
+        if values.dtype in _SCATTER_UNSUPPORTED_GPU_DTYPES
+        else mx.default_device()
+    )
+    with mx.stream(stream):
+        zeros = zeros.at[indices].add(values)
 
     return zeros
 
@@ -279,25 +301,28 @@ def scatter_update(inputs, indices, updates, reduction=None):
     inputs = convert_to_tensor(inputs)
     indices = convert_to_tensor(indices)
     updates = convert_to_tensor(updates)
-    if inputs.dtype == mx.int64:
-        inputs = inputs.astype(mx.int32)
-    elif inputs.dtype == mx.uint64:
-        inputs = inputs.astype(mx.uint32)
     indices = tuple(indices[..., i] for i in range(indices.shape[-1]))
-    if reduction is None:
-        # Copy so we do not mutate the caller's array or a Variable buffer.
-        inputs = mx.array(inputs)
-        inputs[indices] = updates
-    elif reduction == "add":
-        inputs = inputs.at[indices].add(updates)
-    elif reduction == "max":
-        inputs = inputs.at[indices].maximum(updates)
-    elif reduction == "min":
-        inputs = inputs.at[indices].minimum(updates)
-    elif reduction == "mul":
-        inputs = inputs.at[indices].multiply(updates)
-    else:
-        raise ValueError(f"Unsupported reduction: {reduction}")
+    stream = (
+        mx.cpu
+        if inputs.dtype in _SCATTER_UNSUPPORTED_GPU_DTYPES
+        else mx.default_device()
+    )
+    with mx.stream(stream):
+        if reduction is None:
+            # Copy so we do not mutate the caller's array or a Variable
+            # buffer.
+            inputs = mx.array(inputs)
+            inputs[indices] = updates
+        elif reduction == "add":
+            inputs = inputs.at[indices].add(updates)
+        elif reduction == "max":
+            inputs = inputs.at[indices].maximum(updates)
+        elif reduction == "min":
+            inputs = inputs.at[indices].minimum(updates)
+        elif reduction == "mul":
+            inputs = inputs.at[indices].multiply(updates)
+        else:
+            raise ValueError(f"Unsupported reduction: {reduction}")
 
     return inputs
 
