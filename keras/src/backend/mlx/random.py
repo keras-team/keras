@@ -1,3 +1,5 @@
+import math
+
 import mlx.core as mx
 
 from keras.src.backend.config import floatx
@@ -19,9 +21,12 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
     dtype = to_mlx_dtype(dtype)
     seed = mlx_draw_seed(seed)
-    return mx.random.normal(
-        shape=shape, loc=mean, scale=stddev, dtype=dtype, key=seed
-    )
+    # float64 sampling is not supported on the GPU stream.
+    stream = mx.cpu if dtype == mx.float64 else mx.default_device()
+    with mx.stream(stream):
+        return mx.random.normal(
+            shape=shape, loc=mean, scale=stddev, dtype=dtype, key=seed
+        )
 
 
 def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
@@ -220,7 +225,6 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
     counts_arr = mx.array(counts, dtype=mx.float32)
     probs_arr = mx.array(probabilities, dtype=mx.float32)
 
-    # should we validate against counts and probabilities?
     if mx.any(counts_arr < 0.0):
         raise ValueError(
             "Invalid value for argument `counts`. All counts "
@@ -249,9 +253,7 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
     counts_bcast = counts_arr + zeros_for_bcast
     probs_bcast = probs_arr + zeros_for_bcast
 
-    flat_size = 1
-    for dim in shape:
-        flat_size *= dim
+    flat_size = math.prod(shape)
 
     counts_flat = counts_bcast.reshape((flat_size,))
     probs_flat = probs_bcast.reshape((flat_size,))

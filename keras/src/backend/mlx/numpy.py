@@ -689,7 +689,8 @@ def greater_equal(x1, x2):
 
 def hstack(xs):
     xs = _promote(*xs)
-    if xs[0].ndim == 1:
+    if xs[0].ndim <= 1:
+        xs = [mx.atleast_1d(x) for x in xs]
         return mx.concatenate(xs, axis=0)
     else:
         return mx.concatenate(xs, axis=1)
@@ -1233,8 +1234,8 @@ def inner(x1, x2):
 
 def vstack(xs):
     xs = _promote(*xs)
-    if xs[0].ndim == 1:
-        xs = [x[None] for x in xs]
+    if xs[0].ndim <= 1:
+        xs = [mx.atleast_1d(x)[None] for x in xs]
     return mx.concatenate(xs, axis=0)
 
 
@@ -1414,10 +1415,9 @@ def correlate(x1, x2, mode="valid"):
         x1 = mx.pad(x1, pad_width)
 
     output_size = len(x1) - len(x2) + 1
-    result = mx.zeros(output_size, dtype=mlx_dtype)
-
-    for i in range(output_size):
-        result = result.at[i].add(mx.sum(x1[i : i + len(x2)] * x2))
+    window_indices = mx.arange(output_size)[:, None] + mx.arange(len(x2))[None, :]
+    windows = x1[window_indices]
+    result = mx.sum(windows * x2, axis=1).astype(mlx_dtype)
 
     return result[::-1] if reverse_output else result
 

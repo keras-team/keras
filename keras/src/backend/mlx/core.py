@@ -441,20 +441,6 @@ def reverse_sequence(xs, axis=0):
     return mx.take(xs, indices, axis=axis)
 
 
-def flip(x, axis=None):
-    if axis is None:
-        # flip all axes
-        axes = range(x.ndim)
-    else:
-        axes = [axis] if isinstance(axis, int) else axis
-
-    for axis in axes:
-        indices = mx.arange(x.shape[axis] - 1, -1, -1)
-        x = mx.take(x, indices, axis=axis)
-
-    return x
-
-
 def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
     # Ref: jax.lax.scan
     if not callable(f):
@@ -545,7 +531,7 @@ def associative_scan(f, elems, reverse=False, axis=0):
     elems_flat = tree.flatten(elems)
     elems_flat = [convert_to_tensor(elem) for elem in elems_flat]
     if reverse:
-        elems_flat = [flip(elem, (axis,)) for elem in elems_flat]
+        elems_flat = [reverse_sequence(elem, axis) for elem in elems_flat]
 
     def _combine(a_flat, b_flat):
         a = tree.pack_sequence_as(elems, a_flat)
@@ -639,7 +625,7 @@ def associative_scan(f, elems, reverse=False, axis=0):
 
     scans = _scan(elems_flat)
     if reverse:
-        scans = [flip(scanned, (axis,)) for scanned in scans]
+        scans = [reverse_sequence(scanned, axis) for scanned in scans]
 
     return tree.pack_sequence_as(elems, scans)
 
@@ -674,30 +660,6 @@ def remat(f):
         recomputes f on the backwards pass of a gradient call.
     """
     return mx.checkpoint(f)
-
-
-def enable_float64():
-    """Returns context manager forcing operations on cpu
-
-    MLX requires operations involving `float64` to be on cpu,
-    mimicking jax's `enable_x64()`
-
-    Usage:
-    ```
-        a = mx.array([1, 2, 3], dtype=mx.float64)
-        b = mx.array([4, 5, 6], dtype=mx.float64)
-
-        with enable_float64():
-            c = mx.add(a, b)
-
-        # OR
-        mlx_cpu_context = mx.stream(mx.cpu)
-        mlx_cpu_context.__enter__()
-        c = mx.add(a, b)
-        mlx_cpu_context.__exit__(None, None, None)
-    ```
-    """
-    return mx.stream(mx.cpu)
 
 
 def device_scope(device_name):
