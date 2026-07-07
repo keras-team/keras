@@ -838,16 +838,17 @@ def _load_state(
     failure = False
 
     if hasattr(saveable, "load_own_variables") and weights_store:
+        store = weights_store.get(inner_path)
         if skip_mismatch or failed_saveables is not None:
             try:
-                saveable.load_own_variables(weights_store.get(inner_path))
+                saveable.load_own_variables(store)
             except Exception as e:
                 if failed_saveables is not None:
                     failed_saveables.add(id(saveable))
                 error_msgs[id(saveable)] = saveable, e
                 failure = True
         else:
-            saveable.load_own_variables(weights_store.get(inner_path))
+            saveable.load_own_variables(store)
 
     if hasattr(saveable, "load_assets") and assets_store:
         if skip_mismatch or failed_saveables is not None:
@@ -1031,10 +1032,8 @@ def _load_container_state(
                 #   - Containers that mirror already-loaded saveables (e.g.
                 #     a Functional model's `_operations_by_depth` whose
                 #     items are also in the `layers` collection).
-                tracked_failures = (
-                    failed_saveables if failed_saveables is not None else set()
-                )
-                failed_before = len(tracked_failures)
+                tracked_failures = set()
+                tracked_errors = {}
                 _load_container_state(
                     saveable,
                     weights_store,
@@ -1043,10 +1042,10 @@ def _load_container_state(
                     skip_mismatch=True,
                     visited_saveables=visited_saveables,
                     failed_saveables=tracked_failures,
-                    error_msgs=error_msgs,
+                    error_msgs=tracked_errors,
                     visited_containers=visited_containers,
                 )
-                if len(tracked_failures) > failed_before:
+                if tracked_failures:
                     # Legacy files saved before PR #22362 didn't write the
                     # `container*` groups for nested containers — silently
                     # skip so the model still loads (sublayers keep their
