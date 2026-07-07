@@ -264,16 +264,10 @@ def get_jax_iterator(iterable):
 
 
 def get_mlx_iterator(iterable):
-    import mlx.core as mx
-
-    def convert_to_mlx(x):
-        if isinstance(x, mx.array):
-            return x
-        else:
-            return mx.array(x)
+    from keras.src.backend.mlx.core import convert_to_tensor
 
     for batch in iterable:
-        yield tree.map_structure(convert_to_mlx, batch, none_is_leaf=False)
+        yield tree.map_structure(convert_to_tensor, batch, none_is_leaf=False)
 
 
 def get_numpy_iterator(iterable):

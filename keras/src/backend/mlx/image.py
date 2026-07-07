@@ -217,12 +217,6 @@ def map_coordinates(
     if isinstance(fill_value, (int, float)) and _is_integer(input_arr):
         fill_value = int(fill_value)
 
-    if len(coordinates) != len(input_arr.shape):
-        raise ValueError(
-            "coordinates must be a sequence of length inputs.shape, but "
-            f"{len(coordinates)} != {len(input_arr.shape)}"
-        )
-
     index_fixer = _INDEX_FIXERS.get(fill_mode)
     if index_fixer is None:
         raise ValueError(

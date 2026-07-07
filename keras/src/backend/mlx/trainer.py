@@ -27,13 +27,9 @@ class MLXTrainer(base_trainer.Trainer):
         self._mlx_state_synced = True
 
     def _data_to_mlx(self, data):
-        def _transform(x):
-            if isinstance(x, np.ndarray):
-                return mx.array(x)
-            else:
-                return x
-
-        return tree.map_structure(_transform, data)
+        return tree.map_structure(
+            backend.convert_to_tensor, data, none_is_leaf=False
+        )
 
     def mlx_state_sync(self):
         if not getattr(self, "_mlx_state", None) or self._mlx_state_synced:

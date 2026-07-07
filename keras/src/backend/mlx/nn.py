@@ -1329,16 +1329,12 @@ def dot_product_attention(
     )
 
 
-def _pair(x):
-    return (x, x) if isinstance(x, int) else tuple(x)
-
-
-def unfold(x, kernel_size, dilation=1, padding=0, stride=1):
-    x = convert_to_tensor(x)
-    k = _pair(kernel_size)
-    d = _pair(dilation)
-    p = _pair(padding)
-    s = _pair(stride)
+def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
+    x = convert_to_tensor(input)
+    k = standardize_tuple(kernel_size, 2, "kernel_size")
+    d = standardize_tuple(dilation, 2, "dilation")
+    p = standardize_tuple(padding, 2, "padding", allow_zero=True)
+    s = standardize_tuple(stride, 2, "stride")
 
     N, C, _, _ = x.shape
     if p[0] > 0 or p[1] > 0:
@@ -1363,11 +1359,11 @@ def unfold(x, kernel_size, dilation=1, padding=0, stride=1):
 
 def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
     x = convert_to_tensor(x)
-    oH, oW = _pair(output_size)
-    kH, kW = _pair(kernel_size)
-    dH, dW = _pair(dilation)
-    pH, pW = _pair(padding)
-    sH, sW = _pair(stride)
+    oH, oW = standardize_tuple(output_size, 2, "output_size")
+    kH, kW = standardize_tuple(kernel_size, 2, "kernel_size")
+    dH, dW = standardize_tuple(dilation, 2, "dilation")
+    pH, pW = standardize_tuple(padding, 2, "padding", allow_zero=True)
+    sH, sW = standardize_tuple(stride, 2, "stride")
 
     N, CKK, _ = x.shape
     C = CKK // (kH * kW)

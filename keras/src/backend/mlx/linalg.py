@@ -147,13 +147,10 @@ def lstsq(a, b, rcond=None):
     elif b.ndim > 2:
         raise ValueError("b must be 1D or 2D.")
 
-    if b.ndim != 2:
-        raise ValueError("b must be 1D or 2D.")
-
     m, n = a.shape
     dtype = a.dtype
 
-    eps = np.finfo(np.array(a).dtype).eps
+    eps = np.finfo(standardize_dtype(dtype)).eps
     if rcond is None:
         rcond = eps * max(m, n)
     else:
@@ -211,23 +208,29 @@ def jvp(fun, primals, tangents, has_aux=False):
     primals = list(primals)
     tangents = list(tangents)
 
+    # mx.jvp has no has_aux and returns flat lists, so strip the aux output
+    # before differentiating and record the output structure, both from the
+    # single call `mx.jvp` makes internally rather than a second concrete
+    # call to `fun`.
+    structure_holder = [None]
     if has_aux:
-        # mx.jvp has no has_aux, so strip the aux output before differentiating
-        # and recover it from a concrete evaluation below.
         aux_holder = [None]
 
         def target(*args):
             out, aux = fun(*args)
             aux_holder[0] = aux
+            structure_holder[0] = out
             return out
     else:
-        target = fun
+
+        def target(*args):
+            out = fun(*args)
+            structure_holder[0] = out
+            return out
 
     primals_out, tangents_out = mx.jvp(target, primals, tangents)
 
-    # mx.jvp returns flat lists, so pack them back into the function's output
-    # structure (a bare tensor when `fun` returns a single output).
-    structure = target(*primals)
+    structure = structure_holder[0]
     primals_out = tree.pack_sequence_as(structure, primals_out)
     tangents_out = tree.pack_sequence_as(structure, tangents_out)
 

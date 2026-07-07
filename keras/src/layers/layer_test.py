@@ -1727,8 +1727,8 @@ class LayerTest(testing.TestCase):
         self.assertListEqual(layer1_names, layer2_names)
 
     @pytest.mark.skipif(
-        not backend.SUPPORTS_COMPLEX_DTYPES or backend.backend() == "mlx",
-        reason=f"{backend.backend()} backend doesn't support complex matmul.",
+        not backend.SUPPORTS_COMPLEX_DTYPES,
+        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
     )
     def test_complex_dtype_support(self):
         class MyDenseLayer(layers.Layer):

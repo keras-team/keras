@@ -271,7 +271,6 @@ def _stft(x, window, nperseg, noverlap, nfft, axis=-1):
     result = window.reshape(win_shape) * result
     result = mx.fft.rfft(mx.real(result), n=nfft, axis=-1)
 
-    result *= mx.sqrt(1.0 / window.sum() ** 2)
     result = result.astype(result_dtype)
     result = mx.moveaxis(result, -1, axis)
     return result
@@ -356,8 +355,6 @@ def stft(
         noverlap=(sequence_length + l_pad + r_pad - sequence_stride),
         nfft=fft_length,
     )
-    scale = mx.sqrt(1.0 / win.sum() ** 2)
-    result = result / scale
     result = mx.swapaxes(result, -2, -1)
     return mx.real(result), mx.imag(result)
 
