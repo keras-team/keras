@@ -114,6 +114,11 @@ def erfc(x):
 def top_k(x, k, sorted=True):
     # default to sorted=True to match other backends
     x = convert_to_tensor(x)
+    if k > x.shape[-1]:
+        raise ValueError(
+            "`k` must be less than or equal to the size of the last "
+            f"dimension of `x` ({x.shape[-1]}). Received: k={k}"
+        )
     # argpartition requires kth < size, so clamp when k equals the last dim.
     kth = min(k, x.shape[-1] - 1)
     indices = mx.argpartition(mx.negative(x), kth, axis=-1)[..., :k]
@@ -124,7 +129,7 @@ def top_k(x, k, sorted=True):
         values = mx.take_along_axis(values, sort_indices, axis=-1)
         indices = mx.take_along_axis(indices, sort_indices, axis=-1)
 
-    return values, indices
+    return values, indices.astype(mx.int32)
 
 
 def in_top_k(targets, predictions, k):

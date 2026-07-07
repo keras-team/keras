@@ -718,7 +718,6 @@ class MLXTrainer(base_trainer.Trainer):
         if not isinstance(callbacks, callbacks_module.CallbackList):
             callbacks = callbacks_module.CallbackList(
                 callbacks,
-                # add_history=True,
                 add_progbar=verbose != 0,
                 verbose=verbose,
                 epochs=1,
@@ -766,16 +765,16 @@ class MLXTrainer(base_trainer.Trainer):
                 (trainable_variables, non_trainable_variables) = state
                 outputs = append_to_outputs(batch_outputs, outputs)
 
+                self._mlx_state = {
+                    # I wouldn't recommend modifying non-trainable model
+                    # state during predict(), but it's allowed.
+                    "non_trainable_variables": non_trainable_variables,
+                }
                 callbacks.on_predict_batch_end(
                     end_step, {"outputs": batch_outputs}
                 )
                 if self.stop_predicting:
                     break
-        self._mlx_state = {
-            # I wouldn't recommend modifying non-trainable model state
-            # during predict(), but it's allowed.
-            "non_trainable_variables": non_trainable_variables,
-        }
         self.mlx_state_sync()
         callbacks.on_predict_end()
         self._mlx_state = None

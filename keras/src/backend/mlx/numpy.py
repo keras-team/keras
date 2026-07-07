@@ -9,6 +9,7 @@ from keras.src.backend import config
 from keras.src.backend import result_type
 from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
+from keras.src.backend.common.backend_utils import vectorize_impl
 from keras.src.backend.mlx.core import cast
 from keras.src.backend.mlx.core import convert_to_tensor
 from keras.src.backend.mlx.core import convert_to_tensors
@@ -396,6 +397,11 @@ def bincount(x, weights=None, minlength=0, sparse=False):
         raise ValueError("Unsupported value `sparse=True` with mlx backend")
 
     x = convert_to_tensor(x)
+    if mx.any(x < 0):
+        raise ValueError(
+            "`bincount` does not support negative values in `x`. "
+            f"Received: x={x}"
+        )
     dtypes_to_resolve = [x.dtype]
     if weights is not None:
         weights = convert_to_tensor(weights)
@@ -621,9 +627,10 @@ def expm1(x):
     ori_dtype = standardize_dtype(x.dtype)
     if "int" in ori_dtype or ori_dtype == "bool":
         x = cast(x, config.floatx())
-    # mlx's native expm1 loses precision on Metal, so use exp(x) - 1 which
-    # stays within tolerance on both CPU and GPU.
-    return mx.exp(x) - 1
+    # mlx's native GPU `expm1` kernel loses precision away from zero, while
+    # `exp(x) - 1` catastrophically cancels near zero. Use whichever is
+    # accurate for the input's magnitude.
+    return mx.where(mx.abs(x) < 0.1, mx.expm1(x), mx.exp(x) - 1)
 
 
 def flip(x, axis=None):
@@ -1187,7 +1194,7 @@ def tril(x, k=0):
     idx_x = mx.arange(x.shape[-1])
     mask = idx_y[:, None] >= idx_x[None] - k
 
-    return x * mask
+    return mx.where(mask, x, mx.zeros_like(x))
 
 
 def triu(x, k=0):
@@ -1197,7 +1204,7 @@ def triu(x, k=0):
     idx_x = mx.arange(x.shape[-1])
     mask = idx_y[:, None] <= idx_x[None] - k
 
-    return x * mask
+    return mx.where(mask, x, mx.zeros_like(x))
 
 
 def trunc(x):
@@ -1436,25 +1443,9 @@ def slogdet(x):
 
 
 def vectorize(pyfunc, *, excluded=None, signature=None):
-    if excluded is not None:
-        raise NotImplementedError("excluded parameter not supported yet")
-
-    if signature is None:
-        return lambda *args: mx.vmap(pyfunc)(*args)
-
-    def wrapped(*args):
-        array_args = [
-            mx.array(arg) if not isinstance(arg, mx.array) else arg
-            for arg in args
-        ]
-        if signature == "(d,d)->()":
-            return pyfunc(*array_args)
-        elif signature == "(d,d)->(d)":
-            return pyfunc(*array_args)
-        vmapped = mx.vmap(pyfunc, in_axes=0, out_axes=0)
-        return vmapped(*array_args)
-
-    return wrapped
+    return vectorize_impl(
+        pyfunc, mx.vmap, excluded=excluded, signature=signature
+    )
 
 
 def histogram_bin_edges(a, bins=10, range=None):

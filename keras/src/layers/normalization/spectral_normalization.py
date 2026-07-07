@@ -77,32 +77,16 @@ class SpectralNormalization(Wrapper):
 
     def call(self, inputs, training=False):
         if training:
-            if backend.backend() == "mlx":
-                # ops.cond is non-compilable with mlx backend
-                new_vector_u, new_kernel = self._mlx_get_kernel_update()
-            else:
-                new_vector_u, new_kernel = ops.cond(
-                    ops.all(ops.equal(self.kernel.value, 0)),
-                    lambda: (self.vector_u.value, self.kernel.value),
-                    self.normalized_weights,
-                )
+            new_vector_u, new_kernel = ops.cond(
+                ops.all(ops.equal(self.kernel.value, 0)),
+                lambda: (self.vector_u.value, self.kernel.value),
+                self.normalized_weights,
+            )
             self.vector_u.assign(new_vector_u)
             self.kernel.assign(new_kernel)
 
         output = self.layer(inputs)
         return ops.cast(output, inputs.dtype)
-
-    def _mlx_get_kernel_update(self):
-        kernel_all_zero = ops.all(ops.equal(self.kernel.value, 0))
-        kernel_all_zero = ops.stop_gradient(kernel_all_zero)
-        normalized_vector_u, normalized_kernel = self.normalized_weights()
-        new_vector_u = ops.where(
-            kernel_all_zero, self.vector_u.value, normalized_vector_u
-        )
-        new_kernel = ops.where(
-            kernel_all_zero, self.kernel.value, normalized_kernel
-        )
-        return new_vector_u, new_kernel
 
     def compute_output_shape(self, input_shape):
         return self.layer.compute_output_shape(input_shape)
@@ -113,8 +97,23 @@ class SpectralNormalization(Wrapper):
         This method returns the updated value for `self.kernel` with the
         spectral normalized value, so that the layer is ready for `call()`.
         """
+        kernel = self.kernel.value
+        if backend.backend() == "mlx":
+            # `ops.cond` always evaluates both branches under `mx.compile`,
+            # so this function still runs when the kernel is all zero. Swap
+            # in a safe placeholder before the power iteration so `rsqrt`
+            # and the final divide never see a zero input, otherwise their
+            # gradients are `-inf`/`inf` and leak into the masked-out branch
+            # as NaN even though the forward value is discarded by the
+            # `ops.cond` in `call()`.
+            kernel_all_zero = ops.stop_gradient(
+                ops.all(ops.equal(kernel, 0))
+            )
+            kernel = ops.where(
+                kernel_all_zero, ops.ones_like(kernel), kernel
+            )
 
-        weights = ops.reshape(self.kernel, [-1, self.kernel_shape[-1]])
+        weights = ops.reshape(kernel, [-1, self.kernel_shape[-1]])
         vector_u = self.vector_u.value
 
         for _ in range(self.power_iterations):
@@ -127,7 +126,7 @@ class SpectralNormalization(Wrapper):
         sigma = ops.matmul(
             ops.matmul(vector_v, weights), ops.transpose(vector_u)
         )
-        kernel = ops.reshape(ops.divide(self.kernel, sigma), self.kernel_shape)
+        kernel = ops.reshape(ops.divide(kernel, sigma), self.kernel_shape)
         return ops.cast(vector_u, self.vector_u.dtype), ops.cast(
             kernel, self.kernel.dtype
         )
