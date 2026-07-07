@@ -106,12 +106,8 @@ class SpectralNormalization(Wrapper):
             # gradients are `-inf`/`inf` and leak into the masked-out branch
             # as NaN even though the forward value is discarded by the
             # `ops.cond` in `call()`.
-            kernel_all_zero = ops.stop_gradient(
-                ops.all(ops.equal(kernel, 0))
-            )
-            kernel = ops.where(
-                kernel_all_zero, ops.ones_like(kernel), kernel
-            )
+            kernel_all_zero = ops.stop_gradient(ops.all(ops.equal(kernel, 0)))
+            kernel = ops.where(kernel_all_zero, ops.ones_like(kernel), kernel)
 
         weights = ops.reshape(kernel, [-1, self.kernel_shape[-1]])
         vector_u = self.vector_u.value
