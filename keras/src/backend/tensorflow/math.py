@@ -71,6 +71,14 @@ def top_k(x, k, sorted=True):
 
 
 def in_top_k(targets, predictions, k):
+    if len(predictions.shape) > 2:
+        targets = convert_to_tensor(targets)
+        predictions = convert_to_tensor(predictions)
+        original_shape = tf.shape(targets)
+        predictions = tf.reshape(predictions, [-1, tf.shape(predictions)[-1]])
+        targets = tf.reshape(targets, [-1])
+        result = tf.math.in_top_k(targets, predictions, k)
+        return tf.reshape(result, original_shape)
     return tf.math.in_top_k(targets, predictions, k)
 
 
