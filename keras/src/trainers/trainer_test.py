@@ -1005,10 +1005,6 @@ class TestTrainer(testing.TestCase):
         )
     )
     @pytest.mark.requires_trainable_backend
-    @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
-    )
     def test_steps_per_execution_steps_count(self, steps_per_execution, mode):
         data_size = 100
         batch_size = 16
@@ -1140,9 +1136,6 @@ class TestTrainer(testing.TestCase):
         )
     )
     def test_predict_preserve_order(self, steps_per_execution, mode):
-        if steps_per_execution > 1 and backend.backend() == "torch":
-            self.skipTest("`steps_per_execution` not implemented for torch yet")
-
         def generate_uneven_batches():
             batch_sizes = [2, 3, 4]
 
@@ -1190,9 +1183,6 @@ class TestTrainer(testing.TestCase):
         )
     )
     def test_predict_generator(self, steps_per_execution, mode):
-        if steps_per_execution > 1 and backend.backend() == "torch":
-            self.skipTest("`steps_per_execution` not implemented for torch yet")
-
         batch_size = 2
 
         def generate_batches():
@@ -1234,10 +1224,6 @@ class TestTrainer(testing.TestCase):
         )
     )
     @pytest.mark.requires_trainable_backend
-    @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
-    )
     def test_steps_per_execution_steps_count_unknown_dataset_size(
         self, steps_per_execution, mode
     ):
@@ -1317,10 +1303,6 @@ class TestTrainer(testing.TestCase):
         )
     )
     @pytest.mark.requires_trainable_backend
-    @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
-    )
     def test_steps_per_execution_steps_per_epoch(
         self, steps_per_epoch_test, mode
     ):
@@ -1593,10 +1575,6 @@ class TestTrainer(testing.TestCase):
         )
     )
     @pytest.mark.requires_trainable_backend
-    @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
-    )
     def test_steps_per_execution_steps_per_epoch_unknown_data_size(
         self, steps_per_epoch_test, mode
     ):
@@ -1712,10 +1690,6 @@ class TestTrainer(testing.TestCase):
                 model.evaluate(dataset), model_2.evaluate(dataset)
             )
 
-    @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
-    )
     def test_steps_per_execution_steps_count_without_training(self):
         test_obj = self
 
@@ -2811,10 +2785,6 @@ class TestTrainer(testing.TestCase):
         disable_op_determinism()
 
     @pytest.mark.requires_trainable_backend
-    @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
-    )
     def test_retracing(self):
         x = np.ones((100, 4))
         y = np.ones((100, 1))
@@ -2847,10 +2817,6 @@ class TestTrainer(testing.TestCase):
         self.assertLessEqual(tracing_count[0], 2)
 
     @pytest.mark.requires_trainable_backend
-    @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
-    )
     @pytest.mark.skipif(
         backend.backend() == "tensorflow",
         reason="`predict_function` with `steps_per_execution` is not "
