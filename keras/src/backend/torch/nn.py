@@ -503,7 +503,7 @@ def average_pool(
 
     if manual_padding:
         ones = torch.ones(
-            (inputs.shape[0], inputs.shape[1], *original_spatial_shape),
+            (1, 1, *original_spatial_shape),
             dtype=inputs.dtype,
             device=inputs.device,
         )
