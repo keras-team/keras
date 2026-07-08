@@ -243,10 +243,8 @@ def _apply_same_padding(
     kernel_size,
     strides,
     data_format,
-    operation_type,
+    padding_mode="constant",
     dilation_rate=1,
-    mode=None,
-    value=None,
 ):
     """Apply same padding to the input tensor.
 
@@ -265,15 +263,13 @@ def _apply_same_padding(
     num_spatial_dims = len(spatial_shape)
     padding = []
 
-    if operation_type != "pooling":
-        dilation_rate = standardize_tuple(
-            dilation_rate, num_spatial_dims, "dilation_rate"
-        )
+    dilation_rate = standardize_tuple(
+        dilation_rate, num_spatial_dims, "dilation_rate"
+    )
 
     for i in range(num_spatial_dims):
-        dil = 1 if operation_type == "pooling" else dilation_rate[i]
         pad = _compute_padding_length(
-            spatial_shape[i], kernel_size[i], strides[i], dil
+            spatial_shape[i], kernel_size[i], strides[i], dilation_rate[i]
         )
         padding.append(pad)
 
@@ -286,17 +282,7 @@ def _apply_same_padding(
     for pad in reversed(padding):
         flattened_padding.extend(pad)
 
-    if mode is None:
-        mode = "replicate" if operation_type == "pooling" else "constant"
-
-    if value is not None:
-        return (
-            tnn.pad(
-                inputs, pad=tuple(flattened_padding), mode=mode, value=value
-            ),
-            0,
-        )
-    return tnn.pad(inputs, pad=tuple(flattened_padding), mode=mode), 0
+    return tnn.pad(inputs, pad=tuple(flattened_padding), mode=padding_mode), 0
 
 
 def _transpose_spatial_inputs(inputs):
@@ -385,13 +371,7 @@ def max_pool(
         # Torch does not natively support `"same"` padding, we need to manually
         # apply the right amount of padding to `inputs`.
         inputs, padding = _apply_same_padding(
-            inputs,
-            pool_size,
-            strides,
-            data_format,
-            "pooling",
-            mode="constant",
-            value=-float("inf"),
+            inputs, pool_size, strides, data_format
         )
     else:
         padding = 0
@@ -452,20 +432,27 @@ def average_pool(
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(inputs)
 
-    manual_padding = False
+    orig_inputs = inputs
+    manual_padded = False
+
     if padding == "same":
-        original_spatial_shape = inputs.shape[2:]
+        # Torch does not natively support `"same"` padding, we need to manually
+        # apply the right amount of padding to `inputs`.
         inputs, padding = _apply_same_padding(
             inputs,
             pool_size,
             strides,
             "channels_first",  # we're in channels_first here
-            "pooling",
-            mode="constant",
-            value=0,
         )
         if padding == 0:
-            manual_padding = True
+            manual_padded = True
+            ones = torch.ones_like(orig_inputs)
+            ones_padded, _ = _apply_same_padding(
+                ones,
+                pool_size,
+                strides,
+                "channels_first",
+            )
     else:
         padding = 0
 
@@ -478,6 +465,14 @@ def average_pool(
             padding=padding,
             count_include_pad=False,
         )
+        if manual_padded:
+            outputs_ones = tnn.avg_pool1d(
+                ones_padded,
+                kernel_size=pool_size,
+                stride=strides,
+                padding=padding,
+                count_include_pad=False,
+            )
     elif num_spatial_dims == 2:
         outputs = tnn.avg_pool2d(
             inputs,
@@ -486,6 +481,14 @@ def average_pool(
             padding=padding,
             count_include_pad=False,
         )
+        if manual_padded:
+            outputs_ones = tnn.avg_pool2d(
+                ones_padded,
+                kernel_size=pool_size,
+                stride=strides,
+                padding=padding,
+                count_include_pad=False,
+            )
     elif num_spatial_dims == 3:
         outputs = tnn.avg_pool3d(
             inputs,
@@ -494,6 +497,14 @@ def average_pool(
             padding=padding,
             count_include_pad=False,
         )
+        if manual_padded:
+            outputs_ones = tnn.avg_pool3d(
+                ones_padded,
+                kernel_size=pool_size,
+                stride=strides,
+                padding=padding,
+                count_include_pad=False,
+            )
     else:
         raise ValueError(
             "Inputs to pooling op must have ndim=3, 4 or 5, "
@@ -501,46 +512,8 @@ def average_pool(
             f"Received input shape: {inputs.shape}."
         )
 
-    if manual_padding:
-        ones = torch.ones(
-            (1, 1, *original_spatial_shape),
-            dtype=inputs.dtype,
-            device=inputs.device,
-        )
-        ones, _ = _apply_same_padding(
-            ones,
-            pool_size,
-            strides,
-            "channels_first",
-            "pooling",
-            mode="constant",
-            value=0,
-        )
-        if num_spatial_dims == 1:
-            window_counts = tnn.avg_pool1d(
-                ones,
-                kernel_size=pool_size,
-                stride=strides,
-                padding=0,
-                count_include_pad=True,
-            )
-        elif num_spatial_dims == 2:
-            window_counts = tnn.avg_pool2d(
-                ones,
-                kernel_size=pool_size,
-                stride=strides,
-                padding=0,
-                count_include_pad=True,
-            )
-        elif num_spatial_dims == 3:
-            window_counts = tnn.avg_pool3d(
-                ones,
-                kernel_size=pool_size,
-                stride=strides,
-                padding=0,
-                count_include_pad=True,
-            )
-        outputs = outputs / window_counts
+    if manual_padded:
+        outputs = outputs / outputs_ones
 
     if orig_format == "channels_last":
         outputs = _transpose_spatial_outputs(outputs)
@@ -677,8 +650,8 @@ def conv(
             kernel.shape[2:],
             strides,
             data_format,
-            "conv",
-            dilation_rate,
+            padding_mode="replicate",
+            dilation_rate=dilation_rate,
         )
     else:
         padding = 0
