@@ -6283,9 +6283,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
     )
     def test_pad(self, dtype, mode, constant_values):
-        # 2D
-        x = np.ones([2, 3], dtype=dtype)
-        pad_width = ((1, 1), (1, 1))
+        # 2D (use varied values so symmetric != edge/reflect padding)
+        x = (np.arange(6).reshape([2, 3]) % 5).astype(dtype)
+        pad_width = ((1, 1), (2, 2))
 
         if mode != "constant":
             if constant_values is not None:
