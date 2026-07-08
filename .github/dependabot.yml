@@ -5,7 +5,7 @@
 
 version: 2
 updates:
-  - package-ecosystem: "github-actions"
+  - package-ecosystem: "github-actions" # zizmor: ignore[dependabot-cooldown]
     directory: "/"
     schedule:
       interval: "monthly"
@@ -13,7 +13,7 @@ updates:
       github-actions:
         patterns:
           - "*"
-  - package-ecosystem: "pip"
+  - package-ecosystem: "pip" # zizmor: ignore[dependabot-cooldown]
     directory: "/"
     schedule:
       interval: "monthly"
