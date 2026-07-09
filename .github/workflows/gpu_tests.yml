@@ -81,7 +81,7 @@ jobs:
         run: coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
 
       - name: Upload Coverage
-        uses: codecov/codecov-action@a99c28d3f0da835de33ff2feb2e15691c7b9641f # v7
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7 # zizmor: ignore[unpinned-uses, mismatched-version-comment]
         with:
           env_vars: KERAS_HOME
           flags: keras,keras-gpu,keras-${{ matrix.backend }}

@@ -32,6 +32,7 @@ defaults:
 permissions:
   contents: 'read'
   issues: 'write'
+  actions: 'write'
 
 jobs:
   triage-issue:
@@ -54,7 +55,7 @@ jobs:
         id: 'get_issue_data'
         if: |-
           github.event_name == 'workflow_dispatch'
-        uses: 'actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3' # v9
+        uses: 'actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3' # v9 # zizmor: ignore[unpinned-uses]
         env:
           ISSUE_NUMBER: '${{ github.event.inputs.issue_number || inputs.issue_number }}'
         with:
@@ -78,7 +79,7 @@ jobs:
 
       - name: 'Get Repository Labels'
         id: 'get_labels'
-        uses: 'actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3' # v9
+        uses: 'actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3' # v9 # zizmor: ignore[unpinned-uses]
         with:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
           script: |-
@@ -117,7 +118,7 @@ jobs:
             ${{ github.event_name == 'workflow_dispatch' && steps.get_issue_data.outputs.title || github.event.issue.title }}
           ISSUE_BODY: >-
             ${{ github.event_name == 'workflow_dispatch' && steps.get_issue_data.outputs.body || github.event.issue.body }}
-        uses: 'actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3' # v9
+        uses: 'actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3' # v9 # zizmor: ignore[unpinned-uses]
         with:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
           script: |-
@@ -240,7 +241,7 @@ jobs:
           ISSUE_NUMBER: '${{ github.event.issue.number || github.event.inputs.issue_number }}'
           LABELS_OUTPUT: '${{ steps.gemini_issue_analysis.outputs.summary }}'
           ALLOWED_LABELS: '${{ steps.get_labels.outputs.available_labels }}'
-        uses: 'actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3' # v9
+        uses: 'actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3' # v9 # zizmor: ignore[unpinned-uses]
         with:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
           script: |

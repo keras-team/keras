@@ -79,7 +79,7 @@ jobs:
 
       - name: Upload Coverage for applications
         if: ${{ steps.filter.outputs.applications == 'true' && matrix.nnx_enabled == false }}
-        uses: codecov/codecov-action@a99c28d3f0da835de33ff2feb2e15691c7b9641f # v7
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7 # zizmor: ignore[unpinned-uses, mismatched-version-comment]
         with:
           env_vars: PYTHON,KERAS_HOME
           flags: keras.applications,keras.applications-${{ matrix.backend }}
@@ -95,7 +95,7 @@ jobs:
 
       - name: Upload Coverage for wrappers
         if: ${{ steps.filter.outputs.wrappers == 'true' && matrix.nnx_enabled == false }}
-        uses: codecov/codecov-action@a99c28d3f0da835de33ff2feb2e15691c7b9641f # v7
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7 # zizmor: ignore[unpinned-uses, mismatched-version-comment]
         with:
           env_vars: PYTHON,KERAS_HOME
           flags: keras.wrappers,keras.wrappers-${{ matrix.backend }}
@@ -148,7 +148,7 @@ jobs:
 
       - name: Upload Coverage
         if: ${{ matrix.nnx_enabled == false }}
-        uses: codecov/codecov-action@a99c28d3f0da835de33ff2feb2e15691c7b9641f # v7
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7 # zizmor: ignore[unpinned-uses, mismatched-version-comment]
         with:
           env_vars: PYTHON,KERAS_HOME,KERAS_NNX_ENABLED
           flags: keras,keras-cpu,keras-${{ matrix.backend }}${{ matrix.nnx_enabled == 'true' && '-nnx' || '' }}
@@ -178,7 +178,7 @@ jobs:
           echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
 
       - name: pip cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6 # zizmor: ignore[cache-poisoning]
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 # zizmor: ignore[cache-poisoning]
         with:
           path: ${{ steps.pip-cache.outputs.dir }}
           key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('requirements.txt') }}
