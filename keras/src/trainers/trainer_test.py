@@ -2787,7 +2787,8 @@ class TestTrainer(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
         backend.backend() == "torch",
-        reason="Torch backend does not support implicit tracing.",
+        reason="Torch uses a Python bundling loop; side-effect counters "
+        "will increment for every batch even after compilation.",
     )
     def test_retracing(self):
         x = np.ones((100, 4))
@@ -2823,7 +2824,8 @@ class TestTrainer(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
         backend.backend() == "torch",
-        reason="Torch backend does not support implicit tracing.",
+        reason="Torch uses a Python bundling loop; side-effect counters "
+        "will increment for every batch even after compilation.",
     )
     @pytest.mark.skipif(
         backend.backend() == "tensorflow",

@@ -119,8 +119,8 @@ class TorchTrainer(base_trainer.Trainer):
 
         def train_function(data):
             """Runs training steps on a list of batches of data."""
-            for i in range(len(data)):
-                step_data = data[i]
+            logs = {}
+            for step_data in data:
                 logs = train_step(step_data)
             return logs
 
@@ -136,9 +136,9 @@ class TorchTrainer(base_trainer.Trainer):
 
         def test_function(data):
             """Runs test steps on a list of batches of data."""
+            logs = {}
             with torch.no_grad():
-                for i in range(len(data)):
-                    step_data = data[i]
+                for step_data in data:
                     logs = test_step(step_data)
             return logs
 
@@ -156,11 +156,12 @@ class TorchTrainer(base_trainer.Trainer):
             """Runs predict steps on a list of batches of data."""
             outputs = []
             with torch.no_grad():
-                for i in range(len(data)):
-                    step_data = data[i]
+                for step_data in data:
                     outputs.append(predict_step(step_data))
 
             def concat_outputs(outputs):
+                if not outputs:
+                    return []
                 if len(outputs) == 1:
                     return outputs[0]
                 return tree.map_structure(
