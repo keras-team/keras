@@ -2785,6 +2785,10 @@ class TestTrainer(testing.TestCase):
         disable_op_determinism()
 
     @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(
+        backend.backend() == "torch",
+        reason="Torch backend does not support implicit tracing.",
+    )
     def test_retracing(self):
         x = np.ones((100, 4))
         y = np.ones((100, 1))
@@ -2817,6 +2821,10 @@ class TestTrainer(testing.TestCase):
         self.assertLessEqual(tracing_count[0], 2)
 
     @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(
+        backend.backend() == "torch",
+        reason="Torch backend does not support implicit tracing.",
+    )
     @pytest.mark.skipif(
         backend.backend() == "tensorflow",
         reason="`predict_function` with `steps_per_execution` is not "

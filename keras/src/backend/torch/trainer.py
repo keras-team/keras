@@ -113,46 +113,52 @@ class TorchTrainer(base_trainer.Trainer):
         if self.train_function is not None and not force:
             return self.train_function
 
-        def step_function(data):
+        train_step = self.train_step
+        if self._should_torch_compile():
+            train_step = torch.compile(train_step)
+
+        def train_function(data):
             """Runs training steps on a list of batches of data."""
             for i in range(len(data)):
                 step_data = data[i]
-                logs = self.train_step(step_data)
+                logs = train_step(step_data)
             return logs
 
-        if self._should_torch_compile():
-            self.train_function = torch.compile(step_function)
-        else:
-            self.train_function = step_function
+        self.train_function = train_function
 
     def make_test_function(self, force=False):
         if self.test_function is not None and not force:
             return self.test_function
 
-        def step_function(data):
+        test_step = self.test_step
+        if self._should_torch_compile():
+            test_step = torch.compile(test_step)
+
+        def test_function(data):
             """Runs test steps on a list of batches of data."""
             with torch.no_grad():
                 for i in range(len(data)):
                     step_data = data[i]
-                    logs = self.test_step(step_data)
+                    logs = test_step(step_data)
             return logs
 
-        if self._should_torch_compile():
-            self.test_function = torch.compile(step_function)
-        else:
-            self.test_function = step_function
+        self.test_function = test_function
 
     def make_predict_function(self, force=False):
         if self.predict_function is not None and not force:
             return self.predict_function
 
-        def step_function(data):
+        predict_step = self.predict_step
+        if self._should_torch_compile():
+            predict_step = torch.compile(predict_step)
+
+        def predict_function(data):
             """Runs predict steps on a list of batches of data."""
             outputs = []
             with torch.no_grad():
                 for i in range(len(data)):
                     step_data = data[i]
-                    outputs.append(self.predict_step(step_data))
+                    outputs.append(predict_step(step_data))
 
             def concat_outputs(outputs):
                 if len(outputs) == 1:
@@ -164,10 +170,7 @@ class TorchTrainer(base_trainer.Trainer):
 
             return concat_outputs(outputs)
 
-        if self._should_torch_compile():
-            self.predict_function = torch.compile(step_function)
-        else:
-            self.predict_function = step_function
+        self.predict_function = predict_function
 
     @traceback_utils.filter_traceback
     def fit(
