@@ -2230,7 +2230,19 @@ def hypot(x1, x2):
         max_val,
         ov_opset.sqrt(ov_opset.add(one, ov_opset.multiply(ratio, ratio))),
     )
-    return OpenVINOKerasTensor(result.output(0))
+    is_inf_mask = ov_opset.logical_or(
+        get_ov_output(isinf(x1_abs.output(0))),
+        get_ov_output(isinf(x2_abs.output(0))),
+    )
+    result_output = result.output(0)
+    result = ov_opset.select(
+        is_inf_mask,
+        ov_opset.divide(
+            one, ov_opset.constant(0, result_output.get_element_type())
+        ),
+        result_output,
+    ).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def identity(n, dtype=None):
@@ -2331,20 +2343,30 @@ def inner(x1, x2):
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     dtype = OPENVINO_DTYPES[config.floatx()]
 
-    x1 = ov_opset.convert(get_ov_output(x1), dtype)
-    x2 = ov_opset.convert(get_ov_output(x2), dtype)
-    rtol = ov_opset.convert(get_ov_output(rtol), dtype)
-    atol = ov_opset.convert(get_ov_output(atol), dtype)
+    x1 = ov_opset.convert(get_ov_output(x1), dtype).output(0)
+    x2 = ov_opset.convert(get_ov_output(x2), dtype).output(0)
+    rtol = ov_opset.convert(get_ov_output(rtol), dtype).output(0)
+    atol = ov_opset.convert(get_ov_output(atol), dtype).output(0)
 
-    abs_diff = ov_opset.abs(ov_opset.subtract(x1, x2))
-    abs_x2 = ov_opset.abs(x2)
-    total_tolerance = ov_opset.add(atol, ov_opset.multiply(rtol, abs_x2))
-    is_close = ov_opset.less_equal(abs_diff, total_tolerance)
+    abs_diff = ov_opset.abs(ov_opset.subtract(x1, x2)).output(0)
+    abs_x2 = ov_opset.abs(x2).output(0)
+    total_tolerance = ov_opset.add(
+        atol, ov_opset.multiply(rtol, abs_x2)
+    ).output(0)
+    is_close = ov_opset.less_equal(abs_diff, total_tolerance).output(0)
+    finite = ov_opset.logical_and(
+        isfinite(x1).output, isfinite(x2).output
+    ).output(0)
+    is_close = ov_opset.logical_and(finite, is_close).output(0)
+    equal = ov_opset.equal(x1, x2).output(0)
+    is_close = ov_opset.logical_or(is_close, equal).output(0)
     if equal_nan:
-        both_nan = ov_opset.logical_and(ov_opset.isnan(x1), ov_opset.isnan(x2))
-        is_close = ov_opset.logical_or(is_close, both_nan)
+        both_nan = ov_opset.logical_and(
+            ov_opset.isnan(x1).output(0), ov_opset.isnan(x2).output(0)
+        ).output(0)
+        is_close = ov_opset.logical_or(is_close, both_nan).output(0)
 
-    return OpenVINOKerasTensor(is_close.output(0))
+    return OpenVINOKerasTensor(is_close)
 
 
 def isfinite(x):

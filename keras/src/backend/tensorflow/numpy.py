@@ -1762,7 +1762,12 @@ def hypot(x1, x2):
     min_val = tf.minimum(x1_abs, x2_abs)
 
     ratio = tf.math.divide_no_nan(min_val, max_val)
-    return max_val * tf.sqrt(1.0 + tf.square(ratio))
+    result = max_val * tf.sqrt(1.0 + tf.square(ratio))
+    return tf.where(
+        tf.math.is_inf(x1_abs) | tf.math.is_inf(x2_abs),
+        tf.constant(float("inf"), dtype=result.dtype),
+        result,
+    )
 
 
 def identity(n, dtype=None):
@@ -1792,7 +1797,9 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
     if "float" in dtype:
-        result = tf.abs(x1 - x2) <= (atol + rtol * tf.abs(x2))
+        finite = tf.math.is_finite(x1) & tf.math.is_finite(x2)
+        close = tf.abs(x1 - x2) <= (atol + rtol * tf.abs(x2))
+        result = (finite & close) | tf.equal(x1, x2)
         if equal_nan:
             result = result | (is_nan(x1) & is_nan(x2))
         return result
