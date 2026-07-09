@@ -1,6 +1,5 @@
 import os
 import warnings
-from unittest import mock
 
 import numpy as np
 import pytest
@@ -20,7 +19,6 @@ from keras.src.models import Functional
 from keras.src.models import Model
 from keras.src.models import Sequential
 from keras.src.models.model import model_from_json
-from keras.src.ops.function import Function
 
 
 class FunctionalTest(testing.TestCase):
@@ -172,45 +170,30 @@ class FunctionalTest(testing.TestCase):
             np.array([[False, True, True], [True, False, True]]),
         )
 
-    def test_compute_output_spec_skips_none_output_mask_target(self):
-        inputs = Input((2,))
-        outputs = layers.Dense(1)(inputs)
+    def test_compute_output_spec_does_not_create_duplicate_nodes(self):
+        inputs = Input((3,), dtype="int32")
+        embedding = layers.Embedding(3, 5, mask_zero=True)
+        outputs = embedding(inputs)
         model = Model(inputs, outputs)
-        output_spec = [None, KerasTensor((None, 1))]
-        output_mask = KerasTensor((None,), dtype="bool")
 
-        with (
-            mock.patch.object(
-                Function,
-                "compute_output_spec",
-                autospec=True,
-                return_value=output_spec,
-            ),
-            mock.patch.object(
-                model,
-                "_compute_output_masks",
-                return_value=[output_mask, output_mask],
-            ),
-        ):
-            result = model.compute_output_spec(Input((2,)))
+        initial_node_count = len(embedding._inbound_nodes)
+        _ = model.compute_output_spec(Input((3,), dtype="int32"))
 
-        self.assertIs(result[0], None)
-        self.assertIs(backend.get_keras_mask(result[1]), output_mask)
+        self.assertEqual(len(embedding._inbound_nodes), initial_node_count)
 
-    def test_compute_output_masks_skips_none_input_mask_target(self):
-        tokens = Input((3,), dtype="int32", name="tokens")
-        optional_tokens = Input(
-            (3,), dtype="int32", name="optional_tokens", optional=True
-        )
-        outputs = layers.Embedding(3, 5, mask_zero=True)(tokens)
-        model = Model([tokens, optional_tokens], outputs)
+    def test_compute_output_spec_propagates_caller_mask(self):
+        inputs = Input((3, 5))
+        outputs = layers.ReLU()(inputs)
+        model = Model(inputs, outputs)
+        self.assertIsNone(backend.get_keras_mask(outputs))
+
         input_mask = KerasTensor((None, 3), dtype="bool")
+        test_input = Input((3, 5))
+        backend.set_keras_mask(test_input, input_mask)
 
-        output_mask = model._compute_output_masks(
-            [tokens, None], mask=[input_mask, input_mask]
-        )
+        output_spec = model.compute_output_spec(test_input)
 
-        self.assertIsNotNone(output_mask)
+        self.assertIs(backend.get_keras_mask(output_spec), input_mask)
 
     def test_named_input_dict_io(self):
         # Single input
