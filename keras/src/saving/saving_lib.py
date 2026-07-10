@@ -838,16 +838,17 @@ def _load_state(
     failure = False
 
     if hasattr(saveable, "load_own_variables") and weights_store:
+        store = weights_store.get(inner_path)
         if skip_mismatch or failed_saveables is not None:
             try:
-                saveable.load_own_variables(weights_store.get(inner_path))
+                saveable.load_own_variables(store)
             except Exception as e:
                 if failed_saveables is not None:
                     failed_saveables.add(id(saveable))
                 error_msgs[id(saveable)] = saveable, e
                 failure = True
         else:
-            saveable.load_own_variables(weights_store.get(inner_path))
+            saveable.load_own_variables(store)
 
     if hasattr(saveable, "load_assets") and assets_store:
         if skip_mismatch or failed_saveables is not None:
@@ -1031,10 +1032,8 @@ def _load_container_state(
                 #   - Containers that mirror already-loaded saveables (e.g.
                 #     a Functional model's `_operations_by_depth` whose
                 #     items are also in the `layers` collection).
-                tracked_failures = (
-                    failed_saveables if failed_saveables is not None else set()
-                )
-                failed_before = len(tracked_failures)
+                tracked_failures = set()
+                tracked_errors = {}
                 _load_container_state(
                     saveable,
                     weights_store,
@@ -1043,10 +1042,10 @@ def _load_container_state(
                     skip_mismatch=True,
                     visited_saveables=visited_saveables,
                     failed_saveables=tracked_failures,
-                    error_msgs=error_msgs,
+                    error_msgs=tracked_errors,
                     visited_containers=visited_containers,
                 )
-                if len(tracked_failures) > failed_before:
+                if tracked_failures:
                     # Legacy files saved before PR #22362 didn't write the
                     # `container*` groups for nested containers — silently
                     # skip so the model still loads (sublayers keep their
@@ -1173,20 +1172,32 @@ def safe_get_h5_group(parent, name):
     Returns:
         The child h5py.Group.
     """
-    # Also handles the case when the group is an empty dict initially.
-    if name not in parent:
-        raise KeyError(name)
+    current = parent
+    for name_part in name.split("/"):
+        if not name_part:
+            raise ValueError(f"Invalid path in H5 file: {name}")
 
-    group_type = parent.get(name, default=None, getclass=True, getlink=True)
-    if group_type in (h5py.ExternalLink, h5py.SoftLink):
-        raise ValueError(f"Not allowed: H5 file with {group_type.__name__}")
+        # Also handles the case when the group is an empty dict initially.
+        if name_part not in current:
+            raise KeyError(name)
 
-    group = parent[name]
-    if not isinstance(group, h5py.Group):
-        raise ValueError(
-            f"Invalid H5 file, expected Group but received {type(group)}"
-        )
-    return group
+        if isinstance(current, dict):
+            group_type = None
+        else:
+            group_type = current.get(
+                name_part, default=None, getclass=True, getlink=True
+            )
+
+        if group_type in (h5py.ExternalLink, h5py.SoftLink):
+            raise ValueError(f"Not allowed: H5 file with {group_type.__name__}")
+
+        current = current[name_part]
+        if not isinstance(current, h5py.Group):
+            raise ValueError(
+                f"Invalid H5 file, expected Group but received {type(current)}"
+            )
+
+    return current
 
 
 # Guard against HDF5 "shape bomb" datasets: a dataset can declare an enormous
@@ -1210,6 +1221,11 @@ def safe_get_h5_dataset(group, name):
     Returns:
         The child h5py.Dataset.
     """
+    if "/" in name:
+        # Separate the dataset name from it's parent group.
+        group_name, name = name.rsplit("/", 1)
+        group = safe_get_h5_group(group, group_name)
+
     # Also handles the case when the group is an empty dict initially.
     if name not in group:
         raise KeyError(name)
