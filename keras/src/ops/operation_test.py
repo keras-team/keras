@@ -163,22 +163,17 @@ class OperationTest(testing.TestCase):
         self.assertEqual(out.shape, (2, 3))
         self.assertEqual(len(op._inbound_nodes), 2)
 
-        with self.assertRaisesRegex(
-            ValueError,
-            "has 2 nodes",
-        ):
+        with self.assertRaisesRegex(ValueError, "output.*ambiguous"):
             _ = op.output
 
         with self.assertRaisesRegex(
             ValueError,
-            "has 2 nodes",
+            "input.*ambiguous",
         ):
             _ = op.input
 
         self.assertEqual(op.get_output(0), prev_out)
         self.assertEqual(op.get_output(1), out)
-        self.assertEqual(op.get_input(0), [x, y, z])
-        self.assertEqual(op.get_input(1), [x, y, z])
 
         # Test multiple outputs
         op = OpWithMultipleOutputs()
@@ -191,6 +186,22 @@ class OperationTest(testing.TestCase):
         self.assertEqual(out[1].shape, (2, 3))
         self.assertEqual(len(op._inbound_nodes), 1)
         self.assertEqual(op.output, list(out))
+
+    def test_node_specific_input_output(self):
+        x = keras_tensor.KerasTensor(shape=(2, 3), name="x")
+        y = keras_tensor.KerasTensor(shape=(2, 3), name="y")
+        z = keras_tensor.KerasTensor(shape=(2, 3), name="z")
+
+        op = OpWithMultipleInputs()
+
+        out1 = op(x, y, z)
+        out2 = op(x, y, z)
+
+        self.assertEqual(op.get_output(0), out1)
+        self.assertEqual(op.get_output(1), out2)
+
+        self.assertEqual(op.get_input(0), [x, y, z])
+        self.assertEqual(op.get_input(1), [x, y, z])
 
     def test_eager_call(self):
         x = knp.ones((2, 3))
@@ -402,13 +413,29 @@ class OperationTest(testing.TestCase):
         ):
             OpWithMultipleOutputs(name="test/op")
 
-    def test_get_output_invalid_node(self):
+    def test_get_output_reused_operation(self):
         x = keras_tensor.KerasTensor(shape=(2, 3))
+
         op = OpWithMultipleOutputs()
-        op(x)
 
-        with self.assertRaises(ValueError):
-            op.get_output(1)
+        out1 = op(x)
+        out2 = op(x)
 
-        with self.assertRaises(ValueError):
-            op.get_input(1)
+        self.assertEqual(op.get_output(0), list(out1))
+        self.assertEqual(op.get_output(1), list(out2))
+
+    def test_reused_layer_output_is_ambiguous(self):
+        from keras.src.layers import Dense
+
+        x = keras_tensor.KerasTensor(shape=(2, 3))
+
+        layer = Dense(4)
+
+        layer(x)
+        layer(x)
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "output.*ambiguous",
+        ):
+            _ = layer.output

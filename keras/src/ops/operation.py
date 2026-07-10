@@ -421,6 +421,9 @@ class Operation(KerasSaveable):
 
         Returns:
             Input tensor or list of input tensors.
+
+        Raises:
+            ValueError: If `node_index` is invalid.
         """
         return self._get_node_attribute_at_index(
             node_index,
@@ -436,6 +439,9 @@ class Operation(KerasSaveable):
 
         Returns:
             Output tensor or list of output tensors.
+
+        Raises:
+            ValueError: If `node_index` is invalid.
         """
         return self._get_node_attribute_at_index(
             node_index,
