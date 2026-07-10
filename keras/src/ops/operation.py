@@ -371,9 +371,10 @@ class Operation(KerasSaveable):
             ValueError: If the operation has multiple inbound nodes and
                 the input is therefore ambiguous.
         """
+
         if len(self._inbound_nodes) > 1:
             raise ValueError(
-                f'Operation "{self.name}" has multiple inbound nodes. '
+                f'Operation "{self.name}" has {len(self._inbound_nodes)} nodes.'
                 "`input` is ambiguous because this operation has been "
                 "called multiple times. "
                 "Use `get_input(node_index)` to retrieve the input tensors "
@@ -399,7 +400,7 @@ class Operation(KerasSaveable):
         """
         if len(self._inbound_nodes) > 1:
             raise ValueError(
-                f'Operation "{self.name}" has multiple inbound nodes. '
+                f'Operation "{self.name}" has {len(self._inbound_nodes)} nodes.'
                 "`output` is ambiguous because this operation has been "
                 "called multiple times. "
                 "Use `get_output(node_index)` to retrieve the output tensors "

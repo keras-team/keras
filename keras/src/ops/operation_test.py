@@ -165,13 +165,13 @@ class OperationTest(testing.TestCase):
 
         with self.assertRaisesRegex(
             ValueError,
-            "multiple inbound nodes",
+            "has 2 nodes",
         ):
             _ = op.output
 
         with self.assertRaisesRegex(
             ValueError,
-            "multiple inbound nodes",
+            "has 2 nodes",
         ):
             _ = op.input
 
