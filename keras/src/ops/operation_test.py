@@ -162,7 +162,23 @@ class OperationTest(testing.TestCase):
         self.assertIsInstance(out, keras_tensor.KerasTensor)
         self.assertEqual(out.shape, (2, 3))
         self.assertEqual(len(op._inbound_nodes), 2)
-        self.assertEqual(op.output, prev_out)
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "multiple inbound nodes",
+        ):
+            _ = op.output
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "multiple inbound nodes",
+        ):
+            _ = op.input
+
+        self.assertEqual(op.get_output(0), prev_out)
+        self.assertEqual(op.get_output(1), out)
+        self.assertEqual(op.get_input(0), [x, y, z])
+        self.assertEqual(op.get_input(1), [x, y, z])
 
         # Test multiple outputs
         op = OpWithMultipleOutputs()
@@ -385,3 +401,14 @@ class OperationTest(testing.TestCase):
             ValueError, "must be a string and cannot contain character `/`."
         ):
             OpWithMultipleOutputs(name="test/op")
+
+    def test_get_output_invalid_node(self):
+        x = keras_tensor.KerasTensor(shape=(2, 3))
+        op = OpWithMultipleOutputs()
+        op(x)
+
+        with self.assertRaises(ValueError):
+            op.get_output(1)
+
+        with self.assertRaises(ValueError):
+            op.get_input(1)

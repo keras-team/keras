@@ -289,8 +289,7 @@ class Operation(KerasSaveable):
             """
             if getattr(self, "_auto_config_error_args", False):
                 raise NotImplementedError(
-                    textwrap.dedent(
-                        f"""
+                    textwrap.dedent(f"""
             Object {self.__class__.__name__} was created by passing
             positional only or variadic positional arguments (e.g.,
             `*args`) to `__init__()`, which is not supported by the
@@ -301,13 +300,11 @@ class Operation(KerasSaveable):
 
             Example:
 
-            {example_str}"""
-                    )
+            {example_str}""")
                 )
             else:
                 raise NotImplementedError(
-                    textwrap.dedent(
-                        f"""
+                    textwrap.dedent(f"""
             Object {self.__class__.__name__} was created by passing
             non-serializable argument values in `__init__()`,
             and therefore the object must override `get_config()` in
@@ -315,8 +312,7 @@ class Operation(KerasSaveable):
 
             Example:
 
-            {example_str}"""
-                    )
+            {example_str}""")
                 )
 
     @classmethod
@@ -368,25 +364,83 @@ class Operation(KerasSaveable):
     def input(self):
         """Retrieves the input tensor(s) of a symbolic operation.
 
-        Only returns the tensor(s) corresponding to the *first time*
-        the operation was called.
+        Returns:
+            Input tensor or list of input tensors.
+
+        Raises:
+            ValueError: If the operation has multiple inbound nodes and
+                the input is therefore ambiguous.
+        """
+        if len(self._inbound_nodes) > 1:
+            raise ValueError(
+                f'Operation "{self.name}" has multiple inbound nodes. '
+                "`input` is ambiguous because this operation has been "
+                "called multiple times. "
+                "Use `get_input(node_index)` to retrieve the input tensors "
+                "for a specific inbound node."
+            )
+
+        return self._get_node_attribute_at_index(
+            0,
+            "input_tensors",
+            "input",
+        )
+
+    @property
+    def output(self):
+        """Retrieves the output tensor(s) of a symbolic operation.
+
+        Returns:
+            Output tensor or list of output tensors.
+
+        Raises:
+            ValueError: If the operation has multiple inbound nodes and
+                the output is therefore ambiguous.
+        """
+        if len(self._inbound_nodes) > 1:
+            raise ValueError(
+                f'Operation "{self.name}" has multiple inbound nodes. '
+                "`output` is ambiguous because this operation has been "
+                "called multiple times. "
+                "Use `get_output(node_index)` to retrieve the output tensors "
+                "for a specific inbound node."
+            )
+
+        return self._get_node_attribute_at_index(
+            0,
+            "output_tensors",
+            "output",
+        )
+
+    def get_input(self, node_index=0):
+        """Retrieves the input tensor(s) for a specific inbound node.
+
+        Args:
+            node_index: Integer index of the inbound node.
 
         Returns:
             Input tensor or list of input tensors.
         """
-        return self._get_node_attribute_at_index(0, "input_tensors", "input")
+        return self._get_node_attribute_at_index(
+            node_index,
+            "input_tensors",
+            "input",
+        )
 
-    @property
-    def output(self):
-        """Retrieves the output tensor(s) of a layer.
+    def get_output(self, node_index=0):
+        """Retrieves the output tensor(s) for a specific inbound node.
 
-        Only returns the tensor(s) corresponding to the *first time*
-        the operation was called.
+        Args:
+            node_index: Integer index of the inbound node.
 
         Returns:
             Output tensor or list of output tensors.
         """
-        return self._get_node_attribute_at_index(0, "output_tensors", "output")
+        return self._get_node_attribute_at_index(
+            node_index,
+            "output_tensors",
+            "output",
+        )
 
     def _get_node_attribute_at_index(self, node_index, attr, attr_name):
         """Private utility to retrieves an attribute (e.g. inputs) from a node.
