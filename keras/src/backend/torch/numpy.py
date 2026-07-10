@@ -1823,7 +1823,17 @@ def reshape(x, newshape):
 
 def roll(x, shift, axis=None):
     x = convert_to_tensor(x)
-    return torch.roll(x, shift, dims=axis)
+    if axis is not None:
+        # `torch.roll` requires `shifts` and `dims` to have the same length,
+        # while numpy broadcasts them against each other.
+        shifts = list(shift) if isinstance(shift, (list, tuple)) else [shift]
+        axes = list(axis) if isinstance(axis, (list, tuple)) else [axis]
+        if len(shifts) == 1:
+            shifts = shifts * len(axes)
+        if len(axes) == 1:
+            axes = axes * len(shifts)
+        return torch.roll(x, tuple(shifts), dims=tuple(axes))
+    return torch.roll(x, shift)
 
 
 def searchsorted(sorted_sequence, values, side="left"):

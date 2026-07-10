@@ -7361,6 +7361,17 @@ class Roll(Operation):
     def compute_output_spec(self, x):
         if self.axis is not None:
             canonicalize_axes(self.axis, len(x.shape))
+        if (
+            isinstance(self.shift, (list, tuple))
+            and isinstance(self.axis, (list, tuple))
+            and len(self.shift) != 1
+            and len(self.axis) != 1
+            and len(self.shift) != len(self.axis)
+        ):
+            raise ValueError(
+                "`shift` and `axis` must be broadcastable to the same "
+                f"length. Received: shift={self.shift}, axis={self.axis}"
+            )
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
