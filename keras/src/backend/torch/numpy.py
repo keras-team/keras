@@ -7,6 +7,7 @@ import torch
 from keras.src.backend import KerasTensor
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
+from keras.src.backend.common.backend_utils import broadcast_shift_and_axis
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
 from keras.src.backend.common.backend_utils import vectorize_impl
@@ -1826,12 +1827,7 @@ def roll(x, shift, axis=None):
     if axis is not None:
         # `torch.roll` requires `shifts` and `dims` to have the same length,
         # while numpy broadcasts them against each other.
-        shifts = list(shift) if isinstance(shift, (list, tuple)) else [shift]
-        axes = list(axis) if isinstance(axis, (list, tuple)) else [axis]
-        if len(shifts) == 1:
-            shifts = shifts * len(axes)
-        if len(axes) == 1:
-            axes = axes * len(shifts)
+        shifts, axes = broadcast_shift_and_axis(shift, axis)
         return torch.roll(x, tuple(shifts), dims=tuple(axes))
     return torch.roll(x, shift)
 

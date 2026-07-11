@@ -14,6 +14,7 @@ from keras.src import tree
 from keras.src.backend import config
 from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
+from keras.src.backend.common.backend_utils import broadcast_shift_and_axis
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
 from keras.src.backend.common.backend_utils import vectorize_impl
@@ -2868,12 +2869,7 @@ def roll(x, shift, axis=None):
     if axis is not None:
         # `tf.roll` requires `shift` and `axis` to have the same length,
         # while numpy broadcasts them against each other.
-        shifts = list(shift) if isinstance(shift, (list, tuple)) else [shift]
-        axes = list(axis) if isinstance(axis, (list, tuple)) else [axis]
-        if len(shifts) == 1:
-            shifts = shifts * len(axes)
-        if len(axes) == 1:
-            axes = axes * len(shifts)
+        shifts, axes = broadcast_shift_and_axis(shift, axis)
         return tf.roll(x, shift=shifts, axis=axes)
 
     # If axis is None, the roll happens as a 1-d tensor.
