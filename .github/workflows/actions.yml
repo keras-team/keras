@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backend: [tensorflow, jax, torch, numpy, openvino]
+        backend: [tensorflow, jax, torch, numpy, openvino, mlx]
         nnx_enabled: [false]
         include:
           - backend: jax
@@ -38,6 +38,10 @@ jobs:
 
     env:
       KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
+      # mlx JIT-compiles CPU kernels via g++, and as of 0.31.2 its generated
+      # code redeclares the _Float128/_Float64 builtins, which gcc 13+ rejects.
+      # Disable the JIT until the wheel ships compatible codegen.
+      MLX_DISABLE_COMPILE: ${{ matrix.backend == 'mlx' && '1' || '' }}
 
     steps:
       - name: Install binary dependencies
@@ -68,6 +72,13 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install --no-deps tf_keras
+
+      - name: Install local Keras for MLX
+        # Dependencies pull Keras from PyPI, which has no mlx backend yet, so
+        # the standalone integration scripts import that instead of the repo.
+        # Reinstall the local package so its mlx backend is importable.
+        if: ${{ matrix.backend == 'mlx' }}
+        run: pip install --no-deps --force-reinstall .
 
       - name: Run Tests for applications
         if: ${{ steps.filter.outputs.applications == 'true' && matrix.nnx_enabled == false }}
@@ -131,6 +142,11 @@ jobs:
         run: |
           pytest integration_tests/torch_workflow_test.py
           python integration_tests/torch_custom_fit_test.py
+
+      - name: Test MLX-specific integrations
+        if: ${{ matrix.backend == 'mlx' }}
+        run: |
+          python integration_tests/mlx_custom_fit_test.py
 
       - name: Run Tests
         if: ${{ matrix.nnx_enabled == false }}

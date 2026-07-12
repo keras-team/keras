@@ -42,6 +42,11 @@ class TorchDataLoaderAdapter(DataAdapter):
         # We use numpy as an intermediary because it is faster.
         return self.get_numpy_iterator()
 
+    def get_mlx_iterator(self):
+        # Reuse the numpy iterator, which already moves cuda tensors to the
+        # host and detaches them, then convert each leaf to an mlx array.
+        return data_adapter_utils.get_mlx_iterator(self.get_numpy_iterator())
+
     def get_tf_dataset(self):
         from keras.src.utils.module_utils import tensorflow as tf
 

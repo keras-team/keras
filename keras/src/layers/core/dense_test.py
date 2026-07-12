@@ -439,6 +439,9 @@ class DenseTest(testing.TestCase):
         ("int4", "int4", 5e-3),
     )
     def test_quantize_int(self, mode, error_threshold):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support quantization")
+
         if mode == "int4" and testing.tensorflow_uses_gpu():
             self.skipTest("Segfault")
         layer = layers.Dense(units=16)
@@ -487,6 +490,9 @@ class DenseTest(testing.TestCase):
         ("float8", "float8"),
     )
     def test_quantize_on_unbuilt_layer(self, mode):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support quantization")
+
         layer = layers.Dense(units=2)
         with self.assertRaisesRegex(
             ValueError, "Cannot quantize a layer that isn't yet built."
@@ -499,6 +505,9 @@ class DenseTest(testing.TestCase):
         ("float8", "float8"),
     )
     def test_quantize_on_subclass(self, mode):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support quantization")
+
         class MyDense(layers.Dense):
             pass
 
@@ -515,6 +524,9 @@ class DenseTest(testing.TestCase):
         ("float8", "float8"),
     )
     def test_quantize_when_already_quantized(self, mode):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support quantization")
+
         layer = layers.Dense(units=2)
         layer.build((None, 2))
         layer.quantize(mode)
@@ -543,6 +555,9 @@ class DenseTest(testing.TestCase):
     def test_quantize_by_setting_dtype_policy(
         self, policy, expected_num_variables
     ):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support quantization")
+
         layer = layers.Dense(units=2)
         layer.build((None, 2))
         layer.dtype_policy = policy
@@ -553,6 +568,9 @@ class DenseTest(testing.TestCase):
         ("float7", "float7"),
     )
     def test_quantize_invalid_mode(self, mode):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support quantization")
+
         layer = layers.Dense(units=2)
         layer.build((None, 2))
         x = np.random.random((1, 2))
@@ -591,6 +609,9 @@ class DenseTest(testing.TestCase):
     def test_quantize_dtype_argument(
         self, dtype, num_trainable_weights, num_non_trainable_weights
     ):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support quantization")
+
         self.run_layer_test(
             layers.Dense,
             init_kwargs={"units": 5, "dtype": dtype},
@@ -618,6 +639,9 @@ class DenseTest(testing.TestCase):
         num_non_trainable_weights,
         num_torch_params,
     ):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support quantization")
+
         # Note that saving and loading with lora_enabled and quantized are
         # lossy, so we use a weak correctness test for model outputs (atol=0.5).
         config = dict(units=16)
@@ -702,6 +726,9 @@ class DenseTest(testing.TestCase):
         testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
     )
     def test_quantize_float8(self):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support quantization")
+
         import ml_dtypes
 
         from keras.src import quantizers
@@ -817,6 +844,9 @@ class DenseTest(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_quantize_float8_fitting(self):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support quantization")
+
         config = dict(units=16)
         layer = layers.Dense(**config)
         layer.build((None, 8))
@@ -870,6 +900,9 @@ class DenseTest(testing.TestCase):
             )
 
     def test_quantize_float8_inference(self):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support quantization")
+
         config = dict(units=16)
         layer = layers.Dense(**config)
         layer.build((None, 8))

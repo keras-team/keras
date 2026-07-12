@@ -19,6 +19,15 @@ flax
 # OpenVino
 openvino
 
+# MLX. The base wheel only ships the Python frontend. The native library
+# comes from mlx-metal on macOS and mlx-cpu on Linux (the `cpu` extra,
+# which is platform-gated to Linux so macOS still gets Metal).
+# Pinned below 0.32 because mlx 0.32.0 made stream state thread-local and
+# evaluating an array whose graph was recorded on another thread now fails.
+# That breaks tf.data generator threads, multithreaded `PyDataset` and grain
+# loaders. See https://github.com/ml-explore/mlx/issues/3529.
+mlx[cpu]<0.32
+
 # Common deps.
 -r requirements-common.txt
 

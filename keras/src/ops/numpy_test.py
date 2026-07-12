@@ -1502,6 +1502,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         keras.config.backend() == "openvino" or testing.jax_uses_tpu(),
         reason="OpenVINO and JAX TPU don't support this",
     )
+    @pytest.mark.skipif(
+        keras.config.backend() == "mlx",
+        reason="Wrong results due to MLX flushing denormal numbers to 0",
+    )
     def test_argmax_negative_zero(self):
         input_data = np.array(
             [-1.0, -0.0, 1.401298464324817e-45], dtype=np.float32
@@ -1511,6 +1515,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
     @pytest.mark.skipif(
         keras.config.backend() == "openvino" or testing.jax_uses_tpu(),
         reason="OpenVINO and JAX TPU don't support this",
+    )
+    @pytest.mark.skipif(
+        keras.config.backend() == "mlx",
+        reason="Wrong results due to MLX flushing denormal numbers to 0",
     )
     def test_argmin_negative_zero(self):
         input_data = np.array(
@@ -7601,8 +7609,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     def test_argpartition(self):
         x = np.array([3, 4, 2, 1])
-        self.assertAllClose(knp.argpartition(x, 2), np.argpartition(x, 2))
-        self.assertAllClose(knp.Argpartition(2)(x), np.argpartition(x, 2))
+        if backend.backend() != "mlx":
+            # order is not guaranteed for the mlx backend, only the
+            # axis=None checks below apply there
+            self.assertAllClose(knp.argpartition(x, 2), np.argpartition(x, 2))
+            self.assertAllClose(knp.Argpartition(2)(x), np.argpartition(x, 2))
 
         result = backend.convert_to_numpy(knp.argpartition(x, 2, axis=None))
         flat_x = x.flatten()
@@ -7611,8 +7622,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertTrue(np.all(flat_x[result[3:]] >= kth_value))
 
         x = np.array([[3, 4, 2], [1, 3, 4]])
-        self.assertAllClose(knp.argpartition(x, 1), np.argpartition(x, 1))
-        self.assertAllClose(knp.Argpartition(1)(x), np.argpartition(x, 1))
+        if backend.backend() != "mlx":
+            self.assertAllClose(knp.argpartition(x, 1), np.argpartition(x, 1))
+            self.assertAllClose(knp.Argpartition(1)(x), np.argpartition(x, 1))
 
         result = backend.convert_to_numpy(knp.argpartition(x, 1, axis=None))
         flat_x = x.flatten()
@@ -7621,8 +7633,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertTrue(np.all(flat_x[result[2:]] >= kth_value))
 
         x = np.array([[[3, 4], [2, 3]], [[1, 2], [0, 1]]])
-        self.assertAllClose(knp.argpartition(x, 1), np.argpartition(x, 1))
-        self.assertAllClose(knp.Argpartition(1)(x), np.argpartition(x, 1))
+        if backend.backend() != "mlx":
+            self.assertAllClose(knp.argpartition(x, 1), np.argpartition(x, 1))
+            self.assertAllClose(knp.Argpartition(1)(x), np.argpartition(x, 1))
 
         result = backend.convert_to_numpy(knp.argpartition(x, 1, axis=None))
         flat_x = x.flatten()
@@ -8688,6 +8701,13 @@ class NumpyDtypeTest(testing.TestCase):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
+        if (
+            all(dtype not in self.FLOAT_DTYPES for dtype in dtypes)
+            and backend.backend() == "mlx"
+        ):
+            # Remove once mlx.core.matmul supports integer dtypes
+            self.skipTest("mlx doesn't support integer dot product")
+
         # The shape of the matrix needs to meet the requirements of
         # torch._int_mm to test hardware-accelerated matmul
         x1 = knp.ones((17, 16), dtype=dtype1)
@@ -9710,6 +9730,13 @@ class NumpyDtypeTest(testing.TestCase):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
+        if (
+            all(dtype not in self.FLOAT_DTYPES for dtype in dtypes)
+            and backend.backend() == "mlx"
+        ):
+            # Remove once mlx.core.matmul supports integer dtypes
+            self.skipTest("mlx doesn't support integer dot product")
+
         x1 = knp.ones((2, 3, 4), dtype=dtype1)
         x2 = knp.ones((4, 3), dtype=dtype2)
         x1_jax = jnp.ones((2, 3, 4), dtype=dtype1)
@@ -9761,6 +9788,13 @@ class NumpyDtypeTest(testing.TestCase):
             return x1_shape, x2_shape
 
         dtype1, dtype2 = dtypes
+        if (
+            all(dtype not in self.FLOAT_DTYPES for dtype in dtypes)
+            and backend.backend() == "mlx"
+        ):
+            # Remove once mlx.core.matmul supports integer dtypes
+            self.skipTest("mlx doesn't support integer dot product")
+
         subscripts = "ijk,lkj->il"
         x1_shape, x2_shape = get_input_shapes(subscripts)
         x1 = knp.ones(x1_shape, dtype=dtype1)
@@ -12076,6 +12110,13 @@ class NumpyDtypeTest(testing.TestCase):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
+        if (
+            all(dtype not in self.FLOAT_DTYPES for dtype in dtypes)
+            and backend.backend() == "mlx"
+        ):
+            # Remove once mlx.core.matmul supports integer dtypes
+            self.skipTest("mlx doesn't support integer dot product")
+
         x1 = knp.ones((1, 1), dtype=dtype1)
         x2 = knp.ones((1, 1), dtype=dtype2)
         x1_jax = jnp.ones((1, 1), dtype=dtype1)
@@ -12289,6 +12330,13 @@ class NumpyDtypeTest(testing.TestCase):
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
+        if (
+            all(dtype not in self.FLOAT_DTYPES for dtype in dtypes)
+            and backend.backend() == "mlx"
+        ):
+            # Remove once mlx.core.matmul supports integer dtypes
+            self.skipTest("mlx doesn't support integer dot product")
+
         x1 = knp.ones((1,), dtype=dtype1)
         x2 = knp.ones((1,), dtype=dtype2)
         x1_jax = jnp.ones((1,), dtype=dtype1)
@@ -12579,6 +12627,12 @@ class HistogramTest(testing.TestCase):
         ),
     )
     def test_histogram_predict(self, jit_compile):
+        if jit_compile and backend.backend() == "mlx":
+            self.skipTest(
+                "histogram bin edges need concrete min/max, which mlx cannot "
+                "evaluate under compile."
+            )
+
         class HistogramLayer(keras.layers.Layer):
             def call(self, x):
                 shape = ops.shape(x)

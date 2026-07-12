@@ -114,6 +114,10 @@ class RematTest(testing.TestCase):
             verbose=0,
         )
 
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason="Segfaults in the mlx remat path. To be investigated.",
+    )
     def test_remat_with_kwargs(self):
         # Define a function that uses keyword arguments
         def fn_with_kwargs(x, scale=1.0, offset=0.0):

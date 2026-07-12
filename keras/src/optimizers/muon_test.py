@@ -113,6 +113,10 @@ class MuonTest(testing.TestCase):
         self.assertAllClose(opt.lr_adjust(x), want)
 
     @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason="Segfaults in the mlx Muon update path. To be investigated.",
+    )
     def test_model_fit(self):
         model = Sequential([Input((10,)), Dense(5), Dense(1, name="last")])
         x = ops.ones((1, 10))
