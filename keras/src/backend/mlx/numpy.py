@@ -381,7 +381,8 @@ def right_shift(x, y):
 
 def _bincount_1d(x, weights=None, minlength=0):
     x_max = mx.max(x)
-    length = mx.maximum(x_max + 1, minlength)
+    # The length is data dependent, and mx.zeros needs a Python int shape.
+    length = int(mx.maximum(x_max + 1, minlength))
 
     counts = mx.zeros(length)
     if weights is None:
@@ -1064,7 +1065,10 @@ def repeat(x, repeats, axis=None):
             f"got {repeats.size} vs {x.shape[axis]}"
         )
 
-    indices = mx.concatenate([mx.full(r, i) for i, r in enumerate(repeats)])
+    # mx.full needs a Python int shape, not a scalar array.
+    indices = mx.concatenate(
+        [mx.full(int(r), i) for i, r in enumerate(repeats)]
+    )
     return mx.take(x, indices, axis=axis)
 
 
@@ -1676,10 +1680,12 @@ def signbit(x):
 def bartlett(x):
     # ref: jax.numpy.bartlett
     dtype = to_mlx_dtype(config.floatx())
+    # The window length must be a Python int, mx.ones and mx.arange do not
+    # accept scalar arrays for it.
+    x = int(x)
     if x <= 1:
         return mx.ones(x, dtype=dtype)
 
-    # note: mx.arange cannot take mx.array as input
     n = mx.arange(x, dtype=dtype)
     return 1 - mx.abs(2 * n + 1 - x) / (x - 1)
 
@@ -1687,10 +1693,12 @@ def bartlett(x):
 def blackman(x):
     # ref: jax.numpy.blackman
     dtype = to_mlx_dtype(config.floatx())
+    # The window length must be a Python int, mx.ones and mx.arange do not
+    # accept scalar arrays for it.
+    x = int(x)
     if x <= 1:
         return mx.ones(x, dtype=dtype)
 
-    # note: mx.arange cannot take mx.array as input
     n = mx.arange(x, dtype=dtype)
     return (
         0.42
