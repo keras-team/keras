@@ -1559,14 +1559,29 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3))
         weights = KerasTensor((3,))
         self.assertEqual(knp.average(x, axis=1, weights=weights).shape, (None,))
+        self.assertEqual(
+            knp.average(x, axis=(1,), weights=weights).shape, (None,)
+        )
+        self.assertEqual(
+            knp.average(x, axis=[1], weights=weights).shape, (None,)
+        )
 
         x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.average(x, axis=1).shape, (None, 3))
+
+        x = KerasTensor((None, 3, 4))
+        self.assertEqual(knp.average(x, axis=(1, 2)).shape, (None,))
 
         with self.assertRaises(ValueError):
             x = KerasTensor((None, 3, 3))
             weights = KerasTensor((None, 4))
             knp.average(x, weights=weights)
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor((None, 3, 3))
+            weights = KerasTensor((3,))
+            # Multi-axis reduction with 1D weights should fail
+            knp.average(x, axis=(1, 2), weights=weights)
 
     def test_bartlett(self):
         x = np.random.randint(1, 100 + 1)
@@ -2598,6 +2613,9 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_average(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.average(x).shape, ())
+
+        x = KerasTensor((2, 3, 4))
+        self.assertEqual(knp.average(x, axis=(1, 2)).shape, (2,))
 
     def test_bitwise_invert(self):
         x = KerasTensor((2, 3))
@@ -5367,11 +5385,16 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_average(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         weights = np.ones([2, 3])
+        weights_non_const = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
         weights_1d = np.ones([3])
+        weights_1d_non_const = np.array([1.0, 2.0, 3.0])
+        weights_1d_axis0 = np.array([1.0, 2.0])
+
         self.assertAllClose(knp.average(x), np.average(x))
         self.assertAllClose(knp.average(x, axis=()), np.average(x, axis=()))
         self.assertAllClose(knp.average(x, axis=1), np.average(x, axis=1))
         self.assertAllClose(knp.average(x, axis=(1,)), np.average(x, axis=(1,)))
+        self.assertAllClose(knp.average(x, axis=[1]), np.average(x, axis=[1]))
         self.assertAllClose(
             knp.average(x, axis=1, weights=weights),
             np.average(x, axis=1, weights=weights),
@@ -5379,6 +5402,30 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.average(x, axis=1, weights=weights_1d),
             np.average(x, axis=1, weights=weights_1d),
+        )
+        self.assertAllClose(
+            knp.average(x, weights=weights_non_const),
+            np.average(x, weights=weights_non_const),
+        )
+        self.assertAllClose(
+            knp.average(x, axis=1, weights=weights_1d_non_const),
+            np.average(x, axis=1, weights=weights_1d_non_const),
+        )
+        self.assertAllClose(
+            knp.average(x, axis=0, weights=weights_1d_axis0),
+            np.average(x, axis=0, weights=weights_1d_axis0),
+        )
+        self.assertAllClose(
+            knp.average(x, axis=(0,), weights=weights_1d_axis0),
+            np.average(x, axis=(0,), weights=weights_1d_axis0),
+        )
+        self.assertAllClose(
+            knp.average(x, axis=[0], weights=weights_1d_axis0),
+            np.average(x, axis=[0], weights=weights_1d_axis0),
+        )
+        self.assertAllClose(
+            knp.average(x, axis=(0, 1), weights=weights_non_const),
+            np.average(x, axis=(0, 1), weights=weights_non_const),
         )
 
         self.assertAllClose(knp.Average()(x), np.average(x))
@@ -5391,6 +5438,22 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.Average(axis=1)(x, weights=weights_1d),
             np.average(x, axis=1, weights=weights_1d),
         )
+        self.assertAllClose(
+            knp.Average()(x, weights=weights_non_const),
+            np.average(x, weights=weights_non_const),
+        )
+        self.assertAllClose(
+            knp.Average(axis=0)(x, weights=weights_1d_axis0),
+            np.average(x, axis=0, weights=weights_1d_axis0),
+        )
+
+        # 1D weights must match the dimension of the axis
+        with self.assertRaises(ValueError):
+            knp.average(x, axis=0, weights=np.ones([3]))
+
+        # 1D weights can only be used with a single axis
+        with self.assertRaises(ValueError):
+            knp.average(x, axis=(0, 1), weights=np.ones([3]))
 
     def test_bartlett(self):
         x = np.random.randint(1, 100 + 1)

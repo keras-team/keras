@@ -430,6 +430,31 @@ def average(x, axis=None, weights=None):
     dtypes_to_resolve = [x.dtype, float]
     if weights is not None:
         weights = convert_to_tensor(weights)
+        if len(weights.shape) == 1 and len(x.shape) > 1:
+            if axis is None or (
+                isinstance(axis, (list, tuple)) and len(axis) != 1
+            ):
+                raise ValueError(
+                    "Axis must be specified when shapes of a and weights "
+                    "differ."
+                )
+            axis_val = axis[0] if isinstance(axis, (list, tuple)) else axis
+            axis_val = canonicalize_axis(axis_val, len(x.shape))
+            if weights.shape[0] != x.shape[axis_val]:
+                raise ValueError(
+                    "Shape of weights must be consistent with shape of a "
+                    "along specified axis."
+                )
+        elif x.shape != weights.shape:
+            if axis is None:
+                raise ValueError(
+                    "Axis must be specified when shapes of a and weights "
+                    "differ."
+                )
+            raise ValueError(
+                "Shape of weights must be consistent with shape of a "
+                "along specified axis."
+            )
         dtypes_to_resolve.append(weights.dtype)
     dtype = dtypes.result_type(*dtypes_to_resolve)
     x = cast(x, dtype)
@@ -439,9 +464,19 @@ def average(x, axis=None, weights=None):
         # Torch handles the empty axis case differently from numpy.
         return x
     if weights is not None:
-        return torch.sum(torch.mul(x, weights), dim=axis) / torch.sum(
-            weights, dim=-1
-        )
+        if len(weights.shape) == 1 and len(x.shape) > 1 and axis is not None:
+            a = axis[0] if isinstance(axis, (tuple, list)) else axis
+            if isinstance(a, int):
+                a = a if a >= 0 else len(x.shape) + a
+                w_shape = [1] * len(x.shape)
+                w_shape[a] = weights.shape[0]
+                weights = torch.reshape(weights, w_shape)
+
+        if axis is not None:
+            return torch.sum(torch.mul(x, weights), dim=axis) / torch.sum(
+                weights, dim=axis
+            )
+        return torch.sum(torch.mul(x, weights)) / torch.sum(weights)
     return torch.mean(x, axis)
 
 
