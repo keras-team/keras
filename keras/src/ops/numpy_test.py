@@ -5891,6 +5891,15 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Dot()(x, z), np.dot(x, z))
         self.assertAllClose(knp.Dot()(x, 2), np.dot(x, 2))
 
+        # Test high-rank tensor contraction
+        x_hr = np.ones((2, 3, 4), dtype="float32")
+        y_hr = np.ones((2, 4, 5), dtype="float32")
+        self.assertAllClose(knp.dot(x_hr, y_hr), np.dot(x_hr, y_hr))
+
+        # Test 1-D and high-rank tensor contraction
+        x_1d = np.ones((4,), dtype="float32")
+        self.assertAllClose(knp.dot(x_1d, y_hr), np.dot(x_1d, y_hr))
+
     def test_exp(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.exp(x), np.exp(x))
