@@ -193,16 +193,9 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
     def test_reconstruct_patches_3d(self):
         # 3D: patches (None, 4, 4, 4, 375) -> volume (None, 20, 20, 20, 3)
         patches = KerasTensor([None, 4, 4, 4, 375])
-        out = kimage.reconstruct_patches_3d(
+        out = kimage.reconstruct_patches(
             patches,
             size=(5, 5, 5),
-            output_size=(20, 20, 20),
-            padding="valid",
-        )
-        self.assertEqual(out.shape, (None, 20, 20, 20, 3))
-        out = kimage.reconstruct_patches_3d(
-            patches,
-            size=5,
             output_size=(20, 20, 20),
             padding="valid",
         )
@@ -466,7 +459,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
     def test_reconstruct_patches_3d(self):
         # 3D unbatched: patches (4, 4, 4, 375) -> volume (20, 20, 20, 3)
         patches = KerasTensor([4, 4, 4, 375])
-        out = kimage.reconstruct_patches_3d(
+        out = kimage.reconstruct_patches(
             patches,
             size=(5, 5, 5),
             output_size=(20, 20, 20),
@@ -485,7 +478,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
             )
         patches_3d = np.zeros((1, 4, 4, 4, 375), dtype="float32")
         with self.assertRaisesRegex(TypeError, "tuple or list"):
-            kimage.reconstruct_patches_3d(
+            kimage.reconstruct_patches(
                 patches_3d,
                 size=(5, 5, 5),
                 output_size=20,
@@ -512,21 +505,21 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         # 3D: gD=4, pD=5 → valid D range is (15, 20]. 10 is too small.
         patches_3d = np.zeros((1, 4, 4, 4, 375), dtype="float32")
         with self.assertRaisesRegex(ValueError, "padding='same'.*depth"):
-            kimage.reconstruct_patches_3d(
+            kimage.reconstruct_patches(
                 patches_3d,
                 size=(5, 5, 5),
                 output_size=(10, 20, 20),
                 padding="same",
             )
         with self.assertRaisesRegex(ValueError, "padding='same'.*height"):
-            kimage.reconstruct_patches_3d(
+            kimage.reconstruct_patches(
                 patches_3d,
                 size=(5, 5, 5),
                 output_size=(20, 30, 20),
                 padding="same",
             )
         with self.assertRaisesRegex(ValueError, "padding='same'.*width"):
-            kimage.reconstruct_patches_3d(
+            kimage.reconstruct_patches(
                 patches_3d,
                 size=(5, 5, 5),
                 output_size=(20, 20, 30),
@@ -566,7 +559,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
             )
         patches_3d = np.zeros((1, 4, 4, 4, 375), dtype="float32")
         with self.assertRaisesRegex(ValueError, "'same' or 'valid'"):
-            kimage.reconstruct_patches_3d(
+            kimage.reconstruct_patches(
                 patches_3d,
                 size=(5, 5, 5),
                 output_size=(20, 20, 20),
@@ -584,7 +577,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
             )
         patches_3d = np.zeros((1, 4, 4, 4, 375), dtype="float32")
         with self.assertRaisesRegex(ValueError, "length 3"):
-            kimage.reconstruct_patches_3d(
+            kimage.reconstruct_patches(
                 patches_3d,
                 size=(5, 5, 5),
                 output_size=(20, 20),
@@ -603,7 +596,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
             )
         patches_3d = np.zeros((1, 4, 4, 4, 375), dtype="float32")
         with self.assertRaisesRegex(ValueError, "size \\* grid"):
-            kimage.reconstruct_patches_3d(
+            kimage.reconstruct_patches(
                 patches_3d,
                 size=(5, 5, 5),
                 output_size=(20, 19, 20),
@@ -612,7 +605,8 @@ class ImageOpsStaticShapeTest(testing.TestCase):
 
     def test_reconstruct_patches_unbatched_and_int_size(self):
         # Unbatched input (3D for 2D, 4D for 3D) exercises the squeeze path.
-        # int `size` argument exercises the int->tuple normalization.
+        # An int `size` exercises the int->tuple normalization (2D only;
+        # the 3D case requires an explicit length-3 tuple).
         patches = np.zeros((4, 4, 75), dtype="float32")
         out = kimage.reconstruct_patches(
             patches,
@@ -622,18 +616,17 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         )
         self.assertEqual(tuple(out.shape), (20, 20, 3))
         patches_3d = np.zeros((4, 4, 4, 375), dtype="float32")
-        out = kimage.reconstruct_patches_3d(
+        out = kimage.reconstruct_patches(
             patches_3d,
-            size=5,
+            size=(5, 5, 5),
             output_size=(20, 20, 20),
             padding="valid",
         )
         self.assertEqual(tuple(out.shape), (20, 20, 20, 3))
 
     def test_reconstruct_patches_dispatches_to_3d(self):
-        # The generic _reconstruct_patches op dispatches to the 3D path when
-        # size is a length-3 tuple, even though the public `reconstruct_patches`
-        # docstring is 2D-flavored.
+        # `reconstruct_patches` dispatches to the 3D path when size is a
+        # length-3 tuple.
         patches = np.zeros((1, 4, 4, 4, 375), dtype="float32")
         out = kimage.reconstruct_patches(
             patches,
@@ -667,7 +660,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
             )
         patches_3d = np.zeros((1, 4, 4, 4, 400), dtype="float32")
         with self.assertRaisesRegex(ValueError, "not divisible"):
-            kimage.reconstruct_patches_3d(
+            kimage.reconstruct_patches(
                 patches_3d,
                 size=(5, 5, 5),
                 output_size=(20, 20, 20),
@@ -702,14 +695,14 @@ class ImageOpsStaticShapeTest(testing.TestCase):
             )
         patches_3d = KerasTensor([None, 4, 4, 4, 375])
         with self.assertRaisesRegex(ValueError, "size \\* grid"):
-            kimage.reconstruct_patches_3d(
+            kimage.reconstruct_patches(
                 patches_3d,
                 size=(5, 5, 5),
                 output_size=(20, 19, 20),
                 padding="valid",
             )
         with self.assertRaisesRegex(ValueError, "padding='same'.*depth"):
-            kimage.reconstruct_patches_3d(
+            kimage.reconstruct_patches(
                 patches_3d,
                 size=(5, 5, 5),
                 output_size=(10, 20, 20),
@@ -728,7 +721,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
             )
         patches_3d = np.zeros((1, 375, 4, 4, 4), dtype="float32")
         with self.assertRaisesRegex(NotImplementedError, "channels_first"):
-            kimage.reconstruct_patches_3d(
+            kimage.reconstruct_patches(
                 patches_3d,
                 size=(5, 5, 5),
                 output_size=(20, 20, 20),
@@ -755,7 +748,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
             )
         patches_3d = np.zeros((1, 4, 4, 4, 375), dtype="float32")
         with self.assertRaisesRegex(NotImplementedError, "non-overlapping"):
-            kimage.reconstruct_patches_3d(
+            kimage.reconstruct_patches(
                 patches_3d,
                 size=(5, 5, 5),
                 output_size=(20, 20, 20),
@@ -771,7 +764,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
                 output_size=(20, 20),
             )
         with self.assertRaisesRegex(ValueError, "unexpected rank"):
-            kimage.reconstruct_patches_3d(
+            kimage.reconstruct_patches(
                 np.zeros((4, 4, 375), dtype="float32"),
                 size=(5, 5, 5),
                 output_size=(20, 20, 20),
@@ -2623,7 +2616,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         ]:
             x = np.random.random((2, d, h, w, c)).astype("float32")
             patches = kimage.extract_patches_3d(x, size=size, padding=padding)
-            out = kimage.reconstruct_patches_3d(
+            out = kimage.reconstruct_patches(
                 patches, size=size, output_size=(d, h, w), padding=padding
             )
             self.assertEqual(tuple(out.shape), x.shape)

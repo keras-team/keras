@@ -1102,6 +1102,15 @@ def reconstruct_patches(
     ... )
     >>> recon.shape
     (2, 20, 20, 3)
+
+    >>> # 3D patches: pass a length-3 `size`
+    >>> volume = np.random.random((2, 9, 9, 9, 3)).astype("float32")
+    >>> patches = keras.ops.image.extract_patches(volume, (3, 3, 3))
+    >>> recon = keras.ops.image.reconstruct_patches(
+    ...     patches, size=(3, 3, 3), output_size=(9, 9, 9)
+    ... )
+    >>> recon.shape
+    (2, 9, 9, 9, 3)
     """
     if not isinstance(size, int):
         if not isinstance(size, (tuple, list)):
@@ -1131,72 +1140,6 @@ def reconstruct_patches(
         ).symbolic_call(patches)
 
     return _reconstruct_patches(
-        patches,
-        size,
-        output_size,
-        strides,
-        padding,
-        data_format=data_format,
-    )
-
-
-@keras_export("keras.ops.image.reconstruct_patches_3d")
-def reconstruct_patches_3d(
-    patches,
-    size,
-    output_size,
-    strides=None,
-    padding="valid",
-    data_format=None,
-):
-    """Reconstructs volume(s) from non-overlapping 3D patches.
-
-    Inverse of `keras.ops.image.extract_patches_3d`.
-
-    Args:
-        patches: Input patches. Must be 4D `(gD, gH, gW, pD*pH*pW*C)`
-            (unbatched) or 5D `(N, gD, gH, gW, pD*pH*pW*C)` (batched).
-        size: int or tuple `(patch_depth, patch_height, patch_width)`,
-            matching the `size` used for extraction.
-        output_size: tuple `(D, H, W)`. With `padding="valid"` this must
-            equal `grid * size` (the region covered by the patches, i.e.
-            the original size cropped down to a multiple of `size`); with
-            `padding="same"`, the original spatial shape before extraction.
-        strides: Currently must equal `size`. Defaults to `size`.
-        padding: `"same"` or `"valid"`, matching the extraction.
-        data_format: Only `"channels_last"` is currently supported;
-            `"channels_first"` raises a `NotImplementedError`.
-
-    Returns:
-        Reconstructed volume, 4D (if not batched) or 5D (if batched).
-
-    Examples:
-
-    >>> volume = np.random.random((2, 10, 10, 10, 3)).astype("float32")
-    >>> patches = keras.ops.image.extract_patches_3d(volume, (3, 3, 3))
-    >>> recon = keras.ops.image.reconstruct_patches_3d(
-    ...     patches, size=(3, 3, 3), output_size=(9, 9, 9), padding="valid"
-    ... )
-    >>> recon.shape
-    (2, 9, 9, 9, 3)
-    """
-    if isinstance(size, int):
-        size = (size, size, size)
-    if not isinstance(output_size, (tuple, list)):
-        raise TypeError(
-            "Invalid `output_size` argument. Expected a tuple or list. "
-            f"Received: output_size={output_size} of type "
-            f"{type(output_size).__name__}"
-        )
-    if any_symbolic_tensors((patches,)):
-        return ReconstructPatches(
-            size=size,
-            output_size=output_size,
-            strides=strides,
-            padding=padding,
-            data_format=data_format,
-        ).symbolic_call(patches)
-    return _reconstruct_patches_3d(
         patches,
         size,
         output_size,
@@ -1358,13 +1301,6 @@ def _reconstruct_patches_3d(
     padding="valid",
     data_format=None,
 ):
-    if isinstance(size, int):
-        size = (size, size, size)
-    if len(size) != 3:
-        raise ValueError(
-            "Invalid `size`. Expected length 3 for 3D reconstruction. "
-            f"Got: size={size}"
-        )
     if len(output_size) != 3:
         raise ValueError(
             "Invalid `output_size`. Expected length 3 (D, H, W). "
@@ -1374,11 +1310,12 @@ def _reconstruct_patches_3d(
         raise ValueError(
             f"Invalid `padding`. Expected 'same' or 'valid'. Got: {padding}"
         )
-    _validate_reconstruct_strides(size, strides, "reconstruct_patches_3d")
+    _validate_reconstruct_strides(size, strides, "reconstruct_patches")
     data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_first":
         raise NotImplementedError(
-            "reconstruct_patches_3d does not yet support channels_first."
+            "reconstruct_patches does not yet support channels_first "
+            "for 3D patches."
         )
 
     pD, pH, pW = size
