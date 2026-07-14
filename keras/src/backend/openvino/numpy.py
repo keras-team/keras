@@ -1801,9 +1801,16 @@ def dot(x1, x2):
     x1 = get_ov_output(x1, element_type)
     x2 = get_ov_output(x2, element_type)
     x1, x2 = _align_operand_types(x1, x2, "dot()")
-    if x1.get_partial_shape().rank == 0 or x2.get_partial_shape().rank == 0:
+
+    rank1 = x1.get_partial_shape().rank.get_length()
+    rank2 = x2.get_partial_shape().rank.get_length()
+
+    if rank1 == 0 or rank2 == 0:
         return OpenVINOKerasTensor(ov_opset.multiply(x1, x2).output(0))
-    return OpenVINOKerasTensor(ov_opset.matmul(x1, x2, False, False).output(0))
+
+    if rank2 == 1:
+        return tensordot(x1, x2, axes=[[rank1 - 1], [0]])
+    return tensordot(x1, x2, axes=[[rank1 - 1], [rank2 - 2]])
 
 
 def dstack(xs):

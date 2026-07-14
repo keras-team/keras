@@ -779,6 +779,11 @@ def dot(x1, x2):
     x2 = cast(x2, compute_dtype)
     if x1.ndim == 0 or x2.ndim == 0:
         return cast(torch.multiply(x1, x2), result_dtype)
+    if x2.ndim >= 2:
+        return cast(
+            torch.tensordot(x1, x2, dims=([x1.ndim - 1], [x2.ndim - 2])),
+            result_dtype,
+        )
     return cast(torch.matmul(x1, x2), result_dtype)
 
 
