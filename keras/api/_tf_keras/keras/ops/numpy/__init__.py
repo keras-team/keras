@@ -43,6 +43,7 @@ from keras.src.ops.numpy import broadcast_to as broadcast_to
 from keras.src.ops.numpy import cbrt as cbrt
 from keras.src.ops.numpy import ceil as ceil
 from keras.src.ops.numpy import clip as clip
+from keras.src.ops.numpy import column_stack as column_stack
 from keras.src.ops.numpy import concatenate as concatenate
 from keras.src.ops.numpy import conj as conj
 from keras.src.ops.numpy import conjugate as conjugate

@@ -1833,6 +1833,21 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((None, None))
         self.assertEqual(knp.hstack([x, y]).shape, (None, None))
 
+    def test_column_stack(self):
+        # 1D tensors
+        x = KerasTensor((None,))
+        y = KerasTensor((None,))
+        self.assertEqual(knp.column_stack([x, y]).shape, (None, 2))
+
+        # 2D tensors
+        x = KerasTensor((None, 3))
+        y = KerasTensor((None, 3))
+        self.assertEqual(knp.column_stack([x, y]).shape, (None, 6))
+
+        x = KerasTensor((None, 3))
+        y = KerasTensor((None, None))
+        self.assertEqual(knp.column_stack([x, y]).shape, (None, None))
+
     def test_i0(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.i0(x).shape, (None, 3))
@@ -2808,6 +2823,17 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 3))
         y = KerasTensor((2, 3))
         self.assertEqual(knp.hstack([x, y]).shape, (2, 6))
+
+    def test_column_stack(self):
+        # 1D tensors
+        x = KerasTensor((3,))
+        y = KerasTensor((3,))
+        self.assertEqual(knp.column_stack([x, y]).shape, (3, 2))
+
+        # 2D tensors
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.column_stack([x, y]).shape, (2, 6))
 
     def test_i0(self):
         x = KerasTensor((2, 3))
@@ -5991,6 +6017,19 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         y = np.ones([2, 5, 4])
         self.assertAllClose(knp.hstack([x, y]), np.hstack([x, y]))
         self.assertAllClose(knp.Hstack()([x, y]), np.hstack([x, y]))
+
+    def test_column_stack(self):
+        x = np.array([1, 2, 3])
+        y = np.array([4, 5, 6])
+        self.assertAllClose(knp.column_stack([x, y]), np.column_stack([x, y]))
+
+        x = np.array([[1, 2, 3], [4, 5, 6]])
+        y = np.array([[7, 8, 9], [10, 11, 12]])
+        self.assertAllClose(knp.column_stack([x, y]), np.column_stack([x, y]))
+
+        x = np.array([1, 2])
+        y = np.array([[3, 4], [5, 6]])
+        self.assertAllClose(knp.column_stack([x, y]), np.column_stack([x, y]))
 
     def test_i0(self):
         x = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
@@ -10221,6 +10260,31 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Hstack().symbolic_call([x1, x2]).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
+    def test_column_stack(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((2,), dtype=dtype1)
+        x2 = knp.ones((2,), dtype=dtype2)
+        x1_jax = jnp.ones((2,), dtype=dtype1)
+        x2_jax = jnp.ones((2,), dtype=dtype2)
+
+        expected_dtype = standardize_dtype(
+            jnp.column_stack([x1_jax, x2_jax]).dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(knp.column_stack([x1, x2]).dtype), expected_dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(knp.ColumnStack().symbolic_call([x1, x2]).dtype),
             expected_dtype,
         )
 

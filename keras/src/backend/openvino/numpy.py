@@ -5981,3 +5981,37 @@ def unique(
 
 def dsplit(x, indices_or_sections):
     return split(x, indices_or_sections, axis=2)
+
+
+def column_stack(xs):
+    if not isinstance(xs, (list, tuple)):
+        xs = (xs,)
+
+    elems = [convert_to_tensor(x) for x in xs]
+    elems = [get_ov_output(x) for x in elems]
+
+    processed_elems = []
+    for elem in elems:
+        rank = elem.get_partial_shape().rank.get_length()
+
+        if rank == 0:
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(0, Type.i32)
+            ).output(0)
+            rank = 1
+
+        if rank == 1:
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(1, Type.i32)
+            ).output(0)
+
+        processed_elems.append(elem)
+
+    base = processed_elems[0]
+    for i in range(1, len(processed_elems)):
+        base, processed_elems[i] = _align_operand_types(
+            base, processed_elems[i], "column_stack()"
+        )
+    processed_elems[0] = base
+
+    return OpenVINOKerasTensor(ov_opset.concat(processed_elems, 1).output(0))
