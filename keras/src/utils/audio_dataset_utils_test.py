@@ -351,6 +351,51 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
         sequence_lengths = list(set([batch[0].shape[1] for batch in dataset]))
         self.assertEqual(len(sequence_lengths), 1)
 
+    def test_output_sequence_length_applied_after_resampling(self):
+        class FakeAudio:
+            @staticmethod
+            def resample(input, rate_in, rate_out):
+                output_length = tf.cast(
+                    tf.math.round(
+                        tf.cast(tf.shape(input)[0], "float32")
+                        * tf.cast(rate_out, "float32")
+                        / tf.cast(rate_in, "float32")
+                    ),
+                    "int32",
+                )
+                output_shape = tf.stack([output_length, tf.shape(input)[1]])
+                return tf.zeros(output_shape, dtype=input.dtype)
+
+        class FakeTensorflowIO:
+            audio = FakeAudio
+
+        original_tfio = audio_dataset_utils.tfio
+        audio_dataset_utils.tfio = FakeTensorflowIO()
+        try:
+            source_sampling_rate = 48000
+            target_sampling_rate = 16000
+            output_sequence_length = 16000
+            directory = self.get_temp_dir()
+            filename = os.path.join(directory, "audio.wav")
+            audio = np.random.random((source_sampling_rate, 1))
+            encoded_audio = tf.audio.encode_wav(audio, source_sampling_rate)
+            with open(filename, "wb") as f:
+                f.write(encoded_audio.numpy())
+
+            @tf.function
+            def read_audio(path):
+                return audio_dataset_utils.read_and_decode_audio(
+                    path,
+                    sampling_rate=target_sampling_rate,
+                    output_sequence_length=output_sequence_length,
+                )
+
+            sample = read_audio(tf.constant(filename))
+
+            self.assertEqual(sample.shape, (output_sequence_length, 1))
+        finally:
+            audio_dataset_utils.tfio = original_tfio
+
     def test_audio_dataset_from_directory_errors(self):
         directory = self._prepare_directory(num_classes=3, count=5)
 
