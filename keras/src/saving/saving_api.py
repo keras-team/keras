@@ -354,7 +354,9 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
 
         loaded_state = loaded_checkpointables["pytree"]
 
-        # Set the model state directly from the loaded state
+        loaded_state = _normalize_state_tree(
+            loaded_state, model.get_state_tree()
+        )
         model.set_state_tree(loaded_state)
     else:
         raise ValueError(
@@ -363,6 +365,70 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
             "`.weights.h5` files, legacy H5 format files "
             "(`.h5` extension), or Orbax checkpoints."
         )
+
+
+def _normalize_state_tree(loaded_state, model_state):
+    """Normalizes the paths in the loaded state tree to match the model's.
+    """
+    normalized_state = {}
+    
+    def flatten(d, prefix=""):
+        res = {}
+        for k, v in d.items():
+            if isinstance(v, dict):
+                res.update(flatten(v, prefix + k + "/"))
+            else:
+                res[prefix + k] = v
+        return res
+        
+    def unflatten(d):
+        res = {}
+        for k, v in d.items():
+            parts = k.split("/")
+            curr = res
+            for p in parts[:-1]:
+                curr = curr.setdefault(p, {})
+            curr[parts[-1]] = v
+        return res
+
+    for key, loaded_val in loaded_state.items():
+        if key not in model_state:
+            normalized_state[key] = loaded_val
+            continue
+            
+        loaded_flat = flatten(loaded_val)
+        model_flat = flatten(model_state[key])
+        
+        normalized_flat = {}
+        matched_loaded_paths = set()
+        
+        for model_path in model_flat:
+            if model_path in loaded_flat:
+                normalized_flat[model_path] = loaded_flat[model_path]
+                matched_loaded_paths.add(model_path)
+            else:
+                for loaded_path in loaded_flat:
+                    if loaded_path.endswith("/" + model_path):
+                        normalized_flat[model_path] = loaded_flat[loaded_path]
+                        matched_loaded_paths.add(loaded_path)
+                        break
+                    
+                    loaded_parts = loaded_path.split("/")
+                    model_parts = model_path.split("/")
+                    if len(loaded_parts) == len(model_parts):
+                        if loaded_parts[:-1] == model_parts[:-1]:
+                            if loaded_parts[-1].endswith("_" + model_parts[-1]):
+                                normalized_flat[model_path] = loaded_flat[loaded_path]
+                                matched_loaded_paths.add(loaded_path)
+                                break
+        
+        for loaded_path, value in loaded_flat.items():
+            if loaded_path not in matched_loaded_paths:
+                normalized_flat[loaded_path] = value
+                
+        normalized_state[key] = unflatten(normalized_flat)
+        
+    return normalized_state
 
 
 def _load_model_from_orbax_checkpoint(
@@ -441,7 +507,7 @@ def _load_model_from_orbax_checkpoint(
         if key in composite_state
     }
 
-    # Apply the loaded state to the model
+    state_tree = _normalize_state_tree(state_tree, model.get_state_tree())
     model.set_state_tree(state_tree)
 
     # Load assets if present
