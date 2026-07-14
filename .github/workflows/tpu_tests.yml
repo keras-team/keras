@@ -39,7 +39,6 @@ jobs:
 
     container:
       image: python:3.11-slim
-      options: --privileged --network host
 
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
