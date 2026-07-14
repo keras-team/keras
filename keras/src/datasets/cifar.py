@@ -1,6 +1,6 @@
 """Utilities common to CIFAR10 and CIFAR100 datasets."""
 
-import _pickle as cPickle
+from keras.src.datasets.npz_utils import RestrictedUnpickler
 
 
 def load_batch(fpath, label_key="labels"):
@@ -15,7 +15,11 @@ def load_batch(fpath, label_key="labels"):
         A tuple `(data, labels)`.
     """
     with open(fpath, "rb") as f:
-        d = cPickle.load(f, encoding="bytes")
+        # The CIFAR `data_batch_*`/`test_batch` files are pickle streams, so a
+        # tampered file could execute code through a `__reduce__` gadget. Read
+        # them with the restricted unpickler that only permits numpy array
+        # reconstruction (the only globals a genuine batch needs).
+        d = RestrictedUnpickler(f, encoding="bytes").load()
         # decode utf8
         d_decoded = {}
         for k, v in d.items():
