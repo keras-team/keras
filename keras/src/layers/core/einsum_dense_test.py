@@ -678,10 +678,6 @@ class EinsumDenseTest(testing.TestCase):
         input_shape,
         error_threshold,
     ):
-        # Seed so both the kernel init and the input draw are deterministic.
-        # The int4 cases use tiny tensors (as few as 8 output elements), so
-        # with an unseeded RNG the MSE occasionally crosses the tolerance and
-        # the test flakes (~1% of draws for the smallest equations).
         set_random_seed(1337)
         layer = layers.EinsumDense(equation=equation, output_shape=output_shape)
         layer.build(input_shape)
