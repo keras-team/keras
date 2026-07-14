@@ -23,6 +23,7 @@ from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
 from keras.src.saving.saving_api import load_model
+from keras.src.utils.rng_utils import set_random_seed
 
 
 class EinsumDenseTest(testing.TestCase):
@@ -677,6 +678,7 @@ class EinsumDenseTest(testing.TestCase):
         input_shape,
         error_threshold,
     ):
+        set_random_seed(1337)
         layer = layers.EinsumDense(equation=equation, output_shape=output_shape)
         layer.build(input_shape)
         x = ops.random.uniform(input_shape)
