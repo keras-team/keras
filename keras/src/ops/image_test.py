@@ -1981,20 +1981,6 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(out, ref_out, atol=1e-2, rtol=1e-2)
 
     def test_perspective_transform_bfloat16_no_crash(self):
-        """Regression test for numpy backend crash with bfloat16 inputs.
-
-        Previously, the homography matrix was built in bfloat16 precision,
-        which could round a perspective transform into a configuration whose
-        denominator vanished inside the output image. That produced infinite
-        source coordinates and caused `np.pad` to fail with
-        "Maximum allowed dimension exceeded".
-        """
-        if backend.backend() != "numpy":
-            self.skipTest(
-                "Test is specific to numpy backend, current backend: "
-                f"{backend.backend()}"
-            )
-
         images = np.ones((10, 10, 3), dtype="bfloat16")
         start_points = np.array(
             [
