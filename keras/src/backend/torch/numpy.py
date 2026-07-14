@@ -1619,6 +1619,22 @@ def pad(x, pad_width, mode="constant", constant_values=None):
             )
         kwargs["value"] = constant_values
     x = convert_to_tensor(x)
+    if mode == "symmetric":
+        # torch has no "symmetric" pad, so mirror manually (including the edge
+        # value). `replicate` only repeats the edge and is numpy's "edge" mode.
+        pw = list(pad_width)
+        if len(pw) == 1:
+            pw = pw * x.ndim
+        for axis, (left, right) in enumerate(pw):
+            if left == 0 and right == 0:
+                continue
+            size = x.shape[axis]
+            period = 2 * size
+            pos = torch.arange(-left, size + right, device=x.device)
+            m = torch.remainder(pos, period)
+            idx = torch.where(m < size, m, period - 1 - m)
+            x = torch.index_select(x, axis, idx)
+        return x
     pad_sum = []
     pad_width = list(pad_width)[::-1]  # torch uses reverse order
     pad_width_sum = 0
@@ -1629,8 +1645,6 @@ def pad(x, pad_width, mode="constant", constant_values=None):
         pad_width_sum -= pad[0] + pad[1]
         if pad_width_sum == 0:  # early break when no padding in higher order
             break
-    if mode == "symmetric":
-        mode = "replicate"
     if mode == "constant":
         return torch.nn.functional.pad(x, pad=pad_sum, mode=mode, **kwargs)
     # TODO: reflect and symmetric padding are implemented for padding the
