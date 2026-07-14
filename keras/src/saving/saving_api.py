@@ -402,25 +402,45 @@ def _normalize_state_tree(loaded_state, model_state):
         normalized_flat = {}
         matched_loaded_paths = set()
         
+        # Pre-process loaded_flat for fast O(1) lookups
+        suffix_to_loaded = {}
+        opt_matches = {}
+        
+        for loaded_path in loaded_flat:
+            parts = loaded_path.split("/")
+            for i in range(1, len(parts)):
+                suffix = "/".join(parts[i:])
+                if suffix not in suffix_to_loaded:
+                    suffix_to_loaded[suffix] = loaded_path
+            
+            if len(parts) > 1:
+                dir_prefix = "/".join(parts[:-1])
+                var_name = parts[-1]
+                sub_parts = var_name.split("_")
+                for i in range(1, len(sub_parts)):
+                    sub_suffix = "_".join(sub_parts[i:])
+                    key_opt = (dir_prefix, sub_suffix)
+                    if key_opt not in opt_matches:
+                        opt_matches[key_opt] = loaded_path
+        
         for model_path in model_flat:
             if model_path in loaded_flat:
                 normalized_flat[model_path] = loaded_flat[model_path]
                 matched_loaded_paths.add(model_path)
+            elif model_path in suffix_to_loaded:
+                loaded_path = suffix_to_loaded[model_path]
+                normalized_flat[model_path] = loaded_flat[loaded_path]
+                matched_loaded_paths.add(loaded_path)
             else:
-                for loaded_path in loaded_flat:
-                    if loaded_path.endswith("/" + model_path):
+                model_parts = model_path.split("/")
+                if len(model_parts) > 1:
+                    dir_prefix = "/".join(model_parts[:-1])
+                    var_name = model_parts[-1]
+                    key_opt = (dir_prefix, var_name)
+                    if key_opt in opt_matches:
+                        loaded_path = opt_matches[key_opt]
                         normalized_flat[model_path] = loaded_flat[loaded_path]
                         matched_loaded_paths.add(loaded_path)
-                        break
-                    
-                    loaded_parts = loaded_path.split("/")
-                    model_parts = model_path.split("/")
-                    if len(loaded_parts) == len(model_parts):
-                        if loaded_parts[:-1] == model_parts[:-1]:
-                            if loaded_parts[-1].endswith("_" + model_parts[-1]):
-                                normalized_flat[model_path] = loaded_flat[loaded_path]
-                                matched_loaded_paths.add(loaded_path)
-                                break
         
         for loaded_path, value in loaded_flat.items():
             if loaded_path not in matched_loaded_paths:
