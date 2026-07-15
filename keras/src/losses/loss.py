@@ -80,15 +80,20 @@ class Loss(KerasSaveable):
             ):
                 losses = self.call(y_true, y_pred)
                 if backend.get_keras_mask(losses) is None:
-                    if self.reduction in ("sum_over_batch_size", "mean"):
+                    if self.reduction in (
+                        "sum_over_batch_size",
+                        "mean",
+                        "mean_with_sample_weight",
+                    ):
+                        # With no sample_weight, "mean_with_sample_weight"
+                        # divides by the same divisor as "mean" /
+                        # "sum_over_batch_size" (see reduce_values), so it is
+                        # safe to handle here too.
                         return losses.mean()
                     elif self.reduction == "sum":
                         return losses.sum()
                     elif self.reduction in (None, "none"):
                         return losses
-                    # "mean_with_sample_weight" with no sample_weight: fall
-                    # through to the slow path so reduce_weighted_values
-                    # handles the divisor logic correctly.
 
         in_mask = backend.get_keras_mask(y_pred)
 

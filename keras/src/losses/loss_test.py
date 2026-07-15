@@ -1,4 +1,5 @@
 import pickle
+from unittest import mock
 
 import numpy as np
 from absl.testing import parameterized
@@ -321,7 +322,14 @@ class LossTest(testing.TestCase):
             self.skipTest("torch backend only")
         import torch
 
-        for reduction in ["sum_over_batch_size", "mean", "sum", "none", None]:
+        for reduction in [
+            "sum_over_batch_size",
+            "mean",
+            "mean_with_sample_weight",
+            "sum",
+            "none",
+            None,
+        ]:
             mse = MeanSquaredError(reduction=reduction)
             yt = torch.tensor([1.0, 2.0, 3.0, 4.0])
             yp = torch.tensor([1.1, 1.9, 3.2, 3.8])
@@ -414,6 +422,30 @@ class LossTest(testing.TestCase):
         result = mse(yt, yp)
         self.assertIsInstance(result, torch.Tensor)
         self.assertAllClose(float(result), 0.25, rtol=1e-5, atol=1e-5)
+
+    def test_mean_with_sample_weight_reduction_no_sample_weight_single_call(
+        self,
+    ):
+        """reduction="mean_with_sample_weight" with sample_weight=None takes
+        the fast path (single `self.call()` invocation) and matches the
+        slow-path numeric result.
+        """
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+
+        mse = MeanSquaredError(reduction="mean_with_sample_weight")
+        yt = torch.tensor([1.0, 2.0, 3.0, 4.0])
+        yp = torch.tensor([1.1, 1.9, 3.2, 3.8])
+
+        with mock.patch.object(
+            MeanSquaredError, "call", wraps=mse.call
+        ) as mocked_call:
+            result = mse(yt, yp)
+
+        self.assertEqual(mocked_call.call_count, 1)
+        ref = _slow_call_mse(mse, yt, yp)
+        self.assertAllClose(_to_np(result), _to_np(ref), rtol=1e-5, atol=1e-5)
 
     def test_fast_path_skipped_when_ypred_dtype_mismatch(self):
         """float16 y_pred falls through to slow path; result must be float32."""
