@@ -98,6 +98,9 @@ def logsumexp(x, axis=None, keepdims=False):
 def cdist(x, y):
     x = np.asarray(x)
     y = np.asarray(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype, float)
+    x = x.astype(dtype)
+    y = y.astype(dtype)
     if x.ndim < 2 or y.ndim < 2:
         raise ValueError("`cdist` inputs must have rank >= 2")
     if x.shape[-1] != y.shape[-1]:
