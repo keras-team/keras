@@ -461,7 +461,7 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
 
             @tf.function
             def read_audio(path):
-                return audio_dataset_utils.read_and_decode_audio(
+                return audio_dataset_utils._read_and_decode_audio_tf(
                     path,
                     sampling_rate=target_sampling_rate,
                     output_sequence_length=output_sequence_length,
@@ -472,6 +472,27 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
             self.assertEqual(sample.shape, (output_sequence_length, 1))
         finally:
             audio_dataset_utils.tfio = original_tfio
+
+    def test_output_sequence_length_applied_after_resampling_grain(self):
+        source_sampling_rate = 48000
+        target_sampling_rate = 16000
+        output_sequence_length = 16000
+        directory = self.get_temp_dir()
+        filename = os.path.join(directory, "audio.wav")
+        audio = np.random.random((source_sampling_rate * 2, 1))
+        from scipy.io import wavfile
+
+        wavfile.write(
+            filename, source_sampling_rate, (audio * 32767).astype(np.int16)
+        )
+
+        sample = audio_dataset_utils._read_and_decode_audio_grain(
+            filename,
+            sampling_rate=target_sampling_rate,
+            output_sequence_length=output_sequence_length,
+        )
+
+        self.assertEqual(tuple(sample.shape), (output_sequence_length, 1))
 
     def test_audio_dataset_from_directory_errors(self):
         directory = self._prepare_directory(num_classes=3, count=5)

@@ -674,15 +674,6 @@ def _read_and_decode_audio_grain(
     if len(audio.shape) == 1:
         audio = np.expand_dims(audio, axis=-1)
 
-    # Decode_wav's desired_samples is applied before resampling in TF
-    if output_sequence_length is not None:
-        diff = output_sequence_length - len(audio)
-        if diff > 0:
-            padding = np.zeros((diff, audio.shape[1]), dtype=audio.dtype)
-            audio = np.concatenate([audio, padding], axis=0)
-        elif diff < 0:
-            audio = audio[:output_sequence_length]
-
     # Resample if needed
     if sampling_rate is not None and default_audio_rate != sampling_rate:
         if len(audio) > 0:
@@ -692,6 +683,15 @@ def _read_and_decode_audio_grain(
             num_samples = max(1, num_samples)
             audio = signal.resample(audio, num_samples, axis=0)
             audio = audio.astype("float32")
+
+    # Trim/pad to output_sequence_length
+    if output_sequence_length is not None:
+        diff = output_sequence_length - len(audio)
+        if diff > 0:
+            padding = np.zeros((diff, audio.shape[1]), dtype=audio.dtype)
+            audio = np.concatenate([audio, padding], axis=0)
+        elif diff < 0:
+            audio = audio[:output_sequence_length]
 
     with backend.device_scope("cpu"):
         audio = ops.convert_to_tensor(audio, dtype="float32")
