@@ -9,6 +9,7 @@ from keras.src import activations
 from keras.src import backend
 from keras.src import constraints
 from keras.src import dtype_policies
+from keras.src.backend.common import global_state
 from keras.src import initializers
 from keras.src import ops
 from keras.src import quantizers
@@ -326,13 +327,24 @@ class EinsumDense(Layer):
                 and self._torch.compiler.is_compiling()
             ):
                 kernel = self._kernel.value
-                if inputs.device != kernel.device:
-                    inputs = inputs.to(kernel.device)
+                scope_device = global_state.get_global_attribute(
+                    "torch_device", None
+                )
+                if scope_device is not None:
+                    target_device = self._torch.device(scope_device)
+                    if kernel.device != target_device:
+                        kernel = kernel.to(target_device)
+                else:
+                    target_device = kernel.device
+                if inputs.device != target_device:
+                    inputs = inputs.to(target_device)
                 if inputs.dtype != kernel.dtype:
                     kernel = kernel.to(inputs.dtype)
                 x = self._torch.einsum(self.equation, inputs, kernel)
                 if self.bias is not None:
                     bias = self.bias.value
+                    if bias.device != target_device:
+                        bias = bias.to(target_device)
                     if inputs.dtype != bias.dtype:
                         bias = bias.to(inputs.dtype)
                     x = x + bias

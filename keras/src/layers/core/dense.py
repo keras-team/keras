@@ -5,6 +5,7 @@ import ml_dtypes
 from keras.src import activations
 from keras.src import backend
 from keras.src import constraints
+from keras.src.backend.common import global_state
 from keras.src import initializers
 from keras.src import ops
 from keras.src import quantizers
@@ -239,13 +240,25 @@ class Dense(Layer):
                 and self._torch.compiler.is_compiling()
             ):
                 kernel = self._kernel.value
-                if inputs.device != kernel.device:
-                    inputs = inputs.to(kernel.device)
+                scope_device = global_state.get_global_attribute(
+                    "torch_device", None
+                )
+                if scope_device is not None:
+                    target_device = self._torch.device(scope_device)
+                    if kernel.device != target_device:
+                        kernel = kernel.to(target_device)
+                else:
+                    target_device = kernel.device
+                if inputs.device != target_device:
+                    inputs = inputs.to(target_device)
                 if inputs.dtype != kernel.dtype:
                     kernel = kernel.to(inputs.dtype)
                 bias = self.bias.value if self.bias is not None else None
-                if bias is not None and inputs.dtype != bias.dtype:
-                    bias = bias.to(inputs.dtype)
+                if bias is not None:
+                    if bias.device != target_device:
+                        bias = bias.to(target_device)
+                    if inputs.dtype != bias.dtype:
+                        bias = bias.to(inputs.dtype)
                 x = self._torch_F.linear(inputs, kernel.t(), bias)
                 if self.activation is not None:
                     x = self.activation(x)

@@ -1933,6 +1933,34 @@ class EinsumDenseTest(testing.TestCase):
         out_fast = layer(x_t)
         self.assertAllClose(out_fast, expected, rtol=1e-5, atol=1e-5)
 
+    def test_torch_fast_path_honors_device_scope(self):
+        """Fast path must honor an active `device_scope`, not just align to
+        the kernel's device: the slow (ops.einsum) path always resolves its
+        target device through `get_device()`, which reflects an active
+        scope, so the two paths must agree even when the kernel lives
+        elsewhere.
+        """
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+
+        from keras.src.backend.torch.core import device_scope
+
+        layer = layers.EinsumDense("ab,bc->ac", output_shape=6, bias_axes="c")
+        x = torch.randn(2, 5)
+        layer(x)  # build weights on the default device
+
+        with device_scope("cpu"):
+            out_fast = layer(x, training=False)
+        layer._torch_backend = False
+        with device_scope("cpu"):
+            out_slow = layer(x, training=False)
+        layer._torch_backend = True
+
+        self.assertEqual(str(out_fast.device), "cpu")
+        self.assertEqual(str(out_fast.device), str(out_slow.device))
+        self.assertAllClose(out_fast, out_slow)
+
     def test_torch_fast_path_symbolic_input(self):
         """EinsumDense must not crash on symbolic KerasTensor (torch)."""
         if backend.backend() != "torch":

@@ -1581,6 +1581,34 @@ class DenseTest(testing.TestCase):
         self.assertEqual(out_dense.cpu().shape, (2, 8))
         self.assertEqual(out_einsum.cpu().shape, (2, 8))
 
+    def test_torch_fast_path_honors_device_scope(self):
+        """Fast path must honor an active `device_scope`, not just align to
+        the kernel's device: the slow (ops.matmul) path always resolves its
+        target device through `get_device()`, which reflects an active
+        scope, so the two paths must agree even when the kernel lives
+        elsewhere.
+        """
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+
+        from keras.src.backend.torch.core import device_scope
+
+        dense = layers.Dense(6)
+        x = torch.randn(2, 5)
+        dense(x)  # build weights on the default device
+
+        with device_scope("cpu"):
+            out_fast = dense(x, training=False)
+        dense._torch_backend = False
+        with device_scope("cpu"):
+            out_slow = dense(x, training=False)
+        dense._torch_backend = True
+
+        self.assertEqual(str(out_fast.device), "cpu")
+        self.assertEqual(str(out_fast.device), str(out_slow.device))
+        self.assertAllClose(out_fast, out_slow)
+
     def test_torch_fast_path_mixed_float16(self):
         """Fast-path vs slow-path equivalence with mixed_float16 policy."""
         if backend.backend() != "torch":
