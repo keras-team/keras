@@ -84,7 +84,7 @@ def top_k(x, k, sorted=True):
 
 
 def in_top_k(targets, predictions, k):
-    targets = targets[:, None]
+    targets = targets[..., None]
     topk_values = top_k(predictions, k)[0]
     targets_values = np.take_along_axis(predictions, targets, axis=-1)
     mask = targets_values >= topk_values
