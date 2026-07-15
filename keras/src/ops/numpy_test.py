@@ -3706,6 +3706,13 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             knp.Cross(axis=-1)(x1, y1), np.cross(x1, y1, axis=-1)
         )
 
+        # Default axis is the last one, even when an earlier dimension also
+        # has length 3 (regression test for the torch backend).
+        x3 = np.arange(2 * 3 * 3).reshape([2, 3, 3]).astype("float32")
+        y4 = np.arange(2 * 3 * 3)[::-1].reshape([2, 3, 3]).astype("float32")
+        self.assertAllClose(knp.cross(x3, y4), np.cross(x3, y4))
+        self.assertAllClose(knp.Cross()(x3, y4), np.cross(x3, y4))
+
     def test_einsum(self):
         x = np.arange(24).reshape([2, 3, 4]).astype("float32")
         y = np.arange(24).reshape([2, 4, 3]).astype("float32")
