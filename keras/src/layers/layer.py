@@ -1068,28 +1068,24 @@ class Layer(BackendLayer, Operation):
         # 1) user explicitly passed it?
         if arg_name in call_spec.user_arguments_dict:
             value = call_spec.user_arguments_dict[arg_name]
-            propagate = True
+            call_context.set_value(arg_name, value)
         # 2) else: inherited from outer layer call?
         elif call_context.get_value(arg_name) is not None:
             value = call_context.get_value(arg_name)
-            propagate = True
-        # 3) else: default from the call() signature
+        # 3) else: default from the call() signature. This stays local: the
+        # call context is shared across the whole call tree, so propagating
+        # it would let a non-None default (e.g. a preprocessing layer's
+        # `training=True`) leak to sibling and downstream layers. The bound
+        # `call()` still applies its own default, so there is nothing
+        # further to do here.
         else:
-            value = call_spec.arguments_dict.get(arg_name, None)
-            propagate = False
+            return
 
-        # A signature default (3) stays local: the call context is shared across
-        # the whole call tree, so propagating it would let a non-None default
-        # (e.g. a preprocessing layer's `training=True`) leak to sibling and
-        # downstream layers. The bound `call()` still applies the default here,
-        # so only explicit (1) and inherited (2) values are propagated.
-        if propagate:
-            call_context.set_value(arg_name, value)
-            if (
-                self._call_has_context_arg.get(arg_name, False)
-                and value is not None
-            ):
-                kwargs[arg_name] = value
+        if (
+            self._call_has_context_arg.get(arg_name, False)
+            and value is not None
+        ):
+            kwargs[arg_name] = value
 
     @traceback_utils.filter_traceback
     def stateless_call(
