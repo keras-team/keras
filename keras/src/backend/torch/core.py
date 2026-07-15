@@ -361,16 +361,8 @@ def shape(x):
 
 def cast(x, dtype):
     dtype = to_torch_dtype(dtype)
-    # Fast path: torch.Tensor (including nn.Parameter) — skip Variable check.
-    if isinstance(x, torch.Tensor):
-        if x.dtype == dtype:
-            return x
-        return x.to(dtype)
     if isinstance(x, Variable):
         x = x.value
-        if x.dtype == dtype:
-            return x
-        return x.to(dtype)
     if is_tensor(x):
         if x.dtype == dtype:
             return x
