@@ -2573,6 +2573,37 @@ class TreeTest(testing.TestCase):
         self.assertEqual(len(packed_n["x"]), 2)
         self.assertEqual(len(packed_n["y"]), 1)
 
+        # Nested dict-of-dict: keys are intentionally out of order at both
+        # the outer and inner level. Flattening and repacking must
+        # re-associate every leaf with its correct nested key, regardless
+        # of the order the keys were given in at any level.
+        t3 = torch.tensor([6.0, 7.0, 8.0])
+        nested_dod = {"b": {"d": t2, "c": tensor}, "a": t3}
+        flat_dod = t.flatten(nested_dod)
+        self.assertEqual(len(flat_dod), 3)
+        packed_dod = t.pack_sequence_as(nested_dod, flat_dod)
+        self.assertTrue(torch.equal(packed_dod["a"], t3))
+        self.assertTrue(torch.equal(packed_dod["b"]["c"], tensor))
+        self.assertTrue(torch.equal(packed_dod["b"]["d"], t2))
+
+        # An equivalent structure with keys already sorted at every level
+        # must round-trip to the same values at the same nested keys as the
+        # out-of-order structure above.
+        sorted_dod = {"a": t3, "b": {"c": tensor, "d": t2}}
+        flat_sorted_dod = t.flatten(sorted_dod)
+        packed_sorted_dod = t.pack_sequence_as(sorted_dod, flat_sorted_dod)
+        self.assertEqual(set(packed_dod.keys()), set(packed_sorted_dod.keys()))
+        self.assertEqual(
+            set(packed_dod["b"].keys()), set(packed_sorted_dod["b"].keys())
+        )
+        self.assertTrue(torch.equal(packed_dod["a"], packed_sorted_dod["a"]))
+        self.assertTrue(
+            torch.equal(packed_dod["b"]["c"], packed_sorted_dod["b"]["c"])
+        )
+        self.assertTrue(
+            torch.equal(packed_dod["b"]["d"], packed_sorted_dod["b"]["d"])
+        )
+
         # map_shape_structure with a shape-tuple leaf (not a tensor node).
         shape = (2, 3)
         result_shape = t.map_shape_structure(lambda x: x, shape)
