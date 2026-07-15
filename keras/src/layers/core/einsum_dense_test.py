@@ -685,6 +685,7 @@ class EinsumDenseTest(testing.TestCase):
         layer.quantize(quantization_mode)
         y_quantized = layer(x)
         mse = ops.mean(ops.square(y_float - y_quantized))
+        mse = ops.convert_to_numpy(mse)
         self.assertLess(mse, error_threshold)  # A weak correctness test
 
     @parameterized.named_parameters(
