@@ -6,12 +6,14 @@ import pytest
 from keras.src import backend
 from keras.src import testing
 
-if backend.backend() == "torch":
-    import torch
-    import torch.nn.functional as tnn
+if backend.backend() != "torch":
+    pytest.skip("Requires torch backend", allow_module_level=True)
 
-    from keras.src.backend.torch.core import get_device
-    from keras.src.backend.torch.nn import conv
+import torch
+import torch.nn.functional as tnn
+
+from keras.src.backend.torch.core import get_device
+from keras.src.backend.torch.nn import conv
 
 
 def _reference_channels_last_conv(inputs, kernel):
@@ -31,9 +33,6 @@ def _reference_channels_last_conv(inputs, kernel):
     return torch.permute(out, (0, 2, 3, 4, 1))
 
 
-@pytest.mark.skipif(
-    backend.backend() != "torch", reason="Requires torch backend"
-)
 class TorchConvChannelsLastTest(testing.TestCase):
     def test_conv2d_channels_last_parity(self):
         device = get_device()
