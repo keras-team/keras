@@ -184,3 +184,62 @@ class TracebackUtilsTest(testing.TestCase):
             {},  # too many positional args
         )
         self.assertIsNone(result)
+
+    # ------------------------------------------------------------------
+    # 7. Failed flag-set must not duplicate the augmented message across
+    #    nested Operation calls.
+    # ------------------------------------------------------------------
+
+    def test_setattr_failure_does_not_duplicate_message_across_nesting(self):
+        """Regression test for duplicated augmentation text.
+
+        If the exception's flag attribute cannot be set (e.g. its type
+        rejects new attributes once constructed), a naive implementation
+        still returns the augmented-but-unmarked exception. Each nested
+        Operation.__call__ then re-augments it again since the flag was
+        never actually persisted, duplicating the "Exception encountered
+        when calling ..." text once per nesting level. The fix makes a
+        failed flag-set fall back to the plain original exception so the
+        text never appears more than once.
+        """
+
+        class _LockedError(Exception):
+            """Exception whose __setattr__ rejects new attributes once
+            construction has completed."""
+
+            def __init__(self, message):
+                super().__init__(message)
+                object.__setattr__(self, "_locked", True)
+
+            def __setattr__(self, name, value):
+                if getattr(self, "_locked", False) and name != "args":
+                    raise AttributeError(f"cannot set {name!r}")
+                object.__setattr__(self, name, value)
+
+        class InnerLockedLayer(Operation):
+            def call(self, x):
+                raise _LockedError("bad input")
+
+            def compute_output_spec(self, x):
+                return x
+
+        class OuterLockedLayer(Operation):
+            def __init__(self):
+                super().__init__()
+                self.inner = InnerLockedLayer()
+
+            def call(self, x):
+                return self.inner(x)
+
+            def compute_output_spec(self, x):
+                return x
+
+        layer = OuterLockedLayer()
+        x = np.ones((2,), dtype="float32")
+        with self.assertRaises(_LockedError) as ctx:
+            layer(x)
+        msg = str(ctx.exception)
+        occurrences = msg.count("Exception encountered when calling")
+        # Previously this was 2 (one augmentation per nesting level).
+        self.assertLessEqual(occurrences, 1)
+        self.assertIn("bad input", msg)

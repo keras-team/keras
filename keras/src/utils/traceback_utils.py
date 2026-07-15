@@ -188,7 +188,7 @@ def inject_argument_info_in_error(e, fn, args, kwargs, object_name=None):
     try:
         new_e._keras_call_info_injected = True
     except Exception:
-        pass
+        return None
     return new_e
 
 
