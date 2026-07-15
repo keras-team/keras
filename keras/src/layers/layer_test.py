@@ -13,6 +13,7 @@ from keras.src import metrics
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src import tree
 from keras.src.backend.common import global_state
 from keras.src.backend.common.remat import RematScope
 from keras.src.layers.layer import CallSpec
@@ -2069,3 +2070,63 @@ class LayerTest(testing.TestCase):
         np.testing.assert_array_equal(
             ops.convert_to_numpy(y_fast), ops.convert_to_numpy(y_slow)
         )
+
+    def test_construction_with_custom_pytree_default_without_len(self):
+        # Regression test: a call() default that is a custom pytree-
+        # registered object with no `__len__` must not crash the
+        # fast-path eligibility check at layer construction time, and
+        # such a layer must fall through to the slow call path rather
+        # than being (incorrectly) treated as fast-path eligible, since
+        # the fast path cannot safely introspect a value it cannot take
+        # the length of.
+        class NoLenPytree:
+            def __init__(self, value):
+                self.value = value
+
+            # optree (jax/tensorflow/numpy/openvino) interface.
+            def tree_flatten(self):
+                return (self.value,), None
+
+            @classmethod
+            def tree_unflatten(cls, aux_data, children):
+                return cls(children[0])
+
+            # torch interface (torch backend uses its own tree dispatch,
+            # not optree, so both interfaces are needed for this test to
+            # be meaningful on every backend).
+            def torchtree_flatten(self):
+                return [self.value], None
+
+            def torchtree_flatten_with_keys(self):
+                return [("value", self.value)], None
+
+            @classmethod
+            def torchtree_unflatten(cls, children, context):
+                return cls(children[0])
+
+        tree.register_tree_node_class(NoLenPytree)
+        if backend.backend() == "torch":
+            from torch.utils import _pytree as torch_tree
+
+            self.addCleanup(torch_tree._deregister_pytree_node, NoLenPytree)
+        else:
+            optree = pytest.importorskip("optree")
+            self.addCleanup(
+                optree.unregister_pytree_node, NoLenPytree, namespace="keras"
+            )
+
+        self.assertTrue(tree.is_nested(NoLenPytree(1.0)))
+        with self.assertRaises(TypeError):
+            len(NoLenPytree(1.0))
+
+        class CustomDefaultLayer(layers.Layer):
+            def call(self, inputs, config=NoLenPytree(1.0)):
+                return inputs
+
+        # Must not raise, e.g. TypeError: object of type 'NoLenPytree'
+        # has no len().
+        layer = CustomDefaultLayer()
+        self.assertIsInstance(layer, CustomDefaultLayer)
+        # A default whose length can't be determined must not be treated
+        # as fast-path eligible.
+        self.assertFalse(layer._call_spec_fast_path)

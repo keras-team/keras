@@ -360,7 +360,10 @@ class Layer(BackendLayer, Operation):
             # so such signatures must fall through.
             defaults_are_safe = all(
                 not is_backend_tensor_or_symbolic(v)
-                and not (tree.is_nested(v) and len(v) > 0)
+                and not (
+                    tree.is_nested(v)
+                    and (not hasattr(v, "__len__") or len(v) > 0)
+                )
                 for v in self._call_arg_defaults.values()
             )
             self._call_spec_fast_path = (
@@ -1988,7 +1991,10 @@ class CallSpec:
         call_spec = cls.__new__(cls)
         call_spec.user_arguments_dict = {first_name: x}
         call_spec.arguments_dict = {first_name: x, **defaults}
-        call_spec.argument_names = arg_names
+        # Copy `arg_names` rather than aliasing it: it is the layer's shared
+        # `_call_arg_names` list, and callers of the slow path build a fresh
+        # list each call, so `argument_names` must not be mutated in place.
+        call_spec.argument_names = list(arg_names)
         call_spec.tensor_arguments_dict = {first_name: x}
         call_spec.tensor_arguments_names = [first_name]
         call_spec.nested_tensor_argument_names = []
