@@ -708,18 +708,19 @@ class LayerTest(testing.TestCase):
         self.assertEqual(ops.min(y), 1)
 
     def test_signature_default_training_does_not_leak(self):
-        # A `training=True` *signature default* (as on `Resizing`/`CenterCrop`)
-        # must not leak through the shared call-context into sibling/downstream
-        # layers at inference.
+        """A `training=True` call() signature default (as on `Resizing`/
+        `CenterCrop`) stays local to that layer: it is not propagated
+        through the shared call context to sibling or downstream layers.
+        """
+
         class DefaultsTrainingTrue(layers.Layer):
             def call(self, x, training=True):  # mirrors `Resizing.call`
                 return x
 
         x = np.ones((4, 4))
 
-        # 1) In a Functional graph. The downstream layer must default
-        # `training=None` (the BatchNorm case) to observe the leak: a non-None
-        # default would be baked into its own node and hide it.
+        # Functional graph: the downstream layer defaults training=None so
+        # any value propagated from the upstream layer is directly visible.
         seen = {}
 
         class RecordTraining(layers.Layer):
@@ -731,11 +732,11 @@ class LayerTest(testing.TestCase):
         out = RecordTraining()(DefaultsTrainingTrue()(inp))
         model = Model(inp, out)
         model(x)
-        self.assertIsNone(seen["training"])  # default must not leak
+        self.assertIsNone(seen["training"])
         model(x, training=True)
-        self.assertTrue(seen["training"])  # explicit still propagates
+        self.assertTrue(seen["training"])
 
-        # 2) Imperatively, inside another layer's `call`.
+        # Imperative call: same invariant inside another layer's call().
         class Wrapper(layers.Layer):
             def __init__(self):
                 super().__init__()
