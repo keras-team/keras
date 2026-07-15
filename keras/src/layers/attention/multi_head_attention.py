@@ -856,7 +856,9 @@ class MultiHeadAttention(Layer):
 
             # FIFO eviction once the cap is reached.
             if len(self._causal_mask_cache) >= 8:
-                self._causal_mask_cache.pop(next(iter(self._causal_mask_cache)))
+                evict_key = next(iter(self._causal_mask_cache), None)
+                if evict_key is not None:
+                    self._causal_mask_cache.pop(evict_key, None)
             self._causal_mask_cache[cache_key] = mask
             return mask
 
