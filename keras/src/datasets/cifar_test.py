@@ -30,7 +30,7 @@ class LoadBatchTest(testing.TestCase):
 
         class Exploit:
             def __reduce__(self):
-                return (os.system, (f"touch {marker}",))
+                return (open, (marker, "w"))
 
         path = self._write_batch({b"data": Exploit(), b"labels": [0]})
 
