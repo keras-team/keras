@@ -345,6 +345,18 @@ def _maybe_convert_to_channels_last(tensor):
     return tensor
 
 
+def _is_pointwise_kernel(kernel):
+    return all(dim == 1 for dim in kernel.shape[:-2])
+
+
+def _conv_pointwise_channels_last(inputs, kernel, strides):
+    if any(stride != 1 for stride in strides):
+        spatial_slices = tuple(slice(None, None, stride) for stride in strides)
+        inputs = inputs[(slice(None), *spatial_slices, slice(None))]
+    kernel = torch.reshape(kernel, (kernel.shape[-2], kernel.shape[-1]))
+    return torch.matmul(inputs, kernel)
+
+
 def max_pool(
     inputs,
     pool_size,
@@ -584,6 +596,16 @@ def conv(
     strides = standardize_tuple(strides, num_spatial_dims, "strides")
 
     data_format = backend.standardize_data_format(data_format)
+    # Fast path for pointwise channels_last conv: matmul avoids the
+    # channels_first transpose and torch conv dispatch.
+    if (
+        data_format == "channels_last"
+        and padding in {"valid", "same"}
+        and _is_pointwise_kernel(kernel)
+        and inputs.shape[-1] == kernel.shape[-2]
+    ):
+        return _conv_pointwise_channels_last(inputs, kernel, strides)
+
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(inputs)
 
