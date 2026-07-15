@@ -178,26 +178,28 @@ def top_k(x, k, sorted=True):
 def in_top_k(targets, predictions, k):
     from keras.src.backend.openvino.numpy import take_along_axis
 
-    one_constant = ov_opset.constant(1, Type.i32)
-    # Expand targets: (batch,) → (batch, 1) for use with take_along_axis
-    targets = ov_opset.unsqueeze(get_ov_output(targets), one_constant).output(0)
+    axis_constant = ov_opset.constant(-1, Type.i32)
+    # Expand targets: (...,) → (..., 1) for use with take_along_axis
+    targets = ov_opset.unsqueeze(get_ov_output(targets), axis_constant).output(
+        0
+    )
     predictions = get_ov_output(predictions)
 
-    # top_k returns (batch, k) sorted descending; last col is the k-th largest
+    # top_k returns (..., k) sorted descending; last col is the k-th largest
     topk_values = top_k(predictions, k)[0]
-    # Grab only the last column (index k-1): threshold value, shape (batch,)
+    # Grab only the last column (index k-1): threshold value, shape (...,)
     k_minus_1_idx = ov_opset.constant([k - 1], dtype=Type.i32).output(0)
-    topk_values_axis = ov_opset.constant(1, dtype=Type.i32).output(0)
+    topk_values_axis = ov_opset.constant(-1, dtype=Type.i32).output(0)
     topk_min = ov_opset.gather(
         topk_values, k_minus_1_idx, topk_values_axis
     ).output(0)
-    # Squeeze back (batch, 1) → (batch,)
-    topk_min = ov_opset.squeeze(topk_min, one_constant).output(0)
+    # Squeeze back (..., 1) → (...,)
+    topk_min = ov_opset.squeeze(topk_min, axis_constant).output(0)
 
-    # Gather the prediction score at each true class index → shape (batch, 1)
+    # Gather the prediction score at each true class index → shape (..., 1)
     targets_values = take_along_axis(predictions, targets, axis=-1)
-    # Squeeze back (batch, 1) → (batch,)
-    targets_values = ov_opset.squeeze(targets_values, one_constant).output(0)
+    # Squeeze back (..., 1) → (...,)
+    targets_values = ov_opset.squeeze(targets_values, axis_constant).output(0)
     # target score >= k-th largest score means it belongs in the top-k
     mask = ov_opset.greater_equal(targets_values, topk_min).output(0)
     return OpenVINOKerasTensor(mask)

@@ -84,7 +84,7 @@ def top_k(x, k, sorted=True):
 
 def in_top_k(targets, predictions, k):
     targets = convert_to_tensor(targets).type(torch.int64)
-    targets = targets[:, None]
+    targets = targets.unsqueeze(-1)
     predictions = convert_to_tensor(predictions)
     topk_values = top_k(predictions, k).values
     targets_values = torch.take_along_dim(predictions, targets, dim=-1)

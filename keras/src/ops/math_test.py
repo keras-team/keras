@@ -754,6 +754,25 @@ class MathOpsCorrectnessTest(testing.TestCase):
             kmath.in_top_k(targets, predictions, k=3), [True, True, True]
         )
 
+        # Test multi-dimensional targets
+        targets = np.array([[1, 0]])
+        predictions = np.array([[[1.0, 0.0], [0.0, 1.0]]], dtype="float32")
+        self.assertAllEqual(
+            kmath.in_top_k(targets, predictions, k=1), [[False, False]]
+        )
+        targets = np.array([[1, 2], [0, 3]])
+        predictions = np.array(
+            [
+                [[0.1, 0.9, 0.8, 0.8], [0.05, 0.95, 0, 1]],
+                [[0.9, 0.1, 0.8, 0.8], [0.1, 0.8, 0.3, 1]],
+            ],
+            dtype="float32",
+        )
+        self.assertAllEqual(
+            kmath.in_top_k(targets, predictions, k=2),
+            [[True, False], [True, True]],
+        )
+
         # Test `nan` in predictions
         # https://github.com/keras-team/keras/issues/19995
         targets = np.array([1, 0])
