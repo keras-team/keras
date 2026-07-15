@@ -582,7 +582,7 @@ def associative_scan(f, elems, reverse=False, axis=0):
 
 
 def scatter(indices, values, shape):
-    indices = convert_to_tensor(indices)
+    indices = convert_to_tensor(indices, dtype="int64")
     values = convert_to_tensor(values)
     zeros = torch.zeros(shape, dtype=values.dtype, device=get_device())
 
@@ -591,9 +591,12 @@ def scatter(indices, values, shape):
     indices = torch.reshape(indices, [-1, index_length])
     values = torch.reshape(values, [-1] + list(value_shape))
 
-    for i in range(indices.shape[0]):
-        index = indices[i]
-        zeros[tuple(index)] += values[i]
+    # Vectorized scatter-add: index_put_ with accumulate=True applies all
+    # updates in one call and sums duplicate indices, instead of a Python loop
+    # over every index (which is very slow for metrics like MeanIoU that
+    # scatter one update per pixel).
+    idx = tuple(indices.transpose(0, 1))
+    zeros.index_put_(idx, values, accumulate=True)
     return zeros
 
 
