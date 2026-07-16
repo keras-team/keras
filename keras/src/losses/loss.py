@@ -79,21 +79,25 @@ class Loss(KerasSaveable):
                 and backend.get_keras_mask(y_pred) is None
             ):
                 losses = self.call(y_true, y_pred)
-                if backend.get_keras_mask(losses) is None:
-                    if self.reduction in (
-                        "sum_over_batch_size",
-                        "mean",
-                        "mean_with_sample_weight",
-                    ):
-                        # With no sample_weight, "mean_with_sample_weight"
-                        # divides by the same divisor as "mean" /
-                        # "sum_over_batch_size" (see reduce_values), so it is
-                        # safe to handle here too.
-                        return losses.mean()
-                    elif self.reduction == "sum":
-                        return losses.sum()
-                    elif self.reduction in (None, "none"):
-                        return losses
+                mask = backend.get_keras_mask(losses)
+                if mask is not None:
+                    return reduce_weighted_values(
+                        losses,
+                        sample_weight=None,
+                        mask=mask,
+                        reduction=self.reduction,
+                        dtype=self.dtype,
+                    )
+                # No sample_weight and no mask: reduce_values already skips
+                # the sample_weight/mask handling reduce_weighted_values
+                # would otherwise do, so this is no slower than hand-rolling
+                # mean()/sum() while staying dtype-exact with the slow path
+                # (divide_no_nan forces 64-bit compute dtypes down to their
+                # 32-bit equivalent on non-tensorflow backends; a bare
+                # `losses.mean()` would not).
+                return reduce_values(
+                    losses, sample_weight=None, reduction=self.reduction
+                )
 
         in_mask = backend.get_keras_mask(y_pred)
 
