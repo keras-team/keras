@@ -86,6 +86,97 @@ class TorchConvChannelsLastTest(testing.TestCase):
             atol=1e-5,
         )
 
+    def test_conv2d_channels_last_noncontiguous_input(self):
+        """A sliced/permuted (non-contiguous) input must still produce a
+        correct result: the single-copy path must not skip a copy that
+        was actually necessary to reach channels_last-contiguity."""
+        device = get_device()
+        base = torch.from_numpy(
+            np.random.RandomState(6).randn(2, 8, 18, 3).astype("float32")
+        ).to(device)
+        # Strided slice along a spatial axis: not contiguous in any
+        # memory format.
+        inputs = base[:, :, ::2, :]
+        self.assertFalse(inputs.is_contiguous())
+        kernel = torch.from_numpy(
+            np.random.RandomState(7).randn(3, 3, 3, 5).astype("float32")
+        ).to(device)
+
+        outputs = conv(
+            inputs,
+            kernel,
+            strides=1,
+            padding="valid",
+            data_format="channels_last",
+        )
+        reference = _reference_channels_last_conv(inputs, kernel)
+
+        self.assertAllClose(
+            outputs.detach().cpu().numpy(),
+            reference.detach().cpu().numpy(),
+            atol=1e-5,
+        )
+
+    def test_conv2d_channels_first_unaffected(self):
+        """channels_first must not be routed through the channels_last
+        memory-format optimization."""
+        device = get_device()
+        inputs = torch.from_numpy(
+            np.random.RandomState(8).randn(2, 3, 8, 9).astype("float32")
+        ).to(device)
+        kernel = torch.from_numpy(
+            np.random.RandomState(9).randn(3, 3, 3, 5).astype("float32")
+        ).to(device)
+
+        outputs = conv(
+            inputs,
+            kernel,
+            strides=1,
+            padding="valid",
+            data_format="channels_first",
+        )
+        reference = tnn.conv2d(
+            inputs.contiguous(), kernel.permute(3, 2, 0, 1).contiguous()
+        )
+
+        self.assertAllClose(
+            outputs.detach().cpu().numpy(),
+            reference.detach().cpu().numpy(),
+            atol=1e-5,
+        )
+
+    def test_conv1d_channels_last_format_is_noop(self):
+        """1D conv has no torch memory-format equivalent to channels_last;
+        the optimization must be a no-op there, not misapplied."""
+        device = get_device()
+        inputs = torch.from_numpy(
+            np.random.RandomState(10).randn(2, 9, 3).astype("float32")
+        ).to(device)
+        kernel = torch.from_numpy(
+            np.random.RandomState(11).randn(3, 3, 5).astype("float32")
+        ).to(device)
+
+        outputs = conv(
+            inputs,
+            kernel,
+            strides=1,
+            padding="valid",
+            data_format="channels_last",
+        )
+        reference = torch.permute(
+            tnn.conv1d(
+                torch.permute(inputs, (0, 2, 1)).contiguous(),
+                torch.permute(kernel, (2, 1, 0)).contiguous(),
+            ),
+            (0, 2, 1),
+        )
+
+        self.assertAllClose(
+            outputs.detach().cpu().numpy(),
+            reference.detach().cpu().numpy(),
+            atol=1e-5,
+        )
+
     def test_conv2d_channels_last_gradients_flow(self):
         device = get_device()
         inputs = torch.from_numpy(
