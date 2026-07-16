@@ -1233,7 +1233,8 @@ def _reconstruct_patches_2d(
         else:
             raise ValueError(
                 "`patches` has unexpected rank for 2D channels_first "
-                f"reconstruction. Received shape: {patches.shape}"
+                "reconstruction. Expected 3 (unbatched) or 4 (batched). "
+                f"Received shape: {patches.shape}"
             )
         result = _reconstruct_patches_2d(
             patches, size, output_size, strides, padding, "channels_last"
@@ -1342,7 +1343,8 @@ def _reconstruct_patches_3d(
         else:
             raise ValueError(
                 "`patches` has unexpected rank for 3D channels_first "
-                f"reconstruction. Received shape: {patches.shape}"
+                "reconstruction. Expected 4 (unbatched) or 5 (batched). "
+                f"Received shape: {patches.shape}"
             )
         result = _reconstruct_patches_3d(
             patches, size, output_size, strides, padding, "channels_last"
