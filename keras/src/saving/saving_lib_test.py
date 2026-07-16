@@ -1744,6 +1744,54 @@ class SafeZipReadTest(testing.TestCase):
             with self.assertRaisesRegex(ValueError, "decompression bomb"):
                 saving_lib.load_model(evil)
 
+    def test_rejects_cumulative_archive_bomb_under_floor(self):
+        # Several members that each stay under the (real, 4 GiB) per-member
+        # floor but jointly declare far more than is stored on disk: the
+        # per-member guard passes each one, the cumulative guard rejects them.
+        path = os.path.join(self.get_temp_dir(), "a.zip")
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
+            for i in range(4):
+                zf.writestr(f"m{i}.json", b"A" * 100_000)
+        self.assertLess(os.path.getsize(path), 1 << 16)  # tiny file on disk
+        with mock.patch.object(
+            saving_lib, "_ZIP_CUMULATIVE_BOMB_FLOOR_BYTES", 64
+        ):
+            with zipfile.ZipFile(path, "r") as zf:
+                # The per-member guard (real 4 GiB floor) passes each member.
+                for i in range(4):
+                    saving_lib._reject_zip_bomb(zf, f"m{i}.json")
+                # The cumulative guard rejects the archive as a whole.
+                with self.assertRaisesRegex(ValueError, "decompression bomb"):
+                    saving_lib._reject_zip_archive_bomb(zf)
+
+    def test_load_model_rejects_cumulative_bomb(self):
+        # End-to-end: a tiny `.keras` whose config.json declares well under the
+        # 4 GiB per-member floor (so `_reject_zip_bomb` passes) is still
+        # rejected by the cumulative guard before any member is read.
+        path = os.path.join(self.get_temp_dir(), "bomb.keras")
+        payload = b'{"x":"' + b" " * 400_000 + b'"}'
+        with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("metadata.json", b'{"keras_version":"3"}')
+            zf.writestr("config.json", payload)
+        self.assertLess(os.path.getsize(path), 1 << 16)  # tiny file on disk
+        with mock.patch.object(
+            saving_lib, "_ZIP_CUMULATIVE_BOMB_FLOOR_BYTES", 64
+        ):
+            with self.assertRaisesRegex(ValueError, "decompression bomb"):
+                saving_lib.load_model(path)
+
+    def test_does_not_reject_genuine_keras(self):
+        # A genuine `.keras` (members stored ~uncompressed, ratio ~1) must pass
+        # both the direct cumulative guard and an end-to-end load.
+        model = keras.Sequential(
+            [keras.Input((16,)), keras.layers.Dense(64), keras.layers.Dense(8)]
+        )
+        path = os.path.join(self.get_temp_dir(), "good.keras")
+        model.save(path)
+        with zipfile.ZipFile(path, "r") as zf:
+            saving_lib._reject_zip_archive_bomb(zf)  # must not raise
+        keras.saving.load_model(path)  # must not raise
+
 
 class SafeGetH5DatasetTest(testing.TestCase):
     def _shape_bomb_file(self):
@@ -1856,15 +1904,55 @@ class SavingNpzIOStoreTest(testing.TestCase):
         with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
             zf.writestr(f"{name}.npy", header.getvalue() + data)
 
+    def _write_npz_members(self, path, members, descr="<f8"):
+        """Write several members, each declaring `shape` but storing no data.
+
+        `members` is an iterable of `(name, shape)`; every member's `.npy`
+        header declares its array while almost nothing is stored on disk.
+        """
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
+            for name, shape in members:
+                header = BytesIO()
+                np.lib.format.write_array_header_1_0(
+                    header,
+                    {"descr": descr, "fortran_order": False, "shape": shape},
+                )
+                zf.writestr(f"{name}.npy", header.getvalue())
+
     def test_npz_io_store_rejects_shape_bomb(self):
-        # Member declares an 8 PiB array but stores only its header.
+        # A single member declaring an 8 PiB array but storing only its header
+        # is rejected by the cumulative guard when the store is opened.
         temp_filepath = os.path.join(self.get_temp_dir(), "bomb.npz")
         self._write_npz_member(temp_filepath, "w", shape=(2**50,))
-        store = saving_lib.NpzIOStore(temp_filepath, mode="r")
-        with self.assertRaisesRegex(
-            ValueError, r"Refusing to load npz weight 'w'"
+        with self.assertRaisesRegex(ValueError, "decompression bomb"):
+            saving_lib.NpzIOStore(temp_filepath, mode="r")
+
+    def test_npz_io_store_rejects_cumulative_bomb(self):
+        # Several members each below the 4 GiB per-member floor that jointly
+        # declare far more than is stored: the per-member guard misses them,
+        # the cumulative guard rejects the store at open.
+        temp_filepath = os.path.join(self.get_temp_dir(), "cumulative.npz")
+        elems = (3 << 30) // 8  # 3 GiB of float64 each, below the 4 GiB floor
+        self._write_npz_members(
+            temp_filepath, [(f"w{i}", (elems,)) for i in range(3)]
+        )
+        self.assertLess(os.path.getsize(temp_filepath), 1 << 16)  # tiny file
+        with self.assertRaisesRegex(ValueError, "decompression bomb"):
+            saving_lib.NpzIOStore(temp_filepath, mode="r")
+
+    def test_npz_io_store_per_member_guard(self):
+        # With the cumulative floor raised, a single member over the 4 GiB
+        # per-member floor is still rejected by the per-member guard on `get`.
+        temp_filepath = os.path.join(self.get_temp_dir(), "bomb.npz")
+        self._write_npz_member(temp_filepath, "w", shape=(2**50,))
+        with mock.patch.object(
+            saving_lib, "_NPZ_CUMULATIVE_BOMB_FLOOR_BYTES", 1 << 62
         ):
-            store.get("w")
+            store = saving_lib.NpzIOStore(temp_filepath, mode="r")
+            with self.assertRaisesRegex(
+                ValueError, r"Refusing to load npz weight 'w'"
+            ):
+                store.get("w")
 
     def test_npz_io_store_loads_normal_array(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "store.npz")
