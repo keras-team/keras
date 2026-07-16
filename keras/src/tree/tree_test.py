@@ -584,6 +584,41 @@ class TreeTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "[Too many leaves|holds 3]"):
             t.pack_sequence_as([10, 20], [1, 2, 3])
 
+    def test_nested_dict_key_order_canonicalization(self, t):
+        # Two structurally equivalent nested dicts that differ only in key
+        # insertion order, at both the outer and the inner level.
+        unsorted_insertion = {"b": {"d": 40, "c": 30}, "a": 10}
+        sorted_insertion = {"a": 10, "b": {"c": 30, "d": 40}}
+
+        # `flatten` must produce the same deterministic leaf order for
+        # both: keys sorted at every dict level, not just the outermost.
+        self.assertEqualStrict(t.flatten(unsorted_insertion), [10, 30, 40])
+        self.assertEqualStrict(t.flatten(sorted_insertion), [10, 30, 40])
+
+        # `pack_sequence_as` must re-associate each leaf with the correct
+        # nested key when the target is an equivalent dict with a
+        # different insertion order. A shallow-only canonicalization
+        # would silently swap the values of "c" and "d" here.
+        self.assertEqualStrict(
+            t.pack_sequence_as(unsorted_insertion, t.flatten(sorted_insertion)),
+            {"a": 10, "b": {"c": 30, "d": 40}},
+        )
+        self.assertEqualStrict(
+            t.pack_sequence_as(sorted_insertion, t.flatten(unsorted_insertion)),
+            {"a": 10, "b": {"c": 30, "d": 40}},
+        )
+
+        # Same invariant with the inner dict below an intermediate list
+        # level, so canonicalization must recurse through non-dict nodes.
+        deep_unsorted = {"b": [{"d": 40, "c": 30}], "a": 10}
+        deep_sorted = {"a": 10, "b": [{"c": 30, "d": 40}]}
+        self.assertEqualStrict(t.flatten(deep_unsorted), [10, 30, 40])
+        self.assertEqualStrict(t.flatten(deep_sorted), [10, 30, 40])
+        self.assertEqualStrict(
+            t.pack_sequence_as(deep_unsorted, t.flatten(deep_sorted)),
+            {"a": 10, "b": [{"c": 30, "d": 40}]},
+        )
+
     @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
     def test_pack_sequence_as_tf_wrappers(self, t):
         from tensorflow.python.trackable.data_structures import ListWrapper
