@@ -9479,19 +9479,16 @@ class Select(Operation):
         # `select` broadcasts every array in `condlist` and `choicelist` (and
         # `default`) to a common shape and promotes the dtype across all
         # choices, like `where` above -- rather than assuming the first
-        # choice's shape/dtype, which is wrong when a condition or a later
-        # choice is broader than the first.
+        # choice's shape/dtype, which is wrong when a condition, a later
+        # choice, or `default` is broader than the first choice.
         output_shape = ()
-        for condition in condlist:
+        for x in list(condlist) + list(choicelist) + [default]:
             output_shape = broadcast_shapes(
-                output_shape, getattr(condition, "shape", [])
+                output_shape, getattr(x, "shape", [])
             )
-        dtypes_to_resolve = []
-        for choice in choicelist:
-            output_shape = broadcast_shapes(
-                output_shape, getattr(choice, "shape", [])
-            )
-            dtypes_to_resolve.append(getattr(choice, "dtype", type(choice)))
+        dtypes_to_resolve = [
+            getattr(choice, "dtype", type(choice)) for choice in choicelist
+        ]
         dtypes_to_resolve.append(getattr(default, "dtype", type(default)))
         output_dtype = dtypes.result_type(*dtypes_to_resolve)
         return KerasTensor(output_shape, dtype=output_dtype)
