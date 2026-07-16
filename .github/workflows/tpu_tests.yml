@@ -80,7 +80,7 @@ jobs:
         run: coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
 
       - name: Upload Coverage
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7 # zizmor: ignore[unpinned-uses, mismatched-version-comment]
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           env_vars: KERAS_HOME
           flags: keras,keras-tpu,keras-${{ matrix.backend }}${{ matrix.multi_device == 'true' && '-multi' || '' }}

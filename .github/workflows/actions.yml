@@ -79,7 +79,7 @@ jobs:
 
       - name: Upload Coverage for applications
         if: ${{ steps.filter.outputs.applications == 'true' && matrix.nnx_enabled == false }}
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7 # zizmor: ignore[unpinned-uses, mismatched-version-comment]
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           env_vars: PYTHON,KERAS_HOME
           flags: keras.applications,keras.applications-${{ matrix.backend }}
@@ -95,7 +95,7 @@ jobs:
 
       - name: Upload Coverage for wrappers
         if: ${{ steps.filter.outputs.wrappers == 'true' && matrix.nnx_enabled == false }}
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7 # zizmor: ignore[unpinned-uses, mismatched-version-comment]
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           env_vars: PYTHON,KERAS_HOME
           flags: keras.wrappers,keras.wrappers-${{ matrix.backend }}
