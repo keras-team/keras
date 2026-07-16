@@ -369,7 +369,7 @@ class VariablePropertiesTest(test_case.TestCase):
         backend.standardize_dtype(x.dtype)
 
     def test_standardize_dtype_contract_and_cache(self):
-        """Characterization test: pin the P1 dtype fast-path contract.
+        """Pin the exact return value of standardize_dtype's fast paths.
 
         Records the exact return values for every input the hot path
         encounters. Also verifies that the module-level _DTYPE_CACHE returns
@@ -402,6 +402,7 @@ class VariablePropertiesTest(test_case.TestCase):
             (int, "int32"),
             (float, "float32"),
             (bool, "bool"),
+            (complex, "complex64"),
         ]
 
         # First call (cold / may populate cache)
@@ -434,6 +435,61 @@ class VariablePropertiesTest(test_case.TestCase):
             standardize_dtype("torch.float32.extra")
         with self.assertRaisesRegex(ValueError, r"^Invalid dtype: notadtype$"):
             standardize_dtype("jax.numpy.notadtype")
+
+    def test_standardize_dtype_cache_path_all_backends(self):
+        """The _DTYPE_CACHE fast path (Python builtins, np scalar types)
+        must resolve correctly and consistently across cache misses and
+        hits, independent of the active backend.
+        """
+        from keras.src.backend.common.variables import standardize_dtype
+
+        int_expected = "int64" if backend.backend() == "tensorflow" else "int32"
+        complex_expected = (
+            "complex128" if backend.backend() == "tensorflow" else "complex64"
+        )
+        cases = [
+            (bool, "bool"),
+            (int, int_expected),
+            (float, "float32"),
+            (complex, complex_expected),
+            (np.float32, "float32"),
+            (np.int64, "int64"),
+        ]
+        for dtype_in, expected in cases:
+            # Cold call.
+            self.assertEqual(standardize_dtype(dtype_in), expected)
+            # Warm (cache hit) call must return the identical value.
+            self.assertEqual(standardize_dtype(dtype_in), expected)
+
+    def test_standardize_dtype_cache_does_not_collide_with_tf_dtype(self):
+        """Regression test: tf.DType's __hash__/__eq__ are coerced to match
+        plain Python ints and bools (hash(tf.float32) == hash(1) == 1, and
+        tf.float32 == 1 is True). Once a tf.DType has populated the
+        _DTYPE_CACHE, a subsequent invalid int/bool input must still raise
+        ValueError, not silently return the cached tf.DType's resolved
+        string.
+        """
+        import tensorflow as tf
+
+        from keras.src.backend.common.variables import standardize_dtype
+
+        # Sanity check on the underlying coercion this test guards against.
+        self.assertEqual(hash(tf.float32), hash(1))
+        self.assertEqual(tf.float32, 1)
+
+        # Invalid before any tf.DType has been cached.
+        with self.assertRaises(ValueError):
+            standardize_dtype(1)
+
+        # Warm the cache with tf dtypes whose hashes collide with 1 and 3.
+        self.assertEqual(standardize_dtype(tf.float32), "float32")
+        self.assertEqual(standardize_dtype(tf.int32), "int32")
+
+        # Plain ints/bools that collide by hash must still raise, not
+        # silently resolve to the cached tf dtype's string.
+        for bad in (1, True, 3):
+            with self.assertRaises(ValueError):
+                standardize_dtype(bad)
 
     def test_name_validation(self):
         """Tests validation of variable names."""

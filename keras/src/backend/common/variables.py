@@ -568,10 +568,16 @@ def initialize_all_variables():
 
 
 # Cache for non-string dtype objects (torch dtypes, numpy scalar types,
-# Python builtins). Keyed by the dtype object itself; values are the canonical
-# string name. Thread safety: dict reads/writes are GIL-protected in CPython
-# and the worst case (two threads racing on the same key) is a redundant write
-# of the same value.
+# Python builtins). Keyed by (type(dtype), dtype), not dtype alone: values
+# are the canonical string name. Thread safety: dict reads/writes are
+# GIL-protected in CPython and the worst case (two threads racing on the
+# same key) is a redundant write of the same value.
+#
+# The type is part of the key because tf.DType's __hash__/__eq__ are
+# coerced to match plain Python ints (hash(tf.float32) == hash(1) == 1 and
+# tf.float32 == 1 is True). A bare `dtype` key would let an invalid int or
+# bool silently resolve to whatever tf dtype happened to warm the cache
+# first, once any tf.DType has been cached.
 _DTYPE_CACHE = {}
 
 
@@ -611,7 +617,8 @@ def standardize_dtype(dtype):
         raise ValueError(f"Invalid dtype: {name}")
 
     # Fast path 3: cached non-string objects (torch dtypes, Python types).
-    cached = _DTYPE_CACHE.get(dtype)
+    cache_key = (type(dtype), dtype)
+    cached = _DTYPE_CACHE.get(cache_key)
     if cached is not None:
         return cached
 
@@ -629,7 +636,7 @@ def standardize_dtype(dtype):
     if resolved not in dtypes.ALLOWED_DTYPES_SET:
         raise ValueError(f"Invalid dtype: {resolved}")
 
-    _DTYPE_CACHE[dtype] = resolved
+    _DTYPE_CACHE[cache_key] = resolved
     return resolved
 
 

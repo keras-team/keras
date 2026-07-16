@@ -315,15 +315,23 @@ def result_type(*dtypes):
     "float64"
 
     """
-    return _result_type_cached(dtypes, config.floatx())
+    # Tag each arg with its type before caching: tf.DType's __hash__/__eq__
+    # are coerced to match plain Python ints (hash(tf.float32) ==
+    # hash(1) == 1 and tf.float32 == 1 is True), so an lru_cache keyed on
+    # the raw dtypes tuple would let an invalid int silently return
+    # whatever tf dtype happened to populate the cache first.
+    tagged = tuple((type(d), d) for d in dtypes)
+    return _result_type_cached(tagged, config.floatx())
 
 
-# Memoized core keyed on the raw dtypes plus floatx() so a change to floatx
-# (which affects None resolution and the empty-args default) never returns a
-# stale result. lru_cache does not cache exceptions, so the float8 raise is
-# safe inside the cached core.
+# Memoized core keyed on the type-tagged dtypes plus floatx() so a change to
+# floatx (which affects None resolution and the empty-args default) never
+# returns a stale result, and a type-coercing dtype (e.g. tf.DType) never
+# collides with an unrelated int/bool. lru_cache does not cache exceptions,
+# so the float8 raise is safe inside the cached core.
 @functools.lru_cache(maxsize=512)
-def _result_type_cached(dtypes, floatx):
+def _result_type_cached(tagged_dtypes, floatx):
+    dtypes = tuple(d for _, d in tagged_dtypes)
     if len(dtypes) == 0:
         # If no dtypes provided, default to floatx, this matches
         # `ops.convert_to_tensor([])`
