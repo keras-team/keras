@@ -1999,7 +1999,7 @@ class CallSpec:
         call_spec.tensor_arguments_names = [first_name]
         call_spec.nested_tensor_argument_names = []
         call_spec.first_arg = x
-        call_spec.eager = backend.is_tensor(x)
+        call_spec.eager = not isinstance(x, backend.KerasTensor)
         return call_spec
 
 
