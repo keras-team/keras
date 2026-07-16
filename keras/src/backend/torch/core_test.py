@@ -108,7 +108,7 @@ class TorchCoreTest(testing.TestCase):
         self.assertEqual(tuple(result.shape), (2, 2, 2))
 
     def test_slice_with_zero_d_tensor_start_indices(self):
-        """slice fast path must accept 0-d integer tensors as start indices."""
+        """slice must accept 0-d integer tensors as start indices."""
         device = get_device()
         x = torch.arange(10, dtype=torch.float32).reshape(2, 5).to(device)
         out = torch_slice(
@@ -118,6 +118,31 @@ class TorchCoreTest(testing.TestCase):
         )
         expected = x[0:2, 1:4]
         self.assertAllClose(out.cpu().numpy(), expected.cpu().numpy())
+
+    def test_to_static_index_rejects_tensor(self):
+        """_to_static_index must reject torch.Tensor, even 0-d integer ones.
+
+        Rejecting tensors here (raising ``TypeError``) forces ``slice()``
+        to fall through to the tensor-native ``torch.narrow`` path instead
+        of specializing a data-dependent bound to a concrete Python int on
+        the fast path.
+        """
+        from keras.src.backend.torch.core import _to_static_index
+
+        with self.assertRaises(TypeError):
+            _to_static_index(torch.tensor(0))
+        with self.assertRaises(TypeError):
+            _to_static_index(torch.tensor(0.0))
+
+    def test_slice_mismatched_start_indices_and_shape_length_raises(self):
+        """slice() must raise ValueError when lengths of start_indices and
+        shape differ, instead of silently truncating via zip()."""
+        x = torch.arange(24).reshape(2, 3, 4)
+        with self.assertRaises(ValueError) as cm:
+            torch_slice(x, [0, 0], [2, 2, 2])
+        message = str(cm.exception)
+        self.assertIn("length 2", message)
+        self.assertIn("length 3", message)
 
     def test_slice_export_preserves_dynamic_dim(self):
         """slice() must keep a dynamic dim symbolic under torch.export.
