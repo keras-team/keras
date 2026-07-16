@@ -257,6 +257,19 @@ class FunctionalTest(testing.TestCase):
         nested_out_val = nested_model(nested_in_val)
         self.assertEqual(nested_out_val.shape, (2, 1))
 
+        i3 = Input((3,))
+        list_nested_model = Functional(
+            {"1": i1, "others_list": [i2, i3]},
+            i1,
+        )
+        list_nested_in_val = {
+            "1": np.ones((2, 1)),
+            "others_list": [np.ones((2, 2)), np.ones((2, 3)), np.ones((2, 4))],
+            "top_extra": np.ones((2, 1)),
+        }
+        list_nested_out_val = list_nested_model(list_nested_in_val)
+        self.assertEqual(list_nested_out_val.shape, (2, 1))
+
     @parameterized.named_parameters(
         ("list", list),
         ("tuple", tuple),
