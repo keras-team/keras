@@ -364,10 +364,27 @@ class Functional(Function, Model):
         elif isinstance(inputs, dict) and isinstance(
             self._inputs_struct, dict
         ):
-            expected_keys = set(self._inputs_struct.keys())
-            runtime_keys = set(inputs.keys())
-            if expected_keys.issubset(runtime_keys) and expected_keys != runtime_keys:
-                inputs = {k: inputs[k] for k in self._inputs_struct}
+            def prune_extra_keys(expected, runtime):
+                if isinstance(expected, dict) and isinstance(runtime, dict):
+                    return {
+                        k: prune_extra_keys(expected[k], runtime[k])
+                        for k in expected
+                        if k in runtime
+                    }
+                elif isinstance(expected, (list, tuple)) and isinstance(
+                    runtime, (list, tuple)
+                ):
+                    min_len = min(len(expected), len(runtime))
+                    res = [
+                        prune_extra_keys(expected[i], runtime[i])
+                        for i in range(min_len)
+                    ]
+                    if len(runtime) > min_len:
+                        res.extend(runtime[min_len:])
+                    return type(runtime)(res)
+                return runtime
+
+            inputs = prune_extra_keys(self._inputs_struct, inputs)
         if (
             isinstance(self._inputs_struct, dict)
             and not isinstance(inputs, dict)
