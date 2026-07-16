@@ -363,16 +363,8 @@ class Functional(Function, Model):
                     raise_exception = True
             else:
                 raise_exception = True
-        elif (
-            isinstance(inputs, dict)
-            and isinstance(self._inputs_struct, dict)
-            and all(
-                isinstance(i, backend.KerasTensor)
-                for i in self._inputs_struct.values()
-            )
-        ):
-            expected_keys = set(self._inputs_struct)
-            if not expected_keys.issubset(inputs.keys()):
+        elif isinstance(inputs, dict) and isinstance(self._inputs_struct, dict):
+            if not self._is_input_structure_subset(inputs):
                 raise_exception = True
         if (
             isinstance(self._inputs_struct, dict)
@@ -390,17 +382,56 @@ class Functional(Function, Model):
         flat_inputs = self._convert_inputs_to_tensors(flat_inputs)
         return self._adjust_input_rank(flat_inputs)
 
+    def _is_input_structure_subset(self, inputs):
+        def _is_subset(inputs_node, struct_node):
+            if isinstance(struct_node, dict):
+                return isinstance(inputs_node, dict) and all(
+                    key in inputs_node
+                    and _is_subset(inputs_node[key], struct_node[key])
+                    for key in struct_node
+                )
+            if isinstance(struct_node, (list, tuple)):
+                return (
+                    isinstance(inputs_node, (list, tuple))
+                    and len(inputs_node) == len(struct_node)
+                    and all(
+                        _is_subset(input_value, struct_value)
+                        for input_value, struct_value in zip(
+                            inputs_node, struct_node
+                        )
+                    )
+                )
+            return True
+
+        return _is_subset(inputs, self._inputs_struct)
+
     def _filter_extra_dict_keys(self, inputs):
+        def _filter(inputs_node, struct_node):
+            if isinstance(struct_node, dict):
+                return {
+                    key: _filter(inputs_node[key], struct_node[key])
+                    for key in struct_node
+                }
+            if isinstance(struct_node, (list, tuple)):
+                values = [
+                    _filter(input_value, struct_value)
+                    for input_value, struct_value in zip(
+                        inputs_node, struct_node
+                    )
+                ]
+                if isinstance(inputs_node, list):
+                    return values
+                if hasattr(inputs_node, "_fields"):
+                    return type(inputs_node)(*values)
+                return tuple(values)
+            return inputs_node
+
         if (
             isinstance(inputs, dict)
             and isinstance(self._inputs_struct, dict)
-            and all(
-                isinstance(i, backend.KerasTensor)
-                for i in self._inputs_struct.values()
-            )
-            and set(self._inputs_struct).issubset(inputs)
+            and self._is_input_structure_subset(inputs)
         ):
-            return {k: inputs[k] for k in self._inputs_struct}
+            return _filter(inputs, self._inputs_struct)
         return inputs
 
     @property

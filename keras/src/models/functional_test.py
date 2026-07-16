@@ -244,6 +244,73 @@ class FunctionalTest(testing.TestCase):
         )
         self.assertAllClose(eager_out_val, input_value * 5 + 2)
 
+    def test_nested_input_dict_with_extra_field(self):
+        input_b = Input(shape=(3,), batch_size=2, name="b")
+        model = Functional({"outer": [({"b": input_b},)]}, input_b * 5 + 2)
+
+        input_value = np.random.random((2, 3))
+        extra_value = np.random.random((2, 1))
+        inputs = {
+            "a": extra_value,
+            "outer": [({"a": extra_value, "b": input_value},)],
+        }
+        mask = {
+            "a": np.ones((2, 1), dtype="bool"),
+            "outer": [
+                (
+                    {
+                        "a": np.ones((2, 1), dtype="bool"),
+                        "b": np.ones((2, 3), dtype="bool"),
+                    },
+                )
+            ],
+        }
+
+        with pytest.warns() as record:
+            eager_out_val = model(inputs, mask=mask)
+            self.assertEqual(eager_out_val.shape, (2, 3))
+
+            symbolic_inputs = {
+                "a": Input(shape=(1,), batch_size=2),
+                "outer": [
+                    (
+                        {
+                            "a": Input(shape=(1,), batch_size=2),
+                            "b": Input(shape=(3,), batch_size=2),
+                        },
+                    )
+                ],
+            }
+            symbolic_out_val = model(symbolic_inputs)
+            self.assertEqual(symbolic_out_val.shape, (2, 3))
+
+        structure_warnings = [
+            warning
+            for warning in record
+            if str(warning.message).startswith(
+                "The structure of `inputs` doesn't match the expected structure"
+            )
+        ]
+        self.assertLen(structure_warnings, 1)
+        self.assertStartsWith(
+            str(structure_warnings[0].message),
+            r"The structure of `inputs` doesn't match the expected structure",
+        )
+        self.assertAllClose(eager_out_val, input_value * 5 + 2)
+
+        invalid_inputs = (
+            {"outer": [({"a": extra_value},)]},
+            {"outer": []},
+            {"outer": {"b": input_value}},
+        )
+        for invalid_input in invalid_inputs:
+            with self.assertRaisesRegex(
+                ValueError,
+                r"The structure of `inputs` doesn't match the expected "
+                r"structure",
+            ):
+                model(invalid_input)
+
     @parameterized.named_parameters(
         ("list", list),
         ("tuple", tuple),
