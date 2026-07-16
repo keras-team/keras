@@ -568,16 +568,11 @@ def initialize_all_variables():
 
 
 # Cache for non-string dtype objects (torch dtypes, numpy scalar types,
-# Python builtins). Keyed by (type(dtype), dtype), not dtype alone: values
-# are the canonical string name. Thread safety: dict reads/writes are
-# GIL-protected in CPython and the worst case (two threads racing on the
-# same key) is a redundant write of the same value.
-#
-# The type is part of the key because tf.DType's __hash__/__eq__ are
-# coerced to match plain Python ints (hash(tf.float32) == hash(1) == 1 and
-# tf.float32 == 1 is True). A bare `dtype` key would let an invalid int or
-# bool silently resolve to whatever tf dtype happened to warm the cache
-# first, once any tf.DType has been cached.
+# Python builtins), keyed by (type(dtype), dtype) rather than dtype alone.
+# tf.DType's __hash__/__eq__ are coerced to match plain Python ints
+# (hash(tf.float32) == hash(1), tf.float32 == 1 is True), so a bare-object
+# key would let a cached tf dtype make a later invalid int/bool silently
+# resolve instead of raising.
 _DTYPE_CACHE = {}
 
 
@@ -603,13 +598,11 @@ def standardize_dtype(dtype):
             raise ValueError(f"Invalid dtype: {resolved}")
         raise ValueError(f"Invalid dtype: {dtype}")
 
-    # None resolves to floatx().
     if dtype is None:
         return config.floatx()
 
-    # Fast path 2: numpy dtype object.
-    # np.dtype objects have a .name attribute that is always a canonical
-    # string. We do NOT remap uint32 to int64; the exact name is returned.
+    # Fast path 2: numpy dtype object. .name is always canonical; uint32
+    # is NOT remapped to int64.
     if isinstance(dtype, np.dtype):
         name = dtype.name
         if name in dtypes.ALLOWED_DTYPES_SET:
