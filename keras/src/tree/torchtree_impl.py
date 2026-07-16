@@ -26,14 +26,17 @@ def _dict_to_ordered_dict(structure):
         return structure
 
     # We need to sort dict and defaultdict to ensure a deterministic order that
-    # that is consistent with other tree implementations.
+    # that is consistent with other tree implementations. Values are
+    # recursed into here (not left to traverse_children below), since a
+    # dict match short-circuits traverse_children entirely - a dict value
+    # that is itself a dict would otherwise keep its insertion order.
     def func(x):
         if type(x) is dict:
-            return {k: x[k] for k in sorted(x.keys())}
+            return {k: _dict_to_ordered_dict(x[k]) for k in sorted(x.keys())}
         elif type(x) is defaultdict:
             return defaultdict(
                 x.default_factory,
-                {k: x[k] for k in sorted(x.keys())},
+                {k: _dict_to_ordered_dict(x[k]) for k in sorted(x.keys())},
             )
         return None
 
