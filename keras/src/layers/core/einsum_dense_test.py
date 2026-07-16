@@ -1900,7 +1900,16 @@ class EinsumDenseTest(testing.TestCase):
         self.assertAllClose(out_fast, out_slow, rtol=1e-5, atol=1e-5)
 
     def test_torch_fast_path_lora_stays_slow(self):
-        """LoRA-enabled EinsumDense must NOT use the fast path."""
+        """LoRA-enabled EinsumDense must NOT use the fast path.
+
+        Asserting non-NaN/non-Inf alone wouldn't catch the fast path
+        leaking through: lora_kernel_b initializes to zeros, so even a
+        base-kernel-only (fast-path) computation would be finite and,
+        with the default zero delta, numerically identical. Assign a
+        nonzero delta and compare against the base-kernel-only result
+        directly, so a leaked fast path is provably wrong, not just
+        NaN/Inf.
+        """
         if backend.backend() != "torch":
             self.skipTest("torch backend only")
         import torch
@@ -1912,9 +1921,23 @@ class EinsumDenseTest(testing.TestCase):
         _ = layer(x_t)
         layer.enable_lora(rank=4)
         self.assertTrue(layer.lora_enabled)
+        # Force a nonzero LoRA delta (default init is zeros).
+        layer.lora_kernel_a.assign(torch.randn(64, 4))
+        layer.lora_kernel_b.assign(torch.randn(4, 32))
+
         out = layer(x_t)
+        base_kernel_only = torch.einsum(
+            "ab,bc->ac", x_t, layer._kernel.value
+        ) + layer.bias.value
         self.assertFalse(torch.isnan(out).any())
         self.assertFalse(torch.isinf(out).any())
+        # A leaked fast path would equal the base-kernel-only computation;
+        # the LoRA-adjusted output must differ from it.
+        self.assertFalse(
+            torch.allclose(out, base_kernel_only, atol=1e-5),
+            "LoRA output must differ from a base-kernel-only (fast path) "
+            "computation, or the fast path leaked through",
+        )
 
     def test_torch_fast_path_manual_kernel_check(self):
         """Manually verify fast path result against the expected formula."""
@@ -1990,3 +2013,48 @@ class EinsumDenseTest(testing.TestCase):
         out_slow = layer(x_t)
         layer._torch_backend = True
         self.assertAllClose(out_fast, out_slow, rtol=1e-3, atol=1e-3)
+
+    def test_torch_fast_path_dtype_mismatch_matches_slow_path(self):
+        """A dtype-mismatched input must behave identically on the fast
+        and slow paths: either both raise the same error, or both
+        succeed with the same result. The fast path must never silently
+        downcast the kernel to the input's dtype (which would either
+        truncate a float kernel to int - garbage near-zero output - or
+        diverge from the slow path's own error/success behavior)."""
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+
+        for x_t in [
+            # torch.einsum itself does not promote int/float operands
+            # (a separate, pre-existing gap in ops.einsum unrelated to
+            # this PR) - both paths must fail the same way here.
+            torch.arange(8, dtype=torch.int32).reshape(2, 4),
+            torch.randint(0, 255, (2, 4), dtype=torch.uint8),
+            # float16 vs float32 kernel: promotion succeeds on both
+            # paths.
+            torch.randn(2, 4, dtype=torch.float16),
+        ]:
+            layer = layers.EinsumDense(
+                "ab,bc->ac", output_shape=3, bias_axes="c", activation=None
+            )
+            try:
+                out_fast = layer(x_t)
+                fast_result = ("ok", out_fast.dtype)
+            except Exception as e:
+                fast_result = ("error", type(e))
+            layer._torch_backend = False
+            try:
+                out_slow = layer(x_t)
+                slow_result = ("ok", out_slow.dtype)
+            except Exception as e:
+                slow_result = ("error", type(e))
+            layer._torch_backend = True
+            self.assertEqual(
+                fast_result,
+                slow_result,
+                msg=f"dtype={x_t.dtype}: fast path diverged from slow path",
+            )
+            if fast_result[0] == "ok":
+                self.assertTrue(torch.isfinite(out_fast).all())
+                self.assertAllClose(out_fast, out_slow, rtol=1e-3, atol=1e-3)

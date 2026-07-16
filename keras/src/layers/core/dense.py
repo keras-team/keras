@@ -5,12 +5,12 @@ import ml_dtypes
 from keras.src import activations
 from keras.src import backend
 from keras.src import constraints
-from keras.src.backend.common import global_state
 from keras.src import initializers
 from keras.src import ops
 from keras.src import quantizers
 from keras.src import regularizers
 from keras.src.api_export import keras_export
+from keras.src.backend.common import global_state
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.quantization_config import QuantizationConfig
@@ -251,18 +251,19 @@ class Dense(Layer):
                     target_device = kernel.device
                 if inputs.device != target_device:
                     inputs = inputs.to(target_device)
-                if inputs.dtype != kernel.dtype:
-                    kernel = kernel.to(inputs.dtype)
-                bias = self.bias.value if self.bias is not None else None
-                if bias is not None:
-                    if bias.device != target_device:
+                # Do not cast the kernel toward inputs.dtype: that's a
+                # downcast, not a promotion, and silently corrupts the
+                # result for e.g. integer inputs (float kernel truncated
+                # to int -> near-all-zeros). Let the standard path's
+                # dtype-promotion rules handle any mismatch instead.
+                if inputs.dtype == kernel.dtype:
+                    bias = self.bias.value if self.bias is not None else None
+                    if bias is not None and bias.device != target_device:
                         bias = bias.to(target_device)
-                    if inputs.dtype != bias.dtype:
-                        bias = bias.to(inputs.dtype)
-                x = self._torch_F.linear(inputs, kernel.t(), bias)
-                if self.activation is not None:
-                    x = self.activation(x)
-                return x
+                    x = self._torch_F.linear(inputs, kernel.t(), bias)
+                    if self.activation is not None:
+                        x = self.activation(x)
+                    return x
         # Standard path: non-torch, LoRA, or torch.compile.
         x = ops.matmul(inputs, self.kernel)
         if self.bias is not None:

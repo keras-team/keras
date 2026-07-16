@@ -1491,20 +1491,43 @@ class DenseTest(testing.TestCase):
         self.assertAllClose(out_fast, out_slow, rtol=1e-5, atol=1e-5)
 
     def test_torch_fast_path_lora_stays_slow(self):
-        """LoRA-enabled Dense must NOT use the fast path."""
+        """LoRA-enabled Dense must NOT use the fast path.
+
+        Asserting non-NaN/non-Inf alone wouldn't catch the fast path
+        leaking through: lora_kernel_b initializes to zeros, so even a
+        base-kernel-only (fast-path) computation would be finite and,
+        with the default zero delta, numerically identical. Assign a
+        nonzero delta and compare against the base-kernel-only result
+        directly, so a leaked fast path is provably wrong, not just
+        NaN/Inf.
+        """
         if backend.backend() != "torch":
             self.skipTest("torch backend only")
         import torch
 
         torch.manual_seed(0)
-        layer = layers.Dense(32, activation="relu")
+        layer = layers.Dense(32)
         x_t = torch.randn(4, 64)
         _ = layer(x_t)
         layer.enable_lora(rank=4)
         self.assertTrue(layer.lora_enabled, "LoRA should be enabled")
+        # Force a nonzero LoRA delta (default init is zeros).
+        layer.lora_kernel_a.assign(torch.randn(64, 4))
+        layer.lora_kernel_b.assign(torch.randn(4, 32))
+
         out = layer(x_t)
+        base_kernel_only = torch.nn.functional.linear(
+            x_t, layer._kernel.value.t(), layer.bias.value
+        )
         self.assertFalse(torch.isnan(out).any(), "LoRA output must not be NaN")
         self.assertFalse(torch.isinf(out).any(), "LoRA output must not be Inf")
+        # A leaked fast path would equal the base-kernel-only computation;
+        # the LoRA-adjusted output must differ from it.
+        self.assertFalse(
+            torch.allclose(out, base_kernel_only, atol=1e-5),
+            "LoRA output must differ from a base-kernel-only (fast path) "
+            "computation, or the fast path leaked through",
+        )
 
     def test_torch_fast_path_flag_false_non_torch(self):
         """_torch_backend flag must be False when backend != torch."""
@@ -1624,3 +1647,26 @@ class DenseTest(testing.TestCase):
         out_slow = layer(x_t)
         layer._torch_backend = True
         self.assertAllClose(out_fast, out_slow, rtol=1e-3, atol=1e-3)
+
+    def test_torch_fast_path_dtype_mismatch_matches_slow_path(self):
+        """Integer/bool inputs into a float layer must produce the same
+        result as the slow path, not a kernel silently downcast to the
+        input's dtype (which truncates a float kernel to int -> garbage
+        near-all-zero output)."""
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+
+        for x_t in [
+            torch.arange(8, dtype=torch.int32).reshape(2, 4),
+            torch.randint(0, 255, (2, 4), dtype=torch.uint8),
+            torch.tensor([[True, False, True, False]] * 2),
+        ]:
+            layer = layers.Dense(3)
+            out_fast = layer(x_t)
+            layer._torch_backend = False
+            out_slow = layer(x_t)
+            layer._torch_backend = True
+            self.assertEqual(out_fast.dtype, out_slow.dtype)
+            self.assertTrue(torch.isfinite(out_fast).all())
+            self.assertAllClose(out_fast, out_slow, rtol=1e-4, atol=1e-4)
