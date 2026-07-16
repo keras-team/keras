@@ -1926,9 +1926,10 @@ class EinsumDenseTest(testing.TestCase):
         layer.lora_kernel_b.assign(torch.randn(4, 32))
 
         out = layer(x_t)
-        base_kernel_only = torch.einsum(
-            "ab,bc->ac", x_t, layer._kernel.value
-        ) + layer.bias.value
+        base_kernel_only = (
+            torch.einsum("ab,bc->ac", x_t, layer._kernel.value)
+            + layer.bias.value
+        )
         self.assertFalse(torch.isnan(out).any())
         self.assertFalse(torch.isinf(out).any())
         # A leaked fast path would equal the base-kernel-only computation;
