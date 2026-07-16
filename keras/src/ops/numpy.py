@@ -2720,7 +2720,7 @@ class Diagonal(Operation):
         shape_2d = [x_shape[self.axis1], x_shape[self.axis2]]
         x_shape[self.axis1] = -1
         x_shape[self.axis2] = -1
-        output_shape = list(filter((-1).__ne__, x_shape))
+        output_shape = [d for d in x_shape if d != -1]
         if None in shape_2d:
             diag_shape = [None]
         else:
@@ -8166,7 +8166,7 @@ class Trace(Operation):
             )
         x_shape[axis1] = -1
         x_shape[axis2] = -1
-        output_shape = list(filter((-1).__ne__, x_shape))
+        output_shape = [d for d in x_shape if d != -1]
         output_dtype = backend.standardize_dtype(x.dtype)
         if output_dtype in ("bool", "int8", "int16"):
             output_dtype = "int32"
@@ -8940,7 +8940,7 @@ class Squeeze(Operation):
         sparse = getattr(x, "sparse", False)
         axis = to_tuple_or_list(self.axis)
         if axis is None:
-            output_shape = list(filter((1).__ne__, input_shape))
+            output_shape = [d for d in input_shape if d != 1]
             return KerasTensor(output_shape, dtype=x.dtype, sparse=sparse)
         else:
             for a in axis:
@@ -10031,3 +10031,92 @@ def dsplit(x, indices_or_sections):
     if any_symbolic_tensors((x,)):
         return Dsplit(indices_or_sections).symbolic_call(x)
     return backend.numpy.dsplit(x, indices_or_sections)
+
+
+class ColumnStack(Operation):
+    def call(self, xs):
+        return backend.numpy.column_stack(xs)
+
+    def compute_output_spec(self, xs):
+        if len(xs) == 0:
+            raise ValueError(
+                "`column_stack` requires at least one tensor, but received "
+                "an empty sequence."
+            )
+
+        first_shape = xs[0].shape
+        if len(first_shape) < 1:
+            raise ValueError(
+                "`column_stack` requires tensors of at least 1 dimension. "
+                f"Received tensor with shape {first_shape}."
+            )
+
+        # 1-D tensors are treated as columns, i.e. reshaped to (N, 1).
+        first_effective_shape = (
+            (first_shape[0], 1) if len(first_shape) == 1 else first_shape
+        )
+
+        total_size_on_axis = 0
+        dtypes_to_resolve = []
+        for x in xs:
+            x_shape = x.shape
+            if len(x_shape) < 1:
+                raise ValueError(
+                    "`column_stack` requires tensors of at least 1 "
+                    f"dimension. Received tensor with shape {x_shape}."
+                )
+            x_effective_shape = (
+                (x_shape[0], 1) if len(x_shape) == 1 else x_shape
+            )
+            if not shape_equal(
+                x_effective_shape,
+                first_effective_shape,
+                axis=1,
+                allow_none=True,
+            ):
+                raise ValueError(
+                    "Every value in xs must have the same shape except on "
+                    "the column axis (axis 1) after 1-D tensors are reshaped "
+                    "to 2-D columns. But found element of shape "
+                    f"{x_shape}, which is different from the first "
+                    f"element's shape {first_shape}."
+                )
+            if total_size_on_axis is None or x_effective_shape[1] is None:
+                total_size_on_axis = None
+            else:
+                total_size_on_axis += x_effective_shape[1]
+            dtypes_to_resolve.append(getattr(x, "dtype", type(x)))
+
+        output_shape = list(first_effective_shape)
+        output_shape[1] = total_size_on_axis
+        dtype = dtypes.result_type(*dtypes_to_resolve)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.column_stack", "keras.ops.numpy.column_stack"])
+def column_stack(xs):
+    """Stack 1-D tensors as columns into a 2-D tensor.
+
+    Take a sequence of 1-D tensors and stack them as columns to make a
+    single 2-D tensor. 2-D tensors are stacked as-is, like with
+    `hstack`. Tensors with more than 2 dimensions are concatenated
+    along the second axis.
+
+    Args:
+        xs: Sequence of tensors.
+
+    Returns:
+        The tensor formed by stacking the given tensors.
+
+    Example:
+
+    >>> a = keras.ops.array([1, 2, 3])
+    >>> b = keras.ops.array([4, 5, 6])
+    >>> keras.ops.column_stack([a, b])
+    array([[1, 4],
+           [2, 5],
+           [3, 6]])
+    """
+    if any_symbolic_tensors((xs,)):
+        return ColumnStack().symbolic_call(xs)
+    return backend.numpy.column_stack(xs)

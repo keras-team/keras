@@ -1,3 +1,4 @@
+import itertools
 import math
 
 import jax.numpy as jnp
@@ -145,6 +146,13 @@ def _max_reduce(left, right):
 
 
 class MathOpsDynamicShapeTest(testing.TestCase):
+    def test_cdist(self):
+        x = KerasTensor((None, 2, 3))
+        y = KerasTensor((None, 4, 3))
+
+        z = kmath.cdist(x, y)
+        self.assertEqual(z.shape, (None, 2, 4))
+
     def test_erf(self):
         x = KerasTensor((None, 2, 3))
         y = kmath.erf(x)
@@ -353,6 +361,13 @@ class MathOpsDynamicShapeTest(testing.TestCase):
 
 
 class MathOpsStaticShapeTest(testing.TestCase):
+    def test_cdist(self):
+        x = KerasTensor((1, 2, 3))
+        y = KerasTensor((1, 4, 3))
+
+        z = kmath.cdist(x, y)
+        self.assertEqual(z.shape, (1, 2, 4))
+
     def test_erf(self):
         x = KerasTensor((1, 2, 3))
         y = kmath.erf(x)
@@ -739,6 +754,25 @@ class MathOpsCorrectnessTest(testing.TestCase):
             kmath.in_top_k(targets, predictions, k=3), [True, True, True]
         )
 
+        # Test multi-dimensional targets
+        targets = np.array([[1, 0]])
+        predictions = np.array([[[1.0, 0.0], [0.0, 1.0]]], dtype="float32")
+        self.assertAllEqual(
+            kmath.in_top_k(targets, predictions, k=1), [[False, False]]
+        )
+        targets = np.array([[1, 2], [0, 3]])
+        predictions = np.array(
+            [
+                [[0.1, 0.9, 0.8, 0.8], [0.05, 0.95, 0, 1]],
+                [[0.9, 0.1, 0.8, 0.8], [0.1, 0.8, 0.3, 1]],
+            ],
+            dtype="float32",
+        )
+        self.assertAllEqual(
+            kmath.in_top_k(targets, predictions, k=2),
+            [[True, False], [True, True]],
+        )
+
         # Test `nan` in predictions
         # https://github.com/keras-team/keras/issues/19995
         targets = np.array([1, 0])
@@ -1119,6 +1153,38 @@ class MathDtypeTest(testing.TestCase):
     if backend.backend() == "torch":
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint16", "uint32")]
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
+
+    @parameterized.named_parameters(
+        named_product(
+            dtypes=list(itertools.combinations(FLOAT_DTYPES + INT_DTYPES, 2))
+        )
+    )
+    def test_cdist(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+
+        x = knp.ones((2, 3), dtype=dtype1)
+        y = knp.ones((4, 3), dtype=dtype2)
+
+        x_jax = jnp.ones((2, 3), dtype=dtype1)
+        y_jax = jnp.ones((4, 3), dtype=dtype2)
+
+        expected_dtype = standardize_dtype(
+            jnp.linalg.norm(
+                x_jax[:, None, :] - y_jax[None, :, :],
+                axis=-1,
+            ).dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(kmath.cdist(x, y).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(kmath.CDist().symbolic_call(x, y).dtype),
+            expected_dtype,
+        )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_erf(self, dtype):

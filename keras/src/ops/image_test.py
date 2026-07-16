@@ -1679,13 +1679,6 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             strides_h, strides_w = patch_h, patch_w
         else:
             strides_h, strides_w = strides[0], strides[1]
-        if (
-            backend.backend() == "tensorflow"
-            and strides_h > 1
-            or strides_w > 1
-            and dilation_rate > 1
-        ):
-            pytest.skip("dilation_rate>1 with strides>1 not supported with TF")
 
         # Test channels_last
         image = np.random.uniform(size=(1, 20, 20, 3)).astype("float32")
@@ -1979,6 +1972,37 @@ class ImageOpsCorrectnessTest(testing.TestCase):
 
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(out, ref_out, atol=1e-2, rtol=1e-2)
+
+    def test_perspective_transform_bfloat16_no_crash(self):
+        images = np.ones((10, 10, 3), dtype="bfloat16")
+        start_points = np.array(
+            [
+                [
+                    [0.95703125, 0.2080078125],
+                    [0.828125, 0.1494140625],
+                    [0.51171875, 0.1357421875],
+                    [0.6875, 0.83984375],
+                ]
+            ],
+            dtype="bfloat16",
+        )
+        end_points = np.array(
+            [
+                [
+                    [0.42578125, 0.95703125],
+                    [0.82421875, 0.337890625],
+                    [0.57421875, 0.75390625],
+                    [0.828125, 0.93359375],
+                ]
+            ],
+            dtype="bfloat16",
+        )
+
+        out = kimage.perspective_transform(
+            images, start_points, end_points, interpolation="bilinear"
+        )
+        self.assertEqual(tuple(out.shape), tuple(images.shape))
+        self.assertEqual(backend.standardize_dtype(out.dtype), "bfloat16")
 
     def test_gaussian_blur(self):
         # Test channels_last
@@ -3072,45 +3096,35 @@ class ExtractPatches3DTest(testing.TestCase):
         else:
             volume = np.random.rand(1, 2, 64, 64, 64).astype(dtype)
 
-        if backend.backend() == "tensorflow":
-            # TensorFlow backend does not support dilation > 1 and strides > 1
-            with self.assertRaises(ValueError):
-                kimage.extract_patches_3d(
-                    volume,
-                    size=(3, 3, 3),
-                    strides=(8, 8, 8),
-                    dilation_rate=(2, 2, 2),
-                    data_format=data_format,
-                )
-        else:
-            # Runs without error; check shape
-            patches = kimage.extract_patches_3d(
-                volume,
-                size=(3, 3, 3),
-                strides=(8, 8, 8),
-                dilation_rate=(2, 2, 2),
-                data_format=data_format,
+        # All backends (including TensorFlow) support dilation > 1 combined
+        # with strides > 1.
+        patches = kimage.extract_patches_3d(
+            volume,
+            size=(3, 3, 3),
+            strides=(8, 8, 8),
+            dilation_rate=(2, 2, 2),
+            data_format=data_format,
+        )
+        # eff_p = 3 + (3 - 1) * (2 - 1) = 5
+        # out = (64 - 5) // 8 + 1 = 8
+        expected_patches = 8
+        if data_format == "channels_last":
+            expected_shape = (
+                1,
+                expected_patches,
+                expected_patches,
+                expected_patches,
+                54,  # 2*3*3*3
             )
-            # eff_p = 3 + (3 - 1) * (2 - 1) = 5
-            # out = (64 - 5) // 8 + 1 = 8
-            expected_patches = 8
-            if data_format == "channels_last":
-                expected_shape = (
-                    1,
-                    expected_patches,
-                    expected_patches,
-                    expected_patches,
-                    54,  # 2*3*3*3
-                )
-            else:
-                expected_shape = (
-                    1,
-                    54,  # 2*3*3*3
-                    expected_patches,
-                    expected_patches,
-                    expected_patches,
-                )
-            self.assertEqual(patches.shape, expected_shape)
+        else:
+            expected_shape = (
+                1,
+                54,  # 2*3*3*3
+                expected_patches,
+                expected_patches,
+                expected_patches,
+            )
+        self.assertEqual(patches.shape, expected_shape)
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_extract_patches_3d_overlapping(self, dtype):

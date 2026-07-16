@@ -222,15 +222,12 @@ def _compute_padding_length(
     """Compute padding length along one dimension with support
     for asymmetric padding."""
     effective_k_size = (kernel_length - 1) * dilation_rate + 1
-    if stride == 1:
-        # total padding is kernel_size - 1
-        total_padding = effective_k_size - 1
-    else:
-        # calc. needed padding for case with stride involved
-        output_size = (input_length + stride - 1) // stride
-        total_padding = max(
-            0, (output_size - 1) * stride + effective_k_size - input_length
-        )
+
+    # calc. needed padding for case with stride involved
+    output_size = (input_length + stride - 1) // stride
+    total_padding = max(
+        0, (output_size - 1) * stride + effective_k_size - input_length
+    )
 
     # divide padding evenly, with extra pixel going at the end if needed
     left_padding = total_padding // 2
@@ -347,6 +344,18 @@ def _maybe_convert_to_channels_last(tensor):
     return tensor
 
 
+def _is_pointwise_kernel(kernel):
+    return all(dim == 1 for dim in kernel.shape[:-2])
+
+
+def _conv_pointwise_channels_last(inputs, kernel, strides):
+    if any(stride != 1 for stride in strides):
+        spatial_slices = tuple(slice(None, None, stride) for stride in strides)
+        inputs = inputs[(slice(None), *spatial_slices, slice(None))]
+    kernel = torch.reshape(kernel, (kernel.shape[-2], kernel.shape[-1]))
+    return torch.matmul(inputs, kernel)
+
+
 def max_pool(
     inputs,
     pool_size,
@@ -371,7 +380,7 @@ def max_pool(
         # Torch does not natively support `"same"` padding, we need to manually
         # apply the right amount of padding to `inputs`.
         inputs, padding = _apply_same_padding(
-            inputs, pool_size, strides, data_format
+            inputs, pool_size, strides, data_format, padding_mode="replicate"
         )
     else:
         padding = 0
@@ -624,6 +633,16 @@ def conv(
     strides = standardize_tuple(strides, num_spatial_dims, "strides")
 
     data_format = backend.standardize_data_format(data_format)
+    # Fast path for pointwise channels_last conv: matmul avoids the
+    # channels_first transpose and torch conv dispatch.
+    if (
+        data_format == "channels_last"
+        and padding in {"valid", "same"}
+        and _is_pointwise_kernel(kernel)
+        and inputs.shape[-1] == kernel.shape[-2]
+    ):
+        return _conv_pointwise_channels_last(inputs, kernel, strides)
+
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(inputs)
 
@@ -650,7 +669,7 @@ def conv(
             kernel.shape[2:],
             strides,
             data_format,
-            padding_mode="replicate",
+            padding_mode="constant",
             dilation_rate=dilation_rate,
         )
     else:
