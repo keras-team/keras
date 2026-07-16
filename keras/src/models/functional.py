@@ -361,6 +361,13 @@ class Functional(Function, Model):
                     raise_exception = True
             else:
                 raise_exception = True
+        elif isinstance(inputs, dict) and isinstance(
+            self._inputs_struct, dict
+        ):
+            expected_keys = set(self._inputs_struct.keys())
+            runtime_keys = set(inputs.keys())
+            if expected_keys.issubset(runtime_keys) and expected_keys != runtime_keys:
+                inputs = {k: inputs[k] for k in self._inputs_struct}
         if (
             isinstance(self._inputs_struct, dict)
             and not isinstance(inputs, dict)

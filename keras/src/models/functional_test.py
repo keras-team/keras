@@ -221,26 +221,25 @@ class FunctionalTest(testing.TestCase):
 
         model = Functional({"a": input_a}, outputs)
 
-        with pytest.warns() as record:
-            # Eager call
-            in_val = {
-                "a": np.random.random((2, 3)),
-                "b": np.random.random((2, 1)),
-            }
-            out_val = model(in_val)
-            self.assertEqual(out_val.shape, (2, 3))
+        in_val = {
+            "a": np.random.random((2, 3)),
+            "b": np.random.random((2, 1)),
+        }
+        out_val = model(in_val)
+        self.assertEqual(out_val.shape, (2, 3))
 
-            # Symbolic call
-            input_a_2 = Input(shape=(3,), batch_size=2)
-            input_b_2 = Input(shape=(1,), batch_size=2)
-            in_val = {"a": input_a_2, "b": input_b_2}
-            out_val = model(in_val)
-            self.assertEqual(out_val.shape, (2, 3))
-        self.assertLen(record, 1)
-        self.assertStartsWith(
-            str(record[0].message),
-            r"The structure of `inputs` doesn't match the expected structure",
-        )
+        input_a_2 = Input(shape=(3,), batch_size=2)
+        input_b_2 = Input(shape=(1,), batch_size=2)
+        in_val = {"a": input_a_2, "b": input_b_2}
+        out_val = model(in_val)
+        self.assertEqual(out_val.shape, (2, 3))
+
+        in_val = {
+            "0_extra": np.random.random((2, 1)),
+            "a": np.random.random((2, 3)),
+        }
+        out_val = model(in_val)
+        self.assertEqual(out_val.shape, (2, 3))
 
     @parameterized.named_parameters(
         ("list", list),
