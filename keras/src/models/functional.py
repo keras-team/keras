@@ -177,6 +177,7 @@ class Functional(Function, Model):
         if mask is None:
             masks = [None] * len(inputs)
         else:
+            mask = self._filter_extra_dict_keys(mask)
             masks = tree.flatten(mask)
             for x, mask in zip(inputs, masks):
                 if mask is not None:
@@ -191,6 +192,7 @@ class Functional(Function, Model):
 
     def compute_output_spec(self, inputs, training=None, mask=None):
         # From Function
+        inputs = self._filter_extra_dict_keys(inputs)
         return super().compute_output_spec(inputs)
 
     def compute_output_shape(self, input_shape):
@@ -361,6 +363,17 @@ class Functional(Function, Model):
                     raise_exception = True
             else:
                 raise_exception = True
+        elif (
+            isinstance(inputs, dict)
+            and isinstance(self._inputs_struct, dict)
+            and all(
+                isinstance(i, backend.KerasTensor)
+                for i in self._inputs_struct.values()
+            )
+        ):
+            expected_keys = set(self._inputs_struct)
+            if not expected_keys.issubset(inputs.keys()):
+                raise_exception = True
         if (
             isinstance(self._inputs_struct, dict)
             and not isinstance(inputs, dict)
@@ -371,10 +384,24 @@ class Functional(Function, Model):
         self._maybe_warn_inputs_struct_mismatch(
             inputs, raise_exception=raise_exception
         )
+        inputs = self._filter_extra_dict_keys(inputs)
 
         flat_inputs = tree.flatten(inputs)
         flat_inputs = self._convert_inputs_to_tensors(flat_inputs)
         return self._adjust_input_rank(flat_inputs)
+
+    def _filter_extra_dict_keys(self, inputs):
+        if (
+            isinstance(inputs, dict)
+            and isinstance(self._inputs_struct, dict)
+            and all(
+                isinstance(i, backend.KerasTensor)
+                for i in self._inputs_struct.values()
+            )
+            and set(self._inputs_struct).issubset(inputs)
+        ):
+            return {k: inputs[k] for k in self._inputs_struct}
+        return inputs
 
     @property
     def input(self):
