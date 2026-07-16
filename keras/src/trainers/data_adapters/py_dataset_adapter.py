@@ -217,9 +217,7 @@ class PyDatasetAdapter(DataAdapter):
         self._num_data_shards = 1
         self._data_shard_id = 0
         if dist is not None and getattr(dist, "auto_shard_dataset", False):
-            self._num_data_shards = min(
-                dist.num_model_replicas, dist.num_processes
-            )
+            self._num_data_shards = dist.num_data_shards
             self._data_shard_id = dist.data_shard_id
 
         workers = self.py_dataset.workers

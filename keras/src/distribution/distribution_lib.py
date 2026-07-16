@@ -350,6 +350,11 @@ class Distribution:
         raise NotImplementedError()
 
     @property
+    def num_data_shards(self):
+        """Total number of data shards."""
+        return min(self.num_model_replicas, self.num_processes)
+
+    @property
     def data_shard_id(self):
         """ID of the data shard for the current process."""
         num_model_replicas = self.num_model_replicas
