@@ -333,7 +333,12 @@ def istft(
                 f"Received: window shape={win.shape}"
             )
 
-    if sequence_length == fft_length and center is True and win is not None:
+    if (
+        sequence_length == fft_length
+        and center is True
+        and win is not None
+        and fft_length > 1
+    ):
         # can be fallen back to torch.istft
         need_unpack = False
         *batch_shape, num_sequences, fft_unique_bins = complex_input.shape
@@ -390,7 +395,7 @@ def istft(
     if length is not None:
         end = start + length
     elif center is True:
-        end = -(fft_length // 2)
+        end = expected_output_len - (fft_length // 2)
     else:
         end = expected_output_len
     return x[..., start:end]

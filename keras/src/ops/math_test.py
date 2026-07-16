@@ -131,7 +131,7 @@ def _istft(
     if length is not None:
         end = start + length
     elif center:
-        end = -(fft_length // 2)
+        end = expected_output_len - (fft_length // 2)
     else:
         end = expected_output_len
     return x[..., start:end]
@@ -939,6 +939,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
             (8, 4, 8, "hann", False),
             (32, 8, 32, np.ones((32,)), True),
             (32, 8, 32, None, True),
+            (1, 1, 1, "hann", True),
+            (1, 1, 1, None, True),
         ]
     )
     def test_istft(
