@@ -17,6 +17,19 @@ from keras.src.ops import random as krandom
 from keras.src.testing.test_utils import named_product
 
 
+def _bf16_exact(shape):
+    """Random float32 values exactly representable in bfloat16.
+
+    The reconstruct_patches round-trip tests assert
+    reconstruct(extract(x)) == x with a tight tolerance. extract_patches
+    is conv-based, and TPUs compute float32 convolutions in bfloat16 by
+    default, so arbitrary float32 values are rounded during extraction.
+    Multiples of 1/256 in [0, 1) carry at most 8 significand bits, so
+    the extraction stays lossless on every device.
+    """
+    return (np.round(np.random.random(shape) * 256.0) / 256.0).astype("float32")
+
+
 class ImageOpsDynamicShapeTest(testing.TestCase):
     def setUp(self):
         super().setUp()
@@ -2581,7 +2594,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             (59, 55, 3, (8, 8), "same"),
             (33, 41, 2, (5, 7), "same"),
         ]:
-            x = np.random.random((2, h, w, c)).astype("float32")
+            x = _bf16_exact((2, h, w, c))
             patches = kimage.extract_patches(x, size=size, padding=padding)
             out = kimage.reconstruct_patches(
                 patches, size=size, output_size=(h, w), padding=padding
@@ -2590,7 +2603,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             self.assertAllClose(out, x, atol=1e-6)
 
         # Unbatched round-trip.
-        x = np.random.random((16, 16, 3)).astype("float32")
+        x = _bf16_exact((16, 16, 3))
         patches = kimage.extract_patches(x, size=(4, 4), padding="valid")
         out = kimage.reconstruct_patches(
             patches, size=(4, 4), output_size=(16, 16)
@@ -2600,7 +2613,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
 
         # Valid padding with non-divisible dims reconstructs the covered
         # (cropped) region: output_size is grid * size, not the original.
-        x = np.random.random((2, 10, 11, 3)).astype("float32")
+        x = _bf16_exact((2, 10, 11, 3))
         patches = kimage.extract_patches(x, size=(4, 4), padding="valid")
         out = kimage.reconstruct_patches(
             patches, size=(4, 4), output_size=(8, 8)
@@ -2614,7 +2627,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             (9, 12, 15, 2, (3, 4, 5), "valid"),
             (11, 13, 15, 2, (4, 5, 6), "same"),
         ]:
-            x = np.random.random((2, d, h, w, c)).astype("float32")
+            x = _bf16_exact((2, d, h, w, c))
             patches = kimage.extract_patches_3d(x, size=size, padding=padding)
             out = kimage.reconstruct_patches(
                 patches, size=size, output_size=(d, h, w), padding=padding
