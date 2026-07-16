@@ -64,7 +64,7 @@ class Operation(KerasSaveable):
                 if not getattr(e, "_keras_call_info_injected", False):
                     augmented = traceback_utils.inject_argument_info_in_error(
                         e,
-                        call_fn,
+                        self.call,
                         args,
                         kwargs,
                         object_name=(f"{self.__class__.__name__}.call()"),

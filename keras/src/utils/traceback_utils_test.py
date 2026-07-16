@@ -3,6 +3,7 @@
 import numpy as np
 
 from keras.src import testing
+from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops.operation import Operation
 from keras.src.utils import traceback_utils
 
@@ -39,6 +40,17 @@ class HappyLayer(Operation):
 
     def compute_output_spec(self, x):
         return x
+
+
+class FailSymbolicLayer(Operation):
+    """Operation whose compute_output_spec() raises when dispatched through
+    `symbolic_call` (i.e. when called with a symbolic `KerasTensor`)."""
+
+    def call(self, x, y=10):
+        return x
+
+    def compute_output_spec(self, x, y=10):
+        raise ValueError("bad spec")
 
 
 class _NonStandardError(Exception):
@@ -103,6 +115,24 @@ class TracebackUtilsTest(testing.TestCase):
         # y=99 should appear in the argument listing
         self.assertIn("y=", msg)
         self.assertIn("99", msg)
+
+    def test_symbolic_call_uses_real_call_signature(self):
+        """Regression test: when dispatch goes through `symbolic_call`
+        (i.e. `any_symbolic_tensors` is True), the injected error message
+        must still reflect `call`'s real parameter names (`x`, `y`), not
+        the generic `args`/`kwargs` of `symbolic_call`'s own signature.
+        """
+        layer = FailSymbolicLayer()
+        x = KerasTensor((2, 3), name="x")
+        with self.assertRaises(ValueError) as ctx:
+            layer(x, y=99)
+        msg = str(ctx.exception)
+        self.assertIn("FailSymbolicLayer.call()", msg)
+        self.assertIn("x=", msg)
+        self.assertIn("y=", msg)
+        self.assertIn("99", msg)
+        self.assertNotIn("args=", msg)
+        self.assertNotIn("kwargs=", msg)
 
     # ------------------------------------------------------------------
     # 3. Custom exception (non-standard ctor): falls back to RuntimeError
