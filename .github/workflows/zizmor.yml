@@ -1,0 +1,28 @@
+name: Zizmor
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  zizmor:
+    name: GitHub Actions Security Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install uv dependencies
+        # zizmor: ignore[impostor-commit, mismatched-version-comment]
+        uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8.0.0
+
+      - name: Run zizmor
+        run:  uvx zizmor --format=github .github
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
