@@ -633,23 +633,21 @@ def scatter_update(inputs, indices, updates, reduction=None):
 
 
 def _to_static_index(v):
-    """Return a Python-level slice bound for *v*, or raise ``TypeError``.
+    """Return a Python-level slice bound for `v`, or raise `TypeError`.
 
-    The returned value is usable directly as a Python ``slice`` bound:
-    - Python ``int`` and ``torch.SymInt`` are returned unchanged. Calling
-      ``int()`` on a ``SymInt`` specializes a ``torch.export`` dynamic
-      dimension to a constant (#22998), so it must pass through as-is.
-    - ``numpy`` integer scalars are coerced to a Python ``int``.
+    The returned value is usable directly as a Python `slice` bound. Python
+    `int` and `torch.SymInt` are returned unchanged, since calling `int()` on
+    a `SymInt` would specialize a `torch.export` dynamic dimension to a
+    constant (#22998); numpy integer scalars are coerced to a Python `int`.
 
-    Floats, ``torch.Tensor``s, and any other type raise ``TypeError`` so the
-    caller falls through to the slow ``torch.narrow`` path. This avoids
-    silent truncation for floats and, for tensors, keeps a data-dependent
-    bound as a traceable value instead of forcing it into a concrete
-    Python ``int`` via ``int()`` (which would specialize it under
-    ``torch.export``/dynamo, same concern as the ``SymInt`` case above).
-    Note this does not eliminate a device-to-host sync in eager mode for a
-    0-d GPU tensor bound: ``torch.narrow`` itself still resolves a tensor
-    ``start`` to a concrete value internally.
+    Floats, tensors, and any other type raise `TypeError` so the caller falls
+    through to the slow `torch.narrow` path. That avoids silently truncating a
+    float bound, and it keeps a tensor bound as a traceable value rather than
+    forcing it into a concrete `int` via `int()`, which would specialize it
+    under `torch.export`/dynamo the same way it would a `SymInt`. Falling back
+    does not by itself avoid a device-to-host sync in eager mode for a 0-d GPU
+    tensor bound, because `torch.narrow` still resolves a tensor `start` to a
+    concrete value internally.
     """
     if isinstance(v, (int, torch.SymInt)):
         return v
@@ -672,24 +670,23 @@ def slice(inputs, start_indices, shape):
             f"shape={shape} (length {len(shape)})."
         )
 
-    # Fast path: build Python slice objects from integer-valued indices.
-    # Accepted: Python int, torch.SymInt, numpy integer. _to_static_index
-    # raises TypeError for floats, tensors (kept traceable instead of
-    # specialized via int()), and any other type, causing fall-through to
-    # torch.narrow (no silent truncation). RuntimeError covers
-    # data-dependent symbolic shapes under torch.export/dynamo tracing.
-    # Each bound is coerced once per dim, and the indexing runs in the
-    # else clause so a genuine indexing error propagates instead of
-    # falling to torch.narrow.
+    # Fast path: build plain Python slice objects when every bound is a
+    # static integer. _to_static_index raises TypeError for a bound it cannot
+    # turn into one (a float, a tensor, an unsupported type), and a
+    # data-dependent symbolic shape raises RuntimeError under torch.export or
+    # dynamo tracing; either case falls through to the tensor-native slow path
+    # below. The indexing happens in the else clause rather than the try body
+    # so that a genuine indexing error surfaces to the caller instead of being
+    # mistaken for an unsupported bound and silently retried on the slow path.
     if isinstance(start_indices, (list, tuple)) and isinstance(
         shape, (list, tuple)
     ):
         try:
             slices = []
-            for s, l in zip(start_indices, shape):
-                start = _to_static_index(s)
-                length = _to_static_index(l)
-                slices.append(builtins.slice(start, start + length))
+            for start_index, length in zip(start_indices, shape):
+                start = _to_static_index(start_index)
+                size = _to_static_index(length)
+                slices.append(builtins.slice(start, start + size))
         except (TypeError, RuntimeError):
             pass
         else:
