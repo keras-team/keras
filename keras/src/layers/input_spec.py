@@ -120,11 +120,22 @@ class InputSpec:
 
 
 def _check_input_spec(spec, x, input_index, layer_name):
-    """Validate one tensor `x` against one `InputSpec`.
+    """Checks compatibility between a single input and a single `InputSpec`.
 
-    Shared by the single-spec fast path and the general multi-spec loop so the
-    two stay in lockstep. `x` is assumed non-None; optional inputs are handled
-    by the callers.
+    This is shared by the fast path and the general path of
+    `assert_input_compatibility` so that both paths apply identical checks.
+
+    Args:
+        spec: An `InputSpec` instance.
+        x: The input to check. Must not be `None`; `None` inputs for
+            optional specs are handled by the callers.
+        input_index: Integer, index of the input (for error message
+            formatting).
+        layer_name: String, name of the layer (for error message formatting).
+
+    Raises:
+        ValueError: In case of mismatch between the input and the
+            expectations of the spec.
     """
     # Having a shape/dtype is the only commonality of the various tensor-like
     # objects that may be passed. The most common kind of invalid type we are
@@ -178,6 +189,13 @@ def _check_input_spec(spec, x, input_index, layer_name):
     # Check specific shape axes.
     if spec.axes:
         for axis, value in spec.axes.items():
+            if value is not None and (axis < -ndim or axis >= ndim):
+                raise ValueError(
+                    f"Input {input_index} with name '{spec.name}' of layer "
+                    f"'{layer_name}' is incompatible with the layer: "
+                    f"axis {axis} is out of bounds for an input with "
+                    f"ndim={ndim}. Full shape received: {shape}"
+                )
             if value is not None and shape[axis] not in {
                 value,
                 None,
@@ -192,10 +210,20 @@ def _check_input_spec(spec, x, input_index, layer_name):
     if spec.shape is not None:
         spec_shape = spec.shape
         if spec.allow_last_axis_squeeze:
-            if shape and shape[-1] == 1:
+            if len(shape) == len(spec_shape) + 1 and shape[-1] == 1:
+                # A rank N+1 input with a last axis of size 1 is
+                # compatible with a rank N spec.
                 shape = shape[:-1]
-            if spec_shape and spec_shape[-1] == 1:
+            elif len(spec_shape) == len(shape) + 1 and spec_shape[-1] == 1:
+                # A rank N-1 input is compatible with a rank N spec whose
+                # last axis is of size 1.
                 spec_shape = spec_shape[:-1]
+        # If the ranks still differ, only the leading dimensions are
+        # compared (`zip` truncates to the shorter shape): when
+        # `allow_last_axis_squeeze=True`, rank validation is left to the
+        # caller (`Functional._adjust_input_rank` raises an error that
+        # includes the input path). Otherwise the ranks already match,
+        # since `spec.shape` implies `spec.ndim`, which is checked above.
         for spec_dim, dim in zip(spec_shape, shape):
             if spec_dim is not None and dim is not None:
                 if spec_dim != dim:
@@ -227,9 +255,10 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
     if not input_spec:
         return
 
-    # Fast path: single InputSpec + single tensor (most common case, e.g. Dense
-    # layer after build). Skips the two tree.flatten calls and the count check.
-    # tree.is_nested keeps this correct for any registered pytree input.
+    # Fast path for the most common case: a single `InputSpec` and a single
+    # tensor input. This skips the `tree.flatten` calls and the input count
+    # check. Nested inputs (including any registered pytree) are detected by
+    # `tree.is_nested` and go through the general path below.
     if isinstance(input_spec, InputSpec) and not tree.is_nested(inputs):
         if inputs is None and input_spec.optional:
             return
