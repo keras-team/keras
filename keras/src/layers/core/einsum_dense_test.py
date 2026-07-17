@@ -1926,6 +1926,7 @@ class EinsumDenseTest(testing.TestCase):
         layer.lora_kernel_b.assign(torch.randn(4, 32))
 
         out = layer(x_t)
+        x_t = x_t.to(layer._kernel.value.device)
         base_kernel_only = (
             torch.einsum("ab,bc->ac", x_t, layer._kernel.value)
             + layer.bias.value
