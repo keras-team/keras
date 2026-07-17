@@ -55,14 +55,12 @@ class Loss(KerasSaveable):
 
     def __call__(self, y_true, y_pred, sample_weight=None):
         # Torch fast path: skip name_scope, convert_to_tensor, and mask
-        # overhead for the common case of two plain torch Tensors with no
-        # masking or sample_weight.
-        #
-        # Bug fix vs PR #22660: the PR only checks isinstance(y_pred,
-        # torch.Tensor) and passes y_true raw into self.call(), which breaks
-        # when y_true is numpy (wrong dtype, no device transfer).  We require
-        # isinstance(y_true, torch.Tensor) too; any other y_true falls through
-        # to the slow path which converts it correctly.
+        # overhead for the common case of two plain torch Tensors that
+        # already match self.dtype, live on the same device, carry no input
+        # mask, and have no sample_weight. Any input that doesn't satisfy
+        # every condition (a numpy/list/dict y_true, a mismatched dtype or
+        # device, an existing mask) falls through to the slow path below,
+        # which converts and casts it correctly.
         if (
             sample_weight is None
             and backend.backend() == "torch"
@@ -88,13 +86,14 @@ class Loss(KerasSaveable):
                         reduction=self.reduction,
                         dtype=self.dtype,
                     )
-                # No sample_weight and no mask: reduce_values already skips
-                # the sample_weight/mask handling reduce_weighted_values
-                # would otherwise do, so this is no slower than hand-rolling
-                # mean()/sum() while staying dtype-exact with the slow path
-                # (divide_no_nan forces 64-bit compute dtypes down to their
-                # 32-bit equivalent on non-tensorflow backends; a bare
-                # `losses.mean()` would not).
+                # With no sample_weight and no output mask, reduce_values
+                # already skips the sample_weight/mask handling that
+                # reduce_weighted_values would otherwise do, so routing
+                # through it here is no slower than hand-rolling mean()/
+                # sum() directly, while staying dtype-exact with the slow
+                # path: divide_no_nan forces 64-bit compute dtypes down to
+                # their 32-bit equivalent on non-tensorflow backends, which
+                # a bare losses.mean() would not.
                 return reduce_values(
                     losses, sample_weight=None, reduction=self.reduction
                 )
