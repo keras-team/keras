@@ -25,11 +25,11 @@ def _dict_to_ordered_dict(structure):
     if _tree_is_leaf(structure):
         return structure
 
-    # We need to sort dict and defaultdict to ensure a deterministic order that
+    # We need to sort dict and defaultdict to ensure a deterministic order
     # that is consistent with other tree implementations. Values are
-    # recursed into here (not left to traverse_children below), since a
-    # dict match short-circuits traverse_children entirely - a dict value
-    # that is itself a dict would otherwise keep its insertion order.
+    # recursed into here rather than left to traverse_children below, since
+    # a dict match short-circuits traverse_children entirely, and a dict
+    # value that is itself a dict would otherwise keep its insertion order.
     def func(x):
         if type(x) is dict:
             return {k: _dict_to_ordered_dict(x[k]) for k in sorted(x.keys())}

@@ -2544,7 +2544,7 @@ class TreeTest(testing.TestCase):
 
     @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
     def test_dict_to_ordered_dict_leaf_shortcircuit(self, t):
-        # RC19: _dict_to_ordered_dict must return leaves unchanged without
+        # _dict_to_ordered_dict must return leaves unchanged without
         # invoking a torch tree_flatten round-trip.
         from collections import OrderedDict as OD
 
