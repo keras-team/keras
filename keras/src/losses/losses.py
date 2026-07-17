@@ -293,9 +293,12 @@ class CosineSimilarity(LossFunctionWrapper):
             dtype=dtype,
             axis=axis,
         )
+        self.axis = axis
 
     def get_config(self):
-        return Loss.get_config(self)
+        config = Loss.get_config(self)
+        config.update({"axis": self.axis})
+        return config
 
 
 @keras_export("keras.losses.Huber")
@@ -348,9 +351,12 @@ class Huber(LossFunctionWrapper):
             dtype=dtype,
             delta=delta,
         )
+        self.delta = delta
 
     def get_config(self):
-        return Loss.get_config(self)
+        config = Loss.get_config(self)
+        config.update({"delta": self.delta})
+        return config
 
 
 @keras_export("keras.losses.LogCosh")
@@ -1259,6 +1265,7 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
         )
         self.from_logits = from_logits
         self.ignore_class = ignore_class
+        self.axis = axis
 
     def get_config(self):
         config = Loss.get_config(self)
@@ -1266,6 +1273,7 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
             {
                 "from_logits": self.from_logits,
                 "ignore_class": self.ignore_class,
+                "axis": self.axis,
             }
         )
         return config
