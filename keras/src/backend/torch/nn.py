@@ -222,15 +222,12 @@ def _compute_padding_length(
     """Compute padding length along one dimension with support
     for asymmetric padding."""
     effective_k_size = (kernel_length - 1) * dilation_rate + 1
-    if stride == 1:
-        # total padding is kernel_size - 1
-        total_padding = effective_k_size - 1
-    else:
-        # calc. needed padding for case with stride involved
-        output_size = (input_length + stride - 1) // stride
-        total_padding = max(
-            0, (output_size - 1) * stride + effective_k_size - input_length
-        )
+
+    # calc. needed padding for case with stride involved
+    output_size = (input_length + stride - 1) // stride
+    total_padding = max(
+        0, (output_size - 1) * stride + effective_k_size - input_length
+    )
 
     # divide padding evenly, with extra pixel going at the end if needed
     left_padding = total_padding // 2
@@ -239,7 +236,12 @@ def _compute_padding_length(
 
 
 def _apply_same_padding(
-    inputs, kernel_size, strides, data_format, operation_type, dilation_rate=1
+    inputs,
+    kernel_size,
+    strides,
+    data_format,
+    padding_mode="constant",
+    dilation_rate=1,
 ):
     """Apply same padding to the input tensor.
 
@@ -258,15 +260,13 @@ def _apply_same_padding(
     num_spatial_dims = len(spatial_shape)
     padding = []
 
-    if operation_type != "pooling":
-        dilation_rate = standardize_tuple(
-            dilation_rate, num_spatial_dims, "dilation_rate"
-        )
+    dilation_rate = standardize_tuple(
+        dilation_rate, num_spatial_dims, "dilation_rate"
+    )
 
     for i in range(num_spatial_dims):
-        dil = 1 if operation_type == "pooling" else dilation_rate[i]
         pad = _compute_padding_length(
-            spatial_shape[i], kernel_size[i], strides[i], dil
+            spatial_shape[i], kernel_size[i], strides[i], dilation_rate[i]
         )
         padding.append(pad)
 
@@ -279,8 +279,7 @@ def _apply_same_padding(
     for pad in reversed(padding):
         flattened_padding.extend(pad)
 
-    mode = "replicate" if operation_type == "pooling" else "constant"
-    return tnn.pad(inputs, pad=tuple(flattened_padding), mode=mode), 0
+    return tnn.pad(inputs, pad=tuple(flattened_padding), mode=padding_mode), 0
 
 
 def _transpose_spatial_inputs(inputs):
@@ -381,7 +380,7 @@ def max_pool(
         # Torch does not natively support `"same"` padding, we need to manually
         # apply the right amount of padding to `inputs`.
         inputs, padding = _apply_same_padding(
-            inputs, pool_size, strides, data_format, "pooling"
+            inputs, pool_size, strides, data_format, padding_mode="replicate"
         )
     else:
         padding = 0
@@ -442,6 +441,9 @@ def average_pool(
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(inputs)
 
+    orig_inputs = inputs
+    manual_padded = False
+
     if padding == "same":
         # Torch does not natively support `"same"` padding, we need to manually
         # apply the right amount of padding to `inputs`.
@@ -450,8 +452,16 @@ def average_pool(
             pool_size,
             strides,
             "channels_first",  # we're in channels_first here
-            "pooling",
         )
+        if padding == 0:
+            manual_padded = True
+            ones = torch.ones_like(orig_inputs)
+            ones_padded, _ = _apply_same_padding(
+                ones,
+                pool_size,
+                strides,
+                "channels_first",
+            )
     else:
         padding = 0
 
@@ -464,6 +474,14 @@ def average_pool(
             padding=padding,
             count_include_pad=False,
         )
+        if manual_padded:
+            outputs_ones = tnn.avg_pool1d(
+                ones_padded,
+                kernel_size=pool_size,
+                stride=strides,
+                padding=padding,
+                count_include_pad=False,
+            )
     elif num_spatial_dims == 2:
         outputs = tnn.avg_pool2d(
             inputs,
@@ -472,6 +490,14 @@ def average_pool(
             padding=padding,
             count_include_pad=False,
         )
+        if manual_padded:
+            outputs_ones = tnn.avg_pool2d(
+                ones_padded,
+                kernel_size=pool_size,
+                stride=strides,
+                padding=padding,
+                count_include_pad=False,
+            )
     elif num_spatial_dims == 3:
         outputs = tnn.avg_pool3d(
             inputs,
@@ -480,12 +506,23 @@ def average_pool(
             padding=padding,
             count_include_pad=False,
         )
+        if manual_padded:
+            outputs_ones = tnn.avg_pool3d(
+                ones_padded,
+                kernel_size=pool_size,
+                stride=strides,
+                padding=padding,
+                count_include_pad=False,
+            )
     else:
         raise ValueError(
             "Inputs to pooling op must have ndim=3, 4 or 5, "
             "corresponding to 1D, 2D and 3D inputs. "
             f"Received input shape: {inputs.shape}."
         )
+
+    if manual_padded:
+        outputs = outputs / outputs_ones
 
     if orig_format == "channels_last":
         outputs = _transpose_spatial_outputs(outputs)
@@ -632,8 +669,8 @@ def conv(
             kernel.shape[2:],
             strides,
             data_format,
-            "conv",
-            dilation_rate,
+            padding_mode="constant",
+            dilation_rate=dilation_rate,
         )
     else:
         padding = 0
