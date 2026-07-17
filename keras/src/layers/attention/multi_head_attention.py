@@ -534,8 +534,10 @@ class MultiHeadAttention(Layer):
 
         if use_dot_product_attention:
             if use_causal_mask and attention_mask is None:
-                # Torch SDPA causal fast path: avoids materialising a [T, S]
-                # mask and enables the causal-only SDPA kernel.
+                # On torch, dispatch straight to the native causal SDPA
+                # kernel. This avoids materialising a [T, S] mask and skips the
+                # ops.dot_product_attention dispatch overhead for the common
+                # eager causal self-attention case.
                 if (
                     backend.backend() == "torch"
                     and backend.is_tensor(query)
@@ -556,7 +558,8 @@ class MultiHeadAttention(Layer):
                         ).transpose(1, 2)
                     )
                 else:
-                    # Non-torch or flash_attention=True: fall through to ops.
+                    # Other backends, or flash attention, fall through to the
+                    # ops path which handles the causal kernel selection.
                     attention_output = ops.dot_product_attention(
                         query=query,
                         key=key,

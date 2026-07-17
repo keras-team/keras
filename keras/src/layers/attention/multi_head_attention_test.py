@@ -1046,8 +1046,6 @@ class MultiHeadAttentionTest(testing.TestCase):
         self.assertDType(layer._gate_dense._kernel, "int8")
         self.assertDType(layer._output_dense._kernel, "int8")
 
-    # P7: SDPA is_causal fast-path and mask-cache coverage
-
     @pytest.mark.skipif(
         backend.backend() != "torch",
         reason="SDPA is_causal fast-path is torch-only",
