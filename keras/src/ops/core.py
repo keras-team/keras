@@ -1076,8 +1076,9 @@ class Cond(Operation):
                 return self.call(*args, **kwargs)
 
         if traceback_utils.is_traceback_filtering_enabled():
-            # Call directly; inject argument info only on exception.
-            # Avoids creating a closure wrapper on every call (hot path).
+            # Call call_fn directly; only inject argument info if it raises.
+            # Avoids wrapping it in an error-handling closure on every call
+            # (hot path).
             try:
                 return call_fn(*args, **kwargs)
             except Exception as e:

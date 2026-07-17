@@ -1,15 +1,12 @@
-"""Tests for the lazy inject_argument_info_in_error path in traceback_utils."""
-
 import numpy as np
+import pytest
+import tensorflow as tf
 
+from keras.src import backend
 from keras.src import testing
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops.operation import Operation
 from keras.src.utils import traceback_utils
-
-# ---------------------------------------------------------------------------
-# Helper layer definitions
-# ---------------------------------------------------------------------------
 
 
 class FailLayer(Operation):
@@ -53,17 +50,23 @@ class FailSymbolicLayer(Operation):
         raise ValueError("bad spec")
 
 
+class TFOpErrorLayer(Operation):
+    """Operation whose call() raises a real `tf.errors.OpError`."""
+
+    def call(self, x):
+        tf.debugging.assert_positive(x, message="must be positive")
+        return x
+
+    def compute_output_spec(self, x):
+        return x
+
+
 class _NonStandardError(Exception):
     """Exception whose constructor does not accept a single positional arg."""
 
     def __init__(self, message, extra):
         super().__init__(message)
         self.extra = extra
-
-
-# ---------------------------------------------------------------------------
-# Tests
-# ---------------------------------------------------------------------------
 
 
 class TracebackUtilsTest(testing.TestCase):
@@ -80,19 +83,11 @@ class TracebackUtilsTest(testing.TestCase):
         else:
             traceback_utils.disable_traceback_filtering()
 
-    # ------------------------------------------------------------------
-    # 1. Happy path — no exception, no overhead
-    # ------------------------------------------------------------------
-
     def test_happy_path_no_exception(self):
         layer = HappyLayer()
         x = np.ones((2, 3), dtype="float32")
         result = layer(x)
         self.assertIs(result, x)  # returned unchanged
-
-    # ------------------------------------------------------------------
-    # 2. Standard exception: type preserved, message augmented
-    # ------------------------------------------------------------------
 
     def test_standard_exception_type_preserved(self):
         layer = FailLayer()
@@ -134,10 +129,6 @@ class TracebackUtilsTest(testing.TestCase):
         self.assertNotIn("args=", msg)
         self.assertNotIn("kwargs=", msg)
 
-    # ------------------------------------------------------------------
-    # 3. Custom exception (non-standard ctor): falls back to RuntimeError
-    # ------------------------------------------------------------------
-
     def test_custom_exception_falls_back_to_runtime_error(self):
         layer = CustomExcLayer()
         x = np.ones((2,), dtype="float32")
@@ -149,9 +140,27 @@ class TracebackUtilsTest(testing.TestCase):
         self.assertIn("oops", str(e))
         self.assertTrue(getattr(e, "_keras_call_info_injected", False))
 
-    # ------------------------------------------------------------------
-    # 4. Filtering disabled: original exception, no augmentation
-    # ------------------------------------------------------------------
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Tensorflow error only"
+    )
+    def test_tf_op_error_preserves_type_and_error_code(self):
+        """Regression test for the `tf.errors.OpError` reconstruction branch
+        in `inject_argument_info_in_error`: a real `OpError` raised inside
+        `call()` must come back out as the same `OpError` subclass, with its
+        `error_code` preserved, and with the usual injected-context header
+        prepended to its message.
+        """
+        layer = TFOpErrorLayer()
+        x = tf.constant([-1, 2, 3])
+        with self.assertRaises(tf.errors.InvalidArgumentError) as ctx:
+            layer(x)
+        e = ctx.exception
+        self.assertIsInstance(e, tf.errors.OpError)
+        self.assertEqual(e.error_code, tf.errors.INVALID_ARGUMENT)
+        self.assertIn("Exception encountered when calling", str(e))
+        self.assertIn("TFOpErrorLayer.call()", str(e))
+        self.assertIn("must be positive", str(e))
+        self.assertTrue(getattr(e, "_keras_call_info_injected", False))
 
     def test_filtering_disabled_original_exception(self):
         traceback_utils.disable_traceback_filtering()
@@ -163,10 +172,6 @@ class TracebackUtilsTest(testing.TestCase):
         # Message should NOT be augmented
         self.assertNotIn("Exception encountered when calling", str(e))
         self.assertFalse(getattr(e, "_keras_call_info_injected", False))
-
-    # ------------------------------------------------------------------
-    # 5. Double-injection prevention via _keras_call_info_injected flag
-    # ------------------------------------------------------------------
 
     def test_no_double_injection(self):
         """inject_argument_info_in_error skips already-injected exceptions."""
@@ -198,11 +203,14 @@ class TracebackUtilsTest(testing.TestCase):
             augmented = None  # flag is set — skip injection
         self.assertIsNone(augmented)  # guard prevented second injection
 
-    # ------------------------------------------------------------------
-    # 6. inject_argument_info_in_error returns None for unbindable args
-    # ------------------------------------------------------------------
+    def test_unbindable_args_falls_back_to_raw_args_kwargs_dump(self):
+        """When `args`/`kwargs` cannot be bound to `fn`'s signature (e.g. a
+        symbolic-path arg-count mismatch, or a third-party `call` override
+        with a divergent signature), argument context is not silently
+        dropped: it falls back to a raw `args=`/`kwargs=` dump instead of
+        the usual per-parameter listing.
+        """
 
-    def test_returns_none_for_unbindable_args(self):
         def fn_no_args():
             pass
 
@@ -210,15 +218,32 @@ class TracebackUtilsTest(testing.TestCase):
         result = traceback_utils.inject_argument_info_in_error(
             e,
             fn_no_args,
-            (1, 2, 3),
-            {},  # too many positional args
+            (1, 2, 3),  # too many positional args -> unbindable
+            {"extra": "kw"},
+        )
+        self.assertIsNotNone(result)
+        msg = str(result)
+        self.assertIn("Exception encountered when calling", msg)
+        self.assertIn("boom", msg)
+        self.assertIn("args=(1, 2, 3)", msg)
+        self.assertIn("kwargs={extra='kw'}", msg)
+        self.assertTrue(getattr(result, "_keras_call_info_injected", False))
+
+    def test_unbindable_args_with_nothing_to_report_returns_none(self):
+        """If `args`/`kwargs` cannot be bound and are both empty (e.g. a
+        required positional argument is missing entirely), there is nothing
+        for the raw-dump fallback to report either, so augmentation is
+        skipped and the original exception surfaces unchanged.
+        """
+
+        def fn_requires_one_arg(x):
+            pass
+
+        e = ValueError("boom")
+        result = traceback_utils.inject_argument_info_in_error(
+            e, fn_requires_one_arg, (), {}
         )
         self.assertIsNone(result)
-
-    # ------------------------------------------------------------------
-    # 7. Failed flag-set must not duplicate the augmented message across
-    #    nested Operation calls.
-    # ------------------------------------------------------------------
 
     def test_setattr_failure_does_not_duplicate_message_across_nesting(self):
         """Regression test for duplicated augmentation text.
