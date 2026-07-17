@@ -1773,6 +1773,40 @@ class NNOpsCorrectnessTest(testing.TestCase):
             ),
         )
 
+    @parameterized.named_parameters(
+        ("channels_last", "channels_last"),
+        ("channels_first", "channels_first"),
+    )
+    def test_average_pool_same_padding_asymmetric(self, data_format):
+        # Test 1D asymmetric padding (pool_size=3, strides=2)
+        if data_format == "channels_last":
+            x = np.array([[[10.0], [20.0]]], dtype="float32")
+        else:
+            x = np.array([[[10.0, 20.0]]], dtype="float32")
+
+        res = knn.average_pool(
+            x, pool_size=3, strides=2, padding="same", data_format=data_format
+        )
+        self.assertAllClose(res, np.array([15.0]).reshape(res.shape))
+
+        # Test 2D asymmetric padding
+        if data_format == "channels_last":
+            x = np.array(
+                [[[[10.0], [20.0]]]], dtype="float32"
+            )  # shape (1, 1, 2, 1)
+        else:
+            x = np.array(
+                [[[[10.0, 20.0]]]], dtype="float32"
+            )  # shape (1, 1, 1, 2)
+        res = knn.average_pool(
+            x,
+            pool_size=(1, 3),
+            strides=(1, 2),
+            padding="same",
+            data_format=data_format,
+        )
+        self.assertAllClose(res, np.array([15.0]).reshape(res.shape))
+
     @parameterized.product(
         strides=(1, 2, 3),
         padding=("valid", "same"),
