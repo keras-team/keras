@@ -23,6 +23,9 @@ from keras.src.quantizers.quantization_config import get_block_size_for_layer
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.saving import serialization_lib
 
+if backend.backend() == "torch":
+    import torch
+
 
 @keras_export("keras.layers.EinsumDense")
 class EinsumDense(Layer):
@@ -234,12 +237,9 @@ class EinsumDense(Layer):
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank, lora_alpha=self.lora_alpha)
-        # Flag set at build; lora_enabled re-checked at call time.
+        # Cache the torch fast-path eligibility at build time; `lora_enabled`
+        # is re-checked at call time.
         self._torch_backend = backend.backend() == "torch"
-        if self._torch_backend:
-            import torch as _torch
-
-            self._torch = _torch
 
     @property
     def kernel(self):
@@ -323,15 +323,15 @@ class EinsumDense(Layer):
             # Skip under torch.compile: meta-device weights cause fake-tensor
             # issues with torch.einsum.
             if not (
-                hasattr(self._torch.compiler, "is_compiling")
-                and self._torch.compiler.is_compiling()
+                hasattr(torch.compiler, "is_compiling")
+                and torch.compiler.is_compiling()
             ):
                 kernel = self._kernel.value
                 scope_device = global_state.get_global_attribute(
                     "torch_device", None
                 )
                 if scope_device is not None:
-                    target_device = self._torch.device(scope_device)
+                    target_device = torch.device(scope_device)
                     if kernel.device != target_device:
                         kernel = kernel.to(target_device)
                 else:
@@ -344,7 +344,7 @@ class EinsumDense(Layer):
                 # to int -> near-all-zeros). Let the standard path's
                 # dtype-promotion rules handle any mismatch instead.
                 if inputs.dtype == kernel.dtype:
-                    x = self._torch.einsum(self.equation, inputs, kernel)
+                    x = torch.einsum(self.equation, inputs, kernel)
                     if self.bias is not None:
                         bias = self.bias.value
                         if bias.device != target_device:

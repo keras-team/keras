@@ -18,6 +18,10 @@ from keras.src.quantizers.quantization_config import get_block_size_for_layer
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.saving import serialization_lib
 
+if backend.backend() == "torch":
+    import torch
+    import torch.nn.functional as F
+
 
 @keras_export("keras.layers.Dense")
 class Dense(Layer):
@@ -156,14 +160,9 @@ class Dense(Layer):
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
-        # Flag set at build; lora_enabled re-checked at call time.
+        # Cache the torch fast-path eligibility at build time; `lora_enabled`
+        # is re-checked at call time.
         self._torch_backend = backend.backend() == "torch"
-        if self._torch_backend:
-            import torch as _torch
-            import torch.nn.functional as _torch_F
-
-            self._torch = _torch
-            self._torch_F = _torch_F
 
     @property
     def kernel(self):
@@ -236,15 +235,15 @@ class Dense(Layer):
             # Skip under torch.compile: meta-device weights cause fake-tensor
             # issues with F.linear.
             if not (
-                hasattr(self._torch.compiler, "is_compiling")
-                and self._torch.compiler.is_compiling()
+                hasattr(torch.compiler, "is_compiling")
+                and torch.compiler.is_compiling()
             ):
                 kernel = self._kernel.value
                 scope_device = global_state.get_global_attribute(
                     "torch_device", None
                 )
                 if scope_device is not None:
-                    target_device = self._torch.device(scope_device)
+                    target_device = torch.device(scope_device)
                     if kernel.device != target_device:
                         kernel = kernel.to(target_device)
                 else:
@@ -260,7 +259,7 @@ class Dense(Layer):
                     bias = self.bias.value if self.bias is not None else None
                     if bias is not None and bias.device != target_device:
                         bias = bias.to(target_device)
-                    x = self._torch_F.linear(inputs, kernel.t(), bias)
+                    x = F.linear(inputs, kernel.t(), bias)
                     if self.activation is not None:
                         x = self.activation(x)
                     return x
