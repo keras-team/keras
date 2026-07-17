@@ -584,8 +584,7 @@ def standardize_dtype(dtype):
     if isinstance(dtype, str):
         if dtype in dtypes.ALLOWED_DTYPES_SET:
             return dtype
-        # Could be a mapped string like "int" -> fall through to
-        # PYTHON_DTYPES_MAP
+        # A mapped alias like "int" falls through to PYTHON_DTYPES_MAP.
         mapped = dtypes.PYTHON_DTYPES_MAP.get(dtype)
         if mapped is not None:
             return mapped
