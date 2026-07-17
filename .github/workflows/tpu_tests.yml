@@ -50,8 +50,10 @@ jobs:
 
     steps:
       - name: Checkout ${{ github.ref }}
-        uses: actions/checkout@v7
-      
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+
       - name: Install binary dependencies
         # curl, git, gpg are for codecov/codecov-action
         run: |
@@ -62,7 +64,7 @@ jobs:
 
       - name: Install Python dependencies
         run: pip install --no-cache-dir -r requirements-${{ matrix.backend }}-tpu.txt
-      
+
       - name: Verify JAX Installation
         run: python3 -c "import jax; print('JAX devices:', jax.devices(), jax.devices()[0].device_kind); assert jax.default_backend() == 'tpu'"
 
@@ -78,7 +80,7 @@ jobs:
         run: coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
 
       - name: Upload Coverage
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v5
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           env_vars: KERAS_HOME
           flags: keras,keras-tpu,keras-${{ matrix.backend }}${{ matrix.multi_device == 'true' && '-multi' || '' }}
