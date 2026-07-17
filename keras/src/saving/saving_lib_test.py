@@ -1715,12 +1715,6 @@ class SafeZipReadTest(testing.TestCase):
                 saving_lib.load_model(evil)
 
     def test_load_model_rejects_extraction_bomb(self):
-        # A >3-member archive triggers the disk-backed asset store, which
-        # extracts *every* member via `extractall`. `_reject_zip_bomb` only
-        # guards the in-memory reads, so a bomb member added here would be
-        # decompressed to disk unchecked; it must be rejected before extraction.
-        import keras
-
         model = keras.Sequential([keras.Input((4,)), keras.layers.Dense(3)])
         good = os.path.join(self.get_temp_dir(), "good.keras")
         model.save(good)

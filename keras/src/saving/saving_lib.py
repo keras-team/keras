@@ -471,12 +471,7 @@ def _safe_zip_read(archive, name):
         return f.read()
 
 
-# Extracting the asset store decompresses *every* archive member to disk via
-# `ZipFile.extractall`, which `_reject_zip_bomb` (used only for the in-memory
-# reads) never sees. Apply the same per-member declared-vs-stored ratio to every
-# member before extraction. Keras writes `.keras` members uncompressed
-# (ratio ~1), so the ratio is false-positive-free; the lower floor reflects that
-# this fills the disk rather than allocating a single in-memory buffer.
+# Lower floor than the in-memory guard: extraction fills the disk cumulatively.
 _ZIP_EXTRACT_BOMB_FLOOR_BYTES = 1 << 28  # 256 MiB
 
 
@@ -1096,8 +1091,6 @@ class DiskIOStore:
         if self.archive:
             self.tmp_dir = get_temp_dir()
             if self.mode == "r":
-                # Reject a decompression bomb before extracting every member to
-                # disk (`_reject_zip_bomb` only guards the in-memory reads).
                 _reject_zip_extract_bomb(self.archive)
                 file_utils.extract_open_archive(self.archive, self.tmp_dir)
             self.working_dir = file_utils.join(
