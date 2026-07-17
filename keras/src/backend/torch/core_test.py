@@ -110,10 +110,6 @@ class TorchCoreTest(testing.TestCase):
         result = torch_slice(x, start_indices, shape)
         self.assertEqual(tuple(result.shape), (2, 2, 2))
 
-    # ---------------------------------------------------------------
-    # RC10/T2: fast-path tests for convert_to_tensor and cast
-    # ---------------------------------------------------------------
-
     def test_convert_to_tensor_tensor_no_op_is_identity(self):
         """Tensor on default device, dtype=None → same object returned."""
         t = torch.tensor([1.0, 2.0], dtype=torch.float32, device=get_device())
@@ -177,6 +173,12 @@ class TorchCoreTest(testing.TestCase):
         r = convert_to_tensor(True)
         self.assertEqual(r.dtype, torch.bool)
 
+    def test_convert_to_tensor_python_complex(self):
+        """Python complex → torch.complex64."""
+        r = convert_to_tensor(complex(1.0, 2.0))
+        self.assertEqual(r.dtype, torch.complex64)
+        self.assertEqual(r.item(), complex(1.0, 2.0))
+
     def test_convert_to_tensor_list(self):
         """list of floats → torch.float32."""
         r = convert_to_tensor([1.0, 2.0])
@@ -220,7 +222,6 @@ class TorchCoreTest(testing.TestCase):
     def test_compile_numpy_input_does_not_raise(self):
         """torch.compile with numpy input must not raise
         (dynamo-disable guard)."""
-        import numpy as np
 
         def fn(np_arr):
             return convert_to_tensor(np_arr) * 2

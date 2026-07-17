@@ -214,88 +214,13 @@ def _tensor_on_device(x, device):
     return True
 
 
-def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
-    # Ultra-fast path: torch.Tensor with no dtype conversion needed.
-    # Covers torch.Tensor and torch.nn.Parameter (common for weights).
-    # Return identity if already on the target device, otherwise move it.
-    if (
-        isinstance(x, torch.Tensor)
-        and dtype is None
-        and not sparse
-        and not ragged
-    ):
-        device = get_device()
-        if _tensor_on_device(x, device):
-            return x
-        if x.is_meta:
-            return torch.empty_like(x, device=device)
-        return x.to(device)
-    if sparse:
-        raise ValueError("`sparse=True` is not supported with torch backend")
-    if ragged:
-        raise ValueError("`ragged=True` is not supported with torch backend")
-    if isinstance(x, Variable) or is_tensor(x):
-        if isinstance(x, Variable):
-            x = x.value
-        # Fast path: no dtype conversion and already on the correct device.
-        if dtype is None:
-            device = get_device()
-            if _tensor_on_device(x, device):
-                return x
-            if x.is_meta:
-                return torch.empty_like(x, device=device)
-            return x.to(device)
-        device = get_device()
-        if not _tensor_on_device(x, device):
-            if x.is_meta:
-                x = torch.empty_like(x, device=device)
-            else:
-                x = x.to(device)
-        x = x.to(to_torch_dtype(dtype))
-        return x
-    # Fast path for python primitives — single torch.as_tensor call.
-    if isinstance(x, (bool, int, float, complex)):
-        if dtype is None:
-            if isinstance(x, bool):
-                dtype = "bool"
-            elif isinstance(x, int):
-                dtype = "int64" if x < -(2**31) or x >= 2**31 else "int32"
-            elif isinstance(x, float):
-                dtype = floatx()
-            else:
-                dtype = "complex64"
-        return torch.as_tensor(
-            x, dtype=to_torch_dtype(dtype), device=get_device()
-        )
-    if isinstance(x, (torch.SymInt, torch.SymFloat)):
-        # Scalar symbolic values from torch.export can't go through numpy.
-        dt = to_torch_dtype(dtype) if dtype is not None else None
-        return torch.as_tensor(x, dtype=dt, device=get_device())
-
-    # List/tuple: handle torch.Tensor and SymInt elements before numpy path.
-    if isinstance(x, (list, tuple)):
-        if len(x) > 0 and any(isinstance(x1, torch.Tensor) for x1 in x):
-            # Handle list or tuple of torch tensors
-            return torch.stack([convert_to_tensor(x1) for x1 in x])
-        if len(x) > 0 and any(
-            isinstance(x1, (torch.SymInt, torch.SymFloat))
-            for x1 in tree.flatten(x)
-        ):
-            # Symbolic shape values from torch.export can't go through numpy
-            # and don't have a .dtype attribute. Use torch.as_tensor directly.
-            dt = to_torch_dtype(dtype) if dtype is not None else None
-            return torch.as_tensor(x, dtype=dt, device=get_device())
-
-    return _convert_numpy_or_arraylike_to_tensor(x, dtype)
-
-
 @torch.compiler.disable()
 def _convert_numpy_or_arraylike_to_tensor(x, dtype):
     """Convert numpy arrays or array-like objects to torch tensors.
 
     Decorated with @torch.compiler.disable() so that dynamo never tries to
     trace through numpy ndarray attribute access (e.g. x.dtype), which causes
-    graph breaks.  All torch.Tensor / Variable / primitive fast-paths are
+    graph breaks. All torch.Tensor / Variable / primitive fast-paths are
     handled in convert_to_tensor before this function is called.
     """
     # Convert to np in case of any array-like that is not list or tuple.
@@ -319,6 +244,83 @@ def _convert_numpy_or_arraylike_to_tensor(x, dtype):
         )
     dtype = to_torch_dtype(dtype)
     return torch.as_tensor(x, dtype=dtype, device=get_device())
+
+
+def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
+    # Ultra-fast path covering torch.Tensor and torch.nn.Parameter (the
+    # common case for weights) when no dtype conversion is needed: return
+    # the tensor as-is if it's already on the target device, otherwise move
+    # it there.
+    if (
+        isinstance(x, torch.Tensor)
+        and dtype is None
+        and not sparse
+        and not ragged
+    ):
+        device = get_device()
+        if _tensor_on_device(x, device):
+            return x
+        if x.is_meta:
+            return torch.empty_like(x, device=device)
+        return x.to(device)
+    if sparse:
+        raise ValueError("`sparse=True` is not supported with torch backend")
+    if ragged:
+        raise ValueError("`ragged=True` is not supported with torch backend")
+    if isinstance(x, Variable) or is_tensor(x):
+        if isinstance(x, Variable):
+            x = x.value
+        # Fast path when no dtype conversion is needed and the tensor is
+        # already on the correct device.
+        if dtype is None:
+            device = get_device()
+            if _tensor_on_device(x, device):
+                return x
+            if x.is_meta:
+                return torch.empty_like(x, device=device)
+            return x.to(device)
+        device = get_device()
+        if not _tensor_on_device(x, device):
+            if x.is_meta:
+                x = torch.empty_like(x, device=device)
+            else:
+                x = x.to(device)
+        x = x.to(to_torch_dtype(dtype))
+        return x
+    # Fast path for python primitives — single torch.as_tensor call.
+    if isinstance(x, (bool, int, float, complex)):
+        if dtype is not None:
+            dt = to_torch_dtype(dtype)
+        elif isinstance(x, bool):
+            dt = torch.bool
+        elif isinstance(x, int):
+            dt = torch.int64 if x < -(2**31) or x >= 2**31 else torch.int32
+        elif isinstance(x, float):
+            dt = TORCH_DTYPES[floatx()]
+        else:
+            dt = torch.complex64
+        return torch.as_tensor(x, dtype=dt, device=get_device())
+    if isinstance(x, (torch.SymInt, torch.SymFloat)):
+        # Scalar symbolic values from torch.export can't go through numpy.
+        dt = to_torch_dtype(dtype) if dtype is not None else None
+        return torch.as_tensor(x, dtype=dt, device=get_device())
+
+    # Handle torch.Tensor and SymInt elements in a list/tuple before falling
+    # through to the numpy path.
+    if isinstance(x, (list, tuple)):
+        if len(x) > 0 and any(isinstance(x1, torch.Tensor) for x1 in x):
+            # Handle list or tuple of torch tensors
+            return torch.stack([convert_to_tensor(x1) for x1 in x])
+        if len(x) > 0 and any(
+            isinstance(x1, (torch.SymInt, torch.SymFloat))
+            for x1 in tree.flatten(x)
+        ):
+            # Symbolic shape values from torch.export can't go through numpy
+            # and don't have a .dtype attribute. Use torch.as_tensor directly.
+            dt = to_torch_dtype(dtype) if dtype is not None else None
+            return torch.as_tensor(x, dtype=dt, device=get_device())
+
+    return _convert_numpy_or_arraylike_to_tensor(x, dtype)
 
 
 def convert_to_numpy(x):
