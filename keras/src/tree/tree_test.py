@@ -2622,10 +2622,16 @@ class TreeTest(testing.TestCase):
         self.assertTrue(torch.equal(packed_dod["b"]["d"], t2))
 
         # An equivalent structure with keys already sorted at every level
-        # must round-trip to the same values at the same nested keys as the
-        # out-of-order structure above.
+        # must produce the same flat leaf order as the out-of-order
+        # structure above, not just round-trip correctly on its own,
+        # since a canonicalization that only sorts the outer level would
+        # still pass a self-consistent round-trip check while leaving the
+        # flat order non-deterministic at nested levels.
         sorted_dod = {"a": t3, "b": {"c": tensor, "d": t2}}
         flat_sorted_dod = t.flatten(sorted_dod)
+        self.assertEqual(len(flat_dod), len(flat_sorted_dod))
+        for leaf, sorted_leaf in zip(flat_dod, flat_sorted_dod):
+            self.assertTrue(torch.equal(leaf, sorted_leaf))
         packed_sorted_dod = t.pack_sequence_as(sorted_dod, flat_sorted_dod)
         self.assertEqual(set(packed_dod.keys()), set(packed_sorted_dod.keys()))
         self.assertEqual(
