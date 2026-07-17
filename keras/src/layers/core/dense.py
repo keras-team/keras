@@ -228,12 +228,13 @@ class Dense(Layer):
         return kernel
 
     def call(self, inputs, training=None):
-        # Fast path: F.linear bypasses Keras ops dispatch.
-        # Quantization routes to quantized_call() before reaching here.
-        # kernel is [in, out]; F.linear wants [out, in] so we pass kernel.t().
+        # On the torch backend, call F.linear directly rather than going
+        # through Keras's ops dispatch. This only applies to a plain eager
+        # forward: quantized layers route through quantized_call() before
+        # ever reaching call(), LoRA needs the ops path for its additive
+        # branch, and torch.compile tracing is skipped because meta-device
+        # weights make F.linear raise under fake tensors.
         if self._torch_backend and not self.lora_enabled:
-            # Skip under torch.compile: meta-device weights cause fake-tensor
-            # issues with F.linear.
             if not (
                 hasattr(torch.compiler, "is_compiling")
                 and torch.compiler.is_compiling()
@@ -250,20 +251,23 @@ class Dense(Layer):
                     target_device = kernel.device
                 if inputs.device != target_device:
                     inputs = inputs.to(target_device)
-                # Do not cast the kernel toward inputs.dtype: that's a
-                # downcast, not a promotion, and silently corrupts the
-                # result for e.g. integer inputs (float kernel truncated
-                # to int -> near-all-zeros). Let the standard path's
-                # dtype-promotion rules handle any mismatch instead.
+                # A dtype mismatch falls through to the standard path below
+                # rather than casting the kernel toward the input's dtype
+                # here: that would be a downcast, not a promotion, and it
+                # would silently corrupt the result for integer inputs (a
+                # float kernel truncated to int becomes near-all-zeros).
+                # The standard path already applies the correct
+                # dtype-promotion rules.
                 if inputs.dtype == kernel.dtype:
                     bias = self.bias.value if self.bias is not None else None
                     if bias is not None and bias.device != target_device:
                         bias = bias.to(target_device)
+                    # Keras stores the kernel as [in, out]; F.linear expects
+                    # [out, in].
                     x = F.linear(inputs, kernel.t(), bias)
                     if self.activation is not None:
                         x = self.activation(x)
                     return x
-        # Standard path: non-torch, LoRA, or torch.compile.
         x = ops.matmul(inputs, self.kernel)
         if self.bias is not None:
             x = ops.add(x, self.bias)
