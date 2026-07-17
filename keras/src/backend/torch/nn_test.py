@@ -94,7 +94,7 @@ class TorchConvChannelsLastTest(testing.TestCase):
         base = torch.from_numpy(
             np.random.RandomState(6).randn(2, 8, 18, 3).astype("float32")
         ).to(device)
-        # Strided slice along a spatial axis: not contiguous in any
+        # A strided slice along a spatial axis is not contiguous in any
         # memory format.
         inputs = base[:, :, ::2, :]
         self.assertFalse(inputs.is_contiguous())

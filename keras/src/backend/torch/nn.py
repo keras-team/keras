@@ -292,9 +292,9 @@ def _transpose_spatial_inputs(inputs, channels_last_format=False):
     # require contiguous memory. Adding .contiguous() ensures
     # compatible memory layout.
     # For 2D/3D conv inputs, `channels_last_format=True` requests the
-    # channels_last memory format directly. A permuted NHWC->NCHW view of
-    # a contiguous tensor is already channels_last-contiguous, so this is
-    # zero-copy and avoids a redundant standard contiguous copy.
+    # channels_last memory format directly instead of the standard
+    # contiguous format above: a permuted NHWC->NCHW view of a contiguous
+    # tensor is already channels_last-contiguous, so this is zero-copy.
     ndim = inputs.ndim - 2
     if ndim == 1:  # 1D case
         return torch.permute(inputs, (0, 2, 1)).contiguous()
@@ -595,9 +595,9 @@ def conv(
 
     data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_last":
-        # Permute NHWC->NCHW and convert to channels_last in one step.
-        # This drops the redundant standard contiguous copy that a
-        # separate `_maybe_convert_to_channels_last(inputs)` call required.
+        # Permute NHWC to NCHW and convert to channels_last memory format
+        # in the same step, since a permuted view of a contiguous tensor
+        # is already channels_last-contiguous and needs no extra copy.
         inputs = _transpose_spatial_inputs(inputs, channels_last_format=True)
 
     kernel = _transpose_conv_kernel(kernel)
