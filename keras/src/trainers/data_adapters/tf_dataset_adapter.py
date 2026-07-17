@@ -27,7 +27,7 @@ class TFDatasetAdapter(DataAdapter):
                 "Expected argument `dataset` to be a tf.data.Dataset. "
                 f"Received: {dataset}"
             )
-        if class_weight is not None:
+        if class_weight:
             dataset = dataset.map(
                 make_class_weight_map_fn(class_weight)
             ).prefetch(tf.data.AUTOTUNE)
@@ -108,17 +108,14 @@ def make_class_weight_map_fn(class_weight):
     from keras.src.utils.module_utils import tensorflow as tf
 
     class_weight_dtype = tf.as_dtype(backend.floatx())
-    if class_weight:
-        class_weight_clean = {
-            int(key): float(value) for key, value in class_weight.items()
-        }
-        max_class = max(class_weight_clean.keys())
-        class_weight_tensor = tf.convert_to_tensor(
-            [class_weight_clean.get(c, 1.0) for c in range(max_class + 1)],
-            dtype=class_weight_dtype,
-        )
-    else:
-        class_weight_tensor = None
+    class_weight_clean = {
+        int(key): float(value) for key, value in class_weight.items()
+    }
+    max_class = max(class_weight_clean.keys())
+    class_weight_tensor = tf.convert_to_tensor(
+        [class_weight_clean.get(c, 1.0) for c in range(max_class + 1)],
+        dtype=class_weight_dtype,
+    )
 
     def class_weights_map_fn(*data):
         """Convert `class_weight` to `sample_weight`."""
@@ -144,16 +141,13 @@ def make_class_weight_map_fn(class_weight):
             # Special casing for rank 1, where we can guarantee sparse encoding.
             y_classes = tf.cast(tf.round(y), tf.int32)
 
-        if class_weight_tensor is None:
-            cw = tf.ones(tf.shape(y_classes), dtype=class_weight_dtype)
-        else:
-            clipped_y_classes = tf.clip_by_value(y_classes, 0, max_class)
-            cw = tf.gather(class_weight_tensor, clipped_y_classes)
-            cw = tf.where(
-                (y_classes >= 0) & (y_classes <= max_class),
-                cw,
-                tf.constant(1.0, dtype=class_weight_dtype),
-            )
+        clipped_y_classes = tf.clip_by_value(y_classes, 0, max_class)
+        cw = tf.gather(class_weight_tensor, clipped_y_classes)
+        cw = tf.where(
+            (y_classes >= 0) & (y_classes <= max_class),
+            cw,
+            tf.constant(1.0, dtype=class_weight_dtype),
+        )
         return x, y, cw
 
     return class_weights_map_fn

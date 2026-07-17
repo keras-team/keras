@@ -102,7 +102,7 @@ class TestTFDatasetAdapter(testing.TestCase):
             _, _, bw = batch
             self.assertAllClose(bw, [0.1, 1.0, 0.3, 1.0])
 
-    def test_empty_class_weights_default_to_one(self):
+    def test_empty_class_weights_ignored(self):
         x = np.random.random((4, 2))
         y = np.array([[0], [1], [2], [3]], dtype="int64")
 
@@ -110,9 +110,7 @@ class TestTFDatasetAdapter(testing.TestCase):
         adapter = tf_dataset_adapter.TFDatasetAdapter(base_ds, class_weight={})
         gen = adapter.get_numpy_iterator()
         for batch in gen:
-            self.assertEqual(len(batch), 3)
-            _, _, bw = batch
-            self.assertAllClose(bw, [1.0, 1.0, 1.0, 1.0])
+            self.assertEqual(len(batch), 2)
 
     def test_num_batches(self):
         dataset = tf.data.Dataset.range(42)

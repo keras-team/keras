@@ -141,11 +141,6 @@ class RandomPerspective(BaseImagePreprocessingLayer):
             seed=seed,
             dtype=self.compute_dtype,
         )
-        perspective_factor = self.backend.numpy.where(
-            apply_perspective[:, None, None],
-            perspective_factor,
-            self.backend.numpy.zeros_like(perspective_factor),
-        )
 
         start_points = self.backend.convert_to_tensor(
             [
