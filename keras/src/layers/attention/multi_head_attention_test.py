@@ -1058,7 +1058,7 @@ class MultiHeadAttentionTest(testing.TestCase):
         torch.nn.functional.scaled_dot_product_attention(is_causal=True).
         Passing return_attention_scores=True forces the layer off that fast
         path (use_dot_product_attention becomes False) onto the full explicit-
-        softmax causal path.  Both must agree within float32 tolerance.
+        softmax causal path. Both must agree within float32 tolerance.
         """
         import torch
 
@@ -1113,8 +1113,8 @@ class MultiHeadAttentionTest(testing.TestCase):
 
         When attention_mask is provided, causal_only is False in call(), so
         _compute_attention_mask is called and the result is passed into
-        _compute_attention.  The fast path (use_causal_mask and
-        attention_mask is None) is skipped.  Must not crash.
+        _compute_attention. The fast path (use_causal_mask and
+        attention_mask is None) is skipped. Must not crash.
         """
         batch, seq, feat = 2, 5, 16
         layer = layers.MultiHeadAttention(num_heads=2, key_dim=4)
@@ -1158,7 +1158,7 @@ class MultiHeadAttentionTest(testing.TestCase):
 
         return_attention_scores=True forces use_dot_product_attention=False,
         routing through the manual softmax path that calls _compute_causal_mask
-        and fills the cache.  The SDPA is_causal=True fast path skips the
+        and fills the cache. The SDPA is_causal=True fast path skips the
         cache entirely, so using it here would leave the cache empty and test
         nothing.
         """

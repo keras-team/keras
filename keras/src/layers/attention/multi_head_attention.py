@@ -204,7 +204,7 @@ class MultiHeadAttention(Layer):
         # (q_seq_len, kv_seq_len, device_str, "bool").
         # Max 8 entries: typical models use 1-2 distinct lengths; the cap
         # prevents unbounded growth during beam search or variable-length
-        # inference.  The mask is always bool, so dtype is not part of the
+        # inference. The mask is always bool, so dtype is not part of the
         # key — float16 and float32 queries produce the same mask.
         self._causal_mask_cache = {}
 
@@ -836,7 +836,7 @@ class MultiHeadAttention(Layer):
         # Cache masks only on the torch backend with static Python int shapes.
         # On JAX/TF, ops.ones/cumsum return symbolic tensors or Tracers even
         # when the lengths happen to be Python ints (e.g. inside jax.jit or
-        # tf.function).  Caching and reusing those across tracing contexts
+        # tf.function). Caching and reusing those across tracing contexts
         # triggers UnexpectedTracerError (JAX) or graph-mismatch errors (TF).
         # JAX and TF constant-fold the mask at compile time anyway, so the
         # cache buys nothing on those backends.
