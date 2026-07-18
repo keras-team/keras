@@ -69,6 +69,45 @@ class _NonStandardError(Exception):
         self.extra = extra
 
 
+class _LockedError(Exception):
+    """Exception whose __setattr__ rejects new attributes once construction
+    has completed."""
+
+    def __init__(self, message):
+        super().__init__(message)
+        object.__setattr__(self, "_locked", True)
+
+    def __setattr__(self, name, value):
+        if getattr(self, "_locked", False) and name != "args":
+            raise AttributeError(f"cannot set {name!r}")
+        object.__setattr__(self, name, value)
+
+
+class InnerLockedLayer(Operation):
+    """Operation whose call() raises a `_LockedError`."""
+
+    def call(self, x):
+        raise _LockedError("bad input")
+
+    def compute_output_spec(self, x):
+        return x
+
+
+class OuterLockedLayer(Operation):
+    """Operation that delegates to `InnerLockedLayer`, to exercise
+    re-augmentation across nested `Operation.__call__` levels."""
+
+    def __init__(self):
+        super().__init__()
+        self.inner = InnerLockedLayer()
+
+    def call(self, x):
+        return self.inner(x)
+
+    def compute_output_spec(self, x):
+        return x
+
+
 class TracebackUtilsTest(testing.TestCase):
     """Tests for inject_argument_info_in_error (lazy, on-error-path only)."""
 
@@ -257,38 +296,6 @@ class TracebackUtilsTest(testing.TestCase):
         failed flag-set fall back to the plain original exception so the
         text never appears more than once.
         """
-
-        class _LockedError(Exception):
-            """Exception whose __setattr__ rejects new attributes once
-            construction has completed."""
-
-            def __init__(self, message):
-                super().__init__(message)
-                object.__setattr__(self, "_locked", True)
-
-            def __setattr__(self, name, value):
-                if getattr(self, "_locked", False) and name != "args":
-                    raise AttributeError(f"cannot set {name!r}")
-                object.__setattr__(self, name, value)
-
-        class InnerLockedLayer(Operation):
-            def call(self, x):
-                raise _LockedError("bad input")
-
-            def compute_output_spec(self, x):
-                return x
-
-        class OuterLockedLayer(Operation):
-            def __init__(self):
-                super().__init__()
-                self.inner = InnerLockedLayer()
-
-            def call(self, x):
-                return self.inner(x)
-
-            def compute_output_spec(self, x):
-                return x
-
         layer = OuterLockedLayer()
         x = np.ones((2,), dtype="float32")
         with self.assertRaises(_LockedError) as ctx:
