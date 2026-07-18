@@ -1852,6 +1852,15 @@ class EinsumDenseTest(testing.TestCase):
         self.assertAllClose(y_before, y_after)
 
 
+class DoubledKernelEinsumDense(layers.EinsumDense):
+    """An EinsumDense subclass overriding `kernel`, used to verify the
+    torch fast path doesn't silently bypass a subclass's override of it."""
+
+    @property
+    def kernel(self):
+        return super().kernel * 2
+
+
 @pytest.mark.skipif(backend.backend() != "torch", reason="torch backend only")
 class EinsumDenseTorchFastPathTest(testing.TestCase):
     @parameterized.named_parameters(
@@ -1937,12 +1946,6 @@ class EinsumDenseTorchFastPathTest(testing.TestCase):
         read `self._kernel.value` directly instead of the overridden
         property.
         """
-
-        class DoubledKernelEinsumDense(layers.EinsumDense):
-            @property
-            def kernel(self):
-                return super().kernel * 2
-
         torch.manual_seed(0)
         layer = DoubledKernelEinsumDense(
             "ab,bc->ac", output_shape=8, bias_axes=None

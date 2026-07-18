@@ -1454,6 +1454,15 @@ class DenseTest(testing.TestCase):
         )
 
 
+class DoubledKernelDense(layers.Dense):
+    """A Dense subclass overriding `kernel`, used to verify the torch fast
+    path doesn't silently bypass a subclass's override of it."""
+
+    @property
+    def kernel(self):
+        return super().kernel * 2
+
+
 @pytest.mark.skipif(backend.backend() != "torch", reason="torch backend only")
 class DenseTorchFastPathTest(testing.TestCase):
     @parameterized.named_parameters(
@@ -1538,12 +1547,6 @@ class DenseTorchFastPathTest(testing.TestCase):
         silently bypassed by the fast path, which would otherwise read
         `self._kernel.value` directly instead of the overridden property.
         """
-
-        class DoubledKernelDense(layers.Dense):
-            @property
-            def kernel(self):
-                return super().kernel * 2
-
         torch.manual_seed(0)
         layer = DoubledKernelDense(8, use_bias=False)
         x_t = torch.randn(4, 6)
