@@ -72,7 +72,7 @@ def device_scope(device_name):
 
 
 def get_device():
-    device = global_state.get_global_attribute("torch_device", None)
+    device = getattr(global_state.GLOBAL_STATE_TRACKER, "torch_device", None)
     if device is None:
         return DEFAULT_DEVICE
     return device
