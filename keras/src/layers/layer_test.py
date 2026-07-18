@@ -13,8 +13,10 @@ from keras.src import metrics
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src import tree
 from keras.src.backend.common import global_state
 from keras.src.backend.common.remat import RematScope
+from keras.src.layers.layer import CallSpec
 from keras.src.models import Model
 
 
@@ -1947,3 +1949,184 @@ class LayerTest(testing.TestCase):
         mask = np.ones((2, 1), dtype="float32")
         y = layer(x, attention_mask=mask)
         self.assertEqual(y.shape, (2, 3))
+
+    def _assert_callspec_dict_equal(self, fast_dict, slow_dict):
+        # Compare CallSpec arg dicts. Tensor/symbolic values are the same
+        # object in both specs (compare by identity); everything else by
+        # value. This avoids elementwise tensor comparisons.
+        self.assertEqual(list(fast_dict.keys()), list(slow_dict.keys()))
+        for key in fast_dict:
+            fast_value = fast_dict[key]
+            slow_value = slow_dict[key]
+            if backend.is_tensor(fast_value) or isinstance(
+                fast_value, backend.KerasTensor
+            ):
+                self.assertIs(fast_value, slow_value)
+            else:
+                self.assertEqual(fast_value, slow_value)
+
+    def test_callspec_fast_path_matches_slow_path(self):
+        class OneArg(layers.Layer):
+            def call(self, inputs):
+                return inputs
+
+        class TrainingArg(layers.Layer):
+            def call(self, inputs, training=None):
+                return inputs
+
+        class TrainingMaskArg(layers.Layer):
+            def call(self, inputs, training=None, mask=None):
+                return inputs
+
+        class ScalarDefaultArg(layers.Layer):
+            def call(self, inputs, scale=1.0):
+                return inputs
+
+        eager_input = ops.convert_to_tensor(
+            np.random.rand(2, 3).astype("float32")
+        )
+        symbolic_input = backend.KerasTensor((2, 3))
+
+        for layer_cls in (
+            OneArg,
+            TrainingArg,
+            TrainingMaskArg,
+            ScalarDefaultArg,
+        ):
+            layer = layer_cls()
+            self.assertTrue(
+                layer._call_spec_fast_path,
+                msg=f"{layer_cls.__name__} should be fast-path eligible",
+            )
+            for x in (eager_input, symbolic_input):
+                fast = CallSpec._fast(
+                    layer._call_arg_names,
+                    layer._call_arg_defaults,
+                    layer._call_first_arg_name,
+                    x,
+                )
+                slow = CallSpec(
+                    layer._call_signature,
+                    layer._call_context_args,
+                    (x,),
+                    {},
+                )
+                self.assertEqual(fast.argument_names, slow.argument_names)
+                self.assertEqual(
+                    fast.tensor_arguments_names, slow.tensor_arguments_names
+                )
+                self.assertEqual(
+                    fast.nested_tensor_argument_names,
+                    slow.nested_tensor_argument_names,
+                )
+                self.assertEqual(fast.eager, slow.eager)
+                self.assertIs(fast.first_arg, slow.first_arg)
+                self._assert_callspec_dict_equal(
+                    fast.user_arguments_dict, slow.user_arguments_dict
+                )
+                self._assert_callspec_dict_equal(
+                    fast.arguments_dict, slow.arguments_dict
+                )
+                self._assert_callspec_dict_equal(
+                    fast.tensor_arguments_dict, slow.tensor_arguments_dict
+                )
+
+    def test_callspec_fast_path_excludes_unsupported_signatures(self):
+        class MultiArg(layers.Layer):
+            def call(self, inputs, other):
+                return inputs
+
+        class VarArgs(layers.Layer):
+            def call(self, inputs, *args, **kwargs):
+                return inputs
+
+        class RequiredKwOnly(layers.Layer):
+            def call(self, inputs, *, state):
+                return inputs
+
+        self.assertFalse(MultiArg()._call_spec_fast_path)
+        self.assertFalse(VarArgs()._call_spec_fast_path)
+        self.assertFalse(RequiredKwOnly()._call_spec_fast_path)
+
+        # A tensor-valued default would land in tensor_arguments_dict in the
+        # slow path, so it must fall through.
+        tensor_default = ops.convert_to_tensor(np.zeros((3,), dtype="float32"))
+
+        class TensorDefault(layers.Layer):
+            def call(self, inputs, bias=tensor_default):
+                return inputs
+
+        self.assertFalse(TensorDefault()._call_spec_fast_path)
+
+    def test_callspec_fast_path_dense_numeric(self):
+        x = ops.convert_to_tensor(np.random.rand(4, 8).astype("float32"))
+        dense = layers.Dense(16)
+        # First call builds and runs through the fast path.
+        self.assertTrue(dense._call_spec_fast_path)
+        y_fast = dense(x)
+        # Force the slow path on the same built layer and rerun.
+        dense._call_spec_fast_path = False
+        y_slow = dense(x)
+        np.testing.assert_array_equal(
+            ops.convert_to_numpy(y_fast), ops.convert_to_numpy(y_slow)
+        )
+
+    def test_construction_with_custom_pytree_default_without_len(self):
+        # Regression test: a call() default that is a custom pytree-
+        # registered object with no `__len__` must not crash the
+        # fast-path eligibility check at layer construction time, and
+        # such a layer must fall through to the slow call path rather
+        # than being (incorrectly) treated as fast-path eligible, since
+        # the fast path cannot safely introspect a value it cannot take
+        # the length of.
+        class NoLenPytree:
+            def __init__(self, value):
+                self.value = value
+
+            # optree (jax/tensorflow/numpy/openvino) interface.
+            def tree_flatten(self):
+                return (self.value,), None
+
+            @classmethod
+            def tree_unflatten(cls, aux_data, children):
+                return cls(children[0])
+
+            # torch interface (torch backend uses its own tree dispatch,
+            # not optree, so both interfaces are needed for this test to
+            # be meaningful on every backend).
+            def torchtree_flatten(self):
+                return [self.value], None
+
+            def torchtree_flatten_with_keys(self):
+                return [("value", self.value)], None
+
+            @classmethod
+            def torchtree_unflatten(cls, children, context):
+                return cls(children[0])
+
+        tree.register_tree_node_class(NoLenPytree)
+        if backend.backend() == "torch":
+            from torch.utils import _pytree as torch_tree
+
+            self.addCleanup(torch_tree._deregister_pytree_node, NoLenPytree)
+        else:
+            optree = pytest.importorskip("optree")
+            self.addCleanup(
+                optree.unregister_pytree_node, NoLenPytree, namespace="keras"
+            )
+
+        self.assertTrue(tree.is_nested(NoLenPytree(1.0)))
+        with self.assertRaises(TypeError):
+            len(NoLenPytree(1.0))
+
+        class CustomDefaultLayer(layers.Layer):
+            def call(self, inputs, config=NoLenPytree(1.0)):
+                return inputs
+
+        # Must not raise, e.g. TypeError: object of type 'NoLenPytree'
+        # has no len().
+        layer = CustomDefaultLayer()
+        self.assertIsInstance(layer, CustomDefaultLayer)
+        # A default whose length can't be determined must not be treated
+        # as fast-path eligible.
+        self.assertFalse(layer._call_spec_fast_path)
