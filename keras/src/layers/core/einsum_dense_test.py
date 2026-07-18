@@ -1848,10 +1848,6 @@ class EinsumDenseTest(testing.TestCase):
         y_after = loaded_model(x)
         self.assertAllClose(y_before, y_after)
 
-    # ------------------------------------------------------------------
-    # Torch fast-path numeric-equivalence tests
-    # ------------------------------------------------------------------
-
     @parameterized.named_parameters(
         ("2d_matmul", "ab,bc->ac", 64, "c", (8, 128)),
         ("3d_matmul", "abc,cd->abd", (16, 64), "d", (4, 16, 128)),
@@ -2028,9 +2024,8 @@ class EinsumDenseTest(testing.TestCase):
         import torch
 
         for x_t in [
-            # torch.einsum itself does not promote int/float operands
-            # (a separate, pre-existing gap in ops.einsum unrelated to
-            # this PR) - both paths must fail the same way here.
+            # torch.einsum does not promote int/float operands, so both
+            # paths must fail the same way here.
             torch.arange(8, dtype=torch.int32).reshape(2, 4),
             torch.randint(0, 255, (2, 4), dtype=torch.uint8),
             # float16 vs float32 kernel: promotion succeeds on both

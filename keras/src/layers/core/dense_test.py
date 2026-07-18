@@ -1437,10 +1437,6 @@ class DenseTest(testing.TestCase):
         y_after = loaded_model(x)
         self.assertAllClose(y_before, y_after)
 
-    # ------------------------------------------------------------------
-    # Torch fast-path numeric-equivalence tests
-    # ------------------------------------------------------------------
-
     @parameterized.named_parameters(
         ("none_bias", None, True),
         ("none_nobias", None, False),
