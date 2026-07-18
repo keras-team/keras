@@ -1076,12 +1076,25 @@ class Cond(Operation):
                 return self.call(*args, **kwargs)
 
         if traceback_utils.is_traceback_filtering_enabled():
-            # Wrap self.call to provide helpful info in case of exception
-            call_fn = traceback_utils.inject_argument_info_in_traceback(
-                call_fn,
-                object_name=(f"{self.__class__.__name__}.call()"),
-            )
-            return call_fn(*args, **kwargs)
+            # Call call_fn directly; only inject argument info if it raises.
+            # Avoids wrapping it in an error-handling closure on every call
+            # (hot path).
+            try:
+                return call_fn(*args, **kwargs)
+            except Exception as e:
+                if not getattr(e, "_keras_call_info_injected", False):
+                    augmented = traceback_utils.inject_argument_info_in_error(
+                        e,
+                        self.call,
+                        args,
+                        kwargs,
+                        object_name=(f"{self.__class__.__name__}.call()"),
+                    )
+                    if augmented is not None:
+                        raise augmented.with_traceback(
+                            e.__traceback__
+                        ) from None
+                raise
 
         # Plain flow.
         return call_fn(*args, **kwargs)
