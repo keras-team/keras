@@ -21,15 +21,22 @@ def _tree_is_leaf(tree, is_leaf=None):
 
 
 def _dict_to_ordered_dict(structure):
-    # We need to sort dict and defaultdict to ensure a deterministic order that
-    # that is consistent with other tree implementations.
+    # Short-circuit: leaves need no reordering; avoid a torch_tree round-trip.
+    if _tree_is_leaf(structure):
+        return structure
+
+    # We need to sort dict and defaultdict to ensure a deterministic order
+    # that is consistent with other tree implementations. Values are
+    # recursed into here rather than left to traverse_children below, since
+    # a dict match short-circuits traverse_children entirely, and a dict
+    # value that is itself a dict would otherwise keep its insertion order.
     def func(x):
         if type(x) is dict:
-            return {k: x[k] for k in sorted(x.keys())}
+            return {k: _dict_to_ordered_dict(x[k]) for k in sorted(x.keys())}
         elif type(x) is defaultdict:
             return defaultdict(
                 x.default_factory,
-                {k: x[k] for k in sorted(x.keys())},
+                {k: _dict_to_ordered_dict(x[k]) for k in sorted(x.keys())},
             )
         return None
 

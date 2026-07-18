@@ -584,6 +584,41 @@ class TreeTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "[Too many leaves|holds 3]"):
             t.pack_sequence_as([10, 20], [1, 2, 3])
 
+    def test_nested_dict_key_order_canonicalization(self, t):
+        # Two structurally equivalent nested dicts that differ only in key
+        # insertion order, at both the outer and the inner level.
+        unsorted_insertion = {"b": {"d": 40, "c": 30}, "a": 10}
+        sorted_insertion = {"a": 10, "b": {"c": 30, "d": 40}}
+
+        # `flatten` must produce the same deterministic leaf order for
+        # both: keys sorted at every dict level, not just the outermost.
+        self.assertEqualStrict(t.flatten(unsorted_insertion), [10, 30, 40])
+        self.assertEqualStrict(t.flatten(sorted_insertion), [10, 30, 40])
+
+        # `pack_sequence_as` must re-associate each leaf with the correct
+        # nested key when the target is an equivalent dict with a
+        # different insertion order. A shallow-only canonicalization
+        # would silently swap the values of "c" and "d" here.
+        self.assertEqualStrict(
+            t.pack_sequence_as(unsorted_insertion, t.flatten(sorted_insertion)),
+            {"a": 10, "b": {"c": 30, "d": 40}},
+        )
+        self.assertEqualStrict(
+            t.pack_sequence_as(sorted_insertion, t.flatten(unsorted_insertion)),
+            {"a": 10, "b": {"c": 30, "d": 40}},
+        )
+
+        # Same invariant with the inner dict below an intermediate list
+        # level, so canonicalization must recurse through non-dict nodes.
+        deep_unsorted = {"b": [{"d": 40, "c": 30}], "a": 10}
+        deep_sorted = {"a": 10, "b": [{"c": 30, "d": 40}]}
+        self.assertEqualStrict(t.flatten(deep_unsorted), [10, 30, 40])
+        self.assertEqualStrict(t.flatten(deep_sorted), [10, 30, 40])
+        self.assertEqualStrict(
+            t.pack_sequence_as(deep_unsorted, t.flatten(deep_sorted)),
+            {"a": 10, "b": [{"c": 30, "d": 40}]},
+        )
+
     @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
     def test_pack_sequence_as_tf_wrappers(self, t):
         from tensorflow.python.trackable.data_structures import ListWrapper
@@ -2506,3 +2541,111 @@ class TreeTest(testing.TestCase):
                 (7, None, 9),
             ],
         )
+
+    @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
+    def test_dict_to_ordered_dict_leaf_shortcircuit(self, t):
+        # _dict_to_ordered_dict must return leaves unchanged without
+        # invoking a torch tree_flatten round-trip.
+        from collections import OrderedDict as OD
+
+        import torch
+
+        from keras.src.tree import torchtree_impl as impl
+
+        tensor = torch.tensor([1.0, 2.0, 3.0])
+
+        # Leaf: plain tensor returned as-is (identity, not a copy).
+        result = impl._dict_to_ordered_dict(tensor)
+        self.assertIs(result, tensor)
+
+        # flatten of a bare tensor returns [tensor].
+        flat = t.flatten(tensor)
+        self.assertEqual(len(flat), 1)
+        self.assertTrue(torch.equal(flat[0], tensor))
+
+        # pack_sequence_as round-trips: flatten then pack gives back equivalent.
+        packed = t.pack_sequence_as(tensor, flat)
+        self.assertTrue(torch.equal(packed, tensor))
+
+        # List of tensors: flatten and pack round-trip, leaf short-circuit fires
+        # for each element during recursive descent.
+        t2 = torch.tensor([4.0, 5.0])
+        lst = [tensor, t2]
+        flat_lst = t.flatten(lst)
+        self.assertEqual(len(flat_lst), 2)
+        self.assertTrue(torch.equal(flat_lst[0], tensor))
+        self.assertTrue(torch.equal(flat_lst[1], t2))
+        packed_lst = t.pack_sequence_as(lst, flat_lst)
+        self.assertTrue(torch.equal(packed_lst[0], tensor))
+        self.assertTrue(torch.equal(packed_lst[1], t2))
+
+        # dict: key order is sorted (deterministic) and values match.
+        d = {"b": t2, "a": tensor}
+        flat_d = t.flatten(d)
+        self.assertEqual(len(flat_d), 2)
+        self.assertTrue(torch.equal(flat_d[0], tensor))
+        self.assertTrue(torch.equal(flat_d[1], t2))
+        packed_d = t.pack_sequence_as(d, flat_d)
+        self.assertIn("a", packed_d)
+        self.assertIn("b", packed_d)
+        self.assertTrue(torch.equal(packed_d["a"], tensor))
+        self.assertTrue(torch.equal(packed_d["b"], t2))
+
+        # OrderedDict: insertion order preserved by torchtree (not sorted).
+        od = OD([("b", t2), ("a", tensor)])
+        flat_od = t.flatten(od)
+        self.assertEqual(len(flat_od), 2)
+        packed_od = t.pack_sequence_as(od, flat_od)
+        self.assertIsInstance(packed_od, OD)
+        keys = list(packed_od.keys())
+        self.assertEqual(keys, ["b", "a"])
+
+        # Nested dict-of-lists: leaves are tensors, shape structure is correct.
+        nested = {"x": [tensor, t2], "y": [t2]}
+        flat_n = t.flatten(nested)
+        self.assertEqual(len(flat_n), 3)
+        packed_n = t.pack_sequence_as(nested, flat_n)
+        self.assertEqual(len(packed_n["x"]), 2)
+        self.assertEqual(len(packed_n["y"]), 1)
+
+        # Nested dict-of-dict: keys are intentionally out of order at both
+        # the outer and inner level. Flattening and repacking must
+        # re-associate every leaf with its correct nested key, regardless
+        # of the order the keys were given in at any level.
+        t3 = torch.tensor([6.0, 7.0, 8.0])
+        nested_dod = {"b": {"d": t2, "c": tensor}, "a": t3}
+        flat_dod = t.flatten(nested_dod)
+        self.assertEqual(len(flat_dod), 3)
+        packed_dod = t.pack_sequence_as(nested_dod, flat_dod)
+        self.assertTrue(torch.equal(packed_dod["a"], t3))
+        self.assertTrue(torch.equal(packed_dod["b"]["c"], tensor))
+        self.assertTrue(torch.equal(packed_dod["b"]["d"], t2))
+
+        # An equivalent structure with keys already sorted at every level
+        # must produce the same flat leaf order as the out-of-order
+        # structure above, not just round-trip correctly on its own,
+        # since a canonicalization that only sorts the outer level would
+        # still pass a self-consistent round-trip check while leaving the
+        # flat order non-deterministic at nested levels.
+        sorted_dod = {"a": t3, "b": {"c": tensor, "d": t2}}
+        flat_sorted_dod = t.flatten(sorted_dod)
+        self.assertEqual(len(flat_dod), len(flat_sorted_dod))
+        for leaf, sorted_leaf in zip(flat_dod, flat_sorted_dod):
+            self.assertTrue(torch.equal(leaf, sorted_leaf))
+        packed_sorted_dod = t.pack_sequence_as(sorted_dod, flat_sorted_dod)
+        self.assertEqual(set(packed_dod.keys()), set(packed_sorted_dod.keys()))
+        self.assertEqual(
+            set(packed_dod["b"].keys()), set(packed_sorted_dod["b"].keys())
+        )
+        self.assertTrue(torch.equal(packed_dod["a"], packed_sorted_dod["a"]))
+        self.assertTrue(
+            torch.equal(packed_dod["b"]["c"], packed_sorted_dod["b"]["c"])
+        )
+        self.assertTrue(
+            torch.equal(packed_dod["b"]["d"], packed_sorted_dod["b"]["d"])
+        )
+
+        # map_shape_structure with a shape-tuple leaf (not a tensor node).
+        shape = (2, 3)
+        result_shape = t.map_shape_structure(lambda x: x, shape)
+        self.assertEqual(result_shape, shape)
