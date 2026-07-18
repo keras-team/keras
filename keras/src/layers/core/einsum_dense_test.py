@@ -1931,6 +1931,30 @@ class EinsumDenseTorchFastPathTest(testing.TestCase):
             "computation, or the fast path leaked through",
         )
 
+    def test_torch_fast_path_skipped_for_subclass(self):
+        """An EinsumDense subclass overriding `kernel` must not have that
+        override silently bypassed by the fast path, which would otherwise
+        read `self._kernel.value` directly instead of the overridden
+        property.
+        """
+
+        class DoubledKernelEinsumDense(layers.EinsumDense):
+            @property
+            def kernel(self):
+                return super().kernel * 2
+
+        torch.manual_seed(0)
+        layer = DoubledKernelEinsumDense(
+            "ab,bc->ac", output_shape=8, bias_axes=None
+        )
+        x_t = torch.randn(4, 6)
+        _ = layer(x_t)
+        out = layer(x_t)
+        expected = torch.einsum(
+            "ab,bc->ac", x_t.to(layer.kernel.device), layer.kernel
+        )
+        self.assertAllClose(out, expected, rtol=1e-5, atol=1e-5)
+
     def test_torch_fast_path_manual_kernel_check(self):
         """Manually verify fast path result against the expected formula."""
         torch.manual_seed(42)

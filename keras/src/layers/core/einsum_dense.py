@@ -329,10 +329,15 @@ class EinsumDense(Layer):
         # going through Keras's ops dispatch. This only applies to a plain
         # eager forward: quantized layers route through quantized_call()
         # before ever reaching call(), LoRA needs the ops path for its
-        # additive branch, and torch.compile tracing is skipped because
-        # meta-device weights make torch.einsum raise under fake tensors.
+        # additive branch, torch.compile tracing is skipped because
+        # meta-device weights make torch.einsum raise under fake tensors,
+        # and an EinsumDense subclass is excluded because it may override
+        # the `kernel` property (a supported extension point) with logic
+        # this path would silently bypass by reading `self._kernel.value`
+        # directly.
         if (
             self._torch_backend
+            and type(self) is EinsumDense
             and not self.lora_enabled
             and not self._torch_compiling()
         ):
