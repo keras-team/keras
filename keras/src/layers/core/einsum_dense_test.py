@@ -25,6 +25,9 @@ from keras.src.quantizers.quantizers import AbsMaxQuantizer
 from keras.src.saving.saving_api import load_model
 from keras.src.utils.rng_utils import set_random_seed
 
+if backend.backend() == "torch":
+    import torch
+
 
 class EinsumDenseTest(testing.TestCase):
     @parameterized.named_parameters(
@@ -1847,3 +1850,211 @@ class EinsumDenseTest(testing.TestCase):
         # Verify outputs match
         y_after = loaded_model(x)
         self.assertAllClose(y_before, y_after)
+
+
+class DoubledKernelEinsumDense(layers.EinsumDense):
+    """An EinsumDense subclass overriding `kernel`, used to verify the
+    torch fast path doesn't silently bypass a subclass's override of it."""
+
+    @property
+    def kernel(self):
+        return super().kernel * 2
+
+
+@pytest.mark.skipif(backend.backend() != "torch", reason="torch backend only")
+class EinsumDenseTorchFastPathTest(testing.TestCase):
+    @parameterized.named_parameters(
+        ("2d_matmul", "ab,bc->ac", 64, "c", (8, 128)),
+        ("3d_matmul", "abc,cd->abd", (16, 64), "d", (4, 16, 128)),
+        ("ellipsis", "...x,xy->...y", 64, "y", (4, 8, 128)),
+    )
+    def test_torch_fast_path_fast_vs_slow(
+        self, equation, output_shape, bias_axes, input_shape
+    ):
+        """Fast-path torch.einsum vs ops.einsum numeric equivalence."""
+        torch.manual_seed(99)
+        layer = layers.EinsumDense(
+            equation,
+            output_shape=output_shape,
+            bias_axes=bias_axes,
+            activation="gelu",
+        )
+        x_t = torch.randn(*input_shape)
+        _ = layer(x_t)
+        self.assertTrue(
+            getattr(layer, "_torch_backend", False),
+            "EinsumDense._torch_backend must be True on torch backend",
+        )
+        out_fast = layer(x_t)
+        layer._torch_backend = False
+        out_slow = layer(x_t)
+        layer._torch_backend = True
+        self.assertAllClose(out_fast, out_slow, rtol=1e-5, atol=1e-5)
+
+    def test_torch_fast_path_no_bias(self):
+        """EinsumDense fast-path with no bias."""
+        layer = layers.EinsumDense("ab,bc->ac", output_shape=32, bias_axes=None)
+        x_t = torch.randn(4, 64)
+        _ = layer(x_t)
+        out_fast = layer(x_t)
+        layer._torch_backend = False
+        out_slow = layer(x_t)
+        layer._torch_backend = True
+        self.assertAllClose(out_fast, out_slow, rtol=1e-5, atol=1e-5)
+
+    def test_torch_fast_path_lora_stays_slow(self):
+        """LoRA-enabled EinsumDense must NOT use the fast path.
+
+        Asserting non-NaN/non-Inf alone wouldn't catch the fast path
+        leaking through: lora_kernel_b initializes to zeros, so even a
+        base-kernel-only (fast-path) computation would be finite and,
+        with the default zero delta, numerically identical. Assign a
+        nonzero delta and compare against the base-kernel-only result
+        directly, so a leaked fast path is provably wrong, not just
+        NaN/Inf.
+        """
+        layer = layers.EinsumDense(
+            "ab,bc->ac", output_shape=32, bias_axes="c", activation=None
+        )
+        x_t = torch.randn(4, 64)
+        _ = layer(x_t)
+        layer.enable_lora(rank=4)
+        self.assertTrue(layer.lora_enabled)
+        # Force a nonzero LoRA delta (default init is zeros).
+        layer.lora_kernel_a.assign(torch.randn(64, 4))
+        layer.lora_kernel_b.assign(torch.randn(4, 32))
+
+        out = layer(x_t)
+        x_t = x_t.to(layer._kernel.value.device)
+        base_kernel_only = (
+            torch.einsum("ab,bc->ac", x_t, layer._kernel.value)
+            + layer.bias.value
+        )
+        self.assertFalse(torch.isnan(out).any())
+        self.assertFalse(torch.isinf(out).any())
+        # A leaked fast path would equal the base-kernel-only computation;
+        # the LoRA-adjusted output must differ from it.
+        self.assertFalse(
+            torch.allclose(out, base_kernel_only, atol=1e-5),
+            "LoRA output must differ from a base-kernel-only (fast path) "
+            "computation, or the fast path leaked through",
+        )
+
+    def test_torch_fast_path_skipped_for_subclass(self):
+        """An EinsumDense subclass overriding `kernel` must not have that
+        override silently bypassed by the fast path, which would otherwise
+        read `self._kernel.value` directly instead of the overridden
+        property.
+        """
+        torch.manual_seed(0)
+        layer = DoubledKernelEinsumDense(
+            "ab,bc->ac", output_shape=8, bias_axes=None
+        )
+        x_t = torch.randn(4, 6)
+        _ = layer(x_t)
+        out = layer(x_t)
+        expected = torch.einsum(
+            "ab,bc->ac", x_t.to(layer.kernel.device), layer.kernel
+        )
+        self.assertAllClose(out, expected, rtol=1e-5, atol=1e-5)
+
+    def test_torch_fast_path_manual_kernel_check(self):
+        """Manually verify fast path result against the expected formula."""
+        torch.manual_seed(42)
+        layer = layers.EinsumDense("ab,bc->ac", output_shape=16, bias_axes="c")
+        x_t = torch.randn(4, 32)
+        _ = layer(x_t)
+        W = layer._kernel.value
+        b = layer.bias.value
+        x_t = x_t.to(W.device)
+        expected = torch.einsum("ab,bc->ac", x_t, W) + b
+        out_fast = layer(x_t)
+        self.assertAllClose(out_fast, expected, rtol=1e-5, atol=1e-5)
+
+    def test_torch_fast_path_honors_device_scope(self):
+        """Fast path must honor an active `device_scope`, not just align to
+        the kernel's device: the slow (ops.einsum) path always resolves its
+        target device through `get_device()`, which reflects an active
+        scope, so the two paths must agree even when the kernel lives
+        elsewhere.
+        """
+        from keras.src.backend.torch.core import device_scope
+
+        layer = layers.EinsumDense("ab,bc->ac", output_shape=6, bias_axes="c")
+        x = torch.randn(2, 5)
+        layer(x)  # build weights on the default device
+
+        with device_scope("cpu"):
+            out_fast = layer(x, training=False)
+        layer._torch_backend = False
+        with device_scope("cpu"):
+            out_slow = layer(x, training=False)
+        layer._torch_backend = True
+
+        self.assertEqual(str(out_fast.device), "cpu")
+        self.assertEqual(str(out_fast.device), str(out_slow.device))
+        self.assertAllClose(out_fast, out_slow)
+
+    def test_torch_fast_path_symbolic_input(self):
+        """EinsumDense must not crash on symbolic KerasTensor (torch)."""
+        inputs = layers.Input(shape=(10,))
+        outputs = layers.EinsumDense("ab,bc->ac", output_shape=5)(inputs)
+        self.assertEqual(outputs.shape, (None, 5))
+
+    def test_torch_fast_path_mixed_float16(self):
+        """Fast-path vs slow-path equivalence with mixed_float16 policy."""
+        torch.manual_seed(0)
+        layer = layers.EinsumDense(
+            "ab,bc->ac",
+            output_shape=32,
+            bias_axes="c",
+            activation="relu",
+            dtype="mixed_float16",
+        )
+        x_t = torch.randn(4, 64)
+        _ = layer(x_t)
+        out_fast = layer(x_t)
+        layer._torch_backend = False
+        out_slow = layer(x_t)
+        layer._torch_backend = True
+        self.assertAllClose(out_fast, out_slow, rtol=1e-3, atol=1e-3)
+
+    def test_torch_fast_path_dtype_mismatch_matches_slow_path(self):
+        """A dtype-mismatched input must behave identically on the fast
+        and slow paths: either both raise the same error, or both
+        succeed with the same result. The fast path must never silently
+        downcast the kernel to the input's dtype (which would either
+        truncate a float kernel to int - garbage near-zero output - or
+        diverge from the slow path's own error/success behavior)."""
+        for x_t in [
+            # torch.einsum does not promote int/float operands, so both
+            # paths must fail the same way here.
+            torch.arange(8, dtype=torch.int32).reshape(2, 4),
+            torch.randint(0, 255, (2, 4), dtype=torch.uint8),
+            # float16 vs float32 kernel: promotion succeeds on both
+            # paths.
+            torch.randn(2, 4, dtype=torch.float16),
+        ]:
+            layer = layers.EinsumDense(
+                "ab,bc->ac", output_shape=3, bias_axes="c", activation=None
+            )
+            try:
+                out_fast = layer(x_t)
+                fast_result = ("ok", out_fast.dtype)
+            except Exception as e:
+                fast_result = ("error", type(e))
+            layer._torch_backend = False
+            try:
+                out_slow = layer(x_t)
+                slow_result = ("ok", out_slow.dtype)
+            except Exception as e:
+                slow_result = ("error", type(e))
+            layer._torch_backend = True
+            self.assertEqual(
+                fast_result,
+                slow_result,
+                msg=f"dtype={x_t.dtype}: fast path diverged from slow path",
+            )
+            if fast_result[0] == "ok":
+                self.assertTrue(torch.isfinite(out_fast).all())
+                self.assertAllClose(out_fast, out_slow, rtol=1e-3, atol=1e-3)

@@ -23,6 +23,10 @@ from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
 
+if backend.backend() == "torch":
+    import torch
+    import torch.nn.functional as F
+
 
 class DenseTest(testing.TestCase):
     @parameterized.named_parameters(
@@ -1436,3 +1440,224 @@ class DenseTest(testing.TestCase):
         # Verify outputs match
         y_after = loaded_model(x)
         self.assertAllClose(y_before, y_after)
+
+    def test_torch_fast_path_flag_false_non_torch(self):
+        """_torch_backend flag must be False when backend != torch."""
+        if backend.backend() == "torch":
+            self.skipTest("only meaningful on non-torch backends")
+        layer = layers.Dense(16)
+        _ = layer(np.zeros((2, 8), dtype="float32"))
+        flag = getattr(layer, "_torch_backend", False)
+        self.assertFalse(
+            flag,
+            f"_torch_backend must be False on {backend.backend()} backend",
+        )
+
+
+class DoubledKernelDense(layers.Dense):
+    """A Dense subclass overriding `kernel`, used to verify the torch fast
+    path doesn't silently bypass a subclass's override of it."""
+
+    @property
+    def kernel(self):
+        return super().kernel * 2
+
+
+@pytest.mark.skipif(backend.backend() != "torch", reason="torch backend only")
+class DenseTorchFastPathTest(testing.TestCase):
+    @parameterized.named_parameters(
+        ("none_bias", None, True),
+        ("none_nobias", None, False),
+        ("relu_bias", "relu", True),
+        ("relu_nobias", "relu", False),
+        ("gelu_bias", "gelu", True),
+        ("gelu_nobias", "gelu", False),
+        ("tanh_bias", "tanh", True),
+        ("tanh_nobias", "tanh", False),
+        ("sigmoid_bias", "sigmoid", True),
+        ("sigmoid_nobias", "sigmoid", False),
+    )
+    def test_torch_fast_path_float32(self, activation, use_bias):
+        """Fast-path F.linear vs ops.matmul numeric equivalence."""
+        torch.manual_seed(42)
+        in_dim, out_dim, batch = 128, 64, 8
+        layer = layers.Dense(out_dim, activation=activation, use_bias=use_bias)
+        x_t = torch.tensor(np.random.randn(batch, in_dim).astype("float32"))
+        _ = layer(x_t)
+        self.assertTrue(
+            getattr(layer, "_torch_backend", False),
+            "Dense._torch_backend must be True on torch backend after build",
+        )
+        out_fast = layer(x_t)
+        layer._torch_backend = False
+        out_slow = layer(x_t)
+        layer._torch_backend = True
+        self.assertAllClose(out_fast, out_slow, rtol=1e-5, atol=1e-5)
+
+    def test_torch_fast_path_3d_input(self):
+        """Dense with [batch, seq, in_dim] input exercises batched matmul."""
+        torch.manual_seed(7)
+        layer = layers.Dense(32, activation="gelu")
+        x_t = torch.randn(4, 16, 64)
+        _ = layer(x_t)
+        out_fast = layer(x_t)
+        layer._torch_backend = False
+        out_slow = layer(x_t)
+        layer._torch_backend = True
+        self.assertAllClose(out_fast, out_slow, rtol=1e-5, atol=1e-5)
+
+    def test_torch_fast_path_lora_stays_slow(self):
+        """LoRA-enabled Dense must NOT use the fast path.
+
+        Asserting non-NaN/non-Inf alone wouldn't catch the fast path
+        leaking through: lora_kernel_b initializes to zeros, so even a
+        base-kernel-only (fast-path) computation would be finite and,
+        with the default zero delta, numerically identical. Assign a
+        nonzero delta and compare against the base-kernel-only result
+        directly, so a leaked fast path is provably wrong, not just
+        NaN/Inf.
+        """
+        torch.manual_seed(0)
+        layer = layers.Dense(32)
+        x_t = torch.randn(4, 64)
+        _ = layer(x_t)
+        layer.enable_lora(rank=4)
+        self.assertTrue(layer.lora_enabled, "LoRA should be enabled")
+        # Force a nonzero LoRA delta (default init is zeros).
+        layer.lora_kernel_a.assign(torch.randn(64, 4))
+        layer.lora_kernel_b.assign(torch.randn(4, 32))
+
+        out = layer(x_t)
+        x_t = x_t.to(layer._kernel.value.device)
+        base_kernel_only = torch.nn.functional.linear(
+            x_t, layer._kernel.value.t(), layer.bias.value
+        )
+        self.assertFalse(torch.isnan(out).any(), "LoRA output must not be NaN")
+        self.assertFalse(torch.isinf(out).any(), "LoRA output must not be Inf")
+        # A leaked fast path would equal the base-kernel-only computation;
+        # the LoRA-adjusted output must differ from it.
+        self.assertFalse(
+            torch.allclose(out, base_kernel_only, atol=1e-5),
+            "LoRA output must differ from a base-kernel-only (fast path) "
+            "computation, or the fast path leaked through",
+        )
+
+    def test_torch_fast_path_skipped_for_subclass(self):
+        """A Dense subclass overriding `kernel` must not have that override
+        silently bypassed by the fast path, which would otherwise read
+        `self._kernel.value` directly instead of the overridden property.
+        """
+        torch.manual_seed(0)
+        layer = DoubledKernelDense(8, use_bias=False)
+        x_t = torch.randn(4, 6)
+        _ = layer(x_t)
+        out = layer(x_t)
+        expected = torch.matmul(x_t.to(layer.kernel.device), layer.kernel)
+        self.assertAllClose(out, expected, rtol=1e-5, atol=1e-5)
+
+    def test_torch_fast_path_manual_kernel_check(self):
+        """Verify Dense fast path: F.linear(x, W.t(), b) == x @ W + b."""
+        torch.manual_seed(42)
+        layer = layers.Dense(16, use_bias=True)
+        x_t = torch.randn(4, 32)
+        _ = layer(x_t)
+        W = layer._kernel.value
+        b = layer.bias.value
+        x_t = x_t.to(W.device)
+        expected = torch.matmul(x_t, W) + b
+        fast_result = F.linear(x_t, W.t(), b)
+        self.assertAllClose(fast_result, expected, rtol=1e-6, atol=1e-6)
+        out = layer(x_t)
+        self.assertAllClose(out, expected, rtol=1e-5, atol=1e-5)
+
+    def test_torch_fast_path_symbolic_input(self):
+        """Verify Dense works with symbolic KerasTensor on torch backend."""
+        inputs = layers.Input(shape=(10,))
+        outputs = layers.Dense(5)(inputs)
+        self.assertEqual(outputs.shape, (None, 5))
+
+    def test_torch_fast_path_device_alignment(self):
+        """Dense/EinsumDense fast path must handle CPU inputs on CUDA layer.
+
+        Regression test: F.linear / torch.einsum skipped the device move that
+        ops.matmul performs implicitly. On CUDA with CPU inputs this raised:
+            RuntimeError: Expected all tensors to be on the same device
+        """
+        # Build Dense and EinsumDense layers (weights land on the default
+        # device).
+        dense = layers.Dense(8)
+        dense.build((None, 4))
+        einsum_dense = layers.EinsumDense("ab,bc->ac", output_shape=8)
+        einsum_dense.build((None, 4))
+
+        # Always feed a CPU tensor; on a CPU-only machine this is a no-op,
+        # on a CUDA machine it exercises the device-move.
+        cpu_input = torch.zeros(2, 4, device="cpu")
+
+        out_dense = dense(cpu_input)
+        out_einsum = einsum_dense(cpu_input)
+
+        # Outputs must land on the layer's weight device (same as kernel).
+        kernel_device = dense._kernel.value.device
+        self.assertEqual(out_dense.device, kernel_device)
+        einsum_kernel_device = einsum_dense._kernel.value.device
+        self.assertEqual(out_einsum.device, einsum_kernel_device)
+
+        # Shape check only; assertAllClose handles device/dtype.
+        self.assertEqual(out_dense.cpu().shape, (2, 8))
+        self.assertEqual(out_einsum.cpu().shape, (2, 8))
+
+    def test_torch_fast_path_honors_device_scope(self):
+        """Fast path must honor an active `device_scope`, not just align to
+        the kernel's device: the slow (ops.matmul) path always resolves its
+        target device through `get_device()`, which reflects an active
+        scope, so the two paths must agree even when the kernel lives
+        elsewhere.
+        """
+        from keras.src.backend.torch.core import device_scope
+
+        dense = layers.Dense(6)
+        x = torch.randn(2, 5)
+        dense(x)  # build weights on the default device
+
+        with device_scope("cpu"):
+            out_fast = dense(x, training=False)
+        dense._torch_backend = False
+        with device_scope("cpu"):
+            out_slow = dense(x, training=False)
+        dense._torch_backend = True
+
+        self.assertEqual(str(out_fast.device), "cpu")
+        self.assertEqual(str(out_fast.device), str(out_slow.device))
+        self.assertAllClose(out_fast, out_slow)
+
+    def test_torch_fast_path_mixed_float16(self):
+        """Fast-path vs slow-path equivalence with mixed_float16 policy."""
+        torch.manual_seed(0)
+        layer = layers.Dense(32, activation="relu", dtype="mixed_float16")
+        x_t = torch.randn(4, 64)
+        _ = layer(x_t)
+        out_fast = layer(x_t)
+        layer._torch_backend = False
+        out_slow = layer(x_t)
+        layer._torch_backend = True
+        self.assertAllClose(out_fast, out_slow, rtol=1e-3, atol=1e-3)
+
+    def test_torch_fast_path_dtype_mismatch_matches_slow_path(self):
+        """Integer/bool inputs into a float layer must produce the same
+        result as the slow path, not a kernel silently downcast to the
+        input's dtype (which truncates a float kernel to int -> garbage
+        near-all-zero output)."""
+        for x_t in [
+            torch.arange(8, dtype=torch.int32).reshape(2, 4),
+            torch.randint(0, 255, (2, 4), dtype=torch.uint8),
+            torch.tensor([[True, False, True, False]] * 2),
+        ]:
+            layer = layers.Dense(3)
+            out_fast = layer(x_t)
+            layer._torch_backend = False
+            out_slow = layer(x_t)
+            layer._torch_backend = True
+            self.assertEqual(out_fast.dtype, out_slow.dtype)
+            self.assertTrue(torch.isfinite(out_fast).all())
+            self.assertAllClose(out_fast, out_slow, rtol=1e-4, atol=1e-4)
