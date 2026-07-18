@@ -325,7 +325,8 @@ class EinsumDense(Layer):
         # meta-device weights make torch.einsum raise under fake tensors.
         if self._torch_backend and not self.lora_enabled:
             if not (
-                hasattr(torch.compiler, "is_compiling")
+                hasattr(torch, "compiler")
+                and hasattr(torch.compiler, "is_compiling")
                 and torch.compiler.is_compiling()
             ):
                 kernel = self._kernel.value
