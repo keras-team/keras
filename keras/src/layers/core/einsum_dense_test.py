@@ -25,6 +25,9 @@ from keras.src.quantizers.quantizers import AbsMaxQuantizer
 from keras.src.saving.saving_api import load_model
 from keras.src.utils.rng_utils import set_random_seed
 
+if backend.backend() == "torch":
+    import torch
+
 
 class EinsumDenseTest(testing.TestCase):
     @parameterized.named_parameters(
@@ -1848,6 +1851,9 @@ class EinsumDenseTest(testing.TestCase):
         y_after = loaded_model(x)
         self.assertAllClose(y_before, y_after)
 
+
+@pytest.mark.skipif(backend.backend() != "torch", reason="torch backend only")
+class EinsumDenseTorchFastPathTest(testing.TestCase):
     @parameterized.named_parameters(
         ("2d_matmul", "ab,bc->ac", 64, "c", (8, 128)),
         ("3d_matmul", "abc,cd->abd", (16, 64), "d", (4, 16, 128)),
@@ -1857,10 +1863,6 @@ class EinsumDenseTest(testing.TestCase):
         self, equation, output_shape, bias_axes, input_shape
     ):
         """Fast-path torch.einsum vs ops.einsum numeric equivalence."""
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         torch.manual_seed(99)
         layer = layers.EinsumDense(
             equation,
@@ -1882,10 +1884,6 @@ class EinsumDenseTest(testing.TestCase):
 
     def test_torch_fast_path_no_bias(self):
         """EinsumDense fast-path with no bias."""
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         layer = layers.EinsumDense("ab,bc->ac", output_shape=32, bias_axes=None)
         x_t = torch.randn(4, 64)
         _ = layer(x_t)
@@ -1906,10 +1904,6 @@ class EinsumDenseTest(testing.TestCase):
         directly, so a leaked fast path is provably wrong, not just
         NaN/Inf.
         """
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         layer = layers.EinsumDense(
             "ab,bc->ac", output_shape=32, bias_axes="c", activation=None
         )
@@ -1939,10 +1933,6 @@ class EinsumDenseTest(testing.TestCase):
 
     def test_torch_fast_path_manual_kernel_check(self):
         """Manually verify fast path result against the expected formula."""
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         torch.manual_seed(42)
         layer = layers.EinsumDense("ab,bc->ac", output_shape=16, bias_axes="c")
         x_t = torch.randn(4, 32)
@@ -1961,10 +1951,6 @@ class EinsumDenseTest(testing.TestCase):
         scope, so the two paths must agree even when the kernel lives
         elsewhere.
         """
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         from keras.src.backend.torch.core import device_scope
 
         layer = layers.EinsumDense("ab,bc->ac", output_shape=6, bias_axes="c")
@@ -1984,18 +1970,12 @@ class EinsumDenseTest(testing.TestCase):
 
     def test_torch_fast_path_symbolic_input(self):
         """EinsumDense must not crash on symbolic KerasTensor (torch)."""
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
         inputs = layers.Input(shape=(10,))
         outputs = layers.EinsumDense("ab,bc->ac", output_shape=5)(inputs)
         self.assertEqual(outputs.shape, (None, 5))
 
     def test_torch_fast_path_mixed_float16(self):
         """Fast-path vs slow-path equivalence with mixed_float16 policy."""
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         torch.manual_seed(0)
         layer = layers.EinsumDense(
             "ab,bc->ac",
@@ -2019,10 +1999,6 @@ class EinsumDenseTest(testing.TestCase):
         downcast the kernel to the input's dtype (which would either
         truncate a float kernel to int - garbage near-zero output - or
         diverge from the slow path's own error/success behavior)."""
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         for x_t in [
             # torch.einsum does not promote int/float operands, so both
             # paths must fail the same way here.

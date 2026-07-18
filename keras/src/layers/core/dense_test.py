@@ -23,6 +23,10 @@ from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
 
+if backend.backend() == "torch":
+    import torch
+    import torch.nn.functional as F
+
 
 class DenseTest(testing.TestCase):
     @parameterized.named_parameters(
@@ -1437,6 +1441,21 @@ class DenseTest(testing.TestCase):
         y_after = loaded_model(x)
         self.assertAllClose(y_before, y_after)
 
+    def test_torch_fast_path_flag_false_non_torch(self):
+        """_torch_backend flag must be False when backend != torch."""
+        if backend.backend() == "torch":
+            self.skipTest("only meaningful on non-torch backends")
+        layer = layers.Dense(16)
+        _ = layer(np.zeros((2, 8), dtype="float32"))
+        flag = getattr(layer, "_torch_backend", False)
+        self.assertFalse(
+            flag,
+            f"_torch_backend must be False on {backend.backend()} backend",
+        )
+
+
+@pytest.mark.skipif(backend.backend() != "torch", reason="torch backend only")
+class DenseTorchFastPathTest(testing.TestCase):
     @parameterized.named_parameters(
         ("none_bias", None, True),
         ("none_nobias", None, False),
@@ -1451,10 +1470,6 @@ class DenseTest(testing.TestCase):
     )
     def test_torch_fast_path_float32(self, activation, use_bias):
         """Fast-path F.linear vs ops.matmul numeric equivalence."""
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         torch.manual_seed(42)
         in_dim, out_dim, batch = 128, 64, 8
         layer = layers.Dense(out_dim, activation=activation, use_bias=use_bias)
@@ -1472,10 +1487,6 @@ class DenseTest(testing.TestCase):
 
     def test_torch_fast_path_3d_input(self):
         """Dense with [batch, seq, in_dim] input exercises batched matmul."""
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         torch.manual_seed(7)
         layer = layers.Dense(32, activation="gelu")
         x_t = torch.randn(4, 16, 64)
@@ -1497,10 +1508,6 @@ class DenseTest(testing.TestCase):
         directly, so a leaked fast path is provably wrong, not just
         NaN/Inf.
         """
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         torch.manual_seed(0)
         layer = layers.Dense(32)
         x_t = torch.randn(4, 64)
@@ -1526,25 +1533,8 @@ class DenseTest(testing.TestCase):
             "computation, or the fast path leaked through",
         )
 
-    def test_torch_fast_path_flag_false_non_torch(self):
-        """_torch_backend flag must be False when backend != torch."""
-        if backend.backend() == "torch":
-            self.skipTest("only meaningful on non-torch backends")
-        layer = layers.Dense(16)
-        _ = layer(np.zeros((2, 8), dtype="float32"))
-        flag = getattr(layer, "_torch_backend", False)
-        self.assertFalse(
-            flag,
-            f"_torch_backend must be False on {backend.backend()} backend",
-        )
-
     def test_torch_fast_path_manual_kernel_check(self):
         """Verify Dense fast path: F.linear(x, W.t(), b) == x @ W + b."""
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-        import torch.nn.functional as F
-
         torch.manual_seed(42)
         layer = layers.Dense(16, use_bias=True)
         x_t = torch.randn(4, 32)
@@ -1560,8 +1550,6 @@ class DenseTest(testing.TestCase):
 
     def test_torch_fast_path_symbolic_input(self):
         """Verify Dense works with symbolic KerasTensor on torch backend."""
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
         inputs = layers.Input(shape=(10,))
         outputs = layers.Dense(5)(inputs)
         self.assertEqual(outputs.shape, (None, 5))
@@ -1573,10 +1561,6 @@ class DenseTest(testing.TestCase):
         ops.matmul performs implicitly. On CUDA with CPU inputs this raised:
             RuntimeError: Expected all tensors to be on the same device
         """
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         # Build Dense and EinsumDense layers (weights land on the default
         # device).
         dense = layers.Dense(8)
@@ -1608,10 +1592,6 @@ class DenseTest(testing.TestCase):
         scope, so the two paths must agree even when the kernel lives
         elsewhere.
         """
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         from keras.src.backend.torch.core import device_scope
 
         dense = layers.Dense(6)
@@ -1631,10 +1611,6 @@ class DenseTest(testing.TestCase):
 
     def test_torch_fast_path_mixed_float16(self):
         """Fast-path vs slow-path equivalence with mixed_float16 policy."""
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         torch.manual_seed(0)
         layer = layers.Dense(32, activation="relu", dtype="mixed_float16")
         x_t = torch.randn(4, 64)
@@ -1650,10 +1626,6 @@ class DenseTest(testing.TestCase):
         result as the slow path, not a kernel silently downcast to the
         input's dtype (which truncates a float kernel to int -> garbage
         near-all-zero output)."""
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         for x_t in [
             torch.arange(8, dtype=torch.int32).reshape(2, 4),
             torch.randint(0, 255, (2, 4), dtype=torch.uint8),

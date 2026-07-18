@@ -316,6 +316,14 @@ class EinsumDense(Layer):
         )
         return tuple(full_output_shape)
 
+    @staticmethod
+    def _torch_compiling():
+        return (
+            hasattr(torch, "compiler")
+            and hasattr(torch.compiler, "is_compiling")
+            and torch.compiler.is_compiling()
+        )
+
     def call(self, inputs, training=None):
         # On the torch backend, call torch.einsum directly rather than
         # going through Keras's ops dispatch. This only applies to a plain
@@ -323,41 +331,43 @@ class EinsumDense(Layer):
         # before ever reaching call(), LoRA needs the ops path for its
         # additive branch, and torch.compile tracing is skipped because
         # meta-device weights make torch.einsum raise under fake tensors.
-        if self._torch_backend and not self.lora_enabled:
-            if not (
-                hasattr(torch, "compiler")
-                and hasattr(torch.compiler, "is_compiling")
-                and torch.compiler.is_compiling()
-            ):
-                kernel = self._kernel.value
+        if (
+            self._torch_backend
+            and not self.lora_enabled
+            and not self._torch_compiling()
+        ):
+            kernel = self._kernel.value
+            # A dtype mismatch falls through to the standard path below
+            # rather than casting the kernel toward the input's dtype here:
+            # that would be a downcast, not a promotion, and it would
+            # silently corrupt the result for integer inputs (a float
+            # kernel truncated to int becomes near-all-zeros). The standard
+            # path already applies the correct dtype-promotion rules.
+            # Checked before any device work below, since dtype is
+            # unaffected by device placement and a mismatch skips that
+            # work entirely.
+            if inputs.dtype == kernel.dtype:
                 scope_device = global_state.get_global_attribute(
                     "torch_device", None
                 )
-                if scope_device is not None:
-                    target_device = torch.device(scope_device)
-                    if kernel.device != target_device:
-                        kernel = kernel.to(target_device)
-                else:
-                    target_device = kernel.device
+                target_device = (
+                    torch.device(scope_device)
+                    if scope_device is not None
+                    else kernel.device
+                )
+                if kernel.device != target_device:
+                    kernel = kernel.to(target_device)
                 if inputs.device != target_device:
                     inputs = inputs.to(target_device)
-                # A dtype mismatch falls through to the standard path below
-                # rather than casting the kernel toward the input's dtype
-                # here: that would be a downcast, not a promotion, and it
-                # would silently corrupt the result for integer inputs (a
-                # float kernel truncated to int becomes near-all-zeros).
-                # The standard path already applies the correct
-                # dtype-promotion rules.
-                if inputs.dtype == kernel.dtype:
-                    x = torch.einsum(self.equation, inputs, kernel)
-                    if self.bias is not None:
-                        bias = self.bias.value
-                        if bias.device != target_device:
-                            bias = bias.to(target_device)
-                        x = x + bias
-                    if self.activation is not None:
-                        x = self.activation(x)
-                    return x
+                x = torch.einsum(self.equation, inputs, kernel)
+                if self.bias is not None:
+                    bias = self.bias.value
+                    if bias.device != target_device:
+                        bias = bias.to(target_device)
+                    x = x + bias
+                if self.activation is not None:
+                    x = self.activation(x)
+                return x
         x = ops.einsum(self.equation, inputs, self.kernel)
         if self.bias is not None:
             x = ops.add(x, self.bias)
