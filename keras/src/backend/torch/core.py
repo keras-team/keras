@@ -696,23 +696,64 @@ def scatter_update(inputs, indices, updates, reduction=None):
     return outputs
 
 
+def _to_static_index(v):
+    """Return a Python-level slice bound for `v`, or raise `TypeError`.
+
+    The returned value is usable directly as a Python `slice` bound. Python
+    `int` and `torch.SymInt` are returned unchanged, since calling `int()` on
+    a `SymInt` would specialize a `torch.export` dynamic dimension to a
+    constant (#22998); numpy integer scalars are coerced to a Python `int`.
+
+    Floats, tensors, and any other type raise `TypeError` so the caller falls
+    through to the slow `torch.narrow` path. That avoids silently truncating a
+    float bound, and it keeps a tensor bound as a traceable value rather than
+    forcing it into a concrete `int` via `int()`, which would specialize it
+    under `torch.export`/dynamo the same way it would a `SymInt`. Falling back
+    does not by itself avoid a device-to-host sync in eager mode for a 0-d GPU
+    tensor bound, because `torch.narrow` still resolves a tensor `start` to a
+    concrete value internally.
+    """
+    if isinstance(v, (int, torch.SymInt)):
+        return v
+    if isinstance(v, np.integer):
+        return int(v)
+    raise TypeError(
+        f"slice() index element has type {type(v).__name__!r}; "
+        "using torch.narrow path"
+    )
+
+
 def slice(inputs, start_indices, shape):
     inputs = convert_to_tensor(inputs)
 
-    # Fast path: when both start_indices and shape are Python int sequences,
-    # build the slice objects directly. This avoids creating tensors from
-    # the indices, which would introduce data-dependent expressions that
-    # torch.export cannot trace.
+    if len(start_indices) != len(shape):
+        raise ValueError(
+            "Arguments `start_indices` and `shape` must have the same "
+            "length. Received: "
+            f"start_indices={start_indices} (length {len(start_indices)}), "
+            f"shape={shape} (length {len(shape)})."
+        )
+
+    # Fast path: build plain Python slice objects when every bound is a
+    # static integer. _to_static_index raises TypeError for a bound it cannot
+    # turn into one (a float, a tensor, an unsupported type), and a
+    # data-dependent symbolic shape raises RuntimeError under torch.export or
+    # dynamo tracing; either case falls through to the tensor-native slow path
+    # below. The indexing happens in the else clause rather than the try body
+    # so that a genuine indexing error surfaces to the caller instead of being
+    # mistaken for an unsupported bound and silently retried on the slow path.
     if isinstance(start_indices, (list, tuple)) and isinstance(
         shape, (list, tuple)
     ):
-        if all(
-            isinstance(s, (int, torch.SymInt)) for s in start_indices
-        ) and all(isinstance(s, (int, torch.SymInt)) for s in shape):
-            slices = [
-                builtins.slice(start_index, start_index + length)
-                for start_index, length in zip(start_indices, shape)
-            ]
+        try:
+            slices = []
+            for start_index, length in zip(start_indices, shape):
+                start = _to_static_index(start_index)
+                size = _to_static_index(length)
+                slices.append(builtins.slice(start, start + size))
+        except (TypeError, RuntimeError):
+            pass
+        else:
             return inputs[tuple(slices)]
 
     # Slow path: tensor-based slicing via torch.narrow for truly dynamic
