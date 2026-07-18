@@ -1,5 +1,6 @@
 import math
 import string
+from collections import OrderedDict
 
 import numpy as np
 
@@ -200,13 +201,15 @@ class MultiHeadAttention(Layer):
 
         self._inverse_sqrt_key_dim = 1.0 / math.sqrt(float(self._key_dim))
 
-        # Bounded cache for computed causal masks, keyed by
+        # Bounded FIFO cache for computed causal masks, keyed by
         # (q_seq_len, kv_seq_len, device_str, "bool").
         # Max 8 entries: typical models use 1-2 distinct lengths; the cap
         # prevents unbounded growth during beam search or variable-length
         # inference. The mask is always bool, so dtype is not part of the
-        # key — float16 and float32 queries produce the same mask.
-        self._causal_mask_cache = {}
+        # key — float16 and float32 queries produce the same mask. An
+        # OrderedDict lets the oldest entry be evicted with a single atomic
+        # popitem, avoiding a live-dict iteration in the eviction path.
+        self._causal_mask_cache = OrderedDict()
 
         # Check for flash attention constraints
         if self._flash_attention and self._dropout > 0.0:
@@ -840,10 +843,14 @@ class MultiHeadAttention(Layer):
         # triggers UnexpectedTracerError (JAX) or graph-mismatch errors (TF).
         # JAX and TF constant-fold the mask at compile time anyway, so the
         # cache buys nothing on those backends.
+        # The lengths must be exact Python ints: under torch.compile the shape
+        # can be a symbolic torch.SymInt, which is unhashable and would raise
+        # if used as a cache key. `type() is int` excludes SymInt (and bool),
+        # so symbolic tracing falls through to the recompute path below.
         if (
             backend.backend() == "torch"
-            and isinstance(q_seq_length, int)
-            and isinstance(v_seq_length, int)
+            and type(q_seq_length) is int
+            and type(v_seq_length) is int
             and backend.is_tensor(query)
         ):
             device_key = str(query.device)
@@ -857,11 +864,11 @@ class MultiHeadAttention(Layer):
             col_index = ops.cumsum(ones_mask, axis=-1)
             mask = ops.greater_equal(row_index, col_index)
 
-            # FIFO eviction once the cap is reached.
+            # Evict the oldest entry once the cap is reached.
+            # popitem(last=False) is a single atomic pop, so it never iterates
+            # a dict that another thread might resize concurrently.
             if len(self._causal_mask_cache) >= 8:
-                evict_key = next(iter(self._causal_mask_cache), None)
-                if evict_key is not None:
-                    self._causal_mask_cache.pop(evict_key, None)
+                self._causal_mask_cache.popitem(last=False)
             self._causal_mask_cache[cache_key] = mask
             return mask
 

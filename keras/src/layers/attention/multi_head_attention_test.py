@@ -21,6 +21,25 @@ from keras.src.backend.config import enable_flash_attention
 from keras.src.backend.config import is_flash_attention_enabled
 
 
+def _get_backed_symint(hint=2):
+    """Create a backed SymInt via torch.export dynamic shapes."""
+    import torch
+
+    class _M(torch.nn.Module):
+        def forward(self, x):
+            return x + x.shape[0]
+
+    ep = torch.export.export(
+        _M(),
+        (torch.randn(hint, 3),),
+        dynamic_shapes={"x": {0: torch.export.Dim("batch")}},
+    )
+    for node in ep.graph.nodes:
+        if node.op == "placeholder":
+            return node.meta["val"].shape[0]
+    raise RuntimeError("Could not extract SymInt from exported program")
+
+
 class MultiHeadAttentionTest(testing.TestCase):
     def setUp(self):
         super().setUp()
@@ -1232,3 +1251,56 @@ class MultiHeadAttentionTest(testing.TestCase):
             atol=1e-5,
             rtol=1e-5,
         )
+
+    @pytest.mark.skipif(
+        backend.backend() != "torch",
+        reason="Causal mask cache is torch-only",
+    )
+    def test_causal_mask_cache_skips_symbolic_length(self):
+        """Symbolic (SymInt) sequence lengths must not enter the mask cache.
+
+        Under torch.compile the shape returned by ops.shape can be a
+        torch.SymInt, which is unhashable and cannot serve as a cache key.
+        The cache guard uses `type(x) is int`, so a symbolic length falls
+        through to the recompute path and nothing is cached. Reverting the
+        guard to isinstance would admit an int-subclass symbolic length and
+        cache it, which this test guards against.
+        """
+        from unittest import mock
+
+        from keras.src.layers.attention import multi_head_attention as mha_mod
+
+        layer = layers.MultiHeadAttention(num_heads=2, key_dim=4)
+        q = ops.convert_to_tensor(
+            np.random.default_rng(0).random((1, 6, 8)).astype("float32")
+        )
+        layer(q, q)  # build weights
+
+        sym = _get_backed_symint(6)
+        real_shape = mha_mod.ops.shape
+
+        def sym_shape(x):
+            dims = list(real_shape(x))
+            if len(dims) >= 2:
+                dims[1] = sym
+            return tuple(dims)
+
+        # ops.ones is stubbed only so the non-traced recompute branch does not
+        # error on a bare SymInt; the assertion is about the caching decision.
+        with (
+            mock.patch.object(mha_mod.ops, "shape", side_effect=sym_shape),
+            mock.patch.object(
+                mha_mod.ops,
+                "ones",
+                return_value=ops.zeros((1, 1, 1), dtype="int32"),
+            ),
+        ):
+            layer._compute_causal_mask(q)
+        self.assertEqual(len(layer._causal_mask_cache), 0)
+
+        # A concrete int length is cached, and every key is an exact int.
+        layer(q, q, use_causal_mask=True, return_attention_scores=True)
+        self.assertGreaterEqual(len(layer._causal_mask_cache), 1)
+        for key in layer._causal_mask_cache:
+            self.assertIs(type(key[0]), int)
+            self.assertIs(type(key[1]), int)
