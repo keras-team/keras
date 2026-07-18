@@ -917,7 +917,8 @@ class Layer(BackendLayer, Operation):
     @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
         self._check_super_called()
-        self._called = True
+        if not self._called:
+            self._called = True
 
         original_args = args
         original_kwargs = kwargs
@@ -1073,7 +1074,8 @@ class Layer(BackendLayer, Operation):
                             outputs, layout
                         )
 
-                self.built = True
+                if not self.built:
+                    self.built = True
                 # Record activity regularizer loss.
                 if self.activity_regularizer is not None:
                     for output in tree.flatten(outputs):
