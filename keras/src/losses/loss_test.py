@@ -2,6 +2,8 @@ import pickle
 from unittest import mock
 
 import numpy as np
+import pytest
+import torch
 from absl.testing import parameterized
 
 from keras.src import backend
@@ -337,12 +339,13 @@ class LossTest(testing.TestCase):
         loss = loss_fn(y_true, y_pred)
         self.assertDType(loss, backend.floatx())
 
+
+@pytest.mark.skipif(backend.backend() != "torch", reason="torch backend only")
+class LossFastPathTorchTest(testing.TestCase):
+    """Torch-only coverage for the `Loss.__call__` fast path."""
+
     def test_mse_fast_path_torch_reductions(self):
         """Fast path taken for both-torch inputs; numerics match slow path."""
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         for reduction in [
             "sum_over_batch_size",
             "mean",
@@ -372,10 +375,6 @@ class LossTest(testing.TestCase):
         `losses.mean()`/`losses.sum()` would not apply that downcast and
         would silently diverge from the slow path for float64 losses.
         """
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         for reduction in [
             "sum_over_batch_size",
             "mean",
@@ -397,10 +396,6 @@ class LossTest(testing.TestCase):
 
     def test_mse_numpy_ytrue_torch_ypred_fallback(self):
         """numpy y_true falls through; result must match slow path."""
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         mse = MeanSquaredError()
         yt_np = np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32)
         yp_t = torch.tensor([1.1, 1.9, 3.2, 3.8])
@@ -412,10 +407,6 @@ class LossTest(testing.TestCase):
 
     def test_mse_sample_weight_uses_slow_path(self):
         """sample_weight != None bypasses fast path; result must be correct."""
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         mse = MeanSquaredError()
         yt = torch.tensor([1.0, 2.0, 3.0, 4.0])
         yp = torch.tensor([1.1, 1.9, 3.2, 3.8])
@@ -426,10 +417,6 @@ class LossTest(testing.TestCase):
 
     def test_mse_numeric_equivalence_all_cases(self):
         """Allclose for both-torch, numpy+torch, and sample_weight cases."""
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         yt_t = torch.tensor([0.5, 1.5, 2.5, 3.5])
         yp_t = torch.tensor([0.6, 1.4, 2.7, 3.3])
         yt_np = yt_t.numpy()
@@ -464,10 +451,6 @@ class LossTest(testing.TestCase):
 
     def test_mse_fast_path_actually_taken(self):
         """Fast path (sum_over_batch_size): torch.Tensor with correct value."""
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         mse = MeanSquaredError(reduction="sum_over_batch_size")
         yt = torch.tensor([1.0, 2.0])
         yp = torch.tensor([1.5, 2.5])
@@ -482,10 +465,6 @@ class LossTest(testing.TestCase):
         the fast path (single `self.call()` invocation) and matches the
         slow-path numeric result.
         """
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         mse = MeanSquaredError(reduction="mean_with_sample_weight")
         yt = torch.tensor([1.0, 2.0, 3.0, 4.0])
         yp = torch.tensor([1.1, 1.9, 3.2, 3.8])
@@ -501,10 +480,6 @@ class LossTest(testing.TestCase):
 
     def test_fast_path_skipped_when_ypred_dtype_mismatch(self):
         """float16 y_pred falls through to slow path; result must be float32."""
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         mse = MeanSquaredError(reduction="sum_over_batch_size")
         yt = torch.tensor([1.0, 2.0, 3.0, 4.0], dtype=torch.float32)
         yp = torch.tensor([1.1, 1.9, 3.2, 3.8], dtype=torch.float16)
@@ -515,10 +490,6 @@ class LossTest(testing.TestCase):
 
     def test_fast_path_taken_when_dtypes_match(self):
         """Fast path IS taken when y_pred and y_true both match self.dtype."""
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         mse = MeanSquaredError(reduction="sum_over_batch_size")
         # both float32, matches self.dtype
         yt = torch.tensor([1.0, 2.0, 3.0, 4.0], dtype=torch.float32)
@@ -533,9 +504,6 @@ class LossTest(testing.TestCase):
 
     def test_fast_path_same_device(self):
         """Fast path: both tensors on same device, numerics match slow path."""
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch  # noqa: I001
         from keras.src.backend.torch.core import get_device
 
         device = get_device()
@@ -548,10 +516,6 @@ class LossTest(testing.TestCase):
 
     def test_fast_path_skipped_cross_device(self):
         """Cross-device inputs fall through to slow path without crashing."""
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         if not torch.cuda.is_available():
             self.skipTest("cuda not available")
         mse = MeanSquaredError(reduction="sum_over_batch_size")
@@ -567,10 +531,6 @@ class LossTest(testing.TestCase):
         through to the slow path, which would invoke `self.call()` a
         second time.
         """
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         loss_fn = _CallCountingOutputMaskedLoss(reduction="sum_over_batch_size")
         yt = torch.tensor([1.0, 2.0, 3.0, 4.0])
         yp = torch.tensor([1.1, 1.9, 3.2, 3.8])
@@ -599,10 +559,6 @@ class LossTest(testing.TestCase):
         supported reductions, with `call()` invoked exactly once each
         time.
         """
-        if backend.backend() != "torch":
-            self.skipTest("torch backend only")
-        import torch
-
         for reduction in [
             "sum_over_batch_size",
             "mean",
