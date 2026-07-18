@@ -208,6 +208,13 @@ class TestTFDatasetAdapter(testing.TestCase):
         ):
             class_weights_map_fn(x, (y1, y2))
 
+    def test_class_weights_map_fn_empty(self):
+        class_weights_map_fn = tf_dataset_adapter.make_class_weight_map_fn({})
+        x = tf.convert_to_tensor(np.array([[0.5, 0.5], [0.5, 0.5]]))
+        y = tf.convert_to_tensor(np.array([0, 1]))
+        res_x, res_y, res_cw = class_weights_map_fn(x, y)
+        self.assertEqual(res_cw.numpy().tolist(), [1.0, 1.0])
+
     def test_distribute_dataset(self):
         x = tf.random.normal((34, 4))
         y = tf.random.normal((34, 2))
