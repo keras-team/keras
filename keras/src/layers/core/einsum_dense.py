@@ -350,13 +350,14 @@ class EinsumDense(Layer):
                 scope_device = global_state.get_global_attribute(
                     "torch_device", None
                 )
-                target_device = (
-                    torch.device(scope_device)
-                    if scope_device is not None
-                    else kernel.device
-                )
-                if kernel.device != target_device:
-                    kernel = kernel.to(target_device)
+                # kernel is already on kernel.device by definition, so only
+                # a scope override can actually move it - skip the compare
+                # entirely otherwise instead of comparing a value to itself.
+                target_device = kernel.device
+                if scope_device is not None:
+                    target_device = torch.device(scope_device)
+                    if kernel.device != target_device:
+                        kernel = kernel.to(target_device)
                 if inputs.device != target_device:
                     inputs = inputs.to(target_device)
                 x = torch.einsum(self.equation, inputs, kernel)
