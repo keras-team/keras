@@ -942,9 +942,22 @@ class Layer(BackendLayer, Operation):
                 backend.set_keras_mask(y, mask)
             return y
 
+        # `fit()`/`evaluate()`/`predict()` always pass `training=` explicitly
+        # (see torch/tensorflow/jax trainer.py), so `kwargs` alone is not a
+        # reliable signal that conversion could matter: the well-known
+        # `training=<bool-or-None>` shape carries no array-like leaves for
+        # `maybe_convert` to act on, and is excluded here for the same
+        # reason the CallSpec fast path below excludes it.
+        training = kwargs.get("training") if kwargs else None
+        kwargs_skip_convert = not kwargs or (
+            len(kwargs) == 1
+            and "training" in kwargs
+            and (training is True or training is False or training is None)
+        )
+
         # Used to avoid expensive `tree` operations in the most common case.
         if (
-            kwargs
+            not kwargs_skip_convert
             or len(args) != 1
             or not is_backend_tensor_or_symbolic(args[0], allow_none=False)
             or backend.standardize_dtype(args[0].dtype) != self.input_dtype
@@ -968,7 +981,6 @@ class Layer(BackendLayer, Operation):
         # reproduces CallSpec for the common single-tensor call with either
         # no kwargs or exactly the well-known `training=<bool>` kwarg,
         # without paying for inspect.Signature.bind.
-        training = kwargs.get("training")
         if (
             self._call_spec_fast_path
             and (
