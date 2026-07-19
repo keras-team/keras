@@ -964,11 +964,18 @@ class Layer(BackendLayer, Operation):
                     )
 
         # Caches info about `call()` signature, args, kwargs. The fast path
-        # reproduces CallSpec for the common single-tensor, no-kwargs call
+        # reproduces CallSpec for the common single-tensor call with either
+        # no kwargs or exactly the well-known `training=<bool>` kwarg,
         # without paying for inspect.Signature.bind.
+        training = kwargs.get("training")
         if (
             self._call_spec_fast_path
-            and not kwargs
+            and (
+                not kwargs
+                or (
+                    len(kwargs) == 1 and (training is True or training is False)
+                )
+            )
             and len(args) == 1
             and is_backend_tensor_or_symbolic(args[0], allow_none=False)
         ):
@@ -977,7 +984,16 @@ class Layer(BackendLayer, Operation):
                 self._call_arg_defaults,
                 self._call_first_arg_name,
                 args[0],
+                training=training,
             )
+            # Mirror CallSpec.__init__'s side effect: pop context args (here,
+            # only `training` can be present) that this layer's `call()` does
+            # not accept, so downstream code sees the same `kwargs` dict the
+            # slow path would have produced.
+            if training is not None and not self._call_has_context_arg.get(
+                "training", False
+            ):
+                del kwargs["training"]
         else:
             call_spec = CallSpec(
                 self._call_param_specs, self._call_context_args, args, kwargs
@@ -2076,16 +2092,42 @@ class CallSpec:
             self.eager = False
 
     @classmethod
-    def _fast(cls, arg_names, defaults, first_name, x):
+    def _fast(cls, arg_names, defaults, first_name, x, training=None):
         # Fast path mirror of __init__ for a single positional tensor `x`
-        # (a backend tensor or KerasTensor) and no keyword arguments.
+        # (a backend tensor or KerasTensor) and either no keyword arguments
+        # or exactly the well-known `training=<exact bool>` keyword argument.
         # `arg_names` is the full ordered list of call() parameter names,
         # `defaults` maps every non-first parameter to its non-tensor
         # default, and `first_name` is the first parameter name. The fields
         # set here match those produced by __init__ for this case exactly.
         call_spec = cls.__new__(cls)
-        call_spec.user_arguments_dict = {first_name: x}
+        accepts_training = "training" in defaults
+        if training is None:
+            call_spec.user_arguments_dict = {first_name: x}
+        elif accepts_training:
+            # Accepting layer: matches bound_args.arguments ordering, which
+            # follows the call() signature's parameter order (first_name
+            # first, then training in its declared position).
+            call_spec.user_arguments_dict = {
+                first_name: x,
+                "training": training,
+            }
+        else:
+            # Non-accepting layer: matches the slow path's
+            # {**call_args, **bound_args.arguments}, where `training` was
+            # popped into call_args and so comes first.
+            call_spec.user_arguments_dict = {
+                "training": training,
+                first_name: x,
+            }
         call_spec.arguments_dict = {first_name: x, **defaults}
+        if training is not None and accepts_training:
+            # Post-construction override (rather than building the dict with
+            # the overridden value inline) preserves insertion order to match
+            # bound_args.apply_defaults() exactly: `training`'s position is
+            # determined by its position in `defaults`/the call() signature,
+            # not by when it was assigned here.
+            call_spec.arguments_dict["training"] = training
         # Copy `arg_names` rather than aliasing it: it is the layer's shared
         # `_call_arg_names` list, and callers of the slow path build a fresh
         # list each call, so `argument_names` must not be mutated in place.
