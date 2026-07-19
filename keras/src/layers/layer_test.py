@@ -16,6 +16,7 @@ from keras.src import ops
 from keras.src import testing
 from keras.src import tree
 from keras.src.backend.common import global_state
+from keras.src.backend.common import name_scope as name_scope_module
 from keras.src.backend.common import tensor_attributes
 from keras.src.backend.common.remat import RematScope
 from keras.src.layers.layer import CallSpec
@@ -3032,3 +3033,127 @@ class LayerTest(testing.TestCase):
         # A default whose length can't be determined must not be treated
         # as fast-path eligible.
         self.assertFalse(layer._call_spec_fast_path)
+
+    def test_call_opens_name_scope_exactly_once(self):
+        """`Layer.__call__` must open exactly one name scope per call.
+
+        Historically `__call__` opened `self._open_name_scope()` twice: once
+        around `_maybe_build` and once around the actual `call()`. For an
+        already-built layer (the common case in a training loop) this meant
+        two `name_scope` object allocations, enters, and exits per layer
+        call. They were merged into a single scope spanning both steps.
+        """
+        layer = layers.Dense(4)
+        x = ops.ones((2, 3))
+
+        # Build once, outside of the measured calls.
+        layer(x)
+
+        orig_init = name_scope_module.name_scope.__init__
+        with mock.patch.object(
+            name_scope_module.name_scope, "__init__", autospec=True
+        ) as mock_init:
+            mock_init.side_effect = orig_init
+            layer(x)
+            self.assertEqual(
+                mock_init.call_count,
+                1,
+                "Layer.__call__ must construct exactly one `name_scope` "
+                "per call on an already-built layer (was 2 before the "
+                "steps 4-7 scope merge).",
+            )
+
+    def test_call_name_scope_merge_preserves_variable_paths(self):
+        """Variable paths must be unchanged by the steps 4-7 scope merge.
+
+        Builds happen inside the (now-shared) scope just like before, so
+        weight paths for freshly-built sublayers, including nested
+        functional and subclassed models, must be identical to the
+        pre-merge two-scope behavior.
+        """
+
+        class Inner(layers.Layer):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.dense = layers.Dense(3, name="inner_dense")
+
+            def call(self, x):
+                return self.dense(x)
+
+        class Outer(layers.Layer):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.inner = Inner(name="inner")
+
+            def call(self, x):
+                return self.inner(x)
+
+        outer = Outer(name="outer")
+        x = ops.ones((2, 4))
+        outer(x)
+
+        weight_paths = sorted(w.path for w in outer.weights)
+        self.assertEqual(
+            weight_paths,
+            [
+                "outer/inner/inner_dense/bias",
+                "outer/inner/inner_dense/kernel",
+            ],
+        )
+
+        # Same check through a Functional model, which builds/calls layers
+        # via a different entry point than direct subclassing.
+        inputs = Input(shape=(4,))
+        dense1 = layers.Dense(5, name="fn_dense_1")
+        dense2 = layers.Dense(2, name="fn_dense_2")
+        outputs = dense2(dense1(inputs))
+        model = Model(inputs, outputs, name="fn_model")
+
+        fn_weight_paths = sorted(w.path for w in model.weights)
+        self.assertEqual(
+            fn_weight_paths,
+            [
+                "fn_dense_1/bias",
+                "fn_dense_1/kernel",
+                "fn_dense_2/bias",
+                "fn_dense_2/kernel",
+            ],
+        )
+
+    def test_call_name_scope_exits_cleanly_on_exception(self):
+        """The merged scope must unwind correctly if `call()` raises.
+
+        Before the merge, an exception inside `call()` (step 7) would
+        unwind the step-7 scope only, since the step-4 scope had already
+        been closed. After merging, the single scope covers steps 4-7, so
+        an exception must still leave the global name-scope stack exactly
+        as it was found (no leaked entries), and the call context is reset
+        via the same `finally` clause as before.
+        """
+
+        class RaisingLayer(layers.Layer):
+            def call(self, x):
+                raise RuntimeError("boom")
+
+        layer = RaisingLayer(name="raiser")
+        x = ops.ones((2, 3))
+
+        stack_before = list(
+            global_state.get_global_attribute(
+                "name_scope_stack", default=[], set_to_default=True
+            )
+        )
+        with self.assertRaisesRegex(RuntimeError, "boom"):
+            layer(x)
+        stack_after = global_state.get_global_attribute("name_scope_stack")
+        self.assertEqual(stack_after, stack_before)
+
+        # The call context must also have been torn down despite the
+        # exception (guarded by the unchanged `finally` clause).
+        self.assertIsNone(global_state.get_global_attribute("current_call_ctx"))
+
+        # A subsequent, non-raising call on a sibling layer must produce a
+        # correct, non-polluted path.
+        sibling = layers.Dense(3, name="sibling")
+        sibling(x)
+        self.assertEqual(sibling.weights[0].path, "sibling/kernel")
