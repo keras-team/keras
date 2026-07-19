@@ -185,10 +185,10 @@ class Functional(Function, Model):
             # No call-context args to inject: `operation_fn(op, **{})`'s
             # injection loop is a provable no-op here (every candidate value
             # is `None`), so skip allocating a per-node wrapper closure and
-            # call each operation directly.
-            outputs = self._run_through_graph(
-                inputs, operation_fn=lambda op: op
-            )
+            # rely on `_run_through_graph`'s own `operation_fn=lambda op: op`
+            # default (evaluated once at def time) instead of re-passing an
+            # identical lambda here.
+            outputs = self._run_through_graph(inputs)
         else:
             outputs = self._run_through_graph(
                 inputs,
@@ -411,9 +411,8 @@ class Functional(Function, Model):
         # into a new `TrackedList` object on every assignment, which is
         # both unnecessary bookkeeping and would break identity-stability
         # of the cached value across reads.
-        cached = self.__dict__.get("_cached_input_spec")
-        if cached is not None:
-            return cached
+        if "_cached_input_spec" in self.__dict__:
+            return self.__dict__["_cached_input_spec"]
 
         def shape_with_no_batch_size(x):
             x = list(x)
@@ -457,7 +456,7 @@ class Functional(Function, Model):
     @input_spec.setter
     def input_spec(self, value):
         self._manual_input_spec = value
-        self.__dict__["_cached_input_spec"] = None
+        self.__dict__.pop("_cached_input_spec", None)
 
     def get_config(self):
         if not functional_like_constructor(self.__class__):
