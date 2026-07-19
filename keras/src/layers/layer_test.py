@@ -16,9 +16,11 @@ from keras.src import ops
 from keras.src import testing
 from keras.src import tree
 from keras.src.backend.common import global_state
+from keras.src.backend.common import tensor_attributes
 from keras.src.backend.common.remat import RematScope
 from keras.src.layers.layer import CallSpec
 from keras.src.layers.layer import _bind_call_arguments
+from keras.src.layers.layer import any_symbolic_tensors
 from keras.src.models import Model
 
 
@@ -2640,6 +2642,283 @@ class LayerTest(testing.TestCase):
             training_kwarg_count = counts["n"]
 
         self.assertEqual(training_kwarg_count, bare_count)
+
+    def test_n1_single_tensor_call_skips_tree_ops(self):
+        # Deterministic proof (N1): a mask-free, eager, single-tensor,
+        # no-kwargs call must not invoke `tree.map_structure`,
+        # `tree.flatten`, or `any_symbolic_tensors` at all -- the mask
+        # pipeline (step 2's positional-arg check, step 6's mask
+        # population, `previous_mask`, `_set_mask_metadata`, and step 8's
+        # symbolic-call detection) must take the O(1) leaf branch
+        # end-to-end. Uses a no-`input_spec`, trivial-`call()` layer so
+        # `_assert_input_compatibility` (step 3, untouched by N1) and the
+        # layer's own numeric ops (both backend-dependent in their
+        # `tree.flatten` usage, e.g. the numpy backend's
+        # `convert_to_tensor`) contribute zero calls of their own,
+        # keeping the assertion exact and backend-agnostic.
+        class Plain(layers.Layer):
+            def call(self, x):
+                return x
+
+        x = ops.convert_to_tensor(np.random.rand(4, 8).astype("float32"))
+        plain = Plain()
+        plain(x)  # Warm up: build the layer outside of the count.
+        self.assertTrue(plain._call_spec_fast_path)
+
+        orig_map_structure = tree.map_structure
+        orig_flatten = tree.flatten
+
+        def counting_map_structure(*args, **kwargs):
+            counting_map_structure.calls += 1
+            return orig_map_structure(*args, **kwargs)
+
+        def counting_flatten(*args, **kwargs):
+            counting_flatten.calls += 1
+            return orig_flatten(*args, **kwargs)
+
+        counting_map_structure.calls = 0
+        counting_flatten.calls = 0
+
+        with (
+            mock.patch.object(tree, "map_structure", counting_map_structure),
+            mock.patch.object(tree, "flatten", counting_flatten),
+            mock.patch(
+                "keras.src.layers.layer.any_symbolic_tensors",
+                wraps=any_symbolic_tensors,
+            ) as mock_any_symbolic,
+        ):
+            plain(x)
+
+        self.assertEqual(counting_map_structure.calls, 0)
+        self.assertEqual(counting_flatten.calls, 0)
+        mock_any_symbolic.assert_not_called()
+
+    def test_n1_symbolic_single_tensor_call_skips_tree_ops(self):
+        # Same proof as above, for the symbolic (KerasTensor) call shape:
+        # `any_symbolic_tensors` must not be invoked even though the call
+        # *is* symbolic -- `call_spec.eager` (already computed by
+        # `CallSpec._fast`) is reused instead of re-walking the args. Note:
+        # `Node.__init__` -> `SymbolicArguments.__init__` still calls
+        # `tree.map_structure` for every symbolic call (that machinery is
+        # unrelated to, and untouched by, N1), so this test only asserts
+        # on `any_symbolic_tensors`, not on `tree.map_structure` calls.
+        x = backend.KerasTensor((4, 8))
+        dense = layers.Dense(16)
+        self.assertTrue(dense._call_spec_fast_path)
+
+        with mock.patch(
+            "keras.src.layers.layer.any_symbolic_tensors"
+        ) as mock_any_symbolic:
+            y = dense(x)
+
+        self.assertIsInstance(y, backend.KerasTensor)
+        mock_any_symbolic.assert_not_called()
+        # A symbolic call must still create exactly one inbound Node (the
+        # whole point of step 8 -- functional-model graph wiring must be
+        # unaffected by skipping `any_symbolic_tensors`), and the output's
+        # `KerasHistory` must point back at it.
+        self.assertLen(dense._inbound_nodes, 1)
+        self.assertIs(y._keras_history.operation, dense)
+
+    def test_n1_mask_pipeline_numeric_parity(self):
+        # Numeric/behavioral parity between the N1 leaf fast path and the
+        # general (fast-path force-disabled) path, across the mask
+        # scenarios the mechanism touches: mask-free, mask-propagating
+        # (supports_masking=True), and mask-destroying
+        # (supports_masking=False, with the accompanying warning).
+        mask_value = ops.convert_to_tensor(
+            np.array([[True, True, False], [True, False, False]])
+        )
+        x = ops.convert_to_tensor(np.random.rand(2, 3, 4).astype("float32"))
+        backend.set_keras_mask(x, mask_value)
+
+        class MaskFree(layers.Layer):
+            def call(self, inputs):
+                return inputs * 2
+
+        class MaskPropagating(layers.Layer):
+            def call(self, inputs):
+                return inputs * 2
+
+            def compute_mask(self, inputs, mask=None):
+                return mask
+
+            @property
+            def supports_masking(self):
+                return True
+
+        for layer_cls in (MaskFree, MaskPropagating):
+            fast_layer = layer_cls()
+            y_fast = fast_layer(x)
+            mask_fast = backend.get_keras_mask(y_fast)
+
+            slow_layer = layer_cls()
+            slow_layer._call_spec_fast_path = False
+            y_slow = slow_layer(x)
+            mask_slow = backend.get_keras_mask(y_slow)
+
+            np.testing.assert_array_equal(
+                ops.convert_to_numpy(y_fast), ops.convert_to_numpy(y_slow)
+            )
+            if layer_cls is MaskPropagating:
+                self.assertIsNotNone(mask_fast)
+                np.testing.assert_array_equal(
+                    ops.convert_to_numpy(mask_fast),
+                    ops.convert_to_numpy(mask_slow),
+                )
+            else:
+                self.assertIsNone(mask_fast)
+                self.assertIsNone(mask_slow)
+
+        # Mask-destroying case: both paths must warn identically and drop
+        # the mask.
+        class MaskDestroying(layers.Layer):
+            def call(self, inputs):
+                return inputs * 2
+
+        fast_layer = MaskDestroying()
+        with self.assertWarnsRegex(UserWarning, "does not support masking"):
+            y_fast = fast_layer(x)
+        self.assertIsNone(backend.get_keras_mask(y_fast))
+
+        slow_layer = MaskDestroying()
+        slow_layer._call_spec_fast_path = False
+        with self.assertWarnsRegex(UserWarning, "does not support masking"):
+            y_slow = slow_layer(x)
+        self.assertIsNone(backend.get_keras_mask(y_slow))
+
+    def test_n1_set_mask_metadata_leaf_fast_path(self):
+        # Direct unit test of `_set_mask_metadata`'s leaf branch: a
+        # non-nested (single-tensor) output must get the mask set/skipped
+        # identically to the general (nested) path's outcome for the
+        # equivalent single-element structure.
+        class Passthrough(layers.Layer):
+            def call(self, inputs):
+                return inputs
+
+            def compute_mask(self, inputs, previous_mask=None):
+                return previous_mask
+
+        layer = Passthrough()
+        x = ops.convert_to_tensor(np.zeros((2, 3), dtype="float32"))
+        mask = ops.convert_to_tensor(np.array([True, False]))
+
+        # Leaf output: mask gets set via the fast branch.
+        out_leaf = ops.convert_to_tensor(np.zeros((2, 3), dtype="float32"))
+        layer._set_mask_metadata(x, out_leaf, mask)
+        result_mask = backend.get_keras_mask(out_leaf)
+        self.assertIsNotNone(result_mask)
+        np.testing.assert_array_equal(
+            ops.convert_to_numpy(result_mask), ops.convert_to_numpy(mask)
+        )
+
+        # Leaf output that already has a mask: fast branch must return
+        # early without overwriting it (mirrors `mask_already_computed`
+        # in the general path).
+        out_already_masked = ops.convert_to_tensor(
+            np.zeros((2, 3), dtype="float32")
+        )
+        preexisting = ops.convert_to_tensor(np.array([False, False]))
+        backend.set_keras_mask(out_already_masked, preexisting)
+        layer._set_mask_metadata(x, out_already_masked, mask)
+        preserved_mask = backend.get_keras_mask(out_already_masked)
+        np.testing.assert_array_equal(
+            ops.convert_to_numpy(preserved_mask),
+            ops.convert_to_numpy(preexisting),
+        )
+
+        # `compute_mask` returning None: fast branch must not set a mask.
+        class NoMask(layers.Layer):
+            def call(self, inputs):
+                return inputs
+
+            def compute_mask(self, inputs, previous_mask=None):
+                return None
+
+        no_mask_layer = NoMask()
+        out_none = ops.convert_to_tensor(np.zeros((2, 3), dtype="float32"))
+        no_mask_layer._set_mask_metadata(x, out_none, mask)
+        self.assertIsNone(backend.get_keras_mask(out_none))
+
+        # Nested (tuple) output: must fall through to the general path
+        # unchanged (this is what the RNN return_state=True shape hits).
+        class TupleOut(layers.Layer):
+            def call(self, inputs):
+                return inputs, inputs
+
+            def compute_mask(self, inputs, previous_mask=None):
+                return previous_mask, None
+
+        tuple_layer = TupleOut()
+        out_tuple = (
+            ops.convert_to_tensor(np.zeros((2, 3), dtype="float32")),
+            ops.convert_to_tensor(np.zeros((2, 3), dtype="float32")),
+        )
+        tuple_layer._set_mask_metadata(x, out_tuple, mask)
+        mask0 = backend.get_keras_mask(out_tuple[0])
+        mask1 = backend.get_keras_mask(out_tuple[1])
+        np.testing.assert_array_equal(
+            ops.convert_to_numpy(mask0), ops.convert_to_numpy(mask)
+        )
+        self.assertIsNone(mask1)
+
+    def test_n1_multi_tensor_mask_path_unaffected(self):
+        # Multi-tensor calls (e.g. `k_mask`/`v_mask`-style population) are
+        # never `single_tensor_call`-eligible, so they must always take
+        # the general `CallSpec.__init__` + `tree.map_structure` path,
+        # unchanged by N1.
+        class TwoArgMasking(layers.Layer):
+            def call(self, q, v, q_mask=None, v_mask=None):
+                return q + v
+
+        q = ops.convert_to_tensor(np.ones((2, 3), dtype="float32"))
+        v = ops.convert_to_tensor(np.ones((2, 3), dtype="float32"))
+        q_mask_value = ops.convert_to_tensor(np.array([True, False]))
+        backend.set_keras_mask(q, q_mask_value)
+
+        layer = TwoArgMasking()
+        self.assertFalse(layer._call_spec_fast_path)
+
+        orig_map_structure = tree.map_structure
+        counting = {"n": 0}
+
+        def counting_map_structure(*args, **kwargs):
+            counting["n"] += 1
+            return orig_map_structure(*args, **kwargs)
+
+        with mock.patch.object(tree, "map_structure", counting_map_structure):
+            layer(q, v)
+
+        # The multi-tensor mask-population branch (step 6's `elif` arm)
+        # must still run through `tree.map_structure`.
+        self.assertGreater(counting["n"], 0)
+
+    def test_n1_tensor_attr_dict_name_cache(self):
+        # The `_DICT_NAME_CACHE` in `tensor_attributes.py` must return the
+        # same interned key string on every call for a given `attr` (not
+        # just an equal string), and lookups/writes through the cache must
+        # still behave identically to uncached f-string keys.
+        first = tensor_attributes._dict_name("_some_test_attr")
+        second = tensor_attributes._dict_name("_some_test_attr")
+        self.assertEqual(first, "_some_test_attr_dict")
+        self.assertIs(first, second)
+
+        class Plain:
+            pass
+
+        obj = Plain()
+        self.assertIsNone(
+            tensor_attributes.get_tensor_attr(obj, "_some_test_attr")
+        )
+        tensor_attributes.set_tensor_attr(obj, "_some_test_attr", "value")
+        self.assertEqual(
+            tensor_attributes.get_tensor_attr(obj, "_some_test_attr"),
+            "value",
+        )
+        tensor_attributes.set_tensor_attr(obj, "_some_test_attr", None)
+        self.assertIsNone(
+            tensor_attributes.get_tensor_attr(obj, "_some_test_attr")
+        )
 
     def test_construction_with_custom_pytree_default_without_len(self):
         # Regression test: a call() default that is a custom pytree-
