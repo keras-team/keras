@@ -1873,7 +1873,22 @@ class Layer(BackendLayer, Operation):
             output_mask = self.compute_mask(inputs, previous_mask)
             if output_mask is None:
                 return
-            if backend.get_keras_mask(outputs) is None:
+            if tree.is_nested(output_mask):
+                # Contract violation guard: `compute_mask` is expected to
+                # mirror `outputs`' structure (every built-in override
+                # does), but if a custom override returns a nested result
+                # for a leaf output anyway, match the general path's exact
+                # semantics below (the first flattened mask, or "no mask"
+                # if `compute_mask` returned an empty structure -- mirrors
+                # `zip(flat_outputs, flat_masks)` silently producing zero
+                # pairs rather than raising) instead of storing the wrong
+                # structure or crashing where the general path would not.
+                flat_output_mask = tree.flatten(output_mask)
+                output_mask = flat_output_mask[0] if flat_output_mask else None
+            if (
+                output_mask is not None
+                and backend.get_keras_mask(outputs) is None
+            ):
                 backend.set_keras_mask(outputs, output_mask)
             return
 

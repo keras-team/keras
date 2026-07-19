@@ -2862,6 +2862,43 @@ class LayerTest(testing.TestCase):
         )
         self.assertIsNone(mask1)
 
+        # Contract-violation guard: a leaf output whose `compute_mask`
+        # (incorrectly) returns a nested structure must still get the
+        # *first* flattened mask -- matching what the general/nested path
+        # would have done via `zip(flat_outputs, tree.flatten(masks))` --
+        # not the raw nested structure itself.
+        class LeafOutputNestedMask(layers.Layer):
+            def call(self, inputs):
+                return inputs
+
+            def compute_mask(self, inputs, previous_mask=None):
+                return (previous_mask, None)
+
+        malformed_layer = LeafOutputNestedMask()
+        out_malformed = ops.convert_to_tensor(np.zeros((2, 3), dtype="float32"))
+        malformed_layer._set_mask_metadata(x, out_malformed, mask)
+        malformed_result = backend.get_keras_mask(out_malformed)
+        self.assertNotIsInstance(malformed_result, tuple)
+        np.testing.assert_array_equal(
+            ops.convert_to_numpy(malformed_result), ops.convert_to_numpy(mask)
+        )
+
+        # Contract-violation guard, empty case: `compute_mask` returning an
+        # empty nested structure must not set a mask (must not raise
+        # either) -- matches `zip(flat_outputs, [])` silently producing
+        # zero pairs in the general path.
+        class LeafOutputEmptyMask(layers.Layer):
+            def call(self, inputs):
+                return inputs
+
+            def compute_mask(self, inputs, previous_mask=None):
+                return ()
+
+        empty_layer = LeafOutputEmptyMask()
+        out_empty = ops.convert_to_tensor(np.zeros((2, 3), dtype="float32"))
+        empty_layer._set_mask_metadata(x, out_empty, mask)
+        self.assertIsNone(backend.get_keras_mask(out_empty))
+
     def test_n1_multi_tensor_mask_path_unaffected(self):
         # Multi-tensor calls (e.g. `k_mask`/`v_mask`-style population) are
         # never `single_tensor_call`-eligible, so they must always take
