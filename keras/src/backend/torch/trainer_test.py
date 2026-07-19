@@ -91,7 +91,7 @@ class TorchTrainStepWeightsWalkTest(testing.TestCase):
         """The single cached read matches two independent property reads.
 
         `train_step` now reads `self.trainable_weights` once and reuses
-        it for both the truthiness guard and the `[:]` snapshot passed to
+        it for both the truthiness guard and the snapshot passed to
         the optimizer. This asserts that snapshot is identical (weight
         list contents, not just length) to what a second, independent
         `self.trainable_weights` read would produce immediately

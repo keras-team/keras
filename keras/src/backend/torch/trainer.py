@@ -70,7 +70,6 @@ class TorchTrainer(base_trainer.Trainer):
             # for the weights.
             loss.backward()
 
-            trainable_weights = trainable_weights[:]
             gradients = [v.value.grad for v in trainable_weights]
 
             # Update weights
