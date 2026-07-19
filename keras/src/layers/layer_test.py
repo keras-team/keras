@@ -2328,6 +2328,144 @@ class LayerTest(testing.TestCase):
         y = layer(x, training=True)
         self.assertEqual(tuple(y.shape), (2, 3))
 
+    def test_call_skips_conversion_map_structure_for_training_kwarg(self):
+        # N2: `Layer.__call__`'s step-1 conversion-skip gate must not be
+        # defeated merely because the caller passed the well-known
+        # `training=<bool-or-None>` kwarg (the shape fit()/evaluate()/
+        # predict() always use). When the input tensor already matches the
+        # layer's dtype, the training=<bool> call must trigger exactly as
+        # many `tree.map_structure` calls as the plain no-kwargs call (both
+        # skip step 1's conversion walk; any later steps, e.g. mask
+        # bookkeeping, run identically either way), whereas pre-fix it cost
+        # 2 extra calls (args + kwargs) from step 1 alone.
+        class Identity(layers.Layer):
+            def call(self, inputs, training=None):
+                return inputs
+
+        layer = Identity()
+        x = ops.convert_to_tensor(np.random.rand(2, 3).astype("float32"))
+        # Warm up (build, dtype policy resolution) outside the assertion.
+        layer(x)
+
+        real_map_structure = tree.map_structure
+
+        def count_map_structure_calls(fn):
+            call_count = 0
+
+            def counting_map_structure(*args, **kwargs):
+                nonlocal call_count
+                call_count += 1
+                return real_map_structure(*args, **kwargs)
+
+            with mock.patch.object(
+                tree, "map_structure", counting_map_structure
+            ):
+                fn()
+            return call_count
+
+        baseline_count = count_map_structure_calls(lambda: layer(x))
+
+        for training_value in (True, False, None):
+            training_count = count_map_structure_calls(
+                lambda: layer(x, training=training_value)
+            )
+            self.assertEqual(
+                training_count,
+                baseline_count,
+                msg=(
+                    "training="
+                    f"{training_value!r} should cost the same "
+                    "tree.map_structure call count as the no-kwargs call "
+                    "(step 1's conversion walk must be skipped in both)"
+                ),
+            )
+
+        y = layer(x, training=False)
+        self.assertIs(y, x)
+
+    def test_call_still_converts_with_training_kwarg_dtype_mismatch(self):
+        # Negative case: even with the well-known training=<bool> kwarg
+        # shape, a dtype-mismatched input must still be converted.
+        class Identity(layers.Layer):
+            def call(self, inputs, training=None):
+                return inputs
+
+        layer = Identity(dtype="float32")
+        x64 = ops.convert_to_tensor(np.random.rand(2, 3).astype("float64"))
+        layer(ops.convert_to_tensor(np.random.rand(2, 3).astype("float32")))
+
+        real_map_structure = tree.map_structure
+        call_count = 0
+
+        def counting_map_structure(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            return real_map_structure(*args, **kwargs)
+
+        with mock.patch.object(tree, "map_structure", counting_map_structure):
+            y = layer(x64, training=False)
+        self.assertGreater(
+            call_count,
+            0,
+            msg="dtype-mismatched input must still take the conversion path",
+        )
+        self.assertEqual(backend.standardize_dtype(y.dtype), "float32")
+
+    def test_call_still_converts_with_extra_kwargs(self):
+        # Negative case: a second kwarg alongside training= must still take
+        # the general (conversion-eligible) path.
+        class MaskArg(layers.Layer):
+            def call(self, inputs, training=None, mask=None):
+                return inputs
+
+        layer = MaskArg()
+        x = ops.convert_to_tensor(np.random.rand(2, 3).astype("float32"))
+        layer(x)
+
+        real_map_structure = tree.map_structure
+        call_count = 0
+
+        def counting_map_structure(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            return real_map_structure(*args, **kwargs)
+
+        with mock.patch.object(tree, "map_structure", counting_map_structure):
+            layer(x, training=False, mask=None)
+        self.assertGreater(
+            call_count,
+            0,
+            msg="multi-kwarg calls must still take the conversion path",
+        )
+
+    def test_call_training_kwarg_skip_output_matches_slow_path(self):
+        # Numeric-equivalence proof: with the skip gate widened, the output
+        # of a training=<bool> call on a dtype-matching input must be
+        # identical (same object, since conversion is skipped) to what the
+        # pre-fix conversion path would have produced (a value-equal, if not
+        # identical, tensor).
+        class Identity(layers.Layer):
+            def call(self, inputs, training=None):
+                return inputs
+
+        layer = Identity()
+        x = ops.convert_to_tensor(np.random.rand(2, 3).astype("float32"))
+        layer(x)
+
+        for training_value in (True, False, None):
+            fast_path_output = layer(x, training=training_value)
+            # Directly exercise the conversion function the slow path would
+            # have applied, to confirm it is a value-preserving no-op for
+            # this dtype-matching shape.
+            converted = layer.dtype_policy.convert_input(
+                x, layer.autocast, layer.input_dtype
+            )
+            self.assertIs(fast_path_output, x)
+            np.testing.assert_array_equal(
+                ops.convert_to_numpy(fast_path_output),
+                ops.convert_to_numpy(converted),
+            )
+
     def test_callspec_fast_path_excludes_unsupported_signatures(self):
         class MultiArg(layers.Layer):
             def call(self, inputs, other):
