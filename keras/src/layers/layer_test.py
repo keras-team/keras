@@ -15,6 +15,7 @@ from keras.src import ops
 from keras.src import testing
 from keras.src.backend.common import global_state
 from keras.src.backend.common.remat import RematScope
+from keras.src.layers import layer as layer_module
 from keras.src.models import Model
 
 
@@ -636,6 +637,148 @@ class LayerTest(testing.TestCase):
         model(np.ones((1,)))
         self.assertLen(model.losses, 1)
         self.assertAllClose(model.losses[0], 1.0)
+
+    def test_clear_losses_walk_skipped_when_no_losses_ever_registered(self):
+        # `_get_call_context` should not walk the sublayer tree calling
+        # `_clear_losses()` on a model that has never registered a loss
+        # anywhere in the process. Once any layer anywhere calls
+        # `add_loss`, the module-level flag flips permanently and the walk
+        # always runs again (conservative over-clearing, never
+        # under-clearing).
+        original_flag = layer_module._LOSSES_REGISTERED
+        try:
+            layer_module._LOSSES_REGISTERED = False
+
+            class PlainLayer(layers.Layer):
+                def call(self, x):
+                    return x * 2
+
+            model = models.Sequential(
+                [PlainLayer() for _ in range(3)],
+            )
+            model.build((None, 4))
+            x = np.ones((2, 4))
+
+            with mock.patch.object(
+                layers.Layer, "_clear_losses", autospec=True
+            ) as mock_clear:
+                model(x)
+                mock_clear.assert_not_called()
+
+            self.assertFalse(layer_module._LOSSES_REGISTERED)
+
+            # Now register a loss anywhere; the flag flips permanently and
+            # the walk resumes on every subsequent outermost call.
+            class LossLayer(layers.Layer):
+                def call(self, x):
+                    self.add_loss(ops.sum(x))
+                    return x
+
+            loss_model = models.Sequential(
+                [LossLayer()] + [PlainLayer() for _ in range(3)],
+            )
+            loss_model.build((None, 4))
+            loss_model(x)
+            self.assertTrue(layer_module._LOSSES_REGISTERED)
+
+            with mock.patch.object(
+                layers.Layer, "_clear_losses", autospec=True
+            ) as mock_clear:
+                model(x)
+                mock_clear.assert_called()
+        finally:
+            layer_module._LOSSES_REGISTERED = original_flag
+
+    def test_add_loss_flag_makes_clear_losses_permanent(self):
+        # Regression: once the flag is set, unrelated loss-free models in
+        # the same process must still get their (empty) losses cleared
+        # every call, i.e. behavior is identical to pre-fix once any loss
+        # has ever been registered.
+        original_flag = layer_module._LOSSES_REGISTERED
+        try:
+            layer_module._LOSSES_REGISTERED = True
+
+            class PlainLayer(layers.Layer):
+                def call(self, x):
+                    return x * 2
+
+            layer = PlainLayer()
+            with mock.patch.object(
+                layers.Layer, "_clear_losses", autospec=True
+            ) as mock_clear:
+                layer(np.ones((1,)))
+                mock_clear.assert_called()
+        finally:
+            layer_module._LOSSES_REGISTERED = original_flag
+
+    def test_activity_regularizer_sets_losses_registered_flag(self):
+        # The activity-regularizer path routes through `add_loss`
+        # (layer.py, inside `Layer.__call__`), so it must also flip the
+        # module-level flag.
+        original_flag = layer_module._LOSSES_REGISTERED
+        try:
+            layer_module._LOSSES_REGISTERED = False
+
+            layer = layers.Dense(2, activity_regularizer="l2")
+            layer.build((None, 2))
+            layer(np.ones((1, 2)))
+
+            self.assertTrue(layer_module._LOSSES_REGISTERED)
+        finally:
+            layer_module._LOSSES_REGISTERED = original_flag
+
+    def test_activity_regularizer_losses_accumulate_correctly_per_call(self):
+        # Regression for the gated walk: an activity-regularized layer
+        # must still see exactly one loss per call (not accumulating
+        # across repeated calls), since once the flag is set the clear
+        # still runs on every outermost call.
+        layer = layers.Dense(2, activity_regularizer="l2")
+        layer.build((None, 2))
+
+        layer(np.ones((1, 2)))
+        self.assertLen(layer.losses, 1)
+
+        layer(np.ones((1, 2)))
+        self.assertLen(layer.losses, 1)
+
+        layer(np.ones((1, 2)))
+        self.assertLen(layer.losses, 1)
+
+    def test_stateless_scope_losses_still_cleared_when_flag_set(self):
+        # The gate only skips the walk when the flag is `False`. Once set,
+        # loss clearing under a stateless scope (used e.g. by the JAX
+        # backend) must behave exactly as before: each outermost call
+        # clears prior losses before the layer runs again.
+        original_flag = layer_module._LOSSES_REGISTERED
+        try:
+            layer_module._LOSSES_REGISTERED = True
+
+            class LossLayer(layers.Layer):
+                def call(self, x):
+                    self.add_loss(ops.sum(x))
+                    return x
+
+            layer = LossLayer()
+            layer.build((1,))
+            x = np.ones((1,))
+
+            state_mapping = [(v, v.value) for v in layer.variables]
+            with backend.StatelessScope(
+                state_mapping=state_mapping, collect_losses=True
+            ) as scope:
+                layer(x)
+            self.assertLen(scope.losses, 1)
+
+            # A second, independent stateless call must not accumulate
+            # losses from the first.
+            state_mapping = [(v, v.value) for v in layer.variables]
+            with backend.StatelessScope(
+                state_mapping=state_mapping, collect_losses=True
+            ) as scope2:
+                layer(x)
+            self.assertLen(scope2.losses, 1)
+        finally:
+            layer_module._LOSSES_REGISTERED = original_flag
 
     def test_training_arg_value_resolution(self):
         # Check that even if `training` is not passed

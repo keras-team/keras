@@ -67,6 +67,16 @@ else:
     )
 
 
+# Process-global, set-once flag. Stays `False` until the first `add_loss`
+# call anywhere in the process. While it is `False`, no layer's `_losses`
+# list or `_loss_ids` set can be non-empty (the only writer is `add_loss`,
+# which flips this flag before doing so), so the recursive
+# `_clear_losses()` walk in `_get_call_context` is provably a no-op and can
+# be skipped entirely. Once set, it is never unset, and behavior reverts to
+# exactly the prior (always-clear) semantics for the rest of the process.
+_LOSSES_REGISTERED = False
+
+
 @keras_export(["keras.Layer", "keras.layers.Layer"])
 class Layer(BackendLayer, Operation):
     """This is the class from which all layers inherit.
@@ -1275,6 +1285,8 @@ class Layer(BackendLayer, Operation):
                     "`add_loss()` can only be called from inside `build()` or "
                     f"`call()`, on a tensor input. Received invalid value: {x}"
                 )
+        global _LOSSES_REGISTERED
+        _LOSSES_REGISTERED = True
         if backend.in_stateless_scope():
             scope = backend.get_stateless_scope()
             if scope.collect_losses:
@@ -1690,7 +1702,8 @@ class Layer(BackendLayer, Operation):
             global_state.set_global_attribute(
                 "current_call_ctx", layer_call_ctx
             )
-            self._clear_losses()
+            if _LOSSES_REGISTERED:
+                self._clear_losses()
         return layer_call_ctx
 
     def _maybe_reset_call_context(self):
