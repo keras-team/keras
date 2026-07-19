@@ -64,12 +64,13 @@ class TorchTrainer(base_trainer.Trainer):
             loss = self.optimizer.scale_loss(loss)
 
         # Compute gradients
-        if self.trainable_weights:
+        trainable_weights = self.trainable_weights
+        if trainable_weights:
             # Call torch.Tensor.backward() on the loss to compute gradients
             # for the weights.
             loss.backward()
 
-            trainable_weights = self.trainable_weights[:]
+            trainable_weights = trainable_weights[:]
             gradients = [v.value.grad for v in trainable_weights]
 
             # Update weights
