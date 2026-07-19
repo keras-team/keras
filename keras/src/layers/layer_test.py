@@ -2335,11 +2335,18 @@ class LayerTest(testing.TestCase):
         # defeated merely because the caller passed the well-known
         # `training=<bool-or-None>` kwarg (the shape fit()/evaluate()/
         # predict() always use). When the input tensor already matches the
-        # layer's dtype, the training=<bool> call must trigger exactly as
-        # many `tree.map_structure` calls as the plain no-kwargs call (both
-        # skip step 1's conversion walk; any later steps, e.g. mask
-        # bookkeeping, run identically either way), whereas pre-fix it cost
-        # 2 extra calls (args + kwargs) from step 1 alone.
+        # layer's dtype, the training=<bool-or-None> call must trigger zero
+        # `maybe_convert`-driven `tree.map_structure` calls, same as the
+        # plain no-kwargs call, whereas pre-fix it cost 2 extra calls
+        # (args + kwargs) from step 1 alone. This counts only step 1's own
+        # conversion calls (identified by the `fn` argument passed to
+        # `map_structure`), not any unrelated `map_structure` calls a later
+        # step may make for other reasons (e.g. N1's mask-pipeline gate
+        # applies to a narrower kwargs shape than N2's conversion gate:
+        # `training=None` deliberately still takes the general mask path,
+        # since `None` needs slow-path call-context inheritance, so it
+        # legitimately costs one non-conversion `map_structure` call that
+        # `training=<bool>` and the no-kwargs call do not).
         class Identity(layers.Layer):
             def call(self, inputs, training=None):
                 return inputs
@@ -2351,13 +2358,14 @@ class LayerTest(testing.TestCase):
 
         real_map_structure = tree.map_structure
 
-        def count_map_structure_calls(fn):
+        def count_conversion_map_structure_calls(fn):
             call_count = 0
 
-            def counting_map_structure(*args, **kwargs):
+            def counting_map_structure(map_fn, *args, **kwargs):
                 nonlocal call_count
-                call_count += 1
-                return real_map_structure(*args, **kwargs)
+                if getattr(map_fn, "__name__", "") == "maybe_convert":
+                    call_count += 1
+                return real_map_structure(map_fn, *args, **kwargs)
 
             with mock.patch.object(
                 tree, "map_structure", counting_map_structure
@@ -2365,10 +2373,11 @@ class LayerTest(testing.TestCase):
                 fn()
             return call_count
 
-        baseline_count = count_map_structure_calls(lambda: layer(x))
+        baseline_count = count_conversion_map_structure_calls(lambda: layer(x))
+        self.assertEqual(baseline_count, 0)
 
         for training_value in (True, False, None):
-            training_count = count_map_structure_calls(
+            training_count = count_conversion_map_structure_calls(
                 lambda: layer(x, training=training_value)
             )
             self.assertEqual(
@@ -2377,8 +2386,9 @@ class LayerTest(testing.TestCase):
                 msg=(
                     "training="
                     f"{training_value!r} should cost the same "
-                    "tree.map_structure call count as the no-kwargs call "
-                    "(step 1's conversion walk must be skipped in both)"
+                    "conversion-driven tree.map_structure call count as "
+                    "the no-kwargs call (step 1's conversion walk must be "
+                    "skipped in both)"
                 ),
             )
 
@@ -2387,25 +2397,31 @@ class LayerTest(testing.TestCase):
 
     def test_call_still_converts_with_training_kwarg_dtype_mismatch(self):
         # Negative case: even with the well-known training=<bool> kwarg
-        # shape, a dtype-mismatched input must still be converted.
+        # shape, a dtype-mismatched input must still be converted. Uses
+        # float16 (not float64) because JAX disables x64 precision by
+        # default, which would silently downcast a float64 input to
+        # float32 on `convert_to_tensor` and defeat the mismatch premise
+        # this test relies on; float16 vs. float32 is a real mismatch on
+        # every backend regardless of precision configuration.
         class Identity(layers.Layer):
             def call(self, inputs, training=None):
                 return inputs
 
         layer = Identity(dtype="float32")
-        x64 = ops.convert_to_tensor(np.random.rand(2, 3).astype("float64"))
+        x16 = ops.convert_to_tensor(np.random.rand(2, 3).astype("float16"))
         layer(ops.convert_to_tensor(np.random.rand(2, 3).astype("float32")))
 
         real_map_structure = tree.map_structure
         call_count = 0
 
-        def counting_map_structure(*args, **kwargs):
+        def counting_map_structure(map_fn, *args, **kwargs):
             nonlocal call_count
-            call_count += 1
-            return real_map_structure(*args, **kwargs)
+            if getattr(map_fn, "__name__", "") == "maybe_convert":
+                call_count += 1
+            return real_map_structure(map_fn, *args, **kwargs)
 
         with mock.patch.object(tree, "map_structure", counting_map_structure):
-            y = layer(x64, training=False)
+            y = layer(x16, training=False)
         self.assertGreater(
             call_count,
             0,
