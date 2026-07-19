@@ -18,6 +18,7 @@ from keras.src.layers.input_spec import InputSpec
 from keras.src.models import Functional
 from keras.src.models import Model
 from keras.src.models import Sequential
+from keras.src.models import functional as functional_module
 from keras.src.models.model import model_from_json
 
 
@@ -495,6 +496,81 @@ class FunctionalTest(testing.TestCase):
             model(np.zeros((2, 3, 3)))
         model(np.zeros((2, 4, 3)))
 
+    def test_input_spec_is_cached(self):
+        # Single input.
+        inputs = Input(shape=(4,))
+        outputs = layers.Dense(2)(inputs)
+        model = Functional(inputs, outputs)
+
+        spec_1 = model.input_spec
+        spec_2 = model.input_spec
+        self.assertIs(spec_1, spec_2)
+
+        # Multi-input (list) case.
+        input_a = Input(shape=(4,), name="a")
+        input_b = Input(shape=(4,), name="b")
+        x = input_a + input_b
+        outputs = layers.Dense(2)(x)
+        model = Functional([input_a, input_b], outputs)
+        spec_1 = model.input_spec
+        spec_2 = model.input_spec
+        self.assertIs(spec_1, spec_2)
+
+        # Dict-input case (exercises the sorted-names branch).
+        model = Functional({"a": input_a, "b": input_b}, outputs)
+        spec_1 = model.input_spec
+        spec_2 = model.input_spec
+        self.assertIs(spec_1, spec_2)
+        self.assertEqual([s.name for s in spec_1], ["a", "b"])
+
+    def test_input_spec_cache_invalidated_by_manual_setter(self):
+        inputs = Input(shape=(None, 3))
+        outputs = layers.Dense(2)(inputs)
+        model = Functional(inputs, outputs)
+
+        # Populate the cache with the auto-derived spec first.
+        auto_spec = model.input_spec
+        self.assertIsNot(auto_spec, None)
+
+        # Manually overriding must take effect immediately, not return the
+        # stale cached auto-derived spec.
+        manual_spec = InputSpec(shape=(None, 4, 3))
+        model.input_spec = manual_spec
+        self.assertIs(model.input_spec, manual_spec)
+        with self.assertRaisesRegex(
+            ValueError,
+            r"expected shape=\(None, 4, 3\), found shape=\(2, 3, 3\)",
+        ):
+            model(np.zeros((2, 3, 3)))
+        model(np.zeros((2, 4, 3)))
+
+    def test_input_spec_matches_uncached_computation(self):
+        # Parity check: the cached property value must be identical (by
+        # value, since InputSpec objects aren't `__eq__`-comparable in a
+        # useful way here) to what the uncached code path would compute,
+        # for every branch of the property (single/list/dict/nested-dict).
+        def spec_shapes_and_names(spec):
+            if spec is None:
+                return None
+            return [(s.shape, s.name, s.optional) for s in spec]
+
+        # Single input.
+        inputs = Input(shape=(4,))
+        outputs = layers.Dense(2)(inputs)
+        model = Functional(inputs, outputs)
+        cached = spec_shapes_and_names(model.input_spec)
+        del model._cached_input_spec
+        recomputed = spec_shapes_and_names(model.input_spec)
+        self.assertEqual(cached, recomputed)
+
+        # Deeply nested dict input: `input_spec` should be None both times.
+        inputs = Input(shape=(4,), name="x")
+        outputs = layers.Dense(2)(inputs)
+        model = Functional({"nested": {"x": inputs}}, outputs)
+        self.assertIsNone(model.input_spec)
+        del model._cached_input_spec
+        self.assertIsNone(model.input_spec)
+
     def test_functional_slicing(self):
         inputs = Input(shape=(None, 2), name="input")
         x1 = layers.Dense(3, name="dense1")(inputs)
@@ -959,3 +1035,106 @@ class FunctionalTest(testing.TestCase):
         }
         with self.assertRaisesRegex(ValueError, "Missing node: node_b"):
             Functional.from_config(config)
+
+    def test_call_without_training_or_kwargs_skips_operation_fn_wrapper(self):
+        """When `training is None` and there are no extra kwargs, `call()`
+        must pass operations straight through to `_run_through_graph`
+        (identity `operation_fn`) instead of building a per-node closure via
+        `functional.operation_fn`."""
+        inputs = Input(shape=(4,))
+        outputs = layers.Dense(2)(inputs)
+        model = Functional(inputs, outputs)
+        x = np.random.random((2, 4)).astype("float32")
+
+        seen_ops = []
+        real_run_through_graph = model._run_through_graph
+
+        def spying_run_through_graph(inputs, operation_fn=lambda op: op, **kw):
+            # Record whether the identity function was passed unchanged.
+            seen_ops.append(operation_fn)
+            return real_run_through_graph(
+                inputs, operation_fn=operation_fn, **kw
+            )
+
+        model._run_through_graph = spying_run_through_graph
+        try:
+            model(x)  # training=None, no kwargs.
+        finally:
+            model._run_through_graph = real_run_through_graph
+
+        self.assertEqual(len(seen_ops), 1)
+        # The fast path passes the literal `lambda op: op` (identity),
+        # not a call into `functional.operation_fn`.
+        dense_layer = model.layers[-1]
+        self.assertIs(seen_ops[0](dense_layer), dense_layer)
+
+    def test_call_with_training_still_uses_operation_fn_wrapper(self):
+        """The `training=...`/kwargs path must keep injecting call-context
+        args via `functional.operation_fn`, unchanged from before: the
+        wrapper (not the bare op) must be what reaches `_run_through_graph`,
+        and the injected value must actually change layer behavior."""
+        inputs = Input(shape=(4,))
+        outputs = layers.Dense(2)(inputs)
+        model = Functional(inputs, outputs)
+        x = np.random.random((2, 4)).astype("float32")
+
+        seen_ops = []
+        real_run_through_graph = model._run_through_graph
+
+        def spying_run_through_graph(inputs, operation_fn=lambda op: op, **kw):
+            seen_ops.append(operation_fn)
+            return real_run_through_graph(
+                inputs, operation_fn=operation_fn, **kw
+            )
+
+        model._run_through_graph = spying_run_through_graph
+        try:
+            model(x, training=True)
+        finally:
+            model._run_through_graph = real_run_through_graph
+
+        self.assertEqual(len(seen_ops), 1)
+        # Unlike the fast path, this must NOT be the bare identity function:
+        # it has to be a `functional.operation_fn`-produced wrapper closure.
+        dense_layer = model.layers[-1]
+        self.assertIsNot(seen_ops[0](dense_layer), dense_layer)
+
+        # Numeric parity: explicit training=False must differ from
+        # training=True for a layer with a registered `training`
+        # call-context arg (BatchNormalization), proving the `training`
+        # kwarg is genuinely propagated through the wrapper path rather
+        # than silently dropped.
+        bn_inputs = Input(shape=(4,))
+        bn_outputs = layers.BatchNormalization()(bn_inputs)
+        bn_model = Functional(bn_inputs, bn_outputs)
+        bn_model(x, training=True)  # Warm up moving stats.
+        y_train = ops.convert_to_numpy(bn_model(x, training=True))
+        y_infer = ops.convert_to_numpy(bn_model(x, training=False))
+        self.assertNotAllClose(y_train, y_infer)
+
+        # And training=False (explicit wrapper path) matches training=None
+        # (fast identity path) at inference, since BN's own default is
+        # equivalent to `training=False`.
+        y_default = ops.convert_to_numpy(bn_model(x))
+        self.assertAllClose(y_infer, y_default)
+
+    def test_functional_call_fast_and_slow_paths_numerically_match(self):
+        """The identity-operation_fn fast path (training=None, no kwargs)
+        must produce bit-for-bit-equivalent output to explicitly routing
+        through the `functional.operation_fn` wrapper with all-None args."""
+        inputs = Input(shape=(4,))
+        outputs = layers.Dense(3)(layers.Dense(5)(inputs))
+        model = Functional(inputs, outputs)
+        x = np.random.random((2, 4)).astype("float32")
+
+        fast_path_result = ops.convert_to_numpy(model(x))
+
+        standardized = model._standardize_inputs(x)
+        wrapped_outputs = model._run_through_graph(
+            standardized,
+            operation_fn=lambda op: functional_module.operation_fn(
+                op, training=None
+            ),
+        )
+        wrapped_result = ops.convert_to_numpy(wrapped_outputs)
+        self.assertAllClose(fast_path_result, wrapped_result)

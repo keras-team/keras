@@ -1666,10 +1666,11 @@ class Layer(BackendLayer, Operation):
             )
 
     def _assert_input_compatibility(self, arg_0):
-        if self.input_spec:
+        spec = self.input_spec
+        if spec:
             try:
                 input_spec.assert_input_compatibility(
-                    self.input_spec, arg_0, layer_name=self.name
+                    spec, arg_0, layer_name=self.name
                 )
             except SystemError:
                 if backend.backend() == "torch":

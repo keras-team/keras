@@ -82,6 +82,11 @@ class Function(Operation):
         self._nodes_by_depth = nodes_by_depth
         self._operations = operations
         self._operations_by_depth = operations_by_depth
+        # `nodes_by_depth` is fixed once the graph is built (immutable
+        # post-construction), so its sorted key order can be precomputed
+        # once here instead of being resorted on every `_run_through_graph`
+        # call.
+        self._depth_keys_sorted = sorted(nodes_by_depth.keys(), reverse=True)
 
         # Run through graph to check all outputs are connected to the inputs.
         def empty_op_outputs(op, *args, **kwargs):
@@ -186,8 +191,11 @@ class Function(Operation):
             tensor_dict[id(x)] = y
 
         nodes_by_depth = self._nodes_by_depth
-        depth_keys = list(nodes_by_depth.keys())
-        depth_keys.sort(reverse=True)
+        depth_keys = getattr(self, "_depth_keys_sorted", None)
+        if depth_keys is None:
+            # Fallback for instances that bypassed `Function.__init__`
+            # (e.g. old pickles/deserialized objects predating this cache).
+            depth_keys = sorted(nodes_by_depth.keys(), reverse=True)
 
         for depth in depth_keys:
             nodes = nodes_by_depth[depth]

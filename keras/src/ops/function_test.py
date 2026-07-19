@@ -198,3 +198,38 @@ class FunctionTest(testing.TestCase):
 
         result = fn(np.ones((2, 3)) * 3)
         self.assertAllClose(result, np.ones((2, 3)) * 9)  # 3^2 = 9
+
+    def test_depth_keys_precomputed_at_init(self):
+        """`_depth_keys_sorted` is built once in `__init__`, not per-call."""
+        x1 = keras_tensor.KerasTensor((2, 3))
+        x2 = keras_tensor.KerasTensor((2, 3))
+        y = knp.add(x1, x2) * 3
+        fn = function.Function(inputs=[x1, x2], outputs=y)
+
+        self.assertTrue(hasattr(fn, "_depth_keys_sorted"))
+        expected = sorted(fn._nodes_by_depth.keys(), reverse=True)
+        self.assertEqual(fn._depth_keys_sorted, expected)
+
+        # Calling the function must not mutate/rebuild the cached list
+        # (compare identity, not just equality, to prove no reallocation).
+        cached_before = fn._depth_keys_sorted
+        fn([np.ones((2, 3)), np.ones((2, 3))])
+        self.assertIs(fn._depth_keys_sorted, cached_before)
+
+    def test_run_through_graph_uses_precomputed_depth_keys(self):
+        """`_run_through_graph` must fall back gracefully if the precomputed
+        attribute is absent (e.g. objects predating this cache), and must
+        produce identical results whether or not the cache is present."""
+        x1 = keras_tensor.KerasTensor((2, 3))
+        x2 = keras_tensor.KerasTensor((2, 3))
+        y = knp.add(x1, x2) * 3
+        fn = function.Function(inputs=[x1, x2], outputs=y)
+
+        inputs = [np.ones((2, 3)), np.ones((2, 3)) * 2]
+        result_with_cache = fn(inputs)
+
+        # Simulate a legacy instance without the precomputed attribute.
+        del fn._depth_keys_sorted
+        result_without_cache = fn(inputs)
+
+        self.assertAllClose(result_with_cache, result_without_cache)

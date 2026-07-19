@@ -181,12 +181,21 @@ class Functional(Function, Model):
             for x, mask in zip(inputs, masks):
                 if mask is not None:
                     backend.set_keras_mask(x, mask)
-        outputs = self._run_through_graph(
-            inputs,
-            operation_fn=lambda op: operation_fn(
-                op, training=training, **kwargs
-            ),
-        )
+        if training is None and not kwargs:
+            # No call-context args to inject: `operation_fn(op, **{})`'s
+            # injection loop is a provable no-op here (every candidate value
+            # is `None`), so skip allocating a per-node wrapper closure and
+            # call each operation directly.
+            outputs = self._run_through_graph(
+                inputs, operation_fn=lambda op: op
+            )
+        else:
+            outputs = self._run_through_graph(
+                inputs,
+                operation_fn=lambda op: operation_fn(
+                    op, training=training, **kwargs
+                ),
+            )
         return unpack_singleton(outputs)
 
     def compute_output_spec(self, inputs, training=None, mask=None):
@@ -396,6 +405,16 @@ class Functional(Function, Model):
         if hasattr(self, "_manual_input_spec"):
             return self._manual_input_spec
 
+        # Bypass `Layer.__setattr__`/tracking for this cache: it holds a
+        # plain list of `InputSpec` objects, not sublayers/variables, and
+        # going through `self._tracker.track(...)` would rewrap the list
+        # into a new `TrackedList` object on every assignment, which is
+        # both unnecessary bookkeeping and would break identity-stability
+        # of the cached value across reads.
+        cached = self.__dict__.get("_cached_input_spec")
+        if cached is not None:
+            return cached
+
         def shape_with_no_batch_size(x):
             x = list(x)
             if x:
@@ -421,16 +440,24 @@ class Functional(Function, Model):
             ):
                 # Case where `_nested_inputs` is a plain dict of Inputs.
                 names = sorted(self._inputs_struct.keys())
-                return [
+                spec = [
                     make_spec_for_tensor(self._inputs_struct[name], name=name)
                     for name in names
                 ]
-            return None  # Deeply nested dict: skip checks.
-        return [make_spec_for_tensor(x) for x in self.inputs]
+            else:
+                spec = None  # Deeply nested dict: skip checks.
+        else:
+            spec = [make_spec_for_tensor(x) for x in self.inputs]
+        # `_inputs_struct` (and therefore the derived spec) is fixed once
+        # the Functional graph is built, so it is safe to cache. The setter
+        # below invalidates the cache if a manual spec is later assigned.
+        self.__dict__["_cached_input_spec"] = spec
+        return spec
 
     @input_spec.setter
     def input_spec(self, value):
         self._manual_input_spec = value
+        self.__dict__["_cached_input_spec"] = None
 
     def get_config(self):
         if not functional_like_constructor(self.__class__):
