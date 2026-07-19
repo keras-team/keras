@@ -102,6 +102,25 @@ def to_torch_dtype(dtype):
     return standardized_dtype
 
 
+def _maybe_meta_stub(variable, value):
+    # Create and use a symbolic tensor stub in symbolic calls.
+    # `get_device()` always returns a plain `str` (see `_parse_device_input`,
+    # which raises on non-str input), so no `str()` wrapping is needed here.
+    # `value.device` is a `torch.device`; `.type` is its device-kind string
+    # (e.g. "meta", "cpu", "cuda"), equivalent to but cheaper than
+    # `str(value.device)`.
+    if get_device() == "meta" and value.device.type != "meta":
+        return torch.nn.Parameter(
+            torch.empty(
+                size=variable._shape,
+                dtype=to_torch_dtype(variable._dtype),
+                device="meta",
+            ),
+            requires_grad=variable.trainable,
+        )
+    return value
+
+
 class Variable(KerasVariable):
     def _initialize(self, value):
         if isinstance(value, torch.nn.Parameter):
@@ -142,25 +161,12 @@ class Variable(KerasVariable):
     def value(self):
         # We cannot chain super() here because it will fail TorchDynamo. The
         # reason why is unclear.
-        def maybe_use_symbolic_tensor(value):
-            # Create and use a symbolic tensor stub in symbolic calls.
-            if str(get_device()) == "meta" and str(value.device) != "meta":
-                return torch.nn.Parameter(
-                    torch.empty(
-                        size=self._shape,
-                        dtype=to_torch_dtype(self._dtype),
-                        device="meta",
-                    ),
-                    requires_grad=self.trainable,
-                )
-            return value
-
         if in_stateless_scope():
             scope = get_stateless_scope()
             value = scope.get_current_value(self)
             if value is not None:
                 value = self._maybe_autocast(value)
-                return maybe_use_symbolic_tensor(value)
+                return _maybe_meta_stub(self, value)
         if self._value is None:
             # Uninitialized variable. Return a placeholder.
             # This is fine because it's only ever used
@@ -171,7 +177,7 @@ class Variable(KerasVariable):
             )
         else:
             value = self._maybe_autocast(self._value)
-        return maybe_use_symbolic_tensor(value)
+        return _maybe_meta_stub(self, value)
 
     @property
     def trainable(self):

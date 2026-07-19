@@ -10,6 +10,7 @@ from keras.src import backend
 from keras.src import initializers
 from keras.src import ops
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import variables as variables_module
 from keras.src.backend.common.variables import AutocastScope
 from keras.src.backend.common.variables import shape_equal
 from keras.src.backend.common.variables import standardize_dtype
@@ -323,6 +324,56 @@ class VariablePropertiesTest(test_case.TestCase):
             )
         self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
 
+    def test_maybe_autocast_skips_scope_read_when_autocast_false(self):
+        """`_maybe_autocast` must not consult the autocast scope global at
+        all when `self._autocast` is False (F3+RC13 fast path): the value
+        is still returned unchanged, but `get_autocast_scope` is not
+        called."""
+        v = backend.Variable(
+            initializer=initializers.Ones(),
+            shape=(2, 2),
+            dtype="float32",
+            autocast=False,
+        )
+        value = np.ones((2, 2), dtype="float32")
+        with AutocastScope("float16"):
+            original_get_autocast_scope = variables_module.get_autocast_scope
+            calls = []
+
+            def spy_get_autocast_scope():
+                calls.append(1)
+                return original_get_autocast_scope()
+
+            variables_module.get_autocast_scope = spy_get_autocast_scope
+            try:
+                result = v._maybe_autocast(value)
+            finally:
+                variables_module.get_autocast_scope = (
+                    original_get_autocast_scope
+                )
+        # Semantics unchanged: autocast=False variable is never cast.
+        self.assertIs(result, value)
+        # Mechanism: the global-state read is skipped entirely.
+        self.assertEqual(len(calls), 0)
+
+    def test_maybe_autocast_still_reads_scope_when_autocast_true(self):
+        """Sanity check: autocast=True variables still consult (and are
+        affected by) the autocast scope -- the fast path only skips the
+        read, it does not change autocast=True behavior."""
+        v = backend.Variable(
+            initializer=initializers.Ones(),
+            shape=(2, 2),
+            dtype="float32",
+            autocast=True,
+        )
+        value = ops.ones((2, 2), dtype="float32")
+        with AutocastScope("float16"):
+            result = v._maybe_autocast(value)
+        self.assertEqual(backend.standardize_dtype(result.dtype), "float16")
+        # Outside any scope, value passes through unchanged.
+        result_no_scope = v._maybe_autocast(value)
+        self.assertIs(result_no_scope, value)
+
     @parameterized.named_parameters(
         named_product(
             dtype=(
@@ -581,6 +632,69 @@ class VariableDtypeShapeNdimRepr(test_case.TestCase):
             initializer=np.array([1.0, 2.0, 3.0], dtype=np.float32)
         )
         self.assertEqual(v.dtype, "float32")
+
+    @parameterized.named_parameters(
+        ("float32", "float32"),
+        ("float16", "float16"),
+        ("int32", "int32"),
+        ("bool", "bool"),
+    )
+    def test_variable_dtype_parity_with_and_without_scope(self, dtype):
+        """`.dtype` return value must be identical to the pre-fast-path
+        behavior (which routed every access through a trailing
+        `standardize_dtype()` call) for float/int/bool dtypes, both with
+        and without an active AutocastScope (F3+RC13)."""
+        init = (
+            initializers.Ones()
+            if dtype not in ("bool",)
+            else initializers.Constant(True)
+        )
+        v = backend.Variable(
+            initializer=init,
+            shape=(2, 2),
+            dtype=dtype,
+            trainable=dtype.startswith("float"),
+        )
+        # No scope: dtype passes through as the already-standardized
+        # self._dtype.
+        self.assertEqual(v.dtype, dtype)
+        self.assertEqual(v.dtype, standardize_dtype(v.dtype))
+
+        if dtype.startswith("float"):
+            with AutocastScope("float16"):
+                # Under scope, a float variable's dtype is the scope's
+                # (already-standardized) dtype.
+                self.assertEqual(v.dtype, "float16")
+                self.assertEqual(v.dtype, standardize_dtype(v.dtype))
+        else:
+            with AutocastScope("float16"):
+                # Non-float variables ignore the scope entirely.
+                self.assertEqual(v.dtype, dtype)
+
+    def test_dtype_property_skips_redundant_standardize_call(self):
+        """Mechanism check: the trailing `backend.standardize_dtype()` call
+        at the end of `Variable.dtype` was provably redundant (both
+        branches are already-standardized strings) and has been removed.
+        Patch `backend.standardize_dtype` -- the exact name the old
+        implementation called -- and assert it is not invoked by a
+        `.dtype` access."""
+        v = backend.Variable(
+            initializer=initializers.Ones(), shape=(2, 2), dtype="float32"
+        )
+        original = backend.standardize_dtype
+        calls = []
+
+        def spy(*args, **kwargs):
+            calls.append(1)
+            return original(*args, **kwargs)
+
+        backend.standardize_dtype = spy
+        try:
+            result = v.dtype
+        finally:
+            backend.standardize_dtype = original
+        self.assertEqual(result, "float32")
+        self.assertEqual(len(calls), 0)
 
     def test_variable_shape(self):
         """Test retrieving the shape of a variable."""

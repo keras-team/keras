@@ -5,6 +5,7 @@ import pytest
 import torch
 
 from keras.src import backend
+from keras.src import initializers
 from keras.src import testing
 from keras.src.backend.torch.core import DEFAULT_DEVICE
 from keras.src.backend.torch.core import Variable
@@ -351,3 +352,71 @@ class TorchCoreTest(testing.TestCase):
         )
         # Untouched region must remain zero.
         self.assertAllClose(out[0, :].cpu().numpy(), torch.zeros(6).numpy())
+
+    def test_variable_value_no_longer_defines_a_closure_per_access(self):
+        """F3+RC13: `Variable.value` used to define a fresh
+        `maybe_use_symbolic_tensor` closure on every access. It now calls
+        the module-level `_maybe_meta_stub` helper instead, so the
+        property's compiled code object must not contain any nested code
+        object (no per-access closure allocation)."""
+        value_fn = Variable.value.fget
+        nested_code_objects = [
+            const
+            for const in value_fn.__code__.co_consts
+            if hasattr(const, "co_name")
+        ]
+        self.assertEqual(
+            nested_code_objects,
+            [],
+            "Variable.value should not allocate a nested function/closure "
+            f"per access; found: {nested_code_objects}",
+        )
+
+    def test_variable_value_meta_device_stub_matches_pre_fix_behavior(self):
+        """Numeric/behavioral parity: under a meta device_scope, accessing
+        `.value` on a variable whose backing tensor lives on a real device
+        must still return a same-shape/same-dtype meta-device stub
+        Parameter (this is the exact behavior the old
+        `maybe_use_symbolic_tensor` closure implemented)."""
+        v = Variable(
+            initializer=np.array([[1.0, 2.0], [3.0, 4.0]], dtype="float32"),
+            dtype="float32",
+        )
+        # Off meta device: value is returned as-is (real device).
+        self.assertNotEqual(v.value.device.type, "meta")
+        self.assertAllClose(
+            v.value.detach().cpu().numpy(),
+            np.array([[1.0, 2.0], [3.0, 4.0]], dtype="float32"),
+        )
+
+        with device_scope("meta"):
+            stub = v.value
+        self.assertEqual(stub.device.type, "meta")
+        self.assertEqual(tuple(stub.shape), (2, 2))
+        self.assertEqual(stub.dtype, torch.float32)
+        self.assertEqual(stub.requires_grad, v.trainable)
+
+    def test_variable_value_meta_device_noop_when_already_meta(self):
+        """When the underlying value already lives on the meta device (no
+        real backing tensor to stub for), `.value` must return it
+        unchanged -- covers the `value.device.type != "meta"` guard that
+        replaced `str(value.device) != "meta"`."""
+        with device_scope("meta"):
+            v = Variable(
+                initializer=initializers.Zeros(),
+                shape=(2, 2),
+                dtype="float32",
+            )
+            result = v.value
+        self.assertEqual(result.device.type, "meta")
+
+    def test_get_device_equality_matches_str_wrapped_comparison(self):
+        """`get_device() == "meta"` must agree with the old
+        `str(get_device()) == "meta"` for every device string get_device()
+        can actually return (it always returns a plain str; see
+        `_parse_device_input`, which raises on non-str input)."""
+        for device_name in ("cpu", "meta", "cpu:0"):
+            with device_scope(device_name):
+                current = get_device()
+                self.assertIsInstance(current, str)
+                self.assertEqual(current == "meta", str(current) == "meta")

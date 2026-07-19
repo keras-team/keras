@@ -243,9 +243,10 @@ class Variable:
         return shape
 
     def _maybe_autocast(self, value):
-        autocast_scope = get_autocast_scope()
-        if self._autocast and autocast_scope is not None:
-            return autocast_scope.maybe_cast(value)
+        if self._autocast:
+            autocast_scope = get_autocast_scope()
+            if autocast_scope is not None:
+                return autocast_scope.maybe_cast(value)
         return value
 
     def numpy(self):
@@ -306,16 +307,14 @@ class Variable:
     @property
     def dtype(self):
         """The data type of the variable."""
-        autocast_scope = get_autocast_scope()
-        if (
-            self._autocast
-            and autocast_scope is not None
-            and is_float_dtype(self._dtype)
-        ):
-            dtype = autocast_scope.dtype
-        else:
-            dtype = self._dtype
-        return backend.standardize_dtype(dtype)
+        if self._autocast and is_float_dtype(self._dtype):
+            autocast_scope = get_autocast_scope()
+            if autocast_scope is not None:
+                # `AutocastScope.__init__` standardizes `dtype`.
+                return autocast_scope.dtype
+        # `self._dtype` is already standardized in `__init__`, so no
+        # further `standardize_dtype` call is needed here.
+        return self._dtype
 
     @property
     def shape(self):
