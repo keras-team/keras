@@ -12,8 +12,6 @@ NumpyDtypeTest::test_nansum_uint8
 NumpyDtypeTest::test_nanprod_uint8
 # Paddle cross does not support broadcasting
 NumpyTwoInputOpsCorrectnessTest::test_cross
-# Paddle isclose requires same-dimension inputs
-NumpyTwoInputOpsCorrectnessTest::test_isclose
 # Paddle linspace IndexError with 0D tensor axis
 NumpyTwoInputOpsCorrectnessTest::test_linspace
 # Paddle does not support tuple/list axis for max/min/amin/amax

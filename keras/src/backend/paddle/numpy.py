@@ -1521,6 +1521,10 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     # Ensure both have the same dtype
     if x1.dtype != x2.dtype:
         x1 = x1.cast(x2.dtype)
+    # Unlike NumPy, `paddle.isclose` requires inputs to have identical shapes.
+    # Broadcast explicitly to preserve the Keras op's NumPy-compatible
+    # semantics, including tensor-scalar comparisons.
+    x1, x2 = paddle.broadcast_tensors([x1, x2])
     return paddle.isclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
 
 
