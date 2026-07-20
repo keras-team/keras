@@ -2649,3 +2649,83 @@ class TreeTest(testing.TestCase):
         shape = (2, 3)
         result_shape = t.map_shape_structure(lambda x: x, shape)
         self.assertEqual(result_shape, shape)
+
+    @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
+    def test_root_is_leaf_traverse_children_equivalence(self, t):
+        # Regression test for the root-flag closure (_make_root_is_leaf)
+        # that replaced `is_leaf=lambda x: id(x) != structure_id` in both
+        # `_dict_to_ordered_dict.traverse_children` and
+        # `traverse.traverse_children`. The two implementations must stay
+        # exactly equivalent: one-level flatten, root visited once, root
+        # never mistaken for a leaf.
+        import torch
+
+        from keras.src.tree import torchtree_impl as impl
+
+        tensor_a = torch.tensor([1.0, 2.0])
+        tensor_b = torch.tensor([3.0, 4.0])
+        tensor_c = torch.tensor([5.0])
+
+        nested = {
+            "b": [tensor_a, (tensor_b,)],
+            "a": Point(x=tensor_c, y=tensor_a),
+        }
+
+        # `_dict_to_ordered_dict` must canonicalize key order at every
+        # level without altering leaves or structure shape.
+        ordered = impl._dict_to_ordered_dict(nested)
+        self.assertEqual(list(ordered.keys()), ["a", "b"])
+        self.assertIs(ordered["a"].x, tensor_c)
+        self.assertIs(ordered["a"].y, tensor_a)
+        self.assertIs(ordered["b"][0], tensor_a)
+        self.assertIs(ordered["b"][1][0], tensor_b)
+
+        # `traverse` must visit the root exactly once as a whole node --
+        # not re-decompose it into `is_leaf`-driven pieces -- then recurse
+        # into each child exactly once. Track the type of each visited node
+        # (not value equality, which is ambiguous for multi-element
+        # tensors) so the root-vs-child distinction is unambiguous.
+        visited_types = []
+        visitor = Visitor(
+            lambda x: visited_types.append(type(x))
+            or (None if t.is_nested(x) else x)
+        )
+        result = t.traverse(visitor, nested, top_down=True)
+        self.assertEqual(set(result.keys()), {"a", "b"})
+        self.assertIs(result["a"].x, tensor_c)
+        self.assertIs(result["b"][0], tensor_a)
+        # The whole root dict is visited exactly once, first -- if the
+        # root-flag closure mistakenly treated the root as one of its own
+        # children, the dict node would be visited zero or multiple times.
+        self.assertIs(visited_types[0], dict)
+        self.assertEqual(visited_types.count(dict), 1)
+
+        # Plain list/namedtuple structures (no dict canonicalization
+        # involved) exercise the same root-flag closure directly.
+        lst = [tensor_a, [tensor_b, tensor_c]]
+        flat_lst = t.flatten(lst)
+        self.assertEqual(len(flat_lst), 3)
+        packed_lst = t.pack_sequence_as(lst, flat_lst)
+        self.assertTrue(torch.equal(packed_lst[0], tensor_a))
+        self.assertTrue(torch.equal(packed_lst[1][0], tensor_b))
+        self.assertTrue(torch.equal(packed_lst[1][1], tensor_c))
+
+        point = Point(x=tensor_a, y=tensor_b)
+        flat_point = t.flatten(point)
+        self.assertEqual(len(flat_point), 2)
+        packed_point = t.pack_sequence_as(point, flat_point)
+        self.assertIsInstance(packed_point, Point)
+        self.assertTrue(torch.equal(packed_point.x, tensor_a))
+        self.assertTrue(torch.equal(packed_point.y, tensor_b))
+
+        # Calling traverse_children twice in a row (two independent
+        # `_make_root_is_leaf()` calls) must not leak `seen_root` state
+        # across calls -- each call gets its own closure instance, so the
+        # root of the second call is not mistakenly treated as a child.
+        result_1 = t.traverse(lambda x: None, lst, top_down=True)
+        result_2 = t.traverse(lambda x: None, lst, top_down=True)
+        for result in (result_1, result_2):
+            self.assertIsInstance(result, list)
+            self.assertTrue(torch.equal(result[0], tensor_a))
+            self.assertTrue(torch.equal(result[1][0], tensor_b))
+            self.assertTrue(torch.equal(result[1][1], tensor_c))
