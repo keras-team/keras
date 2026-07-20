@@ -1,3 +1,4 @@
+import inspect
 import pickle
 from unittest import mock
 
@@ -17,7 +18,58 @@ from keras.src import tree
 from keras.src.backend.common import global_state
 from keras.src.backend.common.remat import RematScope
 from keras.src.layers.layer import CallSpec
+from keras.src.layers.layer import _bind_call_arguments
 from keras.src.models import Model
+
+
+# Representative `call()`-style signatures for
+# `test_bind_call_arguments_matches_signature_bind`, which checks
+# `_bind_call_arguments` against `inspect.Signature.bind` on these.
+def _binder_single(inputs):
+    pass
+
+
+def _binder_training_mask(inputs, training=None, mask=None):
+    pass
+
+
+def _binder_mha(
+    query,
+    value,
+    key=None,
+    query_mask=None,
+    value_mask=None,
+    key_mask=None,
+    attention_mask=None,
+    return_attention_scores=False,
+    training=None,
+    use_causal_mask=False,
+):
+    pass
+
+
+def _binder_var_args_kwargs(*args, **kwargs):
+    pass
+
+
+def _binder_mixed_varargs(inputs, *args, training=None, **kwargs):
+    pass
+
+
+def _binder_kw_only(a, b=2, *, c, d=4):
+    pass
+
+
+def _binder_mask(inputs, mask=None):
+    pass
+
+
+def _binder_pos_only_var_kw(x, /, **kwargs):
+    pass
+
+
+def _binder_pos_only(x, /):
+    pass
 
 
 class MockRemat:
@@ -708,6 +760,49 @@ class LayerTest(testing.TestCase):
         # But this layer call should not see it
         y = layer(x)
         self.assertEqual(ops.min(y), 1)
+
+    def test_signature_default_training_does_not_leak(self):
+        """A `training=True` call() signature default (as on `Resizing`/
+        `CenterCrop`) stays local to that layer: it is not propagated
+        through the shared call context to sibling or downstream layers.
+        """
+
+        class DefaultsTrainingTrue(layers.Layer):
+            def call(self, x, training=True):  # mirrors `Resizing.call`
+                return x
+
+        x = np.ones((4, 4))
+
+        # Functional graph: the downstream layer defaults training=None so
+        # any value propagated from the upstream layer is directly visible.
+        seen = {}
+
+        class RecordTraining(layers.Layer):
+            def call(self, x, training=None):
+                seen["training"] = training
+                return x
+
+        inp = Input((4,))
+        out = RecordTraining()(DefaultsTrainingTrue()(inp))
+        model = Model(inp, out)
+        model(x)
+        self.assertIsNone(seen["training"])
+        model(x, training=True)
+        self.assertTrue(seen["training"])
+
+        # Imperative call: same invariant inside another layer's call().
+        class Wrapper(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.pre = DefaultsTrainingTrue()
+                self.dp = layers.Dropout(0.9)
+
+            def call(self, x):
+                return self.dp(self.pre(x))
+
+        layer = Wrapper()
+        self.assertEqual(ops.min(layer(x)), 1)
+        self.assertEqual(ops.min(layer(x, training=True)), 0)
 
     @pytest.mark.skipif(
         backend.backend() == "torch",
@@ -2006,7 +2101,7 @@ class LayerTest(testing.TestCase):
                     x,
                 )
                 slow = CallSpec(
-                    layer._call_signature,
+                    layer._call_param_specs,
                     layer._call_context_args,
                     (x,),
                     {},
@@ -2030,6 +2125,104 @@ class LayerTest(testing.TestCase):
                 self._assert_callspec_dict_equal(
                     fast.tensor_arguments_dict, slow.tensor_arguments_dict
                 )
+
+    @parameterized.named_parameters(
+        ("single", _binder_single, ("t0",), {}),
+        ("single_kw", _binder_single, (), {"inputs": "t0"}),
+        ("unexpected_kw", _binder_single, ("t0",), {"training": False}),
+        ("std_training", _binder_training_mask, ("t0",), {"training": False}),
+        (
+            "training_and_mask",
+            _binder_training_mask,
+            ("t0",),
+            {"training": True, "mask": None},
+        ),
+        ("positional_training", _binder_training_mask, ("t0", False), {}),
+        ("defaults_only", _binder_training_mask, ("t0",), {}),
+        (
+            "mha_shape",
+            _binder_mha,
+            ("t0", "t1"),
+            {"use_causal_mask": True, "training": False},
+        ),
+        ("mha_qkv_positional", _binder_mha, ("t0", "t1", "t2"), {}),
+        (
+            "varargs_varkw",
+            _binder_var_args_kwargs,
+            ("t0", 1, 2),
+            {"x": 3, "training": False},
+        ),
+        ("varargs_empty", _binder_var_args_kwargs, (), {}),
+        (
+            "mixed_varargs",
+            _binder_mixed_varargs,
+            ("t0", 1, 2),
+            {"training": True, "extra": 9},
+        ),
+        ("mixed_defaults", _binder_mixed_varargs, ("t0",), {}),
+        ("kwonly_required", _binder_kw_only, (1,), {"c": 3}),
+        ("kwonly_full", _binder_kw_only, (1, 2), {"c": 3, "d": 5}),
+        ("kwonly_missing_raises", _binder_kw_only, (1,), {}),
+        ("too_many_positional_raises", _binder_kw_only, (1, 2, 3), {"c": 1}),
+        (
+            "duplicate_arg_raises",
+            _binder_training_mask,
+            ("t0",),
+            {"inputs": "t0"},
+        ),
+        ("missing_required_raises", _binder_single, (), {}),
+        ("mask_kwarg", _binder_mask, ("t0",), {"mask": "t1"}),
+        # Positional-only: the parameter's name is still usable as a
+        # **kwargs key, so binding must not report it as a duplicate.
+        (
+            "pos_only_name_into_var_kw",
+            _binder_pos_only_var_kw,
+            ("t0",),
+            {"x": 5},
+        ),
+        ("pos_only_unexpected_kw_raises", _binder_pos_only, ("t0",), {"x": 5}),
+    )
+    def test_bind_call_arguments_matches_signature_bind(self, fn, args, kwargs):
+        # `_bind_call_arguments` must reproduce `inspect.Signature.bind` +
+        # `apply_defaults` exactly: same raise/no-raise outcome, same
+        # bound values, and same ordering for both the provided-only dict
+        # (`bind().arguments`) and the defaults-applied dict.
+        sig = inspect.signature(fn)
+        param_specs = tuple(
+            (p.name, p.kind, p.default) for p in sig.parameters.values()
+        )
+        ref_raised = None
+        try:
+            bound = sig.bind(*args, **dict(kwargs))
+            ref_provided = dict(bound.arguments)
+            ref_provided_order = list(bound.arguments)
+            bound.apply_defaults()
+            ref_full = dict(bound.arguments)
+            ref_full_order = list(bound.arguments)
+        except TypeError as e:
+            ref_raised = e
+        try:
+            provided, full = _bind_call_arguments(
+                param_specs, args, dict(kwargs)
+            )
+        except TypeError as e:
+            if ref_raised is None:
+                raise AssertionError(
+                    f"_bind_call_arguments raised {e!r} but "
+                    "inspect.Signature.bind bound successfully"
+                )
+            return
+        self.assertIsNone(
+            ref_raised,
+            msg=(
+                "inspect.Signature.bind raised but _bind_call_arguments "
+                f"bound successfully: provided={provided!r}"
+            ),
+        )
+        self.assertEqual(provided, ref_provided)
+        self.assertEqual(list(provided), ref_provided_order)
+        self.assertEqual(full, ref_full)
+        self.assertEqual(list(full), ref_full_order)
 
     def test_callspec_fast_path_excludes_unsupported_signatures(self):
         class MultiArg(layers.Layer):

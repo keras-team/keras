@@ -42,7 +42,9 @@ jobs:
 
     steps:
       - name: Checkout ${{ github.ref }}
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
 
       - name: Check CUDA Version
         run: nvidia-smi
@@ -79,7 +81,7 @@ jobs:
         run: coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
 
       - name: Upload Coverage
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v5
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           env_vars: KERAS_HOME
           flags: keras,keras-gpu,keras-${{ matrix.backend }}
