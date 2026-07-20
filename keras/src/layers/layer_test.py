@@ -17,15 +17,16 @@ from keras.src import testing
 from keras.src import tree
 from keras.src.backend.common import global_state
 from keras.src.backend.common.remat import RematScope
+from keras.src.layers import layer as layer_module
 from keras.src.layers.layer import CallSpec
 from keras.src.layers.layer import _bind_call_arguments
 from keras.src.models import Model
 
 
-def _build_f1_functional_model(input_dim=8):
-    """Small Dense + LayerNormalization + Embedding + Dropout functional
-    model matching the shape of the F1 CallSpec-fast-path report's workload:
-    a mix of layers that do and do not accept `training`, called the way
+def _build_small_functional_model(input_dim=8):
+    """Small Dense + LayerNormalization + Dropout + Dense functional model
+    exercising the trainer-style `training=<bool>` call shape: a mix of
+    layers that do and do not accept `training`, called the way
     `fit()`/`evaluate()`/`predict()` do (a single positional tensor input
     plus `training=<bool>` passed explicitly by the trainer)."""
     inputs = Input(shape=(input_dim,))
@@ -2240,7 +2241,7 @@ class LayerTest(testing.TestCase):
 
     def test_callspec_fast_path_matches_slow_path_training_kwarg(self):
         # Extends test_callspec_fast_path_matches_slow_path to the
-        # training=<bool> fast-path shape (F1): one accepting layer (like
+        # training=<bool> fast-path shape: one accepting layer (like
         # Dense) and one non-accepting layer (like LayerNormalization), for
         # both training=True and training=False, and both eager and
         # symbolic inputs. Also checks the caller-kwargs pop side effect
@@ -2444,14 +2445,14 @@ class LayerTest(testing.TestCase):
             ops.convert_to_numpy(y_fast), ops.convert_to_numpy(y_slow)
         )
 
-    def test_f1_functional_model_training_kwarg_fast_path_numeric(self):
+    def test_small_functional_model_training_kwarg_fast_path_numeric(self):
         # End-to-end: model(x, training=False), the fit()/evaluate()/
         # predict() call shape, must produce the same numeric output on
         # the fast path as with the fast path force-disabled on every
         # layer, and Dropout must still see training=True when called
         # with training=True (behavioral delivery of the context value,
         # not just a numeric-parity coincidence).
-        model = _build_f1_functional_model()
+        model = _build_small_functional_model()
         x = np.random.rand(4, 8).astype("float32")
 
         y_fast = model(x, training=False)
@@ -2468,31 +2469,37 @@ class LayerTest(testing.TestCase):
 
         # Dropout with training=True actually drops (behavioral check that
         # the context value, not just its numeric shape, is delivered).
-        model2 = _build_f1_functional_model()
+        model2 = _build_small_functional_model()
         y_train = ops.convert_to_numpy(model2(x, training=True))
         y_infer = ops.convert_to_numpy(model2(x, training=False))
         self.assertFalse(np.allclose(y_train, y_infer))
 
-    def test_f1_functional_model_training_kwarg_bind_count_drops(self):
+    def test_small_functional_model_training_kwarg_bind_count_drops(self):
         # Deterministic proof (the series' standard proof style): calling
         # a functional model the way fit()/evaluate()/predict() do --
-        # model(x, training=<bool>) -- must not cost more
-        # inspect.Signature.bind calls than the bare model(x) case, now
-        # that the training-kwarg shape is fast-path eligible too.
-        model = _build_f1_functional_model()
+        # model(x, training=<bool>) -- must not cost more slow-path
+        # CallSpec binder invocations than the bare model(x) case, now that
+        # the training-kwarg shape is fast-path eligible too. The slow path
+        # binds call() arguments via `_bind_call_arguments` (a pure-Python
+        # equivalent of inspect.Signature.bind + apply_defaults, introduced
+        # by #23198), so that -- not inspect.Signature.bind itself, which
+        # the slow path no longer calls -- is what this counts.
+        model = _build_small_functional_model()
         x = np.random.rand(4, 8).astype("float32")
 
         # Warm up (build all layers) outside of the count.
         model(x)
 
-        original_bind = inspect.Signature.bind
+        original_bind = layer_module._bind_call_arguments
         counts = {"n": 0}
 
-        def counting_bind(self, *args, **kwargs):
+        def counting_bind(*args, **kwargs):
             counts["n"] += 1
-            return original_bind(self, *args, **kwargs)
+            return original_bind(*args, **kwargs)
 
-        with mock.patch.object(inspect.Signature, "bind", counting_bind):
+        with mock.patch.object(
+            layer_module, "_bind_call_arguments", counting_bind
+        ):
             counts["n"] = 0
             model(x)
             bare_count = counts["n"]
