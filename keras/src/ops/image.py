@@ -952,10 +952,6 @@ class ReconstructPatches(Operation):
         self.strides = tuple(strides)
         self.padding = padding
         self.data_format = backend.standardize_data_format(data_format)
-        if self.data_format == "channels_first":
-            raise NotImplementedError(
-                "reconstruct_patches does not yet support channels_first."
-            )
 
     def call(self, patches):
         return _reconstruct_patches(
@@ -1008,8 +1004,13 @@ class ReconstructPatches(Operation):
                 f"prod(size) ({patch_volume})."
             )
 
-        grid_offset = 1 if original_ndim == expected_ndim_batched else 0
-        grid = patches_shape[grid_offset : grid_offset + len(self.size)]
+        if self.data_format == "channels_last":
+            grid_offset = 1 if original_ndim == expected_ndim_batched else 0
+            grid = patches_shape[grid_offset : grid_offset + len(self.size)]
+        else:
+            # channels_first: the grid dims are the trailing dims,
+            # (B, flat, *grid) batched or (flat, *grid) unbatched.
+            grid = patches_shape[-len(self.size) :]
         dim_names = ("depth", "height", "width")[-len(self.size) :]
         for g, p, o, dim_name in zip(
             grid, self.size, self.output_size, dim_names
@@ -1069,6 +1070,10 @@ def reconstruct_patches(
             4D `(N, gH, gW, pH*pW*C)`.
             For 3D patches: 4D `(gD, gH, gW, pD*pH*pW*C)` or
             5D `(N, gD, gH, gW, pD*pH*pW*C)`.
+            With `data_format="channels_first"` the flat patch dim comes
+            first instead: `(pH*pW*C, gH, gW)` / `(N, pH*pW*C, gH, gW)`
+            for 2D patches, `(pD*pH*pW*C, gD, gH, gW)` /
+            `(N, pD*pH*pW*C, gD, gH, gW)` for 3D patches.
         size: Patch size, matching the `size` used for extraction.
             Length 2 tuple for 2D, length 3 tuple for 3D, or int.
         output_size: Target spatial shape of the reconstruction. Length 2
@@ -1082,8 +1087,9 @@ def reconstruct_patches(
             to `size`.
         padding: `"same"` or `"valid"`, matching the extraction.
         data_format: A string specifying the data format of the input tensor.
-            Only `"channels_last"` is currently supported;
-            `"channels_first"` raises a `NotImplementedError`.
+            Either `"channels_last"` or `"channels_first"`. With
+            `"channels_first"` the reconstruction is returned in
+            `(C, H, W)` / `(N, C, H, W)` layout.
             If not specified, defaults to `keras.config.image_data_format`.
 
     Returns:
@@ -1218,9 +1224,24 @@ def _reconstruct_patches_2d(
     _validate_reconstruct_strides(size, strides, "reconstruct_patches")
     data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_first":
-        raise NotImplementedError(
-            "reconstruct_patches does not yet support channels_first."
+        # Reconstruct in channels_last layout, then move channels back.
+        # Patches are (flat, gH, gW) unbatched or (B, flat, gH, gW) batched.
+        if len(patches.shape) == 3:
+            patches = backend.numpy.transpose(patches, axes=(1, 2, 0))
+        elif len(patches.shape) == 4:
+            patches = backend.numpy.transpose(patches, axes=(0, 2, 3, 1))
+        else:
+            raise ValueError(
+                "`patches` has unexpected rank for 2D channels_first "
+                "reconstruction. Expected 3 (unbatched) or 4 (batched). "
+                f"Received shape: {patches.shape}"
+            )
+        result = _reconstruct_patches_2d(
+            patches, size, output_size, strides, padding, "channels_last"
         )
+        if len(result.shape) == 3:
+            return backend.numpy.transpose(result, axes=(2, 0, 1))
+        return backend.numpy.transpose(result, axes=(0, 3, 1, 2))
 
     pH, pW = size
     H, W = output_size
@@ -1313,10 +1334,24 @@ def _reconstruct_patches_3d(
     _validate_reconstruct_strides(size, strides, "reconstruct_patches")
     data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_first":
-        raise NotImplementedError(
-            "reconstruct_patches does not yet support channels_first "
-            "for 3D patches."
+        # Reconstruct in channels_last layout, then move channels back.
+        # Patches are (flat, gD, gH, gW) unbatched or (B, flat, gD, gH, gW).
+        if len(patches.shape) == 4:
+            patches = backend.numpy.transpose(patches, axes=(1, 2, 3, 0))
+        elif len(patches.shape) == 5:
+            patches = backend.numpy.transpose(patches, axes=(0, 2, 3, 4, 1))
+        else:
+            raise ValueError(
+                "`patches` has unexpected rank for 3D channels_first "
+                "reconstruction. Expected 4 (unbatched) or 5 (batched). "
+                f"Received shape: {patches.shape}"
+            )
+        result = _reconstruct_patches_3d(
+            patches, size, output_size, strides, padding, "channels_last"
         )
+        if len(result.shape) == 4:
+            return backend.numpy.transpose(result, axes=(3, 0, 1, 2))
+        return backend.numpy.transpose(result, axes=(0, 4, 1, 2, 3))
 
     pD, pH, pW = size
     D, H, W = output_size
