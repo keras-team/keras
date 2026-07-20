@@ -1880,9 +1880,16 @@ def dot(x1, x2):
     x1 = get_ov_output(x1, element_type)
     x2 = get_ov_output(x2, element_type)
     x1, x2 = _align_operand_types(x1, x2, "dot()")
-    if x1.get_partial_shape().rank == 0 or x2.get_partial_shape().rank == 0:
+
+    rank1 = x1.get_partial_shape().rank.get_length()
+    rank2 = x2.get_partial_shape().rank.get_length()
+
+    if rank1 == 0 or rank2 == 0:
         return OpenVINOKerasTensor(ov_opset.multiply(x1, x2).output(0))
-    return OpenVINOKerasTensor(ov_opset.matmul(x1, x2, False, False).output(0))
+
+    if rank2 == 1:
+        return tensordot(x1, x2, axes=[[rank1 - 1], [0]])
+    return tensordot(x1, x2, axes=[[rank1 - 1], [rank2 - 2]])
 
 
 def dstack(xs):
@@ -6053,3 +6060,37 @@ def unique(
 
 def dsplit(x, indices_or_sections):
     return split(x, indices_or_sections, axis=2)
+
+
+def column_stack(xs):
+    if not isinstance(xs, (list, tuple)):
+        xs = (xs,)
+
+    elems = [convert_to_tensor(x) for x in xs]
+    elems = [get_ov_output(x) for x in elems]
+
+    processed_elems = []
+    for elem in elems:
+        rank = elem.get_partial_shape().rank.get_length()
+
+        if rank == 0:
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(0, Type.i32)
+            ).output(0)
+            rank = 1
+
+        if rank == 1:
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(1, Type.i32)
+            ).output(0)
+
+        processed_elems.append(elem)
+
+    base = processed_elems[0]
+    for i in range(1, len(processed_elems)):
+        base, processed_elems[i] = _align_operand_types(
+            base, processed_elems[i], "column_stack()"
+        )
+    processed_elems[0] = base
+
+    return OpenVINOKerasTensor(ov_opset.concat(processed_elems, 1).output(0))

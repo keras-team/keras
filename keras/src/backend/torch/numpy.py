@@ -711,7 +711,10 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
         compute_dtype = "float32"
     x1 = cast(x1, compute_dtype)
     x2 = cast(x2, compute_dtype)
-    return cast(torch.cross(x1, x2, dim=axis), result_dtype)
+    if axis is None:
+        # match numpy default (last axis)
+        axis = -1
+    return cast(torch.linalg.cross(x1, x2, dim=axis), result_dtype)
 
 
 def cumprod(x, axis=None, dtype=None):
@@ -814,6 +817,11 @@ def dot(x1, x2):
     x2 = cast(x2, compute_dtype)
     if x1.ndim == 0 or x2.ndim == 0:
         return cast(torch.multiply(x1, x2), result_dtype)
+    if x2.ndim >= 2:
+        return cast(
+            torch.tensordot(x1, x2, dims=([x1.ndim - 1], [x2.ndim - 2])),
+            result_dtype,
+        )
     return cast(torch.matmul(x1, x2), result_dtype)
 
 
@@ -1649,6 +1657,22 @@ def pad(x, pad_width, mode="constant", constant_values=None):
             )
         kwargs["value"] = constant_values
     x = convert_to_tensor(x)
+    if mode == "symmetric":
+        # torch has no "symmetric" pad, so mirror manually (including the edge
+        # value). `replicate` only repeats the edge and is numpy's "edge" mode.
+        pw = list(pad_width)
+        if len(pw) == 1:
+            pw = pw * x.ndim
+        for axis, (left, right) in enumerate(pw):
+            if left == 0 and right == 0:
+                continue
+            size = x.shape[axis]
+            period = 2 * size
+            pos = torch.arange(-left, size + right, device=x.device)
+            m = torch.remainder(pos, period)
+            idx = torch.where(m < size, m, period - 1 - m)
+            x = torch.index_select(x, axis, idx)
+        return x
     pad_sum = []
     pad_width = list(pad_width)[::-1]  # torch uses reverse order
     pad_width_sum = 0
@@ -1659,8 +1683,6 @@ def pad(x, pad_width, mode="constant", constant_values=None):
         pad_width_sum -= pad[0] + pad[1]
         if pad_width_sum == 0:  # early break when no padding in higher order
             break
-    if mode == "symmetric":
-        mode = "replicate"
     if mode == "constant":
         return torch.nn.functional.pad(x, pad=pad_sum, mode=mode, **kwargs)
     # TODO: reflect and symmetric padding are implemented for padding the
@@ -2515,3 +2537,8 @@ def dsplit(x, indices_or_sections):
     if not isinstance(indices_or_sections, int):
         indices_or_sections = convert_to_tensor(indices_or_sections).tolist()
     return list(torch.dsplit(x, indices_or_sections))
+
+
+def column_stack(xs):
+    xs = [convert_to_tensor(x) for x in xs]
+    return torch.column_stack(xs)

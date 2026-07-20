@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 from keras.src.backend import standardize_dtype
+from keras.src.backend.common import dtypes
 from keras.src.backend.tensorflow.core import cast
 from keras.src.backend.tensorflow.core import convert_to_tensor
 
@@ -71,6 +72,14 @@ def top_k(x, k, sorted=True):
 
 
 def in_top_k(targets, predictions, k):
+    if len(predictions.shape) > 2:
+        targets = convert_to_tensor(targets)
+        predictions = convert_to_tensor(predictions)
+        original_shape = tf.shape(targets)
+        predictions = tf.reshape(predictions, [-1, tf.shape(predictions)[-1]])
+        targets = tf.reshape(targets, [-1])
+        result = tf.math.in_top_k(targets, predictions, k)
+        return tf.reshape(result, original_shape)
     return tf.math.in_top_k(targets, predictions, k)
 
 
@@ -81,6 +90,9 @@ def logsumexp(x, axis=None, keepdims=False):
 def cdist(x, y):
     x = convert_to_tensor(x)
     y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype, float)
+    x = cast(x, dtype)
+    y = cast(y, dtype)
     if x.shape.rank < 2 or y.shape.rank < 2:
         raise ValueError("`cdist` inputs must have rank >= 2")
     if x.shape[-1] != y.shape[-1]:
@@ -281,7 +293,7 @@ def istft(
     if length is not None:
         end = start + length
     elif center is True:
-        end = -(fft_length // 2)
+        end = expected_output_len - (fft_length // 2)
     else:
         end = expected_output_len
     return x[..., start:end]

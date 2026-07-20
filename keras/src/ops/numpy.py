@@ -2743,7 +2743,7 @@ class Diagonal(Operation):
         shape_2d = [x_shape[self.axis1], x_shape[self.axis2]]
         x_shape[self.axis1] = -1
         x_shape[self.axis2] = -1
-        output_shape = list(filter((-1).__ne__, x_shape))
+        output_shape = [d for d in x_shape if d != -1]
         if None in shape_2d:
             diag_shape = [None]
         else:
@@ -8189,7 +8189,7 @@ class Trace(Operation):
             )
         x_shape[axis1] = -1
         x_shape[axis2] = -1
-        output_shape = list(filter((-1).__ne__, x_shape))
+        output_shape = [d for d in x_shape if d != -1]
         output_dtype = backend.standardize_dtype(x.dtype)
         if output_dtype in ("bool", "int8", "int16"):
             output_dtype = "int32"
@@ -8963,7 +8963,7 @@ class Squeeze(Operation):
         sparse = getattr(x, "sparse", False)
         axis = to_tuple_or_list(self.axis)
         if axis is None:
-            output_shape = list(filter((1).__ne__, input_shape))
+            output_shape = [d for d in input_shape if d != 1]
             return KerasTensor(output_shape, dtype=x.dtype, sparse=sparse)
         else:
             for a in axis:
