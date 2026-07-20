@@ -292,18 +292,25 @@ class TorchCoreTest(testing.TestCase):
         self.assertIn("length 3", message)
 
     def test_slice_export_preserves_dynamic_dim(self):
-        """slice() must keep a dynamic dim symbolic under torch.export.
+        """A numpy-int bound alongside a symbolic dim must not fall off the
+        static fast path under torch.export.
 
-        Passing a dynamic dimension through slice() as a length must not
-        specialize it. Calling int() on the SymInt would pin it to a constant
-        (#22998), which fails export with a constraints-violated error and
-        stops the exported program from accepting other batch sizes.
+        Master already keeps a dynamic dim symbolic when every bound in
+        start_indices/shape is a plain int or torch.SymInt (#22998). The
+        remaining gap this test locks in: mixing a numpy integer bound (as
+        commonly produced by numpy-backed shape/index computations) with a
+        symbolic dim used to fail that all-int/SymInt check, so the whole
+        call fell through to the tensor-based slow path and the symbolic
+        dim got tensorized -- specializing it under export instead of
+        keeping it dynamic. _to_static_index coerces the numpy int to a
+        Python int so the fast path still applies and the symbolic dim
+        passes through untouched.
         """
 
         class _SliceModule(torch.nn.Module):
             def forward(self, x):
                 n = x.shape[0]
-                return torch_slice(x, [0, 0], [n, 2])
+                return torch_slice(x, [np.int64(0), 0], [n, 2])
 
         ep = torch.export.export(
             _SliceModule(),
