@@ -1,3 +1,4 @@
+from keras.src import backend
 from keras.src import tree
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.data_adapters.data_adapter import DataAdapter
@@ -26,7 +27,7 @@ class TFDatasetAdapter(DataAdapter):
                 "Expected argument `dataset` to be a tf.data.Dataset. "
                 f"Received: {dataset}"
             )
-        if class_weight is not None:
+        if class_weight:
             dataset = dataset.map(
                 make_class_weight_map_fn(class_weight)
             ).prefetch(tf.data.AUTOTUNE)
@@ -159,11 +160,14 @@ def make_class_weight_map_fn(class_weight):
     """
     from keras.src.utils.module_utils import tensorflow as tf
 
+    class_weight_dtype = tf.as_dtype(backend.floatx())
+    class_weight_clean = {
+        int(key): float(value) for key, value in class_weight.items()
+    }
+    max_class = max(class_weight_clean.keys())
     class_weight_tensor = tf.convert_to_tensor(
-        [
-            class_weight.get(int(c), 1.0)
-            for c in range(max(class_weight.keys()) + 1)
-        ]
+        [class_weight_clean.get(c, 1.0) for c in range(max_class + 1)],
+        dtype=class_weight_dtype,
     )
 
     def class_weights_map_fn(*data):
@@ -190,7 +194,13 @@ def make_class_weight_map_fn(class_weight):
             # Special casing for rank 1, where we can guarantee sparse encoding.
             y_classes = tf.cast(tf.round(y), tf.int32)
 
-        cw = tf.gather(class_weight_tensor, y_classes)
+        clipped_y_classes = tf.clip_by_value(y_classes, 0, max_class)
+        cw = tf.gather(class_weight_tensor, clipped_y_classes)
+        cw = tf.where(
+            (y_classes >= 0) & (y_classes <= max_class),
+            cw,
+            tf.constant(1.0, dtype=class_weight_dtype),
+        )
         return x, y, cw
 
     return class_weights_map_fn
