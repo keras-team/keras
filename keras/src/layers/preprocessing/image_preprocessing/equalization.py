@@ -95,8 +95,11 @@ class Equalization(BaseImagePreprocessingLayer):
         indices = self.backend.numpy.clip(indices, 0, nbins - 1)
         flat_indices = self.backend.numpy.reshape(indices, [-1])
 
-        if backend.backend() == "jax":
-            # for JAX bincount is never jittable because of output shape
+        if backend.backend() in ("jax", "openvino"):
+            # JAX: bincount output shape is never statically known (not
+            # jittable). OpenVINO: dynamic depth in one_hot causes shape
+            # propagation failures when equalization is applied repeatedly.
+            # Both backends use an explicit loop to keep the output shape fixed.
             histogram = self.backend.numpy.zeros(nbins, dtype="int32")
             for i in range(nbins):
                 matches = self.backend.cast(
