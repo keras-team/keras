@@ -66,14 +66,13 @@ class TFDatasetAdapter(DataAdapter):
 
         global_batch_size = int(global_batch_size.numpy())
         num_model_replicas = distribution.num_model_replicas
-        num_processes = distribution.num_processes
 
         if num_model_replicas == 1:
             # No sharding is needed. Each process runs the global batch size,
             # and data from the iterator is replicated across all processes.
             return dataset.prefetch(tf.data.AUTOTUNE)
 
-        num_shards = min(num_model_replicas, num_processes)
+        num_shards = distribution.num_data_shards
         if global_batch_size % num_shards != 0:
             raise ValueError(
                 "Global batch size must be divisible by the number of "

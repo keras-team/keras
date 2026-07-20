@@ -223,6 +223,18 @@ command line.
 KERAS_BACKEND=jax SKIP_APPLICATIONS_TESTS=True pytest keras
 ```
 
+## GitHub Actions Security Validation
+
+Pull requests modifying GitHub Actions workflows are automatically validated using Zizmor.
+Before requesting review:
+
+- Resolve all Zizmor findings whenever possible.
+- Run Zizmor locally when modifying workflow files (e.g., using `uvx zizmor .github/` or `pipx run zizmor .github/`).
+- Use `# zizmor: ignore[rule-name]` only for verified false positives.
+  - Examples: `# zizmor: ignore[cache-poisoning]`, `# zizmor: ignore[dangerous-triggers]`.
+  - For a full list of rules, see the [Zizmor Rules Documentation](https://docs.zizmor.sh/audits/).
+- Every suppression must include a clear justification explaining why the finding is safe.
+
 ## AI-Assisted Contribution Policy
 
 The Keras project relies on a vibrant, collaborative open-source community. As
