@@ -1088,16 +1088,22 @@ def bincount(x, weights=None, minlength=0, sparse=False):
     rank_x = ov_opset.reshape(rank_x, scalar_shape, False).output(0)
     const_minus_one = ov_opset.constant(-1, x_type).output(0)
     rank_minus_one = ov_opset.add(rank_x, const_minus_one).output(0)
-    minlength = get_ov_output(minlength)
-    minlength = ov_opset.convert(minlength, x_type).output(0)
     const_one = ov_opset.constant(1, x_type).output(0)
     const_zero = ov_opset.constant(0, x_type).output(0)
-    max_element = ov_opset.reduce_max(x, const_zero, keep_dims=False).output(0)
-    depth = ov_opset.add(max_element, const_one).output(0)
-    depth = ov_opset.maximum(depth, minlength).output(0)
-    depth_scalar = ov_opset.reduce_max(
-        depth, const_zero, keep_dims=False
-    ).output(0)
+    # Use a constant depth when possible to give one_hot a static output shape.
+    if isinstance(minlength, int) and minlength > 0:
+        depth_scalar = ov_opset.constant(minlength, Type.i64).output(0)
+    else:
+        minlength = get_ov_output(minlength)
+        minlength = ov_opset.convert(minlength, x_type).output(0)
+        max_element = ov_opset.reduce_max(
+            x, const_zero, keep_dims=False
+        ).output(0)
+        depth = ov_opset.add(max_element, const_one).output(0)
+        depth = ov_opset.maximum(depth, minlength).output(0)
+        depth_scalar = ov_opset.reduce_max(
+            depth, const_zero, keep_dims=False
+        ).output(0)
     one_hot = ov_opset.one_hot(
         x, depth_scalar, const_one, const_zero, axis=-1
     ).output(0)
