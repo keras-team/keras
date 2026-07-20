@@ -1,5 +1,6 @@
 """Tests for PyTorch backend core utilities."""
 
+import ml_dtypes
 import numpy as np
 import pytest
 import torch
@@ -153,6 +154,68 @@ class TorchCoreTest(testing.TestCase):
         arr = np.array([1, 2, 3], dtype=np.int32)
         r = convert_to_tensor(arr)
         self.assertEqual(r.dtype, torch.int32)
+
+    def test_convert_to_tensor_numpy_explicit_dtype_fast_path_float32(self):
+        """numpy array + explicit dtype='float32' hits the traceable fast
+        path (torch.as_tensor with explicit dtype) and matches the
+        no-explicit-dtype fallback result."""
+        arr = np.array([1.0, 2.0, 3.0], dtype=np.float32)
+        fast = convert_to_tensor(arr, dtype="float32")
+        fallback = convert_to_tensor(arr)
+        self.assertEqual(fast.dtype, torch.float32)
+        self.assertEqual(fast.dtype, fallback.dtype)
+        self.assertListEqual(fast.tolist(), fallback.tolist())
+
+    def test_convert_to_tensor_numpy_explicit_dtype_fast_path_int32(self):
+        """numpy array + explicit dtype='int32' hits the fast path and
+        matches the no-explicit-dtype fallback result."""
+        arr = np.array([1, 2, 3], dtype=np.int32)
+        fast = convert_to_tensor(arr, dtype="int32")
+        fallback = convert_to_tensor(arr)
+        self.assertEqual(fast.dtype, torch.int32)
+        self.assertEqual(fast.dtype, fallback.dtype)
+        self.assertListEqual(fast.tolist(), fallback.tolist())
+
+    def test_convert_to_tensor_numpy_explicit_dtype_fast_path_bool(self):
+        """numpy bool array + explicit dtype='bool' hits the fast path and
+        matches the no-explicit-dtype fallback result."""
+        arr = np.array([True, False, True])
+        fast = convert_to_tensor(arr, dtype="bool")
+        fallback = convert_to_tensor(arr)
+        self.assertEqual(fast.dtype, torch.bool)
+        self.assertEqual(fast.dtype, fallback.dtype)
+        self.assertListEqual(fast.tolist(), fallback.tolist())
+
+    def test_convert_to_tensor_numpy_uint32_explicit_dtype_copies_to_int32(
+        self,
+    ):
+        """numpy uint32 array + explicit dtype='int32' takes the fast path
+        (torch.as_tensor copies uint32 -> int32 since torch has no uint32)
+        and matches values from the no-explicit-dtype fallback path (which
+        upcasts uint32 -> int64 before casting to the requested dtype)."""
+        arr = np.array([1, 2, 3], dtype=np.uint32)
+        fast = convert_to_tensor(arr, dtype="int32")
+        fallback = convert_to_tensor(arr, dtype="int32")
+        self.assertEqual(fast.dtype, torch.int32)
+        self.assertListEqual(fast.tolist(), [1, 2, 3])
+        self.assertListEqual(fast.tolist(), fallback.tolist())
+
+    def test_convert_to_tensor_numpy_bfloat16_typeerror_falls_back(self):
+        """numpy array with an ml_dtypes.bfloat16 dtype cannot be converted
+        directly by torch.as_tensor(dtype=torch.bfloat16) (TypeError), so
+        the fast path must catch it and fall through to the generic
+        @torch.compiler.disable()d path, which upcasts to float32 first."""
+        arr = np.array([1.0, 2.0, 3.0], dtype=ml_dtypes.bfloat16)
+        r = convert_to_tensor(arr, dtype="bfloat16")
+        self.assertEqual(r.dtype, torch.bfloat16)
+        self.assertListEqual(r.tolist(), [1.0, 2.0, 3.0])
+
+    def test_convert_to_tensor_numpy_explicit_dtype_device_placement(self):
+        """The fast path must honor device_scope like the fallback path."""
+        arr = np.array([1.0, 2.0], dtype=np.float32)
+        with device_scope("meta"):
+            r = convert_to_tensor(arr, dtype="float32")
+        self.assertEqual(r.device.type, "meta")
 
     def test_convert_to_tensor_python_int_small(self):
         """Python int within int32 range → torch.int32."""
