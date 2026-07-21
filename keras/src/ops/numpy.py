@@ -1296,8 +1296,6 @@ def view(x, dtype=None):
 class Average(Operation):
     def __init__(self, axis=None, *, name=None):
         super().__init__(name=name)
-        # np.average() does not support axis as tuple as declared by the
-        # docstring, it only supports int or None.
         self.axis = axis
 
     def call(self, x, weights=None):
@@ -1308,9 +1306,19 @@ class Average(Operation):
         if weights is not None:
             shape_match = shape_equal(x.shape, weights.shape, allow_none=True)
             if self.axis is not None:
-                shape_match_on_axis = shape_equal(
-                    [x.shape[self.axis]], weights.shape, allow_none=True
-                )
+                if isinstance(self.axis, (tuple, list)):
+                    if len(self.axis) == 1:
+                        shape_match_on_axis = shape_equal(
+                            [x.shape[self.axis[0]]],
+                            weights.shape,
+                            allow_none=True,
+                        )
+                    else:
+                        shape_match_on_axis = False
+                else:
+                    shape_match_on_axis = shape_equal(
+                        [x.shape[self.axis]], weights.shape, allow_none=True
+                    )
             dtypes_to_resolve.append(getattr(weights, "dtype", type(weights)))
         dtype = dtypes.result_type(*dtypes_to_resolve)
         if self.axis is None:
@@ -1325,16 +1333,30 @@ class Average(Operation):
 
         if weights is None or shape_match_on_axis or shape_match:
             return KerasTensor(
-                reduce_shape(x.shape, axis=[self.axis]), dtype=dtype
+                reduce_shape(x.shape, axis=self.axis), dtype=dtype
             )
         else:
             # `weights` can either be a 1D array of length `x.shape[axis]` or
             # of the same shape as `x`.
+            axis_repr = (
+                f"axis={self.axis[0]}"
+                if isinstance(self.axis, (tuple, list)) and len(self.axis) == 1
+                else f"axis={self.axis}"
+            )
+            axis_val = (
+                self.axis[0]
+                if isinstance(self.axis, (tuple, list)) and len(self.axis) == 1
+                else self.axis
+            )
+            try:
+                x_shape_at_axis = x.shape[axis_val]
+            except TypeError:
+                x_shape_at_axis = "multiple axes"
+
             raise ValueError(
-                "`weights` must have the same size as `x` at "
-                f"`axis={self.axis}` but received "
-                f"`weights.shape={weights.shape}` while x.shape at "
-                f"`{self.axis}` is `{x.shape[self.axis]}`."
+                f"`weights` must have the same size as `x` at {axis_repr} "
+                f"but received `weights.shape={weights.shape}` while x.shape "
+                f"at {axis_repr} is `{x_shape_at_axis}`."
             )
 
 
@@ -1344,9 +1366,10 @@ def average(x, axis=None, weights=None):
 
     Args:
         x: Input tensor.
-        axis: Integer along which to average `x`. The default, `axis=None`,
-            will average over all of the elements of the input tensor. If axis
-            is negative it counts from the last to the first axis.
+        axis: Integer or tuple of integers along which to average `x`.
+            The default, `axis=None`, will average over all of the
+            elements of the input tensor. If axis is negative it counts
+            from the last to the first axis.
         weights: Tensor of weights associated with the values in `x`. Each
             value in `x` contributes to the average according to its
             associated weight. The weights array can either be 1-D (in which
@@ -1391,7 +1414,7 @@ def average(x, axis=None, weights=None):
         ...
     ValueError: Axis must be specified when shapes of a and weights differ.
     """
-    if any_symbolic_tensors((x,)):
+    if any_symbolic_tensors((x, weights)):
         return Average(axis=axis).symbolic_call(x, weights=weights)
     return backend.numpy.average(x, axis=axis, weights=weights)
 
