@@ -149,15 +149,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
 
         @tf.autograph.experimental.do_not_convert
         def multi_step_on_iterator(iterator):
-            if self.steps_per_execution == 1:
-                return tf.experimental.Optional.from_value(
-                    one_step_on_data(iterator.get_next())
-                )
-
-            # Delay initialization of the Optional element_spec until the first
-            # successful iteration. This avoids additional tracing when using
-            # datasets with fully-defined batch dimensions while preserving the
-            # correct output specification for subsequent iterations.
+            # the spec is set lazily during the tracing of `tf.while_loop`
             empty_outputs = tf.experimental.Optional.empty(None)
 
             def cond(execution_step, optional_outputs, next_optional_inputs):
@@ -242,11 +234,6 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 iterator,
                 (tf.data.Iterator, tf.distribute.DistributedIterator),
             ):
-                # Fast path for the common case.
-                # Avoid routing single-step execution
-                # through the multi-step iterator helper,
-                # which is only needed when
-                # steps_per_execution > 1.
                 if self.steps_per_execution == 1:
                     next_optional_inputs = iterator.get_next_as_optional()
                     if not next_optional_inputs.has_value():
@@ -257,7 +244,6 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 if not opt_outputs.has_value():
                     raise StopIteration
                 return opt_outputs.get_value()
-
             else:
                 for _, data in zip(
                     range(self.steps_per_execution),

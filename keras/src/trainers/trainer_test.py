@@ -1792,37 +1792,21 @@ class TestTrainer(testing.TestCase):
 
         # Graph mode
         model_graph = ExampleModel(units=1)
-        model_graph.compile(
-            loss="mse",
-            metrics=["mae"],
-            run_eagerly=False,
-        )
-
+        model_graph.compile(loss="mse", metrics=["mae"], run_eagerly=False)
         graph_result = model_graph.evaluate(
-            make_dataset(),
-            verbose=0,
+            make_dataset(), verbose=0, return_dict=True
         )
 
         # Eager mode
         model_eager = ExampleModel(units=1)
-        model_eager.compile(
-            loss="mse",
-            metrics=["mae"],
-            run_eagerly=True,
-        )
-
+        model_eager.compile(loss="mse", metrics=["mae"], run_eagerly=True)
         eager_result = model_eager.evaluate(
-            make_dataset(),
-            verbose=0,
+            make_dataset(), verbose=0, return_dict=True
         )
 
         self.assertAllClose(
-            graph_result["mae"]
-            if isinstance(graph_result, dict)
-            else graph_result,
-            eager_result["mae"]
-            if isinstance(eager_result, dict)
-            else eager_result,
+            graph_result["mae"],
+            eager_result["mae"],
             atol=1e-5,
             rtol=1e-5,
         )
