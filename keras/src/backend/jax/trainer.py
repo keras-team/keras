@@ -212,14 +212,14 @@ class JAXTrainer(base_trainer.Trainer):
             if concatenate_outputs:
 
                 def concatenate(outputs):
-                    output = outputs[0]
-                    for next_output in outputs[1:]:
-                        output = tree.map_structure(
-                            lambda t1, t2: jax.numpy.concatenate([t1, t2]),
-                            output,
-                            next_output,
-                        )
-                    return output
+                    if not outputs:
+                        return []
+                    if len(outputs) == 1:
+                        return outputs[0]
+                    return tree.map_structure(
+                        lambda *args: jax.numpy.concatenate(args, axis=0),
+                        *outputs,
+                    )
 
                 if not self.run_eagerly and self.jit_compile:
                     concatenate = jit(concatenate)
