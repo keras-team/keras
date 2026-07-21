@@ -15,10 +15,6 @@ def load_batch(fpath, label_key="labels"):
         A tuple `(data, labels)`.
     """
     with open(fpath, "rb") as f:
-        # The CIFAR `data_batch_*`/`test_batch` files are pickle streams, so a
-        # tampered file could execute code through a `__reduce__` gadget. Read
-        # them with the restricted unpickler that only permits numpy array
-        # reconstruction (the only globals a genuine batch needs).
         d = RestrictedUnpickler(f, encoding="bytes").load()
         # decode utf8
         d_decoded = {}
