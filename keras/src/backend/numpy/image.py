@@ -1101,7 +1101,10 @@ def elastic_transform(
         channel_axis = 1
 
     seed = draw_seed(seed)
-    rng = np.random.default_rng(seed)
+    # `draw_seed` returns a backend tensor; under a non-numpy active backend
+    # (e.g. when the mlx backend delegates here) it is an mlx array, which
+    # `np.random.default_rng` cannot consume (no `__array__`). Coerce to numpy.
+    rng = np.random.default_rng(np.asarray(seed))
     dx = (
         rng.normal(size=(batch_size, height, width), loc=0.0, scale=1.0).astype(
             input_dtype

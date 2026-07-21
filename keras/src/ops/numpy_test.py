@@ -3702,17 +3702,25 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         y3 = np.ones([1, 5, 4, 2])
         self.assertAllClose(knp.cross(x1, y1), np.cross(x1, y1))
         self.assertAllClose(knp.cross(x1, y2), np.cross(x1, y2))
-        if backend.backend() != "torch":
+        if (
+            backend.backend() != "torch"
+            and np.lib.NumpyVersion(np.__version__) < "2.5.0"
+        ):
             # API divergence between `torch.cross` and `np.cross`
-            # `torch.cross` only allows dim 3, `np.cross` allows dim 2 or 3
+            # `torch.cross` only allows dim 3; older `np.cross` allowed dim 2
+            # or 3. NumPy 2.5.0 removed the dim-2 fallback, so np.cross now
+            # also requires 3-dim vectors — skip these cases on numpy >= 2.5.
             self.assertAllClose(knp.cross(x1, y3), np.cross(x1, y3))
             self.assertAllClose(knp.cross(x2, y3), np.cross(x2, y3))
 
         self.assertAllClose(knp.Cross()(x1, y1), np.cross(x1, y1))
         self.assertAllClose(knp.Cross()(x1, y2), np.cross(x1, y2))
-        if backend.backend() != "torch":
-            # API divergence between `torch.cross` and `np.cross`
-            # `torch.cross` only allows dim 3, `np.cross` allows dim 2 or 3
+        if (
+            backend.backend() != "torch"
+            and np.lib.NumpyVersion(np.__version__) < "2.5.0"
+        ):
+            # API divergence between `torch.cross` and `np.cross` (see above):
+            # numpy 2.5.0 dropped the dim-2 vector fallback.
             self.assertAllClose(knp.Cross()(x1, y3), np.cross(x1, y3))
             self.assertAllClose(knp.Cross()(x2, y3), np.cross(x2, y3))
 

@@ -19,6 +19,10 @@ flax
 # OpenVino
 openvino
 
+# MLX (Metal on Apple Silicon, CPU on other platforms).
+mlx; sys_platform == 'darwin' and platform_machine == 'arm64'
+mlx[cpu]; sys_platform != 'darwin'
+
 # Common deps.
 -r requirements-common.txt
 

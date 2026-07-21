@@ -688,8 +688,10 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(named_product(steps_per_execution=(1, 2)))
     @pytest.mark.requires_trainable_backend
     def test_training_resumption(self, steps_per_execution):
-        if backend.backend() == "torch" and steps_per_execution != 1:
-            pytest.skip("steps_per_execution unsupported on torch")
+        if backend.backend() in ("torch", "mlx") and steps_per_execution != 1:
+            pytest.skip(
+                "steps_per_execution unsupported on torch and mlx backends"
+            )
 
         model = self._create_test_model(steps_per_execution)
         x, y = self._create_dummy_data(num_samples=50)

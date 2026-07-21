@@ -40,16 +40,22 @@ def pytest_configure(config):
 def pytest_collection_modifyitems(config, items):
     has_multiple_devices = False
 
-    openvino_skipped_tests = []
-    if backend() == "openvino":
-        with open(
-            "keras/src/backend/openvino/excluded_concrete_tests.txt", "r"
-        ) as file:
-            openvino_skipped_tests = file.readlines()
+    # Backends may ship an `excluded_concrete_tests.txt` listing tests that
+    # should be skipped because the backend does not support the operation.
+    current_backend = backend()
+    backend_skipped_tests = []
+    exclusion_file = (
+        f"keras/src/backend/{current_backend}/excluded_concrete_tests.txt"
+    )
+    import os
+
+    if os.path.exists(exclusion_file):
+        with open(exclusion_file, "r") as file:
+            backend_skipped_tests = file.readlines()
             # it is necessary to check if stripped line is not empty
             # and exclude such lines
-            openvino_skipped_tests = [
-                line.strip() for line in openvino_skipped_tests if line.strip()
+            backend_skipped_tests = [
+                line.strip() for line in backend_skipped_tests if line.strip()
             ]
 
     if backend() == "jax":
@@ -73,15 +79,15 @@ def pytest_collection_modifyitems(config, items):
         if requires_multiple_devices and "multi_device" in item.keywords:
             item.add_marker(requires_multiple_devices)
 
-        # also, skip concrete tests for openvino, listed in the special file
-        # this is more granular mechanism to exclude tests rather
-        # than using --ignore option
-        for skipped_test in openvino_skipped_tests:
+        # also, skip concrete tests for the active backend, listed in its
+        # special file. This is a more granular mechanism to exclude tests
+        # rather than using --ignore option.
+        for skipped_test in backend_skipped_tests:
             if skipped_test in item.nodeid:
                 item.add_marker(
                     skip_if_backend(
-                        "openvino",
-                        "Not supported operation by openvino backend",
+                        current_backend,
+                        f"Not supported operation by {current_backend} backend",
                     )
                 )
 
