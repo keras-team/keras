@@ -35,7 +35,6 @@ jobs:
 
     container:
       image: python:3.11-slim
-      options: --privileged --network host
 
     env:
       KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
