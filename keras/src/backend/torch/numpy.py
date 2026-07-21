@@ -25,12 +25,6 @@ TORCH_INT_TYPES = (
 )
 
 
-def _dtype_or_type(x):
-    if hasattr(x, "dtype") or isinstance(x, (bool, int, float, complex)):
-        return getattr(x, "dtype", type(x))
-    return convert_to_tensor(x).dtype
-
-
 def _result_type_inputs(x1, x2, *additional_dtypes):
     if not hasattr(x1, "dtype") and not isinstance(
         x1, (bool, int, float, complex)
@@ -41,8 +35,8 @@ def _result_type_inputs(x1, x2, *additional_dtypes):
     ):
         x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(
-        _dtype_or_type(x1),
-        _dtype_or_type(x2),
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
         *additional_dtypes,
     )
     return convert_to_tensor(x1, dtype), convert_to_tensor(x2, dtype), dtype
