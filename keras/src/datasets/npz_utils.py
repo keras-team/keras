@@ -36,7 +36,7 @@ class RestrictedUnpickler(pickle.Unpickler):
             return super().find_class(module, name)
         raise pickle.UnpicklingError(
             f"Refusing to deserialize `{module}.{name}` while loading a Keras "
-            "dataset. The `.npz` file may be corrupted or malicious."
+            "dataset. The file may be corrupted or malicious."
         )
 
 
