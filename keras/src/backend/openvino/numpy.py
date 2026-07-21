@@ -819,9 +819,49 @@ def _view_int_contract(x, new_ov_type, old_itemsize, new_itemsize):
 
 
 def average(x, axis=None, weights=None):
+    x_keras = x
+    weights_keras = weights
     x = get_ov_output(x)
     if weights is not None:
         weights = get_ov_output(weights)
+
+    if weights_keras is not None:
+        x_shape = (
+            x_keras.shape
+            if hasattr(x_keras, "shape")
+            else x.get_partial_shape()
+        )
+        weights_shape = (
+            weights_keras.shape
+            if hasattr(weights_keras, "shape")
+            else weights.get_partial_shape()
+        )
+        if len(weights_shape) == 1 and len(x_shape) > 1:
+            if axis is None or (
+                isinstance(axis, (list, tuple)) and len(axis) != 1
+            ):
+                raise ValueError(
+                    "Axis must be specified when shapes of a and weights "
+                    "differ."
+                )
+            axis_val = axis[0] if isinstance(axis, (list, tuple)) else axis
+            axis_val = canonicalize_axis(axis_val, len(x_shape))
+            if weights_shape[0] != x_shape[axis_val]:
+                raise ValueError(
+                    "Shape of weights must be consistent with shape of a "
+                    "along specified axis."
+                )
+        elif x_shape != weights_shape:
+            if axis is None:
+                raise ValueError(
+                    "Axis must be specified when shapes of a and weights "
+                    "differ."
+                )
+            raise ValueError(
+                "Shape of weights must be consistent with shape of a "
+                "along specified axis."
+            )
+
     if axis is None:
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
@@ -837,8 +877,47 @@ def average(x, axis=None, weights=None):
         ):
             x = ov_opset.convert(x, Type.f32).output(0)
             weights = ov_opset.convert(weights, Type.f32).output(0)
+
+        # Reshape 1D weights
+        x_shape = x.get_partial_shape()
+        w_shape_ov = weights.get_partial_shape()
+        if (
+            w_shape_ov.rank.is_static
+            and w_shape_ov.rank.get_length() == 1
+            and x_shape.rank.is_static
+            and x_shape.rank.get_length() > 1
+            and axis is not None
+        ):
+            rank = x_shape.rank.get_length()
+            a = axis[0] if isinstance(axis, (tuple, list)) else axis
+            if isinstance(a, int):
+                if a < 0:
+                    a += rank
+                w_target_shape = [1] * rank
+                w_target_shape[a] = -1
+                target_shape_const = ov_opset.constant(
+                    w_target_shape, Type.i32
+                ).output(0)
+                weights = ov_opset.reshape(
+                    weights, target_shape_const, False
+                ).output(0)
+
         x, weights = _align_operand_types(x, weights, "multiply()")
-        x = ov_opset.multiply(x, weights)
+        x_weighted = ov_opset.multiply(x, weights)
+
+        if isinstance(axis, tuple):
+            axis = list(axis)
+        if axis == []:
+            return OpenVINOKerasTensor(x)
+
+        axis_const = ov_opset.constant(axis, dtype=Type.i32).output(0)
+
+        sum_weighted = ov_opset.reduce_sum(
+            x_weighted, axis_const, False
+        ).output(0)
+        sum_weights = ov_opset.reduce_sum(weights, axis_const, False).output(0)
+        result = ov_opset.divide(sum_weighted, sum_weights).output(0)
+        return OpenVINOKerasTensor(result)
 
     if isinstance(axis, tuple):
         axis = list(axis)
@@ -1801,9 +1880,16 @@ def dot(x1, x2):
     x1 = get_ov_output(x1, element_type)
     x2 = get_ov_output(x2, element_type)
     x1, x2 = _align_operand_types(x1, x2, "dot()")
-    if x1.get_partial_shape().rank == 0 or x2.get_partial_shape().rank == 0:
+
+    rank1 = x1.get_partial_shape().rank.get_length()
+    rank2 = x2.get_partial_shape().rank.get_length()
+
+    if rank1 == 0 or rank2 == 0:
         return OpenVINOKerasTensor(ov_opset.multiply(x1, x2).output(0))
-    return OpenVINOKerasTensor(ov_opset.matmul(x1, x2, False, False).output(0))
+
+    if rank2 == 1:
+        return tensordot(x1, x2, axes=[[rank1 - 1], [0]])
+    return tensordot(x1, x2, axes=[[rank1 - 1], [rank2 - 2]])
 
 
 def dstack(xs):
@@ -5974,3 +6060,37 @@ def unique(
 
 def dsplit(x, indices_or_sections):
     return split(x, indices_or_sections, axis=2)
+
+
+def column_stack(xs):
+    if not isinstance(xs, (list, tuple)):
+        xs = (xs,)
+
+    elems = [convert_to_tensor(x) for x in xs]
+    elems = [get_ov_output(x) for x in elems]
+
+    processed_elems = []
+    for elem in elems:
+        rank = elem.get_partial_shape().rank.get_length()
+
+        if rank == 0:
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(0, Type.i32)
+            ).output(0)
+            rank = 1
+
+        if rank == 1:
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(1, Type.i32)
+            ).output(0)
+
+        processed_elems.append(elem)
+
+    base = processed_elems[0]
+    for i in range(1, len(processed_elems)):
+        base, processed_elems[i] = _align_operand_types(
+            base, processed_elems[i], "column_stack()"
+        )
+    processed_elems[0] = base
+
+    return OpenVINOKerasTensor(ov_opset.concat(processed_elems, 1).output(0))
