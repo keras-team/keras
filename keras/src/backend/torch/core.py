@@ -284,6 +284,8 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
 def convert_to_numpy(x):
     def transform(x):
         if is_tensor(x):
+            if hasattr(x, "to_local"):
+                x = x.to_local()
             if x.requires_grad:
                 x = x.detach()
             # Tensor has to be moved to CPU before converting to numpy.

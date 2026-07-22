@@ -120,6 +120,7 @@ class TorchTrainer(base_trainer.Trainer):
             from torch.nn.parallel import DistributedDataParallel
 
             from keras.src.backend.torch.core import get_device
+            from keras.src.distribution.distribution_lib import distribution
 
             device = get_device()
             if str(device).startswith("cuda"):
@@ -130,11 +131,29 @@ class TorchTrainer(base_trainer.Trainer):
             else:
                 device_ids = None
 
+            active_distribution = distribution()
+            process_group = None
+            if active_distribution is not None:
+                from keras.src.backend.torch.distribution_lib import (
+                    _to_backend_mesh,
+                )
+
+                backend_mesh = _to_backend_mesh(active_distribution.device_mesh)
+                # get_group expects the axis name
+                process_group = backend_mesh.get_group(
+                    active_distribution.batch_dim_name
+                )
+
+            # Set find_unused_parameters=False by default to avoid hangs
+            # and overhead. It can be made configurable if needed.
             object.__setattr__(
                 self,
                 "ddp_model",
                 DistributedDataParallel(
-                    self, device_ids=device_ids, find_unused_parameters=True
+                    self,
+                    device_ids=device_ids,
+                    process_group=process_group,
+                    find_unused_parameters=False,
                 ),
             )
 
@@ -173,11 +192,29 @@ class TorchTrainer(base_trainer.Trainer):
         if torch.distributed.is_initialized():
             import torch.distributed as dist
 
+            from keras.src.distribution.distribution_lib import distribution
+
+            active_distribution = distribution()
+            process_group = None
+            if active_distribution is not None:
+                from keras.src.backend.torch.distribution_lib import (
+                    _to_backend_mesh,
+                )
+
+                backend_mesh = _to_backend_mesh(active_distribution.device_mesh)
+                process_group = backend_mesh.get_group(
+                    active_distribution.batch_dim_name
+                )
+
             with torch.no_grad():
                 for metric in self.metrics:
                     for v in metric.variables:
                         if hasattr(v, "_value"):
-                            dist.all_reduce(v._value, op=dist.ReduceOp.SUM)
+                            dist.all_reduce(
+                                v._value,
+                                op=dist.ReduceOp.SUM,
+                                group=process_group,
+                            )
 
     def make_predict_function(self, force=False):
         if self.predict_function is not None and not force:

@@ -114,16 +114,23 @@ def initialize(job_addresses=None, num_processes=None, process_id=None):
         if resolved_device_type == "cuda":
             torch.cuda.set_device(local_rank)
             backend = "nccl"
+            device_id = torch.device(f"cuda:{local_rank}")
         elif resolved_device_type == "xpu":
             torch.xpu.set_device(local_rank)
             backend = "ccl"
+            device_id = torch.device(f"xpu:{local_rank}")
         elif resolved_device_type == "tpu":
             backend = "xla"
+            device_id = None
         else:
             backend = "gloo"
+            device_id = None
 
         torch.distributed.init_process_group(
-            backend=backend, rank=rank, world_size=world_size
+            backend=backend,
+            rank=rank,
+            world_size=world_size,
+            device_id=device_id,
         )
 
 

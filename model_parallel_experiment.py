@@ -167,33 +167,24 @@ def run_training(rank, world_size, layout_map, backend):
         )
 
         if backend == "torch":
-            # For Torch ModelParallel, we want to ensure that if a sample is
-            # replicated, it is truly identical.
-            # Ranks 0, 1 -> data shard 0
-            # Ranks 2, 3 -> data shard 1
+            # Ensure Torch data sharding matches JAX's auto-sharding behavior
+            num_data_shards = distribution.num_data_shards
+            data_shard_id = distribution.data_shard_id
+            samples_per_shard = global_batch_size // num_data_shards
+
             indices = []
             for i in range(10):
                 base = i * global_batch_size
-                if rank // 2 == 0:
-                    indices.extend(np.arange(base, base + 16))
-                else:
-                    indices.extend(np.arange(base + 16, base + 32))
+                start = base + data_shard_id * samples_per_shard
+                end = start + samples_per_shard
+                indices.extend(np.arange(start, end))
 
             x = {
                 "token_ids": full_token_ids[indices],
                 "padding_mask": full_padding_mask[indices],
             }
             y = full_y[indices]
-
-            import torch
-
-            device_idx = int(os.environ.get("LOCAL_RANK", 0))
-            device = torch.device(
-                f"cuda:{device_idx}" if torch.cuda.is_available() else "cpu"
-            )
-            x = {k: torch.from_numpy(v).to(device) for k, v in x.items()}
-            y = torch.from_numpy(y).to(device)
-            batch_size = 16
+            batch_size = samples_per_shard
         else:
             x, y = (
                 {
