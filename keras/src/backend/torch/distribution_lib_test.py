@@ -4,12 +4,14 @@ import numpy as np
 import pytest
 import torch
 from absl.testing import parameterized
+from torch.distributed import tensor as torch_tensor
 
 from keras.src import backend
 from keras.src import testing
 from keras.src.backend.torch import core
 from keras.src.backend.torch import distribution_lib
 from keras.src.distribution.distribution_lib import DeviceMesh
+from keras.src.distribution.distribution_lib import TensorLayout
 
 
 @pytest.mark.skipif(backend.backend() != "torch", reason="Requires torch")
@@ -258,3 +260,144 @@ class TorchDistributionLibTest(testing.TestCase):
         self.assertIsInstance(backend_mesh, TorchDeviceMesh)
         self.assertEqual(backend_mesh.device_type, etype)
         self.assertEqual(backend_mesh.mesh_dim_names, ("x",))
+
+    def test_to_backend_layout(self):
+        if not torch.distributed.is_initialized():
+            self.set_env("MASTER_ADDR", "localhost")
+            self.set_env("MASTER_PORT", "29510")
+            distribution_lib.initialize(num_processes=1, process_id=0)
+            self.addCleanup(
+                lambda: (
+                    torch.distributed.destroy_process_group()
+                    if torch.distributed.is_initialized()
+                    else None
+                )
+            )
+
+        mesh = DeviceMesh(
+            shape=(1,), axis_names=["x"], devices=np.array(["cpu:0"])
+        )
+
+        # Sharded
+        layout = TensorLayout(axes=("x", None), device_mesh=mesh)
+        backend_layout = distribution_lib._to_backend_layout(layout)
+        self.assertEqual(len(backend_layout.placements), 1)
+        self.assertIsInstance(backend_layout.placements[0], torch_tensor.Shard)
+        self.assertEqual(backend_layout.placements[0].dim, 0)
+
+        # Replicated
+        layout = TensorLayout(axes=(None, None), device_mesh=mesh)
+        backend_layout = distribution_lib._to_backend_layout(layout)
+        self.assertEqual(len(backend_layout.placements), 1)
+        self.assertIsInstance(
+            backend_layout.placements[0], torch_tensor.Replicate
+        )
+
+    def test_distribute_tensor(self):
+        if not torch.distributed.is_initialized():
+            self.set_env("MASTER_ADDR", "localhost")
+            self.set_env("MASTER_PORT", "29511")
+            distribution_lib.initialize(num_processes=1, process_id=0)
+            self.addCleanup(
+                lambda: (
+                    torch.distributed.destroy_process_group()
+                    if torch.distributed.is_initialized()
+                    else None
+                )
+            )
+
+        mesh = DeviceMesh(
+            shape=(1,), axis_names=["x"], devices=np.array(["cpu:0"])
+        )
+        layout = TensorLayout(axes=("x", None), device_mesh=mesh)
+
+        tensor = torch.ones((2, 2))
+        dtensor = distribution_lib.distribute_tensor(tensor, layout)
+
+        self.assertIsInstance(dtensor, torch_tensor.DTensor)
+
+    def test_distribute_variable(self):
+        if not torch.distributed.is_initialized():
+            self.set_env("MASTER_ADDR", "localhost")
+            self.set_env("MASTER_PORT", "29512")
+            distribution_lib.initialize(num_processes=1, process_id=0)
+            self.addCleanup(
+                lambda: (
+                    torch.distributed.destroy_process_group()
+                    if torch.distributed.is_initialized()
+                    else None
+                )
+            )
+
+        mesh = DeviceMesh(
+            shape=(1,), axis_names=["x"], devices=np.array(["cpu:0"])
+        )
+        layout = TensorLayout(axes=("x", None), device_mesh=mesh)
+
+        # Case 1: Plain tensor
+        tensor = torch.ones((2, 2))
+        dtensor = distribution_lib.distribute_variable(tensor, layout)
+        self.assertIsInstance(dtensor, torch_tensor.DTensor)
+
+        # Case 2: nn.Parameter
+        param = torch.nn.Parameter(torch.ones((2, 2)))
+        dparam = distribution_lib.distribute_variable(param, layout)
+        self.assertIsInstance(dparam, torch.nn.Parameter)
+
+    def test_distribute_data_input(self):
+        if not torch.distributed.is_initialized():
+            self.set_env("MASTER_ADDR", "localhost")
+            self.set_env("MASTER_PORT", "29513")
+            distribution_lib.initialize(num_processes=1, process_id=0)
+            self.addCleanup(
+                lambda: (
+                    torch.distributed.destroy_process_group()
+                    if torch.distributed.is_initialized()
+                    else None
+                )
+            )
+
+        mesh = DeviceMesh(
+            shape=(1,), axis_names=["x"], devices=np.array(["cpu:0"])
+        )
+        layout = TensorLayout(axes=("x", None), device_mesh=mesh)
+
+        local_tensor = torch.ones((2, 2))
+        dtensor = distribution_lib.distribute_data_input(local_tensor, layout)
+
+        self.assertIsInstance(dtensor, torch_tensor.DTensor)
+
+    def test_distribute_data_input_cases(self):
+        if not torch.distributed.is_initialized():
+            self.set_env("MASTER_ADDR", "localhost")
+            self.set_env("MASTER_PORT", "29514")
+            distribution_lib.initialize(num_processes=1, process_id=0)
+            self.addCleanup(
+                lambda: (
+                    torch.distributed.destroy_process_group()
+                    if torch.distributed.is_initialized()
+                    else None
+                )
+            )
+
+        mesh = DeviceMesh(
+            shape=(1,), axis_names=["x"], devices=np.array(["cpu:0"])
+        )
+        layout = TensorLayout(axes=("x", None), device_mesh=mesh)
+
+        # 1. Test layout is None
+        res = distribution_lib.distribute_data_input(torch.ones((2, 2)), None)
+        self.assertIsInstance(res, torch.Tensor)
+        self.assertNotIsInstance(res, torch_tensor.DTensor)
+
+        # 2. Test input is already a DTensor (hasattr(device_mesh))
+        local_tensor = torch.ones((2, 2))
+        dtensor = distribution_lib.distribute_data_input(local_tensor, layout)
+        res = distribution_lib.distribute_data_input(dtensor, layout)
+        self.assertIs(res, dtensor)
+
+        # 3. Test input is numpy array
+        numpy_input = np.ones((2, 2), dtype="float32")
+        res = distribution_lib.distribute_data_input(numpy_input, layout)
+        self.assertIsInstance(res, torch_tensor.DTensor)
+        self.assertEqual(res.shape, (2, 2))

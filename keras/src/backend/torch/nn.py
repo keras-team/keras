@@ -1,5 +1,7 @@
 import torch
 import torch.nn.functional as tnn
+from torch.distributed.tensor import DTensor
+from torch.distributed.tensor import Replicate
 
 from keras.src import backend
 from keras.src.backend.common.backend_utils import check_conv_input_channels
@@ -1531,6 +1533,12 @@ def dot_product_attention(
                     (q_len, kv_len), dtype=torch.bool, device=mask.device
                 )
             )
+            if hasattr(mask, "device_mesh"):
+                causal_mask = DTensor.from_local(
+                    causal_mask,
+                    mask.device_mesh,
+                    [Replicate()] * len(mask.placements),
+                )
             mask = torch.logical_and(mask, causal_mask)
         # Explicitly set `is_causal` to `False` when `mask` is not `None`.
         is_causal = False
@@ -1550,6 +1558,16 @@ def dot_product_attention(
         groups = num_query_heads // num_kv_heads
         key = torch.repeat_interleave(key, repeats=groups, dim=1)
         value = torch.repeat_interleave(value, repeats=groups, dim=1)
+
+    is_dtensor = hasattr(query, "to_local")
+    if is_dtensor:
+        device_mesh = query.device_mesh
+        placements = query.placements
+        query = query.to_local()
+        key = key.to_local()
+        value = value.to_local()
+        if mask is not None:
+            mask = mask.to_local()
 
     if flash_attention is None:
         flash_attention = _can_use_flash_attention(
@@ -1584,6 +1602,12 @@ def dot_product_attention(
             is_causal=is_causal,
             scale=scale,
         )
+
+    if is_dtensor:
+        attention_output = DTensor.from_local(
+            attention_output, device_mesh, placements
+        )
+
     return torch.transpose(attention_output, axis1, axis0)
 
 

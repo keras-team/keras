@@ -25,6 +25,27 @@ TORCH_INT_TYPES = (
 )
 
 
+def _promote_to_dtensor(x1, x2):
+    from torch.distributed import tensor as torch_tensor
+
+    x1_is_dtensor = hasattr(x1, "device_mesh")
+    x2_is_dtensor = hasattr(x2, "device_mesh")
+
+    if x1_is_dtensor and not x2_is_dtensor:
+        mesh = x1.device_mesh
+        placements = [torch_tensor.Replicate()] * len(mesh.shape)
+        x2 = torch_tensor.DTensor.from_local(
+            x2, device_mesh=mesh, placements=placements
+        )
+    elif not x1_is_dtensor and x2_is_dtensor:
+        mesh = x2.device_mesh
+        placements = [torch_tensor.Replicate()] * len(mesh.shape)
+        x1 = torch_tensor.DTensor.from_local(
+            x1, device_mesh=mesh, placements=placements
+        )
+    return x1, x2
+
+
 def rot90(array, k=1, axes=(0, 1)):
     """Rotate an array by 90 degrees in the specified plane using PyTorch.
 
@@ -1303,6 +1324,7 @@ def maximum(x1, x2):
     )
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
+    x1, x2 = _promote_to_dtensor(x1, x2)
     return torch.maximum(x1, x2)
 
 
@@ -1371,6 +1393,7 @@ def minimum(x1, x2):
     )
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
+    x1, x2 = _promote_to_dtensor(x1, x2)
     return torch.minimum(x1, x2)
 
 
