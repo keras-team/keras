@@ -92,7 +92,10 @@ def in_top_k(targets, predictions, k):
 
 
 def logsumexp(x, axis=None, keepdims=False):
-    return scipy.special.logsumexp(x, axis=axis, keepdims=keepdims)
+    dtype = dtypes.result_type(x.dtype, float)
+    return scipy.special.logsumexp(x, axis=axis, keepdims=keepdims).astype(
+        dtype
+    )
 
 
 def cdist(x, y):
