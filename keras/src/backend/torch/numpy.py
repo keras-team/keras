@@ -8,6 +8,7 @@ from keras.src.backend import KerasTensor
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
+from keras.src.backend.common.backend_utils import normalize_shift_and_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
 from keras.src.backend.common.backend_utils import vectorize_impl
 from keras.src.backend.common.variables import standardize_dtype
@@ -1880,7 +1881,12 @@ def reshape(x, newshape):
 
 def roll(x, shift, axis=None):
     x = convert_to_tensor(x)
-    return torch.roll(x, shift, dims=axis)
+    if axis is not None:
+        # `torch.roll` requires `shifts` and `dims` to have the same length,
+        # while numpy broadcasts them against each other.
+        shifts, axes = normalize_shift_and_axis(shift, axis)
+        return torch.roll(x, tuple(shifts), dims=tuple(axes))
+    return torch.roll(x, shift)
 
 
 def searchsorted(sorted_sequence, values, side="left"):
