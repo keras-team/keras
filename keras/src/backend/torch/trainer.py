@@ -204,12 +204,38 @@ class TorchTrainer(base_trainer.Trainer):
             with torch.no_grad():
                 for metric in self.metrics:
                     for v in metric.variables:
-                        if hasattr(v, "_value"):
-                            dist.all_reduce(
-                                v._value,
-                                op=dist.ReduceOp.SUM,
-                                group=process_group,
+                        val = getattr(v, "_value", None)
+                        if val is not None:
+                            tensor = (
+                                val.to_local()
+                                if hasattr(val, "to_local")
+                                else val
                             )
+                            backend_name = (
+                                dist.get_backend(process_group)
+                                if process_group is not None
+                                else dist.get_backend()
+                            )
+                            if (
+                                backend_name == "nccl"
+                                and tensor.device.type == "cpu"
+                            ):
+                                cuda_device = torch.device(
+                                    f"cuda:{torch.cuda.current_device()}"
+                                )
+                                cuda_tensor = tensor.to(cuda_device)
+                                dist.all_reduce(
+                                    cuda_tensor,
+                                    op=dist.ReduceOp.SUM,
+                                    group=process_group,
+                                )
+                                tensor.copy_(cuda_tensor.to("cpu"))
+                            else:
+                                dist.all_reduce(
+                                    tensor,
+                                    op=dist.ReduceOp.SUM,
+                                    group=process_group,
+                                )
 
     def make_predict_function(self, force=False):
         if self.predict_function is not None and not force:
