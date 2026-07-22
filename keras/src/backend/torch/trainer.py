@@ -3,12 +3,16 @@ import warnings
 import numpy as np
 import torch
 from packaging.version import parse
+from torch.nn.parallel import DistributedDataParallel
 
 from keras.src import backend
 from keras.src import callbacks as callbacks_module
 from keras.src import optimizers as optimizers_module
 from keras.src import tree
 from keras.src.backend import config
+from keras.src.backend.torch.core import get_device
+from keras.src.backend.torch.distribution_lib import _to_backend_mesh
+from keras.src.distribution.distribution_lib import distribution
 from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
@@ -42,10 +46,11 @@ class TorchTrainer(base_trainer.Trainer):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
 
         # Compute predictions
+        model = getattr(self, "ddp_model", self)
         if self._call_has_training_arg:
-            y_pred = self(x, training=True)
+            y_pred = model(x, training=True)
         else:
-            y_pred = self(x)
+            y_pred = model(x)
 
         # Call torch.nn.Module.zero_grad() to clear the leftover gradients
         # for the weights from the previous train step.
@@ -113,6 +118,40 @@ class TorchTrainer(base_trainer.Trainer):
         if self.train_function is not None and not force:
             return self.train_function
 
+        if torch.distributed.is_initialized() and not hasattr(
+            self, "ddp_model"
+        ):
+            device = get_device()
+            if str(device).startswith("cuda"):
+                if ":" in str(device):
+                    device_ids = [int(str(device).split(":")[-1])]
+                else:
+                    device_ids = [torch.cuda.current_device()]
+            else:
+                device_ids = None
+
+            active_distribution = distribution()
+            process_group = None
+            if active_distribution is not None:
+                backend_mesh = _to_backend_mesh(active_distribution.device_mesh)
+                # get_group expects the axis name
+                process_group = backend_mesh.get_group(
+                    active_distribution.batch_dim_name
+                )
+
+            # Set find_unused_parameters=False by default to avoid hangs
+            # and overhead. It can be made configurable if needed.
+            object.__setattr__(
+                self,
+                "ddp_model",
+                DistributedDataParallel(
+                    self,
+                    device_ids=device_ids,
+                    process_group=process_group,
+                    find_unused_parameters=False,
+                ),
+            )
+
         train_step = self.train_step
         if self._should_torch_compile():
             train_step = torch.compile(train_step)
@@ -143,6 +182,34 @@ class TorchTrainer(base_trainer.Trainer):
             return logs
 
         self.test_function = test_function
+
+    def _sync_metrics(self):
+        if torch.distributed.is_initialized():
+            import torch.distributed as dist
+
+            from keras.src.distribution.distribution_lib import distribution
+
+            active_distribution = distribution()
+            process_group = None
+            if active_distribution is not None:
+                from keras.src.backend.torch.distribution_lib import (
+                    _to_backend_mesh,
+                )
+
+                backend_mesh = _to_backend_mesh(active_distribution.device_mesh)
+                process_group = backend_mesh.get_group(
+                    active_distribution.batch_dim_name
+                )
+
+            with torch.no_grad():
+                for metric in self.metrics:
+                    for v in metric.variables:
+                        if hasattr(v, "_value"):
+                            dist.all_reduce(
+                                v._value,
+                                op=dist.ReduceOp.SUM,
+                                group=process_group,
+                            )
 
     def make_predict_function(self, force=False):
         if self.predict_function is not None and not force:
@@ -273,6 +340,9 @@ class TorchTrainer(base_trainer.Trainer):
                 if self.stop_training:
                     break
 
+            # Synchronize metrics across ranks
+            self._sync_metrics()
+
             # Override with model metrics instead of last step logs if needed.
             epoch_logs = dict(self._get_metrics_result_or_logs(logs))
 
@@ -386,6 +456,10 @@ class TorchTrainer(base_trainer.Trainer):
             callbacks.on_test_batch_end(end_step, logs)
             if self.stop_evaluating:
                 break
+
+        # Synchronize metrics across ranks
+        self._sync_metrics()
+
         logs = pythonify_logs(self._get_metrics_result_or_logs(logs))
         callbacks.on_test_end(logs)
 

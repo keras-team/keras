@@ -109,6 +109,24 @@ def to_torch_dtype(dtype):
 
 class Variable(KerasVariable):
     def _initialize(self, value):
+        from keras.src.backend.torch import distribution_lib
+
+        if self._layout is not None:
+            if isinstance(value, torch.nn.Parameter):
+                self._value = distribution_lib.distribute_variable(
+                    value, self._layout
+                )
+            else:
+                tensor = convert_to_tensor(value, dtype=self._dtype)
+                dtensor = distribution_lib.distribute_tensor(
+                    tensor, self._layout
+                )
+                self._value = torch.nn.Parameter(
+                    dtensor,
+                    requires_grad=self.trainable,
+                )
+            return
+
         if isinstance(value, torch.nn.Parameter):
             # Reuse same parameter
             self._value = value
@@ -119,6 +137,10 @@ class Variable(KerasVariable):
             ).to(get_device())
 
     def _direct_assign(self, value):
+        from keras.src.backend.torch import distribution_lib
+
+        if self._layout is not None:
+            value = distribution_lib.distribute_tensor(value, self._layout)
         with torch.no_grad():
             self.value.copy_(value)
 
