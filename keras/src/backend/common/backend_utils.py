@@ -425,6 +425,8 @@ def to_tuple_or_list(value):
     """Convert the non-`None` value to either a tuple or a list."""
     if value is None:
         return value
+    if hasattr(value, "tolist"):  # e.g. numpy array or scalar
+        value = value.tolist()
     if not isinstance(value, (int, tuple, list)):
         raise ValueError(
             "`value` must be an integer, tuple or list. "
@@ -435,28 +437,24 @@ def to_tuple_or_list(value):
     return value
 
 
-def _roll_arg_to_list(value):
-    if isinstance(value, (list, tuple)):
-        return list(value)
-    if hasattr(value, "tolist"):
-        value = value.tolist()
-        return value if isinstance(value, list) else [value]
-    return [value]
-
-
-def broadcast_shift_and_axis(shift, axis):
-    """Broadcast `shift` and `axis` arguments of `roll` to the same length.
+def normalize_shift_and_axis(shift, axis):
+    """Normalize `shift` and `axis` arguments of `roll` to the same length.
 
     Mirrors numpy's behavior of broadcasting a scalar (or length-1
     sequence) `shift`/`axis` against the other argument. Accepts ints,
-    lists, tuples, and array-likes (e.g. numpy arrays) exposing `tolist()`.
+    lists, tuples, and array-likes (e.g. numpy arrays).
     """
-    shifts = _roll_arg_to_list(shift)
-    axes = _roll_arg_to_list(axis)
+    shifts = list(to_tuple_or_list(shift))
+    axes = list(to_tuple_or_list(axis))
     if len(shifts) == 1:
         shifts = shifts * len(axes)
     if len(axes) == 1:
         axes = axes * len(shifts)
+    if len(shifts) != len(axes):
+        raise ValueError(
+            "`shift` and `axis` must be broadcastable to the same length. "
+            f"Received: shift={shift}, axis={axis}"
+        )
     return shifts, axes
 
 

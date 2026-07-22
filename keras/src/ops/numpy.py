@@ -9,9 +9,9 @@ from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
 from keras.src.backend.common import dtypes
-from keras.src.backend.common.backend_utils import broadcast_shift_and_axis
 from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
+from keras.src.backend.common.backend_utils import normalize_shift_and_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
 from keras.src.ops import operation_utils
 from keras.src.ops.operation import Operation
@@ -7361,14 +7361,8 @@ class Roll(Operation):
 
     def compute_output_spec(self, x):
         if self.axis is not None:
-            shifts, axes = broadcast_shift_and_axis(self.shift, self.axis)
+            _, axes = normalize_shift_and_axis(self.shift, self.axis)
             canonicalize_axes(axes, len(x.shape))
-            if len(shifts) != len(axes):
-                raise ValueError(
-                    "`shift` and `axis` must be broadcastable to the same "
-                    f"length. Received: shift={self.shift}, "
-                    f"axis={self.axis}"
-                )
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
