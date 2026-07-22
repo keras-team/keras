@@ -311,8 +311,8 @@ class DataParallelDistributionTest(testing.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="Only JAX has the proper backend distribution lib",
+    backend.backend() not in ("jax", "torch"),
+    reason="Only JAX and Torch have the proper backend distribution lib",
 )
 class ModelParallelDistributionTest(testing.TestCase):
     def setUp(self):
@@ -333,9 +333,16 @@ class ModelParallelDistributionTest(testing.TestCase):
         distribution = distribution_lib.ModelParallel(
             layout_map=layout_map, batch_dim_name="data"
         )
-        kernel = backend.Variable(initializer=np.arange(8, 4), name="kernel")
-        bias = backend.Variable(initializer=np.arange(4), name="bias")
-        rng_seed = backend.Variable(initializer=[0, 1], name="seed")
+        kernel = backend.Variable(
+            initializer=np.arange(32).reshape((8, 4)).astype("float32"),
+            name="kernel",
+        )
+        bias = backend.Variable(
+            initializer=np.arange(4).astype("float32"), name="bias"
+        )
+        rng_seed = backend.Variable(
+            initializer=np.array([0, 1], dtype="float32"), name="seed"
+        )
 
         kernel_layout = distribution.get_variable_layout(kernel)
         self.assertIs(kernel_layout.device_mesh, self.device_mesh)
@@ -385,7 +392,7 @@ class ModelParallelDistributionTest(testing.TestCase):
 
         explicit_mesh = distribution_lib.DeviceMesh((8,), ["x"], self.devices)
         explicit_layout = distribution_lib.TensorLayout(["x"], explicit_mesh)
-        variable = backend.Variable(initializer=[1, 2, 3], name="kernel")
+        variable = backend.Variable(initializer=[1.0, 2.0, 3.0], name="kernel")
         variable._layout = explicit_layout
         variable_layout = distribution.get_variable_layout(variable)
         self.assertIs(variable_layout.device_mesh, explicit_mesh)
@@ -540,8 +547,8 @@ class LayoutMapTest(testing.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="Only JAX has the proper backend distribution lib",
+    backend.backend() not in ("jax", "torch"),
+    reason="Only JAX and Torch have the proper backend distribution lib",
 )
 @pytest.mark.multi_device
 class DataShardingIntegrationTest(testing.TestCase):

@@ -11,9 +11,12 @@ from keras.src import callbacks as callbacks_module
 from keras.src import optimizers as optimizers_module
 from keras.src import tree
 from keras.src.backend import config
+from keras.src.backend.torch.core import convert_to_tensor
 from keras.src.backend.torch.core import get_device
 from keras.src.backend.torch.distribution_lib import _to_backend_mesh
+from keras.src.backend.torch.distribution_lib import distribute_data_input
 from keras.src.distribution.distribution_lib import DataParallel
+from keras.src.distribution.distribution_lib import ModelParallel
 from keras.src.distribution.distribution_lib import distribution
 from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import array_slicing
@@ -220,11 +223,19 @@ class TorchTrainer(base_trainer.Trainer):
                     # Use a copy for reduction to avoid modifying
                     # the original variable.
                     val = v.value.clone()
-                    dist.all_reduce(
-                        val,
-                        op=dist.ReduceOp.SUM,
-                        group=process_group,
-                    )
+                    if hasattr(val, "placements"):
+                        # --- MP Branch (DTensor) ---
+                        from torch.distributed.tensor import Replicate
+
+                        placements = [Replicate()] * len(val.placements)
+                        val = val.redistribute(val.device_mesh, placements)
+                    else:
+                        # --- DP Branch (Standard Tensor) ---
+                        dist.all_reduce(
+                            val,
+                            op=dist.ReduceOp.SUM,
+                            group=process_group,
+                        )
                     reduced_vars.append(val)
 
                 with backend.StatelessScope(
@@ -571,6 +582,7 @@ class TorchTrainer(base_trainer.Trainer):
             )
 
         data = (x, y, sample_weight)
+        data = _distribute_data(data)
 
         # Maybe build model
         self._symbolic_build(data_batch=data)
@@ -593,6 +605,7 @@ class TorchTrainer(base_trainer.Trainer):
         self._assert_compile_called("test_on_batch")
 
         data = (x, y, sample_weight)
+        data = _distribute_data(data)
 
         # Maybe build model
         self._symbolic_build(data_batch=data)
@@ -607,6 +620,7 @@ class TorchTrainer(base_trainer.Trainer):
 
     def predict_on_batch(self, x):
         self.make_predict_function()
+        x = _distribute_data(x)
         batch_outputs = self.predict_function([(x,)])
         batch_outputs = tree.map_structure(
             backend.convert_to_numpy, batch_outputs
@@ -614,6 +628,72 @@ class TorchTrainer(base_trainer.Trainer):
         return batch_outputs
 
 
+def _distribute_data(data, layouts=None):
+    active_distribution = distribution()
+    if active_distribution is not None and isinstance(
+        active_distribution, ModelParallel
+    ):
+        if layouts is None:
+
+            def get_layout(d):
+                if d is None:
+                    return None
+                return active_distribution.get_data_layout(d.shape)
+
+            layouts = tree.map_structure(get_layout, data)
+        return tree.map_structure(
+            lambda d, l: distribute_data_input(
+                d, l, batch_dim_name=active_distribution.batch_dim_name
+            ),
+            data,
+            layouts,
+        )
+    return tree.map_structure(
+        lambda x: convert_to_tensor(x) if x is not None else None, data
+    )
+
+
 class TorchEpochIterator(EpochIterator):
     def _get_iterator(self):
-        return self.data_adapter.get_torch_dataloader()
+        active_distribution = distribution()
+        if active_distribution is not None and isinstance(
+            active_distribution, ModelParallel
+        ):
+            return self._get_distributed_iterator(active_distribution)
+        else:
+            iterator = self.data_adapter.get_numpy_iterator()
+            return self._one_batch_ahead_iterator(iterator)
+
+    def _get_distributed_iterator(self, active_distribution):
+        layouts = None
+        for data in self.data_adapter.get_numpy_iterator():
+            if layouts is None:
+
+                def get_layout(d):
+                    if d is None:
+                        return None
+                    return active_distribution.get_data_layout(d.shape)
+
+                layouts = tree.map_structure(get_layout, data)
+            yield _distribute_data(data, layouts)
+
+    def _one_batch_ahead_iterator(self, numpy_iterator):
+        """Initiate transfers to the device one batch ahead.
+
+        This utility takes an iterator and returns a new iterator which
+        initiates the transfer to device one step ahead. This can improve the
+        performance of training loops significantly by overlapping compute and
+        data transfer.
+        """
+        next_batch = None
+        for batch in numpy_iterator:
+            batch = _distribute_data(batch)
+            if next_batch is None:
+                next_batch = batch
+            else:
+                current_batch = next_batch
+                next_batch = batch
+                yield current_batch
+
+        if next_batch is not None:
+            yield next_batch

@@ -15,12 +15,15 @@ from keras.src.backend.torch import distribution_lib
 from keras.src.distribution import distribution_lib as dist_lib
 from keras.src.distribution.distribution_lib import DataParallel
 from keras.src.distribution.distribution_lib import DeviceMesh
+from keras.src.distribution.distribution_lib import ModelParallel
+from keras.src.distribution.distribution_lib import TensorLayout
 
 
 class SimpleModel(models.Model):
     def __init__(self):
         super().__init__()
         self.dense = layers.Dense(1)
+        self.dense.build((None, 10))
 
     def call(self, x):
         return self.dense(x)
@@ -58,30 +61,53 @@ class TorchTrainerDistributionTest(testing.TestCase):
         os.environ.pop("MASTER_PORT", None)
 
     @parameterized.named_parameters(
-        ("base", SimpleModel, False),
-        ("with_distribution", SimpleModel, True),
-        ("with_training_arg", TrainingAwareModel, False),
+        ("base", SimpleModel, None),
+        ("data_parallel", SimpleModel, "dp"),
+        ("model_parallel", SimpleModel, "mp"),
+        ("with_training_arg", TrainingAwareModel, None),
     )
-    def test_torch_trainer_ddp(self, model_class, use_distribution):
-        if use_distribution:
+    def test_torch_trainer_dist(self, model_class, dist_type):
+        if dist_type == "dp":
             mesh = DeviceMesh(
                 shape=(1,), axis_names=["batch"], devices=np.array(["cpu:0"])
             )
-            distribution = DataParallel(device_mesh=mesh)
-            dist_lib.set_distribution(distribution)
+            dist = DataParallel(device_mesh=mesh)
+            dist_lib.set_distribution(dist)
+            self.addCleanup(lambda: dist_lib.set_distribution(None))
+        elif dist_type == "mp":
+            mesh = DeviceMesh(
+                shape=(1, 1),
+                axis_names=["batch", "model"],
+                devices=np.array([["cpu:0"]]),
+            )
+            layout_map = dist_lib.LayoutMap(mesh)
+            layout_map[".*dense.*/kernel"] = TensorLayout((None, "model"), mesh)
+            dist = ModelParallel(
+                device_mesh=mesh, layout_map=layout_map, batch_dim_name="batch"
+            )
+            dist_lib.set_distribution(dist)
             self.addCleanup(lambda: dist_lib.set_distribution(None))
 
         model = model_class()
+
+        if dist_type == "mp":
+            from torch.distributed.tensor import Shard
+
+            # Verify weights are DTensors
+            self.assertTrue(hasattr(model.dense.kernel.value, "placements"))
+            self.assertIsInstance(model.dense.kernel.value.placements[1], Shard)
+
         model.compile(optimizer=optimizers.Adam(), loss="mse", metrics=["mae"])
 
         x = np.ones((10, 10), dtype="float32")
         y = np.ones((10, 1), dtype="float32")
 
-        # Fit should trigger DDP wrapping
+        # Fit should work
         model.fit(x, y, epochs=1, batch_size=2, verbose=0)
 
-        # Verify ddp_model is created
-        self.assertTrue(hasattr(model, "ddp_model"))
+        if dist_type == "dp":
+            # Verify ddp_model is created
+            self.assertTrue(hasattr(model, "ddp_model"))
 
         # Evaluate should also work
         model.evaluate(x, y, verbose=0)
