@@ -159,6 +159,9 @@ def _to_backend_mesh(device_mesh):
     Returns:
         A `torch.distributed.DeviceMesh` instance.
     """
+    if hasattr(device_mesh, "_torch_mesh"):
+        return device_mesh._torch_mesh
+
     devices = device_mesh.devices
 
     ranks = np.array(
@@ -173,11 +176,13 @@ def _to_backend_mesh(device_mesh):
         first_device or get_device()
     ).split(":")[0]
 
-    return torch.distributed.device_mesh.DeviceMesh(
+    torch_mesh = torch.distributed.device_mesh.DeviceMesh(
         resolved_device_type,
         ranks,
         mesh_dim_names=tuple(device_mesh.axis_names),
     )
+    device_mesh._torch_mesh = torch_mesh
+    return torch_mesh
 
 
 def _to_backend_device(device_name):
@@ -228,8 +233,7 @@ def _to_backend_layout(tensor_layout):
 
 
 def distribute_tensor(tensor, layout):
-    """Scatters or replicates a tensor across devices
-    according to the layout."""
+    """Scatters or replicates a tensor across devices according to layout."""
     if hasattr(layout, "backend_layout"):
         layout = layout.backend_layout
 
@@ -239,8 +243,7 @@ def distribute_tensor(tensor, layout):
 
 
 def distribute_variable(value, layout):
-    """Same as distribute_tensor, but wraps the result back in
-    torch.nn.Parameter if needed."""
+    """Wraps the result back in torch.nn.Parameter if needed."""
     dtensor = distribute_tensor(value, layout)
     if isinstance(value, torch.nn.Parameter):
         return torch.nn.Parameter(dtensor, requires_grad=value.requires_grad)
