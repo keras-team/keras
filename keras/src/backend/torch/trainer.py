@@ -3,12 +3,16 @@ import warnings
 import numpy as np
 import torch
 from packaging.version import parse
+from torch.nn.parallel import DistributedDataParallel
 
 from keras.src import backend
 from keras.src import callbacks as callbacks_module
 from keras.src import optimizers as optimizers_module
 from keras.src import tree
 from keras.src.backend import config
+from keras.src.backend.torch.core import get_device
+from keras.src.backend.torch.distribution_lib import _to_backend_mesh
+from keras.src.distribution.distribution_lib import distribution
 from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
@@ -117,11 +121,6 @@ class TorchTrainer(base_trainer.Trainer):
         if torch.distributed.is_initialized() and not hasattr(
             self, "ddp_model"
         ):
-            from torch.nn.parallel import DistributedDataParallel
-
-            from keras.src.backend.torch.core import get_device
-            from keras.src.distribution.distribution_lib import distribution
-
             device = get_device()
             if str(device).startswith("cuda"):
                 if ":" in str(device):
@@ -134,10 +133,6 @@ class TorchTrainer(base_trainer.Trainer):
             active_distribution = distribution()
             process_group = None
             if active_distribution is not None:
-                from keras.src.backend.torch.distribution_lib import (
-                    _to_backend_mesh,
-                )
-
                 backend_mesh = _to_backend_mesh(active_distribution.device_mesh)
                 # get_group expects the axis name
                 process_group = backend_mesh.get_group(

@@ -10,6 +10,9 @@ from keras.src import models
 from keras.src import optimizers
 from keras.src import testing
 from keras.src.backend.torch import distribution_lib
+from keras.src.distribution import distribution_lib as dist_lib
+from keras.src.distribution.distribution_lib import DataParallel
+from keras.src.distribution.distribution_lib import DeviceMesh
 
 
 @pytest.mark.skipif(
@@ -57,10 +60,6 @@ class TorchTrainerDistributionTest(testing.TestCase):
         model.evaluate(x, y, verbose=0)
 
     def test_torch_trainer_ddp_with_distribution(self):
-        from keras.src.distribution import distribution_lib as dist_lib
-        from keras.src.distribution.distribution_lib import DataParallel
-        from keras.src.distribution.distribution_lib import DeviceMesh
-
         if not torch.distributed.is_initialized():
             self.set_env("MASTER_ADDR", "localhost")
             self.set_env("MASTER_PORT", "29517")

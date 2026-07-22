@@ -114,23 +114,16 @@ def initialize(job_addresses=None, num_processes=None, process_id=None):
         if resolved_device_type == "cuda":
             torch.cuda.set_device(local_rank)
             backend = "nccl"
-            device_id = torch.device(f"cuda:{local_rank}")
         elif resolved_device_type == "xpu":
             torch.xpu.set_device(local_rank)
             backend = "ccl"
-            device_id = torch.device(f"xpu:{local_rank}")
         elif resolved_device_type == "tpu":
             backend = "xla"
-            device_id = None
         else:
             backend = "gloo"
-            device_id = None
 
         torch.distributed.init_process_group(
-            backend=backend,
-            rank=rank,
-            world_size=world_size,
-            device_id=device_id,
+            backend=backend, rank=rank, world_size=world_size
         )
 
 
@@ -159,9 +152,6 @@ def _to_backend_mesh(device_mesh):
     Returns:
         A `torch.distributed.DeviceMesh` instance.
     """
-    if hasattr(device_mesh, "_torch_mesh"):
-        return device_mesh._torch_mesh
-
     devices = device_mesh.devices
 
     ranks = np.array(
@@ -176,13 +166,11 @@ def _to_backend_mesh(device_mesh):
         first_device or get_device()
     ).split(":")[0]
 
-    torch_mesh = torch.distributed.device_mesh.DeviceMesh(
+    return torch.distributed.device_mesh.DeviceMesh(
         resolved_device_type,
         ranks,
         mesh_dim_names=tuple(device_mesh.axis_names),
     )
-    device_mesh._torch_mesh = torch_mesh
-    return torch_mesh
 
 
 def _to_backend_device(device_name):
