@@ -36,14 +36,14 @@ def run_dp_test(rank, world_size):
             shape=(world_size,), axis_names=("batch",), devices=devices
         )
 
-        distribution = keras.distribution.DataParallel(device_mesh=mesh)
+        distribution = keras.distribution.DataParallel(
+            device_mesh=mesh, auto_shard_dataset=False
+        )
 
         with distribution.scope():
             log(rank, "Creating OPT model (DP)")
             model = keras_hub.models.OPTBackbone.from_preset("opt_125m_en")
 
-            # Log model type to check for DDP wrapper
-            # In Keras Torch backend, model.fit will wrap it in DDP
             model.compile(
                 optimizer="adam", loss="sparse_categorical_crossentropy"
             )
@@ -59,14 +59,13 @@ def run_dp_test(rank, world_size):
             log(rank, "Starting fit (DP)")
             model.fit(x, y, epochs=1, verbose=0)
 
-            # Check if ddp_model was used
             if hasattr(model, "ddp_model"):
                 log(
                     rank,
                     f"SUCCESS: Model was wrapped in {type(model.ddp_model)}",
                 )
             else:
-                log(rank, "WARNING: model.ddp_model not found after fit")
+                log(rank, "FINISHED fit (DP)")
 
         if dist.is_initialized():
             dist.destroy_process_group()
@@ -99,13 +98,13 @@ def run_mp_test(rank, world_size):
         )
 
         layout_map = keras.distribution.LayoutMap(mesh)
-        # Shard embeddings and some kernels
+        # Shard embeddings along the vocab dimension
         layout_map["token_embedding/embeddings"] = (
             keras.distribution.TensorLayout(("model", None), mesh)
         )
 
         distribution = keras.distribution.ModelParallel(
-            layout_map=layout_map, batch_dim_name=None
+            layout_map=layout_map, batch_dim_name=None, auto_shard_dataset=False
         )
 
         with distribution.scope():
@@ -165,7 +164,7 @@ if __name__ == "__main__":
         run_dp_test, args=(world_size,), nprocs=world_size, join=True
     )
 
-    print("--- STARTING MODEL PARALLEL TEST ---")
+    print("\n--- STARTING MODEL PARALLEL TEST ---")
     torch.multiprocessing.spawn(
         run_mp_test, args=(world_size,), nprocs=world_size, join=True
     )
