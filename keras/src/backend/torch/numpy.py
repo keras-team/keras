@@ -431,6 +431,31 @@ def average(x, axis=None, weights=None):
     dtypes_to_resolve = [x.dtype, float]
     if weights is not None:
         weights = convert_to_tensor(weights)
+        if len(weights.shape) == 1 and len(x.shape) > 1:
+            if axis is None or (
+                isinstance(axis, (list, tuple)) and len(axis) != 1
+            ):
+                raise ValueError(
+                    "Axis must be specified when shapes of a and weights "
+                    "differ."
+                )
+            axis_val = axis[0] if isinstance(axis, (list, tuple)) else axis
+            axis_val = canonicalize_axis(axis_val, len(x.shape))
+            if weights.shape[0] != x.shape[axis_val]:
+                raise ValueError(
+                    "Shape of weights must be consistent with shape of a "
+                    "along specified axis."
+                )
+        elif x.shape != weights.shape:
+            if axis is None:
+                raise ValueError(
+                    "Axis must be specified when shapes of a and weights "
+                    "differ."
+                )
+            raise ValueError(
+                "Shape of weights must be consistent with shape of a "
+                "along specified axis."
+            )
         dtypes_to_resolve.append(weights.dtype)
     dtype = dtypes.result_type(*dtypes_to_resolve)
     x = cast(x, dtype)
@@ -440,9 +465,19 @@ def average(x, axis=None, weights=None):
         # Torch handles the empty axis case differently from numpy.
         return x
     if weights is not None:
-        return torch.sum(torch.mul(x, weights), dim=axis) / torch.sum(
-            weights, dim=-1
-        )
+        if len(weights.shape) == 1 and len(x.shape) > 1 and axis is not None:
+            a = axis[0] if isinstance(axis, (tuple, list)) else axis
+            if isinstance(a, int):
+                a = a if a >= 0 else len(x.shape) + a
+                w_shape = [1] * len(x.shape)
+                w_shape[a] = weights.shape[0]
+                weights = torch.reshape(weights, w_shape)
+
+        if axis is not None:
+            return torch.sum(torch.mul(x, weights), dim=axis) / torch.sum(
+                weights, dim=axis
+            )
+        return torch.sum(torch.mul(x, weights)) / torch.sum(weights)
     return torch.mean(x, axis)
 
 
@@ -677,7 +712,10 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
         compute_dtype = "float32"
     x1 = cast(x1, compute_dtype)
     x2 = cast(x2, compute_dtype)
-    return cast(torch.cross(x1, x2, dim=axis), result_dtype)
+    if axis is None:
+        # match numpy default (last axis)
+        axis = -1
+    return cast(torch.linalg.cross(x1, x2, dim=axis), result_dtype)
 
 
 def cumprod(x, axis=None, dtype=None):
@@ -780,6 +818,11 @@ def dot(x1, x2):
     x2 = cast(x2, compute_dtype)
     if x1.ndim == 0 or x2.ndim == 0:
         return cast(torch.multiply(x1, x2), result_dtype)
+    if x2.ndim >= 2:
+        return cast(
+            torch.tensordot(x1, x2, dims=([x1.ndim - 1], [x2.ndim - 2])),
+            result_dtype,
+        )
     return cast(torch.matmul(x1, x2), result_dtype)
 
 
@@ -1615,6 +1658,22 @@ def pad(x, pad_width, mode="constant", constant_values=None):
             )
         kwargs["value"] = constant_values
     x = convert_to_tensor(x)
+    if mode == "symmetric":
+        # torch has no "symmetric" pad, so mirror manually (including the edge
+        # value). `replicate` only repeats the edge and is numpy's "edge" mode.
+        pw = list(pad_width)
+        if len(pw) == 1:
+            pw = pw * x.ndim
+        for axis, (left, right) in enumerate(pw):
+            if left == 0 and right == 0:
+                continue
+            size = x.shape[axis]
+            period = 2 * size
+            pos = torch.arange(-left, size + right, device=x.device)
+            m = torch.remainder(pos, period)
+            idx = torch.where(m < size, m, period - 1 - m)
+            x = torch.index_select(x, axis, idx)
+        return x
     pad_sum = []
     pad_width = list(pad_width)[::-1]  # torch uses reverse order
     pad_width_sum = 0
@@ -1625,8 +1684,6 @@ def pad(x, pad_width, mode="constant", constant_values=None):
         pad_width_sum -= pad[0] + pad[1]
         if pad_width_sum == 0:  # early break when no padding in higher order
             break
-    if mode == "symmetric":
-        mode = "replicate"
     if mode == "constant":
         return torch.nn.functional.pad(x, pad=pad_sum, mode=mode, **kwargs)
     # TODO: reflect and symmetric padding are implemented for padding the
@@ -2486,3 +2543,8 @@ def dsplit(x, indices_or_sections):
     if not isinstance(indices_or_sections, int):
         indices_or_sections = convert_to_tensor(indices_or_sections).tolist()
     return list(torch.dsplit(x, indices_or_sections))
+
+
+def column_stack(xs):
+    xs = [convert_to_tensor(x) for x in xs]
+    return torch.column_stack(xs)

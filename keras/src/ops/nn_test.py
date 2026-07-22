@@ -1,5 +1,6 @@
 import math
 from itertools import combinations
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -1772,15 +1773,46 @@ class NNOpsCorrectnessTest(testing.TestCase):
             ),
         )
 
+    @parameterized.named_parameters(
+        ("channels_last", "channels_last"),
+        ("channels_first", "channels_first"),
+    )
+    def test_average_pool_same_padding_asymmetric(self, data_format):
+        # Test 1D asymmetric padding (pool_size=3, strides=2)
+        if data_format == "channels_last":
+            x = np.array([[[10.0], [20.0]]], dtype="float32")
+        else:
+            x = np.array([[[10.0, 20.0]]], dtype="float32")
+
+        res = knn.average_pool(
+            x, pool_size=3, strides=2, padding="same", data_format=data_format
+        )
+        self.assertAllClose(res, np.array([15.0]).reshape(res.shape))
+
+        # Test 2D asymmetric padding
+        if data_format == "channels_last":
+            x = np.array(
+                [[[[10.0], [20.0]]]], dtype="float32"
+            )  # shape (1, 1, 2, 1)
+        else:
+            x = np.array(
+                [[[[10.0, 20.0]]]], dtype="float32"
+            )  # shape (1, 1, 1, 2)
+        res = knn.average_pool(
+            x,
+            pool_size=(1, 3),
+            strides=(1, 2),
+            padding="same",
+            data_format=data_format,
+        )
+        self.assertAllClose(res, np.array([15.0]).reshape(res.shape))
+
     @parameterized.product(
         strides=(1, 2, 3),
         padding=("valid", "same"),
         dilation_rate=(1, 2),
     )
     def test_conv_1d(self, strides, padding, dilation_rate):
-        if strides > 1 and dilation_rate > 1:
-            pytest.skip("Unsupported configuration")
-
         if backend.config.image_data_format() == "channels_last":
             input_shape = (2, 20, 3)
         else:
@@ -1829,15 +1861,40 @@ class NNOpsCorrectnessTest(testing.TestCase):
         )
         self.assertAllClose(outputs, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
 
+    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only")
+    def test_torch_channels_last_pointwise_conv_direct_path(self):
+        from keras.src.backend.torch import nn as torch_nn
+
+        inputs_2d = np.arange(120, dtype="float32").reshape((2, 4, 5, 3))
+        kernel = np.arange(6, dtype="float32").reshape((1, 1, 3, 2))
+
+        with mock.patch.object(
+            torch_nn.tnn,
+            "conv2d",
+            side_effect=AssertionError("conv2d should not be called"),
+        ):
+            outputs = knn.conv(
+                inputs_2d,
+                kernel,
+                strides=(2, 3),
+                padding="same",
+                data_format="channels_last",
+            )
+
+        expected = np_conv2d(
+            inputs_2d,
+            kernel,
+            bias_weights=np.zeros((2,)),
+            strides=(2, 3),
+            padding="same",
+            data_format="channels_last",
+            dilation_rate=1,
+            groups=1,
+        )
+        self.assertAllClose(outputs, expected)
+
     @parameterized.product(strides=(1, 2), dilation_rate=(1, (2, 1)))
     def test_conv_2d_group_2(self, strides, dilation_rate):
-        if (
-            backend.backend() == "tensorflow"
-            and strides == 2
-            and dilation_rate == (2, 1)
-        ):
-            # This case is not supported by the TF backend.
-            return
         if backend.config.image_data_format() == "channels_last":
             input_shape = (2, 10, 10, 4)
         else:
@@ -2611,6 +2668,46 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.normalize(x, axis=-1, order=2, epsilon=1e-5),
             [[1e-1, 1e-3]],
         )
+
+    def test_normalize_l2_zero_vector_gradients(self):
+        # The L2 (order=2) fast path must not produce NaN gradients for a zero
+        # vector: rsqrt(0) is inf and its derivative is 0 * inf = NaN, which a
+        # clamp on the output cannot undo (see #23075). At the data minimum the
+        # clamped norm is constant, so the gradient is a finite 1 / epsilon.
+        epsilon = 1e-3
+        expected_grad = np.full((3,), 1.0 / epsilon, dtype="float32")
+
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            x = tf.Variable([0.0, 0.0, 0.0])
+            with tf.GradientTape() as tape:
+                y = knn.normalize(x, axis=-1, order=2, epsilon=epsilon)
+                loss = tf.reduce_sum(y)
+            x_grad = tape.gradient(loss, x)
+        elif backend.backend() == "jax":
+            import jax
+            import jax.numpy as jnp
+
+            def f(x):
+                return jnp.sum(
+                    knn.normalize(x, axis=-1, order=2, epsilon=epsilon)
+                )
+
+            x_grad = jax.grad(f)(jnp.array([0.0, 0.0, 0.0]))
+        elif backend.backend() == "torch":
+            import torch
+
+            x = torch.zeros(3, requires_grad=True)
+            y = knn.normalize(x, axis=-1, order=2, epsilon=epsilon)
+            y.sum().backward()
+            x_grad = x.grad
+        else:
+            self.skipTest("Gradient test requires tensorflow, jax or torch.")
+
+        x_grad = ops.convert_to_numpy(x_grad)
+        self.assertFalse(np.isnan(x_grad).any())
+        self.assertAllClose(x_grad, expected_grad)
 
     def test_psnr(self):
         x1 = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
