@@ -7197,6 +7197,21 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         y = knp.select(condlist, choicelist, 42)
         self.assertEqual(y.shape, (6,))
 
+        # A broader condition or later choice widens the inferred shape (it is
+        # broadcast against every condition and choice, like `where`), not just
+        # the first choice's shape.
+        x = backend.KerasTensor((2, 3))
+        row = backend.KerasTensor((3,))
+        y = knp.select([x > 0], [row], 0)
+        self.assertEqual(y.shape, (2, 3))
+
+        # `default` is broadcast too: a broader default widens the shape.
+        cond = backend.KerasTensor((1,))
+        choice = backend.KerasTensor((1,))
+        default_value = backend.KerasTensor((2, 3))
+        y = knp.select([cond > 0], [choice], default_value)
+        self.assertEqual(y.shape, (2, 3))
+
     def test_slogdet(self):
         x = np.ones((4, 4)) * 2.0
         out = knp.slogdet(x)
