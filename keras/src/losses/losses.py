@@ -293,11 +293,10 @@ class CosineSimilarity(LossFunctionWrapper):
             dtype=dtype,
             axis=axis,
         )
-        self.axis = axis
 
     def get_config(self):
-        config = Loss.get_config(self)
-        config.update({"axis": self.axis})
+        config = super().get_config()
+        config.pop("fn")
         return config
 
 
@@ -351,11 +350,10 @@ class Huber(LossFunctionWrapper):
             dtype=dtype,
             delta=delta,
         )
-        self.delta = delta
 
     def get_config(self):
-        config = Loss.get_config(self)
-        config.update({"delta": self.delta})
+        config = super().get_config()
+        config.pop("fn")
         return config
 
 
@@ -1263,19 +1261,10 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
             ignore_class=ignore_class,
             axis=axis,
         )
-        self.from_logits = from_logits
-        self.ignore_class = ignore_class
-        self.axis = axis
 
     def get_config(self):
-        config = Loss.get_config(self)
-        config.update(
-            {
-                "from_logits": self.from_logits,
-                "ignore_class": self.ignore_class,
-                "axis": self.axis,
-            }
-        )
+        config = super().get_config()
+        config.pop("fn")
         return config
 
 
