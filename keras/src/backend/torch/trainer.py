@@ -42,10 +42,11 @@ class TorchTrainer(base_trainer.Trainer):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
 
         # Compute predictions
+        model = getattr(self, "ddp_model", self)
         if self._call_has_training_arg:
-            y_pred = self(x, training=True)
+            y_pred = model(x, training=True)
         else:
-            y_pred = self(x)
+            y_pred = model(x)
 
         # Call torch.nn.Module.zero_grad() to clear the leftover gradients
         # for the weights from the previous train step.
@@ -113,6 +114,30 @@ class TorchTrainer(base_trainer.Trainer):
         if self.train_function is not None and not force:
             return self.train_function
 
+        if torch.distributed.is_initialized() and not hasattr(
+            self, "ddp_model"
+        ):
+            from torch.nn.parallel import DistributedDataParallel
+
+            from keras.src.backend.torch.core import get_device
+
+            device = get_device()
+            if str(device).startswith("cuda"):
+                if ":" in str(device):
+                    device_ids = [int(str(device).split(":")[-1])]
+                else:
+                    device_ids = [torch.cuda.current_device()]
+            else:
+                device_ids = None
+
+            object.__setattr__(
+                self,
+                "ddp_model",
+                DistributedDataParallel(
+                    self, device_ids=device_ids, find_unused_parameters=True
+                ),
+            )
+
         train_step = self.train_step
         if self._should_torch_compile():
             train_step = torch.compile(train_step)
@@ -143,6 +168,16 @@ class TorchTrainer(base_trainer.Trainer):
             return logs
 
         self.test_function = test_function
+
+    def _sync_metrics(self):
+        if torch.distributed.is_initialized():
+            import torch.distributed as dist
+
+            with torch.no_grad():
+                for metric in self.metrics:
+                    for v in metric.variables:
+                        if hasattr(v, "_value"):
+                            dist.all_reduce(v._value, op=dist.ReduceOp.SUM)
 
     def make_predict_function(self, force=False):
         if self.predict_function is not None and not force:
@@ -273,6 +308,9 @@ class TorchTrainer(base_trainer.Trainer):
                 if self.stop_training:
                     break
 
+            # Synchronize metrics across ranks
+            self._sync_metrics()
+
             # Override with model metrics instead of last step logs if needed.
             epoch_logs = dict(self._get_metrics_result_or_logs(logs))
 
@@ -386,6 +424,10 @@ class TorchTrainer(base_trainer.Trainer):
             callbacks.on_test_batch_end(end_step, logs)
             if self.stop_evaluating:
                 break
+
+        # Synchronize metrics across ranks
+        self._sync_metrics()
+
         logs = pythonify_logs(self._get_metrics_result_or_logs(logs))
         callbacks.on_test_end(logs)
 
