@@ -231,8 +231,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
 
         def function(iterator):
             if isinstance(
-                iterator,
-                (tf.data.Iterator, tf.distribute.DistributedIterator),
+                iterator, (tf.data.Iterator, tf.distribute.DistributedIterator)
             ):
                 if self.steps_per_execution == 1:
                     next_optional_inputs = iterator.get_next_as_optional()
