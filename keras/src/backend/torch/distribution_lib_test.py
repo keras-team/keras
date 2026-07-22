@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 import torch
 from absl.testing import parameterized
+from torch.distributed import tensor as torch_tensor
 
 from keras.src import backend
 from keras.src import testing
@@ -273,8 +274,6 @@ class TorchDistributionLibTest(testing.TestCase):
                 )
             )
 
-        from torch.distributed import tensor as torch_tensor
-
         mesh = DeviceMesh(
             shape=(1,), axis_names=["x"], devices=np.array(["cpu:0"])
         )
@@ -307,8 +306,6 @@ class TorchDistributionLibTest(testing.TestCase):
                 )
             )
 
-        from torch.distributed import tensor as torch_tensor
-
         mesh = DeviceMesh(
             shape=(1,), axis_names=["x"], devices=np.array(["cpu:0"])
         )
@@ -331,8 +328,6 @@ class TorchDistributionLibTest(testing.TestCase):
                     else None
                 )
             )
-
-        from torch.distributed import tensor as torch_tensor
 
         mesh = DeviceMesh(
             shape=(1,), axis_names=["x"], devices=np.array(["cpu:0"])
@@ -361,8 +356,6 @@ class TorchDistributionLibTest(testing.TestCase):
                     else None
                 )
             )
-
-        from torch.distributed import tensor as torch_tensor
 
         mesh = DeviceMesh(
             shape=(1,), axis_names=["x"], devices=np.array(["cpu:0"])
