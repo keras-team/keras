@@ -326,7 +326,10 @@ class Logsumexp(Operation):
 
     def compute_output_spec(self, x):
         output_shape = reduce_shape(x.shape, self.axis, self.keepdims)
-        return KerasTensor(shape=output_shape)
+        return KerasTensor(
+            shape=output_shape,
+            dtype=backend.standardize_dtype(x.dtype),
+        )
 
     def call(self, x):
         return backend.math.logsumexp(x, axis=self.axis, keepdims=self.keepdims)

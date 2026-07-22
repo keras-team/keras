@@ -1243,6 +1243,25 @@ class MathDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_logsumexp(self, dtype):
+        import jax.numpy as jnp
+        import jax.scipy.special as jsp
+
+        x = knp.ones((2, 3), dtype=dtype)
+        x_jax = jnp.ones((2, 3), dtype=dtype)
+
+        expected_dtype = standardize_dtype(jsp.logsumexp(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(kmath.logsumexp(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(kmath.Logsumexp().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_rsqrt(self, dtype):
         import jax.lax as lax
 
