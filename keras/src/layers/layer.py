@@ -1122,9 +1122,7 @@ class Layer(BackendLayer, Operation):
                     # Case 2 (leaf fast path): `call_spec.first_arg` is the
                     # same vetted leaf tensor, so no structure walk is
                     # needed.
-                    previous_mask = backend.get_keras_mask(
-                        call_spec.first_arg
-                    )
+                    previous_mask = backend.get_keras_mask(call_spec.first_arg)
                 else:
                     # Case 2 (general path): fallback to the mask attached
                     # to the first input tensor, which may be a nested
