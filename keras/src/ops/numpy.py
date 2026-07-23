@@ -11,6 +11,7 @@ from keras.src.backend import any_symbolic_tensors
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
+from keras.src.backend.common.backend_utils import normalize_shift_and_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
 from keras.src.ops import operation_utils
 from keras.src.ops.operation import Operation
@@ -1296,8 +1297,6 @@ def view(x, dtype=None):
 class Average(Operation):
     def __init__(self, axis=None, *, name=None):
         super().__init__(name=name)
-        # np.average() does not support axis as tuple as declared by the
-        # docstring, it only supports int or None.
         self.axis = axis
 
     def call(self, x, weights=None):
@@ -1308,9 +1307,19 @@ class Average(Operation):
         if weights is not None:
             shape_match = shape_equal(x.shape, weights.shape, allow_none=True)
             if self.axis is not None:
-                shape_match_on_axis = shape_equal(
-                    [x.shape[self.axis]], weights.shape, allow_none=True
-                )
+                if isinstance(self.axis, (tuple, list)):
+                    if len(self.axis) == 1:
+                        shape_match_on_axis = shape_equal(
+                            [x.shape[self.axis[0]]],
+                            weights.shape,
+                            allow_none=True,
+                        )
+                    else:
+                        shape_match_on_axis = False
+                else:
+                    shape_match_on_axis = shape_equal(
+                        [x.shape[self.axis]], weights.shape, allow_none=True
+                    )
             dtypes_to_resolve.append(getattr(weights, "dtype", type(weights)))
         dtype = dtypes.result_type(*dtypes_to_resolve)
         if self.axis is None:
@@ -1325,16 +1334,30 @@ class Average(Operation):
 
         if weights is None or shape_match_on_axis or shape_match:
             return KerasTensor(
-                reduce_shape(x.shape, axis=[self.axis]), dtype=dtype
+                reduce_shape(x.shape, axis=self.axis), dtype=dtype
             )
         else:
             # `weights` can either be a 1D array of length `x.shape[axis]` or
             # of the same shape as `x`.
+            axis_repr = (
+                f"axis={self.axis[0]}"
+                if isinstance(self.axis, (tuple, list)) and len(self.axis) == 1
+                else f"axis={self.axis}"
+            )
+            axis_val = (
+                self.axis[0]
+                if isinstance(self.axis, (tuple, list)) and len(self.axis) == 1
+                else self.axis
+            )
+            try:
+                x_shape_at_axis = x.shape[axis_val]
+            except TypeError:
+                x_shape_at_axis = "multiple axes"
+
             raise ValueError(
-                "`weights` must have the same size as `x` at "
-                f"`axis={self.axis}` but received "
-                f"`weights.shape={weights.shape}` while x.shape at "
-                f"`{self.axis}` is `{x.shape[self.axis]}`."
+                f"`weights` must have the same size as `x` at {axis_repr} "
+                f"but received `weights.shape={weights.shape}` while x.shape "
+                f"at {axis_repr} is `{x_shape_at_axis}`."
             )
 
 
@@ -1344,9 +1367,10 @@ def average(x, axis=None, weights=None):
 
     Args:
         x: Input tensor.
-        axis: Integer along which to average `x`. The default, `axis=None`,
-            will average over all of the elements of the input tensor. If axis
-            is negative it counts from the last to the first axis.
+        axis: Integer or tuple of integers along which to average `x`.
+            The default, `axis=None`, will average over all of the
+            elements of the input tensor. If axis is negative it counts
+            from the last to the first axis.
         weights: Tensor of weights associated with the values in `x`. Each
             value in `x` contributes to the average according to its
             associated weight. The weights array can either be 1-D (in which
@@ -1391,7 +1415,7 @@ def average(x, axis=None, weights=None):
         ...
     ValueError: Axis must be specified when shapes of a and weights differ.
     """
-    if any_symbolic_tensors((x,)):
+    if any_symbolic_tensors((x, weights)):
         return Average(axis=axis).symbolic_call(x, weights=weights)
     return backend.numpy.average(x, axis=axis, weights=weights)
 
@@ -2720,7 +2744,7 @@ class Diagonal(Operation):
         shape_2d = [x_shape[self.axis1], x_shape[self.axis2]]
         x_shape[self.axis1] = -1
         x_shape[self.axis2] = -1
-        output_shape = list(filter((-1).__ne__, x_shape))
+        output_shape = [d for d in x_shape if d != -1]
         if None in shape_2d:
             diag_shape = [None]
         else:
@@ -7360,7 +7384,8 @@ class Roll(Operation):
 
     def compute_output_spec(self, x):
         if self.axis is not None:
-            canonicalize_axes(self.axis, len(x.shape))
+            _, axes = normalize_shift_and_axis(self.shift, self.axis)
+            canonicalize_axes(axes, len(x.shape))
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
@@ -8166,7 +8191,7 @@ class Trace(Operation):
             )
         x_shape[axis1] = -1
         x_shape[axis2] = -1
-        output_shape = list(filter((-1).__ne__, x_shape))
+        output_shape = [d for d in x_shape if d != -1]
         output_dtype = backend.standardize_dtype(x.dtype)
         if output_dtype in ("bool", "int8", "int16"):
             output_dtype = "int32"
@@ -8940,7 +8965,7 @@ class Squeeze(Operation):
         sparse = getattr(x, "sparse", False)
         axis = to_tuple_or_list(self.axis)
         if axis is None:
-            output_shape = list(filter((1).__ne__, input_shape))
+            output_shape = [d for d in input_shape if d != 1]
             return KerasTensor(output_shape, dtype=x.dtype, sparse=sparse)
         else:
             for a in axis:
@@ -9476,8 +9501,22 @@ class Select(Operation):
         return backend.numpy.select(condlist, choicelist, default)
 
     def compute_output_spec(self, condlist, choicelist, default=0):
-        first_element = choicelist[0]
-        return KerasTensor(first_element.shape, dtype=first_element.dtype)
+        # `select` broadcasts every array in `condlist` and `choicelist` (and
+        # `default`) to a common shape and promotes the dtype across all
+        # choices, like `where` above -- rather than assuming the first
+        # choice's shape/dtype, which is wrong when a condition, a later
+        # choice, or `default` is broader than the first choice.
+        output_shape = ()
+        for x in list(condlist) + list(choicelist) + [default]:
+            output_shape = broadcast_shapes(
+                output_shape, getattr(x, "shape", [])
+            )
+        dtypes_to_resolve = [
+            getattr(choice, "dtype", type(choice)) for choice in choicelist
+        ]
+        dtypes_to_resolve.append(getattr(default, "dtype", type(default)))
+        output_dtype = dtypes.result_type(*dtypes_to_resolve)
+        return KerasTensor(output_shape, dtype=output_dtype)
 
 
 @keras_export(["keras.ops.select", "keras.ops.numpy.select"])

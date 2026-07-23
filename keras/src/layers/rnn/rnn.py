@@ -209,7 +209,7 @@ class RNN(Layer):
         self.stateful = stateful
         self.unroll = unroll
 
-        self.supports_masking = True
+        self.supports_masking = False
         self.input_spec = None
         self.states = None
         self._expected_batch_size = None

@@ -355,6 +355,22 @@ def is_torch_tensor(value):
     return False
 
 
+def is_pandas_data_frame(value):
+    return (
+        hasattr(value, "__class__")
+        and value.__class__.__name__ == "DataFrame"
+        and str(value.__class__.__module__).startswith("pandas")
+    )
+
+
+def is_pandas_series(value):
+    return (
+        hasattr(value, "__class__")
+        and value.__class__.__name__ == "Series"
+        and str(value.__class__.__module__).startswith("pandas")
+    )
+
+
 class DistributedBatchSampler:
     """Sampler that shards a batch sampler.
 
