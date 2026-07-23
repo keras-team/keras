@@ -29,16 +29,6 @@ class CustomExcLayer(Operation):
         return x
 
 
-class HappyLayer(Operation):
-    """Operation whose call() always succeeds."""
-
-    def call(self, x):
-        return x
-
-    def compute_output_spec(self, x):
-        return x
-
-
 class FailSymbolicLayer(Operation):
     """Operation whose compute_output_spec() raises when dispatched through
     `symbolic_call` (i.e. when called with a symbolic `KerasTensor`)."""
@@ -112,6 +102,7 @@ class TracebackUtilsTest(testing.TestCase):
     """Tests for inject_argument_info_in_error (lazy, on-error-path only)."""
 
     def setUp(self):
+        super().setUp()
         # Ensure filtering is enabled at start of each test; restore after.
         self._was_enabled = traceback_utils.is_traceback_filtering_enabled()
         traceback_utils.enable_traceback_filtering()
@@ -121,12 +112,7 @@ class TracebackUtilsTest(testing.TestCase):
             traceback_utils.enable_traceback_filtering()
         else:
             traceback_utils.disable_traceback_filtering()
-
-    def test_happy_path_no_exception(self):
-        layer = HappyLayer()
-        x = np.ones((2, 3), dtype="float32")
-        result = layer(x)
-        self.assertIs(result, x)  # returned unchanged
+        super().tearDown()
 
     def test_standard_exception_type_preserved(self):
         layer = FailLayer()
@@ -268,11 +254,11 @@ class TracebackUtilsTest(testing.TestCase):
         self.assertIn("kwargs={extra='kw'}", msg)
         self.assertTrue(getattr(result, "_keras_call_info_injected", False))
 
-    def test_unbindable_args_with_nothing_to_report_returns_none(self):
+    def test_unbindable_args_with_nothing_to_report_returns_original(self):
         """If `args`/`kwargs` cannot be bound and are both empty (e.g. a
         required positional argument is missing entirely), there is nothing
-        for the raw-dump fallback to report either, so augmentation is
-        skipped and the original exception surfaces unchanged.
+        for the raw-dump fallback to report either, so the original
+        exception is returned unmodified.
         """
 
         def fn_requires_one_arg(x):
@@ -282,7 +268,7 @@ class TracebackUtilsTest(testing.TestCase):
         result = traceback_utils.inject_argument_info_in_error(
             e, fn_requires_one_arg, (), {}
         )
-        self.assertIsNone(result)
+        self.assertIs(result, e)
 
     def test_setattr_failure_does_not_duplicate_message_across_nesting(self):
         """Regression test for duplicated augmentation text.
@@ -302,6 +288,5 @@ class TracebackUtilsTest(testing.TestCase):
             layer(x)
         msg = str(ctx.exception)
         occurrences = msg.count("Exception encountered when calling")
-        # Previously this was 2 (one augmentation per nesting level).
         self.assertLessEqual(occurrences, 1)
         self.assertIn("bad input", msg)

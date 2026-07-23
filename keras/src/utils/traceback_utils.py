@@ -130,11 +130,7 @@ def _format_raw_arguments_fallback(args, kwargs):
     """Best-effort `args=..., kwargs=...` dump for the error-message context.
 
     Used only when `inject_argument_info_in_error` cannot bind `args` and
-    `kwargs` to the callee's signature (e.g. a caller/callee arity mismatch,
-    or a third-party `call` override with a divergent signature), so that
-    some argument context is still surfaced instead of being silently
-    dropped. This only runs on the (already-slow) error path, so it adds no
-    hot-path cost.
+    `kwargs` to the callee's signature.
 
     Returns:
         A single string formatted like the normal per-parameter listing, or
@@ -207,10 +203,9 @@ def _build_augmented_exception(
 def inject_argument_info_in_error(e, fn, args, kwargs, object_name=None):
     """Add call argument info to an already-caught exception.
 
-    Unlike the old `inject_argument_info_in_traceback`, this does not wrap
-    `fn`. It is meant to be called from an `except` block, after `fn` has
-    already raised, so that argument formatting only happens on the error
-    path and adds no overhead to the common, no-exception case.
+    Meant to be called from an `except` block, after `fn` has already raised,
+    so that argument formatting only happens on the error path and adds no
+    overhead to the common, no-exception case.
 
     Args:
         e: The exception that was raised by calling `fn(*args, **kwargs)`.
@@ -223,11 +218,9 @@ def inject_argument_info_in_error(e, fn, args, kwargs, object_name=None):
             `fn.__name__`.
 
     Returns:
-        A new exception of the same type (or `RuntimeError` as a fallback)
-        with argument info added to its message. If `args`/`kwargs` cannot
-        be bound to `fn`'s signature, falls back to a raw `args=`/`kwargs=`
-        dump instead of the usual per-parameter listing. Returns `None` if
-        no argument info could be recovered at all.
+        An exception with argument info added to its message, or the
+        original exception unmodified if no argument info could be recovered.
+        The returned exception has its traceback set to `e.__traceback__`.
     """
     if backend.backend() == "tensorflow":
         from tensorflow import errors as tf_errors
@@ -240,36 +233,36 @@ def inject_argument_info_in_error(e, fn, args, kwargs, object_name=None):
     except (ValueError, TypeError):
         arguments_context = _format_raw_arguments_fallback(args, kwargs)
         if arguments_context is None:
-            return None
-        return _build_augmented_exception(
-            e, fn, arguments_context, tf_errors, object_name
-        )
+            return e
+    else:
+        arguments_context = []
+        for arg in signature.parameters.values():
+            if arg.name in bound_signature.arguments:
+                try:
+                    value = tree.map_structure(
+                        format_argument_value,
+                        bound_signature.arguments[arg.name],
+                    )
+                except Exception:
+                    # Formatting this specific bound value failed. Retrying
+                    # via the raw args/kwargs fallback would call the same
+                    # `format_argument_value` on the same value and fail the
+                    # same way, so there is nothing to recover here.
+                    return e
+            else:
+                value = arg.default
+            arguments_context.append(f"  • {arg.name}={value}")
 
-    arguments_context = []
-    for arg in signature.parameters.values():
-        if arg.name in bound_signature.arguments:
-            try:
-                value = tree.map_structure(
-                    format_argument_value,
-                    bound_signature.arguments[arg.name],
-                )
-            except Exception:
-                # Formatting this specific bound value failed. Retrying via
-                # the raw args/kwargs fallback would call the same
-                # `format_argument_value` on the same value and fail the
-                # same way, so there is nothing to recover here.
-                return None
-        else:
-            value = arg.default
-        arguments_context.append(f"  • {arg.name}={value}")
+        if not arguments_context:
+            return e
+        arguments_context = "\n".join(arguments_context)
 
-    if not arguments_context:
-        return None
-
-    arguments_context = "\n".join(arguments_context)
-    return _build_augmented_exception(
+    augmented = _build_augmented_exception(
         e, fn, arguments_context, tf_errors, object_name
     )
+    if augmented is None:
+        return e
+    return augmented.with_traceback(e.__traceback__)
 
 
 def format_argument_value(value):

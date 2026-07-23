@@ -62,17 +62,13 @@ class Operation(KerasSaveable):
                 return call_fn(*args, **kwargs)
             except Exception as e:
                 if not getattr(e, "_keras_call_info_injected", False):
-                    augmented = traceback_utils.inject_argument_info_in_error(
+                    raise traceback_utils.inject_argument_info_in_error(
                         e,
                         self.call,
                         args,
                         kwargs,
                         object_name=(f"{self.__class__.__name__}.call()"),
-                    )
-                    if augmented is not None:
-                        raise augmented.with_traceback(
-                            e.__traceback__
-                        ) from None
+                    ) from None
                 raise
 
         # Plain flow.
