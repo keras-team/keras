@@ -3460,6 +3460,31 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Multiply()(x, y), np.multiply(x, y))
         self.assertAllClose(knp.Multiply()(x, z), np.multiply(x, z))
 
+    @parameterized.named_parameters(
+        ("float32", "float32"),
+        ("float64", "float64"),
+    )
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Only the TensorFlow backend flushes subnormal operands to "
+        "zero in its CPU multiply kernel (see issue #23129); other "
+        "backends already match NumPy natively.",
+    )
+    def test_multiply_inf_by_subnormal(self, dtype):
+        # Regression test for https://github.com/keras-team/keras/issues/23129
+        tiny = np.nextafter(np.array(0, dtype), np.array(1, dtype))
+        x = np.array([np.inf, np.inf, -np.inf, -np.inf], dtype=dtype)
+        y = np.array([tiny, -tiny, tiny, -tiny], dtype=dtype)
+        self.assertAllClose(knp.multiply(x, y), np.multiply(x, y))
+        self.assertAllClose(knp.Multiply()(x, y), np.multiply(x, y))
+
+        # Genuine `inf * 0` must still correctly produce `nan`.
+        zeros = np.array([0.0, -0.0], dtype=dtype)
+        infs = np.array([np.inf, -np.inf], dtype=dtype)
+        with np.errstate(invalid="ignore"):
+            expected = np.multiply(infs, zeros)
+        self.assertAllClose(knp.multiply(infs, zeros), expected)
+
     def test_matmul(self):
         x = np.ones([2, 3, 4, 5])
         y = np.ones([2, 3, 5, 6])

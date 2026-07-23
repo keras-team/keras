@@ -647,7 +647,54 @@ def multiply(x1, x2):
     )
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
-    return tf.multiply(x1, x2)
+    result = tf.multiply(x1, x2)
+    if dtype in ("float32", "float64"):
+        # TF's CPU kernels apply hardware denormals-as-zero to subnormal
+        # operands, so `inf * subnormal` is computed as the indeterminate
+        # `inf * 0`, producing `nan` instead of the mathematically correct
+        # signed infinity. The same hardware behavior also flushes naive
+        # `!= 0` / `sign()` checks on the subnormal operand, so zeroness and
+        # sign are read from the raw bit pattern instead (bitwise ops are
+        # not subject to denormal flushing). Repair only this specific
+        # artifact, gated behind a cheap `any(isnan)` check; genuine
+        # `inf * 0` still correctly produces `nan`.
+        nan_mask = tf.math.is_nan(result)
+
+        def _fix_inf_times_subnormal():
+            int_dtype = tf.uint32 if dtype == "float32" else tf.uint64
+            sign_mask = tf.constant(
+                0x80000000 if dtype == "float32" else 0x8000000000000000,
+                dtype=int_dtype,
+            )
+
+            def is_nonzero(x):
+                return tf.not_equal(
+                    tf.bitwise.bitwise_and(
+                        tf.bitcast(x, int_dtype), ~sign_mask
+                    ),
+                    0,
+                )
+
+            def is_negative(x):
+                return tf.not_equal(
+                    tf.bitwise.bitwise_and(tf.bitcast(x, int_dtype), sign_mask),
+                    0,
+                )
+
+            needs_fix = nan_mask & (
+                (tf.math.is_inf(x1) & tf.math.is_finite(x2) & is_nonzero(x2))
+                | (tf.math.is_inf(x2) & tf.math.is_finite(x1) & is_nonzero(x1))
+            )
+            inf = tf.constant(float("inf"), dtype=result.dtype)
+            signed_inf = tf.where(
+                tf.not_equal(is_negative(x1), is_negative(x2)), -inf, inf
+            )
+            return tf.where(needs_fix, signed_inf, result)
+
+        result = tf.cond(
+            tf.reduce_any(nan_mask), _fix_inf_times_subnormal, lambda: result
+        )
+    return result
 
 
 def mean(x, axis=None, keepdims=False):
