@@ -2285,8 +2285,18 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.roll(x, 1, axis=1).shape, (None, 3))
         self.assertEqual(knp.roll(x, 1, axis=0).shape, (None, 3))
         self.assertEqual(knp.roll(x, 1, axis=[0, 1]).shape, (None, 3))
+        self.assertEqual(knp.roll(x, [1, 2], axis=[0, 1]).shape, (None, 3))
+        self.assertEqual(knp.roll(x, [1, 2], axis=[0]).shape, (None, 3))
+        self.assertEqual(
+            knp.roll(x, np.array([1, 2]), axis=np.array([0, 1])).shape,
+            (None, 3),
+        )
         with self.assertRaises(ValueError):
             knp.roll(x, 1, axis=2)
+        with self.assertRaises(ValueError):
+            knp.roll(x, [1, 2, 3], axis=[0, 1])
+        with self.assertRaises(ValueError):
+            knp.roll(x, np.array([1, 2, 3]), axis=np.array([0, 1]))
 
     def test_round(self):
         x = KerasTensor((None, 3))
@@ -3116,6 +3126,9 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.roll(x, 1).shape, (2, 3))
         self.assertEqual(knp.roll(x, 1, axis=1).shape, (2, 3))
         self.assertEqual(knp.roll(x, 1, axis=0).shape, (2, 3))
+        self.assertEqual(knp.roll(x, 1, axis=[0, 1]).shape, (2, 3))
+        with self.assertRaises(ValueError):
+            knp.roll(x, [1, 2, 3], axis=[0, 1])
 
     def test_round(self):
         x = KerasTensor((2, 3))
@@ -6604,9 +6617,25 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.roll(x, 1), np.roll(x, 1))
         self.assertAllClose(knp.roll(x, 1, axis=1), np.roll(x, 1, axis=1))
         self.assertAllClose(knp.roll(x, -1, axis=0), np.roll(x, -1, axis=0))
+        self.assertAllClose(
+            knp.roll(x, 1, axis=(0, 1)), np.roll(x, 1, axis=(0, 1))
+        )
+        self.assertAllClose(
+            knp.roll(x, (1, 2), axis=(0, 1)), np.roll(x, (1, 2), axis=(0, 1))
+        )
+        self.assertAllClose(
+            knp.roll(x, (1, 2), axis=(1,)), np.roll(x, (1, 2), axis=(1,))
+        )
+        self.assertAllClose(
+            knp.roll(x, np.array([1, 2]), axis=np.array([0, 1])),
+            np.roll(x, [1, 2], axis=[0, 1]),
+        )
         self.assertAllClose(knp.Roll(1)(x), np.roll(x, 1))
         self.assertAllClose(knp.Roll(1, axis=1)(x), np.roll(x, 1, axis=1))
         self.assertAllClose(knp.Roll(-1, axis=0)(x), np.roll(x, -1, axis=0))
+        self.assertAllClose(
+            knp.Roll(1, axis=(0, 1))(x), np.roll(x, 1, axis=(0, 1))
+        )
 
     def test_round(self):
         x = np.array([[1.1, 2.5, 3.9], [3.2, 2.3, 1.8]])
@@ -7196,6 +7225,21 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         choicelist = [x, x**2]
         y = knp.select(condlist, choicelist, 42)
         self.assertEqual(y.shape, (6,))
+
+        # A broader condition or later choice widens the inferred shape (it is
+        # broadcast against every condition and choice, like `where`), not just
+        # the first choice's shape.
+        x = backend.KerasTensor((2, 3))
+        row = backend.KerasTensor((3,))
+        y = knp.select([x > 0], [row], 0)
+        self.assertEqual(y.shape, (2, 3))
+
+        # `default` is broadcast too: a broader default widens the shape.
+        cond = backend.KerasTensor((1,))
+        choice = backend.KerasTensor((1,))
+        default_value = backend.KerasTensor((2, 3))
+        y = knp.select([cond > 0], [choice], default_value)
+        self.assertEqual(y.shape, (2, 3))
 
     def test_slogdet(self):
         x = np.ones((4, 4)) * 2.0

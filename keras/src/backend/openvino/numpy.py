@@ -9,6 +9,7 @@ from keras.src.backend import config
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
+from keras.src.backend.common.backend_utils import normalize_shift_and_axis
 from keras.src.backend.common.variables import standardize_dtype
 from keras.src.backend.openvino.core import DTYPES_MAX
 from keras.src.backend.openvino.core import DTYPES_MIN
@@ -1167,10 +1168,10 @@ def bincount(x, weights=None, minlength=0, sparse=False):
     rank_x = ov_opset.reshape(rank_x, scalar_shape, False).output(0)
     const_minus_one = ov_opset.constant(-1, x_type).output(0)
     rank_minus_one = ov_opset.add(rank_x, const_minus_one).output(0)
-    minlength = get_ov_output(minlength)
-    minlength = ov_opset.convert(minlength, x_type).output(0)
     const_one = ov_opset.constant(1, x_type).output(0)
     const_zero = ov_opset.constant(0, x_type).output(0)
+    minlength = get_ov_output(minlength)
+    minlength = ov_opset.convert(minlength, x_type).output(0)
     max_element = ov_opset.reduce_max(x, const_zero, keep_dims=False).output(0)
     depth = ov_opset.add(max_element, const_one).output(0)
     depth = ov_opset.maximum(depth, minlength).output(0)
@@ -4228,7 +4229,10 @@ def reshape(x, newshape):
 def roll(x, shift, axis=None):
     x = get_ov_output(x)
     if axis is not None:
-        result = ov_opset.roll(x, shift, axis).output(0)
+        # The Roll operation requires `shift` and `axis` to have the same
+        # length, while numpy broadcasts them against each other.
+        shifts, axes = normalize_shift_and_axis(shift, axis)
+        result = ov_opset.roll(x, shifts, axes).output(0)
     else:
         output_shape = ov_opset.shape_of(x).output(0)
         flattened = ov_opset.reshape(
