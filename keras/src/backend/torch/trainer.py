@@ -2,13 +2,20 @@ import warnings
 
 import numpy as np
 import torch
+import torch.distributed as dist
 from packaging.version import parse
+from torch.nn.parallel import DistributedDataParallel
 
 from keras.src import backend
 from keras.src import callbacks as callbacks_module
 from keras.src import optimizers as optimizers_module
 from keras.src import tree
 from keras.src.backend import config
+from keras.src.backend.torch.core import convert_to_tensor
+from keras.src.backend.torch.core import get_device
+from keras.src.backend.torch.distribution_lib import _to_backend_mesh
+from keras.src.distribution.distribution_lib import DataParallel
+from keras.src.distribution.distribution_lib import distribution
 from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
@@ -38,18 +45,63 @@ class TorchTrainer(base_trainer.Trainer):
 
         return self.jit_compile
 
+    def _initialize_ddp(self):
+        if torch.distributed.is_initialized() and not hasattr(
+            self, "ddp_model"
+        ):
+            active_distribution = distribution()
+
+            if active_distribution is None or isinstance(
+                active_distribution, DataParallel
+            ):
+                device = get_device()
+                device_str = str(device)
+                if device_str.startswith("cuda") or device_str.startswith(
+                    "xpu"
+                ):
+                    if ":" in device_str:
+                        device_ids = [int(device_str.split(":")[-1])]
+                    else:
+                        if device_str.startswith("cuda"):
+                            device_ids = [torch.cuda.current_device()]
+                        else:
+                            device_ids = [torch.xpu.current_device()]
+                else:
+                    device_ids = None
+
+                process_group = None
+                if active_distribution is not None:
+                    backend_mesh = _to_backend_mesh(
+                        active_distribution.device_mesh
+                    )
+                    process_group = backend_mesh.get_group(
+                        active_distribution.batch_dim_name
+                    )
+
+                object.__setattr__(
+                    self,
+                    "ddp_model",
+                    DistributedDataParallel(
+                        self,
+                        device_ids=device_ids,
+                        process_group=process_group,
+                        find_unused_parameters=False,
+                    ),
+                )
+
     def train_step(self, data):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
 
         # Compute predictions
+        model = getattr(self, "ddp_model", self)
         if self._call_has_training_arg:
-            y_pred = self(x, training=True)
+            y_pred = model(x, training=True)
         else:
-            y_pred = self(x)
+            y_pred = model(x)
 
         # Call torch.nn.Module.zero_grad() to clear the leftover gradients
         # for the weights from the previous train step.
-        self.zero_grad()
+        model.zero_grad()
 
         loss = self._compute_loss(
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=True
@@ -86,10 +138,11 @@ class TorchTrainer(base_trainer.Trainer):
             y,
             sample_weight,
         ) = data_adapter_utils.unpack_x_y_sample_weight(data)
+        model = getattr(self, "ddp_model", self)
         if self._call_has_training_arg:
-            y_pred = self(x, training=False)
+            y_pred = model(x, training=False)
         else:
-            y_pred = self(x)
+            y_pred = model(x)
         loss = self._compute_loss(
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=False
         )
@@ -103,15 +156,18 @@ class TorchTrainer(base_trainer.Trainer):
 
     def predict_step(self, data):
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
+        model = getattr(self, "ddp_model", self)
         if self._call_has_training_arg:
-            y_pred = self(x, training=False)
+            y_pred = model(x, training=False)
         else:
-            y_pred = self(x)
+            y_pred = model(x)
         return y_pred
 
     def make_train_function(self, force=False):
         if self.train_function is not None and not force:
             return self.train_function
+
+        self._initialize_ddp()
 
         train_step = self.train_step
         if self._should_torch_compile():
@@ -130,6 +186,8 @@ class TorchTrainer(base_trainer.Trainer):
         if self.test_function is not None and not force:
             return self.test_function
 
+        self._initialize_ddp()
+
         test_step = self.test_step
         if self._should_torch_compile():
             test_step = torch.compile(test_step)
@@ -144,9 +202,57 @@ class TorchTrainer(base_trainer.Trainer):
 
         self.test_function = test_function
 
+    def get_metrics_result(self):
+        if torch.distributed.is_initialized():
+            with torch.no_grad():
+                all_vars = []
+                for metric in self.metrics:
+                    for v in metric.variables:
+                        if hasattr(v, "_value") and v._value is not None:
+                            all_vars.append(v)
+
+                if all_vars:
+                    # Save original values to avoid double-counting in
+                    # future steps.
+                    original_values = [v._value.clone() for v in all_vars]
+
+                    active_distribution = distribution()
+                    process_group = None
+                    if active_distribution is not None:
+                        backend_mesh = _to_backend_mesh(
+                            active_distribution.device_mesh
+                        )
+                        process_group = backend_mesh.get_group(
+                            active_distribution.batch_dim_name
+                        )
+
+                    for v in all_vars:
+                        dist.all_reduce(
+                            v._value,
+                            op=dist.ReduceOp.SUM,
+                            group=process_group,
+                        )
+
+                    results = super().get_metrics_result()
+
+                    results = {
+                        k: val.clone() if isinstance(val, torch.Tensor) else val
+                        for k, val in results.items()
+                    }
+
+                    # Restore original values.
+                    for v, original_val in zip(all_vars, original_values):
+                        v._value.copy_(original_val)
+
+                    return results
+
+        return super().get_metrics_result()
+
     def make_predict_function(self, force=False):
         if self.predict_function is not None and not force:
             return self.predict_function
+
+        self._initialize_ddp()
 
         predict_step = self.predict_step
         if self._should_torch_compile():
@@ -472,6 +578,7 @@ class TorchTrainer(base_trainer.Trainer):
             )
 
         data = (x, y, sample_weight)
+        data = _distribute_data(data)
 
         # Maybe build model
         self._symbolic_build(data_batch=data)
@@ -494,6 +601,7 @@ class TorchTrainer(base_trainer.Trainer):
         self._assert_compile_called("test_on_batch")
 
         data = (x, y, sample_weight)
+        data = _distribute_data(data)
 
         # Maybe build model
         self._symbolic_build(data_batch=data)
@@ -508,6 +616,7 @@ class TorchTrainer(base_trainer.Trainer):
 
     def predict_on_batch(self, x):
         self.make_predict_function()
+        x = _distribute_data(x)
         batch_outputs = self.predict_function([(x,)])
         batch_outputs = tree.map_structure(
             backend.convert_to_numpy, batch_outputs
@@ -515,6 +624,34 @@ class TorchTrainer(base_trainer.Trainer):
         return batch_outputs
 
 
+def _distribute_data(data):
+    return tree.map_structure(
+        lambda x: convert_to_tensor(x) if x is not None else None, data
+    )
+
+
 class TorchEpochIterator(EpochIterator):
     def _get_iterator(self):
-        return self.data_adapter.get_torch_dataloader()
+        iterator = self.data_adapter.get_numpy_iterator()
+        return self._one_batch_ahead_iterator(iterator)
+
+    def _one_batch_ahead_iterator(self, numpy_iterator):
+        """Initiate transfers to the device one batch ahead.
+
+        This utility takes an iterator and returns a new iterator which
+        initiates the transfer to device one step ahead. This can improve the
+        performance of training loops significantly by overlapping compute and
+        data transfer.
+        """
+        next_batch = None
+        for batch in numpy_iterator:
+            batch = _distribute_data(batch)
+            if next_batch is None:
+                next_batch = batch
+            else:
+                current_batch = next_batch
+                next_batch = batch
+                yield current_batch
+
+        if next_batch is not None:
+            yield next_batch

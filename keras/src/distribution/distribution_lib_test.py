@@ -14,8 +14,8 @@ from keras.src.distribution import distribution_lib
 
 
 @pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="Only JAX has the backend to mock at the moment",
+    backend.backend() not in ("jax", "torch"),
+    reason="Only JAX and Torch have the backend to mock at the moment",
 )
 @mock.patch.object(
     backend_dlib,
@@ -209,8 +209,8 @@ class DistributionTest(testing.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="Only JAX has the proper backend distribution lib",
+    backend.backend() not in ("jax", "torch"),
+    reason="Only JAX and Torch have the proper backend distribution lib",
 )
 class DataParallelDistributionTest(testing.TestCase):
     def setUp(self):
@@ -273,7 +273,7 @@ class DataParallelDistributionTest(testing.TestCase):
             device_mesh=self.device_mesh
         )
 
-        variable = backend.Variable(initializer=[1, 2, 3])
+        variable = backend.Variable(initializer=[1.0, 2.0, 3.0])
         variable_layout = distribution.get_variable_layout(variable)
         self.assertIs(variable_layout.device_mesh, self.device_mesh)
         self.assertEqual(variable_layout.axes, (None,))
@@ -286,7 +286,7 @@ class DataParallelDistributionTest(testing.TestCase):
         explicit_mesh = distribution_lib.DeviceMesh((8,), ["x"], self.devices)
         explicit_layout = distribution_lib.TensorLayout(["x"], explicit_mesh)
 
-        variable = backend.Variable(initializer=[1, 2, 3])
+        variable = backend.Variable(initializer=[1.0, 2.0, 3.0])
         variable._layout = explicit_layout
         variable_layout = distribution.get_variable_layout(variable)
         self.assertIs(variable_layout.device_mesh, explicit_mesh)
