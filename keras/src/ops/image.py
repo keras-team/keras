@@ -1025,28 +1025,25 @@ class ReconstructPatches(Operation):
         # the grid — `__init__` guarantees `padding="valid"` when
         # `output_size` is None. Unknown grid dims stay None.
         if self.output_size is None:
-            if any(g is None for g in grid):
-                spatial = (None,) * len(self.size)
-            else:
-                spatial = tuple(
-                    (g - 1) * s + k
-                    for g, s, k in zip(grid, self.strides, self.size)
-                )
+            spatial = tuple(
+                (g - 1) * s + k if isinstance(g, int) else None
+                for g, s, k in zip(grid, self.strides, self.size)
+            )
         else:
             spatial = self.output_size
             dim_names = ("depth", "height", "width")[-len(self.size) :]
-            for g, p, o, dim_name in zip(
-                grid, self.size, self.output_size, dim_names
+            for g, p, s, o, dim_name in zip(
+                grid, self.size, self.strides, self.output_size, dim_names
             ):
                 if not isinstance(g, int):
                     continue
                 if self.padding == "valid":
-                    if g * p != o:
+                    if (g - 1) * s + p != o:
                         raise ValueError(
                             f"`padding='valid'` requires output_size to "
-                            f"equal size * grid. Got output_size="
-                            f"{self.output_size}, grid {dim_name}={g}, "
-                            f"size={self.size}."
+                            f"equal (grid - 1) * stride + size. Got "
+                            f"output_size={self.output_size}, grid "
+                            f"{dim_name}={g}, stride={s}, size={p}."
                         )
                 elif not (g * p - p < o <= g * p):
                     raise ValueError(
@@ -1104,8 +1101,9 @@ def reconstruct_patches(
             tuple `(H, W)` for 2D, length 3 tuple `(D, H, W)` for 3D. With
             `padding="valid"` this may be omitted (`None`) and is then
             inferred from the patch grid; if given, it must equal
-            `grid * size` — the region covered by the extracted patches,
-            i.e. the original size cropped down to a multiple of `size`.
+            `(grid - 1) * stride + size` per dim — the region covered by
+            the extracted patches, i.e. the original size cropped down to
+            a multiple of `size` in the non-overlapping case.
             With `padding="same"` it is required: pass the original
             spatial shape so the padding added during extraction can be
             unambiguously removed.
@@ -1238,7 +1236,7 @@ def _infer_output_size_valid(patches, size, strides, data_format):
     else:
         grid_start = 1 if rank == n + 1 else 2
     grid = patches.shape[grid_start : grid_start + n]
-    if any(g is None for g in grid):
+    if any(not isinstance(g, int) for g in grid):
         raise ValueError(
             "Cannot auto-infer `output_size` for `padding='valid'`: at "
             "least one patch-grid dimension is unknown "
@@ -1266,6 +1264,12 @@ def _reconstruct_patches_2d(
         raise ValueError(
             f"Invalid `padding`. Expected 'same' or 'valid'. Got: {padding}"
         )
+    if len(patches.shape) not in (3, 4):
+        raise ValueError(
+            "`patches` has unexpected rank for 2D reconstruction. "
+            "Expected 3 (unbatched) or 4 (batched). "
+            f"Received shape: {patches.shape}"
+        )
     strides = _validate_reconstruct_strides(
         size, strides, "reconstruct_patches"
     )
@@ -1290,14 +1294,8 @@ def _reconstruct_patches_2d(
         # Patches are (flat, gH, gW) unbatched or (B, flat, gH, gW) batched.
         if len(patches.shape) == 3:
             patches = backend.numpy.transpose(patches, axes=(1, 2, 0))
-        elif len(patches.shape) == 4:
-            patches = backend.numpy.transpose(patches, axes=(0, 2, 3, 1))
         else:
-            raise ValueError(
-                "`patches` has unexpected rank for 2D channels_first "
-                "reconstruction. Expected 3 (unbatched) or 4 (batched). "
-                f"Received shape: {patches.shape}"
-            )
+            patches = backend.numpy.transpose(patches, axes=(0, 2, 3, 1))
         result = _reconstruct_patches_2d(
             patches, size, output_size, strides, padding, "channels_last"
         )
@@ -1307,13 +1305,6 @@ def _reconstruct_patches_2d(
 
     pH, pW = size
     H, W = output_size
-
-    if len(patches.shape) not in (3, 4):
-        raise ValueError(
-            "`patches` has unexpected rank for 2D reconstruction. "
-            "Expected 3 (unbatched) or 4 (batched). "
-            f"Received shape: {patches.shape}"
-        )
 
     _unbatched = False
     if len(patches.shape) == 3:
@@ -1364,11 +1355,13 @@ def _reconstruct_patches_2d(
         out_shape = [B, H, W, C]
         x = ops.slice(x, begin, out_shape)
     else:
-        if gH * pH != H or gW * pW != W:
+        sH, sW = strides
+        if (gH - 1) * sH + pH != H or (gW - 1) * sW + pW != W:
             raise ValueError(
                 f"`padding='valid'` requires output_size to equal "
-                f"size * grid. Got output_size=({H},{W}), "
-                f"grid=({gH},{gW}), size=({pH},{pW})."
+                f"(grid - 1) * stride + size. Got output_size=({H},{W}), "
+                f"grid=({gH},{gW}), strides=({sH},{sW}), "
+                f"size=({pH},{pW})."
             )
 
     if _unbatched:
@@ -1387,6 +1380,12 @@ def _reconstruct_patches_3d(
     if padding not in ("same", "valid"):
         raise ValueError(
             f"Invalid `padding`. Expected 'same' or 'valid'. Got: {padding}"
+        )
+    if len(patches.shape) not in (4, 5):
+        raise ValueError(
+            "`patches` has unexpected rank for 3D reconstruction. "
+            "Expected 4 (unbatched) or 5 (batched). "
+            f"Received shape: {patches.shape}"
         )
     strides = _validate_reconstruct_strides(
         size, strides, "reconstruct_patches"
@@ -1412,14 +1411,8 @@ def _reconstruct_patches_3d(
         # Patches are (flat, gD, gH, gW) unbatched or (B, flat, gD, gH, gW).
         if len(patches.shape) == 4:
             patches = backend.numpy.transpose(patches, axes=(1, 2, 3, 0))
-        elif len(patches.shape) == 5:
-            patches = backend.numpy.transpose(patches, axes=(0, 2, 3, 4, 1))
         else:
-            raise ValueError(
-                "`patches` has unexpected rank for 3D channels_first "
-                "reconstruction. Expected 4 (unbatched) or 5 (batched). "
-                f"Received shape: {patches.shape}"
-            )
+            patches = backend.numpy.transpose(patches, axes=(0, 2, 3, 4, 1))
         result = _reconstruct_patches_3d(
             patches, size, output_size, strides, padding, "channels_last"
         )
@@ -1429,13 +1422,6 @@ def _reconstruct_patches_3d(
 
     pD, pH, pW = size
     D, H, W = output_size
-
-    if len(patches.shape) not in (4, 5):
-        raise ValueError(
-            "`patches` has unexpected rank for 3D reconstruction. "
-            "Expected 4 (unbatched) or 5 (batched). "
-            f"Received shape: {patches.shape}"
-        )
 
     _unbatched = False
     if len(patches.shape) == 4:
@@ -1504,11 +1490,17 @@ def _reconstruct_patches_3d(
         out_shape = [B, D, H, W, C]
         x = ops.slice(x, begin, out_shape)
     else:
-        if gD * pD != D or gH * pH != H or gW * pW != W:
+        sD, sH, sW = strides
+        if (
+            (gD - 1) * sD + pD != D
+            or (gH - 1) * sH + pH != H
+            or (gW - 1) * sW + pW != W
+        ):
             raise ValueError(
                 f"`padding='valid'` requires output_size to equal "
-                f"size * grid. Got output_size=({D},{H},{W}), "
-                f"grid=({gD},{gH},{gW}), size=({pD},{pH},{pW})."
+                f"(grid - 1) * stride + size. Got output_size=({D},{H},{W}), "
+                f"grid=({gD},{gH},{gW}), strides=({sD},{sH},{sW}), "
+                f"size=({pD},{pH},{pW})."
             )
 
     if _unbatched:

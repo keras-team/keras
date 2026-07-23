@@ -598,9 +598,9 @@ class ImageOpsStaticShapeTest(testing.TestCase):
             )
 
     def test_reconstruct_patches_valid_size_mismatch(self):
-        # valid padding requires grid * size == output_size.
+        # valid padding requires (grid - 1) * stride + size == output_size.
         patches = np.zeros((1, 4, 4, 75), dtype="float32")
-        with self.assertRaisesRegex(ValueError, "size \\* grid"):
+        with self.assertRaisesRegex(ValueError, "requires output_size"):
             kimage.reconstruct_patches(
                 patches,
                 size=(5, 5),
@@ -608,7 +608,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
                 padding="valid",
             )
         patches_3d = np.zeros((1, 4, 4, 4, 375), dtype="float32")
-        with self.assertRaisesRegex(ValueError, "size \\* grid"):
+        with self.assertRaisesRegex(ValueError, "requires output_size"):
             kimage.reconstruct_patches(
                 patches_3d,
                 size=(5, 5, 5),
@@ -692,7 +692,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
                 padding="valid",
             )
         patches = KerasTensor([None, 4, 4, 75])
-        with self.assertRaisesRegex(ValueError, "size \\* grid"):
+        with self.assertRaisesRegex(ValueError, "requires output_size"):
             kimage.reconstruct_patches(
                 patches,
                 size=(5, 5),
@@ -707,7 +707,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
                 padding="same",
             )
         patches_3d = KerasTensor([None, 4, 4, 4, 375])
-        with self.assertRaisesRegex(ValueError, "size \\* grid"):
+        with self.assertRaisesRegex(ValueError, "requires output_size"):
             kimage.reconstruct_patches(
                 patches_3d,
                 size=(5, 5, 5),
@@ -745,7 +745,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (2, 3, 20, 20, 20))
         # The symbolic validation is data_format aware: the grid dims sit
         # at the end in channels_first, and a mismatch still raises.
-        with self.assertRaisesRegex(ValueError, "size \\* grid"):
+        with self.assertRaisesRegex(ValueError, "requires output_size"):
             kimage.reconstruct_patches(
                 KerasTensor([2, 75, 4, 4]),
                 size=(5, 5),
@@ -797,6 +797,10 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         patches = KerasTensor([2, None, None, 75])
         out = kimage.reconstruct_patches(patches, size=(5, 5), padding="valid")
         self.assertEqual(out.shape, (2, None, None, 3))
+        # Mixed static/dynamic grid -> static dims are still resolved.
+        patches = KerasTensor([2, None, 4, 75])
+        out = kimage.reconstruct_patches(patches, size=(5, 5), padding="valid")
+        self.assertEqual(out.shape, (2, None, 20, 3))
 
     def test_reconstruct_patches_autoinfer_same_raises(self):
         # Auto-infer is valid-only; same requires explicit output_size.
