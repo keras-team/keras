@@ -360,7 +360,9 @@ def resize(
             "Expected `size` to be a tuple of 2 integers. "
             f"Received: size={size}"
         )
-    if size[0] <= 0 or size[1] <= 0:
+    if (isinstance(size[0], int) and size[0] <= 0) or (
+        isinstance(size[1], int) and size[1] <= 0
+    ):
         raise ValueError(
             f"`size` must have positive height and width. Received: size={size}"
         )
