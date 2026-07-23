@@ -280,12 +280,14 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
                 return torch.empty_like(x, device=device)
             return x.to(device)
         device = get_device()
+        target_dtype = to_torch_dtype(dtype)
         if not _tensor_on_device(x, device):
             if x.is_meta:
-                x = torch.empty_like(x, device=device)
+                x = torch.empty_like(x, device=device, dtype=target_dtype)
             else:
-                x = x.to(device)
-        x = x.to(to_torch_dtype(dtype))
+                x = x.to(device=device, dtype=target_dtype)
+        else:
+            x = x.to(target_dtype)
         return x
     # Fast path for python primitives — single torch.as_tensor call.
     if isinstance(x, (bool, int, float, complex)):
