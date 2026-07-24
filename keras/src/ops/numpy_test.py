@@ -6473,6 +6473,23 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.pad(x, pad_width, mode=mode, **kwargs),
         )
 
+        # Scalar / single-pair `pad_width` should broadcast to all axes for
+        # eager inputs, consistent with `np.pad` (see #22540).
+        x = np.ones([4, 5, 6], dtype=dtype)
+        for pad_width, np_pad_width in (
+            (0, 0),
+            (1, 1),
+            ((1,), 1),
+            ((1, 2), (1, 2)),
+            (((1, 2),), (1, 2)),
+        ):
+            self.assertAllClose(
+                knp.pad(
+                    x, pad_width, mode=mode, constant_values=constant_values
+                ),
+                np.pad(x, np_pad_width, mode=mode, **kwargs),
+            )
+
     def test_prod(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.prod(x), np.prod(x))
