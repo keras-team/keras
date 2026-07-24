@@ -2228,8 +2228,13 @@ def nextafter(x1, x2):
     x2 = convert_to_tensor(x2)
 
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
-    x1 = cast(x1, torch.float64)
-    x2 = cast(x2, torch.float64)
+    compute_dtype = (
+        "float64"
+        if standardize_dtype(dtype) in ("bfloat16", "float16")
+        else dtype
+    )
+    x1 = cast(x1, compute_dtype)
+    x2 = cast(x2, compute_dtype)
     return cast(torch.nextafter(x1, x2), dtype)
 
 
