@@ -68,12 +68,6 @@ class NnxVariableTest(testing.TestCase):
         self.assertEqual(variable2._value, variable2.value)
 
     def test_lazy_build_within_symbolic_trace(self):
-        # A layer without a `build()` method forces Keras to build it by
-        # running `call()` inside `jax.eval_shape` for shape inference.
-        # Sublayers created eagerly are then mutated (built) inside that
-        # trace, and their variables are created inside it. NNX forbids
-        # cross-trace mutation, which used to raise TraceContextError.
-        # See https://github.com/keras-team/keras/issues/23289.
         class InnerNorm(keras.layers.Layer):
             def build(self, input_shape):
                 self.weight = self.add_weight(

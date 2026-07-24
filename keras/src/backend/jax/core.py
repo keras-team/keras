@@ -329,22 +329,7 @@ if config.is_nnx_enabled():
 
 @contextlib.contextmanager
 def _nnx_stateful_trace_scope():
-    """Allow Keras layers to build while traced by `jax.eval_shape`.
-
-    Keras infers output shapes by running `call()` under `jax.eval_shape`,
-    which may lazily build layers as a side effect: creating sublayers and
-    variables, and setting attributes on layers that were created eagerly.
-    NNX stamps every object with the trace level active at creation time and
-    forbids mutating it from any other level, so this cross-trace mutation
-    raises `flax.errors.TraceContextError` (see issue #23289).
-
-    These mutations are safe: JAX tracing is data-driven, and initializers
-    only see concrete shapes, so the values assigned are concrete arrays.
-    Only shapes escape the trace. This scope pins NNX's notion of the
-    current trace to the outer trace so that mutations inside the trace
-    validate against the outer level, and objects created inside the trace
-    are stamped with the outer level and remain mutable after it exits.
-    """
+    """Allow Keras layers to build while traced by `jax.eval_shape`."""
     if not config.is_nnx_enabled():
         yield
         return
