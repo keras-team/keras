@@ -709,6 +709,49 @@ class LayerTest(testing.TestCase):
         y = layer(x)
         self.assertEqual(ops.min(y), 1)
 
+    def test_signature_default_training_does_not_leak(self):
+        """A `training=True` call() signature default (as on `Resizing`/
+        `CenterCrop`) stays local to that layer: it is not propagated
+        through the shared call context to sibling or downstream layers.
+        """
+
+        class DefaultsTrainingTrue(layers.Layer):
+            def call(self, x, training=True):  # mirrors `Resizing.call`
+                return x
+
+        x = np.ones((4, 4))
+
+        # Functional graph: the downstream layer defaults training=None so
+        # any value propagated from the upstream layer is directly visible.
+        seen = {}
+
+        class RecordTraining(layers.Layer):
+            def call(self, x, training=None):
+                seen["training"] = training
+                return x
+
+        inp = Input((4,))
+        out = RecordTraining()(DefaultsTrainingTrue()(inp))
+        model = Model(inp, out)
+        model(x)
+        self.assertIsNone(seen["training"])
+        model(x, training=True)
+        self.assertTrue(seen["training"])
+
+        # Imperative call: same invariant inside another layer's call().
+        class Wrapper(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.pre = DefaultsTrainingTrue()
+                self.dp = layers.Dropout(0.9)
+
+            def call(self, x):
+                return self.dp(self.pre(x))
+
+        layer = Wrapper()
+        self.assertEqual(ops.min(layer(x)), 1)
+        self.assertEqual(ops.min(layer(x, training=True)), 0)
+
     @pytest.mark.skipif(
         backend.backend() == "torch",
         reason="Some torch ops not implemented for float16 on CPU.",

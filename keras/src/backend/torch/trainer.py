@@ -121,63 +121,65 @@ class TorchTrainer(base_trainer.Trainer):
         if self.train_function is not None and not force:
             return self.train_function
 
-        if self.steps_per_execution > 1:
-            raise ValueError(
-                "`steps_per_execution` must be 1 with the PyTorch backend. "
-                f"Received: steps_per_execution={self.steps_per_execution}"
-            )
-
-        def one_step_on_data(data):
-            """Runs a single training step on a batch of data."""
-            data = data[0]
-            return self.train_step(data)
-
+        train_step = self.train_step
         if self._should_torch_compile():
-            self.train_function = torch.compile(one_step_on_data)
-        else:
-            self.train_function = one_step_on_data
+            train_step = torch.compile(train_step)
+
+        def train_function(data):
+            """Runs training steps on a list of batches of data."""
+            logs = {}
+            for step_data in data:
+                logs = train_step(step_data)
+            return logs
+
+        self.train_function = train_function
 
     def make_test_function(self, force=False):
         if self.test_function is not None and not force:
             return self.test_function
 
-        if self.steps_per_execution > 1:
-            raise ValueError(
-                "`steps_per_execution` must be 1 with the PyTorch backend. "
-                f"Received: steps_per_execution={self.steps_per_execution}"
-            )
-
-        def one_step_on_data(data):
-            """Runs a single test step on a batch of data."""
-            data = data[0]
-            with torch.no_grad():
-                return self.test_step(data)
-
+        test_step = self.test_step
         if self._should_torch_compile():
-            self.test_function = torch.compile(one_step_on_data)
-        else:
-            self.test_function = one_step_on_data
+            test_step = torch.compile(test_step)
+
+        def test_function(data):
+            """Runs test steps on a list of batches of data."""
+            logs = {}
+            with torch.no_grad():
+                for step_data in data:
+                    logs = test_step(step_data)
+            return logs
+
+        self.test_function = test_function
 
     def make_predict_function(self, force=False):
         if self.predict_function is not None and not force:
             return self.predict_function
 
-        if self.steps_per_execution > 1:
-            raise ValueError(
-                "`steps_per_execution` must be 1 with the PyTorch backend. "
-                f"Received: steps_per_execution={self.steps_per_execution}"
-            )
-
-        def one_step_on_data(data):
-            """Runs a predict test step on a batch of data."""
-            data = data[0]
-            with torch.no_grad():
-                return self.predict_step(data)
-
+        predict_step = self.predict_step
         if self._should_torch_compile():
-            self.predict_function = torch.compile(one_step_on_data)
-        else:
-            self.predict_function = one_step_on_data
+            predict_step = torch.compile(predict_step)
+
+        def predict_function(data):
+            """Runs predict steps on a list of batches of data."""
+            outputs = []
+            with torch.no_grad():
+                for step_data in data:
+                    outputs.append(predict_step(step_data))
+
+            def concat_outputs(outputs):
+                if not outputs:
+                    return []
+                if len(outputs) == 1:
+                    return outputs[0]
+                return tree.map_structure(
+                    lambda *args: torch.cat(args, dim=0),
+                    *outputs,
+                )
+
+            return concat_outputs(outputs)
+
+        self.predict_function = predict_function
 
     @traceback_utils.filter_traceback
     def fit(

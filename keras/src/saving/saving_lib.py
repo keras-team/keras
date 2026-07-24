@@ -471,6 +471,31 @@ def _safe_zip_read(archive, name):
         return f.read()
 
 
+# Lower floor than the in-memory guard: extraction fills the disk cumulatively.
+_ZIP_EXTRACT_BOMB_FLOOR_BYTES = 1 << 28  # 256 MiB
+
+
+def _reject_zip_extract_bomb(archive):
+    """Raise if any ZIP member decompresses to far more than stored (CWE-409).
+
+    Uses the per-member ratio (not the aggregate) so a bomb member cannot be
+    diluted below the threshold by genuine weights stored alongside it.
+    """
+    if not isinstance(archive, zipfile.ZipFile):
+        return
+    for info in archive.infolist():
+        if (
+            info.file_size > _ZIP_EXTRACT_BOMB_FLOOR_BYTES
+            and info.file_size > _ZIP_MEMBER_MAX_EXPANSION * info.compress_size
+        ):
+            raise ValueError(
+                f"Not allowed: archive member '{info.filename}' declares "
+                f"{readable_memory_size(info.file_size)} but only "
+                f"{readable_memory_size(info.compress_size)} are stored on "
+                "disk; refusing to extract a potential decompression bomb."
+            )
+
+
 def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
     with zipfile.ZipFile(fileobj, "r") as zf:
         config_json = _safe_zip_read(zf, _CONFIG_FILENAME)
@@ -1091,6 +1116,7 @@ class DiskIOStore:
         if self.archive:
             self.tmp_dir = get_temp_dir()
             if self.mode == "r":
+                _reject_zip_extract_bomb(self.archive)
                 file_utils.extract_open_archive(self.archive, self.tmp_dir)
             self.working_dir = file_utils.join(
                 self.tmp_dir, self.root_path

@@ -8,19 +8,6 @@ from keras.src import tree
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
-try:
-    import pandas
-except ImportError:
-    pandas = None
-
-
-# Leave jax, tf, and torch arrays off this list. Instead we will use
-# `__array__` to detect these types. Doing so allows us to avoid importing a
-# backend framework we are not currently using just to do type-checking.
-ARRAY_TYPES = (np.ndarray,)
-if pandas:
-    ARRAY_TYPES = ARRAY_TYPES + (pandas.Series, pandas.DataFrame)
-
 
 class Sliceable:
     """`Sliceable` wrapping a tensor.
@@ -338,11 +325,13 @@ def slice_tensorflow_sparse_wrapper(sparse_wrapper, indices):
 def can_slice_array(x):
     return (
         x is None
-        or isinstance(x, ARRAY_TYPES)
+        or isinstance(x, np.ndarray)
         or data_adapter_utils.is_tensorflow_tensor(x)
         or data_adapter_utils.is_jax_array(x)
         or data_adapter_utils.is_torch_tensor(x)
         or data_adapter_utils.is_scipy_sparse(x)
+        or data_adapter_utils.is_pandas_data_frame(x)
+        or data_adapter_utils.is_pandas_series(x)
         or hasattr(x, "__array__")
     )
 
@@ -397,9 +386,9 @@ def convert_to_sliceable(arrays, target_backend=None):
                 sliceable_class = NumpySliceable
         elif data_adapter_utils.is_torch_tensor(x):
             sliceable_class = TorchSliceable
-        elif pandas is not None and isinstance(x, pandas.DataFrame):
+        elif data_adapter_utils.is_pandas_data_frame(x):
             sliceable_class = PandasDataFrameSliceable
-        elif pandas is not None and isinstance(x, pandas.Series):
+        elif data_adapter_utils.is_pandas_series(x):
             sliceable_class = PandasSeriesSliceable
         elif data_adapter_utils.is_scipy_sparse(x):
             sliceable_class = ScipySparseSliceable
@@ -424,7 +413,7 @@ def convert_to_sliceable(arrays, target_backend=None):
             )
 
         cast_dtype = None
-        if pandas is not None and isinstance(x, pandas.DataFrame):
+        if data_adapter_utils.is_pandas_data_frame(x):
             if any(is_non_floatx_float(d) for d in x.dtypes.values):
                 cast_dtype = backend.floatx()
         else:
