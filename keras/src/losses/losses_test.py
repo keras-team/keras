@@ -1932,7 +1932,7 @@ class TverskyTest(testing.TestCase):
         y_true = np.array(([[1, 2], [1, 2]]))
         y_pred = np.array(([[4, 1], [6, 1]]))
         output = losses.Tversky(alpha=0.2, beta=0.8)(y_true, y_pred)
-        self.assertAllClose(output, -0.29629636)
+        self.assertAllClose(output, -0.9444444)
 
     def test_binary_segmentation(self):
         y_true = np.array(
@@ -1962,7 +1962,7 @@ class TverskyTest(testing.TestCase):
             ([[0, 1, 0, 1], [1, 0, 1, 1], [0, 1, 0, 1], [1, 0, 1, 1]])
         )
         output = losses.Tversky(alpha=0.2, beta=0.8)(y_true, y_pred)
-        self.assertAllClose(output, 0.7916667)
+        self.assertAllClose(output, 0.7619048)
 
     def test_binary_segmentation_custom_coefficients_with_axis(self):
         y_true = np.array(
@@ -1974,7 +1974,30 @@ class TverskyTest(testing.TestCase):
         output = losses.Tversky(
             alpha=0.2, beta=0.8, axis=(1, 2, 3), reduction=None
         )(y_true, y_pred)
-        self.assertAllClose(output, [0.5, 0.7222222])
+        self.assertAllClose(output, [0.5, 0.7849462])
+
+    def test_alpha_beta_weight_fp_and_fn(self):
+        # `alpha` weights false positives and `beta` weights false negatives,
+        # as documented. With a false-positive-only prediction (TP=1, FP=1,
+        # FN=0) the loss must depend on `alpha` and be invariant to `beta`.
+        y_true = np.array([[1.0, 0.0]])
+        y_pred = np.array([[1.0, 1.0]])
+        self.assertAllClose(
+            losses.Tversky(alpha=0.2, beta=0.8)(y_true, y_pred), 0.16666667
+        )
+        self.assertAllClose(
+            losses.Tversky(alpha=0.8, beta=0.2)(y_true, y_pred), 0.44444445
+        )
+        # Symmetrically, a false-negative-only prediction (TP=1, FP=0, FN=1)
+        # must depend on `beta` and be invariant to `alpha`.
+        y_true = np.array([[1.0, 1.0]])
+        y_pred = np.array([[1.0, 0.0]])
+        self.assertAllClose(
+            losses.Tversky(alpha=0.8, beta=0.2)(y_true, y_pred), 0.16666667
+        )
+        self.assertAllClose(
+            losses.Tversky(alpha=0.2, beta=0.8)(y_true, y_pred), 0.44444445
+        )
 
     def test_dtype_arg(self):
         y_true = np.array(([[1, 2], [1, 2]]))
