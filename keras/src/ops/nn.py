@@ -712,6 +712,7 @@ class Glu(Operation):
 
     def compute_output_spec(self, x):
         output_shape = list(x.shape)
+        canonicalize_axis(self.axis, len(output_shape))
         if output_shape[self.axis] is not None:
             if output_shape[self.axis] % 2 != 0:
                 raise ValueError(
