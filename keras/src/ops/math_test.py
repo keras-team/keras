@@ -1467,6 +1467,13 @@ class LogsumexpTest(testing.TestCase):
         )
         self.assertAllClose(output, expected_output)
 
+    def test_logsumexp_list_input(self):
+        x = [[1.0, 2.0], [3.0, 4.0]]
+        logsumexp_op = kmath.Logsumexp()
+        output = logsumexp_op.call(x)
+        expected_output = np.log(np.sum(np.exp(x)))
+        self.assertAllClose(output, expected_output)
+
 
 class FFTTest(testing.TestCase):
     def test_fft_input_not_tuple_or_list(self):
