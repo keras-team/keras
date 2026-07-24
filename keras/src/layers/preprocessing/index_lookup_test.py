@@ -342,9 +342,18 @@ class IndexLookupLayerTest(testing.TestCase):
         self.assertEqual(output_spec.shape, (None, 3, 4, 4))
         self.assertEqual(output_spec.dtype, backend.floatx())
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Sparse outputs are only supported with TensorFlow backend.",
+    )
     def test_sparse_outputs(self):
-        # TODO
-        pass
+        layer = layers.IntegerLookup(
+            vocabulary=[1, 2, 3],
+            output_mode="multi_hot",
+            sparse=True,
+        )
+        output = layer([[1, 2], [3, 4]])
+        self.assertEqual(backend.is_tensor(output), True)
 
     def test_adapt_tf_idf(self):
         # Case: unbatched data
