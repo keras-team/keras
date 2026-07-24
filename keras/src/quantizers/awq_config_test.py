@@ -136,3 +136,21 @@ class AWQConfigTest(testing.TestCase):
         self.assertEqual(
             config.num_grid_points, deserialized_config.num_grid_points
         )
+
+    def test_quantization_layer_structure_not_serialized(self):
+        """The layer structure is calibration-only and must not serialize."""
+        config = AWQConfig(
+            dataset=["test"],
+            tokenizer=self.MockTokenizer(),
+            group_size=64,
+            num_grid_points=30,
+            quantization_layer_structure={
+                "pre_block_layers": [],
+                "sequential_blocks": [],
+            },
+        )
+        cfg = config.get_config()
+        self.assertIsNone(cfg["quantization_layer_structure"])
+
+        restored = AWQConfig.from_config(cfg)
+        self.assertIsNone(restored.quantization_layer_structure)

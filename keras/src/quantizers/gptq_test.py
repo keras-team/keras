@@ -1,3 +1,4 @@
+import os
 from collections.abc import Callable
 
 import numpy as np
@@ -9,6 +10,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
+from keras.src import saving
 from keras.src import testing
 from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.gptq import _stable_permutation
@@ -733,3 +735,92 @@ class TestModelQuantization(testing.TestCase):
         # Check that layer1 is not quantized.
         self.assertIsNone(getattr(layer1, "quantization_mode", None))
         self.assertFalse(hasattr(layer1, "quantized_kernel"))
+
+    def test_gptq_save_load_round_trip(self):
+        """Full GPTQ quantize -> save -> load round trip.
+
+        Only the Dense layers inside the structure's ``sequential_blocks``
+        are quantized; the embedding and classifier head stay untouched,
+        and predictions are reproduced after a save/load cycle.
+        """
+        keras.utils.set_random_seed(123)
+        embed_dim = 8
+
+        block = models.Sequential(
+            [
+                layers.Dense(16, activation="relu"),
+                layers.Dense(embed_dim),
+            ]
+        )
+
+        inputs = layers.Input(shape=(SEQ_LEN,), dtype="int32")
+        embedding = layers.Embedding(VOCAB_SIZE, embed_dim)
+        x = embedding(inputs)
+        x = block(x)
+        x = layers.GlobalAveragePooling1D()(x)
+        head = layers.Dense(NUM_CLASSES)
+        outputs = head(x)
+        model = models.Model(inputs, outputs)
+
+        rng = np.random.default_rng(seed=7)
+        dataset = [
+            rng.integers(0, VOCAB_SIZE, size=(1, SEQ_LEN), dtype=np.int32)
+            for _ in range(4)
+        ]
+        tokenizer = _char_tokenizer(vocab_size=VOCAB_SIZE, seq_len=SEQ_LEN)
+
+        config = GPTQConfig(
+            dataset=dataset,
+            tokenizer=tokenizer,
+            weight_bits=4,
+            group_size=8,
+            num_samples=4,
+            sequence_length=SEQ_LEN,
+            quantization_layer_structure={
+                "pre_block_layers": [embedding],
+                "sequential_blocks": [block],
+            },
+        )
+
+        model.quantize("gptq", config=config)
+
+        # In-structure Dense layers are quantized and calibrated.
+        for dense in block.layers:
+            self.assertEqual(dense.quantization_mode, "gptq")
+            self.assertTrue(dense.is_gptq_calibrated)
+
+        # Out-of-structure layers must stay completely untouched.
+        self.assertIsNone(getattr(head, "quantization_mode", None))
+        self.assertFalse(hasattr(head, "quantized_kernel"))
+        self.assertIsNone(getattr(embedding, "quantization_mode", None))
+        self.assertFalse(hasattr(embedding, "quantized_kernel"))
+
+        # Predictions survive a save/load round trip.
+        eval_rng = np.random.default_rng(seed=99)
+        x_eval = eval_rng.integers(
+            0, VOCAB_SIZE, size=(4, SEQ_LEN), dtype=np.int32
+        )
+        y_before = model.predict(x_eval)
+
+        path = os.path.join(self.get_temp_dir(), "gptq_model.keras")
+        model.save(path)
+        reloaded = saving.load_model(path)
+        y_after = reloaded.predict(x_eval)
+
+        self.assertAllClose(y_before, y_after)
+
+    def test_gptq_missing_structure_leaves_model_unmodified(self):
+        """A config without a structure raises before any layer is mutated."""
+        model = _get_simple_model()
+        dense = model.layers[0]
+
+        config = GPTQConfig(dataset=["a"], tokenizer=lambda x: x)
+
+        with self.assertRaisesRegex(
+            ValueError, "a valid quantization structure"
+        ):
+            model.quantize("gptq", config=config)
+
+        # The model must be left unmodified when the structure is missing.
+        self.assertIsNone(getattr(dense, "quantization_mode", None))
+        self.assertFalse(hasattr(dense, "quantized_kernel"))

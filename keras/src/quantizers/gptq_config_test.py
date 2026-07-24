@@ -58,3 +58,23 @@ class TestGPTQConfig(testing.TestCase):
         serialized_config = config.get_config()
         deserialized_config = GPTQConfig.from_config(serialized_config)
         self.assertDictEqual(config.__dict__, deserialized_config.__dict__)
+
+    def test_quantization_layer_structure_not_serialized(self):
+        # The layer structure may hold live layer objects; like the
+        # dataset/tokenizer it is calibration-only state and must not be
+        # serialized.
+        config = GPTQConfig(
+            dataset=None,
+            tokenizer=None,
+            weight_bits=4,
+            group_size=64,
+            quantization_layer_structure={
+                "pre_block_layers": [],
+                "sequential_blocks": [],
+            },
+        )
+        cfg = config.get_config()
+        self.assertIsNone(cfg["quantization_layer_structure"])
+
+        restored = GPTQConfig.from_config(cfg)
+        self.assertIsNone(restored.quantization_layer_structure)
