@@ -1739,6 +1739,52 @@ class TestTrainer(testing.TestCase):
         loss2 = model.evaluate(x, y, batch_size=100)
         self.assertAllClose(loss1, loss2)
 
+    def test_evaluate_fixed_batch_dim_graph_matches_eager(self):
+        import tensorflow as tf
+
+        batch_size = 4
+        num_samples = 32
+
+        x_data = np.random.randn(num_samples, 4).astype(np.float32)
+        y_data = np.random.randn(num_samples, 1).astype(np.float32)
+
+        def make_dataset():
+            def gen():
+                for i in range(0, num_samples, batch_size):
+                    yield (
+                        x_data[i : i + batch_size],
+                        y_data[i : i + batch_size],
+                    )
+
+            return tf.data.Dataset.from_generator(
+                gen,
+                output_signature=(
+                    tf.TensorSpec((batch_size, 4), tf.float32),
+                    tf.TensorSpec((batch_size, 1), tf.float32),
+                ),
+            )
+
+        # Graph mode
+        model_graph = ExampleModel(units=1)
+        model_graph.compile(loss="mse", metrics=["mae"], run_eagerly=False)
+        graph_result = model_graph.evaluate(
+            make_dataset(), verbose=0, return_dict=True
+        )
+
+        # Eager mode
+        model_eager = ExampleModel(units=1)
+        model_eager.compile(loss="mse", metrics=["mae"], run_eagerly=True)
+        eager_result = model_eager.evaluate(
+            make_dataset(), verbose=0, return_dict=True
+        )
+
+        self.assertAllClose(
+            graph_result["mae"],
+            eager_result["mae"],
+            atol=1e-5,
+            rtol=1e-5,
+        )
+
     @pytest.mark.requires_trainable_backend
     def test_adds_loss_scaling_optimizer(self):
         model = TrainingTestingLayer(dtype="mixed_float16")
