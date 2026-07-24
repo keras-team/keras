@@ -930,6 +930,29 @@ class Layer(BackendLayer, Operation):
         original_args = args
         original_kwargs = kwargs
 
+        # Shape fact reused across steps 1, 2 and the CallSpec fast-path
+        # gate below: a single positional arg that is itself a leaf backend
+        # or symbolic tensor, with no kwargs other than exactly the
+        # well-known `training=<exact bool>` context kwarg (this mirrors
+        # the CallSpec fast-path gate's own kwargs check precisely --
+        # including rejecting an explicit `training=None`, which the gate
+        # does not special-case). This does not depend on dtype (step 1 has
+        # its own, stricter, dtype-match condition); it only certifies that
+        # `args` has no nested structure left to walk.
+        # `training` itself is derived below (needed here before its own
+        # comment/derivation site to keep this predicate self-contained).
+        training = kwargs.get("training") if kwargs else None
+        single_tensor_call = (
+            len(args) == 1
+            and is_backend_tensor_or_symbolic(args[0], allow_none=False)
+            and (
+                not kwargs
+                or (
+                    len(kwargs) == 1 and (training is True or training is False)
+                )
+            )
+        )
+
         #############################################################
         # 1. Convert any array arguments to tensors of correct dtype.
         def maybe_convert(x):
@@ -947,8 +970,8 @@ class Layer(BackendLayer, Operation):
         # reliable signal that conversion could matter: the well-known
         # `training=<bool-or-None>` shape carries no array-like leaves for
         # `maybe_convert` to act on, and is excluded here for the same
-        # reason the CallSpec fast path below excludes it.
-        training = kwargs.get("training") if kwargs else None
+        # reason the CallSpec fast path below excludes it. `training` was
+        # already derived above by the `single_tensor_call` predicate.
         kwargs_skip_convert = not kwargs or (
             len(kwargs) == 1
             and "training" in kwargs
@@ -967,7 +990,14 @@ class Layer(BackendLayer, Operation):
 
         ##########################################################
         # 2. Enforce that only tensors can be passed positionally.
-        if not self._allow_non_tensor_positional_args:
+        # When `single_tensor_call` holds, `args` is `(args[0],)` and
+        # `args[0]` was already vetted above (conversion, if any, preserves
+        # backend/symbolic tensor-ness), so the flatten walk below is
+        # redundant and skipped.
+        if (
+            not single_tensor_call
+            and not self._allow_non_tensor_positional_args
+        ):
             for arg in tree.flatten(args):
                 if not is_backend_tensor_or_symbolic(arg, allow_none=True):
                     raise ValueError(
@@ -981,17 +1011,8 @@ class Layer(BackendLayer, Operation):
         # reproduces CallSpec for the common single-tensor call with either
         # no kwargs or exactly the well-known `training=<bool>` kwarg,
         # without paying for inspect.Signature.bind.
-        if (
-            self._call_spec_fast_path
-            and (
-                not kwargs
-                or (
-                    len(kwargs) == 1 and (training is True or training is False)
-                )
-            )
-            and len(args) == 1
-            and is_backend_tensor_or_symbolic(args[0], allow_none=False)
-        ):
+        call_spec_is_leaf = self._call_spec_fast_path and single_tensor_call
+        if call_spec_is_leaf:
             call_spec = CallSpec._fast(
                 self._call_arg_names,
                 self._call_arg_defaults,
@@ -1048,10 +1069,19 @@ class Layer(BackendLayer, Operation):
             ):
                 arg_name = list(call_spec.tensor_arguments_dict.keys())[0]
                 only_tensor_arg = call_spec.tensor_arguments_dict[arg_name]
-                mask = tree.map_structure(
-                    backend.get_keras_mask,
-                    only_tensor_arg,
-                )
+                # `call_spec_is_leaf` guarantees `only_tensor_arg` is a leaf
+                # tensor (CallSpec._fast always sets
+                # `tensor_arguments_dict = {first_name: x}` for the single
+                # vetted leaf `x`), so `get_keras_mask` can be called
+                # directly instead of walking it with `map_structure`. The
+                # general (possibly-nested) path is unchanged otherwise.
+                if call_spec_is_leaf:
+                    mask = backend.get_keras_mask(only_tensor_arg)
+                else:
+                    mask = tree.map_structure(
+                        backend.get_keras_mask,
+                        only_tensor_arg,
+                    )
                 kwargs["mask"] = mask
         elif len(call_spec.tensor_arguments_dict) > 1:
             for k, v in call_spec.tensor_arguments_dict.items():
@@ -1066,8 +1096,13 @@ class Layer(BackendLayer, Operation):
         if "mask" in kwargs and kwargs["mask"] is not None:
             # Case 1: Mask was explicitly passed or auto-populated in step 6.
             previous_mask = kwargs["mask"]
+        elif call_spec_is_leaf:
+            # Case 2 (leaf fast path): `call_spec.first_arg` is the same
+            # vetted leaf tensor, so no structure walk is needed.
+            previous_mask = backend.get_keras_mask(call_spec.first_arg)
         else:
-            # Case 2: Fallback to the mask attached to the first input tensor.
+            # Case 2 (general path): fallback to the mask attached to the
+            # first input tensor, which may be a nested structure.
             previous_mask = tree.map_structure(
                 backend.get_keras_mask, call_spec.first_arg
             )
@@ -1132,7 +1167,11 @@ class Layer(BackendLayer, Operation):
                 self._set_mask_metadata(
                     call_spec.first_arg, outputs, previous_mask
                 )
-            elif any(m is not None for m in tree.flatten(previous_mask)):
+            elif (
+                previous_mask is not None
+                if call_spec_is_leaf
+                else any(m is not None for m in tree.flatten(previous_mask))
+            ):
                 warnings.warn(
                     f"Layer '{self.name}' (of type {self.__class__.__name__}) "
                     "was passed an input with a mask attached to it. "
@@ -1146,7 +1185,18 @@ class Layer(BackendLayer, Operation):
 
         ################################################
         # 8. Add a node in the graph for symbolic calls.
-        if any_symbolic_tensors(original_args, original_kwargs):
+        # `call_spec_is_leaf` implies `original_args == (args[0],)` and
+        # `original_kwargs` has no tensor-valued entries (only, at most, a
+        # non-tensor `training=<bool>`), so `call_spec.eager` -- which
+        # `CallSpec._fast` sets to `not isinstance(args[0], KerasTensor)` --
+        # is equivalent to the general `any_symbolic_tensors` walk, without
+        # re-walking `original_args`/`original_kwargs`.
+        is_symbolic_call = (
+            not call_spec.eager
+            if call_spec_is_leaf
+            else any_symbolic_tensors(original_args, original_kwargs)
+        )
+        if is_symbolic_call:
             Node(
                 operation=self,
                 call_args=original_args,
@@ -1813,6 +1863,37 @@ class Layer(BackendLayer, Operation):
         return layers
 
     def _set_mask_metadata(self, inputs, outputs, previous_mask):
+        # Fast path: a single (non-nested) tensor output, the overwhelmingly
+        # common case, needs neither `tree.flatten` nor the all()/zip()
+        # genexpr machinery below -- `outputs` itself is both the sole
+        # "flat output" and the sole mask-target. Any other output shape
+        # (tuple, list, dict, or a nested pytree) falls through to the
+        # general path unchanged.
+        if not tree.is_nested(outputs):
+            if backend.get_keras_mask(outputs) is not None:
+                return
+            output_mask = self.compute_mask(inputs, previous_mask)
+            if output_mask is None:
+                return
+            if tree.is_nested(output_mask):
+                # Contract violation guard: `compute_mask` is expected to
+                # mirror `outputs`' structure (every built-in override
+                # does), but if a custom override returns a nested result
+                # for a leaf output anyway, match the general path's exact
+                # semantics below (the first flattened mask, or "no mask"
+                # if `compute_mask` returned an empty structure -- mirrors
+                # `zip(flat_outputs, flat_masks)` silently producing zero
+                # pairs rather than raising) instead of storing the wrong
+                # structure or crashing where the general path would not.
+                flat_output_mask = tree.flatten(output_mask)
+                output_mask = flat_output_mask[0] if flat_output_mask else None
+            if (
+                output_mask is not None
+                and backend.get_keras_mask(outputs) is None
+            ):
+                backend.set_keras_mask(outputs, output_mask)
+            return
+
         flat_outputs = tree.flatten(outputs)
 
         mask_already_computed = all(
