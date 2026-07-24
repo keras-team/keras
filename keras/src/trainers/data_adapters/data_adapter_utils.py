@@ -118,6 +118,29 @@ def check_data_cardinality(data):
 
 
 def class_weight_to_sample_weights(y, class_weight):
+    # Validate and normalize class_weight keys to integer class indices.
+    # Without this check, invalid keys are silently ignored, and string keys
+    # (e.g., "0") would fail to match integer lookups later, silently
+    # defaulting sample_weight to 1.0.
+    if not hasattr(class_weight, "items") or not hasattr(class_weight, "get"):
+        raise ValueError(
+            "`class_weight` must be a dict-like mapping of class indices "
+            f"to weights. Received: class_weight={class_weight} of type "
+            f"{type(class_weight)}."
+        )
+
+    cleaned_class_weight = {}
+    for key, val in class_weight.items():
+        try:
+            cleaned_class_weight[int(key)] = val
+        except (TypeError, ValueError):
+            raise ValueError(
+                "`class_weight` must be a dictionary with integer keys "
+                "representing class indices. Received an invalid key: "
+                f"{key!r} of type {type(key)}."
+            )
+    class_weight = cleaned_class_weight
+
     # Convert to numpy to ensure consistent handling of operations
     # (e.g., np.round()) across frameworks like TensorFlow, JAX, and PyTorch
 

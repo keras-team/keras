@@ -9,8 +9,31 @@ It generates API and formats user and generated APIs.
 import os
 import re
 import shutil
+import sys
 
 import namex
+import namex.generate
+
+# Patch namex for Windows support
+if sys.platform == "win32":
+    orig_join = namex.generate.os.path.join
+    orig_walk = namex.generate.os.walk
+
+    def forward_slash_join(*args):
+        res = orig_join(*args)
+        if isinstance(res, bytes):
+            return res.replace(b"\\", b"/")
+        return res.replace("\\", "/")
+
+    def forward_slash_walk(top, *args, **kwargs):
+        for root, dirs, files in orig_walk(top, *args, **kwargs):
+            if isinstance(root, bytes):
+                yield root.replace(b"\\", b"/"), dirs, files
+            else:
+                yield root.replace("\\", "/"), dirs, files
+
+    namex.generate.os.path.join = forward_slash_join
+    namex.generate.os.walk = forward_slash_walk
 
 PACKAGE = "keras"
 BUILD_DIR_NAME = "tmp_build_dir"
@@ -180,6 +203,7 @@ def build():
         )
     finally:
         # Clean up: remove the build directory (no longer needed)
+        os.chdir(root_path)
         shutil.rmtree(build_dir)
 
 
