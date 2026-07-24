@@ -1,5 +1,6 @@
 import math
 import string
+from collections import OrderedDict
 
 import numpy as np
 
@@ -199,6 +200,16 @@ class MultiHeadAttention(Layer):
         self.seed = seed
 
         self._inverse_sqrt_key_dim = 1.0 / math.sqrt(float(self._key_dim))
+
+        # Bounded FIFO cache for computed causal masks, keyed by
+        # (q_seq_len, kv_seq_len, device_str, "bool").
+        # Max 8 entries: typical models use 1-2 distinct lengths; the cap
+        # prevents unbounded growth during beam search or variable-length
+        # inference. The mask is always bool, so dtype is not part of the
+        # key — float16 and float32 queries produce the same mask. An
+        # OrderedDict lets the oldest entry be evicted with a single atomic
+        # popitem, avoiding a live-dict iteration in the eviction path.
+        self._causal_mask_cache = OrderedDict()
 
         # Check for flash attention constraints
         if self._flash_attention and self._dropout > 0.0:
@@ -526,18 +537,42 @@ class MultiHeadAttention(Layer):
 
         if use_dot_product_attention:
             if use_causal_mask and attention_mask is None:
-                # Skip materializing the [T, S] mask and let the backend
-                # use its native causal kernel.
-                attention_output = ops.dot_product_attention(
-                    query=query,
-                    key=key,
-                    value=value,
-                    bias=None,
-                    mask=None,
-                    scale=self._inverse_sqrt_key_dim,
-                    is_causal=True,
-                    flash_attention=self._flash_attention,
-                )
+                # On torch, dispatch straight to the native causal SDPA
+                # kernel. This avoids materialising a [T, S] mask and skips the
+                # ops.dot_product_attention dispatch overhead for the common
+                # eager causal self-attention case.
+                if (
+                    backend.backend() == "torch"
+                    and backend.is_tensor(query)
+                    and not self._flash_attention
+                ):
+                    import torch
+
+                    # SDPA expects (B, N, T, H); inputs arrive as (B, T, N, H).
+                    attention_output = (
+                        torch.nn.functional.scaled_dot_product_attention(
+                            query.transpose(1, 2),
+                            key.transpose(1, 2),
+                            value.transpose(1, 2),
+                            attn_mask=None,
+                            dropout_p=0.0,
+                            is_causal=True,
+                            scale=self._inverse_sqrt_key_dim,
+                        ).transpose(1, 2)
+                    )
+                else:
+                    # Other backends, or flash attention, fall through to the
+                    # ops path which handles the causal kernel selection.
+                    attention_output = ops.dot_product_attention(
+                        query=query,
+                        key=key,
+                        value=value,
+                        bias=None,
+                        mask=None,
+                        scale=self._inverse_sqrt_key_dim,
+                        is_causal=True,
+                        flash_attention=self._flash_attention,
+                    )
                 return attention_output, None
             if attention_mask is not None:
                 # Ensure attention_mask has the correct shape for broadcasting
@@ -800,6 +835,44 @@ class MultiHeadAttention(Layer):
         """
         q_seq_length = ops.shape(query)[1]
         v_seq_length = q_seq_length if value is None else ops.shape(value)[1]
+
+        # Cache masks only on the torch backend with static Python int shapes.
+        # On JAX/TF, ops.ones/cumsum return symbolic tensors or Tracers even
+        # when the lengths happen to be Python ints (e.g. inside jax.jit or
+        # tf.function). Caching and reusing those across tracing contexts
+        # triggers UnexpectedTracerError (JAX) or graph-mismatch errors (TF).
+        # JAX and TF constant-fold the mask at compile time anyway, so the
+        # cache buys nothing on those backends.
+        # The lengths must be exact Python ints: under torch.compile the shape
+        # can be a symbolic torch.SymInt, which is unhashable and would raise
+        # if used as a cache key. `type() is int` excludes SymInt (and bool),
+        # so symbolic tracing falls through to the recompute path below.
+        if (
+            backend.backend() == "torch"
+            and type(q_seq_length) is int
+            and type(v_seq_length) is int
+            and backend.is_tensor(query)
+        ):
+            device_key = str(query.device)
+            cache_key = (q_seq_length, v_seq_length, device_key, "bool")
+            cached = self._causal_mask_cache.get(cache_key)
+            if cached is not None:
+                return cached
+
+            ones_mask = ops.ones((1, q_seq_length, v_seq_length), dtype="int32")
+            row_index = ops.cumsum(ones_mask, axis=-2)
+            col_index = ops.cumsum(ones_mask, axis=-1)
+            mask = ops.greater_equal(row_index, col_index)
+
+            # Evict the oldest entry once the cap is reached.
+            # popitem(last=False) is a single atomic pop, so it never iterates
+            # a dict that another thread might resize concurrently.
+            if len(self._causal_mask_cache) >= 8:
+                self._causal_mask_cache.popitem(last=False)
+            self._causal_mask_cache[cache_key] = mask
+            return mask
+
+        # Non-torch backend or dynamic shapes: recompute on every call.
         ones_mask = ops.ones((1, q_seq_length, v_seq_length), dtype="int32")
         row_index = ops.cumsum(ones_mask, axis=-2)
         col_index = ops.cumsum(ones_mask, axis=-1)

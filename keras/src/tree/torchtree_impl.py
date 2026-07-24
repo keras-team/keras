@@ -20,24 +20,49 @@ def _tree_is_leaf(tree, is_leaf=None):
     return torch_tree._get_node_type(tree) not in torch_tree.SUPPORTED_NODES
 
 
+def _make_root_is_leaf():
+    # Flatten exactly one level: tree_flatten visits the root first
+    # (depth-first), so treat the first visited node as the root and every
+    # subsequent node (its immediate children) as a leaf. This avoids
+    # comparing `id()` values, which torch.compile cannot trace (dynamo
+    # models `id()` as a compile-time-only value and graph-breaks on the
+    # comparison).
+    seen_root = False
+
+    def _is_child(x):
+        nonlocal seen_root
+        if not seen_root:
+            seen_root = True
+            return False
+        return True
+
+    return _is_child
+
+
 def _dict_to_ordered_dict(structure):
-    # We need to sort dict and defaultdict to ensure a deterministic order that
-    # that is consistent with other tree implementations.
+    # Short-circuit: leaves need no reordering; avoid a torch_tree round-trip.
+    if _tree_is_leaf(structure):
+        return structure
+
+    # We need to sort dict and defaultdict to ensure a deterministic order
+    # that is consistent with other tree implementations. Values are
+    # recursed into here rather than left to traverse_children below, since
+    # a dict match short-circuits traverse_children entirely, and a dict
+    # value that is itself a dict would otherwise keep its insertion order.
     def func(x):
         if type(x) is dict:
-            return {k: x[k] for k in sorted(x.keys())}
+            return {k: _dict_to_ordered_dict(x[k]) for k in sorted(x.keys())}
         elif type(x) is defaultdict:
             return defaultdict(
                 x.default_factory,
-                {k: x[k] for k in sorted(x.keys())},
+                {k: _dict_to_ordered_dict(x[k]) for k in sorted(x.keys())},
             )
         return None
 
     def traverse_children():
-        structure_id = id(structure)
         children, treedef = torch_tree.tree_flatten(
             structure,
-            is_leaf=lambda x: id(x) != structure_id,
+            is_leaf=_make_root_is_leaf(),
         )
         if treedef.num_nodes == 1 and treedef.num_leaves == 1:
             return structure
@@ -61,10 +86,9 @@ def is_nested(structure):
 
 def traverse(func, structure, top_down=True):
     def traverse_children():
-        structure_id = id(structure)
         children, treedef = torch_tree.tree_flatten(
             structure,
-            is_leaf=lambda x: id(x) != structure_id,
+            is_leaf=_make_root_is_leaf(),
         )
         if treedef.num_nodes == 1 and treedef.num_leaves == 1:
             return structure

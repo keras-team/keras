@@ -3,18 +3,24 @@ import math
 import ml_dtypes
 
 from keras.src import activations
+from keras.src import backend
 from keras.src import constraints
 from keras.src import initializers
 from keras.src import ops
 from keras.src import quantizers
 from keras.src import regularizers
 from keras.src.api_export import keras_export
+from keras.src.backend.common import global_state
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantization_config import get_block_size_for_layer
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.saving import serialization_lib
+
+if backend.backend() == "torch":
+    import torch
+    import torch.nn.functional as F
 
 
 @keras_export("keras.layers.Dense")
@@ -154,6 +160,9 @@ class Dense(Layer):
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
+        # Cache the torch fast-path eligibility at build time; `lora_enabled`
+        # is re-checked at call time.
+        self._torch_backend = backend.backend() == "torch"
 
     @property
     def kernel(self):
@@ -218,7 +227,63 @@ class Dense(Layer):
 
         return kernel
 
+    @staticmethod
+    def _torch_compiling():
+        return (
+            hasattr(torch, "compiler")
+            and hasattr(torch.compiler, "is_compiling")
+            and torch.compiler.is_compiling()
+        )
+
     def call(self, inputs, training=None):
+        # On the torch backend, call F.linear directly rather than going
+        # through Keras's ops dispatch. This only applies to a plain eager
+        # forward: quantized layers route through quantized_call() before
+        # ever reaching call(), LoRA needs the ops path for its additive
+        # branch, torch.compile tracing is skipped because meta-device
+        # weights make F.linear raise under fake tensors, and a Dense
+        # subclass is excluded because it may override the `kernel`
+        # property (a supported extension point) with logic this path
+        # would silently bypass by reading `self._kernel.value` directly.
+        if (
+            self._torch_backend
+            and type(self) is Dense
+            and not self.lora_enabled
+            and not self._torch_compiling()
+        ):
+            kernel = self._kernel.value
+            # A dtype mismatch falls through to the standard path below
+            # rather than casting the kernel toward the input's dtype here:
+            # that would be a downcast, not a promotion, and it would
+            # silently corrupt the result for integer inputs (a float
+            # kernel truncated to int becomes near-all-zeros). The standard
+            # path already applies the correct dtype-promotion rules.
+            # Checked before any device work below, since dtype is
+            # unaffected by device placement and a mismatch skips that
+            # work entirely.
+            if inputs.dtype == kernel.dtype:
+                scope_device = global_state.get_global_attribute(
+                    "torch_device", None
+                )
+                # kernel is already on kernel.device by definition, so only
+                # a scope override can actually move it - skip the compare
+                # entirely otherwise instead of comparing a value to itself.
+                target_device = kernel.device
+                if scope_device is not None:
+                    target_device = torch.device(scope_device)
+                    if kernel.device != target_device:
+                        kernel = kernel.to(target_device)
+                if inputs.device != target_device:
+                    inputs = inputs.to(target_device)
+                bias = self.bias.value if self.bias is not None else None
+                if bias is not None and bias.device != target_device:
+                    bias = bias.to(target_device)
+                # Keras stores the kernel as [in, out]; F.linear expects
+                # [out, in].
+                x = F.linear(inputs, kernel.t(), bias)
+                if self.activation is not None:
+                    x = self.activation(x)
+                return x
         x = ops.matmul(inputs, self.kernel)
         if self.bias is not None:
             x = ops.add(x, self.bias)

@@ -21,6 +21,25 @@ from keras.src.backend.config import enable_flash_attention
 from keras.src.backend.config import is_flash_attention_enabled
 
 
+def _get_backed_symint(hint=2):
+    """Create a backed SymInt via torch.export dynamic shapes."""
+    import torch
+
+    class _M(torch.nn.Module):
+        def forward(self, x):
+            return x + x.shape[0]
+
+    ep = torch.export.export(
+        _M(),
+        (torch.randn(hint, 3),),
+        dynamic_shapes={"x": {0: torch.export.Dim("batch")}},
+    )
+    for node in ep.graph.nodes:
+        if node.op == "placeholder":
+            return node.meta["val"].shape[0]
+    raise RuntimeError("Could not extract SymInt from exported program")
+
+
 class MultiHeadAttentionTest(testing.TestCase):
     def setUp(self):
         super().setUp()
@@ -1045,3 +1064,243 @@ class MultiHeadAttentionTest(testing.TestCase):
         self.assertDType(layer._value_dense._kernel, "int8")
         self.assertDType(layer._gate_dense._kernel, "int8")
         self.assertDType(layer._output_dense._kernel, "int8")
+
+    @pytest.mark.skipif(
+        backend.backend() != "torch",
+        reason="SDPA is_causal fast-path is torch-only",
+    )
+    def test_sdpa_causal_numeric_equivalence(self):
+        """torch SDPA is_causal=True output must match explicit-softmax path.
+
+        When use_causal_mask=True and no other mask is present, the torch
+        backend routes through
+        torch.nn.functional.scaled_dot_product_attention(is_causal=True).
+        Passing return_attention_scores=True forces the layer off that fast
+        path (use_dot_product_attention becomes False) onto the full explicit-
+        softmax causal path. Both must agree within float32 tolerance.
+        """
+        import torch
+
+        rng = np.random.default_rng(1234)
+        batch, seq, feat = 2, 8, 16
+        layer = layers.MultiHeadAttention(num_heads=2, key_dim=4)
+        q = torch.tensor(rng.random((batch, seq, feat)).astype("float32"))
+        v = q.clone()
+
+        # Fast path: torch SDPA with is_causal=True.
+        out_sdpa = layer(q, v, use_causal_mask=True)
+
+        # Reference: return_attention_scores=True → use_dot_product_attention
+        # is False → explicit softmax with materialised causal mask.
+        out_explicit, _ = layer(
+            q, v, use_causal_mask=True, return_attention_scores=True
+        )
+
+        self.assertAllClose(out_sdpa, out_explicit, atol=1e-5, rtol=1e-5)
+
+    def test_sdpa_causal_fallback_return_attention_scores(self):
+        """return_attention_scores=True must not crash and return valid shapes.
+
+        This exercises the fallback branch where use_dot_product_attention is
+        False (because return_attention_scores is True).
+        """
+        layer = layers.MultiHeadAttention(num_heads=2, key_dim=4)
+        rng = np.random.default_rng(0)
+        q = rng.random((2, 6, 16)).astype("float32")
+        v = q.copy()
+        out, scores = layer(
+            q, v, use_causal_mask=True, return_attention_scores=True
+        )
+        self.assertEqual(tuple(out.shape), (2, 6, 16))
+        self.assertIsNotNone(scores)
+        # scores: (batch, num_heads, query_len, key_len)
+        self.assertEqual(len(scores.shape), 4)
+        self.assertEqual(scores.shape[0], 2)  # batch
+        self.assertEqual(scores.shape[1], 2)  # num_heads
+
+    def test_sdpa_causal_fallback_non_causal(self):
+        """Non-causal call (use_causal_mask=False) must not crash or regress."""
+        layer = layers.MultiHeadAttention(num_heads=2, key_dim=4)
+        rng = np.random.default_rng(1)
+        q = rng.random((2, 4, 8)).astype("float32")
+        v = q.copy()
+        out = layer(q, v, use_causal_mask=False)
+        self.assertEqual(tuple(out.shape), (2, 4, 8))
+
+    def test_sdpa_causal_fallback_explicit_attention_mask(self):
+        """Explicit attention_mask bypasses SDPA is_causal fast path.
+
+        When attention_mask is provided, causal_only is False in call(), so
+        _compute_attention_mask is called and the result is passed into
+        _compute_attention. The fast path (use_causal_mask and
+        attention_mask is None) is skipped. Must not crash.
+        """
+        batch, seq, feat = 2, 5, 16
+        layer = layers.MultiHeadAttention(num_heads=2, key_dim=4)
+        rng = np.random.default_rng(2)
+        q = rng.random((batch, seq, feat)).astype("float32")
+        v = q.copy()
+        # All-True boolean padding mask: attend everywhere.
+        mask = np.ones((batch, seq, seq), dtype="bool")
+        out = layer(q, v, attention_mask=mask)
+        self.assertEqual(tuple(out.shape), (batch, seq, feat))
+
+    def test_sdpa_causal_fallback_cross_attention(self):
+        """Cross-attention (query_len != value_len) must not crash."""
+        layer = layers.MultiHeadAttention(num_heads=2, key_dim=4)
+        rng = np.random.default_rng(3)
+        q = rng.random((2, 6, 16)).astype("float32")
+        v = rng.random((2, 4, 16)).astype("float32")
+        out = layer(q, v, use_causal_mask=True)
+        self.assertEqual(tuple(out.shape), (2, 6, 16))
+
+    def test_causal_mask_cache_same_shape_consistent(self):
+        """Calling MHA twice with same inputs must give identical outputs.
+
+        Verifies that the mask cache does not corrupt results across calls.
+        """
+        layer = layers.MultiHeadAttention(num_heads=2, key_dim=4)
+        q = random.uniform((2, 8, 16))
+        out1 = layer(q, q, use_causal_mask=True)
+        out2 = layer(q, q, use_causal_mask=True)
+        self.assertAllClose(out1, out2)
+
+    @pytest.mark.skipif(
+        backend.backend() != "torch",
+        reason="Causal mask cache is torch-only",
+    )
+    def test_causal_mask_cache_fifo_eviction_bounded(self):
+        """Mask cache must not grow beyond 8 entries (FIFO eviction).
+
+        Creates 10 distinct sequence lengths, each of which produces a
+        distinct cache key, overflowing the 8-entry cap.
+
+        return_attention_scores=True forces use_dot_product_attention=False,
+        routing through the manual softmax path that calls _compute_causal_mask
+        and fills the cache. The SDPA is_causal=True fast path skips the
+        cache entirely, so using it here would leave the cache empty and test
+        nothing.
+        """
+        layer = layers.MultiHeadAttention(num_heads=2, key_dim=4)
+        feat = 8
+        for seq_len in range(4, 14):  # 10 distinct lengths
+            q = random.uniform((1, seq_len, feat))
+            # Force the ops fallback path (use_dot_product_attention=False)
+            # so that _compute_causal_mask is called and the cache fills.
+            _, _ = layer(
+                q, q, use_causal_mask=True, return_attention_scores=True
+            )
+        self.assertGreater(len(layer._causal_mask_cache), 0)
+        self.assertLessEqual(len(layer._causal_mask_cache), 8)
+
+    @pytest.mark.skipif(
+        backend.backend() != "torch",
+        reason="SDPA causal fast path is torch-only",
+    )
+    def test_sdpa_causal_fast_path_bypasses_ops(self):
+        # On torch, use_causal_mask=True with no other masks routes directly
+        # through torch SDPA, bypassing ops.dot_product_attention entirely.
+        # Patching ops to raise confirms the bypass.
+        from unittest.mock import patch
+
+        import torch
+
+        rng = np.random.default_rng(0)
+        q_np = rng.random((2, 6, 16)).astype("float32")
+        q_t = torch.tensor(q_np)
+        layer = layers.MultiHeadAttention(num_heads=2, key_dim=4)
+        layer(q_t, q_t)  # build weights
+
+        def _no_ops_call(*args, **kwargs):
+            raise AssertionError(
+                "ops.dot_product_attention unexpectedly called"
+            )
+
+        with patch.object(ops, "dot_product_attention", _no_ops_call):
+            out = layer(q_t, q_t, use_causal_mask=True)
+        self.assertEqual(tuple(out.shape), (2, 6, 16))
+
+    @pytest.mark.skipif(
+        backend.backend() != "torch",
+        reason="SDPA causal fast path is torch-only",
+    )
+    def test_sdpa_cross_attention_tneqs_equivalence(self):
+        # T != S: SDPA fast path (is_causal=True) must match the explicit-mask
+        # path numerically. Inputs are constructed as numpy and moved to CPU
+        # torch tensors; outputs compared via .cpu().numpy().
+        import torch
+
+        rng = np.random.default_rng(7)
+        batch, t_len, s_len, feat = 2, 6, 4, 16
+        layer = layers.MultiHeadAttention(num_heads=2, key_dim=4)
+        q_np = rng.random((batch, t_len, feat)).astype("float32")
+        v_np = rng.random((batch, s_len, feat)).astype("float32")
+        q_t = torch.tensor(q_np)
+        v_t = torch.tensor(v_np)
+
+        # Fast path: torch SDPA with is_causal=True.
+        out_fast = layer(q_t, v_t, use_causal_mask=True)
+
+        # Reference: explicit lower-triangular mask bypasses causal_only branch.
+        causal = np.tril(np.ones((t_len, s_len), dtype="bool"))[None]
+        out_ref = layer(q_t, v_t, attention_mask=causal)
+
+        self.assertAllClose(
+            out_fast.detach().cpu().numpy(),
+            out_ref.detach().cpu().numpy(),
+            atol=1e-5,
+            rtol=1e-5,
+        )
+
+    @pytest.mark.skipif(
+        backend.backend() != "torch",
+        reason="Causal mask cache is torch-only",
+    )
+    def test_causal_mask_cache_skips_symbolic_length(self):
+        """Symbolic (SymInt) sequence lengths must not enter the mask cache.
+
+        Under torch.compile the shape returned by ops.shape can be a
+        torch.SymInt, which is unhashable and cannot serve as a cache key.
+        The cache guard uses `type(x) is int`, so a symbolic length falls
+        through to the recompute path and nothing is cached. Reverting the
+        guard to isinstance would admit an int-subclass symbolic length and
+        cache it, which this test guards against.
+        """
+        from unittest import mock
+
+        from keras.src.layers.attention import multi_head_attention as mha_mod
+
+        layer = layers.MultiHeadAttention(num_heads=2, key_dim=4)
+        q = ops.convert_to_tensor(
+            np.random.default_rng(0).random((1, 6, 8)).astype("float32")
+        )
+        layer(q, q)  # build weights
+
+        sym = _get_backed_symint(6)
+        real_shape = mha_mod.ops.shape
+
+        def sym_shape(x):
+            dims = list(real_shape(x))
+            if len(dims) >= 2:
+                dims[1] = sym
+            return tuple(dims)
+
+        # ops.ones is stubbed only so the non-traced recompute branch does not
+        # error on a bare SymInt; the assertion is about the caching decision.
+        with (
+            mock.patch.object(mha_mod.ops, "shape", side_effect=sym_shape),
+            mock.patch.object(
+                mha_mod.ops,
+                "ones",
+                return_value=ops.zeros((1, 1, 1), dtype="int32"),
+            ),
+        ):
+            layer._compute_causal_mask(q)
+        self.assertEqual(len(layer._causal_mask_cache), 0)
+
+        # A concrete int length is cached, and every key is an exact int.
+        layer(q, q, use_causal_mask=True, return_attention_scores=True)
+        self.assertGreaterEqual(len(layer._causal_mask_cache), 1)
+        for key in layer._causal_mask_cache:
+            self.assertIs(type(key[0]), int)
+            self.assertIs(type(key[1]), int)
