@@ -271,23 +271,26 @@ class Embedding(Layer):
         embeddings_value, merged_embeddings_scale, merged_embeddings_zero = (
             self._get_embeddings_with_merged_lora()
         )
-        idx = 0
+        # Variables are keyed by name (e.g. `store["embeddings"]`) so that the
+        # on-disk layout is robust to spec reordering and self-describing.
+        # Legacy checkpoints keyed by positional integer ("0", "1", ...) are
+        # still loaded via `load_own_variables`.
         for name in self.variable_serialization_spec[mode]:
             if name == "embeddings":
-                store[str(idx)] = embeddings_value
+                store[name] = embeddings_value
             elif name == "embeddings_zero":
                 if merged_embeddings_zero is None:
                     # embeddings_zero only exists for sub-channel int4
                     # quantization
                     continue
-                store[str(idx)] = merged_embeddings_zero
+                store[name] = merged_embeddings_zero
             elif name == "g_idx" and not hasattr(self, "g_idx"):
                 # g_idx only exists for sub-channel int4 quantization
                 continue
             elif name == "embeddings_scale" and mode in ("int4", "int8"):
                 # For int4/int8, the merged LoRA scale (if any) comes from
                 # `_get_embeddings_with_merged_lora()`
-                store[str(idx)] = merged_embeddings_scale
+                store[name] = merged_embeddings_scale
             else:
                 # Generic handling for subclass variables:
                 # Check if the attribute exists on the instance before saving.
@@ -297,8 +300,7 @@ class Embedding(Layer):
                 # on configuration (e.g., per-channel vs. sub-channel).
                 if not hasattr(self, name):
                     continue
-                store[str(idx)] = getattr(self, name)
-            idx += 1
+                store[name] = getattr(self, name)
 
     def load_own_variables(self, store):
         if not self.lora_enabled:
@@ -310,10 +312,15 @@ class Embedding(Layer):
         if mode not in self.variable_serialization_spec:
             raise self._quantization_mode_error(mode)
 
+        spec = self.variable_serialization_spec[mode]
+        # Current checkpoints key variables by name; legacy checkpoints key them
+        # by positional integer ("0", "1", ...). Detect which layout is present
+        # and silently fall back to positional loading for backward compat.
+        name_keyed = any(n in store for n in spec)
         idx = 0
-        for name in self.variable_serialization_spec[mode]:
+        for name in spec:
             if name == "embeddings":
-                self._embeddings.assign(store[str(idx)])
+                target = self._embeddings
             elif name == "embeddings_zero" and not hasattr(
                 self, "embeddings_zero"
             ):
@@ -329,7 +336,8 @@ class Embedding(Layer):
                 # we skip it to prevent AttributeError.
                 if not hasattr(self, name):
                     continue
-                getattr(self, name).assign(store[str(idx)])
+                target = getattr(self, name)
+            target.assign(store[name if name_keyed else str(idx)])
             idx += 1
         if self.lora_enabled:
             self.lora_embeddings_a.assign(

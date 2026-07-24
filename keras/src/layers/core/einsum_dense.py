@@ -408,10 +408,13 @@ class EinsumDense(Layer):
         kernel_value, merged_kernel_scale, merged_kernel_zero = (
             self._get_kernel_with_merged_lora()
         )
-        idx = 0
+        # Variables are keyed by name (e.g. `store["kernel"]`) so that the
+        # on-disk layout is robust to spec reordering and self-describing.
+        # Legacy checkpoints keyed by positional integer ("0", "1", ...) are
+        # still loaded via `load_own_variables`.
         for name in self.variable_serialization_spec[mode]:
             if name == "kernel":
-                store[str(idx)] = kernel_value
+                store[name] = kernel_value
             elif name == "bias" and self.bias is None:
                 continue
             elif name == "kernel_zero" and mode == "int4":
@@ -420,19 +423,18 @@ class EinsumDense(Layer):
                 # sub-channel quantization.
                 if merged_kernel_zero is None:
                     continue
-                store[str(idx)] = merged_kernel_zero
+                store[name] = merged_kernel_zero
             elif name == "g_idx":
                 if not hasattr(self, "g_idx"):
                     # g_idx only exists for sub-channel int4 quantization
                     continue
-                store[str(idx)] = self.g_idx
+                store[name] = self.g_idx
             elif name == "kernel_scale" and mode in ("int4", "int8"):
                 # For int4/int8, the merged LoRA scale (if any) comes from
                 # `_get_kernel_with_merged_lora()`
-                store[str(idx)] = merged_kernel_scale
+                store[name] = merged_kernel_scale
             else:
-                store[str(idx)] = getattr(self, name)
-            idx += 1
+                store[name] = getattr(self, name)
 
     def load_own_variables(self, store):
         if not self.lora_enabled:
@@ -448,10 +450,15 @@ class EinsumDense(Layer):
         self.is_gptq_calibrated = mode == "gptq"
         self.is_awq_calibrated = mode == "awq"
 
+        spec = self.variable_serialization_spec[mode]
+        # Current checkpoints key variables by name; legacy checkpoints key them
+        # by positional integer ("0", "1", ...). Detect which layout is present
+        # and silently fall back to positional loading for backward compat.
+        name_keyed = any(n in store for n in spec)
         idx = 0
-        for name in self.variable_serialization_spec[mode]:
+        for name in spec:
             if name == "kernel":
-                self._kernel.assign(store[str(idx)])
+                target = self._kernel
             elif name == "bias" and self.bias is None:
                 continue
             elif name == "kernel_zero" and not hasattr(self, "kernel_zero"):
@@ -461,7 +468,8 @@ class EinsumDense(Layer):
                 # g_idx only exists for sub-channel int4 quantization
                 continue
             else:
-                getattr(self, name).assign(store[str(idx)])
+                target = getattr(self, name)
+            target.assign(store[name if name_keyed else str(idx)])
             idx += 1
         if self.lora_enabled:
             self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))

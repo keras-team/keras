@@ -20,6 +20,7 @@ from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
 from keras.src.testing import test_case
+from keras.src.testing import test_utils
 
 
 class EmbeddingTest(test_case.TestCase):
@@ -675,6 +676,89 @@ class EmbeddingTest(test_case.TestCase):
         layer.load_own_variables(int4_store)
         self.assertAllClose(layer._embeddings, int4_store["0"])
         self.assertAllClose(layer.embeddings_scale, int4_store["1"])
+
+    @staticmethod
+    def _build_embedding_for_mode(mode, input_dim=64, output_dim=64):
+        """Builds an `Embedding` populated for `mode`'s serialization spec."""
+        if mode == "none":
+            layer = layers.Embedding(input_dim, output_dim)
+            layer.build()
+        elif mode == "int8":
+            layer = layers.Embedding(
+                input_dim, output_dim, dtype="int8_from_float32"
+            )
+            layer.build()
+        elif mode == "int4_per_channel":
+            layer = layers.Embedding(
+                input_dim, output_dim, dtype="int4_from_float32"
+            )
+            layer.build()
+        elif mode == "int4_grouped":
+            layer = layers.Embedding(input_dim, output_dim)
+            layer.build()
+            layer.quantize("int4", config=Int4QuantizationConfig(block_size=16))
+        else:
+            raise ValueError(f"Unhandled test mode: {mode}")
+        return layer
+
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
+    def test_name_keyed_serialization_round_trip(self):
+        for mode in ("none", "int8", "int4_per_channel", "int4_grouped"):
+            with self.subTest(mode=mode):
+                source = self._build_embedding_for_mode(mode)
+                test_utils.randomize_serialized_variables(source)
+
+                store = {}
+                source.save_own_variables(store)
+                # Keys are variable names, never legacy positional integers.
+                self.assertEqual(
+                    set(store.keys()),
+                    set(test_utils.serialized_variable_names(source)),
+                )
+                self.assertFalse(any(key.isdigit() for key in store))
+
+                target = self._build_embedding_for_mode(mode)
+                target.load_own_variables(store)
+                test_utils.assert_serialized_variables_equal(
+                    self, source, target
+                )
+
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
+    def test_legacy_positional_load_round_trip(self):
+        for mode in ("none", "int8", "int4_per_channel", "int4_grouped"):
+            with self.subTest(mode=mode):
+                source = self._build_embedding_for_mode(mode)
+                test_utils.randomize_serialized_variables(source)
+                store = test_utils.legacy_positional_store(source)
+                # Sanity-check that this is genuinely the legacy integer layout.
+                self.assertTrue(all(key.isdigit() for key in store))
+
+                target = self._build_embedding_for_mode(mode)
+                target.load_own_variables(store)
+                test_utils.assert_serialized_variables_equal(
+                    self, source, target
+                )
+
+    def test_load_own_variables_reports_clear_errors(self):
+        source = self._build_embedding_for_mode("int8")
+        test_utils.randomize_serialized_variables(source)
+        store = test_utils.name_keyed_store(source)
+
+        # A missing variable trips the variable-count check with a clear error.
+        missing = dict(store)
+        del missing["embeddings_scale"]
+        with self.assertRaisesRegex(ValueError, "expected 2 variables"):
+            self._build_embedding_for_mode("int8").load_own_variables(missing)
+
+        # A renamed/corrupted key keeps the count but fails on the exact name.
+        corrupted = dict(store)
+        corrupted["not_embeddings_scale"] = corrupted.pop("embeddings_scale")
+        with self.assertRaises(KeyError):
+            self._build_embedding_for_mode("int8").load_own_variables(corrupted)
 
     def test_embedding_int8_custom_quantizer(self):
         """
