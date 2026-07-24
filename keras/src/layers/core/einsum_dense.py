@@ -1319,14 +1319,12 @@ class EinsumDense(Layer):
             kernel_scale = self._adjust_scale_for_quant(kernel_scale, "kernel")
             del self._kernel
         elif mode == "int4":
-            from keras.src.quantizers.quantization_config import (
-                Int4QuantizationConfig,
-            )
-
-            block_size = None
-            if isinstance(self.quantization_config, Int4QuantizationConfig):
-                block_size = self.quantization_config.block_size
-
+            # `get_block_size_for_layer` is the single source of truth for the
+            # group size, shared with `_int4_build` and the dtype-policy naming
+            # below (see `Dense.quantize`). A bare `quantize("int4")` resolves
+            # to the canonical `Int4QuantizationConfig()` (grouped,
+            # block_size=128); `None`/`-1` selects per-channel.
+            block_size = get_block_size_for_layer(self, config)
             use_grouped = block_size is not None and block_size != -1
 
             # Flatten kernel to 2D: rows = reduced dims, columns = non-reduced

@@ -1984,3 +1984,102 @@ class EinsumDenseTest(testing.TestCase):
         # Verify outputs match
         y_after = loaded_model(x)
         self.assertAllClose(y_before, y_after)
+
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
+    def test_int4_string_matches_default_config(self):
+        """`quantize("int4")` must resolve to the exact same scheme as the
+        default `Int4QuantizationConfig()` (grouped, block_size=128): identical
+        variables (names/shapes/dtypes/values), dtype policy, and outputs."""
+        input_dim, output_dim = 256, 64
+        kernel = np.random.RandomState(0).randn(input_dim, output_dim)
+        kernel = kernel.astype("float32")
+
+        def build_quantized(config):
+            layer = layers.EinsumDense(
+                equation="ab,bc->ac", output_shape=(output_dim,), bias_axes="c"
+            )
+            layer.build((None, input_dim))
+            layer._kernel.assign(kernel)
+            layer.quantize("int4", config=config)
+            return layer
+
+        layer_str = build_quantized(config=None)
+        layer_cfg = build_quantized(config=Int4QuantizationConfig())
+
+        self.assertEqual(layer_str.dtype_policy.name, "int4/128_from_float32")
+        self.assertEqual(
+            layer_str.dtype_policy.name, layer_cfg.dtype_policy.name
+        )
+
+        vars_str = {v.name: v for v in layer_str.weights}
+        vars_cfg = {v.name: v for v in layer_cfg.weights}
+        self.assertEqual(set(vars_str.keys()), set(vars_cfg.keys()))
+        for name, v_str in vars_str.items():
+            v_cfg = vars_cfg[name]
+            self.assertEqual(tuple(v_str.shape), tuple(v_cfg.shape))
+            self.assertEqual(
+                backend.standardize_dtype(v_str.dtype),
+                backend.standardize_dtype(v_cfg.dtype),
+            )
+            self.assertAllClose(v_str, v_cfg)
+
+        x = np.random.RandomState(1).randn(4, input_dim).astype("float32")
+        self.assertAllClose(layer_str(x), layer_cfg(x))
+
+    @parameterized.named_parameters(
+        ("none", None),
+        ("neg1", -1),
+    )
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
+    def test_int4_per_channel_escape_hatch(self, block_size):
+        """`block_size=None` and `block_size=-1` both select the per-channel
+        escape hatch: no zero-point / g_idx and an `int4/-1` dtype policy."""
+        layer = layers.EinsumDense(
+            equation="ab,bc->ac", output_shape=(64,), bias_axes="c"
+        )
+        layer.build((None, 256))
+        layer.quantize(
+            "int4", config=Int4QuantizationConfig(block_size=block_size)
+        )
+        self.assertFalse(hasattr(layer, "kernel_zero"))
+        self.assertFalse(hasattr(layer, "g_idx"))
+        self.assertEqual(layer.dtype_policy.name, "int4/-1_from_float32")
+
+    @parameterized.named_parameters(
+        ("block_none", "None", True),
+        ("block_neg1", "-1", True),
+        ("block_128", "128", False),
+    )
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
+    def test_int4_policy_string_reload_builds_right_variables(
+        self, block_token, per_channel
+    ):
+        """Old checkpoints identified only by their int4 dtype-policy string
+        must deserialize and rebuild the correct variables. Covers the legacy
+        `int4/None` spelling of per-channel plus `int4/-1` and `int4/128`."""
+        input_dim, output_dim = 256, 64
+        policy = f"int4/{block_token}_from_float32"
+        layer = layers.EinsumDense(
+            equation="ab,bc->ac",
+            output_shape=(output_dim,),
+            bias_axes="c",
+            dtype=policy,
+        )
+        layer.build((None, input_dim))
+
+        self.assertEqual(layer.quantization_mode, "int4")
+        if per_channel:
+            self.assertFalse(hasattr(layer, "g_idx"))
+        else:
+            self.assertTrue(hasattr(layer, "g_idx"))
+            self.assertEqual(tuple(layer.g_idx.shape), (input_dim,))
+        self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
+
+        x = np.random.random((2, input_dim)).astype("float32")
+        self.assertEqual(tuple(layer(x).shape), (2, output_dim))

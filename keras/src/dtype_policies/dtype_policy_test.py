@@ -6,6 +6,7 @@ from keras.src.dtype_policies import serialize
 from keras.src.dtype_policies.dtype_policy import AWQDTypePolicy
 from keras.src.dtype_policies.dtype_policy import DTypePolicy
 from keras.src.dtype_policies.dtype_policy import FloatDTypePolicy
+from keras.src.dtype_policies.dtype_policy import Int4DTypePolicy
 from keras.src.dtype_policies.dtype_policy import QuantizedDTypePolicy
 from keras.src.dtype_policies.dtype_policy import QuantizedFloat8DTypePolicy
 from keras.src.dtype_policies.dtype_policy import dtype_policy
@@ -673,6 +674,36 @@ class QuantizedDTypePolicyEdgeCasesTest(test_case.TestCase):
             QuantizedDTypePolicy(
                 mode="int8", source_name="int7_from_mixed_bfloat16"
             )
+
+
+class Int4DTypePolicyTest(test_case.TestCase):
+    @parameterized.named_parameters(
+        ("grouped_128", "int4/128_from_float32", 128),
+        ("per_channel_neg1", "int4/-1_from_float32", -1),
+        # Legacy checkpoints spelled per-channel as the literal "None".
+        ("legacy_none", "int4/None_from_float32", -1),
+    )
+    def test_parse_block_size(self, policy_name, expected_block_size):
+        policy = get(policy_name)
+        self.assertIsInstance(policy, Int4DTypePolicy)
+        self.assertEqual(policy.mode, "int4")
+        self.assertEqual(policy.block_size, expected_block_size)
+
+    def test_legacy_none_normalizes_name(self):
+        """`int4/None` must load and report the canonical `int4/-1` name."""
+        policy = get("int4/None_from_float32")
+        self.assertEqual(policy.name, "int4/-1_from_float32")
+        # It must compare equal to the explicit per-channel policy.
+        self.assertEqual(policy, get("int4/-1_from_float32"))
+
+    @parameterized.named_parameters(
+        ("non_integer", "int4/abc_from_float32"),
+        ("zero", "int4/0_from_float32"),
+        ("below_neg1", "int4/-2_from_float32"),
+    )
+    def test_invalid_block_size_rejected(self, policy_name):
+        with self.assertRaises(ValueError):
+            get(policy_name)
 
 
 class DTypePolicyGlobalFunctionsEdgeCasesTest(test_case.TestCase):
