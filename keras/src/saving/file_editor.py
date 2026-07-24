@@ -82,10 +82,17 @@ class KerasFileEditor:
                 archive=zf,
                 mode="r",
             )
-            with zf.open(saving_lib._CONFIG_FILENAME, "r") as f:
-                config_json = f.read()
-            with zf.open(saving_lib._METADATA_FILENAME, "r") as f:
-                metadata_json = f.read()
+            # Read through `_safe_zip_read` so a decompression-bomb member
+            # (tiny on disk, gigabytes uncompressed) is rejected before it is
+            # materialized in memory -- the same guard the loader applies to
+            # these members. A raw `zf.open(...).read()` would read the whole
+            # decompressed payload into memory.
+            config_json = saving_lib._safe_zip_read(
+                zf, saving_lib._CONFIG_FILENAME
+            )
+            metadata_json = saving_lib._safe_zip_read(
+                zf, saving_lib._METADATA_FILENAME
+            )
             self.config = json.loads(config_json)
             self.metadata = json.loads(metadata_json)
 
