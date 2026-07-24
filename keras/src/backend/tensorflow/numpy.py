@@ -647,7 +647,39 @@ def multiply(x1, x2):
     )
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
-    return tf.multiply(x1, x2)
+    result = tf.multiply(x1, x2)
+    if dtype in ("float32", "float64"):
+        # TF's CPU kernels apply hardware denormals-as-zero to subnormal
+        # operands, so `inf * subnormal` is computed as the indeterminate
+        # `inf * 0`, producing `nan` instead of the mathematically correct
+        # signed infinity. The same hardware behavior also flushes naive
+        # `!= 0` / `sign()` checks on the subnormal operand, so zeroness and
+        # sign are read from the raw bit pattern instead. This uses only
+        # bitcast/equal/less/where (no bitwise ops, no control flow), all of
+        # which have native TFLite kernels, so exporting a model that calls
+        # `multiply` doesn't pull in the Flex delegate.
+        int_dtype = tf.int32 if dtype == "float32" else tf.int64
+        int_min = int_dtype.min
+
+        def is_nonzero(x):
+            bits = tf.bitcast(x, int_dtype)
+            return tf.logical_not(
+                tf.logical_or(tf.equal(bits, 0), tf.equal(bits, int_min))
+            )
+
+        def is_negative(x):
+            return tf.less(tf.bitcast(x, int_dtype), 0)
+
+        needs_fix = tf.math.is_nan(result) & (
+            (tf.math.is_inf(x1) & tf.math.is_finite(x2) & is_nonzero(x2))
+            | (tf.math.is_inf(x2) & tf.math.is_finite(x1) & is_nonzero(x1))
+        )
+        inf = tf.constant(float("inf"), dtype=result.dtype)
+        signed_inf = tf.where(
+            tf.not_equal(is_negative(x1), is_negative(x2)), -inf, inf
+        )
+        result = tf.where(needs_fix, signed_inf, result)
+    return result
 
 
 def mean(x, axis=None, keepdims=False):
