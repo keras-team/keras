@@ -214,6 +214,11 @@ class OpenVINOKerasTensor:
         self.dtype = x_keras_type
         self.ndim = None
         self.data = data
+        # `convert_to_numpy` materializes parameter-free subgraphs by
+        # compiling a model and running it, which is expensive (multi-second
+        # for non-trivial graphs). The result is graph-deterministic, so we
+        # cache it on first conversion and reuse it on subsequent calls.
+        self._cached_numpy = None
         if x.get_partial_shape().rank.is_static:
             self.ndim = x.get_partial_shape().rank.get_length()
 
@@ -916,6 +921,10 @@ def convert_to_numpy(x):
             return x.value.data
     if not isinstance(x, OpenVINOKerasTensor):
         raise ValueError(f"unsupported type {type(x)} for `convert_to_numpy`.")
+    # Return a previously materialized result if we have one cached on the
+    # tensor — see `_cached_numpy` for the rationale.
+    if x._cached_numpy is not None:
+        return x._cached_numpy
     # if the tensor is backed by a Constant OV node, extract
     # its data array directly without compiling a model.
     try:
@@ -927,7 +936,9 @@ def convert_to_numpy(x):
             # Re-interpret the raw bytes as ml_dtypes.bfloat16.
             if node.output(0).get_element_type() == Type.bf16:
                 data = data.view(ml_dtypes.bfloat16)
-            return np.array(data)
+            result = np.array(data)
+            x._cached_numpy = result
+            return result
     except Exception:
         # fall back to the slow path.
         pass
@@ -954,6 +965,7 @@ def convert_to_numpy(x):
     # Same byte-reinterpretation issue applies to inference results.
     if x.dtype == "bfloat16" and data.dtype != ml_dtypes.bfloat16:
         data = data.view(ml_dtypes.bfloat16)
+    x._cached_numpy = data
     return data
 
 
