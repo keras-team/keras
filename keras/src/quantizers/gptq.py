@@ -244,10 +244,10 @@ def gptq_quantize_matrix(
     # base_group = effective_group (int)
     base_group = effective_group
 
-    # g_idx in permuted domain
-    g_idx = ops.arange(0, in_features, dtype="int32")
-    g_idx = ops.divide(g_idx, base_group)
-    g_idx = ops.cast(g_idx, "float32")
+    # g_idx in permuted domain. It is integer group metadata, kept as int32.
+    g_idx = ops.floor_divide(
+        ops.arange(0, in_features, dtype="int32"), base_group
+    )
 
     # Map group indices and quantized weights back to original column order
     if activation_order:
@@ -472,10 +472,20 @@ class GPTQ:
         )
 
         if self.config.weight_bits == 4:
-            # For 4-bit weights, we need to pack them into bytes
+            # For 4-bit weights, we pack two values per byte.
             quantized, _, _ = quantizers.pack_int4(
                 quantized, axis=0, dtype="uint8"
             )
+        elif self.config.weight_bits == 2:
+            # For 2-bit weights, we pack four values per byte (4x storage
+            # reduction over the one-value-per-byte representation).
+            quantized, _, _ = quantizers.pack_int2(
+                quantized, axis=0, dtype="uint8"
+            )
+        # 3-bit weights are intentionally left unpacked: packing them densely
+        # requires an irregular bitstream (3 does not divide 8), which would
+        # add cross-byte bit-shuffling complexity for a modest gain. They are
+        # stored one value per uint8 byte.
 
         del self.original_layer._kernel
         self.original_layer.quantized_kernel.assign(quantized)

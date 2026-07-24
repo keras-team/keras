@@ -332,8 +332,15 @@ class Embedding(Layer):
             ):
                 # embeddings_zero only exists for sub-channel int4 quantization
                 continue
-            elif name == "g_idx" and not hasattr(self, "g_idx"):
-                # g_idx only exists for sub-channel int4 quantization
+            elif name == "g_idx":
+                if not hasattr(self, "g_idx"):
+                    # g_idx only exists for sub-channel int4 quantization
+                    continue
+                # `g_idx` is stored as `float32` (see build). Cast to the
+                # variable dtype on assign so both legacy `float32`
+                # checkpoints and any `int32`-saved ones load correctly.
+                self.g_idx.assign(ops.cast(store[key], self.g_idx.dtype))
+                idx += 1
                 continue
             else:
                 # Generic handling for subclass variables:
@@ -493,6 +500,9 @@ class Embedding(Layer):
                 dtype="int8",
                 trainable=False,
             )
+            # `g_idx` is stored as `float32` because TF has no GPU kernel for
+            # int32 resource variables (would pin the variable to CPU and
+            # break jit_compile on GPU); consumers cast to int32 on-device.
             self.g_idx = self.add_weight(
                 name="g_idx",
                 shape=(output_dim,),

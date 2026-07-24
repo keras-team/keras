@@ -199,8 +199,9 @@ def awq_quantize_matrix(
             weights_scaled, scale_q, zero_q, maxq
         )
 
-        # Build group indices (all 0s for per-channel)
-        g_idx = ops.zeros((in_features,), dtype="float32")
+        # Build group indices (all 0s for per-channel). Integer group
+        # metadata, kept as int32.
+        g_idx = ops.zeros((in_features,), dtype="int32")
     else:
         # Grouped quantization - use proper per-row grouping
         scale_q, zero_q, maxq = compute_quantization_parameters(
@@ -219,9 +220,6 @@ def awq_quantize_matrix(
         quantized = quantize_with_sz_map(
             weights_scaled, scale_q, zero_q, g_idx, maxq
         )
-
-        # Convert g_idx to float for storage
-        g_idx = ops.cast(g_idx, "float32")
 
     return quantized, scale_q, zero_q, awq_scales, g_idx
 

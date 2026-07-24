@@ -486,6 +486,9 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         # Verify g_idx shape (output_dim for embedding)
         self.assertEqual(layer.g_idx.shape, (output_dim,))
 
+        # g_idx is integer group metadata stored as float32 (see build).
+        self.assertDType(layer.g_idx, "float32")
+
         # Verify g_idx values (should map each column to its group)
         expected_g_idx = np.arange(output_dim) // block_size
         self.assertAllClose(layer.g_idx, expected_g_idx)
