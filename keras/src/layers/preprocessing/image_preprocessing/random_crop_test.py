@@ -163,3 +163,25 @@ class RandomCropTest(testing.TestCase):
             data["bounding_boxes"]["labels"],
             transformed_data["bounding_boxes"]["labels"],
         )
+
+    def test_segmentation_mask_preserves_dtype_and_classes(self):
+        # Masks hold discrete class indices; the resize fallback must use
+        # nearest-neighbor interpolation so no new classes appear, and the
+        # integer dtype must be preserved. See keras-team/keras#20857.
+        images = np.random.random((2, 8, 8, 3)).astype("float32")
+        masks = np.zeros((2, 8, 8, 1), dtype="uint8")
+        masks[:, :4] = 4  # only classes {0, 4}
+        # Target larger than input forces the resize path.
+        layer = layers.RandomCrop(16, 16, seed=0)
+        out = layer({"images": images, "segmentation_masks": masks})
+        result = backend.convert_to_numpy(out["segmentation_masks"])
+        self.assertEqual(result.dtype, np.uint8)
+        self.assertTrue(set(np.unique(result).tolist()).issubset({0, 4}))
+
+        # With training=False the layer is a no-op: images and masks must
+        # pass through unchanged (and keep matching shapes).
+        out_eval = layer(
+            {"images": images, "segmentation_masks": masks}, training=False
+        )
+        self.assertAllClose(out_eval["images"], images)
+        self.assertAllClose(out_eval["segmentation_masks"], masks)
