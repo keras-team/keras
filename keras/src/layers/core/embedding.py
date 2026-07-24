@@ -76,6 +76,17 @@ class Embedding(Layer):
             trainable matrices) during the forward pass. The delta is scaled by
             `lora_alpha / lora_rank`, allowing you to fine-tune the strength of
             the LoRA adjustment independently of `lora_rank`.
+        dora_rank: Optional integer. If set, the layer's forward pass
+            will implement DoRA (Weight-Decomposed Low-Rank Adaptation)
+            with the provided rank. DoRA decomposes the layer's embeddings
+            into magnitude and direction components and applies LoRA
+            to the direction component. This can improve the learning
+            capacity of LoRA. You can also enable DoRA on an existing
+            `Embedding` layer by calling `layer.enable_dora(rank)`.
+        dora_alpha: Optional integer. If set, this parameter scales the
+            low-rank adaptation delta during the forward pass. The delta
+            is scaled by `dora_alpha / dora_rank`, allowing you to fine-tune
+            the strength of the DoRA adjustment independently of `dora_rank`.
 
     Input shape:
         2D tensor with shape: `(batch_size, input_length)`.
@@ -95,6 +106,8 @@ class Embedding(Layer):
         weights=None,
         lora_rank=None,
         lora_alpha=None,
+        dora_rank=None,
+        dora_alpha=None,
         quantization_config=None,
         **kwargs,
     ):
@@ -134,7 +147,15 @@ class Embedding(Layer):
         self.autocast = False
         self.lora_rank = lora_rank
         self.lora_alpha = lora_alpha if lora_alpha is not None else lora_rank
+        self.dora_rank = dora_rank
+        self.dora_alpha = dora_alpha if dora_alpha is not None else dora_rank
+        if self.lora_rank and self.dora_rank:
+            raise ValueError(
+                "Only one of `lora_rank` or `dora_rank` can be set."
+            )
         self.lora_enabled = False
+        self.dora_enabled = False
+
         self.quantization_config = quantization_config
 
         if weights is not None:
@@ -165,6 +186,8 @@ class Embedding(Layer):
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
+        if self.dora_rank:
+            self.enable_dora(self.dora_rank, dora_alpha=self.dora_alpha)
 
     @property
     def embeddings(self):
@@ -188,6 +211,20 @@ class Embedding(Layer):
                 ),
                 dtype=self.compute_dtype,
             )
+        elif self.dora_enabled:
+            lora_delta = (self.dora_alpha / self.dora_rank) * ops.matmul(
+                self.dora_embeddings_a, self.dora_embeddings_b
+            )
+            W_combined = ops.add(embeddings, lora_delta)
+            # Normalize along input dimension (axis 0)
+            norm = ops.stop_gradient(
+                ops.sqrt(ops.sum(ops.square(W_combined), axis=0))
+            )
+            embeddings = self.dora_magnitude * ops.divide_no_nan(
+                W_combined, norm
+            )
+            embeddings = ops.cast(embeddings, dtype=self.compute_dtype)
+
         return embeddings
 
     def call(self, inputs):
@@ -232,6 +269,8 @@ class Embedding(Layer):
             raise ValueError(
                 "lora is already enabled. This can only be done once per layer."
             )
+        if getattr(self, "dora_enabled", False):
+            raise ValueError("dora is already enabled. Cannot enable LoRA.")
         self._tracker.unlock()
 
         # LoRA weights should be float32 to avoid the risk of underflow or
@@ -257,6 +296,64 @@ class Embedding(Layer):
         self.lora_enabled = True
         self.lora_rank = rank
         self.lora_alpha = lora_alpha if lora_alpha is not None else rank
+
+    def enable_dora(
+        self,
+        rank,
+        dora_alpha=None,
+        a_initializer="he_uniform",
+        b_initializer="zeros",
+    ):
+        if self.embeddings_constraint:
+            raise ValueError(
+                "DoRA is incompatible with embedding constraints. "
+                "In order to enable dora on this layer, remove the "
+                "`embeddings_constraint` argument."
+            )
+        if not self.built:
+            raise ValueError(
+                "Cannot enable dora on a layer that isn't yet built."
+            )
+        if self.lora_enabled:
+            raise ValueError("LoRA is already enabled. Cannot enable DoRA.")
+        if self.dora_enabled:
+            raise ValueError(
+                "dora is already enabled. This can only be done once per layer."
+            )
+        self._tracker.unlock()
+
+        self.dora_embeddings_a = self.add_weight(
+            name="dora_embeddings_a",
+            shape=(self.input_dim, rank),
+            initializer=initializers.get(a_initializer),
+            dtype="float32",
+            regularizer=self.embeddings_regularizer,
+        )
+        self.dora_embeddings_b = self.add_weight(
+            name="dora_embeddings_b",
+            shape=(rank, self.output_dim),
+            initializer=initializers.get(b_initializer),
+            dtype="float32",
+            regularizer=self.embeddings_regularizer,
+        )
+
+        # Initialize Magnitude Vector
+        # We reduce all axes except the last one (output_dim)
+        initial_magnitude = ops.stop_gradient(
+            ops.sqrt(ops.sum(ops.square(self.embeddings), axis=0))
+        )
+        self.dora_magnitude = self.add_weight(
+            name="dora_magnitude",
+            shape=(self.output_dim,),
+            initializer=lambda *a, **kw: initial_magnitude,
+            dtype="float32",
+        )
+
+        self._embeddings.trainable = False
+        self._tracker.lock()
+        self.dora_enabled = True
+        self.dora_rank = rank
+        self.dora_alpha = dora_alpha if dora_alpha is not None else rank
 
     def save_own_variables(self, store):
         # Do nothing if the layer isn't yet built
@@ -301,8 +398,9 @@ class Embedding(Layer):
             idx += 1
 
     def load_own_variables(self, store):
-        if not self.lora_enabled:
+        if not self.lora_enabled and not getattr(self, "dora_enabled", False):
             self._check_load_own_variables(store)
+
         # Do nothing if the layer isn't yet built
         if not self.built:
             return
@@ -338,6 +436,21 @@ class Embedding(Layer):
             self.lora_embeddings_b.assign(
                 ops.zeros(self.lora_embeddings_b.shape)
             )
+        if self.dora_enabled:
+            self.dora_embeddings_a.assign(
+                ops.zeros(self.dora_embeddings_a.shape)
+            )
+            self.dora_embeddings_b.assign(
+                ops.zeros(self.dora_embeddings_b.shape)
+            )
+            # Temporarily disable to get base kernel
+            self.dora_enabled = False
+            base_embeddings = self.embeddings
+            self.dora_enabled = True
+
+            self.dora_magnitude.assign(
+                ops.sqrt(ops.sum(ops.square(base_embeddings), axis=0))
+            )
 
     def get_config(self):
         base_config = super().get_config()
@@ -364,6 +477,9 @@ class Embedding(Layer):
         if self.lora_rank:
             config["lora_rank"] = self.lora_rank
             config["lora_alpha"] = self.lora_alpha
+        if self.dora_rank:
+            config["dora_rank"] = self.dora_rank
+            config["dora_alpha"] = self.dora_alpha
         return {**base_config, **config}
 
     @classmethod
@@ -732,10 +848,22 @@ class Embedding(Layer):
             )
 
         # Merge LoRA weights in float domain.
-        lora_delta = (self.lora_alpha / self.lora_rank) * ops.matmul(
-            self.lora_embeddings_a, self.lora_embeddings_b
-        )
-        merged_float_embeddings = ops.add(float_embeddings, lora_delta)
+        if self.lora_enabled:
+            lora_delta = (self.lora_alpha / self.lora_rank) * ops.matmul(
+                self.lora_embeddings_a, self.lora_embeddings_b
+            )
+            merged_float_embeddings = ops.add(float_embeddings, lora_delta)
+        elif self.dora_enabled:
+            lora_delta = (self.dora_alpha / self.dora_rank) * ops.matmul(
+                self.dora_embeddings_a, self.dora_embeddings_b
+            )
+            W_combined = ops.add(float_embeddings, lora_delta)
+            norm = ops.sqrt(ops.sum(ops.square(W_combined), axis=0))
+            merged_float_embeddings = self.dora_magnitude * ops.divide_no_nan(
+                W_combined, norm
+            )
+        else:
+            merged_float_embeddings = float_embeddings
 
         # Requantize.
         if self.quantization_mode == "int4":
