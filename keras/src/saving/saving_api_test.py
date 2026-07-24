@@ -378,3 +378,33 @@ class LoadWeightsTests(test_case.TestCase):
         dest_weights = dest_model.get_weights()
         for orig, loaded in zip(src_weights, dest_weights):
             self.assertAllClose(orig, loaded)
+
+    def test_normalize_state_tree_coverage(self):
+        from keras.src.saving.saving_api import _normalize_state_tree
+        
+        loaded_state = {
+            "extra_root_key": {"some_val": np.array([1])},
+            "layer": {
+                "sequential/dense/kernel": np.array([1]),
+                "unmatched_loaded_var": np.array([2]),
+                "adam/sequential_dense_kernel_m": np.array([3]),
+            }
+        }
+        
+        model_state = {
+            "layer": {
+                "dense/kernel": np.array([0]),
+                "adam/dense_kernel_m": np.array([0]),
+                "unmatched_model_var": np.array([0]),
+                "adam/unmatched_model_var": np.array([0]),
+            }
+        }
+        
+        normalized = _normalize_state_tree(loaded_state, model_state)
+        
+        self.assertIn("extra_root_key", normalized)
+        
+        layer_state = normalized["layer"]
+        self.assertEqual(layer_state["dense"]["kernel"].tolist(), [1])
+        self.assertEqual(layer_state["adam"]["dense_kernel_m"].tolist(), [3])
+        self.assertEqual(layer_state["unmatched_loaded_var"].tolist(), [2])

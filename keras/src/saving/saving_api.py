@@ -354,7 +354,9 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
 
         loaded_state = loaded_checkpointables["pytree"]
 
-        # Set the model state directly from the loaded state
+        loaded_state = _normalize_state_tree(
+            loaded_state, model.get_state_tree()
+        )
         model.set_state_tree(loaded_state)
     else:
         raise ValueError(
@@ -363,6 +365,90 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
             "`.weights.h5` files, legacy H5 format files "
             "(`.h5` extension), or Orbax checkpoints."
         )
+
+
+def _normalize_state_tree(loaded_state, model_state):
+    """Normalizes the paths in the loaded state tree to match the model's.
+    """
+    normalized_state = {}
+    
+    def flatten(d, prefix=""):
+        res = {}
+        for k, v in d.items():
+            if isinstance(v, dict):
+                res.update(flatten(v, prefix + k + "/"))
+            else:
+                res[prefix + k] = v
+        return res
+        
+    def unflatten(d):
+        res = {}
+        for k, v in d.items():
+            parts = k.split("/")
+            curr = res
+            for p in parts[:-1]:
+                curr = curr.setdefault(p, {})
+            curr[parts[-1]] = v
+        return res
+
+    for key, loaded_val in loaded_state.items():
+        if key not in model_state:
+            normalized_state[key] = loaded_val
+            continue
+            
+        loaded_flat = flatten(loaded_val)
+        model_flat = flatten(model_state[key])
+        
+        normalized_flat = {}
+        matched_loaded_paths = set()
+        
+        # Pre-process loaded_flat for fast O(1) lookups
+        suffix_to_loaded = {}
+        opt_matches = {}
+        
+        for loaded_path in loaded_flat:
+            parts = loaded_path.split("/")
+            for i in range(1, len(parts)):
+                suffix = "/".join(parts[i:])
+                if suffix not in suffix_to_loaded:
+                    suffix_to_loaded[suffix] = loaded_path
+            
+            if len(parts) > 1:
+                dir_prefix = "/".join(parts[:-1])
+                var_name = parts[-1]
+                sub_parts = var_name.split("_")
+                for i in range(1, len(sub_parts)):
+                    sub_suffix = "_".join(sub_parts[i:])
+                    key_opt = (dir_prefix, sub_suffix)
+                    if key_opt not in opt_matches:
+                        opt_matches[key_opt] = loaded_path
+        
+        for model_path in model_flat:
+            if model_path in loaded_flat:
+                normalized_flat[model_path] = loaded_flat[model_path]
+                matched_loaded_paths.add(model_path)
+            elif model_path in suffix_to_loaded:
+                loaded_path = suffix_to_loaded[model_path]
+                normalized_flat[model_path] = loaded_flat[loaded_path]
+                matched_loaded_paths.add(loaded_path)
+            else:
+                model_parts = model_path.split("/")
+                if len(model_parts) > 1:
+                    dir_prefix = "/".join(model_parts[:-1])
+                    var_name = model_parts[-1]
+                    key_opt = (dir_prefix, var_name)
+                    if key_opt in opt_matches:
+                        loaded_path = opt_matches[key_opt]
+                        normalized_flat[model_path] = loaded_flat[loaded_path]
+                        matched_loaded_paths.add(loaded_path)
+        
+        for loaded_path, value in loaded_flat.items():
+            if loaded_path not in matched_loaded_paths:
+                normalized_flat[loaded_path] = value
+                
+        normalized_state[key] = unflatten(normalized_flat)
+        
+    return normalized_state
 
 
 def _load_model_from_orbax_checkpoint(
@@ -441,7 +527,7 @@ def _load_model_from_orbax_checkpoint(
         if key in composite_state
     }
 
-    # Apply the loaded state to the model
+    state_tree = _normalize_state_tree(state_tree, model.get_state_tree())
     model.set_state_tree(state_tree)
 
     # Load assets if present
