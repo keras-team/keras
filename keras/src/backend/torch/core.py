@@ -285,12 +285,14 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
                 return torch.empty_like(x, device=device)
             return x.to(device)
         device = get_device()
+        target_dtype = to_torch_dtype(dtype)
         if not _tensor_on_device(x, device):
             if x.is_meta:
-                x = torch.empty_like(x, device=device)
+                x = torch.empty_like(x, device=device, dtype=target_dtype)
             else:
-                x = x.to(device)
-        x = x.to(to_torch_dtype(dtype))
+                x = x.to(device=device, dtype=target_dtype)
+        else:
+            x = x.to(target_dtype)
         return x
     # Fast path for python primitives — single torch.as_tensor call.
     if isinstance(x, (bool, int, float, complex)):
@@ -324,6 +326,30 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
             # and don't have a .dtype attribute. Use torch.as_tensor directly.
             dt = to_torch_dtype(dtype) if dtype is not None else None
             return torch.as_tensor(x, dtype=dt, device=get_device())
+
+    # Traceable fast path for numpy arrays when the target dtype is known:
+    # a single torch.as_tensor call with an explicit dtype, and no ndarray
+    # attribute access (dynamo cannot trace `ndarray.dtype`). torch.compile
+    # captures this natively, while the generic fallback below is
+    # @torch.compiler.disable()d and forces a graph break (amplified into
+    # whole-frame skips when it fires inside a `with name_scope(...)` block
+    # or a Python loop). torch.as_tensor handles dtypes torch has no
+    # direct equivalent for (e.g. uint32 -> int32 requested) by copying;
+    # exotic source dtypes (e.g. ml_dtypes bfloat16) raise TypeError and
+    # take the generic path.
+    # `isinstance(x, np.ndarray)` intentionally admits np.ndarray subclasses
+    # (e.g. np.ma.MaskedArray) the same way the pre-existing fallback path
+    # does -- torch.as_tensor reads the subclass as a plain ndarray buffer,
+    # so a MaskedArray's mask is silently dropped either way. That behavior
+    # predates this fast path and is not a regression, so this check is
+    # intentionally not tightened to `type(x) is np.ndarray`.
+    if dtype is not None and isinstance(x, np.ndarray):
+        try:
+            return torch.as_tensor(
+                x, dtype=to_torch_dtype(dtype), device=get_device()
+            )
+        except TypeError:
+            pass
 
     return _convert_numpy_or_arraylike_to_tensor(x, dtype)
 
