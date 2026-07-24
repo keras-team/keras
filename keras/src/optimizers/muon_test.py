@@ -41,6 +41,33 @@ class MuonTest(testing.TestCase):
         optimizer.update_step(grads, vars, 0.5)
         self.assertAllClose(vars, [0.5, 1.5, 2.5, 3.5], rtol=1e-4, atol=1e-4)
 
+    def test_rejects_redos_exclude_layers(self):
+        # `exclude_layers` entries are matched as regexes against variable
+        # paths during training, and the list is serialized into a model's
+        # config, so a backtracking-prone entry (or an overly long one) could
+        # cause catastrophic ReDoS when an untrusted model is loaded and
+        # trained. Anything outside the documented layer-name-keyword contract
+        # is rejected at construction (and therefore at deserialization).
+        for bad in (
+            "(a+)+$",  # nested quantifier (exponential)
+            ".*.*.*.*",  # multiple wildcards (polynomial)
+            "a*a*a*a*b",  # group-free polynomial backtracking
+            "encoder/(layer_0|layer_1)",  # alternation group
+        ):
+            with self.assertRaisesRegex(ValueError, "ReDoS"):
+                Muon(exclude_layers=[bad])
+        with self.assertRaisesRegex(ValueError, "at most"):
+            Muon(exclude_layers=["a" * 1000])
+        # A bare string (instead of a list) is rejected rather than iterated
+        # per-character.
+        with self.assertRaisesRegex(ValueError, "must be a list of strings"):
+            Muon(exclude_layers="output_dense")
+        # Plain keywords and a simple trailing `.*` glob are still accepted.
+        optimizer = Muon(
+            exclude_layers=["output_dense", "block1/dense", "encoder/.*"]
+        )
+        self.assertLen(optimizer.exclude_layers, 3)
+
     def test_should_use_adamw(self):
         vars = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
         optimizer = Muon(exclude_layers=["var"])
