@@ -139,6 +139,7 @@ def celu(x, alpha=1.0):
 
 
 def glu(x, axis=-1):
+    x = convert_to_tensor(x)
     canonicalize_axis(axis, len(x.shape))
     if x.shape[axis] % 2 != 0:
         raise ValueError(
