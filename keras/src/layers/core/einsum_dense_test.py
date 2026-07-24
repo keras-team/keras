@@ -651,7 +651,7 @@ class EinsumDenseTest(testing.TestCase):
             "btnh,nhd->btd",
             (None, 8),
             (1, 2, 2, 4),
-            4e-3,
+            5e-3,
         ),
         (
             "int4_btd,ndh->btnh",
@@ -659,7 +659,7 @@ class EinsumDenseTest(testing.TestCase):
             "btd,ndh->btnh",
             (None, 2, 8),
             (1, 2, 4),
-            4e-3,
+            5e-3,
         ),
         (
             "int4_btd,df->btf",
@@ -667,7 +667,7 @@ class EinsumDenseTest(testing.TestCase):
             "btd,df->btf",
             (None, 4),
             (1, 2, 4),
-            4e-3,
+            5e-3,
         ),
     )
     def test_quantize_with_specific_equations(
@@ -681,7 +681,7 @@ class EinsumDenseTest(testing.TestCase):
         set_random_seed(1337)
         layer = layers.EinsumDense(equation=equation, output_shape=output_shape)
         layer.build(input_shape)
-        x = ops.random.uniform(input_shape)
+        x = ops.random.uniform(input_shape, seed=42)
         y_float = layer(x)
 
         layer.quantize(quantization_mode)

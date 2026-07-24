@@ -39,6 +39,8 @@ elif backend.backend() == "numpy":
     from keras.src.backend.numpy.trainer import NumpyTrainer as Trainer
 elif backend.backend() == "openvino":
     from keras.src.backend.openvino.trainer import OpenVINOTrainer as Trainer
+elif backend.backend() == "paddle":
+    from keras.src.backend.paddle.trainer import PaddleTrainer as Trainer
 else:
     raise ImportError(f"Invalid backend: {backend.backend()}")
 
@@ -166,6 +168,7 @@ class TestPyDataset(py_dataset_adapter.PyDataset):
             "tensorflow": "CPU:0",
             "jax": "cpu:0",
             "torch": "cpu",
+            "paddle": "cpu",
         }
         with backend.device(CPU_DEVICES[backend.backend()]):
             return ops.ones((5, 4)), ops.zeros((5, 3))
