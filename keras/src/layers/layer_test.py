@@ -1990,3 +1990,53 @@ class LayerTest(testing.TestCase):
         mask = np.ones((2, 1), dtype="float32")
         y = layer(x, attention_mask=mask)
         self.assertEqual(y.shape, (2, 3))
+
+    def test_sublayer_can_be_reassigned_after_build(self):
+        # Regression for https://github.com/keras-team/keras/issues/18601:
+        # PEFT recipes (LoRA, quantization) need to swap a built layer's
+        # tracked sublayer for a parameter-efficient variant without
+        # poking at private tracker internals.
+        class Outer(layers.Layer):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.inner = layers.Dense(4)
+
+            def call(self, x):
+                return self.inner(x)
+
+        outer = Outer()
+        outer(np.ones((1, 8), dtype="float32"))
+        self.assertTrue(outer.built)
+
+        new_inner = layers.Dense(4)
+        outer.inner = new_inner
+        self.assertIs(outer.inner, new_inner)
+        # The replaced sublayer must still be the one used by the forward
+        # pass and must appear in the tracker's layer store exactly once.
+        outer(np.ones((1, 8), dtype="float32"))
+        self.assertEqual(outer._layers.count(new_inner), 1)
+        self.assertEqual(len(outer._layers), 1)
+
+    def test_variable_can_be_reassigned_after_build(self):
+        # Same regression as test_sublayer_can_be_reassigned_after_build,
+        # for top-level Variables.
+        class Outer(layers.Layer):
+            def build(self, input_shape):
+                self.w = self.add_weight(
+                    shape=(2,), initializer="zeros", name="w"
+                )
+
+            def call(self, x):
+                return x + self.w
+
+        outer = Outer()
+        outer(np.zeros((1, 2), dtype="float32"))
+        self.assertTrue(outer.built)
+
+        new_w = backend.Variable(
+            initializer=np.ones((2,), dtype="float32"), name="w_new"
+        )
+        outer.w = new_w
+        self.assertIs(outer.w, new_w)
+        self.assertEqual(outer.weights.count(new_w), 1)
+        self.assertEqual(len(outer.weights), 1)
