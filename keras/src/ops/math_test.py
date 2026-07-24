@@ -1243,6 +1243,25 @@ class MathDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_logsumexp(self, dtype):
+        import jax.numpy as jnp
+        import jax.scipy.special as jsp
+
+        x = knp.ones((2, 3), dtype=dtype)
+        x_jax = jnp.ones((2, 3), dtype=dtype)
+
+        expected_dtype = standardize_dtype(jsp.logsumexp(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(kmath.logsumexp(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(kmath.Logsumexp().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_rsqrt(self, dtype):
         import jax.lax as lax
 
@@ -1446,6 +1465,13 @@ class LogsumexpTest(testing.TestCase):
         expected_output = np.log(
             np.sum(np.exp(x), axis=axis, keepdims=keepdims)
         )
+        self.assertAllClose(output, expected_output)
+
+    def test_logsumexp_list_input(self):
+        x = [[1.0, 2.0], [3.0, 4.0]]
+        logsumexp_op = kmath.Logsumexp()
+        output = logsumexp_op.call(x)
+        expected_output = np.log(np.sum(np.exp(x)))
         self.assertAllClose(output, expected_output)
 
 

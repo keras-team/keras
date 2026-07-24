@@ -71,6 +71,7 @@ def in_top_k(targets, predictions, k):
 
 
 def logsumexp(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
     return jax.scipy.special.logsumexp(x, axis=axis, keepdims=keepdims)
 
 
