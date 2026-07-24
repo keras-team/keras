@@ -561,6 +561,8 @@ class Embedding(Layer):
         # Prevent quantization of the subclasses.
         if type_check and (type(self) is not Embedding):
             raise self._not_implemented_error(self.quantize)
+        if mode not in ("int8", "int4"):
+            raise self._quantization_mode_error(mode)
 
         self.quantization_config = config
 

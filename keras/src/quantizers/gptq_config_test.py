@@ -1,3 +1,4 @@
+from keras.src import layers
 from keras.src import testing
 from keras.src.quantizers.gptq_config import GPTQConfig
 
@@ -77,4 +78,25 @@ class TestGPTQConfig(testing.TestCase):
         self.assertIsNone(cfg["quantization_layer_structure"])
 
         restored = GPTQConfig.from_config(cfg)
+        self.assertIsNone(restored.quantization_layer_structure)
+
+    def test_live_layer_structure_not_serialized(self):
+        """The live layer structure must be dropped on serialization.
+
+        It references live model layers; serializing it would create a
+        reference cycle (layer -> config -> layer) and recurse infinitely.
+        """
+        layer = layers.Dense(4)
+        layer.build((None, 4))
+        config = GPTQConfig(
+            dataset=None,
+            tokenizer=None,
+            quantization_layer_structure={
+                "pre_block_layers": [layer],
+                "sequential_blocks": [layer],
+            },
+        )
+        # This must not recurse.
+        self.assertIsNone(config.get_config()["quantization_layer_structure"])
+        restored = GPTQConfig.from_config(config.get_config())
         self.assertIsNone(restored.quantization_layer_structure)
