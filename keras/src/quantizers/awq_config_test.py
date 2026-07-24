@@ -1,5 +1,6 @@
 import pytest
 
+from keras.src import layers
 from keras.src import testing
 from keras.src.quantizers.awq_config import AWQConfig
 
@@ -136,3 +137,42 @@ class AWQConfigTest(testing.TestCase):
         self.assertEqual(
             config.num_grid_points, deserialized_config.num_grid_points
         )
+
+    def test_quantization_layer_structure_not_serialized(self):
+        """The layer structure is calibration-only and must not serialize."""
+        config = AWQConfig(
+            dataset=["test"],
+            tokenizer=self.MockTokenizer(),
+            group_size=64,
+            num_grid_points=30,
+            quantization_layer_structure={
+                "pre_block_layers": [],
+                "sequential_blocks": [],
+            },
+        )
+        cfg = config.get_config()
+        self.assertIsNone(cfg["quantization_layer_structure"])
+
+        restored = AWQConfig.from_config(cfg)
+        self.assertIsNone(restored.quantization_layer_structure)
+
+    def test_live_layer_structure_not_serialized(self):
+        """The live layer structure must be dropped on serialization.
+
+        It references live model layers; serializing it would create a
+        reference cycle (layer -> config -> layer) and recurse infinitely.
+        """
+        layer = layers.Dense(4)
+        layer.build((None, 4))
+        config = AWQConfig(
+            dataset=None,
+            tokenizer=None,
+            quantization_layer_structure={
+                "pre_block_layers": [layer],
+                "sequential_blocks": [layer],
+            },
+        )
+        # This must not recurse.
+        self.assertIsNone(config.get_config()["quantization_layer_structure"])
+        restored = AWQConfig.from_config(config.get_config())
+        self.assertIsNone(restored.quantization_layer_structure)
