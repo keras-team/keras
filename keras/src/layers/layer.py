@@ -1631,12 +1631,13 @@ class Layer(BackendLayer, Operation):
                 self._initialize_tracker()
             value = self._tracker.track(value)
 
-        # NNX-specific bypass for `_called` and `built` attributes
-        # bypass nnx.Module.__setattr__ which cannot be called while tracing
+        # NNX-specific bypass for Keras-internal bookkeeping attributes that
+        # may be set during a traced call (e.g. inside the jitted train step):
+        # bypass nnx.Module.__setattr__ which cannot be called while tracing.
         if (
             backend.backend() == "jax"
             and is_nnx_enabled()
-            and (name == "_called" or name == "built")
+            and name in ("_called", "built", "_losses_override")
         ):
             object.__setattr__(self, name, value)
             return

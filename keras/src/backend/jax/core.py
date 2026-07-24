@@ -1,4 +1,5 @@
 import inspect
+import contextlib
 import math
 
 import jax
@@ -247,10 +248,13 @@ if config.is_nnx_enabled():
                 stateless_value = scope.get_current_value(self)
                 if stateless_value is not None:
                     return self._maybe_autocast(stateless_value)
-            if not hasattr(self, "raw_value"):
+            if getattr(self, "raw_value", None) is None:
+                # Uninitialized variable (created under a stateless scope,
+                # which defers initialization). Return a placeholder, like
+                # `KerasVariable.value`, without mutating the variable.
                 if self._initializer is not None:
-                    self._initialize(
-                        self._initializer(self.shape, dtype=self.dtype)
+                    return self._maybe_autocast(
+                        self._initializer(self._shape, dtype=self._dtype)
                     )
                 else:
                     raise AttributeError(
@@ -321,6 +325,38 @@ if config.is_nnx_enabled():
         object.__setattr__(self, name, value)
 
     NnxVariable.__setattr__ = __setattr__
+
+
+@contextlib.contextmanager
+def _nnx_stateful_trace_scope():
+    """Allow Keras layers to build while traced by `jax.eval_shape`.
+
+    Keras infers output shapes by running `call()` under `jax.eval_shape`,
+    which may lazily build layers as a side effect: creating sublayers and
+    variables, and setting attributes on layers that were created eagerly.
+    NNX stamps every object with the trace level active at creation time and
+    forbids mutating it from any other level, so this cross-trace mutation
+    raises `flax.errors.TraceContextError` (see issue #23289).
+
+    These mutations are safe: JAX tracing is data-driven, and initializers
+    only see concrete shapes, so the values assigned are concrete arrays.
+    Only shapes escape the trace. This scope pins NNX's notion of the
+    current trace to the outer trace so that mutations inside the trace
+    validate against the outer level, and objects created inside the trace
+    are stamped with the outer level and remain mutable after it exits.
+    """
+    if not config.is_nnx_enabled():
+        yield
+        return
+    from flax.nnx import tracers as nnx_tracers
+
+    outer_trace = nnx_tracers.current_jax_trace()
+    original_current_jax_trace = nnx_tracers.current_jax_trace
+    nnx_tracers.current_jax_trace = lambda: outer_trace
+    try:
+        yield
+    finally:
+        nnx_tracers.current_jax_trace = original_current_jax_trace
 
 
 def should_shard_at_init(init_layout, shape):
@@ -472,9 +508,12 @@ def compute_output_spec(fn, *args, **kwargs):
             convert_keras_tensor_to_jax,
             (maybe_symbolic_args, maybe_symbolic_kwargs),
         )
-        jax_out = jax.eval_shape(
-            wrapped_fn, *maybe_symbolic_args_jax, **maybe_symbolic_kwargs_jax
-        )
+        with _nnx_stateful_trace_scope():
+            jax_out = jax.eval_shape(
+                wrapped_fn,
+                *maybe_symbolic_args_jax,
+                **maybe_symbolic_kwargs_jax,
+            )
 
         def convert_jax_spec_to_keras_tensor(x):
             if isinstance(x, jax.ShapeDtypeStruct):
