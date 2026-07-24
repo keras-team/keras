@@ -7,14 +7,17 @@ from collections.abc import Callable
 from keras.src import backend
 from keras.src import utils
 from keras.src.api_export import keras_export
+from keras.src.layers.core.input_layer import InputLayer
 from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
 from keras.src.quantizers.awq_core import awq_quantize
 from keras.src.quantizers.gptq_core import find_layers_in_block
 from keras.src.quantizers.gptq_core import gptq_quantize
+from keras.src.quantizers.report import QuantizationReport
 from keras.src.quantizers.utils import should_quantize_layer
 from keras.src.saving import saving_api
 from keras.src.trainers import trainer as base_trainer
+from keras.src.utils import io_utils
 from keras.src.utils import summary_utils
 from keras.src.utils import traceback_utils
 
@@ -448,7 +451,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         del mode  # Unused.
         return None
 
-    def quantize(self, mode=None, config=None, filters=None, **kwargs):
+    def quantize(
+        self, mode=None, config=None, filters=None, verbose=True, **kwargs
+    ):
         """Quantize the weights of the model.
 
         Note that the model must be built first before calling this method.
@@ -467,6 +472,13 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         `get_quantization_layer_structure(mode)` hook). All other layers
         are left in their original precision.
 
+        The call collects a `QuantizationReport` describing which layers were
+        quantized and which were skipped (and why). The report is returned and
+        also stored on the model as `model._quantization_report`. A single
+        summary warning is emitted if any layers could not be quantized because
+        they do not support quantization. For a per-layer view of storage sizes,
+        call `model.quantization_summary()`.
+
         Args:
             mode: The mode of the quantization. Supported modes are:
                 `"int8"`, `"int4"`, `"float8"`, `"gptq"`, `"awq"`. This is
@@ -478,7 +490,12 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             filters: Optional filters to apply to the quantization. Can be a
                 regex string, a list of regex strings, or a callable. Only the
                 layers which match the filter conditions will be quantized.
+            verbose: Whether to print the quantization report. Defaults to
+                `True`.
             **kwargs: Additional keyword arguments.
+
+        Returns:
+            A `QuantizationReport` describing the outcome of the call.
 
         Example:
 
@@ -541,13 +558,21 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     f"{type(filters)}"
                 )
 
-        # For GPTQ/AWQ, resolve the model structure before any layer is
-        # modified so that an invalid structure surfaces early, and restrict
-        # quantization to the layers covered by the structure. Only those
-        # layers are calibrated afterwards; quantizing any other layer would
-        # leave it uncalibrated, and its uninitialized quantized weights
-        # would silently replace the real ones when the model is saved and
-        # reloaded.
+        # `mode` and `config` arrive here already resolved to a concrete mode
+        # string and `QuantizationConfig`, because `Layer.__new__` wraps
+        # `quantize` with `quantize_wrapper`, which calls
+        # `validate_and_resolve_config`.
+
+        # For structure-aware modes (`gptq`/`awq`), resolve and validate the
+        # layer structure *before* mutating any layer, and restrict
+        # quantization to the layers covered by the structure. Resolving it
+        # here (rather than after the mutation loop) guarantees that a
+        # missing/invalid structure leaves the model completely untouched
+        # instead of half-quantized (buffers allocated, dtype policies
+        # swapped). Only structure-covered layers are calibrated afterwards;
+        # quantizing any other layer would leave it uncalibrated, and its
+        # uninitialized quantized weights would silently replace the real
+        # ones when the model is saved and reloaded.
         structure = None
         structure_layer_ids = None
         if mode in ("gptq", "awq"):
@@ -573,31 +598,68 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 for sub_layer in find_layers_in_block(block).values():
                     structure_layer_ids.add(id(sub_layer))
 
+        report = QuantizationReport(mode=mode)
         graph_modified = False
         for layer in self._flatten_layers():
-            # Apply filters
-            if not should_quantize_layer(layer, filters):
+            # Only leaf layers (those without sub-layers) are quantizable.
+            if len(list(layer._flatten_layers())) != 1:
                 continue
-            # For GPTQ/AWQ, skip layers that the structure does not cover.
+
+            # Input layers carry no weights; they are not a meaningful skip.
+            if isinstance(layer, InputLayer):
+                continue
+
+            path = layer.path or layer.name
+
+            # 1. For GPTQ/AWQ, layers outside the structure's sequential
+            # blocks are never calibrated, so they must not be quantized at
+            # all.
             if (
                 structure_layer_ids is not None
                 and id(layer) not in structure_layer_ids
             ):
+                report.add_skipped(
+                    path, QuantizationReport.SKIP_OUTSIDE_STRUCTURE
+                )
                 continue
-
-            if len(list(layer._flatten_layers())) == 1:
-                try:
-                    layer.quantize(mode, type_check=type_check, config=config)
-                    graph_modified = True
-                except NotImplementedError as e:
-                    warnings.warn(str(e))
-                except AttributeError:
-                    pass
+            # 2. Excluded by `filters`.
+            if not should_quantize_layer(layer, filters):
+                report.add_skipped(path, QuantizationReport.SKIP_FILTERED)
+                continue
+            # 3. Already quantized (e.g. a previously quantized layer).
+            if getattr(layer, "_is_quantized", False):
+                report.add_skipped(
+                    path, QuantizationReport.SKIP_ALREADY_QUANTIZED
+                )
+                continue
+            # 4. Attempt to quantize. Only `NotImplementedError` means the
+            # layer does not support quantization; any other exception is a
+            # real bug and is allowed to propagate.
+            try:
+                layer.quantize(mode, type_check=type_check, config=config)
+            except NotImplementedError:
+                report.add_skipped(path, QuantizationReport.SKIP_NO_SUPPORT)
+                continue
+            report.add_quantized(
+                path, layer.quantization_mode, layer.dtype_policy.name
+            )
+            graph_modified = True
 
         if mode == "gptq":
             gptq_quantize(config, structure, filters=filters)
         elif mode == "awq":
             awq_quantize(config, structure, filters=filters)
+
+        # Emit a single summary warning in place of the previous per-layer
+        # warning storm (one `UserWarning` per non-quantizable leaf).
+        warning_message = report.summary_warning()
+        if warning_message is not None:
+            warnings.warn(warning_message, stacklevel=2)
+
+        if verbose:
+            io_utils.print_msg(report.render())
+
+        self._quantization_report = report
 
         # If any layer was changed, we must rebuild the execution functions.
         if graph_modified:
@@ -605,6 +667,25 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             self.test_function = None
             self.predict_function = None
             self._post_quantize(mode, **kwargs)
+
+        return report
+
+    def quantization_summary(self, verbose=True):
+        """Print a per-quantized-layer summary of the model.
+
+        For every quantized layer this reports the layer path, its dtype
+        policy, and the storage dtype and byte size of its primary quantized
+        weight. It also prints totals comparing the quantized weight storage
+        against a float32 baseline.
+
+        Args:
+            verbose: Whether to print the summary. Defaults to `True`. The
+                summary string is always returned.
+
+        Returns:
+            The summary as a string.
+        """
+        return summary_utils.print_quantization_summary(self, verbose=verbose)
 
     def _post_quantize(self, mode, **kwargs):
         if backend.backend() == "torch":

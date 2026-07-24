@@ -41,3 +41,4 @@ from keras.src.quantizers.quantizers import (
     quantize_and_dequantize as quantize_and_dequantize,
 )
 from keras.src.quantizers.quantizers import unpack_int4 as unpack_int4
+from keras.src.quantizers.report import QuantizationReport as QuantizationReport

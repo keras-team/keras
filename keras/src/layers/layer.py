@@ -251,11 +251,12 @@ class Layer(BackendLayer, Operation):
             obj._check_quantize_args(mode, obj.compute_dtype)
             obj._tracker.unlock()
             try:
-                original_quantize_method(mode=mode, config=config, **kwargs)
-            except Exception:
-                raise
+                result = original_quantize_method(
+                    mode=mode, config=config, **kwargs
+                )
             finally:
                 obj._tracker.lock()
+            return result
 
         obj.quantize = quantize_wrapper
 
