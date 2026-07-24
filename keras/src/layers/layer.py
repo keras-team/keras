@@ -1038,79 +1038,102 @@ class Layer(BackendLayer, Operation):
         # TODO: consider extending this to all args and kwargs.
         self._assert_input_compatibility(call_spec.first_arg)
 
-        ################
-        # 4. Call build
-        with self._open_name_scope():
-            self._maybe_build(call_spec)
-
-        ##########################
-        # 5. Infer training value
-        # Training phase for `Layer.call` is set via (in order of priority):
-        # (1) The `training` argument passed to this `Layer.call`, if not None
-        # (2) The training argument of an outer `Layer.call`.
-        # (4) Any non-None default value for `training` in the call signature
-        # (5) False (treating the layer as if it's in inference)
-
-        # Maintains info about the `Layer.call` stack
-        # across nested calls.
-        call_context = self._get_call_context()
-
-        for context_arg in self._call_context_args:
-            self._resolve_and_populate_arg(
-                context_arg, call_spec, call_context, kwargs
-            )
-
-        ##############################
-        # 6. Populate mask argument(s)
-        if len(call_spec.tensor_arguments_dict) == 1:
-            if (
-                "mask" in call_spec.argument_names
-                and call_spec.arguments_dict["mask"] is None
-            ):
-                arg_name = list(call_spec.tensor_arguments_dict.keys())[0]
-                only_tensor_arg = call_spec.tensor_arguments_dict[arg_name]
-                # `call_spec_is_leaf` guarantees `only_tensor_arg` is a leaf
-                # tensor (CallSpec._fast always sets
-                # `tensor_arguments_dict = {first_name: x}` for the single
-                # vetted leaf `x`), so `get_keras_mask` can be called
-                # directly instead of walking it with `map_structure`. The
-                # general (possibly-nested) path is unchanged otherwise.
-                if call_spec_is_leaf:
-                    mask = backend.get_keras_mask(only_tensor_arg)
-                else:
-                    mask = tree.map_structure(
-                        backend.get_keras_mask,
-                        only_tensor_arg,
-                    )
-                kwargs["mask"] = mask
-        elif len(call_spec.tensor_arguments_dict) > 1:
-            for k, v in call_spec.tensor_arguments_dict.items():
-                expected_mask_arg_name = f"{k}_mask"
-                if expected_mask_arg_name in call_spec.argument_names:
-                    if call_spec.arguments_dict[expected_mask_arg_name] is None:
-                        mask = tree.map_structure(backend.get_keras_mask, v)
-                        kwargs[expected_mask_arg_name] = mask
-
-        # We need to cache the `previous_mask` before `__call__` because the
-        # mask might be removed during the call, such as `MultiHeadAttention`.
-        if "mask" in kwargs and kwargs["mask"] is not None:
-            # Case 1: Mask was explicitly passed or auto-populated in step 6.
-            previous_mask = kwargs["mask"]
-        elif call_spec_is_leaf:
-            # Case 2 (leaf fast path): `call_spec.first_arg` is the same
-            # vetted leaf tensor, so no structure walk is needed.
-            previous_mask = backend.get_keras_mask(call_spec.first_arg)
-        else:
-            # Case 2 (general path): fallback to the mask attached to the
-            # first input tensor, which may be a nested structure.
-            previous_mask = tree.map_structure(
-                backend.get_keras_mask, call_spec.first_arg
-            )
-
-        ####################
-        # 7. Call the layer.
+        ####################################################################
+        # 4-7. Call build, infer training value, populate mask argument(s),
+        # and call the layer, all within a single name scope. Steps 5-6 do
+        # not consult the active name scope (`current_path()`); they only
+        # need to run somewhere between build and the actual call, so having
+        # the scope open around them (instead of opening it twice) is purely
+        # a bookkeeping simplification.
         try:
             with self._open_name_scope():
+                ################
+                # 4. Call build
+                self._maybe_build(call_spec)
+
+                ##########################
+                # 5. Infer training value
+                # Training phase for `Layer.call` is set via (in order of
+                # priority):
+                # (1) The `training` argument passed to this `Layer.call`,
+                #     if not None
+                # (2) The training argument of an outer `Layer.call`.
+                # (4) Any non-None default value for `training` in the call
+                #     signature
+                # (5) False (treating the layer as if it's in inference)
+
+                # Maintains info about the `Layer.call` stack
+                # across nested calls.
+                call_context = self._get_call_context()
+
+                for context_arg in self._call_context_args:
+                    self._resolve_and_populate_arg(
+                        context_arg, call_spec, call_context, kwargs
+                    )
+
+                ##############################
+                # 6. Populate mask argument(s)
+                if len(call_spec.tensor_arguments_dict) == 1:
+                    if (
+                        "mask" in call_spec.argument_names
+                        and call_spec.arguments_dict["mask"] is None
+                    ):
+                        arg_name = list(call_spec.tensor_arguments_dict.keys())[
+                            0
+                        ]
+                        only_tensor_arg = call_spec.tensor_arguments_dict[
+                            arg_name
+                        ]
+                        # `call_spec_is_leaf` guarantees `only_tensor_arg` is
+                        # a leaf tensor (CallSpec._fast always sets
+                        # `tensor_arguments_dict = {first_name: x}` for the
+                        # single vetted leaf `x`), so `get_keras_mask` can be
+                        # called directly instead of walking it with
+                        # `map_structure`. The general (possibly-nested)
+                        # path is unchanged otherwise.
+                        if call_spec_is_leaf:
+                            mask = backend.get_keras_mask(only_tensor_arg)
+                        else:
+                            mask = tree.map_structure(
+                                backend.get_keras_mask,
+                                only_tensor_arg,
+                            )
+                        kwargs["mask"] = mask
+                elif len(call_spec.tensor_arguments_dict) > 1:
+                    for k, v in call_spec.tensor_arguments_dict.items():
+                        expected_mask_arg_name = f"{k}_mask"
+                        if expected_mask_arg_name in call_spec.argument_names:
+                            if (
+                                call_spec.arguments_dict[expected_mask_arg_name]
+                                is None
+                            ):
+                                mask = tree.map_structure(
+                                    backend.get_keras_mask, v
+                                )
+                                kwargs[expected_mask_arg_name] = mask
+
+                # We need to cache the `previous_mask` before `__call__`
+                # because the mask might be removed during the call, such as
+                # `MultiHeadAttention`.
+                if "mask" in kwargs and kwargs["mask"] is not None:
+                    # Case 1: Mask was explicitly passed or auto-populated in
+                    # step 6.
+                    previous_mask = kwargs["mask"]
+                elif call_spec_is_leaf:
+                    # Case 2 (leaf fast path): `call_spec.first_arg` is the
+                    # same vetted leaf tensor, so no structure walk is
+                    # needed.
+                    previous_mask = backend.get_keras_mask(call_spec.first_arg)
+                else:
+                    # Case 2 (general path): fallback to the mask attached
+                    # to the first input tensor, which may be a nested
+                    # structure.
+                    previous_mask = tree.map_structure(
+                        backend.get_keras_mask, call_spec.first_arg
+                    )
+
+                ####################
+                # 7. Call the layer.
                 current_scope = backend.get_autocast_scope()
                 new_scope = None
                 if current_scope is not None:
