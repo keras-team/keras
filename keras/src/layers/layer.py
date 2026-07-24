@@ -332,6 +332,58 @@ class Layer(BackendLayer, Operation):
             for arg in self._call_context_args
         }
 
+        # Precompute an eager fast path for CallSpec that covers the common
+        # case of a single positional tensor and no keyword arguments. It
+        # reproduces every CallSpec field without inspect.Signature.bind.
+        call_params = list(self._call_signature.parameters.values())
+        # Precomputed (name, kind, default) specs so CallSpec can bind
+        # arguments in pure Python, without touching
+        # inspect.Signature.parameters (a mappingproxy that torch.compile
+        # cannot trace past).
+        self._call_param_specs = tuple(
+            (p.name, p.kind, p.default) for p in call_params
+        )
+        self._call_arg_names = self.call_signature_parameters
+        self._call_first_arg_name = None
+        self._call_arg_defaults = {}
+        self._call_spec_fast_path = False
+        if call_params:
+            first_param = call_params[0]
+            self._call_first_arg_name = first_param.name
+            self._call_arg_defaults = {
+                p.name: p.default
+                for p in call_params[1:]
+                if p.default is not inspect.Parameter.empty
+            }
+            has_var_arg = any(
+                p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD) for p in call_params
+            )
+            non_first_have_defaults = all(
+                p.default is not inspect.Parameter.empty
+                for p in call_params[1:]
+            )
+            # A default that is itself a tensor or a non-empty nested
+            # structure would land in tensor_arguments_dict in the slow path,
+            # so such signatures must fall through.
+            defaults_are_safe = all(
+                not is_backend_tensor_or_symbolic(v)
+                and not (
+                    tree.is_nested(v)
+                    and (not hasattr(v, "__len__") or len(v) > 0)
+                )
+                for v in self._call_arg_defaults.values()
+            )
+            self._call_spec_fast_path = (
+                first_param.kind
+                in (
+                    first_param.POSITIONAL_OR_KEYWORD,
+                    first_param.POSITIONAL_ONLY,
+                )
+                and not has_var_arg
+                and non_first_have_defaults
+                and defaults_are_safe
+            )
+
         self._supports_masking = not utils.is_default(self.compute_mask)
         # Whether to automatically convert (+ auto-cast) inputs to `call()`.
         self._convert_input_args = True
@@ -872,7 +924,8 @@ class Layer(BackendLayer, Operation):
     @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
         self._check_super_called()
-        self._called = True
+        if not self._called:
+            self._called = True
 
         original_args = args
         original_kwargs = kwargs
@@ -911,10 +964,25 @@ class Layer(BackendLayer, Operation):
                         f"(of type {type(arg)})"
                     )
 
-        # Caches info about `call()` signature, args, kwargs.
-        call_spec = CallSpec(
-            self._call_signature, self._call_context_args, args, kwargs
-        )
+        # Caches info about `call()` signature, args, kwargs. The fast path
+        # reproduces CallSpec for the common single-tensor, no-kwargs call
+        # without paying for inspect.Signature.bind.
+        if (
+            self._call_spec_fast_path
+            and not kwargs
+            and len(args) == 1
+            and is_backend_tensor_or_symbolic(args[0], allow_none=False)
+        ):
+            call_spec = CallSpec._fast(
+                self._call_arg_names,
+                self._call_arg_defaults,
+                self._call_first_arg_name,
+                args[0],
+            )
+        else:
+            call_spec = CallSpec(
+                self._call_param_specs, self._call_context_args, args, kwargs
+            )
 
         ############################################
         # 3. Check input spec for 1st positional arg.
@@ -1013,7 +1081,8 @@ class Layer(BackendLayer, Operation):
                             outputs, layout
                         )
 
-                self.built = True
+                if not self.built:
+                    self.built = True
                 # Record activity regularizer loss.
                 if self.activity_regularizer is not None:
                     for output in tree.flatten(outputs):
@@ -1207,7 +1276,7 @@ class Layer(BackendLayer, Operation):
         else:
             # Use compute_output_shape() to return the right output spec
             call_spec = CallSpec(
-                self._call_signature, self._call_context_args, args, kwargs
+                self._call_param_specs, self._call_context_args, args, kwargs
             )
             shapes_dict = get_shapes_dict(call_spec)
             shapes_dict = update_shapes_dict_for_target_fn(
@@ -1862,30 +1931,116 @@ def is_backend_tensor_or_symbolic(x, allow_none=False):
     return backend.is_tensor(x) or isinstance(x, backend.KerasTensor)
 
 
+_PARAM_VAR_POSITIONAL = inspect.Parameter.VAR_POSITIONAL
+_PARAM_VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
+_PARAM_KEYWORD_ONLY = inspect.Parameter.KEYWORD_ONLY
+_PARAM_POSITIONAL_ONLY = inspect.Parameter.POSITIONAL_ONLY
+_PARAM_EMPTY = inspect.Parameter.empty
+
+
+def _bind_call_arguments(param_specs, args, kwargs):
+    """Pure-Python equivalent of `inspect.Signature.bind` +
+    `BoundArguments.apply_defaults` for `call()` signatures.
+
+    Returns `(provided, full)` where `provided` maps parameter names to
+    explicitly-passed values (what `bind().arguments` would contain) and
+    `full` additionally includes defaults, both in parameter order.
+
+    Exists because `Signature.bind` iterates `Signature.parameters`, a
+    mappingproxy, which torch.compile refuses to trace past (graph break);
+    plain tuple iteration and dict ops trace cleanly, and are also faster
+    in eager mode.
+    """
+    provided = {}
+    remaining_kwargs = dict(kwargs) if kwargs else {}
+    n_args = len(args)
+    pos_i = 0
+    has_var_positional = False
+    var_keyword_name = None
+    for name, kind, default in param_specs:
+        if kind is _PARAM_VAR_POSITIONAL:
+            has_var_positional = True
+            if pos_i < n_args:
+                provided[name] = tuple(args[pos_i:])
+                pos_i = n_args
+        elif kind is _PARAM_VAR_KEYWORD:
+            var_keyword_name = name
+        elif kind is _PARAM_KEYWORD_ONLY:
+            if name in remaining_kwargs:
+                provided[name] = remaining_kwargs.pop(name)
+            elif default is _PARAM_EMPTY:
+                raise TypeError(f"missing a required argument: '{name}'")
+        else:  # POSITIONAL_ONLY or POSITIONAL_OR_KEYWORD
+            if pos_i < n_args:
+                if (
+                    name in remaining_kwargs
+                    and kind is not _PARAM_POSITIONAL_ONLY
+                ):
+                    raise TypeError(f"multiple values for argument '{name}'")
+                provided[name] = args[pos_i]
+                pos_i += 1
+            elif (
+                name in remaining_kwargs and kind is not _PARAM_POSITIONAL_ONLY
+            ):
+                provided[name] = remaining_kwargs.pop(name)
+            elif default is _PARAM_EMPTY:
+                raise TypeError(f"missing a required argument: '{name}'")
+    if pos_i < n_args and not has_var_positional:
+        raise TypeError("too many positional arguments")
+    if remaining_kwargs:
+        if var_keyword_name is not None:
+            provided[var_keyword_name] = remaining_kwargs
+        else:
+            raise TypeError(
+                "got an unexpected keyword argument "
+                f"'{next(iter(remaining_kwargs))}'"
+            )
+
+    full = {}
+    for name, kind, default in param_specs:
+        if name in provided:
+            full[name] = provided[name]
+        elif default is not _PARAM_EMPTY:
+            full[name] = default
+        elif kind is _PARAM_VAR_POSITIONAL:
+            full[name] = ()
+        elif kind is _PARAM_VAR_KEYWORD:
+            full[name] = {}
+    return provided, full
+
+
 class CallSpec:
-    def __init__(self, signature, call_context_args, args, kwargs):
+    def __init__(self, param_specs, call_context_args, args, kwargs):
+        # `param_specs` is the layer's precomputed tuple of
+        # (name, kind, default) for every `call()` parameter
+        # (`Layer._call_param_specs`). Binding is done in pure Python
+        # (`_bind_call_arguments`) rather than `inspect.Signature.bind`,
+        # which reads `Signature.parameters` -- a mappingproxy access that
+        # torch.compile cannot trace past (it graph-breaks).
+        param_names = {spec[0] for spec in param_specs}
         # Strip out user-supplied call-context args that this layer’s `call()`
-        # does not accept (otherwise `signature.bind` would raise).
+        # does not accept (otherwise binding would raise).
         # This includes built-in args like `training`, and user-defined args.
         call_args = {
             context_arg: kwargs.pop(context_arg)
             for context_arg in call_context_args
-            if context_arg in kwargs and context_arg not in signature.parameters
+            if context_arg in kwargs and context_arg not in param_names
         }
 
-        bound_args = signature.bind(*args, **kwargs)
+        provided, full_arguments = _bind_call_arguments(
+            param_specs, args, kwargs
+        )
 
         # Combine the two dicts.
-        self.user_arguments_dict = {**call_args, **bound_args.arguments}
+        self.user_arguments_dict = {**call_args, **provided}
 
-        bound_args.apply_defaults()
         arg_dict = {}
         arg_names = []
         tensor_arg_dict = {}
         tensor_args = []
         tensor_arg_names = []
         nested_tensor_arg_names = []
-        for name, value in bound_args.arguments.items():
+        for name, value in full_arguments.items():
             arg_dict[name] = value
             arg_names.append(name)
             if is_backend_tensor_or_symbolic(value):
@@ -1921,6 +2076,28 @@ class CallSpec:
             self.eager = True
         else:
             self.eager = False
+
+    @classmethod
+    def _fast(cls, arg_names, defaults, first_name, x):
+        # Fast path mirror of __init__ for a single positional tensor `x`
+        # (a backend tensor or KerasTensor) and no keyword arguments.
+        # `arg_names` is the full ordered list of call() parameter names,
+        # `defaults` maps every non-first parameter to its non-tensor
+        # default, and `first_name` is the first parameter name. The fields
+        # set here match those produced by __init__ for this case exactly.
+        call_spec = cls.__new__(cls)
+        call_spec.user_arguments_dict = {first_name: x}
+        call_spec.arguments_dict = {first_name: x, **defaults}
+        # Copy `arg_names` rather than aliasing it: it is the layer's shared
+        # `_call_arg_names` list, and callers of the slow path build a fresh
+        # list each call, so `argument_names` must not be mutated in place.
+        call_spec.argument_names = list(arg_names)
+        call_spec.tensor_arguments_dict = {first_name: x}
+        call_spec.tensor_arguments_names = [first_name]
+        call_spec.nested_tensor_argument_names = []
+        call_spec.first_arg = x
+        call_spec.eager = not isinstance(x, backend.KerasTensor)
+        return call_spec
 
 
 def get_arguments_dict(fn, args, kwargs):
