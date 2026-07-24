@@ -2285,8 +2285,18 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.roll(x, 1, axis=1).shape, (None, 3))
         self.assertEqual(knp.roll(x, 1, axis=0).shape, (None, 3))
         self.assertEqual(knp.roll(x, 1, axis=[0, 1]).shape, (None, 3))
+        self.assertEqual(knp.roll(x, [1, 2], axis=[0, 1]).shape, (None, 3))
+        self.assertEqual(knp.roll(x, [1, 2], axis=[0]).shape, (None, 3))
+        self.assertEqual(
+            knp.roll(x, np.array([1, 2]), axis=np.array([0, 1])).shape,
+            (None, 3),
+        )
         with self.assertRaises(ValueError):
             knp.roll(x, 1, axis=2)
+        with self.assertRaises(ValueError):
+            knp.roll(x, [1, 2, 3], axis=[0, 1])
+        with self.assertRaises(ValueError):
+            knp.roll(x, np.array([1, 2, 3]), axis=np.array([0, 1]))
 
     def test_round(self):
         x = KerasTensor((None, 3))
@@ -3116,6 +3126,9 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.roll(x, 1).shape, (2, 3))
         self.assertEqual(knp.roll(x, 1, axis=1).shape, (2, 3))
         self.assertEqual(knp.roll(x, 1, axis=0).shape, (2, 3))
+        self.assertEqual(knp.roll(x, 1, axis=[0, 1]).shape, (2, 3))
+        with self.assertRaises(ValueError):
+            knp.roll(x, [1, 2, 3], axis=[0, 1])
 
     def test_round(self):
         x = KerasTensor((2, 3))
@@ -6604,9 +6617,25 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.roll(x, 1), np.roll(x, 1))
         self.assertAllClose(knp.roll(x, 1, axis=1), np.roll(x, 1, axis=1))
         self.assertAllClose(knp.roll(x, -1, axis=0), np.roll(x, -1, axis=0))
+        self.assertAllClose(
+            knp.roll(x, 1, axis=(0, 1)), np.roll(x, 1, axis=(0, 1))
+        )
+        self.assertAllClose(
+            knp.roll(x, (1, 2), axis=(0, 1)), np.roll(x, (1, 2), axis=(0, 1))
+        )
+        self.assertAllClose(
+            knp.roll(x, (1, 2), axis=(1,)), np.roll(x, (1, 2), axis=(1,))
+        )
+        self.assertAllClose(
+            knp.roll(x, np.array([1, 2]), axis=np.array([0, 1])),
+            np.roll(x, [1, 2], axis=[0, 1]),
+        )
         self.assertAllClose(knp.Roll(1)(x), np.roll(x, 1))
         self.assertAllClose(knp.Roll(1, axis=1)(x), np.roll(x, 1, axis=1))
         self.assertAllClose(knp.Roll(-1, axis=0)(x), np.roll(x, -1, axis=0))
+        self.assertAllClose(
+            knp.Roll(1, axis=(0, 1))(x), np.roll(x, 1, axis=(0, 1))
+        )
 
     def test_round(self):
         x = np.array([[1.1, 2.5, 3.9], [3.2, 2.3, 1.8]])
