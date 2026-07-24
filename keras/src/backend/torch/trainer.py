@@ -54,11 +54,15 @@ class TorchTrainer(base_trainer.Trainer):
         loss = self._compute_loss(
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=True
         )
+        # Fast batch-size extraction: avoid tree.flatten for the common case
+        # where x is a plain tensor (dict/list inputs fall back to flatten).
         self._loss_tracker.update_state(
             loss,
-            sample_weight=next(
-                i for i in tree.flatten(x) if i is not None
-            ).shape[0],
+            sample_weight=(
+                x.shape[0]
+                if hasattr(x, "shape")
+                else next(i for i in tree.flatten(x) if i is not None).shape[0]
+            ),
         )
         if self.optimizer is not None:
             loss = self.optimizer.scale_loss(loss)
@@ -93,11 +97,15 @@ class TorchTrainer(base_trainer.Trainer):
         loss = self._compute_loss(
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=False
         )
+        # Fast batch-size extraction: avoid tree.flatten for the common case
+        # where x is a plain tensor (dict/list inputs fall back to flatten).
         self._loss_tracker.update_state(
             loss,
-            sample_weight=next(
-                i for i in tree.flatten(x) if i is not None
-            ).shape[0],
+            sample_weight=(
+                x.shape[0]
+                if hasattr(x, "shape")
+                else next(i for i in tree.flatten(x) if i is not None).shape[0]
+            ),
         )
         return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 
