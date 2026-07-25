@@ -1,5 +1,4 @@
 import inspect
-import contextlib
 import math
 
 import jax
@@ -327,23 +326,6 @@ if config.is_nnx_enabled():
     NnxVariable.__setattr__ = __setattr__
 
 
-@contextlib.contextmanager
-def _nnx_stateful_trace_scope():
-    """Allow Keras layers to build while traced by `jax.eval_shape`."""
-    if not config.is_nnx_enabled():
-        yield
-        return
-    from flax.nnx import tracers as nnx_tracers
-
-    outer_trace = nnx_tracers.current_jax_trace()
-    original_current_jax_trace = nnx_tracers.current_jax_trace
-    nnx_tracers.current_jax_trace = lambda: outer_trace
-    try:
-        yield
-    finally:
-        nnx_tracers.current_jax_trace = original_current_jax_trace
-
-
 def should_shard_at_init(init_layout, shape):
     size_threshold = 250 * 1024 * 1024
     # We multiply by the mesh size here to take into account the worst case
@@ -493,12 +475,9 @@ def compute_output_spec(fn, *args, **kwargs):
             convert_keras_tensor_to_jax,
             (maybe_symbolic_args, maybe_symbolic_kwargs),
         )
-        with _nnx_stateful_trace_scope():
-            jax_out = jax.eval_shape(
-                wrapped_fn,
-                *maybe_symbolic_args_jax,
-                **maybe_symbolic_kwargs_jax,
-            )
+        jax_out = jax.eval_shape(
+            wrapped_fn, *maybe_symbolic_args_jax, **maybe_symbolic_kwargs_jax
+        )
 
         def convert_jax_spec_to_keras_tensor(x):
             if isinstance(x, jax.ShapeDtypeStruct):
