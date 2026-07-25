@@ -1554,6 +1554,24 @@ def dot_product_attention(
         value = torch.repeat_interleave(value, repeats=groups, dim=1)
 
     if flash_attention is None:
+        if hasattr(torch.compiler, "is_compiling") and (
+            torch.compiler.is_compiling()
+        ):
+            # Probing for flash-attention support constructs a pybind11
+            # `SDPAParams` object, which dynamo cannot trace, so under
+            # `torch.compile` the probe breaks the graph at every attention
+            # call and costs far more than picking the kernel from Python
+            # saves. Defer the choice to `scaled_dot_product_attention`, which
+            # already dispatches to the fastest kernel its inputs allow.
+            attention_output = torch.nn.functional.scaled_dot_product_attention(
+                query,
+                key,
+                value,
+                attn_mask=mask,
+                is_causal=is_causal,
+                scale=scale,
+            )
+            return torch.transpose(attention_output, axis1, axis0)
         flash_attention = _can_use_flash_attention(
             query, key, value, mask, is_causal
         )
