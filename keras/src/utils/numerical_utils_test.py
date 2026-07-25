@@ -93,7 +93,7 @@ class TestNumericalUtils(testing.TestCase):
         self.assertIsInstance(out, np.ndarray)
         self.assertEqual(out.shape, x.shape)
         self.assertAllClose(out, expected)
-    
+
     def test_build_pos_neg_masks(self):
         query_labels = np.array([0, 1, 2, 2, 0])
         key_labels = np.array([0, 1, 2, 0, 2])
