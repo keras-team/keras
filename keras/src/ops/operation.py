@@ -55,9 +55,6 @@ class Operation(KerasSaveable):
                         call_fn = self.quantized_call
                     else:
                         call_fn = self.call
-            # Call call_fn directly; only inject argument info if it raises.
-            # Avoids wrapping it in an error-handling closure on every call
-            # (hot path).
             try:
                 return call_fn(*args, **kwargs)
             except Exception as e:

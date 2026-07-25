@@ -15,6 +15,7 @@ from keras.src import testing
 from keras.src import tree
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.backend.common.remat import RematScope
 from keras.src.layers.core import input_layer
 from keras.src.ops import core
 from keras.src.saving import object_registration
@@ -1808,6 +1809,21 @@ class CoreOpsBehaviorTests(testing.TestCase):
         finally:
             if not was_enabled:
                 traceback_utils.disable_traceback_filtering()
+
+    @parameterized.named_parameters(
+        ("full", "full", {}),
+        ("larger_than", "larger_than", {"output_size_threshold": 1}),
+    )
+    def test_cond_is_not_rematerialized(self, mode, kwargs):
+        """`Cond.call` takes Python callables, which rematerialization cannot
+        trace, so `Cond` overrides `__call__` to stay out of that path. An
+        active `RematScope` must therefore leave `cond` working.
+        """
+        pred = ops.convert_to_tensor(True)
+        x = ops.convert_to_tensor([1.0, 2.0, 3.0])
+        with RematScope(mode=mode, **kwargs):
+            result = ops.cond(pred, lambda: x + 1.0, lambda: x - 1.0)
+        self.assertAllClose(result, [2.0, 3.0, 4.0])
 
     @pytest.mark.requires_trainable_backend
     def test_cond_raw_bool_compile(self):

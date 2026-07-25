@@ -10,6 +10,7 @@ from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.ops.operation import Operation
 from keras.src.saving import serialization_lib
+from keras.src.utils import traceback_utils
 
 
 class Map(Operation):
@@ -1066,6 +1067,35 @@ def convert_to_numpy(x):
 
 
 class Cond(Operation):
+    @traceback_utils.filter_traceback
+    def __call__(self, *args, **kwargs):
+        # `Operation.__call__` routes through `rematerialized_call` whenever a
+        # `RematScope` is active, but `call` receives Python callables rather
+        # than tensors and rematerialization cannot trace those, so `Cond`
+        # dispatches on its own and stays out of that path.
+        def call_fn(*args, **kwargs):
+            if any_symbolic_tensors(args, kwargs):
+                return self.symbolic_call(*args, **kwargs)
+            else:
+                return self.call(*args, **kwargs)
+
+        if traceback_utils.is_traceback_filtering_enabled():
+            try:
+                return call_fn(*args, **kwargs)
+            except Exception as e:
+                if not getattr(e, "_keras_call_info_injected", False):
+                    raise traceback_utils.inject_argument_info_in_error(
+                        e,
+                        self.call,
+                        args,
+                        kwargs,
+                        object_name=(f"{self.__class__.__name__}.call()"),
+                    ) from None
+                raise
+
+        # Plain flow.
+        return call_fn(*args, **kwargs)
+
     def call(self, pred, true_fn, false_fn):
         return backend.core.cond(pred, true_fn, false_fn)
 

@@ -140,11 +140,14 @@ def _format_raw_arguments_fallback(args, kwargs):
     if not args and not kwargs:
         return None
     try:
+        # `map_structure` mirrors the input structure, so a nested argument
+        # comes back as a list or dict rather than a string. `str` renders
+        # those without losing the per-leaf formatting.
         args_repr = ", ".join(
-            tree.map_structure(format_argument_value, arg) for arg in args
+            str(tree.map_structure(format_argument_value, arg)) for arg in args
         )
         kwargs_repr = ", ".join(
-            f"{key}={tree.map_structure(format_argument_value, value)}"
+            f"{key}={tree.map_structure(format_argument_value, value)!s}"
             for key, value in kwargs.items()
         )
     except Exception:

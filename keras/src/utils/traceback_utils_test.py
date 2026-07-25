@@ -230,8 +230,7 @@ class TracebackUtilsTest(testing.TestCase):
 
     def test_unbindable_args_falls_back_to_raw_args_kwargs_dump(self):
         """When `args`/`kwargs` cannot be bound to `fn`'s signature (e.g. a
-        symbolic-path arg-count mismatch, or a third-party `call` override
-        with a divergent signature), argument context is not silently
+        symbolic-path arg-count mismatch), argument context is not silently
         dropped: it falls back to a raw `args=`/`kwargs=` dump instead of
         the usual per-parameter listing.
         """
@@ -252,6 +251,29 @@ class TracebackUtilsTest(testing.TestCase):
         self.assertIn("boom", msg)
         self.assertIn("args=(1, 2, 3)", msg)
         self.assertIn("kwargs={extra='kw'}", msg)
+        self.assertTrue(getattr(result, "_keras_call_info_injected", False))
+
+    def test_unbindable_nested_args_fall_back_to_raw_dump(self):
+        """A nested argument comes back from `map_structure` as a structure
+        rather than a string, so the raw dump has to render it before
+        joining. Otherwise the join raises and the whole fallback is lost.
+        """
+
+        def fn_no_args():
+            pass
+
+        e = ValueError("boom")
+        result = traceback_utils.inject_argument_info_in_error(
+            e,
+            fn_no_args,
+            ([1, 2], 3),
+            {"nested": {"a": 4}},
+        )
+        self.assertIsNotNone(result)
+        msg = str(result)
+        self.assertIn("boom", msg)
+        self.assertIn("args=(", msg)
+        self.assertIn("nested=", msg)
         self.assertTrue(getattr(result, "_keras_call_info_injected", False))
 
     def test_unbindable_args_with_nothing_to_report_returns_original(self):
