@@ -28,7 +28,9 @@ def normalize(x, axis=-1, order=2):
         norm[norm == 0] = 1
 
         # axis cannot be `None`
-        axis = axis or -1
+        if axis is None:
+            axis = -1
+
         return x / np.expand_dims(norm, axis)
 
     # Backend tensor input
