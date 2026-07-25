@@ -99,7 +99,7 @@ class OuterLockedLayer(Operation):
 
 
 class TracebackUtilsTest(testing.TestCase):
-    """Tests for inject_argument_info_in_error (lazy, on-error-path only)."""
+    """Tests for inject_argument_info_in_error."""
 
     def setUp(self):
         super().setUp()
