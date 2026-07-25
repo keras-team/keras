@@ -1554,8 +1554,9 @@ def dot_product_attention(
         value = torch.repeat_interleave(value, repeats=groups, dim=1)
 
     if flash_attention is None:
-        if hasattr(torch.compiler, "is_compiling") and (
-            torch.compiler.is_compiling()
+        if (
+            hasattr(torch.compiler, "is_compiling")
+            and torch.compiler.is_compiling()
         ):
             # Probing for flash-attention support constructs a pybind11
             # `SDPAParams` object, which dynamo cannot trace, so under
