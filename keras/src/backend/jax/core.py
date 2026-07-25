@@ -247,10 +247,13 @@ if config.is_nnx_enabled():
                 stateless_value = scope.get_current_value(self)
                 if stateless_value is not None:
                     return self._maybe_autocast(stateless_value)
-            if not hasattr(self, "raw_value"):
+            if getattr(self, "raw_value", None) is None:
+                # Uninitialized variable (created under a stateless scope,
+                # which defers initialization). Return a placeholder, like
+                # `KerasVariable.value`, without mutating the variable.
                 if self._initializer is not None:
-                    self._initialize(
-                        self._initializer(self.shape, dtype=self.dtype)
+                    return self._maybe_autocast(
+                        self._initializer(self._shape, dtype=self._dtype)
                     )
                 else:
                     raise AttributeError(

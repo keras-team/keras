@@ -66,3 +66,47 @@ class NnxVariableTest(testing.TestCase):
         state = jax.tree.map(lambda x: x + 1, state)
         variable2 = nnx.merge(graphdef, state)
         self.assertEqual(variable2._value, variable2.value)
+
+    def test_lazy_build_within_symbolic_trace(self):
+        class InnerNorm(keras.layers.Layer):
+            def build(self, input_shape):
+                self.weight = self.add_weight(
+                    name="weight",
+                    shape=(input_shape[-1],),
+                    initializer="ones",
+                )
+                self.built = True
+
+            def call(self, x):
+                return self.weight * x
+
+        class OuterBlock(keras.layers.Layer):
+            # No `build()`: triggers build-by-run inside `jax.eval_shape`.
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.norm = InnerNorm()
+
+            def call(self, x):
+                return self.norm(x) + x
+
+        inputs = keras.Input(shape=(4,))
+        outputs = OuterBlock()(inputs)
+        model = keras.Model(inputs, outputs)
+
+        y = model(np.ones((2, 4), "float32"))
+        self.assertEqual(y.shape, (2, 4))
+
+        # Variables created inside the trace must stay mutable after it.
+        inner = model.layers[1].norm
+        inner.weight.assign(np.full((4,), 2.0, "float32"))
+        self.assertAllClose(inner.weight.value, np.full((4,), 2.0))
+
+        # Training exercises `_losses_override` assignment in the jitted
+        # train step and end-to-end gradient flow.
+        model.compile(optimizer="sgd", loss="mse")
+        model.fit(
+            np.ones((8, 4), "float32"),
+            np.zeros((8, 4), "float32"),
+            epochs=1,
+            verbose=0,
+        )
