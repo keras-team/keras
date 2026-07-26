@@ -170,6 +170,27 @@ def lstsq(a, b, rcond=None):
     return x
 
 
+def matrix_power(a, n):
+    a = convert_to_tensor(a)
+    # 1. A zero power is the identity, broadcast over any batch dimensions.
+    if n == 0:
+        eye = mx.eye(a.shape[-1], dtype=a.dtype)
+        return mx.broadcast_to(eye, a.shape)
+    # 2. A negative power is the inverse raised to the absolute power.
+    if n < 0:
+        a = inv(a)
+        n = -n
+    # 3. Compute by binary exponentiation, matching numpy's repeated squaring.
+    result = None
+    while n > 0:
+        if n % 2 == 1:
+            result = a if result is None else result @ a
+        n //= 2
+        if n > 0:
+            a = a @ a
+    return result
+
+
 def pinv(x, rcond=None):
     x = convert_to_tensor(x)
     target = x.dtype

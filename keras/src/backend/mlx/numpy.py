@@ -9,6 +9,8 @@ from keras.src.backend import config
 from keras.src.backend import result_type
 from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
+from keras.src.backend.common.backend_utils import canonicalize_axis
+from keras.src.backend.common.backend_utils import normalize_shift_and_axis
 from keras.src.backend.common.backend_utils import vectorize_impl
 from keras.src.backend.mlx.core import cast
 from keras.src.backend.mlx.core import convert_to_tensor
@@ -293,22 +295,40 @@ def average(x, axis=None, weights=None):
     if axis == () or axis == []:
         return x
 
-    # Weighted average
-    if weights is not None:
-        weights = cast(weights, dtype)
-        if len(weights.shape) < len(x.shape):
-            s = [1] * len(x.shape)
-            s[axis] = x.shape[axis]
-            weights = weights.reshape(s)
+    # Plain average
+    if weights is None:
+        return mx.mean(x, axis=axis)
 
-        # TODO: mean(a * b) / mean(b) is more numerically stable in case a is
-        #       large
-        return mx.sum(mx.multiply(x, weights), axis=axis) / mx.sum(
-            weights, axis=axis
+    # Weighted average
+    weights = cast(weights, dtype)
+    if weights.ndim != x.ndim:
+        # 1-D weights pick out a single axis to average along, so numpy
+        # requires exactly one axis to be named.
+        if axis is None or (isinstance(axis, (list, tuple)) and len(axis) != 1):
+            raise ValueError(
+                "Axis must be specified when shapes of a and weights differ."
+            )
+        weights_axis = axis[0] if isinstance(axis, (list, tuple)) else axis
+        weights_axis = canonicalize_axis(weights_axis, x.ndim)
+        if weights.ndim != 1 or weights.shape[0] != x.shape[weights_axis]:
+            raise ValueError(
+                "Shape of weights must be consistent with shape of a "
+                "along specified axis."
+            )
+        broadcast_shape = [1] * x.ndim
+        broadcast_shape[weights_axis] = weights.shape[0]
+        weights = mx.reshape(weights, broadcast_shape)
+    elif weights.shape != x.shape:
+        raise ValueError(
+            "Shape of weights must be consistent with shape of a "
+            "along specified axis."
         )
 
-    # Plain average
-    return mx.mean(x, axis=axis)
+    # TODO: mean(a * b) / mean(b) is more numerically stable in case a is
+    #       large
+    return mx.sum(mx.multiply(x, weights), axis=axis) / mx.sum(
+        weights, axis=axis
+    )
 
 
 def bitwise_and(x, y):
@@ -443,6 +463,14 @@ def clip(x, x_min, x_max):
     x, x_min, x_max = convert_to_tensors(x, x_min, x_max)
     # Match numpy and jax: when x_min > x_max the upper bound wins.
     return mx.minimum(mx.maximum(x, x_min), x_max)
+
+
+def column_stack(xs):
+    xs = _promote(*xs)
+    # 1-D tensors are stacked as columns, everything else is concatenated
+    # along axis 1 like hstack.
+    xs = [mx.reshape(x, (x.shape[0], 1)) if x.ndim == 1 else x for x in xs]
+    return mx.concatenate(xs, axis=1)
 
 
 def concatenate(xs, axis=0):
@@ -585,10 +613,9 @@ def dot(x1, x2):
         r = x @ y
         return r
 
-    # else if ndimy >= 2:
-    x = x.reshape(x.shape[:-1] + (x.shape[-1],) + (1,) * (ndimy - 2))
-    r = x @ y
-    return r
+    # else if ndimy >= 2: numpy contracts the last axis of x with the second
+    # to last axis of y, which matmul cannot express once x is not 2-D.
+    return mx.tensordot(x, y, axes=[[-1], [-2]])
 
 
 def empty(shape, dtype=None):
@@ -980,18 +1007,16 @@ def pad(x, pad_width, mode="constant", constant_values=None):
             if pad_before == 0 and pad_after == 0:
                 continue
 
-            size = x.shape[axis]
-            if mode == "symmetric":
-                before_idx = mx.arange(pad_before - 1, -1, -1) % size
-                after_idx = mx.arange(size - 1, size - pad_after - 1, -1) % size
-            else:  # reflect
-                before_idx = mx.arange(pad_before - 1, -1, -1) % (size - 1)
-                after_idx = mx.arange(size - 2, size - pad_after - 2, -1) % (
-                    size - 1
-                )
-
-            indices = mx.concatenate([before_idx, mx.arange(size), after_idx])
-            result = mx.take(result, indices, axis=axis)
+            # Pad an index array to reuse numpy's reflection semantics, which
+            # also cover reflecting repeatedly when the padding is wider than
+            # the axis. Shapes and pad_width are static, so the gather indices
+            # stay a compile time constant.
+            indices = np.pad(
+                np.arange(x.shape[axis], dtype="int32"),
+                (pad_before, pad_after),
+                mode=mode,
+            )
+            result = mx.take(result, mx.array(indices), axis=axis)
 
         return result
 
@@ -1081,7 +1106,12 @@ def reshape(x, newshape):
 
 def roll(x, shift, axis=None):
     x = convert_to_tensor(x)
-    return mx.roll(x, shift, axis=axis)
+    if axis is not None:
+        # `mx.roll` requires `shift` and `axis` to have the same length, while
+        # numpy broadcasts them against each other.
+        shifts, axes = normalize_shift_and_axis(shift, axis)
+        return mx.roll(x, shifts, axis=axes)
+    return mx.roll(x, shift)
 
 
 def sign(x):
