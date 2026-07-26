@@ -150,7 +150,22 @@ class LayerNormalization(Layer):
         self.supports_masking = True
         self.autocast = False
 
+    def _validate_axis(self, input_shape):
+        if isinstance(self.axis, int):
+            axes = [self.axis]
+        else:
+            axes = self.axis
+
+        for axis in axes:
+            if axis >= len(input_shape) or axis < -len(input_shape):
+                raise ValueError(
+                    f"Axis {axis} is out of bounds for "
+                    f"input shape {input_shape}. "
+                    f"Received: axis={self.axis}"
+                )
+
     def build(self, input_shape):
+        self._validate_axis(input_shape)
         if isinstance(self.axis, (list, tuple)):
             self.axis = sorted(self.axis)
             shape = tuple(input_shape[dim] for dim in self.axis)
@@ -195,18 +210,7 @@ class LayerNormalization(Layer):
         return ops.cast(outputs, self.compute_dtype)
 
     def compute_output_shape(self, input_shape):
-        if isinstance(self.axis, int):
-            axes = [self.axis]
-        else:
-            axes = self.axis
-
-        for axis in axes:
-            if axis >= len(input_shape) or axis < -len(input_shape):
-                raise ValueError(
-                    f"Axis {axis} is out of bounds for "
-                    f"input shape {input_shape}. "
-                    f"Received: axis={self.axis}"
-                )
+        self._validate_axis(input_shape)
         return input_shape
 
     def get_config(self):
