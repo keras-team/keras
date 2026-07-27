@@ -522,7 +522,13 @@ class R2Score(reduction_metrics.Metric):
             )
         )
         self.count.assign(self.count + ops.sum(sample_weight, axis=0))
-        self.num_samples.assign(self.num_samples + ops.size(y_true))
+        # Count non-zero samples. We count a sample if it has a
+        # non-zero weight in at least one output. This avoids N x K inflation
+        # for multi-output regression and ensures num_samples is an integer.
+        is_nonzero = ops.not_equal(sample_weight, 0.0)
+        nonzero_per_sample = ops.any(is_nonzero, axis=-1)
+        num_samples_update = ops.sum(ops.cast(nonzero_per_sample, self.dtype))
+        self.num_samples.assign_add(num_samples_update)
 
     def result(self):
         mean = self.sum / self.count
