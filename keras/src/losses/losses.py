@@ -2636,8 +2636,8 @@ def tversky(y_true, y_pred, alpha=0.5, beta=0.5, axis=None):
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
 
-    inputs = y_true
-    targets = y_pred
+    inputs = y_pred
+    targets = y_true
 
     intersection = ops.sum(inputs * targets, axis=axis)
     fp = ops.sum((1 - targets) * inputs, axis=axis)
