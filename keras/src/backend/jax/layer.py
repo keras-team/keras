@@ -16,8 +16,8 @@ if is_nnx_enabled():
 
         def _check_valid_context(self, error_msg):
             # NNX forbids mutating an object from a trace level other than
-            # the one it was created at. These mutations are safe, since 
-            # initializers only see concrete shapes and only shapes escape 
+            # the one it was created at. These mutations are safe, since
+            # initializers only see concrete shapes and only shapes escape
             # the trace.
             if in_symbolic_scope():
                 return

@@ -109,7 +109,7 @@ if config.is_nnx_enabled():
     def _set_raw_value(variable, value):
         object.__setattr__(variable, _NNX_RAW_VALUE_ATTR, value)
 
-    # NNX stamps every object with the trace that was active when it was created 
+    # NNX stamps every object with the trace that was active when it was created
     # and refuses to mutate it from any other trace. Objects created this way
     # outlive the shape-inference trace and hold concrete values, so they
     # are stamped with the enclosing trace instead: once inference
