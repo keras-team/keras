@@ -50,10 +50,6 @@ jobs:
       )
     timeout-minutes: 5
     runs-on: 'ubuntu-latest'
-    env:
-      # The Gemini CLI refuses to run in a directory it does not consider
-      # trusted, which is every fresh checkout on a runner.
-      GEMINI_CLI_TRUST_WORKSPACE: 'true'
     steps:
       - name: 'Get issue data for manual trigger'
         id: 'get_issue_data'
@@ -179,11 +175,7 @@ jobs:
           SEARCH_CONTEXT: '${{ steps.search_codebase.outputs.search_context }}'
         with:
           gemini_api_key: '${{ secrets.GEMINI_API }}'
-          # Triage classifies an issue and emits a small JSON object, which
-          # the flash tier handles well within the job timeout. `-pro` is
-          # not served to this API key: the CLI failed with "models/
-          # gemini-2.5-pro is not found for API version v1beta".
-          gemini_model: 'gemini-3.5-flash'
+          gemini_model: 'gemini-2.5-pro'
           settings: |-
             {
               "maxSessionTurns": 5,
@@ -242,14 +234,6 @@ jobs:
             - user error: Issue caused by incorrect usage, not a bug.
             - to investigate: Issue needs further investigation.
 
-      - name: 'Report Gemini failure'
-        if: |-
-          ${{ failure() && steps.gemini_issue_analysis.outcome == 'failure' }}
-        env:
-          GEMINI_ERROR: '${{ steps.gemini_issue_analysis.outputs.error }}'
-        run: |-
-          echo "::error title=Gemini triage failed::${GEMINI_ERROR:-See the step logs.}"
-
       - name: 'Apply Labels and Post Response'
         if: |-
           ${{ steps.gemini_issue_analysis.outputs.summary != '' }}
@@ -276,7 +260,7 @@ jobs:
             try {
               parsed = JSON.parse(rawOutput);
             } catch (e) {
-              core.error("Failed to parse LLM output as JSON", e);
+              core.error(`Failed to parse LLM output as JSON: ${e.message}`);
               core.setFailed(`Failed to parse model output.\nRaw output: ${rawOutput}`);
               return;
             }
@@ -286,7 +270,7 @@ jobs:
             labelsToAdd = requestedLabels.filter(label => ALLOWED_LABELS.includes(label));
 
             if (requestedLabels.length !== labelsToAdd.length) {
-              core.warn("Blocked unauthorized labels: " + requestedLabels.filter(l => !ALLOWED_LABELS.includes(l)).join(', '));
+              core.warning("Blocked unauthorized labels: " + requestedLabels.filter(l => !ALLOWED_LABELS.includes(l)).join(', '));
             }
 
             // 2. Template-Based Comments (Avoid arbitrary LLM text)
@@ -308,7 +292,7 @@ jobs:
             if (triageReason && COMMENT_TEMPLATES[triageReason]) {
               responseBody = COMMENT_TEMPLATES[triageReason].replace('${author}', issueAuthor);
             } else {
-              core.warn("Blocked arbitrary LLM response body or invalid triage reason: " + triageReason);
+              core.info("No automated comment posted (triage reason: " + triageReason + ").");
             }
 
             // 3. Restricted Auto-Close
