@@ -567,12 +567,9 @@ def initialize_all_variables():
     global_state.set_global_attribute("uninitialized_variables", [])
 
 
-# Cache for non-string dtype objects (torch dtypes, numpy scalar types,
-# Python builtins), keyed by (type(dtype), dtype) rather than dtype alone.
-# tf.DType's __hash__/__eq__ are coerced to match plain Python ints
-# (hash(tf.float32) == hash(1), tf.float32 == 1 is True), so a bare-object
-# key would let a cached tf dtype make a later invalid int/bool silently
-# resolve instead of raising.
+# Keyed by (type(dtype), dtype): `tf.DType` hashes and compares equal to a
+# plain int (`tf.float32 == 1`), so the type must be part of the key or a
+# cached tf dtype could make a later invalid int falsely resolve.
 _DTYPE_CACHE = {}
 
 
@@ -580,7 +577,6 @@ _DTYPE_CACHE = {}
     ["keras.utils.standardize_dtype", "keras.backend.standardize_dtype"]
 )
 def standardize_dtype(dtype):
-    # Fast path 1: already a canonical string.
     if isinstance(dtype, str):
         if dtype in dtypes.ALLOWED_DTYPES_SET:
             return dtype
@@ -600,21 +596,18 @@ def standardize_dtype(dtype):
     if dtype is None:
         return config.floatx()
 
-    # Fast path 2: numpy dtype object. .name is always canonical; uint32
-    # is NOT remapped to int64.
     if isinstance(dtype, np.dtype):
+        # `.name` is canonical; uint32 is NOT remapped to int64 here.
         name = dtype.name
         if name in dtypes.ALLOWED_DTYPES_SET:
             return name
         raise ValueError(f"Invalid dtype: {name}")
 
-    # Fast path 3: cached non-string objects (torch dtypes, Python types).
     cache_key = (type(dtype), dtype)
     cached = _DTYPE_CACHE.get(cache_key)
     if cached is not None:
         return cached
 
-    # Slow path: resolve and cache.
     resolved = dtypes.PYTHON_DTYPES_MAP.get(dtype, dtype)
     if hasattr(resolved, "name"):
         resolved = resolved.name
