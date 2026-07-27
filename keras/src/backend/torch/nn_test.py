@@ -23,11 +23,8 @@ class DotProductAttentionCompileTest(testing.TestCase):
         )
 
     def test_compiles_without_graph_break(self):
-        # `_can_use_flash_attention` builds a pybind11 `SDPAParams` object to
-        # probe kernel support, and dynamo cannot trace pybind11 constructors,
-        # so running the probe while tracing splits the graph at every
-        # attention call. `fullgraph=True` turns that into an error, which is
-        # what makes this a regression test rather than a smoke test.
+        # `fullgraph=True` turns a graph break into an error, which is what
+        # makes this a regression test rather than a smoke test.
         query, key, value = self._qkv()
 
         def attend():
@@ -39,7 +36,6 @@ class DotProductAttentionCompileTest(testing.TestCase):
     def test_compiled_matches_eager(self):
         query, key, value = self._qkv()
         rng = np.random.default_rng(1)
-        # A mask must broadcast to (batch, heads, q_len, kv_len).
         mask = ops.convert_to_tensor(
             rng.integers(0, 2, (2, 1, 16, 16)).astype("bool")
         )
