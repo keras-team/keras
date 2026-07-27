@@ -726,9 +726,8 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(linalg.matrix_rank(a_symb).shape, (4,))
 
     def test_matrix_power(self):
-        # Seed for determinism: the negative-power case below inverts the
-        # input, so its accuracy tracks the conditioning of a randomly drawn
-        # matrix, and an unseeded input was a source of CI flakiness.
+        # Seeded: the negative-power case inverts the input, so its accuracy
+        # depends on how well conditioned the drawn matrix is.
         rng = np.random.default_rng(0)
         x = rng.random((4, 3, 3)).astype("float32")
         # Positive power
@@ -753,9 +752,8 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
             out, expected, atol=1e-6, tpu_atol=1e-2, tpu_rtol=1e-2
         )
 
-        # Negative power. The diagonal shift is what keeps this well
-        # conditioned; `+ np.eye(3)` alone still left the condition number
-        # around 30, which a float32 inverse cannot hold to `atol`.
+        # Negative power. The `3 *` keeps the matrix well conditioned so the
+        # float32 inverse stays within `atol`.
         x_inv_stable = (x + 3 * np.eye(3)).astype("float32")
         out = linalg.matrix_power(x_inv_stable, -2)
         expected = np.linalg.matrix_power(x_inv_stable, -2)
