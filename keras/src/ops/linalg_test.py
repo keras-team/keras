@@ -726,7 +726,11 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(linalg.matrix_rank(a_symb).shape, (4,))
 
     def test_matrix_power(self):
-        x = np.random.rand(4, 3, 3).astype("float32")
+        # Seed for determinism: the negative-power case below inverts the
+        # input, so its accuracy tracks the conditioning of a randomly drawn
+        # matrix, and an unseeded input was a source of CI flakiness.
+        rng = np.random.default_rng(0)
+        x = rng.random((4, 3, 3)).astype("float32")
         # Positive power
         out = linalg.matrix_power(x, 3)
         expected = np.linalg.matrix_power(x, 3)
@@ -742,15 +746,17 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         )
 
         # Zero power (2D)
-        x_2d = np.random.rand(3, 3).astype("float32")
+        x_2d = rng.random((3, 3)).astype("float32")
         out = linalg.matrix_power(x_2d, 0)
         expected = np.linalg.matrix_power(x_2d, 0)
         self.assertAllClose(
             out, expected, atol=1e-6, tpu_atol=1e-2, tpu_rtol=1e-2
         )
 
-        # Negative power
-        x_inv_stable = (x + np.eye(3)).astype("float32")
+        # Negative power. The diagonal shift is what keeps this well
+        # conditioned; `+ np.eye(3)` alone still left the condition number
+        # around 30, which a float32 inverse cannot hold to `atol`.
+        x_inv_stable = (x + 3 * np.eye(3)).astype("float32")
         out = linalg.matrix_power(x_inv_stable, -2)
         expected = np.linalg.matrix_power(x_inv_stable, -2)
         self.assertAllClose(
@@ -767,11 +773,11 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
 
         with self.assertRaises(ValueError):
             # Non-square
-            linalg.matrix_power(np.random.rand(4, 3, 2), 2)
+            linalg.matrix_power(rng.random((4, 3, 2)), 2)
 
         with self.assertRaises(ValueError):
             # Rank < 2
-            linalg.matrix_power(np.random.rand(4), 2)
+            linalg.matrix_power(rng.random((4,)), 2)
 
     @parameterized.named_parameters(
         ("tall_default_rcond", (7, 4), None),
