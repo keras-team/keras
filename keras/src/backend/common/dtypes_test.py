@@ -123,8 +123,6 @@ class DtypesTest(test_case.TestCase):
         self.assertEqual(backend.result_type(), "float32")
 
     def test_result_type_respects_floatx(self):
-        # The memoized core is keyed on floatx() so weak-type promotion
-        # follows set_floatx and never returns a stale cached result.
         original_floatx = backend.floatx()
         try:
             backend.set_floatx("float32")
@@ -135,13 +133,8 @@ class DtypesTest(test_case.TestCase):
             backend.set_floatx(original_floatx)
 
     def test_result_type_cache_does_not_collide_with_tf_dtype(self):
-        """Regression test: tf.DType's __hash__/__eq__ are coerced to match
-        plain Python ints (hash(tf.float32) == hash(1) == 1, and
-        tf.float32 == 1 is True). The lru_cache backing result_type must be
-        keyed so that a previously-cached tf.DType arg can never make a
-        later, unrelated invalid int arg silently resolve instead of
-        raising.
-        """
+        # `tf.float32` hashes and compares equal to `1`, so a cached entry for
+        # it must not make the invalid `1` resolve.
         import tensorflow as tf
 
         with self.assertRaises(ValueError):
@@ -153,11 +146,8 @@ class DtypesTest(test_case.TestCase):
             backend.result_type(1)
 
     def test_result_type_unhashable_argument(self):
-        # An unhashable argument cannot be used as an `lru_cache` key, so
-        # `result_type` falls back to the uncached walk rather than letting
-        # `unhashable type` escape from the cache lookup. These are all
-        # invalid dtypes; what is pinned here is that each one keeps failing
-        # the same way it does without the cache.
+        # None of these are valid dtypes; the point is that each is rejected
+        # rather than surfacing `unhashable type` from the cache lookup.
         with self.assertRaises(ValueError):
             backend.result_type(np.array([1, 2]))
         with self.assertRaises(TypeError):
@@ -170,9 +160,8 @@ class DtypesTest(test_case.TestCase):
             backend.result_type("float32", [1])
 
     def test_result_type_float8_rejected_outside_the_cache(self):
-        # The float8 rejection must run on every call, not only on the first
-        # one: `lru_cache` does not memoize exceptions, but it would memoize
-        # a *successful* result, so the check is kept ahead of the cache.
+        # Repeated: the rejection has to raise on every call, not just the
+        # first one to reach the cache.
         for _ in range(3):
             with self.assertRaisesRegex(
                 ValueError, "no implicit conversions from float8"
