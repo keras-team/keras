@@ -2878,6 +2878,8 @@ def repeat(x, repeats, axis=None):
 
 def reshape(x, newshape):
     x = convert_to_tensor(x)
+    if isinstance(newshape, (int, np.integer)):
+        newshape = (newshape,)
     if isinstance(x, tf.SparseTensor):
         from keras.src.ops.operation_utils import compute_reshape_output_shape
 
