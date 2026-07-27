@@ -317,9 +317,8 @@ def result_type(*dtypes):
     "float64"
 
     """
-    # The empty case and the float8 rejection stay outside the cache so that
-    # both keep raising on every call and keep seeing the caller's original
-    # objects, exactly as before. Only the lattice walk is memoized.
+    # Only the lattice walk is memoized. The float8 rejection stays out here
+    # so it raises on every call, not just the first.
     if len(dtypes) == 0:
         # If no dtypes provided, default to floatx, this matches
         # `ops.convert_to_tensor([])`
@@ -330,18 +329,14 @@ def result_type(*dtypes):
                 "There is no implicit conversions from float8 dtypes to others."
                 f" You must cast it internally. Received: {dtypes}"
             )
-    # Type-tagged before caching: tf.DType's __hash__/__eq__ are coerced to
-    # match plain Python ints (hash(tf.float32) == hash(1), tf.float32 == 1
-    # is True), so a raw-dtypes cache key would let an invalid int silently
-    # return whatever tf dtype happened to populate the cache first.
+    # `tf.DType` hashes and compares equal to a plain int (`tf.float32 == 1`),
+    # so the type is part of the key to stop an invalid int matching a cached
+    # tf dtype entry.
     tagged = tuple((type(d), d) for d in dtypes)
     try:
         return _result_type_cached(tagged, config.floatx())
     except TypeError:
-        # An unhashable argument (list, dict, ndarray) is not a valid dtype
-        # anyway. Fall through to the uncached walk so it fails the same way
-        # it always has, rather than surfacing `unhashable type` from
-        # `lru_cache`.
+        # Unhashable, so not a valid dtype. Let the uncached walk reject it.
         return _lattice_result_type(
             *(config.floatx() if arg is None else arg for arg in dtypes),
         )
