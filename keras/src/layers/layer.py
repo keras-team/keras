@@ -332,6 +332,58 @@ class Layer(BackendLayer, Operation):
             for arg in self._call_context_args
         }
 
+        # Precompute an eager fast path for CallSpec that covers the common
+        # case of a single positional tensor and no keyword arguments. It
+        # reproduces every CallSpec field without inspect.Signature.bind.
+        call_params = list(self._call_signature.parameters.values())
+        # Precomputed (name, kind, default) specs so CallSpec can bind
+        # arguments in pure Python, without touching
+        # inspect.Signature.parameters (a mappingproxy that torch.compile
+        # cannot trace past).
+        self._call_param_specs = tuple(
+            (p.name, p.kind, p.default) for p in call_params
+        )
+        self._call_arg_names = self.call_signature_parameters
+        self._call_first_arg_name = None
+        self._call_arg_defaults = {}
+        self._call_spec_fast_path = False
+        if call_params:
+            first_param = call_params[0]
+            self._call_first_arg_name = first_param.name
+            self._call_arg_defaults = {
+                p.name: p.default
+                for p in call_params[1:]
+                if p.default is not inspect.Parameter.empty
+            }
+            has_var_arg = any(
+                p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD) for p in call_params
+            )
+            non_first_have_defaults = all(
+                p.default is not inspect.Parameter.empty
+                for p in call_params[1:]
+            )
+            # A default that is itself a tensor or a non-empty nested
+            # structure would land in tensor_arguments_dict in the slow path,
+            # so such signatures must fall through.
+            defaults_are_safe = all(
+                not is_backend_tensor_or_symbolic(v)
+                and not (
+                    tree.is_nested(v)
+                    and (not hasattr(v, "__len__") or len(v) > 0)
+                )
+                for v in self._call_arg_defaults.values()
+            )
+            self._call_spec_fast_path = (
+                first_param.kind
+                in (
+                    first_param.POSITIONAL_OR_KEYWORD,
+                    first_param.POSITIONAL_ONLY,
+                )
+                and not has_var_arg
+                and non_first_have_defaults
+                and defaults_are_safe
+            )
+
         self._supports_masking = not utils.is_default(self.compute_mask)
         # Whether to automatically convert (+ auto-cast) inputs to `call()`.
         self._convert_input_args = True
@@ -872,10 +924,34 @@ class Layer(BackendLayer, Operation):
     @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
         self._check_super_called()
-        self._called = True
+        if not self._called:
+            self._called = True
 
         original_args = args
         original_kwargs = kwargs
+
+        # Shape fact reused across steps 1, 2 and the CallSpec fast-path
+        # gate below: a single positional arg that is itself a leaf backend
+        # or symbolic tensor, with no kwargs other than exactly the
+        # well-known `training=<exact bool>` context kwarg (this mirrors
+        # the CallSpec fast-path gate's own kwargs check precisely --
+        # including rejecting an explicit `training=None`, which the gate
+        # does not special-case). This does not depend on dtype (step 1 has
+        # its own, stricter, dtype-match condition); it only certifies that
+        # `args` has no nested structure left to walk.
+        # `training` itself is derived below (needed here before its own
+        # comment/derivation site to keep this predicate self-contained).
+        training = kwargs.get("training") if kwargs else None
+        single_tensor_call = (
+            len(args) == 1
+            and is_backend_tensor_or_symbolic(args[0], allow_none=False)
+            and (
+                not kwargs
+                or (
+                    len(kwargs) == 1 and (training is True or training is False)
+                )
+            )
+        )
 
         #############################################################
         # 1. Convert any array arguments to tensors of correct dtype.
@@ -889,9 +965,22 @@ class Layer(BackendLayer, Operation):
                 backend.set_keras_mask(y, mask)
             return y
 
+        # `fit()`/`evaluate()`/`predict()` always pass `training=` explicitly
+        # (see torch/tensorflow/jax trainer.py), so `kwargs` alone is not a
+        # reliable signal that conversion could matter: the well-known
+        # `training=<bool-or-None>` shape carries no array-like leaves for
+        # `maybe_convert` to act on, and is excluded here for the same
+        # reason the CallSpec fast path below excludes it. `training` was
+        # already derived above by the `single_tensor_call` predicate.
+        kwargs_skip_convert = not kwargs or (
+            len(kwargs) == 1
+            and "training" in kwargs
+            and (training is True or training is False or training is None)
+        )
+
         # Used to avoid expensive `tree` operations in the most common case.
         if (
-            kwargs
+            not kwargs_skip_convert
             or len(args) != 1
             or not is_backend_tensor_or_symbolic(args[0], allow_none=False)
             or backend.standardize_dtype(args[0].dtype) != self.input_dtype
@@ -901,7 +990,14 @@ class Layer(BackendLayer, Operation):
 
         ##########################################################
         # 2. Enforce that only tensors can be passed positionally.
-        if not self._allow_non_tensor_positional_args:
+        # When `single_tensor_call` holds, `args` is `(args[0],)` and
+        # `args[0]` was already vetted above (conversion, if any, preserves
+        # backend/symbolic tensor-ness), so the flatten walk below is
+        # redundant and skipped.
+        if (
+            not single_tensor_call
+            and not self._allow_non_tensor_positional_args
+        ):
             for arg in tree.flatten(args):
                 if not is_backend_tensor_or_symbolic(arg, allow_none=True):
                     raise ValueError(
@@ -911,75 +1007,133 @@ class Layer(BackendLayer, Operation):
                         f"(of type {type(arg)})"
                     )
 
-        # Caches info about `call()` signature, args, kwargs.
-        call_spec = CallSpec(
-            self._call_signature, self._call_context_args, args, kwargs
-        )
+        # Caches info about `call()` signature, args, kwargs. The fast path
+        # reproduces CallSpec for the common single-tensor call with either
+        # no kwargs or exactly the well-known `training=<bool>` kwarg,
+        # without paying for inspect.Signature.bind.
+        call_spec_is_leaf = self._call_spec_fast_path and single_tensor_call
+        if call_spec_is_leaf:
+            call_spec = CallSpec._fast(
+                self._call_arg_names,
+                self._call_arg_defaults,
+                self._call_first_arg_name,
+                args[0],
+                training=training,
+            )
+            # Mirror CallSpec.__init__'s side effect: pop context args (here,
+            # only `training` can be present) that this layer's `call()` does
+            # not accept, so downstream code sees the same `kwargs` dict the
+            # slow path would have produced.
+            if training is not None and not self._call_has_context_arg.get(
+                "training", False
+            ):
+                del kwargs["training"]
+        else:
+            call_spec = CallSpec(
+                self._call_param_specs, self._call_context_args, args, kwargs
+            )
 
         ############################################
         # 3. Check input spec for 1st positional arg.
         # TODO: consider extending this to all args and kwargs.
         self._assert_input_compatibility(call_spec.first_arg)
 
-        ################
-        # 4. Call build
-        with self._open_name_scope():
-            self._maybe_build(call_spec)
-
-        ##########################
-        # 5. Infer training value
-        # Training phase for `Layer.call` is set via (in order of priority):
-        # (1) The `training` argument passed to this `Layer.call`, if not None
-        # (2) The training argument of an outer `Layer.call`.
-        # (4) Any non-None default value for `training` in the call signature
-        # (5) False (treating the layer as if it's in inference)
-
-        # Maintains info about the `Layer.call` stack
-        # across nested calls.
-        call_context = self._get_call_context()
-
-        for context_arg in self._call_context_args:
-            self._resolve_and_populate_arg(
-                context_arg, call_spec, call_context, kwargs
-            )
-
-        ##############################
-        # 6. Populate mask argument(s)
-        if len(call_spec.tensor_arguments_dict) == 1:
-            if (
-                "mask" in call_spec.argument_names
-                and call_spec.arguments_dict["mask"] is None
-            ):
-                arg_name = list(call_spec.tensor_arguments_dict.keys())[0]
-                only_tensor_arg = call_spec.tensor_arguments_dict[arg_name]
-                mask = tree.map_structure(
-                    backend.get_keras_mask,
-                    only_tensor_arg,
-                )
-                kwargs["mask"] = mask
-        elif len(call_spec.tensor_arguments_dict) > 1:
-            for k, v in call_spec.tensor_arguments_dict.items():
-                expected_mask_arg_name = f"{k}_mask"
-                if expected_mask_arg_name in call_spec.argument_names:
-                    if call_spec.arguments_dict[expected_mask_arg_name] is None:
-                        mask = tree.map_structure(backend.get_keras_mask, v)
-                        kwargs[expected_mask_arg_name] = mask
-
-        # We need to cache the `previous_mask` before `__call__` because the
-        # mask might be removed during the call, such as `MultiHeadAttention`.
-        if "mask" in kwargs and kwargs["mask"] is not None:
-            # Case 1: Mask was explicitly passed or auto-populated in step 6.
-            previous_mask = kwargs["mask"]
-        else:
-            # Case 2: Fallback to the mask attached to the first input tensor.
-            previous_mask = tree.map_structure(
-                backend.get_keras_mask, call_spec.first_arg
-            )
-
-        ####################
-        # 7. Call the layer.
+        ####################################################################
+        # 4-7. Call build, infer training value, populate mask argument(s),
+        # and call the layer, all within a single name scope. Steps 5-6 do
+        # not consult the active name scope (`current_path()`); they only
+        # need to run somewhere between build and the actual call, so having
+        # the scope open around them (instead of opening it twice) is purely
+        # a bookkeeping simplification.
         try:
             with self._open_name_scope():
+                ################
+                # 4. Call build
+                self._maybe_build(call_spec)
+
+                ##########################
+                # 5. Infer training value
+                # Training phase for `Layer.call` is set via (in order of
+                # priority):
+                # (1) The `training` argument passed to this `Layer.call`,
+                #     if not None
+                # (2) The training argument of an outer `Layer.call`.
+                # (4) Any non-None default value for `training` in the call
+                #     signature
+                # (5) False (treating the layer as if it's in inference)
+
+                # Maintains info about the `Layer.call` stack
+                # across nested calls.
+                call_context = self._get_call_context()
+
+                for context_arg in self._call_context_args:
+                    self._resolve_and_populate_arg(
+                        context_arg, call_spec, call_context, kwargs
+                    )
+
+                ##############################
+                # 6. Populate mask argument(s)
+                if len(call_spec.tensor_arguments_dict) == 1:
+                    if (
+                        "mask" in call_spec.argument_names
+                        and call_spec.arguments_dict["mask"] is None
+                    ):
+                        arg_name = list(call_spec.tensor_arguments_dict.keys())[
+                            0
+                        ]
+                        only_tensor_arg = call_spec.tensor_arguments_dict[
+                            arg_name
+                        ]
+                        # `call_spec_is_leaf` guarantees `only_tensor_arg` is
+                        # a leaf tensor (CallSpec._fast always sets
+                        # `tensor_arguments_dict = {first_name: x}` for the
+                        # single vetted leaf `x`), so `get_keras_mask` can be
+                        # called directly instead of walking it with
+                        # `map_structure`. The general (possibly-nested)
+                        # path is unchanged otherwise.
+                        if call_spec_is_leaf:
+                            mask = backend.get_keras_mask(only_tensor_arg)
+                        else:
+                            mask = tree.map_structure(
+                                backend.get_keras_mask,
+                                only_tensor_arg,
+                            )
+                        kwargs["mask"] = mask
+                elif len(call_spec.tensor_arguments_dict) > 1:
+                    for k, v in call_spec.tensor_arguments_dict.items():
+                        expected_mask_arg_name = f"{k}_mask"
+                        if expected_mask_arg_name in call_spec.argument_names:
+                            if (
+                                call_spec.arguments_dict[expected_mask_arg_name]
+                                is None
+                            ):
+                                mask = tree.map_structure(
+                                    backend.get_keras_mask, v
+                                )
+                                kwargs[expected_mask_arg_name] = mask
+
+                # We need to cache the `previous_mask` before `__call__`
+                # because the mask might be removed during the call, such as
+                # `MultiHeadAttention`.
+                if "mask" in kwargs and kwargs["mask"] is not None:
+                    # Case 1: Mask was explicitly passed or auto-populated in
+                    # step 6.
+                    previous_mask = kwargs["mask"]
+                elif call_spec_is_leaf:
+                    # Case 2 (leaf fast path): `call_spec.first_arg` is the
+                    # same vetted leaf tensor, so no structure walk is
+                    # needed.
+                    previous_mask = backend.get_keras_mask(call_spec.first_arg)
+                else:
+                    # Case 2 (general path): fallback to the mask attached
+                    # to the first input tensor, which may be a nested
+                    # structure.
+                    previous_mask = tree.map_structure(
+                        backend.get_keras_mask, call_spec.first_arg
+                    )
+
+                ####################
+                # 7. Call the layer.
                 current_scope = backend.get_autocast_scope()
                 new_scope = None
                 if current_scope is not None:
@@ -1013,7 +1167,8 @@ class Layer(BackendLayer, Operation):
                             outputs, layout
                         )
 
-                self.built = True
+                if not self.built:
+                    self.built = True
                 # Record activity regularizer loss.
                 if self.activity_regularizer is not None:
                     for output in tree.flatten(outputs):
@@ -1035,7 +1190,11 @@ class Layer(BackendLayer, Operation):
                 self._set_mask_metadata(
                     call_spec.first_arg, outputs, previous_mask
                 )
-            elif any(m is not None for m in tree.flatten(previous_mask)):
+            elif (
+                previous_mask is not None
+                if call_spec_is_leaf
+                else any(m is not None for m in tree.flatten(previous_mask))
+            ):
                 warnings.warn(
                     f"Layer '{self.name}' (of type {self.__class__.__name__}) "
                     "was passed an input with a mask attached to it. "
@@ -1049,7 +1208,18 @@ class Layer(BackendLayer, Operation):
 
         ################################################
         # 8. Add a node in the graph for symbolic calls.
-        if any_symbolic_tensors(original_args, original_kwargs):
+        # `call_spec_is_leaf` implies `original_args == (args[0],)` and
+        # `original_kwargs` has no tensor-valued entries (only, at most, a
+        # non-tensor `training=<bool>`), so `call_spec.eager` -- which
+        # `CallSpec._fast` sets to `not isinstance(args[0], KerasTensor)` --
+        # is equivalent to the general `any_symbolic_tensors` walk, without
+        # re-walking `original_args`/`original_kwargs`.
+        is_symbolic_call = (
+            not call_spec.eager
+            if call_spec_is_leaf
+            else any_symbolic_tensors(original_args, original_kwargs)
+        )
+        if is_symbolic_call:
             Node(
                 operation=self,
                 call_args=original_args,
@@ -1207,7 +1377,7 @@ class Layer(BackendLayer, Operation):
         else:
             # Use compute_output_shape() to return the right output spec
             call_spec = CallSpec(
-                self._call_signature, self._call_context_args, args, kwargs
+                self._call_param_specs, self._call_context_args, args, kwargs
             )
             shapes_dict = get_shapes_dict(call_spec)
             shapes_dict = update_shapes_dict_for_target_fn(
@@ -1716,6 +1886,37 @@ class Layer(BackendLayer, Operation):
         return layers
 
     def _set_mask_metadata(self, inputs, outputs, previous_mask):
+        # Fast path: a single (non-nested) tensor output, the overwhelmingly
+        # common case, needs neither `tree.flatten` nor the all()/zip()
+        # genexpr machinery below -- `outputs` itself is both the sole
+        # "flat output" and the sole mask-target. Any other output shape
+        # (tuple, list, dict, or a nested pytree) falls through to the
+        # general path unchanged.
+        if not tree.is_nested(outputs):
+            if backend.get_keras_mask(outputs) is not None:
+                return
+            output_mask = self.compute_mask(inputs, previous_mask)
+            if output_mask is None:
+                return
+            if tree.is_nested(output_mask):
+                # Contract violation guard: `compute_mask` is expected to
+                # mirror `outputs`' structure (every built-in override
+                # does), but if a custom override returns a nested result
+                # for a leaf output anyway, match the general path's exact
+                # semantics below (the first flattened mask, or "no mask"
+                # if `compute_mask` returned an empty structure -- mirrors
+                # `zip(flat_outputs, flat_masks)` silently producing zero
+                # pairs rather than raising) instead of storing the wrong
+                # structure or crashing where the general path would not.
+                flat_output_mask = tree.flatten(output_mask)
+                output_mask = flat_output_mask[0] if flat_output_mask else None
+            if (
+                output_mask is not None
+                and backend.get_keras_mask(outputs) is None
+            ):
+                backend.set_keras_mask(outputs, output_mask)
+            return
+
         flat_outputs = tree.flatten(outputs)
 
         mask_already_computed = all(
@@ -1862,30 +2063,116 @@ def is_backend_tensor_or_symbolic(x, allow_none=False):
     return backend.is_tensor(x) or isinstance(x, backend.KerasTensor)
 
 
+_PARAM_VAR_POSITIONAL = inspect.Parameter.VAR_POSITIONAL
+_PARAM_VAR_KEYWORD = inspect.Parameter.VAR_KEYWORD
+_PARAM_KEYWORD_ONLY = inspect.Parameter.KEYWORD_ONLY
+_PARAM_POSITIONAL_ONLY = inspect.Parameter.POSITIONAL_ONLY
+_PARAM_EMPTY = inspect.Parameter.empty
+
+
+def _bind_call_arguments(param_specs, args, kwargs):
+    """Pure-Python equivalent of `inspect.Signature.bind` +
+    `BoundArguments.apply_defaults` for `call()` signatures.
+
+    Returns `(provided, full)` where `provided` maps parameter names to
+    explicitly-passed values (what `bind().arguments` would contain) and
+    `full` additionally includes defaults, both in parameter order.
+
+    Exists because `Signature.bind` iterates `Signature.parameters`, a
+    mappingproxy, which torch.compile refuses to trace past (graph break);
+    plain tuple iteration and dict ops trace cleanly, and are also faster
+    in eager mode.
+    """
+    provided = {}
+    remaining_kwargs = dict(kwargs) if kwargs else {}
+    n_args = len(args)
+    pos_i = 0
+    has_var_positional = False
+    var_keyword_name = None
+    for name, kind, default in param_specs:
+        if kind is _PARAM_VAR_POSITIONAL:
+            has_var_positional = True
+            if pos_i < n_args:
+                provided[name] = tuple(args[pos_i:])
+                pos_i = n_args
+        elif kind is _PARAM_VAR_KEYWORD:
+            var_keyword_name = name
+        elif kind is _PARAM_KEYWORD_ONLY:
+            if name in remaining_kwargs:
+                provided[name] = remaining_kwargs.pop(name)
+            elif default is _PARAM_EMPTY:
+                raise TypeError(f"missing a required argument: '{name}'")
+        else:  # POSITIONAL_ONLY or POSITIONAL_OR_KEYWORD
+            if pos_i < n_args:
+                if (
+                    name in remaining_kwargs
+                    and kind is not _PARAM_POSITIONAL_ONLY
+                ):
+                    raise TypeError(f"multiple values for argument '{name}'")
+                provided[name] = args[pos_i]
+                pos_i += 1
+            elif (
+                name in remaining_kwargs and kind is not _PARAM_POSITIONAL_ONLY
+            ):
+                provided[name] = remaining_kwargs.pop(name)
+            elif default is _PARAM_EMPTY:
+                raise TypeError(f"missing a required argument: '{name}'")
+    if pos_i < n_args and not has_var_positional:
+        raise TypeError("too many positional arguments")
+    if remaining_kwargs:
+        if var_keyword_name is not None:
+            provided[var_keyword_name] = remaining_kwargs
+        else:
+            raise TypeError(
+                "got an unexpected keyword argument "
+                f"'{next(iter(remaining_kwargs))}'"
+            )
+
+    full = {}
+    for name, kind, default in param_specs:
+        if name in provided:
+            full[name] = provided[name]
+        elif default is not _PARAM_EMPTY:
+            full[name] = default
+        elif kind is _PARAM_VAR_POSITIONAL:
+            full[name] = ()
+        elif kind is _PARAM_VAR_KEYWORD:
+            full[name] = {}
+    return provided, full
+
+
 class CallSpec:
-    def __init__(self, signature, call_context_args, args, kwargs):
+    def __init__(self, param_specs, call_context_args, args, kwargs):
+        # `param_specs` is the layer's precomputed tuple of
+        # (name, kind, default) for every `call()` parameter
+        # (`Layer._call_param_specs`). Binding is done in pure Python
+        # (`_bind_call_arguments`) rather than `inspect.Signature.bind`,
+        # which reads `Signature.parameters` -- a mappingproxy access that
+        # torch.compile cannot trace past (it graph-breaks).
+        param_names = {spec[0] for spec in param_specs}
         # Strip out user-supplied call-context args that this layer’s `call()`
-        # does not accept (otherwise `signature.bind` would raise).
+        # does not accept (otherwise binding would raise).
         # This includes built-in args like `training`, and user-defined args.
         call_args = {
             context_arg: kwargs.pop(context_arg)
             for context_arg in call_context_args
-            if context_arg in kwargs and context_arg not in signature.parameters
+            if context_arg in kwargs and context_arg not in param_names
         }
 
-        bound_args = signature.bind(*args, **kwargs)
+        provided, full_arguments = _bind_call_arguments(
+            param_specs, args, kwargs
+        )
 
         # Combine the two dicts.
-        self.user_arguments_dict = {**call_args, **bound_args.arguments}
+        self.user_arguments_dict = {**call_args, **provided}
 
-        bound_args.apply_defaults()
         arg_dict = {}
         arg_names = []
         tensor_arg_dict = {}
         tensor_args = []
         tensor_arg_names = []
         nested_tensor_arg_names = []
-        for name, value in bound_args.arguments.items():
+        for name, value in full_arguments.items():
             arg_dict[name] = value
             arg_names.append(name)
             if is_backend_tensor_or_symbolic(value):
@@ -1921,6 +2208,54 @@ class CallSpec:
             self.eager = True
         else:
             self.eager = False
+
+    @classmethod
+    def _fast(cls, arg_names, defaults, first_name, x, training=None):
+        # Fast path mirror of __init__ for a single positional tensor `x`
+        # (a backend tensor or KerasTensor) and either no keyword arguments
+        # or exactly the well-known `training=<exact bool>` keyword argument.
+        # `arg_names` is the full ordered list of call() parameter names,
+        # `defaults` maps every non-first parameter to its non-tensor
+        # default, and `first_name` is the first parameter name. The fields
+        # set here match those produced by __init__ for this case exactly.
+        call_spec = cls.__new__(cls)
+        accepts_training = "training" in defaults
+        if training is None:
+            call_spec.user_arguments_dict = {first_name: x}
+        elif accepts_training:
+            # Accepting layer: matches bound_args.arguments ordering, which
+            # follows the call() signature's parameter order (first_name
+            # first, then training in its declared position).
+            call_spec.user_arguments_dict = {
+                first_name: x,
+                "training": training,
+            }
+        else:
+            # Non-accepting layer: matches the slow path's
+            # {**call_args, **bound_args.arguments}, where `training` was
+            # popped into call_args and so comes first.
+            call_spec.user_arguments_dict = {
+                "training": training,
+                first_name: x,
+            }
+        call_spec.arguments_dict = {first_name: x, **defaults}
+        if training is not None and accepts_training:
+            # Post-construction override (rather than building the dict with
+            # the overridden value inline) preserves insertion order to match
+            # bound_args.apply_defaults() exactly: `training`'s position is
+            # determined by its position in `defaults`/the call() signature,
+            # not by when it was assigned here.
+            call_spec.arguments_dict["training"] = training
+        # Copy `arg_names` rather than aliasing it: it is the layer's shared
+        # `_call_arg_names` list, and callers of the slow path build a fresh
+        # list each call, so `argument_names` must not be mutated in place.
+        call_spec.argument_names = list(arg_names)
+        call_spec.tensor_arguments_dict = {first_name: x}
+        call_spec.tensor_arguments_names = [first_name]
+        call_spec.nested_tensor_argument_names = []
+        call_spec.first_arg = x
+        call_spec.eager = not isinstance(x, backend.KerasTensor)
+        return call_spec
 
 
 def get_arguments_dict(fn, args, kwargs):

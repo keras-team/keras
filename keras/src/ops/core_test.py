@@ -19,6 +19,7 @@ from keras.src.layers.core import input_layer
 from keras.src.ops import core
 from keras.src.saving import object_registration
 from keras.src.testing.test_utils import named_product
+from keras.src.utils import traceback_utils
 
 
 class CoreOpsDynamicShapeTest(testing.TestCase):
@@ -1780,6 +1781,33 @@ class CoreOpsBehaviorTests(testing.TestCase):
         mock_spec1 = KerasTensor(shape=(2, 2), dtype="float32")
         mock_spec2 = KerasTensor(shape=(2, 2), dtype="float32")
         self.assertTrue(core.Cond()._check_output_spec(mock_spec1, mock_spec2))
+
+    def test_cond_error_message_uses_real_call_signature(self):
+        """Regression test: exceptions raised inside `Cond.__call__` should
+        be augmented using `Cond.call`'s real parameter names (`pred`,
+        `true_fn`, `false_fn`), not the generic `args`/`kwargs` of the
+        internal `call_fn` closure used to dispatch between eager and
+        symbolic execution.
+        """
+        was_enabled = traceback_utils.is_traceback_filtering_enabled()
+        traceback_utils.enable_traceback_filtering()
+        try:
+
+            def raising_true_fn():
+                raise ValueError("boom")
+
+            with self.assertRaises(ValueError) as ctx:
+                core.cond(True, raising_true_fn, lambda: 0)
+            msg = str(ctx.exception)
+            self.assertIn("Cond.call()", msg)
+            self.assertIn("pred=", msg)
+            self.assertIn("true_fn=", msg)
+            self.assertIn("false_fn=", msg)
+            self.assertNotIn("args=", msg)
+            self.assertNotIn("kwargs=", msg)
+        finally:
+            if not was_enabled:
+                traceback_utils.disable_traceback_filtering()
 
     @pytest.mark.requires_trainable_backend
     def test_cond_raw_bool_compile(self):

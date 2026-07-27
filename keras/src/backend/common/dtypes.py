@@ -23,7 +23,10 @@ COMPLEX_TYPES = ("complex64", "complex128")
 # Ref: https://github.com/google/jax/issues/16705
 FLOAT8_TYPES = ("float8_e4m3fn", "float8_e5m2")
 
-# All supported dtypes in Keras
+# All supported dtypes in Keras. Kept as an ordered tuple: several test suites
+# build parametrized cases by iterating it, and pytest-xdist requires a
+# deterministic collection order across workers (a set/frozenset iterates in
+# hash-randomized order that differs per process).
 ALLOWED_DTYPES = (
     "float16",
     "float32",
@@ -44,6 +47,9 @@ ALLOWED_DTYPES = (
     "complex64",
     "complex128",
 )
+# O(1) membership set for the hot path in standardize_dtype (called 2-4x per
+# layer call). Derived from ALLOWED_DTYPES so the two never drift.
+ALLOWED_DTYPES_SET = frozenset(ALLOWED_DTYPES)
 PYTHON_DTYPES_MAP = {
     bool: "bool",
     int: "int64" if config.backend() == "tensorflow" else "int32",
@@ -277,6 +283,26 @@ def _lattice_result_type(*args):
     return out_dtype
 
 
+# floatx is part of the key so a floatx change can't return a stale result.
+# lru_cache doesn't cache exceptions, so the float8 raise below is safe.
+@functools.lru_cache(maxsize=512)
+def _result_type_cached(tagged_dtypes, floatx):
+    dtypes = tuple(d for _, d in tagged_dtypes)
+    if len(dtypes) == 0:
+        # If no dtypes provided, default to floatx, this matches
+        # `ops.convert_to_tensor([])`
+        return floatx
+    for dtype in dtypes:
+        if dtype in FLOAT8_TYPES:
+            raise ValueError(
+                "There is no implicit conversions from float8 dtypes to others."
+                f" You must cast it internally. Received: {dtypes}"
+            )
+    return _lattice_result_type(
+        *(floatx if arg is None else arg for arg in dtypes),
+    )
+
+
 @keras_export("keras.backend.result_type")
 def result_type(*dtypes):
     """Returns the type from applying the Keras type promotion rules.
@@ -309,16 +335,9 @@ def result_type(*dtypes):
     "float64"
 
     """
-    if len(dtypes) == 0:
-        # If no dtypes provided, default to floatx, this matches
-        # `ops.convert_to_tensor([])`
-        return config.floatx()
-    for dtype in dtypes:
-        if dtype in FLOAT8_TYPES:
-            raise ValueError(
-                "There is no implicit conversions from float8 dtypes to others."
-                f" You must cast it internally. Received: {dtypes}"
-            )
-    return _lattice_result_type(
-        *(config.floatx() if arg is None else arg for arg in dtypes),
-    )
+    # Type-tagged before caching: tf.DType's __hash__/__eq__ are coerced to
+    # match plain Python ints (hash(tf.float32) == hash(1), tf.float32 == 1
+    # is True), so a raw-dtypes cache key would let an invalid int silently
+    # return whatever tf dtype happened to populate the cache first.
+    tagged = tuple((type(d), d) for d in dtypes)
+    return _result_type_cached(tagged, config.floatx())

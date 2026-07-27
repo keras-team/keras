@@ -54,6 +54,50 @@ class Loss(KerasSaveable):
         return self._dtype
 
     def __call__(self, y_true, y_pred, sample_weight=None):
+        # Torch fast path: skip name_scope, convert_to_tensor, and mask
+        # overhead for the common case of two plain torch Tensors that
+        # already match self.dtype, live on the same device, carry no input
+        # mask, and have no sample_weight. Any input that doesn't satisfy
+        # every condition (a numpy/list/dict y_true, a mismatched dtype or
+        # device, an existing mask) falls through to the slow path below,
+        # which converts and casts it correctly.
+        if (
+            sample_weight is None
+            and backend.backend() == "torch"
+            and not isinstance(y_pred, (dict, list, tuple))
+        ):
+            import torch as _torch
+
+            if (
+                isinstance(y_pred, _torch.Tensor)
+                and isinstance(y_true, _torch.Tensor)
+                and y_pred.device == y_true.device
+                and backend.standardize_dtype(y_pred.dtype) == self.dtype
+                and backend.standardize_dtype(y_true.dtype) == self.dtype
+                and backend.get_keras_mask(y_pred) is None
+            ):
+                losses = self.call(y_true, y_pred)
+                mask = backend.get_keras_mask(losses)
+                if mask is not None:
+                    return reduce_weighted_values(
+                        losses,
+                        sample_weight=None,
+                        mask=mask,
+                        reduction=self.reduction,
+                        dtype=self.dtype,
+                    )
+                # With no sample_weight and no output mask, reduce_values
+                # already skips the sample_weight/mask handling that
+                # reduce_weighted_values would otherwise do, so routing
+                # through it here is no slower than hand-rolling mean()/
+                # sum() directly, while staying dtype-exact with the slow
+                # path: divide_no_nan forces 64-bit compute dtypes down to
+                # their 32-bit equivalent on non-tensorflow backends, which
+                # a bare losses.mean() would not.
+                return reduce_values(
+                    losses, sample_weight=None, reduction=self.reduction
+                )
+
         in_mask = backend.get_keras_mask(y_pred)
 
         with ops.name_scope(self.name):

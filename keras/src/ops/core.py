@@ -10,7 +10,6 @@ from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.ops.operation import Operation
 from keras.src.saving import serialization_lib
-from keras.src.utils import traceback_utils
 
 
 class Map(Operation):
@@ -1067,25 +1066,6 @@ def convert_to_numpy(x):
 
 
 class Cond(Operation):
-    @traceback_utils.filter_traceback
-    def __call__(self, *args, **kwargs):
-        def call_fn(*args, **kwargs):
-            if any_symbolic_tensors(args, kwargs):
-                return self.symbolic_call(*args, **kwargs)
-            else:
-                return self.call(*args, **kwargs)
-
-        if traceback_utils.is_traceback_filtering_enabled():
-            # Wrap self.call to provide helpful info in case of exception
-            call_fn = traceback_utils.inject_argument_info_in_traceback(
-                call_fn,
-                object_name=(f"{self.__class__.__name__}.call()"),
-            )
-            return call_fn(*args, **kwargs)
-
-        # Plain flow.
-        return call_fn(*args, **kwargs)
-
     def call(self, pred, true_fn, false_fn):
         return backend.core.cond(pred, true_fn, false_fn)
 
