@@ -50,6 +50,10 @@ jobs:
       )
     timeout-minutes: 5
     runs-on: 'ubuntu-latest'
+    env:
+      # The Gemini CLI refuses to run in a directory it does not consider
+      # trusted, which is every fresh checkout on a runner.
+      GEMINI_CLI_TRUST_WORKSPACE: 'true'
     steps:
       - name: 'Get issue data for manual trigger'
         id: 'get_issue_data'
@@ -175,7 +179,11 @@ jobs:
           SEARCH_CONTEXT: '${{ steps.search_codebase.outputs.search_context }}'
         with:
           gemini_api_key: '${{ secrets.GEMINI_API }}'
-          gemini_model: 'gemini-2.5-pro'
+          # Triage classifies an issue and emits a small JSON object, which
+          # the flash tier handles well within the job timeout. `-pro` is
+          # not served to this API key: the CLI failed with "models/
+          # gemini-2.5-pro is not found for API version v1beta".
+          gemini_model: 'gemini-3.5-flash'
           settings: |-
             {
               "maxSessionTurns": 5,
@@ -233,6 +241,14 @@ jobs:
             - wont-fix: Issue will not be fixed.
             - user error: Issue caused by incorrect usage, not a bug.
             - to investigate: Issue needs further investigation.
+
+      - name: 'Report Gemini failure'
+        if: |-
+          ${{ failure() && steps.gemini_issue_analysis.outcome == 'failure' }}
+        env:
+          GEMINI_ERROR: '${{ steps.gemini_issue_analysis.outputs.error }}'
+        run: |-
+          echo "::error title=Gemini triage failed::${GEMINI_ERROR:-See the step logs.}"
 
       - name: 'Apply Labels and Post Response'
         if: |-
