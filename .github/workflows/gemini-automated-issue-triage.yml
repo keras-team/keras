@@ -179,7 +179,11 @@ jobs:
           SEARCH_CONTEXT: '${{ steps.search_codebase.outputs.search_context }}'
         with:
           gemini_api_key: '${{ secrets.GEMINI_API }}'
-          gemini_model: 'gemini-2.5-pro'
+          # Triage classifies an issue and emits a small JSON object, which
+          # the flash tier handles well within the job timeout. `-pro` is
+          # not served to this API key: the CLI failed with "models/
+          # gemini-2.5-pro is not found for API version v1beta".
+          gemini_model: 'gemini-3.5-flash'
           settings: |-
             {
               "maxSessionTurns": 5,
