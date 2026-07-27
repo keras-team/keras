@@ -121,6 +121,36 @@ class DtypesTest(test_case.TestCase):
     def test_result_type_empty_list(self):
         self.assertEqual(backend.result_type(), "float32")
 
+    def test_result_type_respects_floatx(self):
+        # The memoized core is keyed on floatx() so weak-type promotion
+        # follows set_floatx and never returns a stale cached result.
+        original_floatx = backend.floatx()
+        try:
+            backend.set_floatx("float32")
+            self.assertEqual(backend.result_type(float), "float32")
+            backend.set_floatx("float16")
+            self.assertEqual(backend.result_type(float), "float16")
+        finally:
+            backend.set_floatx(original_floatx)
+
+    def test_result_type_cache_does_not_collide_with_tf_dtype(self):
+        """Regression test: tf.DType's __hash__/__eq__ are coerced to match
+        plain Python ints (hash(tf.float32) == hash(1) == 1, and
+        tf.float32 == 1 is True). The lru_cache backing result_type must be
+        keyed so that a previously-cached tf.DType arg can never make a
+        later, unrelated invalid int arg silently resolve instead of
+        raising.
+        """
+        import tensorflow as tf
+
+        with self.assertRaises(ValueError):
+            backend.result_type(1)
+
+        self.assertEqual(backend.result_type(tf.float32), "float32")
+
+        with self.assertRaises(ValueError):
+            backend.result_type(1)
+
     def test_respect_weak_type_for_bool(self):
         self.assertEqual(dtypes._respect_weak_type("bool", True), "bool")
 
