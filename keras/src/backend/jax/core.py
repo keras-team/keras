@@ -97,12 +97,8 @@ Variable = JaxVariable
 if config.is_nnx_enabled():
     from flax import nnx
 
-    # `nnx.Variable` kept its value in a `raw_value` slot up to flax 0.11.
-    # In flax 0.12 it moved to `_raw_value`, and `raw_value` became a
-    # deprecated property whose setter enforces NNX's trace-level check.
-    # Keras assigns variable values itself (eagerly, or through a
-    # `StatelessScope` under JAX transforms), so it reads and writes that
-    # storage directly, as it did before the property existed.
+    # fallback logic for NNX Variable's raw_value attribute. This is needed for
+    # compatibility with older versions of NNX that don't have get_raw_value().
     _NNX_RAW_VALUE_ATTR = (
         "_raw_value" if hasattr(nnx.Variable, "get_raw_value") else "raw_value"
     )
@@ -113,11 +109,8 @@ if config.is_nnx_enabled():
     def _set_raw_value(variable, value):
         object.__setattr__(variable, _NNX_RAW_VALUE_ATTR, value)
 
-    # Trace levels enclosing Keras's symbolic shape inference, innermost
-    # last. `compute_output_spec` runs `call()` under `jax.eval_shape`,
-    # which may create layers and variables as a side effect. NNX stamps
-    # every object with the trace that was active when it was created and
-    # refuses to mutate it from any other trace. Objects created this way
+    # NNX stamps every object with the trace that was active when it was created 
+    # and refuses to mutate it from any other trace. Objects created this way
     # outlive the shape-inference trace and hold concrete values, so they
     # are stamped with the enclosing trace instead: once inference
     # returns, they behave exactly like eagerly created objects.
