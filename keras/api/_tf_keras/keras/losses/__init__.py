@@ -29,6 +29,7 @@ from keras.src.losses.losses import CosineSimilarity as CosineSimilarity
 from keras.src.losses.losses import Dice as Dice
 from keras.src.losses.losses import Hinge as Hinge
 from keras.src.losses.losses import Huber as Huber
+from keras.src.losses.losses import IoU as IoU
 from keras.src.losses.losses import KLDivergence as KLDivergence
 from keras.src.losses.losses import LogCosh as LogCosh
 from keras.src.losses.losses import MeanAbsoluteError as MeanAbsoluteError
@@ -65,6 +66,7 @@ from keras.src.losses.losses import ctc as ctc
 from keras.src.losses.losses import dice as dice
 from keras.src.losses.losses import hinge as hinge
 from keras.src.losses.losses import huber as huber
+from keras.src.losses.losses import iou as iou
 from keras.src.losses.losses import kl_divergence as KLD
 from keras.src.losses.losses import kl_divergence as kld
 from keras.src.losses.losses import kl_divergence as kullback_leibler_divergence
