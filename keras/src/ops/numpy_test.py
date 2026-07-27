@@ -3120,6 +3120,11 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.reshape(x, (3, -1)).shape, (3, 2))
         self.assertEqual(knp.reshape(x, (6,)).shape, (6,))
         self.assertEqual(knp.reshape(x, (-1,)).shape, (6,))
+        # A bare integer is a valid shape, as in `np.reshape(x, -1)`.
+        self.assertEqual(knp.reshape(x, -1).shape, (6,))
+        self.assertEqual(knp.reshape(x, 6).shape, (6,))
+        self.assertEqual(knp.Reshape(-1)(x).shape, (6,))
+        self.assertEqual(knp.Reshape(6)(x).shape, (6,))
 
     def test_roll(self):
         x = KerasTensor((2, 3))
@@ -6580,6 +6585,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.reshape(x, [3, 2]), np.reshape(x, [3, 2]))
         self.assertAllClose(knp.Reshape([3, 2])(x), np.reshape(x, [3, 2]))
         self.assertAllClose(knp.Reshape(-1)(x), np.reshape(x, -1))
+        self.assertAllClose(knp.reshape(x, -1), np.reshape(x, -1))
+        self.assertAllClose(knp.Reshape(6)(x), np.reshape(x, 6))
 
     def test_reshape_rejects_invalid_newshape(self):
         x = np.zeros(20, dtype="float32")

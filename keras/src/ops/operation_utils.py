@@ -291,6 +291,24 @@ def compute_matmul_output_shape(shape1, shape2):
     return tuple(output_shape)
 
 
+def standardize_reshape_shape(newshape, newshape_arg_name="newshape"):
+    """Normalize and validate the `newshape` argument of `reshape`.
+
+    NumPy accepts a bare integer, e.g. `np.reshape(x, -1)`, while backends
+    such as TensorFlow and PyTorch require a sequence of dimensions. Wrap
+    scalars so that every backend receives a tuple. Backend tensors are
+    returned as is, since their dimensions are only known at runtime.
+    """
+    if backend.is_tensor(newshape) or isinstance(newshape, KerasTensor):
+        return newshape
+    try:
+        newshape = tuple(newshape)
+    except TypeError:
+        newshape = (newshape,)
+    validate_reshape_shape(newshape, newshape_arg_name)
+    return newshape
+
+
 def validate_reshape_shape(newshape, newshape_arg_name="newshape"):
     """Validate the `newshape` argument of `reshape`.
 
