@@ -101,6 +101,18 @@ class NnxVariableTest(testing.TestCase):
         inner.weight.assign(np.full((4,), 2.0, "float32"))
         self.assertAllClose(inner.weight.value, np.full((4,), 2.0))
 
+        # They must also look like eagerly created objects to NNX, or its
+        # transforms cannot write back into them once tracing is over.
+        # The layer's trace state lives on its NNX state object, which is
+        # named differently across flax versions.
+        self.assertTrue(inner.weight._trace_state.is_valid())
+        layer_state = next(
+            state
+            for state in vars(inner).values()
+            if hasattr(state, "_trace_state")
+        )
+        self.assertTrue(layer_state._trace_state.is_valid())
+
         # Training exercises `_losses_override` assignment in the jitted
         # train step and end-to-end gradient flow.
         model.compile(optimizer="sgd", loss="mse")

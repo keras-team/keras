@@ -1,3 +1,4 @@
+import contextlib
 import inspect
 import math
 
@@ -96,6 +97,45 @@ Variable = JaxVariable
 if config.is_nnx_enabled():
     from flax import nnx
 
+    # `nnx.Variable` kept its value in a `raw_value` slot up to flax 0.11.
+    # In flax 0.12 it moved to `_raw_value`, and `raw_value` became a
+    # deprecated property whose setter enforces NNX's trace-level check.
+    # Keras assigns variable values itself (eagerly, or through a
+    # `StatelessScope` under JAX transforms), so it reads and writes that
+    # storage directly, as it did before the property existed.
+    _NNX_RAW_VALUE_ATTR = (
+        "_raw_value" if hasattr(nnx.Variable, "get_raw_value") else "raw_value"
+    )
+
+    def _get_raw_value(variable):
+        return getattr(variable, _NNX_RAW_VALUE_ATTR, None)
+
+    def _set_raw_value(variable, value):
+        object.__setattr__(variable, _NNX_RAW_VALUE_ATTR, value)
+
+    # Trace levels enclosing Keras's symbolic shape inference, innermost
+    # last. `compute_output_spec` runs `call()` under `jax.eval_shape`,
+    # which may create layers and variables as a side effect. NNX stamps
+    # every object with the trace that was active when it was created and
+    # refuses to mutate it from any other trace. Objects created this way
+    # outlive the shape-inference trace and hold concrete values, so they
+    # are stamped with the enclosing trace instead: once inference
+    # returns, they behave exactly like eagerly created objects.
+    _enclosing_traces = []
+
+    def stamp_with_enclosing_trace(obj):
+        """Stamp an NNX object with the trace enclosing shape inference."""
+        if not _enclosing_traces:
+            return
+        trace_state = getattr(obj, "_trace_state", None)  # nnx.Variable
+        if trace_state is None:  # nnx.Module, via its state object
+            for attr_value in vars(obj).values():
+                trace_state = getattr(attr_value, "_trace_state", None)
+                if trace_state is not None:
+                    break
+        if trace_state is not None:
+            object.__setattr__(trace_state, "_jax_trace", _enclosing_traces[0])
+
     class NnxVariable(JaxVariable, nnx.Variable):
         def __init__(
             self,
@@ -141,7 +181,9 @@ if config.is_nnx_enabled():
             )
 
             # The real value is now set in self._value, sync it to raw_value
-            object.__setattr__(self, "raw_value", self._value)
+            _set_raw_value(self, self._value)
+
+            stamp_with_enclosing_trace(self)
 
         def _initialize_with_initializer(self, initializer):
             value = self._convert_to_tensor(
@@ -151,9 +193,7 @@ if config.is_nnx_enabled():
 
         @property
         def _value(self):
-            if hasattr(self, "raw_value"):
-                return self.raw_value
-            return None
+            return _get_raw_value(self)
 
         @_value.setter
         def _value(self, new_keras_value):
@@ -173,8 +213,8 @@ if config.is_nnx_enabled():
 
             # Merge them. Keras state is primary. NNX specific state adds
             # to it.
-            if "raw_value" in nnx_specific_state:
-                keras_state["_value"] = nnx_specific_state["raw_value"]
+            if _NNX_RAW_VALUE_ATTR in nnx_specific_state:
+                keras_state["_value"] = nnx_specific_state[_NNX_RAW_VALUE_ATTR]
 
             # Add NNX attributes that are not in Keras's __dict__
             if "_trace_state" in nnx_specific_state:
@@ -186,7 +226,7 @@ if config.is_nnx_enabled():
 
             # Remove elements that might be problematic or redundant if
             # nnx.Variable's __getstate__
-            keras_state.pop("raw_value", None)
+            keras_state.pop(_NNX_RAW_VALUE_ATTR, None)
 
             return keras_state
 
@@ -202,7 +242,7 @@ if config.is_nnx_enabled():
             self.__dict__.update(state)
 
             # restore the nnx.Variable specific slotted attributes.
-            object.__setattr__(self, "raw_value", nnx_raw_value)
+            _set_raw_value(self, nnx_raw_value)
 
             if nnx_trace_state is not None:
                 object.__setattr__(self, "_trace_state", nnx_trace_state)
@@ -222,7 +262,7 @@ if config.is_nnx_enabled():
                 self._ndim = len(self._shape)
             else:
                 # Fallback if shape isn't immediately available.
-                self._ndim = len(self.raw_value.shape)
+                self._ndim = len(_get_raw_value(self).shape)
 
         def _direct_assign(self, value):
             # Apply JAX-specific distribution if layout is present
@@ -238,7 +278,7 @@ if config.is_nnx_enabled():
 
             # Set the value for both Keras and NNX parts
             # This ensures both systems see the same value
-            object.__setattr__(self, "raw_value", value)
+            _set_raw_value(self, value)
 
         @property
         def value(self):
@@ -247,7 +287,8 @@ if config.is_nnx_enabled():
                 stateless_value = scope.get_current_value(self)
                 if stateless_value is not None:
                     return self._maybe_autocast(stateless_value)
-            if getattr(self, "raw_value", None) is None:
+            current_value = _get_raw_value(self)
+            if current_value is None:
                 # Uninitialized variable (created under a stateless scope,
                 # which defers initialization). Return a placeholder, like
                 # `KerasVariable.value`, without mutating the variable.
@@ -260,7 +301,6 @@ if config.is_nnx_enabled():
                         "Variable is not properly initialized (raw_value "
                         "missing) and has no initializer."
                     )
-            current_value = self.raw_value
             if (
                 hasattr(self, "_var_metadata")
                 and "on_get_value" in self._var_metadata
@@ -273,12 +313,12 @@ if config.is_nnx_enabled():
     Variable = NnxVariable
 
     def _flatten_nnx_variable(variable):
-        children = (variable.raw_value,)
+        children = (_get_raw_value(variable),)
         # We copy __dict__ to avoid side effects
         keras_state = variable.__dict__.copy()
         # Remove elements that might be problematic or redundant if
         # nnx.Variable's __getstate__
-        keras_state.pop("raw_value", None)
+        keras_state.pop(_NNX_RAW_VALUE_ATTR, None)
         aux_data = (
             variable._var_metadata,
             getattr(variable, "_trace_state", None),
@@ -298,7 +338,7 @@ if config.is_nnx_enabled():
         if trace_state is not None:
             variable._trace_state = trace_state
         variable.__dict__.update(keras_state)
-        variable.raw_value = raw_value
+        _set_raw_value(variable, raw_value)
 
         return variable
 
@@ -316,7 +356,7 @@ if config.is_nnx_enabled():
         # if the Pytree registration is not respected by NNX.
         if (
             name != "_var_metadata"
-            and name not in ("_raw_value", "_trace_state")
+            and name not in ("raw_value", "_raw_value", "_trace_state")
             and hasattr(self, "_var_metadata")
         ):
             self._var_metadata[name] = value
@@ -390,9 +430,24 @@ def cast(x, dtype):
     return convert_to_tensor(x, dtype=dtype)
 
 
+@contextlib.contextmanager
+def _track_enclosing_trace():
+    """Record the trace enclosing symbolic shape inference, for NNX."""
+    if not config.is_nnx_enabled():
+        yield
+        return
+    from flax.nnx import tracers as nnx_tracers
+
+    _enclosing_traces.append(nnx_tracers.current_jax_trace())
+    try:
+        yield
+    finally:
+        _enclosing_traces.pop()
+
+
 # Shape / dtype / sparseness inference util
 def compute_output_spec(fn, *args, **kwargs):
-    with StatelessScope(), SymbolicScope():
+    with _track_enclosing_trace(), StatelessScope(), SymbolicScope():
         built_in_types = (type(None), int, float, str, bool, complex, bytes)
 
         # First, separate symbolic args from other args
