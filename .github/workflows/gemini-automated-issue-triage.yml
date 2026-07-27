@@ -286,7 +286,7 @@ jobs:
             labelsToAdd = requestedLabels.filter(label => ALLOWED_LABELS.includes(label));
 
             if (requestedLabels.length !== labelsToAdd.length) {
-              core.warning("Blocked unauthorized labels: " + requestedLabels.filter(l => !ALLOWED_LABELS.includes(l)).join(', '));
+              core.warning(`Blocked unauthorized labels: ${requestedLabels.filter(l => !ALLOWED_LABELS.includes(l)).join(', ')}`);
             }
 
             // 2. Template-Based Comments (Avoid arbitrary LLM text)
@@ -308,7 +308,7 @@ jobs:
             if (triageReason && COMMENT_TEMPLATES[triageReason]) {
               responseBody = COMMENT_TEMPLATES[triageReason].replace('${author}', issueAuthor);
             } else {
-              core.info("No automated comment posted (triage reason: " + triageReason + ").");
+              core.info(`No automated comment posted (triage reason: ${triageReason}).`);
             }
 
             // 3. Restricted Auto-Close
