@@ -278,22 +278,10 @@ def _lattice_result_type(*args):
 
 
 # floatx is part of the key so a floatx change can't return a stale result.
-# lru_cache doesn't cache exceptions, so the float8 raise below is safe.
 @functools.lru_cache(maxsize=512)
 def _result_type_cached(tagged_dtypes, floatx):
-    dtypes = tuple(d for _, d in tagged_dtypes)
-    if len(dtypes) == 0:
-        # If no dtypes provided, default to floatx, this matches
-        # `ops.convert_to_tensor([])`
-        return floatx
-    for dtype in dtypes:
-        if dtype in FLOAT8_TYPES:
-            raise ValueError(
-                "There is no implicit conversions from float8 dtypes to others."
-                f" You must cast it internally. Received: {dtypes}"
-            )
     return _lattice_result_type(
-        *(floatx if arg is None else arg for arg in dtypes),
+        *(floatx if arg is None else arg for _, arg in tagged_dtypes),
     )
 
 
@@ -329,9 +317,31 @@ def result_type(*dtypes):
     "float64"
 
     """
+    # The empty case and the float8 rejection stay outside the cache so that
+    # both keep raising on every call and keep seeing the caller's original
+    # objects, exactly as before. Only the lattice walk is memoized.
+    if len(dtypes) == 0:
+        # If no dtypes provided, default to floatx, this matches
+        # `ops.convert_to_tensor([])`
+        return config.floatx()
+    for dtype in dtypes:
+        if dtype in FLOAT8_TYPES:
+            raise ValueError(
+                "There is no implicit conversions from float8 dtypes to others."
+                f" You must cast it internally. Received: {dtypes}"
+            )
     # Type-tagged before caching: tf.DType's __hash__/__eq__ are coerced to
     # match plain Python ints (hash(tf.float32) == hash(1), tf.float32 == 1
     # is True), so a raw-dtypes cache key would let an invalid int silently
     # return whatever tf dtype happened to populate the cache first.
     tagged = tuple((type(d), d) for d in dtypes)
-    return _result_type_cached(tagged, config.floatx())
+    try:
+        return _result_type_cached(tagged, config.floatx())
+    except TypeError:
+        # An unhashable argument (list, dict, ndarray) is not a valid dtype
+        # anyway. Fall through to the uncached walk so it fails the same way
+        # it always has, rather than surfacing `unhashable type` from
+        # `lru_cache`.
+        return _lattice_result_type(
+            *(config.floatx() if arg is None else arg for arg in dtypes),
+        )

@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+import numpy as np
 import pytest
 from absl.testing import parameterized
 
@@ -150,6 +151,33 @@ class DtypesTest(test_case.TestCase):
 
         with self.assertRaises(ValueError):
             backend.result_type(1)
+
+    def test_result_type_unhashable_argument(self):
+        # An unhashable argument cannot be used as an `lru_cache` key, so
+        # `result_type` falls back to the uncached walk rather than letting
+        # `unhashable type` escape from the cache lookup. These are all
+        # invalid dtypes; what is pinned here is that each one keeps failing
+        # the same way it does without the cache.
+        with self.assertRaises(ValueError):
+            backend.result_type(np.array([1, 2]))
+        with self.assertRaises(TypeError):
+            backend.result_type([1, 2])
+        with self.assertRaises(TypeError):
+            backend.result_type({"a": 1})
+        # A valid dtype alongside an unhashable one still reports the
+        # unhashable one rather than silently promoting.
+        with self.assertRaises(TypeError):
+            backend.result_type("float32", [1])
+
+    def test_result_type_float8_rejected_outside_the_cache(self):
+        # The float8 rejection must run on every call, not only on the first
+        # one: `lru_cache` does not memoize exceptions, but it would memoize
+        # a *successful* result, so the check is kept ahead of the cache.
+        for _ in range(3):
+            with self.assertRaisesRegex(
+                ValueError, "no implicit conversions from float8"
+            ):
+                backend.result_type("float8_e4m3fn", "float32")
 
     def test_respect_weak_type_for_bool(self):
         self.assertEqual(dtypes._respect_weak_type("bool", True), "bool")
