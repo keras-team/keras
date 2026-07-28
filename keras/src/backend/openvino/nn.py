@@ -4,9 +4,9 @@ from openvino import Type
 
 import keras.src.backend.openvino.numpy as onp
 from keras.src import backend
-from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import (
     _get_output_shape_given_tf_padding,
+    canonicalize_axis,
 )
 from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
