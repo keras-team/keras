@@ -313,6 +313,44 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knn.multi_hot(x, 5, 2).shape, (None, 5, 1))
         self.assertSparse(knn.multi_hot(x, 5, sparse=True))
 
+    def test_multi_hot_in_graph(self):
+        class MultiHotLayer(keras.Layer):
+            def call(self, x):
+                return ops.multi_hot(x, 5)
+
+            def compute_output_shape(self, input_shape):
+                # Avoids inferring the spec by calling `call` on an
+                # uninitialized placeholder, whose values are not valid
+                # indices for `one_hot`.
+                return (input_shape[0], 5)
+
+        class Model(keras.Model):
+            def __init__(self):
+                x = keras.Input(shape=(3,), dtype="int32")
+                y = MultiHotLayer()(x)
+                super().__init__(inputs=x, outputs=y)
+
+        # Make sure Keras is able to compile the model graph
+        model = Model()
+        x = ops.array([[0, 2, 4]], dtype="int32")
+        model.predict(x)
+
+    def test_unfold_in_graph(self):
+        class UnfoldLayer(keras.Layer):
+            def call(self, x):
+                return ops.unfold(x, kernel_size=2)
+
+        class Model(keras.Model):
+            def __init__(self):
+                x = keras.Input(shape=(2, 6, 6))
+                y = UnfoldLayer()(x)
+                super().__init__(inputs=x, outputs=y)
+
+        # Make sure Keras is able to compile the model graph
+        model = Model()
+        x = ops.ones((1, 2, 6, 6))
+        model.predict(x)
+
     @parameterized.named_parameters(
         named_product(dtype=["float32", "int32", "bool"], sparse=[False, True])
     )

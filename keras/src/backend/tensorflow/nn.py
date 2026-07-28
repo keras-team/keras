@@ -1886,13 +1886,15 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     )  # (N, nH, nW, kH*kW*C)
 
     N, nH, nW, D = patches.shape
+    # `-1` for the batch dim keeps the graph valid when it is dynamic, as it
+    # is for any functional model or model.predict.
     patches = tf.reshape(
-        patches, [N, nH, nW, k[0], k[1], C]
+        patches, [-1, nH, nW, k[0], k[1], C]
     )  # (N, nH, nW, kH, kW, C)
     patches = tf.transpose(
         patches, [0, 5, 3, 4, 1, 2]
     )  # (N, C, kH, kW, nH, nW)
-    patches = tf.reshape(patches, [N, C * k[0] * k[1], nH * nW])
+    patches = tf.reshape(patches, [-1, C * k[0] * k[1], nH * nW])
     return patches
 
 

@@ -869,10 +869,12 @@ def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     reduction_axis = 1 if len(x.shape) > 1 else 0
     if backend.standardize_dtype(dtype) == "bool":
         outputs = one_hot(x, num_classes, axis=axis, dtype=dtype, sparse=sparse)
-        result = ov_opset.reduce_logical_or(outputs, reduction_axis)
+        result = ov_opset.reduce_logical_or(
+            get_ov_output(outputs), reduction_axis
+        )
     else:
         outputs = one_hot(x, num_classes, axis=axis, dtype=dtype)
-        result = ov_opset.reduce_max(outputs, reduction_axis)
+        result = ov_opset.reduce_max(get_ov_output(outputs), reduction_axis)
     return OpenVINOKerasTensor(result.output(0))
 
 
@@ -1352,27 +1354,35 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     p = _pair(padding)
     s = _pair(stride)
 
-    N, C, H, W = input.shape
-
     # ---- padding ----
     if any(_ > 0 for _ in p):
         input = onp.pad(input, ((0, 0), (0, 0), (p[0], p[0]), (p[1], p[1])))
 
+    image = get_ov_output(input)
+    C = image.get_partial_shape()[1].get_length()
+
     # ---- extract patches ----
     patches = ov_opset.extract_image_patches(
-        image=input,
+        image=image,
         sizes=[k[0], k[1]],
         strides=[s[0], s[1]],
         rates=[d[0], d[1]],
         auto_pad="VALID",
-    )  # (N, kH*kW*C, nH, nW)
-    N, D, nH, nW = patches.shape
-    patches = ov_opset.reshape(patches, [N, k[0], k[1], C, nH, nW], False)
-    patches = ov_opset.transpose(
-        patches, [0, 3, 1, 2, 4, 5]
-    )  # (N, C, kH, kW, nH, nW)
-    patches = ov_opset.reshape(patches, [N, C * k[0] * k[1], nH * nW], False)
-    return OpenVINOKerasTensor(patches.output(0))
+    ).output(0)  # (N, kH*kW*C, nH, nW)
+    patches_shape = patches.get_partial_shape()
+    nH = patches_shape[2].get_length()
+    nW = patches_shape[3].get_length()
+    # `-1` for the batch dim keeps the graph valid when it is dynamic, as it
+    # is under model.predict.
+    patches = ov_opset.reshape(
+        patches, [-1, k[0], k[1], C, nH, nW], False
+    ).output(0)
+    # (N, C, kH, kW, nH, nW)
+    patches = ov_opset.transpose(patches, [0, 3, 1, 2, 4, 5]).output(0)
+    patches = ov_opset.reshape(
+        patches, [-1, C * k[0] * k[1], nH * nW], False
+    ).output(0)
+    return OpenVINOKerasTensor(patches)
 
 
 def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
