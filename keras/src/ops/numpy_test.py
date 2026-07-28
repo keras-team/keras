@@ -6325,8 +6325,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
 
         # Scalar / single-pair `pad_width` should broadcast to all axes for
-        # eager inputs, consistent with `np.pad` (see #22540).
+        # eager backend tensors, consistent with `np.pad` (see #22540). Use an
+        # actual backend tensor so the per-backend `pad` implementation is
+        # exercised (`tf.pad` / `torch...pad` require a full `[rank, 2]` spec).
         x = np.ones([4, 5, 6], dtype=dtype)
+        x_tensor = backend.convert_to_tensor(x)
         for pad_width, np_pad_width in (
             (0, 0),
             (1, 1),
@@ -6336,7 +6339,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         ):
             self.assertAllClose(
                 knp.pad(
-                    x, pad_width, mode=mode, constant_values=constant_values
+                    x_tensor,
+                    pad_width,
+                    mode=mode,
+                    constant_values=constant_values,
                 ),
                 np.pad(x, np_pad_width, mode=mode, **kwargs),
             )

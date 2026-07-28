@@ -2641,6 +2641,11 @@ def pad(x, pad_width, mode="constant", constant_values=None):
                 f"Received: mode={mode}"
             )
         kwargs["constant_values"] = constant_values
+    if len(pad_width) == 1:
+        # A single `(before, after)` pair broadcasts to every axis, matching
+        # `np.pad`. `tf.pad` requires an explicit `[rank(x), 2]` spec, so
+        # expand it here.
+        pad_width = [pad_width[0]] * len(x.shape)
     pad_width = convert_to_tensor(pad_width, "int32")
     return tf.pad(x, pad_width, mode.upper(), **kwargs)
 
