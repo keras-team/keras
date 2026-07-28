@@ -294,10 +294,11 @@ def compute_matmul_output_shape(shape1, shape2):
 def standardize_reshape_shape(newshape, newshape_arg_name="newshape"):
     """Normalize and validate the `newshape` argument of `reshape`.
 
-    NumPy accepts a bare integer, e.g. `np.reshape(x, -1)`, while backends
-    such as TensorFlow and PyTorch require a sequence of dimensions. Wrap
-    scalars so that every backend receives a tuple. Backend tensors are
-    returned as is, since their dimensions are only known at runtime.
+    NumPy accepts a bare integer, e.g. `np.reshape(x, -1)`, so wrap scalars
+    into a tuple for shape computations. Backends normalize the shapes they
+    receive themselves, since Keras also calls them directly. Backend
+    tensors are returned as is, since their dimensions are only known at
+    runtime.
     """
     if backend.is_tensor(newshape) or isinstance(newshape, KerasTensor):
         return newshape
@@ -346,7 +347,7 @@ def compute_reshape_output_shape(input_shape, newshape, newshape_arg_name):
 
     This utility does not special case the 0th dimension (batch size).
     """
-    validate_reshape_shape(newshape, newshape_arg_name)
+    newshape = standardize_reshape_shape(newshape, newshape_arg_name)
     # If `newshape` is a tensor, we infer the output rank based on its shape.
     # For example, a 1D tensor of shape (4,) indicates a 4D output shape.
     if backend.is_tensor(newshape) or isinstance(newshape, KerasTensor):

@@ -6587,6 +6587,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Reshape(-1)(x), np.reshape(x, -1))
         self.assertAllClose(knp.reshape(x, -1), np.reshape(x, -1))
         self.assertAllClose(knp.Reshape(6)(x), np.reshape(x, 6))
+        self.assertAllClose(
+            backend.numpy.reshape(backend.convert_to_tensor(x), -1),
+            np.reshape(x, -1),
+        )
 
     def test_reshape_rejects_invalid_newshape(self):
         x = np.zeros(20, dtype="float32")

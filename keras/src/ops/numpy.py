@@ -7334,7 +7334,7 @@ def repeat(x, repeats, axis=None):
 class Reshape(Operation):
     def __init__(self, newshape, *, name=None):
         super().__init__(name=name)
-        self.newshape = operation_utils.standardize_reshape_shape(newshape)
+        self.newshape = newshape
 
     def call(self, x):
         return backend.numpy.reshape(x, self.newshape)
