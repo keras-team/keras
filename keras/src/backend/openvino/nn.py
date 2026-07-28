@@ -11,6 +11,7 @@ from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
+from keras.src.backend.openvino.core import shape_to_ov_output
 
 
 def relu(x):
@@ -377,7 +378,7 @@ def _adaptive_pool_ov(
     # AdaptiveAvgPool/AdaptiveMaxPool expect NCHW, and `output_shape` holds
     # only the spatial dims.
     current = _adjust_input(inputs, num_spatial_dims, data_format)
-    output_shape = ov_opset.constant(list(output_size), Type.i32).output(0)
+    output_shape = shape_to_ov_output(output_size)
 
     if pool_type == "avg":
         pooled = ov_opset.adaptive_avg_pool(current, output_shape).output(0)
