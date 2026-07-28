@@ -214,6 +214,14 @@ def load_img(
     input_arr = np.array([input_arr])  # Convert single image to a batch.
     predictions = model.predict(input_arr)
     ```
+    Note:
+        This function uses Pillow (`PIL.Image`) internally. If an oversized image
+        is loaded, Pillow may raise a `PIL.Image.DecompressionBombError`. This is 
+        a built-in security mechanism to prevent decompression bomb DOS attacks. 
+        The maximum image size is governed by `PIL.Image.MAX_IMAGE_PIXELS`. To change 
+        this limit, see the Pillow documentation:
+        
+https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.MAX_IMAGE_PIXELS
 
     Args:
         path: Path to image file.
