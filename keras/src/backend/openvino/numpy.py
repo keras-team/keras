@@ -1694,12 +1694,8 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
         offset if offset >= 0 else -offset, Type.i32
     ).output(0)
     t_shape = ov_opset.shape_of(x_transposed, Type.i32).output(0)
-    N = ov_opset.squeeze(
-        ov_opset.gather(t_shape, ov_opset.constant([0], Type.i32), zero), zero
-    ).output(0)
-    M = ov_opset.squeeze(
-        ov_opset.gather(t_shape, ov_opset.constant([1], Type.i32), zero), zero
-    ).output(0)
+    N = ov_opset.gather(t_shape, zero, zero).output(0)
+    M = ov_opset.gather(t_shape, one, zero).output(0)
 
     # Clamped at 0 so an out-of-range offset yields an empty result.
     if offset >= 0:
