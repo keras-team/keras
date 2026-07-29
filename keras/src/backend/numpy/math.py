@@ -84,7 +84,7 @@ def top_k(x, k, sorted=True):
 
 
 def in_top_k(targets, predictions, k):
-    targets = targets[:, None]
+    targets = targets[..., None]
     topk_values = top_k(predictions, k)[0]
     targets_values = np.take_along_axis(predictions, targets, axis=-1)
     mask = targets_values >= topk_values
@@ -92,12 +92,19 @@ def in_top_k(targets, predictions, k):
 
 
 def logsumexp(x, axis=None, keepdims=False):
-    return scipy.special.logsumexp(x, axis=axis, keepdims=keepdims)
+    x = convert_to_tensor(x)
+    dtype = dtypes.result_type(x.dtype, float)
+    return scipy.special.logsumexp(x, axis=axis, keepdims=keepdims).astype(
+        dtype
+    )
 
 
 def cdist(x, y):
     x = np.asarray(x)
     y = np.asarray(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype, float)
+    x = x.astype(dtype)
+    y = y.astype(dtype)
     if x.ndim < 2 or y.ndim < 2:
         raise ValueError("`cdist` inputs must have rank >= 2")
     if x.shape[-1] != y.shape[-1]:
@@ -297,7 +304,7 @@ def istft(
     if length is not None:
         end = start + length
     elif center is True:
-        end = -(fft_length // 2)
+        end = expected_output_len - (fft_length // 2)
     else:
         end = expected_output_len
     return x[..., start:end]
