@@ -179,17 +179,16 @@ class CenterCrop(BaseImagePreprocessingLayer):
     ):
         # Segmentation masks hold discrete class indices. Use nearest-neighbor
         # interpolation on the resize path so no new class values are invented,
-        # and restore the original (typically integer) dtype.
+        # and keep the original (typically integer) dtype by not casting to
+        # `compute_dtype`.
         masks = self.backend.convert_to_tensor(segmentation_masks)
-        in_dtype = masks.dtype
-        outputs = self._center_crop(masks, interpolation="nearest")
-        return self.backend.cast(outputs, in_dtype)
+        return self._center_crop(masks, interpolation="nearest")
 
     def transform_images(self, images, transformation=None, training=True):
+        images = self.backend.cast(images, self.compute_dtype)
         return self._center_crop(images, interpolation="bilinear")
 
-    def _center_crop(self, images, interpolation="bilinear"):
-        inputs = self.backend.cast(images, self.compute_dtype)
+    def _center_crop(self, inputs, interpolation="bilinear"):
         inputs_shape = self.backend.shape(inputs)
 
         if self.data_format == "channels_first":
