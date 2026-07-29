@@ -629,6 +629,49 @@ def fft2(x):
     return backend.math.fft2(x)
 
 
+class Gammainc(Operation):
+    def compute_output_spec(self, x1, x2):
+        output_shape = broadcast_shapes(x1.shape, x2.shape)
+        return KerasTensor(
+            shape=output_shape,
+            dtype=result_type(x1.dtype, x2.dtype, float),
+        )
+
+    def call(self, x1, x2):
+        return backend.math.gammainc(x1, x2)
+
+
+@keras_export("keras.ops.gammainc")
+def gammainc(x1, x2):
+    """Computes the regularized lower incomplete gamma function.
+
+    The regularized lower incomplete gamma function is defined as:
+
+        P(x1, x2) = 1 / Γ(x1) * ∫₀ˣ² t^(x1 - 1) e^(-t) dt
+
+    where `Γ(x1)` is the gamma function.
+
+    Args:
+        x1: A tensor containing the shape parameter.
+        x2: A tensor containing the upper limit of integration. Must be
+            broadcast-compatible with `x1`.
+
+    Returns:
+        A tensor containing the regularized lower incomplete gamma function
+        evaluated elementwise.
+
+    Example:
+
+    >>> x1 = keras.ops.convert_to_tensor([1.0, 2.0, 3.0])
+    >>> x2 = keras.ops.convert_to_tensor([0.5, 1.0, 2.0])
+    >>> keras.ops.gammainc(x1, x2)
+    array([0.39346933, 0.26424113, 0.32332358], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Gammainc().symbolic_call(x1, x2)
+    return backend.math.gammainc(x1, x2)
+
+
 class IFFT2(Operation):
     def compute_output_spec(self, x):
         axes = (-2, -1)
