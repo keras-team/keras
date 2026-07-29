@@ -337,3 +337,9 @@ def logdet(x):
     # In NumPy slogdet is more stable than `np.log(np.linalg.det(x))`. See
     # https://numpy.org/doc/stable/reference/generated/numpy.linalg.slogdet.html
     return slogdet(x)[1]
+
+
+def gammainc(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return scipy.special.gammainc(x1, x2)

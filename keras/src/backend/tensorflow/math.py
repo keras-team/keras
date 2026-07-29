@@ -329,3 +329,9 @@ def erfinv(x):
 def logdet(x):
     x = convert_to_tensor(x)
     return tf.linalg.logdet(x)
+
+
+def gammainc(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return tf.math.igamma(x1, x2)

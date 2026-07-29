@@ -424,3 +424,9 @@ def erfinv(x):
 def logdet(x):
     x = convert_to_tensor(x)
     return torch.logdet(x)
+
+
+def gammainc(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return torch.special.gammainc(x1, x2)
