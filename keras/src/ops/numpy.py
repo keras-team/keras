@@ -11,6 +11,7 @@ from keras.src.backend import any_symbolic_tensors
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
+from keras.src.backend.common.backend_utils import normalize_shift_and_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
 from keras.src.ops import operation_utils
 from keras.src.ops.operation import Operation
@@ -7383,7 +7384,8 @@ class Roll(Operation):
 
     def compute_output_spec(self, x):
         if self.axis is not None:
-            canonicalize_axes(self.axis, len(x.shape))
+            _, axes = normalize_shift_and_axis(self.shift, self.axis)
+            canonicalize_axes(axes, len(x.shape))
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
