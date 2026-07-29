@@ -665,7 +665,7 @@ def gammainc(x1, x2):
     >>> x1 = keras.ops.convert_to_tensor([1.0, 2.0, 3.0])
     >>> x2 = keras.ops.convert_to_tensor([0.5, 1.0, 2.0])
     >>> keras.ops.gammainc(x1, x2)
-    array([0.39346933, 0.26424113, 0.32332358], dtype=float32)
+    array([0.39346936, 0.26424113, 0.3233236 ], dtype=float32)
     """
     if any_symbolic_tensors((x1, x2)):
         return Gammainc().symbolic_call(x1, x2)
