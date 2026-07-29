@@ -195,7 +195,7 @@ jobs:
     container:
       image: google/cloud-sdk:slim
     permissions: {}
-    timeout-minutes: 30
+    timeout-minutes: 120
     steps:
       - name: Collect identity and topology
         continue-on-error: true
