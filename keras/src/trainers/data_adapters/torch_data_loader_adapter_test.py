@@ -53,6 +53,61 @@ class TestTorchDataLoaderAdapter(testing.TestCase):
                 self.assertEqual(bx.shape, (2, 4))
                 self.assertEqual(by.shape, (2, 2))
 
+    def test_dict_batch_preserves_structure(self):
+        class DictDataset(torch.utils.data.Dataset):
+            def __len__(self):
+                return 2
+
+            def __getitem__(self, idx):
+                return {
+                    "x": torch.tensor([idx, idx + 1], dtype=torch.float32),
+                    "y": torch.tensor(idx, dtype=torch.float32),
+                }
+
+        dataloader = torch.utils.data.DataLoader(DictDataset(), batch_size=2)
+        adapter = TorchDataLoaderAdapter(dataloader)
+
+        batch = next(adapter.get_numpy_iterator())
+        self.assertIsInstance(batch, dict)
+        self.assertEqual(set(batch), {"x", "y"})
+        self.assertIsInstance(batch["x"], np.ndarray)
+        self.assertIsInstance(batch["y"], np.ndarray)
+        self.assertEqual(batch["x"].shape, (2, 2))
+        self.assertEqual(batch["y"].shape, (2,))
+
+        if backend.backend() == "tensorflow":
+            ds = TorchDataLoaderAdapter(dataloader).get_tf_dataset()
+            self.assertIsInstance(ds.element_spec, dict)
+            self.assertEqual(set(ds.element_spec), {"x", "y"})
+            self.assertIsInstance(ds.element_spec["x"], tf.TensorSpec)
+            self.assertIsInstance(ds.element_spec["y"], tf.TensorSpec)
+            self.assertEqual(ds.element_spec["x"].shape, (None, 2))
+            self.assertEqual(ds.element_spec["y"].shape, (None,))
+
+    def test_single_tensor_batch_preserves_structure(self):
+        class TensorOnlyDataset(torch.utils.data.Dataset):
+            def __len__(self):
+                return 4
+
+            def __getitem__(self, idx):
+                return torch.tensor(
+                    [idx, idx + 1, idx + 2], dtype=torch.float32
+                )
+
+        dataloader = torch.utils.data.DataLoader(
+            TensorOnlyDataset(), batch_size=2
+        )
+        adapter = TorchDataLoaderAdapter(dataloader)
+
+        batch = next(adapter.get_numpy_iterator())
+        self.assertIsInstance(batch, np.ndarray)
+        self.assertEqual(batch.shape, (2, 3))
+
+        if backend.backend() == "tensorflow":
+            ds = TorchDataLoaderAdapter(dataloader).get_tf_dataset()
+            self.assertIsInstance(ds.element_spec, tf.TensorSpec)
+            self.assertEqual(ds.element_spec.shape, (None, 3))
+
     @parameterized.named_parameters(
         named_product(batch_size=[None, 3], implements_len=[True, False])
     )

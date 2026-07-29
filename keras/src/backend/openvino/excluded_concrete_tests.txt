@@ -1,12 +1,5 @@
 EqualizationTest::test_equalizes_to_all_bins
-EqualizationTest::test_input_dtypes_float32
-EqualizationTest::test_input_dtypes_int32
-EqualizationTest::test_input_dtypes_int64
-EqualizationTest::test_output_range_0_1
-EqualizationTest::test_output_range_0_255
 LinalgOpsCorrectnessTest::test_eig
-LinalgOpsCorrectnessTest::test_lstsq
-LinalgOpsCorrectnessTest::test_matrix_rank
 LinalgOpsCorrectnessTest::test_norm_2_-2
 LinalgOpsCorrectnessTest::test_norm_2_2
 LinalgOpsCorrectnessTest::test_norm_2_nuc
@@ -20,4 +13,4 @@ MathOpsCorrectnessTest::test_erfinv_operation_basic
 MathOpsCorrectnessTest::test_erfinv_operation_dtype
 NNOpsCorrectnessTest::test_ctc_decode
 NNOpsDtypeTest::test_ctc_decode
-RandAugmentTest::test_random_augment_randomness
+aug_mix_test.py::AugMixTest::test_random_augment_randomness

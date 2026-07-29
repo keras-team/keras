@@ -4,6 +4,7 @@ import math
 import numpy as np
 
 from keras.src import tree
+from keras.src.distribution import distribution_lib
 from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.data_adapters.data_adapter import DataAdapter
@@ -91,6 +92,27 @@ class ArrayDataAdapter(DataAdapter):
         self._batch_size = batch_size
         self._partial_batch_size = num_samples % batch_size
         self._shuffle = shuffle
+        self._epoch = 0
+
+        dist = distribution_lib.distribution()
+        self._num_data_shards = 1
+        self._data_shard_id = 0
+        if dist is not None and getattr(dist, "auto_shard_dataset", False):
+            self._num_data_shards = min(
+                dist.num_model_replicas, dist.num_processes
+            )
+            self._data_shard_id = dist.data_shard_id
+
+    def _tf_shuffle(self, tensors):
+        """Centralized helper for standard vs stateless cluster TF shuffling."""
+        from keras.src.utils.module_utils import tensorflow as tf
+
+        return tf.random.experimental.stateless_shuffle(
+            tensors,
+            seed=tf.cast(
+                tf.stack([tf.convert_to_tensor(self._epoch), 0]), tf.int32
+            ),
+        )
 
     def get_numpy_iterator(self):
         inputs = array_slicing.convert_to_sliceable(
@@ -131,7 +153,7 @@ class ArrayDataAdapter(DataAdapter):
             # buffer forwarding.)
             indices = tf.range(num_samples, dtype=tf.int64)
             if shuffle and shuffle != "batch":
-                indices = tf.random.shuffle(indices)
+                indices = self._tf_shuffle(indices)
             return indices
 
         # We prefetch a single element. Computing large permutations can take
@@ -231,8 +253,14 @@ class ArrayDataAdapter(DataAdapter):
             return dataset
 
         indices_dataset = indices_dataset.flat_map(slice_batch_indices)
+
+        if self._num_data_shards > 1:
+            indices_dataset = indices_dataset.shard(
+                self._num_data_shards, self._data_shard_id
+            )
+
         if shuffle == "batch":
-            indices_dataset = indices_dataset.map(tf.random.shuffle)
+            indices_dataset = indices_dataset.map(self._tf_shuffle)
 
         dataset = slice_inputs(indices_dataset, self._inputs)
 
@@ -261,8 +289,9 @@ class ArrayDataAdapter(DataAdapter):
         from keras.src.backend.torch.core import convert_to_tensor
 
         class ArrayDataset(torch.utils.data.Dataset):
-            def __init__(self, array):
+            def __init__(self, array, num_samples):
                 self.array = array
+                self.num_samples = num_samples
 
             def __getitems__(self, indices):
                 def slice_and_convert(sliceable):
@@ -276,38 +305,82 @@ class ArrayDataAdapter(DataAdapter):
                 )
 
             def __len__(self):
-                return len(self.array[0])
+                return self.num_samples
 
-        class RandomBatchSampler(torch.utils.data.Sampler):
-            def __init__(self, sampler):
-                self.sampler = sampler
+        class EpochShufflingSampler(torch.utils.data.Sampler):
+            def __init__(
+                self, num_samples, batch_size, seed_provider, generator
+            ):
+                self.num_samples = num_samples
+                self.batch_size = batch_size
+                self.seed_provider = seed_provider
+                self.generator = generator
 
             def __iter__(self):
-                for batch in self.sampler:
-                    yield [batch[i] for i in torch.randperm(len(batch))]
+                self.generator.manual_seed(int(self.seed_provider()))
+                indices = torch.randperm(
+                    self.num_samples, generator=self.generator
+                )
+                for i in range(0, self.num_samples, self.batch_size):
+                    yield indices[i : i + self.batch_size].tolist()
 
             def __len__(self):
-                return len(self.sampler)
+                return math.ceil(self.num_samples / self.batch_size)
 
+        class BatchShufflingSampler(torch.utils.data.Sampler):
+            def __init__(self, batch_sampler, seed_provider, generator):
+                self.batch_sampler = batch_sampler
+                self.seed_provider = seed_provider
+                self.generator = generator
+
+            def __iter__(self):
+                self.generator.manual_seed(int(self.seed_provider()))
+                for batch in self.batch_sampler:
+                    yield [
+                        batch[i]
+                        for i in torch.randperm(
+                            len(batch), generator=self.generator
+                        )
+                    ]
+
+            def __len__(self):
+                return len(self.batch_sampler)
+
+        generator = torch.Generator()
         if self._shuffle == "batch":
-            batch_sampler = RandomBatchSampler(
-                torch.utils.data.BatchSampler(
-                    range(self._num_samples),
-                    batch_size=self._batch_size,
-                    drop_last=False,
-                )
-            )
-        elif self._shuffle:
             batch_sampler = torch.utils.data.BatchSampler(
-                torch.utils.data.RandomSampler(range(self._num_samples)),
+                range(self._num_samples),
                 batch_size=self._batch_size,
                 drop_last=False,
+            )
+        elif self._shuffle:
+            batch_sampler = EpochShufflingSampler(
+                self._num_samples,
+                self._batch_size,
+                seed_provider=lambda: self._epoch,
+                generator=generator,
             )
         else:
             batch_sampler = torch.utils.data.BatchSampler(
-                torch.utils.data.SequentialSampler(range(self._num_samples)),
+                range(self._num_samples),
                 batch_size=self._batch_size,
                 drop_last=False,
+            )
+
+        if self._num_data_shards > 1:
+            from keras.src.trainers.data_adapters import data_adapter_utils
+
+            batch_sampler = data_adapter_utils.DistributedBatchSampler(
+                batch_sampler,
+                num_data_shards=self._num_data_shards,
+                data_shard_id=self._data_shard_id,
+            )
+
+        if self._shuffle == "batch":
+            batch_sampler = BatchShufflingSampler(
+                batch_sampler,
+                seed_provider=lambda: self._epoch,
+                generator=generator,
             )
 
         # Because ArrayDataset.__getitems__ returns full batches organized in
@@ -318,21 +391,27 @@ class ArrayDataAdapter(DataAdapter):
         inputs = array_slicing.convert_to_sliceable(
             self._inputs, target_backend="torch"
         )
-        dataset = ArrayDataset(inputs)
-        return torch.utils.data.DataLoader(
+        dataset = ArrayDataset(inputs, self._num_samples)
+        dataloader = torch.utils.data.DataLoader(
             dataset, batch_sampler=batch_sampler, collate_fn=no_op_collate
         )
 
+        return dataloader
+
     def _get_iterator(self, slice_and_convert_fn, inputs):
+        epoch = int(self._epoch)
+        rng = np.random.default_rng(epoch)
+
         global_permutation = None
         if self._shuffle and self._shuffle != "batch":
-            global_permutation = np.random.permutation(self._num_samples)
+            global_permutation = rng.permutation(self._num_samples)
 
-        for i in range(self._size):
+        for i in range(self._data_shard_id, self._size, self._num_data_shards):
             start = i * self._batch_size
             stop = min((i + 1) * self._batch_size, self._num_samples)
             if self._shuffle == "batch":
-                indices = np.random.permutation(stop - start) + start
+                batch_rng = np.random.default_rng(epoch + i)
+                indices = batch_rng.permutation(stop - start) + start
             elif self._shuffle:
                 indices = global_permutation[start:stop]
             else:
@@ -347,7 +426,9 @@ class ArrayDataAdapter(DataAdapter):
 
     @property
     def num_batches(self):
-        return self._size
+        return (
+            self._size - self._data_shard_id + self._num_data_shards - 1
+        ) // self._num_data_shards
 
     @property
     def batch_size(self):
@@ -360,6 +441,9 @@ class ArrayDataAdapter(DataAdapter):
     @property
     def partial_batch_size(self):
         return self._partial_batch_size or None
+
+    def on_epoch_end(self):
+        self._epoch += 1
 
 
 def can_convert_arrays(arrays):

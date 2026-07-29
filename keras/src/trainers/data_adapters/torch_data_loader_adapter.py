@@ -34,10 +34,8 @@ class TorchDataLoaderAdapter(DataAdapter):
     def get_numpy_iterator(self):
         for batch in self._dataloader:
             # shared memory using `np.asarray`
-            yield tuple(
-                tree.map_structure(
-                    lambda x: np.asarray(x.cpu()), batch, none_is_leaf=False
-                )
+            yield tree.map_structure(
+                lambda x: np.asarray(x.cpu()), batch, none_is_leaf=False
             )
 
     def get_jax_iterator(self):
@@ -47,6 +45,10 @@ class TorchDataLoaderAdapter(DataAdapter):
     def get_tf_dataset(self):
         from keras.src.utils.module_utils import tensorflow as tf
 
+        def get_tf_iterator():
+            for batch in self.get_numpy_iterator():
+                yield tree.lists_to_tuples(batch)
+
         if self._output_signature is None:
             batches = list(
                 itertools.islice(
@@ -54,11 +56,11 @@ class TorchDataLoaderAdapter(DataAdapter):
                     data_adapter_utils.NUM_BATCHES_FOR_TENSOR_SPEC,
                 )
             )
-            self._output_signature = tuple(
+            self._output_signature = tree.lists_to_tuples(
                 data_adapter_utils.get_tensor_spec(batches)
             )
         return tf.data.Dataset.from_generator(
-            self.get_numpy_iterator,
+            get_tf_iterator,
             output_signature=self._output_signature,
         )
 
