@@ -20,6 +20,7 @@ from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
 from keras.src.utils import traceback_utils
+from keras.src.utils import tracking
 from keras.src.utils.python_utils import pythonify_logs
 
 
@@ -29,6 +30,7 @@ class TorchTrainer(base_trainer.Trainer):
         self.train_function = None
         self.test_function = None
         self.predict_function = None
+        self.ddp_model = None
 
     def _should_torch_compile(self):
         # require torch>=2.1.0 to enable dynamo since it
@@ -44,11 +46,9 @@ class TorchTrainer(base_trainer.Trainer):
 
         return self.jit_compile
 
+    @tracking.no_automatic_dependency_tracking
     def _initialize_ddp(self):
-        if (
-            torch.distributed.is_initialized()
-            and getattr(self, "ddp_model", self) is self
-        ):
+        if torch.distributed.is_initialized() and self.ddp_model is None:
             active_distribution = distribution()
 
             if active_distribution is None or isinstance(
@@ -93,7 +93,7 @@ class TorchTrainer(base_trainer.Trainer):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
 
         # Compute predictions
-        model = getattr(self, "ddp_model", self)
+        model = self.ddp_model or self
         if self._call_has_training_arg:
             y_pred = model(x, training=True)
         else:
@@ -138,7 +138,7 @@ class TorchTrainer(base_trainer.Trainer):
             y,
             sample_weight,
         ) = data_adapter_utils.unpack_x_y_sample_weight(data)
-        model = getattr(self, "ddp_model", self)
+        model = self.ddp_model or self
         if self._call_has_training_arg:
             y_pred = model(x, training=False)
         else:
@@ -156,7 +156,7 @@ class TorchTrainer(base_trainer.Trainer):
 
     def predict_step(self, data):
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
-        model = getattr(self, "ddp_model", self)
+        model = self.ddp_model or self
         if self._call_has_training_arg:
             y_pred = model(x, training=False)
         else:
@@ -219,24 +219,18 @@ class TorchTrainer(base_trainer.Trainer):
                 for v in self.metrics_variables:
                     # Use a copy for reduction to avoid modifying
                     # the original variable.
-                    val = v._value if hasattr(v, "_value") else None
-                    if val is not None:
-                        val = val.clone()
-                        dist.all_reduce(
-                            val,
-                            op=dist.ReduceOp.SUM,
-                            group=process_group,
-                        )
+                    val = v.value.clone()
+                    dist.all_reduce(
+                        val,
+                        op=dist.ReduceOp.SUM,
+                        group=process_group,
+                    )
                     reduced_vars.append(val)
 
                 with backend.StatelessScope(
-                    state_mapping=[
-                        (v, reduced_v)
-                        for v, reduced_v in zip(
-                            self.metrics_variables, reduced_vars
-                        )
-                        if reduced_v is not None
-                    ]
+                    state_mapping=list(
+                        zip(self.metrics_variables, reduced_vars)
+                    )
                 ):
                     results = super().get_metrics_result()
 
