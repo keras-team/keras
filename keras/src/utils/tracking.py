@@ -125,6 +125,10 @@ class Tracker:
     def is_in_store(self, store_name, value):
         return id(value) in self.stored_ids[store_name]
 
+    def tracks(self, value):
+        """Whether `value` is currently held in any of the stores."""
+        return any(id(value) in ids for ids in self.stored_ids.values())
+
     def replace_tracked_value(self, store_name, old_value, new_value):
         if not self.is_in_store(store_name, old_value):
             raise ValueError(f"Unknown value: {old_value}")

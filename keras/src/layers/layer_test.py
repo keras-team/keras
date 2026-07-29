@@ -1993,3 +1993,60 @@ class LayerTest(testing.TestCase):
         self.assertIs(outer.w, new_w)
         self.assertEqual(outer.weights.count(new_w), 1)
         self.assertEqual(len(outer.weights), 1)
+
+    def test_reassignment_keeps_value_referenced_elsewhere(self):
+        # The tracker dedupes by id and has no name->value mapping, so the
+        # same sublayer can be reached from several attributes. Reassigning
+        # one attribute must not untrack a layer still held by another (a
+        # common pattern: `self.all_layers = [self.dense1, self.dense2]`).
+        class Outer(layers.Layer):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.dense1 = layers.Dense(4)
+                self.dense2 = layers.Dense(4)
+                self.all_layers = [self.dense1, self.dense2]
+
+            def call(self, x):
+                for layer in self.all_layers:
+                    x = layer(x)
+                return x
+
+        outer = Outer()
+        outer(np.ones((1, 4), dtype="float32"))
+        self.assertTrue(outer.built)
+        old_dense1 = outer.dense1
+
+        new_dense1 = layers.Dense(4)
+        outer.dense1 = new_dense1
+        self.assertIs(outer.dense1, new_dense1)
+
+        # `old_dense1` is still referenced by `self.all_layers`, so it must
+        # remain tracked; `new_dense1` is tracked too. No duplicates.
+        self.assertIn(old_dense1, outer._layers)
+        self.assertIn(new_dense1, outer._layers)
+        self.assertIn(outer.dense2, outer._layers)
+        self.assertEqual(outer._layers.count(old_dense1), 1)
+        self.assertEqual(outer._layers.count(new_dense1), 1)
+        # The forward pass (which goes through `all_layers`) still works.
+        outer(np.ones((1, 4), dtype="float32"))
+
+    def test_reassignment_untracks_orphaned_value(self):
+        # When the reassigned attribute is the only reference, the previous
+        # value must be untracked so its weights don't leak into the layer.
+        class Outer(layers.Layer):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.inner = layers.Dense(4)
+
+            def call(self, x):
+                return self.inner(x)
+
+        outer = Outer()
+        outer(np.ones((1, 4), dtype="float32"))
+        old_inner = outer.inner
+
+        new_inner = layers.Dense(4)
+        outer.inner = new_inner
+        self.assertNotIn(old_inner, outer._layers)
+        self.assertEqual(outer._layers.count(new_inner), 1)
+        self.assertEqual(len(outer._layers), 1)
