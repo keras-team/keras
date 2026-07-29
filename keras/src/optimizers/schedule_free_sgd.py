@@ -131,9 +131,8 @@ class ScheduleFreeSGD(optimizer.Optimizer):
         """Update step given gradient and the associated model variable."""
         lr = ops.cast(learning_rate, variable.dtype)
         gradient = ops.cast(gradient, variable.dtype)
-        local_step = ops.cast(self.iterations + 1, variable.dtype)
-
         beta_1 = ops.cast(self.beta_1, variable.dtype)
+        local_step = ops.cast(self.iterations + 1, variable.dtype)
 
         # Apply warmup
         if self.warmup_steps > 0:
@@ -146,25 +145,20 @@ class ScheduleFreeSGD(optimizer.Optimizer):
         averaged = self._averageds[var_index]
 
         # Update sum of squared learning rates (once per iteration)
-        # We use a trick to update it only once per iteration across
-        # all variables
         last_iteration = ops.cast(self._last_iteration, "int")
         current_iteration = ops.cast(self.iterations, "int")
 
-        def update_sum_sq_lrs():
-            new_sum = ops.add(self._sum_sq_lrs, ops.square(lr))
-            self.assign(self._sum_sq_lrs, new_sum)
-            self.assign(self._last_iteration, current_iteration)
-            return new_sum
-
-        sum_sq_lrs = ops.cond(
+        new_sum_sq_lrs = ops.cond(
             ops.greater(current_iteration, last_iteration),
-            update_sum_sq_lrs,
-            lambda: self._sum_sq_lrs.value,
+            lambda: ops.add(self._sum_sq_lrs, ops.square(lr)),
+            lambda: ops.cast(self._sum_sq_lrs, lr.dtype),
         )
+        self.assign(self._sum_sq_lrs, new_sum_sq_lrs)
+        self.assign(self._last_iteration, current_iteration)
+        sum_sq_lrs = new_sum_sq_lrs
 
         # Compute weight for averaging: weight = lr^2 / sum_sq_lrs
-        weight = ops.divide(ops.square(lr), sum_sq_lrs)
+        weight = ops.divide_no_nan(ops.square(lr), sum_sq_lrs)
 
         # Apply weight decay
         if self.weight_decay is not None:
@@ -180,20 +174,22 @@ class ScheduleFreeSGD(optimizer.Optimizer):
             )
 
         # Update momentum: momentum = momentum - lr * gradient
-        self.assign_sub(momentum, ops.multiply(lr, gradient))
+        # Use updated values after possible initialization
+        new_momentum = ops.subtract(momentum, ops.multiply(lr, gradient))
+        self.assign(momentum, new_momentum)
 
         # Update averaged sequence:
         # x_new = (1 - weight) * x_old + weight * momentum_new
         new_averaged = ops.add(
             ops.multiply(1 - weight, averaged),
-            ops.multiply(weight, momentum),
+            ops.multiply(weight, new_momentum),
         )
         self.assign(averaged, new_averaged)
 
         # Update model variable:
         # y_new = (1 - beta_1) * momentum_new + beta_1 * x_new
         y_new = ops.add(
-            ops.multiply(1 - beta_1, momentum),
+            ops.multiply(1 - beta_1, new_momentum),
             ops.multiply(beta_1, new_averaged),
         )
 

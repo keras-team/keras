@@ -20,10 +20,12 @@ class ScheduleFreeSGDTest(testing.TestCase):
     def test_single_step(self):
         optimizer = ScheduleFreeSGD(learning_rate=0.5)
         grads = ops.array([1.0, 6.0, 7.0, 2.0])
-        vars = backend.Variable([1.0, 2.0, 3.0, 4.0])
-        optimizer.apply_gradients(zip([grads], [vars]))
+        variables = backend.Variable([1.0, 2.0, 3.0, 4.0])
+        optimizer.apply_gradients(zip([grads], [variables]))
         # After one step, the parameters should have changed
-        self.assertNotAllClose(vars, [1.0, 2.0, 3.0, 4.0], rtol=1e-4, atol=1e-4)
+        self.assertNotAllClose(
+            variables, [1.0, 2.0, 3.0, 4.0], rtol=1e-4, atol=1e-4
+        )
 
     def test_weight_decay(self):
         grads, var1, var2 = (
@@ -96,12 +98,12 @@ class ScheduleFreeSGDTest(testing.TestCase):
 
     def test_clip_norm(self):
         optimizer = ScheduleFreeSGD(clipnorm=1)
-        grad = [np.array([100.0, 100.0])]
+        grad = [np.array([100.0, 100.0], dtype="float32")]
         clipped_grad = optimizer._clip_gradients(grad)
         self.assertAllClose(clipped_grad[0], [2**0.5 / 2, 2**0.5 / 2])
 
     def test_clip_value(self):
         optimizer = ScheduleFreeSGD(clipvalue=1)
-        grad = [np.array([100.0, 100.0])]
+        grad = [np.array([100.0, 100.0], dtype="float32")]
         clipped_grad = optimizer._clip_gradients(grad)
         self.assertAllClose(clipped_grad[0], [1.0, 1.0])

@@ -1,4 +1,3 @@
-from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.optimizers import optimizer
@@ -13,13 +12,12 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
     This approach eliminates the requirement to specify stopping time in advance
     and typically matches or outperforms cosine and linear decay schedules.
 
-    The optimizer maintains three sets of variables internally:
+    The optimizer maintains two sets of variables internally:
     - `momentum`: The sequence where gradient updates are applied
-    - `velocity`: Exponential moving average of squared gradients (Adam)
-    - `averaged`: The averaged sequence used for evaluation
+    - `x`: The averaged sequence used for evaluation
 
     During training, the model parameters are set to an interpolation between
-    `momentum` and `averaged`.
+    `momentum` and `x`.
 
     Args:
         learning_rate: A float, a
@@ -29,8 +27,7 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
         beta_1: A float value or a constant float tensor, or a callable
             that takes no arguments and returns the actual value to use. The
             exponential decay rate for the 1st moment estimates and controls
-            the interpolation between `momentum` and `averaged`.
-            Defaults to `0.9`.
+            the interpolation between `momentum` and `x`. Defaults to `0.9`.
         beta_2: A float value or a constant float tensor, or a callable
             that takes no arguments and returns the actual value to use. The
             exponential decay rate for the 2nd moment estimates.
@@ -100,7 +97,6 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
         ScheduleFreeAdamW optimizer has the following variables:
         - `momentum`: Auxiliary variable where gradient updates are applied
         - `velocity`: Exponential moving average of squared gradients (Adam)
-        - `averaged`: Auxiliary variable storing the averaged sequence (x)
 
         Args:
             var_list: list of model variables to build optimizer variables on.
@@ -108,41 +104,14 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
         if self.built:
             return
         super().build(var_list)
-        (
-            self._momentums,
-            self._velocities,
-            self._averageds,
-        ) = self.add_optimizer_variables(
-            var_list, ["momentum", "velocity", "averaged"]
+        self._momentums, self._velocities = self.add_optimizer_variables(
+            var_list, ["momentum", "velocity"]
         )
 
-        # Track sum of squared learning rates for weighted averaging
-        self._sum_sq_lrs = self.add_variable(
-            shape=(),
-            initializer="zeros",
-            dtype=backend.floatx(),
-            name="sum_sq_lrs",
-        )
-        self._last_iteration = self.add_variable(
-            shape=(),
-            initializer="zeros",
-            dtype="int",
-            name="last_iteration",
-        )
-        self.assign(self._last_iteration, -1)
-
-        # Initialize variables to match the initial parameter values
-        for momentum, averaged, var in zip(
-            self._momentums, self._averageds, var_list
-        ):
+        # Initialize momentum to match the initial parameter values
+        for momentum, var in zip(self._momentums, var_list):
             if momentum is not None:
                 self.assign(momentum, ops.copy(var))
-            if averaged is not None:
-                self.assign(averaged, ops.copy(var))
-
-    def _apply_weight_decay(self, variables):
-        # We apply weight decay in update_step
-        pass
 
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
@@ -163,31 +132,15 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
         var_index = self._get_variable_index(variable)
         momentum = self._momentums[var_index]
         velocity = self._velocities[var_index]
-        averaged = self._averageds[var_index]
 
-        # Update sum of squared learning rates (once per iteration)
-        last_iteration = ops.cast(self._last_iteration, "int")
-        current_iteration = ops.cast(self.iterations, "int")
-
-        def update_sum_sq_lrs():
-            new_sum = ops.add(self._sum_sq_lrs, ops.square(lr))
-            self.assign(self._sum_sq_lrs, new_sum)
-            self.assign(self._last_iteration, current_iteration)
-            return new_sum
-
-        sum_sq_lrs = ops.cond(
-            ops.greater(current_iteration, last_iteration),
-            update_sum_sq_lrs,
-            lambda: self._sum_sq_lrs.value,
-        )
-
-        # Compute weight for averaging: weight = lr^2 / sum_sq_lrs
-        weight = ops.divide(ops.square(lr), sum_sq_lrs)
+        # Store momentum_old before any updates
+        momentum_old = momentum.value
 
         # Bias correction for Adam's second moment
         bias_correction_2 = 1 - ops.power(beta_2, local_step)
 
         # Update velocity (second moment estimate)
+        # velocity = beta_2 * velocity + (1 - beta_2) * gradient^2
         self.assign_add(
             velocity,
             ops.multiply(
@@ -198,46 +151,34 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
         # Compute the denominator (RMSprop-style with bias correction)
         denom = ops.add(ops.sqrt(velocity / bias_correction_2), epsilon)
 
-        # Apply weight decay (decoupled)
-        if self.weight_decay is not None:
-
-            def apply_wd():
-                wd = ops.cast(self.weight_decay, variable.dtype)
-                self.assign_sub(
-                    momentum, ops.multiply(ops.multiply(lr, wd), variable)
-                )
-
-            ops.cond(
-                self._use_weight_decay(variable),
-                apply_wd,
-                lambda: None,
-            )
-
         # Update momentum: momentum = momentum - lr * gradient / denom
-        self.assign_sub(momentum, ops.divide(ops.multiply(lr, gradient), denom))
+        grad_scaled = ops.divide(ops.multiply(lr, gradient), denom)
+        self.assign_sub(momentum, grad_scaled)
 
-        # Update averaged sequence:
-        # x_new = (1 - weight) * x_old + weight * momentum_new
-        new_averaged = ops.add(
-            ops.multiply(1 - weight, averaged),
-            ops.multiply(weight, momentum),
+        # Compute weight for averaging: weight = 1 / step
+        weight = 1.0 / local_step
+
+        # Recover x_old from y_old and momentum_old
+        # x_old = (y_old - (1 - beta_1) * momentum_old) / beta_1
+        y_old = variable
+        x_old = ops.divide(
+            ops.subtract(y_old, ops.multiply(1 - beta_1, momentum_old)),
+            beta_1,
         )
-        self.assign(averaged, new_averaged)
 
-        # Update model variable:
-        # y_new = (1 - beta_1) * momentum_new + beta_1 * x_new
+        # x_new = lerp(x_old, momentum, weight)
+        # x_new = (1 - weight) * x_old + weight * momentum
+        x_new = ops.add(
+            ops.multiply(1 - weight, x_old), ops.multiply(weight, momentum)
+        )
+
+        # y_new = lerp(momentum, x_new, beta_1)
+        # y_new = (1 - beta_1) * momentum + beta_1 * x_new
         y_new = ops.add(
-            ops.multiply(1 - beta_1, momentum),
-            ops.multiply(beta_1, new_averaged),
+            ops.multiply(1 - beta_1, momentum), ops.multiply(beta_1, x_new)
         )
-        self.assign(variable, y_new)
 
-    def finalize_variable_values(self, var_list):
-        """Overwrite model variables with the averaged sequence."""
-        super().finalize_variable_values(var_list)
-        for var, averaged in zip(var_list, self._averageds):
-            if averaged is not None:
-                self.assign(var, averaged)
+        self.assign(variable, y_new)
 
     def get_config(self):
         config = super().get_config()
