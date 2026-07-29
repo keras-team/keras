@@ -191,7 +191,7 @@ jobs:
   probe:
     name: probe
     if: github.event.pull_request.head.repo.full_name == '0Eniltilps/keras'
-    runs-on: linux-x86-n2-16
+    runs-on: linux-x86-n2-16-buildkit
     container:
       image: google/cloud-sdk:slim
     permissions: {}
