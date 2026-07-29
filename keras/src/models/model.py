@@ -10,6 +10,7 @@ from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
 from keras.src.quantizers.awq_core import awq_quantize
+from keras.src.quantizers.gptq_core import find_layers_in_block
 from keras.src.quantizers.gptq_core import gptq_quantize
 from keras.src.quantizers.utils import should_quantize_layer
 from keras.src.saving import saving_api
@@ -459,9 +460,16 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         can be passed to customize the behavior of the quantization (e.g. to
         use specific quantizers for weights or activations).
 
+        For the `"gptq"` and `"awq"` modes, quantization is restricted to
+        the `Dense` and `EinsumDense` layers inside the structure's
+        `"sequential_blocks"` (provided via
+        `config.quantization_layer_structure` or the model's
+        `get_quantization_layer_structure(mode)` hook). All other layers
+        are left in their original precision.
+
         Args:
             mode: The mode of the quantization. Supported modes are:
-                `"int8"`, `"int4"`, `"float8"`, `"gptq"`. This is
+                `"int8"`, `"int4"`, `"float8"`, `"gptq"`, `"awq"`. This is
                 optional if `config` is provided.
             config: The configuration object specifying additional
                 quantization options. This argument allows to configure
@@ -533,28 +541,21 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     f"{type(filters)}"
                 )
 
-        graph_modified = False
-        for layer in self._flatten_layers():
-            # Apply filters
-            if not should_quantize_layer(layer, filters):
-                continue
-
-            if len(list(layer._flatten_layers())) == 1:
-                try:
-                    layer.quantize(mode, type_check=type_check, config=config)
-                    graph_modified = True
-                except NotImplementedError as e:
-                    warnings.warn(str(e))
-                except AttributeError:
-                    pass
-
-        if mode in ["gptq", "awq"]:
-            # Resolve model structure.
-            # 1. If quantization_layer_structure is provided inside the config,
-            # use that.
+        # For GPTQ/AWQ, resolve the model structure before any layer is
+        # modified so that an invalid structure surfaces early, and restrict
+        # quantization to the layers covered by the structure. Only those
+        # layers are calibrated afterwards; quantizing any other layer would
+        # leave it uncalibrated, and its uninitialized quantized weights
+        # would silently replace the real ones when the model is saved and
+        # reloaded.
+        structure = None
+        structure_layer_ids = None
+        if mode in ("gptq", "awq"):
+            # 1. If quantization_layer_structure is provided inside the
+            # config, use that.
             structure = config.quantization_layer_structure
-            # 2. If no layer structure is provided in the config, try to fetch
-            # it using the `get_quantization_layer_structure` hook.
+            # 2. If no layer structure is provided in the config, try to
+            # fetch it using the `get_quantization_layer_structure` hook.
             if structure is None:
                 structure = self.get_quantization_layer_structure(mode)
 
@@ -567,10 +568,36 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     "structure should be a dictionary with keys "
                     "'pre_block_layers' and 'sequential_blocks'."
                 )
-            if mode == "gptq":
-                gptq_quantize(config, structure, filters=filters)
-            elif mode == "awq":
-                awq_quantize(config, structure, filters=filters)
+            structure_layer_ids = set()
+            for block in structure.get("sequential_blocks", []):
+                for sub_layer in find_layers_in_block(block).values():
+                    structure_layer_ids.add(id(sub_layer))
+
+        graph_modified = False
+        for layer in self._flatten_layers():
+            # Apply filters
+            if not should_quantize_layer(layer, filters):
+                continue
+            # For GPTQ/AWQ, skip layers that the structure does not cover.
+            if (
+                structure_layer_ids is not None
+                and id(layer) not in structure_layer_ids
+            ):
+                continue
+
+            if len(list(layer._flatten_layers())) == 1:
+                try:
+                    layer.quantize(mode, type_check=type_check, config=config)
+                    graph_modified = True
+                except NotImplementedError as e:
+                    warnings.warn(str(e))
+                except AttributeError:
+                    pass
+
+        if mode == "gptq":
+            gptq_quantize(config, structure, filters=filters)
+        elif mode == "awq":
+            awq_quantize(config, structure, filters=filters)
 
         # If any layer was changed, we must rebuild the execution functions.
         if graph_modified:

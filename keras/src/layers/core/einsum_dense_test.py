@@ -23,6 +23,7 @@ from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
 from keras.src.saving.saving_api import load_model
+from keras.src.utils.rng_utils import set_random_seed
 
 
 class EinsumDenseTest(testing.TestCase):
@@ -677,6 +678,7 @@ class EinsumDenseTest(testing.TestCase):
         input_shape,
         error_threshold,
     ):
+        set_random_seed(1337)
         layer = layers.EinsumDense(equation=equation, output_shape=output_shape)
         layer.build(input_shape)
         x = ops.random.uniform(input_shape)
@@ -1181,6 +1183,42 @@ class EinsumDenseTest(testing.TestCase):
         new_layer = layers.EinsumDense.from_config(layer_config)
         new_layer.build((None, 3))
         self.assertEqual(new_layer.quantization_mode, "awq")
+
+    def test_gptq_uncalibrated_save_raises(self):
+        """Saving a GPTQ layer that was never calibrated must raise."""
+        config = dict(
+            equation="ab,bcd->acd",
+            output_shape=(8, 32),
+            bias_axes="d",
+        )
+        layer = layers.EinsumDense(**config)
+        layer.build((None, 3))
+        layer.quantize(
+            "gptq",
+            config=GPTQConfig(
+                dataset=None, tokenizer=None, weight_bits=4, group_size=8
+            ),
+        )
+        with self.assertRaisesRegex(ValueError, "never been calibrated"):
+            layer.save_own_variables({})
+
+    def test_awq_uncalibrated_save_raises(self):
+        """Saving an AWQ layer that was never calibrated must raise."""
+        config = dict(
+            equation="ab,bcd->acd",
+            output_shape=(8, 32),
+            bias_axes="d",
+        )
+        layer = layers.EinsumDense(**config)
+        layer.build((None, 3))
+        layer.quantize(
+            "awq",
+            config=AWQConfig(
+                dataset=None, tokenizer=None, group_size=8, num_grid_points=10
+            ),
+        )
+        with self.assertRaisesRegex(ValueError, "never been calibrated"):
+            layer.save_own_variables({})
 
     def test_int4_kernel_returns_unpacked_form(self):
         """Test that the `kernel` property returns the unpacked int4 kernel."""

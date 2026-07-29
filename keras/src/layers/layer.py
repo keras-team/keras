@@ -1068,17 +1068,19 @@ class Layer(BackendLayer, Operation):
         # 1) user explicitly passed it?
         if arg_name in call_spec.user_arguments_dict:
             value = call_spec.user_arguments_dict[arg_name]
+            call_context.set_value(arg_name, value)
         # 2) else: inherited from outer layer call?
         elif call_context.get_value(arg_name) is not None:
             value = call_context.get_value(arg_name)
-        # 3) else: default from the call() signature
+        # 3) else: default from the call() signature. This stays local: the
+        # call context is shared across the whole call tree, so propagating
+        # it would let a non-None default (e.g. a preprocessing layer's
+        # `training=True`) leak to sibling and downstream layers. The bound
+        # `call()` still applies its own default, so there is nothing
+        # further to do here.
         else:
-            value = call_spec.arguments_dict.get(arg_name, None)
+            return
 
-        # stash it for downstream layers
-        call_context.set_value(arg_name, value)
-
-        # only inject it if this layer actually accepts it and it's not None
         if (
             self._call_has_context_arg.get(arg_name, False)
             and value is not None
@@ -1629,12 +1631,21 @@ class Layer(BackendLayer, Operation):
                 self._initialize_tracker()
             value = self._tracker.track(value)
 
-        # NNX-specific bypass for `_called` and `built` attributes
-        # bypass nnx.Module.__setattr__ which cannot be called while tracing
+        # NNX-specific bypass for Keras-internal bookkeeping attributes:
+        # some are set during a traced call (e.g. inside the jitted train
+        # step), which nnx.Module.__setattr__ forbids, and
+        # `_compiled_trainable_state` is a dict keyed by layer objects,
+        # which flax's attribute scanning cannot process.
         if (
             backend.backend() == "jax"
             and is_nnx_enabled()
-            and (name == "_called" or name == "built")
+            and name
+            in (
+                "_called",
+                "built",
+                "_losses_override",
+                "_compiled_trainable_state",
+            )
         ):
             object.__setattr__(self, name, value)
             return
