@@ -349,9 +349,9 @@ class PyDatasetAdapter(DataAdapter):
                 "having been called."
             )
         self._within_epoch = True
+        self.py_dataset.on_epoch_begin()
         if self.enqueuer:
             self.enqueuer.start(self._epoch)
-        self.py_dataset.on_epoch_begin()
 
     def on_epoch_end(self):
         if self.enqueuer:

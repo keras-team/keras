@@ -11,6 +11,7 @@ from keras.src.backend import any_symbolic_tensors
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
+from keras.src.backend.common.backend_utils import normalize_shift_and_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
 from keras.src.ops import operation_utils
 from keras.src.ops.operation import Operation
@@ -7383,7 +7384,8 @@ class Roll(Operation):
 
     def compute_output_spec(self, x):
         if self.axis is not None:
-            canonicalize_axes(self.axis, len(x.shape))
+            _, axes = normalize_shift_and_axis(self.shift, self.axis)
+            canonicalize_axes(axes, len(x.shape))
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
@@ -9499,8 +9501,22 @@ class Select(Operation):
         return backend.numpy.select(condlist, choicelist, default)
 
     def compute_output_spec(self, condlist, choicelist, default=0):
-        first_element = choicelist[0]
-        return KerasTensor(first_element.shape, dtype=first_element.dtype)
+        # `select` broadcasts every array in `condlist` and `choicelist` (and
+        # `default`) to a common shape and promotes the dtype across all
+        # choices, like `where` above -- rather than assuming the first
+        # choice's shape/dtype, which is wrong when a condition, a later
+        # choice, or `default` is broader than the first choice.
+        output_shape = ()
+        for x in list(condlist) + list(choicelist) + [default]:
+            output_shape = broadcast_shapes(
+                output_shape, getattr(x, "shape", [])
+            )
+        dtypes_to_resolve = [
+            getattr(choice, "dtype", type(choice)) for choice in choicelist
+        ]
+        dtypes_to_resolve.append(getattr(default, "dtype", type(default)))
+        output_dtype = dtypes.result_type(*dtypes_to_resolve)
+        return KerasTensor(output_shape, dtype=output_dtype)
 
 
 @keras_export(["keras.ops.select", "keras.ops.numpy.select"])

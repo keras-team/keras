@@ -15,6 +15,7 @@ from keras.src.backend import config
 from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
+from keras.src.backend.common.backend_utils import normalize_shift_and_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
 from keras.src.backend.common.backend_utils import vectorize_impl
 from keras.src.backend.tensorflow import sparse
@@ -2892,7 +2893,10 @@ def reshape(x, newshape):
 def roll(x, shift, axis=None):
     x = convert_to_tensor(x)
     if axis is not None:
-        return tf.roll(x, shift=shift, axis=axis)
+        # `tf.roll` requires `shift` and `axis` to have the same length,
+        # while numpy broadcasts them against each other.
+        shifts, axes = normalize_shift_and_axis(shift, axis)
+        return tf.roll(x, shift=shifts, axis=axes)
 
     # If axis is None, the roll happens as a 1-d tensor.
     original_shape = tf.shape(x)

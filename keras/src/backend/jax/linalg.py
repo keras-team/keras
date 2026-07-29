@@ -109,6 +109,11 @@ def matrix_rank(x, tol=None):
     return jnp.linalg.matrix_rank(x, tol=tol).astype("int32")
 
 
+def matrix_power(a, n):
+    a = convert_to_tensor(a)
+    return jnp.linalg.matrix_power(a, n)
+
+
 def pinv(x, rcond=None):
     x = convert_to_tensor(x)
     if x.ndim < 2:

@@ -534,7 +534,10 @@ class CosineSimilarityTest(testing.TestCase):
         self.assertEqual(cosine_obj.name, "cosine_loss")
         self.assertEqual(cosine_obj.reduction, "sum")
         config = cosine_obj.get_config()
-        self.assertEqual(config, {"name": "cosine_loss", "reduction": "sum"})
+        self.assertEqual(
+            config, {"name": "cosine_loss", "reduction": "sum", "axis": 2}
+        )
+        self.run_class_serialization_test(cosine_obj)
 
     def test_unweighted(self):
         self.setup()
@@ -622,11 +625,14 @@ class HuberLossTest(testing.TestCase):
         self.y_true = self.np_y_true
 
     def test_config(self):
-        h_obj = losses.Huber(reduction="sum", name="huber")
+        h_obj = losses.Huber(delta=2.0, reduction="sum", name="huber")
         self.assertEqual(h_obj.name, "huber")
         self.assertEqual(h_obj.reduction, "sum")
         config = h_obj.get_config()
-        self.assertEqual(config, {"name": "huber", "reduction": "sum"})
+        self.assertEqual(
+            config, {"name": "huber", "reduction": "sum", "delta": 2.0}
+        )
+        self.run_class_serialization_test(h_obj)
 
     def test_all_correct(self):
         self.setup()
@@ -1233,6 +1239,14 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
         self.run_class_serialization_test(
             losses.SparseCategoricalCrossentropy(name="scce")
         )
+        scce_obj = losses.SparseCategoricalCrossentropy(
+            from_logits=True, ignore_class=3, axis=0, name="scce"
+        )
+        config = scce_obj.get_config()
+        self.assertEqual(config["from_logits"], True)
+        self.assertEqual(config["ignore_class"], 3)
+        self.assertEqual(config["axis"], 0)
+        self.run_class_serialization_test(scce_obj)
 
     def test_all_correct_unweighted(self):
         y_true = np.array([[0], [1], [2]], dtype="int64")
