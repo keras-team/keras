@@ -13,7 +13,7 @@ from keras.src.utils.module_utils import tensorflow as tf
 
 def _extract_batch(batch):
     """Return input from batch; handle (x, y) or (x, y, sample_weight)."""
-    if isinstance(batch, tuple):
+    if isinstance(batch, (tuple, list)):
         return batch[0]
     return batch
 
