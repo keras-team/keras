@@ -1242,6 +1242,36 @@ class MathDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
+    @parameterized.named_parameters(
+        named_product(
+            dtypes=list(itertools.combinations(FLOAT_DTYPES + INT_DTYPES, 2))
+        )
+    )
+    def test_gammainc(self, dtypes):
+        import jax.numpy as jnp
+        import jax.scipy.special
+
+        dtype1, dtype2 = dtypes
+
+        x1 = knp.ones((2, 3), dtype=dtype1)
+        x2 = knp.ones((2, 3), dtype=dtype2)
+
+        x1_jax = jnp.ones((2, 3), dtype=dtype1)
+        x2_jax = jnp.ones((2, 3), dtype=dtype2)
+
+        expected_dtype = standardize_dtype(
+            jax.scipy.special.gammainc(x1_jax, x2_jax).dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(kmath.gammainc(x1, x2).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(kmath.Gammainc().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_logsumexp(self, dtype):
         import jax.numpy as jnp
