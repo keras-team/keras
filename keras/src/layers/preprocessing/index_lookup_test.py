@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import pytest
+import tensorflow as tf
 from tensorflow import data as tf_data
 
 from keras.src import backend
@@ -354,6 +355,10 @@ class IndexLookupLayerTest(testing.TestCase):
         )
         output = layer([[1, 2], [3, 4]])
         self.assertEqual(backend.is_tensor(output), True)
+        self.assertIsInstance(output, tf.SparseTensor)
+        self.assertAllClose(
+            tf.sparse.to_dense(output), np.array([[0, 1, 1, 0], [1, 0, 0, 1]])
+        )
 
     def test_adapt_tf_idf(self):
         # Case: unbatched data
