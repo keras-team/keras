@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 import torch
+from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import ops
@@ -22,37 +23,34 @@ class DotProductAttentionCompileTest(testing.TestCase):
             for _ in range(3)
         )
 
-    def test_compiles_without_graph_break(self):
-        # `fullgraph=True` turns a graph break into an error, which is what
-        # makes this a regression test rather than a smoke test.
+    @parameterized.named_parameters(
+        ("no_options", False, False, False, None),
+        ("is_causal", True, False, False, None),
+        ("mask", False, True, False, None),
+        ("mask_and_is_causal", True, True, False, None),
+        ("bias", False, False, True, None),
+        ("scale", False, False, False, 0.125),
+    )
+    def test_compiled_matches_eager(self, is_causal, use_mask, use_bias, scale):
         query, key, value = self._qkv()
-
-        def attend():
-            return ops.dot_product_attention(query, key, value, is_causal=True)
-
-        compiled = torch.compile(attend, fullgraph=True)
-        self.assertAllClose(compiled(), attend())
-
-    def test_compiled_matches_eager(self):
-        query, key, value = self._qkv()
+        kwargs = {"is_causal": is_causal}
+        if scale is not None:
+            kwargs["scale"] = scale
         rng = np.random.default_rng(1)
-        mask = ops.convert_to_tensor(
-            rng.integers(0, 2, (2, 1, 16, 16)).astype("bool")
+        # `mask` and `bias` must broadcast to (batch, heads, q_len, kv_len).
+        if use_mask:
+            kwargs["mask"] = ops.convert_to_tensor(
+                rng.integers(0, 2, (2, 1, 16, 16)).astype("bool")
+            )
+        if use_bias:
+            kwargs["bias"] = ops.convert_to_tensor(
+                rng.standard_normal((2, 1, 16, 16)).astype("float32")
+            )
+
+        # `fullgraph=True` turns a graph break into an error, so this also
+        # covers the untraceable flash attention probe regressing back in.
+        compiled = torch.compile(ops.dot_product_attention, fullgraph=True)
+        self.assertAllClose(
+            compiled(query, key, value, **kwargs),
+            ops.dot_product_attention(query, key, value, **kwargs),
         )
-        bias = ops.convert_to_tensor(
-            rng.standard_normal((2, 1, 16, 16)).astype("float32")
-        )
-
-        for kwargs in (
-            {},
-            {"is_causal": True},
-            {"mask": mask},
-            {"mask": mask, "is_causal": True},
-            {"bias": bias},
-            {"scale": 0.125},
-        ):
-
-            def attend(kwargs=kwargs):
-                return ops.dot_product_attention(query, key, value, **kwargs)
-
-            self.assertAllClose(torch.compile(attend)(), attend())
