@@ -1,6 +1,5 @@
 import numpy as np
 
-from keras.src import ops
 from keras.src import testing
 from keras.src.backend import Variable
 from keras.src.distribution.tensor_parallel import tensor_layout
@@ -52,7 +51,7 @@ class TensorLayoutTest(testing.TestCase):
         self.assertAllClose(shard0_col, [[0, 1], [4, 5], [8, 9], [12, 13]])
 
     def test_split_tensor_for_parallelism_variable_input(self):
-        tensor_np = np.arange(8).reshape((2, 4))
+        tensor_np = np.arange(8).reshape((2, 4)).astype("float32")
         var = Variable(tensor_np)
 
         # Verify it extracts the value and splits correctly
@@ -82,3 +81,18 @@ class TensorLayoutTest(testing.TestCase):
         )
         self.assertEqual(layout.state_rules, state_rules)
         self.assertEqual(layout.output_rules, output_rules)
+
+    def test_invalid_inputs(self):
+        tensor = np.arange(8)
+        with self.assertRaisesRegex(
+            ValueError, "Expected device_count to be a positive integer"
+        ):
+            tensor_layout.split_tensor_for_parallelism(
+                tensor, index=0, device_count=0, dim=0
+            )
+        with self.assertRaisesRegex(
+            ValueError, "Expected index to be an integer in the range"
+        ):
+            tensor_layout.split_tensor_for_parallelism(
+                tensor, index=2, device_count=2, dim=0
+            )
