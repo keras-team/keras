@@ -15,7 +15,8 @@ def analyze_dense_layer(layer, expansion_threshold=1.5):
 
     Args:
         layer: The Keras Dense layer instance to analyze.
-        expansion_threshold: Multiplier threshold to classify expansion/contraction.
+        expansion_threshold: Multiplier threshold to classify
+            expansion/contraction.
 
     Returns:
         str: One of 'up_projection', 'down_projection', or 'dense'.
@@ -41,9 +42,16 @@ def analyze_dense_layer(layer, expansion_threshold=1.5):
         input_dim is None
         and hasattr(layer, "input_shape")
         and layer.input_shape
-        and len(layer.input_shape) > 1
     ):
-        input_dim = layer.input_shape[-1]
+        input_shape = layer.input_shape
+        if (
+            isinstance(input_shape, list)
+            and input_shape
+            and not isinstance(input_shape[0], int)
+        ):
+            input_shape = input_shape[0]
+        if isinstance(input_shape, (tuple, list)) and len(input_shape) > 1:
+            input_dim = input_shape[-1]
 
     if input_dim is None or output_dim is None:
         return "dense"
@@ -69,13 +77,20 @@ def _gather(x, axis):
     return distribution_lib.all_gather(x, axis=axis, axis_name="model")
 
 
-def _get_var_key(var):
+def _get_variable_key(variable):
     """Get a stable key for a variable, preferring path if available."""
     # Keras Variables have a stable 'path' attribute once built into a model.
     # Paths are preferred as they are stable across serialization.
-    if hasattr(var, "path") and var.path:
-        return var.path
-    return id(var)
+    if hasattr(variable, "path") and variable.path:
+        return variable.path
+    return id(variable)
+
+
+def _get_layer_key(layer):
+    """Get a stable key for a layer, preferring path if available."""
+    if hasattr(layer, "path") and layer.path:
+        return layer.path
+    return id(layer)
 
 
 def _apply_layer_sharding_rules(
@@ -86,50 +101,67 @@ def _apply_layer_sharding_rules(
     Args:
         layer: The Keras layer instance to configure.
         device_count: The number of devices available for tensor parallelism.
-        state_rules: Dictionary mapping variable paths/IDs to sharding functions.
-        output_rules: Dictionary mapping layer paths to output communication functors.
+        state_rules: Dictionary mapping variable paths/IDs to sharding
+        functions.
+        output_rules: Dictionary mapping layer paths to output communication
+        functors.
         expansion_threshold: Threshold to classify Dense layers.
     """
+    if not getattr(layer, "built", False):
+        return
 
     def split_rule(dim):
         return functools.partial(
-            tensor_layout.split_tensor_for_parallelism, device_count=device_count, dim=dim
+            tensor_layout.split_tensor_for_parallelism,
+            device_count=device_count,
+            dim=dim,
         )
 
     def gather_rule(axis):
         return functools.partial(_gather, axis=axis)
 
-    layer_path = layer.path
+    layer_key = _get_layer_key(layer)
 
     if isinstance(layer, layers.Dense):
         mlp_type = analyze_dense_layer(layer, expansion_threshold)
 
         if mlp_type == "up_projection":
-            state_rules[_get_var_key(layer.kernel)] = split_rule(dim=1)
+            state_rules[_get_variable_key(layer.kernel)] = split_rule(dim=1)
             if layer.use_bias:
-                state_rules[_get_var_key(layer.bias)] = split_rule(dim=0)
+                state_rules[_get_variable_key(layer.bias)] = split_rule(dim=0)
             # Column-parallel (up) usually requires no gathering if succeeded by
             # Row-parallel (down), keeping it gather-free for Megatron chaining.
 
         elif mlp_type == "down_projection":
-            state_rules[_get_var_key(layer.kernel)] = split_rule(dim=0)
-            output_rules[layer_path] = _reduce_sum
-            # Note: Bias in down-projection usually needs to be added AFTER all-reduce
-            # in standard Megatron. If Keras bias is included in compute, ensure
-            # your custom patcher handles this order of operations correctly.
+            state_rules[_get_variable_key(layer.kernel)] = split_rule(dim=0)
+            if layer.use_bias:
+                warnings.warn(
+                    f"Layer {layer_key} is classified as a down-projection "
+                    "but has 'use_bias=True'. In row-parallel sharding, "
+                    "adding a replicated bias before reduction is "
+                    "mathematically incorrect (it will be summed N times). "
+                    "Ensure your model handles bias after all-reduce."
+                )
+            output_rules[layer_key] = _reduce_sum
 
         else:
-            state_rules[_get_var_key(layer.kernel)] = split_rule(dim=1)
+            state_rules[_get_variable_key(layer.kernel)] = split_rule(dim=1)
             if layer.use_bias:
-                state_rules[_get_var_key(layer.bias)] = split_rule(dim=0)
-            output_rules[layer_path] = gather_rule(axis=-1)
+                state_rules[_get_variable_key(layer.bias)] = split_rule(dim=0)
+            output_rules[layer_key] = gather_rule(axis=-1)
 
     elif isinstance(layer, layers.EinsumDense):
         # Heuristic for Attention Projections vs MLP
         # WARNING: Relying on string heuristics like name/equation is brittle.
         if "attention_output" in layer.name:  # Contraction / Row-Parallel
-            state_rules[_get_var_key(layer.kernel)] = split_rule(dim=0)
-            output_rules[layer_path] = _reduce_sum
+            state_rules[_get_variable_key(layer.kernel)] = split_rule(dim=0)
+            if hasattr(layer, "bias") and layer.bias is not None:
+                warnings.warn(
+                    f"EinsumDense layer {layer_key} (attention_output) "
+                    "has a bias. Row-parallel sharding requires handling "
+                    "bias after all-reduce."
+                )
+            output_rules[layer_key] = _reduce_sum
         elif (
             "h" in layer.equation.split("->")[1]
             or "attention" in layer.name
@@ -138,24 +170,34 @@ def _apply_layer_sharding_rules(
             or "value" in layer.name
         ):
             # Expansion / Column-Parallel for Query/Key/Value
-            state_rules[_get_var_key(layer.kernel)] = split_rule(dim=1)
+            state_rules[_get_variable_key(layer.kernel)] = split_rule(dim=1)
             if hasattr(layer, "bias") and layer.bias is not None:
-                state_rules[_get_var_key(layer.bias)] = split_rule(dim=0)
+                state_rules[_get_variable_key(layer.bias)] = split_rule(dim=0)
         else:
             # Generic EinsumDense (like FFN in some models)
             mlp_type = analyze_dense_layer(layer, expansion_threshold)
             if mlp_type == "up_projection":
-                state_rules[_get_var_key(layer.kernel)] = split_rule(dim=1)
+                state_rules[_get_variable_key(layer.kernel)] = split_rule(dim=1)
                 if hasattr(layer, "bias") and layer.bias is not None:
-                    state_rules[_get_var_key(layer.bias)] = split_rule(dim=0)
+                    state_rules[_get_variable_key(layer.bias)] = split_rule(
+                        dim=0
+                    )
             elif mlp_type == "down_projection":
-                state_rules[_get_var_key(layer.kernel)] = split_rule(dim=0)
-                output_rules[layer_path] = _reduce_sum
-            else:
-                state_rules[_get_var_key(layer.kernel)] = split_rule(dim=1)
+                state_rules[_get_variable_key(layer.kernel)] = split_rule(dim=0)
                 if hasattr(layer, "bias") and layer.bias is not None:
-                    state_rules[_get_var_key(layer.bias)] = split_rule(dim=0)
-                output_rules[layer_path] = gather_rule(axis=-1)
+                    warnings.warn(
+                        f"EinsumDense layer {layer_key} (down_projection) "
+                        "has a bias. Row-parallel sharding requires handling "
+                        "bias after all-reduce."
+                    )
+                output_rules[layer_key] = _reduce_sum
+            else:
+                state_rules[_get_variable_key(layer.kernel)] = split_rule(dim=1)
+                if hasattr(layer, "bias") and layer.bias is not None:
+                    state_rules[_get_variable_key(layer.bias)] = split_rule(
+                        dim=0
+                    )
+                output_rules[layer_key] = gather_rule(axis=-1)
 
     elif (
         isinstance(layer, layers.Embedding)
@@ -173,18 +215,23 @@ def _apply_layer_sharding_rules(
                 ),
                 None,
             )
-        
+
         if embeddings_var is not None:
-            # Shard along the vocabulary dimension (Row-parallel equivalence)
-            state_rules[_get_var_key(embeddings_var)] = split_rule(dim=0)
-            # All-reduce to sum partial embeddings from each device
-            output_rules[layer_path] = _reduce_sum
+            # Shard along the embedding dimension (Column-parallel equivalence)
+            # to avoid out-of-bounds errors during lookup with standard
+            # Embedding layers.
+            state_rules[_get_variable_key(embeddings_var)] = split_rule(dim=1)
+            # All-gather to reconstruct the full embedding dimension
+            output_rules[layer_key] = gather_rule(axis=-1)
         else:
-            warnings.warn(f"Embedding layer {layer_path} found but embeddings variable unidentified.")
+            warnings.warn(
+                f"Embedding layer {layer_key} found but embeddings variable "
+                "unidentified."
+            )
 
     elif isinstance(layer, layers.Dropout):
         # Parallel RNG handling for dropout
-        output_rules[layer_path] = "parallel_dropout"
+        output_rules[layer_key] = "parallel_dropout"
 
 
 def get_default_config(model, device_ids, expansion_threshold=1.5):
@@ -201,7 +248,8 @@ def get_default_config(model, device_ids, expansion_threshold=1.5):
         expansion_threshold: Threshold to classify Dense layers.
 
     Returns:
-        ParallelLayoutMap: Configuration populated with `state_rules` and `output_rules`.
+        ParallelLayoutMap: Configuration populated with `state_rules`
+        and `output_rules`.
     """
     device_count = len(device_ids)
     state_rules = {}
