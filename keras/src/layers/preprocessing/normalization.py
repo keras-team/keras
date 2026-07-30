@@ -289,7 +289,15 @@ class Normalization(DataLayer):
                 data = data.batch(128)
                 input_shape = get_input_shape(data)
         elif isinstance(data, PyDataset):
-            input_shape = _extract_batch(data[0]).shape
+            if len(data) == 0:
+                raise ValueError(
+                    "adapt() received an empty PyDataset. "
+                    "Expected at least one batch."
+                )
+            first_batch = _extract_batch(data[0])
+            if not hasattr(first_batch, "shape"):
+                first_batch = backend.convert_to_tensor(first_batch)
+            input_shape = tuple(first_batch.shape)
         elif hasattr(data, "__iter__"):
             data_is_iterable = True
             # Consume first batch to infer input_shape; then chain it back for
