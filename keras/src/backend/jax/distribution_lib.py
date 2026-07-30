@@ -2,6 +2,8 @@
 
 import jax
 import numpy as np
+from jax import shard_map
+from jax.sharding import PartitionSpec
 
 from keras.src.random import seed_generator
 from keras.src.utils import jax_utils
@@ -217,7 +219,7 @@ def _to_backend_layout(tensor_layout):
             "Cannot create sharding when device mesh is not set "
             "for TensorLayout."
         )
-    partition_spec = jax.sharding.PartitionSpec(*tensor_layout.axes)
+    partition_spec = PartitionSpec(*tensor_layout.axes)
     jax_mesh = tensor_layout.device_mesh.backend_mesh
     return jax.sharding.NamedSharding(jax_mesh, partition_spec)
 
@@ -266,18 +268,34 @@ def all_reduce(x, op="sum", axis_name="model"):
             # This happens when using patching TP inside a regular jit.
             return x
 
-    # Eager mode: simulate SPMD collective using pmap
-    axis_size = _get_axis_size(axis_name)
-    if x.shape[0] % axis_size != 0:
-        raise ValueError(
-            f"Cannot perform all_reduce in eager mode: leading dimension of tensor "
-            f"{x.shape} must be divisible by axis size {axis_size} for axis {axis_name}."
-        )
+    # Eager mode:
+    # If x is a sharded JAX array, we can use shard_map to perform the
+    # collective natively.
+    if isinstance(x, jax.Array) and isinstance(
+        x.sharding, jax.sharding.NamedSharding
+    ):
+        mesh = x.sharding.mesh
+        spec = x.sharding.spec
+        # The output of psum/pmean is replicated along the reduced axis
+        out_spec = PartitionSpec(*(None if a == axis_name else a for a in spec))
+        return shard_map(
+            _reduce_fn,
+            mesh=mesh,
+            in_specs=spec,
+            out_specs=out_spec,
+            check_rep=False,
+        )(x)
 
-    orig_shape = x.shape
-    x_reshaped = x.reshape((axis_size, -1) + orig_shape[1:])
-    res = jax.pmap(_reduce_fn, axis_name=axis_name)(x_reshaped)
-    return res.reshape(orig_shape)
+    # Fallback for non-sharded/plain arrays:
+    axis_size = _get_axis_size(axis_name)
+    if op == "sum":
+        return x * axis_size
+    if op == "mean":
+        return x
+    raise ValueError(
+        f"Unsupported reduction operation: {op}. "
+        "Supported options are 'sum' and 'mean'."
+    )
 
 
 def all_gather(x, axis, axis_name="model"):
@@ -302,20 +320,27 @@ def all_gather(x, axis, axis_name="model"):
             # If the axis is not bound, we cannot perform the gather.
             return x
 
-    # Eager mode: simulate SPMD collective using pmap
+    # Eager mode:
+    # If x is a sharded JAX array, we can use shard_map to perform the
+    # collective natively.
+    if isinstance(x, jax.Array) and isinstance(
+        x.sharding, jax.sharding.NamedSharding
+    ):
+        mesh = x.sharding.mesh
+        spec = x.sharding.spec
+        # The output of all_gather is replicated along the gathered axis
+        out_spec = PartitionSpec(*(None if a == axis_name else a for a in spec))
+        return shard_map(
+            _gather_fn,
+            mesh=mesh,
+            in_specs=spec,
+            out_specs=out_spec,
+            check_rep=False,
+        )(x)
+
+    # Fallback for non-sharded/plain arrays:
     axis_size = _get_axis_size(axis_name)
-    if x.shape[0] % axis_size != 0:
-        raise ValueError(
-            f"Cannot perform all_gather in eager mode: leading dimension of tensor "
-            f"{x.shape} must be divisible by axis size {axis_size} for axis {axis_name}."
-        )
-
-    orig_shape = x.shape
-    x_reshaped = x.reshape((axis_size, -1) + orig_shape[1:])
-    res = jax.pmap(_gather_fn, axis_name=axis_name)(x_reshaped)
-
-    # Reconstruct the gathered shape
-    new_shape = list(orig_shape)
-    actual_axis = axis if axis >= 0 else axis + len(orig_shape)
-    new_shape[actual_axis] *= axis_size
-    return res.reshape(tuple(new_shape))
+    actual_axis = axis if axis >= 0 else axis + len(x.shape)
+    if isinstance(x, jax.Array):
+        return jax.numpy.repeat(x, axis_size, axis=actual_axis)
+    return np.repeat(x, axis_size, axis=actual_axis)

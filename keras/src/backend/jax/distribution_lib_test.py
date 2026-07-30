@@ -379,6 +379,32 @@ class JaxDistributionLibTest(testing.TestCase):
         res0 = backend_dlib.all_gather(x, axis=0, axis_name="model")
         self.assertEqual(res0.shape, (axis_size * 2 * axis_size, 2))
 
+    def test_all_reduce_eager_with_distribution(self):
+        axis_names = ["batch", "model"]
+        device_mesh = distribution_lib.DeviceMesh(
+            self.mesh_shape, axis_names, backend_dlib.list_devices()
+        )
+        # self.mesh_shape = (4, 2). 'model' axis size is 2.
+
+        dist = distribution_lib.ModelParallel(
+            device_mesh=device_mesh,
+            layout_map=distribution_lib.LayoutMap(device_mesh),
+        )
+
+        with dist.scope():
+            x = np.ones((2, 4), dtype=np.float32)
+            # Should use axis_size=2 from the mesh axis 'model'
+            res = backend_dlib.all_reduce(x, op="sum", axis_name="model")
+            self.assertEqual(res.shape, x.shape)
+            np.testing.assert_allclose(res, 2.0)
+
+            # Test axis not in mesh
+            res_default = backend_dlib.all_reduce(
+                x, op="sum", axis_name="unknown"
+            )
+            # Should fallback to jax.local_device_count()
+            np.testing.assert_allclose(res_default, float(self.device_count))
+
     def test_all_reduce_fallback_in_jit(self):
         x = np.ones((4, 4), dtype=np.float32)
 
@@ -400,7 +426,6 @@ class JaxDistributionLibTest(testing.TestCase):
         res = gather_fn(x)
         # Should return x unchanged because axis is not bound
         np.testing.assert_allclose(res, x)
-
 
 
 class ShardingCaptureLayer(layers.Layer):
