@@ -152,6 +152,11 @@ class NNOpsDynamicShapeTest(testing.TestCase):
     def test_glu(self):
         x = KerasTensor([None, 2, 4])
         self.assertEqual(knn.glu(x).shape, (None, 2, 2))
+        with self.assertRaisesRegex(ValueError, "out of bounds"):
+            knn.glu(x, axis=5)
+        x_eager = knp.ones((2, 4))
+        with self.assertRaisesRegex(ValueError, "out of bounds"):
+            knn.glu(x_eager, axis=5)
 
     def test_tanh_shrink(self):
         x = KerasTensor([None, 2, 3])
