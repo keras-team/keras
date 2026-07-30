@@ -1170,26 +1170,43 @@ class Layer(BackendLayer, Operation):
         )
         mapping = list(trainable_mapping) + list(non_trainable_mapping)
 
-        # Call in stateless scope
-        losses = None
-        with backend.StatelessScope(
-            state_mapping=mapping, collect_losses=return_losses
-        ) as scope:
-            if self.dtype_policy.quantization_mode is not None:
-                if self._remat_mode is not None:
+        # Caches info about `call()` signature, args, kwargs.
+        call_spec = CallSpec(
+            self._call_signature, self._call_context_args, args, kwargs
+        )
+
+        # Maintains info about the `Layer.call` stack across nested calls.
+        call_context = self._get_call_context()
+
+        for context_arg in self._call_context_args:
+            self._resolve_and_populate_arg(
+                context_arg, call_spec, call_context, kwargs
+            )
+
+        try:
+            # Call in stateless scope
+            losses = None
+            with backend.StatelessScope(
+                state_mapping=mapping, collect_losses=return_losses
+            ) as scope:
+                if self.dtype_policy.quantization_mode is not None:
+                    if self._remat_mode is not None:
+                        outputs = self.rematerialized_call(
+                            self.quantized_call, *args, **kwargs
+                        )(*args, **kwargs)
+                    else:
+                        outputs = self.quantized_call(*args, **kwargs)
+                elif self._remat_mode is not None:
                     outputs = self.rematerialized_call(
-                        self.quantized_call, *args, **kwargs
+                        self.call, *args, **kwargs
                     )(*args, **kwargs)
                 else:
-                    outputs = self.quantized_call(*args, **kwargs)
-            elif self._remat_mode is not None:
-                outputs = self.rematerialized_call(self.call, *args, **kwargs)(
-                    *args, **kwargs
-                )
-            else:
-                outputs = self.call(*args, **kwargs)
-            if return_losses:
-                losses = self.losses
+                    outputs = self.call(*args, **kwargs)
+                if return_losses:
+                    losses = self.losses
+        finally:
+            # Destroy call context if we created it
+            self._maybe_reset_call_context()
 
         # Gather updated non-trainable variables
         non_trainable_variables = []

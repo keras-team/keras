@@ -2229,19 +2229,21 @@ class TestTrainer(testing.TestCase):
         y = model.predict(x)
         self.assertEqual(type(y), tf.RaggedTensor)
 
-    def test_predict_dropout(self):
+    def test_functional_layer_training_overrides_model_training_argument(self):
         # Test that `predict` with a dropout op
         # has nondeterministic behavior across batches.
 
         inputs = layers.Input((20,))
+        # Passing `training=True` during construction will force dropout to be
+        # enabled even during predict.
         outputs = layers.Dropout(0.5, seed=1337)(inputs, training=True)
         model = keras.Model(inputs, outputs)
         out1 = model.predict(np.ones((4, 20)), batch_size=2)
-        self.assertGreater(5, np.sum(np.abs(out1[:2, :] - out1[2:4, :])))
+        self.assertNotAllClose(out1[:2, :], out1[2:4, :])
 
         out2 = model.predict_on_batch(np.ones((2, 20)))
         out3 = model.predict_on_batch(np.ones((2, 20)))
-        self.assertGreater(5, np.sum(np.abs(out2 - out3)))
+        self.assertNotAllClose(out2, out3)
 
     @pytest.mark.requires_trainable_backend
     def test_recompile(self):
