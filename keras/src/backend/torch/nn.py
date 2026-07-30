@@ -1449,6 +1449,18 @@ def _can_use_flash_attention(
     query, key, value, mask=None, is_causal=False, raise_error=False
 ):
     """Verify the availability of flash attention."""
+    if (
+        hasattr(torch.compiler, "is_compiling")
+        and torch.compiler.is_compiling()
+    ):
+        # The probe below constructs a pybind11 `SDPAParams` object, which
+        # dynamo cannot trace, so running it would break the graph at every
+        # attention call. `raise_error` is deliberately not honored here:
+        # dynamo discards an exception raised while tracing and silently
+        # re-runs the frame eagerly, which skips this branch and leaves the
+        # frame uncompiled.
+        return False
+
     try:
         from torch.backends.cuda import SDPAParams
         from torch.backends.cuda import can_use_flash_attention
@@ -1552,25 +1564,6 @@ def dot_product_attention(
         value = torch.repeat_interleave(value, repeats=groups, dim=1)
 
     if flash_attention is None:
-        if (
-            hasattr(torch.compiler, "is_compiling")
-            and torch.compiler.is_compiling()
-        ):
-            # Probing for flash-attention support constructs a pybind11
-            # `SDPAParams` object, which dynamo cannot trace, so under
-            # `torch.compile` the probe breaks the graph at every attention
-            # call and costs far more than picking the kernel from Python
-            # saves. Defer the choice to `scaled_dot_product_attention`, which
-            # already dispatches to the fastest kernel its inputs allow.
-            attention_output = torch.nn.functional.scaled_dot_product_attention(
-                query,
-                key,
-                value,
-                attn_mask=mask,
-                is_causal=is_causal,
-                scale=scale,
-            )
-            return torch.transpose(attention_output, axis1, axis0)
         flash_attention = _can_use_flash_attention(
             query, key, value, mask, is_causal
         )
