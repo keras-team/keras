@@ -349,6 +349,59 @@ class JaxDistributionLibTest(testing.TestCase):
         for shard in result.addressable_shards:
             self.assertEqual(shard.data.shape, (3, 5))
 
+    def test_all_reduce_eager(self):
+        # Eager mode (no distribution context -> uses local_device_count)
+        axis_size = self.device_count
+        x = np.ones((axis_size * 2, 4), dtype=np.float32)
+
+        # Test sum
+        res_sum = backend_dlib.all_reduce(x, op="sum", axis_name="model")
+        self.assertEqual(res_sum.shape, x.shape)
+        expected_sum = np.full(x.shape, axis_size, dtype=np.float32)
+        np.testing.assert_allclose(res_sum, expected_sum)
+
+        # Test mean
+        res_mean = backend_dlib.all_reduce(x, op="mean", axis_name="model")
+        self.assertEqual(res_mean.shape, x.shape)
+        expected_mean = np.ones(x.shape, dtype=np.float32)
+        np.testing.assert_allclose(res_mean, expected_mean)
+
+    def test_all_gather_eager(self):
+        # Eager mode (no distribution context -> uses local_device_count)
+        axis_size = self.device_count
+        x = np.ones((axis_size * 2, 2), dtype=np.float32)
+
+        # Gather along axis 1
+        res = backend_dlib.all_gather(x, axis=1, axis_name="model")
+        self.assertEqual(res.shape, (axis_size * 2, 2 * axis_size))
+
+        # Gather along axis 0
+        res0 = backend_dlib.all_gather(x, axis=0, axis_name="model")
+        self.assertEqual(res0.shape, (axis_size * 2 * axis_size, 2))
+
+    def test_all_reduce_fallback_in_jit(self):
+        x = np.ones((4, 4), dtype=np.float32)
+
+        @jax.jit
+        def reduce_fn(y):
+            return backend_dlib.all_reduce(y, op="sum", axis_name="model")
+
+        res = reduce_fn(x)
+        # Should return x unchanged because axis is not bound
+        np.testing.assert_allclose(res, x)
+
+    def test_all_gather_fallback_in_jit(self):
+        x = np.ones((4, 4), dtype=np.float32)
+
+        @jax.jit
+        def gather_fn(y):
+            return backend_dlib.all_gather(y, axis=1, axis_name="model")
+
+        res = gather_fn(x)
+        # Should return x unchanged because axis is not bound
+        np.testing.assert_allclose(res, x)
+
+
 
 class ShardingCaptureLayer(layers.Layer):
     def __init__(self, **kwargs):

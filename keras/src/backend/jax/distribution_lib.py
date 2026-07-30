@@ -220,3 +220,102 @@ def _to_backend_layout(tensor_layout):
     partition_spec = jax.sharding.PartitionSpec(*tensor_layout.axes)
     jax_mesh = tensor_layout.device_mesh.backend_mesh
     return jax.sharding.NamedSharding(jax_mesh, partition_spec)
+
+
+def _get_axis_size(axis_name):
+    """Retrieve the size of a mesh axis from the current distribution."""
+    # Avoid circular imports.
+    from keras.src.distribution import distribution_lib
+
+    dist = distribution_lib.distribution()
+    if dist is not None and dist.device_mesh is not None:
+        mesh = dist.device_mesh
+        if axis_name in mesh.axis_names:
+            axis_idx = mesh.axis_names.index(axis_name)
+            return mesh.shape[axis_idx]
+    return jax.local_device_count()
+
+
+def all_reduce(x, op="sum", axis_name="model"):
+    """Reduces a tensor across a device mesh axis using a collective.
+
+    Args:
+        x: The tensor to reduce.
+        op: The reduction operation. "sum" or "mean".
+        axis_name: The name of the mesh axis to reduce over.
+
+    Returns:
+        The reduced tensor.
+    """
+
+    def _reduce_fn(y):
+        if op == "sum":
+            return jax.lax.psum(y, axis_name=axis_name)
+        if op == "mean":
+            return jax.lax.pmean(y, axis_name=axis_name)
+        raise ValueError(
+            f"Unsupported reduction operation: {op}. "
+            "Supported options are 'sum' and 'mean'."
+        )
+
+    if jax_utils.is_in_jax_tracing_scope(x):
+        try:
+            return _reduce_fn(x)
+        except (ValueError, NameError):
+            # If the axis is not bound, we cannot perform the reduction.
+            # This happens when using patching TP inside a regular jit.
+            return x
+
+    # Eager mode: simulate SPMD collective using pmap
+    axis_size = _get_axis_size(axis_name)
+    if x.shape[0] % axis_size != 0:
+        raise ValueError(
+            f"Cannot perform all_reduce in eager mode: leading dimension of tensor "
+            f"{x.shape} must be divisible by axis size {axis_size} for axis {axis_name}."
+        )
+
+    orig_shape = x.shape
+    x_reshaped = x.reshape((axis_size, -1) + orig_shape[1:])
+    res = jax.pmap(_reduce_fn, axis_name=axis_name)(x_reshaped)
+    return res.reshape(orig_shape)
+
+
+def all_gather(x, axis, axis_name="model"):
+    """Gathers and concatenates tensors from all devices across a mesh axis.
+
+    Args:
+        x: The input tensor shard on the local device.
+        axis: The tensor axis along which to concatenate the gathered shards.
+        axis_name: The name of the mesh axis to gather from.
+
+    Returns:
+        The full, gathered tensor.
+    """
+
+    def _gather_fn(y):
+        return jax.lax.all_gather(y, axis_name=axis_name, axis=axis, tiled=True)
+
+    if jax_utils.is_in_jax_tracing_scope(x):
+        try:
+            return _gather_fn(x)
+        except (ValueError, NameError):
+            # If the axis is not bound, we cannot perform the gather.
+            return x
+
+    # Eager mode: simulate SPMD collective using pmap
+    axis_size = _get_axis_size(axis_name)
+    if x.shape[0] % axis_size != 0:
+        raise ValueError(
+            f"Cannot perform all_gather in eager mode: leading dimension of tensor "
+            f"{x.shape} must be divisible by axis size {axis_size} for axis {axis_name}."
+        )
+
+    orig_shape = x.shape
+    x_reshaped = x.reshape((axis_size, -1) + orig_shape[1:])
+    res = jax.pmap(_gather_fn, axis_name=axis_name)(x_reshaped)
+
+    # Reconstruct the gathered shape
+    new_shape = list(orig_shape)
+    actual_axis = axis if axis >= 0 else axis + len(orig_shape)
+    new_shape[actual_axis] *= axis_size
+    return res.reshape(tuple(new_shape))
