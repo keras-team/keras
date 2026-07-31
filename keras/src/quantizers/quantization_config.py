@@ -205,6 +205,31 @@ class Float8QuantizationConfig(QuantizationConfig):
         return cls()
 
 
+@keras_export("keras.quantizers.TernaryQuantizationConfig")
+class TernaryQuantizationConfig(QuantizationConfig):
+    """Ternary quantization config.
+
+    Quantizes weights to `{-1, 0, +1}` (BitNet b1.58) and stores them at the
+    information-theoretic floor of `log2(3) ~= 1.58` bits/value by packing five
+    trits per byte. The quantization rule (threshold and scale) is owned by the
+    layer, so this config takes no quantizer arguments.
+    """
+
+    def __init__(self):
+        super().__init__(None, None)
+
+    @property
+    def mode(self):
+        return "ternary"
+
+    def get_config(self):
+        return {}
+
+    @classmethod
+    def from_config(cls, config):
+        return cls()
+
+
 def validate_and_resolve_config(mode, config):
     """Validate and resolve quantization config.
 
@@ -231,6 +256,8 @@ def validate_and_resolve_config(mode, config):
             config = Int4QuantizationConfig()
         elif mode == "float8":
             config = Float8QuantizationConfig()
+        elif mode == "ternary":
+            config = TernaryQuantizationConfig()
         elif mode == "gptq":
             raise ValueError(
                 "For GPTQ, you must pass a `GPTQConfig` object in the "

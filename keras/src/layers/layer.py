@@ -1392,6 +1392,8 @@ class Layer(BackendLayer, Operation):
             return self._float8_call(*args, **kwargs)
         elif self.quantization_mode == "int4":
             return self._int4_call(*args, **kwargs)
+        elif self.quantization_mode == "ternary":
+            return self._ternary_call(*args, **kwargs)
         elif self.quantization_mode == "gptq":
             return self._gptq_call(*args, **kwargs)
         elif self.quantization_mode == "awq":
@@ -1401,6 +1403,9 @@ class Layer(BackendLayer, Operation):
 
     def _int4_call(self, *args, **kwargs):
         raise self._not_implemented_error(self._int4_call)
+
+    def _ternary_call(self, *args, **kwargs):
+        raise self._not_implemented_error(self._ternary_call)
 
     def _int8_call(self, *args, **kwargs):
         raise self._not_implemented_error(self._int8_call)

@@ -176,6 +176,40 @@ class QuantizersTest(testing.TestCase):
             list(ops.convert_to_numpy(packed_shape)), expected_packed_shape
         )
 
+    @parameterized.named_parameters(SHAPE_AXIS_SCENARIOS)
+    def test_pack_unpack_ternary(self, shape, axis):
+        # Random ternary values in {-1, 0, +1}.
+        arr = ops.cast(
+            ops.floor(random.uniform(shape, minval=-1, maxval=2)), "int8"
+        )
+
+        packed, packed_shape, orig_len = quantizers.pack_ternary(arr, axis=axis)
+        unpacked = quantizers.unpack_ternary(packed, orig_len, axis=axis)
+
+        # Packed bytes are uint8, with five trits packed along the pack axis.
+        ax = axis % len(shape)
+        self.assertDType(packed, "uint8")
+        self.assertEqual(packed_shape[ax], (shape[ax] + 4) // 5)
+
+        # The round-trip is lossless back to {-1, 0, +1}.
+        self.assertDType(unpacked, "int8")
+        self.assertAllClose(unpacked, arr)
+
+    def test_pack_ternary_bits_per_value(self):
+        # 100 trits packed along axis 0 (length 25 -> 5 bytes) for 4 columns.
+        arr = ops.cast(
+            ops.floor(random.uniform((25, 4), minval=-1, maxval=2)), "int8"
+        )
+        packed, packed_shape, _ = quantizers.pack_ternary(arr, axis=0)
+
+        n_bytes = 1
+        for dim in packed_shape:
+            n_bytes *= dim
+        # 5 bytes/column * 4 columns = 20 bytes for 100 ternary values: the
+        # log2(3) ~= 1.58-bit floor, denser than int4 (50 bytes) or int8.
+        self.assertEqual(n_bytes, 20)
+        self.assertEqual(8 * n_bytes / 100, 1.6)
+
     @parameterized.named_parameters(
         ("per_tensor", None),
         ("per_channel", -1),
