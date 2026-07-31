@@ -16,6 +16,7 @@ from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.gptq import _stable_permutation
 from keras.src.quantizers.gptq import gptq_quantize_matrix
 from keras.src.quantizers.gptq_config import GPTQConfig
+from keras.src.quantizers.gptq_core import find_layers_in_block
 from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
@@ -383,6 +384,28 @@ class GPTQTest(testing.TestCase):
             unordered_layer.get_weights()[0],
             msg="Weights should be identical as the permutation is undone.",
         )
+
+    def test_find_layers_in_block_includes_layers_with_sub_layers(self):
+        """`Dense`/`EinsumDense` are collected even when they own sub-layers.
+
+        A `Dense` whose activation is a `Layer` owns that `Layer`, so a leaf
+        filter would wrongly hide it from calibration. `find_layers_in_block`
+        must return both such a `Dense` and a plain `Dense`.
+        """
+        block = models.Sequential(
+            [
+                layers.Dense(8, activation=layers.ReLU()),
+                layers.Dense(8),
+            ]
+        )
+        block.build((None, 8))
+
+        found = find_layers_in_block(block)
+
+        self.assertEqual(len(found), 2)
+        for dense in block.layers:
+            self.assertIn(dense.path, found)
+            self.assertIs(found[dense.path], dense)
 
 
 def _compute_scale_zero(x, **_):
@@ -808,6 +831,54 @@ class TestModelQuantization(testing.TestCase):
         y_after = reloaded.predict(x_eval)
 
         self.assertAllClose(y_before, y_after)
+
+    def test_gptq_calibrates_dense_with_layer_activation(self):
+        """A `Dense` with a `Layer` activation inside a block is calibrated.
+
+        The activation `Layer` makes the `Dense` a non-leaf, but GPTQ must
+        still discover and calibrate it: after `quantize("gptq")` the layer
+        is in `gptq` mode with `is_gptq_calibrated` set.
+        """
+        keras.utils.set_random_seed(123)
+        embed_dim = 8
+
+        block = models.Sequential(
+            [layers.Dense(embed_dim, activation=layers.ReLU())]
+        )
+
+        inputs = layers.Input(shape=(SEQ_LEN,), dtype="int32")
+        embedding = layers.Embedding(VOCAB_SIZE, embed_dim)
+        x = embedding(inputs)
+        x = block(x)
+        x = layers.GlobalAveragePooling1D()(x)
+        outputs = layers.Dense(NUM_CLASSES)(x)
+        model = models.Model(inputs, outputs)
+
+        rng = np.random.default_rng(seed=7)
+        dataset = [
+            rng.integers(0, VOCAB_SIZE, size=(1, SEQ_LEN), dtype=np.int32)
+            for _ in range(4)
+        ]
+        tokenizer = _char_tokenizer(vocab_size=VOCAB_SIZE, seq_len=SEQ_LEN)
+
+        config = GPTQConfig(
+            dataset=dataset,
+            tokenizer=tokenizer,
+            weight_bits=4,
+            group_size=8,
+            num_samples=4,
+            sequence_length=SEQ_LEN,
+            quantization_layer_structure={
+                "pre_block_layers": [embedding],
+                "sequential_blocks": [block],
+            },
+        )
+
+        model.quantize("gptq", config=config)
+
+        act_dense = block.layers[0]
+        self.assertEqual(act_dense.quantization_mode, "gptq")
+        self.assertTrue(act_dense.is_gptq_calibrated)
 
     def test_gptq_missing_structure_leaves_model_unmodified(self):
         """A config without a structure raises before any layer is mutated."""
