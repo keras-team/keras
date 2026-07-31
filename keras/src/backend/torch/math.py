@@ -2,7 +2,6 @@ import math
 
 import torch
 
-from keras.src.backend import config
 from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
 from keras.src.backend.torch.core import cast
@@ -434,6 +433,9 @@ def gammainc(x1, x2):
     x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
 
-    x1 = cast(x1, config.floatx())
-    x2 = cast(x2, config.floatx())
+    compute_dtype = dtype
+    if standardize_dtype(dtype) in ("float16", "bfloat16"):
+        compute_dtype = "float32"
+    x1 = cast(x1, compute_dtype)
+    x2 = cast(x2, compute_dtype)
     return cast(torch.special.gammainc(x1, x2), dtype)
