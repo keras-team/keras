@@ -1393,6 +1393,8 @@ class Layer(BackendLayer, Operation):
             return self._float8_call(*args, **kwargs)
         elif self.quantization_mode == "int4":
             return self._int4_call(*args, **kwargs)
+        elif self.quantization_mode == "ternary":
+            return self._ternary_call(*args, **kwargs)
         elif self.quantization_mode == "gptq":
             return self._gptq_call(*args, **kwargs)
         elif self.quantization_mode == "awq":
@@ -1402,6 +1404,9 @@ class Layer(BackendLayer, Operation):
 
     def _int4_call(self, *args, **kwargs):
         raise self._not_implemented_error(self._int4_call)
+
+    def _ternary_call(self, *args, **kwargs):
+        raise self._not_implemented_error(self._ternary_call)
 
     def _int8_call(self, *args, **kwargs):
         raise self._not_implemented_error(self._int8_call)
@@ -1632,12 +1637,21 @@ class Layer(BackendLayer, Operation):
                 self._initialize_tracker()
             value = self._tracker.track(value)
 
-        # NNX-specific bypass for `_called` and `built` attributes
-        # bypass nnx.Module.__setattr__ which cannot be called while tracing
+        # NNX-specific bypass for Keras-internal bookkeeping attributes:
+        # some are set during a traced call (e.g. inside the jitted train
+        # step), which nnx.Module.__setattr__ forbids, and
+        # `_compiled_trainable_state` is a dict keyed by layer objects,
+        # which flax's attribute scanning cannot process.
         if (
             backend.backend() == "jax"
             and is_nnx_enabled()
-            and (name == "_called" or name == "built")
+            and name
+            in (
+                "_called",
+                "built",
+                "_losses_override",
+                "_compiled_trainable_state",
+            )
         ):
             object.__setattr__(self, name, value)
             return
