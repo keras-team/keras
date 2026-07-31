@@ -276,14 +276,30 @@ def all_reduce(x, op="sum", axis_name="model"):
     ):
         mesh = x.sharding.mesh
         spec = x.sharding.spec
+
+        # Find which axis of the array is sharded over `axis_name`
+        axis = -1
+        for i, a in enumerate(spec):
+            if a == axis_name:
+                axis = i
+                break
+
+        def _reduce_fn_with_gather(y):
+            y = _reduce_fn(y)
+            if axis != -1:
+                return jax.lax.all_gather(
+                    y, axis_name=axis_name, axis=axis, tiled=True
+                )
+            return y
+
         # The output of psum/pmean is replicated along the reduced axis
         out_spec = PartitionSpec(*(None if a == axis_name else a for a in spec))
         return shard_map(
-            _reduce_fn,
+            _reduce_fn_with_gather,
             mesh=mesh,
             in_specs=spec,
             out_specs=out_spec,
-            check_rep=False,
+            check_vma=False,
         )(x)
 
     # Fallback for non-sharded/plain arrays:
@@ -335,7 +351,7 @@ def all_gather(x, axis, axis_name="model"):
             mesh=mesh,
             in_specs=spec,
             out_specs=out_spec,
-            check_rep=False,
+            check_vma=False,
         )(x)
 
     # Fallback for non-sharded/plain arrays:
