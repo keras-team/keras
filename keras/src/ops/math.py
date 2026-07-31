@@ -644,11 +644,8 @@ class Gammainc(Operation):
 @keras_export("keras.ops.gammainc")
 def gammainc(x1, x2):
     """Computes the regularized lower incomplete gamma function.
-
     The regularized lower incomplete gamma function is defined as:
-
         P(x1, x2) = 1 / Γ(x1) * ∫₀ˣ² t^(x1 - 1) e^(-t) dt
-
     where `Γ(x1)` is the gamma function.
 
     Args:
