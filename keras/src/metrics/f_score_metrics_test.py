@@ -298,6 +298,31 @@ class FBetaScoreTest(testing.TestCase):
                 average="macro", beta=-0.5, threshold=None, dtype="float32"
             )
 
+    def test_fbeta_scalar_weight(self):
+        metric = f_score_metrics.FBetaScore(threshold=0.5)
+        y_true = np.array([[1, 1], [1, 0]], np.int32)
+        y_pred = np.array([[0.2, 0.6], [0.2, 0.6]], np.float32)
+        metric.update_state(y_true, y_pred, sample_weight=0.5)
+        result = metric.result()
+        # Class 0: y_true=[1, 1], y_pred=[0.2, 0.2] => TP=0, F1=0
+        # Class 1: y_true=[1, 0], y_pred=[0.6, 0.6] => F1=0.6666665
+        self.assertAllClose(result, [0.0, 0.6666665], atol=1e-5)
+
+    def test_fbeta_2d_weight(self):
+        metric = f_score_metrics.FBetaScore(threshold=0.5)
+        y_true = np.array([[1, 1], [1, 0]], np.int32)
+        y_pred = np.array([[0.2, 0.6], [0.2, 0.6]], np.float32)
+        # Valid 2D weight matching y_true shape
+        sample_weight = np.array([[0.5, 0.2], [0.3, 0.8]], np.float32)
+        metric.update_state(y_true, y_pred, sample_weight=sample_weight)
+        result = metric.result()
+        # Class 1 (idx 1):
+        # TP = 1*1*0.2 = 0.2
+        # FP = 1*(1-0)*0.8 = 0.8
+        # Precision = 0.2 / 1.0 = 0.2, Recall = 0.2 / 0.2 = 1.0
+        # F1 = 2 * 0.2 / 1.2 = 0.333333
+        self.assertAllClose(result, [0.0, 0.333333], atol=1e-5)
+
     def test_threshold_not_float_raises_value_error(self):
         expected_message_pattern = (
             "Invalid `threshold` argument value. "
