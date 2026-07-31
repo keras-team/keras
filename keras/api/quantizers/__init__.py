@@ -46,3 +46,4 @@ from keras.src.quantizers.quantizers import (
 )
 from keras.src.quantizers.quantizers import unpack_int4 as unpack_int4
 from keras.src.quantizers.quantizers import unpack_ternary as unpack_ternary
+from keras.src.quantizers.report import QuantizationReport as QuantizationReport
