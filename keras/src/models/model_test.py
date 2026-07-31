@@ -987,6 +987,41 @@ class ModelTest(testing.TestCase):
         filtered = report.skipped_by_reason(QuantizationReport.SKIP_FILTERED)
         self.assertIn("d2", filtered)
 
+    def test_quantize_dense_with_layer_activation(self):
+        # A `Dense` whose activation is a `Layer` owns that `Layer` as a
+        # sub-layer, but is still quantizable and must not be skipped.
+        inputs = layers.Input([4], name="in")
+        outputs = layers.Dense(4, activation=layers.ReLU(), name="act_dense")(
+            inputs
+        )
+        model = Model(inputs, outputs)
+
+        rep = model.quantize("int8", verbose=False)
+
+        dense = model.get_layer("act_dense")
+        quantized_paths = [p for p, _, _ in rep.quantized]
+        self.assertIn(dense.path, quantized_paths)
+        self.assertEqual(dense.quantization_mode, "int8")
+
+        y = model(np.random.rand(2, 4))
+        self.assertTrue(np.all(np.isfinite(ops.convert_to_numpy(y))))
+
+    def test_quantize_visits_nested_model_layers_once(self):
+        # A nested `Model` is skipped as a unit (its layers are already
+        # visited by the recursive walk), so its inner `Dense` is quantized
+        # exactly once and the `Sequential` wrapper itself is never quantized.
+        inner = Sequential([layers.Dense(4, name="inner_dense")])
+        inputs = layers.Input([4], name="in")
+        outputs = inner(inputs)
+        model = Model(inputs, outputs)
+
+        rep = model.quantize("int8", verbose=False)
+
+        inner_dense = inner.get_layer("inner_dense")
+        quantized_paths = [p for p, _, _ in rep.quantized]
+        self.assertEqual(quantized_paths.count(inner_dense.path), 1)
+        self.assertNotIn(inner.path, quantized_paths)
+
     def test_quantize_emits_single_summary_warning(self):
         model = self._get_mixed_layer_model()
 

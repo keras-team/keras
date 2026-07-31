@@ -601,8 +601,15 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         report = QuantizationReport(mode=mode)
         graph_modified = False
         for layer in self._flatten_layers():
-            # Only leaf layers (those without sub-layers) are quantizable.
-            if len(list(layer._flatten_layers())) != 1:
+            # Skip nested models: this walk already visits their layers
+            # directly (`_flatten_layers` is recursive), and calling
+            # `quantize` on a sub-model would recurse into a second full
+            # walk. Owning sub-layers does NOT make a layer unquantizable
+            # (e.g. `Dense` with a `Layer` activation), so this is an
+            # isinstance test, not a topology test; any other layer that
+            # cannot be quantized reports itself by raising
+            # `NotImplementedError` below.
+            if isinstance(layer, Model):
                 continue
 
             # Input layers carry no weights; they are not a meaningful skip.
