@@ -168,6 +168,19 @@ class MathOpsDynamicShapeTest(testing.TestCase):
         y = kmath.erfinv(x)
         self.assertEqual(y.shape, (None, 2, 3))
 
+    def test_gammanic(self):
+        x1 = KerasTensor((None, 2, 3))
+        x2 = KerasTensor((None, 2, 3))
+
+        z = kmath.gammanic(x1, x2)
+        self.assertEqual(z.shape, (None, 2, 3))
+
+        x1 = KerasTensor((None, 2, 3))
+        x2 = KerasTensor((1, 2, 3))
+
+        z = kmath.gammanic(x1, x2)
+        self.assertEqual(z.shape, (None, 2, 3))
+
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     def test_segment_reduce(self, segment_reduce_op):
         # 1D case
@@ -382,6 +395,13 @@ class MathOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((1, 2, 3))
         y = kmath.erfinv(x)
         self.assertEqual(y.shape, (1, 2, 3))
+
+    def test_gammanic(self):
+        x1 = KerasTensor((1, 2, 3))
+        x2 = KerasTensor((1, 2, 3))
+
+        z = kmath.gammanic(x1, x2)
+        self.assertEqual(z.shape, (1, 2, 3))
 
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     @pytest.mark.skipif(
@@ -1129,6 +1149,18 @@ class MathOpsCorrectnessTest(testing.TestCase):
         y = KerasTensor(shape=(1, 2), dtype="float32")
         out = kmath.cdist(x, y)
         self.assertEqual(out.shape, (None, 1))
+
+    def test_gammanic(self):
+        import scipy.special
+
+        x1 = np.array([[1.0, 2.0], [3.0, 4.0]], dtype="float32")
+        x2 = np.array([[0.5, 1.0], [2.0, 5.0]], dtype="float32")
+
+        out = kmath.gammanic(x1, x2)
+        expected = scipy.special.gammaincc(x1, x2)
+
+        self.assertAllClose(out, expected)
+        self.assertEqual(out.shape, (2, 2))
 
 
 class MathDtypeTest(testing.TestCase):
