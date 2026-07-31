@@ -2,7 +2,10 @@ import math
 
 import torch
 
+from keras.src.backend import config
 from keras.src.backend import standardize_dtype
+from keras.src.backend.common import dtypes
+from keras.src.backend.torch.core import cast
 from keras.src.backend.torch.core import convert_to_tensor
 from keras.src.backend.torch.core import get_device
 from keras.src.backend.torch.numpy import pad
@@ -429,4 +432,8 @@ def logdet(x):
 def gammainc(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    return torch.special.gammainc(x1, x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+
+    x1 = cast(x1, config.floatx())
+    x2 = cast(x2, config.floatx())
+    return cast(torch.special.gammainc(x1, x2), dtype)
