@@ -168,17 +168,17 @@ class MathOpsDynamicShapeTest(testing.TestCase):
         y = kmath.erfinv(x)
         self.assertEqual(y.shape, (None, 2, 3))
 
-    def test_gammanic(self):
+    def test_gammainc(self):
         x1 = KerasTensor((None, 2, 3))
         x2 = KerasTensor((None, 2, 3))
 
-        z = kmath.gammanic(x1, x2)
+        z = kmath.gammainc(x1, x2)
         self.assertEqual(z.shape, (None, 2, 3))
 
         x1 = KerasTensor((None, 2, 3))
         x2 = KerasTensor((1, 2, 3))
 
-        z = kmath.gammanic(x1, x2)
+        z = kmath.gammainc(x1, x2)
         self.assertEqual(z.shape, (None, 2, 3))
 
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
@@ -396,11 +396,11 @@ class MathOpsStaticShapeTest(testing.TestCase):
         y = kmath.erfinv(x)
         self.assertEqual(y.shape, (1, 2, 3))
 
-    def test_gammanic(self):
+    def test_gammainc(self):
         x1 = KerasTensor((1, 2, 3))
         x2 = KerasTensor((1, 2, 3))
 
-        z = kmath.gammanic(x1, x2)
+        z = kmath.gammainc(x1, x2)
         self.assertEqual(z.shape, (1, 2, 3))
 
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
@@ -1150,14 +1150,14 @@ class MathOpsCorrectnessTest(testing.TestCase):
         out = kmath.cdist(x, y)
         self.assertEqual(out.shape, (None, 1))
 
-    def test_gammanic(self):
+    def test_gammainc(self):
         import scipy.special
 
         x1 = np.array([[1.0, 2.0], [3.0, 4.0]], dtype="float32")
         x2 = np.array([[0.5, 1.0], [2.0, 5.0]], dtype="float32")
 
-        out = kmath.gammanic(x1, x2)
-        expected = scipy.special.gammaincc(x1, x2)
+        out = kmath.gammainc(x1, x2)
+        expected = scipy.special.gammainc(x1, x2)
 
         self.assertAllClose(out, expected)
         self.assertEqual(out.shape, (2, 2))

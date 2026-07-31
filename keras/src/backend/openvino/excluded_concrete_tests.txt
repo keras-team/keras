@@ -13,3 +13,7 @@ MathOpsCorrectnessTest::test_erfinv_operation_basic
 MathOpsCorrectnessTest::test_erfinv_operation_dtype
 NNOpsCorrectnessTest::test_ctc_decode
 NNOpsDtypeTest::test_ctc_decode
+MathDtypeTest::test_gammainc
+MathOpsCorrectnessTest::test_gammainc
+MathOpsDynamicShapeTest::test_gammainc
+MathOpsStaticShapeTest::test_gammainc
