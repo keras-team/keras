@@ -1595,67 +1595,11 @@ def rad2deg(x):
 
 def diag(x, k=0):
     x = get_ov_output(x)
-    x_shape = x.get_partial_shape()
-    rank = x_shape.rank.get_length()
-
+    rank = x.get_partial_shape().rank.get_length()
     if rank == 1:
-        N_dim = x_shape[0]
-        if not N_dim.is_static:
-            raise ValueError(
-                "diag requires input with static shape for 1D input."
-            )
-        N = N_dim.get_length()
-        output_size = N + np.abs(k)
-        out_shape = ov_opset.constant(
-            [output_size, output_size], dtype=Type.i32
-        ).output(0)
-        zeros_const = ov_opset.constant(0, x.get_element_type()).output(0)
-        diag_matrix = ov_opset.broadcast(zeros_const, out_shape)
-
-        indices = []
-        if k >= 0:
-            for i in range(N):
-                indices.append([i, i + k])
-        else:
-            for i in range(N):
-                indices.append([i - k, i])
-
-        indices = np.array(indices, dtype=np.int32)
-        indices_const = ov_opset.constant(indices, dtype=Type.i32).output(0)
-        updated = ov_opset.scatter_nd_update(diag_matrix, indices_const, x)
-        return OpenVINOKerasTensor(updated.output(0))
-
+        return diagflat(OpenVINOKerasTensor(x), k)
     elif rank == 2:
-        M_dim = x_shape[0]
-        N_dim = x_shape[1]
-        if not M_dim.is_static or not N_dim.is_static:
-            raise ValueError(
-                "diag requires input with static shape for 2D input."
-            )
-        M = M_dim.get_length()
-        N = N_dim.get_length()
-
-        if k >= 0:
-            L = np.minimum(M, N - k) if (N - k) > 0 else 0
-            indices = [[i, i + k] for i in range(L)]
-        else:
-            L = np.minimum(M + k, N) if (M + k) > 0 else 0
-            indices = [[i - k, i] for i in range(L)]
-
-        if L <= 0:
-            keras_dtype = ov_to_keras_type(x.get_element_type())
-            np_dtype = np.dtype(keras_dtype)
-            empty_np = np.empty((0,), dtype=np_dtype)
-            empty_const = ov_opset.constant(
-                empty_np, x.get_element_type()
-            ).output(0)
-            return OpenVINOKerasTensor(empty_const)
-
-        indices = np.array(indices, dtype=np.int32)
-        indices_const = ov_opset.constant(indices, dtype=Type.i32).output(0)
-        diag_vec = ov_opset.gather_nd(x, indices_const)
-        return OpenVINOKerasTensor(diag_vec.output(0))
-
+        return diagonal(OpenVINOKerasTensor(x), offset=k)
     else:
         raise ValueError("diag supports only 1D or 2D tensors")
 
@@ -1724,7 +1668,6 @@ def diagflat(x, k=0):
 
 def diagonal(x, offset=0, axis1=0, axis2=1):
     x = get_ov_output(x)
-    shape = x.get_partial_shape()
     rank = x.get_partial_shape().rank.get_length()
     if rank is None:
         raise ValueError("`diagonal` requires input tensor with static rank.")
@@ -1743,24 +1686,40 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
     perm_const = ov_opset.constant(perm_order, dtype=Type.i32).output(0)
     x_transposed = ov_opset.transpose(x, perm_const)
 
-    N_dim = shape[axis1]
-    M_dim = shape[axis2]
-    if not N_dim.is_static or not M_dim.is_static:
-        raise ValueError(
-            "`diagonal` requires input tensor with static shape for axes "
-            f"`axis1` ({axis1}) and `axis2` ({axis2})."
-        )
-    N = N_dim.get_length()
-    M = M_dim.get_length()
-    if offset >= 0:
-        L = np.minimum(N, M - offset) if (M - offset) > 0 else 0
-        indices = [[i, i + offset] for i in range(L)]
-    else:
-        L = np.minimum(N + offset, M) if (N + offset) > 0 else 0
-        indices = [[i - offset, i] for i in range(L)]
+    # Build the (row, col) index pairs in the graph so the diagonalized axes
+    # may be dynamic.
+    zero = ov_opset.constant(0, Type.i32).output(0)
+    one = ov_opset.constant(1, Type.i32).output(0)
+    offset_const = ov_opset.constant(
+        offset if offset >= 0 else -offset, Type.i32
+    ).output(0)
+    t_shape = ov_opset.shape_of(x_transposed, Type.i32).output(0)
+    N = ov_opset.gather(t_shape, zero, zero).output(0)
+    M = ov_opset.gather(t_shape, one, zero).output(0)
 
-    indices = np.array(indices, dtype=np.int32).reshape(L, 2)
-    indices_const = ov_opset.constant(indices, dtype=Type.i32).output(0)
+    # Clamped at 0 so an out-of-range offset yields an empty result.
+    if offset >= 0:
+        length = ov_opset.minimum(N, ov_opset.subtract(M, offset_const)).output(
+            0
+        )
+    else:
+        length = ov_opset.minimum(ov_opset.subtract(N, offset_const), M).output(
+            0
+        )
+    length = ov_opset.maximum(length, zero).output(0)
+
+    rng = ov_opset.range(zero, length, one, Type.i32).output(0)
+    if offset >= 0:
+        rows, cols = rng, ov_opset.add(rng, offset_const).output(0)
+    else:
+        rows, cols = ov_opset.add(rng, offset_const).output(0), rng
+    indices_const = ov_opset.concat(
+        [
+            ov_opset.reshape(rows, [-1, 1], False).output(0),
+            ov_opset.reshape(cols, [-1, 1], False).output(0),
+        ],
+        1,
+    ).output(0)
 
     diag_gathered = ov_opset.gather_nd(x_transposed, indices_const)
 
