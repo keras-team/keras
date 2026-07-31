@@ -787,6 +787,26 @@ class ModelTest(testing.TestCase):
         ref_keys = sorted(["loss", "output_a_loss", "output_b_loss"])
         self.assertListEqual(hist_keys, ref_keys)
 
+    def test_subclass_model_training_arg(self):
+        class CustomLayer(layers.Layer):
+            def call(self, inputs, training=False):
+                return inputs * 0.0 if training else inputs
+
+        class CustomModel(Model):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.layer = CustomLayer()
+
+            def call(self, inputs, training=False):
+                # We do not propagate `training` here on purpose.
+                # The call context should take care of it automatically.
+                return self.layer(inputs)
+
+        model = CustomModel()
+        self.assertAllClose(model(np.ones((4, 20))), 1.0)
+        self.assertAllClose(model(np.ones((4, 20)), training=False), 1.0)
+        self.assertAllClose(model(np.ones((4, 20)), training=True), 0.0)
+
     @parameterized.named_parameters(
         ("int8", "int8"),
         ("float8", "float8"),
