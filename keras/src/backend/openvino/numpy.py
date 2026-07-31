@@ -3066,9 +3066,15 @@ def median(x, axis=None, keepdims=False):
     # Convert k to a scalar value
     k_scalar = ov_opset.squeeze(k, [0]).output(0)
 
-    # Use topk with k=size_of_axis to get all elements sorted
+    # Only the smallest n // 2 + 1 elements are needed for the middle.
+    k_top = ov_opset.add(
+        ov_opset.divide(
+            k_scalar, ov_opset.constant(2, Type.i32).output(0)
+        ).output(0),
+        ov_opset.constant(1, Type.i32).output(0),
+    ).output(0)
     topk_outputs = ov_opset.topk(
-        x, k=k_scalar, axis=axis, mode="min", sort="value", stable=True
+        x, k=k_top, axis=axis, mode="min", sort="value"
     )
 
     # Get the sorted values
@@ -3080,21 +3086,7 @@ def median(x, axis=None, keepdims=False):
     result_type = OPENVINO_DTYPES[result_type]
     sorted_values = ov_opset.convert(sorted_values, result_type).output(0)
 
-    # Calculate median indices
-    # For odd length: median_idx = (k-1) // 2
-    # For even length: we need indices (k//2 - 1) and k//2, then average
-
-    k_minus_1 = ov_opset.subtract(
-        k_scalar, ov_opset.constant(1, Type.i32).output(0)
-    ).output(0)
-    k_div_2 = ov_opset.divide(
-        k_scalar, ov_opset.constant(2, Type.i32).output(0)
-    ).output(0)
-    k_minus_1_div_2 = ov_opset.divide(
-        k_minus_1, ov_opset.constant(2, Type.i32).output(0)
-    ).output(0)
-
-    # Check if k is odd
+    # Indices are relative to the truncated `k_top` elements.
     k_mod_2 = ov_opset.mod(
         k_scalar, ov_opset.constant(2, Type.i32).output(0)
     ).output(0)
@@ -3103,13 +3095,15 @@ def median(x, axis=None, keepdims=False):
     ).output(0)
 
     # For odd case: take the middle element
-    odd_idx = k_minus_1_div_2
+    odd_idx = ov_opset.subtract(
+        k_top, ov_opset.constant(1, Type.i32).output(0)
+    ).output(0)
 
     # For even case: take average of two middle elements
     even_idx1 = ov_opset.subtract(
-        k_div_2, ov_opset.constant(1, Type.i32).output(0)
+        k_top, ov_opset.constant(2, Type.i32).output(0)
     ).output(0)
-    even_idx2 = k_div_2
+    even_idx2 = odd_idx
 
     # Gather elements for both cases
     # Create gather indices tensor for the axis
@@ -4373,9 +4367,9 @@ def sort(x, axis=-1):
     # Convert k to a scalar value
     k_scalar = ov_opset.squeeze(k, ov_opset.constant([0], Type.i32)).output(0)
 
-    # Use topk with k=size_of_axis to get all elements sorted
+    # `stable` cannot change sorted values and is far slower.
     topk_outputs = ov_opset.topk(
-        x, k=k_scalar, axis=axis, mode="min", sort="value", stable=True
+        x, k=k_scalar, axis=axis, mode="min", sort="value"
     )
 
     # Get the sorted values
