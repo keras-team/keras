@@ -3,6 +3,7 @@ on:
   workflow_dispatch:
   push:
     paths:
+      - 'patches/reconstruct_patches_autoinfer.patch'
       - '.github/workflows/apply-reconstruct-fix.yml'
 jobs:
   apply:
@@ -13,12 +14,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: fix/auto-infer-output-size-reconstruct-patches
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Fetch fixed sources from upstream PR branch
+      - name: Apply patch
         run: |
-          curl -sL "https://raw.githubusercontent.com/brianmanderson/keras/pr/03-ops-only/keras/src/ops/image.py" -o keras/src/ops/image.py
-          curl -sL "https://raw.githubusercontent.com/brianmanderson/keras/pr/03-ops-only/keras/src/ops/image_test.py" -o keras/src/ops/image_test.py
-          # Verify the fix is present
+          git apply patches/reconstruct_patches_autoinfer.patch
           grep -q 'output_size=None' keras/src/ops/image.py
           grep -q '_infer_output_size_valid' keras/src/ops/image.py
       - name: Commit and push
