@@ -1,0 +1,37 @@
+name: Apply reconstruct_patches fix
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/apply-reconstruct-fix.yml'
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/auto-infer-output-size-reconstruct-patches
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Fetch fixed sources from upstream PR branch
+        run: |
+          curl -sL "https://raw.githubusercontent.com/brianmanderson/keras/pr/03-ops-only/keras/src/ops/image.py" -o keras/src/ops/image.py
+          curl -sL "https://raw.githubusercontent.com/brianmanderson/keras/pr/03-ops-only/keras/src/ops/image_test.py" -o keras/src/ops/image_test.py
+          # Verify the fix is present
+          grep -q 'output_size=None' keras/src/ops/image.py
+          grep -q '_infer_output_size_valid' keras/src/ops/image.py
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add keras/src/ops/image.py keras/src/ops/image_test.py
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Auto-infer output_size for padding=valid in reconstruct_patches
+
+Implements item 1 of keras-team/keras#23318.
+Makes output_size optional when padding='valid' (inferred as grid * size)."
+          git push origin HEAD:fix/auto-infer-output-size-reconstruct-patches
