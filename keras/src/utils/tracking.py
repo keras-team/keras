@@ -184,11 +184,25 @@ class TrackedList(list):
                 self.tracker.untrack(value)
         super().clear()
 
-    def __delitem__(self, index):
-        value = self[index]
-        super().__delitem__(index)
+    def __setitem__(self, index, value):
         if self.tracker:
-            self.tracker.untrack(value)
+            if isinstance(index, slice):
+                for item in self[index]:
+                    self.tracker.untrack(item)
+                value = [self.tracker.track(v) for v in value]
+            else:
+                self.tracker.untrack(self[index])
+                value = self.tracker.track(value)
+        super().__setitem__(index, value)
+
+    def __delitem__(self, index):
+        if self.tracker:
+            if isinstance(index, slice):
+                for item in self[index]:
+                    self.tracker.untrack(item)
+            else:
+                self.tracker.untrack(self[index])
+        super().__delitem__(index)
 
     def tree_flatten(self):
         return (self, None)
