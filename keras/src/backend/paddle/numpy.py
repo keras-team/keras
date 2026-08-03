@@ -1605,11 +1605,10 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     # Ensure both have the same dtype
     if x1.dtype != x2.dtype:
         x1 = x1.cast(x2.dtype)
-    # `paddle.isclose` requires both operands to have the same shape.
-    if x1.shape != x2.shape:
-        target_shape = paddle.broadcast_shape(x1.shape, x2.shape)
-        x1 = paddle.broadcast_to(x1, target_shape)
-        x2 = paddle.broadcast_to(x2, target_shape)
+    # Unlike numpy, `paddle.isclose` requires both operands to have the
+    # same shape, so broadcast them explicitly to keep the numpy
+    # semantics, including tensor-scalar comparisons.
+    x1, x2 = paddle.broadcast_tensors([x1, x2])
     result = paddle.isclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
     # `paddle.isclose` evaluates `|x1 - x2| <= atol + rtol * |x2|`, which is
     # `inf <= inf` as soon as one operand is infinite. numpy only considers

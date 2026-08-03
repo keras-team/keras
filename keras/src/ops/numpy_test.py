@@ -4073,6 +4073,14 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             np.isclose(special_x, special_y),
         )
 
+        # Broadcasting between non-scalar shapes.
+        broadcast_x = np.array([[1], [2]])
+        broadcast_y = np.array([[1, 2, 3]])
+        self.assertAllClose(
+            knp.isclose(broadcast_x, broadcast_y),
+            np.isclose(broadcast_x, broadcast_y),
+        )
+
         self.assertAllClose(knp.Isclose()(x, y), np.isclose(x, y))
         self.assertAllClose(knp.Isclose()(x, 2), np.isclose(x, 2))
         self.assertAllClose(knp.Isclose()(2, x), np.isclose(2, x))
