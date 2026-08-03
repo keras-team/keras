@@ -5,6 +5,7 @@ import paddle
 import paddle.nn.functional as F
 
 from keras.src import backend
+from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_crops_for_torch,
 )
@@ -242,6 +243,7 @@ def sparse_sigmoid(x):
 @_upcast_reduced_precision
 def glu(x, axis=-1):
     x = convert_to_tensor(x)
+    canonicalize_axis(axis, len(x.shape))
     a, b = paddle.chunk(x, 2, axis=axis)
     return a * F.sigmoid(b)
 
@@ -1003,6 +1005,21 @@ def dot_product_attention(
         raise NotImplementedError(
             "`attn_logits_soft_cap` is not supported with the paddle backend."
         )
+
+    # Grouped query attention: repeat the key/value heads so that they match
+    # the number of query heads.
+    num_query_heads = query.shape[-2]
+    num_kv_heads = key.shape[-2]
+    if num_query_heads != num_kv_heads:
+        if num_kv_heads == 0 or num_query_heads % num_kv_heads != 0:
+            raise ValueError(
+                "The number of query heads must be a multiple of the number "
+                f"of key/value heads. Received: query.shape={query.shape}, "
+                f"key.shape={key.shape}."
+            )
+        groups = num_query_heads // num_kv_heads
+        key = paddle.repeat_interleave(key, groups, axis=-2)
+        value = paddle.repeat_interleave(value, groups, axis=-2)
 
     H = key.shape[-1]
     scale = (1.0 / (H**0.5)) if scale is None else scale

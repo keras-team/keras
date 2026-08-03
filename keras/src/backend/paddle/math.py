@@ -1,10 +1,13 @@
+import functools
 import math
 
 import paddle
 
 from keras.src.backend import standardize_dtype
+from keras.src.backend.common import dtypes
 from keras.src.backend.paddle.core import convert_to_tensor
 from keras.src.backend.paddle.core import needs_reduced_precision_upcast
+from keras.src.backend.paddle.core import to_paddle_dtype
 
 
 def _segment_reduction_fn(data, segment_ids, reduction, num_segments):
@@ -85,7 +88,7 @@ def top_k(x, k, sorted=True):
 
 def in_top_k(targets, predictions, k):
     targets = convert_to_tensor(targets).cast("int64")
-    targets = targets.unsqueeze(1)
+    targets = targets.unsqueeze(-1)
     predictions = convert_to_tensor(predictions)
     topk_values = paddle.topk(predictions, k)[0]
     targets_values = paddle.take_along_axis(predictions, targets, axis=-1)
@@ -385,27 +388,44 @@ def istft(
     if length is not None:
         end = start + length
     elif center is True:
-        end = -(fft_length // 2)
+        end = expected_output_len - (fft_length // 2)
     else:
         end = expected_output_len
     return x_out[..., start:end]
 
 
+def _upcast_reduced_precision(fn):
+    """Run `fn` in float32 when paddle has no reduced precision kernel."""
+
+    @functools.wraps(fn)
+    def wrapper(x, *args, **kwargs):
+        x = convert_to_tensor(x)
+        if needs_reduced_precision_upcast(x):
+            return fn(x.cast("float32"), *args, **kwargs).cast(x.dtype)
+        return fn(x, *args, **kwargs)
+
+    return wrapper
+
+
+@_upcast_reduced_precision
 def rsqrt(x):
     x = convert_to_tensor(x)
     return paddle.rsqrt(x)
 
 
+@_upcast_reduced_precision
 def erf(x):
     x = convert_to_tensor(x)
     return paddle.erf(x)
 
 
+@_upcast_reduced_precision
 def erfc(x):
     x = convert_to_tensor(x)
     return 1.0 - paddle.erf(x)
 
 
+@_upcast_reduced_precision
 def erfinv(x):
     x = convert_to_tensor(x)
     result = paddle.erfinv(x)
@@ -433,12 +453,16 @@ def cdist(x, y):
         raise ValueError("`cdist` inputs must have rank >= 2")
     if x.shape[-1] != y.shape[-1]:
         raise ValueError("Last dimension of inputs to `cdist` must match")
-    x_norm = paddle.sum(x * x, axis=-1, keepdim=True)
-    y_norm = paddle.sum(y * y, axis=-1, keepdim=True)
-    xy = paddle.matmul(x, y, transpose_y=True)
-    y_norm_t = paddle.transpose(
-        y_norm,
-        list(range(y_norm.ndim - 2)) + [y_norm.ndim - 1, y_norm.ndim - 2],
+    result_dtype = dtypes.result_type(
+        standardize_dtype(x.dtype), standardize_dtype(y.dtype), float
     )
-    dist_sq = x_norm - 2 * xy + y_norm_t
-    return paddle.sqrt(paddle.clip(dist_sq, min=0.0))
+    # Integer inputs have to be accumulated in floating point, and
+    # `subtract`/`multiply` have no float16 or bfloat16 CPU kernel.
+    compute_dtype = result_dtype
+    if compute_dtype not in ("float32", "float64"):
+        compute_dtype = "float32"
+    x = x.cast(to_paddle_dtype(compute_dtype))
+    y = y.cast(to_paddle_dtype(compute_dtype))
+    diff = paddle.unsqueeze(x, axis=-2) - paddle.unsqueeze(y, axis=-3)
+    dist = paddle.sqrt(paddle.sum(diff * diff, axis=-1))
+    return dist.cast(to_paddle_dtype(result_dtype))
