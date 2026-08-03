@@ -53,36 +53,15 @@ def pytest_collection_modifyitems(config, items):
             ]
 
     paddle_skipped_tests = []
-    paddle_skipped_files = []
     if backend() == "paddle":
-        import os
-
-        excluded_file = os.path.join(
-            "keras", "src", "backend", "paddle", "excluded_concrete_tests.txt"
-        )
-        if os.path.exists(excluded_file):
-            with open(excluded_file, "r") as file:
-                paddle_skipped_tests = [
-                    line.strip()
-                    for line in file.readlines()
-                    if line.strip() and not line.strip().startswith("#")
-                ]
-
-        # Files that can't be collected locally (missing deps) but will
-        # run in CI.  Skip them proactively so CI doesn't fail on paddle.
-        paddle_skipped_files = [
-            "backend/tensorflow/",
-            "backend/common/keras_tensor_test.py",
-            "callbacks/swap_ema_weights_test.py",
-            "callbacks/tensorboard_test.py",
-            "distribution/",
-            "export/",
-            "layers/preprocessing/",
-            "trainers/data_adapters/",
-            "trainers/epoch_iterator_test.py",
-            "utils/jax_layer_test.py",
-            "ops/image_test.py",
-        ]
+        with open(
+            "keras/src/backend/paddle/excluded_concrete_tests.txt", "r"
+        ) as file:
+            paddle_skipped_tests = [
+                line.strip()
+                for line in file.readlines()
+                if line.strip() and not line.strip().startswith("#")
+            ]
 
     if backend() == "jax":
         import jax
@@ -116,22 +95,13 @@ def pytest_collection_modifyitems(config, items):
                         "Not supported operation by openvino backend",
                     )
                 )
+        # same mechanism for the paddle backend
         for skipped_test in paddle_skipped_tests:
             if skipped_test in item.nodeid:
                 item.add_marker(
                     skip_if_backend(
                         "paddle",
-                        "Not supported by paddle backend "
-                        "(CPU dtype limitation)",
-                    )
-                )
-        for skipped_path in paddle_skipped_files:
-            if skipped_path in item.nodeid:
-                item.add_marker(
-                    skip_if_backend(
-                        "paddle",
-                        "Not supported by paddle backend "
-                        "(missing backend deps or API gap)",
+                        "Not supported operation by paddle backend",
                     )
                 )
 
