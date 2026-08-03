@@ -38,13 +38,6 @@ jobs:
         with:
           path: ${{ steps.pip-cache.outputs.dir }}
           key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('requirements.txt') }}
-      - name: Install Linux binary dependencies
-        # build-essential is the C++ compiler for Torch Dynamo
-        run: |
-          sudo apt-get update
-          sudo apt-get -y install build-essential g++
-          g++ --version
-          g++ -print-prog-name=cc1plus
       - name: Install dependencies
         run: pip install -r requirements.txt --progress-bar off --upgrade
       - name: Test integrations

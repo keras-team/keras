@@ -23,9 +23,14 @@ from keras.src.distribution import distribution_lib
     return_value=None,
 )
 class MultiProcessInitializeTest(testing.TestCase):
+    def setUp(self):
+        super().setUp()
+        self._original_env = os.environ.copy()
+
     def tearDown(self):
         super().tearDown()
         os.environ.clear()
+        os.environ.update(self._original_env)
 
     def test_initialize_with_explicit_param(self, mock_backend_initialize):
         job_addresses = "10.0.0.1:1234,10.0.0.2:2345"
