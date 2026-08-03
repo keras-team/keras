@@ -69,7 +69,6 @@ jobs:
         run: |
           pip install -r requirements.txt
           if [ "${{ matrix.backend }}" = "paddle" ]; then
-            pip install paddlepaddle==3.3.0 -i https://www.paddlepaddle.org.cn/packages/stable/cpu/ || \
             pip install paddlepaddle==3.3.0
           fi
           pip install --no-deps tf_keras

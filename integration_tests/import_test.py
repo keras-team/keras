@@ -14,10 +14,8 @@ BACKEND_REQ = {
     ),
     "jax": ("jax[cpu]", ""),
     "openvino": ("openvino", ""),
-    "paddle": (
-        "paddlepaddle==3.3.0",
-        "-i https://www.paddlepaddle.org.cn/packages/stable/cpu/ ",
-    ),
+    # `paddlepaddle` on PyPI is the CPU build, so no extra index is needed.
+    "paddle": ("paddlepaddle==3.3.0", ""),
 }
 
 
