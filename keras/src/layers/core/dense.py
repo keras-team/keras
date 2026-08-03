@@ -69,6 +69,17 @@ class Dense(Layer):
             trainable matrices) during the forward pass. The delta is scaled by
             `lora_alpha / lora_rank`, allowing you to fine-tune the strength of
             the LoRA adjustment independently of `lora_rank`.
+        dora_rank: Optional integer. If set, the layer's forward pass
+            will implement DoRA (Weight-Decomposed Low-Rank Adaptation)
+            with the provided rank. DoRA decomposes the layer's kernel
+            into magnitude and direction components and applies LoRA
+            to the direction component. This can improve the learning
+            capacity of LoRA. You can also enable DoRA on an existing
+            `Dense` layer by calling `layer.enable_dora(rank)`.
+        dora_alpha: Optional integer. If set, this parameter scales the
+            low-rank adaptation delta during the forward pass. The delta
+            is scaled by `dora_alpha / dora_rank`, allowing you to fine-tune
+            the strength of the DoRA adjustment independently of `dora_rank`.
 
     Input shape:
         N-D tensor with shape: `(batch_size, ..., input_dim)`.
@@ -95,6 +106,8 @@ class Dense(Layer):
         bias_constraint=None,
         lora_rank=None,
         lora_alpha=None,
+        dora_rank=None,
+        dora_alpha=None,
         quantization_config=None,
         **kwargs,
     ):
@@ -116,7 +129,14 @@ class Dense(Layer):
         self.bias_constraint = constraints.get(bias_constraint)
         self.lora_rank = lora_rank
         self.lora_alpha = lora_alpha if lora_alpha is not None else lora_rank
+        self.dora_rank = dora_rank
+        self.dora_alpha = dora_alpha if dora_alpha is not None else dora_rank
+        if self.lora_rank and self.dora_rank:
+            raise ValueError(
+                "Only one of `lora_rank` or `dora_rank` can be set."
+            )
         self.lora_enabled = False
+        self.dora_enabled = False
         self.quantization_config = quantization_config
         self.input_spec = InputSpec(min_ndim=2)
         self.supports_masking = True
@@ -154,6 +174,8 @@ class Dense(Layer):
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
+        if self.dora_rank:
+            self.enable_dora(self.dora_rank, dora_alpha=self.dora_alpha)
 
     @property
     def kernel(self):
@@ -215,6 +237,17 @@ class Dense(Layer):
                 ),
                 dtype=self.compute_dtype,
             )
+        elif self.dora_enabled:
+            lora_delta = (self.dora_alpha / self.dora_rank) * ops.matmul(
+                self.dora_kernel_a, self.dora_kernel_b
+            )
+            W_combined = ops.add(kernel, lora_delta)
+            # Normalize along input dimension (axis 0)
+            norm = ops.stop_gradient(
+                ops.sqrt(ops.sum(ops.square(W_combined), axis=0))
+            )
+            kernel = self.dora_magnitude * ops.divide_no_nan(W_combined, norm)
+            kernel = ops.cast(kernel, dtype=self.compute_dtype)
 
         return kernel
 
@@ -252,6 +285,8 @@ class Dense(Layer):
             raise ValueError(
                 "lora is already enabled. This can only be done once per layer."
             )
+        if self.dora_enabled:
+            raise ValueError("dora is already enabled. Cannot enable LoRA.")
         if self.quantization_mode == "gptq":
             raise NotImplementedError(
                 "lora is not currently supported with GPTQ quantization."
@@ -293,6 +328,74 @@ class Dense(Layer):
         self.lora_enabled = True
         self.lora_rank = rank
         self.lora_alpha = lora_alpha if lora_alpha is not None else rank
+
+    def enable_dora(
+        self,
+        rank,
+        dora_alpha=None,
+        a_initializer="he_uniform",
+        b_initializer="zeros",
+    ):
+        if self.kernel_constraint:
+            raise ValueError(
+                "DoRA is incompatible with kernel constraints. "
+                "In order to enable dora on this layer, remove the "
+                "`kernel_constraint` argument."
+            )
+        if not self.built:
+            raise ValueError(
+                "Cannot enable dora on a layer that isn't yet built."
+            )
+        if self.lora_enabled:
+            raise ValueError("LoRA is already enabled. Cannot enable DoRA.")
+        if self.dora_enabled:
+            raise ValueError(
+                "dora is already enabled. This can only be done once per layer."
+            )
+        if self.quantization_mode == "gptq":
+            raise NotImplementedError(
+                "dora is not currently supported with GPTQ quantization."
+            )
+        self._tracker.unlock()
+        if self.quantization_mode == "int4" and hasattr(
+            self, "_orig_input_dim"
+        ):
+            input_dim_for_lora = self._orig_input_dim
+        else:
+            input_dim_for_lora = self.kernel.shape[0]
+
+        self.dora_kernel_a = self.add_weight(
+            name="dora_kernel_a",
+            shape=(input_dim_for_lora, rank),
+            initializer=initializers.get(a_initializer),
+            dtype="float32",
+            regularizer=self.kernel_regularizer,
+        )
+        self.dora_kernel_b = self.add_weight(
+            name="dora_kernel_b",
+            shape=(rank, self.kernel.shape[1]),
+            initializer=initializers.get(b_initializer),
+            dtype="float32",
+            regularizer=self.kernel_regularizer,
+        )
+        # Initialize Magnitude Vector to norm of frozen kernel
+        # We reduce all axes except the last one (units)
+        initial_magnitude = ops.stop_gradient(
+            ops.sqrt(ops.sum(ops.square(self.kernel), axis=0))
+        )
+        self.dora_magnitude = self.add_weight(
+            name="dora_magnitude",
+            shape=(self.units,),
+            initializer=lambda *a, **kw: initial_magnitude,
+            dtype="float32",
+            regularizer=self.kernel_regularizer,
+        )
+
+        self._kernel.trainable = False
+        self._tracker.lock()
+        self.dora_enabled = True
+        self.dora_rank = rank
+        self.dora_alpha = dora_alpha if dora_alpha is not None else rank
 
     def save_own_variables(self, store):
         # Do nothing if the layer isn't yet built
@@ -352,7 +455,7 @@ class Dense(Layer):
             idx += 1
 
     def load_own_variables(self, store):
-        if not self.lora_enabled:
+        if not self.lora_enabled and not self.dora_enabled:
             self._check_load_own_variables(store)
         # Do nothing if the layer isn't yet built
         if not self.built:
@@ -360,6 +463,24 @@ class Dense(Layer):
         mode = self.quantization_mode
         if mode not in self.variable_serialization_spec:
             raise self._quantization_mode_error(mode)
+
+        # GPTQ/AWQ layers are only serializable after calibration. Before
+        # calibration, the quantized variables hold uninitialized values
+        # while the real weights live in the float `_kernel`, which has no
+        # slot in the serialization spec, so saving would silently drop the
+        # actual weights and produce a corrupted model on reload.
+        if (
+            mode == "gptq" and not getattr(self, "is_gptq_calibrated", False)
+        ) or (mode == "awq" and not getattr(self, "is_awq_calibrated", False)):
+            raise ValueError(
+                f"Cannot save layer '{self.name}' because it is quantized "
+                f"with mode '{mode}' but has never been calibrated. Its "
+                "quantized weights are uninitialized, so saving would "
+                "produce a corrupted model. Run calibration first, e.g. via "
+                "`model.quantize(...)` with a quantization layer structure "
+                "that covers this layer, or exclude the layer from "
+                "quantization with `filters`."
+            )
 
         # A saved GPTQ/AWQ quantized model will always be calibrated.
         self.is_gptq_calibrated = mode == "gptq"
@@ -371,8 +492,10 @@ class Dense(Layer):
                 self._kernel.assign(store[str(idx)])
             elif name == "bias" and self.bias is None:
                 continue
-            elif name == "kernel_zero" and not hasattr(self, "kernel_zero"):
-                # kernel_zero only exists for sub-channel int4 quantization
+            elif name == "kernel_zero" and mode == "int4":
+                # For int4, the (LoRA-merged) zero point comes from
+                # `_get_kernel_with_merged_lora()` and only exists for
+                # sub-channel quantization.
                 continue
             elif name == "g_idx" and not hasattr(self, "g_idx"):
                 # g_idx only exists for sub-channel int4 quantization
@@ -383,6 +506,17 @@ class Dense(Layer):
         if self.lora_enabled:
             self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))
             self.lora_kernel_b.assign(ops.zeros(self.lora_kernel_b.shape))
+        if self.dora_enabled:
+            self.dora_kernel_a.assign(ops.zeros(self.dora_kernel_a.shape))
+            self.dora_kernel_b.assign(ops.zeros(self.dora_kernel_b.shape))
+            # Temporarily disable to get base kernel
+            self.dora_enabled = False
+            base_kernel = self.kernel
+            self.dora_enabled = True
+
+            self.dora_magnitude.assign(
+                ops.sqrt(ops.sum(ops.square(base_kernel), axis=0))
+            )
 
     def get_config(self):
         base_config = super().get_config()
@@ -407,6 +541,9 @@ class Dense(Layer):
         if self.lora_rank:
             config["lora_rank"] = self.lora_rank
             config["lora_alpha"] = self.lora_alpha
+        if self.dora_rank:
+            config["dora_rank"] = self.dora_rank
+            config["dora_alpha"] = self.dora_alpha
         return {**base_config, **config}
 
     @classmethod
@@ -1178,7 +1315,7 @@ class Dense(Layer):
         kernel_scale = self.kernel_scale
         kernel_zero = getattr(self, "kernel_zero", None)
 
-        if not self.lora_enabled:
+        if not self.lora_enabled and not self.dora_enabled:
             return kernel_value, kernel_scale, kernel_zero
 
         # Dequantize, Merge, and Re-quantize
@@ -1218,10 +1355,22 @@ class Dense(Layer):
             )
 
         # Step 2: Merge LoRA weights in float domain
-        lora_delta = (self.lora_alpha / self.lora_rank) * ops.matmul(
-            self.lora_kernel_a, self.lora_kernel_b
-        )
-        merged_float_kernel = ops.add(float_kernel, lora_delta)
+        if self.lora_enabled:
+            lora_delta = (self.lora_alpha / self.lora_rank) * ops.matmul(
+                self.lora_kernel_a, self.lora_kernel_b
+            )
+            merged_float_kernel = ops.add(float_kernel, lora_delta)
+        elif self.dora_enabled:
+            lora_delta = (self.dora_alpha / self.dora_rank) * ops.matmul(
+                self.dora_kernel_a, self.dora_kernel_b
+            )
+            W_combined = ops.add(float_kernel, lora_delta)
+            norm = ops.sqrt(ops.sum(ops.square(W_combined), axis=0))
+            merged_float_kernel = self.dora_magnitude * ops.divide_no_nan(
+                W_combined, norm
+            )
+        else:
+            merged_float_kernel = float_kernel
 
         # Step 3: Re-quantize the merged kernel
         if (
