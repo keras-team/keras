@@ -721,7 +721,7 @@ class EinsumDenseTest(testing.TestCase):
         )
         with self.assertRaisesRegex(
             NotImplementedError,
-            "dora is not currently supported with GPTQ quantization",
+            "DoRA is not currently supported with quantized layers.",
         ):
             layer.enable_dora(rank=2)
 
@@ -733,8 +733,11 @@ class EinsumDenseTest(testing.TestCase):
         layer.build((None, 3))
         # original_kernel_shape should be (3, 2, 4)
         layer.quantize("int4")
-        layer.enable_dora(rank=2)
-        self.assertEqual(layer.dora_kernel_a.shape, (3, 2, 2))
+        with self.assertRaisesRegex(
+            NotImplementedError,
+            "DoRA is not currently supported with quantized layers.",
+        ):
+            layer.enable_dora(rank=2)
 
     def test_dora_lora_mutual_exclusivity(self):
         layer = layers.EinsumDense(

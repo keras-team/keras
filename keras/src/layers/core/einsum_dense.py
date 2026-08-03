@@ -326,9 +326,7 @@ class EinsumDense(Layer):
             W_combined = ops.add(kernel, lora_delta)
             # Normalize along all axes except the last one
             axis = tuple(range(len(kernel.shape) - 1))
-            norm = ops.stop_gradient(
-                ops.sqrt(ops.sum(ops.square(W_combined), axis=axis))
-            )
+            norm = ops.sqrt(ops.sum(ops.square(W_combined), axis=axis))
             kernel = self.dora_magnitude * ops.divide_no_nan(W_combined, norm)
             kernel = ops.cast(kernel, dtype=self.compute_dtype)
 
@@ -436,9 +434,9 @@ class EinsumDense(Layer):
             raise ValueError(
                 "dora is already enabled. This can only be done once per layer."
             )
-        if self.quantization_mode == "gptq":
+        if self.quantization_mode is not None:
             raise NotImplementedError(
-                "dora is not currently supported with GPTQ quantization."
+                "DoRA is not currently supported with quantized layers."
             )
         self._tracker.unlock()
         if self.quantization_mode == "int4":
@@ -464,13 +462,13 @@ class EinsumDense(Layer):
         # Initialize Magnitude Vector
         # We reduce all axes except the last one
         axis = tuple(range(len(self.kernel.shape) - 1))
-        initial_magnitude = ops.stop_gradient(
-            ops.sqrt(ops.sum(ops.square(self.kernel), axis=axis))
+        initial_magnitude = ops.sqrt(
+            ops.sum(ops.square(self.kernel), axis=axis)
         )
         self.dora_magnitude = self.add_weight(
             name="dora_magnitude",
             shape=(kernel_shape_for_lora[-1],),
-            initializer=lambda *a, **kw: initial_magnitude,
+            initializer=initializers.Constant(initial_magnitude),
             dtype="float32",
             regularizer=self.kernel_regularizer,
         )
