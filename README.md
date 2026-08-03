@@ -131,3 +131,4 @@ e.g. the scalability and performance of JAX or the production ecosystem options 
 
 
 Read more in the [Keras 3 release announcement](https://keras.io/keras_3/).
+> **Note:** The same OpenAI Python client also works with OpenAI-compatible multi-model gateways when you are not self-hosting — for example [DaoXE](https://daoxe.com?utm_source=github&utm_medium=pr&utm_campaign=dao-xe-docs) at `https://api.daoxe.com/v1`.
