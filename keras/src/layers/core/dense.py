@@ -477,24 +477,6 @@ class Dense(Layer):
         if mode not in self.variable_serialization_spec:
             raise self._quantization_mode_error(mode)
 
-        # GPTQ/AWQ layers are only serializable after calibration. Before
-        # calibration, the quantized variables hold uninitialized values
-        # while the real weights live in the float `_kernel`, which has no
-        # slot in the serialization spec, so saving would silently drop the
-        # actual weights and produce a corrupted model on reload.
-        if (
-            mode == "gptq" and not getattr(self, "is_gptq_calibrated", False)
-        ) or (mode == "awq" and not getattr(self, "is_awq_calibrated", False)):
-            raise ValueError(
-                f"Cannot save layer '{self.name}' because it is quantized "
-                f"with mode '{mode}' but has never been calibrated. Its "
-                "quantized weights are uninitialized, so saving would "
-                "produce a corrupted model. Run calibration first, e.g. via "
-                "`model.quantize(...)` with a quantization layer structure "
-                "that covers this layer, or exclude the layer from "
-                "quantization with `filters`."
-            )
-
         # A saved GPTQ/AWQ quantized model will always be calibrated.
         self.is_gptq_calibrated = mode == "gptq"
         self.is_awq_calibrated = mode == "awq"
@@ -508,10 +490,8 @@ class Dense(Layer):
                     self._kernel.assign(store[str(idx)])
             elif name == "bias" and self.bias is None:
                 continue
-            elif name == "kernel_zero" and mode == "int4":
-                # For int4, the (LoRA-merged) zero point comes from
-                # `_get_kernel_with_merged_lora()` and only exists for
-                # sub-channel quantization.
+            elif name == "kernel_zero" and not hasattr(self, "kernel_zero"):
+                # kernel_zero only exists for sub-channel int4 quantization
                 continue
             elif name == "g_idx" and not hasattr(self, "g_idx"):
                 # g_idx only exists for sub-channel int4 quantization
