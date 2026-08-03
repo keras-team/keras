@@ -1,6 +1,7 @@
 import copy
 import functools
 import logging
+import math
 import traceback
 
 import numpy as np
@@ -16,9 +17,6 @@ def patch_tf2onnx():
     from keras.src.utils.module_utils import tf2onnx
 
     logger = logging.getLogger(tf2onnx.__name__)
-
-    if not hasattr(np, "object"):
-        np.object = object
 
     def patched_rewrite_constant_fold(g, ops):
         """
@@ -148,14 +146,8 @@ def patch_tf2onnx():
         if external_tensor_storage is None or a.type != AttributeProto.TENSOR:
             return a
 
-        def prod(x):
-            if hasattr(np, "product"):
-                return np.product(x)
-            else:
-                return np.prod(x)
-
         if (
-            prod(a.t.dims)
+            math.prod(a.t.dims)
             > external_tensor_storage.external_tensor_size_threshold
         ):
             a = copy.deepcopy(a)

@@ -1,5 +1,6 @@
 import math
 from itertools import combinations
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -151,6 +152,11 @@ class NNOpsDynamicShapeTest(testing.TestCase):
     def test_glu(self):
         x = KerasTensor([None, 2, 4])
         self.assertEqual(knn.glu(x).shape, (None, 2, 2))
+        with self.assertRaisesRegex(ValueError, "out of bounds"):
+            knn.glu(x, axis=5)
+        x_eager = knp.ones((2, 4))
+        with self.assertRaisesRegex(ValueError, "out of bounds"):
+            knn.glu(x_eager, axis=5)
 
     def test_tanh_shrink(self):
         x = KerasTensor([None, 2, 3])
@@ -1772,15 +1778,46 @@ class NNOpsCorrectnessTest(testing.TestCase):
             ),
         )
 
+    @parameterized.named_parameters(
+        ("channels_last", "channels_last"),
+        ("channels_first", "channels_first"),
+    )
+    def test_average_pool_same_padding_asymmetric(self, data_format):
+        # Test 1D asymmetric padding (pool_size=3, strides=2)
+        if data_format == "channels_last":
+            x = np.array([[[10.0], [20.0]]], dtype="float32")
+        else:
+            x = np.array([[[10.0, 20.0]]], dtype="float32")
+
+        res = knn.average_pool(
+            x, pool_size=3, strides=2, padding="same", data_format=data_format
+        )
+        self.assertAllClose(res, np.array([15.0]).reshape(res.shape))
+
+        # Test 2D asymmetric padding
+        if data_format == "channels_last":
+            x = np.array(
+                [[[[10.0], [20.0]]]], dtype="float32"
+            )  # shape (1, 1, 2, 1)
+        else:
+            x = np.array(
+                [[[[10.0, 20.0]]]], dtype="float32"
+            )  # shape (1, 1, 1, 2)
+        res = knn.average_pool(
+            x,
+            pool_size=(1, 3),
+            strides=(1, 2),
+            padding="same",
+            data_format=data_format,
+        )
+        self.assertAllClose(res, np.array([15.0]).reshape(res.shape))
+
     @parameterized.product(
         strides=(1, 2, 3),
         padding=("valid", "same"),
         dilation_rate=(1, 2),
     )
     def test_conv_1d(self, strides, padding, dilation_rate):
-        if strides > 1 and dilation_rate > 1:
-            pytest.skip("Unsupported configuration")
-
         if backend.config.image_data_format() == "channels_last":
             input_shape = (2, 20, 3)
         else:
@@ -1829,15 +1866,40 @@ class NNOpsCorrectnessTest(testing.TestCase):
         )
         self.assertAllClose(outputs, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
 
+    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only")
+    def test_torch_channels_last_pointwise_conv_direct_path(self):
+        from keras.src.backend.torch import nn as torch_nn
+
+        inputs_2d = np.arange(120, dtype="float32").reshape((2, 4, 5, 3))
+        kernel = np.arange(6, dtype="float32").reshape((1, 1, 3, 2))
+
+        with mock.patch.object(
+            torch_nn.tnn,
+            "conv2d",
+            side_effect=AssertionError("conv2d should not be called"),
+        ):
+            outputs = knn.conv(
+                inputs_2d,
+                kernel,
+                strides=(2, 3),
+                padding="same",
+                data_format="channels_last",
+            )
+
+        expected = np_conv2d(
+            inputs_2d,
+            kernel,
+            bias_weights=np.zeros((2,)),
+            strides=(2, 3),
+            padding="same",
+            data_format="channels_last",
+            dilation_rate=1,
+            groups=1,
+        )
+        self.assertAllClose(outputs, expected)
+
     @parameterized.product(strides=(1, 2), dilation_rate=(1, (2, 1)))
     def test_conv_2d_group_2(self, strides, dilation_rate):
-        if (
-            backend.backend() == "tensorflow"
-            and strides == 2
-            and dilation_rate == (2, 1)
-        ):
-            # This case is not supported by the TF backend.
-            return
         if backend.config.image_data_format() == "channels_last":
             input_shape = (2, 10, 10, 4)
         else:
@@ -1922,17 +1984,12 @@ class NNOpsCorrectnessTest(testing.TestCase):
         strides=(1, (1, 1), (2, 2)),
         padding=("valid", "same"),
         dilation_rate=(1, (2, 2)),
+        data_format=("channels_first", "channels_last"),
     )
-    def test_depthwise_conv_2d(self, strides, padding, dilation_rate):
-        if (
-            backend.backend() == "tensorflow"
-            and strides == (2, 2)
-            and dilation_rate == (2, 2)
-        ):
-            # This case is not supported by the TF backend.
-            return
-        print(strides, padding, dilation_rate)
-        if backend.config.image_data_format() == "channels_last":
+    def test_depthwise_conv_2d(
+        self, strides, padding, dilation_rate, data_format
+    ):
+        if data_format == "channels_last":
             input_shape = (2, 10, 10, 3)
         else:
             input_shape = (2, 3, 10, 10)
@@ -1944,6 +2001,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             kernel,
             strides,
             padding=padding,
+            data_format=data_format,
             dilation_rate=dilation_rate,
         )
         expected = np_depthwise_conv2d(
@@ -1952,7 +2010,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             bias_weights=np.zeros((6,)),
             strides=strides,
             padding=padding,
-            data_format=backend.config.image_data_format(),
+            data_format=data_format,
             dilation_rate=dilation_rate,
         )
         self.assertAllClose(outputs, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
@@ -1961,17 +2019,13 @@ class NNOpsCorrectnessTest(testing.TestCase):
         strides=(1, 2),
         padding=("valid", "same"),
         dilation_rate=(1, (2, 2)),
+        data_format=("channels_first", "channels_last"),
     )
-    def test_separable_conv_2d(self, strides, padding, dilation_rate):
-        if (
-            backend.backend() == "tensorflow"
-            and strides == 2
-            and dilation_rate == (2, 2)
-        ):
-            # This case is not supported by the TF backend.
-            return
+    def test_separable_conv_2d(
+        self, strides, padding, dilation_rate, data_format
+    ):
         # Test 2D conv.
-        if backend.config.image_data_format() == "channels_last":
+        if data_format == "channels_last":
             input_shape = (2, 10, 10, 3)
         else:
             input_shape = (2, 3, 10, 10)
@@ -1985,6 +2039,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             pointwise_kernel,
             strides,
             padding=padding,
+            data_format=data_format,
             dilation_rate=dilation_rate,
         )
         # Depthwise followed by pointwise conv
@@ -1994,7 +2049,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             np.zeros(6),
             strides=strides,
             padding=padding,
-            data_format=backend.config.image_data_format(),
+            data_format=data_format,
             dilation_rate=dilation_rate,
         )
         expected = np_conv2d(
@@ -2003,8 +2058,104 @@ class NNOpsCorrectnessTest(testing.TestCase):
             np.zeros(6 * 12),
             strides=1,
             padding=padding,
-            data_format=backend.config.image_data_format(),
+            data_format=data_format,
             dilation_rate=dilation_rate,
+            groups=1,
+        )
+        self.assertAllClose(outputs, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
+
+    @parameterized.product(
+        strides=(1, 2),
+        padding=("valid", "same"),
+        dilation_rate=(1, 2),
+        data_format=("channels_first", "channels_last"),
+    )
+    def test_depthwise_conv_1d(
+        self, strides, padding, dilation_rate, data_format
+    ):
+        if data_format == "channels_last":
+            input_shape = (2, 10, 3)
+        else:
+            input_shape = (2, 3, 10)
+        inputs_1d = np.arange(60, dtype=float).reshape(input_shape)
+        kernel = np.arange(12, dtype=float).reshape([2, 3, 2])
+        if data_format == "channels_last":
+            x2d = inputs_1d[:, None, :, :]
+            squeeze_axis = 1
+        else:
+            x2d = inputs_1d[:, :, None, :]
+            squeeze_axis = 2
+
+        outputs = knn.depthwise_conv(
+            inputs_1d,
+            kernel,
+            strides,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=dilation_rate,
+        )
+        expected_2d = np_depthwise_conv2d(
+            x2d,
+            kernel[None],
+            bias_weights=np.zeros((6,)),
+            strides=(1, strides),
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=(1, dilation_rate),
+        )
+        expected = np.squeeze(expected_2d, axis=squeeze_axis)
+        self.assertAllClose(outputs, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
+
+    @parameterized.product(
+        strides=(1, 2),
+        padding=("valid", "same"),
+        dilation_rate=(1, 2),
+        data_format=("channels_first", "channels_last"),
+    )
+    def test_separable_conv_1d(
+        self, strides, padding, dilation_rate, data_format
+    ):
+        if data_format == "channels_last":
+            input_shape = (2, 10, 3)
+        else:
+            input_shape = (2, 3, 10)
+        inputs_1d = np.arange(60, dtype=float).reshape(input_shape)
+        depthwise_kernel = np.arange(12, dtype=float).reshape([2, 3, 2])
+        pointwise_kernel = np.arange(72, dtype=float).reshape([1, 6, 12])
+        if data_format == "channels_last":
+            x2d = inputs_1d[:, None, :, :]
+            squeeze_axis = 1
+        else:
+            x2d = inputs_1d[:, :, None, :]
+            squeeze_axis = 2
+
+        outputs = knn.separable_conv(
+            inputs_1d,
+            depthwise_kernel,
+            pointwise_kernel,
+            strides,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=dilation_rate,
+        )
+        expected_dw_2d = np_depthwise_conv2d(
+            x2d,
+            depthwise_kernel[None],
+            np.zeros((6,)),
+            strides=(1, strides),
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=(1, dilation_rate),
+        )
+        expected_dw = np.squeeze(expected_dw_2d, axis=squeeze_axis)
+        expected = np_conv1d(
+            expected_dw,
+            pointwise_kernel,
+            np.zeros(12),
+            strides=1,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=1,
             groups=1,
         )
         self.assertAllClose(outputs, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
@@ -2522,6 +2673,46 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.normalize(x, axis=-1, order=2, epsilon=1e-5),
             [[1e-1, 1e-3]],
         )
+
+    def test_normalize_l2_zero_vector_gradients(self):
+        # The L2 (order=2) fast path must not produce NaN gradients for a zero
+        # vector: rsqrt(0) is inf and its derivative is 0 * inf = NaN, which a
+        # clamp on the output cannot undo (see #23075). At the data minimum the
+        # clamped norm is constant, so the gradient is a finite 1 / epsilon.
+        epsilon = 1e-3
+        expected_grad = np.full((3,), 1.0 / epsilon, dtype="float32")
+
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            x = tf.Variable([0.0, 0.0, 0.0])
+            with tf.GradientTape() as tape:
+                y = knn.normalize(x, axis=-1, order=2, epsilon=epsilon)
+                loss = tf.reduce_sum(y)
+            x_grad = tape.gradient(loss, x)
+        elif backend.backend() == "jax":
+            import jax
+            import jax.numpy as jnp
+
+            def f(x):
+                return jnp.sum(
+                    knn.normalize(x, axis=-1, order=2, epsilon=epsilon)
+                )
+
+            x_grad = jax.grad(f)(jnp.array([0.0, 0.0, 0.0]))
+        elif backend.backend() == "torch":
+            import torch
+
+            x = torch.zeros(3, requires_grad=True)
+            y = knn.normalize(x, axis=-1, order=2, epsilon=epsilon)
+            y.sum().backward()
+            x_grad = x.grad
+        else:
+            self.skipTest("Gradient test requires tensorflow, jax or torch.")
+
+        x_grad = ops.convert_to_numpy(x_grad)
+        self.assertFalse(np.isnan(x_grad).any())
+        self.assertAllClose(x_grad, expected_grad)
 
     def test_psnr(self):
         x1 = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
@@ -3870,3 +4061,35 @@ class NNOpsBehaviorTest(testing.TestCase):
             ValueError, "`block_size` must be at least 2"
         ):
             knn.space_to_depth(x, block_size=-1)
+
+
+@pytest.mark.skipif(
+    backend.backend() in ("numpy", "openvino"),
+    reason="""
+    Key/Value broadcasting is not supported on numpy and openvino backends.
+    """,
+)
+class DotProductAttentionGQATest(testing.TestCase):
+    def test_gqa_broadcasting(self):
+        batch_size = 2
+        q_len, kv_len = 16, 16
+        num_q_heads = 4
+        num_kv_heads = 2
+        head_dim = 32
+
+        query = ops.ones(
+            (batch_size, q_len, num_q_heads, head_dim), dtype="float32"
+        )
+        key = ops.ones(
+            (batch_size, kv_len, num_kv_heads, head_dim), dtype="float32"
+        )
+        value = ops.ones(
+            (batch_size, kv_len, num_kv_heads, head_dim), dtype="float32"
+        )
+
+        # Should execute successfully without raising any
+        # shape mismatch RuntimeError/InvalidArgumentError
+        output = knn.dot_product_attention(query, key, value)
+        self.assertEqual(
+            output.shape, (batch_size, q_len, num_q_heads, head_dim)
+        )

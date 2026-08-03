@@ -560,13 +560,26 @@ class MultiHeadAttention(Layer):
                 bias=None,
                 mask=attention_mask,
                 scale=self._inverse_sqrt_key_dim,
-                is_causal=False,
+                is_causal=use_causal_mask,
                 flash_attention=self._flash_attention,
             )
             return attention_output, None
 
         # Default behavior without flash attention, with explicit attention
-        # scores
+        # scores. We skipped the fused is_causal kernel above, so build the
+        # causal mask here. `call` drops attention_mask when causal is the
+        # only mask source, expecting that kernel to run, and this path never
+        # sees the is_causal flag otherwise. When an explicit mask is also
+        # present, combine the two so neither constraint is lost.
+        if use_causal_mask:
+            causal_mask = self._compute_causal_mask(query, value)
+            attention_mask = (
+                causal_mask
+                if attention_mask is None
+                else ops.logical_and(
+                    ops.cast(attention_mask, "bool"), causal_mask
+                )
+            )
         query = ops.multiply(
             query, ops.cast(self._inverse_sqrt_key_dim, query.dtype)
         )

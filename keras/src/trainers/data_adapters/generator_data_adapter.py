@@ -13,6 +13,12 @@ class GeneratorDataAdapter(DataAdapter):
         self.generator = generator
         self._first_batches = first_batches
         self._output_signature = None
+        if not first_batches:
+            raise ValueError(
+                "When passing a Python generator to a Keras model, "
+                "the generator must yield at least one batch. "
+                "Received an empty generator."
+            )
         if not isinstance(first_batches[0], tuple):
             raise ValueError(
                 "When passing a Python generator to a Keras model, "

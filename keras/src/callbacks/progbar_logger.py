@@ -82,7 +82,10 @@ class ProgbarLogger(Callback):
     def _maybe_init_progbar(self):
         if self.progbar is None:
             self.progbar = Progbar(
-                target=self.target, verbose=self.verbose, unit_name="step"
+                target=self.target,
+                verbose=self.verbose,
+                unit_name="step",
+                stateless_metrics=set(),
             )
 
     def _update_progbar(self, batch, logs=None):

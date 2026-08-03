@@ -326,7 +326,9 @@ class Logsumexp(Operation):
 
     def compute_output_spec(self, x):
         output_shape = reduce_shape(x.shape, self.axis, self.keepdims)
-        return KerasTensor(shape=output_shape)
+        return KerasTensor(
+            shape=output_shape, dtype=result_type(x.dtype, float)
+        )
 
     def call(self, x):
         return backend.math.logsumexp(x, axis=self.axis, keepdims=self.keepdims)
@@ -1124,7 +1126,6 @@ def rsqrt(x):
     """
     if any_symbolic_tensors((x,)):
         return Rsqrt().symbolic_call(x)
-    x = backend.convert_to_tensor(x)
     return backend.math.rsqrt(x)
 
 
@@ -1213,7 +1214,6 @@ def erfinv(x):
     """
     if any_symbolic_tensors((x,)):
         return Erfinv().symbolic_call(x)
-    x = backend.convert_to_tensor(x)
     return backend.math.erfinv(x)
 
 

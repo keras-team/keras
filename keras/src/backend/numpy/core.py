@@ -86,9 +86,10 @@ def vectorized_map(function, elements):
         return np.stack([function(x) for x in elements])
     else:
         batch_size = elements[0].shape[0]
-        output_store = []
-        for index in range(batch_size):
-            output_store.append(function([x[index] for x in elements]))
+        output_store = [
+            function([x[index] for x in elements])
+            for index in range(batch_size)
+        ]
         return np.stack(output_store)
 
 

@@ -15,6 +15,7 @@ from keras.src.backend import config
 from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
+from keras.src.backend.common.backend_utils import normalize_shift_and_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
 from keras.src.backend.common.backend_utils import vectorize_impl
 from keras.src.backend.tensorflow import sparse
@@ -1066,6 +1067,31 @@ def average(x, axis=None, weights=None):
         avg = tf.reduce_mean(x, axis=axis)
     else:
         weights = convert_to_tensor(weights)
+        if len(weights.shape) == 1 and len(x.shape) > 1:
+            if axis is None or (
+                isinstance(axis, (list, tuple)) and len(axis) != 1
+            ):
+                raise ValueError(
+                    "Axis must be specified when shapes of a and weights "
+                    "differ."
+                )
+            axis_val = axis[0] if isinstance(axis, (list, tuple)) else axis
+            axis_val = canonicalize_axis(axis_val, len(x.shape))
+            if weights.shape[0] != x.shape[axis_val]:
+                raise ValueError(
+                    "Shape of weights must be consistent with shape of a "
+                    "along specified axis."
+                )
+        elif x.shape != weights.shape:
+            if axis is None:
+                raise ValueError(
+                    "Axis must be specified when shapes of a and weights "
+                    "differ."
+                )
+            raise ValueError(
+                "Shape of weights must be consistent with shape of a "
+                "along specified axis."
+            )
         dtype = dtypes.result_type(x.dtype, weights.dtype, float)
         x = tf.cast(x, dtype)
         weights = tf.cast(weights, dtype)
@@ -1076,7 +1102,8 @@ def average(x, axis=None, weights=None):
 
         def _rank_not_equal_case():
             weights_sum = tf.reduce_sum(weights)
-            axes = tf.convert_to_tensor([[axis], [0]])
+            a = axis[0] if isinstance(axis, (tuple, list)) else axis
+            axes = tf.convert_to_tensor([[a], [0]])
             return tf.tensordot(x, weights, axes) / weights_sum
 
         if axis is None:
@@ -1762,7 +1789,12 @@ def hypot(x1, x2):
     min_val = tf.minimum(x1_abs, x2_abs)
 
     ratio = tf.math.divide_no_nan(min_val, max_val)
-    return max_val * tf.sqrt(1.0 + tf.square(ratio))
+    result = max_val * tf.sqrt(1.0 + tf.square(ratio))
+    return tf.where(
+        tf.math.is_inf(x1_abs) | tf.math.is_inf(x2_abs),
+        tf.constant(float("inf"), dtype=result.dtype),
+        result,
+    )
 
 
 def identity(n, dtype=None):
@@ -1792,7 +1824,9 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
     if "float" in dtype:
-        result = tf.abs(x1 - x2) <= (atol + rtol * tf.abs(x2))
+        finite = tf.math.is_finite(x1) & tf.math.is_finite(x2)
+        close = tf.abs(x1 - x2) <= (atol + rtol * tf.abs(x2))
+        result = (finite & close) | tf.equal(x1, x2)
         if equal_nan:
             result = result | (is_nan(x1) & is_nan(x2))
         return result
@@ -2170,6 +2204,32 @@ def maximum(x1, x2):
     return tf.maximum(x1, x2)
 
 
+def fmax(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
+
+    if "float" not in standardize_dtype(dtype):
+        return tf.maximum(x1, x2)
+
+    nan_x1 = tf.math.is_nan(x1)
+    nan_x2 = tf.math.is_nan(x2)
+
+    res = tf.maximum(x1, x2)
+
+    res = tf.where(tf.logical_and(nan_x1, tf.logical_not(nan_x2)), x2, res)
+
+    res = tf.where(tf.logical_and(nan_x2, tf.logical_not(nan_x1)), x1, res)
+    return res
+
+
 def median(x, axis=None, keepdims=False):
     return quantile(x, 0.5, axis=axis, keepdims=keepdims)
 
@@ -2221,6 +2281,32 @@ def minimum(x1, x2):
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
     return tf.minimum(x1, x2)
+
+
+def fmin(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
+
+    if "float" not in standardize_dtype(dtype):
+        return tf.minimum(x1, x2)
+
+    nan_x1 = tf.math.is_nan(x1)
+    nan_x2 = tf.math.is_nan(x2)
+
+    res = tf.minimum(x1, x2)
+
+    res = tf.where(tf.logical_and(nan_x1, tf.logical_not(nan_x2)), x2, res)
+
+    res = tf.where(tf.logical_and(nan_x2, tf.logical_not(nan_x1)), x1, res)
+    return res
 
 
 def mod(x1, x2):
@@ -2310,12 +2396,12 @@ def nanargmin(x, axis=None, keepdims=False):
 
 
 def nancumsum(x, axis=None, dtype=None):
-    x = nan_to_num(x)
+    x = nan_to_num(x, posinf=float("inf"), neginf=float("-inf"))
     return cumsum(x, axis=axis, dtype=dtype)
 
 
 def nancumprod(x, axis=None, dtype=None):
-    x = nan_to_num(x, nan=1.0)
+    x = nan_to_num(x, nan=1.0, posinf=float("inf"), neginf=float("-inf"))
     return cumprod(x, axis=axis, dtype=dtype)
 
 
@@ -2792,6 +2878,8 @@ def repeat(x, repeats, axis=None):
 
 def reshape(x, newshape):
     x = convert_to_tensor(x)
+    if isinstance(newshape, (int, np.integer)):
+        newshape = (newshape,)
     if isinstance(x, tf.SparseTensor):
         from keras.src.ops.operation_utils import compute_reshape_output_shape
 
@@ -2807,7 +2895,10 @@ def reshape(x, newshape):
 def roll(x, shift, axis=None):
     x = convert_to_tensor(x)
     if axis is not None:
-        return tf.roll(x, shift=shift, axis=axis)
+        # `tf.roll` requires `shift` and `axis` to have the same length,
+        # while numpy broadcasts them against each other.
+        shifts, axes = normalize_shift_and_axis(shift, axis)
+        return tf.roll(x, shift=shifts, axis=axes)
 
     # If axis is None, the roll happens as a 1-d tensor.
     original_shape = tf.shape(x)
@@ -3841,32 +3932,34 @@ def unique(
 
     if is_flatten:
         x = tf.reshape(x, [-1])
-        dim = 0
-        y, inverse, counts = tf.unique_with_counts(x)
+        axis = 0
+        if return_counts:
+            y, inverse, counts = tf.unique_with_counts(x)
+        else:
+            y, inverse = tf.unique(x)
 
     else:
-        ndim = x.shape.rank
-        dim = axis + ndim if axis < 0 else axis
-        axis_to_use = tf.constant([dim], dtype=tf.int32)
-        y, inverse, counts = tf.raw_ops.UniqueWithCountsV2(
-            x=x, axis=axis_to_use, out_idx=tf.int32
-        )
+        axis = canonicalize_axis(axis, x.shape.rank)
+        if return_counts:
+            y, inverse, counts = tf.raw_ops.UniqueWithCountsV2(x=x, axis=[axis])
+        else:
+            y, inverse = tf.raw_ops.UniqueV2(x=x, axis=[axis])
 
     if return_index:
-        num_unique = tf.shape(y)[dim]
-        dim_size = tf.shape(x)[0] if is_flatten else original_shape[dim]
+        num_unique = tf.shape(y)[axis]
+        axis_dim = tf.shape(x)[0] if is_flatten else original_shape[axis]
         unique_indices = tf.math.unsorted_segment_min(
-            tf.range(dim_size, dtype=tf.int32), inverse, num_unique
+            tf.range(axis_dim, dtype=tf.int32), inverse, num_unique
         )
 
     if sorted:
-        num_unique = tf.shape(y)[dim]
+        num_unique = tf.shape(y)[axis]
         if is_flatten or y.shape.rank == 1:
             sort_order = tf.argsort(y)
         else:
             # Multi-D lexicographical sort
             perm = list(range(y.shape.rank))
-            perm[0], perm[dim] = perm[dim], perm[0]
+            perm[0], perm[axis] = perm[axis], perm[0]
             y_transposed = tf.transpose(y, perm)
             y_2d = tf.reshape(y_transposed, [num_unique, -1])
             num_cols = tf.shape(y_2d)[1]
@@ -3885,7 +3978,7 @@ def unique(
                 cond, body, [num_cols - 1, sort_order], parallel_iterations=1
             )
 
-        y = tf.gather(y, sort_order, axis=dim)
+        y = tf.gather(y, sort_order, axis=axis)
         if return_index:
             unique_indices = tf.gather(unique_indices, sort_order)
         if return_counts:
@@ -3897,11 +3990,11 @@ def unique(
 
     # Static size padding/truncation (branchless logic for graph mode safety)
     if size is not None:
-        values_count = tf.shape(y)[dim]
+        values_count = tf.shape(y)[axis]
 
         # 1. Truncate using gather
         truncate_size = tf.minimum(values_count, size)
-        y = tf.gather(y, tf.range(truncate_size), axis=dim)
+        y = tf.gather(y, tf.range(truncate_size), axis=axis)
         if return_index:
             unique_indices = tf.gather(unique_indices, tf.range(truncate_size))
         if return_counts:
@@ -3911,7 +4004,7 @@ def unique(
         pad_amount = tf.maximum(0, size - values_count)
         paddings = tf.zeros([tf.rank(y), 2], dtype=tf.int32)
         paddings = tf.tensor_scatter_nd_update(
-            paddings, [[dim, 1]], [pad_amount]
+            paddings, [[axis, 1]], [pad_amount]
         )
 
         fill = tf.cast(0 if fill_value is None else fill_value, y.dtype)
@@ -3925,14 +4018,15 @@ def unique(
         if return_counts:
             counts = tf.pad(counts, [[0, pad_amount]], constant_values=0)
 
-        # 3. Enforce static shape for JAX/XLA compatibility
-        static_shape = y.shape.as_list()
-        static_shape[dim] = size
-        y.set_shape(static_shape)
-        if return_index:
-            unique_indices.set_shape([size])
-        if return_counts:
-            counts.set_shape([size])
+        # 3. Enforce static shape for XLA compatibility
+        if isinstance(size, int):
+            static_shape = y.shape.as_list()
+            static_shape[axis] = size
+            y.set_shape(static_shape)
+            if return_index:
+                unique_indices.set_shape([size])
+            if return_counts:
+                counts.set_shape([size])
 
     if return_inverse and is_flatten:
         inverse = tf.reshape(inverse, original_shape)
@@ -3950,3 +4044,13 @@ def unique(
 
 def dsplit(x, indices_or_sections):
     return split(x, indices_or_sections, axis=2)
+
+
+def column_stack(xs):
+    xs = [convert_to_tensor(x) for x in xs]
+    dtype_set = set([x.dtype for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = [tf.cast(x, dtype) for x in xs]
+    xs = [tf.expand_dims(x, axis=-1) if len(x.shape) == 1 else x for x in xs]
+    return tf.concat(xs, axis=1)

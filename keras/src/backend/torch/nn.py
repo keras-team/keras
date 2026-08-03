@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as tnn
 
 from keras.src import backend
+from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
     check_conv_transpose_input_channels,
@@ -136,6 +137,7 @@ def celu(x, alpha=1.0):
 
 def glu(x, axis=-1):
     x = convert_to_tensor(x)
+    canonicalize_axis(axis, len(x.shape))
     return tnn.glu(x, dim=axis)
 
 
@@ -222,15 +224,12 @@ def _compute_padding_length(
     """Compute padding length along one dimension with support
     for asymmetric padding."""
     effective_k_size = (kernel_length - 1) * dilation_rate + 1
-    if stride == 1:
-        # total padding is kernel_size - 1
-        total_padding = effective_k_size - 1
-    else:
-        # calc. needed padding for case with stride involved
-        output_size = (input_length + stride - 1) // stride
-        total_padding = max(
-            0, (output_size - 1) * stride + effective_k_size - input_length
-        )
+
+    # calc. needed padding for case with stride involved
+    output_size = (input_length + stride - 1) // stride
+    total_padding = max(
+        0, (output_size - 1) * stride + effective_k_size - input_length
+    )
 
     # divide padding evenly, with extra pixel going at the end if needed
     left_padding = total_padding // 2
@@ -239,7 +238,12 @@ def _compute_padding_length(
 
 
 def _apply_same_padding(
-    inputs, kernel_size, strides, data_format, operation_type, dilation_rate=1
+    inputs,
+    kernel_size,
+    strides,
+    data_format,
+    padding_mode="constant",
+    dilation_rate=1,
 ):
     """Apply same padding to the input tensor.
 
@@ -258,15 +262,13 @@ def _apply_same_padding(
     num_spatial_dims = len(spatial_shape)
     padding = []
 
-    if operation_type != "pooling":
-        dilation_rate = standardize_tuple(
-            dilation_rate, num_spatial_dims, "dilation_rate"
-        )
+    dilation_rate = standardize_tuple(
+        dilation_rate, num_spatial_dims, "dilation_rate"
+    )
 
     for i in range(num_spatial_dims):
-        dil = 1 if operation_type == "pooling" else dilation_rate[i]
         pad = _compute_padding_length(
-            spatial_shape[i], kernel_size[i], strides[i], dil
+            spatial_shape[i], kernel_size[i], strides[i], dilation_rate[i]
         )
         padding.append(pad)
 
@@ -279,8 +281,7 @@ def _apply_same_padding(
     for pad in reversed(padding):
         flattened_padding.extend(pad)
 
-    mode = "replicate" if operation_type == "pooling" else "constant"
-    return tnn.pad(inputs, pad=tuple(flattened_padding), mode=mode), 0
+    return tnn.pad(inputs, pad=tuple(flattened_padding), mode=padding_mode), 0
 
 
 def _transpose_spatial_inputs(inputs):
@@ -345,6 +346,18 @@ def _maybe_convert_to_channels_last(tensor):
     return tensor
 
 
+def _is_pointwise_kernel(kernel):
+    return all(dim == 1 for dim in kernel.shape[:-2])
+
+
+def _conv_pointwise_channels_last(inputs, kernel, strides):
+    if any(stride != 1 for stride in strides):
+        spatial_slices = tuple(slice(None, None, stride) for stride in strides)
+        inputs = inputs[(slice(None), *spatial_slices, slice(None))]
+    kernel = torch.reshape(kernel, (kernel.shape[-2], kernel.shape[-1]))
+    return torch.matmul(inputs, kernel)
+
+
 def max_pool(
     inputs,
     pool_size,
@@ -369,7 +382,7 @@ def max_pool(
         # Torch does not natively support `"same"` padding, we need to manually
         # apply the right amount of padding to `inputs`.
         inputs, padding = _apply_same_padding(
-            inputs, pool_size, strides, data_format, "pooling"
+            inputs, pool_size, strides, data_format, padding_mode="replicate"
         )
     else:
         padding = 0
@@ -430,6 +443,9 @@ def average_pool(
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(inputs)
 
+    orig_inputs = inputs
+    manual_padded = False
+
     if padding == "same":
         # Torch does not natively support `"same"` padding, we need to manually
         # apply the right amount of padding to `inputs`.
@@ -438,8 +454,16 @@ def average_pool(
             pool_size,
             strides,
             "channels_first",  # we're in channels_first here
-            "pooling",
         )
+        if padding == 0:
+            manual_padded = True
+            ones = torch.ones_like(orig_inputs)
+            ones_padded, _ = _apply_same_padding(
+                ones,
+                pool_size,
+                strides,
+                "channels_first",
+            )
     else:
         padding = 0
 
@@ -452,6 +476,14 @@ def average_pool(
             padding=padding,
             count_include_pad=False,
         )
+        if manual_padded:
+            outputs_ones = tnn.avg_pool1d(
+                ones_padded,
+                kernel_size=pool_size,
+                stride=strides,
+                padding=padding,
+                count_include_pad=False,
+            )
     elif num_spatial_dims == 2:
         outputs = tnn.avg_pool2d(
             inputs,
@@ -460,6 +492,14 @@ def average_pool(
             padding=padding,
             count_include_pad=False,
         )
+        if manual_padded:
+            outputs_ones = tnn.avg_pool2d(
+                ones_padded,
+                kernel_size=pool_size,
+                stride=strides,
+                padding=padding,
+                count_include_pad=False,
+            )
     elif num_spatial_dims == 3:
         outputs = tnn.avg_pool3d(
             inputs,
@@ -468,12 +508,23 @@ def average_pool(
             padding=padding,
             count_include_pad=False,
         )
+        if manual_padded:
+            outputs_ones = tnn.avg_pool3d(
+                ones_padded,
+                kernel_size=pool_size,
+                stride=strides,
+                padding=padding,
+                count_include_pad=False,
+            )
     else:
         raise ValueError(
             "Inputs to pooling op must have ndim=3, 4 or 5, "
             "corresponding to 1D, 2D and 3D inputs. "
             f"Received input shape: {inputs.shape}."
         )
+
+    if manual_padded:
+        outputs = outputs / outputs_ones
 
     if orig_format == "channels_last":
         outputs = _transpose_spatial_outputs(outputs)
@@ -584,6 +635,16 @@ def conv(
     strides = standardize_tuple(strides, num_spatial_dims, "strides")
 
     data_format = backend.standardize_data_format(data_format)
+    # Fast path for pointwise channels_last conv: matmul avoids the
+    # channels_first transpose and torch conv dispatch.
+    if (
+        data_format == "channels_last"
+        and padding in {"valid", "same"}
+        and _is_pointwise_kernel(kernel)
+        and inputs.shape[-1] == kernel.shape[-2]
+    ):
+        return _conv_pointwise_channels_last(inputs, kernel, strides)
+
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(inputs)
 
@@ -610,8 +671,8 @@ def conv(
             kernel.shape[2:],
             strides,
             data_format,
-            "conv",
-            dilation_rate,
+            padding_mode="constant",
+            dilation_rate=dilation_rate,
         )
     else:
         padding = 0
@@ -1461,7 +1522,19 @@ def dot_product_attention(
 
     mask = mask if mask is None else convert_to_tensor(mask, dtype="bool")
     if mask is not None:
-        # Explicit set `is_causal` to `False` when `mask` is not `None`.
+        if is_causal:
+            # `scaled_dot_product_attention` treats `attn_mask` and
+            # `is_causal` as mutually exclusive, so a caller-provided mask
+            # would otherwise silently drop the causal constraint. Fold the
+            # causal mask into the explicit mask to honor both.
+            q_len, kv_len = query.shape[1], key.shape[1]
+            causal_mask = torch.tril(
+                torch.ones(
+                    (q_len, kv_len), dtype=torch.bool, device=mask.device
+                )
+            )
+            mask = torch.logical_and(mask, causal_mask)
+        # Explicitly set `is_causal` to `False` when `mask` is not `None`.
         is_causal = False
         mask = torch.where(mask, 0.0, _get_large_negative(query.dtype))
     if bias is not None:
@@ -1472,6 +1545,13 @@ def dot_product_attention(
     query = torch.transpose(query, axis0, axis1)
     key = torch.transpose(key, axis0, axis1)
     value = torch.transpose(value, axis0, axis1)
+
+    num_query_heads = query.shape[1]
+    num_kv_heads = key.shape[1]
+    if num_query_heads > num_kv_heads and num_kv_heads > 1:
+        groups = num_query_heads // num_kv_heads
+        key = torch.repeat_interleave(key, repeats=groups, dim=1)
+        value = torch.repeat_interleave(value, repeats=groups, dim=1)
 
     if flash_attention is None:
         flash_attention = _can_use_flash_attention(

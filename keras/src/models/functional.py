@@ -99,7 +99,6 @@ class Functional(Function, Model):
     def __new__(cls, *args, **kwargs):
         return typing.cast(cls, super().__new__(cls))
 
-    @tracking.no_automatic_dependency_tracking
     def __init__(self, inputs, outputs, name=None, **kwargs):
         if isinstance(inputs, dict):
             for k, v in inputs.items():
@@ -133,12 +132,14 @@ class Functional(Function, Model):
         if not all(is_input_keras_tensor(t) for t in flat_inputs):
             inputs, outputs = clone_graph_nodes(inputs, outputs)
 
-        Function.__init__(self, inputs, outputs, name=name)
+        with tracking.DotNotTrackScope():
+            Function.__init__(self, inputs, outputs, name=name)
 
         if trainable is not None:
             self.trainable = trainable
 
-        self._layers = self.layers
+        for layer in self.layers:
+            self._tracker.track(layer)
         self.build(None)
         # We will convert directly (to the correct dtype per input).
         self._convert_input_args = False
@@ -170,7 +171,7 @@ class Functional(Function, Model):
             "Please use another name."
         )
 
-    def call(self, inputs, training=None, mask=None, **kwargs):
+    def call(self, inputs, training=None, mask=None):
         # Add support for training, masking
         inputs = self._standardize_inputs(inputs)
         if mask is None:
@@ -180,12 +181,7 @@ class Functional(Function, Model):
             for x, mask in zip(inputs, masks):
                 if mask is not None:
                     backend.set_keras_mask(x, mask)
-        outputs = self._run_through_graph(
-            inputs,
-            operation_fn=lambda op: operation_fn(
-                op, training=training, **kwargs
-            ),
-        )
+        outputs = self._run_through_graph(inputs)
         return unpack_singleton(outputs)
 
     def compute_output_spec(self, inputs, training=None, mask=None):
@@ -691,27 +687,13 @@ def functional_from_config(cls, config, custom_objects=None):
     )
 
 
-def operation_fn(operation, **call_context_args):
-    """Wraps each op to inject the call-context args."""
-
-    def call(*args, **kwargs):
-        # Propagate all registered call-context args
-        for name, value in call_context_args.items():
-            if (
-                name in getattr(operation, "_call_context_args", {})
-                and value is not None
-            ):
-                kwargs[name] = value
-
-        return operation(*args, **kwargs)
-
-    return call
-
-
 def functional_like_constructor(cls):
-    init_args = inspect.getfullargspec(cls.__init__).args[1:]
+    init_spec = inspect.getfullargspec(cls.__init__)
+    init_args = init_spec.args[1:]
     functional_init_args = inspect.getfullargspec(Functional.__init__).args[1:]
     if init_args == functional_init_args:
+        return True
+    if init_spec.varargs is not None and init_spec.varkw is not None:
         return True
     return False
 

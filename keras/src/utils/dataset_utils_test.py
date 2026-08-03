@@ -9,6 +9,7 @@ from torch.utils.data import Dataset as TorchDataset
 from keras.src import backend
 from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
+from keras.src.utils.dataset_utils import get_training_or_validation_split
 from keras.src.utils.dataset_utils import split_dataset
 from keras.src.utils.module_utils import tensorflow as tf
 
@@ -158,3 +159,31 @@ class DatasetUtilsTest(test_case.TestCase):
             self.assertEqual(x.shape, (2,))
             self.assertEqual(y.shape, (10, 2))
             self.assertEqual(labels.shape, (1,))
+
+    def test_get_training_or_validation_split_small_validation_split(self):
+        # When int(validation_split * len(samples)) rounds down to 0, the
+        # training subset must keep all samples (not the empty `[:-0]` slice)
+        # and the validation subset must be empty (not the full `[-0:]` slice).
+        samples = list(range(10))
+        train, _ = get_training_or_validation_split(
+            samples, None, validation_split=0.05, subset="training"
+        )
+        val, _ = get_training_or_validation_split(
+            samples, None, validation_split=0.05, subset="validation"
+        )
+        self.assertEqual(train, samples)
+        self.assertEqual(val, [])
+
+    def test_get_training_or_validation_split_regular(self):
+        samples = list(range(10))
+        labels = list(range(10))
+        train_s, train_l = get_training_or_validation_split(
+            samples, labels, validation_split=0.2, subset="training"
+        )
+        val_s, val_l = get_training_or_validation_split(
+            samples, labels, validation_split=0.2, subset="validation"
+        )
+        self.assertEqual(train_s, list(range(8)))
+        self.assertEqual(train_l, list(range(8)))
+        self.assertEqual(val_s, [8, 9])
+        self.assertEqual(val_l, [8, 9])

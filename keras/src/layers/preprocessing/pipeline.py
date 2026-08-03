@@ -1,3 +1,4 @@
+from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
@@ -60,17 +61,21 @@ class Pipeline(Layer):
             outputs = layer(inputs, **kwargs)
             inputs = outputs
 
-            def _get_mask_from_keras_tensor(kt):
-                return getattr(kt, "_keras_mask", None)
-
-            mask = tree.map_structure(_get_mask_from_keras_tensor, outputs)
+            mask = tree.map_structure(backend.get_keras_mask, outputs)
         return outputs
 
     @classmethod
     def from_config(cls, config):
+        layers = config.get("layers")
+        if not isinstance(layers, (list, tuple)):
+            raise ValueError(
+                "`Pipeline` config must contain a `layers` key mapping to a "
+                "list of serialized layers. Received config with "
+                f"layers={layers}."
+            )
+        config = {**config}
         config["layers"] = [
-            serialization_lib.deserialize_keras_object(x)
-            for x in config["layers"]
+            serialization_lib.deserialize_keras_object(x) for x in layers
         ]
         return cls(**config)
 

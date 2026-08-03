@@ -1,6 +1,7 @@
 """Legacy Keras 1/2 backend functions."""
 
 import itertools
+import math
 
 import numpy as np
 
@@ -634,7 +635,7 @@ def cos(x):
 @keras_export("keras._legacy.backend.count_params")
 def count_params(x):
     """DEPRECATED."""
-    return np.prod(x.shape.as_list())
+    return math.prod(x.shape.as_list())
 
 
 @keras_export("keras._legacy.backend.ctc_batch_cost")

@@ -255,6 +255,7 @@ class BaseConvTranspose(Layer):
                 "kernel_size": self.kernel_size,
                 "strides": self.strides,
                 "padding": self.padding,
+                "output_padding": self.output_padding,
                 "data_format": self.data_format,
                 "dilation_rate": self.dilation_rate,
                 "activation": activations.serialize(self.activation),

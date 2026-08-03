@@ -768,10 +768,12 @@ def compute_homography_matrix(start_points, end_points):
     start_points = convert_to_tensor(start_points)
     end_points = convert_to_tensor(end_points)
     dtype = backend.result_type(start_points.dtype, end_points.dtype, float)
-    # `np.linalg.solve` lacks support for float16 and bfloat16.
+    # `np.linalg.solve` lacks support for float16 and bfloat16. Build the
+    # coefficient matrix in float32 so low-precision start/end points do not
+    # create an ill-conditioned (or singular) homography due to rounding.
     compute_dtype = backend.result_type(dtype, "float32")
-    start_points = start_points.astype(dtype)
-    end_points = end_points.astype(dtype)
+    start_points = start_points.astype(compute_dtype)
+    end_points = end_points.astype(compute_dtype)
 
     start_x1, start_y1 = start_points[:, 0, 0], start_points[:, 0, 1]
     start_x2, start_y2 = start_points[:, 1, 0], start_points[:, 1, 1]
@@ -907,11 +909,9 @@ def compute_homography_matrix(start_points, end_points):
         axis=-1,
     )
     target_vector = np.expand_dims(target_vector, axis=-1)
-    coefficient_matrix = coefficient_matrix.astype(compute_dtype)
-    target_vector = target_vector.astype(compute_dtype)
     homography_matrix = np.linalg.solve(coefficient_matrix, target_vector)
     homography_matrix = np.reshape(homography_matrix, [-1, 8])
-    return homography_matrix.astype(dtype)
+    return homography_matrix.astype(compute_dtype)
 
 
 def map_coordinates(

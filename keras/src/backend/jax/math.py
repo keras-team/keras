@@ -71,6 +71,7 @@ def in_top_k(targets, predictions, k):
 
 
 def logsumexp(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
     return jax.scipy.special.logsumexp(x, axis=axis, keepdims=keepdims)
 
 
@@ -275,13 +276,14 @@ def istft(
     if length is not None:
         end = start + length
     elif center is True:
-        end = -(fft_length // 2)
+        end = expected_output_len - (fft_length // 2)
     else:
         end = expected_output_len
     return x[..., start:end]
 
 
 def rsqrt(x):
+    x = convert_to_tensor(x)
     return jax.lax.rsqrt(x)
 
 
@@ -295,7 +297,8 @@ def erfc(x):
 
 
 def erfinv(x):
-    return jax.lax.erf_inv(x)
+    x = convert_to_tensor(x)
+    return jax.scipy.special.erfinv(x)
 
 
 def logdet(x):

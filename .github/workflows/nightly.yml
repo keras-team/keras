@@ -14,16 +14,18 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.11"]
-        backend: [tensorflow, jax, torch, numpy]
-    name: Run tests (Python ${{ matrix.python-version }})
+        backend: [tensorflow, jax, torch, numpy, openvino]
+    name: Run tests (${{ matrix.backend }}) (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     env:
       PYTHON: ${{ matrix.python-version }}
       KERAS_BACKEND: ${{ matrix.backend }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: ${{ matrix.python-version }}
       - name: Get pip cache dir
@@ -32,15 +34,12 @@ jobs:
           python -m pip install --upgrade pip setuptools
           echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
       - name: pip cache
-        uses: actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.pip-cache.outputs.dir }}
           key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('requirements.txt') }}
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt --progress-bar off --upgrade
-          pip uninstall -y keras keras-nightly
-          pip install -e "." --progress-bar off --upgrade
+        run: pip install -r requirements.txt --progress-bar off --upgrade
       - name: Test integrations
         if: ${{ matrix.backend != 'numpy'}}
         run: |
@@ -55,15 +54,17 @@ jobs:
           pytest integration_tests/torch_workflow_test.py
       - name: Test with pytest
         run: |
-          pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml
+          pytest keras --ignore keras/src/applications
 
   format:
     name: Check the code format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
       - name: Set up Python 3.11
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.11"
       - name: Get pip cache dir
@@ -72,15 +73,12 @@ jobs:
           python -m pip install --upgrade pip setuptools
           echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
       - name: pip cache
-        uses: actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.pip-cache.outputs.dir }}
           key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('requirements.txt') }}
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt --progress-bar off --upgrade
-          pip uninstall -y keras keras-nightly
-          pip install -e "." --progress-bar off --upgrade
+        run: pip install -r requirements.txt --progress-bar off --upgrade
       - name: Run pre-commit
         run: pre-commit run --all-files --hook-stage manual
 
@@ -89,9 +87,11 @@ jobs:
     needs: [build, format]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.11"
       - name: Install dependencies
@@ -99,12 +99,11 @@ jobs:
           python -m pip install --upgrade pip setuptools
           pip install twine
           pip install -r requirements.txt --progress-bar off --upgrade
-          pip uninstall -y keras keras-nightly
       - name: Build wheel file
         run: |
           python pip_build.py --nightly
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0 # zizmor: ignore[use-trusted-publishing]
         with:
           password: ${{ secrets.PYPI_NIGHTLY_API_TOKEN }}
           packages-dir: dist/

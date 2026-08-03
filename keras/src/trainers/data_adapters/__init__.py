@@ -38,12 +38,14 @@ def get_data_adapter(
         distribution is not None
         and getattr(distribution, "_is_multi_process", False)
         and getattr(distribution, "auto_shard_dataset", False)
-        and not is_tf_dataset(x)
+        and not (
+            is_tf_dataset(x) or isinstance(x, py_dataset_adapter.PyDataset)
+        )
     ):
         raise ValueError(
             "When using a multi-worker distribution with auto-sharding enabled, "
-            "the data must be provided as a `tf.data.Dataset` instance. "
-            f"Received: type(x)={type(x)}. "
+            "the data must be provided as a `tf.data.Dataset` or a "
+            f"`keras.utils.PyDataset` instance. Received: type(x)={type(x)}. "
             "If the dataset is already sharded across workers, then set "
             "`distribution.auto_shard_dataset = False`."
         )
@@ -150,10 +152,10 @@ def get_data_adapter(
 
     elif isinstance(x, types.GeneratorType):
         if y is not None:
-            raise_unsupported_arg("y", "the targets", "PyDataset")
+            raise_unsupported_arg("y", "the targets", "generator")
         if sample_weight is not None:
             raise_unsupported_arg(
-                "sample_weights", "the sample weights", "PyDataset"
+                "sample_weights", "the sample weights", "generator"
             )
         if class_weight is not None:
             raise ValueError(

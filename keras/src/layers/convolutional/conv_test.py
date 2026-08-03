@@ -1,3 +1,4 @@
+import math
 import os
 
 import numpy as np
@@ -744,7 +745,7 @@ class ConvBasicTest(testing.TestCase):
 
         # Set the base kernel to known, deterministic values.
         base_kernel = np.linspace(
-            0, 1, num=np.prod(layer.kernel.shape), dtype=np.float32
+            0, 1, num=math.prod(layer.kernel.shape), dtype=np.float32
         )
         base_kernel = base_kernel.reshape(layer.kernel.shape)
         layer.kernel.assign(base_kernel)

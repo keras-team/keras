@@ -1,7 +1,7 @@
 import itertools
 
 import numpy as np
-import openvino.opset15 as ov_opset
+import openvino.opset16 as ov_opset
 from openvino import Type
 
 from keras.src import backend
@@ -2072,6 +2072,56 @@ def scale_and_translate(
 
 
 def sobel_edges(images, data_format=None):
-    raise NotImplementedError(
-        "`sobel_edges` is not supported with openvino backend"
-    )
+    images = get_ov_output(images)
+    data_format = backend.standardize_data_format(data_format)
+    if images.get_partial_shape().rank.get_length() != 4:
+        raise ValueError(
+            "Invalid images rank: expected rank 4 (batch of images). "
+            f"Received input with shape: images.shape={images.shape}"
+        )
+    # Move to NCHW for depthwise convolution, then move back at the end.
+    if data_format == "channels_last":
+        images = ov_opset.transpose(
+            images, ov_opset.constant([0, 3, 1, 2], Type.i32)
+        ).output(0)
+
+    channels = images.shape[1]
+    elem_type = images.get_element_type()
+
+    # Depthwise Sobel kernels in (groups, out_per_group, in_per_group, kH, kW)
+    # = (C, 1, 1, 3, 3). The same Sobel kernel is applied to every channel.
+    sobel_y = np.array(
+        [[[[[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]]]]]
+    ).repeat(channels, axis=0)
+    sobel_x = np.array(
+        [[[[[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]]]]]
+    ).repeat(channels, axis=0)
+    kernel_y = ov_opset.constant(sobel_y, dtype=elem_type).output(0)
+    kernel_x = ov_opset.constant(sobel_x, dtype=elem_type).output(0)
+
+    strides = [1, 1]
+    pads = [1, 1]
+    dilations = [1, 1]
+    edges_y = ov_opset.group_convolution(
+        images, kernel_y, strides, pads, pads, dilations, "explicit"
+    ).output(0)
+    edges_x = ov_opset.group_convolution(
+        images, kernel_x, strides, pads, pads, dilations, "explicit"
+    ).output(0)
+
+    # Stack along a new trailing axis: [dy, dx]. Output is (N, C, H, W, 2).
+    edges_y = ov_opset.unsqueeze(
+        edges_y, ov_opset.constant(-1, Type.i32)
+    ).output(0)
+    edges_x = ov_opset.unsqueeze(
+        edges_x, ov_opset.constant(-1, Type.i32)
+    ).output(0)
+    edges = ov_opset.concat([edges_y, edges_x], axis=-1).output(0)
+
+    # Move channels back to last if the user asked for channels_last; result
+    # shape goes (N, C, H, W, 2) -> (N, H, W, C, 2).
+    if data_format == "channels_last":
+        edges = ov_opset.transpose(
+            edges, ov_opset.constant([0, 2, 3, 1, 4], Type.i32)
+        ).output(0)
+    return OpenVINOKerasTensor(edges)

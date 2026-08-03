@@ -1,5 +1,5 @@
 import numpy as np
-import openvino.opset15 as ov_opset
+import openvino.opset16 as ov_opset
 from openvino import Type
 
 import keras.src.backend.openvino.numpy as onp
@@ -7,10 +7,12 @@ from keras.src import backend
 from keras.src.backend.common.backend_utils import (
     _get_output_shape_given_tf_padding,
 )
+from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
+from keras.src.backend.openvino.core import shape_to_ov_output
 
 
 def relu(x):
@@ -163,6 +165,7 @@ def gelu(x, approximate=True):
 
 def glu(x, axis=-1):
     x = get_ov_output(x)
+    canonicalize_axis(axis, len(x.shape))
     half_splits = onp.split(x, 2, axis=axis)
     x1 = get_ov_output(half_splits[0])
     x2 = get_ov_output(half_splits[1])
@@ -349,6 +352,9 @@ def average_pool(
     padding="valid",
     data_format=None,
 ):
+    num_spatial_dims = (
+        get_ov_output(inputs).get_partial_shape().rank.get_length() - 2
+    )
     return _pool(
         inputs,
         pool_size,
@@ -357,128 +363,34 @@ def average_pool(
         padding,
         data_format,
         exclude_pad=True,
+        dilations=[1] * num_spatial_dims,
     )
-
-
-def _compute_adaptive_gather_indices(
-    input_dim, output_size, small_window, big_window
-):
-    """Compute gather indices for the two-pool gather method."""
-    window_starts = np.floor(
-        np.arange(output_size) * input_dim / output_size
-    ).astype(np.int32)
-    window_ends = np.minimum(
-        np.ceil(np.arange(1, output_size + 1) * input_dim / output_size).astype(
-            np.int32
-        ),
-        input_dim,
-    )
-    window_starts = np.minimum(window_starts, input_dim - 1)
-    window_sizes = window_ends - window_starts
-    small_pool_len = max(1, input_dim - small_window + 1)
-    return np.where(
-        window_sizes == big_window,
-        window_starts + small_pool_len,
-        window_starts,
-    ).tolist()
 
 
 def _adaptive_pool_ov(
     inputs, output_size, pool_type, data_format, num_spatial_dims
 ):
-    """Shared OpenVINO implementation for adaptive average/max pooling.
-
-    Uses the two-pool gather method: for each spatial axis independently,
-    apply pooling with the small and big kernel sizes (stride=1, VALID),
-    concatenate the results, then gather the correct output positions.
-    """
+    """Shared OpenVINO implementation for adaptive average/max pooling."""
     if isinstance(output_size, int):
         output_size = (output_size,) * num_spatial_dims
 
     data_format = backend.standardize_data_format(data_format)
     inputs = get_ov_output(inputs)
 
+    # AdaptiveAvgPool/AdaptiveMaxPool expect NCHW, and `output_shape` holds
+    # only the spatial dims.
     current = _adjust_input(inputs, num_spatial_dims, data_format)
+    output_shape = shape_to_ov_output(output_size)
 
-    for spatial_idx in range(num_spatial_dims):
-        gather_axis = 2 + spatial_idx
-        current_ps = current.get_partial_shape()
-        input_dim = current_ps[gather_axis].get_length()
-        output_dim = output_size[spatial_idx]
+    if pool_type == "avg":
+        pooled = ov_opset.adaptive_avg_pool(current, output_shape).output(0)
+    else:
+        # AdaptiveMaxPool also returns the argmax indices as output 1.
+        pooled = ov_opset.adaptive_max_pool(
+            current, output_shape, index_element_type="i32"
+        ).output(0)
 
-        if input_dim == output_dim:
-            continue
-
-        small_w = int(np.ceil(input_dim / output_dim))
-        big_w = small_w + 1
-        gather_indices = _compute_adaptive_gather_indices(
-            input_dim, output_dim, small_w, big_w
-        )
-
-        strides = [1] * num_spatial_dims
-
-        small_kernel = [1] * num_spatial_dims
-        small_kernel[spatial_idx] = small_w
-
-        if pool_type == "avg":
-            small_pool = ov_opset.avg_pool(
-                current,
-                strides=strides,
-                pads_begin=[],
-                pads_end=[],
-                kernel_shape=small_kernel,
-                exclude_pad=True,
-                auto_pad="VALID",
-            ).output(0)
-        else:
-            small_pool = ov_opset.max_pool(
-                current,
-                strides=strides,
-                dilations=[1] * num_spatial_dims,
-                pads_begin=[],
-                pads_end=[],
-                kernel_shape=small_kernel,
-                auto_pad="VALID",
-            ).output(0)
-
-        if big_w <= input_dim:
-            big_kernel = [1] * num_spatial_dims
-            big_kernel[spatial_idx] = big_w
-
-            if pool_type == "avg":
-                big_pool = ov_opset.avg_pool(
-                    current,
-                    strides=strides,
-                    pads_begin=[],
-                    pads_end=[],
-                    kernel_shape=big_kernel,
-                    exclude_pad=True,
-                    auto_pad="VALID",
-                ).output(0)
-            else:
-                big_pool = ov_opset.max_pool(
-                    current,
-                    strides=strides,
-                    dilations=[1] * num_spatial_dims,
-                    pads_begin=[],
-                    pads_end=[],
-                    kernel_shape=big_kernel,
-                    auto_pad="VALID",
-                ).output(0)
-
-            combined = ov_opset.concat(
-                [small_pool, big_pool], gather_axis
-            ).output(0)
-        else:
-            # big_w > input_dim: the big pool produces no outputs and all
-            # gather indices come from the small pool, so skip the big pool.
-            combined = small_pool
-
-        indices_node = ov_opset.constant(gather_indices, Type.i32).output(0)
-        axis_node = ov_opset.constant(gather_axis, Type.i32).output(0)
-        current = ov_opset.gather(combined, indices_node, axis_node).output(0)
-
-    result = _adjust_outputs(current, num_spatial_dims, data_format)
+    result = _adjust_outputs(pooled, num_spatial_dims, data_format)
     return OpenVINOKerasTensor(result)
 
 
@@ -1273,6 +1185,58 @@ def dot_product_attention(
             mask = ov_opset.add(mask, bias).output(0)
         else:
             mask = bias
+    if is_causal and mask is not None:
+        # OpenVINO's SDPA ignores `attention_mask` when `causal=True`, so a
+        # caller-provided mask would otherwise silently drop the causal
+        # constraint. Fold a lower-triangular mask into the explicit mask and
+        # disable the flag. `query`/`key` are [batch, heads, seq, head_dim].
+        seq_axis = ov_opset.constant([2], Type.i32).output(0)
+        gather_axis = ov_opset.constant(0, Type.i32).output(0)
+        squeeze_axis = ov_opset.constant([0], Type.i32).output(0)
+        t_len = ov_opset.squeeze(
+            ov_opset.gather(
+                ov_opset.shape_of(query).output(0), seq_axis, gather_axis
+            ).output(0),
+            squeeze_axis,
+        ).output(0)
+        s_len = ov_opset.squeeze(
+            ov_opset.gather(
+                ov_opset.shape_of(key).output(0), seq_axis, gather_axis
+            ).output(0),
+            squeeze_axis,
+        ).output(0)
+        zero_idx = ov_opset.constant(0, Type.i32).output(0)
+        one_idx = ov_opset.constant(1, Type.i32).output(0)
+        rows = ov_opset.unsqueeze(
+            ov_opset.range(
+                zero_idx, t_len, one_idx, output_type=Type.i32
+            ).output(0),
+            ov_opset.constant([1], Type.i32).output(0),
+        ).output(0)
+        cols = ov_opset.unsqueeze(
+            ov_opset.range(
+                zero_idx, s_len, one_idx, output_type=Type.i32
+            ).output(0),
+            ov_opset.constant([0], Type.i32).output(0),
+        ).output(0)
+        causal_keep = ov_opset.less_equal(cols, rows).output(0)
+        if mask.get_element_type() == Type.boolean:
+            false_const = ov_opset.constant(False, Type.boolean).output(0)
+            mask = ov_opset.select(causal_keep, mask, false_const).output(0)
+        else:
+            query_dtype = ov_to_keras_type(query.get_element_type())
+            min_val = (
+                np.finfo(np.float16).min
+                if query_dtype == "float16"
+                else np.finfo(np.float32).min
+            )
+            large_neg = ov_opset.constant(
+                min_val, query.get_element_type()
+            ).output(0)
+            zero = ov_opset.constant(0.0, query.get_element_type()).output(0)
+            causal_add = ov_opset.select(causal_keep, zero, large_neg).output(0)
+            mask = ov_opset.add(mask, causal_add).output(0)
+        is_causal = False
     scale = (
         get_ov_output(scale, query.get_element_type())
         if scale is not None

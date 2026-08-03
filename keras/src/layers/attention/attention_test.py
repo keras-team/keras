@@ -41,6 +41,13 @@ class AttentionTest(testing.TestCase):
             run_training_check=False,
         )
 
+    def test_attention_seed_preserved_in_config(self):
+        layer = layers.Attention(dropout=0.5, seed=1337)
+        config = layer.get_config()
+        self.assertEqual(config["seed"], 1337)
+        restored = layers.Attention.from_config(config)
+        self.assertEqual(restored.seed, 1337)
+
     def test_attention_correctness(self):
         query = np.array([[[1.0, 0.0], [0.0, 1.0]]])
         key = np.array([[[0.0, 1.0], [1.0, 0.0]]])

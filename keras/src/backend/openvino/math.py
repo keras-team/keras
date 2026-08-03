@@ -1,13 +1,15 @@
 import numpy as np
-import openvino.opset15 as ov_opset
+import openvino.opset16 as ov_opset
+import openvino.opset17 as ov_opset17
 import scipy.signal
 from openvino import Type
-from openvino.opset16 import istft as ov_istft
-from openvino.opset16 import segment_max as ov_segment_max
 
+from keras.src.backend.common import dtypes
+from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import cast
 from keras.src.backend.openvino.core import get_ov_output
+from keras.src.backend.openvino.core import ov_to_keras_type
 from keras.src.backend.openvino.core import standardize_dtype
 from keras.src.backend.openvino.numpy import stack
 
@@ -92,7 +94,7 @@ def _segment_reduce_via_scatter(
 
 
 def _segment_reduce_via_ov_max(data, segment_ids, num_segments):
-    """Sort + ov_segment_max reduction shared by segment_max and segment_min."""
+    """Sort + segment_max reduction shared by segment_max and segment_min."""
     zero = ov_opset.constant(0, Type.i32).output(0)
     zero_1d = ov_opset.constant([0], Type.i32).output(0)
     one_1d = ov_opset.constant([1], Type.i32).output(0)
@@ -102,7 +104,7 @@ def _segment_reduce_via_ov_max(data, segment_ids, num_segments):
     ).output(0)
     safe_seg = ov_opset.select(is_neg, num_segments, segment_ids).output(0)
 
-    # ov_segment_max requires sorted segment_ids.
+    # OpenVINO segment_max requires sorted segment_ids.
     n = ov_opset.squeeze(
         ov_opset.shape_of(safe_seg, output_type=Type.i32), zero_1d
     ).output(0)
@@ -114,7 +116,7 @@ def _segment_reduce_via_ov_max(data, segment_ids, num_segments):
     nseg_plus1 = ov_opset.add(
         num_segments, ov_opset.constant(1, num_segments.get_element_type())
     ).output(0)
-    result = ov_segment_max(
+    result = ov_opset.segment_max(
         sorted_data, sorted_seg, nseg_plus1, fill_mode="LOWEST"
     ).output(0)
 
@@ -176,26 +178,28 @@ def top_k(x, k, sorted=True):
 def in_top_k(targets, predictions, k):
     from keras.src.backend.openvino.numpy import take_along_axis
 
-    one_constant = ov_opset.constant(1, Type.i32)
-    # Expand targets: (batch,) → (batch, 1) for use with take_along_axis
-    targets = ov_opset.unsqueeze(get_ov_output(targets), one_constant).output(0)
+    axis_constant = ov_opset.constant(-1, Type.i32)
+    # Expand targets: (...,) → (..., 1) for use with take_along_axis
+    targets = ov_opset.unsqueeze(get_ov_output(targets), axis_constant).output(
+        0
+    )
     predictions = get_ov_output(predictions)
 
-    # top_k returns (batch, k) sorted descending; last col is the k-th largest
+    # top_k returns (..., k) sorted descending; last col is the k-th largest
     topk_values = top_k(predictions, k)[0]
-    # Grab only the last column (index k-1): threshold value, shape (batch,)
+    # Grab only the last column (index k-1): threshold value, shape (...,)
     k_minus_1_idx = ov_opset.constant([k - 1], dtype=Type.i32).output(0)
-    topk_values_axis = ov_opset.constant(1, dtype=Type.i32).output(0)
+    topk_values_axis = ov_opset.constant(-1, dtype=Type.i32).output(0)
     topk_min = ov_opset.gather(
         topk_values, k_minus_1_idx, topk_values_axis
     ).output(0)
-    # Squeeze back (batch, 1) → (batch,)
-    topk_min = ov_opset.squeeze(topk_min, one_constant).output(0)
+    # Squeeze back (..., 1) → (...,)
+    topk_min = ov_opset.squeeze(topk_min, axis_constant).output(0)
 
-    # Gather the prediction score at each true class index → shape (batch, 1)
+    # Gather the prediction score at each true class index → shape (..., 1)
     targets_values = take_along_axis(predictions, targets, axis=-1)
-    # Squeeze back (batch, 1) → (batch,)
-    targets_values = ov_opset.squeeze(targets_values, one_constant).output(0)
+    # Squeeze back (..., 1) → (...,)
+    targets_values = ov_opset.squeeze(targets_values, axis_constant).output(0)
     # target score >= k-th largest score means it belongs in the top-k
     mask = ov_opset.greater_equal(targets_values, topk_min).output(0)
     return OpenVINOKerasTensor(mask)
@@ -229,6 +233,14 @@ def logsumexp(x, axis=None, keepdims=False):
 def cdist(x, y):
     x = get_ov_output(x)
     y = get_ov_output(y)
+
+    x_type = ov_to_keras_type(x.get_element_type())
+    y_type = ov_to_keras_type(y.get_element_type())
+    result_type = dtypes.result_type(x_type, y_type, float)
+    result_type = OPENVINO_DTYPES[result_type]
+    x = ov_opset.convert(x, result_type).output(0)
+    y = ov_opset.convert(y, result_type).output(0)
+
     x_shape = x.get_partial_shape()
     y_shape = y.get_partial_shape()
     if x_shape.rank.is_static and x_shape.rank.get_length() < 2:
@@ -718,7 +730,7 @@ def istft(
     ori_dtype = x[0].dtype
 
     if window is None:
-        # ov_istft always applies OLA normalization via window, so the
+        # OpenVINO ISTFT always applies OLA normalization via window, so the
         # unnormalized window=None case uses the manual irfft + OLA path,
         # matching TF and Torch backend.
         frames = irfft(x, fft_length)
@@ -847,7 +859,8 @@ def istft(
         stacked, ov_opset.constant(perm, Type.i32)
     ).output(0)
 
-    # ov_istft only accepts rank 3 or 4; flatten leading batch dims if needed
+    # OpenVINO ISTFT only accepts rank 3 or 4; flatten leading batch dims if
+    # needed.
     num_batch_dims = rank - 3
     if num_batch_dims > 1:
         data_shape_node = ov_opset.shape_of(data, output_type=Type.i32).output(
@@ -877,7 +890,7 @@ def istft(
         else None
     )
 
-    result = ov_istft(
+    result = ov_opset.istft(
         data,
         win_node,
         frame_size_node,
@@ -920,59 +933,17 @@ def erf(x):
 
 
 def erfc(x):
-    raise NotImplementedError("`erfc` is not supported with openvino backend")
+    x = get_ov_output(x)
+    if not x.get_element_type().is_real():
+        x = ov_opset.convert(x, Type.f32).output(0)
+    const_one = ov_opset.constant(1, x.get_element_type()).output(0)
+    erf = ov_opset.erf(x).output(0)
+    return OpenVINOKerasTensor(ov_opset.subtract(const_one, erf).output(0))
 
 
 def erfinv(x):
-    # TODO: Float64 infinity values are clamped on CPU backend,
-    # breaking erfinv(±1) = ±inf
-    # See https://github.com/openvinotoolkit/openvino/issues/34138
-    # Tests excluded: test_erfinv_operation_basic, test_erfinv_operation_dtype
     x = get_ov_output(x)
-    dtype = x.get_element_type()
-
-    a = 0.147
-    two_over_pi_a = 2.0 / (np.pi * a)
-    two_over_sqrt_pi = 2.0 / np.sqrt(np.pi)
-
-    one = ov_opset.constant(1.0, dtype).output(0)
-    half = ov_opset.constant(0.5, dtype).output(0)
-
-    x_sq = ov_opset.multiply(x, x).output(0)
-    log_term = ov_opset.log(ov_opset.subtract(one, x_sq).output(0)).output(0)
-
-    k = ov_opset.add(
-        ov_opset.constant(two_over_pi_a, dtype).output(0),
-        ov_opset.multiply(half, log_term).output(0),
-    ).output(0)
-
-    inner = ov_opset.subtract(
-        ov_opset.multiply(k, k).output(0),
-        ov_opset.multiply(
-            ov_opset.constant(1.0 / a, dtype).output(0), log_term
-        ).output(0),
-    ).output(0)
-
-    y0 = ov_opset.multiply(
-        ov_opset.sign(x).output(0),
-        ov_opset.sqrt(
-            ov_opset.subtract(ov_opset.sqrt(inner).output(0), k).output(0)
-        ).output(0),
-    ).output(0)
-
-    erf_err = ov_opset.subtract(ov_opset.erf(y0).output(0), x).output(0)
-
-    y0_sq = ov_opset.multiply(y0, y0).output(0)
-    exp_term = ov_opset.exp(ov_opset.negative(y0_sq).output(0)).output(0)
-    deriv = ov_opset.multiply(
-        ov_opset.constant(two_over_sqrt_pi, dtype).output(0),
-        exp_term,
-    ).output(0)
-    y1 = ov_opset.subtract(
-        y0, ov_opset.divide(erf_err, deriv).output(0)
-    ).output(0)
-
-    return OpenVINOKerasTensor(y1)
+    return OpenVINOKerasTensor(ov_opset17.erfinv(x).output(0))
 
 
 def logdet(x):

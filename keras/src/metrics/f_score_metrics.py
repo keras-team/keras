@@ -177,10 +177,17 @@ class FBetaScore(Metric):
             sample_weight = ops.convert_to_tensor(
                 sample_weight, dtype=self.dtype
             )
+            if len(sample_weight.shape) < len(y_true.shape):
+                sample_weight = ops.expand_dims(
+                    sample_weight,
+                    axis=list(
+                        range(len(sample_weight.shape), len(y_true.shape))
+                    ),
+                )
 
         def _weighted_sum(val, sample_weight):
             if sample_weight is not None:
-                val = ops.multiply(val, ops.expand_dims(sample_weight, 1))
+                val = ops.multiply(val, sample_weight)
             return ops.sum(val, axis=self.axis)
 
         self.true_positives.assign(

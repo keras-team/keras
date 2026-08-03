@@ -1,8 +1,11 @@
+import math
+
 import jax
 import numpy as np
 from jax import lax
 
 from keras.src import backend
+from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
     check_conv_transpose_input_channels,
@@ -172,6 +175,7 @@ def celu(x, alpha=1.0):
 def glu(x, axis=-1):
     x = convert_to_tensor(x)
     dtype = x.dtype
+    canonicalize_axis(axis, len(x.shape))
     if x.shape[axis] % 2 != 0:
         raise ValueError(
             "axis size must be divisible by 2. "
@@ -327,7 +331,7 @@ def average_pool(
     pooled = _pool(inputs, 0.0, lax.add, pool_size, strides, padding)
     if padding == "valid":
         # Avoid the extra reduce_window.
-        return pooled / np.prod(pool_size)
+        return pooled / math.prod(pool_size)
     else:
         # Count the number of valid entries at each input point, then use that
         # for computing average. Assumes that any two arrays of same shape will
