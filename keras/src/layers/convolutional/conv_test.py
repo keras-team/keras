@@ -997,12 +997,18 @@ class ConvBasicTest(testing.TestCase):
         delta = delta.reshape(base_kernel.shape)
         W_combined = base_kernel + scaling * delta
 
-        # Normalize along all axes except the last one
+        # Normalize along all axes except the last one.
         axis = tuple(range(len(W_combined.shape) - 1))
         norm = np.sqrt(np.sum(np.square(W_combined), axis=axis))
-        expected_effective_kernel = ops.convert_to_numpy(
-            layer.dora_magnitude
-        ) * (W_combined / norm)
+        normalized_w = np.divide(
+            W_combined,
+            norm,
+            out=np.zeros_like(W_combined),
+            where=norm != 0,
+        )
+        expected_effective_kernel = (
+            ops.convert_to_numpy(layer.dora_magnitude) * normalized_w
+        )
 
         actual_effective_kernel = ops.convert_to_numpy(layer.kernel)
         self.assertAllClose(
@@ -1010,6 +1016,22 @@ class ConvBasicTest(testing.TestCase):
             expected_effective_kernel,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
+        )
+
+    def test_enable_dora_zero_norm(self):
+        layer = layers.Conv2D(filters=3, kernel_size=(2, 2), padding="valid")
+        input_shape = (1, 4, 4, 3)
+        layer.build(input_shape)
+
+        layer._kernel.assign(np.zeros(layer.kernel.shape, dtype=np.float32))
+        layer.enable_dora(rank=2)
+
+        layer.dora_kernel_a.assign(np.zeros(layer.dora_kernel_a.shape))
+        layer.dora_kernel_b.assign(np.zeros(layer.dora_kernel_b.shape))
+
+        actual_effective_kernel = ops.convert_to_numpy(layer.kernel)
+        self.assertAllClose(
+            actual_effective_kernel, np.zeros_like(actual_effective_kernel)
         )
 
     def test_lora_rank_argument(self):

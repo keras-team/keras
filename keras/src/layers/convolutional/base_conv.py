@@ -254,24 +254,30 @@ class BaseConv(Layer):
             )
         kernel = self._kernel
         if self.lora_enabled:
+            lora_delta = ops.matmul(
+                ops.reshape(self.lora_kernel_a, (-1, self.lora_rank)),
+                self.lora_kernel_b,
+            )
+            lora_delta = ops.reshape(lora_delta, kernel.shape)
             kernel = ops.cast(
                 ops.add(
                     kernel,
-                    (self.lora_alpha / self.lora_rank)
-                    * ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
+                    (self.lora_alpha / self.lora_rank) * lora_delta,
                 ),
                 dtype=self.compute_dtype,
             )
         elif self.dora_enabled:
-            lora_delta = (self.dora_alpha / self.dora_rank) * ops.matmul(
-                self.dora_kernel_a, self.dora_kernel_b
+            dora_delta = ops.matmul(
+                ops.reshape(self.dora_kernel_a, (-1, self.dora_rank)),
+                self.dora_kernel_b,
             )
-            W_combined = ops.add(kernel, lora_delta)
+            dora_delta = ops.reshape(dora_delta, kernel.shape)
+            W_combined = ops.add(
+                kernel, (self.dora_alpha / self.dora_rank) * dora_delta
+            )
             # Normalize along all axes except the last one (filters)
             axis = tuple(range(len(kernel.shape) - 1))
-            norm = ops.stop_gradient(
-                ops.sqrt(ops.sum(ops.square(W_combined), axis=axis))
-            )
+            norm = ops.sqrt(ops.sum(ops.square(W_combined), axis=axis))
             kernel = self.dora_magnitude * ops.divide_no_nan(W_combined, norm)
             kernel = ops.cast(kernel, dtype=self.compute_dtype)
 
@@ -404,13 +410,13 @@ class BaseConv(Layer):
         # Initialize Magnitude Vector
         # We reduce all axes except the last one (filters)
         axis = tuple(range(len(self.kernel.shape) - 1))
-        initial_magnitude = ops.stop_gradient(
-            ops.sqrt(ops.sum(ops.square(self.kernel), axis=axis))
+        initial_magnitude = ops.sqrt(
+            ops.sum(ops.square(self.kernel), axis=axis)
         )
         self.dora_magnitude = self.add_weight(
             name="dora_magnitude",
             shape=(self.filters,),
-            initializer=lambda *a, **kw: initial_magnitude,
+            initializer=initializers.Constant(initial_magnitude),
             dtype="float32",
             regularizer=self.kernel_regularizer,
         )
