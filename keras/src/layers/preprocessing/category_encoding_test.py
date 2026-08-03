@@ -271,6 +271,17 @@ class CategoryEncodingTest(testing.TestCase):
             output = output.numpy()
         self.assertAllClose(output, expected_output)
 
+    @parameterized.named_parameters([("dense", False), ("sparse", True)])
+    def test_get_config_includes_sparse(self, sparse):
+        layer = layers.CategoryEncoding(
+            num_tokens=4, output_mode="count", sparse=sparse
+        )
+        config = layer.get_config()
+        self.assertEqual(config["sparse"], sparse)
+        revived_layer = layers.CategoryEncoding.from_config(config)
+        self.assertEqual(revived_layer.sparse, sparse)
+        self.assertEqual(config, revived_layer.get_config())
+
     def test_category_encoding_without_num_tokens(self):
         with self.assertRaisesRegex(
             ValueError, r"num_tokens must be set to use this layer"
