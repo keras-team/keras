@@ -9,6 +9,7 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.data_layer import DataLayer
 from keras.src.trainers.data_adapters.py_dataset_adapter import PyDataset
 from keras.src.utils.module_utils import tensorflow as tf
+from keras.src.utils.progbar import Progbar
 
 
 def _extract_batch(batch):
@@ -345,7 +346,19 @@ class Normalization(DataLayer):
             total_mean = ops.zeros(self._mean_and_var_shape)
             total_var = ops.zeros(self._mean_and_var_shape)
             total_count = 0
-            for batch in data:
+
+            steps = None
+            if hasattr(data, "cardinality"):
+                cardinality = data.cardinality()
+                if cardinality.numpy() not in (
+                    tf.data.UNKNOWN_CARDINALITY,
+                    tf.data.INFINITE_CARDINALITY,
+                ):
+                    steps = int(cardinality.numpy())
+
+            progbar = Progbar(target=steps, unit_name="step")
+
+            for i, batch in enumerate(data):
                 batch = _extract_batch(batch)
                 batch = backend.convert_to_tensor(
                     batch, dtype=self.compute_dtype
@@ -389,6 +402,9 @@ class Normalization(DataLayer):
                     batch_var + (batch_mean - new_total_mean) ** 2
                 ) * batch_weight
                 total_mean = new_total_mean
+                progbar.update(i + 1)
+
+            progbar.update(steps if steps is not None else i + 1, finalize=True)
         else:
             raise NotImplementedError(f"Unsupported data type: {type(data)}")
 
