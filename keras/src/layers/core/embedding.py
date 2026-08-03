@@ -200,25 +200,29 @@ class Embedding(Layer):
                 embeddings, self._orig_output_dim, axis=-1
             )
         if self.lora_enabled:
+            lora_delta = ops.matmul(
+                ops.reshape(self.lora_embeddings_a, (-1, self.lora_rank)),
+                self.lora_embeddings_b,
+            )
+            lora_delta = ops.reshape(lora_delta, embeddings.shape)
             embeddings = ops.cast(
                 ops.add(
                     embeddings,
-                    (self.lora_alpha / self.lora_rank)
-                    * ops.matmul(
-                        self.lora_embeddings_a, self.lora_embeddings_b
-                    ),
+                    (self.lora_alpha / self.lora_rank) * lora_delta,
                 ),
                 dtype=self.compute_dtype,
             )
         elif self.dora_enabled:
-            lora_delta = (self.dora_alpha / self.dora_rank) * ops.matmul(
-                self.dora_embeddings_a, self.dora_embeddings_b
+            dora_delta = ops.matmul(
+                ops.reshape(self.dora_embeddings_a, (-1, self.dora_rank)),
+                self.dora_embeddings_b,
             )
-            W_combined = ops.add(embeddings, lora_delta)
+            dora_delta = ops.reshape(dora_delta, embeddings.shape)
+            W_combined = ops.add(
+                embeddings, (self.dora_alpha / self.dora_rank) * dora_delta
+            )
             # Normalize along input dimension (axis 0)
-            norm = ops.stop_gradient(
-                ops.sqrt(ops.sum(ops.square(W_combined), axis=0))
-            )
+            norm = ops.sqrt(ops.sum(ops.square(W_combined), axis=0))
             embeddings = self.dora_magnitude * ops.divide_no_nan(
                 W_combined, norm
             )
@@ -318,10 +322,6 @@ class Embedding(Layer):
         if self.dora_enabled:
             raise ValueError(
                 "dora is already enabled. This can only be done once per layer."
-            )
-        if self.quantization_mode is not None:
-            raise NotImplementedError(
-                "DoRA is not currently supported with quantized layers."
             )
         self._tracker.unlock()
 
@@ -451,7 +451,10 @@ class Embedding(Layer):
             self.dora_enabled = True
 
             self.dora_magnitude.assign(
-                ops.sqrt(ops.sum(ops.square(base_embeddings), axis=0))
+                ops.cast(
+                    ops.sqrt(ops.sum(ops.square(base_embeddings), axis=0)),
+                    dtype=self.dora_magnitude.dtype,
+                )
             )
 
     def get_config(self):
@@ -631,6 +634,16 @@ class Embedding(Layer):
                 outputs, (self.lora_alpha / self.lora_rank) * lora_outputs
             )
             outputs = ops.cast(outputs, dtype=self.compute_dtype)
+        elif self.dora_enabled:
+            outputs = ops.cast(outputs, dtype=self.compute_dtype)
+            dora_outputs = ops.take(self.dora_embeddings_a, inputs, axis=0)
+            dora_outputs = ops.matmul(dora_outputs, self.dora_embeddings_b)
+            W_combined = ops.add(
+                outputs, (self.dora_alpha / self.dora_rank) * dora_outputs
+            )
+            norm = ops.sqrt(ops.sum(ops.square(W_combined), axis=0))
+            outputs = self.dora_magnitude * ops.divide_no_nan(W_combined, norm)
+            outputs = ops.cast(outputs, dtype=self.compute_dtype)
         return outputs
 
     def _int4_call(self, inputs, training=None):
@@ -673,12 +686,23 @@ class Embedding(Layer):
                 outputs, (self.lora_alpha / self.lora_rank) * lora_outputs
             )
             outputs = ops.cast(outputs, dtype=self.compute_dtype)
+        elif self.dora_enabled:
+            outputs = ops.cast(outputs, dtype=self.compute_dtype)
+            dora_outputs = ops.take(self.dora_embeddings_a, inputs, axis=0)
+            dora_outputs = ops.matmul(dora_outputs, self.dora_embeddings_b)
+            W_combined = ops.add(
+                outputs, (self.dora_alpha / self.dora_rank) * dora_outputs
+            )
+            norm = ops.sqrt(ops.sum(ops.square(W_combined), axis=0))
+            outputs = self.dora_magnitude * ops.divide_no_nan(W_combined, norm)
+            outputs = ops.cast(outputs, dtype=self.compute_dtype)
         return outputs
 
     def quantize(self, mode=None, type_check=True, config=None):
         # Prevent quantization of the subclasses.
         if type_check and (type(self) is not Embedding):
             raise self._not_implemented_error(self.quantize)
+
         if mode not in ("int8", "int4"):
             raise self._quantization_mode_error(mode)
 

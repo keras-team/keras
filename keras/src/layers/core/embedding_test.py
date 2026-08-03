@@ -981,11 +981,24 @@ class EmbeddingTest(test_case.TestCase):
         layer.quantize("int4", config=config)
         layer.enable_dora(rank=4)
 
+        a_val = np.random.random(layer.dora_embeddings_a.shape).astype(
+            "float32"
+        )
+        b_val = np.random.random(layer.dora_embeddings_b.shape).astype(
+            "float32"
+        )
+        layer.dora_embeddings_a.assign(a_val)
+        layer.dora_embeddings_b.assign(b_val)
+
         x = np.random.randint(0, input_dim, size=(4, 8))
 
-        # Should run without error
         y = layer(x)
         self.assertEqual(y.shape, (4, 8, output_dim))
+
+        layer.dora_enabled = False
+        y_base = layer(x)
+        layer.dora_enabled = True
+        self.assertNotAllClose(y, y_base)
 
     def test_int4_grouped_vs_perchannel_scale_shapes(self):
         """Test that grouped and per-channel have different scale shapes."""
