@@ -551,25 +551,22 @@ class FeatureSpace(Layer):
             preprocessor = self.preprocessors[name]
             if hasattr(preprocessor, "reset_state"):
                 preprocessor.reset_state()
-            else:
-                # Some layers expose adapt() without state-update hooks.
-                pass
 
         # Handle layers without state-update hooks separately.
         # Let's check which adaptable preprocessors have `update_state`
-        stateful_preprocessors = [
+        update_state_preprocessors = [
             name
             for name in adaptable_preprocessors
             if hasattr(self.preprocessors[name], "update_state")
         ]
-        stateless_adapt_preprocessors = [
+        adapt_preprocessors = [
             name
             for name in adaptable_preprocessors
             if not hasattr(self.preprocessors[name], "update_state")
         ]
 
         for i, batch in enumerate(dataset):
-            for name in stateful_preprocessors:
+            for name in update_state_preprocessors:
                 feature_batch = batch[name]
                 if len(feature_batch.shape) in {0, 1}:
                     feature_batch = tf.expand_dims(feature_batch, -1)
@@ -577,11 +574,14 @@ class FeatureSpace(Layer):
             if verbose:
                 progbar.update(i + 1)
 
-        for name in stateful_preprocessors:
+        for name in update_state_preprocessors:
             self.preprocessors[name].finalize_state()
 
+        if verbose:
+            progbar.update(steps if steps is not None else i + 1, finalize=True)
+
         # Handle layers that only have `adapt` (like Normalization)
-        for name in stateless_adapt_preprocessors:
+        for name in adapt_preprocessors:
             feature_dataset = dataset.map(lambda x: x[name])
             x = next(iter(feature_dataset))
             if len(x.shape) in {0, 1}:
@@ -589,9 +589,6 @@ class FeatureSpace(Layer):
                     lambda x: tf.expand_dims(x, -1)
                 )
             self.preprocessors[name].adapt(feature_dataset)
-
-        if verbose:
-            progbar.update(steps if steps is not None else i + 1, finalize=True)
 
         self._is_adapted = True
         self.get_encoded_features()  # Finish building the layer
