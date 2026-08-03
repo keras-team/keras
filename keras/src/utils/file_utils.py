@@ -324,7 +324,7 @@ def get_file(
         ):
             raise ValueError(
                 "Can't parse the file name from the origin provided: "
-                f"'{origin}'."
+                f"'{origin}'. "
                 "Please specify the `fname` argument."
             )
     else:
