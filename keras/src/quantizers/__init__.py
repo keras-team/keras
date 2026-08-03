@@ -6,6 +6,7 @@ from keras.src.quantizers.quantization_config import Float8QuantizationConfig
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
 from keras.src.quantizers.quantization_config import QuantizationConfig
+from keras.src.quantizers.quantization_config import TernaryQuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
 from keras.src.quantizers.quantizers import Quantizer
 from keras.src.quantizers.quantizers import abs_max_quantize
@@ -18,9 +19,11 @@ from keras.src.quantizers.quantizers import compute_quantization_parameters
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import fake_quant_with_min_max_vars
 from keras.src.quantizers.quantizers import pack_int4
+from keras.src.quantizers.quantizers import pack_ternary
 from keras.src.quantizers.quantizers import quantize_and_dequantize
 from keras.src.quantizers.quantizers import quantize_with_sz_map
 from keras.src.quantizers.quantizers import unpack_int4
+from keras.src.quantizers.quantizers import unpack_ternary
 from keras.src.saving import serialization_lib
 from keras.src.utils.naming import to_snake_case
 
@@ -31,6 +34,7 @@ ALL_OBJECTS = {
     Int8QuantizationConfig,
     Int4QuantizationConfig,
     Float8QuantizationConfig,
+    TernaryQuantizationConfig,
     AWQConfig,
 }
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}

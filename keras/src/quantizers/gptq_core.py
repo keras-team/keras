@@ -204,9 +204,11 @@ def find_layers_in_block(block):
     """
     found_layers = {}
     for sub_layer in block._flatten_layers():
-        if len(list(sub_layer._flatten_layers())) == 1:
-            if isinstance(sub_layer, (Dense, EinsumDense)):
-                found_layers[sub_layer.path] = sub_layer
+        # A quantizable layer may own sub-layers (e.g. a `Layer`
+        # activation), so no leaf filtering here — collect every Dense/
+        # EinsumDense reachable inside the block.
+        if isinstance(sub_layer, (Dense, EinsumDense)):
+            found_layers[sub_layer.path] = sub_layer
     return found_layers
 
 
