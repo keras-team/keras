@@ -76,8 +76,8 @@ image_test.py::ImageOpsDtypeTest::test_map_coordinates_float16
 image_test.py::ImageOpsDtypeTest::test_map_coordinates_float32
 
 # `affine_transform`
-aug_mix_test.py::RandAugmentTest::test_layer
-aug_mix_test.py::RandAugmentTest::test_random_augment_randomness
+aug_mix_test.py::AugMixTest::test_layer
+aug_mix_test.py::AugMixTest::test_random_augment_randomness
 image_test.py::ImageOpsBehaviorTests::test_affine_transform_invalid_images_rank
 image_test.py::ImageOpsBehaviorTests::test_affine_transform_invalid_transform_rank
 image_test.py::ImageOpsCorrectnessTest::test_affine_transform_bilinear_constant
@@ -179,6 +179,7 @@ image_test.py::ImageOpsDtypeTest::test_hsv_to_rgb_float32
 # `perspective_transform`
 image_test.py::ImageOpsBehaviorTests::test_perspective_transform_invalid_images_rank
 image_test.py::ImageOpsBehaviorTests::test_perspective_transform_invalid_points_rank
+image_test.py::ImageOpsCorrectnessTest::test_perspective_transform_bfloat16_no_crash
 image_test.py::ImageOpsCorrectnessTest::test_perspective_transform_bilinear
 image_test.py::ImageOpsCorrectnessTest::test_perspective_transform_nearest
 image_test.py::ImageOpsDtypeTest::test_perspective_transform_bfloat16
@@ -275,8 +276,8 @@ nn_test.py::NNOpsDtypeTest::test_ctc_decode_float32
 ########################################################################
 # Missing float16 CPU kernels.
 # Paddle's CPU build does not register a float16 kernel for `add`,
-# `subtract`, `multiply` and `rsqrt`, which Keras applies directly to
-# the backend tensors through the Python operators.
+# `subtract` and `multiply`, which Keras applies directly to the
+# backend tensors through the Python operators.
 ########################################################################
 activity_regularization_test.py::ActivityRegularizationTest::test_activity_regularization_basics
 additive_attention_test.py::AdditiveAttentionTest::test_attention_basics
@@ -322,7 +323,7 @@ wrapper_test.py::WrapperTest::test_wrapper_basics
 ########################################################################
 # Missing bfloat16 CPU kernels.
 # Paddle's CPU build does not register a bfloat16 kernel for `add`,
-# `divide`, `clip`, `erf` and `rsqrt`.
+# `divide` and `clip`.
 ########################################################################
 losses_test.py::BinaryCrossentropyTest::test_dtype_arg
 losses_test.py::BinaryFocalCrossentropyTest::test_dtype_arg
@@ -337,8 +338,6 @@ losses_test.py::MeanAbsolutePercentageErrorTest::test_dtype_arg
 losses_test.py::PoissonTest::test_dtype_arg
 losses_test.py::SparseCategoricalCrossentropyTest::test_dtype_arg
 losses_test.py::TverskyTest::test_dtype_arg
-math_test.py::MathDtypeTest::test_erf_bfloat16
-math_test.py::MathDtypeTest::test_erfc_bfloat16
 
 ########################################################################
 # Missing `uint16`, `uint32`, `uint64` and `float8` dtypes.
@@ -424,3 +423,9 @@ gptq_test.py::TestModelQuantization::test_quantize_gptq_combinations_string_data
 gptq_test.py::TestModelQuantization::test_quantize_gptq_combinations_string_dataset_group_wise_act_order
 gptq_test.py::TestModelQuantization::test_quantize_gptq_combinations_token_dataset_group_wise
 gptq_test.py::TestModelQuantization::test_quantize_gptq_combinations_token_dataset_group_wise_act_order
+
+########################################################################
+# `steps_per_execution` is not supported by the paddle trainer, which
+# runs a plain Python loop over the batches.
+########################################################################
+orbax_checkpoint_test.py::OrbaxCheckpointTest::test_training_resumption_2
