@@ -650,7 +650,7 @@ class EinsumDenseTest(testing.TestCase):
             "btnh,nhd->btd",
             (None, 8),
             (1, 2, 2, 4),
-            5e-3,
+            4e-3,
         ),
         (
             "int4_btd,ndh->btnh",
@@ -658,7 +658,7 @@ class EinsumDenseTest(testing.TestCase):
             "btd,ndh->btnh",
             (None, 2, 8),
             (1, 2, 4),
-            5e-3,
+            4e-3,
         ),
         (
             "int4_btd,df->btf",
@@ -666,7 +666,7 @@ class EinsumDenseTest(testing.TestCase):
             "btd,df->btf",
             (None, 4),
             (1, 2, 4),
-            5e-3,
+            4e-3,
         ),
     )
     def test_quantize_with_specific_equations(
@@ -679,7 +679,7 @@ class EinsumDenseTest(testing.TestCase):
     ):
         layer = layers.EinsumDense(equation=equation, output_shape=output_shape)
         layer.build(input_shape)
-        x = ops.random.uniform(input_shape, seed=42)
+        x = ops.random.uniform(input_shape)
         y_float = layer(x)
 
         layer.quantize(quantization_mode)
@@ -1013,6 +1013,16 @@ class EinsumDenseTest(testing.TestCase):
 
             def train_one_step(x, dy):
                 layer.zero_grad()
+                loss = loss_fn(x, dy)
+                loss.backward()
+                grads = [v.value.grad for v in layer.trainable_variables]
+                optimizer.apply(grads, layer.trainable_variables)
+
+        elif backend.backend() == "paddle":
+
+            def train_one_step(x, dy):
+                for v in layer.trainable_variables:
+                    v.value.clear_gradient()
                 loss = loss_fn(x, dy)
                 loss.backward()
                 grads = [v.value.grad for v in layer.trainable_variables]

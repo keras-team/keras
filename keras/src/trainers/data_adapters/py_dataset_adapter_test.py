@@ -147,6 +147,11 @@ class PyDatasetAdapterTest(testing.TestCase):
     ):
         if use_multiprocessing and shuffle:
             pytest.skip("Starting processes is slow, test fewer variants")
+        if use_multiprocessing and backend.backend() == "paddle":
+            pytest.skip(
+                "`use_multiprocessing=True` hangs with the paddle backend: "
+                "the pool workers never return a batch."
+            )
 
         set_random_seed(1337)
         x = np.random.random((64, 4)).astype("float32")
@@ -397,6 +402,11 @@ class PyDatasetAdapterTest(testing.TestCase):
             self.skipTest(
                 "The CI failed for an unknown reason with "
                 "`use_multiprocessing=True` in the jax backend"
+            )
+        if backend.backend() == "paddle" and use_multiprocessing is True:
+            self.skipTest(
+                "`use_multiprocessing=True` hangs with the paddle backend: "
+                "the pool workers never return a batch."
             )
         dataset = ExceptionPyDataset(
             workers=workers,

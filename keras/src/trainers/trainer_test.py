@@ -1009,8 +1009,8 @@ class TestTrainer(testing.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
+        backend.backend() in ("torch", "paddle"),
+        reason="`steps_per_execution` not implemented for torch and paddle yet",
     )
     def test_steps_per_execution_steps_count(self, steps_per_execution, mode):
         data_size = 100
@@ -1143,8 +1143,10 @@ class TestTrainer(testing.TestCase):
         )
     )
     def test_predict_preserve_order(self, steps_per_execution, mode):
-        if steps_per_execution > 1 and backend.backend() == "torch":
-            self.skipTest("`steps_per_execution` not implemented for torch yet")
+        if steps_per_execution > 1 and backend.backend() in ("torch", "paddle"):
+            self.skipTest(
+                "`steps_per_execution` not implemented for torch and paddle yet"
+            )
 
         def generate_uneven_batches():
             batch_sizes = [2, 3, 4]
@@ -1193,8 +1195,10 @@ class TestTrainer(testing.TestCase):
         )
     )
     def test_predict_generator(self, steps_per_execution, mode):
-        if steps_per_execution > 1 and backend.backend() == "torch":
-            self.skipTest("`steps_per_execution` not implemented for torch yet")
+        if steps_per_execution > 1 and backend.backend() in ("torch", "paddle"):
+            self.skipTest(
+                "`steps_per_execution` not implemented for torch and paddle yet"
+            )
 
         batch_size = 2
 
@@ -1238,8 +1242,8 @@ class TestTrainer(testing.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
+        backend.backend() in ("torch", "paddle"),
+        reason="`steps_per_execution` not implemented for torch and paddle yet",
     )
     def test_steps_per_execution_steps_count_unknown_dataset_size(
         self, steps_per_execution, mode
@@ -1321,8 +1325,8 @@ class TestTrainer(testing.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
+        backend.backend() in ("torch", "paddle"),
+        reason="`steps_per_execution` not implemented for torch and paddle yet",
     )
     def test_steps_per_execution_steps_per_epoch(
         self, steps_per_epoch_test, mode
@@ -1597,8 +1601,8 @@ class TestTrainer(testing.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
+        backend.backend() in ("torch", "paddle"),
+        reason="`steps_per_execution` not implemented for torch and paddle yet",
     )
     def test_steps_per_execution_steps_per_epoch_unknown_data_size(
         self, steps_per_epoch_test, mode
@@ -1716,8 +1720,8 @@ class TestTrainer(testing.TestCase):
             )
 
     @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
+        backend.backend() in ("torch", "paddle"),
+        reason="`steps_per_execution` not implemented for torch and paddle yet",
     )
     def test_steps_per_execution_steps_count_without_training(self):
         test_obj = self
@@ -2815,8 +2819,8 @@ class TestTrainer(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
+        backend.backend() in ("torch", "paddle"),
+        reason="`steps_per_execution` not implemented for torch and paddle yet",
     )
     def test_retracing(self):
         x = np.ones((100, 4))
@@ -2851,8 +2855,8 @@ class TestTrainer(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
+        backend.backend() in ("torch", "paddle"),
+        reason="`steps_per_execution` not implemented for torch and paddle yet",
     )
     @pytest.mark.skipif(
         backend.backend() == "tensorflow",

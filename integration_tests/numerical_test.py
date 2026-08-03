@@ -12,6 +12,11 @@ NUM_CLASSES = 10
 BATCH_SIZE = 32
 EPOCHS = 1
 
+# Paddle accumulates slightly larger numerical differences against tf.keras
+# after a full training epoch (measured max |diff| ~4.3e-3 on the trained
+# weights), so use a looser tolerance for it only.
+ATOL = 1e-2 if keras.backend.backend() == "paddle" else 1e-3
+
 
 def build_mnist_data(num_classes):
     (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
@@ -88,7 +93,7 @@ def check_history(h1, h2):
         np.testing.assert_allclose(
             h1.history[key],
             h2.history[key],
-            atol=5e-2,
+            atol=ATOL,
         )
 
 
@@ -120,21 +125,21 @@ def numerical_test():
 
     print("Checking trained weights:")
     for kw, kcw in zip(keras_model.weights, tf_keras_model.weights):
-        np.testing.assert_allclose(kw.numpy(), kcw.numpy(), atol=5e-2)
+        np.testing.assert_allclose(kw.numpy(), kcw.numpy(), atol=ATOL)
     print("Trained weights match.")
     print()
 
     print("Checking predict:")
     outputs1 = predict_model(keras_model, x_train)
     outputs2 = predict_model(tf_keras_model, x_train)
-    np.testing.assert_allclose(outputs1, outputs2, atol=5e-2)
+    np.testing.assert_allclose(outputs1, outputs2, atol=ATOL)
     print("Predict results match.")
     print()
 
     print("Checking evaluate:")
     score1 = eval_model(keras_model, x_train, y_train)
     score2 = eval_model(tf_keras_model, x_train, y_train)
-    np.testing.assert_allclose(score1, score2, atol=5e-2)
+    np.testing.assert_allclose(score1, score2, atol=ATOL)
     print("Evaluate results match.")
 
 
