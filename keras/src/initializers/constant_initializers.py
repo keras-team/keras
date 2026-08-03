@@ -33,8 +33,12 @@ class Constant(Initializer):
 
     def __call__(self, shape, dtype=None):
         dtype = standardize_dtype(dtype)
-        return ops.cast(self.value, dtype=dtype) * ops.ones(
-            shape=shape, dtype=dtype
+        # `ops.multiply` is used instead of `*` so that the multiplication
+        # goes through the backend, which may need to work around missing
+        # kernels for some dtypes.
+        return ops.multiply(
+            ops.cast(self.value, dtype=dtype),
+            ops.ones(shape=shape, dtype=dtype),
         )
 
     def get_config(self):
