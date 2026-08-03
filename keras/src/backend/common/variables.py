@@ -575,17 +575,15 @@ def standardize_dtype(dtype):
         return config.floatx()
     dtype = dtypes.PYTHON_DTYPES_MAP.get(dtype, dtype)
     if hasattr(dtype, "name"):
-        dtype = dtype.name
+        # Lowercase to handle dtype enums whose names are uppercase, e.g.
+        # paddle's `DataType.FLOAT32`.
+        dtype = dtype.name.lower()
     elif hasattr(dtype, "__name__"):
         dtype = dtype.__name__
     elif hasattr(dtype, "__str__") and (
-        "torch" in str(dtype)
-        or "jax.numpy" in str(dtype)
-        or "paddle" in str(dtype)
+        "torch" in str(dtype) or "jax.numpy" in str(dtype)
     ):
         dtype = str(dtype).split(".")[-1]
-
-    dtype = dtype.lower() if isinstance(dtype, str) else dtype
 
     if dtype not in dtypes.ALLOWED_DTYPES:
         raise ValueError(f"Invalid dtype: {dtype}")
