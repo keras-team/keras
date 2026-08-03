@@ -1,48 +1,95 @@
+import functools
+
+import numpy as np
 import paddle
 import paddle.nn.functional as F
 
+from keras.src import backend
+from keras.src.backend.common.backend_utils import (
+    compute_conv_transpose_output_crops_for_torch,
+)
+from keras.src.backend.config import floatx
 from keras.src.backend.paddle.core import convert_to_tensor
+from keras.src.backend.paddle.core import needs_reduced_precision_upcast
+from keras.src.backend.paddle.core import to_paddle_dtype
 
 
+def _upcast_reduced_precision(fn):
+    """Run an elementwise activation in float32 when on CPU.
+
+    Paddle registers no CPU kernels for many float16/bfloat16 elementwise
+    ops. Computing in float32 and casting the result back keeps the public
+    dtype contract intact while staying a no-op on accelerators, where the
+    reduced-precision kernels do exist.
+    """
+
+    @functools.wraps(fn)
+    def wrapper(x, *args, **kwargs):
+        x = convert_to_tensor(x)
+        if not needs_reduced_precision_upcast(x):
+            return fn(x, *args, **kwargs)
+        orig_dtype = x.dtype
+        return fn(x.cast("float32"), *args, **kwargs).cast(orig_dtype)
+
+    return wrapper
+
+
+@_upcast_reduced_precision
 def relu(x):
     return F.relu(convert_to_tensor(x))
 
 
+@_upcast_reduced_precision
 def relu6(x):
     return F.relu6(convert_to_tensor(x))
 
 
+@_upcast_reduced_precision
 def sigmoid(x):
     return F.sigmoid(convert_to_tensor(x))
 
 
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
+    orig_dtype = x.dtype
+    # Paddle has no CPU `softmax` kernel for float16/bfloat16.
+    upcast = needs_reduced_precision_upcast(x)
+    if upcast:
+        x = x.cast("float32")
     if axis is None:
         shape = x.shape
         x = x.flatten()
         x = F.softmax(x, axis=0)
-        return x.reshape(shape)
-    return F.softmax(x, axis=axis)
+        x = x.reshape(shape)
+    else:
+        x = F.softmax(x, axis=axis)
+    if upcast:
+        x = x.cast(orig_dtype)
+    return x
 
 
+@_upcast_reduced_precision
 def softplus(x):
     return F.softplus(convert_to_tensor(x))
 
 
+@_upcast_reduced_precision
 def softsign(x):
     return F.softsign(convert_to_tensor(x))
 
 
+@_upcast_reduced_precision
 def silu(x):
     return F.silu(convert_to_tensor(x))
 
 
+@_upcast_reduced_precision
 def log_sigmoid(x):
     x = convert_to_tensor(x)
     return paddle.log(F.sigmoid(x))
 
 
+@_upcast_reduced_precision
 def leaky_relu(x, negative_slope=0.2):
     return F.leaky_relu(convert_to_tensor(x), negative_slope=negative_slope)
 
@@ -51,77 +98,105 @@ def prelu(x, alpha):
     return F.prelu(convert_to_tensor(x), convert_to_tensor(alpha))
 
 
+@_upcast_reduced_precision
 def elu(x, alpha=1.0):
     return F.elu(convert_to_tensor(x), alpha=alpha)
 
 
+@_upcast_reduced_precision
 def selu(x):
     return F.selu(convert_to_tensor(x))
 
 
-def gelu(x, approximate=False):
+@_upcast_reduced_precision
+def gelu(x, approximate=True):
     return F.gelu(convert_to_tensor(x), approximate=approximate)
 
 
+@_upcast_reduced_precision
 def celu(x, alpha=1.0):
     return F.celu(convert_to_tensor(x), alpha=alpha)
 
 
+@_upcast_reduced_precision
 def tanh(x):
     return paddle.tanh(convert_to_tensor(x))
 
 
+@_upcast_reduced_precision
 def hard_sigmoid(x):
     return F.hardsigmoid(convert_to_tensor(x))
 
 
+@_upcast_reduced_precision
 def hard_silu(x):
     return F.hardswish(convert_to_tensor(x))
 
 
+@_upcast_reduced_precision
 def hard_tanh(x):
     return F.hardtanh(convert_to_tensor(x))
 
 
-def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
+    if sparse:
+        raise ValueError("Unsupported value `sparse=True` with paddle backend")
+    dtype = dtype or floatx()
     x = convert_to_tensor(x, dtype="int64")
-    out = F.one_hot(x, num_classes)
+    # Paddle's `F.one_hot` raises an error for negative or out-of-range
+    # indices, so clamp the indices and zero out the invalid rows afterwards.
+    valid = paddle.logical_and(x >= 0, x < num_classes)
+    out = F.one_hot(paddle.clip(x, min=0, max=num_classes - 1), num_classes)
+    out = paddle.where(valid.unsqueeze(-1), out, paddle.zeros_like(out))
     if axis != -1 and axis != out.ndim - 1:
         out = paddle.moveaxis(out, -1, axis)
-    if sparse:
-        import scipy.sparse as sp
-
-        out_np = out.numpy()
-        return sp.csr_matrix(out_np.reshape(-1, num_classes)).reshape(
-            out_np.shape
-        )
     return paddle.cast(out, dtype)
 
 
+@_upcast_reduced_precision
 def log_softmax(x, axis=-1):
     x = convert_to_tensor(x)
     if axis is None:
         shape = x.shape
-        x = x.flatten()
-        r = F.log_softmax(x, axis=0)
-        return r.reshape(shape)
-    return F.log_softmax(x, axis=axis)
+        return log_softmax(x.flatten(), axis=0).reshape(shape)
+    # Paddle's CPU `log_softmax` kernel clamps the shifted logits to -64,
+    # which loses far too much accuracy (e.g. `log_softmax([100, -100])`
+    # returns -64 instead of -200), so shift and normalize explicitly.
+    max_x = paddle.max(x, axis=axis, keepdim=True)
+    max_x = paddle.where(
+        paddle.isfinite(max_x), max_x, paddle.zeros_like(max_x)
+    )
+    shifted = x - max_x
+    exp_shifted = paddle.exp(shifted)
+    # Paddle's CPU `exp` kernel clamps subnormal results to the smallest
+    # normal float instead of flushing them to zero.
+    exp_shifted = paddle.where(
+        shifted == float("-inf"),
+        paddle.zeros_like(exp_shifted),
+        exp_shifted,
+    )
+    log_sum_exp = paddle.log(paddle.sum(exp_shifted, axis=axis, keepdim=True))
+    return shifted - log_sum_exp
 
 
+@_upcast_reduced_precision
 def soft_shrink(x, threshold=0.5):
     x = convert_to_tensor(x)
     return F.softshrink(x, threshold=threshold)
 
 
+@_upcast_reduced_precision
 def hard_shrink(x, threshold=0.5):
     x = convert_to_tensor(x)
     return paddle.where(paddle.abs(x) > threshold, x, paddle.zeros_like(x))
 
 
+@_upcast_reduced_precision
 def tanh_shrink(x):
     return convert_to_tensor(x) - paddle.tanh(convert_to_tensor(x))
 
 
+@_upcast_reduced_precision
 def sparsemax(x, axis=-1):
     logits = convert_to_tensor(x)
     logits_sorted = paddle.sort(logits, axis=axis, descending=True)
@@ -138,11 +213,13 @@ def sparsemax(x, axis=-1):
     return output
 
 
+@_upcast_reduced_precision
 def squareplus(x, b=4):
     x = convert_to_tensor(x)
     return 0.5 * (x + paddle.sqrt(x * x + b))
 
 
+@_upcast_reduced_precision
 def sparse_plus(x):
     x = convert_to_tensor(x)
     return paddle.where(
@@ -152,6 +229,7 @@ def sparse_plus(x):
     )
 
 
+@_upcast_reduced_precision
 def sparse_sigmoid(x):
     x = convert_to_tensor(x)
     return paddle.where(
@@ -161,27 +239,31 @@ def sparse_sigmoid(x):
     )
 
 
+@_upcast_reduced_precision
 def glu(x, axis=-1):
     x = convert_to_tensor(x)
     a, b = paddle.chunk(x, 2, axis=axis)
     return a * F.sigmoid(b)
 
 
-def threshold(x, threshold_value, value):
+@_upcast_reduced_precision
+def threshold(x, threshold, default_value):
     x = convert_to_tensor(x)
-    return paddle.where(x > threshold_value, x, paddle.full_like(x, value))
+    return paddle.where(x > threshold, x, paddle.full_like(x, default_value))
 
 
 def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+    if sparse:
+        raise ValueError("Unsupported value `sparse=True` with paddle backend")
     x = convert_to_tensor(x)
-    reduction_axis = [i for i in range(x.ndim) if i != (axis % x.ndim)]
-    if not reduction_axis:
-        reduction_axis = 0
-    outputs = paddle.amax(
-        one_hot(x.cast("int32"), num_classes, axis=axis, dtype=dtype),
-        axis=reduction_axis,
-    )
-    return outputs
+    reduction_axis = 1 if len(x.shape) > 1 else 0
+    outputs = one_hot(x.cast("int32"), num_classes, axis=axis, dtype=dtype)
+    # `paddle.amax` has no bool CPU kernel; reduce in int32 instead.
+    if outputs.dtype == paddle.bool:
+        return paddle.amax(outputs.cast("int32"), axis=reduction_axis).cast(
+            "bool"
+        )
+    return paddle.amax(outputs, axis=reduction_axis)
 
 
 def _standardize_tuple(x, n, name):
@@ -222,6 +304,40 @@ def _to_channels_last(x, data_format):
     return x
 
 
+def _cast_conv_inputs(inputs, kernel):
+    """Cast to float32 for the dtypes paddle has no CPU conv kernel for."""
+    unsupported = {
+        paddle.float16,
+        paddle.bfloat16,
+        paddle.int64,
+        paddle.int32,
+        paddle.int16,
+        paddle.int8,
+        paddle.uint8,
+        paddle.bool,
+    }
+    if inputs.dtype in unsupported:
+        return inputs.cast("float32"), kernel.cast("float32")
+    return inputs, kernel
+
+
+def _same_padding(input_size, kernel_size, strides, dilation_rate):
+    """Return explicit `"same"` padding as a flat `[before, after, ...]` list.
+
+    Paddle's built-in `padding="SAME"` ignores the dilation rate, so compute
+    the (possibly asymmetric) padding that Keras expects here instead.
+    """
+    pads = []
+    for size, k, stride, dilation in zip(
+        input_size, kernel_size, strides, dilation_rate
+    ):
+        effective_k = (k - 1) * dilation + 1
+        out_size = (size + stride - 1) // stride
+        total = max((out_size - 1) * stride + effective_k - size, 0)
+        pads.extend([total // 2, total - total // 2])
+    return pads
+
+
 def _conv_padding(padding, kernel_size, strides, dilation_rate):
     """Compute padding values for paddle conv."""
     if isinstance(padding, str):
@@ -254,20 +370,7 @@ def conv(
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     orig_dtype = inputs.dtype
-    # Cast unsupported dtypes for CPU
-    _unsupported = {
-        paddle.float16,
-        paddle.bfloat16,
-        paddle.int64,
-        paddle.int32,
-        paddle.int16,
-        paddle.int8,
-        paddle.uint8,
-        paddle.bool,
-    }
-    if inputs.dtype in _unsupported:
-        inputs = inputs.cast("float32")
-        kernel = kernel.cast("float32")
+    inputs, kernel = _cast_conv_inputs(inputs, kernel)
     num_spatial = inputs.ndim - 2
 
     strides = _standardize_tuple(strides, num_spatial, "strides")
@@ -287,8 +390,19 @@ def conv(
     perm = [num_spatial + 1, num_spatial] + list(range(num_spatial))
     kernel = paddle.transpose(kernel, perm)
 
+    in_channels = inputs.shape[1]
+    kernel_in_channels = kernel.shape[1]
+    if in_channels % kernel_in_channels != 0:
+        raise ValueError(
+            f"Input channels ({in_channels}) must be divisible by "
+            f"kernel input channels ({kernel_in_channels})"
+        )
+    groups = in_channels // kernel_in_channels
+
     if padding == "same":
-        pad_mode = "same"
+        pad_mode = _same_padding(
+            inputs.shape[2:], kernel.shape[2:], strides, dilation_rate
+        )
     else:
         pad_mode = _conv_padding(
             padding, kernel.shape[2:], strides, dilation_rate
@@ -301,6 +415,7 @@ def conv(
             stride=strides[0],
             padding=pad_mode,
             dilation=dilation_rate[0],
+            groups=groups,
         )
     elif num_spatial == 2:
         out = F.conv2d(
@@ -309,6 +424,7 @@ def conv(
             stride=strides,
             padding=pad_mode,
             dilation=dilation_rate,
+            groups=groups,
         )
     elif num_spatial == 3:
         out = F.conv3d(
@@ -317,6 +433,7 @@ def conv(
             stride=strides,
             padding=pad_mode,
             dilation=dilation_rate,
+            groups=groups,
         )
     else:
         raise ValueError(f"Unsupported number of spatial dims: {num_spatial}")
@@ -337,6 +454,8 @@ def depthwise_conv(
 ):
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
+    orig_dtype = inputs.dtype
+    inputs, kernel = _cast_conv_inputs(inputs, kernel)
     num_spatial = inputs.ndim - 2
 
     strides = _standardize_tuple(strides, num_spatial, "strides")
@@ -368,7 +487,9 @@ def depthwise_conv(
     groups = in_channels
 
     if padding == "same":
-        pad_mode = "same"
+        pad_mode = _same_padding(
+            inputs.shape[2:], kernel.shape[2:], strides, dilation_rate
+        )
     else:
         pad_mode = _conv_padding(
             padding, kernel.shape[2:], strides, dilation_rate
@@ -404,7 +525,10 @@ def depthwise_conv(
     else:
         raise ValueError(f"Unsupported number of spatial dims: {num_spatial}")
 
-    return _to_channels_last(out, data_format)
+    out = _to_channels_last(out, data_format)
+    if out.dtype != orig_dtype:
+        out = out.cast(orig_dtype)
+    return out
 
 
 def separable_conv(
@@ -440,7 +564,7 @@ def separable_conv(
 def conv_transpose(
     inputs,
     kernel,
-    strides,
+    strides=1,
     padding="valid",
     output_padding=None,
     data_format=None,
@@ -448,19 +572,8 @@ def conv_transpose(
 ):
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
-    _unsupported = {
-        paddle.float16,
-        paddle.bfloat16,
-        paddle.int64,
-        paddle.int32,
-        paddle.int16,
-        paddle.int8,
-        paddle.uint8,
-        paddle.bool,
-    }
-    if inputs.dtype in _unsupported:
-        inputs = inputs.cast("float32")
-        kernel = kernel.cast("float32")
+    orig_dtype = inputs.dtype
+    inputs, kernel = _cast_conv_inputs(inputs, kernel)
     num_spatial = inputs.ndim - 2
 
     strides = _standardize_tuple(strides, num_spatial, "strides")
@@ -468,61 +581,66 @@ def conv_transpose(
         dilation_rate, num_spatial, "dilation_rate"
     )
 
-    if output_padding is None:
-        output_padding = 0
-    output_padding = _standardize_tuple(
-        output_padding, num_spatial, "output_padding"
-    )
-
     from keras.src.backend.config import standardize_data_format
 
     data_format = standardize_data_format(data_format)
 
+    # Paddle's `conv*d_transpose`, like torch's, only supports a symmetric
+    # `padding` plus a right-side `output_padding`, which cannot express the
+    # asymmetric padding Keras' "same" mode requires when the stride is
+    # greater than 1. Run the transposed convolution unpadded (the largest
+    # "natural" output) and crop the result instead; negative crops mean we
+    # extend with zeros.
+    crops = compute_conv_transpose_output_crops_for_torch(
+        input_shape=inputs.shape,
+        kernel_shape=kernel.shape,
+        strides=strides,
+        padding=padding,
+        output_padding=output_padding,
+        dilation_rate=dilation_rate,
+    )
+
     inputs = _to_channels_first(inputs, data_format)
 
-    # Kernel transpose: Keras [*kernel_size, out_channels, in_channels]
+    # Kernel: Keras [*kernel_size, out_channels, in_channels]
     # Paddle: [in_channels, out_channels, *kernel_size]
     perm = [num_spatial + 1, num_spatial] + list(range(num_spatial))
     kernel = paddle.transpose(kernel, perm)
 
-    if padding == "same":
-        pad_mode = "same"
-    else:
-        pad_mode = _conv_padding(
-            padding, kernel.shape[2:], strides, dilation_rate
-        )
+    conv_fn = [F.conv1d_transpose, F.conv2d_transpose, F.conv3d_transpose][
+        num_spatial - 1
+    ]
+    out = conv_fn(
+        inputs,
+        kernel,
+        stride=strides,
+        padding=0,
+        output_padding=0,
+        dilation=dilation_rate,
+    )
 
-    if num_spatial == 1:
-        out = F.conv1d_transpose(
-            inputs,
-            kernel,
-            stride=strides[0],
-            padding=pad_mode,
-            output_padding=output_padding[0],
-            dilation=dilation_rate[0],
+    # `out` is channels-first here, so the spatial dims start at axis 2.
+    slices = [slice(None), slice(None)]
+    for crop_left, crop_right in crops:
+        slices.append(
+            slice(max(0, crop_left), -crop_right if crop_right > 0 else None)
         )
-    elif num_spatial == 2:
-        out = F.conv2d_transpose(
-            inputs,
-            kernel,
-            stride=strides,
-            padding=pad_mode,
-            output_padding=output_padding,
-            dilation=dilation_rate,
-        )
-    elif num_spatial == 3:
-        out = F.conv3d_transpose(
-            inputs,
-            kernel,
-            stride=strides,
-            padding=pad_mode,
-            output_padding=output_padding,
-            dilation=dilation_rate,
-        )
-    else:
-        raise ValueError(f"Unsupported number of spatial dims: {num_spatial}")
+    out = out[tuple(slices)]
+    if any(cl < 0 or cr < 0 for cl, cr in crops):
+        pads = [0, 0, 0, 0]
+        for crop_left, crop_right in crops:
+            pads.extend(
+                [
+                    -crop_left if crop_left < 0 else 0,
+                    -crop_right if crop_right < 0 else 0,
+                ]
+            )
+        out = F.pad(out, pads, mode="constant", value=0.0)
 
-    return _to_channels_last(out, data_format)
+    out = _to_channels_last(out, data_format)
+    if out.dtype != orig_dtype:
+        out = out.cast(orig_dtype)
+    return out
 
 
 def _pool(inputs, pool_size, strides, padding, data_format, pool_type):
@@ -530,6 +648,8 @@ def _pool(inputs, pool_size, strides, padding, data_format, pool_type):
     num_spatial = inputs.ndim - 2
 
     pool_size = _standardize_tuple(pool_size, num_spatial, "pool_size")
+    if strides is None:
+        strides = pool_size
     strides = _standardize_tuple(strides, num_spatial, "strides")
 
     from keras.src.backend.config import standardize_data_format
@@ -563,15 +683,21 @@ def _pool(inputs, pool_size, strides, padding, data_format, pool_type):
     return _to_channels_last(out, data_format)
 
 
-def avg_pool(inputs, pool_size, strides, padding="valid", data_format=None):
+def avg_pool(
+    inputs, pool_size, strides=None, padding="valid", data_format=None
+):
     return _pool(inputs, pool_size, strides, padding, data_format, "avg")
 
 
-def max_pool(inputs, pool_size, strides, padding="valid", data_format=None):
+def max_pool(
+    inputs, pool_size, strides=None, padding="valid", data_format=None
+):
     return _pool(inputs, pool_size, strides, padding, data_format, "max")
 
 
-def average_pool(inputs, pool_size, strides, padding="valid", data_format=None):
+def average_pool(
+    inputs, pool_size, strides=None, padding="valid", data_format=None
+):
     return avg_pool(inputs, pool_size, strides, padding, data_format)
 
 
@@ -653,10 +779,27 @@ def global_max_pool(inputs, data_format=None):
     return paddle.max(inputs, axis=axes)
 
 
-def moments(inputs, axes, keepdims=False, synchronized=False):
-    inputs = convert_to_tensor(inputs)
-    mean = paddle.mean(inputs, axis=axes, keepdim=keepdims)
-    variance = paddle.var(inputs, axis=axes, keepdim=keepdims, unbiased=False)
+def moments(x, axes, keepdims=False, synchronized=False):
+    if synchronized:
+        raise NotImplementedError(
+            "Argument synchronized=True is not supported with Paddle."
+        )
+    x = convert_to_tensor(x)
+    # The dynamic range of float16 is too limited for statistics (and
+    # paddle has no float16/bfloat16 CPU kernel for `mean`/`var`), so
+    # compute in float32 and clip before casting back.
+    orig_dtype = backend.standardize_dtype(x.dtype)
+    need_cast = orig_dtype in ("float16", "bfloat16")
+    if need_cast:
+        x = x.cast("float32")
+    mean = paddle.mean(x, axis=axes, keepdim=keepdims)
+    variance = paddle.var(x, axis=axes, keepdim=keepdims, unbiased=False)
+    if need_cast:
+        info = np.finfo(orig_dtype)
+        mean = paddle.clip(mean, float(info.min), float(info.max))
+        variance = paddle.clip(variance, float(info.min), float(info.max))
+        mean = mean.cast(to_paddle_dtype(orig_dtype))
+        variance = variance.cast(to_paddle_dtype(orig_dtype))
     return mean, variance
 
 
@@ -691,8 +834,17 @@ def ctc_decode(
     merge_repeated=True,
     mask_index=0,
 ):
+    if strategy not in ("greedy", "beam_search"):
+        raise ValueError(
+            f"Invalid strategy {strategy}. Supported values are "
+            "'greedy' and 'beam_search'."
+        )
     inputs = convert_to_tensor(inputs)
     sequence_lengths = convert_to_tensor(sequence_lengths, dtype="int32")
+    # `argmax`, `max` and `where` have no float16/bfloat16 CPU kernels.
+    # The scores are float32 or wider anyway, per the op contract.
+    if needs_reduced_precision_upcast(inputs):
+        inputs = inputs.cast("float32")
     inputs_shape = paddle.shape(inputs)
     batch_size = inputs_shape[0]
     max_length = inputs_shape[1]
@@ -702,7 +854,8 @@ def ctc_decode(
         indices = paddle.argmax(inputs, axis=-1).cast("int32")
         scores = paddle.max(inputs, axis=-1)
 
-        seqlen_mask = paddle.arange(max_length).unsqueeze(0)
+        seqlen_mask = paddle.arange(max_length, dtype="int32")
+        seqlen_mask = seqlen_mask.unsqueeze(0)
         seqlen_mask = seqlen_mask >= sequence_lengths.unsqueeze(1)
 
         blank_idx = num_classes - 1 if mask_index == -1 else mask_index
@@ -724,7 +877,7 @@ def ctc_decode(
             invalid_mask, paddle.to_tensor(-1, dtype="int32"), indices
         )
 
-        order = paddle.arange(max_length).unsqueeze(0)
+        order = paddle.arange(max_length, dtype="int32").unsqueeze(0)
         order = paddle.broadcast_to(order, [batch_size, max_length])
         order = paddle.where(
             invalid_mask, paddle.to_tensor(max_length, dtype="int32"), order
@@ -736,15 +889,80 @@ def ctc_decode(
         indices = indices.unsqueeze(0)
         return indices, scores
     raise NotImplementedError(
-        f"CTC decode strategy '{strategy}' is not supported"
+        "CTC decode strategy 'beam_search' is not supported with the "
+        "paddle backend."
     )
 
 
 def psnr(x1, x2, max_val):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    mse = paddle.mean((x1 - x2) ** 2)
-    return 10.0 * paddle.log10(max_val**2 / (mse + 1e-10))
+    if x1.shape != x2.shape:
+        raise ValueError(
+            f"Input shapes {x1.shape} and {x2.shape} must "
+            "match for PSNR calculation. "
+        )
+    max_val = convert_to_tensor(max_val, dtype=x2.dtype)
+    mse = paddle.mean(paddle.square(x1 - x2))
+    return 20 * paddle.log10(max_val) - 10 * paddle.log10(mse)
+
+
+def _get_large_negative(dtype):
+    dtype = backend.standardize_dtype(dtype)
+    val = 65500.0 if dtype == "float16" else 3.38953e38
+    return paddle.to_tensor(val * -0.7, dtype=to_paddle_dtype(dtype))
+
+
+def _apply_masks(logits, mask, is_causal):
+    if mask is None and not is_causal:
+        return logits
+
+    combined_mask = paddle.ones_like(logits).cast("bool")
+    if mask is not None:
+        mask = convert_to_tensor(mask).cast("bool")
+        combined_mask = paddle.logical_and(combined_mask, mask)
+
+    if is_causal:
+        T, S = logits.shape[2], logits.shape[3]
+        causal_mask = paddle.tril(paddle.ones([T, S], dtype="int32")).cast(
+            "bool"
+        )
+        causal_mask = causal_mask[None, None, :, :]
+        combined_mask = paddle.logical_and(combined_mask, causal_mask)
+
+    return paddle.where(
+        combined_mask, logits, _get_large_negative(logits.dtype)
+    )
+
+
+def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
+    original_dtype = key.dtype
+    logits_dtype = backend.result_type(
+        backend.standardize_dtype(query.dtype), "float32"
+    )
+    # `einsum` lacks CPU kernels for reduced precision, so accumulate the
+    # logits in a wider dtype.
+    if backend.standardize_dtype(key.dtype) in ("float16", "bfloat16"):
+        query = query.cast("float32")
+        key = key.cast("float32")
+        value = value.cast("float32")
+    logits = paddle.einsum("BTNH,BSNH->BNTS", query, key)
+    logits = logits.cast(to_paddle_dtype(logits_dtype))
+    logits = logits * paddle.to_tensor(scale, dtype=logits.dtype)
+
+    if bias is not None:
+        logits = (logits + convert_to_tensor(bias)).cast(logits.dtype)
+
+    padded_logits = _apply_masks(logits, mask, is_causal)
+
+    # Softmax is always carried out in fp32.
+    padded_logits = padded_logits.cast("float32")
+    probs = F.softmax(padded_logits, axis=-1).cast(original_dtype)
+    if backend.standardize_dtype(probs.dtype) in ("float16", "bfloat16"):
+        probs = probs.cast("float32")
+        value = value.cast("float32")
+    encoded = paddle.einsum("BNTS,BSNH->BTNH", probs, value)
+    return encoded.cast(original_dtype)
 
 
 def dot_product_attention(
@@ -758,80 +976,142 @@ def dot_product_attention(
     flash_attention=None,
     attn_logits_soft_cap=None,
 ):
+    if flash_attention:
+        raise ValueError(
+            "Flash attention is not supported in the paddle backend."
+        )
     query = convert_to_tensor(query)
     key = convert_to_tensor(key)
     value = convert_to_tensor(value)
-
-    if scale is None:
-        scale = 1.0 / (query.shape[-1] ** 0.5)
-
-    scores = paddle.matmul(query, key, transpose_y=True) * scale
+    if len(query.shape) != 4:
+        raise ValueError(
+            "`dot_product_attention` only supports 4D inputs. "
+            f"Received: query.shape={query.shape}, key.shape={key.shape}, "
+            f"value.shape={value.shape}."
+        )
+    compute_dtype = backend.result_type(
+        backend.standardize_dtype(query.dtype),
+        backend.standardize_dtype(key.dtype),
+        backend.standardize_dtype(value.dtype),
+    )
+    paddle_compute_dtype = to_paddle_dtype(compute_dtype)
+    query = query.cast(paddle_compute_dtype)
+    key = key.cast(paddle_compute_dtype)
+    value = value.cast(paddle_compute_dtype)
 
     if attn_logits_soft_cap is not None:
-        scores = attn_logits_soft_cap * paddle.tanh(
-            scores / attn_logits_soft_cap
+        raise NotImplementedError(
+            "`attn_logits_soft_cap` is not supported with the paddle backend."
         )
 
-    if bias is not None:
-        scores = scores + convert_to_tensor(bias)
-
-    if mask is not None:
-        mask = convert_to_tensor(mask)
-        scores = paddle.where(
-            mask == 0, paddle.full_like(scores, float("-inf")), scores
-        )
-
-    if is_causal:
-        seq_len = paddle.shape(query)[-2]
-        causal_mask = paddle.tril(
-            paddle.ones([seq_len, seq_len], dtype="int32")
-        ).cast("bool")
-        scores = paddle.where(
-            causal_mask, scores, paddle.full_like(scores, float("-inf"))
-        )
-
-    weights = F.softmax(scores, axis=-1)
-    return paddle.matmul(weights, value)
+    H = key.shape[-1]
+    scale = (1.0 / (H**0.5)) if scale is None else scale
+    return _dot_product_attention_xla(
+        query, key, value, bias, mask, is_causal, scale
+    )
 
 
 def binary_crossentropy(target, output, from_logits=False):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
+
+    if tuple(target.shape) != tuple(output.shape):
+        raise ValueError(
+            "Arguments `target` and `output` must have the same shape. "
+            "Received: "
+            f"target.shape={target.shape}, output.shape={output.shape}"
+        )
+    if target.dtype != output.dtype:
+        target = paddle.cast(target, output.dtype)
     if from_logits:
-        output = F.sigmoid(output)
-    output = paddle.clip(output, min=1e-7, max=1 - 1e-7)
-    return F.binary_cross_entropy(output, target)
+        return F.binary_cross_entropy_with_logits(
+            output, target, reduction="none"
+        )
+    epsilon = backend.epsilon()
+    output = paddle.clip(output, min=epsilon, max=1.0 - epsilon)
+    return F.binary_cross_entropy(output, target, reduction="none")
 
 
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
-    if from_logits:
-        return F.cross_entropy(
-            output, target, soft_label=True, reduction="none", axis=axis
+
+    if tuple(target.shape) != tuple(output.shape):
+        raise ValueError(
+            "Arguments `target` and `output` must have the same shape. "
+            "Received: "
+            f"target.shape={target.shape}, output.shape={output.shape}"
         )
-    return -paddle.sum(target * paddle.log(output + 1e-7), axis=axis)
+    if len(target.shape) < 1:
+        raise ValueError(
+            "Arguments `target` and `output` must be at least rank 1. "
+            "Received: "
+            f"target.shape={target.shape}, output.shape={output.shape}"
+        )
+    if target.dtype != output.dtype:
+        target = paddle.cast(target, output.dtype)
+
+    if from_logits:
+        log_prob = log_softmax(output, axis=axis)
+    else:
+        # Normalize so that the values form a proper probability
+        # distribution, matching the other Keras backends.
+        output = output / paddle.sum(output, axis=axis, keepdim=True)
+        epsilon = backend.epsilon()
+        output = paddle.clip(output, min=epsilon, max=1.0 - epsilon)
+        log_prob = paddle.log(output)
+    return -paddle.sum(target * log_prob, axis=axis)
 
 
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = convert_to_tensor(target, dtype="int64")
     output = convert_to_tensor(output)
-    if from_logits:
-        return F.cross_entropy(
-            output, target, soft_label=False, reduction="none", axis=axis
+    if len(target.shape) == len(output.shape) and target.shape[-1] == 1:
+        target = paddle.squeeze(target, axis=-1)
+
+    if len(output.shape) < 1:
+        raise ValueError(
+            "Argument `output` must be at least rank 1. "
+            "Received: "
+            f"output.shape={output.shape}"
         )
-    target = target.unsqueeze(axis)
-    probs = paddle.take_along_axis(output, target, axis=axis).squeeze(axis=axis)
-    return -paddle.log(probs + 1e-7)
+    if tuple(target.shape) != tuple(output.shape[:-1]):
+        raise ValueError(
+            "Arguments `target` and `output` must have the same shape "
+            "up until the last dimension: "
+            f"target.shape={target.shape}, output.shape={output.shape}"
+        )
+
+    if from_logits:
+        log_prob = log_softmax(output, axis=axis)
+    else:
+        output = output / paddle.sum(output, axis=axis, keepdim=True)
+        epsilon = backend.epsilon()
+        output = paddle.clip(output, min=epsilon, max=1.0 - epsilon)
+        log_prob = paddle.log(output)
+    target_one_hot = one_hot(
+        target, output.shape[axis], axis=axis, dtype=log_prob.dtype
+    )
+    return -paddle.sum(target_one_hot * log_prob, axis=axis)
 
 
-def ctc_loss(target, output, target_length, output_length, mask_value=0):
+def ctc_loss(target, output, target_length, output_length, mask_index=0):
     target = convert_to_tensor(target, dtype="int32")
     output = convert_to_tensor(output, dtype="float32")
     target_length = convert_to_tensor(target_length, dtype="int64")
     output_length = convert_to_tensor(output_length, dtype="int64")
-    loss = paddle.nn.CTCLoss(blank=mask_value, reduction="none")
-    return loss(output, target, output_length, target_length)
+
+    # Paddle expects logits of shape (max_length, batch_size, num_classes).
+    output = paddle.transpose(output, [1, 0, 2])
+    logits = F.log_softmax(output, axis=-1)
+    return F.ctc_loss(
+        logits,
+        target,
+        output_length,
+        target_length,
+        blank=mask_index,
+        reduction="none",
+    )
 
 
 def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
@@ -883,45 +1163,43 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     )
 
 
-def depth_to_space(inputs, block_size, data_format=None):
-    inputs = convert_to_tensor(inputs)
+def depth_to_space(x, block_size, data_format="channels_last"):
+    x = convert_to_tensor(x)
     from keras.src.backend.config import standardize_data_format
 
     data_format = standardize_data_format(data_format)
 
     if data_format == "channels_last":
-        inputs = paddle.transpose(inputs, [0, 3, 1, 2])
+        n, h, w, c = x.shape
+        new_c = c // (block_size**2)
+        x = paddle.reshape(x, [n, h, w, block_size, block_size, new_c])
+        x = paddle.transpose(x, [0, 1, 3, 2, 4, 5])
+        return paddle.reshape(x, [n, h * block_size, w * block_size, new_c])
 
-    b, c, h, w = inputs.shape
+    n, c, h, w = x.shape
     new_c = c // (block_size**2)
-    inputs = paddle.reshape(inputs, [b, new_c, block_size, block_size, h, w])
-    inputs = paddle.transpose(inputs, [0, 1, 4, 2, 5, 3])
-    out = paddle.reshape(inputs, [b, new_c, h * block_size, w * block_size])
-
-    if data_format == "channels_last":
-        return paddle.transpose(out, [0, 2, 3, 1])
-    return out
+    x = paddle.reshape(x, [n, new_c, block_size, block_size, h, w])
+    x = paddle.transpose(x, [0, 1, 4, 2, 5, 3])
+    return paddle.reshape(x, [n, new_c, h * block_size, w * block_size])
 
 
-def space_to_depth(inputs, block_size, data_format=None):
-    inputs = convert_to_tensor(inputs)
+def space_to_depth(x, block_size, data_format="channels_last"):
+    x = convert_to_tensor(x)
     from keras.src.backend.config import standardize_data_format
 
     data_format = standardize_data_format(data_format)
 
     if data_format == "channels_last":
-        inputs = paddle.transpose(inputs, [0, 3, 1, 2])
+        n, h, w, c = x.shape
+        new_h = h // block_size
+        new_w = w // block_size
+        x = paddle.reshape(x, [n, new_h, block_size, new_w, block_size, c])
+        x = paddle.transpose(x, [0, 1, 3, 2, 4, 5])
+        return paddle.reshape(x, [n, new_h, new_w, c * block_size**2])
 
-    b, c, h, w = inputs.shape
+    n, c, h, w = x.shape
     new_h = h // block_size
     new_w = w // block_size
-    new_c = c * (block_size**2)
-    inputs = paddle.reshape(
-        inputs, [b, c, new_h, block_size, new_w, block_size]
-    )
-    inputs = paddle.transpose(inputs, [0, 3, 5, 1, 2, 4])
-    out = paddle.reshape(inputs, [b, new_c, new_h, new_w])
-
-    if data_format == "channels_last":
-        return paddle.transpose(out, [0, 2, 3, 1])
-    return out
+    x = paddle.reshape(x, [n, c, new_h, block_size, new_w, block_size])
+    x = paddle.transpose(x, [0, 1, 3, 5, 2, 4])
+    return paddle.reshape(x, [n, c * block_size**2, new_h, new_w])

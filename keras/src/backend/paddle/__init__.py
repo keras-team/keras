@@ -22,6 +22,7 @@ from keras.src.backend.paddle.core import convert_to_tensor
 from keras.src.backend.paddle.core import device_scope
 from keras.src.backend.paddle.core import is_tensor
 from keras.src.backend.paddle.core import random_seed_dtype
+from keras.src.backend.paddle.core import scatter
 from keras.src.backend.paddle.core import shape
 from keras.src.backend.paddle.core import stop_gradient
 from keras.src.backend.paddle.core import vectorized_map

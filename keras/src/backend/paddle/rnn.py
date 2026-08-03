@@ -442,7 +442,10 @@ def gru(
     unroll=False,
     reset_after=True,
 ):
-    if mask is not None:
+    # The fallback below does not support masking and only knows the
+    # `reset_after=True` formulation. For anything else, bounce back to
+    # the generic RNN loop.
+    if not reset_after or mask is not None:
         raise NotImplementedError
 
     kernel = convert_to_tensor(kernel)
@@ -630,27 +633,3 @@ def bidirectional_gru(
         (fwd_last, fwd_outputs, fwd_states),
         (bwd_last, bwd_outputs, bwd_states),
     )
-
-
-def numpy_scan(f, init, xs, reverse=False, mask=None):
-    init = convert_to_tensor(init)
-    xs = convert_to_tensor(xs)
-
-    if reverse:
-        xs = paddle.flip(xs, axis=[0])
-
-    results = []
-    carry = init
-    for i in range(xs.shape[0]):
-        carry, y = f(carry, xs[i])
-        if y is not None:
-            results.append(y)
-
-    if results:
-        stacked = paddle.stack(results, axis=0)
-        if reverse:
-            stacked = paddle.flip(stacked, axis=[0])
-    else:
-        stacked = None
-
-    return carry, stacked

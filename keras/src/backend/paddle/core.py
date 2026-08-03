@@ -45,30 +45,8 @@ PADDLE_DTYPES = {
     "complex128": paddle.complex128,
 }
 
-# Track logical dtypes for uint16/uint32 which Paddle maps to int32/int64
-_logical_dtypes = {}
-# Dtypes that Paddle maps to different physical dtypes
-_MAPPED_DTYPES = {"uint16", "uint32"}
 # Track tensors created from Python scalars (weak types in JAX sense)
 _weak_tensors = weakref.WeakSet()
-
-
-def _maybe_track_dtype(tensor, logical_dtype):
-    """Store the logical dtype if it differs from the physical paddle dtype."""
-    if logical_dtype is None:
-        return
-    std = standardize_dtype(logical_dtype)
-    if std in _MAPPED_DTYPES:
-        _logical_dtypes[id(tensor)] = std
-
-
-def paddle_standardize_dtype(dtype):
-    """standardize_dtype that checks paddle's logical dtype tracking."""
-    # Check if this dtype belongs to a tensor with a tracked logical dtype
-    tid = getattr(dtype, "_paddle_tensor_id", None)
-    if tid is not None and tid in _logical_dtypes:
-        return _logical_dtypes[tid]
-    return standardize_dtype(dtype)
 
 
 @contextlib.contextmanager
@@ -91,10 +69,35 @@ def get_device():
     return device
 
 
+REDUCED_PRECISION_DTYPES = (paddle.float16, paddle.bfloat16)
+
+
+def is_cpu_tensor(x):
+    """Whether `x` currently lives on the CPU."""
+    place = getattr(x, "place", None)
+    if place is None:
+        return not paddle.device.is_compiled_with_cuda()
+    return bool(place.is_cpu_place())
+
+
+def needs_reduced_precision_upcast(x):
+    """Whether `x` must be computed in float32 instead of its own dtype.
+
+    Paddle ships no CPU kernels for `float16`/`bfloat16` for a number of
+    ops. Upcasting to `float32` keeps those ops working on CPU, but it
+    must not happen on accelerators, where the reduced-precision kernels
+    exist and are the whole point of using them.
+    """
+    return x.dtype in REDUCED_PRECISION_DTYPES and is_cpu_tensor(x)
+
+
 def _parse_device_input(device_name):
     if isinstance(device_name, str):
+        # Paddle uses "gpu:0", "cpu" format. `paddle.set_device` rejects
+        # indexed cpu forms like "cpu:0", so strip the index for cpu.
         device_name = device_name.lower()
-        # Paddle uses "gpu:0", "cpu" format
+        if device_name.startswith("cpu"):
+            return "cpu"
         return device_name
     raise ValueError(
         "Invalid value for argument `device_name`. "
@@ -112,10 +115,16 @@ def to_paddle_dtype(dtype):
 
 class Variable(KerasVariable):
     def _initialize(self, value):
-        if isinstance(value, paddle.Tensor) and not value.stop_gradient:
+        if isinstance(value, paddle.base.framework.EagerParamBase):
+            # Reuse same parameter
             self._value = value
         else:
-            self._value = convert_to_tensor(value, dtype=self._dtype)
+            value = convert_to_tensor(value, dtype=self._dtype)
+            if not value.stop_gradient:
+                # Detach tensors computed from other tensors so that the
+                # variable does not stay attached to the autograd graph.
+                value = value.detach()
+            self._value = value
             self._value.stop_gradient = not self.trainable
 
     def _direct_assign(self, value):
@@ -170,7 +179,6 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
             x = x.value
         if dtype is not None:
             x = x.cast(to_paddle_dtype(dtype))
-        _maybe_track_dtype(x, dtype)
         return x
     if isinstance(x, (bool, int, float, complex)):
         if dtype is not None:
@@ -204,8 +212,11 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         if x.dtype == np.uint32:
             x = x.astype(np.int64)
         if standardize_dtype(x.dtype) == "bfloat16":
+            # `paddle.to_tensor` cannot read a `ml_dtypes.bfloat16` array,
+            # so go through float32 and only fall back to bfloat16 when no
+            # explicit dtype was requested.
             x = x.astype(np.float32)
-            dtype = "bfloat16"
+            dtype = dtype or "bfloat16"
         dtype = dtype or x.dtype
     if dtype is None:
         dtype = result_type(
@@ -227,8 +238,6 @@ def convert_to_numpy(x):
         return np.array(x)
 
     if isinstance(x, (list, tuple)):
-        if tree.is_nested(x):
-            return tree.map_structure(transform, x)
         return np.array([transform(e) for e in x])
     return transform(x)
 
@@ -328,16 +337,15 @@ def cond(pred, true_fn, false_fn):
 
 
 def vectorized_map(function, elements):
-    # Simple fallback for paddle: map over the first (batch) dimension
-    if isinstance(elements, (list, tuple)):
-        batch_size = elements[0].shape[0]
-        results = [
-            function(tuple(e[i] for e in elements)) for i in range(batch_size)
-        ]
-    else:
-        batch_size = elements.shape[0]
-        results = [function(elements[i]) for i in range(batch_size)]
-    return paddle.stack(results)
+    # Simple fallback for paddle: map over the first (batch) dimension of
+    # each leaf in the structure and stack each output leaf.
+    elements = tree.map_structure(convert_to_tensor, elements)
+    batch_size = tree.flatten(elements)[0].shape[0]
+    outputs = [
+        function(tree.map_structure(lambda e: e[i], elements))
+        for i in range(batch_size)
+    ]
+    return tree.map_structure(lambda *xs: paddle.stack(list(xs)), *outputs)
 
 
 def map(f, xs):
@@ -422,8 +430,19 @@ def scatter_update(inputs, indices, updates, reduction=None):
     updates = convert_to_tensor(updates, dtype=inputs.dtype)
 
     if reduction is None:
-        current_values = paddle.gather_nd(inputs, indices)
-        return paddle.scatter_nd_add(inputs, indices, updates - current_values)
+        # True update semantics: with duplicate indices the last update
+        # wins, and current values (e.g. +/-inf) are cleanly replaced.
+        # `index_put` requires contiguous index tensors, which `unbind`
+        # views are not.
+        idx = tuple(i.contiguous() for i in paddle.unbind(indices, axis=1))
+        if inputs.dtype == paddle.bool:
+            # Bool kernels are not guaranteed for `index_put` on all
+            # devices; go through int32.
+            outputs = paddle.index_put(
+                inputs.cast("int32"), idx, updates.cast("int32")
+            )
+            return outputs.cast("bool")
+        return paddle.index_put(inputs, idx, updates)
     elif reduction == "add":
         return paddle.scatter_nd_add(inputs, indices, updates)
 
@@ -587,3 +606,58 @@ def remat(f):
         A function wrapping f that recomputes f on the backwards pass.
     """
     return f
+
+
+class custom_gradient:
+    """Decorator for custom gradients.
+
+    Args:
+        forward_fn: Forward pass function.
+    """
+
+    def __init__(self, forward_fn):
+        self.forward_fn = forward_fn
+
+    def __call__(self, *args, **kwargs):
+        return CustomGradientFunction.apply(self.forward_fn, *args, **kwargs)
+
+
+class CustomGradientFunction(paddle.autograd.PyLayer):
+    """Enables custom forward & backward passes for gradient computation."""
+
+    @staticmethod
+    def forward(ctx, forward_fn, *args, **kwargs):
+        """Forward pass computation specification.
+
+        Args:
+            ctx: Context object.
+            forward_fn: Function to compute forward pass.
+            *args: Arguments for the forward pass.
+            **kwargs: Keyword arguments for the forward pass.
+        """
+        ctx.save_for_backward(*args)
+        output, ctx.grad_fn = forward_fn(*args, **kwargs)
+        return output
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        """Backward pass computation specification.
+
+        Args:
+            ctx: Context object.
+            grad_output: Gradient with respect to the output.
+        """
+        args = ctx.saved_tensor()
+        grad_fn = ctx.grad_fn
+        if grad_fn is None:
+            raise ValueError("grad_fn must be provided for custom gradient")
+        grads = grad_fn(*args, upstream=grad_output)
+        if not isinstance(grads, tuple):
+            grads = (grads,)
+        # Paddle requires the gradient to be `None` for forward tensor
+        # inputs that have `stop_gradient=True`.
+        grads = tuple(
+            None if is_tensor(arg) and arg.stop_gradient else grad
+            for arg, grad in zip(args, grads)
+        )
+        return grads

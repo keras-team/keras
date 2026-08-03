@@ -4,6 +4,7 @@ import paddle
 
 from keras.src.backend import standardize_dtype
 from keras.src.backend.paddle.core import convert_to_tensor
+from keras.src.backend.paddle.core import needs_reduced_precision_upcast
 
 
 def _segment_reduction_fn(data, segment_ids, reduction, num_segments):
@@ -46,10 +47,17 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
     segment_ids = convert_to_tensor(segment_ids, dtype="int64")
     if num_segments is None:
         num_segments = int(paddle.max(segment_ids).item()) + 1
-    zeros = paddle.zeros(
-        [num_segments] + list(data.shape[1:]), dtype=data.dtype
+    # Redirect negative and out-of-range segment ids to an extra bucket
+    # (index `num_segments`), which is discarded before returning the result.
+    valid = paddle.logical_and(segment_ids >= 0, segment_ids < num_segments)
+    segment_ids = paddle.where(
+        valid, segment_ids, paddle.full_like(segment_ids, num_segments)
     )
-    return paddle.scatter_nd_add(zeros, segment_ids.unsqueeze(-1), data)
+    zeros = paddle.zeros(
+        [num_segments + 1] + list(data.shape[1:]), dtype=data.dtype
+    )
+    out = paddle.scatter_nd_add(zeros, segment_ids.unsqueeze(-1), data)
+    return out[:num_segments]
 
 
 def segment_max(data, segment_ids, num_segments=None, sorted=False):
@@ -70,9 +78,9 @@ def segment_prod(data, segment_ids, num_segments=None, sorted=False):
     return _segment_reduction_fn(data, segment_ids, "prod", num_segments)
 
 
-def top_k(x, k, sorted=False):
+def top_k(x, k, sorted=True):
     x = convert_to_tensor(x)
-    return paddle.topk(x, k)
+    return paddle.topk(x, k, sorted=sorted)
 
 
 def in_top_k(targets, predictions, k):
@@ -87,7 +95,46 @@ def in_top_k(targets, predictions, k):
 
 def logsumexp(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    return paddle.logsumexp(x, axis=axis, keepdim=keepdims)
+    # `paddle.logsumexp` only accepts inputs of rank <= 4 and returns NaN
+    # when a whole reduced slice is `-inf`, so always use the numerically
+    # stable max-shift formulation instead.
+    orig_dtype = x.dtype
+    # The computation relies on `max`/`exp`, which have no CPU kernels for
+    # float16/bfloat16.
+    upcast = needs_reduced_precision_upcast(x)
+    if upcast:
+        x = x.cast("float32")
+    if axis is None:
+        reduce_axis = list(range(len(x.shape)))
+    elif isinstance(axis, (tuple, list)):
+        reduce_axis = [a if a >= 0 else a + len(x.shape) for a in axis]
+    else:
+        reduce_axis = [axis if axis >= 0 else axis + len(x.shape)]
+    max_x = paddle.max(x, axis=reduce_axis, keepdim=True)
+    # Replace non-finite maxima with 0 so that `x - max_x` cannot produce
+    # NaN when a whole slice is -inf.
+    max_x = paddle.where(
+        paddle.isfinite(max_x), max_x, paddle.zeros_like(max_x)
+    )
+    shifted = x - max_x
+    exp_shifted = paddle.exp(shifted)
+    # Paddle's CPU `exp` kernel clamps subnormal results to the smallest
+    # normal float instead of flushing them to zero, which would turn the
+    # log-sum-exp of a fully masked (all -inf) slice into a finite number.
+    exp_shifted = paddle.where(
+        shifted == float("-inf"),
+        paddle.zeros_like(exp_shifted),
+        exp_shifted,
+    )
+    result = (
+        paddle.log(paddle.sum(exp_shifted, axis=reduce_axis, keepdim=True))
+        + max_x
+    )
+    if not keepdims:
+        result = paddle.squeeze(result, axis=reduce_axis)
+    if upcast:
+        result = result.cast(orig_dtype)
+    return result
 
 
 def qr(x, mode="reduced"):
@@ -142,14 +189,16 @@ def _overlap_sequences(x, sequence_stride):
     output_size = sequence_stride * (num_sequences - 1) + sequence_length
     nstep_per_segment = 1 + (sequence_length - 1) // sequence_stride
     padded_segment_len = nstep_per_segment * sequence_stride
+    # Paddle's `F.pad` with a 2*ndim list pads from the first dimension to
+    # the last one, so the last spatial dimension comes last in the list.
     x = paddle.nn.functional.pad(
-        x, [0, padded_segment_len - sequence_length, 0, 0, 0, 0]
+        x, [0, 0, 0, 0, 0, padded_segment_len - sequence_length]
     )
     x = paddle.reshape(
         x, (flat_batchsize, num_sequences, nstep_per_segment, sequence_stride)
     )
     x = paddle.transpose(x, [0, 2, 1, 3])
-    x = paddle.nn.functional.pad(x, [0, 0, 0, num_sequences, 0, 0, 0, 0])
+    x = paddle.nn.functional.pad(x, [0, 0, 0, 0, 0, num_sequences, 0, 0])
     shrinked = x.shape[2] - 1
     x = paddle.reshape(x, (flat_batchsize, -1))
     x = x[:, : (nstep_per_segment * shrinked * sequence_stride)]
@@ -303,41 +352,9 @@ def istft(
                 f"Received: window shape={win.shape}"
             )
 
-    if sequence_length == fft_length and center is True and win is not None:
-        # Ensure 3D input: (batch, num_sequences, fft_unique_bins)
-        squeeze_batch = False
-        if complex_input.ndim == 2:
-            complex_input = complex_input.unsqueeze(0)
-            squeeze_batch = True
-        need_unpack = False
-        *batch_shape, num_sequences, fft_unique_bins = complex_input.shape
-        if len(complex_input.shape) > 3:
-            need_unpack = True
-            flat_batchsize = (
-                -1 if None in batch_shape else math.prod(batch_shape)
-            )
-            complex_input = paddle.reshape(
-                complex_input,
-                (flat_batchsize, num_sequences, fft_unique_bins),
-            )
-        complex_input = paddle.transpose(complex_input, [0, 2, 1])
-        x = paddle.signal.istft(
-            complex_input,
-            n_fft=fft_length,
-            hop_length=sequence_stride,
-            win_length=sequence_length,
-            window=win,
-            center=center,
-            length=length,
-        )
-        if need_unpack:
-            samples = x.shape[-1]
-            x = paddle.reshape(x, (*batch_shape, samples))
-        if squeeze_batch:
-            x = x.squeeze(0)
-        return x
-
-    # Custom implementation with irfft and _overlap_sequences
+    # `paddle.signal.istft` normalizes by the true window envelope, which
+    # does not match the reference implementation at the signal edges, so
+    # reconstruct with `irfft` + overlap-add instead.
     x_out = irfft(x, fft_length)
 
     expected_output_len = fft_length + sequence_stride * (x_out.shape[-2] - 1)
@@ -407,17 +424,6 @@ def erfinv(x):
 def logdet(x):
     x = convert_to_tensor(x)
     return paddle.log(paddle.linalg.det(x))
-
-
-def solve(a, b):
-    a = convert_to_tensor(a)
-    b = convert_to_tensor(b)
-    return paddle.linalg.solve(a, b)
-
-
-def norm(x, ord=None, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
-    return paddle.linalg.norm(x, p=ord, axis=axis, keepdim=keepdims)
 
 
 def cdist(x, y):

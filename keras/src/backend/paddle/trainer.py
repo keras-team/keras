@@ -48,10 +48,11 @@ class PaddleTrainer(base_trainer.Trainer):
         if self.trainable_weights:
             loss.backward()
 
-            trainable_weights = self.trainable_weights[:]
-            gradients = [v.value.grad for v in trainable_weights]
+            if self.optimizer is not None:
+                trainable_weights = self.trainable_weights[:]
+                gradients = [v.value.grad for v in trainable_weights]
 
-            self.optimizer.apply(gradients, trainable_weights)
+                self.optimizer.apply(gradients, trainable_weights)
         else:
             import warnings
 
@@ -84,13 +85,27 @@ class PaddleTrainer(base_trainer.Trainer):
             y_pred = self(x)
         return y_pred
 
+    def _convert_data_to_tensors(self, data):
+        # Convert the data to tensors, leaving `None` leaves
+        # (e.g. a missing `sample_weight`) untouched.
+        return tree.map_structure(
+            lambda t: backend.convert_to_tensor(t) if t is not None else t,
+            data,
+        )
+
     def make_train_function(self, force=False):
         if self.train_function is not None and not force:
             return self.train_function
 
+        if self.steps_per_execution > 1:
+            raise ValueError(
+                "`steps_per_execution` must be 1 with the Paddle backend. "
+                f"Received: steps_per_execution={self.steps_per_execution}"
+            )
+
         def one_step_on_data(data):
             data = data[0]
-            data = tree.map_structure(backend.convert_to_tensor, data)
+            data = self._convert_data_to_tensors(data)
             return self.train_step(data)
 
         self.train_function = one_step_on_data
@@ -99,9 +114,15 @@ class PaddleTrainer(base_trainer.Trainer):
         if self.test_function is not None and not force:
             return self.test_function
 
+        if self.steps_per_execution > 1:
+            raise ValueError(
+                "`steps_per_execution` must be 1 with the Paddle backend. "
+                f"Received: steps_per_execution={self.steps_per_execution}"
+            )
+
         def one_step_on_data(data):
             data = data[0]
-            data = tree.map_structure(backend.convert_to_tensor, data)
+            data = self._convert_data_to_tensors(data)
             with paddle.no_grad():
                 return self.test_step(data)
 
@@ -111,9 +132,15 @@ class PaddleTrainer(base_trainer.Trainer):
         if self.predict_function is not None and not force:
             return self.predict_function
 
+        if self.steps_per_execution > 1:
+            raise ValueError(
+                "`steps_per_execution` must be 1 with the Paddle backend. "
+                f"Received: steps_per_execution={self.steps_per_execution}"
+            )
+
         def one_step_on_data(data):
             data = data[0]
-            data = tree.map_structure(backend.convert_to_tensor, data)
+            data = self._convert_data_to_tensors(data)
             with paddle.no_grad():
                 return self.predict_step(data)
 

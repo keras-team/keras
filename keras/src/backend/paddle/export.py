@@ -8,3 +8,9 @@ class PaddleExportArchive:
         raise NotImplementedError(
             "`add_endpoint` is not implemented in the paddle backend."
         )
+
+    def track_and_add_endpoint(self, name, resource, input_signature, **kwargs):
+        raise NotImplementedError(
+            "`export_saved_model` only currently supports the tensorflow, "
+            "jax and torch backends."
+        )
