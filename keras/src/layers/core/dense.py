@@ -253,9 +253,7 @@ class Dense(Layer):
             )
             W_combined = ops.add(kernel, lora_delta)
             # Normalize along input dimension (axis 0)
-            norm = ops.stop_gradient(
-                ops.sqrt(ops.sum(ops.square(W_combined), axis=0))
-            )
+            norm = ops.sqrt(ops.sum(ops.square(W_combined), axis=0))
             kernel = self.dora_magnitude * ops.divide_no_nan(W_combined, norm)
             kernel = ops.cast(kernel, dtype=self.compute_dtype)
 
@@ -362,9 +360,9 @@ class Dense(Layer):
             raise ValueError(
                 "dora is already enabled. This can only be done once per layer."
             )
-        if self.quantization_mode == "gptq":
+        if self.quantization_mode is not None:
             raise NotImplementedError(
-                "dora is not currently supported with GPTQ quantization."
+                "DoRA is not currently supported with quantized layers."
             )
         self._tracker.unlock()
         if self.quantization_mode == "int4" and hasattr(
@@ -390,13 +388,11 @@ class Dense(Layer):
         )
         # Initialize Magnitude Vector to norm of frozen kernel
         # We reduce all axes except the last one (units)
-        initial_magnitude = ops.stop_gradient(
-            ops.sqrt(ops.sum(ops.square(self.kernel), axis=0))
-        )
+        initial_magnitude = ops.sqrt(ops.sum(ops.square(self.kernel), axis=0))
         self.dora_magnitude = self.add_weight(
             name="dora_magnitude",
             shape=(self.units,),
-            initializer=lambda *a, **kw: initial_magnitude,
+            initializer=initializers.Constant(initial_magnitude),
             dtype="float32",
             regularizer=self.kernel_regularizer,
         )
@@ -1241,6 +1237,11 @@ class Dense(Layer):
         # Prevent quantization of the subclasses
         if type_check and (type(self) is not Dense):
             raise self._not_implemented_error(self.quantize)
+
+        if self.dora_enabled:
+            raise NotImplementedError(
+                "Quantization is not currently supported with DoRA."
+            )
 
         self.quantization_config = config
 
