@@ -104,15 +104,15 @@ class RGBToHSV(Operation):
             )
         channels_axis = -1 if self.data_format == "channels_last" else -3
         channels = images_shape[channels_axis]
-        # `channels` may be `None` here for two different reasons: (1) the
+        # channels may be None here for two different reasons: (1) the
         # channel count is genuinely dynamic/unknown at this point in the
-        # graph, which is valid and must not raise, or (2) `images` is a
-        # rank-3 KerasTensor produced by `keras.Input(shape=...)` with an
-        # under-specified (2-content-dim) shape, where the leading `None`
+        # graph, which is valid and must not raise, or (2) images is a
+        # rank-3 KerasTensor produced by keras.Input(shape=...) with an
+        # under-specified (2D spatial) shape, where the leading None
         # is actually the implicit batch dim, not a channel dim. Shape
         # information alone cannot distinguish these two cases, so case (2)
-        # is not validated here; pass a fully-specified `shape` (including
-        # all 3 image content dims) to `Input()` to get validation.
+        # is not validated here; pass a fully-specified shape (including
+        # height, width, and channels) to Input() to get validation.
         if channels is not None and channels != 3:
             raise ValueError(
                 "Input images must have 3 channels, but received images with "
