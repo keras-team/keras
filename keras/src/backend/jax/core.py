@@ -610,10 +610,7 @@ def stop_gradient(variable):
 
 
 def unstack(x, num=None, axis=0):
-    return [
-        jax.lax.index_in_dim(x, i, axis, keepdims=False)
-        for i in range(x.shape[axis])
-    ]
+    return list(jnp.moveaxis(x, axis, 0))
 
 
 def random_seed_dtype():

@@ -534,7 +534,4 @@ def gru(
 
 
 def unstack(x, axis=0):
-    return [
-        lax.index_in_dim(x, i, axis, keepdims=False)
-        for i in range(x.shape[axis])
-    ]
+    return list(jnp.moveaxis(x, axis, 0))
