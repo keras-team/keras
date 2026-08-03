@@ -184,6 +184,11 @@ def norm(x, ord=None, axis=None, keepdims=False):
     )
 
 
+def matrix_power(a, n):
+    a = convert_to_tensor(a)
+    return paddle.linalg.matrix_power(a, n)
+
+
 def pinv(x, rcond=None):
     x = convert_to_tensor(x)
     if rcond is not None:

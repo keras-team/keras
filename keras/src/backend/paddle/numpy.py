@@ -478,6 +478,14 @@ def minimum(x1, x2):
     return _binary_op_with_int(paddle.minimum, x1, x2)
 
 
+def fmax(x1, x2):
+    return _binary_op_with_int(paddle.fmax, x1, x2)
+
+
+def fmin(x1, x2):
+    return _binary_op_with_int(paddle.fmin, x1, x2)
+
+
 def round(x, decimals=0):
     x = convert_to_tensor(x)
     orig_dtype = standardize_dtype(x.dtype)
@@ -529,6 +537,13 @@ def dot(x1, x2):
         return multiply(x1, x2)
     if x1.ndim <= 1 and x2.ndim <= 1:
         return _binary_op_with_int(paddle.dot, x1, x2)
+    if x2.ndim >= 3:
+        # numpy contracts the last axis of `x1` with the second-to-last axis
+        # of `x2`, which is not the batched `matmul` semantics.
+        axes = [[x1.ndim - 1], [x2.ndim - 2]]
+        return _binary_op_with_int(
+            lambda a, b: paddle.tensordot(a, b, axes=axes), x1, x2
+        )
     # For multi-dimensional inputs, use matmul
     return matmul(x1, x2)
 
@@ -940,7 +955,25 @@ def roll(x, shift, axis=None):
     elif standardize_dtype(x.dtype) in _CPU_UNSUPPORTED_INT:
         x = x.cast("int32")
         needs_cast = True
-    result = paddle.roll(x, shift, axis=axis)
+    if axis is None:
+        result = paddle.roll(x, shift, axis=None)
+    else:
+        # numpy broadcasts `shift` and `axis` against each other, paddle
+        # requires exactly one shift per axis.
+        shifts = list(shift) if isinstance(shift, (tuple, list)) else [shift]
+        axes = list(axis) if isinstance(axis, (tuple, list)) else [axis]
+        if len(shifts) == 1 and len(axes) > 1:
+            shifts = shifts * len(axes)
+        elif len(axes) == 1 and len(shifts) > 1:
+            axes = axes * len(shifts)
+        elif len(shifts) != len(axes):
+            raise ValueError(
+                "`shift` and `axis` must be broadcastable against each "
+                f"other. Received: shift={shift}, axis={axis}"
+            )
+        result = x
+        for s, a in zip(shifts, axes):
+            result = paddle.roll(result, s, axis=a)
     if needs_cast:
         result = result.cast(orig_dtype)
     return result
@@ -1577,7 +1610,12 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
         target_shape = paddle.broadcast_shape(x1.shape, x2.shape)
         x1 = paddle.broadcast_to(x1, target_shape)
         x2 = paddle.broadcast_to(x2, target_shape)
-    return paddle.isclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
+    result = paddle.isclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
+    # `paddle.isclose` evaluates `|x1 - x2| <= atol + rtol * |x2|`, which is
+    # `inf <= inf` as soon as one operand is infinite. numpy only considers
+    # identical infinities close.
+    is_inf = paddle.logical_or(paddle.isinf(x1), paddle.isinf(x2))
+    return paddle.where(is_inf, x1 == x2, result)
 
 
 def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
@@ -2068,6 +2106,12 @@ def hypot(x1, x2):
     if standardize_dtype(x2.dtype) != compute_dtype:
         x2 = x2.cast(compute_dtype)
     result = paddle.hypot(x1, x2)
+    # `paddle.hypot` propagates NaN even when the other operand is infinite,
+    # while numpy returns infinity in that case.
+    is_inf = paddle.logical_or(paddle.isinf(x1), paddle.isinf(x2))
+    result = paddle.where(
+        is_inf, paddle.full_like(result, float("inf")), result
+    )
     result_dt = standardize_dtype(result.dtype)
     if result_dt != target:
         result = result.cast(to_paddle_dtype(target))
@@ -3288,6 +3332,15 @@ def hstack(xs):
     xs = _promote_dtypes_list(xs)
     if len(xs[0].shape) == 1:
         return paddle.concat(xs, axis=0)
+    return paddle.concat(xs, axis=1)
+
+
+def column_stack(xs):
+    xs = [convert_to_tensor(x) for x in xs]
+    xs = _promote_dtypes_list(xs)
+    # 1-D tensors are stacked as columns, everything else is concatenated
+    # along the second axis.
+    xs = [paddle.unsqueeze(x, axis=1) if len(x.shape) == 1 else x for x in xs]
     return paddle.concat(xs, axis=1)
 
 
