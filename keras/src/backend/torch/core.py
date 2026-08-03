@@ -37,7 +37,12 @@ elif torch.cuda.is_available():
 elif hasattr(torch, "xpu") and torch.xpu.is_available():
     DEFAULT_DEVICE = "xpu"
 else:
-    DEFAULT_DEVICE = "cpu"
+    from keras.src.utils.module_utils import torch_xla
+
+    if torch_xla.available and torch_xla.core.xla_model.xla_device_count() > 0:
+        DEFAULT_DEVICE = "tpu"
+    else:
+        DEFAULT_DEVICE = "cpu"
 
 TORCH_DTYPES = {
     "float16": torch.float16,

@@ -1559,14 +1559,29 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3))
         weights = KerasTensor((3,))
         self.assertEqual(knp.average(x, axis=1, weights=weights).shape, (None,))
+        self.assertEqual(
+            knp.average(x, axis=(1,), weights=weights).shape, (None,)
+        )
+        self.assertEqual(
+            knp.average(x, axis=[1], weights=weights).shape, (None,)
+        )
 
         x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.average(x, axis=1).shape, (None, 3))
+
+        x = KerasTensor((None, 3, 4))
+        self.assertEqual(knp.average(x, axis=(1, 2)).shape, (None,))
 
         with self.assertRaises(ValueError):
             x = KerasTensor((None, 3, 3))
             weights = KerasTensor((None, 4))
             knp.average(x, weights=weights)
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor((None, 3, 3))
+            weights = KerasTensor((3,))
+            # Multi-axis reduction with 1D weights should fail
+            knp.average(x, axis=(1, 2), weights=weights)
 
     def test_bartlett(self):
         x = np.random.randint(1, 100 + 1)
@@ -2270,8 +2285,18 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.roll(x, 1, axis=1).shape, (None, 3))
         self.assertEqual(knp.roll(x, 1, axis=0).shape, (None, 3))
         self.assertEqual(knp.roll(x, 1, axis=[0, 1]).shape, (None, 3))
+        self.assertEqual(knp.roll(x, [1, 2], axis=[0, 1]).shape, (None, 3))
+        self.assertEqual(knp.roll(x, [1, 2], axis=[0]).shape, (None, 3))
+        self.assertEqual(
+            knp.roll(x, np.array([1, 2]), axis=np.array([0, 1])).shape,
+            (None, 3),
+        )
         with self.assertRaises(ValueError):
             knp.roll(x, 1, axis=2)
+        with self.assertRaises(ValueError):
+            knp.roll(x, [1, 2, 3], axis=[0, 1])
+        with self.assertRaises(ValueError):
+            knp.roll(x, np.array([1, 2, 3]), axis=np.array([0, 1]))
 
     def test_round(self):
         x = KerasTensor((None, 3))
@@ -2613,6 +2638,9 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_average(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.average(x).shape, ())
+
+        x = KerasTensor((2, 3, 4))
+        self.assertEqual(knp.average(x, axis=(1, 2)).shape, (2,))
 
     def test_bitwise_invert(self):
         x = KerasTensor((2, 3))
@@ -3092,12 +3120,20 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.reshape(x, (3, -1)).shape, (3, 2))
         self.assertEqual(knp.reshape(x, (6,)).shape, (6,))
         self.assertEqual(knp.reshape(x, (-1,)).shape, (6,))
+        # A bare integer is a valid shape, as in `np.reshape(x, -1)`.
+        self.assertEqual(knp.reshape(x, -1).shape, (6,))
+        self.assertEqual(knp.reshape(x, 6).shape, (6,))
+        self.assertEqual(knp.Reshape(-1)(x).shape, (6,))
+        self.assertEqual(knp.Reshape(6)(x).shape, (6,))
 
     def test_roll(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.roll(x, 1).shape, (2, 3))
         self.assertEqual(knp.roll(x, 1, axis=1).shape, (2, 3))
         self.assertEqual(knp.roll(x, 1, axis=0).shape, (2, 3))
+        self.assertEqual(knp.roll(x, 1, axis=[0, 1]).shape, (2, 3))
+        with self.assertRaises(ValueError):
+            knp.roll(x, [1, 2, 3], axis=[0, 1])
 
     def test_round(self):
         x = KerasTensor((2, 3))
@@ -5408,11 +5444,16 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_average(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         weights = np.ones([2, 3])
+        weights_non_const = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
         weights_1d = np.ones([3])
+        weights_1d_non_const = np.array([1.0, 2.0, 3.0])
+        weights_1d_axis0 = np.array([1.0, 2.0])
+
         self.assertAllClose(knp.average(x), np.average(x))
         self.assertAllClose(knp.average(x, axis=()), np.average(x, axis=()))
         self.assertAllClose(knp.average(x, axis=1), np.average(x, axis=1))
         self.assertAllClose(knp.average(x, axis=(1,)), np.average(x, axis=(1,)))
+        self.assertAllClose(knp.average(x, axis=[1]), np.average(x, axis=[1]))
         self.assertAllClose(
             knp.average(x, axis=1, weights=weights),
             np.average(x, axis=1, weights=weights),
@@ -5420,6 +5461,30 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.average(x, axis=1, weights=weights_1d),
             np.average(x, axis=1, weights=weights_1d),
+        )
+        self.assertAllClose(
+            knp.average(x, weights=weights_non_const),
+            np.average(x, weights=weights_non_const),
+        )
+        self.assertAllClose(
+            knp.average(x, axis=1, weights=weights_1d_non_const),
+            np.average(x, axis=1, weights=weights_1d_non_const),
+        )
+        self.assertAllClose(
+            knp.average(x, axis=0, weights=weights_1d_axis0),
+            np.average(x, axis=0, weights=weights_1d_axis0),
+        )
+        self.assertAllClose(
+            knp.average(x, axis=(0,), weights=weights_1d_axis0),
+            np.average(x, axis=(0,), weights=weights_1d_axis0),
+        )
+        self.assertAllClose(
+            knp.average(x, axis=[0], weights=weights_1d_axis0),
+            np.average(x, axis=[0], weights=weights_1d_axis0),
+        )
+        self.assertAllClose(
+            knp.average(x, axis=(0, 1), weights=weights_non_const),
+            np.average(x, axis=(0, 1), weights=weights_non_const),
         )
 
         self.assertAllClose(knp.Average()(x), np.average(x))
@@ -5432,6 +5497,22 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.Average(axis=1)(x, weights=weights_1d),
             np.average(x, axis=1, weights=weights_1d),
         )
+        self.assertAllClose(
+            knp.Average()(x, weights=weights_non_const),
+            np.average(x, weights=weights_non_const),
+        )
+        self.assertAllClose(
+            knp.Average(axis=0)(x, weights=weights_1d_axis0),
+            np.average(x, axis=0, weights=weights_1d_axis0),
+        )
+
+        # 1D weights must match the dimension of the axis
+        with self.assertRaises(ValueError):
+            knp.average(x, axis=0, weights=np.ones([3]))
+
+        # 1D weights can only be used with a single axis
+        with self.assertRaises(ValueError):
+            knp.average(x, axis=(0, 1), weights=np.ones([3]))
 
     def test_bartlett(self):
         x = np.random.randint(1, 100 + 1)
@@ -6512,6 +6593,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.reshape(x, [3, 2]), np.reshape(x, [3, 2]))
         self.assertAllClose(knp.Reshape([3, 2])(x), np.reshape(x, [3, 2]))
         self.assertAllClose(knp.Reshape(-1)(x), np.reshape(x, -1))
+        self.assertAllClose(knp.reshape(x, -1), np.reshape(x, -1))
+        self.assertAllClose(knp.Reshape(6)(x), np.reshape(x, 6))
+        self.assertAllClose(
+            backend.numpy.reshape(backend.convert_to_tensor(x), -1),
+            np.reshape(x, -1),
+        )
 
     def test_reshape_rejects_invalid_newshape(self):
         x = np.zeros(20, dtype="float32")
@@ -6549,9 +6636,25 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.roll(x, 1), np.roll(x, 1))
         self.assertAllClose(knp.roll(x, 1, axis=1), np.roll(x, 1, axis=1))
         self.assertAllClose(knp.roll(x, -1, axis=0), np.roll(x, -1, axis=0))
+        self.assertAllClose(
+            knp.roll(x, 1, axis=(0, 1)), np.roll(x, 1, axis=(0, 1))
+        )
+        self.assertAllClose(
+            knp.roll(x, (1, 2), axis=(0, 1)), np.roll(x, (1, 2), axis=(0, 1))
+        )
+        self.assertAllClose(
+            knp.roll(x, (1, 2), axis=(1,)), np.roll(x, (1, 2), axis=(1,))
+        )
+        self.assertAllClose(
+            knp.roll(x, np.array([1, 2]), axis=np.array([0, 1])),
+            np.roll(x, [1, 2], axis=[0, 1]),
+        )
         self.assertAllClose(knp.Roll(1)(x), np.roll(x, 1))
         self.assertAllClose(knp.Roll(1, axis=1)(x), np.roll(x, 1, axis=1))
         self.assertAllClose(knp.Roll(-1, axis=0)(x), np.roll(x, -1, axis=0))
+        self.assertAllClose(
+            knp.Roll(1, axis=(0, 1))(x), np.roll(x, 1, axis=(0, 1))
+        )
 
     def test_round(self):
         x = np.array([[1.1, 2.5, 3.9], [3.2, 2.3, 1.8]])
@@ -7141,6 +7244,21 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         choicelist = [x, x**2]
         y = knp.select(condlist, choicelist, 42)
         self.assertEqual(y.shape, (6,))
+
+        # A broader condition or later choice widens the inferred shape (it is
+        # broadcast against every condition and choice, like `where`), not just
+        # the first choice's shape.
+        x = backend.KerasTensor((2, 3))
+        row = backend.KerasTensor((3,))
+        y = knp.select([x > 0], [row], 0)
+        self.assertEqual(y.shape, (2, 3))
+
+        # `default` is broadcast too: a broader default widens the shape.
+        cond = backend.KerasTensor((1,))
+        choice = backend.KerasTensor((1,))
+        default_value = backend.KerasTensor((2, 3))
+        y = knp.select([cond > 0], [choice], default_value)
+        self.assertEqual(y.shape, (2, 3))
 
     def test_slogdet(self):
         x = np.ones((4, 4)) * 2.0

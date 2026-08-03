@@ -722,30 +722,53 @@ class ImageOpsStaticShapeTest(testing.TestCase):
                 padding="same",
             )
 
-    def test_reconstruct_patches_channels_first_not_implemented(self):
-        # Op-level guard, eager and symbolic.
-        patches = np.zeros((1, 75, 4, 4), dtype="float32")
-        with self.assertRaisesRegex(NotImplementedError, "channels_first"):
+    def test_reconstruct_patches_channels_first(self):
+        # 2D channels_first batched: (B, pH*pW*C, gH, gW) -> (B, C, H, W)
+        patches = KerasTensor([2, 75, 4, 4])
+        out = kimage.reconstruct_patches(
+            patches,
+            size=(5, 5),
+            output_size=(20, 20),
+            padding="valid",
+            data_format="channels_first",
+        )
+        self.assertEqual(out.shape, (2, 3, 20, 20))
+        # 3D channels_first batched: (B, pD*pH*pW*C, gD, gH, gW)
+        patches_3d = KerasTensor([2, 375, 4, 4, 4])
+        out = kimage.reconstruct_patches(
+            patches_3d,
+            size=(5, 5, 5),
+            output_size=(20, 20, 20),
+            padding="valid",
+            data_format="channels_first",
+        )
+        self.assertEqual(out.shape, (2, 3, 20, 20, 20))
+        # The symbolic validation is data_format aware: the grid dims sit
+        # at the end in channels_first, and a mismatch still raises.
+        with self.assertRaisesRegex(ValueError, "size \\* grid"):
             kimage.reconstruct_patches(
-                patches,
+                KerasTensor([2, 75, 4, 4]),
                 size=(5, 5),
-                output_size=(20, 20),
+                output_size=(19, 20),
+                padding="valid",
                 data_format="channels_first",
             )
-        patches_3d = np.zeros((1, 375, 4, 4, 4), dtype="float32")
-        with self.assertRaisesRegex(NotImplementedError, "channels_first"):
+
+    def test_reconstruct_patches_channels_first_bad_rank(self):
+        with self.assertRaisesRegex(ValueError, "unexpected rank"):
             kimage.reconstruct_patches(
-                patches_3d,
+                np.zeros((75, 4), dtype="float32"),
+                size=(5, 5),
+                output_size=(20, 20),
+                padding="valid",
+                data_format="channels_first",
+            )
+        with self.assertRaisesRegex(ValueError, "unexpected rank"):
+            kimage.reconstruct_patches(
+                np.zeros((375, 4, 4), dtype="float32"),
                 size=(5, 5, 5),
                 output_size=(20, 20, 20),
-                data_format="channels_first",
-            )
-        patches_sym = KerasTensor([None, 75, 4, 4])
-        with self.assertRaisesRegex(NotImplementedError, "channels_first"):
-            kimage.reconstruct_patches(
-                patches_sym,
-                size=(5, 5),
-                output_size=(20, 20),
+                padding="valid",
                 data_format="channels_first",
             )
 
@@ -2658,6 +2681,78 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             )
             self.assertEqual(tuple(out.shape), x.shape)
             self.assertAllClose(out, x, atol=1e-6)
+
+    def test_reconstruct_patches_channels_first(self):
+        # channels_first reconstruction equals the channels_last result
+        # after transposing. Patches are extracted in channels_last and
+        # transposed into channels_first layout, so the test runs on every
+        # backend regardless of NCHW conv support in extract_patches (the
+        # suite skips 2D channels_first extract_patches on tensorflow).
+        for h, w, c, size, padding in [
+            (20, 20, 3, (5, 5), "valid"),
+            (33, 41, 2, (5, 7), "same"),
+        ]:
+            x = _bf16_exact((2, h, w, c))
+            patches_cl = kimage.extract_patches(x, size=size, padding=padding)
+            patches_cf = knp.transpose(patches_cl, (0, 3, 1, 2))
+            recon_cf = kimage.reconstruct_patches(
+                patches_cf,
+                size=size,
+                output_size=(h, w),
+                padding=padding,
+                data_format="channels_first",
+            )
+            self.assertEqual(tuple(recon_cf.shape), (2, c, h, w))
+            self.assertAllClose(
+                recon_cf, np.transpose(x, (0, 3, 1, 2)), atol=1e-6
+            )
+
+        # Unbatched 2D exercises the rank-3 transpose branch.
+        x = _bf16_exact((8, 8, 2))
+        patches_cl = kimage.extract_patches(x, size=(4, 4), padding="valid")
+        patches_cf = knp.transpose(patches_cl, (2, 0, 1))
+        recon_cf = kimage.reconstruct_patches(
+            patches_cf,
+            size=(4, 4),
+            output_size=(8, 8),
+            data_format="channels_first",
+        )
+        self.assertEqual(tuple(recon_cf.shape), (2, 8, 8))
+        self.assertAllClose(recon_cf, np.transpose(x, (2, 0, 1)), atol=1e-6)
+
+    def test_reconstruct_patches_3d_channels_first(self):
+        # Batched 3D channels_first round-trip via transposed patches.
+        x = _bf16_exact((2, 6, 6, 6, 3))
+        patches_cl = kimage.extract_patches_3d(
+            x, size=(3, 3, 3), padding="valid"
+        )
+        patches_cf = knp.transpose(patches_cl, (0, 4, 1, 2, 3))
+        recon_cf = kimage.reconstruct_patches(
+            patches_cf,
+            size=(3, 3, 3),
+            output_size=(6, 6, 6),
+            padding="valid",
+            data_format="channels_first",
+        )
+        self.assertEqual(tuple(recon_cf.shape), (2, 3, 6, 6, 6))
+        self.assertAllClose(
+            recon_cf, np.transpose(x, (0, 4, 1, 2, 3)), atol=1e-6
+        )
+
+        # Unbatched 3D exercises the rank-4 transpose branch.
+        x = _bf16_exact((6, 6, 6, 2))
+        patches_cl = kimage.extract_patches_3d(
+            x, size=(3, 3, 3), padding="valid"
+        )
+        patches_cf = knp.transpose(patches_cl, (3, 0, 1, 2))
+        recon_cf = kimage.reconstruct_patches(
+            patches_cf,
+            size=(3, 3, 3),
+            output_size=(6, 6, 6),
+            data_format="channels_first",
+        )
+        self.assertEqual(tuple(recon_cf.shape), (2, 6, 6, 6))
+        self.assertAllClose(recon_cf, np.transpose(x, (3, 0, 1, 2)), atol=1e-6)
 
     def test_reconstruct_patches_int_dtype(self):
         # reconstruct_patches only reshapes/transposes/slices, so integer

@@ -41,10 +41,10 @@ class EqualizationTest(testing.TestCase):
             np.float32
         )
         layer = layers.Equalization(value_range=(0, 255))
-        xs = layer(xs)
+        xs = ops.convert_to_numpy(layer(xs))
 
         for i in range(0, 256):
-            self.assertTrue(np.any(ops.convert_to_numpy(xs) == i))
+            self.assertTrue(np.any(xs == i))
 
     @parameterized.named_parameters(
         ("float32", np.float32), ("int32", np.int32), ("int64", np.int64)

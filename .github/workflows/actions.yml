@@ -30,7 +30,6 @@ jobs:
 
     container:
       image: python:3.11-slim
-      options: --privileged --network host
 
     name: ${{ format('Run tests on CPU ({0}{1})', matrix.backend, matrix.nnx_enabled && ', NNX' || '') }}
     runs-on: linux-x86-n2-16
@@ -52,7 +51,7 @@ jobs:
           git config --global --add safe.directory '*'
 
       - name: Checkout ${{ github.ref }}
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
 
@@ -162,7 +161,7 @@ jobs:
 
     steps:
       - name: Checkout ${{ github.ref }}
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
 

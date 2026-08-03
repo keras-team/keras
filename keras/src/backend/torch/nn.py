@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as tnn
 
 from keras.src import backend
+from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
     check_conv_transpose_input_channels,
@@ -136,6 +137,7 @@ def celu(x, alpha=1.0):
 
 def glu(x, axis=-1):
     x = convert_to_tensor(x)
+    canonicalize_axis(axis, len(x.shape))
     return tnn.glu(x, dim=axis)
 
 

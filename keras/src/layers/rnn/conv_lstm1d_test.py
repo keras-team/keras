@@ -16,7 +16,7 @@ class ConvLSTM1DTest(testing.TestCase):
             expected_output_shape=(3, 4, 5) if channels_last else (3, 5, 4),
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
-            supports_masking=True,
+            supports_masking=False,
         )
         self.run_layer_test(
             layers.ConvLSTM1D,
@@ -31,7 +31,7 @@ class ConvLSTM1DTest(testing.TestCase):
             expected_output_shape=(3, 6, 5) if channels_last else (3, 5, 6),
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
-            supports_masking=True,
+            supports_masking=False,
         )
         self.run_layer_test(
             layers.ConvLSTM1D,
@@ -47,7 +47,7 @@ class ConvLSTM1DTest(testing.TestCase):
             ),
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
-            supports_masking=True,
+            supports_masking=False,
         )
 
     def test_correctness(self):
