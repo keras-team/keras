@@ -108,9 +108,13 @@ jobs:
 
       - name: Test integrations
         if: ${{ matrix.backend != 'numpy' && matrix.nnx_enabled == false }}
+        # `python -m` keeps the checkout at the head of `sys.path`. Running
+        # the scripts by path puts `integration_tests/` there instead, so
+        # `import keras` resolves to the released package that `tensorflow`
+        # depends on, which does not know about every backend.
         run: |
-          python integration_tests/import_test.py
-          python integration_tests/numerical_test.py
+          python -m integration_tests.import_test
+          python -m integration_tests.numerical_test
 
       - name: Test JAX-specific integrations
         if: ${{ matrix.backend == 'jax' && matrix.nnx_enabled == false }}
