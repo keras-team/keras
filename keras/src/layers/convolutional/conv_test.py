@@ -717,6 +717,190 @@ class ConvBasicTest(testing.TestCase):
         model.load_weights(temp_filepath)
         self.assertAllClose(model.predict(x), new_model.predict(x))
 
+    @parameterized.named_parameters(
+        {
+            "testcase_name": "conv1d_kernel_size3_strides1",
+            "conv_cls": layers.Conv1D,
+            "filters": 6,
+            "kernel_size": 3,
+            "strides": 1,
+            "padding": "valid",
+            "data_format": "channels_last",
+            "dilation_rate": 1,
+            "groups": 1,
+            "input_shape": (None, 5, 4),
+            "output_shape": (None, 3, 6),
+        },
+        {
+            "testcase_name": "conv1d_kernel_size2_strides2",
+            "conv_cls": layers.Conv1D,
+            "filters": 6,
+            "kernel_size": 2,
+            "strides": 2,
+            "padding": "valid",
+            "data_format": "channels_last",
+            "dilation_rate": 1,
+            "groups": 2,
+            "input_shape": (None, 5, 4),
+            "output_shape": (None, 2, 6),
+        },
+        {
+            "testcase_name": "conv2d_kernel_size3_strides1",
+            "conv_cls": layers.Conv2D,
+            "filters": 6,
+            "kernel_size": 3,
+            "strides": 1,
+            "padding": "valid",
+            "data_format": "channels_last",
+            "dilation_rate": 1,
+            "groups": 1,
+            "input_shape": (None, 5, 5, 4),
+            "output_shape": (None, 3, 3, 6),
+        },
+        {
+            "testcase_name": "conv2d_kernel_size2_strides2",
+            "conv_cls": layers.Conv2D,
+            "filters": 6,
+            "kernel_size": 2,
+            "strides": 2,
+            "padding": "valid",
+            "data_format": "channels_last",
+            "dilation_rate": 1,
+            "groups": 2,
+            "input_shape": (None, 5, 5, 4),
+            "output_shape": (None, 2, 2, 6),
+        },
+        {
+            "testcase_name": "conv3d_kernel_size3_strides1",
+            "conv_cls": layers.Conv3D,
+            "filters": 6,
+            "kernel_size": 3,
+            "strides": 1,
+            "padding": "valid",
+            "data_format": "channels_last",
+            "dilation_rate": 1,
+            "groups": 1,
+            "input_shape": (None, 5, 5, 5, 4),
+            "output_shape": (None, 3, 3, 3, 6),
+        },
+        {
+            "testcase_name": "conv3d_kernel_size2_strides2",
+            "conv_cls": layers.Conv3D,
+            "filters": 6,
+            "kernel_size": 2,
+            "strides": 2,
+            "padding": "valid",
+            "data_format": "channels_last",
+            "dilation_rate": 1,
+            "groups": 2,
+            "input_shape": (None, 5, 5, 5, 4),
+            "output_shape": (None, 2, 2, 2, 6),
+        },
+    )
+    @pytest.mark.requires_trainable_backend
+    def test_enable_dora(
+        self,
+        conv_cls,
+        filters,
+        kernel_size,
+        strides,
+        padding,
+        data_format,
+        dilation_rate,
+        groups,
+        input_shape,
+        output_shape,
+    ):
+        if conv_cls not in (layers.Conv1D, layers.Conv2D, layers.Conv3D):
+            raise TypeError
+        layer = conv_cls(
+            filters=filters,
+            kernel_size=kernel_size,
+            strides=strides,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=dilation_rate,
+            groups=groups,
+        )
+        layer.build(input_shape)
+        layer.enable_dora(2)
+        self.assertLen(layer.trainable_weights, 4)
+        self.assertLen(layer.non_trainable_weights, 1)
+        if backend.backend() == "torch":
+            self.assertLen(layer.torch_params, 5)
+        self.assertDType(layer.dora_kernel_a, "float32")
+        self.assertDType(layer.dora_kernel_b, "float32")
+        self.assertDType(layer.dora_magnitude, "float32")
+
+        # Try eager call
+        x = np.random.random((64,) + input_shape[1:])
+        y = np.random.random((64,) + output_shape[1:])
+        _ = layer(x[:2])
+
+        init_dora_a_kernel_value = layer.dora_kernel_a.numpy()
+        init_dora_b_kernel_value = layer.dora_kernel_b.numpy()
+        init_dora_magnitude_value = layer.dora_magnitude.numpy()
+
+        # Try calling fit()
+        model = models.Sequential([layer])
+        model.compile(optimizer="sgd", loss="mse")
+        model.fit(x, y)
+
+        final_dora_a_kernel_value = layer.dora_kernel_a.numpy()
+        final_dora_b_kernel_value = layer.dora_kernel_b.numpy()
+        final_dora_magnitude_value = layer.dora_magnitude.numpy()
+
+        diff_a = np.max(
+            np.abs(init_dora_a_kernel_value - final_dora_a_kernel_value)
+        )
+        diff_b = np.max(
+            np.abs(init_dora_b_kernel_value - final_dora_b_kernel_value)
+        )
+        diff_m = np.max(
+            np.abs(init_dora_magnitude_value - final_dora_magnitude_value)
+        )
+
+        self.assertGreater(diff_a, 0.0)
+        self.assertGreater(diff_b, 0.0)
+        self.assertGreater(diff_m, 0.0)
+
+        # Try saving and reloading the model
+        temp_filepath = os.path.join(self.get_temp_dir(), "dora_model.keras")
+        model.save(temp_filepath)
+
+        new_model = saving.load_model(temp_filepath)
+        self.assertTrue(new_model.layers[0].dora_enabled)
+        self.assertAllClose(model.predict(x), new_model.predict(x))
+
+        # Try saving and reloading the model's weights only
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "dora_model.weights.h5"
+        )
+        model.save_weights(temp_filepath)
+
+        # Load the file into a fresh, non-dora model
+        new_model = models.Sequential(
+            [
+                conv_cls(
+                    filters=filters,
+                    kernel_size=kernel_size,
+                    strides=strides,
+                    padding=padding,
+                    data_format=data_format,
+                    dilation_rate=dilation_rate,
+                    groups=groups,
+                )
+            ]
+        )
+        new_model.build(input_shape)
+        new_model.load_weights(temp_filepath)
+        self.assertAllClose(model.predict(x), new_model.predict(x))
+
+        # Try loading a normal checkpoint into a dora model
+        new_model.save_weights(temp_filepath)
+        model.load_weights(temp_filepath)
+        self.assertAllClose(model.predict(x), new_model.predict(x))
+
     def test_lora_weight_name(self):
         class MyModel(models.Model):
             def __init__(self):
@@ -785,6 +969,49 @@ class ConvBasicTest(testing.TestCase):
             tpu_rtol=1e-3,
         )
 
+    def test_enable_dora_with_alpha(self):
+        layer = layers.Conv2D(filters=3, kernel_size=(2, 2), padding="valid")
+        input_shape = (1, 4, 4, 3)
+        layer.build(input_shape)
+
+        base_kernel = np.linspace(
+            0, 1, num=math.prod(layer.kernel.shape), dtype=np.float32
+        )
+        base_kernel = base_kernel.reshape(layer.kernel.shape)
+        layer._kernel.assign(base_kernel)
+
+        layer.enable_dora(rank=2, dora_alpha=3.0)
+        self.assertEqual(layer.dora_rank, 2)
+        self.assertEqual(layer.dora_alpha, 3.0)
+
+        dora_a_shape = layer.dora_kernel_a.shape
+        dora_b_shape = layer.dora_kernel_b.shape
+
+        dora_a = np.full(dora_a_shape, 0.1, dtype=np.float32)
+        dora_b = np.full(dora_b_shape, 0.2, dtype=np.float32)
+        layer.dora_kernel_a.assign(dora_a)
+        layer.dora_kernel_b.assign(dora_b)
+
+        scaling = 3.0 / 2
+        delta = np.matmul(dora_a.reshape(-1, 2), dora_b)
+        delta = delta.reshape(base_kernel.shape)
+        W_combined = base_kernel + scaling * delta
+
+        # Normalize along all axes except the last one
+        axis = tuple(range(len(W_combined.shape) - 1))
+        norm = np.sqrt(np.sum(np.square(W_combined), axis=axis))
+        expected_effective_kernel = ops.convert_to_numpy(
+            layer.dora_magnitude
+        ) * (W_combined / norm)
+
+        actual_effective_kernel = ops.convert_to_numpy(layer.kernel)
+        self.assertAllClose(
+            actual_effective_kernel,
+            expected_effective_kernel,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
+        )
+
     def test_lora_rank_argument(self):
         self.run_layer_test(
             layers.Conv2D,
@@ -802,6 +1029,26 @@ class ConvBasicTest(testing.TestCase):
             expected_num_non_trainable_weights=1,
             expected_num_seed_generators=0,
             expected_num_losses=2,  # we have 2 regularizers.
+            supports_masking=False,
+        )
+
+    def test_dora_rank_argument(self):
+        self.run_layer_test(
+            layers.Conv2D,
+            init_kwargs={
+                "filters": 5,
+                "kernel_size": 3,
+                "activation": "sigmoid",
+                "data_format": "channels_last",
+                "kernel_regularizer": "l2",
+                "dora_rank": 2,
+            },
+            input_shape=(2, 5, 5, 4),
+            expected_output_shape=(2, 3, 3, 5),
+            expected_num_trainable_weights=4,
+            expected_num_non_trainable_weights=1,
+            expected_num_seed_generators=0,
+            expected_num_losses=3,
             supports_masking=False,
         )
 
