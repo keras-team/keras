@@ -77,16 +77,21 @@ def segment_prod(data, segment_ids, num_segments=None, sorted=False):
     return _segment_reduction_fn(data, segment_ids, "prod", num_segments)
 
 
-def top_k(x, k, sorted=True):
+def top_k(x, k, sorted=True, is_stable=True):
     x = convert_to_tensor(x)
-    return torch.topk(x, k, sorted=sorted)
+    if not is_stable:
+        return torch.topk(x, k, sorted=sorted)
+    sorted_values, sorted_indices = torch.sort(
+        x, dim=-1, descending=True, stable=True
+    )
+    return sorted_values[..., :k], sorted_indices[..., :k]
 
 
 def in_top_k(targets, predictions, k):
     targets = convert_to_tensor(targets).type(torch.int64)
     targets = targets.unsqueeze(-1)
     predictions = convert_to_tensor(predictions)
-    topk_values = top_k(predictions, k).values
+    topk_values = top_k(predictions, k)[0]
     targets_values = torch.take_along_dim(predictions, targets, dim=-1)
     mask = targets_values >= topk_values
     return torch.any(mask, axis=-1)
