@@ -1026,6 +1026,7 @@ def unpack_ternary(packed, orig_len, axis=0):
     # Fast path: axis=0 on a rank-2 tensor — no transposes needed.
     if axis == 0 and rank == 2:
         codes = ops.cast(packed, "int32")
+        codes = ops.where(codes < 0, codes + 256, codes)
         digits = []
         for place in (1, 3, 9, 27, 81):
             digit = ops.mod(ops.floor_divide(codes, place), 3)
@@ -1040,6 +1041,7 @@ def unpack_ternary(packed, orig_len, axis=0):
     inv_perm = [perm.index(i) for i in range(rank)]
     transposed = ops.transpose(packed, perm)
     codes = ops.cast(transposed, "int32")
+    codes = ops.where(codes < 0, codes + 256, codes)
 
     digits = []
     for place in (1, 3, 9, 27, 81):
