@@ -1,5 +1,6 @@
 import builtins
 import contextlib
+import os
 import weakref
 
 import ml_dtypes
@@ -47,6 +48,34 @@ PADDLE_DTYPES = {
 
 # Track tensors created from Python scalars (weak types in JAX sense)
 _weak_tensors = weakref.WeakSet()
+
+# Whether the process was in dygraph mode when `os.fork` was called.
+_dygraph_mode_before_fork = True
+
+
+def _record_dygraph_mode():
+    global _dygraph_mode_before_fork
+    _dygraph_mode_before_fork = paddle.in_dynamic_mode()
+
+
+def _restore_dygraph_mode():
+    """Turn dygraph mode back on in a process forked from a thread.
+
+    Paddle enables dygraph mode with a context manager that is kept in the
+    thread local state of the thread that imported it. Forking from another
+    thread, as `PyDataset(use_multiprocessing=True)` does, destroys that
+    state in the child process, which closes the context manager and
+    silently switches the child to static graph mode. Operations then build
+    graph values instead of tensors.
+    """
+    if _dygraph_mode_before_fork and not paddle.in_dynamic_mode():
+        paddle.disable_static()
+
+
+if hasattr(os, "register_at_fork"):
+    os.register_at_fork(
+        before=_record_dygraph_mode, after_in_child=_restore_dygraph_mode
+    )
 
 
 @contextlib.contextmanager
