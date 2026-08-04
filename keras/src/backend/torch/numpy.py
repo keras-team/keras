@@ -25,7 +25,7 @@ TORCH_INT_TYPES = (
 )
 
 
-def _result_type_inputs(x1, x2, *additional_dtypes):
+def convert_to_tensors_of_same_dtype(x1, x2, *additional_dtypes):
     if not hasattr(x1, "dtype") and not isinstance(
         x1, (bool, int, float, complex)
     ):
@@ -82,7 +82,7 @@ def rot90(array, k=1, axes=(0, 1)):
 
 
 def add(x1, x2):
-    x1, x2, _ = _result_type_inputs(x1, x2)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2)
     return torch.add(x1, x2)
 
 
@@ -103,7 +103,7 @@ def einsum(subscripts, *operands, **kwargs):
 
 
 def subtract(x1, x2):
-    x1, x2, _ = _result_type_inputs(x1, x2)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2)
     # TODO: torch.subtract doesn't support bool
     if standardize_dtype(x1.dtype) == "bool":
         x1 = cast(x1, x2.dtype)
@@ -172,7 +172,7 @@ def matmul(x1, x2):
 
 
 def multiply(x1, x2):
-    x1, x2, _ = _result_type_inputs(x1, x2)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2)
     return torch.multiply(x1, x2)
 
 
@@ -379,7 +379,7 @@ def arctan(x):
 
 
 def arctan2(x1, x2):
-    x1, x2, result_dtype = _result_type_inputs(x1, x2, float)
+    x1, x2, result_dtype = convert_to_tensors_of_same_dtype(x1, x2, float)
     compute_dtype = result_dtype
     # TODO: torch.arctan2 doesn't support float16 with cpu
     if get_device() == "cpu" and compute_dtype == "float16":
@@ -995,7 +995,7 @@ def hsplit(x, indices_or_sections):
 
 
 def hypot(x1, x2):
-    x1, x2, dtype = _result_type_inputs(x1, x2)
+    x1, x2, dtype = convert_to_tensors_of_same_dtype(x1, x2)
     if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
         dtype = config.floatx()
     elif dtype == "int64":
@@ -1214,7 +1214,7 @@ def log2(x):
 
 
 def logaddexp(x1, x2):
-    x1, x2, dtype = _result_type_inputs(x1, x2, float)
+    x1, x2, dtype = convert_to_tensors_of_same_dtype(x1, x2, float)
 
     # TODO: torch.logaddexp doesn't support float16 with cpu
     if get_device() == "cpu" and dtype == "float16":
@@ -1225,7 +1225,7 @@ def logaddexp(x1, x2):
 
 
 def logaddexp2(x1, x2):
-    x1, x2, _ = _result_type_inputs(x1, x2, float)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2, float)
     return torch.logaddexp2(x1, x2)
 
 
@@ -1293,12 +1293,12 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
 
 def maximum(x1, x2):
-    x1, x2, _ = _result_type_inputs(x1, x2)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2)
     return torch.maximum(x1, x2)
 
 
 def fmax(x1, x2):
-    x1, x2, _ = _result_type_inputs(x1, x2)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2)
     return torch.fmax(x1, x2)
 
 
@@ -1343,17 +1343,17 @@ def min(x, axis=None, keepdims=False, initial=None):
 
 
 def minimum(x1, x2):
-    x1, x2, _ = _result_type_inputs(x1, x2)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2)
     return torch.minimum(x1, x2)
 
 
 def fmin(x1, x2):
-    x1, x2, _ = _result_type_inputs(x1, x2)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2)
     return torch.fmin(x1, x2)
 
 
 def mod(x1, x2):
-    x1, x2, dtype = _result_type_inputs(x1, x2)
+    x1, x2, dtype = convert_to_tensors_of_same_dtype(x1, x2)
     if dtype == "bool":
         x1 = cast(x1, "int32")
         x2 = cast(x2, "int32")
@@ -1361,7 +1361,7 @@ def mod(x1, x2):
 
 
 def fmod(x1, x2):
-    x1, x2, dtype = _result_type_inputs(x1, x2)
+    x1, x2, dtype = convert_to_tensors_of_same_dtype(x1, x2)
     if dtype == "bool":
         x1 = cast(x1, "int32")
         x2 = cast(x2, "int32")
@@ -2144,12 +2144,12 @@ def where(condition, x1=None, x2=None):
 
 
 def divide(x1, x2):
-    x1, x2, _ = _result_type_inputs(x1, x2, float)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2, float)
     return torch.divide(x1, x2)
 
 
 def divide_no_nan(x1, x2):
-    x1, x2, _ = _result_type_inputs(x1, x2, float)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2, float)
     safe_x2 = torch.where(x2 == 0, torch.ones_like(x2), x2)
     return torch.where(x2 == 0, 0, torch.divide(x1, safe_x2))
 
@@ -2159,7 +2159,7 @@ def true_divide(x1, x2):
 
 
 def power(x1, x2):
-    x1, x2, _ = _result_type_inputs(x1, x2)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2)
     return torch.pow(x1, x2)
 
 
@@ -2169,7 +2169,7 @@ def negative(x):
 
 
 def nextafter(x1, x2):
-    x1, x2, dtype = _result_type_inputs(x1, x2, float)
+    x1, x2, dtype = convert_to_tensors_of_same_dtype(x1, x2, float)
     x1 = cast(x1, torch.float64)
     x2 = cast(x2, torch.float64)
     return cast(torch.nextafter(x1, x2), dtype)
@@ -2272,7 +2272,7 @@ def eye(N, M=None, k=0, dtype=None):
 
 
 def floor_divide(x1, x2):
-    x1, x2, dtype = _result_type_inputs(x1, x2)
+    x1, x2, dtype = convert_to_tensors_of_same_dtype(x1, x2)
     return cast(torch.floor_divide(x1, x2), dtype)
 
 
