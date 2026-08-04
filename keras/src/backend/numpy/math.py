@@ -90,7 +90,7 @@ def top_k(x, k, sorted=True, is_stable=True):
 
 def in_top_k(targets, predictions, k):
     targets = targets[..., None]
-    topk_values = top_k(predictions, k)[0]
+    topk_values = top_k(predictions, k, sorted=False, is_stable=False)[0]
     targets_values = np.take_along_axis(predictions, targets, axis=-1)
     mask = targets_values >= topk_values
     return np.any(mask, axis=-1)

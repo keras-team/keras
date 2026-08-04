@@ -56,6 +56,7 @@ def top_k(x, k, sorted=True, is_stable=True):
     # Jax does not support `sorted`, but in the case where `sorted=False`,
     # order is not guaranteed, so OK to return sorted output.
     try:
+        # is_stable was added in JAX version 0.11.0
         return jax.lax.top_k(x, k, is_stable=is_stable)
     except TypeError:
         return jax.lax.top_k(x, k)
