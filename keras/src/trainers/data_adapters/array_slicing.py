@@ -125,9 +125,7 @@ class NumpySliceable(Sliceable):
 
 class MLXSliceable(Sliceable):
     def __getitem__(self, indices):
-        if isinstance(indices, slice):
-            return self.array[indices]
-        elif isinstance(indices, int):
+        if isinstance(indices, (slice, int)):
             return self.array[indices]
         import mlx.core as mx
 
