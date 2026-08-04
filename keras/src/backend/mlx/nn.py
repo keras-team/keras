@@ -9,6 +9,7 @@ import mlx.nn as nn
 from keras.src.backend import result_type
 from keras.src.backend import standardize_data_format
 from keras.src.backend import standardize_dtype
+from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import (
     compute_adaptive_pooling_window_sizes,
 )
@@ -157,6 +158,7 @@ def celu(x, alpha=1.0):
 
 def glu(x, axis=-1):
     x = convert_to_tensor(x)
+    canonicalize_axis(axis, len(x.shape))
     return nn.glu(x, axis=axis)
 
 
