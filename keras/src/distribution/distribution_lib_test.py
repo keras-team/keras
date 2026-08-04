@@ -23,15 +23,6 @@ from keras.src.distribution import distribution_lib
     return_value=None,
 )
 class MultiProcessInitializeTest(testing.TestCase):
-    def setUp(self):
-        super().setUp()
-        self._original_env = os.environ.copy()
-
-    def tearDown(self):
-        super().tearDown()
-        os.environ.clear()
-        os.environ.update(self._original_env)
-
     def test_initialize_with_explicit_param(self, mock_backend_initialize):
         job_addresses = "10.0.0.1:1234,10.0.0.2:2345"
         num_processes = 2
@@ -53,10 +44,15 @@ class MultiProcessInitializeTest(testing.TestCase):
         os.environ["KERAS_DISTRIBUTION_NUM_PROCESSES"] = str(num_processes)
         os.environ["KERAS_DISTRIBUTION_PROCESS_ID"] = str(current_process_id)
 
-        distribution_lib.initialize()
-        mock_backend_initialize.assert_called_once_with(
-            job_addresses, num_processes, current_process_id
-        )
+        try:
+            distribution_lib.initialize()
+            mock_backend_initialize.assert_called_once_with(
+                job_addresses, num_processes, current_process_id
+            )
+        finally:
+            os.environ.pop("KERAS_DISTRIBUTION_JOB_ADDRESSES", None)
+            os.environ.pop("KERAS_DISTRIBUTION_NUM_PROCESSES", None)
+            os.environ.pop("KERAS_DISTRIBUTION_PROCESS_ID", None)
 
     def test_init_with_nones(self, mock_backend_initialize):
         # This is also valid case for Cloud TPU on JAX
