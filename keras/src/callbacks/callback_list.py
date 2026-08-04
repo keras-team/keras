@@ -39,6 +39,13 @@ class CallbackList(Callback):
                 via `Callback.set_params`.
         """
         self.callbacks = tree.flatten(callbacks) if callbacks else []
+        for callback in self.callbacks:
+            if not isinstance(callback, Callback):
+                raise TypeError(
+                    "All callbacks must be instances of "
+                    "keras.callbacks.Callback. Received: "
+                    f"{callback} of type {type(callback)}"
+                )
         self._in_begin_end_block_count = 0
         self._executor = None
         self._async_train = False
