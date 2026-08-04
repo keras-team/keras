@@ -107,6 +107,20 @@ class LayerNormalizationTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "is out of bounds"):
             layers.LayerNormalization(axis=99).compute_output_shape((2, 4))
 
+    def test_duplicate_axis(self):
+        # `[-1, 1]` refers to the same axis twice for a rank 2 input, which
+        # used to build mismatched weights and fail in the backend.
+        x = np.zeros((2, 4), dtype="float32")
+        with self.assertRaisesRegex(ValueError, "Duplicate axes"):
+            layers.LayerNormalization(axis=[-1, 1])(x)
+        with self.assertRaisesRegex(ValueError, "Duplicate axes"):
+            layers.LayerNormalization(axis=[1, 1])(x)
+
+    def test_axis_is_canonicalized(self):
+        layer = layers.LayerNormalization(axis=-1)
+        layer.build((2, 4))
+        self.assertEqual(layer.axis, [1])
+
     def test_correctness(self):
         layer = layers.LayerNormalization(dtype="float32")
         layer.build(input_shape=(2, 2, 2))
