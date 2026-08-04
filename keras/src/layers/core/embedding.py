@@ -252,7 +252,9 @@ class Embedding(Layer):
             dtype="float32",
             regularizer=self.embeddings_regularizer,
         )
-        self.embeddings.trainable = False
+        # Freeze the underlying variable, not the `embeddings` property, which
+        # returns a throwaway unpacked tensor in int4 mode.
+        self._embeddings.trainable = False
         self._tracker.lock()
         self.lora_enabled = True
         self.lora_rank = rank
