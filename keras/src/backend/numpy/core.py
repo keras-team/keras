@@ -434,8 +434,7 @@ def stop_gradient(variable):
 
 
 def unstack(x, num=None, axis=0):
-    x = np.moveaxis(x, axis, 0)
-    return [x[i] for i in range(x.shape[0])]
+    return list(np.moveaxis(x, axis, 0))
 
 
 def random_seed_dtype():
