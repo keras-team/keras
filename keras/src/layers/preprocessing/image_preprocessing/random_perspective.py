@@ -158,6 +158,9 @@ class RandomPerspective(BaseImagePreprocessingLayer):
             start_points, batch_size, axis=0
         )
         end_points = start_points + start_points * perspective_factor
+        end_points = self.backend.numpy.where(
+            apply_perspective[:, None, None], end_points, start_points
+        )
 
         return {
             "apply_perspective": apply_perspective,

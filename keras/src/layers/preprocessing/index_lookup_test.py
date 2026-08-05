@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import pytest
+import tensorflow as tf
 from tensorflow import data as tf_data
 
 from keras.src import backend
@@ -342,9 +343,22 @@ class IndexLookupLayerTest(testing.TestCase):
         self.assertEqual(output_spec.shape, (None, 3, 4, 4))
         self.assertEqual(output_spec.dtype, backend.floatx())
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Sparse outputs are only supported with TensorFlow backend.",
+    )
     def test_sparse_outputs(self):
-        # TODO
-        pass
+        layer = layers.IntegerLookup(
+            vocabulary=[1, 2, 3],
+            output_mode="multi_hot",
+            sparse=True,
+        )
+        output = layer([[1, 2], [3, 4]])
+        self.assertEqual(backend.is_tensor(output), True)
+        self.assertIsInstance(output, tf.SparseTensor)
+        self.assertAllClose(
+            tf.sparse.to_dense(output), np.array([[0, 1, 1, 0], [1, 0, 0, 1]])
+        )
 
     def test_adapt_tf_idf(self):
         # Case: unbatched data

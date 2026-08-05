@@ -123,16 +123,18 @@ class AWQConfig(QuantizationConfig):
 
     def get_config(self):
         return {
-            # Dataset and Tokenizer are only required for one-time
-            # calibration and are not saved in the config.
+            # Dataset, tokenizer and quantization layer structure are only
+            # required for one-time calibration and are not saved in the
+            # config. The structure also holds references to live layer
+            # objects, which cannot be serialized.
             "dataset": None,
             "tokenizer": None,
+            "quantization_layer_structure": None,
             "weight_bits": self.weight_bits,
             "num_samples": self.num_samples,
             "sequence_length": self.sequence_length,
             "group_size": self.group_size,
             "num_grid_points": self.num_grid_points,
-            "quantization_layer_structure": self.quantization_layer_structure,
         }
 
     @classmethod

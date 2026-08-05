@@ -7,8 +7,89 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import testing
 from keras.src.trainers.data_adapters.data_adapter_utils import (
+    DistributedBatchSampler,
+)
+from keras.src.trainers.data_adapters.data_adapter_utils import (
     class_weight_to_sample_weights,
 )
+
+
+class TestDistributedBatchSampler(testing.TestCase):
+    @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
+    def test_basic_sharding(self):
+        # 10 batches total
+        batch_sampler = list(range(10))
+
+        # Test with 2 replicas
+        # Rank 0 should get [0, 2, 4, 6, 8]
+        sampler0 = DistributedBatchSampler(
+            batch_sampler, num_data_shards=2, data_shard_id=0
+        )
+        self.assertEqual(list(sampler0), [0, 2, 4, 6, 8])
+        self.assertEqual(len(sampler0), 5)
+
+        # Rank 1 should get [1, 3, 5, 7, 9]
+        sampler1 = DistributedBatchSampler(
+            batch_sampler, num_data_shards=2, data_shard_id=1
+        )
+        self.assertEqual(list(sampler1), [1, 3, 5, 7, 9])
+        self.assertEqual(len(sampler1), 5)
+
+    @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
+    def test_uneven_sharding(self):
+        # 11 batches total
+        batch_sampler = list(range(11))
+
+        # Test with 3 replicas
+        # Rank 0 should get [0, 3, 6, 9]
+        sampler0 = DistributedBatchSampler(
+            batch_sampler, num_data_shards=3, data_shard_id=0, drop_last=False
+        )
+        self.assertEqual(list(sampler0), [0, 3, 6, 9])
+        self.assertEqual(len(sampler0), 4)
+
+        # Rank 1 should get [1, 4, 7, 10]
+        sampler1 = DistributedBatchSampler(
+            batch_sampler, num_data_shards=3, data_shard_id=1, drop_last=False
+        )
+        self.assertEqual(list(sampler1), [1, 4, 7, 10])
+        self.assertEqual(len(sampler1), 4)
+
+        # Rank 2 should get [2, 5, 8]
+        sampler2 = DistributedBatchSampler(
+            batch_sampler, num_data_shards=3, data_shard_id=2, drop_last=False
+        )
+        self.assertEqual(list(sampler2), [2, 5, 8])
+        self.assertEqual(len(sampler2), 3)
+
+    @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
+    def test_drop_last(self):
+        # 11 batches total
+        batch_sampler = list(range(11))
+
+        # Test with 3 replicas and drop_last=True
+        # num_batches = 11 // 3 = 3 batches per replica
+        # Total used = 3 * 3 = 9 batches
+        # Rank 0: [0, 3, 6]
+        sampler0 = DistributedBatchSampler(
+            batch_sampler, num_data_shards=3, data_shard_id=0, drop_last=True
+        )
+        self.assertEqual(list(sampler0), [0, 3, 6])
+        self.assertEqual(len(sampler0), 3)
+
+        # Rank 1: [1, 4, 7]
+        sampler1 = DistributedBatchSampler(
+            batch_sampler, num_data_shards=3, data_shard_id=1, drop_last=True
+        )
+        self.assertEqual(list(sampler1), [1, 4, 7])
+        self.assertEqual(len(sampler1), 3)
+
+        # Rank 2: [2, 5, 8]
+        sampler2 = DistributedBatchSampler(
+            batch_sampler, num_data_shards=3, data_shard_id=2, drop_last=True
+        )
+        self.assertEqual(list(sampler2), [2, 5, 8])
+        self.assertEqual(len(sampler2), 3)
 
 
 class TestClassWeightToSampleWeights(testing.TestCase):
@@ -48,12 +129,39 @@ class TestClassWeightToSampleWeights(testing.TestCase):
                 {},
                 np.array([1.0, 1.0, 1.0, 1.0]),
             ),
+            (
+                "string_number_keys",
+                np.array([0, 1, 0, 2]),
+                {"0": 1.0, "1": 2.0, "2": 3.0},
+                np.array([1.0, 2.0, 1.0, 3.0]),
+            ),
+            (
+                "float_number_keys",
+                np.array([0, 1, 0, 2]),
+                {0.0: 1.0, 1.0: 2.0, 2.0: 3.0},
+                np.array([1.0, 2.0, 1.0, 3.0]),
+            ),
         ]
     )
     def test_class_weight_to_sample_weights(self, y, class_weight, expected):
         self.assertAllClose(
             class_weight_to_sample_weights(y, class_weight), expected
         )
+
+    def test_class_weight_to_sample_weights_invalid_key(self):
+        y = np.array([0, 1, 0, 2])
+        with self.assertRaisesRegex(ValueError, "integer keys"):
+            class_weight_to_sample_weights(y, {"invalid": 0.5})
+
+    def test_class_weight_to_sample_weights_non_dict(self):
+        y = np.array([0, 1, 0, 2])
+        with self.assertRaisesRegex(ValueError, "dict-like mapping"):
+            class_weight_to_sample_weights(y, "not_a_dict")
+
+    def test_class_weight_to_sample_weights_none_key(self):
+        y = np.array([0, 1, 0, 2])
+        with self.assertRaisesRegex(ValueError, "integer keys"):
+            class_weight_to_sample_weights(y, {None: 0.5})
 
     @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
     def test_class_weight_to_sample_weights_torch_specific(self):

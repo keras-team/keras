@@ -442,3 +442,89 @@ def get_layer_index_bound_by_layer_name(layers, layer_range=None):
     if min(lower_index) > max(upper_index):
         return [min(upper_index), max(lower_index) + 1]
     return [min(lower_index), max(upper_index) + 1]
+
+
+def print_quantization_summary(model, verbose=True):
+    """Build (and optionally print) a per-quantized-layer summary of a model.
+
+    See `Model.quantization_summary` for a description of the reported fields.
+
+    Args:
+        model: Keras model instance.
+        verbose: Whether to print the summary. Defaults to `True`. The summary
+            string is always returned.
+
+    Returns:
+        The summary as a string.
+    """
+
+    def _weight_bytes(weight):
+        num_elements = math.prod(weight.shape)
+        dtype = backend.standardize_dtype(weight.dtype)
+        return num_elements * dtype_utils.dtype_size(dtype) // 8
+
+    rows = []
+    total_quantized_bytes = 0
+    total_float_bytes = 0
+    total_logical_params = 0
+    for layer in model._flatten_layers():
+        # Only leaf layers (those without sub-layers) are quantizable.
+        if len(list(layer._flatten_layers())) != 1:
+            continue
+        mode = layer.quantization_mode
+        if mode is None:
+            continue
+        weights = list(layer.weights)
+        if not weights:
+            continue
+
+        # The primary quantized weight is the largest one (the kernel).
+        primary = max(weights, key=lambda w: math.prod(w.shape))
+        storage_dtype = backend.standardize_dtype(primary.dtype)
+        storage_bytes = _weight_bytes(primary)
+
+        # 4-bit modes pack two values per stored byte, so the logical
+        # (unpacked) element count is twice the stored count.
+        multiplier = 2 if mode in ("int4", "gptq", "awq") else 1
+        logical_params = math.prod(primary.shape) * multiplier
+        float_bytes = logical_params * 4  # float32 baseline.
+
+        rows.append(
+            {
+                "path": layer.path or layer.name,
+                "policy": layer.dtype_policy.name,
+                "dtype": storage_dtype,
+                "bytes": storage_bytes,
+            }
+        )
+        total_quantized_bytes += storage_bytes
+        total_float_bytes += float_bytes
+        total_logical_params += logical_params
+
+    lines = [f"Quantization summary for '{model.name}'", "=" * 65]
+    if not rows:
+        lines.append("No quantized layers found.")
+    else:
+        for row in rows:
+            lines.append(f"Layer: {row['path']}")
+            lines.append(f"  dtype policy : {row['policy']}")
+            lines.append(
+                f"  weight store : {row['dtype']} ({row['bytes']} bytes)"
+            )
+        lines.append("-" * 65)
+        lines.append(f"Quantized layers : {len(rows)}")
+        lines.append(f"Quantized params : {total_logical_params}")
+        ratio = (
+            total_float_bytes / total_quantized_bytes
+            if total_quantized_bytes
+            else 0.0
+        )
+        lines.append(
+            f"Weight storage   : {total_quantized_bytes} bytes quantized "
+            f"vs {total_float_bytes} bytes float32 "
+            f"({ratio:.2f}x smaller)"
+        )
+    summary = "\n".join(lines)
+    if verbose:
+        io_utils.print_msg(summary)
+    return summary

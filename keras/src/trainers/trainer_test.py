@@ -1005,10 +1005,6 @@ class TestTrainer(testing.TestCase):
         )
     )
     @pytest.mark.requires_trainable_backend
-    @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
-    )
     def test_steps_per_execution_steps_count(self, steps_per_execution, mode):
         data_size = 100
         batch_size = 16
@@ -1140,9 +1136,6 @@ class TestTrainer(testing.TestCase):
         )
     )
     def test_predict_preserve_order(self, steps_per_execution, mode):
-        if steps_per_execution > 1 and backend.backend() == "torch":
-            self.skipTest("`steps_per_execution` not implemented for torch yet")
-
         def generate_uneven_batches():
             batch_sizes = [2, 3, 4]
 
@@ -1190,9 +1183,6 @@ class TestTrainer(testing.TestCase):
         )
     )
     def test_predict_generator(self, steps_per_execution, mode):
-        if steps_per_execution > 1 and backend.backend() == "torch":
-            self.skipTest("`steps_per_execution` not implemented for torch yet")
-
         batch_size = 2
 
         def generate_batches():
@@ -1234,10 +1224,6 @@ class TestTrainer(testing.TestCase):
         )
     )
     @pytest.mark.requires_trainable_backend
-    @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
-    )
     def test_steps_per_execution_steps_count_unknown_dataset_size(
         self, steps_per_execution, mode
     ):
@@ -1317,10 +1303,6 @@ class TestTrainer(testing.TestCase):
         )
     )
     @pytest.mark.requires_trainable_backend
-    @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
-    )
     def test_steps_per_execution_steps_per_epoch(
         self, steps_per_epoch_test, mode
     ):
@@ -1593,10 +1575,6 @@ class TestTrainer(testing.TestCase):
         )
     )
     @pytest.mark.requires_trainable_backend
-    @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
-    )
     def test_steps_per_execution_steps_per_epoch_unknown_data_size(
         self, steps_per_epoch_test, mode
     ):
@@ -1712,10 +1690,6 @@ class TestTrainer(testing.TestCase):
                 model.evaluate(dataset), model_2.evaluate(dataset)
             )
 
-    @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
-    )
     def test_steps_per_execution_steps_count_without_training(self):
         test_obj = self
 
@@ -1764,6 +1738,52 @@ class TestTrainer(testing.TestCase):
         loss1 = model.evaluate(x, y, batch_size=80)
         loss2 = model.evaluate(x, y, batch_size=100)
         self.assertAllClose(loss1, loss2)
+
+    def test_evaluate_fixed_batch_dim_graph_matches_eager(self):
+        import tensorflow as tf
+
+        batch_size = 4
+        num_samples = 32
+
+        x_data = np.random.randn(num_samples, 4).astype(np.float32)
+        y_data = np.random.randn(num_samples, 1).astype(np.float32)
+
+        def make_dataset():
+            def gen():
+                for i in range(0, num_samples, batch_size):
+                    yield (
+                        x_data[i : i + batch_size],
+                        y_data[i : i + batch_size],
+                    )
+
+            return tf.data.Dataset.from_generator(
+                gen,
+                output_signature=(
+                    tf.TensorSpec((batch_size, 4), tf.float32),
+                    tf.TensorSpec((batch_size, 1), tf.float32),
+                ),
+            )
+
+        # Graph mode
+        model_graph = ExampleModel(units=1)
+        model_graph.compile(loss="mse", metrics=["mae"], run_eagerly=False)
+        graph_result = model_graph.evaluate(
+            make_dataset(), verbose=0, return_dict=True
+        )
+
+        # Eager mode
+        model_eager = ExampleModel(units=1)
+        model_eager.compile(loss="mse", metrics=["mae"], run_eagerly=True)
+        eager_result = model_eager.evaluate(
+            make_dataset(), verbose=0, return_dict=True
+        )
+
+        self.assertAllClose(
+            graph_result["mae"],
+            eager_result["mae"],
+            atol=1e-5,
+            rtol=1e-5,
+        )
 
     @pytest.mark.requires_trainable_backend
     def test_adds_loss_scaling_optimizer(self):
@@ -2209,19 +2229,21 @@ class TestTrainer(testing.TestCase):
         y = model.predict(x)
         self.assertEqual(type(y), tf.RaggedTensor)
 
-    def test_predict_dropout(self):
+    def test_functional_layer_training_overrides_model_training_argument(self):
         # Test that `predict` with a dropout op
         # has nondeterministic behavior across batches.
 
         inputs = layers.Input((20,))
+        # Passing `training=True` during construction will force dropout to be
+        # enabled even during predict.
         outputs = layers.Dropout(0.5, seed=1337)(inputs, training=True)
         model = keras.Model(inputs, outputs)
         out1 = model.predict(np.ones((4, 20)), batch_size=2)
-        self.assertGreater(5, np.sum(np.abs(out1[:2, :] - out1[2:4, :])))
+        self.assertNotAllClose(out1[:2, :], out1[2:4, :])
 
         out2 = model.predict_on_batch(np.ones((2, 20)))
         out3 = model.predict_on_batch(np.ones((2, 20)))
-        self.assertGreater(5, np.sum(np.abs(out2 - out3)))
+        self.assertNotAllClose(out2, out3)
 
     def test_invalid_target_shape_compatibility_checking(self):
         inputs = layers.Input(shape=(3,))
@@ -2830,7 +2852,8 @@ class TestTrainer(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
         backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
+        reason="Torch uses a Python bundling loop; side-effect counters "
+        "will increment for every batch even after compilation.",
     )
     def test_retracing(self):
         x = np.ones((100, 4))
@@ -2866,7 +2889,8 @@ class TestTrainer(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
         backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
+        reason="Torch uses a Python bundling loop; side-effect counters "
+        "will increment for every batch even after compilation.",
     )
     @pytest.mark.skipif(
         backend.backend() == "tensorflow",

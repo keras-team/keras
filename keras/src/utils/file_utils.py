@@ -321,7 +321,7 @@ def get_file(
                 "Please specify the `fname` argument."
             )
     else:
-        if os.sep in fname:
+        if os.sep in fname or (os.altsep and os.altsep in fname):
             raise ValueError(
                 "Paths are no longer accepted as the `fname` argument. "
                 "To specify the file's parent directory, use "

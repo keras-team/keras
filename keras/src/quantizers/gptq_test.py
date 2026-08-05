@@ -1,3 +1,4 @@
+import os
 from collections.abc import Callable
 
 import numpy as np
@@ -9,11 +10,13 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
+from keras.src import saving
 from keras.src import testing
 from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.gptq import _stable_permutation
 from keras.src.quantizers.gptq import gptq_quantize_matrix
 from keras.src.quantizers.gptq_config import GPTQConfig
+from keras.src.quantizers.gptq_core import find_layers_in_block
 from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
@@ -382,6 +385,28 @@ class GPTQTest(testing.TestCase):
             msg="Weights should be identical as the permutation is undone.",
         )
 
+    def test_find_layers_in_block_includes_layers_with_sub_layers(self):
+        """`Dense`/`EinsumDense` are collected even when they own sub-layers.
+
+        A `Dense` whose activation is a `Layer` owns that `Layer`, so a leaf
+        filter would wrongly hide it from calibration. `find_layers_in_block`
+        must return both such a `Dense` and a plain `Dense`.
+        """
+        block = models.Sequential(
+            [
+                layers.Dense(8, activation=layers.ReLU()),
+                layers.Dense(8),
+            ]
+        )
+        block.build((None, 8))
+
+        found = find_layers_in_block(block)
+
+        self.assertEqual(len(found), 2)
+        for dense in block.layers:
+            self.assertIn(dense.path, found)
+            self.assertIs(found[dense.path], dense)
+
 
 def _compute_scale_zero(x, **_):
     # Per-column asymmetric int4 example
@@ -733,3 +758,220 @@ class TestModelQuantization(testing.TestCase):
         # Check that layer1 is not quantized.
         self.assertIsNone(getattr(layer1, "quantization_mode", None))
         self.assertFalse(hasattr(layer1, "quantized_kernel"))
+
+    def test_gptq_save_load_round_trip(self):
+        """Full GPTQ quantize -> save -> load round trip.
+
+        Only the Dense layers inside the structure's ``sequential_blocks``
+        are quantized; the embedding and classifier head stay untouched,
+        and predictions are reproduced after a save/load cycle.
+        """
+        keras.utils.set_random_seed(123)
+        embed_dim = 8
+
+        block = models.Sequential(
+            [
+                layers.Dense(16, activation="relu"),
+                layers.Dense(embed_dim),
+            ]
+        )
+
+        inputs = layers.Input(shape=(SEQ_LEN,), dtype="int32")
+        embedding = layers.Embedding(VOCAB_SIZE, embed_dim)
+        x = embedding(inputs)
+        x = block(x)
+        x = layers.GlobalAveragePooling1D()(x)
+        head = layers.Dense(NUM_CLASSES)
+        outputs = head(x)
+        model = models.Model(inputs, outputs)
+
+        rng = np.random.default_rng(seed=7)
+        dataset = [
+            rng.integers(0, VOCAB_SIZE, size=(1, SEQ_LEN), dtype=np.int32)
+            for _ in range(4)
+        ]
+        tokenizer = _char_tokenizer(vocab_size=VOCAB_SIZE, seq_len=SEQ_LEN)
+
+        config = GPTQConfig(
+            dataset=dataset,
+            tokenizer=tokenizer,
+            weight_bits=4,
+            group_size=8,
+            num_samples=4,
+            sequence_length=SEQ_LEN,
+            quantization_layer_structure={
+                "pre_block_layers": [embedding],
+                "sequential_blocks": [block],
+            },
+        )
+
+        model.quantize("gptq", config=config)
+
+        # In-structure Dense layers are quantized and calibrated.
+        for dense in block.layers:
+            self.assertEqual(dense.quantization_mode, "gptq")
+            self.assertTrue(dense.is_gptq_calibrated)
+
+        # Out-of-structure layers must stay completely untouched.
+        self.assertIsNone(getattr(head, "quantization_mode", None))
+        self.assertFalse(hasattr(head, "quantized_kernel"))
+        self.assertIsNone(getattr(embedding, "quantization_mode", None))
+        self.assertFalse(hasattr(embedding, "quantized_kernel"))
+
+        # Predictions survive a save/load round trip.
+        eval_rng = np.random.default_rng(seed=99)
+        x_eval = eval_rng.integers(
+            0, VOCAB_SIZE, size=(4, SEQ_LEN), dtype=np.int32
+        )
+        y_before = model.predict(x_eval)
+
+        path = os.path.join(self.get_temp_dir(), "gptq_model.keras")
+        model.save(path)
+        reloaded = saving.load_model(path)
+        y_after = reloaded.predict(x_eval)
+
+        self.assertAllClose(y_before, y_after)
+
+    def test_gptq_calibrates_dense_with_layer_activation(self):
+        """A `Dense` with a `Layer` activation inside a block is calibrated.
+
+        The activation `Layer` makes the `Dense` a non-leaf, but GPTQ must
+        still discover and calibrate it: after `quantize("gptq")` the layer
+        is in `gptq` mode with `is_gptq_calibrated` set.
+        """
+        keras.utils.set_random_seed(123)
+        embed_dim = 8
+
+        block = models.Sequential(
+            [layers.Dense(embed_dim, activation=layers.ReLU())]
+        )
+
+        inputs = layers.Input(shape=(SEQ_LEN,), dtype="int32")
+        embedding = layers.Embedding(VOCAB_SIZE, embed_dim)
+        x = embedding(inputs)
+        x = block(x)
+        x = layers.GlobalAveragePooling1D()(x)
+        outputs = layers.Dense(NUM_CLASSES)(x)
+        model = models.Model(inputs, outputs)
+
+        rng = np.random.default_rng(seed=7)
+        dataset = [
+            rng.integers(0, VOCAB_SIZE, size=(1, SEQ_LEN), dtype=np.int32)
+            for _ in range(4)
+        ]
+        tokenizer = _char_tokenizer(vocab_size=VOCAB_SIZE, seq_len=SEQ_LEN)
+
+        config = GPTQConfig(
+            dataset=dataset,
+            tokenizer=tokenizer,
+            weight_bits=4,
+            group_size=8,
+            num_samples=4,
+            sequence_length=SEQ_LEN,
+            quantization_layer_structure={
+                "pre_block_layers": [embedding],
+                "sequential_blocks": [block],
+            },
+        )
+
+        model.quantize("gptq", config=config)
+
+        act_dense = block.layers[0]
+        self.assertEqual(act_dense.quantization_mode, "gptq")
+        self.assertTrue(act_dense.is_gptq_calibrated)
+
+    def test_gptq_missing_structure_leaves_model_unmodified(self):
+        """A config without a structure raises before any layer is mutated."""
+        model = _get_simple_model()
+        dense = model.layers[0]
+
+        config = GPTQConfig(dataset=["a"], tokenizer=lambda x: x)
+
+        with self.assertRaisesRegex(
+            ValueError, "a valid quantization structure"
+        ):
+            model.quantize("gptq", config=config)
+
+        # The model must be left unmodified when the structure is missing.
+        self.assertIsNone(getattr(dense, "quantization_mode", None))
+        self.assertFalse(hasattr(dense, "quantized_kernel"))
+
+    def test_gptq_save_load_round_trip_einsum_dense_block(self):
+        """Regression test for a RecursionError when saving a GPTQ model.
+
+        Saving a GPTQ-quantized model used to raise a RecursionError because
+        `GPTQConfig.get_config` serialized `quantization_layer_structure`,
+        which holds live model layers, forming a reference cycle
+        (layer -> config -> layer). This builds a tiny model whose quantized
+        block contains both `Dense` and `EinsumDense` (unlike the Dense-only
+        round trip above), saves it, reloads it, and checks the predictions
+        are preserved exactly.
+        """
+        vocab_size, seq_len, embed_dim = 32, 8, 4
+
+        inputs = layers.Input(shape=(seq_len,), dtype="int32")
+        embedding = layers.Embedding(vocab_size, embed_dim)
+        x = embedding(inputs)
+        block = models.Sequential(
+            [
+                layers.Dense(embed_dim, activation="relu"),
+                layers.EinsumDense(
+                    "abc,cd->abd", output_shape=(seq_len, embed_dim)
+                ),
+            ]
+        )
+        x = block(x)
+        x = layers.GlobalAveragePooling1D()(x)
+        head = layers.Dense(2)
+        outputs = head(x)
+        model = models.Model(inputs, outputs)
+
+        rng = np.random.default_rng(seed=13)
+        dataset = [
+            rng.integers(0, vocab_size, size=(1, seq_len)).astype("int32")
+            for _ in range(3)
+        ]
+        config = GPTQConfig(
+            dataset=dataset,
+            tokenizer=lambda text: text,
+            weight_bits=4,
+            num_samples=2,
+            sequence_length=seq_len,
+            group_size=4,
+            quantization_layer_structure={
+                "pre_block_layers": [embedding],
+                "sequential_blocks": [block],
+            },
+        )
+
+        # Layers outside the structure (embedding, pooling, head) are not
+        # quantized at all, so the round-trip can be compared exactly.
+        model.quantize("gptq", config=config)
+        self.assertIsNone(getattr(head, "quantization_mode", None))
+
+        # The embedding only supports int8/int4; `quantize` must reject the
+        # unsupported mode without stashing a stale GPTQ config on it.
+        self.assertIsNone(embedding.quantization_config)
+
+        x_eval = rng.integers(0, vocab_size, size=(2, seq_len)).astype("int32")
+        y_quantized = model.predict(x_eval)
+
+        # This `save` used to raise a RecursionError.
+        path = os.path.join(self.get_temp_dir(), "model.keras")
+        model.save(path)
+        restored = saving.load_model(path)
+        y_restored = restored.predict(x_eval)
+        self.assertAllClose(y_quantized, y_restored)
+
+        # The quantized block state survives the round-trip.
+        restored_block = next(
+            l for l in restored.layers if isinstance(l, models.Sequential)
+        )
+        restored_dense = restored_block.layers[0]
+        self.assertEqual(
+            getattr(restored_dense, "quantization_mode", None), "gptq"
+        )
+        self.assertTrue(hasattr(restored_dense, "quantized_kernel"))
+        self.assertIsNone(
+            restored_dense.quantization_config.quantization_layer_structure
+        )

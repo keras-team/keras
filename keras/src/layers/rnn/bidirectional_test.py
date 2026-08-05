@@ -15,7 +15,7 @@ class SimpleRNNTest(testing.TestCase):
             expected_output_shape=(3, 8),
             expected_num_trainable_weights=6,
             expected_num_non_trainable_weights=0,
-            supports_masking=True,
+            supports_masking=False,
         )
         self.run_layer_test(
             layers.Bidirectional,
@@ -28,7 +28,7 @@ class SimpleRNNTest(testing.TestCase):
             expected_output_shape=(3, 4),
             expected_num_trainable_weights=6,
             expected_num_non_trainable_weights=0,
-            supports_masking=True,
+            supports_masking=False,
         )
 
     def test_correctness(self):

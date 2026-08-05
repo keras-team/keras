@@ -5,6 +5,7 @@ import warnings
 import tensorflow as tf
 
 from keras.src import backend
+from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
     check_conv_transpose_input_channels,
@@ -138,6 +139,8 @@ def celu(x, alpha=1.0):
 
 
 def glu(x, axis=-1):
+    x = convert_to_tensor(x)
+    canonicalize_axis(axis, len(x.shape))
     if x.shape[axis] % 2 != 0:
         raise ValueError(
             "axis size must be divisible by 2. "
@@ -807,6 +810,26 @@ def conv(
     data_format=None,
     dilation_rate=1,
 ):
+    data_format = backend.standardize_data_format(data_format)
+    inputs = convert_to_tensor(inputs)
+    kernel = convert_to_tensor(kernel)
+    num_spatial_dims = len(inputs.shape) - 2
+    if isinstance(strides, int):
+        strides = (strides,) * num_spatial_dims
+    else:
+        strides = tuple(strides)
+    if isinstance(dilation_rate, int):
+        dilation_rate = (dilation_rate,) * num_spatial_dims
+    else:
+        dilation_rate = tuple(dilation_rate)
+    # `tf.nn.convolution` rejects `strides > 1` together with
+    # `dilation_rate > 1`. Decompose into a dilated stride-1 conv plus
+    # subsampling, matching the JAX/Torch backends and the symbolic path.
+    if _needs_depthwise_stride_dilation_decomposition(strides, dilation_rate):
+        return _conv_stride_dilation_decomposition(
+            inputs, kernel, strides, padding, data_format, dilation_rate
+        )
+
     def _conv():
         tf_data_format = _convert_data_format(data_format, len(inputs.shape))
         result = tf.nn.convolution(
@@ -842,7 +865,6 @@ def conv(
     # Channels first "NCDHW" (3d convolutions) are broken on CPU without XLA.
     needs_xla = data_format == "channels_first" and len(inputs.shape) == 5
     # grouped convolutions are broken on CPU without XLA.
-    data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_last":
         channels = inputs.shape[-1]
     else:
@@ -949,6 +971,59 @@ def _depthwise_conv_stride_dilation_decomposition(
 
     if num_spatial_dims == 1:
         outputs = tf.squeeze(outputs, [1])
+
+    if data_format == "channels_first":
+        outputs = _transpose_spatial_outputs(outputs)
+
+    return outputs
+
+
+def _conv_stride_dilation_decomposition(
+    inputs, kernel, strides, padding, data_format, dilation_rate
+):
+    # Compute a regular conv with both stride > 1 and dilation > 1 by running
+    # the dilated conv at stride 1 (which `tf.nn.convolution` supports) and
+    # subsampling the result. Always computed in `channels_last` layout.
+    num_spatial_dims = len(inputs.shape) - 2
+    padding = padding.upper()
+
+    if data_format == "channels_first":
+        inputs = _transpose_spatial_inputs(inputs)
+
+    kernel_size = tuple(int(i) for i in kernel.shape[:num_spatial_dims])
+
+    if padding == "SAME":
+        inputs = _pad_same_spatial_channels_last(
+            inputs, kernel_size, strides, dilation_rate
+        )
+    elif padding != "VALID":
+        raise ValueError(
+            f"`padding` must be 'valid' or 'same'. Received: padding={padding}"
+        )
+
+    def _run_conv():
+        return tf.nn.convolution(
+            inputs,
+            kernel,
+            strides=1,
+            padding="VALID",
+            data_format=_convert_data_format(
+                "channels_last", num_spatial_dims + 2
+            ),
+            dilations=dilation_rate,
+        )
+
+    # Grouped convolutions are broken on CPU without XLA (see `conv`).
+    # `inputs` is already `channels_last` at this point.
+    if inputs.shape[-1] != kernel.shape[-2]:
+        outputs = tf.function(_run_conv, jit_compile=True)()
+    else:
+        outputs = _run_conv()
+
+    slices = [slice(None)]
+    slices.extend(slice(None, None, s) for s in strides)
+    slices.append(slice(None))
+    outputs = outputs[tuple(slices)]
 
     if data_format == "channels_first":
         outputs = _transpose_spatial_outputs(outputs)
@@ -1754,6 +1829,19 @@ def dot_product_attention(
     query = cast(query, compute_dtype)
     key = cast(key, compute_dtype)
     value = cast(value, compute_dtype)
+
+    num_query_heads = query.shape[2]
+    num_kv_heads = key.shape[2]
+    if (
+        num_query_heads is not None
+        and num_kv_heads is not None
+        and num_query_heads > num_kv_heads
+        and num_kv_heads > 1
+    ):
+        groups = num_query_heads // num_kv_heads
+        key = tf.repeat(key, repeats=groups, axis=2)
+        value = tf.repeat(value, repeats=groups, axis=2)
+
     if bias is not None:
         bias = convert_to_tensor(bias, dtype=compute_dtype)
 

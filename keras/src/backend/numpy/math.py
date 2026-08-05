@@ -68,36 +68,48 @@ def segment_prod(data, segment_ids, num_segments=None, sorted=False):
     )
 
 
-def top_k(x, k, sorted=True):
-    if sorted:
-        # Take the k largest values.
-        sorted_indices = np.argsort(x, axis=-1)[..., ::-1]
-        sorted_values = np.take_along_axis(x, sorted_indices, axis=-1)
-        top_k_values = sorted_values[..., :k]
-        top_k_indices = sorted_indices[..., :k]
-    else:
+def top_k(x, k, sorted=True, is_stable=True):
+    if not is_stable and not sorted:
         # Partition the array such that all values larger than the k-th
         # largest value are to the right of it.
         top_k_indices = np.argpartition(x, -k, axis=-1)[..., -k:]
         top_k_values = np.take_along_axis(x, top_k_indices, axis=-1)
-    return top_k_values, top_k_indices
+        return top_k_values, top_k_indices
+    if not is_stable and sorted:
+        # Take the k largest values.
+        sorted_indices = np.argsort(x, axis=-1)[..., ::-1]
+        sorted_values = np.take_along_axis(x, sorted_indices, axis=-1)
+        return sorted_values[..., :k], sorted_indices[..., :k]
+    # Universal Reverse-Argsort-Reverse stable sort:
+    x_rev = np.flip(x, axis=-1)
+    rev_indices = np.argsort(x_rev, axis=-1, kind="stable")[..., ::-1]
+    orig_indices = x.shape[-1] - 1 - rev_indices
+    values = np.take_along_axis(x, orig_indices, axis=-1)
+    return values[..., :k], orig_indices[..., :k]
 
 
 def in_top_k(targets, predictions, k):
-    targets = targets[:, None]
-    topk_values = top_k(predictions, k)[0]
+    targets = targets[..., None]
+    topk_values = top_k(predictions, k, sorted=False, is_stable=False)[0]
     targets_values = np.take_along_axis(predictions, targets, axis=-1)
     mask = targets_values >= topk_values
     return np.any(mask, axis=-1)
 
 
 def logsumexp(x, axis=None, keepdims=False):
-    return scipy.special.logsumexp(x, axis=axis, keepdims=keepdims)
+    x = convert_to_tensor(x)
+    dtype = dtypes.result_type(x.dtype, float)
+    return scipy.special.logsumexp(x, axis=axis, keepdims=keepdims).astype(
+        dtype
+    )
 
 
 def cdist(x, y):
     x = np.asarray(x)
     y = np.asarray(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype, float)
+    x = x.astype(dtype)
+    y = y.astype(dtype)
     if x.ndim < 2 or y.ndim < 2:
         raise ValueError("`cdist` inputs must have rank >= 2")
     if x.shape[-1] != y.shape[-1]:
@@ -297,7 +309,7 @@ def istft(
     if length is not None:
         end = start + length
     elif center is True:
-        end = -(fft_length // 2)
+        end = expected_output_len - (fft_length // 2)
     else:
         end = expected_output_len
     return x[..., start:end]
@@ -319,7 +331,9 @@ def erfc(x):
 
 
 def erfinv(x):
-    return np.array(scipy.special.erfinv(x))
+    x = convert_to_tensor(x)
+    dtype = dtypes.result_type(x.dtype, float)
+    return scipy.special.erfinv(x).astype(dtype)
 
 
 def logdet(x):

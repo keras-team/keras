@@ -19,7 +19,6 @@ And some more magic:
 import collections
 import functools
 import inspect
-import math
 import warnings
 from functools import wraps
 
@@ -252,11 +251,12 @@ class Layer(BackendLayer, Operation):
             obj._check_quantize_args(mode, obj.compute_dtype)
             obj._tracker.unlock()
             try:
-                original_quantize_method(mode=mode, config=config, **kwargs)
-            except Exception:
-                raise
+                result = original_quantize_method(
+                    mode=mode, config=config, **kwargs
+                )
             finally:
                 obj._tracker.lock()
+            return result
 
         obj.quantize = quantize_wrapper
 
@@ -342,7 +342,6 @@ class Layer(BackendLayer, Operation):
         self._build_shapes_dict = None
         # Parent path
         self._parent_path = None
-        self._remat_mode = get_current_remat_mode()
         self._initialize_tracker()
 
     @tracking.no_automatic_dependency_tracking
@@ -1070,17 +1069,19 @@ class Layer(BackendLayer, Operation):
         # 1) user explicitly passed it?
         if arg_name in call_spec.user_arguments_dict:
             value = call_spec.user_arguments_dict[arg_name]
+            call_context.set_value(arg_name, value)
         # 2) else: inherited from outer layer call?
         elif call_context.get_value(arg_name) is not None:
             value = call_context.get_value(arg_name)
-        # 3) else: default from the call() signature
+        # 3) else: default from the call() signature. This stays local: the
+        # call context is shared across the whole call tree, so propagating
+        # it would let a non-None default (e.g. a preprocessing layer's
+        # `training=True`) leak to sibling and downstream layers. The bound
+        # `call()` still applies its own default, so there is nothing
+        # further to do here.
         else:
-            value = call_spec.arguments_dict.get(arg_name, None)
+            return
 
-        # stash it for downstream layers
-        call_context.set_value(arg_name, value)
-
-        # only inject it if this layer actually accepts it and it's not None
         if (
             self._call_has_context_arg.get(arg_name, False)
             and value is not None
@@ -1170,26 +1171,43 @@ class Layer(BackendLayer, Operation):
         )
         mapping = list(trainable_mapping) + list(non_trainable_mapping)
 
-        # Call in stateless scope
-        losses = None
-        with backend.StatelessScope(
-            state_mapping=mapping, collect_losses=return_losses
-        ) as scope:
-            if self.dtype_policy.quantization_mode is not None:
-                if self._remat_mode is not None:
+        # Caches info about `call()` signature, args, kwargs.
+        call_spec = CallSpec(
+            self._call_signature, self._call_context_args, args, kwargs
+        )
+
+        # Maintains info about the `Layer.call` stack across nested calls.
+        call_context = self._get_call_context()
+
+        for context_arg in self._call_context_args:
+            self._resolve_and_populate_arg(
+                context_arg, call_spec, call_context, kwargs
+            )
+
+        try:
+            # Call in stateless scope
+            losses = None
+            with backend.StatelessScope(
+                state_mapping=mapping, collect_losses=return_losses
+            ) as scope:
+                if self.dtype_policy.quantization_mode is not None:
+                    if self._remat_mode is not None:
+                        outputs = self.rematerialized_call(
+                            self.quantized_call, *args, **kwargs
+                        )(*args, **kwargs)
+                    else:
+                        outputs = self.quantized_call(*args, **kwargs)
+                elif self._remat_mode is not None:
                     outputs = self.rematerialized_call(
-                        self.quantized_call, *args, **kwargs
+                        self.call, *args, **kwargs
                     )(*args, **kwargs)
                 else:
-                    outputs = self.quantized_call(*args, **kwargs)
-            elif self._remat_mode is not None:
-                outputs = self.rematerialized_call(self.call, *args, **kwargs)(
-                    *args, **kwargs
-                )
-            else:
-                outputs = self.call(*args, **kwargs)
-            if return_losses:
-                losses = self.losses
+                    outputs = self.call(*args, **kwargs)
+                if return_losses:
+                    losses = self.losses
+        finally:
+            # Destroy call context if we created it
+            self._maybe_reset_call_context()
 
         # Gather updated non-trainable variables
         non_trainable_variables = []
@@ -1392,6 +1410,8 @@ class Layer(BackendLayer, Operation):
             return self._float8_call(*args, **kwargs)
         elif self.quantization_mode == "int4":
             return self._int4_call(*args, **kwargs)
+        elif self.quantization_mode == "ternary":
+            return self._ternary_call(*args, **kwargs)
         elif self.quantization_mode == "gptq":
             return self._gptq_call(*args, **kwargs)
         elif self.quantization_mode == "awq":
@@ -1401,6 +1421,9 @@ class Layer(BackendLayer, Operation):
 
     def _int4_call(self, *args, **kwargs):
         raise self._not_implemented_error(self._int4_call)
+
+    def _ternary_call(self, *args, **kwargs):
+        raise self._not_implemented_error(self._ternary_call)
 
     def _int8_call(self, *args, **kwargs):
         raise self._not_implemented_error(self._int8_call)
@@ -1631,12 +1654,21 @@ class Layer(BackendLayer, Operation):
                 self._initialize_tracker()
             value = self._tracker.track(value)
 
-        # NNX-specific bypass for `_called` and `built` attributes
-        # bypass nnx.Module.__setattr__ which cannot be called while tracing
+        # NNX-specific bypass for Keras-internal bookkeeping attributes:
+        # some are set during a traced call (e.g. inside the jitted train
+        # step), which nnx.Module.__setattr__ forbids, and
+        # `_compiled_trainable_state` is a dict keyed by layer objects,
+        # which flax's attribute scanning cannot process.
         if (
             backend.backend() == "jax"
             and is_nnx_enabled()
-            and (name == "_called" or name == "built")
+            and name
+            in (
+                "_called",
+                "built",
+                "_losses_override",
+                "_compiled_trainable_state",
+            )
         ):
             object.__setattr__(self, name, value)
             return
@@ -1769,36 +1801,9 @@ class Layer(BackendLayer, Operation):
         Returns:
             Rematerialized layer's `call` method.
         """
-
-        def compute_size(x):
-            return (
-                math.prod([d or 1 for d in x.shape])
-                if isinstance(x, KerasTensor)
-                else 0
-            )
-
-        # Full rematerialization
-        if self._remat_mode.mode == "full":
-            return remat.remat(layer_call)
-
-        # Apply rematerialization to specific layers
-        elif self._remat_mode.mode == "list_of_layers" and (
-            self.name in self._remat_mode.layer_names
-        ):
-            return remat.remat(layer_call)
-
-        # Apply rematerialization based on output size threshold
-        elif self._remat_mode.mode == "larger_than":
-            output_spec = self.compute_output_spec(*args, **kwargs)
-            output_size = sum(
-                tree.flatten(tree.map_structure(compute_size, output_spec))
-            )
-            if (
-                output_size
-                and output_size > self._remat_mode.output_size_threshold
-            ):
-                return remat.remat(layer_call)
-        elif self._remat_mode.mode == "activations":
+        if not self._remat_mode:
+            return layer_call
+        if self._remat_mode.mode == "activations":
             has_activation = (
                 hasattr(self, "activation") and self.activation is not None
             )
@@ -1814,7 +1819,11 @@ class Layer(BackendLayer, Operation):
                         self.activation = original_activation
 
                 return rematerialized_activation_call_wrapper
-        return layer_call
+        elif self._remat_mode.mode == "list_of_layers" and (
+            self.name in self._remat_mode.layer_names
+        ):
+            return remat.remat(layer_call)
+        return super().rematerialized_call(layer_call, *args, **kwargs)
 
     def _register_call_context_args(self, *names):
         """Registers call-context args for this layer.

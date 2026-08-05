@@ -31,11 +31,8 @@ defaults:
 
 permissions:
   contents: 'read'
-  id-token: 'write'
   issues: 'write'
-  statuses: 'write'
-  packages: 'read'
-  actions: 'write' # Required for cancelling a workflow run
+  actions: 'write'
 
 jobs:
   triage-issue:
@@ -53,16 +50,22 @@ jobs:
       )
     timeout-minutes: 5
     runs-on: 'ubuntu-latest'
+    env:
+      # The Gemini CLI refuses to run in a directory it does not consider
+      # trusted, which is every fresh checkout on a runner.
+      GEMINI_CLI_TRUST_WORKSPACE: 'true'
     steps:
       - name: 'Get issue data for manual trigger'
         id: 'get_issue_data'
         if: |-
           github.event_name == 'workflow_dispatch'
-        uses: 'actions/github-script@v9'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          ISSUE_NUMBER: '${{ github.event.inputs.issue_number || inputs.issue_number }}'
         with:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
           script: |
-            const issueNumber = ${{ github.event.inputs.issue_number || inputs.issue_number }};
+            const issueNumber = process.env.ISSUE_NUMBER;
             const { data: issue } = await github.rest.issues.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -74,11 +77,13 @@ jobs:
             return issue;
 
       - name: 'Checkout'
-        uses: 'actions/checkout@v6'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: 'Get Repository Labels'
         id: 'get_labels'
-        uses: 'actions/github-script@v9'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
           script: |-
@@ -117,7 +122,7 @@ jobs:
             ${{ github.event_name == 'workflow_dispatch' && steps.get_issue_data.outputs.title || github.event.issue.title }}
           ISSUE_BODY: >-
             ${{ github.event_name == 'workflow_dispatch' && steps.get_issue_data.outputs.body || github.event.issue.body }}
-        uses: 'actions/github-script@v9'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
           script: |-
@@ -140,7 +145,7 @@ jobs:
                 // Use git grep to find matches in tracked files
                 const gitGrepOutput = execSync(`git grep -l "${searchTerms[0]}" -- keras/ || true`, { encoding: 'utf-8' });
                 const files = gitGrepOutput.split('\n').filter(Boolean).slice(0, 3); // Top 3 files
-                
+
                 for (const file of files) {
                   filesFound.add(file);
                   const content = fs.readFileSync(file, 'utf8');
@@ -162,7 +167,7 @@ jobs:
         run: mkdir -p ~/.gemini
 
       - name: 'Run Gemini Issue Analysis & Response'
-        uses: 'google-github-actions/run-gemini-cli@v0.1.22'
+        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
         id: 'gemini_issue_analysis'
         env:
           GITHUB_TOKEN: '' # Do not pass any auth token here
@@ -174,7 +179,11 @@ jobs:
           SEARCH_CONTEXT: '${{ steps.search_codebase.outputs.search_context }}'
         with:
           gemini_api_key: '${{ secrets.GEMINI_API }}'
-          gemini_model: 'gemini-2.5-pro'
+          # Triage classifies an issue and emits a small JSON object, which
+          # the flash tier handles well within the job timeout. `-pro` is
+          # not served to this API key: the CLI failed with "models/
+          # gemini-2.5-pro is not found for API version v1beta".
+          gemini_model: 'gemini-3.5-flash'
           settings: |-
             {
               "maxSessionTurns": 5,
@@ -233,6 +242,14 @@ jobs:
             - user error: Issue caused by incorrect usage, not a bug.
             - to investigate: Issue needs further investigation.
 
+      - name: 'Report Gemini failure'
+        if: |-
+          ${{ failure() && steps.gemini_issue_analysis.outcome == 'failure' }}
+        env:
+          GEMINI_ERROR: '${{ steps.gemini_issue_analysis.outputs.error }}'
+        run: |-
+          echo "::error title=Gemini triage failed::${GEMINI_ERROR:-See the step logs.}"
+
       - name: 'Apply Labels and Post Response'
         if: |-
           ${{ steps.gemini_issue_analysis.outputs.summary != '' }}
@@ -240,7 +257,7 @@ jobs:
           ISSUE_NUMBER: '${{ github.event.issue.number || github.event.inputs.issue_number }}'
           LABELS_OUTPUT: '${{ steps.gemini_issue_analysis.outputs.summary }}'
           ALLOWED_LABELS: '${{ steps.get_labels.outputs.available_labels }}'
-        uses: 'actions/github-script@v9'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
           script: |
@@ -259,7 +276,7 @@ jobs:
             try {
               parsed = JSON.parse(rawOutput);
             } catch (e) {
-              core.error("Failed to parse LLM output as JSON", e);
+              core.error(`Failed to parse LLM output as JSON: ${e.message}`);
               core.setFailed(`Failed to parse model output.\nRaw output: ${rawOutput}`);
               return;
             }
@@ -267,9 +284,9 @@ jobs:
             // 1. Strict Label Allowlist
             const requestedLabels = parsed.labels_to_set || [];
             labelsToAdd = requestedLabels.filter(label => ALLOWED_LABELS.includes(label));
-            
+
             if (requestedLabels.length !== labelsToAdd.length) {
-              core.warn("Blocked unauthorized labels: " + requestedLabels.filter(l => !ALLOWED_LABELS.includes(l)).join(', '));
+              core.warning(`Blocked unauthorized labels: ${requestedLabels.filter(l => !ALLOWED_LABELS.includes(l)).join(', ')}`);
             }
 
             // 2. Template-Based Comments (Avoid arbitrary LLM text)
@@ -287,11 +304,11 @@ jobs:
             })).data;
             const issueAuthor = issueData.user.login;
 
-            const triageReason = parsed.triage_reason; 
+            const triageReason = parsed.triage_reason;
             if (triageReason && COMMENT_TEMPLATES[triageReason]) {
               responseBody = COMMENT_TEMPLATES[triageReason].replace('${author}', issueAuthor);
             } else {
-              core.warn("Blocked arbitrary LLM response body or invalid triage reason: " + triageReason);
+              core.info(`No automated comment posted (triage reason: ${triageReason}).`);
             }
 
             // 3. Restricted Auto-Close
