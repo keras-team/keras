@@ -85,6 +85,17 @@ class BaseConv(Layer):
             trainable matrices) during the forward pass. The delta is scaled by
             `lora_alpha / lora_rank`, allowing you to fine-tune the strength of
             the LoRA adjustment independently of `lora_rank`.
+        dora_rank: Optional integer. If set, the layer's forward pass
+            will implement DoRA (Weight-Decomposed Low-Rank Adaptation)
+            with the provided rank. DoRA decomposes the layer's kernel
+            into magnitude and direction components and applies LoRA
+            to the direction component. This can improve the learning
+            capacity of LoRA. You can also enable DoRA on an existing
+            layer by calling `layer.enable_dora(rank)`.
+        dora_alpha: Optional integer. If set, this parameter scales the
+            low-rank adaptation delta during the forward pass. The delta
+            is scaled by `dora_alpha / dora_rank`, allowing you to fine-tune
+            the strength of the DoRA adjustment independently of `dora_rank`.
     """
 
     def __init__(
@@ -108,6 +119,8 @@ class BaseConv(Layer):
         bias_constraint=None,
         lora_rank=None,
         lora_alpha=None,
+        dora_rank=None,
+        dora_alpha=None,
         **kwargs,
     ):
         super().__init__(activity_regularizer=activity_regularizer, **kwargs)
@@ -131,8 +144,16 @@ class BaseConv(Layer):
         self.bias_constraint = constraints.get(bias_constraint)
         self.lora_rank = lora_rank
         self.lora_alpha = lora_alpha if lora_alpha is not None else lora_rank
+        self.dora_rank = dora_rank
+        self.dora_alpha = dora_alpha if dora_alpha is not None else dora_rank
+        if self.lora_rank and self.dora_rank:
+            raise ValueError(
+                "Only one of `lora_rank` or `dora_rank` can be set."
+            )
         self.lora_enabled = False
+        self.dora_enabled = False
         self.input_spec = InputSpec(min_ndim=self.rank + 2)
+
         self.data_format = self.data_format
 
         if self.filters is not None and self.filters <= 0:
@@ -223,6 +244,8 @@ class BaseConv(Layer):
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank, lora_alpha=self.lora_alpha)
+        if self.dora_rank:
+            self.enable_dora(self.dora_rank, dora_alpha=self.dora_alpha)
 
     @property
     def kernel(self):
@@ -240,6 +263,19 @@ class BaseConv(Layer):
                 ),
                 dtype=self.compute_dtype,
             )
+        elif self.dora_enabled:
+            lora_delta = (self.dora_alpha / self.dora_rank) * ops.matmul(
+                self.dora_kernel_a, self.dora_kernel_b
+            )
+            W_combined = ops.add(kernel, lora_delta)
+            # Normalize along all axes except the last one (filters)
+            axis = tuple(range(len(kernel.shape) - 1))
+            norm = ops.stop_gradient(
+                ops.sqrt(ops.sum(ops.square(W_combined), axis=axis))
+            )
+            kernel = self.dora_magnitude * ops.divide_no_nan(W_combined, norm)
+            kernel = ops.cast(kernel, dtype=self.compute_dtype)
+
         return kernel
 
     def convolution_op(self, inputs, kernel):
@@ -298,6 +334,8 @@ class BaseConv(Layer):
             raise ValueError(
                 "lora is already enabled. This can only be done once per layer."
             )
+        if getattr(self, "dora_enabled", False):
+            raise ValueError("dora is already enabled. Cannot enable LoRA.")
         self._tracker.unlock()
 
         # LoRA weights should be float32 to avoid the risk of underflow or
@@ -324,6 +362,66 @@ class BaseConv(Layer):
         self.lora_rank = rank
         self.lora_alpha = lora_alpha if lora_alpha is not None else rank
 
+    def enable_dora(
+        self,
+        rank,
+        dora_alpha=None,
+        a_initializer="he_uniform",
+        b_initializer="zeros",
+    ):
+        if self.kernel_constraint:
+            raise ValueError(
+                "DoRA is incompatible with kernel constraints. "
+                "In order to enable dora on this layer, remove the "
+                "`kernel_constraint` argument."
+            )
+        if not self.built:
+            raise ValueError(
+                "Cannot enable dora on a layer that isn't yet built."
+            )
+        if self.lora_enabled:
+            raise ValueError("LoRA is already enabled. Cannot enable DoRA.")
+        if self.dora_enabled:
+            raise ValueError(
+                "dora is already enabled. This can only be done once per layer."
+            )
+        self._tracker.unlock()
+
+        self.dora_kernel_a = self.add_weight(
+            name="dora_kernel_a",
+            shape=self._kernel.shape[:-1] + (rank,),
+            initializer=initializers.get(a_initializer),
+            dtype="float32",
+            regularizer=self.kernel_regularizer,
+        )
+        self.dora_kernel_b = self.add_weight(
+            name="dora_kernel_b",
+            shape=(rank, self.filters),
+            initializer=initializers.get(b_initializer),
+            dtype="float32",
+            regularizer=self.kernel_regularizer,
+        )
+
+        # Initialize Magnitude Vector
+        # We reduce all axes except the last one (filters)
+        axis = tuple(range(len(self.kernel.shape) - 1))
+        initial_magnitude = ops.stop_gradient(
+            ops.sqrt(ops.sum(ops.square(self.kernel), axis=axis))
+        )
+        self.dora_magnitude = self.add_weight(
+            name="dora_magnitude",
+            shape=(self.filters,),
+            initializer=lambda *a, **kw: initial_magnitude,
+            dtype="float32",
+            regularizer=self.kernel_regularizer,
+        )
+
+        self._kernel.trainable = False
+        self._tracker.lock()
+        self.dora_enabled = True
+        self.dora_rank = rank
+        self.dora_alpha = dora_alpha if dora_alpha is not None else rank
+
     def save_own_variables(self, store):
         # Do nothing if the layer isn't yet built
         if not self.built:
@@ -335,8 +433,9 @@ class BaseConv(Layer):
             store[str(i)] = variable
 
     def load_own_variables(self, store):
-        if not self.lora_enabled:
+        if not self.lora_enabled and not getattr(self, "dora_enabled", False):
             self._check_load_own_variables(store)
+
         # Do nothing if the layer isn't yet built
         if not self.built:
             return
@@ -348,6 +447,18 @@ class BaseConv(Layer):
         if self.lora_enabled:
             self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))
             self.lora_kernel_b.assign(ops.zeros(self.lora_kernel_b.shape))
+        if self.dora_enabled:
+            self.dora_kernel_a.assign(ops.zeros(self.dora_kernel_a.shape))
+            self.dora_kernel_b.assign(ops.zeros(self.dora_kernel_b.shape))
+            # Temporarily disable to get base kernel
+            self.dora_enabled = False
+            base_kernel = self.kernel
+            self.dora_enabled = True
+
+            axis = tuple(range(len(base_kernel.shape) - 1))
+            self.dora_magnitude.assign(
+                ops.sqrt(ops.sum(ops.square(base_kernel), axis=axis))
+            )
 
     def get_config(self):
         config = super().get_config()
@@ -386,6 +497,9 @@ class BaseConv(Layer):
         if self.lora_rank:
             config["lora_rank"] = self.lora_rank
             config["lora_alpha"] = self.lora_alpha
+        if self.dora_rank:
+            config["dora_rank"] = self.dora_rank
+            config["dora_alpha"] = self.dora_alpha
         return config
 
     def _check_load_own_variables(self, store):
