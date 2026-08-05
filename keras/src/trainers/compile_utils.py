@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from collections import namedtuple
 
+from keras.src import backend
 from keras.src import losses as losses_module
 from keras.src import metrics as metrics_module
 from keras.src import ops
@@ -703,7 +704,7 @@ class CompileLoss(losses_module.Loss):
         return output_names
 
     def __call__(self, y_true, y_pred, sample_weight=None):
-        with ops.name_scope(self.name):
+        with backend.name_scope(self.name):
             return self.call(y_true, y_pred, sample_weight)
 
     def call(self, y_true, y_pred, sample_weight=None):

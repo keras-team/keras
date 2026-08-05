@@ -323,7 +323,7 @@ class ExportSavedModelTest(testing.TestCase):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model(model_type)
         batch_size = 3 if backend.backend() != "torch" else 1
-        ref_input = ops.random.normal((batch_size, 10))
+        ref_input = backend.random.normal((batch_size, 10))
         ref_output = model(ref_input)
 
         if input_signature == "backend_tensor":
@@ -370,7 +370,7 @@ class ExportSavedModelTest(testing.TestCase):
     def test_jax_specific_kwargs(self, model_type, is_static, jax2tf_kwargs):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model(model_type)
-        ref_input = ops.random.uniform((3, 10))
+        ref_input = backend.random.uniform((3, 10))
         ref_output = model(ref_input)
 
         export_kwargs = self.export_kwargs.copy()

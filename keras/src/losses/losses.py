@@ -5,6 +5,7 @@ from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend.common.backend_utils import canonicalize_axis
+from keras.src.backend.common.masking import set_keras_mask
 from keras.src.losses.loss import Loss
 from keras.src.losses.loss import squeeze_or_expand_to_same_rank
 from keras.src.saving import serialization_lib
@@ -2363,7 +2364,7 @@ def sparse_categorical_crossentropy(
     if ignore_class is not None:
         valid_mask = ops.reshape(valid_mask, res_shape)
         res = ops.where(valid_mask, res, 0.0)
-        backend.set_keras_mask(res, mask=valid_mask)
+        set_keras_mask(res, mask=valid_mask)
 
     return res
 
@@ -2735,7 +2736,7 @@ def circle(
     )
 
     circle_loss = ops.softplus(p_loss + n_loss)
-    backend.set_keras_mask(circle_loss, circle_loss > 0)
+    set_keras_mask(circle_loss, circle_loss > 0)
     return circle_loss
 
 

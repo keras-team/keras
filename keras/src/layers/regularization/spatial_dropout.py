@@ -1,6 +1,7 @@
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend.config import standardize_data_format
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.regularization.dropout import Dropout
 
@@ -112,7 +113,7 @@ class SpatialDropout2D(BaseSpatialDropout):
         self, rate, data_format=None, seed=None, name=None, dtype=None
     ):
         super().__init__(rate, seed=seed, name=name, dtype=dtype)
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
         self.input_spec = InputSpec(ndim=4)
 
     def _get_noise_shape(self, inputs):
@@ -174,7 +175,7 @@ class SpatialDropout3D(BaseSpatialDropout):
         self, rate, data_format=None, seed=None, name=None, dtype=None
     ):
         super().__init__(rate, seed=seed, name=name, dtype=dtype)
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
         self.input_spec = InputSpec(ndim=5)
 
     def _get_noise_shape(self, inputs):

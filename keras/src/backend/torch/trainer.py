@@ -447,7 +447,7 @@ class TorchTrainer(base_trainer.Trainer):
             if self.stop_predicting:
                 break
         callbacks.on_predict_end()
-        outputs = tree.map_structure(backend.convert_to_numpy, outputs)
+        outputs = tree.map_structure(backend.ops.convert_to_numpy, outputs)
         return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
 
     def train_on_batch(
@@ -510,7 +510,7 @@ class TorchTrainer(base_trainer.Trainer):
         self.make_predict_function()
         batch_outputs = self.predict_function([(x,)])
         batch_outputs = tree.map_structure(
-            backend.convert_to_numpy, batch_outputs
+            backend.ops.convert_to_numpy, batch_outputs
         )
         return batch_outputs
 

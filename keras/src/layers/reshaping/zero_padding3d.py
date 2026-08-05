@@ -1,6 +1,6 @@
-from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend.config import standardize_data_format
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.utils import argument_validation
@@ -61,7 +61,7 @@ class ZeroPadding3D(Layer):
         self, padding=((1, 1), (1, 1), (1, 1)), data_format=None, **kwargs
     ):
         super().__init__(**kwargs)
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
         if isinstance(padding, int):
             self.padding = (
                 (padding, padding),

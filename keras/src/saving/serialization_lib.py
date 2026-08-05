@@ -216,11 +216,11 @@ def serialize_keras_object(obj):
         }
     if tf.available and isinstance(obj, tf.TensorShape):
         return obj.as_list() if obj._dims is not None else None
-    if backend.is_tensor(obj):
+    if backend.ops.is_tensor(obj):
         return {
             "class_name": "__tensor__",
             "config": {
-                "value": backend.convert_to_numpy(obj).tolist(),
+                "value": backend.ops.convert_to_numpy(obj).tolist(),
                 "dtype": backend.standardize_dtype(obj.dtype),
             },
         }
@@ -649,7 +649,7 @@ def deserialize_keras_object(
         return obj
 
     if class_name == "__tensor__":
-        return backend.convert_to_tensor(
+        return backend.ops.convert_to_tensor(
             inner_config["value"], dtype=inner_config["dtype"]
         )
     if class_name == "__numpy__":

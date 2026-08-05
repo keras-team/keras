@@ -65,7 +65,7 @@ class RandomSaturationTest(testing.TestCase):
         layer = layers.RandomSaturation(factor=(1.0, 1.0))
         result = layer(inputs)
 
-        hsv = backend.image.rgb_to_hsv(result)
+        hsv = backend.ops.image.rgb_to_hsv(result)
         s_channel = hsv[..., 1]
 
         self.assertAllClose(

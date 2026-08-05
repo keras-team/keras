@@ -933,7 +933,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
     def test_is_tensor(self):
         np_x = np.array([[1, 2, 3], [3, 2, 1]])
-        x = backend.convert_to_tensor(np_x)
+        x = backend.ops.convert_to_tensor(np_x)
         if backend.backend() != "numpy":
             self.assertFalse(ops.is_tensor(np_x))
         self.assertTrue(ops.is_tensor(x))
@@ -1351,7 +1351,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertNotEqual(model.layers[0].b.numpy(), 0.0)
 
     def test_stop_gradient_no_fit(self):
-        x = ops.random.uniform(shape=(2, 4), dtype="float32")
+        x = backend.random.uniform(shape=(2, 4), dtype="float32")
         y = ops.stop_gradient(x)
         self.assertAllClose(x, y)
 
@@ -1396,14 +1396,16 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             return x + 1
 
         output = ops.vectorized_map(fn, ops.zeros((2, 3), dtype="float32"))
-        self.assertAllClose(backend.convert_to_numpy(output), np.ones((2, 3)))
+        self.assertAllClose(
+            backend.ops.convert_to_numpy(output), np.ones((2, 3))
+        )
 
         def fn(x):
             return ops.stack([x, x])
 
         output = ops.vectorized_map(fn, ops.zeros((2, 3), dtype="float32"))
         self.assertAllClose(
-            backend.convert_to_numpy(output), np.zeros((2, 2, 3))
+            backend.ops.convert_to_numpy(output), np.zeros((2, 2, 3))
         )
 
         # Case: multiple args

@@ -11,6 +11,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend.common.masking import get_keras_mask
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
@@ -267,11 +268,11 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         layer.build()
 
         out = layer(np.array(([2, 1, 0])))
-        mask = backend.get_keras_mask(out)
+        mask = get_keras_mask(out)
         self.assertAllClose(mask, np.array([True, True, False]))
 
         out = layer(np.array(([[1.0, 2.0], [0.0, 0.0]])), reverse=True)
-        mask = backend.get_keras_mask(out)
+        mask = get_keras_mask(out)
         self.assertIsNone(mask)
 
     @parameterized.named_parameters(

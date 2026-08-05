@@ -195,7 +195,7 @@ class Discretization(DataLayer):
                 self.update_state(batch)
         elif hasattr(data, "__iter__") and not (
             isinstance(data, np.ndarray)
-            or backend.is_tensor(data)
+            or backend.ops.is_tensor(data)
             or tf.is_tensor(data)
         ):
             for i, batch in enumerate(data):
@@ -269,7 +269,7 @@ class Discretization(DataLayer):
                 "start using the `Discretization` layer."
             )
 
-        indices = self.backend.numpy.digitize(inputs, self.bin_boundaries)
+        indices = self.backend.ops.numpy.digitize(inputs, self.bin_boundaries)
         return numerical_utils.encode_categorical_inputs(
             indices,
             output_mode=self.output_mode,

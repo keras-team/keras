@@ -62,7 +62,7 @@ class NormalizationTest(testing.TestCase):
         if input_type == "np":
             data = x
         elif input_type == "tensor":
-            data = backend.convert_to_tensor(x)
+            data = backend.ops.convert_to_tensor(x)
         elif input_type == "tf.data":
             data = tf_data.Dataset.from_tensor_slices(x).batch(8)
         else:
@@ -72,7 +72,7 @@ class NormalizationTest(testing.TestCase):
         layer.adapt(data)
         self.assertTrue(layer.built)
         output = layer(x)
-        output = backend.convert_to_numpy(output)
+        output = backend.ops.convert_to_numpy(output)
         self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
         self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
 
@@ -81,7 +81,7 @@ class NormalizationTest(testing.TestCase):
         if input_type == "np":
             data = x
         elif input_type == "tensor":
-            data = backend.convert_to_tensor(x)
+            data = backend.ops.convert_to_tensor(x)
         elif input_type == "tf.data":
             data = tf_data.Dataset.from_tensor_slices(x).batch(8)
 
@@ -89,7 +89,7 @@ class NormalizationTest(testing.TestCase):
         layer.adapt(data)
         self.assertTrue(layer.built)
         output = layer(x)
-        output = backend.convert_to_numpy(output)
+        output = backend.ops.convert_to_numpy(output)
         self.assertAllClose(np.var(output, axis=(0, 3)), 1.0, atol=1e-5)
         self.assertAllClose(np.mean(output, axis=(0, 3)), 0.0, atol=1e-5)
 
@@ -286,7 +286,7 @@ class NormalizationTest(testing.TestCase):
         layer.adapt(batches)
         self.assertTrue(layer.built)
         output = layer(x)
-        output = backend.convert_to_numpy(output)
+        output = backend.ops.convert_to_numpy(output)
         self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
         self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
 
@@ -301,7 +301,7 @@ class NormalizationTest(testing.TestCase):
         layer.adapt(batch_gen())
         self.assertTrue(layer.built)
         output = layer(x)
-        output = backend.convert_to_numpy(output)
+        output = backend.ops.convert_to_numpy(output)
         self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
         self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
 
@@ -314,8 +314,8 @@ class NormalizationTest(testing.TestCase):
         layer_ndarray.adapt(x)
         out_list = layer_list(x[:10])
         out_ndarray = layer_ndarray(x[:10])
-        out_list = backend.convert_to_numpy(out_list)
-        out_ndarray = backend.convert_to_numpy(out_ndarray)
+        out_list = backend.ops.convert_to_numpy(out_list)
+        out_ndarray = backend.ops.convert_to_numpy(out_ndarray)
         self.assertAllClose(out_list, out_ndarray, atol=1e-5)
 
     def test_adapt_iterable_with_tuples(self):
@@ -325,7 +325,7 @@ class NormalizationTest(testing.TestCase):
         layer.adapt(batches)
         self.assertTrue(layer.built)
         output = layer(x)
-        output = backend.convert_to_numpy(output)
+        output = backend.ops.convert_to_numpy(output)
         self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
         self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
 
@@ -336,7 +336,7 @@ class NormalizationTest(testing.TestCase):
         layer.adapt(batches)
         self.assertTrue(layer.built)
         output = layer(x)
-        output = backend.convert_to_numpy(output)
+        output = backend.ops.convert_to_numpy(output)
         self.assertAllClose(np.var(output), 1.0, atol=1e-5)
         self.assertAllClose(np.mean(output), 0.0, atol=1e-5)
 
@@ -381,7 +381,7 @@ class NormalizationTest(testing.TestCase):
         layer.adapt([x])
         self.assertTrue(layer.built)
         output = layer(x)
-        output = backend.convert_to_numpy(output)
+        output = backend.ops.convert_to_numpy(output)
         self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
         self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
 
@@ -392,7 +392,7 @@ class NormalizationTest(testing.TestCase):
         layer.adapt(batches)
         self.assertTrue(layer.built)
         output = layer(x)
-        output = backend.convert_to_numpy(output)
+        output = backend.ops.convert_to_numpy(output)
         self.assertAllClose(np.var(output, axis=(0, 3)), 1.0, atol=1e-5)
         self.assertAllClose(np.mean(output, axis=(0, 3)), 0.0, atol=1e-5)
 
@@ -403,7 +403,7 @@ class NormalizationTest(testing.TestCase):
         layer.adapt(iter(list_of_batches))
         self.assertTrue(layer.built)
         output = layer(x)
-        output = backend.convert_to_numpy(output)
+        output = backend.ops.convert_to_numpy(output)
         self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
         self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
 
@@ -415,7 +415,7 @@ class NormalizationTest(testing.TestCase):
         layer.adapt(ds)
         self.assertTrue(layer.built)
         output = layer(x)
-        output = backend.convert_to_numpy(output)
+        output = backend.ops.convert_to_numpy(output)
         self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
         self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
 
@@ -431,8 +431,8 @@ class NormalizationTest(testing.TestCase):
         layer = layers.Normalization()
         layer.adapt(dataset)
 
-        mean = backend.convert_to_numpy(layer.mean).squeeze()
-        var = backend.convert_to_numpy(layer.variance).squeeze()
+        mean = backend.ops.convert_to_numpy(layer.mean).squeeze()
+        var = backend.ops.convert_to_numpy(layer.variance).squeeze()
 
         np.testing.assert_allclose(mean, np.ones(3))
         np.testing.assert_allclose(var, np.zeros(3))

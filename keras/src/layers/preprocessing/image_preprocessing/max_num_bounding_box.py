@@ -54,7 +54,7 @@ class MaxNumBoundingBoxes(BaseImagePreprocessingLayer):
     def transform_bounding_boxes(
         self, bounding_boxes, transformation, training=True
     ):
-        ops = self.backend
+        ops = self.backend.ops
         boxes = bounding_boxes["boxes"]
         labels = bounding_boxes["labels"]
         boxes_shape = ops.shape(boxes)

@@ -4,8 +4,8 @@ import numpy as np
 import torch
 import torch.distributed
 
-from keras.src.backend.torch.core import _parse_device_input
-from keras.src.backend.torch.core import get_device
+from keras.src.backend.torch.ops.core import _parse_device_input
+from keras.src.backend.torch.ops.core import get_device
 
 
 def list_devices(device_type=None):

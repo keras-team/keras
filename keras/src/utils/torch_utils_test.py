@@ -11,7 +11,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import saving
 from keras.src import testing
-from keras.src.backend.torch.core import get_device
+from keras.src.backend.torch.ops.core import get_device
 from keras.src.saving.serialization_lib import SafeModeScope
 from keras.src.utils.torch_utils import TorchModuleWrapper
 
@@ -97,7 +97,7 @@ class TorchUtilsTest(testing.TestCase):
         model = cls(**kwargs)
         model(np.random.random((3, 2)), training=False)  # Eager call to build
         ref_weights = model.get_weights()
-        ref_running_mean = backend.convert_to_numpy(
+        ref_running_mean = backend.ops.convert_to_numpy(
             model.torch_wrappers[0].module[-1].running_mean
             if cls is Classifier
             else model.bn1.module.running_mean
@@ -112,7 +112,7 @@ class TorchUtilsTest(testing.TestCase):
         # Test training=None affects BN's stats
         model.set_weights(ref_weights)  # Restore previous weights
         model(np.random.random((3, 2)))
-        running_mean = backend.convert_to_numpy(
+        running_mean = backend.ops.convert_to_numpy(
             model.torch_wrappers[0].module[-1].running_mean
             if cls is Classifier
             else model.bn1.module.running_mean
@@ -122,7 +122,7 @@ class TorchUtilsTest(testing.TestCase):
         # Test training=True affects BN's stats
         model.set_weights(ref_weights)  # Restore previous weights
         model(np.random.random((3, 2)), training=True)
-        running_mean = backend.convert_to_numpy(
+        running_mean = backend.ops.convert_to_numpy(
             model.torch_wrappers[0].module[-1].running_mean
             if cls is Classifier
             else model.bn1.module.running_mean

@@ -4237,11 +4237,13 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         # Test `num` as a tensor
         # https://github.com/keras-team/keras/issues/19772
         self.assertAllClose(
-            knp.linspace(0, 10, backend.convert_to_tensor(5)),
+            knp.linspace(0, 10, backend.ops.convert_to_tensor(5)),
             np.linspace(0, 10, 5),
         )
         self.assertAllClose(
-            knp.linspace(0, 10, backend.convert_to_tensor(5), endpoint=False),
+            knp.linspace(
+                0, 10, backend.ops.convert_to_tensor(5), endpoint=False
+            ),
             np.linspace(0, 10, 5, endpoint=False),
         )
 
@@ -4841,7 +4843,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(
             knp.take(x, indices, axis=axis),
-            np.take(x, backend.convert_to_numpy(indices), axis=axis),
+            np.take(x, backend.ops.convert_to_numpy(indices), axis=axis),
         )
 
     @parameterized.named_parameters(
@@ -4875,7 +4877,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             import tensorflow as tf
 
             indices = tf.ragged.constant([[2], [0, -1, 1]])
-            mask = backend.convert_to_numpy(tf.ones_like(indices))
+            mask = backend.ops.convert_to_numpy(tf.ones_like(indices))
 
         if axis == 0:
             mask = np.expand_dims(mask, (2, 3))
@@ -4884,7 +4886,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(
             knp.take(x, indices, axis=axis),
-            np.take(x, backend.convert_to_numpy(indices), axis=axis)
+            np.take(x, backend.ops.convert_to_numpy(indices), axis=axis)
             * mask.astype(dtype),
         )
 
@@ -5414,8 +5416,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.array(x), np.array(x))
         self.assertAllClose(knp.Array()(x), np.array(x))
-        self.assertTrue(backend.is_tensor(knp.array(x)))
-        self.assertTrue(backend.is_tensor(knp.Array()(x)))
+        self.assertTrue(backend.ops.is_tensor(knp.array(x)))
+        self.assertTrue(backend.ops.is_tensor(knp.Array()(x)))
 
         # Check dtype conversion.
         x = [[1, 0, 1], [1, 1, 0]]
@@ -5760,8 +5762,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             x = jax_sparse.BCOO(([1.0, 2.0], [[0, 0], [1, 2]]), shape=(2, 3))
             y = jax_sparse.BCOO(([4.0, 5.0], [[0, 0], [1, 1]]), shape=(2, 3))
 
-        x_np = backend.convert_to_numpy(x)
-        y_np = backend.convert_to_numpy(y)
+        x_np = backend.ops.convert_to_numpy(x)
+        y_np = backend.ops.convert_to_numpy(y)
         z = np.random.rand(2, 3).astype("float32")
 
         self.assertAllClose(
@@ -7766,7 +7768,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.argpartition(x, 2), np.argpartition(x, 2))
         self.assertAllClose(knp.Argpartition(2)(x), np.argpartition(x, 2))
 
-        result = backend.convert_to_numpy(knp.argpartition(x, 2, axis=None))
+        result = backend.ops.convert_to_numpy(knp.argpartition(x, 2, axis=None))
         flat_x = x.flatten()
         kth_value = np.sort(flat_x)[2]
         self.assertTrue(np.all(flat_x[result[:2]] <= kth_value))
@@ -7776,7 +7778,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.argpartition(x, 1), np.argpartition(x, 1))
         self.assertAllClose(knp.Argpartition(1)(x), np.argpartition(x, 1))
 
-        result = backend.convert_to_numpy(knp.argpartition(x, 1, axis=None))
+        result = backend.ops.convert_to_numpy(knp.argpartition(x, 1, axis=None))
         flat_x = x.flatten()
         kth_value = np.sort(flat_x)[1]
         self.assertTrue(np.all(flat_x[result[:1]] <= kth_value))
@@ -7786,7 +7788,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.argpartition(x, 1), np.argpartition(x, 1))
         self.assertAllClose(knp.Argpartition(1)(x), np.argpartition(x, 1))
 
-        result = backend.convert_to_numpy(knp.argpartition(x, 1, axis=None))
+        result = backend.ops.convert_to_numpy(knp.argpartition(x, 1, axis=None))
         flat_x = x.flatten()
         kth_value = np.sort(flat_x)[1]
         self.assertTrue(np.all(flat_x[result[:1]] <= kth_value))
@@ -7858,7 +7860,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
         self.assertEqual(ops.shape(v)[0], 4)
 
-        v_np = backend.convert_to_numpy(v)
+        v_np = backend.ops.convert_to_numpy(v)
         nan_count = np.isnan(v_np).sum()
         self.assertEqual(nan_count, 2)
 
@@ -7876,7 +7878,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([3, 1, 2])
         res = knp.unique(x, sorted=False)
         # Convert to numpy and sort to verify the content
-        self.assertAllClose(np.sort(backend.convert_to_numpy(res)), [1, 2, 3])
+        self.assertAllClose(
+            np.sort(backend.ops.convert_to_numpy(res)), [1, 2, 3]
+        )
 
         # test_unique_negative_axis
         x = np.array([[1, 0, 1], [0, 1, 0]])
@@ -8143,14 +8147,14 @@ def create_indexed_slices(x, indices_from=None, start=0, delta=2):
 def get_sparseness_combinations(dense_to_sparse_fn):
     x = np.array([[1, 2, 3], [3, 2, 1]])
     y = np.array([[4, 5, 6], [3, 2, 1]])
-    scalar = backend.convert_to_tensor(2)
+    scalar = backend.ops.convert_to_tensor(2)
     x_sp = dense_to_sparse_fn(x)
     y_sp = dense_to_sparse_fn(y, indices_from=x_sp)
     x_sp_sup = dense_to_sparse_fn(x, start=0, delta=1)
     y_sp_dis = dense_to_sparse_fn(y, start=1)
     y_sp_sup = dense_to_sparse_fn(y, start=0, delta=1)
-    x = backend.convert_to_tensor(x)
-    y = backend.convert_to_tensor(y)
+    x = backend.ops.convert_to_tensor(x)
+    y = backend.ops.convert_to_tensor(y)
     return [
         {"testcase_name": "sparse_dense", "x": x_sp, "y": y},
         {"testcase_name": "dense_sparse", "x": x, "y": y_sp},
@@ -8424,7 +8428,7 @@ class SparseTest(testing.TestCase):
     ):
         x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
         x = create_sparse_tensor(x)
-        x_np = backend.convert_to_numpy(x)
+        x_np = backend.ops.convert_to_numpy(x)
 
         self.assertAllClose(op_function(x), np_op(x_np))
         self.assertAllClose(op_class()(x), np_op(x_np))
@@ -8435,7 +8439,7 @@ class SparseTest(testing.TestCase):
     ):
         x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
         x = create_indexed_slices(x)
-        x_np = backend.convert_to_numpy(x)
+        x_np = backend.ops.convert_to_numpy(x)
 
         self.assertAllClose(op_function(x), np_op(x_np))
         self.assertAllClose(op_class()(x), np_op(x_np))
@@ -8449,7 +8453,7 @@ class SparseTest(testing.TestCase):
         else:
             x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
         x = create_sparse_tensor(x)
-        x_np = backend.convert_to_numpy(x)
+        x_np = backend.ops.convert_to_numpy(x)
 
         self.assertAllClose(op_function(x), np_op(x_np))
         self.assertSameSparseness(op_function(x), x)
@@ -8465,7 +8469,7 @@ class SparseTest(testing.TestCase):
         else:
             x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
         x = create_indexed_slices(x)
-        x_np = backend.convert_to_numpy(x)
+        x_np = backend.ops.convert_to_numpy(x)
 
         self.assertAllClose(op_function(x), np_op(x_np))
         self.assertSameSparseness(op_function(x), x)
@@ -8481,7 +8485,7 @@ class SparseTest(testing.TestCase):
             x = create_indexed_slices(x)
         else:
             x = create_sparse_tensor(x)
-        x_np = backend.convert_to_numpy(x)
+        x_np = backend.ops.convert_to_numpy(x)
 
         # `newshape` was renamed `shape` in Numpy.
         np_init_kwargs = init_kwargs.copy()
@@ -8546,10 +8550,10 @@ class SparseTest(testing.TestCase):
     def test_binary_correctness_sparse_tensor(
         self, x, y, op_function, op_class, np_op, op_sparseness, dtype
     ):
-        x = backend.cast(x, dtype)
-        y = backend.cast(y, dtype)
+        x = backend.ops.cast(x, dtype)
+        y = backend.ops.cast(y, dtype)
         expected_result = np_op(
-            backend.convert_to_numpy(x), backend.convert_to_numpy(y)
+            backend.ops.convert_to_numpy(x), backend.ops.convert_to_numpy(y)
         )
 
         self.assertAllClose(op_function(x, y), expected_result)
@@ -8567,10 +8571,10 @@ class SparseTest(testing.TestCase):
     def test_binary_correctness_indexed_slices(
         self, x, y, op_function, op_class, np_op, op_sparseness, dtype
     ):
-        x = backend.cast(x, dtype)
-        y = backend.cast(y, dtype)
+        x = backend.ops.cast(x, dtype)
+        y = backend.ops.cast(y, dtype)
         expected_result = np_op(
-            backend.convert_to_numpy(x), backend.convert_to_numpy(y)
+            backend.ops.convert_to_numpy(x), backend.ops.convert_to_numpy(y)
         )
 
         self.assertAllClose(op_function(x, y), expected_result)
@@ -8585,7 +8589,7 @@ class SparseTest(testing.TestCase):
         )
     )
     def test_divide_with_zeros_nans(self, sparse_type, dtype):
-        x = backend.convert_to_tensor([[0, 2, 3], [3, 2, 1]], dtype=dtype)
+        x = backend.ops.convert_to_tensor([[0, 2, 3], [3, 2, 1]], dtype=dtype)
         if sparse_type == "indexed_slices":
             x = create_indexed_slices(x, start=0, delta=2)
         else:
@@ -8594,9 +8598,9 @@ class SparseTest(testing.TestCase):
             y = [[0, 0, 3], [0, 0, 1]]
         else:
             y = [[np.nan, np.nan, 3], [0, 0, 1]]
-        y = backend.convert_to_tensor(y, dtype=dtype)
+        y = backend.ops.convert_to_tensor(y, dtype=dtype)
         expected_result = np.divide(
-            backend.convert_to_numpy(x), backend.convert_to_numpy(y)
+            backend.ops.convert_to_numpy(x), backend.ops.convert_to_numpy(y)
         )
 
         self.assertAllClose(knp.divide(x, y), expected_result)

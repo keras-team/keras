@@ -217,7 +217,7 @@ class TestJaxLayer(testing.TestCase):
         # Fake MNIST data
         x_train = random.uniform(shape=(320, 28, 28, 1))
         y_train_indices = ops.cast(
-            ops.random.uniform(shape=(320,), minval=0, maxval=num_classes),
+            backend.random.uniform(shape=(320,), minval=0, maxval=num_classes),
             dtype="int32",
         )
         y_train = ops.one_hot(y_train_indices, num_classes, dtype="int32")
@@ -261,17 +261,17 @@ class TestJaxLayer(testing.TestCase):
         )
 
         tw1_before_fit = tree.map_structure(
-            backend.convert_to_numpy, layer1.trainable_weights
+            backend.ops.convert_to_numpy, layer1.trainable_weights
         )
         ntw1_before_fit = tree.map_structure(
-            backend.convert_to_numpy, layer1.non_trainable_weights
+            backend.ops.convert_to_numpy, layer1.non_trainable_weights
         )
         model1.fit(x_train, y_train, epochs=1, steps_per_epoch=10)
         tw1_after_fit = tree.map_structure(
-            backend.convert_to_numpy, layer1.trainable_weights
+            backend.ops.convert_to_numpy, layer1.trainable_weights
         )
         ntw1_after_fit = tree.map_structure(
-            backend.convert_to_numpy, layer1.non_trainable_weights
+            backend.ops.convert_to_numpy, layer1.non_trainable_weights
         )
 
         # verify both trainable and non-trainable weights did change after fit
@@ -288,10 +288,10 @@ class TestJaxLayer(testing.TestCase):
 
         # verify both trainable and non-trainable weights did not change
         tw1_after_call = tree.map_structure(
-            backend.convert_to_numpy, layer1.trainable_weights
+            backend.ops.convert_to_numpy, layer1.trainable_weights
         )
         ntw1_after_call = tree.map_structure(
-            backend.convert_to_numpy, layer1.non_trainable_weights
+            backend.ops.convert_to_numpy, layer1.non_trainable_weights
         )
         for after_fit, after_call in zip(tw1_after_fit, tw1_after_call):
             self.assertAllClose(after_fit, after_call)
@@ -299,11 +299,11 @@ class TestJaxLayer(testing.TestCase):
             self.assertAllClose(after_fit, after_call)
 
         exported_params = jax.tree_util.tree_map(
-            backend.convert_to_numpy, layer1.params
+            backend.ops.convert_to_numpy, layer1.params
         )
         if layer1.state is not None:
             exported_state = jax.tree_util.tree_map(
-                backend.convert_to_numpy, layer1.state
+                backend.ops.convert_to_numpy, layer1.state
             )
         else:
             exported_state = None

@@ -120,13 +120,13 @@ class TensorflowSliceable(Sliceable):
 
     @classmethod
     def cast(cls, x, dtype):
-        from keras.src.backend.tensorflow.core import cast
+        from keras.src.backend.tensorflow.ops.core import cast
 
         return cast(x, dtype)
 
     @classmethod
     def convert_to_numpy(cls, x):
-        from keras.src.backend.tensorflow.core import convert_to_numpy
+        from keras.src.backend.tensorflow.ops.core import convert_to_numpy
 
         return convert_to_numpy(x)
 
@@ -173,7 +173,7 @@ class JaxSparseSliceable(Sliceable):
 
     @classmethod
     def convert_to_numpy(cls, x):
-        from keras.src.backend.jax.core import convert_to_numpy
+        from keras.src.backend.jax.ops.core import convert_to_numpy
 
         return convert_to_numpy(x)
 
@@ -191,13 +191,13 @@ class JaxSparseSliceable(Sliceable):
 class TorchSliceable(Sliceable):
     @classmethod
     def cast(cls, x, dtype):
-        from keras.src.backend.torch.core import cast
+        from keras.src.backend.torch.ops.core import cast
 
         return cast(x, dtype)
 
     @classmethod
     def convert_to_numpy(cls, x):
-        from keras.src.backend.torch.core import convert_to_numpy
+        from keras.src.backend.torch.ops.core import convert_to_numpy
 
         return convert_to_numpy(x)
 

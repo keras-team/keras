@@ -7,9 +7,9 @@ from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
-from keras.src.backend import any_symbolic_tensors
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import standardize_axis_for_numpy
+from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.ops.operation import Operation
 from keras.src.quantizers.gptq_config import GPTQConfig
 

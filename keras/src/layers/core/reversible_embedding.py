@@ -7,7 +7,7 @@ from keras.src import ops
 from keras.src import quantizers
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
-from keras.src.backend import set_keras_mask
+from keras.src.backend.common.masking import set_keras_mask
 from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantization_config import get_block_size_for_layer
 from keras.src.quantizers.quantizers import dequantize_with_sz_map

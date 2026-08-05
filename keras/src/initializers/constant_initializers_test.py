@@ -14,7 +14,7 @@ class ConstantInitializersTest(testing.TestCase):
         initializer = initializers.Zeros()
         values = initializer(shape=shape)
         self.assertEqual(values.shape, shape)
-        np_values = backend.convert_to_numpy(values)
+        np_values = backend.ops.convert_to_numpy(values)
         self.assertAllClose(np_values, np.zeros(shape=shape))
 
         self.run_class_serialization_test(initializer)
@@ -25,7 +25,7 @@ class ConstantInitializersTest(testing.TestCase):
         initializer = initializers.Ones()
         values = initializer(shape=shape)
         self.assertEqual(values.shape, shape)
-        np_values = backend.convert_to_numpy(values)
+        np_values = backend.ops.convert_to_numpy(values)
         self.assertAllClose(np_values, np.ones(shape=shape))
 
         self.run_class_serialization_test(initializer)
@@ -37,7 +37,7 @@ class ConstantInitializersTest(testing.TestCase):
         initializer = initializers.Constant(value=constant_value)
         values = initializer(shape=shape)
         self.assertEqual(values.shape, shape)
-        np_values = backend.convert_to_numpy(values)
+        np_values = backend.ops.convert_to_numpy(values)
         self.assertAllClose(
             np_values, np.full(shape=shape, fill_value=constant_value)
         )
@@ -51,7 +51,7 @@ class ConstantInitializersTest(testing.TestCase):
         initializer = initializers.Constant(value=constant_value)
         values = initializer(shape=shape)
         self.assertEqual(values.shape, shape)
-        np_values = backend.convert_to_numpy(values)
+        np_values = backend.ops.convert_to_numpy(values)
         self.assertAllClose(
             np_values, np.full(shape=shape, fill_value=constant_value)
         )
@@ -66,7 +66,7 @@ class ConstantInitializersTest(testing.TestCase):
         initializer = initializers.Identity(gain=gain)
         values = initializer(shape=shape)
         self.assertEqual(values.shape, shape)
-        np_values = backend.convert_to_numpy(values)
+        np_values = backend.ops.convert_to_numpy(values)
         self.assertAllClose(np_values, np.eye(*shape) * gain)
 
         self.run_class_serialization_test(initializer)
@@ -85,7 +85,7 @@ class ConstantInitializersTest(testing.TestCase):
         tol_kwargs = {"atol": 1e-4, "rtol": 1e-6}
 
         initializer = initializers.STFT("real", None)
-        values = backend.convert_to_numpy(initializer(shape))
+        values = backend.ops.convert_to_numpy(initializer(shape))
         self.assertAllClose(np.cos(args), values, atol=1e-4)
         self.run_class_serialization_test(initializer)
 
@@ -97,7 +97,7 @@ class ConstantInitializersTest(testing.TestCase):
         )
         window = scipy.signal.windows.get_window("hamming", 256, True)
         window = window.astype("float32").reshape((-1, 1, 1))
-        values = backend.convert_to_numpy(initializer(shape, "float32"))
+        values = backend.ops.convert_to_numpy(initializer(shape, "float32"))
         self.assertAllClose(np.cos(args) * window, values, **tol_kwargs)
         self.run_class_serialization_test(initializer)
 
@@ -110,7 +110,7 @@ class ConstantInitializersTest(testing.TestCase):
         window = scipy.signal.windows.get_window("tukey", 256, False)
         window = window.astype("float32").reshape((-1, 1, 1))
         window = window / np.sqrt(np.sum(window**2))
-        values = backend.convert_to_numpy(initializer(shape, "float32"))
+        values = backend.ops.convert_to_numpy(initializer(shape, "float32"))
         self.assertAllClose(np.sin(args) * window, values, **tol_kwargs)
         self.run_class_serialization_test(initializer)
 
@@ -122,7 +122,7 @@ class ConstantInitializersTest(testing.TestCase):
         window = np.arange(1, 257)
         window = window.astype("float32").reshape((-1, 1, 1))
         window = window / np.sum(window)
-        values = backend.convert_to_numpy(initializer(shape, "float32"))
+        values = backend.ops.convert_to_numpy(initializer(shape, "float32"))
         self.assertAllClose(np.sin(args) * window, values, **tol_kwargs)
         self.run_class_serialization_test(initializer)
 

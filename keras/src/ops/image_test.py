@@ -8,12 +8,13 @@ import tensorflow as tf
 from absl.testing import parameterized
 
 from keras.src import backend
+from keras.src import random as krandom
 from keras.src import testing
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.backend.config import standardize_data_format
 from keras.src.ops import image as kimage
 from keras.src.ops import numpy as knp
-from keras.src.ops import random as krandom
 from keras.src.testing.test_utils import named_product
 
 
@@ -1113,7 +1114,7 @@ def _perspective_transform_numpy(
     fill_value=0,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
 
     need_squeeze = False
     if len(images.shape) == 3:
@@ -1271,7 +1272,7 @@ def elastic_transform_np(
     seed=None,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
 
     images = np.asarray(images)
     input_dtype = images.dtype
@@ -1901,7 +1902,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             pad_to_aspect_ratio=True,
             fill_value=fill_value,
         )
-        out_np = backend.convert_to_numpy(out)
+        out_np = backend.ops.convert_to_numpy(out)
         self.assertAllClose(
             out_np[0, :, :5, :], np.ones((10, 5, 3)) * fill_value
         )
@@ -1916,7 +1917,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             pad_to_aspect_ratio=True,
             fill_value=fill_value,
         )
-        out_np = backend.convert_to_numpy(out)
+        out_np = backend.ops.convert_to_numpy(out)
         self.assertAllClose(
             out_np[0, :5, :, :], np.ones((5, 10, 3)) * fill_value
         )
@@ -2542,7 +2543,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             data_format="channels_last",
         )
 
-        out = backend.convert_to_numpy(out)
+        out = backend.ops.convert_to_numpy(out)
 
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(
@@ -2570,7 +2571,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             seed=seed,
             data_format="channels_first",
         )
-        out = backend.convert_to_numpy(out)
+        out = backend.ops.convert_to_numpy(out)
 
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(
@@ -2589,7 +2590,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             ),
             axis=0,
         )
-        out = backend.convert_to_numpy(
+        out = backend.ops.convert_to_numpy(
             kimage.map_coordinates(
                 input_img, grid, order=0, fill_mode="constant", fill_value=0
             )
@@ -3719,7 +3720,7 @@ class ExtractPatches3DTest(testing.TestCase):
             volume, size=(2, 2, 2), strides=(2, 2, 2)
         )
         first_patch = patches[0, 0, 0, 0, :]
-        first_patch_np = backend.convert_to_numpy(first_patch)
+        first_patch_np = backend.ops.convert_to_numpy(first_patch)
 
         expected = volume[0, 0:2, 0:2, 0:2, 0].flatten()
         np.testing.assert_array_equal(first_patch_np, expected)
@@ -3837,7 +3838,7 @@ class SobelEdgesTest(testing.TestCase):
         edges = kimage.sobel_edges(image, data_format="channels_last")
 
         # Horizontal gradient (dx) should be non-zero at the edge
-        dx = backend.convert_to_numpy(edges[0, :, :, 0, 1])
+        dx = backend.ops.convert_to_numpy(edges[0, :, :, 0, 1])
         # The edge is at column 4, so dx should have non-zero values there
         self.assertTrue(np.any(np.abs(dx[:, 3:5]) > 0))
 
@@ -3848,7 +3849,7 @@ class SobelEdgesTest(testing.TestCase):
         edges = kimage.sobel_edges(image, data_format="channels_last")
 
         # Vertical gradient (dy) should be non-zero at the edge
-        dy = backend.convert_to_numpy(edges[0, :, :, 0, 0])
+        dy = backend.ops.convert_to_numpy(edges[0, :, :, 0, 0])
         # The edge is at row 4, so dy should have non-zero values there
         self.assertTrue(np.any(np.abs(dy[3:5, :]) > 0))
 
@@ -3858,7 +3859,7 @@ class SobelEdgesTest(testing.TestCase):
         edges = kimage.sobel_edges(image, data_format="channels_last")
 
         # Interior gradients should be zero
-        edges_np = backend.convert_to_numpy(edges)
+        edges_np = backend.ops.convert_to_numpy(edges)
         interior = edges_np[0, 2:-2, 2:-2, 0, :]
         self.assertAllClose(interior, np.zeros_like(interior), atol=1e-5)
 

@@ -149,7 +149,7 @@ class RandomShear(BaseImagePreprocessingLayer):
         else:
             images = data
 
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         if len(images_shape) == 3:
             batch_size = 1
         else:
@@ -165,10 +165,10 @@ class RandomShear(BaseImagePreprocessingLayer):
             seed=seed,
             dtype=self.compute_dtype,
         )
-        invert = self.backend.numpy.where(
+        invert = self.backend.ops.numpy.where(
             invert > 0.5,
-            -self.backend.numpy.ones_like(invert),
-            self.backend.numpy.ones_like(invert),
+            -self.backend.ops.numpy.ones_like(invert),
+            self.backend.ops.numpy.ones_like(invert),
         )
 
         shear_y = self.backend.random.uniform(
@@ -186,8 +186,8 @@ class RandomShear(BaseImagePreprocessingLayer):
             dtype=self.compute_dtype,
         )
         shear_factor = (
-            self.backend.cast(
-                self.backend.numpy.concatenate([shear_x, shear_y], axis=1),
+            self.backend.ops.cast(
+                self.backend.ops.numpy.concatenate([shear_x, shear_y], axis=1),
                 dtype=self.compute_dtype,
             )
             * invert
@@ -198,13 +198,13 @@ class RandomShear(BaseImagePreprocessingLayer):
         if transformation is None:
             return images
 
-        inputs_shape = self.backend.shape(images)
+        inputs_shape = self.backend.ops.shape(images)
         unbatched = len(inputs_shape) == 3
         if unbatched:
-            images = self.backend.numpy.expand_dims(images, axis=0)
+            images = self.backend.ops.numpy.expand_dims(images, axis=0)
 
         shear_factor = transformation["shear_factor"]
-        outputs = self.backend.image.affine_transform(
+        outputs = self.backend.ops.image.affine_transform(
             images,
             transform=self._get_shear_matrix(shear_factor),
             interpolation=interpolation,
@@ -214,27 +214,27 @@ class RandomShear(BaseImagePreprocessingLayer):
         )
 
         if unbatched:
-            outputs = self.backend.numpy.squeeze(outputs, axis=0)
+            outputs = self.backend.ops.numpy.squeeze(outputs, axis=0)
         return outputs
 
     def _get_shear_matrix(self, shear_factors):
-        num_shear_factors = self.backend.shape(shear_factors)[0]
+        num_shear_factors = self.backend.ops.shape(shear_factors)[0]
 
         # The shear matrix looks like:
         # [[1   s_x  0]
         #  [s_y  1   0]
         #  [0    0   1]]
 
-        return self.backend.numpy.stack(
+        return self.backend.ops.numpy.stack(
             [
-                self.backend.numpy.ones((num_shear_factors,)),
+                self.backend.ops.numpy.ones((num_shear_factors,)),
                 shear_factors[:, 0],
-                self.backend.numpy.zeros((num_shear_factors,)),
+                self.backend.ops.numpy.zeros((num_shear_factors,)),
                 shear_factors[:, 1],
-                self.backend.numpy.ones((num_shear_factors,)),
-                self.backend.numpy.zeros((num_shear_factors,)),
-                self.backend.numpy.zeros((num_shear_factors,)),
-                self.backend.numpy.zeros((num_shear_factors,)),
+                self.backend.ops.numpy.ones((num_shear_factors,)),
+                self.backend.ops.numpy.zeros((num_shear_factors,)),
+                self.backend.ops.numpy.zeros((num_shear_factors,)),
+                self.backend.ops.numpy.zeros((num_shear_factors,)),
             ],
             axis=1,
         )
@@ -243,7 +243,7 @@ class RandomShear(BaseImagePreprocessingLayer):
         return labels
 
     def get_transformed_x_y(self, x, y, transform):
-        a0, a1, a2, b0, b1, b2, c0, c1 = self.backend.numpy.split(
+        a0, a1, a2, b0, b1, b2, c0, c1 = self.backend.ops.numpy.split(
             transform, 8, axis=-1
         )
 
@@ -254,20 +254,24 @@ class RandomShear(BaseImagePreprocessingLayer):
 
     def get_shifted_bbox(self, bounding_boxes, w_shift_factor, h_shift_factor):
         bboxes = bounding_boxes["boxes"]
-        x1, x2, x3, x4 = self.backend.numpy.split(bboxes, 4, axis=-1)
+        x1, x2, x3, x4 = self.backend.ops.numpy.split(bboxes, 4, axis=-1)
 
-        w_shift_factor = self.backend.convert_to_tensor(
+        w_shift_factor = self.backend.ops.convert_to_tensor(
             w_shift_factor, dtype=x1.dtype
         )
-        h_shift_factor = self.backend.convert_to_tensor(
+        h_shift_factor = self.backend.ops.convert_to_tensor(
             h_shift_factor, dtype=x1.dtype
         )
 
         if len(bboxes.shape) == 3:
-            w_shift_factor = self.backend.numpy.expand_dims(w_shift_factor, -1)
-            h_shift_factor = self.backend.numpy.expand_dims(h_shift_factor, -1)
+            w_shift_factor = self.backend.ops.numpy.expand_dims(
+                w_shift_factor, -1
+            )
+            h_shift_factor = self.backend.ops.numpy.expand_dims(
+                h_shift_factor, -1
+            )
 
-        bounding_boxes["boxes"] = self.backend.numpy.concatenate(
+        bounding_boxes["boxes"] = self.backend.ops.numpy.concatenate(
             [
                 x1 - w_shift_factor,
                 x2 - h_shift_factor,
@@ -335,45 +339,53 @@ class RandomShear(BaseImagePreprocessingLayer):
         return bounding_boxes
 
     def _shear_bboxes(self, bounding_boxes, transformation):
-        shear_factor = self.backend.cast(
+        shear_factor = self.backend.ops.cast(
             transformation["shear_factor"], dtype=self.compute_dtype
         )
-        shear_x_amount, shear_y_amount = self.backend.numpy.split(
+        shear_x_amount, shear_y_amount = self.backend.ops.numpy.split(
             shear_factor, 2, axis=-1
         )
 
-        x1, y1, x2, y2 = self.backend.numpy.split(
+        x1, y1, x2, y2 = self.backend.ops.numpy.split(
             bounding_boxes["boxes"], 4, axis=-1
         )
-        x1 = self.backend.numpy.squeeze(x1, axis=-1)
-        y1 = self.backend.numpy.squeeze(y1, axis=-1)
-        x2 = self.backend.numpy.squeeze(x2, axis=-1)
-        y2 = self.backend.numpy.squeeze(y2, axis=-1)
+        x1 = self.backend.ops.numpy.squeeze(x1, axis=-1)
+        y1 = self.backend.ops.numpy.squeeze(y1, axis=-1)
+        x2 = self.backend.ops.numpy.squeeze(x2, axis=-1)
+        y2 = self.backend.ops.numpy.squeeze(y2, axis=-1)
 
         if shear_x_amount is not None:
             x1_top = x1 - (shear_x_amount * y1)
             x1_bottom = x1 - (shear_x_amount * y2)
-            x1 = self.backend.numpy.where(shear_x_amount < 0, x1_top, x1_bottom)
+            x1 = self.backend.ops.numpy.where(
+                shear_x_amount < 0, x1_top, x1_bottom
+            )
 
             x2_top = x2 - (shear_x_amount * y1)
             x2_bottom = x2 - (shear_x_amount * y2)
-            x2 = self.backend.numpy.where(shear_x_amount < 0, x2_bottom, x2_top)
+            x2 = self.backend.ops.numpy.where(
+                shear_x_amount < 0, x2_bottom, x2_top
+            )
 
         if shear_y_amount is not None:
             y1_left = y1 - (shear_y_amount * x1)
             y1_right = y1 - (shear_y_amount * x2)
-            y1 = self.backend.numpy.where(shear_y_amount > 0, y1_right, y1_left)
+            y1 = self.backend.ops.numpy.where(
+                shear_y_amount > 0, y1_right, y1_left
+            )
 
             y2_left = y2 - (shear_y_amount * x1)
             y2_right = y2 - (shear_y_amount * x2)
-            y2 = self.backend.numpy.where(shear_y_amount > 0, y2_left, y2_right)
+            y2 = self.backend.ops.numpy.where(
+                shear_y_amount > 0, y2_left, y2_right
+            )
 
-        boxes = self.backend.numpy.concatenate(
+        boxes = self.backend.ops.numpy.concatenate(
             [
-                self.backend.numpy.expand_dims(x1, axis=-1),
-                self.backend.numpy.expand_dims(y1, axis=-1),
-                self.backend.numpy.expand_dims(x2, axis=-1),
-                self.backend.numpy.expand_dims(y2, axis=-1),
+                self.backend.ops.numpy.expand_dims(x1, axis=-1),
+                self.backend.ops.numpy.expand_dims(y1, axis=-1),
+                self.backend.ops.numpy.expand_dims(x2, axis=-1),
+                self.backend.ops.numpy.expand_dims(y2, axis=-1),
             ],
             axis=-1,
         )

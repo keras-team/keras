@@ -375,7 +375,7 @@ class SimpleRNNTest(testing.TestCase):
 
     def test_fused_lstm_matches_unfused(self):
         # The fused path requires backend support (JAX with cuDNN today).
-        # On other backends and on CPU runners, `backend.bidirectional_lstm`
+        # On other backends and on CPU runners, `backend.rnn.bidirectional_lstm`
         # raises `NotImplementedError` and the layer falls back to the
         # two-call path, so this test trivially passes; on GPU it
         # exercises the fused dispatch and asserts numerical equivalence
@@ -433,7 +433,7 @@ class SimpleRNNTest(testing.TestCase):
 
     def test_fused_gru_matches_unfused(self):
         # The fused path requires backend support (torch with cuDNN today).
-        # On other backends and on CPU runners, `backend.bidirectional_gru`
+        # On other backends and on CPU runners, `backend.rnn.bidirectional_gru`
         # raises `NotImplementedError` and the layer falls back to the
         # two-call path, so this test trivially passes. On GPU it exercises
         # the fused dispatch and asserts numerical equivalence with the
@@ -462,7 +462,7 @@ class SimpleRNNTest(testing.TestCase):
         self.assertAllClose(ref(x), fused(x), atol=1e-5)
 
     def test_torch_cudnn_bidirectional_gru_dispatch_fires(self):
-        # `backend.bidirectional_gru` is wrapped by a try/except in the
+        # `backend.rnn.bidirectional_gru` is wrapped by a try/except in the
         # Bidirectional layer, so a regression in the fused cuDNN call
         # silently routes every Bidirectional(GRU) call through the
         # two-pass fallback while every existing test still passes.

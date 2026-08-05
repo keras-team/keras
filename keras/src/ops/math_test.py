@@ -699,8 +699,10 @@ class MathOpsCorrectnessTest(testing.TestCase):
         x = np.array([0, 4, 2, 1, 3, -1], dtype=np.float32)
         values, indices = kmath.top_k(x, k=2, sorted=False)
         # Any order ok when `sorted=False`.
-        self.assertEqual(set(backend.convert_to_numpy(values)), set([4, 3]))
-        self.assertEqual(set(backend.convert_to_numpy(indices)), set([1, 4]))
+        self.assertEqual(set(backend.ops.convert_to_numpy(values)), set([4, 3]))
+        self.assertEqual(
+            set(backend.ops.convert_to_numpy(indices)), set([1, 4])
+        )
 
         x = np.random.rand(5, 5)
         outputs = kmath.top_k(x, k=2)
@@ -976,7 +978,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
             output = output[..., truncated_len:-truncated_len]
             ref = ref[..., truncated_len:-truncated_len]
         # Nans are handled differently in different backends, so zero them out.
-        output = np.nan_to_num(backend.convert_to_numpy(output), nan=0.0)
+        output = np.nan_to_num(backend.ops.convert_to_numpy(output), nan=0.0)
         ref = np.nan_to_num(ref, nan=0.0)
         self.assertAllClose(output, ref, atol=1e-5, rtol=1e-5)
 
@@ -1008,7 +1010,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
             output = output[..., truncated_len:-truncated_len]
             ref = ref[..., truncated_len:-truncated_len]
         # Nans are handled differently in different backends, so zero them out.
-        output = np.nan_to_num(backend.convert_to_numpy(output), nan=0.0)
+        output = np.nan_to_num(backend.ops.convert_to_numpy(output), nan=0.0)
         ref = np.nan_to_num(ref, nan=0.0)
         self.assertAllClose(output, ref, atol=1e-5, rtol=1e-5)
 

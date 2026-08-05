@@ -7,8 +7,8 @@ from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import testing
-from keras.src.backend.torch import core
 from keras.src.backend.torch import distribution_lib
+from keras.src.backend.torch.ops import core
 from keras.src.distribution.distribution_lib import DeviceMesh
 
 

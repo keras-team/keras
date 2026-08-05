@@ -8,6 +8,7 @@ from keras.src import ops
 from keras.src import testing
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.random import random
 from keras.src.random import seed_generator
 from keras.src.testing.test_utils import named_product
@@ -351,7 +352,7 @@ class RandomBehaviorTest(testing.TestCase):
             def call(self, inputs):
                 seed_generator = self._get_seed_generator(self.backend._backend)
                 noise = self.backend.random.beta(
-                    self.backend.shape(inputs),
+                    self.backend.ops.shape(inputs),
                     alpha=0.5,
                     beta=0.5,
                     seed=seed_generator,
@@ -396,7 +397,7 @@ class RandomBehaviorTest(testing.TestCase):
 
         @jax.jit
         def train_step(x):
-            with keras.src.backend.StatelessScope():
+            with StatelessScope():
                 x = keras.layers.Dropout(rate=0.1)(x, training=True)
             return x
 

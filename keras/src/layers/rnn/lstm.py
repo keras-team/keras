@@ -516,7 +516,7 @@ class LSTM(RNN):
         self.use_cudnn = use_cudnn
         if (
             backend.backend() == "tensorflow"
-            and backend.cudnn_ok(
+            and backend.rnn.cudnn_ok(
                 cell.activation,
                 cell.recurrent_activation,
                 self.unroll,
@@ -547,7 +547,7 @@ class LSTM(RNN):
                     # implementation of the inner LSTM loop. In the case of
                     # TF for instance, it will leverage cuDNN when feasible, and
                     # it will raise NotImplementedError otherwise.
-                    out = backend.lstm(
+                    out = backend.rnn.lstm(
                         dp_sequences,
                         initial_state[0],
                         initial_state[1],

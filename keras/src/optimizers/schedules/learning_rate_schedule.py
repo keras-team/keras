@@ -2,6 +2,7 @@
 
 import math
 
+from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.saving import serialization_lib
@@ -160,7 +161,7 @@ class ExponentialDecay(LearningRateSchedule):
             )
 
     def __call__(self, step):
-        with ops.name_scope(self.name):
+        with backend.name_scope(self.name):
             initial_learning_rate = ops.convert_to_tensor(
                 self.initial_learning_rate
             )
@@ -254,7 +255,7 @@ class PiecewiseConstantDecay(LearningRateSchedule):
         self.name = name
 
     def __call__(self, step):
-        with ops.name_scope(self.name):
+        with backend.name_scope(self.name):
             boundaries = [ops.convert_to_tensor(x) for x in self.boundaries]
             values = [ops.convert_to_tensor(x) for x in self.values]
             step = ops.convert_to_tensor(step)
@@ -409,7 +410,7 @@ class PolynomialDecay(LearningRateSchedule):
             )
 
     def __call__(self, step):
-        with ops.name_scope(self.name):
+        with backend.name_scope(self.name):
             initial_learning_rate = ops.convert_to_tensor(
                 self.initial_learning_rate
             )
@@ -543,7 +544,7 @@ class InverseTimeDecay(LearningRateSchedule):
             )
 
     def __call__(self, step):
-        with ops.name_scope(self.name):
+        with backend.name_scope(self.name):
             initial_learning_rate = ops.convert_to_tensor(
                 self.initial_learning_rate
             )
@@ -693,7 +694,7 @@ class CosineDecay(LearningRateSchedule):
             )
 
     def _decay_function(self, step, decay_steps, decay_from_lr, dtype):
-        with ops.name_scope(self.name):
+        with backend.name_scope(self.name):
             completed_fraction = ops.divide(step, decay_steps)
             pi = ops.array(math.pi, dtype=dtype)
             cosine_decayed = 0.5 * (
@@ -705,13 +706,13 @@ class CosineDecay(LearningRateSchedule):
     def _warmup_function(
         self, step, warmup_steps, warmup_target, initial_learning_rate
     ):
-        with ops.name_scope(self.name):
+        with backend.name_scope(self.name):
             completed_fraction = step / warmup_steps
             total_step_delta = warmup_target - initial_learning_rate
             return total_step_delta * completed_fraction + initial_learning_rate
 
     def __call__(self, step):
-        with ops.name_scope(self.name):
+        with backend.name_scope(self.name):
             initial_learning_rate = ops.convert_to_tensor(
                 self.initial_learning_rate
             )
@@ -843,7 +844,7 @@ class CosineDecayRestarts(LearningRateSchedule):
             )
 
     def __call__(self, step):
-        with ops.name_scope(self.name):
+        with backend.name_scope(self.name):
             initial_learning_rate = ops.convert_to_tensor(
                 self.initial_learning_rate
             )

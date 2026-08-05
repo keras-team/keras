@@ -428,7 +428,7 @@ class TextVectorization(Layer):
                 self.update_state(batch)
         elif hasattr(data, "__iter__") and not (
             isinstance(data, (list, tuple, np.ndarray))
-            or backend.is_tensor(data)
+            or backend.ops.is_tensor(data)
             or tf.is_tensor(data)
         ):
             for i, batch in enumerate(data):
@@ -541,8 +541,8 @@ class TextVectorization(Layer):
         """
         if isinstance(inputs, np.ndarray):
             np_inputs = inputs
-        elif backend.is_tensor(inputs):
-            np_inputs = backend.convert_to_numpy(inputs)
+        elif backend.ops.is_tensor(inputs):
+            np_inputs = backend.ops.convert_to_numpy(inputs)
         else:
             np_inputs = np.asarray(inputs)
 
@@ -563,8 +563,8 @@ class TextVectorization(Layer):
     def _preprocess(self, inputs):
         if not isinstance(
             inputs, (tf.Tensor, tf.RaggedTensor, np.ndarray, list, tuple)
-        ) and backend.is_tensor(inputs):
-            inputs = backend.convert_to_numpy(inputs)
+        ) and backend.ops.is_tensor(inputs):
+            inputs = backend.ops.convert_to_numpy(inputs)
         with tf.device("CPU:0"):
             if (
                 callable(self._standardize)

@@ -224,7 +224,7 @@ class Hashing(Layer):
         with tf.device("CPU:0"):
             inputs = tf_utils.ensure_tensor(inputs)
             if self.output_mode == "one_hot" and inputs.shape[-1] == 1:
-                inputs = tf_backend.numpy.squeeze(inputs, axis=-1)
+                inputs = tf_backend.ops.numpy.squeeze(inputs, axis=-1)
             if isinstance(inputs, tf.SparseTensor):
                 indices = tf.SparseTensor(
                     indices=inputs.indices,

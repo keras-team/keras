@@ -5,7 +5,7 @@ from keras.src import callbacks as callbacks_module
 from keras.src import tree
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
-from keras.src.backend.numpy.core import is_tensor
+from keras.src.backend.numpy.ops.core import is_tensor
 from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
@@ -323,6 +323,6 @@ class NumpyTrainer(base_trainer.Trainer):
         self.make_predict_function()
         batch_outputs = self.predict_function([(x,)])
         batch_outputs = tree.map_structure(
-            backend.convert_to_numpy, batch_outputs
+            backend.ops.convert_to_numpy, batch_outputs
         )
         return batch_outputs
