@@ -122,6 +122,10 @@ def load_model_from_hdf5(
     else:
         f = filepath
 
+    # Reject a cumulative shape bomb once, at the single point where the file is
+    # opened, so the weight loaders below don't each re-walk the whole file.
+    reject_h5_shape_bomb(f)
+
     model = None
     try:
         # instantiate model
@@ -343,7 +347,6 @@ def load_weights_from_hdf5_group(group, model, skip_mismatch=False):
         ValueError: in case of mismatch between provided layers
             and weights file.
     """
-    reject_h5_shape_bomb(group.file)
     if "keras_version" in group.attrs:
         original_keras_version = group.attrs["keras_version"]
         if hasattr(original_keras_version, "decode"):
@@ -488,7 +491,6 @@ def load_weights_from_hdf5_group_by_name(group, model, skip_mismatch=False):
         ValueError: in case of mismatch between provided layers
             and weights file and skip_match=False.
     """
-    reject_h5_shape_bomb(group.file)
     if "keras_version" in group.attrs:
         original_keras_version = group.attrs["keras_version"]
         if hasattr(original_keras_version, "decode"):

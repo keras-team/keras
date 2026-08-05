@@ -1887,6 +1887,22 @@ class SafeGetH5DatasetTest(testing.TestCase):
             self.assertIsNone(f["empty"].shape)
             saving_lib.reject_h5_shape_bomb(f)  # must not raise
 
+    def test_rejects_virtual_dataset(self):
+        # A virtual dataset can declare a huge shape backed by data outside the
+        # file, so the guard must reject it instead of counting its bytes.
+        path = os.path.join(self.get_temp_dir(), "virtual.h5")
+        layout = h5py.VirtualLayout(shape=(1 << 30,), dtype="float32")
+        source_path = os.path.join(self.get_temp_dir(), "source.h5")
+        with h5py.File(source_path, "w") as src:
+            src.create_dataset("data", data=np.zeros((8,), dtype="float32"))
+        layout[:8] = h5py.VirtualSource(source_path, "data", shape=(8,))
+        with h5py.File(path, "w") as f:
+            f.create_virtual_dataset("vds", layout)
+        with h5py.File(path, "r") as f:
+            self.assertTrue(f["vds"].is_virtual)
+            with self.assertRaisesRegex(ValueError, "virtual Dataset"):
+                saving_lib.reject_h5_shape_bomb(f)
+
     def test_load_sharded_weights_rejects_shape_bomb(self):
         # Sharded weights open each shard via `_get_h5_file` (never
         # `H5IOStore.__init__`), so a bomb planted in a shard must still be

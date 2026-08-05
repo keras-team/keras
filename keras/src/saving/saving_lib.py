@@ -1317,9 +1317,17 @@ def reject_h5_shape_bomb(h5_file):
 
     def _accumulate(_name, obj):
         nonlocal total_declared
+        if not isinstance(obj, h5py.Dataset):
+            return
+        if obj.is_virtual:
+            # A virtual dataset maps to data outside this file, so its declared
+            # size is not backed by the on-disk bytes we measure here. Reject it
+            # outright, exactly as `safe_get_h5_dataset` does on access, instead
+            # of letting it slip through the cumulative accounting.
+            raise ValueError("Not allowed: H5 file with virtual Dataset")
         # A null-dataspace dataset has `shape is None`; skip it (`math.prod`
         # would raise on `None`).
-        if isinstance(obj, h5py.Dataset) and obj.shape is not None:
+        if obj.shape is not None:
             total_declared += math.prod(obj.shape) * obj.dtype.itemsize
 
     # `visititems` only walks hard-linked datasets; external/soft links are
