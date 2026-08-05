@@ -331,6 +331,7 @@ class R2ScoreTest(testing.TestCase):
     @parameterized.parameters(
         # class_aggregation, num_regressors, result
         (None, 0, [0.37, -1.295, 0.565]),
+        (None, 1, [-0.26, -3.59, 0.13]),
         ("uniform_average", 0, -0.12),
         ("variance_weighted_average", 0, -0.12),
     )
@@ -351,14 +352,14 @@ class R2ScoreTest(testing.TestCase):
     @parameterized.parameters(
         # class_aggregation, num_regressors, result
         (None, 0, [0.17305559, -8.836666, -0.521]),
-        (None, 1, [0.054920673, -10.241904, -0.7382858]),
-        (None, 2, [-0.10259259, -12.115555, -1.0280001]),
+        (None, 1, [-0.65388882, -18.673332, -2.042]),
+        (None, 2, [0.17305559, -8.836666, -0.521]),
         ("uniform_average", 0, -3.0615367889404297),
-        ("uniform_average", 1, -3.641756534576416),
-        ("uniform_average", 2, -4.415382385253906),
+        ("uniform_average", 1, -7.123073577880859),
+        ("uniform_average", 2, -3.0615367889404297),
         ("variance_weighted_average", 0, -1.3710224628448486),
-        ("variance_weighted_average", 1, -1.7097399234771729),
-        ("variance_weighted_average", 2, -2.161363363265991),
+        ("variance_weighted_average", 1, -3.742044448852539),
+        ("variance_weighted_average", 2, -1.3710224628448486),
     )
     def test_r2_tfa_comparison(self, class_aggregation, num_regressors, result):
         y_true = [[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]]

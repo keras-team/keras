@@ -3,7 +3,7 @@ from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
 
-QUANTIZATION_MODES = ("int8", "float8", "int4", "gptq", "awq")
+QUANTIZATION_MODES = ("int8", "float8", "int4", "ternary", "gptq", "awq")
 
 
 @keras_export(
@@ -536,6 +536,17 @@ class AWQDTypePolicy(QuantizedDTypePolicy):
         return config
 
 
+@keras_export("keras.dtype_policies.TernaryDTypePolicy")
+class TernaryDTypePolicy(QuantizedDTypePolicy):
+    """Quantized dtype policy for ternary quantization.
+
+    This policy propagates quantization settings for ternary-weight layers
+    when saving and loading a quantized model. It is a stub today; a future
+    version may carry per-layer configuration such as a custom threshold or
+    a packed-kernel spec.
+    """
+
+
 @keras_export(
     [
         "keras.config.set_dtype_policy",
@@ -606,6 +617,8 @@ def _get_quantized_dtype_policy_by_str(policy):
             return Int4DTypePolicy(mode, source_name)
         else:
             return QuantizedDTypePolicy(mode, source_name)
+    elif policy.startswith("ternary"):
+        return TernaryDTypePolicy(mode, source_name)
     elif policy.startswith("gptq"):
         return GPTQDTypePolicy(mode, source_name)
     elif policy.startswith("awq"):

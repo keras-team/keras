@@ -215,30 +215,33 @@ def load_img(
         predictions = model.predict(input_arr)
         ```
         Note:
-            This function uses Pillow (`PIL.Image`) internally. If an oversized image
-            is loaded, Pillow may raise a `PIL.Image.DecompressionBombError`. This is
-            a built-in security mechanism to prevent decompression bomb DOS attacks.
-            The maximum image size is governed by `PIL.Image.MAX_IMAGE_PIXELS`. To change
-            this limit, see the Pillow documentation:
+            This function uses Pillow (`PIL.Image`) internally. If an
+            oversized image is loaded, Pillow may raise a
+            `PIL.Image.DecompressionBombError`. This is a built-in
+            security mechanism to prevent decompression bomb DOS attacks.
+            The maximum image size is governed by `PIL.Image.MAX_IMAGE_PIXELS`.
+            To change this limit, see the Pillow documentation:
 
     https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.MAX_IMAGE_PIXELS
 
         Args:
             path: Path to image file.
-            color_mode: One of `"grayscale"`, `"rgb"`, `"rgba"`. Default: `"rgb"`.
-                The desired image format.
-            target_size: Either `None` (default to original size) or tuple of ints
+            color_mode: One of `"grayscale"`, `"rgb"`, `"rgba"`.
+            Default: `"rgb"`.
+        The desired image format.
+            target_size: Either `None` (default to original size) or tuple of
+            ints
                 `(img_height, img_width)`.
-            interpolation: Interpolation method used to resample the image if the
-                target size is different from that of the loaded image. Supported
-                methods are `"nearest"`, `"bilinear"`, and `"bicubic"`.
-                If PIL version 1.1.3 or newer is installed, `"lanczos"`
-                is also supported. If PIL version 3.4.0 or newer is installed,
-                `"box"` and `"hamming"` are also
-                supported. By default, `"nearest"` is used.
+            interpolation: Interpolation method used to resample the image if
+            the target size is different from that of the loaded image.
+            Supported methods are `"nearest"`, `"bilinear"`, and `"bicubic"`.
+            If PIL version 1.1.3 or newer is installed, `"lanczos"`
+            is also supported. If PIL version 3.4.0 or newer is installed,
+            `"box"` and `"hamming"` are also
+            supported. By default, `"nearest"` is used.
             keep_aspect_ratio: Boolean, whether to resize images to a target
-                size without aspect ratio distortion. The image is cropped in
-                the center with target aspect ratio before resizing.
+            size without aspect ratio distortion. The image is cropped in
+            the center with target aspect ratio before resizing.
 
         Returns:
             A PIL Image instance.
