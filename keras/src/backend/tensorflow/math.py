@@ -67,7 +67,7 @@ def segment_prod(data, segment_ids, num_segments=None, sorted=False):
         return tf.math.unsorted_segment_prod(data, segment_ids, num_segments)
 
 
-def top_k(x, k, sorted=True):
+def top_k(x, k, sorted=True, is_stable=True):
     return tf.math.top_k(x, k, sorted=sorted)
 
 
