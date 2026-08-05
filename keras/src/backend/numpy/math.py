@@ -68,24 +68,29 @@ def segment_prod(data, segment_ids, num_segments=None, sorted=False):
     )
 
 
-def top_k(x, k, sorted=True):
-    if sorted:
-        # Take the k largest values.
-        sorted_indices = np.argsort(x, axis=-1)[..., ::-1]
-        sorted_values = np.take_along_axis(x, sorted_indices, axis=-1)
-        top_k_values = sorted_values[..., :k]
-        top_k_indices = sorted_indices[..., :k]
-    else:
+def top_k(x, k, sorted=True, is_stable=True):
+    if not is_stable and not sorted:
         # Partition the array such that all values larger than the k-th
         # largest value are to the right of it.
         top_k_indices = np.argpartition(x, -k, axis=-1)[..., -k:]
         top_k_values = np.take_along_axis(x, top_k_indices, axis=-1)
-    return top_k_values, top_k_indices
+        return top_k_values, top_k_indices
+    if not is_stable and sorted:
+        # Take the k largest values.
+        sorted_indices = np.argsort(x, axis=-1)[..., ::-1]
+        sorted_values = np.take_along_axis(x, sorted_indices, axis=-1)
+        return sorted_values[..., :k], sorted_indices[..., :k]
+    # Universal Reverse-Argsort-Reverse stable sort:
+    x_rev = np.flip(x, axis=-1)
+    rev_indices = np.argsort(x_rev, axis=-1, kind="stable")[..., ::-1]
+    orig_indices = x.shape[-1] - 1 - rev_indices
+    values = np.take_along_axis(x, orig_indices, axis=-1)
+    return values[..., :k], orig_indices[..., :k]
 
 
 def in_top_k(targets, predictions, k):
     targets = targets[..., None]
-    topk_values = top_k(predictions, k)[0]
+    topk_values = top_k(predictions, k, sorted=False, is_stable=False)[0]
     targets_values = np.take_along_axis(predictions, targets, axis=-1)
     mask = targets_values >= topk_values
     return np.any(mask, axis=-1)
