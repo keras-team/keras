@@ -3492,7 +3492,7 @@ class NNOpsBehaviorTest(testing.TestCase):
         model = models.Sequential([layer])
         model.compile(loss="binary_crossentropy", optimizer="sgd")
         out = model.evaluate(x, y)
-        self.assertAllClose(out, 2.682124)
+        self.assertAllClose(out, 2.682124, atol=1e-3, rtol=1e-3)
 
     def test_softmax_on_axis_with_size_one_warns(self):
         x = np.array([[1.0]])

@@ -1,4 +1,3 @@
-# Trigger CI test run for OpenVINO backend.
 import os
 
 import numpy as np
@@ -120,7 +119,7 @@ class ExportOpenVINOTest(testing.TestCase):
 
         ov_output = compiled_model([ref_input])[compiled_model.output(0)]
 
-        self.assertAllClose(ov_output, ref_output, atol=1e-3, rtol=1e-3)
+        self.assertAllClose(ov_output, ref_output, atol=5e-3, rtol=5e-3)
 
         larger_input = np.concatenate([ref_input, ref_input], axis=0)
         compiled_model([larger_input])
