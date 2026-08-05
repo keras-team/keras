@@ -47,7 +47,7 @@ class RandomZoomTest(testing.TestCase):
                 [0, 0, 0, 0, 0],
             ]
         )
-        expected_output = backend.convert_to_tensor(
+        expected_output = backend.ops.convert_to_tensor(
             np.reshape(expected_output, input_shape)
         )
         self.run_layer_test(
@@ -82,7 +82,7 @@ class RandomZoomTest(testing.TestCase):
                 [16.0, 16.5, 17.0, 17.5, 18.0],
             ]
         )
-        expected_output = backend.convert_to_tensor(
+        expected_output = backend.ops.convert_to_tensor(
             np.reshape(expected_output, input_shape)
         )
         self.run_layer_test(

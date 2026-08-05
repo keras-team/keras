@@ -242,7 +242,7 @@ def save_subset_weights_to_hdf5_group(group, weights):
         group: HDF5 group.
         weights: List of weight variables.
     """
-    weight_values = [backend.convert_to_numpy(w) for w in weights]
+    weight_values = [backend.ops.convert_to_numpy(w) for w in weights]
     weight_names = [str(w.path).encode("utf8") for w in weights]
     save_attributes_to_hdf5_group(group, "weight_names", weight_names)
     for name, val in zip(weight_names, weight_values):
@@ -273,7 +273,9 @@ def save_optimizer_weights_to_hdf5_group(group, optimizer):
         save_attributes_to_hdf5_group(
             weights_group, "weight_names", weight_names
         )
-        weight_values = [backend.convert_to_numpy(w) for w in symbolic_weights]
+        weight_values = [
+            backend.ops.convert_to_numpy(w) for w in symbolic_weights
+        ]
         for name, val in zip(weight_names, weight_values):
             param_dset = weights_group.create_dataset(
                 name, val.shape, dtype=val.dtype

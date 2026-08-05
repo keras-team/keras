@@ -6,7 +6,7 @@ name: Tests
 on:
   push:
     branches: [ master ]
-  pull_request:
+  pull_request_target:
   release:
     types: [created]
 
@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backend: [tensorflow, jax, torch, numpy, openvino]
+        backend: [tensorflow, jax, torch, numpy]
         nnx_enabled: [false]
         include:
           - backend: jax
@@ -56,7 +56,7 @@ jobs:
           persist-credentials: false
 
       - name: Check for changes in keras/src/applications
-        uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4
+        uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
         id: filter
         with:
           filters: |

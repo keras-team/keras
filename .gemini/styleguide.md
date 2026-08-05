@@ -213,17 +213,17 @@ Keras supports multiple backends (JAX, TensorFlow, PyTorch) and uses symbolic ex
 
 ### Multi-Backend Compatibility
 
-- **Prefer `backend.convert_to_tensor` over backend-specific methods**: Use `backend.convert_to_tensor(x)` instead of direct calls like `torch.as_tensor(x)`. This ensures proper handling of various input types, including Keras objects such as variables, and consistent detection of the dtype.
-- **Backend-Agnostic Shape Handling**: Prefer using `backend.shape(inputs)` (or a passed `backend_module.shape(inputs)`) over the `.shape` property. This ensures consistency across JAX, TF, and Torch, especially for symbolic tensors.
+- **Prefer `ops.convert_to_tensor` over backend-specific methods**: Use `ops.convert_to_tensor(x)` instead of direct calls like `torch.as_tensor(x)`. This ensures proper handling of various input types, including Keras objects such as variables, and consistent detection of the dtype.
+- **Backend-Agnostic Shape Handling**: Prefer using `ops.shape(inputs)` (or a passed `backend_module.shape(inputs)`) over the `.shape` property. This ensures consistency across JAX, TF, and Torch, especially for symbolic tensors.
 - **Support Dynamic Dimensions**:
-    - Use `len(shape)` or `backend.ndim(x)` to access shapes in a backend-agnostic way.
+    - Use `len(shape)` or `ops.ndim(x)` to access shapes in a backend-agnostic way.
     - Use `isinstance(d, int)` to detect that a dimension is static and not dynamic. `None` is not the only representation for dynamic dimensions.
     - Use plain Python operators (e.g. `+`, `*`, `//`) to perform math on the dimensions of a shape, not Keras ops. This works seamlessly for static dimensions, symbolic dimensions (JAX, Torch) and tensor dimensions (TensorFlow). For instance, `math.prod(shape)` is the correct way to determine the size of an array.
 
 ### Optimization & Numeric Stability
 
 - **Division by Zero**: Use `ops.divide_no_nan` for mask weight calculations or any situation where a zero divisor is possible.
-- **Arithmetic Masking**: Use `ops.where(x, mask, 0)` or `backend.numpy.where(x, mask, 0)` instead of multiplication `x * mask` to clear values outside of a mask to save memory on intermediary values.
+- **Arithmetic Masking**: Use `ops.where(x, mask, 0)` instead of multiplication `x * mask` to clear values outside of a mask to save memory on intermediary values.
 
 ### API Design & Validation
 

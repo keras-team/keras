@@ -42,9 +42,7 @@ def pytest_collection_modifyitems(config, items):
 
     openvino_skipped_tests = []
     if backend() == "openvino":
-        with open(
-            "keras/src/backend/openvino/excluded_concrete_tests.txt", "r"
-        ) as file:
+        with open("../keras-openvino/excluded_concrete_tests.txt", "r") as file:
             openvino_skipped_tests = file.readlines()
             # it is necessary to check if stripped line is not empty
             # and exclude such lines

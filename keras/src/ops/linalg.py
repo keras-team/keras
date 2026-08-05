@@ -2,7 +2,7 @@ from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
-from keras.src.backend import any_symbolic_tensors
+from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import reduce_shape
 
@@ -39,11 +39,11 @@ def cholesky(x, upper=False):
 
 
 def _cholesky(x, upper=False):
-    x = backend.convert_to_tensor(x)
+    x = backend.ops.convert_to_tensor(x)
     _assert_2d(x)
     _assert_square(x)
     try:
-        return backend.linalg.cholesky(x, upper=upper)
+        return backend.ops.linalg.cholesky(x, upper=upper)
     except Exception as e:
         raise ValueError(f"Cholesky decomposition failed: {e}")
 
@@ -85,11 +85,11 @@ def cholesky_inverse(x, upper=False):
 
 
 def _cholesky_inverse(x, upper=False):
-    x = backend.convert_to_tensor(x)
+    x = backend.ops.convert_to_tensor(x)
     _assert_2d(x)
     _assert_square(x)
     try:
-        return backend.linalg.cholesky_inverse(x, upper=upper)
+        return backend.ops.linalg.cholesky_inverse(x, upper=upper)
     except Exception as e:
         raise ValueError(f"Cholesky inverse failed: {e}")
 
@@ -121,10 +121,10 @@ def det(x):
 
 
 def _det(x):
-    x = backend.convert_to_tensor(x)
+    x = backend.ops.convert_to_tensor(x)
     _assert_2d(x)
     _assert_square(x)
-    return backend.linalg.det(x)
+    return backend.ops.linalg.det(x)
 
 
 class Eig(Operation):
@@ -157,10 +157,10 @@ def eig(x):
 
 
 def _eig(x):
-    x = backend.convert_to_tensor(x)
+    x = backend.ops.convert_to_tensor(x)
     _assert_square(x)
     _assert_2d(x)
-    return backend.linalg.eig(x)
+    return backend.ops.linalg.eig(x)
 
 
 class Eigh(Operation):
@@ -194,10 +194,10 @@ def eigh(x):
 
 
 def _eigh(x):
-    x = backend.convert_to_tensor(x)
+    x = backend.ops.convert_to_tensor(x)
     _assert_square(x)
     _assert_2d(x)
-    return backend.linalg.eigh(x)
+    return backend.ops.linalg.eigh(x)
 
 
 class Inv(Operation):
@@ -227,10 +227,10 @@ def inv(x):
 
 
 def _inv(x):
-    x = backend.convert_to_tensor(x)
+    x = backend.ops.convert_to_tensor(x)
     _assert_2d(x)
     _assert_square(x)
-    return backend.linalg.inv(x)
+    return backend.ops.linalg.inv(x)
 
 
 class LuFactor(Operation):
@@ -267,7 +267,7 @@ def lu_factor(x):
 
 
 def _lu_factor(x):
-    x = backend.convert_to_tensor(x)
+    x = backend.ops.convert_to_tensor(x)
     _assert_2d(x)
     if backend.backend() == "tensorflow":
         try:
@@ -277,7 +277,7 @@ def _lu_factor(x):
                 f"LU decomposition failed: {e}. LU decomposition is only "
                 "supported for square matrices in Tensorflow."
             )
-    return backend.linalg.lu_factor(x)
+    return backend.ops.linalg.lu_factor(x)
 
 
 class Norm(Operation):
@@ -331,8 +331,8 @@ class Norm(Operation):
         )
 
     def call(self, x):
-        x = backend.convert_to_tensor(x)
-        return backend.linalg.norm(
+        x = backend.ops.convert_to_tensor(x)
+        return backend.ops.linalg.norm(
             x, ord=self.ord, axis=self.axis, keepdims=self.keepdims
         )
 
@@ -395,8 +395,8 @@ def norm(x, ord=None, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Norm(ord=ord, axis=axis, keepdims=keepdims).symbolic_call(x)
-    x = backend.convert_to_tensor(x)
-    return backend.linalg.norm(x, ord=ord, axis=axis, keepdims=keepdims)
+    x = backend.ops.convert_to_tensor(x)
+    return backend.ops.linalg.norm(x, ord=ord, axis=axis, keepdims=keepdims)
 
 
 class Qr(Operation):
@@ -438,8 +438,8 @@ class Qr(Operation):
         )
 
     def call(self, x):
-        x = backend.convert_to_tensor(x)
-        return backend.linalg.qr(x, mode=self.mode)
+        x = backend.ops.convert_to_tensor(x)
+        return backend.ops.linalg.qr(x, mode=self.mode)
 
 
 @keras_export(["keras.ops.qr", "keras.ops.linalg.qr"])
@@ -468,8 +468,8 @@ def qr(x, mode="reduced"):
     """
     if any_symbolic_tensors((x,)):
         return Qr(mode=mode).symbolic_call(x)
-    x = backend.convert_to_tensor(x)
-    return backend.linalg.qr(x, mode=mode)
+    x = backend.ops.convert_to_tensor(x)
+    return backend.ops.linalg.qr(x, mode=mode)
 
 
 class Solve(Operation):
@@ -504,13 +504,13 @@ def solve(a, b):
 
 
 def _solve(a, b):
-    a = backend.convert_to_tensor(a)
-    b = backend.convert_to_tensor(b)
+    a = backend.ops.convert_to_tensor(a)
+    b = backend.ops.convert_to_tensor(b)
     _assert_2d(a)
     _assert_square(a)
     _assert_1d(b)
     _assert_a_b_compat(a, b)
-    return backend.linalg.solve(a, b)
+    return backend.ops.linalg.solve(a, b)
 
 
 class SolveTriangular(Operation):
@@ -551,13 +551,13 @@ def solve_triangular(a, b, lower=False):
 
 
 def _solve_triangular(a, b, lower=False):
-    a = backend.convert_to_tensor(a)
-    b = backend.convert_to_tensor(b)
+    a = backend.ops.convert_to_tensor(a)
+    b = backend.ops.convert_to_tensor(b)
     _assert_2d(a)
     _assert_square(a)
     _assert_1d(b)
     _assert_a_b_compat(a, b)
-    return backend.linalg.solve_triangular(a, b, lower)
+    return backend.ops.linalg.solve_triangular(a, b, lower)
 
 
 class SVD(Operation):
@@ -610,9 +610,9 @@ def svd(x, full_matrices=True, compute_uv=True):
 
 
 def _svd(x, full_matrices=True, compute_uv=True):
-    x = backend.convert_to_tensor(x)
+    x = backend.ops.convert_to_tensor(x)
     _assert_2d(x)
-    return backend.linalg.svd(x, full_matrices, compute_uv)
+    return backend.ops.linalg.svd(x, full_matrices, compute_uv)
 
 
 class Lstsq(Operation):
@@ -621,7 +621,7 @@ class Lstsq(Operation):
         self.rcond = rcond
 
     def call(self, a, b):
-        return backend.linalg.lstsq(a, b, rcond=self.rcond)
+        return backend.ops.linalg.lstsq(a, b, rcond=self.rcond)
 
     def compute_output_spec(self, a, b):
         if len(a.shape) != 2:
@@ -688,7 +688,7 @@ def lstsq(a, b, rcond=None):
     """
     if any_symbolic_tensors((a, b)):
         return Lstsq(rcond=rcond).symbolic_call(a, b)
-    return backend.linalg.lstsq(a, b, rcond=rcond)
+    return backend.ops.linalg.lstsq(a, b, rcond=rcond)
 
 
 class MatrixRank(Operation):
@@ -697,7 +697,7 @@ class MatrixRank(Operation):
         self.tol = tol
 
     def call(self, x):
-        return backend.linalg.matrix_rank(x, tol=self.tol)
+        return backend.ops.linalg.matrix_rank(x, tol=self.tol)
 
     def compute_output_spec(self, x):
         _assert_2d(x)
@@ -729,7 +729,7 @@ def matrix_rank(x, tol=None):
     """
     if any_symbolic_tensors((x,)):
         return MatrixRank(tol=tol).symbolic_call(x)
-    return backend.linalg.matrix_rank(x, tol=tol)
+    return backend.ops.linalg.matrix_rank(x, tol=tol)
 
 
 class MatrixPower(Operation):
@@ -783,10 +783,10 @@ def _matrix_power(x, n):
         raise TypeError(
             f"n must be an integer. Received: n={n} of type {type(n)}"
         )
-    x = backend.convert_to_tensor(x)
+    x = backend.ops.convert_to_tensor(x)
     _assert_2d(x)
     _assert_square(x)
-    return backend.linalg.matrix_power(x, n)
+    return backend.ops.linalg.matrix_power(x, n)
 
 
 class Pinv(Operation):
@@ -795,7 +795,7 @@ class Pinv(Operation):
         self.rcond = rcond
 
     def call(self, x):
-        return backend.linalg.pinv(x, rcond=self.rcond)
+        return backend.ops.linalg.pinv(x, rcond=self.rcond)
 
     def compute_output_spec(self, x):
         _assert_2d(x)
@@ -832,7 +832,7 @@ def pinv(x, rcond=None):
     """
     if any_symbolic_tensors((x,)):
         return Pinv(rcond=rcond).symbolic_call(x)
-    return backend.linalg.pinv(x, rcond=rcond)
+    return backend.ops.linalg.pinv(x, rcond=rcond)
 
 
 def _assert_1d(*arrays):
@@ -905,7 +905,9 @@ class JVP(Operation):
                 A tuple (primals_out, tangents_out, aux) where:
                 - aux: Auxiliary data returned by `fun`
         """
-        return backend.linalg.jvp(fun, primals, tangents, has_aux=self.has_aux)
+        return backend.ops.linalg.jvp(
+            fun, primals, tangents, has_aux=self.has_aux
+        )
 
     def compute_output_spec(self, fun, primals, tangents):
         # Infer primal output spec
@@ -968,4 +970,4 @@ def jvp(fun, primals, tangents, has_aux=False):
     """
     if any_symbolic_tensors((primals, tangents)):
         return JVP(has_aux=has_aux).symbolic_call(fun, primals, tangents)
-    return backend.linalg.jvp(fun, primals, tangents, has_aux=has_aux)
+    return backend.ops.linalg.jvp(fun, primals, tangents, has_aux=has_aux)

@@ -208,7 +208,7 @@ class AugMix(BaseImagePreprocessingLayer):
             alpha=alpha,
             seed=seed,
         )
-        return gamma_sample / self.backend.numpy.sum(
+        return gamma_sample / self.backend.ops.numpy.sum(
             gamma_sample, axis=-1, keepdims=True
         )
 
@@ -268,19 +268,19 @@ class AugMix(BaseImagePreprocessingLayer):
 
     def transform_images(self, images, transformation, training=True):
         if training:
-            images = self.backend.cast(images, self.compute_dtype)
+            images = self.backend.ops.cast(images, self.compute_dtype)
 
-            chain_mixing_weights = self.backend.cast(
+            chain_mixing_weights = self.backend.ops.cast(
                 transformation["chain_mixing_weights"], dtype=self.compute_dtype
             )
-            weight_sample = self.backend.cast(
+            weight_sample = self.backend.ops.cast(
                 transformation["weight_sample"], dtype=self.compute_dtype
             )
             chain_transforms = transformation["chain_transforms"]
 
-            aug_images = self.backend.numpy.zeros_like(images)
+            aug_images = self.backend.ops.numpy.zeros_like(images)
             for idx, chain_transform in enumerate(chain_transforms):
-                copied_images = self.backend.numpy.copy(images)
+                copied_images = self.backend.ops.numpy.copy(images)
                 for depth_transform in chain_transform:
                     layer_name = depth_transform["layer_name"]
                     layer_transform = depth_transform["transformation"]
@@ -292,11 +292,11 @@ class AugMix(BaseImagePreprocessingLayer):
                 aug_images += copied_images * chain_mixing_weights[idx]
             images = weight_sample * images + (1 - weight_sample) * aug_images
 
-            images = self.backend.numpy.clip(
+            images = self.backend.ops.numpy.clip(
                 images, self.value_range[0], self.value_range[1]
             )
 
-        images = self.backend.cast(images, self.compute_dtype)
+        images = self.backend.ops.cast(images, self.compute_dtype)
         return images
 
     def transform_labels(self, labels, transformation, training=True):
@@ -314,17 +314,17 @@ class AugMix(BaseImagePreprocessingLayer):
         self, segmentation_masks, transformation, training=True
     ):
         if training:
-            chain_mixing_weights = self.backend.cast(
+            chain_mixing_weights = self.backend.ops.cast(
                 transformation["chain_mixing_weights"], dtype=self.compute_dtype
             )
-            weight_sample = self.backend.cast(
+            weight_sample = self.backend.ops.cast(
                 transformation["weight_sample"], dtype=self.compute_dtype
             )
             chain_transforms = transformation["chain_transforms"]
 
-            aug_masks = self.backend.numpy.zeros_like(segmentation_masks)
+            aug_masks = self.backend.ops.numpy.zeros_like(segmentation_masks)
             for idx, chain_transform in enumerate(chain_transforms):
-                copied_masks = self.backend.numpy.copy(segmentation_masks)
+                copied_masks = self.backend.ops.numpy.copy(segmentation_masks)
                 for depth_transform in chain_transform:
                     layer_name = depth_transform["layer_name"]
                     layer_transform = depth_transform["transformation"]

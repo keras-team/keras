@@ -2,6 +2,7 @@ import warnings
 
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.common.variables import standardize_shape
 from keras.src.layers.layer import Layer
 from keras.src.ops.node import Node
 
@@ -89,10 +90,10 @@ class InputLayer(Layer):
                 raise ValueError("You must pass a `shape` argument.")
 
             if shape is not None:
-                shape = backend.standardize_shape(shape)
+                shape = standardize_shape(shape)
                 batch_shape = (batch_size,) + shape
 
-        self._batch_shape = backend.standardize_shape(batch_shape)
+        self._batch_shape = standardize_shape(batch_shape)
         self._dtype = backend.standardize_dtype(dtype)
         self.sparse = bool(sparse)
         if self.sparse and not backend.SUPPORTS_SPARSE_TENSORS:

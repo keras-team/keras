@@ -2,6 +2,7 @@ from keras.src import backend
 from keras.src import initializers
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.optimizers import optimizer
 from keras.src.saving import serialization_lib
 from keras.src.utils import tracking
@@ -146,19 +147,19 @@ class LossScaleOptimizer(optimizer.Optimizer):
     ):
         def upscale():
             mapping = list(zip(self.variables, optimizer_variables))
-            with backend.StatelessScope(state_mapping=mapping) as scope:
+            with StatelessScope(state_mapping=mapping) as scope:
                 self.step_counter.assign(0)
                 self.dynamic_scale.assign(ops.multiply(self.dynamic_scale, 2.0))
             return [scope.get_current_value(v) for v in self._variables]
 
         def increment():
             mapping = list(zip(self.variables, optimizer_variables))
-            with backend.StatelessScope(state_mapping=mapping) as scope:
+            with StatelessScope(state_mapping=mapping) as scope:
                 self.step_counter.assign_add(1)
             return [scope.get_current_value(v) for v in self._variables]
 
         mapping = list(zip(self.variables, optimizer_variables))
-        with backend.StatelessScope(state_mapping=mapping):
+        with StatelessScope(state_mapping=mapping):
             # Potentially upscale loss and reset counter.
             own_variables = ops.cond(
                 ops.equal(self.step_counter, self.dynamic_growth_steps - 1),
@@ -190,7 +191,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
         self, optimizer_variables, trainable_variables
     ):
         mapping = list(zip(self.variables, optimizer_variables))
-        with backend.StatelessScope(state_mapping=mapping) as scope:
+        with StatelessScope(state_mapping=mapping) as scope:
             self.step_counter.assign(0)
             self.dynamic_scale.assign(ops.multiply(self.dynamic_scale, 0.5))
         new_optimizer_variables = []

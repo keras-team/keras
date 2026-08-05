@@ -7,12 +7,12 @@ import numpy as np
 from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
-from keras.src.backend import any_symbolic_tensors
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import normalize_shift_and_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
+from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.ops import operation_utils
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import broadcast_shapes
@@ -26,7 +26,7 @@ class Rot90(Operation):
         self.axes = axes
 
     def call(self, array):
-        return backend.numpy.rot90(array, k=self.k, axes=self.axes)
+        return backend.ops.numpy.rot90(array, k=self.k, axes=self.axes)
 
     def compute_output_spec(self, array):
         array_shape = list(array.shape)
@@ -85,7 +85,7 @@ def rot90(array, k=1, axes=(0, 1)):
     """
     if any_symbolic_tensors((array,)):
         return Rot90(k=k, axes=axes).symbolic_call(array)
-    return backend.numpy.rot90(array, k=k, axes=axes)
+    return backend.ops.numpy.rot90(array, k=k, axes=axes)
 
 
 def shape_equal(shape1, shape2, axis=None, allow_none=True):
@@ -148,7 +148,7 @@ def shape_equal(shape1, shape2, axis=None, allow_none=True):
 
 class Absolute(Operation):
     def call(self, x):
-        return backend.numpy.absolute(x)
+        return backend.ops.numpy.absolute(x)
 
     def compute_output_spec(self, x):
         sparse = getattr(x, "sparse", False)
@@ -175,7 +175,7 @@ def absolute(x):
     """
     if any_symbolic_tensors((x,)):
         return Absolute().symbolic_call(x)
-    return backend.numpy.absolute(x)
+    return backend.ops.numpy.absolute(x)
 
 
 class Abs(Absolute):
@@ -190,7 +190,7 @@ def abs(x):
 
 class Fabs(Operation):
     def call(self, x):
-        return backend.numpy.fabs(x)
+        return backend.ops.numpy.fabs(x)
 
     def compute_output_spec(self, x):
         sparse = getattr(x, "sparse", False)
@@ -227,18 +227,18 @@ def fabs(x):
     if any_symbolic_tensors((x,)):
         return Fabs().symbolic_call(x)
 
-    x = backend.convert_to_tensor(x)
+    x = backend.ops.convert_to_tensor(x)
     if "complex" in backend.standardize_dtype(x.dtype):
         raise TypeError(
             f"fabs does not support complex inputs. Received: x.dtype={x.dtype}"
         )
 
-    return backend.numpy.fabs(x)
+    return backend.ops.numpy.fabs(x)
 
 
 class Add(Operation):
     def call(self, x1, x2):
-        return backend.numpy.add(x1, x2)
+        return backend.ops.numpy.add(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -285,7 +285,7 @@ def add(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Add().symbolic_call(x1, x2)
-    return backend.numpy.add(x1, x2)
+    return backend.ops.numpy.add(x1, x2)
 
 
 class All(Operation):
@@ -298,7 +298,7 @@ class All(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.all(
+        return backend.ops.numpy.all(
             x,
             axis=self.axis,
             keepdims=self.keepdims,
@@ -349,7 +349,7 @@ def all(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return All(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.numpy.all(x, axis=axis, keepdims=keepdims)
+    return backend.ops.numpy.all(x, axis=axis, keepdims=keepdims)
 
 
 class AllClose(Operation):
@@ -360,7 +360,7 @@ class AllClose(Operation):
         self.equal_nan = equal_nan
 
     def call(self, x1, x2):
-        return backend.numpy.allclose(
+        return backend.ops.numpy.allclose(
             x1,
             x2,
             rtol=self.rtol,
@@ -397,14 +397,14 @@ def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
         return AllClose(
             rtol=rtol, atol=atol, equal_nan=equal_nan
         ).symbolic_call(x1, x2)
-    return backend.numpy.allclose(
+    return backend.ops.numpy.allclose(
         x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan
     )
 
 
 class Angle(Operation):
     def call(self, x):
-        return backend.numpy.angle(x)
+        return backend.ops.numpy.angle(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
@@ -434,7 +434,7 @@ def angle(x):
     """
     if any_symbolic_tensors((x,)):
         return Angle().symbolic_call(x)
-    return backend.numpy.angle(x)
+    return backend.ops.numpy.angle(x)
 
 
 class Any(Operation):
@@ -447,7 +447,7 @@ class Any(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.any(
+        return backend.ops.numpy.any(
             x,
             axis=self.axis,
             keepdims=self.keepdims,
@@ -498,7 +498,7 @@ def any(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Any(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.numpy.any(x, axis=axis, keepdims=keepdims)
+    return backend.ops.numpy.any(x, axis=axis, keepdims=keepdims)
 
 
 class Amax(Operation):
@@ -510,7 +510,7 @@ class Amax(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.amax(
+        return backend.ops.numpy.amax(
             x,
             axis=self.axis,
             keepdims=self.keepdims,
@@ -557,7 +557,7 @@ def amax(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Amax(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.numpy.amax(x, axis=axis, keepdims=keepdims)
+    return backend.ops.numpy.amax(x, axis=axis, keepdims=keepdims)
 
 
 class Amin(Operation):
@@ -569,7 +569,7 @@ class Amin(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.amin(x, axis=self.axis, keepdims=self.keepdims)
+        return backend.ops.numpy.amin(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
         return KerasTensor(
@@ -612,7 +612,7 @@ def amin(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Amin(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.numpy.amin(x, axis=axis, keepdims=keepdims)
+    return backend.ops.numpy.amin(x, axis=axis, keepdims=keepdims)
 
 
 class Append(Operation):
@@ -621,7 +621,7 @@ class Append(Operation):
         self.axis = axis
 
     def call(self, x1, x2):
-        return backend.numpy.append(x1, x2, axis=self.axis)
+        return backend.ops.numpy.append(x1, x2, axis=self.axis)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = x1.shape
@@ -690,7 +690,7 @@ def append(
     """
     if any_symbolic_tensors((x1, x2)):
         return Append(axis=axis).symbolic_call(x1, x2)
-    return backend.numpy.append(x1, x2, axis=axis)
+    return backend.ops.numpy.append(x1, x2, axis=axis)
 
 
 class Arange(Operation):
@@ -699,7 +699,9 @@ class Arange(Operation):
         self.dtype = dtype
 
     def call(self, start, stop=None, step=None):
-        return backend.numpy.arange(start, stop, step=step, dtype=self.dtype)
+        return backend.ops.numpy.arange(
+            start, stop, step=step, dtype=self.dtype
+        )
 
     def compute_output_spec(self, start, stop=None, step=None):
         if stop is None:
@@ -767,12 +769,12 @@ def arange(start, stop=None, step=None, dtype=None):
     dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((start, stop, step)):
         return Arange(dtype=dtype).symbolic_call(start, stop, step=step)
-    return backend.numpy.arange(start, stop, step=step, dtype=dtype)
+    return backend.ops.numpy.arange(start, stop, step=step, dtype=dtype)
 
 
 class Arccos(Operation):
     def call(self, x):
-        return backend.numpy.arccos(x)
+        return backend.ops.numpy.arccos(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
@@ -803,12 +805,12 @@ def arccos(x):
     """
     if any_symbolic_tensors((x,)):
         return Arccos().symbolic_call(x)
-    return backend.numpy.arccos(x)
+    return backend.ops.numpy.arccos(x)
 
 
 class Arccosh(Operation):
     def call(self, x):
-        return backend.numpy.arccosh(x)
+        return backend.ops.numpy.arccosh(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
@@ -836,12 +838,12 @@ def arccosh(x):
     """
     if any_symbolic_tensors((x,)):
         return Arccosh().symbolic_call(x)
-    return backend.numpy.arccosh(x)
+    return backend.ops.numpy.arccosh(x)
 
 
 class Arcsin(Operation):
     def call(self, x):
-        return backend.numpy.arcsin(x)
+        return backend.ops.numpy.arcsin(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
@@ -871,12 +873,12 @@ def arcsin(x):
     """
     if any_symbolic_tensors((x,)):
         return Arcsin().symbolic_call(x)
-    return backend.numpy.arcsin(x)
+    return backend.ops.numpy.arcsin(x)
 
 
 class Arcsinh(Operation):
     def call(self, x):
-        return backend.numpy.arcsinh(x)
+        return backend.ops.numpy.arcsinh(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
@@ -905,12 +907,12 @@ def arcsinh(x):
     """
     if any_symbolic_tensors((x,)):
         return Arcsinh().symbolic_call(x)
-    return backend.numpy.arcsinh(x)
+    return backend.ops.numpy.arcsinh(x)
 
 
 class Arctan(Operation):
     def call(self, x):
-        return backend.numpy.arctan(x)
+        return backend.ops.numpy.arctan(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
@@ -940,12 +942,12 @@ def arctan(x):
     """
     if any_symbolic_tensors((x,)):
         return Arctan().symbolic_call(x)
-    return backend.numpy.arctan(x)
+    return backend.ops.numpy.arctan(x)
 
 
 class Arctan2(Operation):
     def call(self, x1, x2):
-        return backend.numpy.arctan2(x1, x2)
+        return backend.ops.numpy.arctan2(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -1002,12 +1004,12 @@ def arctan2(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Arctan2().symbolic_call(x1, x2)
-    return backend.numpy.arctan2(x1, x2)
+    return backend.ops.numpy.arctan2(x1, x2)
 
 
 class Arctanh(Operation):
     def call(self, x):
-        return backend.numpy.arctanh(x)
+        return backend.ops.numpy.arctanh(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
@@ -1036,7 +1038,7 @@ def arctanh(x):
     """
     if any_symbolic_tensors((x,)):
         return Arctanh().symbolic_call(x)
-    return backend.numpy.arctanh(x)
+    return backend.ops.numpy.arctanh(x)
 
 
 class Argmax(Operation):
@@ -1046,7 +1048,9 @@ class Argmax(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.argmax(x, axis=self.axis, keepdims=self.keepdims)
+        return backend.ops.numpy.argmax(
+            x, axis=self.axis, keepdims=self.keepdims
+        )
 
     def compute_output_spec(self, x):
         return KerasTensor(
@@ -1084,7 +1088,7 @@ def argmax(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Argmax(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.numpy.argmax(x, axis=axis, keepdims=keepdims)
+    return backend.ops.numpy.argmax(x, axis=axis, keepdims=keepdims)
 
 
 class Argmin(Operation):
@@ -1094,7 +1098,9 @@ class Argmin(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.argmin(x, axis=self.axis, keepdims=self.keepdims)
+        return backend.ops.numpy.argmin(
+            x, axis=self.axis, keepdims=self.keepdims
+        )
 
     def compute_output_spec(self, x):
         return KerasTensor(
@@ -1132,7 +1138,7 @@ def argmin(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Argmin(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.numpy.argmin(x, axis=axis, keepdims=keepdims)
+    return backend.ops.numpy.argmin(x, axis=axis, keepdims=keepdims)
 
 
 class Argsort(Operation):
@@ -1141,7 +1147,7 @@ class Argsort(Operation):
         self.axis = axis
 
     def call(self, x):
-        return backend.numpy.argsort(x, axis=self.axis)
+        return backend.ops.numpy.argsort(x, axis=self.axis)
 
     def compute_output_spec(self, x):
         if self.axis is None:
@@ -1187,7 +1193,7 @@ def argsort(x, axis=-1):
     """
     if any_symbolic_tensors((x,)):
         return Argsort(axis=axis).symbolic_call(x)
-    return backend.numpy.argsort(x, axis=axis)
+    return backend.ops.numpy.argsort(x, axis=axis)
 
 
 class Array(Operation):
@@ -1196,7 +1202,7 @@ class Array(Operation):
         self.dtype = dtype
 
     def call(self, x):
-        return backend.numpy.array(x, dtype=self.dtype)
+        return backend.ops.numpy.array(x, dtype=self.dtype)
 
     def compute_output_spec(self, x, dtype=None):
         dtype = (
@@ -1228,7 +1234,7 @@ def array(x, dtype=None):
     dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return Array(dtype=dtype).symbolic_call(x)
-    return backend.numpy.array(x, dtype=dtype)
+    return backend.ops.numpy.array(x, dtype=dtype)
 
 
 class View(Operation):
@@ -1237,7 +1243,7 @@ class View(Operation):
         self.dtype = dtype
 
     def call(self, x):
-        return backend.numpy.view(x, dtype=self.dtype)
+        return backend.ops.numpy.view(x, dtype=self.dtype)
 
     def compute_output_spec(self, x):
         old_dtype = backend.standardize_dtype(x.dtype)
@@ -1291,7 +1297,7 @@ def view(x, dtype=None):
     dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return View(dtype=dtype).symbolic_call(x)
-    return backend.numpy.view(x, dtype=dtype)
+    return backend.ops.numpy.view(x, dtype=dtype)
 
 
 class Average(Operation):
@@ -1300,7 +1306,7 @@ class Average(Operation):
         self.axis = axis
 
     def call(self, x, weights=None):
-        return backend.numpy.average(x, weights=weights, axis=self.axis)
+        return backend.ops.numpy.average(x, weights=weights, axis=self.axis)
 
     def compute_output_spec(self, x, weights=None):
         dtypes_to_resolve = [getattr(x, "dtype", type(x)), float]
@@ -1417,7 +1423,7 @@ def average(x, axis=None, weights=None):
     """
     if any_symbolic_tensors((x, weights)):
         return Average(axis=axis).symbolic_call(x, weights=weights)
-    return backend.numpy.average(x, axis=axis, weights=weights)
+    return backend.ops.numpy.average(x, axis=axis, weights=weights)
 
 
 @keras_export(["keras.ops.bartlett", "keras.ops.numpy.bartlett"])
@@ -1441,7 +1447,7 @@ def bartlett(x):
             f"Bartlett operation does not support symbolic tensors. "
             f"Received input x = {x} of type {type(x)}"
         )
-    return backend.numpy.bartlett(x)
+    return backend.ops.numpy.bartlett(x)
 
 
 @keras_export(["keras.ops.hamming", "keras.ops.numpy.hamming"])
@@ -1467,7 +1473,7 @@ def hamming(x):
             f"Hamming operation does not support symbolic tensors. "
             f"Received input x = {x} of type {type(x)}"
         )
-    return backend.numpy.hamming(x)
+    return backend.ops.numpy.hamming(x)
 
 
 @keras_export(["keras.ops.hanning", "keras.ops.numpy.hanning"])
@@ -1493,12 +1499,12 @@ def hanning(x):
             f"Hanning operation does not support symbolic tensors. "
             f"Received input x = {x} of type {type(x)}"
         )
-    return backend.numpy.hanning(x)
+    return backend.ops.numpy.hanning(x)
 
 
 class Heaviside(Operation):
     def call(self, x1, x2):
-        return backend.numpy.heaviside(x1, x2)
+        return backend.ops.numpy.heaviside(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         dtype = dtypes.result_type(x1.dtype, x2.dtype)
@@ -1531,7 +1537,7 @@ def heaviside(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Heaviside().symbolic_call(x1, x2)
-    return backend.numpy.heaviside(x1, x2)
+    return backend.ops.numpy.heaviside(x1, x2)
 
 
 @keras_export(["keras.ops.kaiser", "keras.ops.numpy.kaiser"])
@@ -1560,7 +1566,7 @@ def kaiser(x, beta):
             f"Kaiser operation does not support symbolic tensors. "
             f"Received input x = {x} of type {type(x)}"
         )
-    return backend.numpy.kaiser(x, beta)
+    return backend.ops.numpy.kaiser(x, beta)
 
 
 class Bincount(Operation):
@@ -1571,7 +1577,7 @@ class Bincount(Operation):
         self.sparse = sparse
 
     def call(self, x):
-        return backend.numpy.bincount(
+        return backend.ops.numpy.bincount(
             x,
             weights=self.weights,
             minlength=self.minlength,
@@ -1581,7 +1587,7 @@ class Bincount(Operation):
     def compute_output_spec(self, x):
         dtypes_to_resolve = [x.dtype]
         if self.weights is not None:
-            weights = backend.convert_to_tensor(self.weights)
+            weights = backend.ops.convert_to_tensor(self.weights)
             dtypes_to_resolve.append(weights.dtype)
             dtype = dtypes.result_type(*dtypes_to_resolve)
         else:
@@ -1636,14 +1642,14 @@ def bincount(x, weights=None, minlength=0, sparse=False):
         return Bincount(
             weights=weights, minlength=minlength, sparse=sparse
         ).symbolic_call(x)
-    return backend.numpy.bincount(
+    return backend.ops.numpy.bincount(
         x, weights=weights, minlength=minlength, sparse=sparse
     )
 
 
 class BitwiseAnd(Operation):
     def call(self, x, y):
-        return backend.numpy.bitwise_and(x, y)
+        return backend.ops.numpy.bitwise_and(x, y)
 
     def compute_output_spec(self, x, y):
         dtype = dtypes.result_type(x.dtype, y.dtype)
@@ -1667,12 +1673,12 @@ def bitwise_and(x, y):
     """
     if any_symbolic_tensors((x, y)):
         return BitwiseAnd().symbolic_call(x, y)
-    return backend.numpy.bitwise_and(x, y)
+    return backend.ops.numpy.bitwise_and(x, y)
 
 
 class BitwiseInvert(Operation):
     def call(self, x):
-        return backend.numpy.bitwise_invert(x)
+        return backend.ops.numpy.bitwise_invert(x)
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype=x.dtype)
@@ -1694,12 +1700,12 @@ def bitwise_invert(x):
     """
     if any_symbolic_tensors((x,)):
         return BitwiseInvert().symbolic_call(x)
-    return backend.numpy.bitwise_invert(x)
+    return backend.ops.numpy.bitwise_invert(x)
 
 
 class BitwiseNot(Operation):
     def call(self, x):
-        return backend.numpy.bitwise_not(x)
+        return backend.ops.numpy.bitwise_not(x)
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype=x.dtype)
@@ -1721,12 +1727,12 @@ def bitwise_not(x):
     """
     if any_symbolic_tensors((x,)):
         return BitwiseNot().symbolic_call(x)
-    return backend.numpy.bitwise_not(x)
+    return backend.ops.numpy.bitwise_not(x)
 
 
 class BitwiseOr(Operation):
     def call(self, x, y):
-        return backend.numpy.bitwise_or(x, y)
+        return backend.ops.numpy.bitwise_or(x, y)
 
     def compute_output_spec(self, x, y):
         dtype = dtypes.result_type(x.dtype, y.dtype)
@@ -1750,12 +1756,12 @@ def bitwise_or(x, y):
     """
     if any_symbolic_tensors((x, y)):
         return BitwiseOr().symbolic_call(x, y)
-    return backend.numpy.bitwise_or(x, y)
+    return backend.ops.numpy.bitwise_or(x, y)
 
 
 class BitwiseXor(Operation):
     def call(self, x, y):
-        return backend.numpy.bitwise_xor(x, y)
+        return backend.ops.numpy.bitwise_xor(x, y)
 
     def compute_output_spec(self, x, y):
         dtype = dtypes.result_type(x.dtype, y.dtype)
@@ -1779,12 +1785,12 @@ def bitwise_xor(x, y):
     """
     if any_symbolic_tensors((x, y)):
         return BitwiseXor().symbolic_call(x, y)
-    return backend.numpy.bitwise_xor(x, y)
+    return backend.ops.numpy.bitwise_xor(x, y)
 
 
 class BitwiseLeftShift(Operation):
     def call(self, x, y):
-        return backend.numpy.bitwise_left_shift(x, y)
+        return backend.ops.numpy.bitwise_left_shift(x, y)
 
     def compute_output_spec(self, x, y):
         if isinstance(y, int):
@@ -1813,12 +1819,12 @@ def bitwise_left_shift(x, y):
     """
     if any_symbolic_tensors((x, y)):
         return BitwiseLeftShift().symbolic_call(x, y)
-    return backend.numpy.bitwise_left_shift(x, y)
+    return backend.ops.numpy.bitwise_left_shift(x, y)
 
 
 class LeftShift(Operation):
     def call(self, x, y):
-        return backend.numpy.left_shift(x, y)
+        return backend.ops.numpy.left_shift(x, y)
 
     def compute_output_spec(self, x, y):
         if isinstance(y, int):
@@ -1845,12 +1851,12 @@ def left_shift(x, y):
     """
     if any_symbolic_tensors((x, y)):
         return LeftShift().symbolic_call(x, y)
-    return backend.numpy.left_shift(x, y)
+    return backend.ops.numpy.left_shift(x, y)
 
 
 class BitwiseRightShift(Operation):
     def call(self, x, y):
-        return backend.numpy.bitwise_right_shift(x, y)
+        return backend.ops.numpy.bitwise_right_shift(x, y)
 
     def compute_output_spec(self, x, y):
         if isinstance(y, int):
@@ -1879,12 +1885,12 @@ def bitwise_right_shift(x, y):
     """
     if any_symbolic_tensors((x, y)):
         return BitwiseRightShift().symbolic_call(x, y)
-    return backend.numpy.bitwise_right_shift(x, y)
+    return backend.ops.numpy.bitwise_right_shift(x, y)
 
 
 class RightShift(Operation):
     def call(self, x, y):
-        return backend.numpy.right_shift(x, y)
+        return backend.ops.numpy.right_shift(x, y)
 
     def compute_output_spec(self, x, y):
         if isinstance(y, int):
@@ -1911,7 +1917,7 @@ def right_shift(x, y):
     """
     if any_symbolic_tensors((x, y)):
         return RightShift().symbolic_call(x, y)
-    return backend.numpy.right_shift(x, y)
+    return backend.ops.numpy.right_shift(x, y)
 
 
 @keras_export(["keras.ops.blackman", "keras.ops.numpy.blackman"])
@@ -1935,7 +1941,7 @@ def blackman(x):
             f"Blackman operation does not support symbolic tensors. "
             f"Received input x = {x} of type {type(x)}"
         )
-    return backend.numpy.blackman(x)
+    return backend.ops.numpy.blackman(x)
 
 
 class BroadcastTo(Operation):
@@ -1944,7 +1950,7 @@ class BroadcastTo(Operation):
         self.shape = shape
 
     def call(self, x):
-        return backend.numpy.broadcast_to(x, self.shape)
+        return backend.ops.numpy.broadcast_to(x, self.shape)
 
     def compute_output_spec(self, x):
         # Catch broadcasting errors for clear error messages.
@@ -1978,12 +1984,12 @@ def broadcast_to(x, shape):
     """
     if any_symbolic_tensors((x,)):
         return BroadcastTo(shape=shape).symbolic_call(x)
-    return backend.numpy.broadcast_to(x, shape)
+    return backend.ops.numpy.broadcast_to(x, shape)
 
 
 class Cbrt(Operation):
     def call(self, x):
-        return backend.numpy.cbrt(x)
+        return backend.ops.numpy.cbrt(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(x.dtype)
@@ -2018,12 +2024,12 @@ def cbrt(x):
     """
     if any_symbolic_tensors((x,)):
         return Cbrt().symbolic_call(x)
-    return backend.numpy.cbrt(x)
+    return backend.ops.numpy.cbrt(x)
 
 
 class Ceil(Operation):
     def call(self, x):
-        return backend.numpy.ceil(x)
+        return backend.ops.numpy.ceil(x)
 
     def compute_output_spec(self, x):
         if backend.standardize_dtype(x.dtype) == "int64":
@@ -2049,7 +2055,7 @@ def ceil(x):
     """
     if any_symbolic_tensors((x,)):
         return Ceil().symbolic_call(x)
-    return backend.numpy.ceil(x)
+    return backend.ops.numpy.ceil(x)
 
 
 class Clip(Operation):
@@ -2059,7 +2065,7 @@ class Clip(Operation):
         self.x_max = x_max
 
     def call(self, x):
-        return backend.numpy.clip(x, self.x_min, self.x_max)
+        return backend.ops.numpy.clip(x, self.x_min, self.x_max)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(x.dtype)
@@ -2085,7 +2091,7 @@ def clip(x, x_min, x_max):
     """
     if any_symbolic_tensors((x,)):
         return Clip(x_min, x_max).symbolic_call(x)
-    return backend.numpy.clip(x, x_min, x_max)
+    return backend.ops.numpy.clip(x, x_min, x_max)
 
 
 class Concatenate(Operation):
@@ -2096,7 +2102,7 @@ class Concatenate(Operation):
         self.axis = axis
 
     def call(self, xs):
-        return backend.numpy.concatenate(xs, axis=self.axis)
+        return backend.ops.numpy.concatenate(xs, axis=self.axis)
 
     def compute_output_spec(self, xs):
         first_shape = xs[0].shape
@@ -2144,12 +2150,12 @@ def concatenate(xs, axis=0):
     """
     if any_symbolic_tensors(xs):
         return Concatenate(axis=axis).symbolic_call(xs)
-    return backend.numpy.concatenate(xs, axis=axis)
+    return backend.ops.numpy.concatenate(xs, axis=axis)
 
 
 class Conjugate(Operation):
     def call(self, x):
-        return backend.numpy.conjugate(x)
+        return backend.ops.numpy.conjugate(x)
 
     def compute_output_spec(self, x):
         sparse = getattr(x, "sparse", False)
@@ -2173,7 +2179,7 @@ def conjugate(x):
     """
     if any_symbolic_tensors((x,)):
         return Conjugate().symbolic_call(x)
-    return backend.numpy.conjugate(x)
+    return backend.ops.numpy.conjugate(x)
 
 
 class Conj(Conjugate):
@@ -2188,7 +2194,7 @@ def conj(x):
 
 class Copy(Operation):
     def call(self, x):
-        return backend.numpy.copy(x)
+        return backend.ops.numpy.copy(x)
 
     def compute_output_spec(self, x):
         sparse = getattr(x, "sparse", False)
@@ -2207,12 +2213,12 @@ def copy(x):
     """
     if any_symbolic_tensors((x,)):
         return Copy().symbolic_call(x)
-    return backend.numpy.copy(x)
+    return backend.ops.numpy.copy(x)
 
 
 class Cos(Operation):
     def call(self, x):
-        return backend.numpy.cos(x)
+        return backend.ops.numpy.cos(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
@@ -2235,12 +2241,12 @@ def cos(x):
     """
     if any_symbolic_tensors((x,)):
         return Cos().symbolic_call(x)
-    return backend.numpy.cos(x)
+    return backend.ops.numpy.cos(x)
 
 
 class Cosh(Operation):
     def call(self, x):
-        return backend.numpy.cosh(x)
+        return backend.ops.numpy.cosh(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
@@ -2263,7 +2269,7 @@ def cosh(x):
     """
     if any_symbolic_tensors((x,)):
         return Cosh().symbolic_call(x)
-    return backend.numpy.cosh(x)
+    return backend.ops.numpy.cosh(x)
 
 
 class CountNonzero(Operation):
@@ -2275,7 +2281,7 @@ class CountNonzero(Operation):
             self.axis = axis
 
     def call(self, x):
-        return backend.numpy.count_nonzero(x, axis=self.axis)
+        return backend.ops.numpy.count_nonzero(x, axis=self.axis)
 
     def compute_output_spec(self, x):
         return KerasTensor(
@@ -2314,7 +2320,7 @@ def count_nonzero(x, axis=None):
     """
     if any_symbolic_tensors((x,)):
         return CountNonzero(axis=axis).symbolic_call(x)
-    return backend.numpy.count_nonzero(x, axis=axis)
+    return backend.ops.numpy.count_nonzero(x, axis=axis)
 
 
 class Cross(Operation):
@@ -2330,7 +2336,9 @@ class Cross(Operation):
             self.axisc = axisc
 
     def call(self, x1, x2):
-        return backend.numpy.cross(x1, x2, self.axisa, self.axisb, self.axisc)
+        return backend.ops.numpy.cross(
+            x1, x2, self.axisa, self.axisb, self.axisc
+        )
 
     def compute_output_spec(self, x1, x2):
         x1_shape = list(x1.shape)
@@ -2406,7 +2414,7 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
         return Cross(
             axisa=axisa, axisb=axisb, axisc=axisc, axis=axis
         ).symbolic_call(x1, x2)
-    return backend.numpy.cross(
+    return backend.ops.numpy.cross(
         x1,
         x2,
         axisa=axisa,
@@ -2423,7 +2431,7 @@ class Cumprod(Operation):
         self.dtype = dtype
 
     def call(self, x):
-        return backend.numpy.cumprod(x, axis=self.axis, dtype=self.dtype)
+        return backend.ops.numpy.cumprod(x, axis=self.axis, dtype=self.dtype)
 
     def compute_output_spec(self, x):
         if self.axis is None:
@@ -2460,7 +2468,7 @@ def cumprod(x, axis=None, dtype=None):
     dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return Cumprod(axis=axis, dtype=dtype).symbolic_call(x)
-    return backend.numpy.cumprod(x, axis=axis, dtype=dtype)
+    return backend.ops.numpy.cumprod(x, axis=axis, dtype=dtype)
 
 
 class Cumsum(Operation):
@@ -2470,7 +2478,7 @@ class Cumsum(Operation):
         self.dtype = dtype
 
     def call(self, x):
-        return backend.numpy.cumsum(x, axis=self.axis, dtype=self.dtype)
+        return backend.ops.numpy.cumsum(x, axis=self.axis, dtype=self.dtype)
 
     def compute_output_spec(self, x):
         if self.axis is None:
@@ -2507,12 +2515,12 @@ def cumsum(x, axis=None, dtype=None):
     dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return Cumsum(axis=axis, dtype=dtype).symbolic_call(x)
-    return backend.numpy.cumsum(x, axis=axis, dtype=dtype)
+    return backend.ops.numpy.cumsum(x, axis=axis, dtype=dtype)
 
 
 class Deg2rad(Operation):
     def call(self, x):
-        return backend.numpy.deg2rad(x)
+        return backend.ops.numpy.deg2rad(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(x.dtype)
@@ -2545,12 +2553,12 @@ def deg2rad(x):
     """
     if any_symbolic_tensors((x,)):
         return Deg2rad().symbolic_call(x)
-    return backend.numpy.deg2rad(x)
+    return backend.ops.numpy.deg2rad(x)
 
 
 class Rad2deg(Operation):
     def call(self, x):
-        return backend.numpy.rad2deg(x)
+        return backend.ops.numpy.rad2deg(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(x.dtype)
@@ -2583,7 +2591,7 @@ def rad2deg(x):
     """
     if any_symbolic_tensors((x,)):
         return Rad2deg().symbolic_call(x)
-    return backend.numpy.rad2deg(x)
+    return backend.ops.numpy.rad2deg(x)
 
 
 class Diag(Operation):
@@ -2592,7 +2600,7 @@ class Diag(Operation):
         self.k = k
 
     def call(self, x):
-        return backend.numpy.diag(x, k=self.k)
+        return backend.ops.numpy.diag(x, k=self.k)
 
     def compute_output_spec(self, x):
         x_shape = x.shape
@@ -2659,7 +2667,7 @@ def diag(x, k=0):
     """
     if any_symbolic_tensors((x,)):
         return Diag(k=k).symbolic_call(x)
-    return backend.numpy.diag(x, k=k)
+    return backend.ops.numpy.diag(x, k=k)
 
 
 class Diagflat(Operation):
@@ -2668,7 +2676,7 @@ class Diagflat(Operation):
         self.k = k
 
     def call(self, x):
-        return backend.numpy.diagflat(x, k=self.k)
+        return backend.ops.numpy.diagflat(x, k=self.k)
 
     def compute_output_spec(self, x):
         x_shape = x.shape
@@ -2715,7 +2723,7 @@ def diagflat(x, k=0):
     """
     if any_symbolic_tensors((x,)):
         return Diagflat(k=k).symbolic_call(x)
-    return backend.numpy.diagflat(x, k=k)
+    return backend.ops.numpy.diagflat(x, k=k)
 
 
 class Diagonal(Operation):
@@ -2726,7 +2734,7 @@ class Diagonal(Operation):
         self.axis2 = axis2
 
     def call(self, x):
-        return backend.numpy.diagonal(
+        return backend.ops.numpy.diagonal(
             x,
             offset=self.offset,
             axis1=self.axis1,
@@ -2822,7 +2830,7 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
             axis1=axis1,
             axis2=axis2,
         ).symbolic_call(x)
-    return backend.numpy.diagonal(
+    return backend.ops.numpy.diagonal(
         x,
         offset=offset,
         axis1=axis1,
@@ -2837,7 +2845,7 @@ class Diff(Operation):
         self.axis = axis
 
     def call(self, a):
-        return backend.numpy.diff(a, n=self.n, axis=self.axis)
+        return backend.ops.numpy.diff(a, n=self.n, axis=self.axis)
 
     def compute_output_spec(self, a):
         axis = canonicalize_axis(self.axis, len(a.shape))
@@ -2885,7 +2893,7 @@ def diff(a, n=1, axis=-1):
 
 class Digitize(Operation):
     def call(self, x, bins):
-        return backend.numpy.digitize(x, bins)
+        return backend.ops.numpy.digitize(x, bins)
 
     def compute_output_spec(self, x, bins):
         bins_shape = bins.shape
@@ -2918,12 +2926,12 @@ def digitize(x, bins):
     """
     if any_symbolic_tensors((x, bins)):
         return Digitize().symbolic_call(x, bins)
-    return backend.numpy.digitize(x, bins)
+    return backend.ops.numpy.digitize(x, bins)
 
 
 class Dot(Operation):
     def call(self, x1, x2):
-        return backend.numpy.dot(x1, x2)
+        return backend.ops.numpy.dot(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = list(getattr(x1, "shape", []))
@@ -2987,12 +2995,12 @@ def dot(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Dot().symbolic_call(x1, x2)
-    return backend.numpy.dot(x1, x2)
+    return backend.ops.numpy.dot(x1, x2)
 
 
 class Dstack(Operation):
     def call(self, xs):
-        return backend.numpy.dstack(xs)
+        return backend.ops.numpy.dstack(xs)
 
     def compute_output_spec(self, xs):
         dtypes_to_resolve = []
@@ -3061,7 +3069,7 @@ def dstack(xs):
     """
     if any_symbolic_tensors((xs,)):
         return Dstack().symbolic_call(xs)
-    return backend.numpy.dstack(xs)
+    return backend.ops.numpy.dstack(xs)
 
 
 class Einsum(Operation):
@@ -3070,7 +3078,7 @@ class Einsum(Operation):
         self.subscripts = subscripts
 
     def call(self, *operands, **kwargs):
-        return backend.numpy.einsum(self.subscripts, *operands, **kwargs)
+        return backend.ops.numpy.einsum(self.subscripts, *operands, **kwargs)
 
     def compute_output_spec(self, *operands):
         """Compute the output shape of `einsum`.
@@ -3329,7 +3337,7 @@ def einsum(subscripts, *operands, **kwargs):
     """
     if any_symbolic_tensors(operands):
         return Einsum(subscripts).symbolic_call(*operands, **kwargs)
-    return backend.numpy.einsum(subscripts, *operands, **kwargs)
+    return backend.ops.numpy.einsum(subscripts, *operands, **kwargs)
 
 
 @keras_export(["keras.ops.empty", "keras.ops.numpy.empty"])
@@ -3343,7 +3351,7 @@ def empty(shape, dtype=None):
     Returns:
         The empty tensor.
     """
-    return backend.numpy.empty(shape, dtype=dtype)
+    return backend.ops.numpy.empty(shape, dtype=dtype)
 
 
 class EmptyLike(Operation):
@@ -3352,7 +3360,7 @@ class EmptyLike(Operation):
         self.dtype = dtype
 
     def call(self, x):
-        return backend.numpy.empty_like(x, dtype=self.dtype)
+        return backend.ops.numpy.empty_like(x, dtype=self.dtype)
 
     def compute_output_spec(self, x):
         dtype = (
@@ -3386,12 +3394,12 @@ def empty_like(x, dtype=None):
     dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return EmptyLike(dtype=dtype).symbolic_call(x)
-    return backend.numpy.empty_like(x, dtype=dtype)
+    return backend.ops.numpy.empty_like(x, dtype=dtype)
 
 
 class Equal(Operation):
     def call(self, x1, x2):
-        return backend.numpy.equal(x1, x2)
+        return backend.ops.numpy.equal(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -3413,12 +3421,12 @@ def equal(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Equal().symbolic_call(x1, x2)
-    return backend.numpy.equal(x1, x2)
+    return backend.ops.numpy.equal(x1, x2)
 
 
 class Exp(Operation):
     def call(self, x):
-        return backend.numpy.exp(x)
+        return backend.ops.numpy.exp(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(x.dtype)
@@ -3439,12 +3447,12 @@ def exp(x):
     """
     if any_symbolic_tensors((x,)):
         return Exp().symbolic_call(x)
-    return backend.numpy.exp(x)
+    return backend.ops.numpy.exp(x)
 
 
 class Exp2(Operation):
     def call(self, x):
-        return backend.numpy.exp2(x)
+        return backend.ops.numpy.exp2(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(x.dtype)
@@ -3465,7 +3473,7 @@ def exp2(x):
     """
     if any_symbolic_tensors((x,)):
         return Exp2().symbolic_call(x)
-    return backend.numpy.exp2(x)
+    return backend.ops.numpy.exp2(x)
 
 
 class ExpandDims(Operation):
@@ -3479,7 +3487,7 @@ class ExpandDims(Operation):
         self.axis = axis
 
     def call(self, x):
-        return backend.numpy.expand_dims(x, self.axis)
+        return backend.ops.numpy.expand_dims(x, self.axis)
 
     def compute_output_spec(self, x):
         output_shape = operation_utils.compute_expand_dims_output_shape(
@@ -3510,12 +3518,12 @@ def expand_dims(x, axis):
     """
     if any_symbolic_tensors((x,)):
         return ExpandDims(axis=axis).symbolic_call(x)
-    return backend.numpy.expand_dims(x, axis)
+    return backend.ops.numpy.expand_dims(x, axis)
 
 
 class Expm1(Operation):
     def call(self, x):
-        return backend.numpy.expm1(x)
+        return backend.ops.numpy.expm1(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(x.dtype)
@@ -3537,7 +3545,7 @@ def expm1(x):
     """
     if any_symbolic_tensors((x,)):
         return Expm1().symbolic_call(x)
-    return backend.numpy.expm1(x)
+    return backend.ops.numpy.expm1(x)
 
 
 class Flip(Operation):
@@ -3546,7 +3554,7 @@ class Flip(Operation):
         self.axis = axis
 
     def call(self, x):
-        return backend.numpy.flip(x, axis=self.axis)
+        return backend.ops.numpy.flip(x, axis=self.axis)
 
     def compute_output_spec(self, x):
         if self.axis is not None:
@@ -3570,12 +3578,12 @@ def flip(x, axis=None):
     """
     if any_symbolic_tensors((x,)):
         return Flip(axis=axis).symbolic_call(x)
-    return backend.numpy.flip(x, axis=axis)
+    return backend.ops.numpy.flip(x, axis=axis)
 
 
 class Fliplr(Operation):
     def call(self, x):
-        return backend.numpy.fliplr(x)
+        return backend.ops.numpy.fliplr(x)
 
     def compute_output_spec(self, x):
         if len(x.shape) < 2:
@@ -3602,12 +3610,12 @@ def fliplr(x):
     """
     if any_symbolic_tensors((x,)):
         return Fliplr().symbolic_call(x)
-    return backend.numpy.fliplr(x)
+    return backend.ops.numpy.fliplr(x)
 
 
 class Flipud(Operation):
     def call(self, x):
-        return backend.numpy.flipud(x)
+        return backend.ops.numpy.flipud(x)
 
     def compute_output_spec(self, x):
         if len(x.shape) < 1:
@@ -3634,12 +3642,12 @@ def flipud(x):
     """
     if any_symbolic_tensors((x,)):
         return Flipud().symbolic_call(x)
-    return backend.numpy.flipud(x)
+    return backend.ops.numpy.flipud(x)
 
 
 class Floor(Operation):
     def call(self, x):
-        return backend.numpy.floor(x)
+        return backend.ops.numpy.floor(x)
 
     def compute_output_spec(self, x):
         sparse = getattr(x, "sparse", False)
@@ -3665,7 +3673,7 @@ def floor(x):
     """
     if any_symbolic_tensors((x,)):
         return Floor().symbolic_call(x)
-    return backend.numpy.floor(x)
+    return backend.ops.numpy.floor(x)
 
 
 class Full(Operation):
@@ -3675,7 +3683,7 @@ class Full(Operation):
         self.dtype = dtype
 
     def call(self, fill_value):
-        return backend.numpy.full(self.shape, fill_value, dtype=self.dtype)
+        return backend.ops.numpy.full(self.shape, fill_value, dtype=self.dtype)
 
     def compute_output_spec(self, fill_value):
         dtype = backend.floatx() if self.dtype is None else self.dtype
@@ -3697,7 +3705,7 @@ def full(shape, fill_value, dtype=None):
     dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((fill_value,)):
         return Full(shape=shape, dtype=dtype).symbolic_call(fill_value)
-    return backend.numpy.full(shape, fill_value, dtype=dtype)
+    return backend.ops.numpy.full(shape, fill_value, dtype=dtype)
 
 
 class FullLike(Operation):
@@ -3706,7 +3714,7 @@ class FullLike(Operation):
         self.dtype = dtype
 
     def call(self, x, fill_value):
-        return backend.numpy.full_like(x, fill_value, dtype=self.dtype)
+        return backend.ops.numpy.full_like(x, fill_value, dtype=self.dtype)
 
     def compute_output_spec(self, x, fill_value):
         dtype = (
@@ -3732,12 +3740,12 @@ def full_like(x, fill_value, dtype=None):
     dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x, fill_value)):
         return FullLike(dtype=dtype).symbolic_call(x, fill_value)
-    return backend.numpy.full_like(x, fill_value, dtype=dtype)
+    return backend.ops.numpy.full_like(x, fill_value, dtype=dtype)
 
 
 class Gcd(Operation):
     def call(self, x1, x2):
-        return backend.numpy.gcd(x1, x2)
+        return backend.ops.numpy.gcd(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -3763,7 +3771,7 @@ def gcd(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Gcd().symbolic_call(x1, x2)
-    return backend.numpy.gcd(x1, x2)
+    return backend.ops.numpy.gcd(x1, x2)
 
 
 class GetItem(Operation):
@@ -3856,7 +3864,7 @@ class Geomspace(Operation):
         self.axis = axis
 
     def call(self, start, stop):
-        return backend.numpy.geomspace(
+        return backend.ops.numpy.geomspace(
             start,
             stop,
             num=self.num,
@@ -3911,7 +3919,7 @@ def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
     dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((start, stop)):
         return Geomspace(num, endpoint, dtype, axis)(start, stop)
-    return backend.numpy.geomspace(
+    return backend.ops.numpy.geomspace(
         start,
         stop,
         num=num,
@@ -3923,7 +3931,7 @@ def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
 
 class Greater(Operation):
     def call(self, x1, x2):
-        return backend.numpy.greater(x1, x2)
+        return backend.ops.numpy.greater(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -3945,12 +3953,12 @@ def greater(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Greater().symbolic_call(x1, x2)
-    return backend.numpy.greater(x1, x2)
+    return backend.ops.numpy.greater(x1, x2)
 
 
 class GreaterEqual(Operation):
     def call(self, x1, x2):
-        return backend.numpy.greater_equal(x1, x2)
+        return backend.ops.numpy.greater_equal(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -3977,12 +3985,12 @@ def greater_equal(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return GreaterEqual().symbolic_call(x1, x2)
-    return backend.numpy.greater_equal(x1, x2)
+    return backend.ops.numpy.greater_equal(x1, x2)
 
 
 class Hstack(Operation):
     def call(self, xs):
-        return backend.numpy.hstack(xs)
+        return backend.ops.numpy.hstack(xs)
 
     def compute_output_spec(self, xs):
         first_shape = xs[0].shape
@@ -4022,7 +4030,7 @@ def hstack(xs):
     """
     if any_symbolic_tensors((xs,)):
         return Hstack().symbolic_call(xs)
-    return backend.numpy.hstack(xs)
+    return backend.ops.numpy.hstack(xs)
 
 
 class Hsplit(Operation):
@@ -4033,7 +4041,7 @@ class Hsplit(Operation):
         self.indices_or_sections = indices_or_sections
 
     def call(self, x):
-        return backend.numpy.hsplit(x, self.indices_or_sections)
+        return backend.ops.numpy.hsplit(x, self.indices_or_sections)
 
     def compute_output_spec(self, x):
         if len(x.shape) < 1:
@@ -4088,12 +4096,12 @@ def hsplit(x, indices_or_sections):
     """
     if any_symbolic_tensors((x,)):
         return Hsplit(indices_or_sections).symbolic_call(x)
-    return backend.numpy.hsplit(x, indices_or_sections)
+    return backend.ops.numpy.hsplit(x, indices_or_sections)
 
 
 class Hypot(Operation):
     def call(self, x1, x2):
-        return backend.numpy.hypot(x1, x2)
+        return backend.ops.numpy.hypot(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         dtype = dtypes.result_type(x1.dtype, x2.dtype)
@@ -4132,7 +4140,7 @@ def hypot(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Hypot().symbolic_call(x1, x2)
-    return backend.numpy.hypot(x1, x2)
+    return backend.ops.numpy.hypot(x1, x2)
 
 
 @keras_export(["keras.ops.identity", "keras.ops.numpy.identity"])
@@ -4149,12 +4157,12 @@ def identity(n, dtype=None):
     Returns:
         The identity tensor.
     """
-    return backend.numpy.identity(n, dtype=dtype)
+    return backend.ops.numpy.identity(n, dtype=dtype)
 
 
 class Imag(Operation):
     def call(self, x):
-        return backend.numpy.imag(x)
+        return backend.ops.numpy.imag(x)
 
     def compute_output_spec(self, x):
         sparse = getattr(x, "sparse", False)
@@ -4173,12 +4181,12 @@ def imag(x):
     """
     if any_symbolic_tensors((x,)):
         return Imag().symbolic_call(x)
-    return backend.numpy.imag(x)
+    return backend.ops.numpy.imag(x)
 
 
 class I0(Operation):
     def call(self, x):
-        return backend.numpy.i0(x)
+        return backend.ops.numpy.i0(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(x.dtype)
@@ -4202,7 +4210,7 @@ def i0(x):
     """
     if any_symbolic_tensors((x,)):
         return I0().symbolic_call(x)
-    return backend.numpy.i0(x)
+    return backend.ops.numpy.i0(x)
 
 
 class Isclose(Operation):
@@ -4211,7 +4219,7 @@ class Isclose(Operation):
         self.equal_nan = equal_nan
 
     def call(self, x1, x2, rtol=1e-5, atol=1e-8):
-        return backend.numpy.isclose(x1, x2, rtol, atol, self.equal_nan)
+        return backend.ops.numpy.isclose(x1, x2, rtol, atol, self.equal_nan)
 
     def compute_output_spec(self, x1, x2, rtol=1e-5, atol=1e-8):
         x1_shape = getattr(x1, "shape", [])
@@ -4236,12 +4244,12 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     """
     if any_symbolic_tensors((x1, x2)):
         return Isclose(equal_nan=equal_nan).symbolic_call(x1, x2, rtol, atol)
-    return backend.numpy.isclose(x1, x2, rtol, atol, equal_nan)
+    return backend.ops.numpy.isclose(x1, x2, rtol, atol, equal_nan)
 
 
 class Isfinite(Operation):
     def call(self, x):
-        return backend.numpy.isfinite(x)
+        return backend.ops.numpy.isfinite(x)
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype="bool")
@@ -4263,7 +4271,7 @@ def isfinite(x):
     """
     if any_symbolic_tensors((x,)):
         return Isfinite().symbolic_call(x)
-    return backend.numpy.isfinite(x)
+    return backend.ops.numpy.isfinite(x)
 
 
 class IsIn(Operation):
@@ -4279,7 +4287,7 @@ class IsIn(Operation):
         self.invert = invert
 
     def call(self, x1, x2):
-        return backend.numpy.isin(
+        return backend.ops.numpy.isin(
             x1, x2, assume_unique=self.assume_unique, invert=self.invert
         )
 
@@ -4323,14 +4331,14 @@ def isin(x1, x2, assume_unique=False, invert=False):
         return IsIn(assume_unique=assume_unique, invert=invert).symbolic_call(
             x1, x2
         )
-    return backend.numpy.isin(
+    return backend.ops.numpy.isin(
         x1, x2, assume_unique=assume_unique, invert=invert
     )
 
 
 class Isinf(Operation):
     def call(self, x):
-        return backend.numpy.isinf(x)
+        return backend.ops.numpy.isinf(x)
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype="bool")
@@ -4348,12 +4356,12 @@ def isinf(x):
     """
     if any_symbolic_tensors((x,)):
         return Isinf().symbolic_call(x)
-    return backend.numpy.isinf(x)
+    return backend.ops.numpy.isinf(x)
 
 
 class Isnan(Operation):
     def call(self, x):
-        return backend.numpy.isnan(x)
+        return backend.ops.numpy.isnan(x)
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype="bool")
@@ -4371,12 +4379,12 @@ def isnan(x):
     """
     if any_symbolic_tensors((x,)):
         return Isnan().symbolic_call(x)
-    return backend.numpy.isnan(x)
+    return backend.ops.numpy.isnan(x)
 
 
 class Isneginf(Operation):
     def call(self, x):
-        return backend.numpy.isneginf(x)
+        return backend.ops.numpy.isneginf(x)
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype="bool")
@@ -4394,12 +4402,12 @@ def isneginf(x):
     """
     if any_symbolic_tensors((x,)):
         return Isneginf().symbolic_call(x)
-    return backend.numpy.isneginf(x)
+    return backend.ops.numpy.isneginf(x)
 
 
 class Isposinf(Operation):
     def call(self, x):
-        return backend.numpy.isposinf(x)
+        return backend.ops.numpy.isposinf(x)
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype="bool")
@@ -4417,12 +4425,12 @@ def isposinf(x):
     """
     if any_symbolic_tensors((x,)):
         return Isposinf().symbolic_call(x)
-    return backend.numpy.isposinf(x)
+    return backend.ops.numpy.isposinf(x)
 
 
 class Isreal(Operation):
     def call(self, x):
-        return backend.numpy.isreal(x)
+        return backend.ops.numpy.isreal(x)
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype="bool")
@@ -4446,12 +4454,12 @@ def isreal(x):
     """
     if any_symbolic_tensors((x,)):
         return Isreal().symbolic_call(x)
-    return backend.numpy.isreal(x)
+    return backend.ops.numpy.isreal(x)
 
 
 class Kron(Operation):
     def call(self, x1, x2):
-        return backend.numpy.kron(x1, x2)
+        return backend.ops.numpy.kron(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -4489,12 +4497,12 @@ def kron(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Kron().symbolic_call(x1, x2)
-    return backend.numpy.kron(x1, x2)
+    return backend.ops.numpy.kron(x1, x2)
 
 
 class Lcm(Operation):
     def call(self, x1, x2):
-        return backend.numpy.lcm(x1, x2)
+        return backend.ops.numpy.lcm(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -4526,12 +4534,12 @@ def lcm(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Lcm().symbolic_call(x1, x2)
-    return backend.numpy.lcm(x1, x2)
+    return backend.ops.numpy.lcm(x1, x2)
 
 
 class Ldexp(Operation):
     def call(self, x1, x2):
-        return backend.numpy.ldexp(x1, x2)
+        return backend.ops.numpy.ldexp(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -4566,12 +4574,12 @@ def ldexp(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Ldexp().symbolic_call(x1, x2)
-    return backend.numpy.ldexp(x1, x2)
+    return backend.ops.numpy.ldexp(x1, x2)
 
 
 class Less(Operation):
     def call(self, x1, x2):
-        return backend.numpy.less(x1, x2)
+        return backend.ops.numpy.less(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -4593,12 +4601,12 @@ def less(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Less().symbolic_call(x1, x2)
-    return backend.numpy.less(x1, x2)
+    return backend.ops.numpy.less(x1, x2)
 
 
 class LessEqual(Operation):
     def call(self, x1, x2):
-        return backend.numpy.less_equal(x1, x2)
+        return backend.ops.numpy.less_equal(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -4625,7 +4633,7 @@ def less_equal(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return LessEqual().symbolic_call(x1, x2)
-    return backend.numpy.less_equal(x1, x2)
+    return backend.ops.numpy.less_equal(x1, x2)
 
 
 class Linspace(Operation):
@@ -4647,7 +4655,7 @@ class Linspace(Operation):
         self.axis = axis
 
     def call(self, start, stop):
-        return backend.numpy.linspace(
+        return backend.ops.numpy.linspace(
             start,
             stop,
             num=self.num,
@@ -4712,7 +4720,7 @@ def linspace(
     """
     if any_symbolic_tensors((start, stop)):
         return Linspace(num, endpoint, retstep, dtype, axis)(start, stop)
-    return backend.numpy.linspace(
+    return backend.ops.numpy.linspace(
         start,
         stop,
         num=num,
@@ -4725,7 +4733,7 @@ def linspace(
 
 class Log(Operation):
     def call(self, x):
-        return backend.numpy.log(x)
+        return backend.ops.numpy.log(x)
 
     def compute_output_spec(self, x):
         dtype = (
@@ -4748,12 +4756,12 @@ def log(x):
     """
     if any_symbolic_tensors((x,)):
         return Log().symbolic_call(x)
-    return backend.numpy.log(x)
+    return backend.ops.numpy.log(x)
 
 
 class Log10(Operation):
     def call(self, x):
-        return backend.numpy.log10(x)
+        return backend.ops.numpy.log10(x)
 
     def compute_output_spec(self, x):
         dtype = (
@@ -4776,12 +4784,12 @@ def log10(x):
     """
     if any_symbolic_tensors((x,)):
         return Log10().symbolic_call(x)
-    return backend.numpy.log10(x)
+    return backend.ops.numpy.log10(x)
 
 
 class Log1p(Operation):
     def call(self, x):
-        return backend.numpy.log1p(x)
+        return backend.ops.numpy.log1p(x)
 
     def compute_output_spec(self, x):
         dtype = (
@@ -4807,12 +4815,12 @@ def log1p(x):
     """
     if any_symbolic_tensors((x,)):
         return Log1p().symbolic_call(x)
-    return backend.numpy.log1p(x)
+    return backend.ops.numpy.log1p(x)
 
 
 class Log2(Operation):
     def call(self, x):
-        return backend.numpy.log2(x)
+        return backend.ops.numpy.log2(x)
 
     def compute_output_spec(self, x):
         dtype = (
@@ -4835,12 +4843,12 @@ def log2(x):
     """
     if any_symbolic_tensors((x,)):
         return Log2().symbolic_call(x)
-    return backend.numpy.log2(x)
+    return backend.ops.numpy.log2(x)
 
 
 class Logaddexp(Operation):
     def call(self, x1, x2):
-        return backend.numpy.logaddexp(x1, x2)
+        return backend.ops.numpy.logaddexp(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -4870,12 +4878,12 @@ def logaddexp(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Logaddexp().symbolic_call(x1, x2)
-    return backend.numpy.logaddexp(x1, x2)
+    return backend.ops.numpy.logaddexp(x1, x2)
 
 
 class Logaddexp2(Operation):
     def call(self, x1, x2):
-        return backend.numpy.logaddexp2(x1, x2)
+        return backend.ops.numpy.logaddexp2(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -4911,12 +4919,12 @@ def logaddexp2(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Logaddexp2().symbolic_call(x1, x2)
-    return backend.numpy.logaddexp2(x1, x2)
+    return backend.ops.numpy.logaddexp2(x1, x2)
 
 
 class LogicalAnd(Operation):
     def call(self, x1, x2):
-        return backend.numpy.logical_and(x1, x2)
+        return backend.ops.numpy.logical_and(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -4945,12 +4953,12 @@ def logical_and(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return LogicalAnd().symbolic_call(x1, x2)
-    return backend.numpy.logical_and(x1, x2)
+    return backend.ops.numpy.logical_and(x1, x2)
 
 
 class LogicalNot(Operation):
     def call(self, x):
-        return backend.numpy.logical_not(x)
+        return backend.ops.numpy.logical_not(x)
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype="bool")
@@ -4975,12 +4983,12 @@ def logical_not(x):
     """
     if any_symbolic_tensors((x,)):
         return LogicalNot().symbolic_call(x)
-    return backend.numpy.logical_not(x)
+    return backend.ops.numpy.logical_not(x)
 
 
 class LogicalOr(Operation):
     def call(self, x1, x2):
-        return backend.numpy.logical_or(x1, x2)
+        return backend.ops.numpy.logical_or(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -5009,7 +5017,7 @@ def logical_or(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return LogicalOr().symbolic_call(x1, x2)
-    return backend.numpy.logical_or(x1, x2)
+    return backend.ops.numpy.logical_or(x1, x2)
 
 
 class Logspace(Operation):
@@ -5024,7 +5032,7 @@ class Logspace(Operation):
         self.axis = axis
 
     def call(self, start, stop):
-        return backend.numpy.logspace(
+        return backend.ops.numpy.logspace(
             start,
             stop,
             num=self.num,
@@ -5080,7 +5088,7 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((start, stop)):
         return Logspace(num, endpoint, base, dtype, axis)(start, stop)
-    return backend.numpy.logspace(
+    return backend.ops.numpy.logspace(
         start,
         stop,
         num=num,
@@ -5093,7 +5101,7 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
 class Matmul(Operation):
     def call(self, x1, x2):
-        return backend.numpy.matmul(x1, x2)
+        return backend.ops.numpy.matmul(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -5135,7 +5143,7 @@ def matmul(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Matmul().symbolic_call(x1, x2)
-    return backend.numpy.matmul(x1, x2)
+    return backend.ops.numpy.matmul(x1, x2)
 
 
 class Max(Operation):
@@ -5149,7 +5157,7 @@ class Max(Operation):
         self.initial = initial
 
     def call(self, x):
-        return backend.numpy.max(
+        return backend.ops.numpy.max(
             x, axis=self.axis, keepdims=self.keepdims, initial=self.initial
         )
 
@@ -5179,12 +5187,14 @@ def max(x, axis=None, keepdims=False, initial=None):
         return Max(axis=axis, keepdims=keepdims, initial=initial).symbolic_call(
             x
         )
-    return backend.numpy.max(x, axis=axis, keepdims=keepdims, initial=initial)
+    return backend.ops.numpy.max(
+        x, axis=axis, keepdims=keepdims, initial=initial
+    )
 
 
 class Maximum(Operation):
     def call(self, x1, x2):
-        return backend.numpy.maximum(x1, x2)
+        return backend.ops.numpy.maximum(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -5215,12 +5225,12 @@ def maximum(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Maximum().symbolic_call(x1, x2)
-    return backend.numpy.maximum(x1, x2)
+    return backend.ops.numpy.maximum(x1, x2)
 
 
 class Fmax(Operation):
     def call(self, x1, x2):
-        return backend.numpy.fmax(x1, x2)
+        return backend.ops.numpy.fmax(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -5261,7 +5271,7 @@ def fmax(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Fmax().symbolic_call(x1, x2)
-    return backend.numpy.fmax(x1, x2)
+    return backend.ops.numpy.fmax(x1, x2)
 
 
 class Median(Operation):
@@ -5273,7 +5283,9 @@ class Median(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.median(x, axis=self.axis, keepdims=self.keepdims)
+        return backend.ops.numpy.median(
+            x, axis=self.axis, keepdims=self.keepdims
+        )
 
     def compute_output_spec(self, x):
         output_shape = reduce_shape(
@@ -5303,7 +5315,7 @@ def median(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Median(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.numpy.median(x, axis=axis, keepdims=keepdims)
+    return backend.ops.numpy.median(x, axis=axis, keepdims=keepdims)
 
 
 class Meshgrid(Operation):
@@ -5317,7 +5329,7 @@ class Meshgrid(Operation):
         self.indexing = indexing
 
     def call(self, *x):
-        return backend.numpy.meshgrid(*x, indexing=self.indexing)
+        return backend.ops.numpy.meshgrid(*x, indexing=self.indexing)
 
     def compute_output_spec(self, *x):
         output_shape = []
@@ -5374,7 +5386,7 @@ def meshgrid(*x, indexing="xy"):
     """
     if any_symbolic_tensors(x):
         return Meshgrid(indexing=indexing).symbolic_call(*x)
-    return backend.numpy.meshgrid(*x, indexing=indexing)
+    return backend.ops.numpy.meshgrid(*x, indexing=indexing)
 
 
 class Min(Operation):
@@ -5388,7 +5400,7 @@ class Min(Operation):
         self.initial = initial
 
     def call(self, x):
-        return backend.numpy.min(
+        return backend.ops.numpy.min(
             x, axis=self.axis, keepdims=self.keepdims, initial=self.initial
         )
 
@@ -5418,12 +5430,14 @@ def min(x, axis=None, keepdims=False, initial=None):
         return Min(axis=axis, keepdims=keepdims, initial=initial).symbolic_call(
             x
         )
-    return backend.numpy.min(x, axis=axis, keepdims=keepdims, initial=initial)
+    return backend.ops.numpy.min(
+        x, axis=axis, keepdims=keepdims, initial=initial
+    )
 
 
 class Minimum(Operation):
     def call(self, x1, x2):
-        return backend.numpy.minimum(x1, x2)
+        return backend.ops.numpy.minimum(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -5454,12 +5468,12 @@ def minimum(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Minimum().symbolic_call(x1, x2)
-    return backend.numpy.minimum(x1, x2)
+    return backend.ops.numpy.minimum(x1, x2)
 
 
 class Fmin(Operation):
     def call(self, x1, x2):
-        return backend.numpy.fmin(x1, x2)
+        return backend.ops.numpy.fmin(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -5500,12 +5514,12 @@ def fmin(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Fmin().symbolic_call(x1, x2)
-    return backend.numpy.fmin(x1, x2)
+    return backend.ops.numpy.fmin(x1, x2)
 
 
 class Mod(Operation):
     def call(self, x1, x2):
-        return backend.numpy.mod(x1, x2)
+        return backend.ops.numpy.mod(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -5533,12 +5547,12 @@ def mod(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Mod().symbolic_call(x1, x2)
-    return backend.numpy.mod(x1, x2)
+    return backend.ops.numpy.mod(x1, x2)
 
 
 class Fmod(Operation):
     def call(self, x1, x2):
-        return backend.numpy.fmod(x1, x2)
+        return backend.ops.numpy.fmod(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -5571,7 +5585,7 @@ def fmod(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Fmod().symbolic_call(x1, x2)
-    return backend.numpy.fmod(x1, x2)
+    return backend.ops.numpy.fmod(x1, x2)
 
 
 class Moveaxis(Operation):
@@ -5594,7 +5608,7 @@ class Moveaxis(Operation):
             )
 
     def call(self, x):
-        return backend.numpy.moveaxis(x, self.source, self.destination)
+        return backend.ops.numpy.moveaxis(x, self.source, self.destination)
 
     def compute_output_spec(self, x):
         ndim = len(x.shape)
@@ -5638,7 +5652,7 @@ def moveaxis(x, source, destination):
     """
     if any_symbolic_tensors((x,)):
         return Moveaxis(source, destination).symbolic_call(x)
-    return backend.numpy.moveaxis(x, source=source, destination=destination)
+    return backend.ops.numpy.moveaxis(x, source=source, destination=destination)
 
 
 class Nanargmax(Operation):
@@ -5648,7 +5662,7 @@ class Nanargmax(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.nanargmax(
+        return backend.ops.numpy.nanargmax(
             x, axis=self.axis, keepdims=self.keepdims
         )
 
@@ -5697,7 +5711,7 @@ def nanargmax(x, axis=None, keepdims=False):
 
     if any_symbolic_tensors((x,)):
         return Nanargmax(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.numpy.nanargmax(x, axis=axis, keepdims=keepdims)
+    return backend.ops.numpy.nanargmax(x, axis=axis, keepdims=keepdims)
 
 
 class Nanargmin(Operation):
@@ -5707,7 +5721,7 @@ class Nanargmin(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.nanargmin(
+        return backend.ops.numpy.nanargmin(
             x, axis=self.axis, keepdims=self.keepdims
         )
 
@@ -5756,7 +5770,7 @@ def nanargmin(x, axis=None, keepdims=False):
 
     if any_symbolic_tensors((x,)):
         return Nanargmin(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.numpy.nanargmin(x, axis=axis, keepdims=keepdims)
+    return backend.ops.numpy.nanargmin(x, axis=axis, keepdims=keepdims)
 
 
 class Nancumsum(Operation):
@@ -5766,7 +5780,7 @@ class Nancumsum(Operation):
         self.dtype = dtype
 
     def call(self, x):
-        return backend.numpy.nancumsum(x, axis=self.axis, dtype=self.dtype)
+        return backend.ops.numpy.nancumsum(x, axis=self.axis, dtype=self.dtype)
 
     def compute_output_spec(self, x):
         if self.axis is None:
@@ -5817,7 +5831,7 @@ def nancumsum(x, axis=None, dtype=None):
     """
     if any_symbolic_tensors((x,)):
         return Nancumsum(axis=axis, dtype=dtype).symbolic_call(x)
-    return backend.numpy.nancumsum(x, axis=axis, dtype=dtype)
+    return backend.ops.numpy.nancumsum(x, axis=axis, dtype=dtype)
 
 
 class Nancumprod(Operation):
@@ -5827,7 +5841,7 @@ class Nancumprod(Operation):
         self.dtype = dtype
 
     def call(self, x):
-        return backend.numpy.nancumprod(x, axis=self.axis, dtype=self.dtype)
+        return backend.ops.numpy.nancumprod(x, axis=self.axis, dtype=self.dtype)
 
     def compute_output_spec(self, x):
         if self.axis is None:
@@ -5878,7 +5892,7 @@ def nancumprod(x, axis=None, dtype=None):
     """
     if any_symbolic_tensors((x,)):
         return Nancumprod(axis=axis, dtype=dtype).symbolic_call(x)
-    return backend.numpy.nancumprod(x, axis=axis, dtype=dtype)
+    return backend.ops.numpy.nancumprod(x, axis=axis, dtype=dtype)
 
 
 class Nanmax(Operation):
@@ -5888,7 +5902,9 @@ class Nanmax(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.nanmax(x, axis=self.axis, keepdims=self.keepdims)
+        return backend.ops.numpy.nanmax(
+            x, axis=self.axis, keepdims=self.keepdims
+        )
 
     def compute_output_spec(self, x):
         dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
@@ -5935,7 +5951,7 @@ def nanmax(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Nanmax(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.numpy.nanmax(x, axis=axis, keepdims=keepdims)
+    return backend.ops.numpy.nanmax(x, axis=axis, keepdims=keepdims)
 
 
 class Nanmean(Operation):
@@ -5945,7 +5961,9 @@ class Nanmean(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.nanmean(x, axis=self.axis, keepdims=self.keepdims)
+        return backend.ops.numpy.nanmean(
+            x, axis=self.axis, keepdims=self.keepdims
+        )
 
     def compute_output_spec(self, x):
         dtype = dtypes.result_type(x.dtype, float)
@@ -5989,7 +6007,7 @@ def nanmean(x, axis=None, keepdims=False):
     if any_symbolic_tensors((x,)):
         return Nanmean(axis=axis, keepdims=keepdims).symbolic_call(x)
 
-    return backend.numpy.nanmean(x, axis=axis, keepdims=keepdims)
+    return backend.ops.numpy.nanmean(x, axis=axis, keepdims=keepdims)
 
 
 class Nanmedian(Operation):
@@ -5999,7 +6017,7 @@ class Nanmedian(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.nanmedian(
+        return backend.ops.numpy.nanmedian(
             x, axis=self.axis, keepdims=self.keepdims
         )
 
@@ -6047,7 +6065,7 @@ def nanmedian(x, axis=None, keepdims=False):
     if any_symbolic_tensors((x,)):
         return Nanmedian(axis=axis, keepdims=keepdims).symbolic_call(x)
 
-    return backend.numpy.nanmedian(x, axis=axis, keepdims=keepdims)
+    return backend.ops.numpy.nanmedian(x, axis=axis, keepdims=keepdims)
 
 
 class Nanmin(Operation):
@@ -6057,7 +6075,9 @@ class Nanmin(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.nanmin(x, axis=self.axis, keepdims=self.keepdims)
+        return backend.ops.numpy.nanmin(
+            x, axis=self.axis, keepdims=self.keepdims
+        )
 
     def compute_output_spec(self, x):
         dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
@@ -6103,7 +6123,7 @@ def nanmin(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Nanmin(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.numpy.nanmin(x, axis=axis, keepdims=keepdims)
+    return backend.ops.numpy.nanmin(x, axis=axis, keepdims=keepdims)
 
 
 class Nanpercentile(Operation):
@@ -6116,7 +6136,7 @@ class Nanpercentile(Operation):
         self.keepdims = keepdims
 
     def call(self, x, q):
-        return backend.numpy.nanpercentile(
+        return backend.ops.numpy.nanpercentile(
             x, q, axis=self.axis, method=self.method, keepdims=self.keepdims
         )
 
@@ -6186,7 +6206,7 @@ def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
             axis=axis, method=method, keepdims=keepdims
         ).symbolic_call(x, q)
 
-    return backend.numpy.nanpercentile(
+    return backend.ops.numpy.nanpercentile(
         x, q, axis=axis, method=method, keepdims=keepdims
     )
 
@@ -6198,7 +6218,7 @@ class Nanprod(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.nanprod(
+        return backend.ops.numpy.nanprod(
             x,
             axis=self.axis,
             keepdims=self.keepdims,
@@ -6254,7 +6274,7 @@ def nanprod(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Nanprod(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.numpy.nanprod(x, axis=axis, keepdims=keepdims)
+    return backend.ops.numpy.nanprod(x, axis=axis, keepdims=keepdims)
 
 
 class Nanquantile(Operation):
@@ -6267,7 +6287,7 @@ class Nanquantile(Operation):
         self.keepdims = keepdims
 
     def call(self, x, q):
-        return backend.numpy.nanquantile(
+        return backend.ops.numpy.nanquantile(
             x, q, axis=self.axis, method=self.method, keepdims=self.keepdims
         )
 
@@ -6339,7 +6359,7 @@ def nanquantile(x, q, axis=None, method="linear", keepdims=False):
             axis=axis, method=method, keepdims=keepdims
         ).symbolic_call(x, q)
 
-    return backend.numpy.nanquantile(
+    return backend.ops.numpy.nanquantile(
         x, q, axis=axis, method=method, keepdims=keepdims
     )
 
@@ -6351,7 +6371,9 @@ class Nanstd(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.nanstd(x, axis=self.axis, keepdims=self.keepdims)
+        return backend.ops.numpy.nanstd(
+            x, axis=self.axis, keepdims=self.keepdims
+        )
 
     def compute_output_spec(self, x):
         output_dtype = backend.result_type(getattr(x, "dtype", type(x)), float)
@@ -6393,7 +6415,7 @@ def nanstd(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Nanstd(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.numpy.nanstd(x, axis=axis, keepdims=keepdims)
+    return backend.ops.numpy.nanstd(x, axis=axis, keepdims=keepdims)
 
 
 class Nansum(Operation):
@@ -6403,7 +6425,9 @@ class Nansum(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.nansum(x, axis=self.axis, keepdims=self.keepdims)
+        return backend.ops.numpy.nansum(
+            x, axis=self.axis, keepdims=self.keepdims
+        )
 
     def compute_output_spec(self, x):
         dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
@@ -6454,7 +6478,7 @@ def nansum(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Nansum(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.numpy.nansum(x, axis=axis, keepdims=keepdims)
+    return backend.ops.numpy.nansum(x, axis=axis, keepdims=keepdims)
 
 
 class Nanvar(Operation):
@@ -6464,7 +6488,9 @@ class Nanvar(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.nanvar(x, axis=self.axis, keepdims=self.keepdims)
+        return backend.ops.numpy.nanvar(
+            x, axis=self.axis, keepdims=self.keepdims
+        )
 
     def compute_output_spec(self, x):
         output_dtype = backend.result_type(getattr(x, "dtype", type(x)), float)
@@ -6506,7 +6532,7 @@ def nanvar(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Nanvar(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.numpy.nanvar(x, axis=axis, keepdims=keepdims)
+    return backend.ops.numpy.nanvar(x, axis=axis, keepdims=keepdims)
 
 
 class NanToNum(Operation):
@@ -6517,7 +6543,7 @@ class NanToNum(Operation):
         self.neginf = neginf
 
     def call(self, x):
-        return backend.numpy.nan_to_num(
+        return backend.ops.numpy.nan_to_num(
             x, nan=self.nan, posinf=self.posinf, neginf=self.neginf
         )
 
@@ -6547,12 +6573,14 @@ def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     """
     if any_symbolic_tensors((x,)):
         return NanToNum(nan=nan, posinf=posinf, neginf=neginf).symbolic_call(x)
-    return backend.numpy.nan_to_num(x, nan=nan, posinf=posinf, neginf=neginf)
+    return backend.ops.numpy.nan_to_num(
+        x, nan=nan, posinf=posinf, neginf=neginf
+    )
 
 
 class Ndim(Operation):
     def call(self, x):
-        return backend.numpy.ndim(
+        return backend.ops.numpy.ndim(
             x,
         )
 
@@ -6572,12 +6600,12 @@ def ndim(x):
     """
     if any_symbolic_tensors((x,)):
         return Ndim().symbolic_call(x)
-    return backend.numpy.ndim(x)
+    return backend.ops.numpy.ndim(x)
 
 
 class Nonzero(Operation):
     def call(self, x):
-        return backend.numpy.nonzero(x)
+        return backend.ops.numpy.nonzero(x)
 
     def compute_output_spec(self, x):
         return tuple(
@@ -6597,12 +6625,12 @@ def nonzero(x):
     """
     if any_symbolic_tensors((x,)):
         return Nonzero().symbolic_call(x)
-    return backend.numpy.nonzero(x)
+    return backend.ops.numpy.nonzero(x)
 
 
 class NotEqual(Operation):
     def call(self, x1, x2):
-        return backend.numpy.not_equal(x1, x2)
+        return backend.ops.numpy.not_equal(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -6624,7 +6652,7 @@ def not_equal(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return NotEqual().symbolic_call(x1, x2)
-    return backend.numpy.not_equal(x1, x2)
+    return backend.ops.numpy.not_equal(x1, x2)
 
 
 class OnesLike(Operation):
@@ -6633,7 +6661,7 @@ class OnesLike(Operation):
         self.dtype = dtype
 
     def call(self, x):
-        return backend.numpy.ones_like(x, dtype=self.dtype)
+        return backend.ops.numpy.ones_like(x, dtype=self.dtype)
 
     def compute_output_spec(self, x):
         dtype = (
@@ -6659,7 +6687,7 @@ def ones_like(x, dtype=None):
     dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return OnesLike(dtype=dtype).symbolic_call(x)
-    return backend.numpy.ones_like(x, dtype=dtype)
+    return backend.ops.numpy.ones_like(x, dtype=dtype)
 
 
 class ZerosLike(Operation):
@@ -6668,7 +6696,7 @@ class ZerosLike(Operation):
         self.dtype = dtype
 
     def call(self, x):
-        return backend.numpy.zeros_like(x, dtype=self.dtype)
+        return backend.ops.numpy.zeros_like(x, dtype=self.dtype)
 
     def compute_output_spec(self, x, dtype=None):
         dtype = (
@@ -6699,12 +6727,12 @@ def zeros_like(x, dtype=None):
     dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return ZerosLike(dtype=dtype).symbolic_call(x)
-    return backend.numpy.zeros_like(x, dtype=dtype)
+    return backend.ops.numpy.zeros_like(x, dtype=dtype)
 
 
 class Outer(Operation):
     def call(self, x1, x2):
-        return backend.numpy.outer(x1, x2)
+        return backend.ops.numpy.outer(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [1])
@@ -6744,7 +6772,7 @@ def outer(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Outer().symbolic_call(x1, x2)
-    return backend.numpy.outer(x1, x2)
+    return backend.ops.numpy.outer(x1, x2)
 
 
 class Pad(Operation):
@@ -6779,7 +6807,7 @@ class Pad(Operation):
                 f"(of length {len(self.pad_width)}) and x.shape={x.shape} "
                 f"(of length {len(x.shape)})"
             )
-        return backend.numpy.pad(
+        return backend.ops.numpy.pad(
             x,
             pad_width=self.pad_width,
             mode=self.mode,
@@ -6854,7 +6882,7 @@ class Percentile(Operation):
         self.keepdims = keepdims
 
     def call(self, x, q):
-        return backend.numpy.percentile(
+        return backend.ops.numpy.percentile(
             x, q, axis=self.axis, method=self.method, keepdims=self.keepdims
         )
 
@@ -6923,7 +6951,7 @@ def percentile(x, q, axis=None, method="linear", keepdims=False):
             axis=axis, method=method, keepdims=keepdims
         ).symbolic_call(x, q)
 
-    return backend.numpy.percentile(
+    return backend.ops.numpy.percentile(
         x, q, axis=axis, method=method, keepdims=keepdims
     )
 
@@ -6939,7 +6967,7 @@ class Prod(Operation):
         self.dtype = dtype
 
     def call(self, x):
-        return backend.numpy.prod(
+        return backend.ops.numpy.prod(
             x,
             axis=self.axis,
             keepdims=self.keepdims,
@@ -6985,7 +7013,7 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return Prod(axis=axis, keepdims=keepdims, dtype=dtype).symbolic_call(x)
-    return backend.numpy.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
+    return backend.ops.numpy.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
 class Ptp(Operation):
@@ -6995,7 +7023,7 @@ class Ptp(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.ptp(
+        return backend.ops.numpy.ptp(
             x,
             axis=self.axis,
             keepdims=self.keepdims,
@@ -7053,7 +7081,7 @@ def ptp(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Ptp(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.numpy.ptp(x, axis=axis, keepdims=keepdims)
+    return backend.ops.numpy.ptp(x, axis=axis, keepdims=keepdims)
 
 
 class Quantile(Operation):
@@ -7068,7 +7096,7 @@ class Quantile(Operation):
         self.keepdims = keepdims
 
     def call(self, x, q):
-        return backend.numpy.quantile(
+        return backend.ops.numpy.quantile(
             x, q, axis=self.axis, keepdims=self.keepdims
         )
 
@@ -7122,14 +7150,14 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
         return Quantile(
             axis=axis, method=method, keepdims=keepdims
         ).symbolic_call(x, q)
-    return backend.numpy.quantile(
+    return backend.ops.numpy.quantile(
         x, q, axis=axis, method=method, keepdims=keepdims
     )
 
 
 class Ravel(Operation):
     def call(self, x):
-        return backend.numpy.ravel(x)
+        return backend.ops.numpy.ravel(x)
 
     def compute_output_spec(self, x):
         if None in x.shape:
@@ -7153,7 +7181,7 @@ def ravel(x):
     """
     if any_symbolic_tensors((x,)):
         return Ravel().symbolic_call(x)
-    return backend.numpy.ravel(x)
+    return backend.ops.numpy.ravel(x)
 
 
 class UnravelIndex(Operation):
@@ -7162,7 +7190,7 @@ class UnravelIndex(Operation):
         self.shape = shape
 
     def call(self, indices):
-        return backend.numpy.unravel_index(indices, self.shape)
+        return backend.ops.numpy.unravel_index(indices, self.shape)
 
     def compute_output_spec(self, indices):
         if None in self.shape:
@@ -7204,12 +7232,12 @@ def unravel_index(indices, shape):
     if any_symbolic_tensors((indices,)):
         return UnravelIndex(shape).symbolic_call(indices)
 
-    return backend.numpy.unravel_index(indices, shape)
+    return backend.ops.numpy.unravel_index(indices, shape)
 
 
 class Real(Operation):
     def call(self, x):
-        return backend.numpy.real(x)
+        return backend.ops.numpy.real(x)
 
     def compute_output_spec(self, x):
         sparse = getattr(x, "sparse", False)
@@ -7228,12 +7256,12 @@ def real(x):
     """
     if any_symbolic_tensors((x,)):
         return Real().symbolic_call(x)
-    return backend.numpy.real(x)
+    return backend.ops.numpy.real(x)
 
 
 class Reciprocal(Operation):
     def call(self, x):
-        return backend.numpy.reciprocal(x)
+        return backend.ops.numpy.reciprocal(x)
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape)
@@ -7258,7 +7286,7 @@ def reciprocal(x):
     """
     if any_symbolic_tensors((x,)):
         return Reciprocal().symbolic_call(x)
-    return backend.numpy.reciprocal(x)
+    return backend.ops.numpy.reciprocal(x)
 
 
 class Repeat(Operation):
@@ -7268,7 +7296,7 @@ class Repeat(Operation):
         self.repeats = repeats
 
     def call(self, x):
-        return backend.numpy.repeat(x, self.repeats, axis=self.axis)
+        return backend.ops.numpy.repeat(x, self.repeats, axis=self.axis)
 
     def compute_output_spec(self, x):
         x_shape = list(x.shape)
@@ -7328,7 +7356,7 @@ def repeat(x, repeats, axis=None):
     """
     if any_symbolic_tensors((x,)):
         return Repeat(repeats, axis=axis).symbolic_call(x)
-    return backend.numpy.repeat(x, repeats, axis=axis)
+    return backend.ops.numpy.repeat(x, repeats, axis=axis)
 
 
 class Reshape(Operation):
@@ -7337,7 +7365,7 @@ class Reshape(Operation):
         self.newshape = newshape
 
     def call(self, x):
-        return backend.numpy.reshape(x, self.newshape)
+        return backend.ops.numpy.reshape(x, self.newshape)
 
     def compute_output_spec(self, x):
         output_shape = operation_utils.compute_reshape_output_shape(
@@ -7360,7 +7388,7 @@ def reshape(x, newshape):
     Returns:
         The reshaped tensor.
     """
-    if not backend.is_tensor(newshape) and not isinstance(
+    if not backend.ops.is_tensor(newshape) and not isinstance(
         newshape, KerasTensor
     ):
         try:
@@ -7370,7 +7398,7 @@ def reshape(x, newshape):
         operation_utils.validate_reshape_shape(newshape)
     if any_symbolic_tensors((x, newshape)):
         return Reshape(newshape).symbolic_call(x)
-    return backend.numpy.reshape(x, newshape)
+    return backend.ops.numpy.reshape(x, newshape)
 
 
 class Roll(Operation):
@@ -7380,7 +7408,7 @@ class Roll(Operation):
         self.axis = axis
 
     def call(self, x):
-        return backend.numpy.roll(x, self.shift, self.axis)
+        return backend.ops.numpy.roll(x, self.shift, self.axis)
 
     def compute_output_spec(self, x):
         if self.axis is not None:
@@ -7407,7 +7435,7 @@ def roll(x, shift, axis=None):
     """
     if any_symbolic_tensors((x,)):
         return Roll(shift, axis=axis).symbolic_call(x)
-    return backend.numpy.roll(x, shift, axis=axis)
+    return backend.ops.numpy.roll(x, shift, axis=axis)
 
 
 class Round(Operation):
@@ -7416,7 +7444,7 @@ class Round(Operation):
         self.decimals = decimals
 
     def call(self, x):
-        return backend.numpy.round(x, self.decimals)
+        return backend.ops.numpy.round(x, self.decimals)
 
     def compute_output_spec(self, x):
         sparse = getattr(x, "sparse", False)
@@ -7436,7 +7464,7 @@ def round(x, decimals=0):
     """
     if any_symbolic_tensors((x,)):
         return Round(decimals).symbolic_call(x)
-    return backend.numpy.round(x, decimals)
+    return backend.ops.numpy.round(x, decimals)
 
 
 class SearchSorted(Operation):
@@ -7445,9 +7473,9 @@ class SearchSorted(Operation):
         self.side = side
 
     def call(self, sorted_sequence, values):
-        sorted_sequence = backend.convert_to_tensor(sorted_sequence)
-        values = backend.convert_to_tensor(values)
-        return backend.numpy.searchsorted(
+        sorted_sequence = backend.ops.convert_to_tensor(sorted_sequence)
+        values = backend.ops.convert_to_tensor(values)
+        return backend.ops.numpy.searchsorted(
             sorted_sequence, values, side=self.side
         )
 
@@ -7485,14 +7513,14 @@ def searchsorted(sorted_sequence, values, side="left"):
     if any_symbolic_tensors((sorted_sequence, values)):
         return SearchSorted(side=side).symbolic_call(sorted_sequence, values)
 
-    sorted_sequence = backend.convert_to_tensor(sorted_sequence)
-    values = backend.convert_to_tensor(values)
-    return backend.numpy.searchsorted(sorted_sequence, values, side=side)
+    sorted_sequence = backend.ops.convert_to_tensor(sorted_sequence)
+    values = backend.ops.convert_to_tensor(values)
+    return backend.ops.numpy.searchsorted(sorted_sequence, values, side=side)
 
 
 class Sign(Operation):
     def call(self, x):
-        return backend.numpy.sign(x)
+        return backend.ops.numpy.sign(x)
 
     def compute_output_spec(self, x):
         sparse = getattr(x, "sparse", False)
@@ -7511,12 +7539,12 @@ def sign(x):
     """
     if any_symbolic_tensors((x,)):
         return Sign().symbolic_call(x)
-    return backend.numpy.sign(x)
+    return backend.ops.numpy.sign(x)
 
 
 class Signbit(Operation):
     def call(self, x):
-        return backend.numpy.signbit(x)
+        return backend.ops.numpy.signbit(x)
 
     def compute_output_spec(self, x):
         sparse = getattr(x, "sparse", False)
@@ -7538,12 +7566,12 @@ def signbit(x):
     """
     if any_symbolic_tensors((x,)):
         return Signbit().symbolic_call(x)
-    return backend.numpy.signbit(x)
+    return backend.ops.numpy.signbit(x)
 
 
 class Sin(Operation):
     def call(self, x):
-        return backend.numpy.sin(x)
+        return backend.ops.numpy.sin(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
@@ -7567,12 +7595,12 @@ def sin(x):
     """
     if any_symbolic_tensors((x,)):
         return Sin().symbolic_call(x)
-    return backend.numpy.sin(x)
+    return backend.ops.numpy.sin(x)
 
 
 class Sinc(Operation):
     def call(self, x):
-        return backend.numpy.sinc(x)
+        return backend.ops.numpy.sinc(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
@@ -7604,12 +7632,12 @@ def sinc(x):
     """
     if any_symbolic_tensors((x,)):
         return Sinc().symbolic_call(x)
-    return backend.numpy.sinc(x)
+    return backend.ops.numpy.sinc(x)
 
 
 class Sinh(Operation):
     def call(self, x):
-        return backend.numpy.sinh(x)
+        return backend.ops.numpy.sinh(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
@@ -7633,12 +7661,12 @@ def sinh(x):
     """
     if any_symbolic_tensors((x,)):
         return Sinh().symbolic_call(x)
-    return backend.numpy.sinh(x)
+    return backend.ops.numpy.sinh(x)
 
 
 class Size(Operation):
     def call(self, x):
-        return backend.numpy.size(x)
+        return backend.ops.numpy.size(x)
 
     def compute_output_spec(self, x):
         return KerasTensor([], dtype="int32")
@@ -7656,7 +7684,7 @@ def size(x):
     """
     if any_symbolic_tensors((x,)):
         return Size().symbolic_call(x)
-    return backend.numpy.size(x)
+    return backend.ops.numpy.size(x)
 
 
 class Sort(Operation):
@@ -7665,7 +7693,7 @@ class Sort(Operation):
         self.axis = axis
 
     def call(self, x):
-        return backend.numpy.sort(x, axis=self.axis)
+        return backend.ops.numpy.sort(x, axis=self.axis)
 
     def compute_output_spec(self, x):
         if self.axis is None:
@@ -7692,7 +7720,7 @@ def sort(x, axis=-1):
     """
     if any_symbolic_tensors((x,)):
         return Sort(axis=axis).symbolic_call(x)
-    return backend.numpy.sort(x, axis=axis)
+    return backend.ops.numpy.sort(x, axis=axis)
 
 
 def _compute_split_output_spec(x, indices_or_sections, axis):
@@ -7748,7 +7776,9 @@ class Split(Operation):
         self.axis = axis
 
     def call(self, x):
-        return backend.numpy.split(x, self.indices_or_sections, axis=self.axis)
+        return backend.ops.numpy.split(
+            x, self.indices_or_sections, axis=self.axis
+        )
 
     def compute_output_spec(self, x):
         return _compute_split_output_spec(
@@ -7777,7 +7807,7 @@ def split(x, indices_or_sections, axis=0):
     """
     if any_symbolic_tensors((x,)):
         return Split(indices_or_sections, axis=axis).symbolic_call(x)
-    return backend.numpy.split(x, indices_or_sections, axis=axis)
+    return backend.ops.numpy.split(x, indices_or_sections, axis=axis)
 
 
 class Stack(Operation):
@@ -7786,7 +7816,7 @@ class Stack(Operation):
         self.axis = axis
 
     def call(self, x):
-        return backend.numpy.stack(x, axis=self.axis)
+        return backend.ops.numpy.stack(x, axis=self.axis)
 
     def compute_output_spec(self, x):
         first_shape = x[0].shape
@@ -7826,7 +7856,7 @@ def stack(x, axis=0):
     """
     if any_symbolic_tensors((x,)):
         return Stack(axis=axis).symbolic_call(x)
-    return backend.numpy.stack(x, axis=axis)
+    return backend.ops.numpy.stack(x, axis=axis)
 
 
 class Std(Operation):
@@ -7839,7 +7869,7 @@ class Std(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.std(x, axis=self.axis, keepdims=self.keepdims)
+        return backend.ops.numpy.std(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
         output_dtype = backend.standardize_dtype(x.dtype)
@@ -7868,7 +7898,7 @@ def std(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Std(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.numpy.std(x, axis=axis, keepdims=keepdims)
+    return backend.ops.numpy.std(x, axis=axis, keepdims=keepdims)
 
 
 class Swapaxes(Operation):
@@ -7879,7 +7909,7 @@ class Swapaxes(Operation):
         self.axis2 = axis2
 
     def call(self, x):
-        return backend.numpy.swapaxes(x, self.axis1, self.axis2)
+        return backend.ops.numpy.swapaxes(x, self.axis1, self.axis2)
 
     def compute_output_spec(self, x):
         ndim = len(x.shape)
@@ -7904,7 +7934,7 @@ def swapaxes(x, axis1, axis2):
     """
     if any_symbolic_tensors((x,)):
         return Swapaxes(axis1, axis2).symbolic_call(x)
-    return backend.numpy.swapaxes(x, axis1=axis1, axis2=axis2)
+    return backend.ops.numpy.swapaxes(x, axis1=axis1, axis2=axis2)
 
 
 class Take(Operation):
@@ -7913,7 +7943,7 @@ class Take(Operation):
         self.axis = axis
 
     def call(self, x, indices):
-        return backend.numpy.take(x, indices, axis=self.axis)
+        return backend.ops.numpy.take(x, indices, axis=self.axis)
 
     def compute_output_spec(self, x, indices):
         x_shape = list(x.shape)
@@ -7946,7 +7976,7 @@ def take(x, indices, axis=None):
     """
     if any_symbolic_tensors((x, indices)):
         return Take(axis=axis).symbolic_call(x, indices)
-    return backend.numpy.take(x, indices, axis=axis)
+    return backend.ops.numpy.take(x, indices, axis=axis)
 
 
 class TakeAlongAxis(Operation):
@@ -7955,7 +7985,7 @@ class TakeAlongAxis(Operation):
         self.axis = axis
 
     def call(self, x, indices):
-        return backend.numpy.take_along_axis(x, indices, axis=self.axis)
+        return backend.ops.numpy.take_along_axis(x, indices, axis=self.axis)
 
     def compute_output_spec(self, x, indices):
         output_shape = operation_utils.compute_take_along_axis_output_shape(
@@ -7984,12 +8014,12 @@ def take_along_axis(x, indices, axis=None):
     """
     if any_symbolic_tensors((x, indices)):
         return TakeAlongAxis(axis=axis).symbolic_call(x, indices)
-    return backend.numpy.take_along_axis(x, indices, axis=axis)
+    return backend.ops.numpy.take_along_axis(x, indices, axis=axis)
 
 
 class Tan(Operation):
     def call(self, x):
-        return backend.numpy.tan(x)
+        return backend.ops.numpy.tan(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
@@ -8013,12 +8043,12 @@ def tan(x):
     """
     if any_symbolic_tensors((x,)):
         return Tan().symbolic_call(x)
-    return backend.numpy.tan(x)
+    return backend.ops.numpy.tan(x)
 
 
 class Tanh(Operation):
     def call(self, x):
-        return backend.numpy.tanh(x)
+        return backend.ops.numpy.tanh(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
@@ -8042,7 +8072,7 @@ def tanh(x):
     """
     if any_symbolic_tensors((x,)):
         return Tanh().symbolic_call(x)
-    return backend.numpy.tanh(x)
+    return backend.ops.numpy.tanh(x)
 
 
 class Tensordot(Operation):
@@ -8051,7 +8081,7 @@ class Tensordot(Operation):
         self.axes = axes
 
     def call(self, x1, x2):
-        return backend.numpy.tensordot(x1, x2, axes=self.axes)
+        return backend.ops.numpy.tensordot(x1, x2, axes=self.axes)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = list(getattr(x1, "shape", []))
@@ -8109,7 +8139,7 @@ def tensordot(x1, x2, axes=2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Tensordot(axes=axes).symbolic_call(x1, x2)
-    return backend.numpy.tensordot(x1, x2, axes=axes)
+    return backend.ops.numpy.tensordot(x1, x2, axes=axes)
 
 
 class Tile(Operation):
@@ -8118,7 +8148,7 @@ class Tile(Operation):
         self.repeats = repeats
 
     def call(self, x):
-        return backend.numpy.tile(x, self.repeats)
+        return backend.ops.numpy.tile(x, self.repeats)
 
     def compute_output_spec(self, x):
         x_shape = list(x.shape)
@@ -8165,7 +8195,7 @@ def tile(x, repeats):
         return Tile(
             repeats,
         ).symbolic_call(x)
-    return backend.numpy.tile(x, repeats)
+    return backend.ops.numpy.tile(x, repeats)
 
 
 class Trace(Operation):
@@ -8176,7 +8206,7 @@ class Trace(Operation):
         self.axis2 = axis2
 
     def call(self, x):
-        return backend.numpy.trace(
+        return backend.ops.numpy.trace(
             x, offset=self.offset, axis1=self.axis1, axis2=self.axis2
         )
 
@@ -8233,7 +8263,7 @@ def trace(x, offset=0, axis1=0, axis2=1):
     """
     if any_symbolic_tensors((x,)):
         return Trace(offset, axis1, axis2).symbolic_call(x)
-    return backend.numpy.trace(x, offset=offset, axis1=axis1, axis2=axis2)
+    return backend.ops.numpy.trace(x, offset=offset, axis1=axis1, axis2=axis2)
 
 
 @keras_export(["keras.ops.tri", "keras.ops.numpy.tri"])
@@ -8252,7 +8282,7 @@ def tri(N, M=None, k=0, dtype=None):
         Tensor with its lower triangle filled with ones and zeros elsewhere.
         `T[i, j] == 1` for `j <= i + k`, 0 otherwise.
     """
-    return backend.numpy.tri(N, M=M, k=k, dtype=dtype)
+    return backend.ops.numpy.tri(N, M=M, k=k, dtype=dtype)
 
 
 class Tril(Operation):
@@ -8261,7 +8291,7 @@ class Tril(Operation):
         self.k = k
 
     def call(self, x):
-        return backend.numpy.tril(x, k=self.k)
+        return backend.ops.numpy.tril(x, k=self.k)
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype=x.dtype)
@@ -8284,7 +8314,7 @@ def tril(x, k=0):
     """
     if any_symbolic_tensors((x,)):
         return Tril(k=k).symbolic_call(x)
-    return backend.numpy.tril(x, k=k)
+    return backend.ops.numpy.tril(x, k=k)
 
 
 class Triu(Operation):
@@ -8293,7 +8323,7 @@ class Triu(Operation):
         self.k = k
 
     def call(self, x):
-        return backend.numpy.triu(x, k=self.k)
+        return backend.ops.numpy.triu(x, k=self.k)
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype=x.dtype)
@@ -8316,12 +8346,12 @@ def triu(x, k=0):
     """
     if any_symbolic_tensors((x,)):
         return Triu(k=k).symbolic_call(x)
-    return backend.numpy.triu(x, k=k)
+    return backend.ops.numpy.triu(x, k=k)
 
 
 class Trunc(Operation):
     def call(self, x):
-        return backend.numpy.trunc(x)
+        return backend.ops.numpy.trunc(x)
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype=x.dtype)
@@ -8348,12 +8378,12 @@ def trunc(x):
     """
     if any_symbolic_tensors((x,)):
         return Trunc().symbolic_call(x)
-    return backend.numpy.trunc(x)
+    return backend.ops.numpy.trunc(x)
 
 
 class Vdot(Operation):
     def call(self, x1, x2):
-        return backend.numpy.vdot(x1, x2)
+        return backend.ops.numpy.vdot(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         dtype = dtypes.result_type(
@@ -8382,12 +8412,12 @@ def vdot(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Vdot().symbolic_call(x1, x2)
-    return backend.numpy.vdot(x1, x2)
+    return backend.ops.numpy.vdot(x1, x2)
 
 
 class Inner(Operation):
     def call(self, x1, x2):
-        return backend.numpy.inner(x1, x2)
+        return backend.ops.numpy.inner(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         dtype = dtypes.result_type(
@@ -8440,7 +8470,7 @@ def inner(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Inner().symbolic_call(x1, x2)
-    return backend.numpy.inner(x1, x2)
+    return backend.ops.numpy.inner(x1, x2)
 
 
 @keras_export(["keras.ops.vectorize", "keras.ops.numpy.vectorize"])
@@ -8480,14 +8510,14 @@ def vectorize(pyfunc, *, excluded=None, signature=None):
             "Expected argument `pyfunc` to be a callable. "
             f"Received: pyfunc={pyfunc}"
         )
-    return backend.numpy.vectorize(
+    return backend.ops.numpy.vectorize(
         pyfunc, excluded=excluded, signature=signature
     )
 
 
 class Vstack(Operation):
     def call(self, xs):
-        return backend.numpy.vstack(xs)
+        return backend.ops.numpy.vstack(xs)
 
     def compute_output_spec(self, xs):
         first_shape = xs[0].shape
@@ -8524,7 +8554,7 @@ def vstack(xs):
     """
     if any_symbolic_tensors((xs,)):
         return Vstack().symbolic_call(xs)
-    return backend.numpy.vstack(xs)
+    return backend.ops.numpy.vstack(xs)
 
 
 class Vsplit(Operation):
@@ -8535,7 +8565,7 @@ class Vsplit(Operation):
         self.indices_or_sections = indices_or_sections
 
     def call(self, x):
-        return backend.numpy.vsplit(x, self.indices_or_sections)
+        return backend.ops.numpy.vsplit(x, self.indices_or_sections)
 
     def compute_output_spec(self, x):
         if len(x.shape) < 2:
@@ -8576,12 +8606,12 @@ def vsplit(x, indices_or_sections):
     """
     if any_symbolic_tensors((x,)):
         return Vsplit(indices_or_sections).symbolic_call(x)
-    return backend.numpy.vsplit(x, indices_or_sections)
+    return backend.ops.numpy.vsplit(x, indices_or_sections)
 
 
 class Where(Operation):
     def call(self, condition, x1=None, x2=None):
-        return backend.numpy.where(condition, x1, x2)
+        return backend.ops.numpy.where(condition, x1, x2)
 
     def compute_output_spec(self, condition, x1, x2):
         condition_shape = getattr(condition, "shape", [])
@@ -8616,12 +8646,12 @@ def where(condition, x1=None, x2=None):
         )
     if any_symbolic_tensors((condition, x1, x2)):
         return Where().symbolic_call(condition, x1, x2)
-    return backend.numpy.where(condition, x1, x2)
+    return backend.ops.numpy.where(condition, x1, x2)
 
 
 class Subtract(Operation):
     def call(self, x1, x2):
-        return backend.numpy.subtract(x1, x2)
+        return backend.ops.numpy.subtract(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -8650,12 +8680,12 @@ def subtract(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Subtract().symbolic_call(x1, x2)
-    return backend.numpy.subtract(x1, x2)
+    return backend.ops.numpy.subtract(x1, x2)
 
 
 class Multiply(Operation):
     def call(self, x1, x2):
-        return backend.numpy.multiply(x1, x2)
+        return backend.ops.numpy.multiply(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -8684,12 +8714,12 @@ def multiply(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Multiply().symbolic_call(x1, x2)
-    return backend.numpy.multiply(x1, x2)
+    return backend.ops.numpy.multiply(x1, x2)
 
 
 class Divide(Operation):
     def call(self, x1, x2):
-        return backend.numpy.divide(x1, x2)
+        return backend.ops.numpy.divide(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -8723,12 +8753,12 @@ def divide(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Divide().symbolic_call(x1, x2)
-    return backend.numpy.divide(x1, x2)
+    return backend.ops.numpy.divide(x1, x2)
 
 
 class DivideNoNan(Operation):
     def call(self, x1, x2):
-        return backend.numpy.divide_no_nan(x1, x2)
+        return backend.ops.numpy.divide_no_nan(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -8760,12 +8790,12 @@ def divide_no_nan(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return DivideNoNan().symbolic_call(x1, x2)
-    return backend.numpy.divide_no_nan(x1, x2)
+    return backend.ops.numpy.divide_no_nan(x1, x2)
 
 
 class TrueDivide(Operation):
     def call(self, x1, x2):
-        return backend.numpy.true_divide(x1, x2)
+        return backend.ops.numpy.true_divide(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -8794,12 +8824,12 @@ def true_divide(x1, x2):
     """Alias for `keras.ops.divide`."""
     if any_symbolic_tensors((x1, x2)):
         return TrueDivide().symbolic_call(x1, x2)
-    return backend.numpy.true_divide(x1, x2)
+    return backend.ops.numpy.true_divide(x1, x2)
 
 
 class Power(Operation):
     def call(self, x1, x2):
-        return backend.numpy.power(x1, x2)
+        return backend.ops.numpy.power(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -8824,12 +8854,12 @@ def power(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Power().symbolic_call(x1, x2)
-    return backend.numpy.power(x1, x2)
+    return backend.ops.numpy.power(x1, x2)
 
 
 class Negative(Operation):
     def call(self, x):
-        return backend.numpy.negative(x)
+        return backend.ops.numpy.negative(x)
 
     def compute_output_spec(self, x):
         sparse = getattr(x, "sparse", False)
@@ -8848,12 +8878,12 @@ def negative(x):
     """
     if any_symbolic_tensors((x,)):
         return Negative().symbolic_call(x)
-    return backend.numpy.negative(x)
+    return backend.ops.numpy.negative(x)
 
 
 class Nextafter(Operation):
     def call(self, x1, x2):
-        return backend.numpy.nextafter(x1, x2)
+        return backend.ops.numpy.nextafter(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -8891,12 +8921,12 @@ def nextafter(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Nextafter().symbolic_call(x1, x2)
-    return backend.numpy.nextafter(x1, x2)
+    return backend.ops.numpy.nextafter(x1, x2)
 
 
 class Square(Operation):
     def call(self, x):
-        return backend.numpy.square(x)
+        return backend.ops.numpy.square(x)
 
     def compute_output_spec(self, x):
         sparse = getattr(x, "sparse", False)
@@ -8918,13 +8948,13 @@ def square(x):
     """
     if any_symbolic_tensors((x,)):
         return Square().symbolic_call(x)
-    return backend.numpy.square(x)
+    return backend.ops.numpy.square(x)
 
 
 class Sqrt(Operation):
     def call(self, x):
-        x = backend.convert_to_tensor(x)
-        return backend.numpy.sqrt(x)
+        x = backend.ops.convert_to_tensor(x)
+        return backend.ops.numpy.sqrt(x)
 
     def compute_output_spec(self, x):
         dtype = (
@@ -8948,8 +8978,8 @@ def sqrt(x):
     """
     if any_symbolic_tensors((x,)):
         return Sqrt().symbolic_call(x)
-    x = backend.convert_to_tensor(x)
-    return backend.numpy.sqrt(x)
+    x = backend.ops.convert_to_tensor(x)
+    return backend.ops.numpy.sqrt(x)
 
 
 class Squeeze(Operation):
@@ -8958,7 +8988,7 @@ class Squeeze(Operation):
         self.axis = axis
 
     def call(self, x):
-        return backend.numpy.squeeze(x, axis=self.axis)
+        return backend.ops.numpy.squeeze(x, axis=self.axis)
 
     def compute_output_spec(self, x):
         input_shape = list(x.shape)
@@ -8994,7 +9024,7 @@ def squeeze(x, axis=None):
     """
     if any_symbolic_tensors((x,)):
         return Squeeze(axis=axis).symbolic_call(x)
-    return backend.numpy.squeeze(x, axis=axis)
+    return backend.ops.numpy.squeeze(x, axis=axis)
 
 
 class Transpose(Operation):
@@ -9003,7 +9033,7 @@ class Transpose(Operation):
         self.axes = axes
 
     def call(self, x):
-        return backend.numpy.transpose(x, axes=self.axes)
+        return backend.ops.numpy.transpose(x, axes=self.axes)
 
     def compute_output_spec(self, x):
         output_shape = operation_utils.compute_transpose_output_shape(
@@ -9027,7 +9057,7 @@ def transpose(x, axes=None):
     """
     if any_symbolic_tensors((x,)):
         return Transpose(axes=axes).symbolic_call(x)
-    return backend.numpy.transpose(x, axes=axes)
+    return backend.ops.numpy.transpose(x, axes=axes)
 
 
 class Trapezoid(Operation):
@@ -9038,7 +9068,9 @@ class Trapezoid(Operation):
         self.axis = axis
 
     def call(self, y):
-        return backend.numpy.trapezoid(y, x=self.x, dx=self.dx, axis=self.axis)
+        return backend.ops.numpy.trapezoid(
+            y, x=self.x, dx=self.dx, axis=self.axis
+        )
 
     def compute_output_spec(self, y):
         out_shape = list(y.shape)
@@ -9069,7 +9101,7 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
     """
     if any_symbolic_tensors((y,)):
         return Trapezoid(x=x, dx=dx, axis=axis).symbolic_call(y)
-    return backend.numpy.trapezoid(y, x=x, dx=dx, axis=axis)
+    return backend.ops.numpy.trapezoid(y, x=x, dx=dx, axis=axis)
 
 
 class Mean(Operation):
@@ -9081,7 +9113,7 @@ class Mean(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.mean(x, axis=self.axis, keepdims=self.keepdims)
+        return backend.ops.numpy.mean(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
         ori_dtype = backend.standardize_dtype(x.dtype)
@@ -9114,7 +9146,7 @@ def mean(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Mean(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.numpy.mean(x, axis=axis, keepdims=keepdims)
+    return backend.ops.numpy.mean(x, axis=axis, keepdims=keepdims)
 
 
 class Vander(Operation):
@@ -9124,7 +9156,7 @@ class Vander(Operation):
         self.increasing = increasing
 
     def call(self, x):
-        return backend.numpy.vander(x, self.N, self.increasing)
+        return backend.ops.numpy.vander(x, self.N, self.increasing)
 
     def compute_output_spec(self, x):
         if self.N is None:
@@ -9185,7 +9217,7 @@ def vander(x, N=None, increasing=False):
 
     if any_symbolic_tensors((x,)):
         return Vander(N=N, increasing=increasing).symbolic_call(x)
-    return backend.numpy.vander(x, N=N, increasing=increasing)
+    return backend.ops.numpy.vander(x, N=N, increasing=increasing)
 
 
 class Var(Operation):
@@ -9197,7 +9229,7 @@ class Var(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.var(x, axis=self.axis, keepdims=self.keepdims)
+        return backend.ops.numpy.var(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
         output_dtype = backend.result_type(getattr(x, "dtype", type(x)), float)
@@ -9223,7 +9255,7 @@ def var(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Var(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.numpy.var(x, axis=axis, keepdims=keepdims)
+    return backend.ops.numpy.var(x, axis=axis, keepdims=keepdims)
 
 
 class Sum(Operation):
@@ -9235,7 +9267,7 @@ class Sum(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.numpy.sum(x, axis=self.axis, keepdims=self.keepdims)
+        return backend.ops.numpy.sum(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
         dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
@@ -9271,7 +9303,7 @@ def sum(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Sum(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.numpy.sum(x, axis=axis, keepdims=keepdims)
+    return backend.ops.numpy.sum(x, axis=axis, keepdims=keepdims)
 
 
 @keras_export(["keras.ops.zeros", "keras.ops.numpy.zeros"])
@@ -9285,7 +9317,7 @@ def zeros(shape, dtype=None):
     Returns:
         Tensor of zeros with the given shape and dtype.
     """
-    return backend.numpy.zeros(shape, dtype=dtype)
+    return backend.ops.numpy.zeros(shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.ones", "keras.ops.numpy.ones"])
@@ -9299,7 +9331,7 @@ def ones(shape, dtype=None):
     Returns:
         Tensor of ones with the given shape and dtype.
     """
-    return backend.numpy.ones(shape, dtype=dtype)
+    return backend.ops.numpy.ones(shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.eye", "keras.ops.numpy.eye"])
@@ -9330,12 +9362,12 @@ def eye(N, M=None, k=0, dtype=None):
         raise TypeError(
             "Argument `M` must be an integer, an integer tensor, or `None`."
         )
-    return backend.numpy.eye(N, M=M, k=k, dtype=dtype)
+    return backend.ops.numpy.eye(N, M=M, k=k, dtype=dtype)
 
 
 class FloorDivide(Operation):
     def call(self, x1, x2):
-        return backend.numpy.floor_divide(x1, x2)
+        return backend.ops.numpy.floor_divide(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -9361,12 +9393,12 @@ def floor_divide(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return FloorDivide().symbolic_call(x1, x2)
-    return backend.numpy.floor_divide(x1, x2)
+    return backend.ops.numpy.floor_divide(x1, x2)
 
 
 class LogicalXor(Operation):
     def call(self, x1, x2):
-        return backend.numpy.logical_xor(x1, x2)
+        return backend.ops.numpy.logical_xor(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -9388,12 +9420,12 @@ def logical_xor(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return LogicalXor().symbolic_call(x1, x2)
-    return backend.numpy.logical_xor(x1, x2)
+    return backend.ops.numpy.logical_xor(x1, x2)
 
 
 class Corrcoef(Operation):
     def call(self, x):
-        return backend.numpy.corrcoef(x)
+        return backend.ops.numpy.corrcoef(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
@@ -9417,7 +9449,7 @@ def corrcoef(x):
     """
     if any_symbolic_tensors((x,)):
         return Corrcoef().symbolic_call(x)
-    return backend.numpy.corrcoef(x)
+    return backend.ops.numpy.corrcoef(x)
 
 
 class Correlate(Operation):
@@ -9426,7 +9458,7 @@ class Correlate(Operation):
         self.mode = mode
 
     def call(self, x1, x2):
-        return backend.numpy.correlate(x1, x2, mode=self.mode)
+        return backend.ops.numpy.correlate(x1, x2, mode=self.mode)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -9493,12 +9525,12 @@ def correlate(x1, x2, mode="valid"):
     """
     if any_symbolic_tensors((x1, x2)):
         return Correlate(mode=mode).symbolic_call(x1, x2)
-    return backend.numpy.correlate(x1, x2, mode=mode)
+    return backend.ops.numpy.correlate(x1, x2, mode=mode)
 
 
 class Select(Operation):
     def call(self, condlist, choicelist, default=0):
-        return backend.numpy.select(condlist, choicelist, default)
+        return backend.ops.numpy.select(condlist, choicelist, default)
 
     def compute_output_spec(self, condlist, choicelist, default=0):
         # `select` broadcasts every array in `condlist` and `choicelist` (and
@@ -9571,12 +9603,12 @@ def select(condlist, choicelist, default=0):
         )
     if any_symbolic_tensors(condlist + choicelist + [default]):
         return Select().symbolic_call(condlist, choicelist, default)
-    return backend.numpy.select(condlist, choicelist, default)
+    return backend.ops.numpy.select(condlist, choicelist, default)
 
 
 class Slogdet(Operation):
     def call(self, x):
-        return backend.numpy.slogdet(x)
+        return backend.ops.numpy.slogdet(x)
 
     def compute_output_spec(self, x):
         sign = KerasTensor((), dtype=x.dtype)
@@ -9600,7 +9632,7 @@ def slogdet(x):
     """
     if any_symbolic_tensors((x,)):
         return Slogdet().symbolic_call(x)
-    return backend.numpy.slogdet(x)
+    return backend.ops.numpy.slogdet(x)
 
 
 class Argpartition(Operation):
@@ -9612,7 +9644,7 @@ class Argpartition(Operation):
         self.axis = axis
 
     def call(self, x):
-        return backend.numpy.argpartition(x, kth=self.kth, axis=self.axis)
+        return backend.ops.numpy.argpartition(x, kth=self.kth, axis=self.axis)
 
     def compute_output_spec(self, x):
         shape = x.shape
@@ -9653,7 +9685,7 @@ def argpartition(x, kth, axis=-1):
     """
     if any_symbolic_tensors((x,)):
         return Argpartition(kth, axis).symbolic_call(x)
-    return backend.numpy.argpartition(x, kth, axis)
+    return backend.ops.numpy.argpartition(x, kth, axis)
 
 
 class Histogram(Operation):
@@ -9678,10 +9710,10 @@ class Histogram(Operation):
         self.range = range
 
     def call(self, x):
-        x = backend.convert_to_tensor(x)
+        x = backend.ops.convert_to_tensor(x)
         if len(x.shape) > 1:
             raise ValueError("Input tensor must be 1-dimensional")
-        return backend.math.histogram(x, bins=self.bins, range=self.range)
+        return backend.ops.math.histogram(x, bins=self.bins, range=self.range)
 
     def compute_output_spec(self, x):
         return (
@@ -9740,13 +9772,13 @@ def histogram(x, bins=10, range=None):
     if any_symbolic_tensors((x,)):
         return Histogram(bins=bins, range=range).symbolic_call(x)
 
-    x = backend.convert_to_tensor(x)
+    x = backend.ops.convert_to_tensor(x)
     if len(x.shape) > 1:
         raise ValueError(
             "Input tensor must be 1-dimensional. "
             f"Received: input.shape={x.shape}"
         )
-    return backend.numpy.histogram(x, bins=bins, range=range)
+    return backend.ops.numpy.histogram(x, bins=bins, range=range)
 
 
 class ArraySplit(Operation):
@@ -9757,7 +9789,7 @@ class ArraySplit(Operation):
         self.axis = axis
 
     def call(self, x):
-        return backend.numpy.array_split(
+        return backend.ops.numpy.array_split(
             x,
             indices_or_sections=self.indices_or_sections,
             axis=self.axis,
@@ -9845,7 +9877,7 @@ def array_split(x, indices_or_sections, axis=0):
             indices_or_sections=indices_or_sections, axis=axis
         ).symbolic_call(x)
 
-    return backend.numpy.array_split(
+    return backend.ops.numpy.array_split(
         x, indices_or_sections=indices_or_sections, axis=axis
     )
 
@@ -9873,7 +9905,7 @@ class Unique(Operation):
         self.fill_value = fill_value
 
     def call(self, x):
-        return backend.numpy.unique(
+        return backend.ops.numpy.unique(
             x,
             sorted=self.sorted,
             return_index=self.return_index,
@@ -10010,8 +10042,8 @@ def unique(
             size=size,
             fill_value=fill_value,
         ).symbolic_call(x)
-    return backend.numpy.unique(
-        backend.convert_to_tensor(x),
+    return backend.ops.numpy.unique(
+        backend.ops.convert_to_tensor(x),
         sorted=sorted,
         return_index=return_index,
         return_inverse=return_inverse,
@@ -10030,7 +10062,7 @@ class Dsplit(Operation):
         self.indices_or_sections = indices_or_sections
 
     def call(self, x):
-        return backend.numpy.dsplit(x, self.indices_or_sections)
+        return backend.ops.numpy.dsplit(x, self.indices_or_sections)
 
     def compute_output_spec(self, x):
         if len(x.shape) < 3:
@@ -10069,12 +10101,12 @@ def dsplit(x, indices_or_sections):
     """
     if any_symbolic_tensors((x,)):
         return Dsplit(indices_or_sections).symbolic_call(x)
-    return backend.numpy.dsplit(x, indices_or_sections)
+    return backend.ops.numpy.dsplit(x, indices_or_sections)
 
 
 class ColumnStack(Operation):
     def call(self, xs):
-        return backend.numpy.column_stack(xs)
+        return backend.ops.numpy.column_stack(xs)
 
     def compute_output_spec(self, xs):
         if len(xs) == 0:
@@ -10158,4 +10190,4 @@ def column_stack(xs):
     """
     if any_symbolic_tensors((xs,)):
         return ColumnStack().symbolic_call(xs)
-    return backend.numpy.column_stack(xs)
+    return backend.ops.numpy.column_stack(xs)

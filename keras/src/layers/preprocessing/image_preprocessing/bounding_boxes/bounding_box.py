@@ -62,7 +62,7 @@ class BoundingBox:
             "rel_center_xywh": self._xyxy_to_rel_center_xywh,
         }
 
-        ops = self.backend
+        ops = self.backend.ops
         boxes_shape = ops.shape(boxes)
         if boxes_shape[-1] != 4:
             raise ValueError(
@@ -117,7 +117,7 @@ class BoundingBox:
                 "`height` and `width` must be set if `format='xyxy'`."
             )
 
-        ops = self.backend
+        ops = self.backend.ops
         boxes = bounding_boxes["boxes"]
         labels = bounding_boxes.get("labels", None)
         if width is not None:
@@ -170,7 +170,7 @@ class BoundingBox:
         center_x=None,
         center_y=None,
     ):
-        ops = self.backend
+        ops = self.backend.ops
 
         boxes_shape = ops.shape(boxes)
         batch_size = boxes_shape[0]
@@ -224,7 +224,7 @@ class BoundingBox:
         return outputs
 
     def crop(self, boxes, top, left, height, width):
-        ops = self.backend
+        ops = self.backend.ops
 
         x1, y1, x2, y2 = ops.numpy.split(boxes, 4, axis=-1)
         x1 = x1 - left
@@ -239,7 +239,7 @@ class BoundingBox:
         return outputs
 
     def pad(self, boxes, top, left):
-        ops = self.backend
+        ops = self.backend.ops
 
         x1, y1, x2, y2 = ops.numpy.split(boxes, 4, axis=-1)
         x1 = x1 + left
@@ -255,17 +255,17 @@ class BoundingBox:
         return boxes
 
     def _yxyx_to_xyxy(self, boxes, height=None, width=None):
-        y1, x1, y2, x2 = self.backend.numpy.split(boxes, 4, axis=-1)
-        return self.backend.numpy.concatenate([x1, y1, x2, y2], axis=-1)
+        y1, x1, y2, x2 = self.backend.ops.numpy.split(boxes, 4, axis=-1)
+        return self.backend.ops.numpy.concatenate([x1, y1, x2, y2], axis=-1)
 
     def _xywh_to_xyxy(self, boxes, height=None, width=None):
-        x1, y1, w, h = self.backend.numpy.split(boxes, 4, axis=-1)
+        x1, y1, w, h = self.backend.ops.numpy.split(boxes, 4, axis=-1)
         x2 = x1 + w
         y2 = y1 + h
-        return self.backend.numpy.concatenate([x1, y1, x2, y2], axis=-1)
+        return self.backend.ops.numpy.concatenate([x1, y1, x2, y2], axis=-1)
 
     def _center_xywh_to_xyxy(self, boxes, height=None, width=None):
-        ops = self.backend
+        ops = self.backend.ops
         cx, cy, w, h = ops.numpy.split(boxes, 4, axis=-1)
         half_w = w / 2.0
         half_h = h / 2.0
@@ -273,10 +273,10 @@ class BoundingBox:
         y1 = cy - half_h
         x2 = cx + half_w
         y2 = cy + half_h
-        return self.backend.numpy.concatenate([x1, y1, x2, y2], axis=-1)
+        return self.backend.ops.numpy.concatenate([x1, y1, x2, y2], axis=-1)
 
     def _center_yxhw_to_xyxy(self, boxes, height=None, width=None):
-        ops = self.backend
+        ops = self.backend.ops
         cy, cx, h, w = ops.numpy.split(boxes, 4, axis=-1)
         half_w = w / 2.0
         half_h = h / 2.0
@@ -284,37 +284,37 @@ class BoundingBox:
         y1 = cy - half_h
         x2 = cx + half_w
         y2 = cy + half_h
-        return self.backend.numpy.concatenate([x1, y1, x2, y2], axis=-1)
+        return self.backend.ops.numpy.concatenate([x1, y1, x2, y2], axis=-1)
 
     def _rel_xyxy_to_xyxy(self, boxes, height=None, width=None):
-        ops = self.backend
+        ops = self.backend.ops
         rel_x1, rel_y1, rel_x2, rel_y2 = ops.numpy.split(boxes, 4, axis=-1)
         x1 = rel_x1 * width
         y1 = rel_y1 * height
         x2 = rel_x2 * width
         y2 = rel_y2 * height
-        return self.backend.numpy.concatenate([x1, y1, x2, y2], axis=-1)
+        return self.backend.ops.numpy.concatenate([x1, y1, x2, y2], axis=-1)
 
     def _rel_yxyx_to_xyxy(self, boxes, height=None, width=None):
-        ops = self.backend
+        ops = self.backend.ops
         rel_y1, rel_x1, rel_y2, rel_x2 = ops.numpy.split(boxes, 4, axis=-1)
         x1 = rel_x1 * width
         y1 = rel_y1 * height
         x2 = rel_x2 * width
         y2 = rel_y2 * height
-        return self.backend.numpy.concatenate([x1, y1, x2, y2], axis=-1)
+        return self.backend.ops.numpy.concatenate([x1, y1, x2, y2], axis=-1)
 
     def _rel_xywh_to_xyxy(self, boxes, height=None, width=None):
-        ops = self.backend
+        ops = self.backend.ops
         rel_x1, rel_y1, rel_w, rel_h = ops.numpy.split(boxes, 4, axis=-1)
         x1 = rel_x1 * width
         y1 = rel_y1 * height
         x2 = (rel_x1 + rel_w) * width
         y2 = (rel_y1 + rel_h) * height
-        return self.backend.numpy.concatenate([x1, y1, x2, y2], axis=-1)
+        return self.backend.ops.numpy.concatenate([x1, y1, x2, y2], axis=-1)
 
     def _rel_center_xywh_to_xyxy(self, boxes, height=None, width=None):
-        ops = self.backend
+        ops = self.backend.ops
         rel_cx, rel_cy, rel_w, rel_h = ops.numpy.split(boxes, 4, axis=-1)
         half_rel_w = rel_w / 2.0
         half_rel_h = rel_h / 2.0
@@ -322,71 +322,71 @@ class BoundingBox:
         y1 = (rel_cy - half_rel_h) * height
         x2 = (rel_cx + half_rel_w) * width
         y2 = (rel_cy + half_rel_h) * height
-        return self.backend.numpy.concatenate([x1, y1, x2, y2], axis=-1)
+        return self.backend.ops.numpy.concatenate([x1, y1, x2, y2], axis=-1)
 
     def _xyxy_to_yxyx(self, boxes, height=None, width=None):
-        x1, y1, x2, y2 = self.backend.numpy.split(boxes, 4, axis=-1)
-        return self.backend.numpy.concatenate([y1, x1, y2, x2], axis=-1)
+        x1, y1, x2, y2 = self.backend.ops.numpy.split(boxes, 4, axis=-1)
+        return self.backend.ops.numpy.concatenate([y1, x1, y2, x2], axis=-1)
 
     def _xyxy_to_xywh(self, boxes, height=None, width=None):
-        x1, y1, x2, y2 = self.backend.numpy.split(boxes, 4, axis=-1)
+        x1, y1, x2, y2 = self.backend.ops.numpy.split(boxes, 4, axis=-1)
         w = x2 - x1
         h = y2 - y1
-        return self.backend.numpy.concatenate([x1, y1, w, h], axis=-1)
+        return self.backend.ops.numpy.concatenate([x1, y1, w, h], axis=-1)
 
     def _xyxy_to_center_xywh(self, boxes, height=None, width=None):
-        x1, y1, x2, y2 = self.backend.numpy.split(boxes, 4, axis=-1)
+        x1, y1, x2, y2 = self.backend.ops.numpy.split(boxes, 4, axis=-1)
         cx = x1 + ((x2 - x1) / 2.0)
         cy = y1 + ((y2 - y1) / 2.0)
         w = x2 - x1
         h = y2 - y1
-        return self.backend.numpy.concatenate([cx, cy, w, h], axis=-1)
+        return self.backend.ops.numpy.concatenate([cx, cy, w, h], axis=-1)
 
     def _xyxy_to_center_yxhw(self, boxes, height=None, width=None):
-        x1, y1, x2, y2 = self.backend.numpy.split(boxes, 4, axis=-1)
+        x1, y1, x2, y2 = self.backend.ops.numpy.split(boxes, 4, axis=-1)
         cx = x1 + ((x2 - x1) / 2.0)
         cy = y1 + ((y2 - y1) / 2.0)
         w = x2 - x1
         h = y2 - y1
-        return self.backend.numpy.concatenate([cy, cx, h, w], axis=-1)
+        return self.backend.ops.numpy.concatenate([cy, cx, h, w], axis=-1)
 
     def _xyxy_to_rel_xyxy(self, boxes, height=None, width=None):
-        x1, y1, x2, y2 = self.backend.numpy.split(boxes, 4, axis=-1)
-        rel_x1 = self.backend.numpy.divide(x1, width)
-        rel_y1 = self.backend.numpy.divide(y1, height)
-        rel_x2 = self.backend.numpy.divide(x2, width)
-        rel_y2 = self.backend.numpy.divide(y2, height)
-        return self.backend.numpy.concatenate(
+        x1, y1, x2, y2 = self.backend.ops.numpy.split(boxes, 4, axis=-1)
+        rel_x1 = self.backend.ops.numpy.divide(x1, width)
+        rel_y1 = self.backend.ops.numpy.divide(y1, height)
+        rel_x2 = self.backend.ops.numpy.divide(x2, width)
+        rel_y2 = self.backend.ops.numpy.divide(y2, height)
+        return self.backend.ops.numpy.concatenate(
             [rel_x1, rel_y1, rel_x2, rel_y2], axis=-1
         )
 
     def _xyxy_to_rel_yxyx(self, boxes, height=None, width=None):
-        x1, y1, x2, y2 = self.backend.numpy.split(boxes, 4, axis=-1)
-        rel_x1 = self.backend.numpy.divide(x1, width)
-        rel_y1 = self.backend.numpy.divide(y1, height)
-        rel_x2 = self.backend.numpy.divide(x2, width)
-        rel_y2 = self.backend.numpy.divide(y2, height)
-        return self.backend.numpy.concatenate(
+        x1, y1, x2, y2 = self.backend.ops.numpy.split(boxes, 4, axis=-1)
+        rel_x1 = self.backend.ops.numpy.divide(x1, width)
+        rel_y1 = self.backend.ops.numpy.divide(y1, height)
+        rel_x2 = self.backend.ops.numpy.divide(x2, width)
+        rel_y2 = self.backend.ops.numpy.divide(y2, height)
+        return self.backend.ops.numpy.concatenate(
             [rel_y1, rel_x1, rel_y2, rel_x2], axis=-1
         )
 
     def _xyxy_to_rel_xywh(self, boxes, height=None, width=None):
-        x1, y1, x2, y2 = self.backend.numpy.split(boxes, 4, axis=-1)
+        x1, y1, x2, y2 = self.backend.ops.numpy.split(boxes, 4, axis=-1)
         rel_x1 = x1 / width
         rel_y1 = y1 / height
         rel_w = (x2 - x1) / width
         rel_h = (y2 - y1) / height
-        return self.backend.numpy.concatenate(
+        return self.backend.ops.numpy.concatenate(
             [rel_x1, rel_y1, rel_w, rel_h], axis=-1
         )
 
     def _xyxy_to_rel_center_xywh(self, boxes, height=None, width=None):
-        x1, y1, x2, y2 = self.backend.numpy.split(boxes, 4, axis=-1)
+        x1, y1, x2, y2 = self.backend.ops.numpy.split(boxes, 4, axis=-1)
         rel_cx = (x1 + ((x2 - x1) / 2.0)) / width
         rel_cy = (y1 + ((y2 - y1) / 2.0)) / height
         rel_w = (x2 - x1) / width
         rel_h = (y2 - y1) / height
-        return self.backend.numpy.concatenate(
+        return self.backend.ops.numpy.concatenate(
             [rel_cx, rel_cy, rel_w, rel_h], axis=-1
         )
 
@@ -395,7 +395,7 @@ class BoundingBox:
         if format not in ("xyxy", "rel_xyxy"):
             raise NotImplementedError
 
-        ops = self.backend
+        ops = self.backend.ops
         x1, y1, x2, y2 = ops.numpy.split(boxes, 4, axis=-1)
         widths = x2 - x1
         heights = y2 - y1
@@ -415,7 +415,7 @@ class BoundingBox:
         width,
     ):
         # Ref: TF._geometry._get_inverse_affine_matrix
-        ops = self.backend
+        ops = self.backend.ops
         batch_size = ops.shape(angle)[0]
         dtype = angle.dtype
 

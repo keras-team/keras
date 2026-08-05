@@ -282,7 +282,7 @@ def get_numpy_iterator(iterable):
 def get_torch_dataloader(iterable):
     import torch.utils.data as torch_data
 
-    from keras.src.backend.torch.core import convert_to_tensor
+    from keras.src.backend.torch.ops.core import convert_to_tensor
 
     class ConverterIterableDataset(torch_data.IterableDataset):
         def __init__(self, iterable):

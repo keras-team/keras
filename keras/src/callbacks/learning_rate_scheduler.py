@@ -55,7 +55,7 @@ class LearningRateScheduler(Callback):
 
         try:  # new API
             learning_rate = float(
-                backend.convert_to_numpy(optimizer.learning_rate)
+                backend.ops.convert_to_numpy(optimizer.learning_rate)
             )
             learning_rate = self.schedule(epoch, learning_rate)
         except TypeError:  # Support for old API for backward compatibility
@@ -94,9 +94,9 @@ class LearningRateScheduler(Callback):
         if hasattr(self.model.optimizer, "optimizers"):
             for idx, opt in enumerate(self.model.optimizer.optimizers):
                 logs[f"learning_rate_{opt.name}"] = float(
-                    backend.convert_to_numpy(opt.learning_rate)
+                    backend.ops.convert_to_numpy(opt.learning_rate)
                 )
         else:
             logs["learning_rate"] = float(
-                backend.convert_to_numpy(self.model.optimizer.learning_rate)
+                backend.ops.convert_to_numpy(self.model.optimizer.learning_rate)
             )

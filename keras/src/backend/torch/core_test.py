@@ -5,8 +5,8 @@ import torch
 
 from keras.src import backend
 from keras.src import testing
-from keras.src.backend.torch.core import convert_to_tensor
-from keras.src.backend.torch.core import slice as torch_slice
+from keras.src.backend.torch.ops.core import convert_to_tensor
+from keras.src.backend.torch.ops.core import slice as torch_slice
 
 
 def _get_backed_symint(hint=2):

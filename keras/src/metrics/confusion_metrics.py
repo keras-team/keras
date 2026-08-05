@@ -67,7 +67,7 @@ class _ConfusionMatrixConditionCount(Metric):
             result = self.accumulator[0]
         else:
             result = self.accumulator
-        return backend.convert_to_tensor(result)
+        return backend.ops.convert_to_tensor(result)
 
     def get_config(self):
         config = {"thresholds": self.init_thresholds}

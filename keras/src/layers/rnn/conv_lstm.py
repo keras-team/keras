@@ -5,6 +5,7 @@ from keras.src import initializers
 from keras.src import ops
 from keras.src import regularizers
 from keras.src import tree
+from keras.src.backend.config import standardize_data_format
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.layers.rnn.dropout_rnn_cell import DropoutRNNCell
@@ -126,7 +127,7 @@ class ConvLSTMCell(Layer, DropoutRNNCell):
             strides, self.rank, "strides", allow_zero=True
         )
         self.padding = argument_validation.standardize_padding(padding)
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
         self.dilation_rate = argument_validation.standardize_tuple(
             dilation_rate, self.rank, "dilation_rate"
         )

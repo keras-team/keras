@@ -115,7 +115,7 @@ class CategoryEncoding(DataLayer):
         self._convert_input_args = False
 
     def _encode(self, inputs, count_weights=None):
-        inputs = self.backend.core.convert_to_tensor(inputs)
+        inputs = self.backend.ops.convert_to_tensor(inputs)
         return numerical_utils.encode_categorical_inputs(
             inputs,
             output_mode=self.output_mode,
@@ -159,7 +159,7 @@ class CategoryEncoding(DataLayer):
                     "`count_weights` is not used when `output_mode` is not "
                     f"`'count'`. Received `count_weights={count_weights}`."
                 )
-            count_weights = self.backend.convert_to_tensor(
+            count_weights = self.backend.ops.convert_to_tensor(
                 count_weights, dtype=self.compute_dtype
             )
         outputs = self._encode(inputs, count_weights)

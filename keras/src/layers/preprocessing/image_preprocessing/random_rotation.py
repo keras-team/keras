@@ -117,7 +117,7 @@ class RandomRotation(BaseImagePreprocessingLayer):
             )
 
     def _transform_images(self, images, transformation, interpolation):
-        return self.backend.image.affine_transform(
+        return self.backend.ops.image.affine_transform(
             images=images,
             transform=transformation["rotation_matrix"],
             interpolation=interpolation,
@@ -136,7 +136,7 @@ class RandomRotation(BaseImagePreprocessingLayer):
         training=True,
     ):
         if training:
-            ops = self.backend
+            ops = self.backend.ops
             boxes = bounding_boxes["boxes"]
             height = transformation["image_height"]
             width = transformation["image_width"]
@@ -170,7 +170,7 @@ class RandomRotation(BaseImagePreprocessingLayer):
         return bounding_boxes
 
     def get_random_transformation(self, data, training=True, seed=None):
-        ops = self.backend
+        ops = self.backend.ops
         if not training:
             return None
         if isinstance(data, dict):
@@ -196,10 +196,10 @@ class RandomRotation(BaseImagePreprocessingLayer):
                 image_width = shape[2]
 
         if seed is None:
-            seed = self._get_seed_generator(ops._backend)
+            seed = self._get_seed_generator(self.backend)
         lower = self.factor[0] * 360.0
         upper = self.factor[1] * 360.0
-        angle = ops.random.uniform(
+        angle = self.backend.random.uniform(
             shape=(batch_size,),
             minval=lower,
             maxval=upper,
@@ -219,7 +219,7 @@ class RandomRotation(BaseImagePreprocessingLayer):
             width=image_width,
         )
         if len(shape) == 3:
-            rotation_matrix = self.backend.numpy.squeeze(
+            rotation_matrix = self.backend.ops.numpy.squeeze(
                 rotation_matrix, axis=0
             )
         return {

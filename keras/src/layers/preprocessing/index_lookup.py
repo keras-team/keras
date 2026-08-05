@@ -651,7 +651,7 @@ class IndexLookup(Layer):
                 self.update_state(batch)
         elif hasattr(data, "__iter__") and not (
             isinstance(data, (list, tuple, np.ndarray))
-            or backend.is_tensor(data)
+            or backend.ops.is_tensor(data)
             or tf.is_tensor(data)
         ):
             for i, batch in enumerate(data):
@@ -836,8 +836,8 @@ class IndexLookup(Layer):
                         "When `output_mode` is `'tf_idf'`, "
                         "`idf_weights` must be provided."
                     )
-                output = tf_backend.numpy.multiply(
-                    tf_backend.core.cast(output, idf_weights.dtype), idf_weights
+                output = tf_backend.ops.numpy.multiply(
+                    tf_backend.ops.cast(output, idf_weights.dtype), idf_weights
                 )
             return output
 

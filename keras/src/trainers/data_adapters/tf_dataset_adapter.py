@@ -89,7 +89,7 @@ class TFDatasetAdapter(DataAdapter):
         return dataset.prefetch(tf.data.AUTOTUNE)
 
     def get_numpy_iterator(self):
-        from keras.src.backend.tensorflow.core import convert_to_numpy
+        from keras.src.backend.tensorflow.ops.core import convert_to_numpy
 
         for batch in self._dataset:
             yield tree.map_structure(
@@ -97,7 +97,7 @@ class TFDatasetAdapter(DataAdapter):
             )
 
     def get_jax_iterator(self):
-        from keras.src.backend.tensorflow.core import convert_to_numpy
+        from keras.src.backend.tensorflow.ops.core import convert_to_numpy
         from keras.src.utils.module_utils import tensorflow as tf
 
         def convert_to_jax(x):

@@ -67,7 +67,7 @@ class RandomInvert(BaseImagePreprocessingLayer):
 
         seed = seed or self._get_seed_generator(self.backend._backend)
 
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         rank = len(images_shape)
         if rank == 3:
             batch_size = 1
@@ -98,9 +98,9 @@ class RandomInvert(BaseImagePreprocessingLayer):
 
     def transform_images(self, images, transformation, training=True):
         if training:
-            images = self.backend.cast(images, self.compute_dtype)
+            images = self.backend.ops.cast(images, self.compute_dtype)
             apply_inversion = transformation["apply_inversion"]
-            return self.backend.numpy.where(
+            return self.backend.ops.numpy.where(
                 apply_inversion[:, None, None, None],
                 self.value_range[1] - images,
                 images,

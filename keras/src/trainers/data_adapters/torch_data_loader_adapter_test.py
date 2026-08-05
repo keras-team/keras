@@ -359,7 +359,7 @@ class TestTorchDataLoaderAdapter(testing.TestCase):
             order = []
             for batch in it_fn():
                 by = batch[1]
-                by = backend.convert_to_numpy(by)
+                by = backend.ops.convert_to_numpy(by)
                 order.extend(by[:, 0].tolist())
             return order
 
@@ -376,8 +376,8 @@ class TestTorchDataLoaderAdapter(testing.TestCase):
 
                 for i, batch in enumerate(batches):
                     bx, by = batch
-                    bx = backend.convert_to_numpy(bx)
-                    by = backend.convert_to_numpy(by)
+                    bx = backend.ops.convert_to_numpy(bx)
+                    by = backend.ops.convert_to_numpy(by)
                     # DistributedSampler and ShardedIterableDataset both use
                     # interleaved sharding.
                     # Each replica gets samples: [rank, rank + num_replicas,

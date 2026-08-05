@@ -30,20 +30,20 @@ class ConstraintsTest(testing.TestCase):
     def test_non_neg(self):
         constraint_fn = constraints.NonNeg()
         output = constraint_fn(get_example_array())
-        output = backend.convert_to_numpy(output)
+        output = backend.ops.convert_to_numpy(output)
         self.assertTrue((np.min(output, axis=1) >= 0.0).all())
 
     def test_unit_norm(self):
         constraint_fn = constraints.UnitNorm()
         output = constraint_fn(get_example_array())
-        output = backend.convert_to_numpy(output)
+        output = backend.ops.convert_to_numpy(output)
         l2 = np.sqrt(np.sum(np.square(output), axis=0))
         self.assertAllClose(l2, 1.0)
 
     def test_min_max_norm(self):
         constraint_fn = constraints.MinMaxNorm(min_value=0.2, max_value=0.5)
         output = constraint_fn(get_example_array())
-        output = backend.convert_to_numpy(output)
+        output = backend.ops.convert_to_numpy(output)
         l2 = np.sqrt(np.sum(np.square(output), axis=0))
         self.assertTrue(np.all(l2 >= 0.2))
         self.assertTrue(np.all(l2 <= 0.5 + 1e-6))
@@ -85,8 +85,8 @@ class ConstraintsTest(testing.TestCase):
         self.assertEqual(restored.axis, constraint_fn.axis)
         x = get_example_array()
         self.assertAllClose(
-            backend.convert_to_numpy(constraint_fn(x)),
-            backend.convert_to_numpy(restored(x)),
+            backend.ops.convert_to_numpy(constraint_fn(x)),
+            backend.ops.convert_to_numpy(restored(x)),
         )
 
     def test_unit_norm_get_config(self):
@@ -98,8 +98,8 @@ class ConstraintsTest(testing.TestCase):
         self.assertEqual(restored.axis, constraint_fn.axis)
         x = get_example_array()
         self.assertAllClose(
-            backend.convert_to_numpy(constraint_fn(x)),
-            backend.convert_to_numpy(restored(x)),
+            backend.ops.convert_to_numpy(constraint_fn(x)),
+            backend.ops.convert_to_numpy(restored(x)),
         )
 
     def test_min_max_norm_get_config(self):
@@ -121,8 +121,8 @@ class ConstraintsTest(testing.TestCase):
         self.assertEqual(restored.axis, constraint_fn.axis)
         x = get_example_array()
         self.assertAllClose(
-            backend.convert_to_numpy(constraint_fn(x)),
-            backend.convert_to_numpy(restored(x)),
+            backend.ops.convert_to_numpy(constraint_fn(x)),
+            backend.ops.convert_to_numpy(restored(x)),
         )
 
     def test_non_neg_get_config(self):
@@ -141,24 +141,24 @@ class ConstraintsTest(testing.TestCase):
         config = original.get_config()
         restored = constraints.NonNeg.from_config(config)
         x = get_example_array()
-        out_original = backend.convert_to_numpy(original(x))
-        out_restored = backend.convert_to_numpy(restored(x))
+        out_original = backend.ops.convert_to_numpy(original(x))
+        out_restored = backend.ops.convert_to_numpy(restored(x))
         self.assertAllClose(out_original, out_restored)
 
     def test_non_neg_zeroes_negatives(self):
         constraint_fn = constraints.NonNeg()
         x = np.full((5, 5), -3.0)
-        output = backend.convert_to_numpy(constraint_fn(x))
+        output = backend.ops.convert_to_numpy(constraint_fn(x))
         self.assertAllClose(output, np.zeros((5, 5)))
 
     def test_non_neg_preserves_positives(self):
         constraint_fn = constraints.NonNeg()
         x = np.full((5, 5), 3.0)
-        output = backend.convert_to_numpy(constraint_fn(x))
+        output = backend.ops.convert_to_numpy(constraint_fn(x))
         self.assertAllClose(output, x)
 
     def test_non_neg_all_zeros_input(self):
         constraint_fn = constraints.NonNeg()
         x = np.zeros((5, 5))
-        output = backend.convert_to_numpy(constraint_fn(x))
+        output = backend.ops.convert_to_numpy(constraint_fn(x))
         self.assertAllClose(output, np.zeros((5, 5)))

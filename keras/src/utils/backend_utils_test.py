@@ -24,27 +24,27 @@ class BackendUtilsTest(testing.TestCase):
                     NotImplementedError,
                     "Currently, we cannot dynamically import the numpy backend",
                 ):
-                    y = dynamic_backend.numpy.log10(x)
+                    y = dynamic_backend.ops.numpy.log10(x)
             else:
-                y = dynamic_backend.numpy.log10(x)
+                y = dynamic_backend.ops.numpy.log10(x)
                 self.assertIsInstance(y, np.ndarray)
         elif name == "jax":
             import jax
 
             dynamic_backend.set_backend(name)
-            y = dynamic_backend.numpy.log10(x)
+            y = dynamic_backend.ops.numpy.log10(x)
             self.assertIsInstance(y, jax.Array)
         elif name == "tensorflow":
             import tensorflow as tf
 
             dynamic_backend.set_backend(name)
-            y = dynamic_backend.numpy.log10(x)
+            y = dynamic_backend.ops.numpy.log10(x)
             self.assertIsInstance(y, tf.Tensor)
         elif name == "torch":
             import torch
 
             dynamic_backend.set_backend(name)
-            y = dynamic_backend.numpy.log10(x)
+            y = dynamic_backend.ops.numpy.log10(x)
             self.assertIsInstance(y, torch.Tensor)
 
     def test_dynamic_backend_invalid_name(self):

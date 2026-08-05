@@ -185,8 +185,8 @@ def pythonify_logs(logs):
         else:
             try:
                 # Prevent torch compiler from breaking the graph.
-                if backend.is_tensor(value):
-                    value = backend.convert_to_numpy(value)
+                if backend.ops.is_tensor(value):
+                    value = backend.ops.convert_to_numpy(value)
                 value = float(value)
             except:
                 pass
