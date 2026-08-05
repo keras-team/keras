@@ -272,13 +272,17 @@ class CategoryEncodingTest(testing.TestCase):
         self.assertAllClose(output, expected_output)
 
     @parameterized.named_parameters([("dense", False), ("sparse", True)])
-    def test_get_config_includes_sparse(self, sparse):
+    def test_get_config(self, sparse):
         layer = layers.CategoryEncoding(
             num_tokens=4, output_mode="count", sparse=sparse
         )
         config = layer.get_config()
+        self.assertEqual(config["num_tokens"], 4)
+        self.assertEqual(config["output_mode"], "count")
         self.assertEqual(config["sparse"], sparse)
         revived_layer = layers.CategoryEncoding.from_config(config)
+        self.assertEqual(revived_layer.num_tokens, 4)
+        self.assertEqual(revived_layer.output_mode, "count")
         self.assertEqual(revived_layer.sparse, sparse)
         self.assertEqual(config, revived_layer.get_config())
 
