@@ -14,8 +14,8 @@ from keras.src.distribution import distribution_lib
 
 
 @pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="Only JAX has the backend to mock at the moment",
+    backend.backend() not in ("jax", "torch"),
+    reason="Only JAX and Torch have the backend to mock at the moment",
 )
 @mock.patch.object(
     backend_dlib,
@@ -23,10 +23,6 @@ from keras.src.distribution import distribution_lib
     return_value=None,
 )
 class MultiProcessInitializeTest(testing.TestCase):
-    def tearDown(self):
-        super().tearDown()
-        os.environ.clear()
-
     def test_initialize_with_explicit_param(self, mock_backend_initialize):
         job_addresses = "10.0.0.1:1234,10.0.0.2:2345"
         num_processes = 2
@@ -48,10 +44,15 @@ class MultiProcessInitializeTest(testing.TestCase):
         os.environ["KERAS_DISTRIBUTION_NUM_PROCESSES"] = str(num_processes)
         os.environ["KERAS_DISTRIBUTION_PROCESS_ID"] = str(current_process_id)
 
-        distribution_lib.initialize()
-        mock_backend_initialize.assert_called_once_with(
-            job_addresses, num_processes, current_process_id
-        )
+        try:
+            distribution_lib.initialize()
+            mock_backend_initialize.assert_called_once_with(
+                job_addresses, num_processes, current_process_id
+            )
+        finally:
+            os.environ.pop("KERAS_DISTRIBUTION_JOB_ADDRESSES", None)
+            os.environ.pop("KERAS_DISTRIBUTION_NUM_PROCESSES", None)
+            os.environ.pop("KERAS_DISTRIBUTION_PROCESS_ID", None)
 
     def test_init_with_nones(self, mock_backend_initialize):
         # This is also valid case for Cloud TPU on JAX
@@ -209,8 +210,8 @@ class DistributionTest(testing.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="Only JAX has the proper backend distribution lib",
+    backend.backend() not in ("jax", "torch"),
+    reason="Only JAX and Torch have the proper backend distribution lib",
 )
 class DataParallelDistributionTest(testing.TestCase):
     def setUp(self):
@@ -273,7 +274,7 @@ class DataParallelDistributionTest(testing.TestCase):
             device_mesh=self.device_mesh
         )
 
-        variable = backend.Variable(initializer=[1, 2, 3])
+        variable = backend.Variable(initializer=[1.0, 2.0, 3.0])
         variable_layout = distribution.get_variable_layout(variable)
         self.assertIs(variable_layout.device_mesh, self.device_mesh)
         self.assertEqual(variable_layout.axes, (None,))
@@ -286,7 +287,7 @@ class DataParallelDistributionTest(testing.TestCase):
         explicit_mesh = distribution_lib.DeviceMesh((8,), ["x"], self.devices)
         explicit_layout = distribution_lib.TensorLayout(["x"], explicit_mesh)
 
-        variable = backend.Variable(initializer=[1, 2, 3])
+        variable = backend.Variable(initializer=[1.0, 2.0, 3.0])
         variable._layout = explicit_layout
         variable_layout = distribution.get_variable_layout(variable)
         self.assertIs(variable_layout.device_mesh, explicit_mesh)

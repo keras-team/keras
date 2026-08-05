@@ -1,3 +1,4 @@
+import itertools
 import math
 
 import jax.numpy as jnp
@@ -130,7 +131,7 @@ def _istft(
     if length is not None:
         end = start + length
     elif center:
-        end = -(fft_length // 2)
+        end = expected_output_len - (fft_length // 2)
     else:
         end = expected_output_len
     return x[..., start:end]
@@ -145,6 +146,13 @@ def _max_reduce(left, right):
 
 
 class MathOpsDynamicShapeTest(testing.TestCase):
+    def test_cdist(self):
+        x = KerasTensor((None, 2, 3))
+        y = KerasTensor((None, 4, 3))
+
+        z = kmath.cdist(x, y)
+        self.assertEqual(z.shape, (None, 2, 4))
+
     def test_erf(self):
         x = KerasTensor((None, 2, 3))
         y = kmath.erf(x)
@@ -353,6 +361,13 @@ class MathOpsDynamicShapeTest(testing.TestCase):
 
 
 class MathOpsStaticShapeTest(testing.TestCase):
+    def test_cdist(self):
+        x = KerasTensor((1, 2, 3))
+        y = KerasTensor((1, 4, 3))
+
+        z = kmath.cdist(x, y)
+        self.assertEqual(z.shape, (1, 2, 4))
+
     def test_erf(self):
         x = KerasTensor((1, 2, 3))
         y = kmath.erf(x)
@@ -701,6 +716,38 @@ class MathOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(outputs[0], expected_values)
         self.assertAllClose(outputs[1], expected_indices)
 
+    def check_stability(self, values, indices):
+        """Helper function to check stability of top_k."""
+        values_np = backend.convert_to_numpy(values)
+        indices_np = backend.convert_to_numpy(indices)
+        is_equal = values_np[..., :-1] == values_np[..., 1:]
+        index_increasing = indices_np[..., :-1] < indices_np[..., 1:]
+        self.assertTrue(np.all(np.logical_or(~is_equal, index_increasing)))
+
+    # Below tests are specific to stable top_k implementation.
+    # We have `top_k` operation defined with `is_stable` argument
+    def test_top_k_stability_small(self):
+        x = np.array([3, 5, 5, 2, 5, 1], dtype=np.float32)
+        values, indices = kmath.top_k(x, k=4, is_stable=True)
+        self.assertAllClose(values, [5, 5, 5, 3])
+        self.assertAllClose(indices, [1, 2, 4, 0])
+
+    def test_top_k_stability_large_1d(self):
+        x = np.random.randint(0, 10, size=5000).astype(np.float32)
+        values, indices = kmath.top_k(x, k=2500, is_stable=True)
+        self.check_stability(values, indices)
+
+    def test_top_k_stability_large_2d(self):
+        x = np.random.randint(0, 5, size=(10, 500)).astype(np.int32)
+        values, indices = kmath.top_k(x, k=200, is_stable=True)
+        self.check_stability(values, indices)
+
+    def test_top_k_unstable_large(self):
+        x = np.random.randint(0, 10, size=1000).astype(np.float32)
+        values, indices = kmath.top_k(x, k=500, sorted=True, is_stable=False)
+        self.assertEqual(values.shape, (500,))
+        self.assertEqual(indices.shape, (500,))
+
     def test_in_top_k(self):
         targets = np.array([1, 0, 2])
         predictions = np.array(
@@ -737,6 +784,25 @@ class MathOpsCorrectnessTest(testing.TestCase):
         )
         self.assertAllEqual(
             kmath.in_top_k(targets, predictions, k=3), [True, True, True]
+        )
+
+        # Test multi-dimensional targets
+        targets = np.array([[1, 0]])
+        predictions = np.array([[[1.0, 0.0], [0.0, 1.0]]], dtype="float32")
+        self.assertAllEqual(
+            kmath.in_top_k(targets, predictions, k=1), [[False, False]]
+        )
+        targets = np.array([[1, 2], [0, 3]])
+        predictions = np.array(
+            [
+                [[0.1, 0.9, 0.8, 0.8], [0.05, 0.95, 0, 1]],
+                [[0.9, 0.1, 0.8, 0.8], [0.1, 0.8, 0.3, 1]],
+            ],
+            dtype="float32",
+        )
+        self.assertAllEqual(
+            kmath.in_top_k(targets, predictions, k=2),
+            [[True, False], [True, True]],
         )
 
         # Test `nan` in predictions
@@ -905,6 +971,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
             (8, 4, 8, "hann", False),
             (32, 8, 32, np.ones((32,)), True),
             (32, 8, 32, None, True),
+            (1, 1, 1, "hann", True),
+            (1, 1, 1, None, True),
         ]
     )
     def test_istft(
@@ -1120,6 +1188,38 @@ class MathDtypeTest(testing.TestCase):
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint16", "uint32")]
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
 
+    @parameterized.named_parameters(
+        named_product(
+            dtypes=list(itertools.combinations(FLOAT_DTYPES + INT_DTYPES, 2))
+        )
+    )
+    def test_cdist(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+
+        x = knp.ones((2, 3), dtype=dtype1)
+        y = knp.ones((4, 3), dtype=dtype2)
+
+        x_jax = jnp.ones((2, 3), dtype=dtype1)
+        y_jax = jnp.ones((4, 3), dtype=dtype2)
+
+        expected_dtype = standardize_dtype(
+            jnp.linalg.norm(
+                x_jax[:, None, :] - y_jax[None, :, :],
+                axis=-1,
+            ).dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(kmath.cdist(x, y).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(kmath.CDist().symbolic_call(x, y).dtype),
+            expected_dtype,
+        )
+
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_erf(self, dtype):
         import jax.lax as lax
@@ -1171,6 +1271,25 @@ class MathDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(kmath.Erfinv().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_logsumexp(self, dtype):
+        import jax.numpy as jnp
+        import jax.scipy.special as jsp
+
+        x = knp.ones((2, 3), dtype=dtype)
+        x_jax = jnp.ones((2, 3), dtype=dtype)
+
+        expected_dtype = standardize_dtype(jsp.logsumexp(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(kmath.logsumexp(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(kmath.Logsumexp().symbolic_call(x).dtype),
             expected_dtype,
         )
 
@@ -1353,6 +1472,14 @@ class TopKTest(testing.TestCase):
         expected_indices = np.array([[1, 2], [1, 2]], dtype=np.int32)
         self.assertAllClose(indices, expected_indices)
 
+    def test_top_k_operation_config_and_symbolic_call(self):
+        top_k_op = kmath.TopK(k=2, sorted=True, is_stable=True)
+        self.assertEqual(top_k_op.get_config()["is_stable"], True)
+        data = np.array([3, 5, 5, 2, 5, 1], dtype=np.float32)
+        values, indices = top_k_op.call(data)
+        self.assertAllClose(values, [5, 5])
+        self.assertAllClose(indices, [1, 2])
+
 
 class InTopKTest(testing.TestCase):
     def test_in_top_k_call(self):
@@ -1378,6 +1505,13 @@ class LogsumexpTest(testing.TestCase):
         expected_output = np.log(
             np.sum(np.exp(x), axis=axis, keepdims=keepdims)
         )
+        self.assertAllClose(output, expected_output)
+
+    def test_logsumexp_list_input(self):
+        x = [[1.0, 2.0], [3.0, 4.0]]
+        logsumexp_op = kmath.Logsumexp()
+        output = logsumexp_op.call(x)
+        expected_output = np.log(np.sum(np.exp(x)))
         self.assertAllClose(output, expected_output)
 
 

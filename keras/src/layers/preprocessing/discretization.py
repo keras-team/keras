@@ -6,6 +6,7 @@ from keras.src.layers.preprocessing.data_layer import DataLayer
 from keras.src.utils import argument_validation
 from keras.src.utils import numerical_utils
 from keras.src.utils.module_utils import tensorflow as tf
+from keras.src.utils.progbar import Progbar
 
 
 @keras_export("keras.layers.Discretization")
@@ -189,19 +190,33 @@ class Discretization(DataLayer):
             )
         self.reset_state()
         if isinstance(data, tf.data.Dataset):
+            if steps is None and hasattr(data, "cardinality"):
+                cardinality = data.cardinality()
+                if cardinality.numpy() not in (
+                    tf.data.UNKNOWN_CARDINALITY,
+                    tf.data.INFINITE_CARDINALITY,
+                ):
+                    steps = int(cardinality.numpy())
+
+            progbar = Progbar(target=steps, unit_name="step")
             if steps is not None:
                 data = data.take(steps)
-            for batch in data:
+            for i, batch in enumerate(data):
                 self.update_state(batch)
+                progbar.update(i + 1)
+            progbar.update(steps if steps is not None else i + 1, finalize=True)
         elif hasattr(data, "__iter__") and not (
             isinstance(data, np.ndarray)
             or backend.is_tensor(data)
             or tf.is_tensor(data)
         ):
+            progbar = Progbar(target=steps, unit_name="step")
             for i, batch in enumerate(data):
                 if steps is not None and i >= steps:
                     break
                 self.update_state(batch)
+                progbar.update(i + 1)
+            progbar.update(steps if steps is not None else i + 1, finalize=True)
         else:
             self.update_state(data)
         self.finalize_state()

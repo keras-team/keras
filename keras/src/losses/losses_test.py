@@ -534,7 +534,10 @@ class CosineSimilarityTest(testing.TestCase):
         self.assertEqual(cosine_obj.name, "cosine_loss")
         self.assertEqual(cosine_obj.reduction, "sum")
         config = cosine_obj.get_config()
-        self.assertEqual(config, {"name": "cosine_loss", "reduction": "sum"})
+        self.assertEqual(
+            config, {"name": "cosine_loss", "reduction": "sum", "axis": 2}
+        )
+        self.run_class_serialization_test(cosine_obj)
 
     def test_unweighted(self):
         self.setup()
@@ -622,11 +625,14 @@ class HuberLossTest(testing.TestCase):
         self.y_true = self.np_y_true
 
     def test_config(self):
-        h_obj = losses.Huber(reduction="sum", name="huber")
+        h_obj = losses.Huber(delta=2.0, reduction="sum", name="huber")
         self.assertEqual(h_obj.name, "huber")
         self.assertEqual(h_obj.reduction, "sum")
         config = h_obj.get_config()
-        self.assertEqual(config, {"name": "huber", "reduction": "sum"})
+        self.assertEqual(
+            config, {"name": "huber", "reduction": "sum", "delta": 2.0}
+        )
+        self.run_class_serialization_test(h_obj)
 
     def test_all_correct(self):
         self.setup()
@@ -1233,6 +1239,14 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
         self.run_class_serialization_test(
             losses.SparseCategoricalCrossentropy(name="scce")
         )
+        scce_obj = losses.SparseCategoricalCrossentropy(
+            from_logits=True, ignore_class=3, axis=0, name="scce"
+        )
+        config = scce_obj.get_config()
+        self.assertEqual(config["from_logits"], True)
+        self.assertEqual(config["ignore_class"], 3)
+        self.assertEqual(config["axis"], 0)
+        self.run_class_serialization_test(scce_obj)
 
     def test_all_correct_unweighted(self):
         y_true = np.array([[0], [1], [2]], dtype="int64")
@@ -1912,13 +1926,13 @@ class TverskyTest(testing.TestCase):
         y_true = np.array(([[1, 2], [1, 2]]))
         y_pred = np.array(([[4, 1], [6, 1]]))
         output = losses.Tversky()(y_true, y_pred)
-        self.assertAllClose(output, -0.55555546)
+        self.assertAllClose(output, -0.55555558)
 
     def test_correctness_custom_coefficients(self):
         y_true = np.array(([[1, 2], [1, 2]]))
         y_pred = np.array(([[4, 1], [6, 1]]))
         output = losses.Tversky(alpha=0.2, beta=0.8)(y_true, y_pred)
-        self.assertAllClose(output, -0.29629636)
+        self.assertAllClose(output, -0.94444442)
 
     def test_binary_segmentation(self):
         y_true = np.array(
@@ -1928,7 +1942,7 @@ class TverskyTest(testing.TestCase):
             ([[0, 1, 0, 1], [1, 0, 1, 1], [0, 1, 0, 1], [1, 0, 1, 1]])
         )
         output = losses.Tversky()(y_true, y_pred)
-        self.assertAllClose(output, 0.77777773)
+        self.assertAllClose(output, 0.77777779)
 
     def test_binary_segmentation_with_axis(self):
         y_true = np.array(
@@ -1948,7 +1962,7 @@ class TverskyTest(testing.TestCase):
             ([[0, 1, 0, 1], [1, 0, 1, 1], [0, 1, 0, 1], [1, 0, 1, 1]])
         )
         output = losses.Tversky(alpha=0.2, beta=0.8)(y_true, y_pred)
-        self.assertAllClose(output, 0.7916667)
+        self.assertAllClose(output, 0.76190472)
 
     def test_binary_segmentation_custom_coefficients_with_axis(self):
         y_true = np.array(
@@ -1960,7 +1974,7 @@ class TverskyTest(testing.TestCase):
         output = losses.Tversky(
             alpha=0.2, beta=0.8, axis=(1, 2, 3), reduction=None
         )(y_true, y_pred)
-        self.assertAllClose(output, [0.5, 0.7222222])
+        self.assertAllClose(output, [0.5, 0.78494626])
 
     def test_dtype_arg(self):
         y_true = np.array(([[1, 2], [1, 2]]))

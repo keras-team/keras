@@ -52,10 +52,14 @@ def segment_prod(data, segment_ids, num_segments=None, sorted=False):
     )
 
 
-def top_k(x, k, sorted=True):
-    # Jax does not supported `sorted`, but in the case where `sorted=False`,
+def top_k(x, k, sorted=True, is_stable=True):
+    # Jax does not support `sorted`, but in the case where `sorted=False`,
     # order is not guaranteed, so OK to return sorted output.
-    return jax.lax.top_k(x, k)
+    try:
+        # is_stable was added in JAX version 0.11.0
+        return jax.lax.top_k(x, k, is_stable=is_stable)
+    except TypeError:
+        return jax.lax.top_k(x, k)
 
 
 def in_top_k(targets, predictions, k):
@@ -71,6 +75,7 @@ def in_top_k(targets, predictions, k):
 
 
 def logsumexp(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
     return jax.scipy.special.logsumexp(x, axis=axis, keepdims=keepdims)
 
 
@@ -275,7 +280,7 @@ def istft(
     if length is not None:
         end = start + length
     elif center is True:
-        end = -(fft_length // 2)
+        end = expected_output_len - (fft_length // 2)
     else:
         end = expected_output_len
     return x[..., start:end]

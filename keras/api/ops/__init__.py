@@ -40,6 +40,7 @@ from keras.src.ops.linalg import inv as inv
 from keras.src.ops.linalg import jvp as jvp
 from keras.src.ops.linalg import lstsq as lstsq
 from keras.src.ops.linalg import lu_factor as lu_factor
+from keras.src.ops.linalg import matrix_power as matrix_power
 from keras.src.ops.linalg import matrix_rank as matrix_rank
 from keras.src.ops.linalg import norm as norm
 from keras.src.ops.linalg import pinv as pinv
@@ -168,6 +169,7 @@ from keras.src.ops.numpy import broadcast_to as broadcast_to
 from keras.src.ops.numpy import cbrt as cbrt
 from keras.src.ops.numpy import ceil as ceil
 from keras.src.ops.numpy import clip as clip
+from keras.src.ops.numpy import column_stack as column_stack
 from keras.src.ops.numpy import concatenate as concatenate
 from keras.src.ops.numpy import conj as conj
 from keras.src.ops.numpy import conjugate as conjugate
