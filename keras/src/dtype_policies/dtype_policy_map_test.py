@@ -126,14 +126,15 @@ class DTypePolicyMapTest(testing.TestCase):
     def test_rejects_redos_pattern_key(self):
         # Keys are matched as regexes against layer paths while loading a model,
         # so a backtracking-prone pattern (or an overly long key) could cause
-        # catastrophic ReDoS on an untrusted config. Anything outside the
-        # documented "exact path / `prefix/.*`" contract is rejected.
+        # catastrophic ReDoS on an untrusted config. We keep full regex support
+        # but reject the constructs that make backtracking blow up.
         policy = dtype_policies.DTypePolicy("float16")
         for bad in (
-            "(a+)+$",  # nested quantifier (exponential)
-            ".*.*.*.*",  # multiple wildcards (polynomial)
-            "a*a*a*a*b",  # group-free polynomial backtracking
-            "encoder/(layer_0|layer_1)",  # alternation group
+            "(a+)+$",  # quantified group (exponential)
+            "(a|a)+",  # quantified group with overlapping alternation
+            "(.*)*x",  # quantified group (exponential)
+            "a.*a.*a.*a.*b",  # too many unbounded quantifiers (polynomial)
+            ".*.*.*.*",  # too many unbounded quantifiers (polynomial)
         ):
             with self.assertRaisesRegex(ValueError, "ReDoS"):
                 DTypePolicyMap()[bad] = policy
@@ -142,12 +143,29 @@ class DTypePolicyMapTest(testing.TestCase):
             DTypePolicyMap(policy_map={"(a+)+$": policy})
         with self.assertRaisesRegex(ValueError, "at most"):
             DTypePolicyMap()["a" * 1000] = policy
-        # Exact paths and simple `prefix/.*` globs are still accepted.
+
+    def test_accepts_legitimate_regex_keys(self):
+        # Keys are documented as regexes; mid-pattern wildcards and alternation
+        # groups are used in real maps (e.g. keras-hub layout maps) and must
+        # keep working, since only backtracking-prone constructs are rejected.
+        policy = dtype_policies.DTypePolicy("float16")
         dtype_policy_map = DTypePolicyMap()
-        dtype_policy_map["encoder/.*"] = policy
-        dtype_policy_map["model/encoder/layer_0/dense"] = policy
-        dtype_policy_map[".*"] = policy
-        self.assertLen(dtype_policy_map, 3)
+        for good in (
+            "model/encoder/layer_0/dense",  # exact path
+            ".*",  # match everything
+            "encoder/.*",  # trailing glob
+            "encoder.*/kernel",  # mid-pattern wildcard
+            "dense.*/(kernel|bias)",  # alternation group
+            "encoder/(layer_0|layer_1)",  # alternation group
+            r"block_[0-9]+/kernel",  # quantified character class
+        ):
+            dtype_policy_map[good] = policy
+        self.assertLen(dtype_policy_map, 7)
+        # An accepted rich pattern still resolves correctly at lookup time.
+        lookup_map = DTypePolicyMap()
+        lookup_map["dense.*/(kernel|bias)"] = policy
+        self.assertEqual(lookup_map["dense_2/block/bias"], policy)
+        self.assertEqual(lookup_map["conv/weights"], lookup_map.default_policy)
 
     def test_get(self):
         # 1. Setup
