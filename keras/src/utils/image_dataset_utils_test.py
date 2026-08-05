@@ -602,15 +602,10 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             shuffle=False,
             format=format,
         )
-        batches_1 = []
-        batches_2 = []
+        unshuffled_batches = []
         for b in dataset:
-            batches_1.append(ops.convert_to_numpy(b))
-        batches_1 = np.concatenate(batches_1, axis=0)
-        for b in dataset:
-            batches_2.append(ops.convert_to_numpy(b))
-        batches_2 = np.concatenate(batches_2, axis=0)
-        self.assertAllClose(batches_1, batches_2, atol=1e-6)
+            unshuffled_batches.append(ops.convert_to_numpy(b))
+        unshuffled_batches = np.concatenate(unshuffled_batches, axis=0)
 
         dataset = image_dataset_utils.image_dataset_from_directory(
             directory,
@@ -630,6 +625,8 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         for b in dataset:
             batches_2.append(ops.convert_to_numpy(b))
         batches_2 = np.concatenate(batches_2, axis=0)
+        self.assertNotAllClose(unshuffled_batches, batches_1, atol=1e-6)
+
         if format == "tf":
             self.assertNotAllClose(batches_1, batches_2, atol=1e-6)
         else:
@@ -673,16 +670,16 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             seed=1337,
             format=format,
         )
-        for dataset in [train_ds, val_ds]:
-            batches_1 = []
-            batches_2 = []
-            for b in dataset:
-                batches_1.append(ops.convert_to_numpy(b))
-            batches_1 = np.concatenate(batches_1, axis=0)
-            for b in dataset:
-                batches_2.append(ops.convert_to_numpy(b))
-            batches_2 = np.concatenate(batches_2, axis=0)
-            self.assertAllClose(batches_1, batches_2, atol=1e-6)
+        unshuffled_train_batches = []
+        for b in train_ds:
+            unshuffled_train_batches.append(ops.convert_to_numpy(b))
+        unshuffled_train_batches = np.concatenate(
+            unshuffled_train_batches, axis=0
+        )
+        unshuffled_val_batches = []
+        for b in val_ds:
+            unshuffled_val_batches.append(ops.convert_to_numpy(b))
+        unshuffled_val_batches = np.concatenate(unshuffled_val_batches, axis=0)
 
         train_ds, val_ds = image_dataset_utils.image_dataset_from_directory(
             directory,
@@ -714,9 +711,15 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             val_batches_2.append(ops.convert_to_numpy(b))
         val_batches_2 = np.concatenate(val_batches_2, axis=0)
 
+        self.assertNotAllClose(
+            unshuffled_train_batches, train_batches_1, atol=1e-6
+        )
+
         if format == "tf":
             self.assertNotAllClose(train_batches_1, train_batches_2, atol=1e-6)
-            self.assertNotAllClose(val_batches_1, val_batches_2, atol=1e-6)
+            # validation dataset is never shuffled, so it will always
+            # yield the same order
+            self.assertAllClose(val_batches_1, val_batches_2, atol=1e-6)
         else:
             # Grain shuffles deterministically, so we expect the same batches.
             self.assertAllClose(train_batches_1, train_batches_2, atol=1e-6)
