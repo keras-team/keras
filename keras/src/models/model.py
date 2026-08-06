@@ -28,7 +28,7 @@ elif backend.backend() == "torch":
 elif backend.backend() == "numpy":
     from keras.src.backend.numpy.trainer import NumpyTrainer as Trainer
 elif backend.backend() == "openvino":
-    from keras.src.backend.openvino.trainer import OpenVINOTrainer as Trainer
+    from keras_openvino.src.trainer import OpenVINOTrainer as Trainer
 else:
     raise RuntimeError(
         f"Backend '{backend.backend()}' must implement the Trainer class."

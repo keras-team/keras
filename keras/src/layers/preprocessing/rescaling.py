@@ -40,17 +40,17 @@ class Rescaling(DataLayer):
 
     def call(self, inputs):
         dtype = self.compute_dtype
-        scale = self.backend.cast(self.scale, dtype)
-        offset = self.backend.cast(self.offset, dtype)
-        scale_shape = self.backend.core.shape(scale)
+        scale = self.backend.ops.cast(self.scale, dtype)
+        offset = self.backend.ops.cast(self.offset, dtype)
+        scale_shape = self.backend.ops.shape(scale)
         if (
             len(scale_shape) > 0
             and backend.image_data_format() == "channels_first"
         ):
-            scale = self.backend.numpy.reshape(
+            scale = self.backend.ops.numpy.reshape(
                 scale, scale_shape + (1,) * (3 - len(scale_shape))
             )
-        return self.backend.cast(inputs, dtype) * scale + offset
+        return self.backend.ops.cast(inputs, dtype) * scale + offset
 
     def compute_output_shape(self, input_shape):
         return input_shape

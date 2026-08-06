@@ -72,8 +72,8 @@ def to_categorical(x, num_classes=None):
     >>> print(np.around(loss, 5))
     [0. 0. 0. 0.]
     """
-    if backend.is_tensor(x):
-        input_shape = backend.core.shape(x)
+    if backend.ops.is_tensor(x):
+        input_shape = backend.ops.shape(x)
         # Shrink the last dimension if the shape is (..., 1).
         if (
             input_shape is not None
@@ -81,8 +81,8 @@ def to_categorical(x, num_classes=None):
             and input_shape[-1] == 1
         ):
             newshape = tuple(input_shape[:-1])
-            x = backend.numpy.reshape(x, newshape)
-        return backend.nn.one_hot(x, num_classes)
+            x = backend.ops.numpy.reshape(x, newshape)
+        return backend.ops.nn.one_hot(x, num_classes)
     x = np.array(x, dtype="int64")
     input_shape = x.shape
 
@@ -126,13 +126,13 @@ def encode_categorical_inputs(
     backend_module = backend_module or backend
 
     if output_mode == "int":
-        return backend_module.cast(inputs, dtype=dtype)
+        return backend_module.ops.cast(inputs, dtype=dtype)
 
-    rank_of_inputs = len(backend_module.shape(inputs))
+    rank_of_inputs = len(backend_module.ops.shape(inputs))
 
     # In all cases, we should uprank scalar input to a single sample.
     if rank_of_inputs == 0:
-        inputs = backend_module.numpy.expand_dims(inputs, -1)
+        inputs = backend_module.ops.numpy.expand_dims(inputs, -1)
         rank_of_inputs = 1
 
     if (
@@ -154,11 +154,11 @@ def encode_categorical_inputs(
             pass
 
     if output_mode == "multi_hot":
-        return backend_module.nn.multi_hot(
+        return backend_module.ops.nn.multi_hot(
             inputs, depth, dtype=dtype, sparse=sparse
         )
     elif output_mode == "one_hot":
-        input_shape = backend_module.core.shape(inputs)
+        input_shape = backend_module.ops.shape(inputs)
         # Shrink the last dimension if the shape is (..., 1).
         if (
             input_shape is not None
@@ -166,8 +166,8 @@ def encode_categorical_inputs(
             and input_shape[-1] == 1
         ):
             newshape = tuple(input_shape[:-1])
-            inputs = backend_module.numpy.reshape(inputs, newshape)
-        return backend_module.nn.one_hot(
+            inputs = backend_module.ops.numpy.reshape(inputs, newshape)
+        return backend_module.ops.nn.one_hot(
             inputs, depth, dtype=dtype, sparse=sparse
         )
     elif output_mode == "count":
@@ -180,14 +180,16 @@ def encode_categorical_inputs(
 
         if count_weights is not None:
             dtype = count_weights.dtype
-        one_hot_encoding = backend_module.nn.one_hot(
+        one_hot_encoding = backend_module.ops.nn.one_hot(
             inputs, depth, dtype=dtype, sparse=sparse
         )
         if count_weights is not None:
-            count_weights = backend_module.numpy.expand_dims(count_weights, -1)
+            count_weights = backend_module.ops.numpy.expand_dims(
+                count_weights, -1
+            )
             one_hot_encoding = one_hot_encoding * count_weights
 
-        outputs = backend_module.numpy.sum(
+        outputs = backend_module.ops.numpy.sum(
             one_hot_encoding,
             axis=reduction_axis,
         )

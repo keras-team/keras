@@ -101,7 +101,7 @@ class GeneratorDataAdapterTest(testing.TestCase):
             if use_sample_weight:
                 self.assertIsInstance(bsw, expected_class)
             for j in range(by.shape[0]):
-                sample_order.append(backend.convert_to_numpy(by[j, 0]))
+                sample_order.append(backend.ops.convert_to_numpy(by[j, 0]))
         self.assertAllClose(sample_order, list(range(34)))
 
     def test_empty_generator_raises_clear_error(self):

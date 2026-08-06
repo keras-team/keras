@@ -8,6 +8,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.config import standardize_data_format
 
 try:
     from PIL import Image as pil_image
@@ -65,7 +66,7 @@ def array_to_img(x, data_format=None, scale=True, dtype=None):
         A PIL Image instance.
     """
 
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if dtype is None:
         dtype = backend.floatx()
     if pil_image is None:
@@ -139,7 +140,7 @@ def img_to_array(img, data_format=None, dtype=None):
         A 3D NumPy array.
     """
 
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if dtype is None:
         dtype = backend.floatx()
     # NumPy array x has format (height, width, channel)
@@ -174,7 +175,7 @@ def save_img(path, x, data_format=None, file_format=None, scale=True, **kwargs):
         scale: Whether to rescale image values to be within `[0, 255]`.
         **kwargs: Additional keyword arguments passed to `PIL.Image.save()`.
     """
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
 
     # Infer format from path if not explicitly provided
     if file_format is None and isinstance(path, (str, pathlib.Path)):
@@ -383,7 +384,7 @@ def smart_resize(
         raise ValueError(
             f"Expected `size` to be a tuple of 2 integers, but got: {size}."
         )
-    img = backend_module.convert_to_tensor(x)
+    img = backend_module.ops.convert_to_tensor(x)
     if len(img.shape) is not None:
         if len(img.shape) < 3 or len(img.shape) > 4:
             raise ValueError(
@@ -391,7 +392,7 @@ def smart_resize(
                 "channels)`, or `(batch_size, height, width, channels)`, but "
                 f"got input with incorrect rank, of shape {img.shape}."
             )
-    shape = backend_module.shape(img)
+    shape = backend_module.ops.shape(img)
     if data_format == "channels_last":
         height, width = shape[-3], shape[-2]
     else:
@@ -409,29 +410,30 @@ def smart_resize(
         crop_box_hstart = int(float(height - crop_height) / 2)
         crop_box_wstart = int(float(width - crop_width) / 2)
     else:
-        crop_height = backend_module.cast(
-            backend_module.cast(width * target_height, "float32")
+        crop_height = backend_module.ops.cast(
+            backend_module.ops.cast(width * target_height, "float32")
             / target_width,
             "int32",
         )
-        crop_height = backend_module.numpy.minimum(height, crop_height)
-        crop_height = backend_module.numpy.maximum(crop_height, 1)
-        crop_height = backend_module.cast(crop_height, "int32")
+        crop_height = backend_module.ops.numpy.minimum(height, crop_height)
+        crop_height = backend_module.ops.numpy.maximum(crop_height, 1)
+        crop_height = backend_module.ops.cast(crop_height, "int32")
 
-        crop_width = backend_module.cast(
-            backend_module.cast(height * target_width, "float32")
+        crop_width = backend_module.ops.cast(
+            backend_module.ops.cast(height * target_width, "float32")
             / target_height,
             "int32",
         )
-        crop_width = backend_module.numpy.minimum(width, crop_width)
-        crop_width = backend_module.numpy.maximum(crop_width, 1)
-        crop_width = backend_module.cast(crop_width, "int32")
+        crop_width = backend_module.ops.numpy.minimum(width, crop_width)
+        crop_width = backend_module.ops.numpy.maximum(crop_width, 1)
+        crop_width = backend_module.ops.cast(crop_width, "int32")
 
-        crop_box_hstart = backend_module.cast(
-            backend_module.cast(height - crop_height, "float32") / 2, "int32"
+        crop_box_hstart = backend_module.ops.cast(
+            backend_module.ops.cast(height - crop_height, "float32") / 2,
+            "int32",
         )
-        crop_box_wstart = backend_module.cast(
-            backend_module.cast(width - crop_width, "float32") / 2, "int32"
+        crop_box_wstart = backend_module.ops.cast(
+            backend_module.ops.cast(width - crop_width, "float32") / 2, "int32"
         )
 
     if data_format == "channels_last":
@@ -463,7 +465,7 @@ def smart_resize(
                 crop_box_wstart : crop_box_wstart + crop_width,
             ]
 
-    img = backend_module.image.resize(
+    img = backend_module.ops.image.resize(
         img, size=size, interpolation=interpolation, data_format=data_format
     )
 

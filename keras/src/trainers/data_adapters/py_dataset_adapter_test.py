@@ -202,7 +202,7 @@ class PyDatasetAdapterTest(testing.TestCase):
             self.assertEqual(bx.shape, (16, 4))
             self.assertEqual(by.shape, (16, 2))
             for i in range(by.shape[0]):
-                sample_order.append(backend.convert_to_numpy(by[i, 0]))
+                sample_order.append(backend.ops.convert_to_numpy(by[i, 0]))
             if infinite:
                 if len(sample_order) == 64:
                     adapter.on_epoch_end()
@@ -243,7 +243,7 @@ class PyDatasetAdapterTest(testing.TestCase):
         for index, batch in enumerate(gen):
             # Batch is a tuple of (x, y, class_weight)
             self.assertLen(batch, 3)
-            batch = [backend.convert_to_numpy(x) for x in batch]
+            batch = [backend.ops.convert_to_numpy(x) for x in batch]
             # Let's verify the data and class weights match for each element
             # of the batch (2 elements in each batch)
             for sub_elem in range(2):
@@ -536,7 +536,7 @@ class PyDatasetAdapterTest(testing.TestCase):
             order = []
             for batch in it_fn():
                 bx = batch[0]
-                bx = backend.convert_to_numpy(bx)
+                bx = backend.ops.convert_to_numpy(bx)
                 order.extend(bx[:, 0].tolist())
             return order
 
@@ -551,8 +551,8 @@ class PyDatasetAdapterTest(testing.TestCase):
 
                 for i, batch in enumerate(batches):
                     bx, by = batch
-                    bx = backend.convert_to_numpy(bx)
-                    by = backend.convert_to_numpy(by)
+                    bx = backend.ops.convert_to_numpy(bx)
+                    by = backend.ops.convert_to_numpy(by)
                     expected_batch_index = (
                         expected_shard_id + i * expected_num_replicas
                     )

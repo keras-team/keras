@@ -1,6 +1,7 @@
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 
 
 @keras_export("keras.activations.relu")
@@ -38,7 +39,7 @@ def relu(x, negative_slope=0.0, max_value=None, threshold=0.0):
     Returns:
         A tensor with the same shape and dtype as input `x`.
     """
-    if backend.any_symbolic_tensors((x,)):
+    if any_symbolic_tensors((x,)):
         return ReLU(
             negative_slope=negative_slope,
             max_value=max_value,
@@ -74,15 +75,17 @@ class ReLU(ops.Operation):
 
     @staticmethod
     def static_call(x, negative_slope=0.0, max_value=None, threshold=0.0):
-        x = backend.convert_to_tensor(x)
+        x = backend.ops.convert_to_tensor(x)
         if negative_slope != 0.0:
             if max_value is None and threshold == 0:
-                return backend.nn.leaky_relu(x, negative_slope=negative_slope)
+                return backend.ops.nn.leaky_relu(
+                    x, negative_slope=negative_slope
+                )
 
             if threshold != 0:
-                negative_part = backend.nn.relu(-x + threshold)
+                negative_part = backend.ops.nn.relu(-x + threshold)
             else:
-                negative_part = backend.nn.relu(-x)
+                negative_part = backend.ops.nn.relu(-x)
         else:
             negative_part = 1
 
@@ -90,18 +93,18 @@ class ReLU(ops.Operation):
         if threshold != 0:
             # computes x for x > threshold else 0
             threshold = ops.cast(threshold, dtype=x.dtype)
-            x = ops.where(backend.numpy.greater(x, threshold), x, 0)
+            x = ops.where(backend.ops.numpy.greater(x, threshold), x, 0)
         elif max_value == 6:
             # if no threshold, then can use nn.relu6 native op for performance
-            x = backend.nn.relu6(x)
+            x = backend.ops.nn.relu6(x)
             clip_max = False
         else:
-            x = backend.nn.relu(x)
+            x = backend.ops.nn.relu(x)
 
         if clip_max:
             min_value = ops.cast(0.0, dtype=x.dtype)
             max_value = ops.cast(max_value, dtype=x.dtype)
-            x = backend.numpy.clip(x, min_value, max_value)
+            x = backend.ops.numpy.clip(x, min_value, max_value)
 
         if negative_slope != 0.0:
             x -= negative_slope * negative_part
@@ -590,7 +593,7 @@ def hard_silu(x):
 
     - [A Howard, 2019](https://arxiv.org/abs/1905.02244)
     """
-    x = backend.convert_to_tensor(x)
+    x = backend.ops.convert_to_tensor(x)
     return ops.hard_silu(x)
 
 
@@ -616,7 +619,7 @@ class Mish(ops.Operation):
 
     @staticmethod
     def static_call(x):
-        return x * backend.nn.tanh(backend.nn.softplus(x))
+        return x * backend.ops.nn.tanh(backend.ops.nn.softplus(x))
 
 
 @keras_export("keras.activations.mish")
@@ -638,7 +641,7 @@ def mish(x):
 
     - [Misra, 2019](https://arxiv.org/abs/1908.08681)
     """
-    x = backend.convert_to_tensor(x)
+    x = backend.ops.convert_to_tensor(x)
     return Mish.static_call(x)
 
 
@@ -678,5 +681,5 @@ def sparsemax(x, axis=-1):
 
     - [Martins et.al., 2016](https://arxiv.org/abs/1602.02068)
     """
-    x = backend.convert_to_tensor(x)
+    x = backend.ops.convert_to_tensor(x)
     return ops.sparsemax(x, axis)

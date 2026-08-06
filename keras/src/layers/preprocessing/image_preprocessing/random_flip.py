@@ -79,7 +79,7 @@ class RandomFlip(BaseImagePreprocessingLayer):
             images = data["images"]
         else:
             images = data
-        shape = self.backend.core.shape(images)
+        shape = self.backend.ops.shape(images)
         if len(shape) == 3:
             flips_shape = (1, 1, 1)
         else:
@@ -88,13 +88,13 @@ class RandomFlip(BaseImagePreprocessingLayer):
         if seed is None:
             seed = self._get_seed_generator(self.backend._backend)
 
-        flips = self.backend.numpy.less_equal(
+        flips = self.backend.ops.numpy.less_equal(
             self.backend.random.uniform(shape=flips_shape, seed=seed), 0.5
         )
         return {"flips": flips, "input_shape": shape}
 
     def transform_images(self, images, transformation, training=True):
-        images = self.backend.cast(images, self.compute_dtype)
+        images = self.backend.ops.cast(images, self.compute_dtype)
         if training:
             return self._flip_inputs(images, transformation)
         return images
@@ -109,15 +109,15 @@ class RandomFlip(BaseImagePreprocessingLayer):
         training=True,
     ):
         def _flip_boxes_horizontal(boxes):
-            x1, x2, x3, x4 = self.backend.numpy.split(boxes, 4, axis=-1)
-            outputs = self.backend.numpy.concatenate(
+            x1, x2, x3, x4 = self.backend.ops.numpy.split(boxes, 4, axis=-1)
+            outputs = self.backend.ops.numpy.concatenate(
                 [1 - x3, x2, 1 - x1, x4], axis=-1
             )
             return outputs
 
         def _flip_boxes_vertical(boxes):
-            x1, x2, x3, x4 = self.backend.numpy.split(boxes, 4, axis=-1)
-            outputs = self.backend.numpy.concatenate(
+            x1, x2, x3, x4 = self.backend.ops.numpy.split(boxes, 4, axis=-1)
+            outputs = self.backend.ops.numpy.concatenate(
                 [x1, 1 - x4, x3, 1 - x2], axis=-1
             )
             return outputs
@@ -125,13 +125,13 @@ class RandomFlip(BaseImagePreprocessingLayer):
         def _transform_xyxy(boxes, box_flips):
             bboxes = boxes["boxes"]
             if self.mode in {HORIZONTAL, HORIZONTAL_AND_VERTICAL}:
-                bboxes = self.backend.numpy.where(
+                bboxes = self.backend.ops.numpy.where(
                     box_flips,
                     _flip_boxes_horizontal(bboxes),
                     bboxes,
                 )
             if self.mode in {VERTICAL, HORIZONTAL_AND_VERTICAL}:
-                bboxes = self.backend.numpy.where(
+                bboxes = self.backend.ops.numpy.where(
                     box_flips,
                     _flip_boxes_vertical(bboxes),
                     bboxes,
@@ -142,7 +142,9 @@ class RandomFlip(BaseImagePreprocessingLayer):
             if backend_utils.in_tf_graph():
                 self.backend.set_backend("tensorflow")
 
-            flips = self.backend.numpy.squeeze(transformation["flips"], axis=-1)
+            flips = self.backend.ops.numpy.squeeze(
+                transformation["flips"], axis=-1
+            )
 
             if self.data_format == "channels_first":
                 height_axis = -2
@@ -197,10 +199,10 @@ class RandomFlip(BaseImagePreprocessingLayer):
             return inputs
 
         flips = transformation["flips"]
-        inputs_shape = self.backend.shape(inputs)
+        inputs_shape = self.backend.ops.shape(inputs)
         unbatched = len(inputs_shape) == 3
         if unbatched:
-            inputs = self.backend.numpy.expand_dims(inputs, axis=0)
+            inputs = self.backend.ops.numpy.expand_dims(inputs, axis=0)
 
         flipped_outputs = inputs
         if self.data_format == "channels_last":
@@ -211,19 +213,23 @@ class RandomFlip(BaseImagePreprocessingLayer):
             vertical_axis = -2
 
         if self.mode == HORIZONTAL or self.mode == HORIZONTAL_AND_VERTICAL:
-            flipped_outputs = self.backend.numpy.where(
+            flipped_outputs = self.backend.ops.numpy.where(
                 flips,
-                self.backend.numpy.flip(flipped_outputs, axis=horizontal_axis),
+                self.backend.ops.numpy.flip(
+                    flipped_outputs, axis=horizontal_axis
+                ),
                 flipped_outputs,
             )
         if self.mode == VERTICAL or self.mode == HORIZONTAL_AND_VERTICAL:
-            flipped_outputs = self.backend.numpy.where(
+            flipped_outputs = self.backend.ops.numpy.where(
                 flips,
-                self.backend.numpy.flip(flipped_outputs, axis=vertical_axis),
+                self.backend.ops.numpy.flip(
+                    flipped_outputs, axis=vertical_axis
+                ),
                 flipped_outputs,
             )
         if unbatched:
-            flipped_outputs = self.backend.numpy.squeeze(
+            flipped_outputs = self.backend.ops.numpy.squeeze(
                 flipped_outputs, axis=0
             )
         return flipped_outputs

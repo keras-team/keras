@@ -1,3 +1,5 @@
+import os
+
 try:
     # When using torch and tensorflow, torch needs to be imported first,
     # otherwise it will segfault upon import. This should force the torch
@@ -42,9 +44,14 @@ def pytest_collection_modifyitems(config, items):
 
     openvino_skipped_tests = []
     if backend() == "openvino":
-        with open(
-            "keras/src/backend/openvino/excluded_concrete_tests.txt", "r"
-        ) as file:
+        import keras_openvino
+
+        exclusions_path = os.path.join(
+            # Remove `src/__init__.py`.
+            os.path.dirname(os.path.dirname(keras_openvino.__file__)),
+            "excluded_tests.txt",
+        )
+        with open(exclusions_path, "r") as file:
             openvino_skipped_tests = file.readlines()
             # it is necessary to check if stripped line is not empty
             # and exclude such lines

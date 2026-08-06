@@ -6,6 +6,7 @@ from keras.src import initializers
 from keras.src import layers
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend.config import standardize_data_format
 from keras.src.utils.module_utils import scipy
 
 
@@ -207,7 +208,7 @@ class STFTSpectrogram(layers.Layer):
         self.scaling = scaling
         self.padding = padding
         self.expand_dims = expand_dims
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
         self.input_spec = layers.input_spec.InputSpec(ndim=3)
 
     def build(self, input_shape):

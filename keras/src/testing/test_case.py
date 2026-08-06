@@ -41,8 +41,8 @@ class TestCase(parameterized.TestCase):
     def convert_to_numpy(self, x):
         if isinstance(x, np.ndarray):
             return x
-        elif backend.is_tensor(x) or isinstance(x, backend.Variable):
-            return backend.convert_to_numpy(x)
+        elif backend.ops.is_tensor(x) or isinstance(x, backend.Variable):
+            return backend.ops.convert_to_numpy(x)
         return np.array(x)
 
     def assertAllClose(
@@ -480,7 +480,7 @@ class TestCase(parameterized.TestCase):
 
             data = (input_data, output_data)
             if backend.backend() == "torch":
-                data = tree.map_structure(backend.convert_to_numpy, data)
+                data = tree.map_structure(backend.ops.convert_to_numpy, data)
 
             def data_generator():
                 while True:
@@ -660,7 +660,7 @@ def _tensorflow_uses(device_type):
 
 def _torch_uses(device_type):
     if device_type == "gpu":
-        from keras.src.backend.torch.core import get_device
+        from keras.src.backend.torch.ops.core import get_device
 
         return get_device() == "cuda"
     return device_type == "cpu"

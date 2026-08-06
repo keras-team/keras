@@ -4,7 +4,6 @@ from tensorflow import data as tf_data
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
-from keras.src.backend import convert_to_tensor
 
 
 class RandomGaussianBlurTest(testing.TestCase):
@@ -69,8 +68,8 @@ class RandomGaussianBlurTest(testing.TestCase):
         layer = layers.RandomGaussianBlur(data_format=data_format)
 
         transformation = {
-            "blur_factor": convert_to_tensor([0.3732, 0.8654]),
-            "should_apply_blur": convert_to_tensor([True]),
+            "blur_factor": backend.ops.convert_to_tensor([0.3732, 0.8654]),
+            "should_apply_blur": backend.ops.convert_to_tensor([True]),
         }
         output = layer.transform_images(inputs, transformation)
 

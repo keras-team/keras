@@ -271,7 +271,7 @@ class Normalization(DataLayer):
                 mean and variance may be incorrectly computed.
         """
         data_is_iterable = False
-        if isinstance(data, np.ndarray) or backend.is_tensor(data):
+        if isinstance(data, np.ndarray) or backend.ops.is_tensor(data):
             input_shape = data.shape
         elif isinstance(data, tf.data.Dataset):
 
@@ -338,7 +338,7 @@ class Normalization(DataLayer):
         if isinstance(data, np.ndarray):
             total_mean = np.mean(data, axis=self._reduce_axis)
             total_var = np.var(data, axis=self._reduce_axis)
-        elif backend.is_tensor(data):
+        elif backend.ops.is_tensor(data):
             total_mean = ops.mean(data, axis=self._reduce_axis)
             total_var = ops.var(data, axis=self._reduce_axis)
         elif isinstance(data, (tf.data.Dataset, PyDataset)) or data_is_iterable:
@@ -347,7 +347,7 @@ class Normalization(DataLayer):
             total_count = 0
             for batch in data:
                 batch = _extract_batch(batch)
-                batch = backend.convert_to_tensor(
+                batch = backend.ops.convert_to_tensor(
                     batch, dtype=self.compute_dtype
                 )
                 for d in self._keep_axis:
@@ -417,7 +417,7 @@ class Normalization(DataLayer):
                 "You must call `.build(input_shape)` "
                 "on the layer before using it."
             )
-        inputs = self.backend.core.convert_to_tensor(
+        inputs = self.backend.ops.convert_to_tensor(
             inputs, dtype=self.compute_dtype
         )
         # Ensure the weights are in the correct backend. Without this, it is
@@ -425,20 +425,20 @@ class Normalization(DataLayer):
         mean = self.convert_weight(self.mean)
         variance = self.convert_weight(self.variance)
         if self.invert:
-            return self.backend.numpy.add(
+            return self.backend.ops.numpy.add(
                 mean,
-                self.backend.numpy.multiply(
+                self.backend.ops.numpy.multiply(
                     inputs,
-                    self.backend.numpy.maximum(
-                        self.backend.numpy.sqrt(variance), backend.epsilon()
+                    self.backend.ops.numpy.maximum(
+                        self.backend.ops.numpy.sqrt(variance), backend.epsilon()
                     ),
                 ),
             )
         else:
-            return self.backend.numpy.divide(
-                self.backend.numpy.subtract(inputs, mean),
-                self.backend.numpy.maximum(
-                    self.backend.numpy.sqrt(variance), backend.epsilon()
+            return self.backend.ops.numpy.divide(
+                self.backend.ops.numpy.subtract(inputs, mean),
+                self.backend.ops.numpy.maximum(
+                    self.backend.ops.numpy.sqrt(variance), backend.epsilon()
                 ),
             )
 

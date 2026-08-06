@@ -6,7 +6,7 @@ from keras.src import testing
 
 
 def squared_l2_norm(x):
-    x = backend.convert_to_numpy(x)
+    x = backend.ops.convert_to_numpy(x)
     return np.sum(x**2)
 
 

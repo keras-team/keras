@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 import keras
+from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
@@ -144,8 +145,8 @@ class LegacyH5WholeModelTest(testing.TestCase):
         self._check_reloading_model(ref_input, model)
 
     def test_saving_lambda(self):
-        mean = ops.random.uniform((4, 2, 3))
-        std = ops.abs(ops.random.uniform((4, 2, 3))) + 1e-5
+        mean = backend.random.uniform((4, 2, 3))
+        std = ops.abs(backend.random.uniform((4, 2, 3))) + 1e-5
         inputs = layers.Input(shape=(4, 2, 3))
         output = layers.Lambda(
             lambda image, mu, std: (image - mu) / std,

@@ -681,7 +681,7 @@ class EinsumDenseTest(testing.TestCase):
         set_random_seed(1337)
         layer = layers.EinsumDense(equation=equation, output_shape=output_shape)
         layer.build(input_shape)
-        x = ops.random.uniform(input_shape)
+        x = backend.random.uniform(input_shape)
         y_float = layer(x)
 
         layer.quantize(quantization_mode)

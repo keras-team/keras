@@ -4,7 +4,6 @@ from tensorflow import data as tf_data
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
-from keras.src.backend import convert_to_tensor
 
 
 class MixUpTest(testing.TestCase):
@@ -99,8 +98,8 @@ class MixUpTest(testing.TestCase):
         )
 
         transformation = {
-            "mix_weight": convert_to_tensor([0.5, 0.5]),
-            "permutation_order": convert_to_tensor([1, 0]),
+            "mix_weight": backend.ops.convert_to_tensor([0.5, 0.5]),
+            "permutation_order": backend.ops.convert_to_tensor([1, 0]),
         }
         output = random_flip_layer.transform_bounding_boxes(
             input_data["bounding_boxes"],
@@ -139,8 +138,8 @@ class MixUpTest(testing.TestCase):
         )
 
         transformation = {
-            "mix_weight": convert_to_tensor([0.5, 0.5]),
-            "permutation_order": convert_to_tensor([1, 0]),
+            "mix_weight": backend.ops.convert_to_tensor([0.5, 0.5]),
+            "permutation_order": backend.ops.convert_to_tensor([1, 0]),
         }
         ds = ds.map(
             lambda x: layer.transform_bounding_boxes(

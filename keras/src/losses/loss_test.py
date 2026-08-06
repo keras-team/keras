@@ -8,6 +8,7 @@ from keras.src import dtype_policies
 from keras.src import losses as losses_module
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend.common.masking import set_keras_mask
 from keras.src.losses.loss import Loss
 from keras.src.losses.loss import squeeze_or_expand_to_same_rank
 
@@ -90,7 +91,7 @@ class LossTest(testing.TestCase):
         mask = ops.convert_to_tensor(mask)
         y_true = ops.convert_to_tensor(y_true)
         y_pred = ops.convert_to_tensor(y_pred)
-        backend.set_keras_mask(y_pred, mask)
+        set_keras_mask(y_pred, mask)
 
         loss_fn = ExampleLoss()
         loss = loss_fn(y_true, y_pred)
@@ -101,7 +102,7 @@ class LossTest(testing.TestCase):
 
         # Test edge case where everything is masked.
         mask = np.array([False, False, False, False])
-        backend.set_keras_mask(y_pred, mask)
+        set_keras_mask(y_pred, mask)
         loss = loss_fn(y_true, y_pred)
         self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
         self.assertAllClose(loss, 0)  # No NaN.
@@ -137,7 +138,7 @@ class LossTest(testing.TestCase):
         mask = ops.convert_to_tensor(mask)
         y_true = ops.convert_to_tensor(y_true)
         y_pred = ops.convert_to_tensor(y_pred)
-        backend.set_keras_mask(y_pred, mask)
+        set_keras_mask(y_pred, mask)
 
         loss_fn = ExampleLoss()
         loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
@@ -158,7 +159,7 @@ class LossTest(testing.TestCase):
         mask = ops.convert_to_tensor(mask)
         y_true = ops.convert_to_tensor(y_true)
         y_pred = ops.convert_to_tensor(y_pred)
-        backend.set_keras_mask(y_pred, mask)
+        set_keras_mask(y_pred, mask)
 
         loss_fn = ExampleLoss()
         rank1_loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
@@ -168,7 +169,7 @@ class LossTest(testing.TestCase):
         y_true = ops.tile(ops.expand_dims(y_true, axis=0), (2, 1))
         y_pred = ops.tile(ops.expand_dims(y_pred, axis=0), (2, 1))
         sample_weight = ops.tile(ops.expand_dims(sample_weight, axis=0), (2, 1))
-        backend.set_keras_mask(y_pred, mask)
+        set_keras_mask(y_pred, mask)
         rank2_loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
         self.assertAllClose(rank1_loss, rank2_loss)
 
@@ -198,7 +199,7 @@ class LossTest(testing.TestCase):
         mask = ops.convert_to_tensor(mask)
         y_true = ops.convert_to_tensor(y_true)
         y_pred = ops.convert_to_tensor(y_pred)
-        backend.set_keras_mask(y_pred, mask)
+        set_keras_mask(y_pred, mask)
 
         loss_fn = ExampleLoss()
         loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)

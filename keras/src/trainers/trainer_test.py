@@ -38,7 +38,7 @@ elif backend.backend() == "tensorflow":
 elif backend.backend() == "numpy":
     from keras.src.backend.numpy.trainer import NumpyTrainer as Trainer
 elif backend.backend() == "openvino":
-    from keras.src.backend.openvino.trainer import OpenVINOTrainer as Trainer
+    from keras_openvino.src.trainer import OpenVINOTrainer as Trainer
 else:
     raise ImportError(f"Invalid backend: {backend.backend()}")
 
@@ -2363,7 +2363,7 @@ class TestTrainer(testing.TestCase):
         model.compile(optimizer="rmsprop", loss="mse")
         model.fit(x, y)
         self.assertGreaterEqual(
-            np.min(backend.convert_to_numpy(model.layers[0].kernel)), 0.0
+            np.min(backend.ops.convert_to_numpy(model.layers[0].kernel)), 0.0
         )
 
     @pytest.mark.requires_trainable_backend

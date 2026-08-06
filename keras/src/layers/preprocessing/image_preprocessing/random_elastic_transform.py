@@ -165,7 +165,7 @@ class RandomElasticTransform(BaseImagePreprocessingLayer):
         else:
             images = data
 
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         unbatched = len(images_shape) == 3
         if unbatched:
             batch_size = 1
@@ -229,7 +229,7 @@ class RandomElasticTransform(BaseImagePreprocessingLayer):
             height, width, distortion_factor
         )
 
-        transformed_images = self.backend.image.elastic_transform(
+        transformed_images = self.backend.ops.image.elastic_transform(
             images,
             alpha=alpha,
             sigma=sigma,
@@ -246,17 +246,17 @@ class RandomElasticTransform(BaseImagePreprocessingLayer):
             else apply_transform[:, None, None, None]
         )
 
-        images = self.backend.numpy.where(
+        images = self.backend.ops.numpy.where(
             apply_transform,
             transformed_images,
             images,
         )
 
-        images = self.backend.numpy.clip(
+        images = self.backend.ops.numpy.clip(
             images, self.value_range[0], self.value_range[1]
         )
 
-        images = self.backend.cast(images, self.compute_dtype)
+        images = self.backend.ops.cast(images, self.compute_dtype)
         return images
 
     def transform_labels(self, labels, transformation, training=True):

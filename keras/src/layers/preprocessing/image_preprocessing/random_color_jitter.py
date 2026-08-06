@@ -139,7 +139,7 @@ class RandomColorJitter(BaseImagePreprocessingLayer):
         if training:
             if backend_utils.in_tf_graph():
                 self.backend.set_backend("tensorflow")
-            images = self.backend.cast(images, self.compute_dtype)
+            images = self.backend.ops.cast(images, self.compute_dtype)
             if self.brightness_factor is not None:
                 if backend_utils.in_tf_graph():
                     self.random_brightness.backend.set_backend("tensorflow")
@@ -158,7 +158,7 @@ class RandomColorJitter(BaseImagePreprocessingLayer):
                 transformation = self.random_contrast.get_random_transformation(
                     images, seed=self._get_seed_generator(self.backend._backend)
                 )
-                transformation["contrast_factor"] = self.backend.cast(
+                transformation["contrast_factor"] = self.backend.ops.cast(
                     transformation["contrast_factor"], dtype=self.compute_dtype
                 )
                 images = self.random_contrast.transform_images(
@@ -185,7 +185,7 @@ class RandomColorJitter(BaseImagePreprocessingLayer):
                 images = self.random_hue.transform_images(
                     images, transformation
                 )
-            images = self.backend.cast(images, self.compute_dtype)
+            images = self.backend.ops.cast(images, self.compute_dtype)
         return images
 
     def transform_labels(self, labels, transformation, training=True):

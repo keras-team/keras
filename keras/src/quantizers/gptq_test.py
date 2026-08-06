@@ -345,7 +345,7 @@ class GPTQTest(testing.TestCase):
         )
 
         # Generate a Hessian that creates a non-trivial permutation.
-        hessian_diag = ops.random.shuffle(
+        hessian_diag = backend.random.shuffle(
             ops.linspace(10.0, 1.0, in_features, dtype="float32")
         )
         hessian_matrix = ops.diag(hessian_diag)

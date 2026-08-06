@@ -1,6 +1,6 @@
-from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend.config import standardize_data_format
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.utils import argument_validation
@@ -70,7 +70,7 @@ class UpSampling2D(Layer):
         self, size=(2, 2), data_format=None, interpolation="nearest", **kwargs
     ):
         super().__init__(**kwargs)
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
         self.size = argument_validation.standardize_tuple(size, 2, "size")
         self.interpolation = interpolation.lower()
         self.input_spec = InputSpec(ndim=4)

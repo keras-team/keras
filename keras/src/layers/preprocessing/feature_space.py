@@ -705,7 +705,7 @@ class FeatureSpace(Layer):
     def _convert_input(self, x):
         if not isinstance(x, (tf.Tensor, tf.SparseTensor, tf.RaggedTensor)):
             if not isinstance(x, (list, tuple, int, float)):
-                x = backend.convert_to_numpy(x)
+                x = backend.ops.convert_to_numpy(x)
             x = tf.convert_to_tensor(x)
         return x
 
@@ -767,7 +767,7 @@ class FeatureSpace(Layer):
             and not backend_utils.in_tf_graph()
         ):
             merged_data = tree.map_structure(
-                lambda x: backend.convert_to_tensor(x, dtype=x.dtype),
+                lambda x: backend.ops.convert_to_tensor(x, dtype=x.dtype),
                 merged_data,
             )
         return merged_data
@@ -824,7 +824,7 @@ class TFDConcat(DataLayer):
         self.axis = axis
 
     def call(self, xs):
-        return self.backend.numpy.concatenate(xs, axis=self.axis)
+        return self.backend.ops.numpy.concatenate(xs, axis=self.axis)
 
 
 class TFDIdentity(DataLayer):

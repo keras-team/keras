@@ -7,6 +7,8 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import tree
 from keras.src.backend.common import global_state
+from keras.src.backend.common.masking import get_keras_mask
+from keras.src.backend.common.masking import set_keras_mask
 from keras.src.layers.core.input_layer import Input
 from keras.src.layers.core.input_layer import InputLayer
 from keras.src.layers.input_spec import InputSpec
@@ -180,7 +182,7 @@ class Functional(Function, Model):
             masks = tree.flatten(mask)
             for x, mask in zip(inputs, masks):
                 if mask is not None:
-                    backend.set_keras_mask(x, mask)
+                    set_keras_mask(x, mask)
         outputs = self._run_through_graph(
             inputs,
             operation_fn=lambda op: operation_fn(
@@ -327,9 +329,9 @@ class Functional(Function, Model):
         for i in range(len(flat_inputs)):
             if hasattr(flat_inputs[i], "_keras_history"):
                 adjusted[i]._keras_history = flat_inputs[i]._keras_history
-            mask = backend.get_keras_mask(flat_inputs[i])
+            mask = get_keras_mask(flat_inputs[i])
             if mask is not None:
-                backend.set_keras_mask(adjusted[i], mask)
+                set_keras_mask(adjusted[i], mask)
         return adjusted
 
     def _standardize_inputs(self, inputs):

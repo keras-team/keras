@@ -68,7 +68,7 @@ class RandomContrast(BaseImagePreprocessingLayer):
             images = data["images"]
         else:
             images = data
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         rank = len(images_shape)
         if rank == 3:
             factor_shape = (1, 1, 1)
@@ -83,7 +83,9 @@ class RandomContrast(BaseImagePreprocessingLayer):
             )
 
         if not training:
-            return {"contrast_factor": self.backend.numpy.zeros(factor_shape)}
+            return {
+                "contrast_factor": self.backend.ops.numpy.zeros(factor_shape)
+            }
 
         if seed is None:
             seed = self._get_seed_generator(self.backend._backend)
@@ -101,10 +103,12 @@ class RandomContrast(BaseImagePreprocessingLayer):
         if training:
             contrast_factor = transformation["contrast_factor"]
             outputs = self._adjust_contrast(images, contrast_factor)
-            outputs = self.backend.numpy.clip(
+            outputs = self.backend.ops.numpy.clip(
                 outputs, self.value_range[0], self.value_range[1]
             )
-            self.backend.numpy.reshape(outputs, self.backend.shape(images))
+            self.backend.ops.numpy.reshape(
+                outputs, self.backend.ops.shape(images)
+            )
             return outputs
         return images
 
@@ -132,11 +136,11 @@ class RandomContrast(BaseImagePreprocessingLayer):
             height_axis = -3
             width_axis = -2
         # reduce mean on height
-        inp_mean = self.backend.numpy.mean(
+        inp_mean = self.backend.ops.numpy.mean(
             inputs, axis=height_axis, keepdims=True
         )
         # reduce mean on width
-        inp_mean = self.backend.numpy.mean(
+        inp_mean = self.backend.ops.numpy.mean(
             inp_mean, axis=width_axis, keepdims=True
         )
 

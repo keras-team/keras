@@ -408,7 +408,7 @@ class StringLookup(IndexLookup):
             inputs_for_processing = tf.convert_to_tensor(inputs)
         elif not was_tf_input:
             inputs_for_processing = tf.convert_to_tensor(
-                backend.convert_to_numpy(inputs)
+                backend.ops.convert_to_numpy(inputs)
             )
 
         output = super().call(inputs_for_processing)

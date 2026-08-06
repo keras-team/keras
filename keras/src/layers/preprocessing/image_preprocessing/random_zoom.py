@@ -1,5 +1,5 @@
-from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.config import standardize_data_format
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
@@ -142,7 +142,7 @@ class RandomZoom(BaseImagePreprocessingLayer):
         self.interpolation = interpolation
         self.seed = seed
         self.generator = SeedGenerator(seed)
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
         self.supports_jit = False
 
     def _set_factor(self, factor, factor_name):
@@ -180,7 +180,7 @@ class RandomZoom(BaseImagePreprocessingLayer):
         return labels
 
     def get_transformed_x_y(self, x, y, transform):
-        a0, a1, a2, b0, b1, b2, c0, c1 = self.backend.numpy.split(
+        a0, a1, a2, b0, b1, b2, c0, c1 = self.backend.ops.numpy.split(
             transform, 8, axis=-1
         )
 
@@ -191,19 +191,19 @@ class RandomZoom(BaseImagePreprocessingLayer):
 
     def get_clipped_bbox(self, bounding_boxes, h_end, h_start, w_end, w_start):
         bboxes = bounding_boxes["boxes"]
-        x1, y1, x2, y2 = self.backend.numpy.split(bboxes, 4, axis=-1)
+        x1, y1, x2, y2 = self.backend.ops.numpy.split(bboxes, 4, axis=-1)
 
         if len(bboxes.shape) == 3:
-            h_end = self.backend.numpy.expand_dims(h_end, -1)
-            h_start = self.backend.numpy.expand_dims(h_start, -1)
-            w_end = self.backend.numpy.expand_dims(w_end, -1)
-            w_start = self.backend.numpy.expand_dims(w_start, -1)
+            h_end = self.backend.ops.numpy.expand_dims(h_end, -1)
+            h_start = self.backend.ops.numpy.expand_dims(h_start, -1)
+            w_end = self.backend.ops.numpy.expand_dims(w_end, -1)
+            w_start = self.backend.ops.numpy.expand_dims(w_start, -1)
 
-        x1 = self.backend.numpy.clip(x1, w_start, w_end) - w_start
-        y1 = self.backend.numpy.clip(y1, h_start, h_end) - h_start
-        x2 = self.backend.numpy.clip(x2, w_start, w_end) - w_start
-        y2 = self.backend.numpy.clip(y2, h_start, h_end) - h_start
-        bounding_boxes["boxes"] = self.backend.numpy.concatenate(
+        x1 = self.backend.ops.numpy.clip(x1, w_start, w_end) - w_start
+        y1 = self.backend.ops.numpy.clip(y1, h_start, h_end) - h_start
+        x2 = self.backend.ops.numpy.clip(x2, w_start, w_end) - w_start
+        y2 = self.backend.ops.numpy.clip(y2, h_start, h_end) - h_start
+        bounding_boxes["boxes"] = self.backend.ops.numpy.concatenate(
             [x1, y1, x2, y2], axis=-1
         )
         return bounding_boxes
@@ -237,8 +237,8 @@ class RandomZoom(BaseImagePreprocessingLayer):
                 width=width,
             )
 
-            zooms = self.backend.cast(
-                self.backend.numpy.concatenate(
+            zooms = self.backend.ops.cast(
+                self.backend.ops.numpy.concatenate(
                     [width_zoom, height_zoom], axis=1
                 ),
                 dtype="float32",
@@ -264,10 +264,10 @@ class RandomZoom(BaseImagePreprocessingLayer):
             height_transformed = h_end - h_start
             width_transformed = w_end - w_start
 
-            height_transformed = self.backend.numpy.expand_dims(
+            height_transformed = self.backend.ops.numpy.expand_dims(
                 height_transformed, -1
             )
-            width_transformed = self.backend.numpy.expand_dims(
+            width_transformed = self.backend.ops.numpy.expand_dims(
                 width_transformed, -1
             )
 
@@ -305,7 +305,7 @@ class RandomZoom(BaseImagePreprocessingLayer):
             images = data["images"]
         else:
             images = data
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         if len(images_shape) == 4:
             zoom_factor_shape = (images_shape[0], 1)
         else:
@@ -313,8 +313,8 @@ class RandomZoom(BaseImagePreprocessingLayer):
 
         if not training:
             return {
-                "height_zoom": self.backend.numpy.zeros(zoom_factor_shape),
-                "width_zoom": self.backend.numpy.zeros(zoom_factor_shape),
+                "height_zoom": self.backend.ops.numpy.zeros(zoom_factor_shape),
+                "width_zoom": self.backend.ops.numpy.zeros(zoom_factor_shape),
             }
         if seed is None:
             seed = self._get_seed_generator(self.backend._backend)
@@ -346,16 +346,18 @@ class RandomZoom(BaseImagePreprocessingLayer):
 
         width_zoom = transformation["width_zoom"]
         height_zoom = transformation["height_zoom"]
-        zooms = self.backend.cast(
-            self.backend.numpy.concatenate([width_zoom, height_zoom], axis=1),
+        zooms = self.backend.ops.cast(
+            self.backend.ops.numpy.concatenate(
+                [width_zoom, height_zoom], axis=1
+            ),
             dtype="float32",
         )
 
-        inputs_shape = self.backend.shape(inputs)
+        inputs_shape = self.backend.ops.shape(inputs)
         unbatched = len(inputs_shape) == 3
         if unbatched:
-            inputs = self.backend.numpy.expand_dims(inputs, axis=0)
-            inputs_shape = self.backend.shape(inputs)
+            inputs = self.backend.ops.numpy.expand_dims(inputs, axis=0)
+            inputs_shape = self.backend.ops.shape(inputs)
         if self.data_format == "channels_first":
             height = inputs_shape[-2]
             width = inputs_shape[-1]
@@ -363,7 +365,7 @@ class RandomZoom(BaseImagePreprocessingLayer):
             height = inputs_shape[-3]
             width = inputs_shape[-2]
 
-        outputs = self.backend.image.affine_transform(
+        outputs = self.backend.ops.image.affine_transform(
             inputs,
             transform=self._get_zoom_matrix(zooms, height, width),
             interpolation=interpolation,
@@ -373,32 +375,32 @@ class RandomZoom(BaseImagePreprocessingLayer):
         )
 
         if unbatched:
-            outputs = self.backend.numpy.squeeze(outputs, axis=0)
+            outputs = self.backend.ops.numpy.squeeze(outputs, axis=0)
         return outputs
 
     def _get_zoom_matrix(self, zooms, image_height, image_width):
-        num_zooms = self.backend.shape(zooms)[0]
+        num_zooms = self.backend.ops.shape(zooms)[0]
         # The zoom matrix looks like:
         #     [[zx 0 0]
         #      [0 zy 0]
         #      [0 0 1]]
         # where the last entry is implicit.
         # zoom matrices are always float32.
-        x_offset = ((self.backend.cast(image_width, "float32") - 1.0) / 2.0) * (
-            1.0 - zooms[:, 0:1]
-        )
+        x_offset = (
+            (self.backend.ops.cast(image_width, "float32") - 1.0) / 2.0
+        ) * (1.0 - zooms[:, 0:1])
         y_offset = (
-            (self.backend.cast(image_height, "float32") - 1.0) / 2.0
+            (self.backend.ops.cast(image_height, "float32") - 1.0) / 2.0
         ) * (1.0 - zooms[:, 1:])
-        return self.backend.numpy.concatenate(
+        return self.backend.ops.numpy.concatenate(
             [
                 zooms[:, 0:1],
-                self.backend.numpy.zeros((num_zooms, 1)),
+                self.backend.ops.numpy.zeros((num_zooms, 1)),
                 x_offset,
-                self.backend.numpy.zeros((num_zooms, 1)),
+                self.backend.ops.numpy.zeros((num_zooms, 1)),
                 zooms[:, 1:],
                 y_offset,
-                self.backend.numpy.zeros((num_zooms, 2)),
+                self.backend.ops.numpy.zeros((num_zooms, 2)),
             ],
             axis=1,
         )
