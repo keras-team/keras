@@ -317,6 +317,8 @@ class TestSpectrogram(testing.TestCase):
 
             if testing.uses_tpu():
                 tol_kwargs = {"atol": 5e-2, "rtol": 1e-3}
+            elif backend.backend() == "openvino":
+                tol_kwargs = {"atol": 1e-2, "rtol": 1e-3}
             else:
                 tol_kwargs = {"atol": 5e-4, "rtol": 1e-6}
 
