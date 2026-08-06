@@ -48,7 +48,7 @@ class AugMixTest(testing.TestCase):
         augmented_image = layer(input_data)
 
         self.assertNotAllClose(
-            backend.convert_to_numpy(augmented_image), input_data
+            backend.ops.convert_to_numpy(augmented_image), input_data
         )
 
     def test_tf_data_compatibility(self):

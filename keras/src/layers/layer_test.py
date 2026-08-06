@@ -14,6 +14,8 @@ from keras.src import models
 from keras.src import ops
 from keras.src import testing
 from keras.src.backend.common import global_state
+from keras.src.backend.common.masking import get_keras_mask
+from keras.src.backend.common.masking import set_keras_mask
 from keras.src.backend.common.remat import RematScope
 from keras.src.models import Model
 
@@ -883,10 +885,10 @@ class LayerTest(testing.TestCase):
 
         x = ops.zeros((1, 2), dtype="float32")
         mask = ops.array([True, False])
-        backend.set_keras_mask(x, mask)
+        set_keras_mask(x, mask)
         y = CustomLayer(dtype="float16")(x)
         self.assertAllEqual(
-            backend.get_keras_mask(y),
+            get_keras_mask(y),
             mask,
             msg="Masking is not propagated by Autocast",
         )
@@ -922,12 +924,12 @@ class LayerTest(testing.TestCase):
                 return x
 
         layer = BasicMaskedLayer()
-        x = backend.numpy.ones((4, 4))
-        mask = backend.numpy.ones((4,))
-        backend.set_keras_mask(x, mask)
+        x = backend.ops.numpy.ones((4, 4))
+        mask = backend.ops.numpy.ones((4,))
+        set_keras_mask(x, mask)
         layer(x)
 
-        layer(backend.numpy.ones((4, 4)), mask=backend.numpy.ones((4,)))
+        layer(backend.ops.numpy.ones((4, 4)), mask=backend.ops.numpy.ones((4,)))
 
         class NestedInputMaskedLayer(layers.Layer):
             def __init__(self):
@@ -942,17 +944,17 @@ class LayerTest(testing.TestCase):
                 return x
 
         layer = NestedInputMaskedLayer()
-        x1 = backend.numpy.ones((4, 4))
-        mask1 = backend.numpy.ones((4,))
-        backend.set_keras_mask(x1, mask1)
-        x2 = backend.numpy.ones((4, 4))
-        mask2 = backend.numpy.ones((4,))
-        backend.set_keras_mask(x2, mask2)
+        x1 = backend.ops.numpy.ones((4, 4))
+        mask1 = backend.ops.numpy.ones((4,))
+        set_keras_mask(x1, mask1)
+        x2 = backend.ops.numpy.ones((4, 4))
+        mask2 = backend.ops.numpy.ones((4,))
+        set_keras_mask(x2, mask2)
         layer([x1, x2])
 
         layer(
-            [backend.numpy.ones((4, 4)), backend.numpy.ones((4, 4))],
-            mask=[backend.numpy.ones((4,)), backend.numpy.ones((4,))],
+            [backend.ops.numpy.ones((4, 4)), backend.ops.numpy.ones((4, 4))],
+            mask=[backend.ops.numpy.ones((4,)), backend.ops.numpy.ones((4,))],
         )
 
         class PositionalInputsMaskedLayer(layers.Layer):
@@ -982,15 +984,15 @@ class LayerTest(testing.TestCase):
                 return x1[0] + x1[1] + x2
 
         layer = PositionalNestedInputsMaskedLayer()
-        x1_1 = backend.numpy.ones((4, 4))
-        mask1 = backend.numpy.ones((4,))
-        backend.set_keras_mask(x1_1, mask1)
-        x1_2 = backend.numpy.ones((4, 4))
-        mask2 = backend.numpy.ones((4,))
-        backend.set_keras_mask(x1_2, mask2)
-        x2 = backend.numpy.ones((4, 4))
-        mask2 = backend.numpy.ones((4,))
-        backend.set_keras_mask(x2, mask2)
+        x1_1 = backend.ops.numpy.ones((4, 4))
+        mask1 = backend.ops.numpy.ones((4,))
+        set_keras_mask(x1_1, mask1)
+        x1_2 = backend.ops.numpy.ones((4, 4))
+        mask2 = backend.ops.numpy.ones((4,))
+        set_keras_mask(x1_2, mask2)
+        x2 = backend.ops.numpy.ones((4, 4))
+        mask2 = backend.ops.numpy.ones((4,))
+        set_keras_mask(x2, mask2)
         layer((x1_1, x1_2), x2)
         layer(x1=(x1_1, x1_2), x2=x2)
 
@@ -1001,15 +1003,15 @@ class LayerTest(testing.TestCase):
 
             def call(self, x, mask=None):
                 test_obj.assertIsNotNone(mask)
-                backend.set_keras_mask(x, None)  # Unset mask
+                set_keras_mask(x, None)  # Unset mask
                 return x
 
         layer = MaskUnsetDuringCallLayer()
-        x = backend.numpy.ones((4, 4))
-        mask = backend.numpy.ones((4,))
-        backend.set_keras_mask(x, mask)
+        x = backend.ops.numpy.ones((4, 4))
+        mask = backend.ops.numpy.ones((4,))
+        set_keras_mask(x, mask)
         y = layer(x)
-        self.assertAllClose(backend.get_keras_mask(y), mask)
+        self.assertAllClose(get_keras_mask(y), mask)
 
     def test_masking_with_explicit_kwarg_propagation(self):
         """This test validates that an explicit `mask` kwarg is correctly
@@ -1028,11 +1030,11 @@ class LayerTest(testing.TestCase):
 
         layer = PassthroughMaskLayer()
         # Create an input tensor WITHOUT an attached mask.
-        x = backend.numpy.ones((4, 4))
-        self.assertIsNone(backend.get_keras_mask(x))
+        x = backend.ops.numpy.ones((4, 4))
+        self.assertIsNone(get_keras_mask(x))
 
         # Create a mask to be passed explicitly.
-        explicit_mask = backend.numpy.array([True, True, False, False])
+        explicit_mask = backend.ops.numpy.array([True, True, False, False])
 
         # Call the layer, passing the mask as a keyword argument.
         y = layer(x, mask=explicit_mask)
@@ -1042,7 +1044,7 @@ class LayerTest(testing.TestCase):
 
         # Assert that the output tensor 'y' now has the explicit mask attached
         # for propagation to the next layer.
-        self.assertAllClose(backend.get_keras_mask(y), explicit_mask)
+        self.assertAllClose(get_keras_mask(y), explicit_mask)
 
     def test_stateless_call(self):
         class TestLayer(layers.Layer):
@@ -1063,7 +1065,7 @@ class LayerTest(testing.TestCase):
                 self._build_at_init()
 
             def call(self, x):
-                x = backend.convert_to_tensor(x, dtype="float32")
+                x = backend.ops.convert_to_tensor(x, dtype="float32")
                 self.add_loss(ops.sum(x))
                 self.ntw.assign(ops.sum(x))
                 x = x + backend.random.normal(
@@ -1224,9 +1226,9 @@ class LayerTest(testing.TestCase):
             def call(self, foo, bar):
                 return foo[:, 0] + bar[:, 0]
 
-        foo = backend.numpy.ones((4, 1))
-        bar = backend.numpy.ones((4, 2))
-        baz = backend.numpy.ones((4, 3))
+        foo = backend.ops.numpy.ones((4, 1))
+        bar = backend.ops.numpy.ones((4, 2))
+        baz = backend.ops.numpy.ones((4, 3))
         with self.assertRaisesRegex(
             ValueError,
             r"argument `bar`, which does not end in `_shape`",
@@ -1270,7 +1272,7 @@ class LayerTest(testing.TestCase):
                 return self.activation(inputs)
 
         layer = NoTrainingSpecified()
-        inputs = ops.random.uniform(shape=(1, 100, 100, 3))
+        inputs = backend.random.uniform(shape=(1, 100, 100, 3))
         layer(inputs, training=True)
 
     def test_tracker_locking(self):
@@ -1314,21 +1316,23 @@ class LayerTest(testing.TestCase):
 
         self.assertEqual(layer.w2.shape, ())
         self.assertEqual(layer.w2.dtype, "int32")
-        self.assertAllClose(backend.convert_to_numpy(layer.w2), 0)
+        self.assertAllClose(backend.ops.convert_to_numpy(layer.w2), 0)
 
         self.assertEqual(layer.w3.shape, ())
         self.assertEqual(layer.w3.dtype, "bool")
-        self.assertAllClose(backend.convert_to_numpy(layer.w3), False)
+        self.assertAllClose(backend.ops.convert_to_numpy(layer.w3), False)
 
         self.assertEqual(layer.w4.shape, (2, 2))
         self.assertEqual(layer.w4.dtype, "int32")
         self.assertAllClose(
-            backend.convert_to_numpy(layer.w4), np.zeros((2, 2))
+            backend.ops.convert_to_numpy(layer.w4), np.zeros((2, 2))
         )
 
         self.assertEqual(layer.w5.shape, (2, 2))
         self.assertEqual(layer.w5.dtype, "float32")
-        self.assertAllClose(backend.convert_to_numpy(layer.w5), np.ones((2, 2)))
+        self.assertAllClose(
+            backend.ops.convert_to_numpy(layer.w5), np.ones((2, 2))
+        )
 
     def test_add_weight_string_as_first_positional_arg(self):
         """Test that passing a string as first positional arg to add_weight
@@ -1383,7 +1387,9 @@ class LayerTest(testing.TestCase):
         layer = MyLayer4()
         self.assertEqual(layer.w.shape, (3, 4))
         self.assertEqual(layer.w.dtype, "float32")
-        self.assertAllClose(backend.convert_to_numpy(layer.w), np.zeros((3, 4)))
+        self.assertAllClose(
+            backend.ops.convert_to_numpy(layer.w), np.zeros((3, 4))
+        )
 
         # Case 5: too many positional arguments
         class MyLayer5(layers.Layer):

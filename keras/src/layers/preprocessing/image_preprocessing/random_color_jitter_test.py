@@ -51,10 +51,10 @@ class RandomColorJitterTest(testing.TestCase):
         layer = layers.RandomColorJitter(
             brightness_factor=[0.5, 0.5], seed=seed
         )
-        output = backend.convert_to_numpy(layer(inputs))
+        output = backend.ops.convert_to_numpy(layer(inputs))
 
         layer = layers.RandomBrightness(factor=[0.5, 0.5], seed=seed)
-        sub_output = backend.convert_to_numpy(layer(inputs))
+        sub_output = backend.ops.convert_to_numpy(layer(inputs))
 
         self.assertAllClose(output, sub_output)
 

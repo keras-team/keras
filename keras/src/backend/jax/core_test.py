@@ -13,7 +13,7 @@ from keras.src.backend.config import is_nnx_enabled
 if is_nnx_enabled():
     from flax import nnx
 
-    from keras.src.backend.jax.core import NnxVariable
+    from keras.src.backend.jax.ops.core import NnxVariable
 
 
 @pytest.mark.skipif(

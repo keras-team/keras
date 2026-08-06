@@ -183,4 +183,4 @@ def remat(f):
     model.compile(optimizer="sgd", loss="mse")
     ```
     """
-    return backend.core.remat(f)
+    return backend.ops.remat(f)

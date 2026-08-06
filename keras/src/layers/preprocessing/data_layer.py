@@ -38,7 +38,7 @@ class DataLayer(Layer):
             self.generator = SeedGenerator(seed)
 
         def call(self, inputs):
-            images_shape = self.backend.shape(inputs)
+            images_shape = self.backend.ops.shape(inputs)
             batch_size = 1 if len(images_shape) == 3 else images_shape[0]
             seed = self._get_seed_generator(self.backend._backend)
 
@@ -48,11 +48,11 @@ class DataLayer(Layer):
                 maxval=1.0,
                 seed=seed,
             )
-            probability = self.backend.numpy.add(
+            probability = self.backend.ops.numpy.add(
                 probability, self.convert_weight(self.probability_bias)
             )
-            hsv_images = self.backend.image.rgb_to_hsv(inputs)
-            return self.backend.numpy.where(
+            hsv_images = self.backend.ops.image.rgb_to_hsv(inputs)
+            return self.backend.ops.numpy.where(
                 probability[:, None, None, None] > 0.5,
                 hsv_images,
                 inputs,
@@ -106,7 +106,7 @@ class DataLayer(Layer):
             # We're in a TF graph, e.g. a tf.data pipeline.
             self.backend.set_backend("tensorflow")
             inputs = tree.map_structure(
-                lambda x: self.backend.convert_to_tensor(
+                lambda x: self.backend.ops.convert_to_tensor(
                     x, dtype=self.compute_dtype
                 ),
                 inputs,
@@ -156,4 +156,4 @@ class DataLayer(Layer):
             return weight
         else:
             weight = keras.ops.convert_to_numpy(weight)
-            return self.backend.convert_to_tensor(weight)
+            return self.backend.ops.convert_to_tensor(weight)

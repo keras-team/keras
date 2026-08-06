@@ -63,14 +63,14 @@ class AutoContrast(BaseImagePreprocessingLayer):
             dtype=self.compute_dtype,
         )
 
-        images = self.backend.cast(images, self.compute_dtype)
-        low = self.backend.numpy.min(images, axis=(1, 2), keepdims=True)
-        high = self.backend.numpy.max(images, axis=(1, 2), keepdims=True)
+        images = self.backend.ops.cast(images, self.compute_dtype)
+        low = self.backend.ops.numpy.min(images, axis=(1, 2), keepdims=True)
+        high = self.backend.ops.numpy.max(images, axis=(1, 2), keepdims=True)
         scale = 255.0 / (high - low)
         offset = -low * scale
 
         images = images * scale + offset
-        results = self.backend.numpy.clip(images, 0.0, 255.0)
+        results = self.backend.ops.numpy.clip(images, 0.0, 255.0)
         results = self._transform_value_range(
             results,
             original_range=(0, 255),
@@ -78,13 +78,13 @@ class AutoContrast(BaseImagePreprocessingLayer):
             dtype=self.compute_dtype,
         )
         # don't process NaN channels
-        results = self.backend.numpy.where(
-            self.backend.numpy.isnan(results), original_images, results
+        results = self.backend.ops.numpy.where(
+            self.backend.ops.numpy.isnan(results), original_images, results
         )
         if results.dtype == images.dtype:
             return results
         if backend.is_int_dtype(images.dtype):
-            results = self.backend.numpy.round(results)
+            results = self.backend.ops.numpy.round(results)
         return _saturate_cast(results, images.dtype, self.backend)
 
     def transform_labels(self, labels, transformation, training=True):

@@ -1,5 +1,6 @@
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend.common.variables import standardize_shape
 from keras.src.utils.naming import auto_name
 
 
@@ -46,7 +47,7 @@ class KerasTensor:
                 f"Unexpected keyword arguments: {', '.join(kwargs.keys())}"
             )
 
-        self._shape = backend.standardize_shape(shape)
+        self._shape = standardize_shape(shape)
         self._dtype = backend.standardize_dtype(dtype)
         self._sparse = bool(sparse)
         self._ragged = bool(ragged)

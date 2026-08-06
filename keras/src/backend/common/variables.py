@@ -400,7 +400,7 @@ class Variable:
         value = None
         if hasattr(self, "_value") and self._value is not None:
             try:
-                value = backend.core.convert_to_numpy(self._value)
+                value = backend.ops.convert_to_numpy(self._value)
             except:
                 # In some cases the conversion to numpy can fail.
                 pass
@@ -464,92 +464,92 @@ class Variable:
         return self.value.__invert__()
 
     def __eq__(self, other):
-        return backend.numpy.equal(self.value, other)
+        return backend.ops.numpy.equal(self.value, other)
 
     def __ne__(self, other):
-        return backend.numpy.not_equal(self.value, other)
+        return backend.ops.numpy.not_equal(self.value, other)
 
     def __lt__(self, other):
-        return backend.numpy.less(self.value, other)
+        return backend.ops.numpy.less(self.value, other)
 
     def __le__(self, other):
-        return backend.numpy.less_equal(self.value, other)
+        return backend.ops.numpy.less_equal(self.value, other)
 
     def __gt__(self, other):
-        return backend.numpy.greater(self.value, other)
+        return backend.ops.numpy.greater(self.value, other)
 
     def __ge__(self, other):
-        return backend.numpy.greater_equal(self.value, other)
+        return backend.ops.numpy.greater_equal(self.value, other)
 
     def __add__(self, other):
-        return backend.numpy.add(self.value, other)
+        return backend.ops.numpy.add(self.value, other)
 
     def __radd__(self, other):
-        return backend.numpy.add(other, self.value)
+        return backend.ops.numpy.add(other, self.value)
 
     def __sub__(self, other):
-        return backend.numpy.subtract(self.value, other)
+        return backend.ops.numpy.subtract(self.value, other)
 
     def __rsub__(self, other):
-        return backend.numpy.subtract(other, self.value)
+        return backend.ops.numpy.subtract(other, self.value)
 
     def __mul__(self, other):
-        return backend.numpy.multiply(self.value, other)
+        return backend.ops.numpy.multiply(self.value, other)
 
     def __rmul__(self, other):
-        return backend.numpy.multiply(other, self.value)
+        return backend.ops.numpy.multiply(other, self.value)
 
     def __truediv__(self, other):
-        return backend.numpy.true_divide(self.value, other)
+        return backend.ops.numpy.true_divide(self.value, other)
 
     def __rtruediv__(self, other):
-        return backend.numpy.true_divide(other, self.value)
+        return backend.ops.numpy.true_divide(other, self.value)
 
     def __floordiv__(self, other):
-        return backend.numpy.floor_divide(self.value, other)
+        return backend.ops.numpy.floor_divide(self.value, other)
 
     def __rfloordiv__(self, other):
-        return backend.numpy.floor_divide(other, self.value)
+        return backend.ops.numpy.floor_divide(other, self.value)
 
     def __mod__(self, other):
-        return backend.numpy.mod(self.value, other)
+        return backend.ops.numpy.mod(self.value, other)
 
     def __rmod__(self, other):
-        return backend.numpy.mod(other, self.value)
+        return backend.ops.numpy.mod(other, self.value)
 
     def __pow__(self, other):
-        return backend.numpy.power(self.value, other)
+        return backend.ops.numpy.power(self.value, other)
 
     def __rpow__(self, other):
-        return backend.numpy.power(other, self.value)
+        return backend.ops.numpy.power(other, self.value)
 
     def __matmul__(self, other):
-        return backend.numpy.matmul(self.value, other)
+        return backend.ops.numpy.matmul(self.value, other)
 
     def __rmatmul__(self, other):
-        return backend.numpy.matmul(other, self.value)
+        return backend.ops.numpy.matmul(other, self.value)
 
     def __and__(self, other):
-        return backend.numpy.logical_and(self.value, other)
+        return backend.ops.numpy.logical_and(self.value, other)
 
     def __rand__(self, other):
-        return backend.numpy.logical_and(other, self.value)
+        return backend.ops.numpy.logical_and(other, self.value)
 
     def __or__(self, other):
-        return backend.numpy.logical_or(self.value, other)
+        return backend.ops.numpy.logical_or(self.value, other)
 
     def __ror__(self, other):
-        return backend.numpy.logical_or(other, self.value)
+        return backend.ops.numpy.logical_or(other, self.value)
 
     def __xor__(self, other):
-        return backend.numpy.logical_xor(self.value, other)
+        return backend.ops.numpy.logical_xor(self.value, other)
 
     def __rxor__(self, other):
-        return backend.numpy.logical_xor(other, self.value)
+        return backend.ops.numpy.logical_xor(other, self.value)
 
     def __round__(self, ndigits=None):
         decimals = ndigits or 0
-        return backend.numpy.round(self.value, decimals=decimals)
+        return backend.ops.numpy.round(self.value, decimals=decimals)
 
 
 def register_uninitialized_variable(variable):
@@ -697,7 +697,7 @@ class AutocastScope:
         from keras.src import backend
 
         if self.dtype is not None and is_float_dtype(value.dtype):
-            return backend.cast(value, dtype=self.dtype)
+            return backend.ops.cast(value, dtype=self.dtype)
         return value
 
     def __enter__(self):

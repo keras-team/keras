@@ -426,7 +426,7 @@ class TestArrayDataAdapter(testing.TestCase):
             order = []
             for batch in it_fn():
                 bx = batch[0]
-                bx = backend.convert_to_numpy(bx)
+                bx = backend.ops.convert_to_numpy(bx)
                 order.extend(bx[:, 0].tolist())
             return order
 
@@ -441,8 +441,8 @@ class TestArrayDataAdapter(testing.TestCase):
 
                 for i, batch in enumerate(batches):
                     bx, by = batch
-                    bx = backend.convert_to_numpy(bx)
-                    by = backend.convert_to_numpy(by)
+                    bx = backend.ops.convert_to_numpy(bx)
+                    by = backend.ops.convert_to_numpy(by)
                     expected_batch_index = (
                         expected_shard_id + i * expected_num_replicas
                     )

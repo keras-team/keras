@@ -79,7 +79,7 @@ class ReduceLROnPlateau(MonitorCallback):
         self.wait = 0
 
     def _reduce_optimizer_lr(self, optimizer, epoch, name=""):
-        old_lr = float(backend.convert_to_numpy(optimizer.learning_rate))
+        old_lr = float(backend.ops.convert_to_numpy(optimizer.learning_rate))
         if old_lr > np.float32(self.min_lr):
             new_lr = old_lr * self.factor
             new_lr = max(new_lr, self.min_lr)
@@ -104,11 +104,11 @@ class ReduceLROnPlateau(MonitorCallback):
         if hasattr(self.model.optimizer, "optimizers"):
             for idx, opt in enumerate(self.model.optimizer.optimizers):
                 logs[f"learning_rate_{opt.name}"] = float(
-                    backend.convert_to_numpy(opt.learning_rate)
+                    backend.ops.convert_to_numpy(opt.learning_rate)
                 )
         else:
             logs["learning_rate"] = float(
-                backend.convert_to_numpy(self.model.optimizer.learning_rate)
+                backend.ops.convert_to_numpy(self.model.optimizer.learning_rate)
             )
         current = logs.get(self.monitor)
 

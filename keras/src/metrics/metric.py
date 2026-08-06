@@ -3,6 +3,7 @@ from keras.src import dtype_policies
 from keras.src import initializers
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils.naming import auto_name
 from keras.src.utils.tracking import Tracker
@@ -130,7 +131,7 @@ class Metric(KerasSaveable):
         mapping = list(zip(self.variables, metric_variables))
 
         # Call in stateless scope
-        with backend.StatelessScope(state_mapping=mapping) as scope:
+        with StatelessScope(state_mapping=mapping) as scope:
             self.update_state(*args, **kwargs)
 
         # Gather updated variables
@@ -163,13 +164,13 @@ class Metric(KerasSaveable):
         mapping = list(zip(self.variables, metric_variables))
 
         # Call in stateless scope
-        with backend.StatelessScope(state_mapping=mapping):
+        with StatelessScope(state_mapping=mapping):
             res = self.result()
         return res
 
     def stateless_reset_state(self):
         # Call in stateless scope
-        with backend.StatelessScope() as scope:
+        with StatelessScope() as scope:
             self.reset_state()
 
         # Gather updated variables

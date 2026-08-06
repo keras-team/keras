@@ -133,9 +133,9 @@ class TimeDistributed(Wrapper):
             )
             return time_distributed_transpose(outputs)
 
-        # Implementation #2: use backend.vectorized_map.
+        # Implementation #2: use backend.ops.vectorized_map.
 
-        outputs = backend.vectorized_map(
+        outputs = backend.ops.vectorized_map(
             step_function, ops.arange(input_shape[0])
         )
         return time_distributed_transpose(outputs)

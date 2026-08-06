@@ -284,7 +284,7 @@ class ArrayDataAdapter(DataAdapter):
     def get_torch_dataloader(self):
         import torch
 
-        from keras.src.backend.torch.core import convert_to_tensor
+        from keras.src.backend.torch.ops.core import convert_to_tensor
 
         class ArrayDataset(torch.utils.data.Dataset):
             def __init__(self, array, num_samples):

@@ -83,7 +83,7 @@ class LiteRTTorchExportTest(testing.TestCase):
         if filepath is None:
             filepath = os.path.join(self.get_temp_dir(), "model.tflite")
 
-        keras_output = backend.convert_to_numpy(model(ref_input))
+        keras_output = backend.ops.convert_to_numpy(model(ref_input))
 
         model.export(filepath, format="litert", **export_kwargs)
         self.assertTrue(os.path.exists(filepath))
@@ -169,7 +169,7 @@ class LiteRTTorchExportTest(testing.TestCase):
         keras_outs = model(x)
         if not isinstance(keras_outs, (list, tuple)):
             keras_outs = [keras_outs]
-        keras_outs = [backend.convert_to_numpy(o) for o in keras_outs]
+        keras_outs = [backend.ops.convert_to_numpy(o) for o in keras_outs]
 
         model.export(tflite_path, format="litert")
         self.assertTrue(os.path.exists(tflite_path))
@@ -203,12 +203,12 @@ class LiteRTTorchExportTest(testing.TestCase):
         model.export(pt2_path, format="torch")
 
         x_np = np.random.normal(size=(1, 10)).astype("float32")
-        keras_out = backend.convert_to_numpy(model(x_np))
+        keras_out = backend.ops.convert_to_numpy(model(x_np))
 
         program = torch.export.load(pt2_path)
         module = program.module()
         device = next(module.parameters()).device
-        pt2_out = backend.convert_to_numpy(
+        pt2_out = backend.ops.convert_to_numpy(
             module(torch.tensor(x_np, device=device))
         )
 
@@ -229,12 +229,12 @@ class LiteRTTorchExportTest(testing.TestCase):
         model.export(tflite_path, format="litert")
 
         x_np = np.random.normal(size=(1, 10)).astype("float32")
-        keras_out = backend.convert_to_numpy(model(x_np))
+        keras_out = backend.ops.convert_to_numpy(model(x_np))
 
         program = torch.export.load(pt2_path)
         module = program.module()
         device = next(module.parameters()).device
-        pt2_out = backend.convert_to_numpy(
+        pt2_out = backend.ops.convert_to_numpy(
             module(torch.tensor(x_np, device=device))
         )
 
@@ -271,7 +271,7 @@ class LiteRTTorchExportTest(testing.TestCase):
 
         # Verify inference still works post-quantization
         x_np = np.random.normal(size=(1, 10)).astype("float32")
-        keras_out = backend.convert_to_numpy(model(x_np))
+        keras_out = backend.ops.convert_to_numpy(model(x_np))
         litert_out = _run_litert_inference(_get_interpreter(path), [x_np])
 
         # Quantized model has reduced precision
@@ -442,7 +442,7 @@ class LiteRTTorchExportTest(testing.TestCase):
 
         # Verify inference works
         x_np = np.random.normal(size=(1, 5)).astype("float32")
-        keras_out = backend.convert_to_numpy(model(x_np))
+        keras_out = backend.ops.convert_to_numpy(model(x_np))
         litert_out = _run_litert_inference(_get_interpreter(path), [x_np])
         self.assertAllClose(keras_out, litert_out, atol=self.LITERT_ATOL)
 
@@ -510,7 +510,7 @@ class LiteRTTorchExportTest(testing.TestCase):
 
         # Verify inference
         x_np = np.random.normal(size=(1, 5)).astype("float32")
-        keras_out = backend.convert_to_numpy(model(x_np))
+        keras_out = backend.ops.convert_to_numpy(model(x_np))
         litert_out = _run_litert_inference(_get_interpreter(path), [x_np])
         self.assertAllClose(keras_out, litert_out, atol=1e-4)
 
@@ -534,7 +534,7 @@ class LiteRTTorchExportTest(testing.TestCase):
 
         x = np.random.normal(size=(1, 10)).astype("float32")
         y = np.random.normal(size=(1, 10)).astype("float32")
-        keras_out = backend.convert_to_numpy(model({"x": x, "y": y}))
+        keras_out = backend.ops.convert_to_numpy(model({"x": x, "y": y}))
 
         path = os.path.join(self.get_temp_dir(), "dict_inputs.tflite")
         model.export(path, format="litert")

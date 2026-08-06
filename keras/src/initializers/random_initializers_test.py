@@ -26,7 +26,7 @@ class RandomInitializersTest(testing.TestCase):
         self.assertEqual(initializer.seed, seed)
         self.assertEqual(values.shape, shape)
         self.assertAllClose(
-            np.std(backend.convert_to_numpy(values)), stddev, atol=1e-1
+            np.std(backend.ops.convert_to_numpy(values)), stddev, atol=1e-1
         )
 
         self.run_class_serialization_test(initializer)
@@ -88,7 +88,7 @@ class RandomInitializersTest(testing.TestCase):
         self.assertEqual(initializer.maxval, maxval)
         self.assertEqual(initializer.seed, seed)
         self.assertEqual(values.shape, shape)
-        values = backend.convert_to_numpy(values)
+        values = backend.ops.convert_to_numpy(values)
         self.assertGreaterEqual(np.min(values), minval)
         self.assertLess(np.max(values), maxval)
 
@@ -107,7 +107,7 @@ class RandomInitializersTest(testing.TestCase):
         self.assertEqual(initializer.seed, seed)
         self.assertEqual(values.shape, shape)
         self.assertAllClose(
-            np.std(backend.convert_to_numpy(values)),
+            np.std(backend.ops.convert_to_numpy(values)),
             np.sqrt(scale / 25),
             atol=1e-1,
         )
@@ -121,7 +121,7 @@ class RandomInitializersTest(testing.TestCase):
         self.assertEqual(initializer.seed, seed)
         self.assertEqual(values.shape, shape)
         self.assertAllClose(
-            np.std(backend.convert_to_numpy(values)),
+            np.std(backend.ops.convert_to_numpy(values)),
             np.sqrt(scale / 20),
             atol=1e-1,
         )
@@ -138,7 +138,7 @@ class RandomInitializersTest(testing.TestCase):
         self.assertEqual(initializer.gain, gain)
 
         self.assertEqual(values.shape, shape)
-        array = backend.convert_to_numpy(values)
+        array = backend.ops.convert_to_numpy(values)
         # Making sure that the columns have gain * unit norm value
         for column in array.T:
             self.assertAlmostEqual(np.linalg.norm(column), gain * 1.0)
@@ -270,7 +270,7 @@ class RandomInitializersTest(testing.TestCase):
         values = initializer(shape=shape)
         self.assertEqual(values.shape, shape)
         self.assertAllClose(
-            np.std(backend.convert_to_numpy(values)),
+            np.std(backend.ops.convert_to_numpy(values)),
             np.sqrt(scale / 32),
             atol=1e-1,
         )
@@ -281,7 +281,7 @@ class RandomInitializersTest(testing.TestCase):
         )
         values = initializer(shape=shape)
         self.assertAllClose(
-            np.std(backend.convert_to_numpy(values)),
+            np.std(backend.ops.convert_to_numpy(values)),
             np.sqrt(scale / 128),
             atol=1e-1,
         )
@@ -310,7 +310,7 @@ class RandomInitializersTest(testing.TestCase):
         # Expected fan_in is dim (32)
         # So expected stddev is sqrt(1 / dim)
         expected_std = np.sqrt(1.0 / dim)
-        actual_std = np.std(backend.convert_to_numpy(kernel))
+        actual_std = np.std(backend.ops.convert_to_numpy(kernel))
         self.assertAllClose(actual_std, expected_std, atol=1e-1)
 
     def test_variance_scaling_serialization_with_axes(self):

@@ -46,7 +46,7 @@ class RandomContrastTest(testing.TestCase):
             height_axis = -2
             width_axis = -1
 
-        inputs = backend.convert_to_tensor(inputs, dtype="float32")
+        inputs = backend.ops.convert_to_tensor(inputs, dtype="float32")
         layer = layers.RandomContrast(
             factor=0.5, value_range=(0, 255), seed=seed
         )
@@ -55,12 +55,12 @@ class RandomContrastTest(testing.TestCase):
 
         # Actual contrast arithmetic
         np.random.seed(seed)
-        factor = backend.convert_to_numpy(transformation["contrast_factor"])
-        inputs = backend.convert_to_numpy(inputs)
+        factor = backend.ops.convert_to_numpy(transformation["contrast_factor"])
+        inputs = backend.ops.convert_to_numpy(inputs)
         inp_mean = np.mean(inputs, axis=height_axis, keepdims=True)
         inp_mean = np.mean(inp_mean, axis=width_axis, keepdims=True)
         actual_outputs = (inputs - inp_mean) * factor + inp_mean
-        outputs = backend.convert_to_numpy(outputs)
+        outputs = backend.ops.convert_to_numpy(outputs)
         actual_outputs = np.clip(actual_outputs, 0, 255)
 
         self.assertAllClose(outputs, actual_outputs)
@@ -79,19 +79,19 @@ class RandomContrastTest(testing.TestCase):
             height_axis = -2
             width_axis = -1
 
-        inputs = backend.convert_to_tensor(inputs, dtype="float32")
+        inputs = backend.ops.convert_to_tensor(inputs, dtype="float32")
         layer = layers.RandomContrast(factor=0.5, value_range=(0, 1), seed=seed)
         transformation = layer.get_random_transformation(inputs, training=True)
         outputs = layer.transform_images(inputs, transformation, training=True)
 
         # Actual contrast arithmetic
         np.random.seed(seed)
-        factor = backend.convert_to_numpy(transformation["contrast_factor"])
-        inputs = backend.convert_to_numpy(inputs)
+        factor = backend.ops.convert_to_numpy(transformation["contrast_factor"])
+        inputs = backend.ops.convert_to_numpy(inputs)
         inp_mean = np.mean(inputs, axis=height_axis, keepdims=True)
         inp_mean = np.mean(inp_mean, axis=width_axis, keepdims=True)
         actual_outputs = (inputs - inp_mean) * factor + inp_mean
-        outputs = backend.convert_to_numpy(outputs)
+        outputs = backend.ops.convert_to_numpy(outputs)
         actual_outputs = np.clip(actual_outputs, 0, 1)
 
         self.assertAllClose(outputs, actual_outputs)

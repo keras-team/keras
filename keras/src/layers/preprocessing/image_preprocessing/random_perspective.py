@@ -106,7 +106,7 @@ class RandomPerspective(BaseImagePreprocessingLayer):
         else:
             images = data
 
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         unbatched = len(images_shape) == 3
         if unbatched:
             batch_size = 1
@@ -142,7 +142,7 @@ class RandomPerspective(BaseImagePreprocessingLayer):
             dtype=self.compute_dtype,
         )
 
-        start_points = self.backend.convert_to_tensor(
+        start_points = self.backend.ops.convert_to_tensor(
             [
                 [
                     [0.0, 0.0],
@@ -154,11 +154,11 @@ class RandomPerspective(BaseImagePreprocessingLayer):
             dtype=self.compute_dtype,
         )
 
-        start_points = self.backend.numpy.repeat(
+        start_points = self.backend.ops.numpy.repeat(
             start_points, batch_size, axis=0
         )
         end_points = start_points + start_points * perspective_factor
-        end_points = self.backend.numpy.where(
+        end_points = self.backend.ops.numpy.where(
             apply_perspective[:, None, None], end_points, start_points
         )
 
@@ -173,15 +173,15 @@ class RandomPerspective(BaseImagePreprocessingLayer):
         if transformation is None:
             return images
 
-        inputs_shape = self.backend.shape(images)
+        inputs_shape = self.backend.ops.shape(images)
         unbatched = len(inputs_shape) == 3
         if unbatched:
-            images = self.backend.numpy.expand_dims(images, axis=0)
+            images = self.backend.ops.numpy.expand_dims(images, axis=0)
 
         start_points = transformation["start_points"]
         end_points = transformation["end_points"]
 
-        outputs = self.backend.image.perspective_transform(
+        outputs = self.backend.ops.image.perspective_transform(
             images,
             start_points,
             end_points,
@@ -191,14 +191,14 @@ class RandomPerspective(BaseImagePreprocessingLayer):
         )
 
         apply_perspective = transformation["apply_perspective"]
-        outputs = self.backend.numpy.where(
+        outputs = self.backend.ops.numpy.where(
             apply_perspective[:, None, None, None],
             outputs,
             images,
         )
 
         if unbatched:
-            outputs = self.backend.numpy.squeeze(outputs, axis=0)
+            outputs = self.backend.ops.numpy.squeeze(outputs, axis=0)
         return outputs
 
     def transform_bounding_boxes(
@@ -225,15 +225,17 @@ class RandomPerspective(BaseImagePreprocessingLayer):
             )
 
             boxes = bounding_boxes["boxes"]
-            x0, y0, x1, y1 = self.backend.numpy.split(boxes, 4, axis=-1)
+            x0, y0, x1, y1 = self.backend.ops.numpy.split(boxes, 4, axis=-1)
 
             start_points = transformation["start_points"]
             end_points = transformation["end_points"]
-            transform = self.backend.image.compute_homography_matrix(
+            transform = self.backend.ops.image.compute_homography_matrix(
                 start_points, end_points
             )
-            transform = self.backend.numpy.expand_dims(transform, axis=1)
-            transform = self.backend.cast(transform, dtype=self.compute_dtype)
+            transform = self.backend.ops.numpy.expand_dims(transform, axis=1)
+            transform = self.backend.ops.cast(
+                transform, dtype=self.compute_dtype
+            )
 
             corners = [
                 self._get_transformed_coordinates(x, y, transform)
@@ -241,32 +243,32 @@ class RandomPerspective(BaseImagePreprocessingLayer):
             ]
             x_corners, y_corners = zip(*corners)
 
-            xs = self.backend.numpy.stack(x_corners, axis=-1)
-            ys = self.backend.numpy.stack(y_corners, axis=-1)
+            xs = self.backend.ops.numpy.stack(x_corners, axis=-1)
+            ys = self.backend.ops.numpy.stack(y_corners, axis=-1)
 
             min_x, max_x = (
-                self.backend.numpy.min(xs, axis=-1),
-                self.backend.numpy.max(xs, axis=-1),
+                self.backend.ops.numpy.min(xs, axis=-1),
+                self.backend.ops.numpy.max(xs, axis=-1),
             )
             min_y, max_y = (
-                self.backend.numpy.min(ys, axis=-1),
-                self.backend.numpy.max(ys, axis=-1),
+                self.backend.ops.numpy.min(ys, axis=-1),
+                self.backend.ops.numpy.max(ys, axis=-1),
             )
 
-            min_x = self.backend.numpy.expand_dims(min_x, axis=-1)
-            max_x = self.backend.numpy.expand_dims(max_x, axis=-1)
-            min_y = self.backend.numpy.expand_dims(min_y, axis=-1)
-            max_y = self.backend.numpy.expand_dims(max_y, axis=-1)
+            min_x = self.backend.ops.numpy.expand_dims(min_x, axis=-1)
+            max_x = self.backend.ops.numpy.expand_dims(max_x, axis=-1)
+            min_y = self.backend.ops.numpy.expand_dims(min_y, axis=-1)
+            max_y = self.backend.ops.numpy.expand_dims(max_y, axis=-1)
 
-            boxes = self.backend.numpy.concatenate(
+            boxes = self.backend.ops.numpy.concatenate(
                 [min_x, min_y, max_x, max_y], axis=-1
             )
 
-            apply_perspective = self.backend.core.convert_to_tensor(
+            apply_perspective = self.backend.ops.convert_to_tensor(
                 transformation["apply_perspective"], dtype=boxes.dtype
             )
 
-            bounding_boxes["boxes"] = self.backend.numpy.where(
+            bounding_boxes["boxes"] = self.backend.ops.numpy.where(
                 apply_perspective[:, None, None],
                 boxes,
                 bounding_boxes["boxes"],
@@ -288,28 +290,32 @@ class RandomPerspective(BaseImagePreprocessingLayer):
     ):
         backend = self.backend
 
-        batch_size = backend.shape(transformation_matrix)[0]
+        batch_size = backend.ops.shape(transformation_matrix)[0]
 
-        homogeneous_transform = backend.numpy.concatenate(
-            [transformation_matrix, backend.numpy.ones((batch_size, 1, 1))],
+        homogeneous_transform = backend.ops.numpy.concatenate(
+            [transformation_matrix, backend.ops.numpy.ones((batch_size, 1, 1))],
             axis=-1,
         )
-        homogeneous_transform = backend.numpy.reshape(
+        homogeneous_transform = backend.ops.numpy.reshape(
             homogeneous_transform, (batch_size, 3, 3)
         )
 
-        inverse_transform = backend.linalg.inv(homogeneous_transform)
+        inverse_transform = backend.ops.linalg.inv(homogeneous_transform)
 
-        ones_column = backend.numpy.ones_like(x_coords)
-        homogeneous_coords = backend.numpy.concatenate(
+        ones_column = backend.ops.numpy.ones_like(x_coords)
+        homogeneous_coords = backend.ops.numpy.concatenate(
             [x_coords, y_coords, ones_column], axis=-1
         )
 
-        homogeneous_coords = backend.numpy.moveaxis(homogeneous_coords, -1, -2)
-        transformed_coords = backend.numpy.matmul(
+        homogeneous_coords = backend.ops.numpy.moveaxis(
+            homogeneous_coords, -1, -2
+        )
+        transformed_coords = backend.ops.numpy.matmul(
             inverse_transform, homogeneous_coords
         )
-        transformed_coords = backend.numpy.moveaxis(transformed_coords, -1, -2)
+        transformed_coords = backend.ops.numpy.moveaxis(
+            transformed_coords, -1, -2
+        )
 
         x_transformed = transformed_coords[..., 0] / transformed_coords[..., 2]
         y_transformed = transformed_coords[..., 1] / transformed_coords[..., 2]

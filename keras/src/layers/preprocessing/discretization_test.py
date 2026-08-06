@@ -152,7 +152,7 @@ class DiscretizationTest(testing.TestCase):
         )
         output = layer(input_array)
         self.assertSparse(output, sparse)
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(backend.ops.is_tensor(output))
         self.assertAllClose(output, expected_output)
 
     def test_tf_data_compatibility(self):

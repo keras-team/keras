@@ -156,9 +156,9 @@ class DTypePolicy:
         """
 
         dtype = backend.standardize_dtype(dtype)
-        if backend.is_tensor(x):
+        if backend.ops.is_tensor(x):
             if self._should_cast(x, autocast, dtype):
-                x = backend.cast(x, dtype=dtype)
+                x = backend.ops.cast(x, dtype=dtype)
             return x
         elif backend.is_keras_tensor(x):
             if self._should_cast(x, autocast, dtype):
@@ -166,11 +166,11 @@ class DTypePolicy:
             return x
         elif hasattr(x, "__array__"):
             try:
-                x = backend.convert_to_tensor(x)
+                x = backend.ops.convert_to_tensor(x)
             except TypeError:
-                x = backend.convert_to_tensor(x, dtype=dtype)
+                x = backend.ops.convert_to_tensor(x, dtype=dtype)
             if self._should_cast(x, autocast, dtype):
-                x = backend.cast(x, dtype=dtype)
+                x = backend.ops.cast(x, dtype=dtype)
             return x
         return x
 

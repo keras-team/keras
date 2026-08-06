@@ -13,8 +13,8 @@ from keras.src import utils
 class MockedRandomFlip(layers.RandomFlip):
     def call(self, inputs, training=True):
         unbatched = len(inputs.shape) == 3
-        batch_size = 1 if unbatched else self.backend.shape(inputs)[0]
-        mocked_value = self.backend.numpy.full(
+        batch_size = 1 if unbatched else self.backend.ops.shape(inputs)[0]
+        mocked_value = self.backend.ops.numpy.full(
             (batch_size, 1, 1, 1), 0.1, dtype="float32"
         )
         with unittest.mock.patch.object(
@@ -57,7 +57,9 @@ class RandomFlipTest(testing.TestCase):
                 "seed": 42,
             },
             input_data=np.asarray([[[2, 3, 4], [5, 6, 7]]]),
-            expected_output=backend.convert_to_tensor([[[5, 6, 7], [2, 3, 4]]]),
+            expected_output=backend.ops.convert_to_tensor(
+                [[[5, 6, 7], [2, 3, 4]]]
+            ),
             supports_masking=False,
             run_training_check=run_training_check,
         )
@@ -75,7 +77,7 @@ class RandomFlipTest(testing.TestCase):
                     [[[2, 3, 4], [5, 6, 7]]],
                 ]
             ),
-            expected_output=backend.convert_to_tensor(
+            expected_output=backend.ops.convert_to_tensor(
                 [
                     [[[5, 6, 7], [2, 3, 4]]],
                     [[[5, 6, 7], [2, 3, 4]]],
@@ -97,7 +99,7 @@ class RandomFlipTest(testing.TestCase):
                 "seed": 42,
             },
             input_data=np.asarray([[[2, 3, 4]], [[5, 6, 7]]]),
-            expected_output=backend.convert_to_tensor(
+            expected_output=backend.ops.convert_to_tensor(
                 [[[5, 6, 7]], [[2, 3, 4]]]
             ),
             supports_masking=False,
@@ -123,7 +125,7 @@ class RandomFlipTest(testing.TestCase):
                     ],
                 ]
             ),
-            expected_output=backend.convert_to_tensor(
+            expected_output=backend.ops.convert_to_tensor(
                 [
                     [[[5, 6, 7]], [[2, 3, 4]]],
                     [[[5, 6, 7]], [[2, 3, 4]]],

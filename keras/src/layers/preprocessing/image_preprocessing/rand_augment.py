@@ -201,20 +201,20 @@ class RandAugment(BaseImagePreprocessingLayer):
 
     def transform_images(self, images, transformation, training=True):
         if training:
-            images = self.backend.cast(images, self.compute_dtype)
+            images = self.backend.ops.cast(images, self.compute_dtype)
 
             layer_idxes = transformation["layer_idxes"]
             transforms = transformation["transforms"]
             for i in range(self.num_ops):
                 for idx, (key, value) in enumerate(transforms.items()):
                     augmentation_layer = getattr(self, key)
-                    images = self.backend.numpy.where(
+                    images = self.backend.ops.numpy.where(
                         layer_idxes[i] == idx,
                         augmentation_layer.transform_images(images, value),
                         images,
                     )
 
-        images = self.backend.cast(images, self.compute_dtype)
+        images = self.backend.ops.cast(images, self.compute_dtype)
         return images
 
     def transform_labels(self, labels, transformation, training=True):
@@ -238,13 +238,13 @@ class RandAugment(BaseImagePreprocessingLayer):
                     )
                 )
                 for i in range(self.num_ops):
-                    bounding_boxes["boxes"] = self.backend.numpy.where(
+                    bounding_boxes["boxes"] = self.backend.ops.numpy.where(
                         layer_idxes[i] == idx,
                         transformed_bounding_box["boxes"],
                         bounding_boxes["boxes"],
                     )
 
-                    bounding_boxes["labels"] = self.backend.numpy.where(
+                    bounding_boxes["labels"] = self.backend.ops.numpy.where(
                         layer_idxes[i] == idx,
                         transformed_bounding_box["labels"],
                         bounding_boxes["labels"],
@@ -261,7 +261,7 @@ class RandAugment(BaseImagePreprocessingLayer):
             for i in range(self.num_ops):
                 for idx, (key, value) in enumerate(transforms.items()):
                     augmentation_layer = getattr(self, key)
-                    segmentation_masks = self.backend.numpy.where(
+                    segmentation_masks = self.backend.ops.numpy.where(
                         layer_idxes[i] == idx,
                         augmentation_layer.transform_segmentation_masks(
                             segmentation_masks, value

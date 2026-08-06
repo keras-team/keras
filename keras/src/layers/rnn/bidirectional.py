@@ -274,7 +274,7 @@ class Bidirectional(Layer):
 
     def _can_attempt_fused_lstm(self, mask, initial_state=None):
         # Layer-level preconditions for dispatching to
-        # `backend.bidirectional_lstm`. Backends that don't support a
+        # `backend.rnn.bidirectional_lstm`. Backends that don't support a
         # fused path (or don't have the runtime resources for one, e.g.
         # no GPU) raise `NotImplementedError` from the call itself, and
         # the caller falls back to the two-layer path.
@@ -320,7 +320,7 @@ class Bidirectional(Layer):
         else:
             fwd_h0, fwd_c0, bwd_h0, bwd_c0 = initial_state
 
-        fwd_out, bwd_out = backend.bidirectional_lstm(
+        fwd_out, bwd_out = backend.rnn.bidirectional_lstm(
             sequences,
             fwd_h0,
             fwd_c0,
@@ -378,7 +378,7 @@ class Bidirectional(Layer):
 
     def _can_attempt_fused_gru(self, mask, initial_state=None):
         # Layer-level preconditions for dispatching to
-        # `backend.bidirectional_gru`. The structure matches the LSTM gate
+        # `backend.rnn.bidirectional_gru`. The structure matches the LSTM gate
         # above. The only differences are the layer type, the
         # `reset_after=True` requirement (the cuDNN GRU formulation), and
         # the state count (one h per direction, so length 2).
@@ -426,7 +426,7 @@ class Bidirectional(Layer):
         else:
             fwd_h0, bwd_h0 = initial_state
 
-        fwd_out, bwd_out = backend.bidirectional_gru(
+        fwd_out, bwd_out = backend.rnn.bidirectional_gru(
             sequences,
             fwd_h0,
             bwd_h0,
