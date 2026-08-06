@@ -39,15 +39,11 @@ class TestCase(parameterized.TestCase):
         return temp_dir
 
     def convert_to_numpy(self, x):
-<<<<<<< HEAD
-        return backend.convert_to_numpy(x)
-=======
         if isinstance(x, np.ndarray):
             return x
         elif backend.is_tensor(x) or isinstance(x, backend.Variable):
             return backend.convert_to_numpy(x)
         return np.array(x)
->>>>>>> 9b80f8373 (Fix conversion to NumPy in `TestCase` for `assertAllClose`. (#22594))
 
     def assertAllClose(
         self,
