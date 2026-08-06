@@ -346,7 +346,7 @@ class Squareplus(Operation):
         self.b = b
 
     def call(self, x):
-        return backend.nn.squareplus(x, self.b)
+        return _squareplus(x, self.b)
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype=x.dtype)
@@ -377,7 +377,16 @@ def squareplus(x, b=4):
     """
     if any_symbolic_tensors((x,)):
         return Squareplus(b).symbolic_call(x)
-    return backend.nn.squareplus(x, b)
+    return _squareplus(x, b)
+
+
+def _squareplus(x, b):
+    if hasattr(backend.nn, "squareplus"):
+        return backend.nn.squareplus(x, b)
+    x = backend.convert_to_tensor(x)
+    b = backend.convert_to_tensor(b, dtype=x.dtype)
+    y = (x + backend.numpy.sqrt(backend.numpy.square(x) + b)) / 2.0
+    return backend.cast(y, dtype=x.dtype)
 
 
 class LogSigmoid(Operation):
