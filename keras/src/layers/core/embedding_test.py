@@ -343,6 +343,17 @@ class EmbeddingTest(test_case.TestCase):
         with self.assertRaisesRegex(ValueError, "lora is already enabled"):
             layer.enable_lora(rank=2)
 
+    def test_enable_lora_after_int4_quantization_freezes_variable(self):
+        # In int4 mode the `embeddings` property returns a freshly unpacked
+        # tensor rather than the variable, so freezing must go through
+        # `_embeddings`. Backends whose tensors reject attribute assignment
+        # raise `AttributeError` here otherwise.
+        layer = layers.Embedding(input_dim=10, output_dim=16)
+        layer.build()
+        layer.quantize("int4")
+        layer.enable_lora(rank=2)
+        self.assertFalse(layer._embeddings.trainable)
+
     # Test quantization-related methods.
 
     @parameterized.named_parameters(
