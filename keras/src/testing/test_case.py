@@ -38,6 +38,9 @@ class TestCase(parameterized.TestCase):
         self.addCleanup(lambda: shutil.rmtree(temp_dir))
         return temp_dir
 
+    def convert_to_numpy(self, x):
+        return backend.convert_to_numpy(x)
+
     def assertAllClose(
         self,
         x1,
