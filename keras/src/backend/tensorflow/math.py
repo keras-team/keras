@@ -329,3 +329,17 @@ def erfinv(x):
 def logdet(x):
     x = convert_to_tensor(x)
     return tf.linalg.logdet(x)
+
+
+def gammainc(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+
+    compute_dtype = dtype
+    if standardize_dtype(dtype) in ("float16", "bfloat16"):
+        compute_dtype = "float32"
+    x1 = cast(x1, compute_dtype)
+    x2 = cast(x2, compute_dtype)
+
+    return cast(tf.math.igamma(x1, x2), dtype)
