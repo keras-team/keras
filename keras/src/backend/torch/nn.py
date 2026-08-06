@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as tnn
+from torch.distributed.tensor import DTensor
 
 from keras.src import backend
 from keras.src.backend.common.backend_utils import canonicalize_axis
@@ -1553,6 +1554,16 @@ def dot_product_attention(
         key = torch.repeat_interleave(key, repeats=groups, dim=1)
         value = torch.repeat_interleave(value, repeats=groups, dim=1)
 
+    is_dtensor = isinstance(query, DTensor)
+    if is_dtensor:
+        device_mesh = query.device_mesh
+        placements = query.placements
+        query = query.to_local()
+        key = key.to_local() if hasattr(key, "to_local") else key
+        value = value.to_local() if hasattr(value, "to_local") else value
+        if mask is not None:
+            mask = mask.to_local() if hasattr(mask, "to_local") else mask
+
     if flash_attention is None:
         flash_attention = _can_use_flash_attention(
             query, key, value, mask, is_causal
@@ -1586,6 +1597,12 @@ def dot_product_attention(
             is_causal=is_causal,
             scale=scale,
         )
+
+    if is_dtensor:
+        attention_output = DTensor.from_local(
+            attention_output, device_mesh, placements
+        )
+
     return torch.transpose(attention_output, axis1, axis0)
 
 
