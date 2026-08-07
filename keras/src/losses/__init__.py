@@ -13,6 +13,7 @@ from keras.src.losses.losses import CosineSimilarity
 from keras.src.losses.losses import Dice
 from keras.src.losses.losses import Hinge
 from keras.src.losses.losses import Huber
+from keras.src.losses.losses import IoU
 from keras.src.losses.losses import KLDivergence
 from keras.src.losses.losses import LogCosh
 from keras.src.losses.losses import LossFunctionWrapper
@@ -35,6 +36,7 @@ from keras.src.losses.losses import ctc
 from keras.src.losses.losses import dice
 from keras.src.losses.losses import hinge
 from keras.src.losses.losses import huber
+from keras.src.losses.losses import iou
 from keras.src.losses.losses import kl_divergence
 from keras.src.losses.losses import log_cosh
 from keras.src.losses.losses import mean_absolute_error
@@ -73,6 +75,7 @@ ALL_OBJECTS = {
     CategoricalHinge,
     # Image segmentation
     Dice,
+    IoU,
     Tversky,
     # Similarity
     Circle,
@@ -100,6 +103,7 @@ ALL_OBJECTS = {
     categorical_hinge,
     # Image segmentation
     dice,
+    iou,
     tversky,
     # Similarity
     circle,
