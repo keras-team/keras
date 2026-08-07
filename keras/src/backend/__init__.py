@@ -30,6 +30,8 @@ elif backend() == "torch":
     from keras.src.backend.torch import *  # noqa: F403
 elif backend() == "numpy":
     from keras.src.backend.numpy import *  # noqa: F403
+elif backend() == "mlx":
+    from keras_mlx.src import *  # noqa: F403
 elif backend() == "openvino":
     from keras_openvino.src import *  # noqa: F403
 else:

@@ -67,6 +67,8 @@ elif backend.backend() == "torch":
     from keras.src.backend.torch.layer import TorchLayer as BackendLayer
 elif backend.backend() == "numpy":
     from keras.src.backend.numpy.layer import NumpyLayer as BackendLayer
+elif backend.backend() == "mlx":
+    from keras_mlx.src.layer import MLXLayer as BackendLayer
 elif backend.backend() == "openvino":
     from keras_openvino.src.layer import OpenvinoLayer as BackendLayer
 else:
