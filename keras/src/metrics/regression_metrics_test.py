@@ -61,12 +61,30 @@ class CosineSimilarityTest(testing.TestCase):
         self.assertEqual(cosine_obj.name, "my_cos")
         self.assertEqual(cosine_obj.dtype, "int32")
 
+        self.assertEqual(cosine_obj.axis, 2)
+
         # Check save and restore config
         cosine_obj2 = metrics.CosineSimilarity.from_config(
             cosine_obj.get_config()
         )
         self.assertEqual(cosine_obj2.name, "my_cos")
         self.assertEqual(cosine_obj2._dtype, "int32")
+        self.assertEqual(cosine_obj2.axis, 2)
+
+    def test_config_preserves_axis_result(self):
+        # A metric restored from config must compute the same result as the
+        # original when a non-default `axis` is used.
+        self.setup(axis=0)
+        cosine_obj = metrics.CosineSimilarity(axis=0)
+        cosine_obj2 = metrics.CosineSimilarity.from_config(
+            cosine_obj.get_config()
+        )
+        loss = cosine_obj(self.y_true, self.y_pred)
+        loss2 = cosine_obj2(self.y_true, self.y_pred)
+        expected_loss = np.mean(self.expected_loss)
+        self.assertAlmostEqual(loss, expected_loss, 3)
+        self.assertAlmostEqual(loss2, expected_loss, 3)
+        self.assertAlmostEqual(loss, loss2, 6)
 
     def test_unweighted(self):
         self.setup()
