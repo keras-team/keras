@@ -3717,9 +3717,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             # `a` holds 3D vectors, `b` holds 2D vectors (implicit z=0).
             a0, a1, a2 = a[..., 0], a[..., 1], a[..., 2]
             b0, b1 = b[..., 0], b[..., 1]
-            return np.stack(
-                [-a2 * b1, a2 * b0, a0 * b1 - a1 * b0], axis=-1
-            )
+            return np.stack([-a2 * b1, a2 * b0, a0 * b1 - a1 * b0], axis=-1)
 
         def cross_2d_2d(a, b):
             a0, a1 = a[..., 0], a[..., 1]

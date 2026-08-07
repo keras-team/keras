@@ -573,13 +573,13 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
     # to 3 dimensions ourselves (with an implicit zero z-component) before
     # delegating the cross product of the resulting 3-dimensional vectors
     # to `np.cross`.
-    def maybe_pad_zero(x, size_of_last_dim):
-        if size_of_last_dim == 2:
+    def _pad_2d_vector_to_3d(x):
+        if x.shape[-1] == 2:
             return np.pad(x, [(0, 0)] * (x.ndim - 1) + [(0, 1)])
         return x
 
-    x1 = maybe_pad_zero(x1, x1_dim)
-    x2 = maybe_pad_zero(x2, x2_dim)
+    x1 = _pad_2d_vector_to_3d(x1)
+    x2 = _pad_2d_vector_to_3d(x2)
 
     c = np.cross(x1, x2)
 
