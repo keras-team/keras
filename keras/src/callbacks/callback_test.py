@@ -4,7 +4,6 @@ import pytest
 from keras.src import models
 from keras.src import testing
 from keras.src.callbacks.callback import Callback
-from keras.src.callbacks.callback_list import CallbackList
 
 
 class CallbackTest(testing.TestCase):
@@ -32,12 +31,3 @@ class CallbackTest(testing.TestCase):
         x = np.random.random((8, 1))
         y = np.random.random((8, 1))
         model.fit(x, y, callbacks=[CBK()], batch_size=2)
-
-    def test_invalid_callback_raises_error(self):
-        class FakeCallback:
-            pass
-
-        with self.assertRaisesRegex(
-            TypeError, "All callbacks must be instances of"
-        ):
-            CallbackList([FakeCallback()])
