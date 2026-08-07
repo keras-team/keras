@@ -252,7 +252,7 @@ class Embedding(Layer):
             dtype="float32",
             regularizer=self.embeddings_regularizer,
         )
-        self.embeddings.trainable = False
+        self._embeddings.trainable = False
         self._tracker.lock()
         self.lora_enabled = True
         self.lora_rank = rank
