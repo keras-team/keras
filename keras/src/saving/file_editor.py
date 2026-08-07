@@ -58,7 +58,9 @@ class KerasFileEditor:
     editor.delete_object("layers/dense_2")
 
     # Add the weights of a new layer
-    editor.add_object("layers/einsum_dense", weights={"0": ..., "1": ...})
+    editor.add_object(
+        "layers/einsum_dense", weights={"kernel": ..., "bias": ...}
+    )
 
     # Save the weights of the edited model
     editor.resave_weights("edited_model.weights.h5")
@@ -341,12 +343,15 @@ class KerasFileEditor:
                 object to add (e.g. `"layers/dense_2"`).
             weights: Dict mapping weight names to weight
                 values (arrays),
-                e.g. `{"0": kernel_value, "1": bias_value}`.
+                e.g. `{"kernel": kernel_value, "bias": bias_value}`.
+                Files saved by older versions of Keras key weights by their
+                integer position instead, e.g. `{"0": ..., "1": ...}`.
         """
         if not isinstance(weights, dict):
             raise ValueError(
                 "Argument `weights` should be a dict "
-                "where keys are weight names (usually '0', '1', etc.) "
+                "where keys are weight names (e.g. 'kernel', 'bias'; "
+                "'0', '1', etc. in files saved by older versions of Keras) "
                 "and values are NumPy arrays. "
                 f"Received: type(weights)={type(weights)}"
             )
@@ -374,7 +379,8 @@ class KerasFileEditor:
                 object from which to remove the weight
                 (e.g. `"dense_2"` or `"layers/dense_2"`).
             weight_name: String, name of the weight to
-                delete (e.g. `"0"`).
+                delete (e.g. `"kernel"`, or `"0"` in files saved by older
+                versions of Keras).
         """
 
         def delete_weight_fn(weights_dict, source_name, target_name=None):
@@ -398,12 +404,15 @@ class KerasFileEditor:
                 (e.g. `"dense_2"` or `"layers/dense_2"`).
             weights: Dict mapping weight names to weight
                 values (arrays),
-                e.g. `{"0": kernel_value, "1": bias_value}`.
+                e.g. `{"kernel": kernel_value, "bias": bias_value}`.
+                Files saved by older versions of Keras key weights by their
+                integer position instead, e.g. `{"0": ..., "1": ...}`.
         """
         if not isinstance(weights, dict):
             raise ValueError(
                 "Argument `weights` should be a dict "
-                "where keys are weight names (usually '0', '1', etc.) "
+                "where keys are weight names (e.g. 'kernel', 'bias'; "
+                "'0', '1', etc. in files saved by older versions of Keras) "
                 "and values are NumPy arrays. "
                 f"Received: type(weights)={type(weights)}"
             )

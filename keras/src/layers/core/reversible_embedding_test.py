@@ -15,6 +15,7 @@ from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
 from keras.src.testing import test_case
+from keras.src.testing import test_utils
 from keras.src.testing.test_utils import named_product
 
 
@@ -204,6 +205,55 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         new_model.quantize(mode)
         new_model.load_weights(temp_filepath)
         self.assertAllClose(model.predict(x), new_model.predict(x))
+
+    @staticmethod
+    def _build_reversible_for_mode(mode, tie_weights):
+        layer = layers.ReversibleEmbedding(64, 32, tie_weights=tie_weights)
+        layer.build()
+        if mode != "none":
+            layer.quantize(mode)
+        return layer
+
+    @parameterized.named_parameters(
+        named_product(mode=("none", "int8", "int4"), tie_weights=(True, False))
+    )
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
+    def test_name_keyed_serialization_round_trip(self, mode, tie_weights):
+        source = self._build_reversible_for_mode(mode, tie_weights)
+        test_utils.randomize_serialized_variables(source)
+
+        store = {}
+        source.save_own_variables(store)
+        # Keys are variable names (incl. `reverse_*` for untied weights), never
+        # legacy positional integers.
+        self.assertEqual(
+            set(store.keys()),
+            set(test_utils.serialized_variable_names(source)),
+        )
+        self.assertFalse(any(key.isdigit() for key in store))
+
+        target = self._build_reversible_for_mode(mode, tie_weights)
+        target.load_own_variables(store)
+        test_utils.assert_serialized_variables_equal(self, source, target)
+
+    @parameterized.named_parameters(
+        named_product(mode=("none", "int8", "int4"), tie_weights=(True, False))
+    )
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
+    def test_legacy_positional_load_round_trip(self, mode, tie_weights):
+        source = self._build_reversible_for_mode(mode, tie_weights)
+        test_utils.randomize_serialized_variables(source)
+        store = test_utils.legacy_positional_store(source)
+        # Sanity-check that this is genuinely the legacy integer layout.
+        self.assertTrue(all(key.isdigit() for key in store))
+
+        target = self._build_reversible_for_mode(mode, tie_weights)
+        target.load_own_variables(store)
+        test_utils.assert_serialized_variables_equal(self, source, target)
 
     @parameterized.named_parameters(
         ("int8_tie_weights", "int8_from_mixed_bfloat16", True, 0, 2),

@@ -23,6 +23,7 @@ from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
 from keras.src.saving.saving_api import load_model
+from keras.src.testing import test_utils
 from keras.src.utils.rng_utils import set_random_seed
 
 
@@ -1357,6 +1358,137 @@ class EinsumDenseTest(testing.TestCase):
         self.assertAllClose(layer.kernel_zero, awq_store["3"])
         self.assertAllClose(layer.awq_scales, awq_store["4"])
         self.assertAllClose(layer.g_idx, awq_store["5"])
+
+    @staticmethod
+    def _build_einsum_for_mode(mode, input_dim=256):
+        """Builds an `EinsumDense` populated for `mode`'s serialization spec."""
+        cfg = dict(equation="ab,bcd->acd", output_shape=(8, 32), bias_axes="d")
+        if mode == "none":
+            layer = layers.EinsumDense(**cfg)
+            layer.build((None, input_dim))
+        elif mode == "int8":
+            layer = layers.EinsumDense(**cfg, dtype="int8_from_float32")
+            layer.build((None, input_dim))
+        elif mode == "int4_per_channel":
+            layer = layers.EinsumDense(**cfg, dtype="int4_from_float32")
+            layer.build((None, input_dim))
+        elif mode == "int4_grouped":
+            layer = layers.EinsumDense(**cfg)
+            layer.build((None, input_dim))
+            layer.quantize(
+                "int4", config=Int4QuantizationConfig(block_size=128)
+            )
+        elif mode == "float8":
+            layer = layers.EinsumDense(**cfg, dtype="float8_from_float32")
+            layer.build((None, input_dim))
+        elif mode == "gptq":
+            layer = layers.EinsumDense(**cfg, dtype="gptq/4/32_from_float32")
+            layer.build((None, input_dim))
+        elif mode == "awq":
+            layer = layers.EinsumDense(**cfg, dtype="awq/4/32_from_float32")
+            layer.build((None, input_dim))
+        else:
+            raise ValueError(f"Unhandled test mode: {mode}")
+        return layer
+
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
+    def test_name_keyed_serialization_round_trip(self):
+        # Modes whose `save_own_variables` writes a self-consistent store.
+        for mode in (
+            "none",
+            "int8",
+            "int4_per_channel",
+            "int4_grouped",
+            "float8",
+        ):
+            with self.subTest(mode=mode):
+                source = self._build_einsum_for_mode(mode)
+                test_utils.randomize_serialized_variables(source)
+
+                store = {}
+                source.save_own_variables(store)
+                # Keys are variable names, never legacy positional integers.
+                self.assertEqual(
+                    set(store.keys()),
+                    set(test_utils.serialized_variable_names(source)),
+                )
+                self.assertFalse(any(key.isdigit() for key in store))
+
+                target = self._build_einsum_for_mode(mode)
+                target.load_own_variables(store)
+                test_utils.assert_serialized_variables_equal(
+                    self, source, target
+                )
+
+    def test_gptq_awq_name_keyed_and_legacy_load(self):
+        # GPTQ/AWQ checkpoints carry variables (e.g. `kernel_zero`) that the
+        # current `save_own_variables` does not emit, so they are validated
+        # through the load path with a fully-populated store in both layouts.
+        for mode in ("gptq", "awq"):
+            with self.subTest(mode=mode):
+                source = self._build_einsum_for_mode(mode)
+                test_utils.randomize_serialized_variables(source)
+
+                target = self._build_einsum_for_mode(mode)
+                target.load_own_variables(test_utils.name_keyed_store(source))
+                self.assertEqual(target.is_gptq_calibrated, mode == "gptq")
+                self.assertEqual(target.is_awq_calibrated, mode == "awq")
+                test_utils.assert_serialized_variables_equal(
+                    self, source, target
+                )
+
+                legacy_target = self._build_einsum_for_mode(mode)
+                legacy_target.load_own_variables(
+                    test_utils.legacy_positional_store(source)
+                )
+                test_utils.assert_serialized_variables_equal(
+                    self, source, legacy_target
+                )
+
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
+    def test_legacy_positional_load_round_trip(self):
+        for mode in (
+            "none",
+            "int8",
+            "int4_per_channel",
+            "int4_grouped",
+            "float8",
+            "gptq",
+            "awq",
+        ):
+            with self.subTest(mode=mode):
+                source = self._build_einsum_for_mode(mode)
+                test_utils.randomize_serialized_variables(source)
+                store = test_utils.legacy_positional_store(source)
+                # Sanity-check that this is genuinely the legacy integer layout.
+                self.assertTrue(all(key.isdigit() for key in store))
+
+                target = self._build_einsum_for_mode(mode)
+                target.load_own_variables(store)
+                test_utils.assert_serialized_variables_equal(
+                    self, source, target
+                )
+
+    def test_load_own_variables_reports_clear_errors(self):
+        source = self._build_einsum_for_mode("int8")
+        test_utils.randomize_serialized_variables(source)
+        store = test_utils.name_keyed_store(source)
+
+        # A missing variable trips the variable-count check with a clear error.
+        missing = dict(store)
+        del missing["kernel_scale"]
+        with self.assertRaisesRegex(ValueError, "expected 3 variables"):
+            self._build_einsum_for_mode("int8").load_own_variables(missing)
+
+        # A renamed/corrupted key keeps the count but fails on the exact name.
+        corrupted = dict(store)
+        corrupted["not_kernel_scale"] = corrupted.pop("kernel_scale")
+        with self.assertRaises(KeyError):
+            self._build_einsum_for_mode("int8").load_own_variables(corrupted)
 
     def test_int4_gptq_kernel_returns_unpacked_form(self):
         """Test that the `kernel` property returns the unpacked int4 GPTQ

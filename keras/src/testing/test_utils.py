@@ -161,3 +161,104 @@ def named_product(*args, **kwargs):
         tests = new_tests
 
     return tests
+
+
+# ---------------------------------------------------------------------------
+# Helpers for testing variable-name-keyed serialization of quantizable layers
+# (`Dense`, `EinsumDense`, `Embedding`, `ReversibleEmbedding`).
+# ---------------------------------------------------------------------------
+
+
+def serialized_variable(layer, name):
+    """Returns the underlying variable a serialization-spec `name` maps to.
+
+    `save_own_variables`/`load_own_variables` serialize the raw
+    `_kernel`/`_embeddings` variables under the public `"kernel"`/`"embeddings"`
+    spec names. In `ternary` mode there is no float `_kernel` at all -- the
+    layer stores `_packed_kernel` instead, and that is what gets serialized
+    under `"kernel"`. All other spec names map directly to the attribute of the
+    same name. Returns `None` if the attribute does not exist on the layer.
+    """
+    if name == "kernel":
+        kernel = getattr(layer, "_kernel", None)
+        if kernel is None:
+            kernel = getattr(layer, "_packed_kernel", None)
+        return kernel
+    if name == "embeddings":
+        return getattr(layer, "_embeddings", None)
+    return getattr(layer, name, None)
+
+
+def is_serialized_variable(layer, name):
+    """Mirrors the skip conditions used by `save_own_variables`.
+
+    Optional variables (`bias`, `kernel_zero`, `g_idx`, `embeddings_zero` and
+    the `reverse_*` variables of `ReversibleEmbedding`) are only serialized when
+    they actually exist on the layer for its current configuration.
+    """
+    if name == "bias":
+        return getattr(layer, "bias", None) is not None
+    if name in ("kernel_zero", "g_idx", "embeddings_zero"):
+        return hasattr(layer, name)
+    return serialized_variable(layer, name) is not None
+
+
+def serialized_variable_names(layer):
+    """Spec names actually written to the store for `layer`, in spec order."""
+    mode = layer.quantization_mode
+    return [
+        name
+        for name in layer.variable_serialization_spec[mode]
+        if is_serialized_variable(layer, name)
+    ]
+
+
+def randomize_serialized_variables(layer, seed=1234):
+    """Assigns deterministic pseudo-random values to every serialized variable.
+
+    Ensures serialization round-trips are exercised with non-trivial values
+    (rather than the layer's initializer defaults) for every quantization mode.
+    """
+    rng = np.random.RandomState(seed)
+    for name in serialized_variable_names(layer):
+        variable = serialized_variable(layer, name)
+        dtype = str(variable.dtype)
+        if "int" in dtype:
+            info = np.iinfo(np.dtype(dtype))
+            low, high = max(int(info.min), -8), min(int(info.max), 8)
+            value = rng.randint(low, high + 1, size=variable.shape)
+            value = value.astype(dtype)
+        else:
+            value = rng.random(variable.shape).astype("float32")
+        variable.assign(value)
+
+
+def name_keyed_store(layer):
+    """Builds a name-keyed store from a layer's serialized variables."""
+    return {
+        name: np.asarray(serialized_variable(layer, name))
+        for name in serialized_variable_names(layer)
+    }
+
+
+def legacy_positional_store(layer):
+    """Builds a store using the legacy positional (`"0"`, `"1"`, ...) layout.
+
+    Reproduces the on-disk layout produced by Keras versions that keyed
+    serialized variables by their integer position in
+    `variable_serialization_spec`, used to test backward-compatible loading.
+    """
+    return {
+        str(index): np.asarray(serialized_variable(layer, name))
+        for index, name in enumerate(serialized_variable_names(layer))
+    }
+
+
+def assert_serialized_variables_equal(test_case, expected_layer, actual_layer):
+    """Asserts two layers hold identical values for all serialized variables."""
+    for name in serialized_variable_names(expected_layer):
+        test_case.assertAllClose(
+            np.asarray(serialized_variable(expected_layer, name)),
+            np.asarray(serialized_variable(actual_layer, name)),
+            msg=f"Mismatch for serialized variable '{name}'.",
+        )
