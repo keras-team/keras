@@ -1,3 +1,4 @@
+from keras.src import backend
 from keras.src import initializers
 from keras.src import ops
 from keras.src.api_export import keras_export
@@ -96,8 +97,19 @@ class SpectralNormalization(Wrapper):
         This method returns the updated value for `self.kernel` with the
         spectral normalized value, so that the layer is ready for `call()`.
         """
+        kernel = self.kernel.value
+        if backend.backend() == "mlx":
+            # `ops.cond` always evaluates both branches under `mx.compile`,
+            # so this function still runs when the kernel is all zero. Swap
+            # in a safe placeholder before the power iteration so `rsqrt`
+            # and the final divide never see a zero input, otherwise their
+            # gradients are `-inf`/`inf` and leak into the masked-out branch
+            # as NaN even though the forward value is discarded by the
+            # `ops.cond` in `call()`.
+            kernel_all_zero = ops.stop_gradient(ops.all(ops.equal(kernel, 0)))
+            kernel = ops.where(kernel_all_zero, ops.ones_like(kernel), kernel)
 
-        weights = ops.reshape(self.kernel, [-1, self.kernel_shape[-1]])
+        weights = ops.reshape(kernel, [-1, self.kernel_shape[-1]])
         vector_u = self.vector_u.value
 
         for _ in range(self.power_iterations):
@@ -110,7 +122,7 @@ class SpectralNormalization(Wrapper):
         sigma = ops.matmul(
             ops.matmul(vector_v, weights), ops.transpose(vector_u)
         )
-        kernel = ops.reshape(ops.divide(self.kernel, sigma), self.kernel_shape)
+        kernel = ops.reshape(ops.divide(kernel, sigma), self.kernel_shape)
         return ops.cast(vector_u, self.vector_u.dtype), ops.cast(
             kernel, self.kernel.dtype
         )

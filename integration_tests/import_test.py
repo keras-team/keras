@@ -14,6 +14,7 @@ BACKEND_REQ = {
     ),
     "jax": ("jax[cpu]", ""),
     "openvino": ("openvino", ""),
+    "mlx": ("mlx[cpu]", ""),
 }
 
 
@@ -67,10 +68,8 @@ def manage_venv_installs(whl_path):
         "pip install -r requirements-common.txt",
         "pip install pytest",
         # Ensure other backends are uninstalled
-        "pip uninstall -y {0} {1} {2}".format(
-            BACKEND_REQ[other_backends[0]][0],
-            BACKEND_REQ[other_backends[1]][0],
-            BACKEND_REQ[other_backends[2]][0],
+        "pip uninstall -y {0}".format(
+            " ".join(BACKEND_REQ[b][0] for b in other_backends)
         ),
         # Install `.whl` package
         f"pip install {whl_path}",

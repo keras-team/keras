@@ -2,6 +2,7 @@ import math
 import time
 
 import jax
+import mlx.core as mx
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -132,6 +133,10 @@ class PyDatasetAdapterTest(testing.TestCase):
                     "testcase_name": "single_torch",
                     "dataset_type": "torch",
                 },
+                {
+                    "testcase_name": "single_mlx",
+                    "dataset_type": "mlx",
+                },
             ],
             infinite=[True, False],
             shuffle=[True, False],
@@ -164,6 +169,8 @@ class PyDatasetAdapterTest(testing.TestCase):
                 x, y = jax.numpy.array(x), jax.numpy.array(y)
             elif dataset_type == "torch":
                 x, y = torch.as_tensor(x), torch.as_tensor(y)
+            elif dataset_type == "mlx":
+                x, y = mx.array(x), mx.array(y)
         py_dataset = ExamplePyDataset(
             x,
             y,
@@ -186,6 +193,9 @@ class PyDatasetAdapterTest(testing.TestCase):
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
+        elif backend.backend() == "mlx":
+            it = adapter.get_mlx_iterator()
+            expected_class = mx.array
         else:
             it = adapter.get_numpy_iterator()
             expected_class = np.ndarray
@@ -352,6 +362,8 @@ class PyDatasetAdapterTest(testing.TestCase):
             it = adapter.get_jax_iterator()
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
+        elif backend.backend() == "mlx":
+            it = adapter.get_mlx_iterator()
         else:
             it = adapter.get_numpy_iterator()
 
@@ -415,6 +427,8 @@ class PyDatasetAdapterTest(testing.TestCase):
             it = adapter.get_jax_iterator()
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
+        elif backend.backend() == "mlx":
+            it = adapter.get_mlx_iterator()
         else:
             it = adapter.get_numpy_iterator()
 

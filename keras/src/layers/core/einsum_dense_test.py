@@ -557,6 +557,9 @@ class EinsumDenseTest(testing.TestCase):
         ("int4", "int4", 3e-3),
     )
     def test_quantize_int(self, mode, error_threshold):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support quantization")
+
         layer = layers.EinsumDense(
             equation="ab,bcd->acd",
             output_shape=(8, 32),
@@ -678,6 +681,9 @@ class EinsumDenseTest(testing.TestCase):
         input_shape,
         error_threshold,
     ):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support quantization")
+
         set_random_seed(1337)
         layer = layers.EinsumDense(equation=equation, output_shape=output_shape)
         layer.build(input_shape)
@@ -695,6 +701,9 @@ class EinsumDenseTest(testing.TestCase):
         ("int4", "int4"),
     )
     def test_quantize_on_unbuilt_layer(self, mode):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support quantization")
+
         layer = layers.EinsumDense(
             equation="ab,bcd->acd",
             output_shape=(8, 32),
@@ -711,6 +720,9 @@ class EinsumDenseTest(testing.TestCase):
         ("int4", "int4"),
     )
     def test_quantize_on_subclass(self, mode):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support quantization")
+
         class MyEinsumDense(layers.EinsumDense):
             pass
 
@@ -731,6 +743,9 @@ class EinsumDenseTest(testing.TestCase):
         ("int4", "int4"),
     )
     def test_quantize_when_already_quantized(self, mode):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support quantization")
+
         layer = layers.EinsumDense(
             equation="ab,bcd->acd",
             output_shape=(8, 16),
@@ -765,6 +780,9 @@ class EinsumDenseTest(testing.TestCase):
     def test_quantize_by_setting_dtype_policy(
         self, policy, expected_num_variables
     ):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support quantization")
+
         layer = layers.EinsumDense(
             equation="ab,bcd->acd",
             output_shape=(8, 32),
@@ -780,6 +798,9 @@ class EinsumDenseTest(testing.TestCase):
         ("int3", "int3"),
     )
     def test_quantize_invalid_mode(self, mode):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support quantization")
+
         layer = layers.EinsumDense(
             equation="ab,bcd->acd",
             output_shape=(8, 32),
@@ -819,6 +840,9 @@ class EinsumDenseTest(testing.TestCase):
     def test_quantize_dtype_argument(
         self, dtype, num_trainable_weights, num_non_trainable_weights
     ):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support quantization")
+
         self.run_layer_test(
             layers.EinsumDense,
             init_kwargs={
@@ -869,6 +893,9 @@ class EinsumDenseTest(testing.TestCase):
         expected_non_trainable,
         expected_torch_params,
     ):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support quantization")
+
         config = dict(
             equation=equation, output_shape=output_shape[1:], bias_axes=None
         )
@@ -950,6 +977,9 @@ class EinsumDenseTest(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_quantize_float8(self):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support quantization")
+
         import ml_dtypes
 
         from keras.src import quantizers
@@ -1069,6 +1099,9 @@ class EinsumDenseTest(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_quantize_float8_fitting(self):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support quantization")
+
         config = dict(
             equation="ab,bcd->acd",
             output_shape=(8, 32),
@@ -1126,6 +1159,9 @@ class EinsumDenseTest(testing.TestCase):
             )
 
     def test_quantize_float8_inference(self):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support quantization")
+
         config = dict(
             equation="ab,bcd->acd",
             output_shape=(8, 32),

@@ -32,6 +32,10 @@ elif backend.backend() == "openvino":
     from keras.src.backend.openvino.export import (
         OpenvinoExportArchive as BackendSavedModelExportArchive,
     )
+elif backend.backend() == "mlx":
+    from keras.src.backend.mlx.export import (
+        MlxExportArchive as BackendSavedModelExportArchive,
+    )
 else:
     raise RuntimeError(
         f"Backend '{backend.backend()}' must implement ExportArchive."
@@ -97,6 +101,11 @@ def export_saved_model(
     use the lower-level `keras.export.ExportArchive` class. The
     `export()` method relies on `ExportArchive` internally.
     """
+    if backend.backend() not in ("tensorflow", "jax", "torch"):
+        raise NotImplementedError(
+            "`export_saved_model` only currently supports the tensorflow, "
+            "jax and torch backends."
+        )
     if verbose is None:
         verbose = True  # Defaults to `True` for all backends.
     export_archive = ExportArchive()
