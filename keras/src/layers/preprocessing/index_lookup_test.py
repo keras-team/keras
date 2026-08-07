@@ -874,3 +874,20 @@ class IndexLookupLayerTest(testing.TestCase):
                 np.array_equal(out_farmhash, out_siphash),
                 msg=f"Expected different outputs for dtype={dtype}",
             )
+
+    def test_adapt_pydataset_tuple_batches(self):
+        from keras.src.trainers.data_adapters.py_dataset_adapter import PyDataset
+
+        class CustomPyDataset(PyDataset):
+            def __len__(self):
+                return 2
+
+            def __getitem__(self, idx):
+                if idx == 0:
+                    return (["a", "b"], [0, 1])
+                return (["b", "c"], [1, 0])
+
+        layer = layers.StringLookup()
+        layer.adapt(CustomPyDataset())
+        vocab = layer.get_vocabulary()
+        self.assertIn("b", vocab)

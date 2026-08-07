@@ -12,6 +12,13 @@ from keras.src.utils.module_utils import tensorflow as tf
 from keras.src.utils.progbar import Progbar
 
 
+def _extract_batch(batch):
+    """Return input from batch; handle (x, y) or (x, y, sample_weight)."""
+    if isinstance(batch, (tuple, list)):
+        return batch[0]
+    return batch
+
+
 class IndexLookup(Layer):
     """Maps values from a vocabulary to integer indices.
 
@@ -670,7 +677,7 @@ class IndexLookup(Layer):
             for i, batch in enumerate(data):
                 if steps is not None and i >= steps:
                     break
-                self.update_state(batch)
+                self.update_state(_extract_batch(batch))
                 progbar.update(i + 1)
             progbar.update(steps if steps is not None else i + 1, finalize=True)
         else:
