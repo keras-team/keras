@@ -368,6 +368,104 @@ class VariablePropertiesTest(test_case.TestCase):
         x = torch.randn(4, 4)
         backend.standardize_dtype(x.dtype)
 
+    def test_standardize_dtype_contract_and_cache(self):
+        """Pins standardize_dtype's exact return values, cache hit included."""
+        if backend.backend() != "torch":
+            self.skipTest("contract table recorded against the torch backend")
+
+        import torch
+
+        from keras.src.backend.common.variables import standardize_dtype
+
+        cases = [
+            (None, "float32"),
+            ("float32", "float32"),
+            ("int64", "int64"),
+            ("torch.float32", "float32"),
+            ("jax.numpy.float32", "float32"),
+            (torch.float32, "float32"),
+            (torch.int64, "int64"),
+            (np.float32, "float32"),
+            (np.dtype("float32"), "float32"),
+            # uint32 must be preserved, not remapped to int64.
+            (np.dtype("uint32"), "uint32"),
+            (np.dtype("uint8"), "uint8"),
+            (int, "int32"),
+            (float, "float32"),
+            (bool, "bool"),
+            (complex, "complex64"),
+        ]
+
+        for dtype_in, expected in cases:
+            result = standardize_dtype(dtype_in)
+            self.assertEqual(
+                result,
+                expected,
+                msg=f"standardize_dtype({dtype_in!r}): "
+                f"got {result!r}, want {expected!r}",
+            )
+
+        # Cache hit path must return the same values as the cold call above.
+        for dtype_in, expected in cases:
+            result = standardize_dtype(dtype_in)
+            self.assertEqual(
+                result,
+                expected,
+                msg=f"cache hit: standardize_dtype({dtype_in!r}): "
+                f"got {result!r}, want {expected!r}",
+            )
+
+        with self.assertRaises(ValueError):
+            standardize_dtype("invalid_dtype_xyz")
+
+        # The error message reports only the tail segment, not the whole
+        # framework-prefixed string.
+        with self.assertRaisesRegex(ValueError, r"^Invalid dtype: extra$"):
+            standardize_dtype("torch.float32.extra")
+        with self.assertRaisesRegex(ValueError, r"^Invalid dtype: notadtype$"):
+            standardize_dtype("jax.numpy.notadtype")
+
+    def test_standardize_dtype_cache_path_all_backends(self):
+        """standardize_dtype's cache path is consistent on a cache hit."""
+        from keras.src.backend.common.variables import standardize_dtype
+
+        int_expected = "int64" if backend.backend() == "tensorflow" else "int32"
+        complex_expected = (
+            "complex128" if backend.backend() == "tensorflow" else "complex64"
+        )
+        cases = [
+            (bool, "bool"),
+            (int, int_expected),
+            (float, "float32"),
+            (complex, complex_expected),
+            (np.float32, "float32"),
+            (np.int64, "int64"),
+        ]
+        for dtype_in, expected in cases:
+            self.assertEqual(standardize_dtype(dtype_in), expected)
+            self.assertEqual(standardize_dtype(dtype_in), expected)
+
+    def test_standardize_dtype_cache_does_not_collide_with_tf_dtype(self):
+        """`tf.DType` hashes/compares equal to a plain int, so a cached tf
+        dtype must not make a later invalid int falsely resolve."""
+        import tensorflow as tf
+
+        from keras.src.backend.common.variables import standardize_dtype
+
+        self.assertEqual(hash(tf.float32), hash(1))
+        self.assertEqual(tf.float32, 1)
+
+        with self.assertRaises(ValueError):
+            standardize_dtype(1)
+
+        # tf.float32 and tf.int32 collide with 1 and 3 respectively.
+        self.assertEqual(standardize_dtype(tf.float32), "float32")
+        self.assertEqual(standardize_dtype(tf.int32), "int32")
+
+        for bad in (1, True, 3):
+            with self.assertRaises(ValueError):
+                standardize_dtype(bad)
+
     def test_name_validation(self):
         """Tests validation of variable names."""
         with self.assertRaisesRegex(
