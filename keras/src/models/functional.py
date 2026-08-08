@@ -55,7 +55,9 @@ def _match_expected_structure(expected, provided):
             )
         return mapped
 
-    if isinstance(expected, Sequence) and not isinstance(expected, (str, bytes)):
+    if isinstance(expected, Sequence) and not isinstance(
+        expected, (str, bytes)
+    ):
         if not (
             isinstance(provided, Sequence)
             and not isinstance(provided, (str, bytes))
@@ -64,8 +66,7 @@ def _match_expected_structure(expected, provided):
         if len(provided) != len(expected):
             raise ValueError(err_msg)
         mapped_elems = [
-            _match_expected_structure(e, p)
-            for e, p in zip(expected, provided)
+            _match_expected_structure(e, p) for e, p in zip(expected, provided)
         ]
         return type(expected)(mapped_elems)
 
