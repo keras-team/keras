@@ -125,6 +125,10 @@ class Tracker:
     def is_in_store(self, store_name, value):
         return id(value) in self.stored_ids[store_name]
 
+    def tracks(self, value):
+        """Whether `value` is currently held in any of the stores."""
+        return any(id(value) in ids for ids in self.stored_ids.values())
+
     def replace_tracked_value(self, store_name, old_value, new_value):
         if not self.is_in_store(store_name, old_value):
             raise ValueError(f"Unknown value: {old_value}")
@@ -180,37 +184,42 @@ class TrackedList(list):
                 self.tracker.untrack(value)
         super().clear()
 
-    def __delitem__(self, index):
-        value = self[index]  # Get value before removing
-        super().__delitem__(index)
+    def __setitem__(self, index, value):
         if self.tracker:
-            self.tracker.untrack(value)
+            if isinstance(index, slice):
+                for item in self[index]:
+                    self.tracker.untrack(item)
+                value = [self.tracker.track(v) for v in value]
+            else:
+                self.tracker.untrack(self[index])
+                value = self.tracker.track(value)
+        super().__setitem__(index, value)
+
+    def __delitem__(self, index):
+        if self.tracker:
+            if isinstance(index, slice):
+                for item in self[index]:
+                    self.tracker.untrack(item)
+            else:
+                self.tracker.untrack(self[index])
+        super().__delitem__(index)
 
     def tree_flatten(self):
-        # For optree / dmtree
         return (self, None)
 
     @classmethod
     def tree_unflatten(cls, metadata, children):
-        # For optree / dmtree
         return cls(children)
 
     def torchtree_flatten(self):
-        # For torchtree
-        # Returns (values, metadata)
         return (self, None)
 
     @classmethod
     def torchtree_unflatten(cls, children, metadata):
-        # For torchtree
-        # Requires (children, metadata)
         return cls(children)
 
     def torchtree_flatten_with_keys(self):
-        # For torchtree
-        # Returns (children, metadata)
         from torch.utils import _pytree as torch_tree
-
         values, context = self.torchtree_flatten()
         return [
             (torch_tree.SequenceKey(i), v) for i, v in enumerate(values)
@@ -222,9 +231,6 @@ class TrackedDict(dict):
     def __init__(self, values=None, tracker=None):
         self.tracker = tracker
         if tracker and values:
-            # Accept either a mapping (with .items()) or an iterable of
-            # (key, value) pairs (e.g. a zip object). Normalize to an
-            # items iterator before tracking elements.
             if hasattr(values, "items"):
                 items_iter = values.items()
             else:
@@ -247,10 +253,8 @@ class TrackedDict(dict):
             raise TypeError(
                 f"pop expected at most 2 arguments, got {1 + len(args)}"
             )
-
         if not self.tracker:
             return super().pop(key, *args)
-
         try:
             value = super().pop(key)
             self.tracker.untrack(value)
@@ -273,34 +277,25 @@ class TrackedDict(dict):
         super().clear()
 
     def tree_flatten(self):
-        # For optree / dmtree
         keys = sorted(list(self.keys()))
         values = [self[k] for k in keys]
         return values, keys, keys
 
     @classmethod
     def tree_unflatten(cls, keys, values):
-        # For optree / dmtree
         return cls(zip(keys, values))
 
     def torchtree_flatten(self):
-        # For torch_tree
-        # Returns (values, metadata)
         keys = sorted(list(self.keys()))
         values = [self[k] for k in keys]
         return values, keys
 
     @classmethod
     def torchtree_unflatten(cls, values, keys):
-        # For torch_tree
-        # Requires (children, metadata)
         return cls(zip(keys, values))
 
     def torchtree_flatten_with_keys(self):
-        # For torchtree
-        # Returns (children, metadata)
         from torch.utils import _pytree as torch_tree
-
         values, context = self.torchtree_flatten()
         return [
             (torch_tree.MappingKey(k), v) for k, v in zip(context, values)
@@ -379,7 +374,6 @@ class TrackedOrderedDict(OrderedDict):
 
     def torchtree_flatten_with_keys(self):
         from torch.utils import _pytree as torch_tree
-
         values, context = self.torchtree_flatten()
         return [
             (torch_tree.MappingKey(k), v) for k, v in zip(context, values)
@@ -422,30 +416,21 @@ class TrackedSet(set):
         super().clear()
 
     def tree_flatten(self):
-        # For optree / dmtree
         return (self, None)
 
     @classmethod
     def tree_unflatten(cls, metadata, children):
-        # For optree / dmtree
         return cls(children)
 
     def torchtree_flatten(self):
-        # For torchtree
-        # Returns (values, metadata)
         return (self, None)
 
     @classmethod
     def torchtree_unflatten(cls, children, metadata):
-        # For torchtree
-        # Requires (values, metadata)
         return cls(children)
 
     def torchtree_flatten_with_keys(self):
-        # For torchtree
-        # Returns (children, metadata)
         from torch.utils import _pytree as torch_tree
-
         values, context = self.torchtree_flatten()
         return [
             (torch_tree.SequenceKey(i), v) for i, v in enumerate(values)
