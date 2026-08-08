@@ -2,6 +2,8 @@ import copy
 import inspect
 import typing
 import warnings
+from collections.abc import Mapping
+from collections.abc import Sequence
 
 from keras.src import backend
 from keras.src import ops
@@ -22,6 +24,52 @@ from keras.src.ops.node import Node
 from keras.src.ops.operation import Operation
 from keras.src.saving import serialization_lib
 from keras.src.utils import tracking
+
+
+def _match_expected_structure(expected, provided):
+    """Recursively map provided inputs to the expected nested structure.
+
+    Requires provided structure to match expected (same keys, container types).
+    Emits warning if extra keys present but does not use them to fill slots.
+    Raises ValueError for mismatches (missing keys or wrong container types).
+    """
+    err_msg = "The structure of `inputs` doesn't match the expected structure"
+    if isinstance(expected, Mapping):
+        if not isinstance(provided, Mapping):
+            raise ValueError(err_msg)
+        mapped = {}
+        expected_keys = set(expected.keys())
+        provided_keys = set(provided.keys())
+        extra_keys = provided_keys - expected_keys
+        if extra_keys:
+            warnings.warn(
+                f"{err_msg}. Extra fields were ignored.",
+                UserWarning,
+                stacklevel=4,
+            )
+        for key in expected.keys():
+            if key not in provided:
+                raise ValueError(err_msg)
+            mapped[key] = _match_expected_structure(
+                expected[key], provided[key]
+            )
+        return mapped
+
+    if isinstance(expected, Sequence) and not isinstance(expected, (str, bytes)):
+        if not (
+            isinstance(provided, Sequence)
+            and not isinstance(provided, (str, bytes))
+        ):
+            raise ValueError(err_msg)
+        if len(provided) != len(expected):
+            raise ValueError(err_msg)
+        mapped_elems = [
+            _match_expected_structure(e, p)
+            for e, p in zip(expected, provided)
+        ]
+        return type(expected)(mapped_elems)
+
+    return provided
 
 
 class Functional(Function, Model):
@@ -335,6 +383,9 @@ class Functional(Function, Model):
             and ops.is_tensor(inputs)
         ):
             inputs = [inputs]
+        elif isinstance(inputs, dict) and isinstance(self._inputs_struct, dict):
+            # When both are dicts, filter extra keys at all nesting levels
+            inputs = _match_expected_structure(self._inputs_struct, inputs)
         elif isinstance(inputs, dict) and not isinstance(
             self._inputs_struct, dict
         ):
