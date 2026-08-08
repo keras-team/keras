@@ -1,0 +1,5 @@
+# PaddlePaddle
+paddlepaddle
+
+# All testing deps.
+-r requirements.txt

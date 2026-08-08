@@ -1,0 +1,431 @@
+# Tests that are known not to pass with the paddle backend.
+#
+# Each line is matched as a substring against the pytest node id, so a
+# class name or a test-name prefix skips every test it matches. Lines
+# starting with `#` are comments.
+
+########################################################################
+# Image ops that are not implemented by the paddle backend.
+########################################################################
+
+# `map_coordinates`
+image_test.py::ImageOpsBehaviorTests::test_map_coordinates_invalid_coordinates_rank
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_float32_0_constant
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_float32_0_mirror
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_float32_0_nearest
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_float32_0_reflect
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_float32_0_wrap
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_float32_1_constant
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_float32_1_mirror
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_float32_1_nearest
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_float32_1_reflect
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_float32_1_wrap
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_int32_0_constant
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_int32_0_mirror
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_int32_0_nearest
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_int32_0_reflect
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_int32_0_wrap
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_int32_1_constant
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_int32_1_mirror
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_int32_1_nearest
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_int32_1_reflect
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_int32_1_wrap
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_uint8_0_constant
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_uint8_0_mirror
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_uint8_0_nearest
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_uint8_0_reflect
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_uint8_0_wrap
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_uint8_1_constant
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_uint8_1_mirror
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_uint8_1_nearest
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_uint8_1_reflect
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((3, 4, 5), (2, 3, 4))_uint8_1_wrap
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_float32_0_constant
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_float32_0_mirror
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_float32_0_nearest
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_float32_0_reflect
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_float32_0_wrap
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_float32_1_constant
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_float32_1_mirror
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_float32_1_nearest
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_float32_1_reflect
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_float32_1_wrap
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_int32_0_constant
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_int32_0_mirror
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_int32_0_nearest
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_int32_0_reflect
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_int32_0_wrap
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_int32_1_constant
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_int32_1_mirror
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_int32_1_nearest
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_int32_1_reflect
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_int32_1_wrap
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_uint8_0_constant
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_uint8_0_mirror
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_uint8_0_nearest
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_uint8_0_reflect
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_uint8_0_wrap
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_uint8_1_constant
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_uint8_1_mirror
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_uint8_1_nearest
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_uint8_1_reflect
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_((5,), (7,))_uint8_1_wrap
+image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_constant_padding
+image_test.py::ImageOpsDtypeTest::test_map_coordinates_bfloat16
+image_test.py::ImageOpsDtypeTest::test_map_coordinates_float16
+image_test.py::ImageOpsDtypeTest::test_map_coordinates_float32
+
+# `affine_transform`
+aug_mix_test.py::AugMixTest::test_layer
+aug_mix_test.py::AugMixTest::test_random_augment_randomness
+image_test.py::ImageOpsBehaviorTests::test_affine_transform_invalid_images_rank
+image_test.py::ImageOpsBehaviorTests::test_affine_transform_invalid_transform_rank
+image_test.py::ImageOpsCorrectnessTest::test_affine_transform_bilinear_constant
+image_test.py::ImageOpsCorrectnessTest::test_affine_transform_bilinear_mirror
+image_test.py::ImageOpsCorrectnessTest::test_affine_transform_bilinear_nearest
+image_test.py::ImageOpsCorrectnessTest::test_affine_transform_bilinear_reflect
+image_test.py::ImageOpsCorrectnessTest::test_affine_transform_bilinear_wrap
+image_test.py::ImageOpsCorrectnessTest::test_affine_transform_nearest_constant
+image_test.py::ImageOpsCorrectnessTest::test_affine_transform_nearest_mirror
+image_test.py::ImageOpsCorrectnessTest::test_affine_transform_nearest_nearest
+image_test.py::ImageOpsCorrectnessTest::test_affine_transform_nearest_reflect
+image_test.py::ImageOpsCorrectnessTest::test_affine_transform_nearest_wrap
+image_test.py::ImageOpsDtypeTest::test_affine_transform_bfloat16
+image_test.py::ImageOpsDtypeTest::test_affine_transform_float16
+image_test.py::ImageOpsDtypeTest::test_affine_transform_float32
+rand_augment_test.py::RandAugmentTest::test_layer
+rand_augment_test.py::RandAugmentTest::test_rand_augment_basic
+rand_augment_test.py::RandAugmentTest::test_random_augment_randomness
+random_rotation_test.py::RandomRotationTest::test_random_rotation_correctness
+random_rotation_test.py::RandomRotationTest::test_random_rotation_shapes_random_rotate_2
+random_rotation_test.py::RandomRotationTest::test_random_rotation_shapes_random_rotate_4
+random_rotation_test.py::RandomRotationTest::test_random_rotation_shapes_random_rotate_neg2
+random_rotation_test.py::RandomRotationTest::test_random_rotation_shapes_random_rotate_neg4
+random_rotation_test.py::RandomRotationTest::test_random_rotation_shapes_random_rotate_tuple
+random_shear_test.py::RandomShearTest::test_layer
+random_shear_test.py::RandomShearTest::test_shear_pixel_level
+random_translation_test.py::RandomTranslationTest::test_random_translation_asymmetric_size_numeric_reflect0
+random_translation_test.py::RandomTranslationTest::test_random_translation_asymmetric_size_numeric_reflect1
+random_translation_test.py::RandomTranslationTest::test_random_translation_down_numeric_constant0
+random_translation_test.py::RandomTranslationTest::test_random_translation_down_numeric_constant1
+random_translation_test.py::RandomTranslationTest::test_random_translation_down_numeric_reflect0
+random_translation_test.py::RandomTranslationTest::test_random_translation_down_numeric_reflect1
+random_translation_test.py::RandomTranslationTest::test_random_translation_left_numeric_constant0
+random_translation_test.py::RandomTranslationTest::test_random_translation_left_numeric_constant1
+random_translation_test.py::RandomTranslationTest::test_random_translation_left_numeric_reflect0
+random_translation_test.py::RandomTranslationTest::test_random_translation_left_numeric_reflect1
+random_translation_test.py::RandomTranslationTest::test_random_translation_random_translate_3_by_2
+random_translation_test.py::RandomTranslationTest::test_random_translation_random_translate_4_by_6
+random_translation_test.py::RandomTranslationTest::test_random_translation_random_translate_tuple_factor
+random_translation_test.py::RandomTranslationTest::test_random_translation_up_numeric_constant0
+random_translation_test.py::RandomTranslationTest::test_random_translation_up_numeric_constant1
+random_translation_test.py::RandomTranslationTest::test_random_translation_up_numeric_reflect0
+random_translation_test.py::RandomTranslationTest::test_random_translation_up_numeric_reflect1
+random_zoom_test.py::RandomZoomTest::test_connect_with_flatten
+random_zoom_test.py::RandomZoomTest::test_random_zoom_in_correctness
+random_zoom_test.py::RandomZoomTest::test_random_zoom_out_correctness
+random_zoom_test.py::RandomZoomTest::test_random_zoom_random_zoom_in_2_by_3
+random_zoom_test.py::RandomZoomTest::test_random_zoom_random_zoom_in_4_by_6
+random_zoom_test.py::RandomZoomTest::test_random_zoom_random_zoom_in_tuple_factor
+random_zoom_test.py::RandomZoomTest::test_random_zoom_random_zoom_out_2_by_3
+random_zoom_test.py::RandomZoomTest::test_random_zoom_random_zoom_out_4_by_6
+random_zoom_test.py::RandomZoomTest::test_random_zoom_random_zoom_out_tuple_factor
+
+# `scale_and_translate`
+image_test.py::ImageOpsCorrectnessTest::test_scale_and_translate_cubic_false
+image_test.py::ImageOpsCorrectnessTest::test_scale_and_translate_cubic_true
+image_test.py::ImageOpsCorrectnessTest::test_scale_and_translate_lanczos3_false
+image_test.py::ImageOpsCorrectnessTest::test_scale_and_translate_lanczos3_true
+image_test.py::ImageOpsCorrectnessTest::test_scale_and_translate_lanczos5_false
+image_test.py::ImageOpsCorrectnessTest::test_scale_and_translate_lanczos5_true
+image_test.py::ImageOpsCorrectnessTest::test_scale_and_translate_linear_false
+image_test.py::ImageOpsCorrectnessTest::test_scale_and_translate_linear_true
+image_test.py::ImageOpsDtypeTest::test_scale_and_translate_bfloat16
+image_test.py::ImageOpsDtypeTest::test_scale_and_translate_float16
+image_test.py::ImageOpsDtypeTest::test_scale_and_translate_float32
+
+# `rgb_to_hsv`
+data_layer_test.py::DataLayerTest::test_grain_compatibility
+data_layer_test.py::DataLayerTest::test_layer
+image_test.py::ImageOpsBehaviorTests::test_rgb_to_hsv_invalid_dtype
+image_test.py::ImageOpsBehaviorTests::test_rgb_to_hsv_invalid_rank_2
+image_test.py::ImageOpsBehaviorTests::test_rgb_to_hsv_invalid_rank_5
+image_test.py::ImageOpsCorrectnessTest::test_rgb_to_hsv
+image_test.py::ImageOpsDtypeTest::test_rgb_to_hsv_bfloat16
+image_test.py::ImageOpsDtypeTest::test_rgb_to_hsv_float16
+image_test.py::ImageOpsDtypeTest::test_rgb_to_hsv_float32
+random_color_jitter_test.py::RandomColorJitterTest::test_hue_only
+random_color_jitter_test.py::RandomColorJitterTest::test_layer
+random_color_jitter_test.py::RandomColorJitterTest::test_saturation_only
+random_hue_test.py::RandomHueTest::test_layer
+random_hue_test.py::RandomHueTest::test_random_hue_randomness
+random_hue_test.py::RandomHueTest::test_random_hue_value_range_0_to_1
+random_hue_test.py::RandomHueTest::test_random_hue_value_range_0_to_255
+random_saturation_test.py::RandomSaturationTest::test_layer
+random_saturation_test.py::RandomSaturationTest::test_random_saturation_full_grayscale
+random_saturation_test.py::RandomSaturationTest::test_random_saturation_full_saturation
+random_saturation_test.py::RandomSaturationTest::test_random_saturation_randomness
+random_saturation_test.py::RandomSaturationTest::test_random_saturation_value_range
+
+# `hsv_to_rgb`
+image_test.py::ImageOpsBehaviorTests::test_hsv_to_rgb_invalid_dtype
+image_test.py::ImageOpsBehaviorTests::test_hsv_to_rgb_invalid_rank_2
+image_test.py::ImageOpsBehaviorTests::test_hsv_to_rgb_invalid_rank_5
+image_test.py::ImageOpsCorrectnessTest::test_hsv_to_rgb
+image_test.py::ImageOpsDtypeTest::test_hsv_to_rgb_bfloat16
+image_test.py::ImageOpsDtypeTest::test_hsv_to_rgb_float16
+image_test.py::ImageOpsDtypeTest::test_hsv_to_rgb_float32
+
+# `perspective_transform`
+image_test.py::ImageOpsBehaviorTests::test_perspective_transform_invalid_images_rank
+image_test.py::ImageOpsBehaviorTests::test_perspective_transform_invalid_points_rank
+image_test.py::ImageOpsCorrectnessTest::test_perspective_transform_bfloat16_no_crash
+image_test.py::ImageOpsCorrectnessTest::test_perspective_transform_bilinear
+image_test.py::ImageOpsCorrectnessTest::test_perspective_transform_nearest
+image_test.py::ImageOpsDtypeTest::test_perspective_transform_bfloat16
+image_test.py::ImageOpsDtypeTest::test_perspective_transform_float16
+image_test.py::ImageOpsDtypeTest::test_perspective_transform_float32
+random_perspective_test.py::RandomPerspectiveTest::test_layer
+random_perspective_test.py::RandomPerspectiveTest::test_random_perspective_basic
+random_perspective_test.py::RandomPerspectiveTest::test_random_perspective_no_op
+
+# `compute_homography_matrix`
+random_perspective_test.py::RandomPerspectiveTest::test_random_perspective_bounding_boxes_with_large_scale
+random_perspective_test.py::RandomPerspectiveTest::test_random_perspective_bounding_boxes_with_small_scale
+
+# `gaussian_blur`
+image_test.py::ImageOpsBehaviorTests::test_gaussian_blur_invalid_images_rank
+image_test.py::ImageOpsCorrectnessTest::test_gaussian_blur
+image_test.py::ImageOpsDtypeTest::test_gaussian_blur_bfloat16
+image_test.py::ImageOpsDtypeTest::test_gaussian_blur_float16
+image_test.py::ImageOpsDtypeTest::test_gaussian_blur_float32
+random_gaussian_blur_test.py::RandomGaussianBlurTest::test_layer
+random_gaussian_blur_test.py::RandomGaussianBlurTest::test_random_erasing_basic
+random_gaussian_blur_test.py::RandomGaussianBlurTest::test_random_erasing_no_op
+
+# `elastic_transform`
+image_test.py::ImageOpsBehaviorTests::test_elastic_transform_invalid_images_rank
+image_test.py::ImageOpsCorrectnessTest::test_elastic_transform
+image_test.py::ImageOpsDtypeTest::test_elastic_transform_bfloat16
+image_test.py::ImageOpsDtypeTest::test_elastic_transform_float16
+image_test.py::ImageOpsDtypeTest::test_elastic_transform_float32
+random_elastic_transform_test.py::RandomElasticTransformTest::test_layer
+random_elastic_transform_test.py::RandomElasticTransformTest::test_random_elastic_transform_basic
+
+# `sobel_edges`
+image_test.py::SobelEdgesTest::test_sobel_edges_detects_horizontal_edge
+image_test.py::SobelEdgesTest::test_sobel_edges_detects_vertical_edge
+image_test.py::SobelEdgesTest::test_sobel_edges_multi_channel
+image_test.py::SobelEdgesTest::test_sobel_edges_shape_channels_first
+image_test.py::SobelEdgesTest::test_sobel_edges_shape_channels_last
+image_test.py::SobelEdgesTest::test_sobel_edges_single_channel
+image_test.py::SobelEdgesTest::test_sobel_edges_uniform_image
+
+########################################################################
+# `resize` limitations.
+# Paddle has no Lanczos interpolation kernel, its CPU build does not
+# register the `interp_antialias` kernel used by `antialias=True`, and
+# its bicubic kernel uses different coefficients than the reference
+# implementations.
+########################################################################
+image_test.py::ImageOpsCorrectnessTest::test_resize_bicubic_false
+image_test.py::ImageOpsCorrectnessTest::test_resize_bicubic_true
+image_test.py::ImageOpsCorrectnessTest::test_resize_bilinear_true
+image_test.py::ImageOpsCorrectnessTest::test_resize_lanczos3_false
+image_test.py::ImageOpsCorrectnessTest::test_resize_lanczos3_true
+image_test.py::ImageOpsCorrectnessTest::test_resize_lanczos5_false
+image_test.py::ImageOpsCorrectnessTest::test_resize_lanczos5_true
+image_test.py::ImageOpsCorrectnessTest::test_resize_uint8_round_saturate
+resizing_test.py::ResizingTest::test_resizing_basics_bicubic_(false, false)_true_channels_first
+resizing_test.py::ResizingTest::test_resizing_basics_bicubic_(false, false)_true_channels_last
+resizing_test.py::ResizingTest::test_resizing_basics_bicubic_(false, true)_true_channels_first
+resizing_test.py::ResizingTest::test_resizing_basics_bicubic_(false, true)_true_channels_last
+resizing_test.py::ResizingTest::test_resizing_basics_bicubic_(true, false)_true_channels_first
+resizing_test.py::ResizingTest::test_resizing_basics_bicubic_(true, false)_true_channels_last
+resizing_test.py::ResizingTest::test_resizing_basics_bilinear_(false, false)_true_channels_first
+resizing_test.py::ResizingTest::test_resizing_basics_bilinear_(false, false)_true_channels_last
+resizing_test.py::ResizingTest::test_resizing_basics_bilinear_(false, true)_true_channels_first
+resizing_test.py::ResizingTest::test_resizing_basics_bilinear_(false, true)_true_channels_last
+resizing_test.py::ResizingTest::test_resizing_basics_bilinear_(true, false)_true_channels_first
+resizing_test.py::ResizingTest::test_resizing_basics_bilinear_(true, false)_true_channels_last
+resizing_test.py::ResizingTest::test_resizing_basics_lanczos5_(false, false)_false_channels_first
+resizing_test.py::ResizingTest::test_resizing_basics_lanczos5_(false, false)_false_channels_last
+resizing_test.py::ResizingTest::test_resizing_basics_lanczos5_(false, false)_true_channels_first
+resizing_test.py::ResizingTest::test_resizing_basics_lanczos5_(false, false)_true_channels_last
+resizing_test.py::ResizingTest::test_resizing_basics_lanczos5_(false, true)_false_channels_first
+resizing_test.py::ResizingTest::test_resizing_basics_lanczos5_(false, true)_false_channels_last
+resizing_test.py::ResizingTest::test_resizing_basics_lanczos5_(false, true)_true_channels_first
+resizing_test.py::ResizingTest::test_resizing_basics_lanczos5_(false, true)_true_channels_last
+resizing_test.py::ResizingTest::test_resizing_basics_lanczos5_(true, false)_false_channels_first
+resizing_test.py::ResizingTest::test_resizing_basics_lanczos5_(true, false)_false_channels_last
+resizing_test.py::ResizingTest::test_resizing_basics_lanczos5_(true, false)_true_channels_first
+resizing_test.py::ResizingTest::test_resizing_basics_lanczos5_(true, false)_true_channels_last
+up_sampling2d_test.py::UpSampling2dTest::test_upsampling_2d_lanczos_interpolation_methods
+
+########################################################################
+# Other ops that are not implemented by the paddle backend.
+# `associative_scan`, and the `beam_search` strategy of `ctc_decode`.
+########################################################################
+core_test.py::CoreOpsBehaviorTests::test_associative_scan_invalid_arguments
+core_test.py::CoreOpsCorrectnessTest::test_associative_scan
+nn_test.py::NNOpsCorrectnessTest::test_ctc_decode
+nn_test.py::NNOpsDtypeTest::test_ctc_decode_bfloat16
+nn_test.py::NNOpsDtypeTest::test_ctc_decode_float16
+nn_test.py::NNOpsDtypeTest::test_ctc_decode_float32
+
+########################################################################
+# Missing float16 CPU kernels.
+# Paddle's CPU build does not register a float16 kernel for `add`,
+# `subtract` and `multiply`, which Keras applies directly to the
+# backend tensors through the Python operators.
+########################################################################
+activity_regularization_test.py::ActivityRegularizationTest::test_activity_regularization_basics
+additive_attention_test.py::AdditiveAttentionTest::test_attention_basics
+alpha_dropout_test.py::AlphaDropoutTest::test_alpha_dropout_basics
+attention_test.py::AttentionTest::test_attention_basics
+auto_contrast_test.py::AutoContrastTest::test_layer
+bidirectional_test.py::SimpleRNNTest::test_basics
+conv_lstm1d_test.py::ConvLSTM1DTest::test_basics
+conv_lstm2d_test.py::ConvLSTM2DTest::test_basics
+conv_lstm3d_test.py::ConvLSTM3DTest::test_basics
+cut_mix_test.py::CutMixTest::test_layer
+dropout_rnn_cell_test.py::DropoutRNNCellTest::test_basics
+gaussian_dropout_test.py::GaussianDropoutTest::test_gaussian_dropout_basics
+gaussian_noise_test.py::GaussianNoiseTest::test_gaussian_noise_basics
+gru_test.py::GRUTest::test_basics
+loss_test.py::LossTest::test_default_dtype
+loss_test.py::LossTest::test_dtype_arg
+lstm_test.py::LSTMTest::test_basics
+metric_test.py::MetricTest::test_default_dtype
+metric_test.py::MetricTest::test_dtype_arg
+mix_up_test.py::MixUpTest::test_layer
+multi_head_attention_test.py::MultiHeadAttentionTest::test_high_dim_attention_4d_inputs_2d_attention
+multi_head_attention_test.py::MultiHeadAttentionTest::test_high_dim_attention_5d_inputs_2d_attention
+multi_head_attention_test.py::MultiHeadAttentionTest::test_high_dim_attention_5d_inputs_2d_attention_fullmask
+prelu_test.py::PReLUTest::test_prelu
+random_brightness_test.py::RandomBrightnessTest::test_layer
+random_color_degeneration_test.py::RandomColorDegenerationTest::test_layer
+random_contrast_test.py::RandomContrastTest::test_layer
+random_erasing_test.py::RandomErasingTest::test_layer
+random_posterization_test.py::RandomPosterizationTest::test_layer
+random_sharpness_test.py::RandomSharpnessTest::test_layer
+relu_test.py::ReLUTest::test_relu
+rescaling_test.py::RescalingTest::test_numpy_args
+rescaling_test.py::RescalingTest::test_rescaling_basics
+rescaling_test.py::RescalingTest::test_rescaling_dtypes
+simple_rnn_test.py::SimpleRNNTest::test_basics
+solarization_test.py::SolarizationTest::test_layer
+stft_spectrogram_test.py::TestSpectrogram::test_spectrogram_basics
+stft_spectrogram_test.py::TestSpectrogram::test_spectrogram_channels_first
+unit_normalization_test.py::UnitNormalizationTest::test_un_basics
+wrapper_test.py::WrapperTest::test_wrapper_basics
+
+########################################################################
+# Missing bfloat16 CPU kernels.
+# Paddle's CPU build does not register a bfloat16 kernel for `add`,
+# `divide` and `clip`.
+########################################################################
+losses_test.py::BinaryCrossentropyTest::test_dtype_arg
+losses_test.py::BinaryFocalCrossentropyTest::test_dtype_arg
+losses_test.py::CategoricalCrossentropyTest::test_dtype_arg
+losses_test.py::CategoricalFocalCrossentropyTest::test_dtype_arg
+losses_test.py::CircleTest::test_dtype_arg
+losses_test.py::CosineSimilarityTest::test_dtype_arg
+losses_test.py::DiceTest::test_dtype_arg
+losses_test.py::KLDivergenceTest::test_dtype_arg
+losses_test.py::LogCoshTest::test_dtype_arg
+losses_test.py::MeanAbsolutePercentageErrorTest::test_dtype_arg
+losses_test.py::PoissonTest::test_dtype_arg
+losses_test.py::SparseCategoricalCrossentropyTest::test_dtype_arg
+losses_test.py::TverskyTest::test_dtype_arg
+
+########################################################################
+# Missing `uint16`, `uint32`, `uint64` and `float8` dtypes.
+# `paddle.uint16` is an alias of bfloat16, and paddle has no `uint32`,
+# `uint64` or `float8_*` dtype, so these are mapped to the closest
+# signed integer dtype.
+########################################################################
+core_test.py::CoreOpsDtypeTest::test_cast_uint16
+core_test.py::CoreOpsDtypeTest::test_cast_uint32
+core_test.py::CoreOpsDtypeTest::test_convert_to_tensor18
+core_test.py::CoreOpsDtypeTest::test_convert_to_tensor19
+core_test.py::CoreOpsDtypeTest::test_convert_to_tensor28
+core_test.py::CoreOpsDtypeTest::test_convert_to_tensor29
+core_test.py::CoreOpsDtypeTest::test_convert_to_tensor_with_tensor_uint16
+core_test.py::CoreOpsDtypeTest::test_convert_to_tensor_with_tensor_uint32
+core_test.py::CoreOpsDtypeTest::test_convert_to_tensor_with_variable_uint16
+core_test.py::CoreOpsDtypeTest::test_convert_to_tensor_with_variable_uint32
+core_test.py::CoreOpsDtypeTest::test_saturate_cast_uint16
+core_test.py::CoreOpsDtypeTest::test_saturate_cast_uint32
+dtypes_test.py::DtypesTest::test_result_type_with_tensor_bool_uint16
+dtypes_test.py::DtypesTest::test_result_type_with_tensor_bool_uint32
+dtypes_test.py::DtypesTest::test_result_type_with_tensor_uint16_bool
+dtypes_test.py::DtypesTest::test_result_type_with_tensor_uint16_uint16
+dtypes_test.py::DtypesTest::test_result_type_with_tensor_uint16_uint32
+dtypes_test.py::DtypesTest::test_result_type_with_tensor_uint16_uint8
+dtypes_test.py::DtypesTest::test_result_type_with_tensor_uint32_bool
+dtypes_test.py::DtypesTest::test_result_type_with_tensor_uint32_uint16
+dtypes_test.py::DtypesTest::test_result_type_with_tensor_uint32_uint32
+dtypes_test.py::DtypesTest::test_result_type_with_tensor_uint32_uint8
+dtypes_test.py::DtypesTest::test_result_type_with_tensor_uint8_uint16
+dtypes_test.py::DtypesTest::test_result_type_with_tensor_uint8_uint32
+numpy_test.py::NumpyDtypeTest::test_nanprod_uint8
+numpy_test.py::NumpyDtypeTest::test_nansum_uint8
+numpy_test.py::NumpyDtypeTest::test_prod_uint8
+numpy_test.py::NumpyDtypeTest::test_sum_uint8
+numpy_test.py::NumpyDtypeTest::test_trace_uint8
+random_test.py::RandomCorrectnessTest::test_randint0
+random_test.py::RandomCorrectnessTest::test_randint1
+random_test.py::RandomDTypeTest::test_categorical_uint16
+random_test.py::RandomDTypeTest::test_categorical_uint32
+random_test.py::RandomDTypeTest::test_randint_uint16
+random_test.py::RandomDTypeTest::test_randint_uint32
+variables_test.py::VariablePropertiesTest::test_standardize_dtype_float8_e4m3fn
+variables_test.py::VariablePropertiesTest::test_standardize_dtype_float8_e5m2
+variables_test.py::VariablePropertiesTest::test_standardize_dtype_uint16
+variables_test.py::VariablePropertiesTest::test_standardize_dtype_uint32
+variables_test.py::VariablePropertiesTest::test_standardize_dtype_uint64
+
+########################################################################
+# Missing complex dtype promotion.
+# Paddle does not promote real dtypes to a complex dtype.
+########################################################################
+variables_test.py::VariableOpsDTypeTest::test_add_('complex64', none)
+variables_test.py::VariableOpsDTypeTest::test_add_('float32', 'complex64')
+variables_test.py::VariableOpsDTypeTest::test_matmul_('complex64', none)
+variables_test.py::VariableOpsDTypeTest::test_matmul_('float32', 'complex64')
+variables_test.py::VariableOpsDTypeTest::test_matmul_('int32', 'complex64')
+variables_test.py::VariableOpsDTypeTest::test_mul_('complex64', none)
+variables_test.py::VariableOpsDTypeTest::test_mul_('float32', 'complex64')
+variables_test.py::VariableOpsDTypeTest::test_mul_('int32', 'complex64')
+variables_test.py::VariableOpsDTypeTest::test_pow_('complex64', none)
+variables_test.py::VariableOpsDTypeTest::test_pow_('float32', 'complex64')
+variables_test.py::VariableOpsDTypeTest::test_pow_('int32', 'complex64')
+variables_test.py::VariableOpsDTypeTest::test_sub_('complex64', none)
+variables_test.py::VariableOpsDTypeTest::test_sub_('float32', 'complex64')
+variables_test.py::VariableOpsDTypeTest::test_sub_('int32', 'complex64')
+
+########################################################################
+# `ctc_loss` with a blank symbol inside the label sequence.
+# Paddle forbids the `s -> s + 2` transition of the CTC forward pass
+# when the label is the blank symbol, while TensorFlow and PyTorch
+# allow it. The two only disagree for label sequences that contain the
+# blank index, which is not a valid CTC input to begin with.
+########################################################################
+losses_test.py::CTCTest::test_correctness
+
+########################################################################
+# Numerical divergences.
+# These tests are sensitive to how out-of-range values are cast to
+# `uint8`: paddle wraps around where TensorFlow happens to saturate.
+########################################################################
+gptq_test.py::TestModelQuantization::test_quantize_gptq_combinations_string_dataset_group_wise
+gptq_test.py::TestModelQuantization::test_quantize_gptq_combinations_string_dataset_group_wise_act_order
+gptq_test.py::TestModelQuantization::test_quantize_gptq_combinations_token_dataset_group_wise
+gptq_test.py::TestModelQuantization::test_quantize_gptq_combinations_token_dataset_group_wise_act_order
+
+########################################################################
+# `steps_per_execution` is not supported by the paddle trainer, which
+# runs a plain Python loop over the batches.
+########################################################################
+orbax_checkpoint_test.py::OrbaxCheckpointTest::test_training_resumption_2

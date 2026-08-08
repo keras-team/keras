@@ -768,6 +768,16 @@ class DenseTest(testing.TestCase):
                 grads = [v.value.grad for v in layer.trainable_variables]
                 optimizer.apply(grads, layer.trainable_variables)
 
+        elif backend.backend() == "paddle":
+
+            def train_one_step(x, dy):
+                for v in layer.trainable_variables:
+                    v.value.clear_gradient()
+                loss = loss_fn(x, dy)
+                loss.backward()
+                grads = [v.value.grad for v in layer.trainable_variables]
+                optimizer.apply(grads, layer.trainable_variables)
+
         scale_x, amax_history_x = ops.ones(()), ops.zeros((1024,))
         scale_k, amax_history_k = ops.ones(()), ops.zeros((1024,))
         scale_g, amax_history_g = ops.ones(()), ops.zeros((1024,))

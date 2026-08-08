@@ -39,6 +39,8 @@ elif backend.backend() == "numpy":
     from keras.src.backend.numpy.trainer import NumpyTrainer as Trainer
 elif backend.backend() == "openvino":
     from keras.src.backend.openvino.trainer import OpenVINOTrainer as Trainer
+elif backend.backend() == "paddle":
+    from keras.src.backend.paddle.trainer import PaddleTrainer as Trainer
 else:
     raise ImportError(f"Invalid backend: {backend.backend()}")
 
@@ -166,6 +168,7 @@ class TestPyDataset(py_dataset_adapter.PyDataset):
             "tensorflow": "CPU:0",
             "jax": "cpu:0",
             "torch": "cpu",
+            "paddle": "cpu",
         }
         with backend.device(CPU_DEVICES[backend.backend()]):
             return ops.ones((5, 4)), ops.zeros((5, 3))
@@ -1005,6 +1008,10 @@ class TestTrainer(testing.TestCase):
         )
     )
     @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(
+        backend.backend() == "paddle",
+        reason="`steps_per_execution` not implemented for paddle yet",
+    )
     def test_steps_per_execution_steps_count(self, steps_per_execution, mode):
         data_size = 100
         batch_size = 16
@@ -1136,6 +1143,11 @@ class TestTrainer(testing.TestCase):
         )
     )
     def test_predict_preserve_order(self, steps_per_execution, mode):
+        if steps_per_execution > 1 and backend.backend() == "paddle":
+            self.skipTest(
+                "`steps_per_execution` not implemented for paddle yet"
+            )
+
         def generate_uneven_batches():
             batch_sizes = [2, 3, 4]
 
@@ -1183,6 +1195,11 @@ class TestTrainer(testing.TestCase):
         )
     )
     def test_predict_generator(self, steps_per_execution, mode):
+        if steps_per_execution > 1 and backend.backend() == "paddle":
+            self.skipTest(
+                "`steps_per_execution` not implemented for paddle yet"
+            )
+
         batch_size = 2
 
         def generate_batches():
@@ -1224,6 +1241,10 @@ class TestTrainer(testing.TestCase):
         )
     )
     @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(
+        backend.backend() == "paddle",
+        reason="`steps_per_execution` not implemented for paddle yet",
+    )
     def test_steps_per_execution_steps_count_unknown_dataset_size(
         self, steps_per_execution, mode
     ):
@@ -1303,6 +1324,10 @@ class TestTrainer(testing.TestCase):
         )
     )
     @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(
+        backend.backend() == "paddle",
+        reason="`steps_per_execution` not implemented for paddle yet",
+    )
     def test_steps_per_execution_steps_per_epoch(
         self, steps_per_epoch_test, mode
     ):
@@ -1575,6 +1600,10 @@ class TestTrainer(testing.TestCase):
         )
     )
     @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(
+        backend.backend() == "paddle",
+        reason="`steps_per_execution` not implemented for paddle yet",
+    )
     def test_steps_per_execution_steps_per_epoch_unknown_data_size(
         self, steps_per_epoch_test, mode
     ):
@@ -1690,6 +1719,10 @@ class TestTrainer(testing.TestCase):
                 model.evaluate(dataset), model_2.evaluate(dataset)
             )
 
+    @pytest.mark.skipif(
+        backend.backend() == "paddle",
+        reason="`steps_per_execution` not implemented for paddle yet",
+    )
     def test_steps_per_execution_steps_count_without_training(self):
         test_obj = self
 
@@ -2834,9 +2867,9 @@ class TestTrainer(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="Torch uses a Python bundling loop; side-effect counters "
-        "will increment for every batch even after compilation.",
+        backend.backend() in ("torch", "paddle"),
+        reason="Torch and paddle use a Python bundling loop; side-effect "
+        "counters will increment for every batch even after compilation.",
     )
     def test_retracing(self):
         x = np.ones((100, 4))
@@ -2871,9 +2904,9 @@ class TestTrainer(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="Torch uses a Python bundling loop; side-effect counters "
-        "will increment for every batch even after compilation.",
+        backend.backend() in ("torch", "paddle"),
+        reason="Torch and paddle use a Python bundling loop; side-effect "
+        "counters will increment for every batch even after compilation.",
     )
     @pytest.mark.skipif(
         backend.backend() == "tensorflow",

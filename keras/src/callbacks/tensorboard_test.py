@@ -608,8 +608,8 @@ class TestTensorBoardV2(testing.TestCase):
         return result
 
     @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="Torch backend requires blocking numpy conversion.",
+        backend.backend() in ("torch", "paddle"),
+        reason="Torch and paddle backends require blocking numpy conversion.",
     )
     @pytest.mark.requires_trainable_backend
     def test_TensorBoard_non_blocking(self):

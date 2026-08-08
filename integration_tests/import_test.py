@@ -14,6 +14,8 @@ BACKEND_REQ = {
     ),
     "jax": ("jax[cpu]", ""),
     "openvino": ("openvino", ""),
+    # `paddlepaddle` on PyPI is the CPU build, so no extra index is needed.
+    "paddle": ("paddlepaddle==3.3.0", ""),
 }
 
 
@@ -67,10 +69,8 @@ def manage_venv_installs(whl_path):
         "pip install -r requirements-common.txt",
         "pip install pytest",
         # Ensure other backends are uninstalled
-        "pip uninstall -y {0} {1} {2}".format(
-            BACKEND_REQ[other_backends[0]][0],
-            BACKEND_REQ[other_backends[1]][0],
-            BACKEND_REQ[other_backends[2]][0],
+        "pip uninstall -y {}".format(
+            " ".join(BACKEND_REQ[b][0] for b in other_backends)
         ),
         # Install `.whl` package
         f"pip install {whl_path}",

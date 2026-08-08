@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backend: [tensorflow, jax, torch, numpy, openvino]
+        backend: [tensorflow, jax, torch, numpy, openvino, paddle]
         nnx_enabled: [false]
         include:
           - backend: jax
@@ -68,6 +68,9 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install -r requirements.txt
+          if [ "${{ matrix.backend }}" = "paddle" ]; then
+            pip install paddlepaddle==3.3.0
+          fi
           pip install --no-deps tf_keras
 
       - name: Run Tests for applications
@@ -104,9 +107,13 @@ jobs:
 
       - name: Test integrations
         if: ${{ matrix.backend != 'numpy' && matrix.nnx_enabled == false }}
+        # `python -m` keeps the checkout at the head of `sys.path`. Running
+        # the scripts by path puts `integration_tests/` there instead, so
+        # `import keras` resolves to the released package that `tensorflow`
+        # depends on, which does not know about every backend.
         run: |
-          python integration_tests/import_test.py
-          python integration_tests/numerical_test.py
+          python -m integration_tests.import_test
+          python -m integration_tests.numerical_test
 
       - name: Test JAX-specific integrations
         if: ${{ matrix.backend == 'jax' && matrix.nnx_enabled == false }}

@@ -82,10 +82,18 @@ class DynamicBackend:
         self._backend = backend or backend_module.backend()
 
     def set_backend(self, backend):
-        if backend not in ("tensorflow", "jax", "torch", "numpy", "openvino"):
+        if backend not in (
+            "tensorflow",
+            "jax",
+            "torch",
+            "numpy",
+            "openvino",
+            "paddle",
+        ):
             raise ValueError(
                 "Available backends are ('tensorflow', 'jax', 'torch', "
-                f"'numpy' and 'openvino'). Received: backend={backend}"
+                f"'numpy', 'openvino' and 'paddle'). Received: "
+                f"backend={backend}"
             )
         self._backend = backend
 
@@ -116,6 +124,9 @@ class DynamicBackend:
                 )
         if self._backend == "openvino":
             module = importlib.import_module("keras.src.backend.openvino")
+            return getattr(module, name)
+        if self._backend == "paddle":
+            module = importlib.import_module("keras.src.backend.paddle")
             return getattr(module, name)
 
 
