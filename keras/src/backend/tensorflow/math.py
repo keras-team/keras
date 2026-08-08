@@ -301,7 +301,7 @@ def istft(
 
 def rsqrt(x):
     x = convert_to_tensor(x)
-    return tf.math.rsqrt(x)
+    return tf.math.pow(x, -0.5)
 
 
 def erf(x):

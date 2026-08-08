@@ -923,9 +923,7 @@ def istft(
 
 def rsqrt(x):
     x = get_ov_output(x)
-    const_one = ov_opset.constant(1, x.get_element_type()).output(0)
-    sqrt = ov_opset.sqrt(x).output(0)
-    return OpenVINOKerasTensor(ov_opset.divide(const_one, sqrt).output(0))
+    return OpenVINOKerasTensor(ov_opset.power(x, ov_opset.constant(-0.5, x.get_element_type())).output(0))
 
 
 def erf(x):
