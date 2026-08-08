@@ -4,6 +4,42 @@ from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.optimizers import optimizer
 
+# `exclude_layers` entries are matched against variable paths with `re.search`,
+# and the list is a constructor argument serialized into a model's config, so a
+# crafted entry can cause catastrophic regex backtracking (ReDoS, CWE-1333) that
+# hangs the first training step after an untrusted model is loaded. The entries
+# are documented as plain layer-name keywords (e.g. `["output_dense"]`), so we
+# restrict each one to a run of path characters, optionally ending in `.*` (or
+# `.*` itself). This admits every legitimate keyword while making any
+# backtracking-prone construct impossible; the validation regex is itself linear
+# (one quantifier over a character class), so it cannot be turned into a ReDoS.
+_MAX_EXCLUDE_LAYER_LENGTH = 256
+_SAFE_EXCLUDE_LAYER_RE = re.compile(r"^(?:[a-zA-Z0-9_./-]+(?:\.\*)?|\.\*)$")
+
+
+def _validate_exclude_layer(keyword):
+    if not isinstance(keyword, str):
+        raise ValueError(
+            "Each `exclude_layers` entry must be a string; received "
+            f"'{keyword}' of type {type(keyword)}."
+        )
+    if len(keyword) > _MAX_EXCLUDE_LAYER_LENGTH:
+        raise ValueError(
+            "An `exclude_layers` entry must be at most "
+            f"{_MAX_EXCLUDE_LAYER_LENGTH} characters; received an entry of "
+            f"length {len(keyword)}. Entries are matched as regular "
+            "expressions against variable paths, so an overly long entry can "
+            "cause catastrophic backtracking (ReDoS) during training."
+        )
+    if not _SAFE_EXCLUDE_LAYER_RE.match(keyword):
+        raise ValueError(
+            f"Unsafe or invalid `exclude_layers` entry '{keyword}'. Entries "
+            "must be layer-name keywords (alphanumeric characters, "
+            "underscores, slashes, hyphens, or dots), optionally ending in "
+            "`.*`, so that matching them cannot cause regular-expression "
+            "backtracking (ReDoS)."
+        )
+
 
 @keras_export(["keras.optimizers.Muon"])
 class Muon(optimizer.Optimizer):
@@ -134,7 +170,17 @@ class Muon(optimizer.Optimizer):
         self.ns_steps = ns_steps
         self.nesterov = nesterov
         self.exclude_embeddings = exclude_embeddings
-        self.exclude_layers = exclude_layers or []
+        # A bare string would iterate per-character (each a 1-char regex that
+        # matches almost any path); require a list and normalize to one so the
+        # config round-trips cleanly.
+        if isinstance(exclude_layers, str):
+            raise ValueError(
+                "Argument `exclude_layers` must be a list of strings. "
+                f"Received: exclude_layers='{exclude_layers}'"
+            )
+        self.exclude_layers = list(exclude_layers or [])
+        for keyword in self.exclude_layers:
+            _validate_exclude_layer(keyword)
         self.adam_weight_decay = adam_weight_decay
         self.rms_rate = rms_rate
 
