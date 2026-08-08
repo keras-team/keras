@@ -1171,7 +1171,7 @@ def rsqrt(x):
     """
     if any_symbolic_tensors((x,)):
         return Rsqrt().symbolic_call(x)
-    return backend.math.pow(x, -0.5)
+    return backend.math.rsqrt(x)
 
 
 class Erf(Operation):

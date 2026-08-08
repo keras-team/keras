@@ -410,7 +410,7 @@ def istft(
 
 def rsqrt(x):
     x = convert_to_tensor(x)
-    return torch.rsqrt(x)
+    return torch.pow(x, -0.5)
 
 
 def erf(x):
