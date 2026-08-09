@@ -69,7 +69,7 @@ class CustomTrainTestStepModel(ExampleModel):
         return logs
 
 
-class JaxCustomTrainTestStepModel(ExampleModel):
+class StatelessCustomTrainTestStepModel(ExampleModel):
     def train_step(self, state, data):
         logs, state = super().train_step(state, data)
         logs["my_custom_metric"] = 10.0
@@ -744,7 +744,7 @@ class TestTrainer(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_fit_with_custom_train_step(self):
         if backend.backend() == "jax":
-            model = JaxCustomTrainTestStepModel(units=3)
+            model = StatelessCustomTrainTestStepModel(units=3)
         else:
             model = CustomTrainTestStepModel(units=3)
         x = np.ones((100, 4))
@@ -833,7 +833,7 @@ class TestTrainer(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_evaluate_with_custom_test_step(self, return_dict):
         if backend.backend() == "jax":
-            model = JaxCustomTrainTestStepModel(units=3)
+            model = StatelessCustomTrainTestStepModel(units=3)
         else:
             model = CustomTrainTestStepModel(units=3)
         x = np.ones((100, 4))
