@@ -487,7 +487,7 @@ class JAXTrainer(base_trainer.Trainer):
                 # (if not already done by a callback).
                 # NOTE: doing this after each step would be a big performance
                 # bottleneck.
-                self.jax_state_sync()
+                self.state_sync()
 
                 # Override with model metrics instead of last step logs if
                 # needed.
@@ -530,7 +530,7 @@ class JAXTrainer(base_trainer.Trainer):
             training_finished = True
 
         finally:
-            self.jax_state_sync()
+            self.state_sync()
             if (
                 isinstance(self.optimizer, optimizers_module.Optimizer)
                 and epochs > 0
@@ -639,7 +639,7 @@ class JAXTrainer(base_trainer.Trainer):
                     break
 
         # Reattach state back to model (if not already done by a callback).
-        self.jax_state_sync()
+        self.state_sync()
 
         logs = pythonify_logs(self._get_metrics_result_or_logs(logs))
         callbacks.on_test_end(logs)
@@ -741,7 +741,7 @@ class JAXTrainer(base_trainer.Trainer):
                 if self.stop_predicting:
                     break
 
-        self.jax_state_sync()
+        self.state_sync()
         callbacks.on_predict_end()
         self._jax_state = None
         return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
@@ -799,7 +799,7 @@ class JAXTrainer(base_trainer.Trainer):
             "optimizer_variables": optimizer_variables,
             "metrics_variables": metrics_variables,
         }
-        self.jax_state_sync()
+        self.state_sync()
 
         # Format return values
         logs = pythonify_logs(logs)
@@ -841,7 +841,7 @@ class JAXTrainer(base_trainer.Trainer):
             "non_trainable_variables": non_trainable_variables,
             "metrics_variables": metrics_variables,
         }
-        self.jax_state_sync()
+        self.state_sync()
 
         # Format return values.
         logs = pythonify_logs(logs)
@@ -873,11 +873,11 @@ class JAXTrainer(base_trainer.Trainer):
             "trainable_variables": trainable_variables,
             "non_trainable_variables": non_trainable_variables,
         }
-        self.jax_state_sync()
+        self.state_sync()
         batch_outputs = tree.map_structure(lambda x: np.array(x), batch_outputs)
         return batch_outputs
 
-    def jax_state_sync(self):
+    def state_sync(self):
         if not getattr(self, "_jax_state", None) or self._jax_state_synced:
             return
 
@@ -902,6 +902,10 @@ class JAXTrainer(base_trainer.Trainer):
             for ref_v, v in zip(self.metrics_variables, metrics_variables):
                 ref_v.assign(v)
         self._jax_state_synced = True
+
+    def jax_state_sync(self):
+        # Backwards compatibility alias for `state_sync`.
+        self.state_sync()
 
     def _get_state_sharding_spec(self):
         trainable_shardings = [
@@ -1021,7 +1025,7 @@ class JAXTrainer(base_trainer.Trainer):
         occupying extra memory. We remove those variable to save memory (for
         better memory utilization) at the beginning of the epoch, and reattach
         the value back to variables at the end of the epoch, via
-        `jax_state_sync()`.
+        `state_sync()`.
         """
         if trainable_variables:
             for v in self.trainable_variables:

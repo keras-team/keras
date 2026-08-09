@@ -312,6 +312,17 @@ class Trainer:
         for m in self.metrics:
             m.reset_state()
 
+    def state_sync(self):
+        """Syncs the backend training state back to the model variables.
+
+        Backends that run training steps statelessly (such as JAX) detach
+        the model state from the model variables in the middle of an epoch.
+        They override this method to write the current state back to the
+        variables so that it can be read, for example for checkpointing.
+
+        On backends that update variables in place, this is a no-op.
+        """
+
     def _get_own_metrics(self):
         metrics = []
         if self._loss_tracker is not None:

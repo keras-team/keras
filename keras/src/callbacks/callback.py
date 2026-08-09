@@ -89,14 +89,13 @@ class Callback:
                 # instances instead.
                 return self._model.module
 
-        if backend.backend() == "jax" and hasattr(
-            self._model, "jax_state_sync"
-        ):
-            # With JAX, by default the model state is not
-            # attached to the model in the middle of an
-            # epoch. We have to force a sync before
-            # accessing model state for e.g. checkpointing.
-            self._model.jax_state_sync()
+        if hasattr(self._model, "state_sync"):
+            # On backends that run training steps statelessly (such as
+            # JAX), the model state is not attached to the model in the
+            # middle of an epoch. Force a sync before accessing model
+            # state for e.g. checkpointing. This is a no-op on the other
+            # backends.
+            self._model.state_sync()
         return self._model
 
     @utils.default
