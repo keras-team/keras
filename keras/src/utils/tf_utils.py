@@ -31,8 +31,10 @@ def get_tensor_spec(t, dynamic_batch=False, name=None):
 def ensure_tensor(inputs, dtype=None):
     """Ensures the input is a Tensor, SparseTensor or RaggedTensor."""
     if not isinstance(inputs, (tf.Tensor, tf.SparseTensor, tf.RaggedTensor)):
-        if backend.backend() == "torch" and backend.ops.is_tensor(inputs):
-            # Plain `np.asarray()` conversion fails with PyTorch.
+        if backend.backend() != "jax" and backend.ops.is_tensor(inputs):
+            # Plain `np.asarray()` conversion fails with PyTorch, and
+            # `tf.convert_to_tensor` does not accept tensors from other
+            # backends. Convert to numpy explicitly first.
             inputs = backend.ops.convert_to_numpy(inputs)
         inputs = tf.convert_to_tensor(inputs, dtype)
     if dtype is not None and inputs.dtype != dtype:
