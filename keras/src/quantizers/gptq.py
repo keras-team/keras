@@ -189,10 +189,15 @@ def gptq_quantize_matrix(
             # block_inv_hessian_diag: scalar
             current_block_influence = block_inv_hessian[block_idx, block_idx]
             # We divide by current_block_influence to get the
-            # correct scaling of the error term.
+            # correct scaling of the error term. Prevent division by zero.
+            safe_influence = ops.where(
+                ops.equal(current_block_influence, 0.0),
+                ops.cast(1e-9, current_block_influence.dtype),
+                current_block_influence,
+            )
             err = ops.divide(
                 ops.subtract(weight_column, dequantized_col),
-                current_block_influence,
+                safe_influence,
             )
             # Record error for propagation to future blocks
             block_error = ops.slice_update(

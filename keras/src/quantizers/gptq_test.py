@@ -19,6 +19,7 @@ from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
+from keras.src.quantizers.quantizers import GPTQQuantizer
 from keras.src.quantizers.quantizers import quantize_with_zero_point
 from keras.src.testing.test_utils import named_product
 
@@ -383,6 +384,31 @@ class GPTQTest(testing.TestCase):
             unordered_layer.get_weights()[0],
             msg="Weights should be identical as the permutation is undone.",
         )
+
+    def test_inv_hessian_zero_diagonal_stability(self):
+        """Tests that a zero diagonal element in the inverse Hessian does not crash."""
+        out_features, in_features = 4, 4
+        weights = ops.ones((out_features, in_features), dtype="float32")
+
+        inv_hessian = np.eye(in_features, dtype=np.float32)
+        inv_hessian[2, 2] = 0.0  # Zero-diagonal underflow trigger
+        inv_hessian = ops.convert_to_tensor(inv_hessian)
+
+        config = GPTQConfig(
+            dataset=None, tokenizer=None, weight_bits=4, group_size=-1
+        )
+        quantizer = GPTQQuantizer(config)
+
+        quantized, scale, zero, g_idx = gptq_quantize_matrix(
+            weights,
+            inv_hessian,
+            blocksize=2,
+            group_size=-1,
+            compute_scale_zero=quantizer.find_params,
+        )
+
+        # All values should be finite and successfully quantized (not NaN/corrupted)
+        self.assertFalse(np.isnan(ops.convert_to_numpy(quantized)).any())
 
 
 def _compute_scale_zero(x, **_):
