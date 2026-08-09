@@ -288,7 +288,7 @@ def istft(
 
 def rsqrt(x):
     x = convert_to_tensor(x)
-    return jax.lax.pow(x, -0.5)
+    return jax.lax.pow(x, jax.lax.full(x.shape, -0.5, dtype=x.dtype))
 
 
 def erf(x):
