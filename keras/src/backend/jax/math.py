@@ -52,10 +52,14 @@ def segment_prod(data, segment_ids, num_segments=None, sorted=False):
     )
 
 
-def top_k(x, k, sorted=True):
-    # Jax does not supported `sorted`, but in the case where `sorted=False`,
+def top_k(x, k, sorted=True, is_stable=True):
+    # Jax does not support `sorted`, but in the case where `sorted=False`,
     # order is not guaranteed, so OK to return sorted output.
-    return jax.lax.top_k(x, k)
+    try:
+        # is_stable was added in JAX version 0.11.0
+        return jax.lax.top_k(x, k, is_stable=is_stable)
+    except TypeError:
+        return jax.lax.top_k(x, k)
 
 
 def in_top_k(targets, predictions, k):
@@ -308,3 +312,9 @@ def logdet(x):
     # `np.log(np.linalg.det(x))`. See
     # https://numpy.org/doc/stable/reference/generated/numpy.linalg.slogdet.html
     return slogdet(x)[1]
+
+
+def gammainc(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jax.scipy.special.gammainc(x1, x2)
