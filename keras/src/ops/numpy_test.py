@@ -4619,6 +4619,18 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.nextafter(x, y), np.nextafter(x, y))
         self.assertAllClose(knp.Nextafter()(x, y), np.nextafter(x, y))
 
+        # Stepping away from an infinity must land on the largest finite value
+        # of the result dtype rather than staying at infinity.
+        x = np.array([np.inf, -np.inf], dtype="float32")
+        y = np.array([-np.inf, np.inf], dtype="float32")
+        self.assertAllClose(knp.nextafter(x, y), np.nextafter(x, y))
+
+        # Steps near zero are smaller than one float32 ulp of 1.0, so they are
+        # lost if the computation happens in a wider dtype and is cast back.
+        x = np.array([0.0, np.finfo("float32").tiny], dtype="float32")
+        y = np.array([1.0, 0.0], dtype="float32")
+        self.assertAllClose(knp.nextafter(x, y), np.nextafter(x, y))
+
     def test_not_equal(self):
         x = np.array([[1, 2], [3, 4]])
         y = np.array([[5, 6], [7, 8]])

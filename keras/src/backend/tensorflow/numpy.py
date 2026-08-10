@@ -3552,8 +3552,10 @@ def nextafter(x1, x2):
     x2 = convert_to_tensor(x2)
 
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
-    x1 = tf.cast(x1, tf.float64)
-    x2 = tf.cast(x2, tf.float64)
+    # tf.math.nextafter only supports float32 and float64.
+    compute_dtype = dtype if dtype in ("float32", "float64") else "float32"
+    x1 = tf.cast(x1, compute_dtype)
+    x2 = tf.cast(x2, compute_dtype)
     return tf.cast(tf.math.nextafter(x1, x2), dtype)
 
 
