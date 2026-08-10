@@ -4631,6 +4631,12 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         y = np.array([1.0, 0.0], dtype="float32")
         self.assertAllClose(knp.nextafter(x, y), np.nextafter(x, y))
 
+        # A float16 step is much larger than a float32 one, so computing in a
+        # wider dtype and casting back returns x1 unchanged.
+        x = np.array([1.0, np.inf, 0.0], dtype="float16")
+        y = np.array([2.0, -np.inf, 1.0], dtype="float16")
+        self.assertAllClose(knp.nextafter(x, y), np.nextafter(x, y))
+
     def test_not_equal(self):
         x = np.array([[1, 2], [3, 4]])
         y = np.array([[5, 6], [7, 8]])
