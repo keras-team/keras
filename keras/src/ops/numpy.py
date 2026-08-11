@@ -1983,7 +1983,7 @@ def broadcast_to(x, shape):
 
 class Cbrt(Operation):
     def call(self, x):
-        return backend.numpy.cbrt(x)
+        return _cbrt(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(x.dtype)
@@ -2018,7 +2018,23 @@ def cbrt(x):
     """
     if any_symbolic_tensors((x,)):
         return Cbrt().symbolic_call(x)
-    return backend.numpy.cbrt(x)
+    return _cbrt(x)
+
+
+def _cbrt(x):
+    if hasattr(backend.numpy, "cbrt"):
+        return backend.numpy.cbrt(x)
+    x = backend.convert_to_tensor(x)
+    dtype = backend.standardize_dtype(x.dtype)
+    if dtype in ["bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+        dtype = backend.floatx()
+    elif dtype in ["int64", "uint64"]:
+        dtype = "float64"
+    x = backend.cast(x, dtype)
+    y = backend.numpy.sign(x) * backend.numpy.power(
+        backend.numpy.abs(x), 1.0 / 3.0
+    )
+    return backend.cast(y, dtype)
 
 
 class Ceil(Operation):
