@@ -144,11 +144,10 @@ class LossScaleOptimizer(optimizer.Optimizer):
     def _unscale_grads(self, grads, variables):
         # Divide gradients by the loss scale, keeping any gradient that
         # overwrites its variable untouched.
-        scale = self.dynamic_scale
         return [
             g
             if g is None or self._overwrite_variable_with_gradient(v)
-            else ops.divide(g, scale)
+            else ops.divide(g, self.dynamic_scale)
             for g, v in zip(grads, variables)
         ]
 
