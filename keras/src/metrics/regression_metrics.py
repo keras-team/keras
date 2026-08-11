@@ -534,6 +534,11 @@ class R2Score(reduction_metrics.Metric):
         mean = self.sum / self.count
         total = self.squared_sum - self.sum * mean
         raw_scores = 1 - (self.total_mse / total)
+        # total == 0 (zero-variance y_true) and total_mse == 0 (perfect
+        # prediction) is 0/0 == NaN; sklearn treats a zero numerator as a
+        # perfect prediction and scores it 1.0 regardless of the
+        # denominator (sklearn.metrics._regression, `force_finite=True`).
+        raw_scores = ops.where(ops.isnan(raw_scores), 1.0, raw_scores)
         raw_scores = ops.where(ops.isinf(raw_scores), 0.0, raw_scores)
 
         if self.class_aggregation == "uniform_average":
