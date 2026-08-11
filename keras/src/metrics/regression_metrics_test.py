@@ -427,3 +427,19 @@ class R2ScoreTest(testing.TestCase):
             num_regressors=0,
             reference_result=0.0,
         )
+
+    def test_r2_nan_total_mse_propagates(self):
+        # y_true has normal (nonzero) variance, but one prediction is NaN
+        # (e.g. from a diverged model). This must surface as NaN, not be
+        # mistaken for the zero-variance perfect-prediction case and
+        # reported as a spurious 1.0.
+        y_true = [[1.0], [2.0], [3.0]]
+        y_pred = [[1.0], [2.0], [float("nan")]]
+        self._run_test(
+            y_true,
+            y_pred,
+            None,
+            class_aggregation="uniform_average",
+            num_regressors=0,
+            reference_result=float("nan"),
+        )
