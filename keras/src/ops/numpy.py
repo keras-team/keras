@@ -2028,11 +2028,11 @@ def _cbrt(x):
     dtype = backend.standardize_dtype(x.dtype)
     if dtype in ["bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"]:
         dtype = backend.floatx()
-    elif dtype in ["int64", "uint64"]:
+    elif dtype == "int64":
         dtype = "float64"
     x = backend.cast(x, dtype)
     y = backend.numpy.sign(x) * backend.numpy.power(
-        backend.numpy.abs(x), 1.0 / 3.0
+        backend.numpy.absolute(x), 1.0 / 3.0
     )
     return backend.cast(y, dtype)
 
