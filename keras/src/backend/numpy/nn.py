@@ -220,21 +220,25 @@ def log_softmax(x, axis=-1):
 def sparsemax(x, axis=-1):
     # Sort logits along the specified axis in descending order
     logits = convert_to_tensor(x)
-    logits_sorted = -1.0 * np.sort(-1.0 * logits, axis=axis)
+    # Python floats promote `bfloat16` and NumPy promotes `float32 / int64` to
+    # `float64`, so the constants and the integer counts are materialized in
+    # the dtype of `logits` to keep the computation in the input dtype.
+    zero = np.array(0.0, logits.dtype)
+    logits_sorted = -np.sort(-logits, axis=axis)
     logits_cumsum = np.cumsum(logits_sorted, axis=axis)
     r = np.arange(1, logits.shape[axis] + 1)
     r_shape = [1] * logits.ndim
     r_shape[axis] = -1  # Broadcast to match the target axis
-    r = r.reshape(r_shape)
-    support = logits_sorted - (logits_cumsum - 1) / r > 0
+    r = r.reshape(r_shape).astype(logits.dtype)
+    support = logits_sorted - (logits_cumsum - 1) / r > zero
     # Find the threshold
-    k = np.sum(support, axis=axis, keepdims=True)
+    k = np.sum(support, axis=axis, keepdims=True).astype(logits.dtype)
     # `tau` is derived from the k-th cumulative sum, which is the sum of the
     # `k` largest logits. `support` is a prefix mask, so masking the sorted
     # logits gives that sum directly.
-    logits_masked = np.where(support, logits_sorted, 0.0)
+    logits_masked = np.where(support, logits_sorted, zero)
     tau = (np.sum(logits_masked, axis=axis, keepdims=True) - 1) / k
-    output = np.maximum(logits - tau, 0.0)
+    output = np.maximum(logits - tau, zero)
     return output
 
 
