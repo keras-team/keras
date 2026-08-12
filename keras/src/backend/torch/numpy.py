@@ -421,8 +421,10 @@ def array(x, dtype=None):
 
 
 def view(x, dtype=None):
-    dtype = to_torch_dtype(dtype)
     x = convert_to_tensor(x)
+    # `to_torch_dtype(None)` resolves to `floatx()`, so the default has to be
+    # resolved to the dtype of `x` to keep it a no-op.
+    dtype = x.dtype if dtype is None else to_torch_dtype(dtype)
     return x.view(dtype=dtype)
 
 
