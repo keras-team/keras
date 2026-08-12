@@ -1404,10 +1404,15 @@ class NNOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knn.layer_normalization(x, gamma, beta).shape, x.shape)
 
     def test_polar(self):
-        abs_ = KerasTensor([1, 2])
+        abs_ = KerasTensor([3, 4])
         angle = KerasTensor([3, 4])
         out = knn.polar(abs_, angle)
         self.assertEqual(out.shape, abs_.shape)
+        self.assertEqual(out.dtype, "complex64")
+
+        # `polar` broadcasts its two inputs against each other.
+        out = knn.polar(KerasTensor([2, 1]), KerasTensor([1, 3]))
+        self.assertEqual(out.shape, (2, 3))
 
 
 class NNOpsCorrectnessTest(testing.TestCase):
@@ -1676,6 +1681,14 @@ class NNOpsCorrectnessTest(testing.TestCase):
         out = knn.polar(abs_, angle)
         self.assertAllClose(
             out, [-0.41614684 + 0.9092974j, -1.979985 + 0.28224j], atol=1e-3
+        )
+        # The symbolic dtype must match the eager one, which is complex.
+        symbolic_out = knn.Polar().symbolic_call(
+            KerasTensor((2,), dtype="float32"),
+            KerasTensor((2,), dtype="float32"),
+        )
+        self.assertEqual(
+            backend.standardize_dtype(out.dtype), symbolic_out.dtype
         )
 
     def test_sparsemax(self):
