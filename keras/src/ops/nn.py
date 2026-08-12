@@ -381,7 +381,9 @@ def squareplus(x, b=4):
 
 
 def _squareplus(x, b):
-    if hasattr(backend.nn, "squareplus"):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.nn, "squareplus"
+    ):
         return backend.nn.squareplus(x, b)
     x = backend.convert_to_tensor(x)
     b = backend.convert_to_tensor(b, dtype=x.dtype)
