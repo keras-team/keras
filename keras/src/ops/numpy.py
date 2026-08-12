@@ -1646,7 +1646,13 @@ class BitwiseAnd(Operation):
         return backend.numpy.bitwise_and(x, y)
 
     def compute_output_spec(self, x, y):
-        dtype = dtypes.result_type(x.dtype, y.dtype)
+        if isinstance(x, int):
+            dtype = y.dtype
+            return KerasTensor(y.shape, dtype=dtype)
+        elif isinstance(y, int):
+            dtype = x.dtype
+        else:
+            dtype = dtypes.result_type(x.dtype, y.dtype)
         return KerasTensor(x.shape, dtype=dtype)
 
 
