@@ -999,6 +999,15 @@ class ActivationsTest(testing.TestCase):
             activations.sparsemax(x_4d, axis=-3), expected_result
         )
 
+        # The checks above all use widely spaced logits, for which the support
+        # holds a single element and the output is one-hot. With closely
+        # spaced logits several elements are in the support: the sorted logits
+        # `[1, 0.5, 0]` have cumulative sums `[1, 1.5, 1.5]` and a support of
+        # the first two entries, so `tau = (1.5 - 1) / 2 = 0.25`.
+        x = np.array([[0.0, 0.5, 1.0]], dtype="float32")
+        expected_result = np.array([[0.0, 0.25, 0.75]], dtype="float32")
+        self.assertAllClose(activations.sparsemax(x), expected_result)
+
     def test_get_method(self):
         obj = activations.get("relu")
         self.assertEqual(obj, activations.relu)

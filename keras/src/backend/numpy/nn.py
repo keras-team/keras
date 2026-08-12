@@ -229,8 +229,11 @@ def sparsemax(x, axis=-1):
     support = logits_sorted - (logits_cumsum - 1) / r > 0
     # Find the threshold
     k = np.sum(support, axis=axis, keepdims=True)
-    logits_cumsum_safe = np.where(support, logits_cumsum, 0.0)
-    tau = (np.sum(logits_cumsum_safe, axis=axis, keepdims=True) - 1) / k
+    # `tau` is derived from the k-th cumulative sum, which is the sum of the
+    # `k` largest logits. `support` is a prefix mask, so masking the sorted
+    # logits gives that sum directly.
+    logits_masked = np.where(support, logits_sorted, 0.0)
+    tau = (np.sum(logits_masked, axis=axis, keepdims=True) - 1) / k
     output = np.maximum(logits - tau, 0.0)
     return output
 
