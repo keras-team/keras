@@ -318,3 +318,9 @@ def gammainc(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     return jax.scipy.special.gammainc(x1, x2)
+
+
+def gammaincc(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jax.scipy.special.gammaincc(x1, x2)
