@@ -174,7 +174,7 @@ jobs:
             cat answer.md
             echo ""
             echo "---"
-            echo "*Asked by @${COMMENT_AUTHOR} · session \`${SESSION_NAME}\` · analysis only, no PR created.*"
+            echo "*Asked by @${COMMENT_AUTHOR} · session \`${SESSION_NAME}\`*"
           } > comment.md
 
           # Inline questions get a threaded reply on the same line; the
