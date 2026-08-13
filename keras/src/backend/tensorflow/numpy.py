@@ -58,32 +58,30 @@ def rot90(array, k=1, axes=(0, 1)):
         axis if axis >= 0 else array.shape.rank + axis for axis in axes
     )
 
-    perm = [i for i in range(array.shape.rank) if i not in axes]
-    perm.extend(axes)
+    other_axes = [i for i in range(array.shape.rank) if i not in axes]
+    perm = other_axes + list(axes)
     array = tf.transpose(array, perm)
 
-    shape = tf.shape(array)
-    non_rot_shape = shape[:-2]
-    h, w = shape[-2], shape[-1]
-
-    array = tf.reshape(array, tf.concat([[-1], [h, w]], axis=0))
-
-    array = tf.reverse(array, axis=[2])
-    array = tf.transpose(array, [0, 2, 1])
-
-    if k % 2 == 1:
-        final_h, final_w = w, h
-    else:
-        final_h, final_w = h, w
-
-    if k > 1:
-        array = tf.reshape(array, tf.concat([[-1], [final_h, final_w]], axis=0))
-        for _ in range(k - 1):
-            array = tf.reverse(array, axis=[2])
-            array = tf.transpose(array, [0, 2, 1])
-
-    final_shape = tf.concat([non_rot_shape, [final_h, final_w]], axis=0)
-    array = tf.reshape(array, final_shape)
+    if k == 1:
+        array = tf.reverse(array, axis=[array.shape.rank - 1])
+        last_two_swapped = list(range(array.shape.rank))
+        last_two_swapped[-2], last_two_swapped[-1] = (
+            last_two_swapped[-1],
+            last_two_swapped[-2],
+        )
+        array = tf.transpose(array, last_two_swapped)
+    elif k == 2:
+        array = tf.reverse(
+            array, axis=[array.shape.rank - 2, array.shape.rank - 1]
+        )
+    elif k == 3:
+        array = tf.reverse(array, axis=[array.shape.rank - 2])
+        last_two_swapped = list(range(array.shape.rank))
+        last_two_swapped[-2], last_two_swapped[-1] = (
+            last_two_swapped[-1],
+            last_two_swapped[-2],
+        )
+        array = tf.transpose(array, last_two_swapped)
 
     inv_perm = [0] * len(perm)
     for i, p in enumerate(perm):
