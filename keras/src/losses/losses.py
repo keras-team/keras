@@ -2184,7 +2184,10 @@ def categorical_crossentropy(
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
 
-    if y_pred.shape[axis] == 1:
+    if y_pred.shape is not None:
+        axis = canonicalize_axis(axis, len(y_pred.shape))
+
+    if y_pred.shape is not None and y_pred.shape[axis] == 1:
         warnings.warn(
             "In loss categorical_crossentropy, expected "
             "y_pred.shape to be (batch_size, num_classes) "
@@ -2262,7 +2265,10 @@ def categorical_focal_crossentropy(
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
 
-    if y_pred.shape[axis] == 1:
+    if y_pred.shape is not None:
+        axis = canonicalize_axis(axis, len(y_pred.shape))
+
+    if y_pred.shape is not None and y_pred.shape[axis] == 1:
         warnings.warn(
             "In loss categorical_focal_crossentropy, expected "
             "y_pred.shape to be (batch_size, num_classes) "
