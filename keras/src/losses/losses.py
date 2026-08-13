@@ -2184,7 +2184,7 @@ def categorical_crossentropy(
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
 
-    if y_pred.shape[-1] == 1:
+    if y_pred.shape[axis] == 1:
         warnings.warn(
             "In loss categorical_crossentropy, expected "
             "y_pred.shape to be (batch_size, num_classes) "
@@ -2195,7 +2195,7 @@ def categorical_crossentropy(
         )
 
     if label_smoothing:
-        num_classes = ops.cast(ops.shape(y_true)[-1], y_pred.dtype)
+        num_classes = ops.cast(ops.shape(y_true)[axis], y_pred.dtype)
         y_true = y_true * (1.0 - label_smoothing) + (
             label_smoothing / num_classes
         )
@@ -2262,7 +2262,7 @@ def categorical_focal_crossentropy(
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
 
-    if y_pred.shape[-1] == 1:
+    if y_pred.shape[axis] == 1:
         warnings.warn(
             "In loss categorical_focal_crossentropy, expected "
             "y_pred.shape to be (batch_size, num_classes) "
@@ -2273,7 +2273,7 @@ def categorical_focal_crossentropy(
         )
 
     if label_smoothing:
-        num_classes = ops.cast(ops.shape(y_true)[-1], y_pred.dtype)
+        num_classes = ops.cast(ops.shape(y_true)[axis], y_pred.dtype)
         y_true = y_true * (1.0 - label_smoothing) + (
             label_smoothing / num_classes
         )

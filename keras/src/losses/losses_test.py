@@ -1213,6 +1213,35 @@ class CategoricalCrossentropyTest(testing.TestCase):
         expected_value = 400.0 * label_smoothing / 3.0
         self.assertAlmostEqual(loss, expected_value)
 
+    def test_label_smoothing_with_axis(self):
+        # (batch, classes, spatial)
+        num_classes = 3
+        y_true = np.array(
+            [[[1, 0], [0, 1], [0, 0]], [[0, 1], [1, 0], [0, 0]]],
+            dtype="float32",
+        )
+        y_pred = np.array(
+            [
+                [[0.8, 0.1], [0.1, 0.8], [0.1, 0.1]],
+                [[0.1, 0.8], [0.8, 0.1], [0.1, 0.1]],
+            ],
+            dtype="float32",
+        )
+        label_smoothing = 0.1
+        axis = 1
+        cce_obj = losses.CategoricalCrossentropy(
+            label_smoothing=label_smoothing, axis=axis
+        )
+        loss = cce_obj(y_true, y_pred)
+
+        y_true_smoothed = y_true * (1.0 - label_smoothing) + (
+            label_smoothing / num_classes
+        )
+        expected_loss = -np.sum(y_true_smoothed * np.log(y_pred), axis=axis)
+        expected_loss = np.mean(expected_loss)
+
+        self.assertAlmostEqual(loss, expected_loss, decimal=5)
+
     def test_shape_mismatch(self):
         y_true = np.array([[0], [1], [2]])
         y_pred = np.array(
@@ -1853,6 +1882,43 @@ class CategoricalFocalCrossentropyTest(testing.TestCase):
 
         expected_value = 0.06685
         self.assertAlmostEqual(loss, expected_value, 3)
+
+    def test_label_smoothing_with_axis(self):
+        # (batch, classes, spatial)
+        num_classes = 3
+        y_true = np.array(
+            [[[1, 0], [0, 1], [0, 0]], [[0, 1], [1, 0], [0, 0]]],
+            dtype="float32",
+        )
+        y_pred = np.array(
+            [
+                [[0.8, 0.1], [0.1, 0.8], [0.1, 0.1]],
+                [[0.1, 0.8], [0.8, 0.1], [0.1, 0.1]],
+            ],
+            dtype="float32",
+        )
+        label_smoothing = 0.1
+        axis = 1
+        focal_obj = losses.CategoricalFocalCrossentropy(
+            label_smoothing=label_smoothing, axis=axis
+        )
+        loss = focal_obj(y_true, y_pred)
+
+        # Manually compute smoothed focal loss for verification
+        y_true_smoothed = y_true * (1.0 - label_smoothing) + (
+            label_smoothing / num_classes
+        )
+        # alpha=0.25, gamma=2.0 (defaults)
+        alpha = 0.25
+        gamma = 2.0
+
+        cross_entropy = -y_true_smoothed * np.log(y_pred)
+        p_t = y_pred
+        focal_loss = alpha * np.power(1 - p_t, gamma) * cross_entropy
+        expected_loss = np.sum(focal_loss, axis=axis)
+        expected_loss = np.mean(expected_loss)
+
+        self.assertAlmostEqual(loss, expected_loss, decimal=5)
 
     def test_dtype_arg(self):
         logits = np.array([[4.9, -0.5, 2.05]])
