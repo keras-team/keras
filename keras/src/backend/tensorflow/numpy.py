@@ -63,25 +63,13 @@ def rot90(array, k=1, axes=(0, 1)):
     array = tf.transpose(array, perm)
 
     if k == 1:
-        array = tf.reverse(array, axis=[array.shape.rank - 1])
-        last_two_swapped = list(range(array.shape.rank))
-        last_two_swapped[-2], last_two_swapped[-1] = (
-            last_two_swapped[-1],
-            last_two_swapped[-2],
-        )
-        array = tf.transpose(array, last_two_swapped)
+        array = tf.reverse(array, axis=[-1])
+        array = swapaxes(array, -1, -2)
     elif k == 2:
-        array = tf.reverse(
-            array, axis=[array.shape.rank - 2, array.shape.rank - 1]
-        )
+        array = tf.reverse(array, axis=[-2, -1])
     elif k == 3:
-        array = tf.reverse(array, axis=[array.shape.rank - 2])
-        last_two_swapped = list(range(array.shape.rank))
-        last_two_swapped[-2], last_two_swapped[-1] = (
-            last_two_swapped[-1],
-            last_two_swapped[-2],
-        )
-        array = tf.transpose(array, last_two_swapped)
+        array = tf.reverse(array, axis=[-2])
+        array = swapaxes(array, -1, -2)
 
     inv_perm = [0] * len(perm)
     for i, p in enumerate(perm):
