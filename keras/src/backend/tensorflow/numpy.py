@@ -2841,6 +2841,7 @@ def unravel_index(indices, shape):
     for dim in reversed(shape):
         coords.append(tf.cast(indices % dim, input_dtype))
         indices = indices // dim
+
     return tuple(reversed(coords))
 
 
