@@ -8,6 +8,7 @@ from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
+from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
@@ -1983,7 +1984,7 @@ def broadcast_to(x, shape):
 
 class Cbrt(Operation):
     def call(self, x):
-        return backend.numpy.cbrt(x)
+        return _cbrt(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(x.dtype)
@@ -2018,7 +2019,25 @@ def cbrt(x):
     """
     if any_symbolic_tensors((x,)):
         return Cbrt().symbolic_call(x)
-    return backend.numpy.cbrt(x)
+    return _cbrt(x)
+
+
+def _cbrt(x):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.numpy, "cbrt"
+    ):
+        return backend.numpy.cbrt(x)
+    x = backend.convert_to_tensor(x)
+    dtype = backend.standardize_dtype(x.dtype)
+    if dtype in ("bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"):
+        dtype = backend.floatx()
+    elif dtype == "int64":
+        dtype = "float64"
+    x = backend.cast(x, dtype)
+    y = backend.numpy.sign(x) * backend.numpy.power(
+        backend.numpy.absolute(x), 1.0 / 3.0
+    )
+    return backend.cast(y, dtype)
 
 
 class Ceil(Operation):
