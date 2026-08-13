@@ -6674,6 +6674,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllEqual(knp.searchsorted(a, v), expected)
         self.assertAllEqual(knp.SearchSorted()(a, v), expected)
 
+        # Multi-dimensional values
+        v = np.array([[4, 3], [5, 1]])
+        expected = np.searchsorted(a, v).astype("int32")
+        self.assertAllEqual(knp.searchsorted(a, v), expected)
+
     def test_sign(self):
         x = np.array([[1, -2, 3], [-3, 2, -1]])
         self.assertAllClose(knp.sign(x), np.sign(x))
