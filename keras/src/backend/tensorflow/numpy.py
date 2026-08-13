@@ -2837,21 +2837,10 @@ def unravel_index(indices, shape):
             f"`shape` argument cannot contain `None`. Received: shape={shape}"
         )
 
-    if indices.ndim == 1:
-        coords = []
-        for dim in reversed(shape):
-            coords.append(tf.cast(indices % dim, input_dtype))
-            indices = indices // dim
-        return tuple(reversed(coords))
-
-    indices_shape = indices.shape
     coords = []
-    for dim in shape:
-        coords.append(
-            tf.reshape(tf.cast(indices % dim, input_dtype), indices_shape)
-        )
+    for dim in reversed(shape):
+        coords.append(tf.cast(indices % dim, input_dtype))
         indices = indices // dim
-
     return tuple(reversed(coords))
 
 
