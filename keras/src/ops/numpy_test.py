@@ -157,25 +157,55 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3))
         y = KerasTensor((None, 3))
         self.assertEqual(knp.bitwise_or(x, y).shape, (None, 3))
+        self.assertEqual(knp.bitwise_or(x, 1).shape, (None, 3))
+        self.assertEqual(knp.bitwise_or(x, False).shape, (None, 3))
+        self.assertEqual(knp.bitwise_or(1, x).shape, (None, 3))
+        self.assertEqual(knp.bitwise_or(False, x).shape, (None, 3))
 
     def test_bitwise_xor(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((None, 3))
         self.assertEqual(knp.bitwise_xor(x, y).shape, (None, 3))
+        self.assertEqual(knp.bitwise_xor(x, 1).shape, (None, 3))
+        self.assertEqual(knp.bitwise_xor(x, False).shape, (None, 3))
+        self.assertEqual(knp.bitwise_xor(1, x).shape, (None, 3))
+        self.assertEqual(knp.bitwise_xor(False, x).shape, (None, 3))
 
     def test_bitwise_left_shift(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((None, 3))
         self.assertEqual(knp.bitwise_left_shift(x, y).shape, (None, 3))
+        self.assertEqual(knp.bitwise_left_shift(x, 1).shape, (None, 3))
+        self.assertEqual(knp.bitwise_left_shift(x, False).shape, (None, 3))
+        self.assertEqual(knp.bitwise_left_shift(1, x).shape, (None, 3))
+        self.assertEqual(knp.bitwise_left_shift(False, x).shape, (None, 3))
 
-    # left_shift is same as bitwise_left_shift
+    def test_left_shift(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((None, 3))
+        self.assertEqual(knp.left_shift(x, y).shape, (None, 3))
+        self.assertEqual(knp.left_shift(x, 1).shape, (None, 3))
+        self.assertEqual(knp.left_shift(x, False).shape, (None, 3))
+        self.assertEqual(knp.left_shift(1, x).shape, (None, 3))
+        self.assertEqual(knp.left_shift(False, x).shape, (None, 3))
 
     def test_bitwise_right_shift(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((None, 3))
         self.assertEqual(knp.bitwise_right_shift(x, y).shape, (None, 3))
+        self.assertEqual(knp.bitwise_right_shift(x, 1).shape, (None, 3))
+        self.assertEqual(knp.bitwise_right_shift(x, False).shape, (None, 3))
+        self.assertEqual(knp.bitwise_right_shift(1, x).shape, (None, 3))
+        self.assertEqual(knp.bitwise_right_shift(False, x).shape, (None, 3))
 
-    # right_shift is same as bitwise_right_shift
+    def test_right_shift(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((None, 3))
+        self.assertEqual(knp.right_shift(x, y).shape, (None, 3))
+        self.assertEqual(knp.right_shift(x, 1).shape, (None, 3))
+        self.assertEqual(knp.right_shift(x, False).shape, (None, 3))
+        self.assertEqual(knp.right_shift(1, x).shape, (None, 3))
+        self.assertEqual(knp.right_shift(False, x).shape, (None, 3))
 
     def test_cross(self):
         x1 = KerasTensor((2, 3, 3))
@@ -806,25 +836,55 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 3))
         y = KerasTensor((2, 3))
         self.assertEqual(knp.bitwise_or(x, y).shape, (2, 3))
+        self.assertEqual(knp.bitwise_or(x, 1).shape, (2, 3))
+        self.assertEqual(knp.bitwise_or(x, False).shape, (2, 3))
+        self.assertEqual(knp.bitwise_or(1, x).shape, (2, 3))
+        self.assertEqual(knp.bitwise_or(False, x).shape, (2, 3))
 
     def test_bitwise_xor(self):
         x = KerasTensor((2, 3))
         y = KerasTensor((2, 3))
         self.assertEqual(knp.bitwise_xor(x, y).shape, (2, 3))
+        self.assertEqual(knp.bitwise_xor(x, 1).shape, (2, 3))
+        self.assertEqual(knp.bitwise_xor(x, False).shape, (2, 3))
+        self.assertEqual(knp.bitwise_xor(1, x).shape, (2, 3))
+        self.assertEqual(knp.bitwise_xor(False, x).shape, (2, 3))
 
     def test_bitwise_left_shift(self):
         x = KerasTensor((2, 3))
         y = KerasTensor((2, 3))
         self.assertEqual(knp.bitwise_left_shift(x, y).shape, (2, 3))
+        self.assertEqual(knp.bitwise_left_shift(x, 1).shape, (2, 3))
+        self.assertEqual(knp.bitwise_left_shift(x, False).shape, (2, 3))
+        self.assertEqual(knp.bitwise_left_shift(1, x).shape, (2, 3))
+        self.assertEqual(knp.bitwise_left_shift(False, x).shape, (2, 3))
 
-    # left_shift is same as bitwise_left_shift
+    def test_left_shift(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.left_shift(x, y).shape, (2, 3))
+        self.assertEqual(knp.left_shift(x, 1).shape, (2, 3))
+        self.assertEqual(knp.left_shift(x, False).shape, (2, 3))
+        self.assertEqual(knp.left_shift(1, x).shape, (2, 3))
+        self.assertEqual(knp.left_shift(False, x).shape, (2, 3))
 
     def test_bitwise_right_shift(self):
         x = KerasTensor((2, 3))
         y = KerasTensor((2, 3))
         self.assertEqual(knp.bitwise_right_shift(x, y).shape, (2, 3))
+        self.assertEqual(knp.bitwise_right_shift(x, 1).shape, (2, 3))
+        self.assertEqual(knp.bitwise_right_shift(x, False).shape, (2, 3))
+        self.assertEqual(knp.bitwise_right_shift(1, x).shape, (2, 3))
+        self.assertEqual(knp.bitwise_right_shift(False, x).shape, (2, 3))
 
-    # right_shift is same as bitwise_right_shift
+    def test_right_shift(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.right_shift(x, y).shape, (2, 3))
+        self.assertEqual(knp.right_shift(x, 1).shape, (2, 3))
+        self.assertEqual(knp.right_shift(x, False).shape, (2, 3))
+        self.assertEqual(knp.right_shift(1, x).shape, (2, 3))
+        self.assertEqual(knp.right_shift(False, x).shape, (2, 3))
 
     def test_cross(self):
         x1 = KerasTensor((2, 3, 3))
@@ -3715,11 +3775,33 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.bitwise_or(x, y), np.bitwise_or(x, y))
         self.assertAllClose(knp.BitwiseOr()(x, y), np.bitwise_or(x, y))
 
+        self.assertAllClose(knp.bitwise_or(x, 1), np.bitwise_or(x, 1))
+        self.assertAllClose(knp.BitwiseOr()(x, 1), np.bitwise_or(x, 1))
+        self.assertAllClose(knp.bitwise_or(x, False), np.bitwise_or(x, False))
+        self.assertAllClose(knp.BitwiseOr()(x, False), np.bitwise_or(x, False))
+        self.assertAllClose(knp.bitwise_or(1, x), np.bitwise_or(1, x))
+        self.assertAllClose(knp.BitwiseOr()(1, x), np.bitwise_or(1, x))
+        self.assertAllClose(knp.bitwise_or(False, x), np.bitwise_or(False, x))
+        self.assertAllClose(knp.BitwiseOr()(False, x), np.bitwise_or(False, x))
+
     def test_bitwise_xor(self):
         x = np.array([2, 5, 255])
         y = np.array([3, 14, 16])
         self.assertAllClose(knp.bitwise_xor(x, y), np.bitwise_xor(x, y))
         self.assertAllClose(knp.BitwiseXor()(x, y), np.bitwise_xor(x, y))
+
+        self.assertAllClose(knp.bitwise_xor(x, 1), np.bitwise_xor(x, 1))
+        self.assertAllClose(knp.BitwiseXor()(x, 1), np.bitwise_xor(x, 1))
+        self.assertAllClose(knp.bitwise_xor(x, False), np.bitwise_xor(x, False))
+        self.assertAllClose(
+            knp.BitwiseXor()(x, False), np.bitwise_xor(x, False)
+        )
+        self.assertAllClose(knp.bitwise_xor(1, x), np.bitwise_xor(1, x))
+        self.assertAllClose(knp.BitwiseXor()(1, x), np.bitwise_xor(1, x))
+        self.assertAllClose(knp.bitwise_xor(False, x), np.bitwise_xor(False, x))
+        self.assertAllClose(
+            knp.BitwiseXor()(False, x), np.bitwise_xor(False, x)
+        )
 
     def test_bitwise_left_shift(self):
         x = np.array([50, 60, 70])
@@ -3727,7 +3809,37 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.bitwise_left_shift(x, y), np.left_shift(x, y))
         self.assertAllClose(knp.BitwiseLeftShift()(x, y), np.left_shift(x, y))
 
-    # left_shift is same as bitwise_left_shift
+        self.assertAllClose(knp.bitwise_left_shift(x, 1), np.left_shift(x, 1))
+        self.assertAllClose(knp.BitwiseLeftShift()(x, 1), np.left_shift(x, 1))
+        self.assertAllClose(
+            knp.bitwise_left_shift(x, False), np.left_shift(x, False)
+        )
+        self.assertAllClose(
+            knp.BitwiseLeftShift()(x, False), np.left_shift(x, False)
+        )
+        self.assertAllClose(knp.bitwise_left_shift(1, y), np.left_shift(1, y))
+        self.assertAllClose(knp.BitwiseLeftShift()(1, y), np.left_shift(1, y))
+        self.assertAllClose(
+            knp.bitwise_left_shift(False, y), np.left_shift(False, y)
+        )
+        self.assertAllClose(
+            knp.BitwiseLeftShift()(False, y), np.left_shift(False, y)
+        )
+
+    def test_left_shift(self):
+        x = np.array([50, 60, 70])
+        y = np.array([1, 2, 3])
+        self.assertAllClose(knp.left_shift(x, y), np.left_shift(x, y))
+        self.assertAllClose(knp.LeftShift()(x, y), np.left_shift(x, y))
+
+        self.assertAllClose(knp.left_shift(x, 1), np.left_shift(x, 1))
+        self.assertAllClose(knp.LeftShift()(x, 1), np.left_shift(x, 1))
+        self.assertAllClose(knp.left_shift(x, False), np.left_shift(x, False))
+        self.assertAllClose(knp.LeftShift()(x, False), np.left_shift(x, False))
+        self.assertAllClose(knp.left_shift(1, y), np.left_shift(1, y))
+        self.assertAllClose(knp.LeftShift()(1, y), np.left_shift(1, y))
+        self.assertAllClose(knp.left_shift(False, y), np.left_shift(False, y))
+        self.assertAllClose(knp.LeftShift()(False, y), np.left_shift(False, y))
 
     def test_bitwise_right_shift(self):
         x = np.array([5, 6, 7])
@@ -3735,7 +3847,41 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.bitwise_right_shift(x, y), np.right_shift(x, y))
         self.assertAllClose(knp.BitwiseRightShift()(x, y), np.right_shift(x, y))
 
-    # right_shift is same as bitwise_right_shift
+        self.assertAllClose(knp.bitwise_right_shift(x, 1), np.right_shift(x, 1))
+        self.assertAllClose(knp.BitwiseRightShift()(x, 1), np.right_shift(x, 1))
+        self.assertAllClose(
+            knp.bitwise_right_shift(x, False), np.right_shift(x, False)
+        )
+        self.assertAllClose(
+            knp.BitwiseRightShift()(x, False), np.right_shift(x, False)
+        )
+        self.assertAllClose(knp.bitwise_right_shift(1, x), np.right_shift(1, x))
+        self.assertAllClose(knp.BitwiseRightShift()(1, x), np.right_shift(1, x))
+        self.assertAllClose(
+            knp.bitwise_right_shift(False, x), np.right_shift(False, x)
+        )
+        self.assertAllClose(
+            knp.BitwiseRightShift()(False, x), np.right_shift(False, x)
+        )
+
+    def test_right_shift(self):
+        x = np.array([5, 6, 7])
+        y = np.array([1, 2, 3])
+        self.assertAllClose(knp.right_shift(x, y), np.right_shift(x, y))
+        self.assertAllClose(knp.RightShift()(x, y), np.right_shift(x, y))
+
+        self.assertAllClose(knp.right_shift(x, 1), np.right_shift(x, 1))
+        self.assertAllClose(knp.RightShift()(x, 1), np.right_shift(x, 1))
+        self.assertAllClose(knp.right_shift(x, False), np.right_shift(x, False))
+        self.assertAllClose(
+            knp.RightShift()(x, False), np.right_shift(x, False)
+        )
+        self.assertAllClose(knp.right_shift(1, x), np.right_shift(1, x))
+        self.assertAllClose(knp.RightShift()(1, x), np.right_shift(1, x))
+        self.assertAllClose(knp.right_shift(False, x), np.right_shift(False, x))
+        self.assertAllClose(
+            knp.RightShift()(False, x), np.right_shift(False, x)
+        )
 
     def test_cross(self):
         def cross_3d_2d(a, b):

@@ -1646,14 +1646,13 @@ class BitwiseAnd(Operation):
         return backend.numpy.bitwise_and(x, y)
 
     def compute_output_spec(self, x, y):
-        if isinstance(x, int):
-            dtype = y.dtype
-            return KerasTensor(y.shape, dtype=dtype)
-        elif isinstance(y, int):
-            dtype = x.dtype
-        else:
-            dtype = dtypes.result_type(x.dtype, y.dtype)
-        return KerasTensor(x.shape, dtype=dtype)
+        x_shape = getattr(x, "shape", [])
+        y_shape = getattr(y, "shape", [])
+        dtype = dtypes.result_type(
+            getattr(x, "dtype", type(x)),
+            getattr(y, "dtype", type(y)),
+        )
+        return KerasTensor(broadcast_shapes(x_shape, y_shape), dtype=dtype)
 
 
 @keras_export(["keras.ops.bitwise_and", "keras.ops.numpy.bitwise_and"])
@@ -1735,8 +1734,13 @@ class BitwiseOr(Operation):
         return backend.numpy.bitwise_or(x, y)
 
     def compute_output_spec(self, x, y):
-        dtype = dtypes.result_type(x.dtype, y.dtype)
-        return KerasTensor(x.shape, dtype=dtype)
+        x_shape = getattr(x, "shape", [])
+        y_shape = getattr(y, "shape", [])
+        dtype = dtypes.result_type(
+            getattr(x, "dtype", type(x)),
+            getattr(y, "dtype", type(y)),
+        )
+        return KerasTensor(broadcast_shapes(x_shape, y_shape), dtype=dtype)
 
 
 @keras_export(["keras.ops.bitwise_or", "keras.ops.numpy.bitwise_or"])
@@ -1764,8 +1768,13 @@ class BitwiseXor(Operation):
         return backend.numpy.bitwise_xor(x, y)
 
     def compute_output_spec(self, x, y):
-        dtype = dtypes.result_type(x.dtype, y.dtype)
-        return KerasTensor(x.shape, dtype=dtype)
+        x_shape = getattr(x, "shape", [])
+        y_shape = getattr(y, "shape", [])
+        dtype = dtypes.result_type(
+            getattr(x, "dtype", type(x)),
+            getattr(y, "dtype", type(y)),
+        )
+        return KerasTensor(broadcast_shapes(x_shape, y_shape), dtype=dtype)
 
 
 @keras_export(["keras.ops.bitwise_xor", "keras.ops.numpy.bitwise_xor"])
@@ -1793,11 +1802,13 @@ class BitwiseLeftShift(Operation):
         return backend.numpy.bitwise_left_shift(x, y)
 
     def compute_output_spec(self, x, y):
-        if isinstance(y, int):
-            dtype = x.dtype
-        else:
-            dtype = dtypes.result_type(x.dtype, y.dtype)
-        return KerasTensor(x.shape, dtype=dtype)
+        x_shape = getattr(x, "shape", [])
+        y_shape = getattr(y, "shape", [])
+        dtype = dtypes.result_type(
+            getattr(x, "dtype", type(x)),
+            getattr(y, "dtype", type(y)),
+        )
+        return KerasTensor(broadcast_shapes(x_shape, y_shape), dtype=dtype)
 
 
 @keras_export(
@@ -1827,11 +1838,13 @@ class LeftShift(Operation):
         return backend.numpy.left_shift(x, y)
 
     def compute_output_spec(self, x, y):
-        if isinstance(y, int):
-            dtype = x.dtype
-        else:
-            dtype = dtypes.result_type(x.dtype, y.dtype)
-        return KerasTensor(x.shape, dtype=dtype)
+        x_shape = getattr(x, "shape", [])
+        y_shape = getattr(y, "shape", [])
+        dtype = dtypes.result_type(
+            getattr(x, "dtype", type(x)),
+            getattr(y, "dtype", type(y)),
+        )
+        return KerasTensor(broadcast_shapes(x_shape, y_shape), dtype=dtype)
 
 
 @keras_export(["keras.ops.left_shift", "keras.ops.numpy.left_shift"])
@@ -1859,11 +1872,13 @@ class BitwiseRightShift(Operation):
         return backend.numpy.bitwise_right_shift(x, y)
 
     def compute_output_spec(self, x, y):
-        if isinstance(y, int):
-            dtype = x.dtype
-        else:
-            dtype = dtypes.result_type(x.dtype, y.dtype)
-        return KerasTensor(x.shape, dtype=dtype)
+        x_shape = getattr(x, "shape", [])
+        y_shape = getattr(y, "shape", [])
+        dtype = dtypes.result_type(
+            getattr(x, "dtype", type(x)),
+            getattr(y, "dtype", type(y)),
+        )
+        return KerasTensor(broadcast_shapes(x_shape, y_shape), dtype=dtype)
 
 
 @keras_export(
@@ -1893,11 +1908,13 @@ class RightShift(Operation):
         return backend.numpy.right_shift(x, y)
 
     def compute_output_spec(self, x, y):
-        if isinstance(y, int):
-            dtype = x.dtype
-        else:
-            dtype = dtypes.result_type(x.dtype, y.dtype)
-        return KerasTensor(x.shape, dtype=dtype)
+        x_shape = getattr(x, "shape", [])
+        y_shape = getattr(y, "shape", [])
+        dtype = dtypes.result_type(
+            getattr(x, "dtype", type(x)),
+            getattr(y, "dtype", type(y)),
+        )
+        return KerasTensor(broadcast_shapes(x_shape, y_shape), dtype=dtype)
 
 
 @keras_export(["keras.ops.right_shift", "keras.ops.numpy.right_shift"])
