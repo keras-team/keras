@@ -2,8 +2,6 @@ import copy
 import inspect
 import typing
 import warnings
-from collections.abc import Mapping
-from collections.abc import Sequence
 
 from keras.src import backend
 from keras.src import ops
@@ -27,50 +25,31 @@ from keras.src.utils import tracking
 
 
 def _match_expected_structure(expected, provided):
-    """Recursively map provided inputs to the expected nested structure.
+    """Map provided inputs onto the expected nested structure.
 
-    Requires provided structure to match expected (same keys, container types).
-    Emits warning if extra keys present but does not use them to fill slots.
-    Raises ValueError for mismatches (missing keys or wrong container types).
+    Entries are matched by path rather than by flattening order, so extra
+    dict keys cannot shift the alignment of the remaining inputs. Recursion
+    is delegated to the `tree` API so that every registered structure type
+    is handled, not just dicts, lists and tuples.
+
+    Extra entries in `provided` are dropped with a warning. Raises
+    `ValueError` if `provided` is missing anything `expected` requires.
     """
     err_msg = "The structure of `inputs` doesn't match the expected structure"
-    if isinstance(expected, Mapping):
-        if not isinstance(provided, Mapping):
-            raise ValueError(err_msg)
-        mapped = {}
-        expected_keys = set(expected.keys())
-        provided_keys = set(provided.keys())
-        extra_keys = provided_keys - expected_keys
-        if extra_keys:
-            warnings.warn(
-                f"{err_msg}. Extra fields were ignored.",
-                UserWarning,
-                stacklevel=4,
-            )
-        for key in expected.keys():
-            if key not in provided:
-                raise ValueError(err_msg)
-            mapped[key] = _match_expected_structure(
-                expected[key], provided[key]
-            )
-        return mapped
+    provided_by_path = dict(tree.flatten_with_path(provided))
+    expected_paths = [path for path, _ in tree.flatten_with_path(expected)]
 
-    if isinstance(expected, Sequence) and not isinstance(
-        expected, (str, bytes)
-    ):
-        if not (
-            isinstance(provided, Sequence)
-            and not isinstance(provided, (str, bytes))
-        ):
-            raise ValueError(err_msg)
-        if len(provided) != len(expected):
-            raise ValueError(err_msg)
-        mapped_elems = [
-            _match_expected_structure(e, p) for e, p in zip(expected, provided)
-        ]
-        return type(expected)(mapped_elems)
-
-    return provided
+    if any(path not in provided_by_path for path in expected_paths):
+        raise ValueError(err_msg)
+    if len(provided_by_path) > len(expected_paths):
+        warnings.warn(
+            f"{err_msg}. Extra fields were ignored.",
+            UserWarning,
+            stacklevel=4,
+        )
+    return tree.pack_sequence_as(
+        expected, [provided_by_path[path] for path in expected_paths]
+    )
 
 
 class Functional(Function, Model):
@@ -385,7 +364,6 @@ class Functional(Function, Model):
         ):
             inputs = [inputs]
         elif isinstance(inputs, dict) and isinstance(self._inputs_struct, dict):
-            # When both are dicts, filter extra keys at all nesting levels
             inputs = _match_expected_structure(self._inputs_struct, inputs)
         elif isinstance(inputs, dict) and not isinstance(
             self._inputs_struct, dict
@@ -408,6 +386,17 @@ class Functional(Function, Model):
                     raise_exception = True
             else:
                 raise_exception = True
+        else:
+            # Drop extra dict keys nested inside other structures, e.g.
+            # `[{"a": x, "extra": y}]`. Entries are matched by path so extra
+            # keys cannot misalign the remaining inputs. If the structures
+            # are not otherwise reconcilable, leave `inputs` untouched and
+            # let the existing mismatch handling report it, since it gives a
+            # more precise message than a generic structure error.
+            try:
+                inputs = _match_expected_structure(self._inputs_struct, inputs)
+            except ValueError:
+                pass
         if (
             isinstance(self._inputs_struct, dict)
             and not isinstance(inputs, dict)
@@ -473,6 +462,16 @@ class Functional(Function, Model):
                     for name in names
                 ]
             return None  # Deeply nested dict: skip checks.
+        if any(
+            isinstance(key, str)
+            for path, _ in tree.flatten_with_path(self._inputs_struct)
+            for key in path
+        ):
+            # Dict nested inside another structure, e.g. `[{"a": ...}]`.
+            # Flat specs cannot describe this, and comparing them against
+            # the flattened inputs would reject extra dict keys before
+            # `_standardize_inputs` gets a chance to drop them.
+            return None
         return [make_spec_for_tensor(x) for x in self.inputs]
 
     @input_spec.setter
