@@ -2029,7 +2029,7 @@ def _cbrt(x):
         return backend.numpy.cbrt(x)
     x = backend.convert_to_tensor(x)
     dtype = backend.standardize_dtype(x.dtype)
-    if dtype in ["bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+    if dtype in ("bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"):
         dtype = backend.floatx()
     elif dtype == "int64":
         dtype = "float64"
