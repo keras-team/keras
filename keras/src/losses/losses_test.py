@@ -1,4 +1,5 @@
 import re
+import warnings
 
 import numpy as np
 import pytest
@@ -1165,6 +1166,37 @@ class CategoricalCrossentropyTest(testing.TestCase):
         loss = cce_obj(y_true, logits, sample_weight=2.3)
         self.assertAlmostEqual(loss, 0.1317)
 
+    def test_warning_for_invalid_shape(self):
+        # 2D case: should warn
+        y_true = np.array([[1], [1]], dtype="float32")
+        y_pred = np.array([[0.5], [0.5]], dtype="float32")
+        with pytest.warns(
+            SyntaxWarning,
+            match=r"expected y_pred.shape to be \(batch_size, num_classes\)",
+        ):
+            losses.categorical_crossentropy(y_true, y_pred)
+
+        # 3D case: axis=1, classes=1, should warn
+        y_true = np.ones((2, 1, 4), dtype="float32")
+        y_pred = np.ones((2, 1, 4), dtype="float32")
+        with pytest.warns(
+            SyntaxWarning,
+            match=r"expected y_pred.shape to be \(batch_size, num_classes\)",
+        ):
+            losses.categorical_crossentropy(y_true, y_pred, axis=1)
+
+        # 3D case: axis=1, classes=4, should NOT warn
+        y_true = np.ones((2, 4, 1), dtype="float32")
+        y_pred = np.ones((2, 4, 1), dtype="float32")
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            losses.categorical_crossentropy(y_true, y_pred, axis=1)
+            # Check if any SyntaxWarning was issued
+            syntax_warnings = [
+                warn for warn in w if issubclass(warn.category, SyntaxWarning)
+            ]
+            self.assertEqual(len(syntax_warnings), 0)
+
     def test_sample_weighted(self):
         cce_obj = losses.CategoricalCrossentropy()
         y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
@@ -1843,6 +1875,37 @@ class CategoricalFocalCrossentropyTest(testing.TestCase):
         cce_obj = losses.CategoricalFocalCrossentropy(from_logits=True)
         loss = cce_obj(y_true, logits, sample_weight=2.3)
         self.assertAlmostEqual(loss, 0.000794, 4)
+
+    def test_warning_for_invalid_shape(self):
+        # 2D case: should warn
+        y_true = np.array([[1], [1]], dtype="float32")
+        y_pred = np.array([[0.5], [0.5]], dtype="float32")
+        with pytest.warns(
+            SyntaxWarning,
+            match=r"expected y_pred.shape to be \(batch_size, num_classes\)",
+        ):
+            losses.categorical_focal_crossentropy(y_true, y_pred)
+
+        # 3D case: axis=1, classes=1, should warn
+        y_true = np.ones((2, 1, 4), dtype="float32")
+        y_pred = np.ones((2, 1, 4), dtype="float32")
+        with pytest.warns(
+            SyntaxWarning,
+            match=r"expected y_pred.shape to be \(batch_size, num_classes\)",
+        ):
+            losses.categorical_focal_crossentropy(y_true, y_pred, axis=1)
+
+        # 3D case: axis=1, classes=4, should NOT warn
+        y_true = np.ones((2, 4, 1), dtype="float32")
+        y_pred = np.ones((2, 4, 1), dtype="float32")
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            losses.categorical_focal_crossentropy(y_true, y_pred, axis=1)
+            # Check if any SyntaxWarning was issued
+            syntax_warnings = [
+                warn for warn in w if issubclass(warn.category, SyntaxWarning)
+            ]
+            self.assertEqual(len(syntax_warnings), 0)
 
     def test_sample_weighted(self):
         cce_obj = losses.CategoricalFocalCrossentropy()
