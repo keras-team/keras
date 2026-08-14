@@ -258,8 +258,9 @@ def load_img(
             e, pil_image.DecompressionBombError
         ):
             raise ValueError(
-                f"Image load failed for path '{path}' due to PIL DecompressionBombError. "
-                "The image exceeds PIL's maximum pixel limit."
+                f"Image load failed for path '{path}' due to PIL "
+                "DecompressionBombError. The image exceeds PIL's maximum "
+                "pixel limit."
             ) from e
         raise e
 
