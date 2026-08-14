@@ -378,8 +378,7 @@ class ModelCheckpoint(MonitorCallback):
                 f'Failed to format this callback filepath: "{self.filepath}". '
                 f"Reason: {e}"
             )
-        normalized_path = os.path.normpath(file_path)
-        if ".." in normalized_path.split(os.sep):
+        if ".." in file_path.replace("/", os.sep).split(os.sep):
             warnings.warn(
                 f"ModelCheckpoint filepath '{file_path}' contains relative path "
                 "traversal ('..'). Ensure checkpoint directory paths are safe.",

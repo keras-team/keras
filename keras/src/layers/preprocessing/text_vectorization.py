@@ -16,8 +16,13 @@ from keras.src.utils.progbar import Progbar
 def _extract_batch(batch):
     """Return input from batch; handle (x, y) or (x, y, sample_weight)."""
     if isinstance(batch, (tuple, list)) and len(batch) in (2, 3):
-        if not (isinstance(batch[0], str) and isinstance(batch[1], str)):
-            return batch[0]
+        first = batch[0]
+        if (
+            isinstance(first, (list, tuple, np.ndarray))
+            or tf.is_tensor(first)
+            or backend.is_tensor(first)
+        ):
+            return first
     return batch
 
 

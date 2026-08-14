@@ -252,6 +252,7 @@ def load_img(
                 "path must be a string, bytes, pathlib.Path, or BytesIO. "
                 f"Received path={path} (of type {type(path)})"
             )
+        img.load()
     except Exception as e:
         if hasattr(pil_image, "DecompressionBombError") and isinstance(
             e, pil_image.DecompressionBombError
