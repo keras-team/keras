@@ -77,13 +77,16 @@ def pytest_collection_modifyitems(config, items):
         # this is more granular mechanism to exclude tests rather
         # than using --ignore option
         for skipped_test in openvino_skipped_tests:
-            if skipped_test in item.nodeid:
-                item.add_marker(
-                    skip_if_backend(
-                        "openvino",
-                        "Not supported operation by openvino backend",
+            idx = item.nodeid.find(skipped_test)
+            if idx != -1:
+                remainder = item.nodeid[idx + len(skipped_test) :]
+                if remainder == "" or remainder.startswith(("_", "[")):
+                    item.add_marker(
+                        skip_if_backend(
+                            "openvino",
+                            "Not supported operation by openvino backend",
+                        )
                     )
-                )
 
 
 def skip_if_backend(given_backend, reason):

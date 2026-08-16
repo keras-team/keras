@@ -493,8 +493,10 @@ def eigh(a):
     argmax_flat_sq = ov_opset.squeeze(argmax_flat, one_const).output(
         0
     )  # shape [B]
-    p = ov_opset.divide(argmax_flat_sq, l_n).output(0)  # shape [B]
-    q = ov_opset.mod(argmax_flat_sq, l_n).output(0)  # shape [B]
+    raw_p = ov_opset.divide(argmax_flat_sq, l_n).output(0)  # shape [B]
+    raw_q = ov_opset.mod(argmax_flat_sq, l_n).output(0)  # shape [B]
+    p = ov_opset.minimum(raw_p, raw_q).output(0)
+    q = ov_opset.maximum(raw_p, raw_q).output(0)
     p_unsqueezed = ov_opset.unsqueeze(p, one_const).output(0)
     q_unsqueezed = ov_opset.unsqueeze(q, one_const).output(0)
     b_indices = ov_opset.range(
