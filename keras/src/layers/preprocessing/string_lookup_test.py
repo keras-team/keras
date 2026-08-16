@@ -220,6 +220,19 @@ class StringLookupTest(testing.TestCase):
         output = layer(["a", "a", "a", "b", "b"])
         self.assertEqual(output.shape[-1], len(layer.get_vocabulary()))
 
+    def test_output_mode_tf_idf(self):
+        layer = layers.StringLookup(
+            vocabulary=["a", "b", "c"],
+            output_mode="tf_idf",
+            idf_weights=[0.3, 0.5, 0.2],
+        )
+        output = layer(["a", "b"])
+        self.assertAllClose(output, [0.0, 0.3, 0.5, 0.0])
+        output = layer([["a", "a"], ["c", "a"]])
+        self.assertAllClose(
+            output, [[0.0, 0.6, 0.0, 0.0], [0.0, 0.3, 0.0, 0.2]]
+        )
+
     def test_output_mode_multi_hot_binary(self):
         layer = layers.StringLookup(
             vocabulary=["a", "b"],
