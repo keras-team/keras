@@ -1,0 +1,35 @@
+coverage:
+  status:
+    project:
+      default:
+        # `auto` compares coverage with the base-commit
+        target: auto
+
+    patch:
+      default:
+        target:auto
+
+comment:
+  layout: "header, reach, diff, flags, files"
+  behavior: default
+  require_changes: no
+  require_base: no
+  require_head: yes
+  show_carryforward_flags: yes
+
+flag_management:
+  default_rules:
+    carryforward: false
+    statuses:
+      - type: project
+        target: auto
+      - type: patch
+        target: auto
+  individual_flags:
+    - name: keras
+      paths:
+        - keras
+    - name: keras.applications
+      paths:
+        - keras/applications
+      carryforward: true

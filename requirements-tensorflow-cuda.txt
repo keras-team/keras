@@ -1,0 +1,12 @@
+# Tensorflow with cuda support.
+tensorflow[and-cuda]==2.20.0
+ai-edge-litert
+
+# Torch cpu-only version (needed for testing).
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+
+# Jax cpu-only version (needed for testing).
+jax[cpu]
+
+-r requirements-common.txt

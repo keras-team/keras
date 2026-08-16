@@ -1,0 +1,32 @@
+# To get started with Dependabot version updates, you'll need to specify which
+# package ecosystems to update and where the package manifests are located.
+# Please see the documentation for all configuration options:
+# https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    cooldown:
+      default-days: 7
+    groups:
+      python:
+        patterns:
+          - "*"
+    ignore:
+      # 2.19.1 is the last version of the TensorFlow that supports TPUs.
+      - dependency-name: "tensorflow-tpu"
+      # 2.20.0 is required by our TensorFlow GPU setup (2.21 won't work)
+      - dependency-name: "tensorflow[and-cuda]"

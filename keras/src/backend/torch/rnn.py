@@ -1,0 +1,1239 @@
+import torch
+
+from keras.src import tree
+from keras.src.backend.torch.core import convert_to_tensor
+
+
+def rnn(
+    step_function,
+    inputs,
+    initial_states,
+    go_backwards=False,
+    mask=None,
+    constants=None,
+    unroll=False,
+    input_length=None,
+    time_major=False,
+    zero_output_for_mask=False,
+    return_all_outputs=True,
+):
+    input_length = input_length or inputs.shape[1]
+
+    def swap_batch_timestep(input_t):
+        # Swap the batch and timestep dim for the incoming tensor.
+        axes = list(range(len(input_t.shape)))
+        axes[0], axes[1] = 1, 0
+        return torch.permute(input_t, axes)
+
+    if not time_major:
+        inputs = tree.map_structure(swap_batch_timestep, inputs)
+
+    flattened_inputs = tree.flatten(inputs)
+    time_steps = flattened_inputs[0].shape[0]
+    time_steps_t = time_steps
+
+    if mask is not None:
+        if mask.dtype != torch.bool:
+            mask = mask.type(torch.bool)
+        if len(mask.shape) == 2:
+            mask = torch.unsqueeze(mask, -1)
+        if not time_major:
+            mask = swap_batch_timestep(mask)
+
+    if constants is None:
+        constants = []
+
+    def _expand_mask(mask_t, input_t, fixed_dim=1):
+        if tree.is_nested(mask_t):
+            raise ValueError(
+                f"mask_t is expected to be tensor,\
+                  but got {mask_t}"
+            )
+        if tree.is_nested(input_t):
+            raise ValueError(
+                f"input_t is expected to be tensor,\
+                  but got {input_t}"
+            )
+        rank_diff = len(input_t.shape) - len(mask_t.shape)
+        for _ in range(rank_diff):
+            mask_t = torch.unsqueeze(mask_t, -1)
+        multiples = [1] * fixed_dim + list(input_t.shape[fixed_dim:])
+        return torch.tile(mask_t, multiples)
+
+    if unroll:
+        if not time_steps:
+            raise ValueError("Unrolling requires a fixed number of timesteps.")
+        states = tuple(initial_states)
+        successive_states = []
+        successive_outputs = []
+
+        # Process the input tensors. The input tensor need to be split on the
+        # time_step dim, and reverse if go_backwards is True. In the case of
+        # nested input, the input is flattened and then transformed
+        # individually.  The result of this will be a tuple of lists, each of
+        # the item in tuple is list of the tensor with shape (batch, feature)
+        def _process_single_input_t(input_t):
+            input_t = torch.unbind(input_t)  # unstack for time_step dim
+            if go_backwards:
+                input_t = input_t[::-1]
+            return input_t
+
+        if tree.is_nested(inputs):
+            processed_input = tree.map_structure(
+                _process_single_input_t, inputs
+            )  # noqa: E501
+        else:
+            processed_input = (_process_single_input_t(inputs),)
+
+        def _get_input_tensor(time):
+            inp = [t_[time] for t_ in processed_input]
+            return tree.pack_sequence_as(inputs, inp)
+
+        if mask is not None:
+            mask_list = torch.unbind(mask)
+            if go_backwards:
+                mask_list = torch.flip(mask_list, dims=mask_list.shape)
+
+            for i in range(time_steps):
+                inp = _get_input_tensor(i)
+                mask_t = mask_list[i]
+                output, new_states = step_function(
+                    inp, tuple(states) + tuple(constants)
+                )
+                tiled_mask_t = _expand_mask(mask_t, output)
+
+                if not successive_outputs:
+                    prev_output = torch.zeros_like(output)
+                else:
+                    prev_output = successive_outputs[-1]
+
+                output = torch.where(tiled_mask_t, output, prev_output)
+
+                flat_states = tree.flatten(states)
+                flat_new_states = tree.flatten(new_states)
+                tiled_mask_t = tuple(
+                    _expand_mask(mask_t, s) for s in flat_states
+                )  # noqa: E501
+                flat_final_states = tuple(
+                    torch.where(m, s, ps)
+                    for m, s, ps in zip(
+                        tiled_mask_t, flat_new_states, flat_states
+                    )  # noqa: E501
+                )
+                states = tree.pack_sequence_as(states, flat_final_states)
+
+                if return_all_outputs:
+                    successive_outputs.append(output)
+                    successive_states.append(states)
+                else:
+                    successive_outputs = [output]
+                    successive_states = [states]
+            last_output = successive_outputs[-1]
+            new_states = successive_states[-1]
+            outputs = torch.stack(successive_outputs)
+
+            if zero_output_for_mask:
+                last_output = torch.where(
+                    _expand_mask(mask_list[-1], last_output),
+                    last_output,
+                    torch.zeros_like(last_output),
+                )
+                outputs = torch.where(
+                    _expand_mask(mask, outputs, fixed_dim=2),
+                    outputs,
+                    torch.zeros_like(outputs),
+                )
+
+        else:  # mask is None
+            for i in range(time_steps):
+                inp = _get_input_tensor(i)
+                output, states = step_function(
+                    inp, tuple(states) + tuple(constants)
+                )  # noqa: E501
+                if return_all_outputs:
+                    successive_outputs.append(output)
+                    successive_states.append(states)
+                else:
+                    successive_outputs = [output]
+                    successive_states = [states]
+            last_output = successive_outputs[-1]
+            new_states = successive_states[-1]
+            outputs = torch.stack(successive_outputs)
+
+    else:  # Unroll == False
+        states = tuple(initial_states)
+
+        # Create input tensor array, if the inputs is nested tensors, then it
+        # will be flattened first, and tensor array will be created one per
+        # flattened tensor.
+
+        input_ta = tuple(
+            (
+                list(torch.unbind(input_))
+                if not go_backwards
+                else list(torch.unbind(torch.flip(input_, [0])))
+            )
+            for input_ in flattened_inputs
+        )
+
+        # Get the time(0) input and compute the output for that.
+        input_time_zero = tree.pack_sequence_as(
+            inputs, [inp[0] for inp in flattened_inputs]
+        )
+        # output_time_zero is used to determine the cell output shape.
+        output_time_zero, _ = step_function(
+            input_time_zero, tuple(initial_states) + tuple(constants)
+        )
+
+        output_ta_size = time_steps_t if return_all_outputs else 1
+        output_ta = []
+        for out in tree.flatten(output_time_zero):
+            out_list = list(out)
+            if len(out) < output_ta_size:
+                out_list.extend([[]] * (output_ta_size - len(out)))
+            output_ta.append(out_list)
+
+        time = torch.tensor(0, dtype=torch.int32)
+
+        if input_length is None:
+            max_iterations = time_steps_t
+        else:
+            if hasattr(input_length, "__len__"):
+                input_length = convert_to_tensor(input_length)
+                max_iterations = torch.max(input_length)
+            else:
+                max_iterations = input_length
+
+        if mask is not None:
+            if go_backwards:
+                mask = torch.flip(mask, [0])
+
+            mask_ta = list(torch.unbind(mask))
+
+            def masking_fn(time):
+                return mask_ta[time]
+
+            def compute_masked_output(mask_t, flat_out, flat_mask):
+                tiled_mask_t = tuple(
+                    _expand_mask(mask_t, o, fixed_dim=len(mask_t.shape))
+                    for o in flat_out
+                )
+                return tuple(
+                    torch.where(m, o, fm)
+                    for m, o, fm in zip(tiled_mask_t, flat_out, flat_mask)
+                )
+
+        elif isinstance(input_length, torch.Tensor):
+            if go_backwards:
+                max_len = torch.max(input_length, dim=0)
+                if isinstance(max_len, torch.return_types.max):
+                    max_len = max_len[0]
+                rev_input_length = torch.subtract(max_len - 1, input_length)
+
+                def masking_fn(time):
+                    return torch.less(rev_input_length, time)
+
+            else:
+
+                def masking_fn(time):
+                    return torch.greater(input_length, time)
+
+            def compute_masked_output(mask_t, flat_out, flat_mask):
+                return tuple(
+                    torch.where(mask_t, o, zo)
+                    for (o, zo) in zip(flat_out, flat_mask)  # noqa: E501
+                )
+
+        else:
+            masking_fn = None
+
+        if masking_fn is not None:
+            # Mask for the T output will be base on the output of T - 1. In the
+            # case T = 0, a zero filled tensor will be used.
+            flat_zero_output = tuple(
+                torch.zeros_like(o) for o in tree.flatten(output_time_zero)
+            )
+
+            def _step(time, output_ta_t, prev_output, *states):
+                """RNN step function.
+
+                Args:
+                    time: Current timestep value.
+                    output_ta_t: TensorArray.
+                    prev_output: tuple of outputs from time - 1.
+                    *states: List of states.
+
+                Returns:
+                    Tuple: `(time + 1, output_ta_t, output) + tuple(new_states)`
+                """
+                current_input = tuple(ta[time] for ta in input_ta)
+                # maybe set shape.
+                current_input = tree.pack_sequence_as(inputs, current_input)
+                mask_t = masking_fn(time)
+                output, new_states = step_function(
+                    current_input, tuple(states) + tuple(constants)
+                )
+                # mask output
+                flat_output = tree.flatten(output)
+                flat_mask_output = (
+                    flat_zero_output
+                    if zero_output_for_mask
+                    else tree.flatten(prev_output)
+                )
+                flat_new_output = compute_masked_output(
+                    mask_t, flat_output, flat_mask_output
+                )
+
+                # mask states
+                flat_state = tree.flatten(states)
+                flat_new_state = tree.flatten(new_states)
+                flat_final_state = compute_masked_output(
+                    mask_t, flat_new_state, flat_state
+                )
+                new_states = tree.pack_sequence_as(new_states, flat_final_state)  # noqa: E501
+
+                ta_index_to_write = time if return_all_outputs else 0
+                for ta, out in zip(output_ta_t, flat_new_output):
+                    ta[ta_index_to_write] = out
+
+                return (time + 1, output_ta_t, tuple(flat_new_output)) + tuple(
+                    new_states
+                )
+
+            it = 0
+            output_ta_t, new_states, prev_output = (
+                output_ta,
+                states,
+                flat_zero_output,
+            )
+            while time < time_steps_t and it < max_iterations:
+                final_outputs = _step(
+                    time, output_ta_t, prev_output, *new_states
+                )  # noqa: E501
+                time, output_ta_t, prev_output = final_outputs[:3]
+                new_states = final_outputs[3:]
+                it += 1
+
+        else:
+
+            def _step(time, output_ta_t, *states):
+                """RNN step function.
+
+                Args:
+                    time: Current timestep value.
+                    output_ta_t: TensorArray.
+                    *states: List of states.
+
+                Returns:
+                    Tuple: `(time + 1,output_ta_t) + tuple(new_states)`
+                """
+                current_input = tuple(ta[time] for ta in input_ta)
+                current_input = tree.pack_sequence_as(inputs, current_input)
+                output, new_states = step_function(
+                    current_input, tuple(states) + tuple(constants)
+                )
+                flat_new_state = tree.flatten(new_states)
+
+                flat_output = tree.flatten(output)
+                ta_index_to_write = time if return_all_outputs else 0
+                for ta, out in zip(output_ta_t, flat_output):
+                    ta[ta_index_to_write] = out
+
+                new_states = tree.pack_sequence_as(
+                    initial_states, flat_new_state
+                )  # noqa: E501
+                return (time + 1, output_ta_t) + tuple(new_states)
+
+            it = 0
+            output_ta_t = output_ta
+            new_states = states
+            while time < time_steps_t and it < max_iterations:
+                final_outputs = _step(time, output_ta_t, *new_states)
+                time, output_ta_t = final_outputs[:2]
+                new_states = final_outputs[2:]
+                it += 1
+
+        def _stack(tensor_list):
+            max_ndims = max([t.ndim for t in tensor_list])
+            max_list = []
+            for i, t in enumerate(tensor_list):
+                if t.ndim == max_ndims:
+                    max_list.append(t)
+            return torch.stack(max_list)
+
+        output_ta = final_outputs[1]
+
+        outputs = tuple(_stack(o) for o in output_ta)
+        last_output = tuple(o[-1] for o in outputs)
+
+        outputs = tree.pack_sequence_as(output_time_zero, outputs)
+        last_output = tree.pack_sequence_as(output_time_zero, last_output)
+
+    if not time_major:
+        outputs = tree.map_structure(swap_batch_timestep, outputs)
+
+    return last_output, outputs, new_states
+
+
+def _is_sequence_right_padded(mask):
+    """Check the mask tensor and see if it right padded.
+
+    cuDNN uses the sequence length param to skip the tailing
+    timestep. If the data is left padded, or not a strict right padding (has
+    masked value in the middle of the sequence), then cuDNN won't work
+    properly in those cases.
+
+    Left padded data: [[False, False, True, True, True]].
+    Right padded data: [[True, True, True, False, False]].
+    Mixture of mask/unmasked data: [[True, False, True, False, False]].
+
+    Note that for the mixed data example above, the actually data RNN should see
+    are those 2 Trues (index 0 and 2), the index 1 False should be ignored and
+    not pollute the internal states.
+
+    Args:
+        mask: the Boolean tensor with shape [batch, timestep]
+
+    Returns:
+        boolean scalar tensor, whether the mask is strictly right padded.
+    """
+    # Get max sequence length
+    max_seq_length = mask.shape[1]
+    # Count True values in each sequence
+    count_of_true = torch.sum(mask, dim=1)
+    # Create right padded mask
+    batch_size = mask.shape[0]
+    indices = torch.arange(max_seq_length, device=mask.device).repeat(
+        batch_size, 1
+    )  # noqa: E501
+    right_padded_mask = indices < count_of_true.unsqueeze(1)
+    return torch.all(mask == right_padded_mask)
+
+
+def _has_fully_masked_sequence(mask):
+    """Check if input sequence contains any fully masked data.
+
+    cuDNN kernel will error out if the input sequence contains any fully masked
+    data. We work around this issue by rerouting the computation to the
+    standard kernel until the issue on the cuDNN side has been fixed. For a
+    fully masked sequence, it will contain all `False` values. To make it easy
+    to check, we invert the boolean and check if any of the sequences has all
+    `True` values.
+
+    Args:
+        mask: The mask tensor.
+
+    Returns:
+        A boolean tensor, `True` if the mask contains a fully masked sequence.
+    """
+    return torch.any(torch.all(~mask, dim=1))
+
+
+def _assert_valid_mask(mask):
+    # Check if mask is valid for cuDNN
+    no_fully_masked = ~_has_fully_masked_sequence(mask)
+    is_right_padded = _is_sequence_right_padded(mask)
+    valid = no_fully_masked & is_right_padded
+
+    if not valid.item():
+        error_message = (
+            "You are passing a RNN mask that does not correspond to "
+            "right-padded sequences, while using cuDNN, which is not "
+            "supported. With cuDNN, RNN masks can only be used for "
+            "right-padding, e.g. `[[True, True, False, False]]` would "
+            "be a valid mask, but any mask that isn't just contiguous "
+            "`True`'s on the left and contiguous `False`'s on the right "
+            "would be invalid. You can pass `use_cudnn=False` to your "
+            "RNN layer to stop using cuDNN (this may be slower)."
+        )
+        raise ValueError(error_message)
+
+
+def _compute_sequence_length_from_mask(mask, batch_first):
+    """Calculate the sequence length tensor (1-D) based on the masking tensor.
+
+    The masking tensor is a 2D boolean tensor with shape [batch, timestep]. For
+    any timestep that should be masked, the corresponding field will be False.
+    Consider the following example:
+        a = [[True, True, False, False]
+             [True, True, True, False]]
+    It is a (2, 4) tensor, and the corresponding sequence length result should
+    be 1D tensor with value [2, 3]. Note that the masking tensor must be right
+    padded that could be checked by, e.g., `is_sequence_right_padded()`.
+
+    Args:
+        mask: Boolean tensor with shape [batch, timestep] or [timestep, batch]
+            if time_major=True.
+        time_major: Boolean, which indicates whether the mask is time major or
+            batch major.
+
+    Returns:
+        sequence_length: 1D int32 tensor.
+    """
+    timestep_index = 0 if not batch_first else 1
+    return torch.sum(mask.int(), dim=timestep_index)
+
+
+def prepare_lstm_params(kernel, recurrent_kernel, bias, device):
+    """Prepares Keras LSTM weights for PyTorch's functional LSTM.
+
+    Transposes weight matrices from Keras (input_dim, 4*units) to PyTorch
+    (4*units, input_dim) format and returns weight tensors that maintain
+    gradient connections.
+
+    Args:
+        kernel: The kernel weights tensor with shape (input_dim, 4*units).
+        recurrent_kernel: The recurrent kernel weights tensor
+            with shape (units, 4*units).
+        bias: The bias tensor with shape (4*units,).
+        device: The device to place the tensors on.
+
+    Returns:
+        A list of weight tensors [weight_ih, weight_hh, bias_ih, bias_hh]
+        suitable for torch._VF.lstm.
+    """
+    # Gate order is the same in Keras and PyTorch: [i, f, c, o]
+    # Just need to transpose from (input_dim, 4*units) to (4*units, input_dim)
+    weight_ih = kernel.T.contiguous().to(device)
+    weight_hh = recurrent_kernel.T.contiguous().to(device)
+
+    hidden_size = recurrent_kernel.shape[0]
+    if bias is not None:
+        bias_ih = convert_to_tensor(bias).contiguous().to(device)
+        bias_hh = torch.zeros(
+            4 * hidden_size, dtype=bias_ih.dtype, device=device
+        )
+    else:
+        bias_ih = torch.zeros(
+            4 * hidden_size, dtype=kernel.dtype, device=device
+        )
+        bias_hh = torch.zeros(
+            4 * hidden_size, dtype=kernel.dtype, device=device
+        )
+
+    return [weight_ih, weight_hh, bias_ih, bias_hh]
+
+
+def _is_cuda_cudnn_available():
+    # We check if the cuda device and drivers are available
+    return torch.cuda.is_available() and torch.backends.cudnn.is_available()
+
+
+def cudnn_ok(
+    activation,
+    recurrent_activation,
+    unroll,
+    use_bias=True,
+):
+    from keras.src import activations
+    from keras.src import ops
+
+    return (
+        activation in (activations.tanh, torch.tanh, ops.tanh)
+        and recurrent_activation
+        in (activations.sigmoid, torch.sigmoid, ops.sigmoid)  # noqa: E501
+        and not unroll
+        and use_bias
+        and _is_cuda_cudnn_available()
+    )
+
+
+def lstm(
+    inputs,
+    initial_state_h,
+    initial_state_c,
+    mask,
+    kernel,
+    recurrent_kernel,
+    bias,
+    activation,
+    recurrent_activation,
+    return_sequences=False,
+    go_backwards=False,
+    unroll=False,
+    batch_first=True,
+):
+    # Masking is not supported by either the cuDNN or fallback path;
+    # fall back to the generic RNN loop before doing any work.
+    if mask is not None:
+        raise NotImplementedError
+
+    # Convert to torch tensors (convert_to_tensor unwraps Variables)
+    kernel = convert_to_tensor(kernel)
+    recurrent_kernel = convert_to_tensor(recurrent_kernel)
+    if bias is not None:
+        bias = convert_to_tensor(bias)
+
+    # Cast inputs/states to the kernel's dtype so integer inputs are promoted
+    # to float and mixed-precision dtypes (e.g. float16) are respected.
+    compute_dtype = kernel.dtype
+    inputs = convert_to_tensor(inputs).to(compute_dtype)
+    initial_state_h = convert_to_tensor(initial_state_h).to(compute_dtype)
+    initial_state_c = convert_to_tensor(initial_state_c).to(compute_dtype)
+
+    # Preprocess for go_backwards by flipping the sequence
+    if go_backwards:
+        seq_dim = 1 if batch_first else 0
+        inputs = torch.flip(inputs, dims=[seq_dim])
+
+    # cuDNN only runs on CUDA. Skip it when inputs aren't on CUDA, or when
+    # we're inside a TorchScript / Dynamo trace -- the trace records device
+    # transfers that then fail device-consistency validation downstream
+    # (e.g. `torch.onnx.export` failing in `wrapper_CUDA_cat`).
+    device = inputs.device
+    cudnn_supported = (
+        device.type == "cuda"
+        and not torch.jit.is_tracing()
+        and not (
+            hasattr(torch.compiler, "is_compiling")
+            and torch.compiler.is_compiling()
+        )
+        and cudnn_ok(
+            activation,
+            recurrent_activation,
+            unroll,
+            use_bias=bias is not None,
+        )
+    )
+
+    if cudnn_supported:
+        cudnn_inputs = inputs
+        if not batch_first:
+            cudnn_inputs = inputs.permute(1, 0, 2)
+        try:
+            last_output, outputs, states = _cudnn_lstm(
+                cudnn_inputs,
+                initial_state_h,
+                initial_state_c,
+                kernel,
+                recurrent_kernel,
+                bias,
+                return_sequences=return_sequences,
+                device=device,
+            )
+            if not batch_first:
+                outputs = outputs.permute(1, 0, 2)
+            return last_output, outputs, states
+        except Exception:
+            pass
+
+    return _fallback_lstm(
+        inputs,
+        initial_state_h,
+        initial_state_c,
+        kernel,
+        recurrent_kernel,
+        bias,
+        activation,
+        recurrent_activation,
+        return_sequences,
+        batch_first,
+    )
+
+
+def _cudnn_lstm(
+    inputs,
+    initial_state_h,
+    initial_state_c,
+    kernel,
+    recurrent_kernel,
+    bias,
+    return_sequences,
+    device,
+):
+    # If shape is [batch, hidden]; Make [1, batch, hidden]
+    if initial_state_h.dim() == 2:
+        initial_state_h = initial_state_h.unsqueeze(0)
+        initial_state_c = initial_state_c.unsqueeze(0)
+    elif initial_state_h.dim() == 3 and initial_state_h.shape[1] == 1:
+        initial_state_h = initial_state_h.permute(1, 0, 2)
+        initial_state_c = initial_state_c.permute(1, 0, 2)
+
+    params = prepare_lstm_params(kernel, recurrent_kernel, bias, device)
+
+    # Use functional LSTM to maintain gradient flow through weight tensors.
+    # ``torch._VF.lstm`` returns a flat ``(output, h_n, c_n)`` tuple.
+    outputs, h_n, c_n = torch._VF.lstm(
+        inputs,
+        (initial_state_h, initial_state_c),
+        params,
+        bias is not None,  # has_biases
+        1,  # num_layers
+        0.0,  # dropout
+        torch.is_grad_enabled(),  # training
+        False,  # bidirectional
+        True,  # batch_first
+    )
+
+    h_n = h_n.squeeze(0)
+    c_n = c_n.squeeze(0)
+    last_output = outputs[:, -1]
+
+    if not return_sequences:
+        outputs = last_output.unsqueeze(1)
+
+    return last_output, outputs, [h_n, c_n]
+
+
+def _fallback_lstm(
+    inputs,
+    initial_state_h,
+    initial_state_c,
+    kernel,
+    recurrent_kernel,
+    bias,
+    activation,
+    recurrent_activation,
+    return_sequences,
+    batch_first,
+):
+    """Pure-torch LSTM with pre-computed input projections.
+
+    Used when cuDNN is not available (CPU, non-standard activations, etc.).
+    Pre-computes all input projections in a single matmul across timesteps,
+    then only computes the recurrent projection per step.
+    """
+    if batch_first:
+        inputs = inputs.permute(1, 0, 2)  # -> (time, batch, features)
+
+    # Pre-compute input projections: (time, batch, 4*units)
+    x_proj = torch.matmul(inputs, kernel)
+    if bias is not None:
+        x_proj = x_proj + bias
+
+    time_steps = inputs.shape[0]
+    h = initial_state_h
+    c = initial_state_c
+    outputs = []
+
+    for t in range(time_steps):
+        z = x_proj[t] + torch.matmul(h, recurrent_kernel)
+        z_i, z_f, z_c, z_o = torch.chunk(z, 4, dim=1)
+
+        new_c = recurrent_activation(z_f) * c + recurrent_activation(
+            z_i
+        ) * activation(z_c)
+        new_h = recurrent_activation(z_o) * activation(new_c)
+
+        h = new_h
+        c = new_c
+        outputs.append(h)
+
+    outputs = torch.stack(outputs, dim=0)  # (time, batch, units)
+
+    if batch_first:
+        outputs = outputs.permute(1, 0, 2)  # (batch, time, units)
+
+    last_output = h
+
+    if not return_sequences:
+        outputs = last_output.unsqueeze(1 if batch_first else 0)
+
+    return last_output, outputs, [h, c]
+
+
+def gru(
+    inputs,
+    initial_state,
+    mask,
+    kernel,
+    recurrent_kernel,
+    bias,
+    activation,
+    recurrent_activation,
+    return_sequences=False,
+    go_backwards=False,
+    unroll=False,
+    reset_after=True,
+):
+    # Neither path below supports masking. The fallback also only knows the
+    # `reset_after=True` formulation. For anything else, bounce back to the
+    # generic RNN loop.
+    if not reset_after or mask is not None:
+        raise NotImplementedError
+
+    # Activation/bias eligibility for cuDNN doesn't depend on tensor state, so
+    # check it before paying for conversions we might discard.
+    cudnn_activation_ok = cudnn_ok(
+        activation,
+        recurrent_activation,
+        unroll,
+        use_bias=bias is not None,
+    )
+
+    # Peek at the input device without materializing a full tensor: cuDNN
+    # only runs on CUDA, and we want to skip the rest of the conversion
+    # cost when we already know we'll fall back.
+    inputs_device_type = (
+        inputs.device.type if isinstance(inputs, torch.Tensor) else "cpu"
+    )
+    cudnn_runtime_ok = (
+        inputs_device_type == "cuda"
+        and not torch.jit.is_tracing()
+        and not (
+            hasattr(torch.compiler, "is_compiling")
+            and torch.compiler.is_compiling()
+        )
+    )
+    cudnn_supported = cudnn_activation_ok and cudnn_runtime_ok
+
+    # Convert to torch tensors (convert_to_tensor unwraps Variables)
+    kernel = convert_to_tensor(kernel)
+    recurrent_kernel = convert_to_tensor(recurrent_kernel)
+    if bias is not None:
+        bias = convert_to_tensor(bias)
+
+    # Cast inputs/state to the kernel's dtype so integer inputs are promoted
+    # to float and mixed-precision dtypes (e.g. float16) are respected.
+    compute_dtype = kernel.dtype
+    inputs = convert_to_tensor(inputs).to(compute_dtype)
+    initial_state = convert_to_tensor(initial_state).to(compute_dtype)
+
+    # Preprocess for go_backwards by flipping the sequence
+    if go_backwards:
+        inputs = torch.flip(inputs, dims=[1])
+
+    if cudnn_supported:
+        try:
+            return _cudnn_gru(
+                inputs,
+                initial_state,
+                kernel,
+                recurrent_kernel,
+                bias,
+                return_sequences=return_sequences,
+                device=inputs.device,
+            )
+        except Exception:
+            pass
+
+    return _fallback_gru(
+        inputs,
+        initial_state,
+        kernel,
+        recurrent_kernel,
+        bias,
+        activation,
+        recurrent_activation,
+        return_sequences,
+    )
+
+
+def prepare_gru_params(kernel, recurrent_kernel, bias, device):
+    """Prepares Keras GRU weights for PyTorch's functional GRU.
+
+    Reorders gates from Keras [z, r, h] to PyTorch [r, z, h] format
+    and returns weight tensors that maintain gradient connections.
+
+    Args:
+        kernel: The kernel weights tensor with shape (input_dim, 3*units).
+        recurrent_kernel: The recurrent kernel weights tensor
+            with shape (units, 3*units).
+        bias: The bias tensor with shape (2, 3*units) for reset_after=True.
+        device: The device to place the tensors on.
+
+    Returns:
+        A list of weight tensors [weight_ih, weight_hh, bias_ih, bias_hh]
+        suitable for torch._VF.gru.
+    """
+    # Split Keras weights by gate: [z, r, h]
+    z_k, r_k, h_k = torch.chunk(kernel, 3, dim=1)
+    z_r, r_r, h_r = torch.chunk(recurrent_kernel, 3, dim=1)
+
+    # Reorder to PyTorch format [r, z, h] and transpose
+    weight_ih = torch.cat([r_k, z_k, h_k], dim=1).T.contiguous().to(device)
+    weight_hh = torch.cat([r_r, z_r, h_r], dim=1).T.contiguous().to(device)
+
+    if bias is not None:
+        # bias shape is (2, 3*units) for reset_after=True
+        # Row 0 is input bias, Row 1 is recurrent bias
+        z_bi, r_bi, h_bi = torch.chunk(bias[0], 3)
+        z_bh, r_bh, h_bh = torch.chunk(bias[1], 3)
+
+        # Reorder to [r, z, h]
+        bias_ih = torch.cat([r_bi, z_bi, h_bi]).contiguous().to(device)
+        bias_hh = torch.cat([r_bh, z_bh, h_bh]).contiguous().to(device)
+    else:
+        hidden_size = recurrent_kernel.shape[0]
+        bias_ih = torch.zeros(
+            3 * hidden_size, dtype=kernel.dtype, device=device
+        )
+        bias_hh = torch.zeros(
+            3 * hidden_size, dtype=kernel.dtype, device=device
+        )
+
+    return [weight_ih, weight_hh, bias_ih, bias_hh]
+
+
+def _cudnn_gru(
+    inputs,
+    initial_state,
+    kernel,
+    recurrent_kernel,
+    bias,
+    return_sequences,
+    device,
+):
+    # If shape is [batch, hidden]; Make [1, batch, hidden]
+    if initial_state.dim() == 2:
+        initial_state = initial_state.unsqueeze(0)
+    # If shape is [batch, 1, hidden]
+    elif initial_state.dim() == 3 and initial_state.shape[1] == 1:
+        initial_state = initial_state.permute(1, 0, 2)
+
+    params = prepare_gru_params(kernel, recurrent_kernel, bias, device)
+
+    # Use functional GRU to maintain gradient flow through weight tensors
+    outputs, h_n = torch._VF.gru(
+        inputs,
+        initial_state,
+        params,
+        bias is not None,  # has_biases
+        1,  # num_layers
+        0.0,  # dropout
+        torch.is_grad_enabled(),  # training: must be True for backward pass
+        False,  # bidirectional
+        True,  # batch_first
+    )
+
+    # Reshape hidden state for return
+    h_n = h_n.squeeze(0)
+    last_output = outputs[:, -1]
+
+    if not return_sequences:
+        outputs = last_output.unsqueeze(1)
+
+    return last_output, outputs, [h_n]
+
+
+def _fallback_gru(
+    inputs,
+    initial_state,
+    kernel,
+    recurrent_kernel,
+    bias,
+    activation,
+    recurrent_activation,
+    return_sequences,
+):
+    """Pure-torch GRU (reset_after=True) with pre-computed input projections.
+
+    Used when cuDNN is not available (CPU, non-standard activations, etc.).
+    Pre-computes all input projections in a single matmul across timesteps,
+    then only computes the recurrent projection per step.
+    """
+    # (batch, time, features) -> (time, batch, features)
+    inputs = inputs.permute(1, 0, 2)
+
+    # bias for reset_after=True has shape (2, 3*units): row 0 is input bias,
+    # row 1 is recurrent bias. Apply each on its own projection side so the
+    # gating math matches the unbiased case bit-for-bit.
+    x_proj = torch.matmul(inputs, kernel)
+    if bias is not None:
+        x_proj = x_proj + bias[0]
+
+    time_steps = inputs.shape[0]
+    h = initial_state
+    outputs = []
+
+    for t in range(time_steps):
+        h_proj = torch.matmul(h, recurrent_kernel)
+        if bias is not None:
+            h_proj = h_proj + bias[1]
+
+        x_z, x_r, x_h = torch.chunk(x_proj[t], 3, dim=1)
+        h_z, h_r, h_h = torch.chunk(h_proj, 3, dim=1)
+
+        z = recurrent_activation(x_z + h_z)
+        r = recurrent_activation(x_r + h_r)
+        hh = activation(x_h + r * h_h)
+        h = z * h + (1.0 - z) * hh
+
+        outputs.append(h)
+
+    outputs = torch.stack(outputs, dim=0)  # (time, batch, units)
+    outputs = outputs.permute(1, 0, 2)  # (batch, time, units)
+
+    last_output = h
+    if not return_sequences:
+        outputs = last_output.unsqueeze(1)
+
+    return last_output, outputs, [h]
+
+
+def bidirectional_lstm(
+    inputs,
+    fwd_initial_state_h,
+    fwd_initial_state_c,
+    bwd_initial_state_h,
+    bwd_initial_state_c,
+    mask,
+    fwd_kernel,
+    fwd_recurrent_kernel,
+    fwd_bias,
+    bwd_kernel,
+    bwd_recurrent_kernel,
+    bwd_bias,
+    activation,
+    recurrent_activation,
+    return_sequences=False,
+    unroll=False,
+):
+    """Fused bidirectional cuDNN LSTM for the torch backend.
+
+    Runs forward and backward passes in a single
+    ``torch._VF.lstm(..., bidirectional=True)`` call instead of dispatching
+    two unidirectional LSTM calls. Backward outputs are returned in original
+    time order, ready for the caller's ``merge_mode`` to consume directly.
+
+    Args:
+        inputs: Input tensor of shape ``(batch, time, features)``.
+        fwd_initial_state_h: Initial hidden state for the forward direction,
+            shape ``(batch, hidden)``.
+        fwd_initial_state_c: Initial cell state for the forward direction,
+            shape ``(batch, hidden)``.
+        bwd_initial_state_h: Initial hidden state for the backward direction,
+            shape ``(batch, hidden)``.
+        bwd_initial_state_c: Initial cell state for the backward direction,
+            shape ``(batch, hidden)``.
+        mask: Sequence mask. Only ``None`` is supported; otherwise
+            ``NotImplementedError`` is raised so the caller can fall back to
+            the two-pass path.
+        fwd_kernel: Forward input kernel, shape ``(features, 4 * hidden)``.
+        fwd_recurrent_kernel: Forward recurrent kernel, shape
+            ``(hidden, 4 * hidden)``.
+        fwd_bias: Forward bias, shape ``(4 * hidden,)`` or ``None``.
+        bwd_kernel: Backward input kernel, shape ``(features, 4 * hidden)``.
+        bwd_recurrent_kernel: Backward recurrent kernel, shape
+            ``(hidden, 4 * hidden)``.
+        bwd_bias: Backward bias, shape ``(4 * hidden,)`` or ``None``.
+        activation: Output activation. Only ``tanh`` engages cuDNN.
+        recurrent_activation: Gate activation. Only ``sigmoid`` engages
+            cuDNN.
+        return_sequences: If ``True``, return outputs at every timestep;
+            otherwise only the last timestep.
+        unroll: Not supported; cuDNN requires the rolled path.
+
+    Returns:
+        A pair ``((fwd_last, fwd_outputs, [fwd_h_n, fwd_c_n]),
+        (bwd_last, bwd_outputs, [bwd_h_n, bwd_c_n]))`` matching the JAX
+        equivalent's return shape.
+    """
+    if mask is not None:
+        raise NotImplementedError
+    if not cudnn_ok(
+        activation,
+        recurrent_activation,
+        unroll,
+        use_bias=fwd_bias is not None and bwd_bias is not None,
+    ):
+        raise NotImplementedError
+
+    fwd_kernel = convert_to_tensor(fwd_kernel)
+    fwd_recurrent_kernel = convert_to_tensor(fwd_recurrent_kernel)
+    bwd_kernel = convert_to_tensor(bwd_kernel)
+    bwd_recurrent_kernel = convert_to_tensor(bwd_recurrent_kernel)
+
+    compute_dtype = fwd_kernel.dtype
+    inputs = convert_to_tensor(inputs, dtype=compute_dtype)
+    fwd_h0 = convert_to_tensor(fwd_initial_state_h, dtype=compute_dtype)
+    fwd_c0 = convert_to_tensor(fwd_initial_state_c, dtype=compute_dtype)
+    bwd_h0 = convert_to_tensor(bwd_initial_state_h, dtype=compute_dtype)
+    bwd_c0 = convert_to_tensor(bwd_initial_state_c, dtype=compute_dtype)
+
+    # cuDNN only runs on CUDA. Fall back to the two-pass path when inputs
+    # aren't on CUDA, or when we're inside a TorchScript / Dynamo trace --
+    # the trace records device transfers that then fail device-consistency
+    # validation downstream (e.g. `torch.onnx.export` in `wrapper_CUDA_cat`).
+    device = inputs.device
+    if (
+        device.type != "cuda"
+        or torch.jit.is_tracing()
+        or (
+            hasattr(torch.compiler, "is_compiling")
+            and torch.compiler.is_compiling()
+        )
+    ):
+        raise NotImplementedError
+
+    fwd_params = prepare_lstm_params(
+        fwd_kernel, fwd_recurrent_kernel, fwd_bias, device
+    )
+    bwd_params = prepare_lstm_params(
+        bwd_kernel, bwd_recurrent_kernel, bwd_bias, device
+    )
+
+    # torch._VF.lstm with bidirectional=True expects 4 params per direction,
+    # forward direction first, then backward.
+    params = fwd_params + bwd_params
+
+    # cuDNN expects (num_layers * num_directions, batch, hidden) for h0/c0.
+    h_0 = torch.stack([fwd_h0, bwd_h0], dim=0)
+    c_0 = torch.stack([fwd_c0, bwd_c0], dim=0)
+
+    try:
+        # ``torch._VF.lstm`` returns a flat ``(output, h_n, c_n)`` tuple.
+        outputs, h_n, c_n = torch._VF.lstm(
+            inputs,
+            (h_0, c_0),
+            params,
+            True,  # has_biases
+            1,  # num_layers
+            0.0,  # dropout
+            torch.is_grad_enabled(),  # training
+            True,  # bidirectional
+            True,  # batch_first
+        )
+    except (RuntimeError, TypeError, ValueError) as e:
+        raise NotImplementedError(
+            f"cuDNN bidirectional LSTM failed: {e}"
+        ) from e
+
+    # outputs: (batch, seq_len, 2 * hidden_size). First half is the forward
+    # direction, second half is the backward direction (in original time
+    # order, courtesy of cuDNN).
+    hidden_size = fwd_recurrent_kernel.shape[0]
+    y_fwd = outputs[..., :hidden_size]
+    y_bwd = outputs[..., hidden_size:]
+
+    fwd_h_n, bwd_h_n = h_n[0], h_n[1]
+    fwd_c_n, bwd_c_n = c_n[0], c_n[1]
+
+    # Forward "last" is the last timestep of the forward sweep; backward
+    # "last" is the first timestep in original time order (i.e., the result
+    # after the full reverse sweep).
+    fwd_last = y_fwd[:, -1]
+    bwd_last = y_bwd[:, 0]
+
+    if return_sequences:
+        fwd_outputs = y_fwd
+        bwd_outputs = y_bwd
+    else:
+        fwd_outputs = fwd_last.unsqueeze(1)
+        bwd_outputs = bwd_last.unsqueeze(1)
+
+    return (
+        (fwd_last, fwd_outputs, [fwd_h_n, fwd_c_n]),
+        (bwd_last, bwd_outputs, [bwd_h_n, bwd_c_n]),
+    )
+
+
+def bidirectional_gru(
+    inputs,
+    fwd_initial_state,
+    bwd_initial_state,
+    mask,
+    fwd_kernel,
+    fwd_recurrent_kernel,
+    fwd_bias,
+    bwd_kernel,
+    bwd_recurrent_kernel,
+    bwd_bias,
+    activation,
+    recurrent_activation,
+    return_sequences=False,
+    unroll=False,
+    reset_after=True,
+):
+    """Fused bidirectional cuDNN GRU for the torch backend.
+
+    Runs both directions in a single ``torch._VF.gru(bidirectional=True)``
+    call. Mirrors ``bidirectional_lstm`` above. Raises ``NotImplementedError``
+    on CPU, under tracing, with a mask, or with ``reset_after=False`` so the
+    caller falls back to the two-pass path. Returns
+    ``((fwd_last, fwd_outputs, [fwd_h_n]), (bwd_last, bwd_outputs, [bwd_h_n]))``
+    with backward outputs already in original time order.
+    """
+    if mask is not None or not reset_after:
+        raise NotImplementedError
+    if not cudnn_ok(
+        activation,
+        recurrent_activation,
+        unroll,
+        use_bias=fwd_bias is not None and bwd_bias is not None,
+    ):
+        raise NotImplementedError
+
+    # cuDNN only runs on CUDA. Bail out before paying for any
+    # convert_to_tensor work when inputs are on CPU, or when we are inside
+    # a TorchScript / Dynamo trace (the trace records device transfers
+    # that then fail device-consistency validation downstream).
+    inputs_device_type = (
+        inputs.device.type if isinstance(inputs, torch.Tensor) else "cpu"
+    )
+    if (
+        inputs_device_type != "cuda"
+        or torch.jit.is_tracing()
+        or (
+            hasattr(torch.compiler, "is_compiling")
+            and torch.compiler.is_compiling()
+        )
+    ):
+        raise NotImplementedError
+
+    fwd_kernel = convert_to_tensor(fwd_kernel)
+    fwd_recurrent_kernel = convert_to_tensor(fwd_recurrent_kernel)
+    bwd_kernel = convert_to_tensor(bwd_kernel)
+    bwd_recurrent_kernel = convert_to_tensor(bwd_recurrent_kernel)
+
+    compute_dtype = fwd_kernel.dtype
+    inputs = convert_to_tensor(inputs, dtype=compute_dtype)
+    fwd_h0 = convert_to_tensor(fwd_initial_state, dtype=compute_dtype)
+    bwd_h0 = convert_to_tensor(bwd_initial_state, dtype=compute_dtype)
+    device = inputs.device
+
+    fwd_params = prepare_gru_params(
+        fwd_kernel, fwd_recurrent_kernel, fwd_bias, device
+    )
+    bwd_params = prepare_gru_params(
+        bwd_kernel, bwd_recurrent_kernel, bwd_bias, device
+    )
+
+    # torch._VF.gru with bidirectional=True expects 4 params per direction,
+    # forward direction first, then backward.
+    params = fwd_params + bwd_params
+
+    # cuDNN expects (num_layers * num_directions, batch, hidden) for h0.
+    h_0 = torch.stack([fwd_h0, bwd_h0], dim=0)
+
+    try:
+        outputs, h_n = torch._VF.gru(
+            inputs,
+            h_0,
+            params,
+            True,  # has_biases
+            1,  # num_layers
+            0.0,  # dropout
+            torch.is_grad_enabled(),  # training
+            True,  # bidirectional
+            True,  # batch_first
+        )
+    except (RuntimeError, TypeError, ValueError) as e:
+        raise NotImplementedError(f"cuDNN bidirectional GRU failed: {e}") from e
+
+    # outputs: (batch, seq_len, 2 * hidden_size). First half is the forward
+    # direction, second half is the backward direction (in original time
+    # order, courtesy of cuDNN).
+    hidden_size = fwd_recurrent_kernel.shape[0]
+    y_fwd = outputs[..., :hidden_size]
+    y_bwd = outputs[..., hidden_size:]
+
+    fwd_h_n, bwd_h_n = h_n[0], h_n[1]
+
+    # Forward "last" is the last timestep of the forward sweep. Backward
+    # "last" is the first timestep in original time order, which is the
+    # result after the full reverse sweep.
+    fwd_last = y_fwd[:, -1]
+    bwd_last = y_bwd[:, 0]
+
+    if return_sequences:
+        fwd_outputs = y_fwd
+        bwd_outputs = y_bwd
+    else:
+        fwd_outputs = fwd_last.unsqueeze(1)
+        bwd_outputs = bwd_last.unsqueeze(1)
+
+    return (
+        (fwd_last, fwd_outputs, [fwd_h_n]),
+        (bwd_last, bwd_outputs, [bwd_h_n]),
+    )
