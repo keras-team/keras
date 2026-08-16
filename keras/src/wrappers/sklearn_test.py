@@ -1,0 +1,242 @@
+"""Tests using Scikit-Learn's bundled estimator_checks."""
+
+import unittest
+from contextlib import contextmanager
+
+import numpy as np
+import pytest
+import sklearn
+from packaging.version import parse as parse_version
+from sklearn.utils.estimator_checks import parametrize_with_checks
+
+import keras
+from keras.src.backend import floatx
+from keras.src.backend import set_floatx
+from keras.src.layers import Dense
+from keras.src.layers import Input
+from keras.src.models import Model
+from keras.src.wrappers import SKLearnClassifier
+from keras.src.wrappers import SKLearnRegressor
+from keras.src.wrappers import SKLearnTransformer
+
+
+def wrapped_parametrize_with_checks(
+    estimators,
+    *,
+    legacy=True,
+    expected_failed_checks=None,
+):
+    """Wrapped `parametrize_with_checks` handling backwards compat."""
+    sklearn_version = parse_version(
+        parse_version(sklearn.__version__).base_version
+    )
+
+    if sklearn_version >= parse_version("1.6"):
+        return parametrize_with_checks(
+            estimators,
+            legacy=legacy,
+            expected_failed_checks=expected_failed_checks,
+        )
+
+    def patched_more_tags(estimator, expected_failed_checks):
+        import copy
+
+        original_tags = copy.deepcopy(sklearn.utils._tags._safe_tags(estimator))
+
+        def patched_more_tags(self):
+            original_tags.update({"_xfail_checks": expected_failed_checks})
+            return original_tags
+
+        estimator.__class__._more_tags = patched_more_tags
+        return estimator
+
+    estimators = [
+        patched_more_tags(estimator, expected_failed_checks(estimator))
+        for estimator in estimators
+    ]
+
+    # legacy is not supported and ignored
+    return parametrize_with_checks(estimators)
+
+
+def dynamic_model(X, y, loss, out_activation_function="softmax", layers=[10]):
+    """Creates a basic MLP classifier dynamically choosing binary/multiclass
+    classification loss and output activations.
+    """
+    n_features_in = X.shape[1]
+    inp = Input(shape=(n_features_in,))
+
+    hidden = inp
+    for layer_size in layers:
+        hidden = Dense(layer_size, activation="relu")(hidden)
+
+    n_outputs = y.shape[1] if len(y.shape) > 1 else 1
+    out = [Dense(n_outputs, activation=out_activation_function)(hidden)]
+    model = Model(inp, out)
+    model.compile(loss=loss, optimizer="rmsprop")
+
+    return model
+
+
+@contextmanager
+def use_floatx(x):
+    """Context manager to temporarily
+    set the keras backend precision.
+    """
+    _floatx = floatx()
+    set_floatx(x)
+    try:
+        yield
+    finally:
+        set_floatx(_floatx)
+
+
+EXPECTED_FAILED_CHECKS = {
+    "SKLearnClassifier": {
+        "check_classifiers_regression_target": "not an issue in sklearn>=1.6",
+        "check_parameters_default_constructible": (
+            "not an issue in sklearn>=1.6"
+        ),
+        "check_classifiers_one_label_sample_weights": (
+            "0 sample weight is not ignored"
+        ),
+        "check_classifiers_classes": (
+            "with small test cases the estimator returns not all classes "
+            "sometimes"
+        ),
+        "check_classifier_data_not_an_array": (
+            "This test assumes reproducibility in fit."
+        ),
+        "check_supervised_y_2d": "This test assumes reproducibility in fit.",
+        "check_fit_idempotent": "This test assumes reproducibility in fit.",
+        "check_classifiers_train": (
+            "decision_function can return both probabilities and logits"
+        ),
+    },
+    "SKLearnRegressor": {
+        "check_parameters_default_constructible": (
+            "not an issue in sklearn>=1.6"
+        ),
+    },
+    "SKLearnTransformer": {
+        "check_parameters_default_constructible": (
+            "not an issue in sklearn>=1.6"
+        ),
+    },
+}
+
+
+@wrapped_parametrize_with_checks(
+    estimators=[
+        SKLearnClassifier(
+            model=dynamic_model,
+            model_kwargs={
+                "loss": "categorical_crossentropy",
+                "layers": [20, 20, 20],
+            },
+            fit_kwargs={"epochs": 5},
+        ),
+        SKLearnRegressor(
+            model=dynamic_model,
+            model_kwargs={"loss": "mse"},
+        ),
+        SKLearnTransformer(
+            model=dynamic_model,
+            model_kwargs={"loss": "mse"},
+        ),
+    ],
+    expected_failed_checks=lambda estimator: EXPECTED_FAILED_CHECKS[
+        type(estimator).__name__
+    ],
+)
+def test_sklearn_estimator_checks(estimator, check):
+    """Checks that can be passed with sklearn's default tolerances
+    and in a single epoch.
+    """
+    try:
+        check(estimator)
+    except Exception as exc:
+        if keras.config.backend() in ["numpy", "openvino"] and (
+            isinstance(exc, NotImplementedError)
+            or "NotImplementedError" in str(exc)
+        ):
+            pytest.xfail("Backend not implemented")
+        elif isinstance(exc, unittest.SkipTest):
+            # Workaround for https://github.com/pytest-dev/pytest/issues/13895
+            pytest.skip(str(exc))
+        else:
+            raise
+
+
+@pytest.mark.parametrize(
+    "estimator",
+    [
+        SKLearnClassifier(
+            model=dynamic_model,
+            model_kwargs={
+                "out_activation_function": "softmax",
+                "loss": "binary_crossentropy",
+            },
+            fit_kwargs={"epochs": 1},
+        ),
+        SKLearnClassifier(
+            model=dynamic_model,
+            model_kwargs={
+                "out_activation_function": "linear",
+                "loss": "binary_crossentropy",
+            },
+            fit_kwargs={"epochs": 1},
+        ),
+    ],
+)
+def test_sklearn_estimator_decision_function(estimator):
+    """Checks that the argmax of ``decision_function`` is the same as
+    ``predict`` for classifiers.
+    """
+    try:
+        X, y = sklearn.datasets.make_classification(
+            n_samples=10,
+            n_features=10,
+            n_informative=4,
+            n_classes=2,
+            random_state=42,
+        )
+        estimator.fit(X, y)
+        if (
+            estimator.decision_function(X[:1]).argmax(axis=-1)
+            != estimator.predict(X[:1]).flatten()
+        ):
+            raise AssertionError(
+                "decision_function and predict are inconsistent"
+            )
+    except Exception as exc:
+        if keras.config.backend() in ["numpy", "openvino"] and (
+            isinstance(exc, NotImplementedError)
+            or "NotImplementedError" in str(exc)
+        ):
+            pytest.xfail("Backend not implemented")
+        else:
+            raise
+
+
+@pytest.mark.requires_trainable_backend
+def test_sklearn_classifier_warm_start_reuses_model_instance():
+    inputs = Input(shape=(4,))
+    outputs = Dense(2, activation="softmax")(inputs)
+    model = Model(inputs, outputs)
+    model.compile(loss="categorical_crossentropy", optimizer="sgd")
+
+    X = np.ones((4, 4))
+    y = np.array([1, 2, 1, 2])
+    estimator = SKLearnClassifier(model=model, warm_start=True)
+
+    estimator.fit(X, y, epochs=0, verbose=0)
+    first_model = estimator.model_
+
+    if first_model is not model:
+        raise AssertionError("Expected warm_start to use the original model.")
+
+    estimator.fit(X, y, epochs=0, verbose=0)
+
+    if estimator.model_ is not first_model:
+        raise AssertionError("Expected warm_start to reuse the fitted model.")

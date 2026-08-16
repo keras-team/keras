@@ -1,0 +1,313 @@
+import os
+
+import grain
+import numpy as np
+import pytest
+import tensorflow as tf
+from tensorflow import data as tf_data
+
+from keras.src import backend
+from keras.src import layers
+from keras.src import models
+from keras.src import saving
+from keras.src import testing
+from keras.src.ops import convert_to_tensor
+
+
+class StringLookupTest(testing.TestCase):
+    # TODO: increase coverage. Most features aren't being tested.
+
+    def test_config(self):
+        layer = layers.StringLookup(
+            output_mode="int",
+            vocabulary=["a", "b", "c"],
+            oov_token="[OOV]",
+            mask_token="[MASK]",
+        )
+        self.run_class_serialization_test(layer)
+        self.assertEqual(layer.get_config()["vocabulary"], ["a", "b", "c"])
+
+    def test_vocabulary_file(self):
+        temp_dir = self.get_temp_dir()
+        vocab_path = os.path.join(temp_dir, "vocab.txt")
+        with open(vocab_path, "w") as file:
+            file.write("a\nb\nc\n")
+
+        layer = layers.StringLookup(
+            output_mode="int",
+            vocabulary=vocab_path,
+            oov_token="[OOV]",
+            mask_token="[MASK]",
+            name="index",
+        )
+        self.assertEqual(
+            [str(v) for v in layer.get_vocabulary()],
+            ["[MASK]", "[OOV]", "a", "b", "c"],
+        )
+        self.assertIsNone(layer.get_config().get("vocabulary", None))
+
+        # Make sure vocabulary comes from the archive, not the original file.
+        os.remove(vocab_path)
+
+        model = models.Sequential([layer])
+        model_path = os.path.join(temp_dir, "test_model.keras")
+        model.save(model_path)
+
+        reloaded_model = saving.load_model(model_path)
+        reloaded_layer = reloaded_model.get_layer("index")
+        self.assertEqual(
+            [str(v) for v in reloaded_layer.get_vocabulary()],
+            ["[MASK]", "[OOV]", "a", "b", "c"],
+        )
+
+    def test_adapt_flow(self):
+        layer = layers.StringLookup(
+            output_mode="int",
+        )
+        layer.adapt(["a", "a", "a", "b", "b", "c"])
+        input_data = ["b", "c", "d"]
+        output = layer(input_data)
+        self.assertTrue(backend.is_tensor(output))
+        self.assertAllClose(output, np.array([2, 3, 0]))
+        self.assertIn("a", [str(v) for v in layer.get_vocabulary()])
+
+    def test_adapt_with_generator(self):
+        def vocab_gen():
+            yield ["cat", "dog"]
+            yield ["bird", "cat"]
+
+        layer = layers.StringLookup()
+        layer.adapt(vocab_gen())
+        vocab = layer.get_vocabulary()
+        self.assertIn("cat", [str(v) for v in vocab])
+        self.assertIn("dog", [str(v) for v in vocab])
+        self.assertIn("bird", [str(v) for v in vocab])
+
+    def test_adapt_with_infinite_generator_and_steps(self):
+        def vocab_gen():
+            while True:
+                yield ["cat", "dog", "bird"]
+
+        layer = layers.StringLookup()
+        layer.adapt(vocab_gen(), steps=3)
+        vocab = layer.get_vocabulary()
+        self.assertIn("cat", [str(v) for v in vocab])
+
+    def test_adapt_with_grain_dataset(self):
+        words = ["cat", "dog", "bird", "cat", "dog", "bird"]
+
+        class Source(grain.sources.RandomAccessDataSource):
+            def __getitem__(self, idx):
+                return words[idx]
+
+            def __len__(self):
+                return len(words)
+
+        dataset = grain.MapDataset.source(Source()).batch(batch_size=2)
+        layer = layers.StringLookup()
+        layer.adapt(dataset)
+        vocab = layer.get_vocabulary()
+        self.assertIn("cat", [str(v) for v in vocab])
+
+    def test_fixed_vocabulary(self):
+        layer = layers.StringLookup(
+            output_mode="int",
+            vocabulary=["a", "b", "c"],
+        )
+        input_data = ["b", "c", "d"]
+        output = layer(input_data)
+        self.assertTrue(backend.is_tensor(output))
+        self.assertAllClose(output, np.array([2, 3, 0]))
+
+    @pytest.mark.skipif(
+        not backend.backend() == "tensorflow", reason="Requires tf.SparseTensor"
+    )
+    def test_sparse_inputs(self):
+        layer = layers.StringLookup(
+            output_mode="int",
+            vocabulary=["a", "b", "c"],
+        )
+        input_data = tf.SparseTensor(
+            indices=[[0, 0], [1, 1], [2, 2]],
+            values=["b", "c", "d"],
+            dense_shape=(3, 3),
+        )
+        output = layer(input_data)
+        self.assertIsInstance(output, tf.SparseTensor)
+        self.assertAllClose(output, np.array([[2, 0, 0], [0, 3, 0], [0, 0, 0]]))
+        self.assertAllClose(output.values, np.array([2, 3, 0]))
+
+    def test_set_vocabulary(self):
+        layer = layers.StringLookup(
+            output_mode="int",
+        )
+        layer.set_vocabulary(["a", "b", "c"])
+        input_data = ["b", "c", "d"]
+        output = layer(input_data)
+        self.assertTrue(backend.is_tensor(output))
+        self.assertAllClose(output, np.array([2, 3, 0]))
+
+    def test_tf_data_compatibility(self):
+        layer = layers.StringLookup(
+            output_mode="int",
+            vocabulary=["a", "b", "c"],
+        )
+        input_data = ["b", "c", "d"]
+        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(3).map(layer)
+        output = next(iter(ds)).numpy()
+        self.assertAllClose(output, np.array([2, 3, 0]))
+
+    @pytest.mark.skipif(not backend.backend() == "tensorflow", reason="tf only")
+    def test_tensor_as_vocab(self):
+        vocab = convert_to_tensor(["a", "b", "c", "d"])
+        data = [["a", "c", "d"], ["d", "z", "b"]]
+        layer = layers.StringLookup(
+            vocabulary=vocab,
+        )
+        output = layer(data)
+        self.assertAllClose(output, np.array([[1, 3, 4], [4, 0, 2]]))
+
+    @pytest.mark.skipif(backend.backend() != "torch", reason="Only torch")
+    def test_torch_backend_compatibility(self):
+        import torch
+
+        # Forward lookup: String -> number
+        forward_lookup = layers.StringLookup(
+            vocabulary=["a", "b", "c"], oov_token="[OOV]"
+        )
+        input_data_str = ["a", "b", "[OOV]", "d"]
+        output_numeric = forward_lookup(input_data_str)
+
+        # assert instance of output is torch.Tensor
+        self.assertIsInstance(output_numeric, torch.Tensor)
+        expected_numeric = torch.tensor([1, 2, 0, 0])
+        self.assertAllClose(output_numeric.cpu(), expected_numeric)
+
+        oov = "[OOV]"
+        # Inverse lookup: Number -> string
+        inverse_lookup = layers.StringLookup(
+            vocabulary=["a", "b", "c"], oov_token=oov, invert=True
+        )
+        input_data_int = torch.tensor([1, 2, 0], dtype=torch.int64)
+        output_string = inverse_lookup(input_data_int)
+        # Assert that the output is a list
+        # See : https://docs.pytorch.org/text/stable/_modules/torchtext/vocab/vocab.html#Vocab.lookup_tokens
+        # The torch equivalent implementation of this returns a list of strings
+        self.assertIsInstance(output_string, list)
+        expected_string = ["a", "b", "[OOV]"]
+        self.assertEqual(output_string, expected_string)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="invert=True requires TensorFlow string tensors",
+    )
+    def test_invert_lookup_basic(self):
+        layer = layers.StringLookup(
+            vocabulary=["a", "b", "c"],
+            invert=True,
+        )
+        output = layer([1, 2, 0])
+        self.assertAllEqual(
+            backend.convert_to_numpy(output).astype(str),
+            ["a", "b", "[UNK]"],
+        )
+
+    def test_output_mode_count_shape(self):
+        layer = layers.StringLookup(
+            vocabulary=["a", "b"],
+            output_mode="count",
+        )
+        output = layer(["a", "a", "a", "b", "b"])
+        self.assertEqual(output.shape[-1], len(layer.get_vocabulary()))
+
+    def test_output_mode_multi_hot_binary(self):
+        layer = layers.StringLookup(
+            vocabulary=["a", "b"],
+            output_mode="multi_hot",
+        )
+        output = layer(["a", "b"])
+        self.assertAllClose(output, [0, 1, 1])
+
+    def test_mask_token_basic(self):
+        layer = layers.StringLookup(
+            vocabulary=["a"],
+            mask_token="[MASK]",
+        )
+        output = layer(["[MASK]", "a"])
+        self.assertEqual(int(output[0]), 0)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Requires tf.SparseTensor",
+    )
+    def test_sparse_output_in_multi_hot(self):
+        layer = layers.StringLookup(
+            vocabulary=["a", "b", "c"],
+            output_mode="multi_hot",
+            sparse=True,
+        )
+        input_data = tf.ragged.constant([["a", "b"], ["c", "a"]])
+        output = layer(input_data)
+
+        self.assertIsInstance(output, tf.SparseTensor)
+
+    def test_get_vocabulary_include_special_tokens_false(self):
+        layer = layers.StringLookup(
+            vocabulary=["a", "b", "c"],
+        )
+        vocab = layer.get_vocabulary(include_special_tokens=False)
+
+        self.assertEqual(vocab, ["a", "b", "c"])
+
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason=(
+            "StringLookup symbolic string Input not supported on numpy backend."
+        ),
+    )
+    def test_one_hot_symbolic_output_shape_nested_input(self):
+        """StringLookup one_hot symbolic shape matches eager for nested input.
+
+        Regression test for gh-22336: symbolic output was (None, max_tokens)
+        instead of (None, d1, d2, ..., max_tokens).
+        """
+        layer = layers.StringLookup(
+            max_tokens=20,
+            num_oov_indices=4,
+            oov_token="[UNK]",
+            vocabulary=["a", "b", "c", "d", "e", "f", "g", "h", "i"],
+            output_mode="one_hot",
+            pad_to_max_tokens=True,
+            sparse=False,
+        )
+        # Symbolic input shape (None, 2, 2) as in the issue
+        symbolic_input = layers.Input(shape=(2, 2), dtype="string")
+        symbolic_output = layer(symbolic_input)
+        self.assertEqual(
+            tuple(symbolic_output.shape),
+            (None, 2, 2, 20),
+            msg="one_hot symbolic output must be (batch, d1, d2, max_tokens)",
+        )
+        # Eager: (2, 2, 2) input -> (2, 2, 2, 20) output
+        input_data = np.array(
+            [[["a", "b"], ["c", "d"]], [["a", "b"], ["c", "d"]]]
+        )
+        eager_output = layer(input_data)
+        self.assertEqual(eager_output.shape, (2, 2, 2, 20))
+        self.assertEqual(
+            tuple(symbolic_output.shape)[1:],
+            eager_output.shape[1:],
+        )
+
+    def test_salt_siphash(self):
+        vocab = ["a", "b", "c"]
+        layer_farmhash = layers.StringLookup(
+            vocabulary=vocab, num_oov_indices=4
+        )
+        layer_siphash = layers.StringLookup(
+            vocabulary=vocab, num_oov_indices=4, salt=[137, 42]
+        )
+        oov_values = ["x", "y", "z", "w", "v", "u"]
+        out_farmhash = backend.convert_to_numpy(layer_farmhash(oov_values))
+        out_siphash = backend.convert_to_numpy(layer_siphash(oov_values))
+        self.assertFalse(np.array_equal(out_farmhash, out_siphash))
