@@ -22,6 +22,7 @@ from keras.src.losses.losses import MeanSquaredError
 from keras.src.losses.losses import MeanSquaredLogarithmicError
 from keras.src.losses.losses import Poisson
 from keras.src.losses.losses import SparseCategoricalCrossentropy
+from keras.src.losses.losses import SparseCategoricalFocalCrossentropy
 from keras.src.losses.losses import SquaredHinge
 from keras.src.losses.losses import Tversky
 from keras.src.losses.losses import binary_crossentropy
@@ -43,6 +44,7 @@ from keras.src.losses.losses import mean_squared_error
 from keras.src.losses.losses import mean_squared_logarithmic_error
 from keras.src.losses.losses import poisson
 from keras.src.losses.losses import sparse_categorical_crossentropy
+from keras.src.losses.losses import sparse_categorical_focal_crossentropy
 from keras.src.losses.losses import squared_hinge
 from keras.src.losses.losses import tversky
 from keras.src.saving import serialization_lib
@@ -58,6 +60,7 @@ ALL_OBJECTS = {
     BinaryFocalCrossentropy,
     CategoricalCrossentropy,
     CategoricalFocalCrossentropy,
+    SparseCategoricalFocalCrossentropy,
     SparseCategoricalCrossentropy,
     # Regression
     MeanSquaredError,
@@ -85,6 +88,7 @@ ALL_OBJECTS = {
     binary_focal_crossentropy,
     categorical_crossentropy,
     categorical_focal_crossentropy,
+    sparse_categorical_focal_crossentropy,
     sparse_categorical_crossentropy,
     # Regression
     mean_squared_error,

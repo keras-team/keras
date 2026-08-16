@@ -1864,6 +1864,94 @@ class CategoricalFocalCrossentropyTest(testing.TestCase):
         self.assertDType(loss, "bfloat16")
 
 
+class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
+    def test_config(self):
+        self.run_class_serialization_test(
+            losses.SparseCategoricalFocalCrossentropy(name="scfce")
+        )
+
+    def test_all_correct_unweighted(self):
+        y_true = np.array([0, 1, 2], dtype="int64")
+        y_pred = np.array(
+            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            dtype="float32",
+        )
+        scce_obj = losses.SparseCategoricalFocalCrossentropy(
+            alpha=0.25, gamma=2.0
+        )
+        loss = scce_obj(y_true, y_pred)
+        self.assertAlmostEqual(loss, 0.0, 3)
+
+        # Test with logits.
+        logits = np.array(
+            [[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]]
+        )
+        scce_obj = losses.SparseCategoricalFocalCrossentropy(from_logits=True)
+        loss = scce_obj(y_true, logits)
+        self.assertAlmostEqual(loss, 0.0, 3)
+
+    def test_unweighted(self):
+        scce_obj = losses.SparseCategoricalFocalCrossentropy()
+        y_true = np.array([0, 1, 2])
+        y_pred = np.array(
+            [[0.9, 0.05, 0.05], [0.5, 0.89, 0.6], [0.05, 0.01, 0.94]],
+            dtype="float32",
+        )
+        loss = scce_obj(y_true, y_pred)
+        self.assertAlmostEqual(loss, 0.02059, 3)
+
+        # Test with logits.
+        logits = np.array([[8.0, 1.0, 1.0], [0.0, 9.0, 1.0], [2.0, 3.0, 5.0]])
+        scce_obj = losses.SparseCategoricalFocalCrossentropy(from_logits=True)
+        loss = scce_obj(y_true, logits)
+        self.assertAlmostEqual(loss, 0.000345, 3)
+
+    def test_matches_categorical(self):
+        # Sparse integer labels must produce the same loss as the
+        # equivalent one-hot labels fed to CategoricalFocalCrossentropy.
+        y_true_sparse = np.array([0, 1, 2])
+        y_true_onehot = np.array(
+            [[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype="float32"
+        )
+        y_pred = np.array(
+            [[0.9, 0.05, 0.05], [0.5, 0.89, 0.6], [0.05, 0.01, 0.94]],
+            dtype="float32",
+        )
+        scce_obj = losses.SparseCategoricalFocalCrossentropy()
+        cce_obj = losses.CategoricalFocalCrossentropy()
+        self.assertAllClose(
+            scce_obj(y_true_sparse, y_pred), cce_obj(y_true_onehot, y_pred)
+        )
+
+    def test_scalar_weighted(self):
+        scce_obj = losses.SparseCategoricalFocalCrossentropy()
+        y_true = np.array([0, 1, 2])
+        y_pred = np.array(
+            [[0.9, 0.05, 0.05], [0.5, 0.89, 0.6], [0.05, 0.01, 0.94]],
+            dtype="float32",
+        )
+        loss = scce_obj(y_true, y_pred, sample_weight=2.3)
+        self.assertAlmostEqual(loss, 0.047368, 3)
+
+    def test_label_smoothing(self):
+        logits = np.array([[4.9, -0.5, 2.05]])
+        y_true = np.array([0])
+        scce_obj = losses.SparseCategoricalFocalCrossentropy(
+            from_logits=True, label_smoothing=0.1
+        )
+        loss = scce_obj(y_true, logits)
+        self.assertAlmostEqual(loss, 0.0666, 3)
+
+    def test_dtype_arg(self):
+        logits = np.array([[4.9, -0.5, 2.05]])
+        y_true = np.array([0])
+        scce_obj = losses.SparseCategoricalFocalCrossentropy(
+            from_logits=True, dtype="bfloat16"
+        )
+        loss = scce_obj(y_true, logits)
+        self.assertDType(loss, "bfloat16")
+
+
 class CTCTest(testing.TestCase):
     def test_config(self):
         self.run_class_serialization_test(losses.CTC(name="myctc"))
