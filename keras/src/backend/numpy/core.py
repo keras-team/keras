@@ -85,6 +85,16 @@ def vectorized_map(function, elements):
     if not isinstance(elements, (list, tuple)):
         return np.stack([function(x) for x in elements])
     else:
+        if not elements:
+            raise ValueError("`elements` cannot be empty.")
+        batch_size = elements[0].shape[0]
+        for i, x in enumerate(elements):
+            if x.shape[0] != batch_size:
+                raise ValueError(
+                    "All elements passed to `vectorized_map` must have the same batch size "
+                    f"(dimension 0). Element at index 0 has batch size {batch_size}, "
+                    f"but element at index {i} has batch size {x.shape[0]}."
+                )
         output_store = [function(list(x)) for x in zip(*elements)]
         return np.stack(output_store)
 
