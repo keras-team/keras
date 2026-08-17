@@ -224,14 +224,17 @@ class StringLookupTest(testing.TestCase):
         layer = layers.StringLookup(
             vocabulary=["a", "b", "c"],
             output_mode="tf_idf",
-            idf_weights=[0.3, 0.5, 0.2],
+            idf_weights=[0.2, 0.4, 0.6],
         )
         output = layer(["a", "b"])
-        self.assertAllClose(output, [0.0, 0.3, 0.5, 0.0])
+        self.assertAllClose(output, [0.0, 0.2, 0.4, 0.0])
         output = layer([["a", "a"], ["c", "a"]])
         self.assertAllClose(
-            output, [[0.0, 0.6, 0.0, 0.0], [0.0, 0.3, 0.0, 0.2]]
+            output, [[0.0, 0.4, 0.0, 0.0], [0.0, 0.2, 0.0, 0.6]]
         )
+        # Test with OOV token (should map to index 0 with average IDF weight)
+        output = layer(["a", "b", "d"])
+        self.assertAllClose(output, [0.4, 0.2, 0.4, 0.0])
 
     def test_output_mode_multi_hot_binary(self):
         layer = layers.StringLookup(
