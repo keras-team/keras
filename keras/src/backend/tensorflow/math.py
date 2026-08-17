@@ -301,7 +301,40 @@ def istft(
 
 def rsqrt(x):
     x = convert_to_tensor(x)
-    return tf.math.rsqrt(x)
+
+    if x.dtype == tf.float64:
+        x_bits = tf.bitcast(x, tf.int64)
+        mantissa_bits = 52
+        bias = 1023
+    elif x.dtype == tf.float32:
+        x_bits = tf.bitcast(x, tf.int32)
+        mantissa_bits = 23
+        bias = 127
+    elif x.dtype == tf.float16:
+        x_bits = tf.bitcast(x, tf.int16)
+        mantissa_bits = 10
+        bias = 15
+    elif x.dtype == tf.bfloat16:
+        x_bits = tf.bitcast(x, tf.int16)
+        mantissa_bits = 7
+        bias = 127
+    else:
+        return tf.math.rsqrt(x)
+
+    is_positive_subnormal = tf.logical_and(
+        x_bits > 0, x_bits < (1 << mantissa_bits)
+    )
+
+    # Exponent factor: 2 ** ((bias + mantissa_bits - 1) / 2)
+    exp_factor = 2.0 ** ((bias + mantissa_bits - 1) / 2.0)
+
+    # Compute rsqrt using fraction
+    fraction = tf.cast(x_bits, x.dtype)
+    exp_tensor = tf.constant(exp_factor, dtype=x.dtype)
+    subnormal_res = tf.math.rsqrt(fraction) * exp_tensor
+
+    res = tf.math.rsqrt(x)
+    return tf.where(is_positive_subnormal, subnormal_res, res)
 
 
 def erf(x):
