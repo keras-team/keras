@@ -163,9 +163,8 @@ def create_legacy_directory(package_dir):
                 # are stripped with a non-greedy-unsafe pattern, so
                 # newlines are escaped first to keep the match on one
                 # logical line and avoid `re.DOTALL` surprises.)
-                legacy_contents = re.sub(r"\n", r"\\n", legacy_contents)
-                legacy_contents = re.sub('""".*"""', "", legacy_contents)
-                legacy_contents = re.sub(r"\\n", r"\n", legacy_contents)
+                # Remove duplicate generated comments/docstrings safely using a non-greedy pattern.
+                legacy_contents = re.sub(r'""".*?"""', "", legacy_contents, flags=re.DOTALL)
 
                 # If the same module is imported in both legacy and
                 # core_api, keep only the legacy version.
