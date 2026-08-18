@@ -12,6 +12,7 @@ from keras.src.backend import backend  # noqa: E402
 
 
 def pytest_configure(config):
+    """Registers custom pytest markers used across the test suite."""
     config.addinivalue_line(
         "markers",
         "requires_trainable_backend: mark test for trainable backend only",
@@ -21,7 +22,8 @@ def pytest_configure(config):
         "multi_device: mark test for running with multiple devices only",
     )
 
-    # Disable CUDA TF32 to get higher numerical accuracy for correctness tests.
+    # Disable CUDA TF32 to get higher numerical accuracy for correctness
+    # tests.
     if backend() == "jax":
         import jax
 
@@ -38,18 +40,21 @@ def pytest_configure(config):
 
 
 def pytest_collection_modifyitems(config, items):
+    """Applies backend-specific skip/require markers to collected tests."""
     has_multiple_devices = False
-
     openvino_skipped_tests = []
+
     if backend() == "openvino":
         with open(
             "keras/src/backend/openvino/excluded_concrete_tests.txt", "r"
         ) as file:
             openvino_skipped_tests = file.readlines()
-            # it is necessary to check if stripped line is not empty
-            # and exclude such lines
+            # It is necessary to check if the stripped line is not empty
+            # and exclude such lines.
             openvino_skipped_tests = [
-                line.strip() for line in openvino_skipped_tests if line.strip()
+                line.strip()
+                for line in openvino_skipped_tests
+                if line.strip()
             ]
 
     if backend() == "jax":
@@ -72,10 +77,9 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(requires_trainable_backend)
         if requires_multiple_devices and "multi_device" in item.keywords:
             item.add_marker(requires_multiple_devices)
-
-        # also, skip concrete tests for openvino, listed in the special file
-        # this is more granular mechanism to exclude tests rather
-        # than using --ignore option
+        # Also skip concrete tests for openvino, listed in the special
+        # file. This is a more granular mechanism to exclude tests rather
+        # than using the `--ignore` option.
         for skipped_test in openvino_skipped_tests:
             if skipped_test in item.nodeid:
                 item.add_marker(
@@ -87,4 +91,5 @@ def pytest_collection_modifyitems(config, items):
 
 
 def skip_if_backend(given_backend, reason):
+    """Returns a skipif marker that fires only when on `given_backend`."""
     return pytest.mark.skipif(backend() == given_backend, reason=reason)
