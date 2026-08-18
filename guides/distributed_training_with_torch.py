@@ -4,7 +4,7 @@ Author: [fchollet](https://twitter.com/fchollet)
 Date created: 2023/06/29
 Last modified: 2026/08/18
 Description: Guide to multi-GPU training for Keras models with PyTorch.
-Accelerator: GPU
+Accelerator: GPU 
 """
 
 """
