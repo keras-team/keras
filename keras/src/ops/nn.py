@@ -346,7 +346,7 @@ class Squareplus(Operation):
         self.b = b
 
     def call(self, x):
-        return backend.ops.nn.squareplus(x, self.b)
+        return _squareplus(x, self.b)
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype=x.dtype)
@@ -377,7 +377,18 @@ def squareplus(x, b=4):
     """
     if any_symbolic_tensors((x,)):
         return Squareplus(b).symbolic_call(x)
-    return backend.ops.nn.squareplus(x, b)
+    return _squareplus(x, b)
+
+
+def _squareplus(x, b):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.nn, "squareplus"
+    ):
+        return backend.ops.nn.squareplus(x, b)
+    x = backend.ops.convert_to_tensor(x)
+    b = backend.ops.convert_to_tensor(b, dtype=x.dtype)
+    y = (x + backend.ops.numpy.sqrt(backend.ops.numpy.square(x) + b)) / 2.0
+    return backend.ops.cast(y, dtype=x.dtype)
 
 
 class LogSigmoid(Operation):
@@ -712,6 +723,7 @@ class Glu(Operation):
 
     def compute_output_spec(self, x):
         output_shape = list(x.shape)
+        canonicalize_axis(self.axis, len(output_shape))
         if output_shape[self.axis] is not None:
             if output_shape[self.axis] % 2 != 0:
                 raise ValueError(

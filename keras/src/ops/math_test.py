@@ -168,6 +168,19 @@ class MathOpsDynamicShapeTest(testing.TestCase):
         y = kmath.erfinv(x)
         self.assertEqual(y.shape, (None, 2, 3))
 
+    def test_gammainc(self):
+        x1 = KerasTensor((None, 2, 3))
+        x2 = KerasTensor((None, 2, 3))
+
+        z = kmath.gammainc(x1, x2)
+        self.assertEqual(z.shape, (None, 2, 3))
+
+        x1 = KerasTensor((None, 2, 3))
+        x2 = KerasTensor((1, 2, 3))
+
+        z = kmath.gammainc(x1, x2)
+        self.assertEqual(z.shape, (None, 2, 3))
+
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     def test_segment_reduce(self, segment_reduce_op):
         # 1D case
@@ -382,6 +395,13 @@ class MathOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((1, 2, 3))
         y = kmath.erfinv(x)
         self.assertEqual(y.shape, (1, 2, 3))
+
+    def test_gammainc(self):
+        x1 = KerasTensor((1, 2, 3))
+        x2 = KerasTensor((1, 2, 3))
+
+        z = kmath.gammainc(x1, x2)
+        self.assertEqual(z.shape, (1, 2, 3))
 
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     @pytest.mark.skipif(
@@ -717,6 +737,38 @@ class MathOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(outputs[0], expected_values)
         self.assertAllClose(outputs[1], expected_indices)
+
+    def check_stability(self, values, indices):
+        """Helper function to check stability of top_k."""
+        values_np = backend.ops.convert_to_numpy(values)
+        indices_np = backend.ops.convert_to_numpy(indices)
+        is_equal = values_np[..., :-1] == values_np[..., 1:]
+        index_increasing = indices_np[..., :-1] < indices_np[..., 1:]
+        self.assertTrue(np.all(np.logical_or(~is_equal, index_increasing)))
+
+    # Below tests are specific to stable top_k implementation.
+    # We have `top_k` operation defined with `is_stable` argument
+    def test_top_k_stability_small(self):
+        x = np.array([3, 5, 5, 2, 5, 1], dtype=np.float32)
+        values, indices = kmath.top_k(x, k=4, is_stable=True)
+        self.assertAllClose(values, [5, 5, 5, 3])
+        self.assertAllClose(indices, [1, 2, 4, 0])
+
+    def test_top_k_stability_large_1d(self):
+        x = np.random.randint(0, 10, size=5000).astype(np.float32)
+        values, indices = kmath.top_k(x, k=2500, is_stable=True)
+        self.check_stability(values, indices)
+
+    def test_top_k_stability_large_2d(self):
+        x = np.random.randint(0, 5, size=(10, 500)).astype(np.int32)
+        values, indices = kmath.top_k(x, k=200, is_stable=True)
+        self.check_stability(values, indices)
+
+    def test_top_k_unstable_large(self):
+        x = np.random.randint(0, 10, size=1000).astype(np.float32)
+        values, indices = kmath.top_k(x, k=500, sorted=True, is_stable=False)
+        self.assertEqual(values.shape, (500,))
+        self.assertEqual(indices.shape, (500,))
 
     def test_in_top_k(self):
         targets = np.array([1, 0, 2])
@@ -1132,6 +1184,18 @@ class MathOpsCorrectnessTest(testing.TestCase):
         out = kmath.cdist(x, y)
         self.assertEqual(out.shape, (None, 1))
 
+    def test_gammainc(self):
+        import scipy.special
+
+        x1 = np.array([[1.0, 2.0], [3.0, 4.0]], dtype="float32")
+        x2 = np.array([[0.5, 1.0], [2.0, 5.0]], dtype="float32")
+
+        out = kmath.gammainc(x1, x2)
+        expected = scipy.special.gammainc(x1, x2)
+
+        self.assertAllClose(out, expected)
+        self.assertEqual(out.shape, (2, 2))
+
 
 class MathDtypeTest(testing.TestCase):
     """Test the floating dtype to verify that the behavior matches JAX."""
@@ -1241,6 +1305,55 @@ class MathDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(kmath.Erfinv().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(
+            dtypes=list(itertools.combinations(FLOAT_DTYPES + INT_DTYPES, 2))
+        )
+    )
+    def test_gammainc(self, dtypes):
+        import jax.numpy as jnp
+        import jax.scipy.special
+
+        dtype1, dtype2 = dtypes
+
+        x1 = knp.ones((2, 3), dtype=dtype1)
+        x2 = knp.ones((2, 3), dtype=dtype2)
+
+        x1_jax = jnp.ones((2, 3), dtype=dtype1)
+        x2_jax = jnp.ones((2, 3), dtype=dtype2)
+
+        expected_dtype = standardize_dtype(
+            jax.scipy.special.gammainc(x1_jax, x2_jax).dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(kmath.gammainc(x1, x2).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(kmath.Gammainc().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_logsumexp(self, dtype):
+        import jax.numpy as jnp
+        import jax.scipy.special as jsp
+
+        x = knp.ones((2, 3), dtype=dtype)
+        x_jax = jnp.ones((2, 3), dtype=dtype)
+
+        expected_dtype = standardize_dtype(jsp.logsumexp(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(kmath.logsumexp(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(kmath.Logsumexp().symbolic_call(x).dtype),
             expected_dtype,
         )
 
@@ -1423,6 +1536,14 @@ class TopKTest(testing.TestCase):
         expected_indices = np.array([[1, 2], [1, 2]], dtype=np.int32)
         self.assertAllClose(indices, expected_indices)
 
+    def test_top_k_operation_config_and_symbolic_call(self):
+        top_k_op = kmath.TopK(k=2, sorted=True, is_stable=True)
+        self.assertEqual(top_k_op.get_config()["is_stable"], True)
+        data = np.array([3, 5, 5, 2, 5, 1], dtype=np.float32)
+        values, indices = top_k_op.call(data)
+        self.assertAllClose(values, [5, 5])
+        self.assertAllClose(indices, [1, 2])
+
 
 class InTopKTest(testing.TestCase):
     def test_in_top_k_call(self):
@@ -1448,6 +1569,13 @@ class LogsumexpTest(testing.TestCase):
         expected_output = np.log(
             np.sum(np.exp(x), axis=axis, keepdims=keepdims)
         )
+        self.assertAllClose(output, expected_output)
+
+    def test_logsumexp_list_input(self):
+        x = [[1.0, 2.0], [3.0, 4.0]]
+        logsumexp_op = kmath.Logsumexp()
+        output = logsumexp_op.call(x)
+        expected_output = np.log(np.sum(np.exp(x)))
         self.assertAllClose(output, expected_output)
 
 

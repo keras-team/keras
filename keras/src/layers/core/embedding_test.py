@@ -14,6 +14,8 @@ from keras.src import ops
 from keras.src import quantizers
 from keras.src import saving
 from keras.src import testing
+from keras.src.quantizers.awq_config import AWQConfig
+from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
@@ -341,6 +343,17 @@ class EmbeddingTest(test_case.TestCase):
         with self.assertRaisesRegex(ValueError, "lora is already enabled"):
             layer.enable_lora(rank=2)
 
+    def test_enable_lora_after_int4_quantization_freezes_variable(self):
+        # In int4 mode the `embeddings` property returns a freshly unpacked
+        # tensor rather than the variable, so freezing must go through
+        # `_embeddings`. Backends whose tensors reject attribute assignment
+        # raise `AttributeError` here otherwise.
+        layer = layers.Embedding(input_dim=10, output_dim=16)
+        layer.build()
+        layer.quantize("int4")
+        layer.enable_lora(rank=2)
+        self.assertFalse(layer._embeddings.trainable)
+
     # Test quantization-related methods.
 
     @parameterized.named_parameters(
@@ -490,6 +503,23 @@ class EmbeddingTest(test_case.TestCase):
             layer._dtype_policy._quantization_mode = mode
             layer.quantized_call(x)
         self.assertEqual(layer.dtype_policy, original_dtype_policy)
+
+    @parameterized.named_parameters(
+        ("gptq", "gptq"),
+        ("awq", "awq"),
+    )
+    def test_quantize_unsupported_calibration_modes(self, mode):
+        # Embedding only supports int8/int4. GPTQ/AWQ must be rejected
+        # without stashing a stale quantization config on the layer.
+        layer = layers.Embedding(10, 16)
+        layer.build()
+        if mode == "gptq":
+            config = GPTQConfig(dataset=None, tokenizer=None)
+        else:
+            config = AWQConfig(dataset=None, tokenizer=None)
+        with self.assertRaises(NotImplementedError):
+            layer.quantize(mode, config=config)
+        self.assertIsNone(layer.quantization_config)
 
     @parameterized.named_parameters(
         ("int8", "int8_from_mixed_bfloat16", 0, 2),

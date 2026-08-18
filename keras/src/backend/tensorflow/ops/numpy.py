@@ -58,32 +58,18 @@ def rot90(array, k=1, axes=(0, 1)):
         axis if axis >= 0 else array.shape.rank + axis for axis in axes
     )
 
-    perm = [i for i in range(array.shape.rank) if i not in axes]
-    perm.extend(axes)
+    other_axes = [i for i in range(array.shape.rank) if i not in axes]
+    perm = other_axes + list(axes)
     array = tf.transpose(array, perm)
 
-    shape = tf.shape(array)
-    non_rot_shape = shape[:-2]
-    h, w = shape[-2], shape[-1]
-
-    array = tf.reshape(array, tf.concat([[-1], [h, w]], axis=0))
-
-    array = tf.reverse(array, axis=[2])
-    array = tf.transpose(array, [0, 2, 1])
-
-    if k % 2 == 1:
-        final_h, final_w = w, h
-    else:
-        final_h, final_w = h, w
-
-    if k > 1:
-        array = tf.reshape(array, tf.concat([[-1], [final_h, final_w]], axis=0))
-        for _ in range(k - 1):
-            array = tf.reverse(array, axis=[2])
-            array = tf.transpose(array, [0, 2, 1])
-
-    final_shape = tf.concat([non_rot_shape, [final_h, final_w]], axis=0)
-    array = tf.reshape(array, final_shape)
+    if k == 1:
+        array = tf.reverse(array, axis=[-1])
+        array = swapaxes(array, -1, -2)
+    elif k == 2:
+        array = tf.reverse(array, axis=[-2, -1])
+    elif k == 3:
+        array = tf.reverse(array, axis=[-2])
+        array = swapaxes(array, -1, -2)
 
     inv_perm = [0] * len(perm)
     for i, p in enumerate(perm):
@@ -2837,19 +2823,9 @@ def unravel_index(indices, shape):
             f"`shape` argument cannot contain `None`. Received: shape={shape}"
         )
 
-    if indices.ndim == 1:
-        coords = []
-        for dim in reversed(shape):
-            coords.append(tf.cast(indices % dim, input_dtype))
-            indices = indices // dim
-        return tuple(reversed(coords))
-
-    indices_shape = indices.shape
     coords = []
-    for dim in shape:
-        coords.append(
-            tf.reshape(tf.cast(indices % dim, input_dtype), indices_shape)
-        )
+    for dim in reversed(shape):
+        coords.append(tf.cast(indices % dim, input_dtype))
         indices = indices // dim
 
     return tuple(reversed(coords))
@@ -2878,6 +2854,8 @@ def repeat(x, repeats, axis=None):
 
 def reshape(x, newshape):
     x = convert_to_tensor(x)
+    if isinstance(newshape, (int, np.integer)):
+        newshape = (newshape,)
     if isinstance(x, tf.SparseTensor):
         from keras.src.ops.operation_utils import compute_reshape_output_shape
 

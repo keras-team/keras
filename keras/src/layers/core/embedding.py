@@ -252,6 +252,8 @@ class Embedding(Layer):
             dtype="float32",
             regularizer=self.embeddings_regularizer,
         )
+        # Freeze the underlying variable, not the `embeddings` property, which
+        # returns a throwaway unpacked tensor in int4 mode.
         self._embeddings.trainable = False
         self._tracker.lock()
         self.lora_enabled = True
@@ -561,6 +563,8 @@ class Embedding(Layer):
         # Prevent quantization of the subclasses.
         if type_check and (type(self) is not Embedding):
             raise self._not_implemented_error(self.quantize)
+        if mode not in ("int8", "int4"):
+            raise self._quantization_mode_error(mode)
 
         self.quantization_config = config
 

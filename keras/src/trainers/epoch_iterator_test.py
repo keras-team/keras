@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -58,6 +60,28 @@ class TestEpochIterator(testing.TestCase):
         self.assertLen(steps_seen, steps_per_epoch - 2)
 
         self.assertIsInstance(iterator, epoch_iterator.EpochIterator)
+
+    def test_unknown_length_input_does_not_warn(self):
+        # Reaching the end of an input of unknown length is how the epoch size
+        # gets discovered, not an interruption, so it should not warn.
+        num_batches = 4
+
+        def generator_example():
+            for i in range(num_batches):
+                yield (np.array([i]), np.array([i * 2]))
+
+        iterator = epoch_iterator.EpochIterator(x=generator_example())
+        self.assertIsNone(iterator.num_batches)
+
+        steps_seen = []
+        with warnings.catch_warnings(record=True) as raised:
+            warnings.simplefilter("always")
+            for step, _, _ in iterator:
+                steps_seen.append(step)
+        self.assertLen(steps_seen, num_batches)
+        self.assertEmpty(
+            [w for w in raised if "ran out of data" in str(w.message)]
+        )
 
     def test_unsupported_y_arg_tfdata(self):
         with self.assertRaisesRegex(ValueError, "`y` should not be passed"):

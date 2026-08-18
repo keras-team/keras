@@ -89,6 +89,38 @@ class LayerNormalizationTest(testing.TestCase):
         ):
             layers.LayerNormalization(axis={"axis": -1})
 
+    def test_out_of_bounds_axis(self):
+        # `build()` used to index `input_shape` directly, so an out-of-bounds
+        # axis surfaced as a bare `IndexError: tuple index out of range`
+        # instead of the `ValueError` already raised by
+        # `compute_output_shape()`.
+        x = np.zeros((2, 4), dtype="float32")
+        for axis in (2, 99, -3, -99):
+            with self.assertRaisesRegex(ValueError, "is out of bounds"):
+                layers.LayerNormalization(axis=axis)(x)
+        # A list of axes is validated element-wise.
+        with self.assertRaisesRegex(ValueError, "is out of bounds"):
+            layers.LayerNormalization(axis=[0, 99])(x)
+        # `build()` and `compute_output_shape()` agree.
+        with self.assertRaisesRegex(ValueError, "is out of bounds"):
+            layers.LayerNormalization(axis=99).build((2, 4))
+        with self.assertRaisesRegex(ValueError, "is out of bounds"):
+            layers.LayerNormalization(axis=99).compute_output_shape((2, 4))
+
+    def test_duplicate_axis(self):
+        # `[-1, 1]` refers to the same axis twice for a rank 2 input, which
+        # used to build mismatched weights and fail in the backend.
+        x = np.zeros((2, 4), dtype="float32")
+        with self.assertRaisesRegex(ValueError, "Duplicate axes"):
+            layers.LayerNormalization(axis=[-1, 1])(x)
+        with self.assertRaisesRegex(ValueError, "Duplicate axes"):
+            layers.LayerNormalization(axis=[1, 1])(x)
+
+    def test_axis_is_canonicalized(self):
+        layer = layers.LayerNormalization(axis=-1)
+        layer.build((2, 4))
+        self.assertEqual(layer.axis, [1])
+
     def test_correctness(self):
         layer = layers.LayerNormalization(dtype="float32")
         layer.build(input_shape=(2, 2, 2))
