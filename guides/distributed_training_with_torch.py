@@ -104,7 +104,8 @@ def get_dataset():
     # Reshape to NCHW (N, 1, 28, 28) for PyTorch
     x_train = np.expand_dims(x_train, 1)
     x_test = np.expand_dims(x_test, 1)
-    print("x_train shape:", x_train.shape)
+    if not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0:
+        print("x_train shape:", x_train.shape)
 
     # Create a TensorDataset
     dataset = torch.utils.data.TensorDataset(
