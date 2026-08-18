@@ -2,7 +2,7 @@
 Title: Multi-GPU distributed training with PyTorch
 Author: [fchollet](https://twitter.com/fchollet)
 Date created: 2023/06/29
-Last modified: 2023/06/29
+Last modified: 2026/08/18
 Description: Guide to multi-GPU training for Keras models with PyTorch.
 Accelerator: GPU
 """
@@ -45,27 +45,32 @@ import os
 
 os.environ["KERAS_BACKEND"] = "torch"
 
-import torch
 import numpy as np
+import torch
 import keras
 
 
 def get_model():
-    # Make a simple convnet with batch normalization and dropout.
-    inputs = keras.Input(shape=(28, 28, 1))
+    # Set input layout to Channels-First (C, H, W) to match PyTorch tensors
+    inputs = keras.Input(shape=(1, 28, 28))
     x = keras.layers.Rescaling(1.0 / 255.0)(inputs)
     x = keras.layers.Conv2D(
-        filters=12, kernel_size=3, padding="same", use_bias=False
+        filters=12,
+        kernel_size=3,
+        padding="same",
+        use_bias=False,
+        data_format="channels_first",
     )(x)
-    x = keras.layers.BatchNormalization(scale=False, center=True)(x)
+    x = keras.layers.BatchNormalization(axis=1, scale=False, center=True)(x)
     x = keras.layers.ReLU()(x)
     x = keras.layers.Conv2D(
         filters=24,
         kernel_size=6,
         use_bias=False,
         strides=2,
+        data_format="channels_first",
     )(x)
-    x = keras.layers.BatchNormalization(scale=False, center=True)(x)
+    x = keras.layers.BatchNormalization(axis=1, scale=False, center=True)(x)
     x = keras.layers.ReLU()(x)
     x = keras.layers.Conv2D(
         filters=32,
@@ -73,55 +78,56 @@ def get_model():
         padding="same",
         strides=2,
         name="large_k",
+        data_format="channels_first",
     )(x)
-    x = keras.layers.BatchNormalization(scale=False, center=True)(x)
+    x = keras.layers.BatchNormalization(axis=1, scale=False, center=True)(x)
     x = keras.layers.ReLU()(x)
-    x = keras.layers.GlobalAveragePooling2D()(x)
+    x = keras.layers.GlobalAveragePooling2D(data_format="channels_first")(x)
     x = keras.layers.Dense(256, activation="relu")(x)
     x = keras.layers.Dropout(0.5)(x)
     outputs = keras.layers.Dense(10)(x)
-    model = keras.Model(inputs, outputs)
-    return model
+    return keras.Model(inputs, outputs)
 
 
 def get_dataset():
     # Load the data and split it between train and test sets
-    (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
+    (x_train, y_train), _ = keras.datasets.mnist.load_data()
 
-    # Scale images to the [0, 1] range
+    # Directly expand channel dimension to index 1 for Channels-First (NCHW)
     x_train = x_train.astype("float32")
-    x_test = x_test.astype("float32")
-    # Make sure images have shape (28, 28, 1)
-    x_train = np.expand_dims(x_train, -1)
-    x_test = np.expand_dims(x_test, -1)
-    print("x_train shape:", x_train.shape)
+    x_train = np.expand_dims(x_train, 1)
 
-    # Create a TensorDataset
-    dataset = torch.utils.data.TensorDataset(
+    # Ensure label targets match PyTorch int64 requirements
+    y_train = y_train.astype("int64")
+
+    return torch.utils.data.TensorDataset(
         torch.from_numpy(x_train), torch.from_numpy(y_train)
     )
-    return dataset
 
+        
 
 """
 Next, let's define a simple PyTorch training loop that targets
-a GPU (note the calls to `.cuda()`).
+a GPU (note the calls to `.to(current_gpu_index)`).
 """
 
 
-def train_model(model, dataloader, num_epochs, optimizer, loss_fn):
+def train_model(
+    model, dataloader, sampler, num_epochs, optimizer, loss_fn, current_gpu_index
+):
     for epoch in range(num_epochs):
+        # Synchronize sampler random seed per epoch
+        sampler.set_epoch(epoch)
         running_loss = 0.0
         running_loss_count = 0
-        for batch_idx, (inputs, targets) in enumerate(dataloader):
-            inputs = inputs.cuda(non_blocking=True)
-            targets = targets.cuda(non_blocking=True)
 
-            # Forward pass
+        for batch_idx, (inputs, targets) in enumerate(dataloader):
+            inputs = inputs.to(current_gpu_index, non_blocking=True)
+            targets = targets.to(current_gpu_index, non_blocking=True)
+
             outputs = model(inputs)
             loss = loss_fn(outputs, targets)
 
-            # Backward and optimize
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -129,11 +135,10 @@ def train_model(model, dataloader, num_epochs, optimizer, loss_fn):
             running_loss += loss.item()
             running_loss_count += 1
 
-        # Print loss statistics
-        print(
-            f"Epoch {epoch + 1}/{num_epochs}, "
-            f"Loss: {running_loss / running_loss_count}"
-        )
+        if current_gpu_index == 0:
+            print(
+                f"Epoch {epoch + 1}/{num_epochs} - Loss: {running_loss / running_loss_count:.4f}"
+            )
 
 
 """
@@ -183,25 +188,17 @@ a separate device in each process.
 Here's the flow, where each step is split into its own utility function:
 """
 
-# Config
-num_gpu = torch.cuda.device_count()
-num_epochs = 2
-batch_size = 64
-print(f"Running on {num_gpu} GPUs")
-
 
 def setup_device(current_gpu_index, num_gpus):
-    # Device setup
     os.environ["MASTER_ADDR"] = "localhost"
     os.environ["MASTER_PORT"] = "56492"
-    device = torch.device("cuda:{}".format(current_gpu_index))
+    torch.cuda.set_device(current_gpu_index)
     torch.distributed.init_process_group(
         backend="nccl",
         init_method="env://",
         world_size=num_gpus,
         rank=current_gpu_index,
     )
-    torch.cuda.set_device(device)
 
 
 def cleanup():
@@ -213,26 +210,28 @@ def prepare_dataloader(dataset, current_gpu_index, num_gpus, batch_size):
         dataset,
         num_replicas=num_gpus,
         rank=current_gpu_index,
-        shuffle=False,
+        shuffle=True,
     )
     dataloader = torch.utils.data.DataLoader(
         dataset,
         sampler=sampler,
         batch_size=batch_size,
         shuffle=False,
+        num_workers=2,
+        pin_memory=True,
     )
-    return dataloader
+    return dataloader, sampler
 
 
-def per_device_launch_fn(current_gpu_index, num_gpu):
+def per_device_launch_fn(current_gpu_index, num_gpu, num_epochs, batch_size):
     # Setup the process groups
     setup_device(current_gpu_index, num_gpu)
 
     dataset = get_dataset()
     model = get_model()
 
-    # prepare the dataloader
-    dataloader = prepare_dataloader(
+    # Prepare the dataloader and sampler
+    dataloader, sampler = prepare_dataloader(
         dataset, current_gpu_index, num_gpu, batch_size
     )
 
@@ -248,7 +247,15 @@ def per_device_launch_fn(current_gpu_index, num_gpu):
         model, device_ids=[current_gpu_index], output_device=current_gpu_index
     )
 
-    train_model(ddp_model, dataloader, num_epochs, optimizer, loss_fn)
+    train_model(
+        ddp_model,
+        dataloader,
+        sampler,
+        num_epochs,
+        optimizer,
+        loss_fn,
+        current_gpu_index,
+    )
 
     cleanup()
 
@@ -258,13 +265,22 @@ Time to start multiple processes:
 """
 
 if __name__ == "__main__":
-    # We use the "fork" method rather than "spawn" to support notebooks
+    num_gpu = torch.cuda.device_count()
+    num_epochs = 2
+    batch_size = 64
+
+    if num_gpu < 1:
+        raise RuntimeError(
+            "No CUDA GPUs detected. Multi-GPU training requires at least 1 GPU."
+        )
+
+    # Switch to spawn mode to prevent CUDA initialization deadlocks across processes
     torch.multiprocessing.start_processes(
         per_device_launch_fn,
-        args=(num_gpu,),
+        args=(num_gpu, num_epochs, batch_size),
         nprocs=num_gpu,
         join=True,
-        start_method="fork",
+        start_method="spawn",
     )
 
 """
