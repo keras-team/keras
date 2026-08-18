@@ -144,11 +144,12 @@ def train_model(model, dataloader, num_epochs, optimizer, loss_fn):
             running_loss += loss.item()
             running_loss_count += 1
 
-        # Print loss statistics
-        print(
-            f"Epoch {epoch + 1}/{num_epochs}, "
-            f"Loss: {running_loss / running_loss_count:.4f}"
-        )
+        # Print loss statistics on rank 0 only
+        if not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0:
+            print(
+                f"Epoch {epoch + 1}/{num_epochs}, "
+                f"Loss: {running_loss / running_loss_count:.4f}"
+            )
 
 
 """
