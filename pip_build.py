@@ -37,7 +37,15 @@ to_copy = ["pyproject.toml", "README.md"]
 
 
 def export_version_string(version, is_nightly=False, rc_index=None):
-    """Export Version and Package Name."""
+    """Writes the final version string into `keras/src/version.py`.
+
+    Args:
+        version: The base version string, e.g. `"3.5.0"`.
+        is_nightly: If True, appends a `.devYYYYMMDDHH` suffix and renames
+            the package to `keras-nightly` in `pyproject.toml`.
+        rc_index: If given (and `is_nightly` is False), appends `rcN` to
+            the version string to mark a release candidate.
+    """
     if is_nightly:
         date = datetime.datetime.now()
         version += f".dev{date:%Y%m%d%H}"
@@ -63,12 +71,20 @@ def export_version_string(version, is_nightly=False, rc_index=None):
 
 
 def ignore_files(_, filenames):
+    """`shutil.copytree` ignore-hook that skips `*_test.py` files."""
     return [f for f in filenames if f.endswith("_test.py")]
 
 
 def copy_source_to_build_directory(root_path):
-    # Copy sources (`keras/` directory and setup files) to build
-    # directory
+    """Copies `keras/` and top-level packaging files into the build dir.
+
+    Also `chdir`s into the newly created build directory, since the
+    subsequent build steps (importing the freshly copied package,
+    running `python3 -m build`) expect to run from there.
+
+    Args:
+        root_path: Absolute path to the repository root.
+    """
     os.chdir(root_path)
     os.mkdir(build_directory)
     shutil.copytree(
@@ -80,12 +96,25 @@ def copy_source_to_build_directory(root_path):
 
 
 def build(root_path, is_nightly=False, rc_index=None):
+    """Builds the `.whl` (and `.tar.gz`) distribution for this version.
+
+    Args:
+        root_path: Absolute path to the repository root.
+        is_nightly: Whether to build a nightly (`keras-nightly`) release.
+        rc_index: Optional release-candidate index (e.g. `0` for `rc0`).
+
+    Returns:
+        The absolute path to the built `.whl` file, or `None` if the
+        build failed.
+    """
     if os.path.exists(build_directory):
         raise ValueError(f"Directory already exists: {build_directory}")
 
     try:
         copy_source_to_build_directory(root_path)
 
+        # Import from the freshly copied source (not the caller's cwd),
+        # so the version we stamp and build matches the copied package.
         from keras.src.version import __version__  # noqa: E402
 
         export_version_string(__version__, is_nightly, rc_index)
@@ -96,6 +125,18 @@ def build(root_path, is_nightly=False, rc_index=None):
 
 
 def build_and_save_output(root_path, __version__):
+    """Runs `python3 -m build`, then copies the artifacts to `dist/`.
+
+    Args:
+        root_path: Absolute path to the repository root, where the final
+            `dist/` directory lives.
+        __version__: The stamped version string, used to identify which
+            generated file is the `.whl` we care about.
+
+    Returns:
+        The absolute path to the built `.whl` file, or `None` if it
+        could not be found (i.e. the build failed).
+    """
     # Build the package
     os.system("python3 -m build")
 
@@ -121,6 +162,11 @@ def build_and_save_output(root_path, __version__):
 
 
 def install_whl(whl_fpath):
+    """Force-installs the built wheel, ignoring its declared dependencies.
+
+    Args:
+        whl_fpath: Absolute path to the `.whl` file to install.
+    """
     print(f"Installing wheel file: {whl_fpath}")
     subprocess.run(
         [
