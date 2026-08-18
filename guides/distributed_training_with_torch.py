@@ -45,9 +45,9 @@ import os
 
 os.environ["KERAS_BACKEND"] = "torch"
 
+import keras
 import numpy as np
 import torch
-import keras
 
 
 def get_model():
@@ -56,7 +56,11 @@ def get_model():
     inputs = keras.Input(shape=(1, 28, 28))
     x = keras.layers.Rescaling(1.0 / 255.0)(inputs)
     x = keras.layers.Conv2D(
-        filters=12, kernel_size=3, padding="same", use_bias=False, data_format="channels_first"
+        filters=12,
+        kernel_size=3,
+        padding="same",
+        use_bias=False,
+        data_format="channels_first",
     )(x)
     x = keras.layers.BatchNormalization(scale=False, center=True, axis=1)(x)
     x = keras.layers.ReLU()(x)
