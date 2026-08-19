@@ -1201,7 +1201,7 @@ def safe_get_h5_group(parent, name):
     current = parent
     for name_part in name.split("/"):
         if not name_part:
-            raise ValueError(f"Invalid path in H5 file: {name}")
+            continue
 
         # Also handles the case when the group is an empty dict initially.
         if name_part not in current:
