@@ -2883,6 +2883,8 @@ def roll(x, shift, axis=None):
 
 
 def searchsorted(sorted_sequence, values, side="left"):
+    sorted_sequence = convert_to_tensor(sorted_sequence)
+    values = convert_to_tensor(values)
     if ndim(sorted_sequence) != 1:
         raise ValueError(
             "`searchsorted` only supports 1-D sorted sequences. "
@@ -2896,9 +2898,11 @@ def searchsorted(sorted_sequence, values, side="left"):
         if sequence_len is not None and sequence_len <= np.iinfo(np.int32).max
         else "int64"
     )
-    return tf.searchsorted(
-        sorted_sequence, values, side=side, out_type=out_type
+    values_shape = shape_op(values)
+    result = tf.searchsorted(
+        sorted_sequence, tf.reshape(values, [-1]), side=side, out_type=out_type
     )
+    return tf.reshape(result, values_shape)
 
 
 @sparse.elementwise_unary
