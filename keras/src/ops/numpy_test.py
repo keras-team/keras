@@ -1475,6 +1475,9 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.sum(x, axis=1).shape, (None, 3))
         self.assertEqual(knp.sum(x, axis=1, keepdims=True).shape, (None, 1, 3))
 
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            knp.sum(x, axis=(1, -2))
+
     def test_amax(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.amax(x).shape, ())
@@ -1869,6 +1872,9 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.expand_dims(x, (1, 2)).shape, (None, 1, 1, 3))
         self.assertEqual(knp.expand_dims(x, (-1, -2)).shape, (None, 3, 1, 1))
         self.assertEqual(knp.expand_dims(x, (-1, 1)).shape, (None, 1, 3, 1))
+
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            knp.expand_dims(x, (1, -3))
 
     def test_expm1(self):
         x = KerasTensor((None, 3))

@@ -70,6 +70,10 @@ def compute_expand_dims_output_shape(input_shape, axis):
     axis = to_tuple_or_list(axis)
     out_ndim = len(axis) + len(input_shape)
     axis = [canonicalize_axis(a, out_ndim) for a in axis]
+    if len(set(axis)) != len(axis):
+        raise ValueError(
+            f"`axis` must not contain duplicate entries. Received: axis={axis}."
+        )
     shape_iter = iter(input_shape)
     new_shape = [
         1 if ax in axis else next(shape_iter) for ax in range(out_ndim)
@@ -471,6 +475,10 @@ def reduce_shape(shape, axis=None, keepdims=False):
         axis = (axis,)
 
     axis = tuple(canonicalize_axis(a, len(shape)) for a in axis)
+    if len(set(axis)) != len(axis):
+        raise ValueError(
+            f"`axis` must not contain duplicate entries. Received: axis={axis}."
+        )
 
     if keepdims:
         for ax in axis:
