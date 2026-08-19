@@ -408,10 +408,14 @@ class EinsumDense(Layer):
         kernel_value, merged_kernel_scale, merged_kernel_zero = (
             self._get_kernel_with_merged_lora()
         )
+        # Variables are stored under their integer position ("0", "1", ...)
+        # within the mode's serialization spec. Each branch picks the value
+        # for the current spec entry (or skips it); the write happens at a
+        # single point so save and load stay position-consistent.
         idx = 0
         for name in self.variable_serialization_spec[mode]:
             if name == "kernel":
-                store[str(idx)] = kernel_value
+                value = kernel_value
             elif name == "bias" and self.bias is None:
                 continue
             elif name == "kernel_zero" and mode == "int4":
@@ -420,18 +424,19 @@ class EinsumDense(Layer):
                 # sub-channel quantization.
                 if merged_kernel_zero is None:
                     continue
-                store[str(idx)] = merged_kernel_zero
+                value = merged_kernel_zero
             elif name == "g_idx":
                 if not hasattr(self, "g_idx"):
                     # g_idx only exists for sub-channel int4 quantization
                     continue
-                store[str(idx)] = self.g_idx
+                value = self.g_idx
             elif name == "kernel_scale" and mode in ("int4", "int8"):
                 # For int4/int8, the merged LoRA scale (if any) comes from
                 # `_get_kernel_with_merged_lora()`
-                store[str(idx)] = merged_kernel_scale
+                value = merged_kernel_scale
             else:
-                store[str(idx)] = getattr(self, name)
+                value = getattr(self, name)
+            store[str(idx)] = value
             idx += 1
 
     def load_own_variables(self, store):
@@ -448,10 +453,16 @@ class EinsumDense(Layer):
         self.is_gptq_calibrated = mode == "gptq"
         self.is_awq_calibrated = mode == "awq"
 
+        spec = self.variable_serialization_spec[mode]
+        # Variables are keyed by their integer position ("0", "1", ...) within
+        # the mode's serialization spec. Each branch picks the target variable
+        # for the current spec entry (or skips it); the assign happens at a
+        # single point so save and load stay position-consistent.
         idx = 0
-        for name in self.variable_serialization_spec[mode]:
+        for name in spec:
+            key = str(idx)
             if name == "kernel":
-                self._kernel.assign(store[str(idx)])
+                target = self._kernel
             elif name == "bias" and self.bias is None:
                 continue
             elif name == "kernel_zero" and not hasattr(self, "kernel_zero"):
@@ -461,7 +472,8 @@ class EinsumDense(Layer):
                 # g_idx only exists for sub-channel int4 quantization
                 continue
             else:
-                getattr(self, name).assign(store[str(idx)])
+                target = getattr(self, name)
+            target.assign(store[key])
             idx += 1
         if self.lora_enabled:
             self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))

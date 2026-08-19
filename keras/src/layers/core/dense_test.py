@@ -22,6 +22,7 @@ from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
+from keras.src.testing import test_utils
 
 
 class DenseTest(testing.TestCase):
@@ -1065,6 +1066,111 @@ class DenseTest(testing.TestCase):
         self.assertAllClose(layer.kernel_zero, awq_store["3"])
         self.assertAllClose(layer.awq_scales, awq_store["4"])
         self.assertAllClose(layer.g_idx, awq_store["5"])
+
+    @staticmethod
+    def _build_dense_for_mode(mode, input_dim=256, units=64):
+        """Builds a `Dense` layer populated for `mode`'s serialization spec."""
+        if mode == "none":
+            layer = layers.Dense(units=units)
+            layer.build((None, input_dim))
+        elif mode == "int8":
+            layer = layers.Dense(units=units, dtype="int8_from_float32")
+            layer.build((None, input_dim))
+        elif mode == "int4_per_channel":
+            layer = layers.Dense(units=units, dtype="int4_from_float32")
+            layer.build((None, input_dim))
+        elif mode == "int4_grouped":
+            layer = layers.Dense(units=units)
+            layer.build((None, input_dim))
+            layer.quantize(
+                "int4", config=Int4QuantizationConfig(block_size=128)
+            )
+        elif mode == "float8":
+            layer = layers.Dense(units=units, dtype="float8_from_float32")
+            layer.build((None, input_dim))
+        elif mode == "ternary":
+            # Ternary has no float `_kernel`; the packed kernel is serialized
+            # under the `"kernel"` spec name.
+            layer = layers.Dense(units=units, dtype="ternary_from_float32")
+            layer.build((None, input_dim))
+        elif mode == "gptq":
+            layer = layers.Dense(units=units, dtype="gptq/4/32_from_float32")
+            layer.build((None, input_dim))
+        elif mode == "awq":
+            layer = layers.Dense(units=units, dtype="awq/4/32_from_float32")
+            layer.build((None, input_dim))
+        else:
+            raise ValueError(f"Unhandled test mode: {mode}")
+        return layer
+
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
+    def test_serialization_round_trip(self):
+        # Modes whose `save_own_variables` writes a self-consistent store.
+        for mode in (
+            "none",
+            "int8",
+            "int4_per_channel",
+            "int4_grouped",
+            "float8",
+            "ternary",
+        ):
+            with self.subTest(mode=mode):
+                source = self._build_dense_for_mode(mode)
+                test_utils.randomize_serialized_variables(source)
+
+                store = {}
+                source.save_own_variables(store)
+                # Variables are keyed by consecutive integer positions in the
+                # mode's serialization spec -- the on-disk contract.
+                n_expected = len(test_utils.serialized_variable_names(source))
+                self.assertEqual(
+                    set(store.keys()), {str(i) for i in range(n_expected)}
+                )
+
+                target = self._build_dense_for_mode(mode)
+                target.load_own_variables(store)
+                test_utils.assert_serialized_variables_equal(
+                    self, source, target
+                )
+
+    def test_gptq_awq_load_from_store(self):
+        # GPTQ/AWQ checkpoints carry variables (e.g. `kernel_zero`) that
+        # `save_own_variables` does not emit for a freshly built layer, so
+        # they are validated through the load path with a fully-populated
+        # store.
+        for mode in ("gptq", "awq"):
+            with self.subTest(mode=mode):
+                source = self._build_dense_for_mode(mode)
+                test_utils.randomize_serialized_variables(source)
+
+                target = self._build_dense_for_mode(mode)
+                target.load_own_variables(test_utils.positional_store(source))
+                self.assertEqual(target.is_gptq_calibrated, mode == "gptq")
+                self.assertEqual(target.is_awq_calibrated, mode == "awq")
+                test_utils.assert_serialized_variables_equal(
+                    self, source, target
+                )
+
+    def test_load_own_variables_reports_clear_errors(self):
+        # int8 spec order: kernel ("0"), bias ("1"), kernel_scale ("2").
+        source = self._build_dense_for_mode("int8")
+        test_utils.randomize_serialized_variables(source)
+        store = test_utils.positional_store(source)
+
+        # A missing variable trips the variable-count check with a clear error.
+        missing = dict(store)
+        del missing["2"]
+        with self.assertRaisesRegex(ValueError, "expected 3 variables"):
+            self._build_dense_for_mode("int8").load_own_variables(missing)
+
+        # A renumbered/corrupted key keeps the count but fails on the exact
+        # missing position.
+        corrupted = dict(store)
+        corrupted["9"] = corrupted.pop("2")
+        with self.assertRaises(KeyError):
+            self._build_dense_for_mode("int8").load_own_variables(corrupted)
 
     def test_int4_gptq_kernel_returns_unpacked_form(self):
         """Test that the `kernel` property returns the unpacked int4 GPTQ
