@@ -380,8 +380,9 @@ class LSTMTest(testing.TestCase):
         # Same in-place state issue as stateful cuDNN GRU: the optimized
         # kernel retains initial states for backward, then Keras copy_s
         # into the stateful Variables.
-        import torch
         from unittest import mock
+
+        import torch
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
         inputs = torch.randn(2, 3, 4, device=device)

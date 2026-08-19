@@ -487,8 +487,9 @@ class GRUTest(testing.TestCase):
         # clone on the optimized torch path, autograd raises RuntimeError
         # on CUDA: "one of the variables needed for gradient computation
         # has been modified by an inplace operation".
-        import torch
         from unittest import mock
+
+        import torch
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
         inputs = torch.randn(2, 3, 4, device=device)
