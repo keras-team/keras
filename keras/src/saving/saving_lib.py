@@ -1201,6 +1201,9 @@ def safe_get_h5_group(parent, name):
     current = parent
     for name_part in name.split("/"):
         if not name_part:
+            # Keras never builds `name` with a leading `/` (paths are joined
+            # from ""), so this only normalizes accidental double/trailing
+            # separators, not true H5 absolute-path addressing.
             continue
 
         # Also handles the case when the group is an empty dict initially.
