@@ -188,6 +188,16 @@ def gptq_quantize_matrix(
             # Error feedback for remaining columns within the block
             # block_inv_hessian_diag: scalar
             current_block_influence = block_inv_hessian[block_idx, block_idx]
+            # A (near-)zero diagonal element of the inverse Hessian makes
+            # the error term blow up to NaN/Inf and silently corrupts all
+            # subsequent weight updates. Guard the division with a small
+            # epsilon (sign-preserving) so quantization always completes.
+            eps = 1e-8
+            current_block_influence = ops.where(
+                ops.abs(current_block_influence) < eps,
+                ops.where(current_block_influence < 0, -eps, eps),
+                current_block_influence,
+            )
             # We divide by current_block_influence to get the
             # correct scaling of the error term.
             err = ops.divide(
