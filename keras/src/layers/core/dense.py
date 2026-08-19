@@ -1171,13 +1171,16 @@ class Dense(Layer):
             self._kernel.assign(kernel_value)
             self.kernel_scale.assign(kernel_scale)
         elif mode == "int4":
-            from keras.src.quantizers.quantization_config import (
-                Int4QuantizationConfig,
-            )
-
-            block_size = None
-            if isinstance(self.quantization_config, Int4QuantizationConfig):
-                block_size = self.quantization_config.block_size
+            # Resolve the group size from the (already-resolved) config or the
+            # layer's dtype policy. `get_block_size_for_layer` is the single
+            # source of truth shared with `_int4_build` and the dtype-policy
+            # naming below, so the quantized values, the built variables, and
+            # the saved policy string can never disagree. A bare
+            # `quantize("int4")` reaches here with the canonical
+            # `Int4QuantizationConfig()` (grouped, block_size=128); a
+            # `block_size` of `None` or `-1` selects the per-channel escape
+            # hatch.
+            block_size = get_block_size_for_layer(self, config)
 
             if block_size is None or block_size == -1:
                 # Per-channel quantization
