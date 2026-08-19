@@ -353,7 +353,7 @@ class Int4DTypePolicy(QuantizedDTypePolicy):
 
         # Use the normalized block_size so a loaded "int4/None" policy reports
         # the canonical "int4/-1" name (identical for all other block sizes).
-        self._name = f"{base_mode}/{block_size}_from_{source_name}"
+        self._name = f"{base_mode}/{block_size}_from_{self._source_name}"
         self.mode = base_mode
         self.block_size = block_size
 
