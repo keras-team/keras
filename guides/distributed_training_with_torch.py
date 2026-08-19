@@ -104,7 +104,10 @@ def get_dataset():
     # Reshape to NCHW (N, 1, 28, 28) for PyTorch
     x_train = np.expand_dims(x_train, 1)
     x_test = np.expand_dims(x_test, 1)
-    if not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0:
+    if (
+        not torch.distributed.is_initialized()
+        or torch.distributed.get_rank() == 0
+    ):
         print("x_train shape:", x_train.shape)
 
     # Create a TensorDataset
@@ -145,7 +148,10 @@ def train_model(model, dataloader, num_epochs, optimizer, loss_fn):
             running_loss_count += 1
 
         # Print loss statistics on rank 0 only
-        if not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0:
+        if (
+            not torch.distributed.is_initialized()
+            or torch.distributed.get_rank() == 0
+        ):
             print(
                 f"Epoch {epoch + 1}/{num_epochs}, "
                 f"Loss: {running_loss / running_loss_count:.4f}"
