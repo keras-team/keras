@@ -476,3 +476,41 @@ class GRUTest(testing.TestCase):
                 "fallback."
             ),
         )
+
+    @pytest.mark.skipif(
+        backend.backend() != "torch",
+        reason="Reproduces torch stateful GRU backward (#23462).",
+    )
+    def test_stateful_backward(self):
+        # cuDNN GRU retains the initial hidden state for backward. Keras
+        # then updates the stateful Variable in-place via copy_. Without a
+        # clone on the optimized torch path, autograd raises RuntimeError
+        # on CUDA: "one of the variables needed for gradient computation
+        # has been modified by an inplace operation".
+        import torch
+        from unittest import mock
+
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        inputs = torch.randn(2, 3, 4, device=device)
+        layer = layers.GRU(5, stateful=True)
+
+        if device == "cuda":
+            real_vf_gru = torch._VF.gru
+            calls = []
+
+            def spy(*args, **kwargs):
+                calls.append(True)
+                return real_vf_gru(*args, **kwargs)
+
+            with mock.patch.object(torch._VF, "gru", side_effect=spy):
+                layer(inputs).sum().backward()
+            self.assertGreaterEqual(
+                len(calls),
+                1,
+                msg=(
+                    "torch._VF.gru was never invoked; the test did not "
+                    "exercise the cuDNN path from #23462."
+                ),
+            )
+        else:
+            layer(inputs).sum().backward()
