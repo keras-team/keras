@@ -79,3 +79,64 @@ class RandomApplyTest(testing.TestCase):
         x = np.random.uniform(size=(2, 4, 4, 3)).astype("float32")
         out = backend.convert_to_numpy(layer(x, training=True))
         self.assertEqual(out.shape, x.shape)
+
+    def _bbox_data(self):
+        return {
+            "images": np.random.uniform(size=(2, 8, 8, 3)).astype("float32"),
+            "bounding_boxes": {
+                "boxes": np.array(
+                    [[[0.0, 0.0, 4.0, 4.0]], [[1.0, 1.0, 5.0, 5.0]]],
+                    dtype="float32",
+                ),
+                "labels": np.array([[0], [1]], dtype="float32"),
+            },
+        }
+
+    def test_dict_input_with_bounding_boxes(self):
+        # A wrapped image preprocessing layer accepts a dict of images and
+        # bounding boxes; the wrapper must pass the structure through rather
+        # than assuming a single tensor.
+        layer = RandomApply(
+            layers.RandomFlip("horizontal", bounding_box_format="xyxy"),
+            rate=1.0,
+            seed=0,
+        )
+        out = layer(self._bbox_data(), training=True)
+        self.assertIsInstance(out, dict)
+        self.assertEqual(sorted(out.keys()), ["bounding_boxes", "images"])
+        self.assertEqual(
+            backend.convert_to_numpy(out["images"]).shape, (2, 8, 8, 3)
+        )
+        self.assertEqual(
+            backend.convert_to_numpy(out["bounding_boxes"]["boxes"]).shape,
+            (2, 1, 4),
+        )
+
+    def test_rate_zero_is_strict_passthrough_for_dict_input(self):
+        # `BaseImagePreprocessingLayer` rebinds keys on the dict it is given
+        # and returns that same object, so a naive select would compare the
+        # augmented values against themselves and let augmentation leak
+        # through at rate=0.0.
+        for seed in range(8):
+            data = self._bbox_data()
+            expected = data["images"].copy()
+            layer = RandomApply(
+                layers.RandomFlip("horizontal", bounding_box_format="xyxy"),
+                rate=0.0,
+                seed=seed,
+            )
+            out = layer(data, training=True)
+            self.assertAllClose(
+                backend.convert_to_numpy(out["images"]), expected
+            )
+
+    def test_does_not_mutate_caller_structure(self):
+        data = self._bbox_data()
+        expected = data["images"].copy()
+        layer = RandomApply(
+            layers.RandomFlip("horizontal", bounding_box_format="xyxy"),
+            rate=1.0,
+            seed=3,
+        )
+        layer(data, training=True)
+        self.assertAllClose(data["images"], expected)

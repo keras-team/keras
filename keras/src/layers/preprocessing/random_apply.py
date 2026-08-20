@@ -1,3 +1,4 @@
+from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 from keras.src.layers.preprocessing.data_layer import DataLayer
@@ -57,19 +58,37 @@ class RandomApply(DataLayer):
         if not training:
             return inputs
 
-        transformed = self.layer(inputs, training=training)
+        # Snapshot the input structure before invoking the wrapped layer. The
+        # image preprocessing layers rebind keys on the structure they are
+        # given and return that same object, so without a snapshot both
+        # branches of the selection below would observe augmented values and
+        # `rate=0.0` would not be a strict pass-through. The wrapped layer
+        # gets its own copy so the caller's structure is left untouched.
+        original = tree.map_structure(lambda x: x, inputs)
+        transformed = self.layer(
+            tree.map_structure(lambda x: x, inputs), training=training
+        )
+
         seed = self._get_seed_generator(self.backend._backend)
         u = self.backend.random.uniform(
             shape=(1,), minval=0.0, maxval=1.0, seed=seed
         )
-        # Stack [transformed, inputs] along a new leading axis and gather the
-        # one selected by the Bernoulli draw.
         # 0 -> apply transformed, 1 -> skip (return inputs).
         idx = self.backend.cast(
             self.backend.numpy.greater_equal(u, self.rate), "int32"
         )
-        stacked = self.backend.numpy.stack([transformed, inputs], axis=0)
-        return self.backend.numpy.take(stacked, idx, axis=0)[0]
+
+        def _select(transformed_leaf, original_leaf):
+            # Stack [transformed, original] along a new leading axis and
+            # gather the one selected by the Bernoulli draw. The same `idx` is
+            # used for every leaf, so a structured input is either fully
+            # augmented or fully passed through.
+            stacked = self.backend.numpy.stack(
+                [transformed_leaf, original_leaf], axis=0
+            )
+            return self.backend.numpy.take(stacked, idx, axis=0)[0]
+
+        return tree.map_structure(_select, transformed, original)
 
     def compute_output_shape(self, input_shape):
         return input_shape
