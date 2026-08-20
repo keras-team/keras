@@ -187,38 +187,44 @@ def gptq_quantize_matrix(
             )[:, 0]
             # Error feedback for remaining columns within the block
             # block_inv_hessian_diag: scalar
-            current_block_influence = block_inv_hessian[block_idx, block_idx]
-            # We divide by current_block_influence to get the
-            # correct scaling of the error term.
-            err = ops.divide(
-                ops.subtract(weight_column, dequantized_col),
-                current_block_influence,
-            )
+        current_block_influence = block_inv_hessian[block_idx, block_idx]
+        # Avoid division by zero or extremely small inverse-Hessian
+        # diagonal values, which can produce NaN/Inf and corrupt
+        # subsequent error-feedback updates.
+        epsilon = ops.cast(1e-12, current_block_influence.dtype)
+        safe_block_influence = ops.where(
+            ops.less(ops.abs(current_block_influence), epsilon),
+            epsilon,
+            current_block_influence,
+        )
+
+        # Divide by the safeguarded inverse-Hessian diagonal.
+        err = ops.divide(
+            ops.subtract(weight_column, dequantized_col),
+            safe_block_influence,
+        )
             # Record error for propagation to future blocks
-            block_error = ops.slice_update(
-                block_error, (0, block_idx), ops.expand_dims(err, 1)
+        block_error = ops.slice_update(
+            block_error, (0, block_idx), ops.expand_dims(err, 1)
+        )
+
+        # Update remaining columns in the current block
+        # (those before the current column have already been quantized)
+        # Propagate error to remaining columns in the block.
+        if block_idx < block_size - 1:
+            update = ops.matmul(
+                ops.expand_dims(err, 1),
+                ops.expand_dims(
+                    block_inv_hessian[block_idx, block_idx + 1 :], 0
+                ),
             )
 
-            # Update remaining columns in the current block
-            # (those before the current column have already been quantized)
-            # Propagate error to remaining columns in the block.
-            if block_idx < block_size - 1:
-                # update: [out_features, block_size - block_idx - 1]
-                update = ops.matmul(
-                    ops.expand_dims(err, 1),
-                    ops.expand_dims(
-                        block_inv_hessian[block_idx, block_idx + 1 :], 0
-                    ),
-                )
-                # tail is a view of the remaining columns in the block
-                # to be updated
-                # tail: [out_features, block_size - block_idx - 1]
-                tail = block_weights[:, block_idx + 1 :]
-                block_weights = ops.slice_update(
-                    block_weights,
-                    (0, block_idx + 1),
-                    ops.subtract(tail, update),
-                )
+            tail = block_weights[:, block_idx + 1 :]
+            block_weights = ops.slice_update(
+                block_weights,
+                (0, block_idx + 1),
+                ops.subtract(tail, update),
+            )
 
         # Propagate block errors to future features (beyond the block)
         if block_end < in_features:

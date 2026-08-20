@@ -385,6 +385,39 @@ class GPTQTest(testing.TestCase):
             msg="Weights should be identical as the permutation is undone.",
         )
 
+    def test_zero_inverse_hessian_diagonal_does_not_corrupt_weights(self):
+        """Tests that a zero inverse Hessian diagonal does not corrupt quantized weights."""
+        weights = ops.ones((4, 4), dtype="float32")
+
+        inverse_hessian = ops.array(
+            [
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ],
+            dtype="float32",
+        )
+
+        quantized_weights, _, _, _ = gptq_quantize_matrix(
+            weights,
+            inverse_hessian,
+            blocksize=2,
+            group_size=-1,
+            compute_scale_zero=_compute_scale_zero,
+        )
+
+        result = ops.convert_to_numpy(
+            ops.all(
+                ops.logical_and(
+                    quantized_weights >= 0,
+                    quantized_weights <= 15,
+                )
+            )
+        )
+
+        self.assertTrue(bool(result))
+
     def test_find_layers_in_block_includes_layers_with_sub_layers(self):
         """`Dense`/`EinsumDense` are collected even when they own sub-layers.
 
