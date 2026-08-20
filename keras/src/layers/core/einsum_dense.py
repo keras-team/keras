@@ -255,8 +255,8 @@ class EinsumDense(Layer):
 
         # Decide the source tensor first (packed vs already-quantized vs plain
         # kernel)
-        if is_gptq and gptq_calibrated and gptq_bits != 4:
-            # calibrated GPTQ, not 4-bit, no unpacking needed
+        if is_gptq and gptq_calibrated and gptq_bits not in (2, 4):
+            # calibrated GPTQ, not a packed bit-width, no unpacking needed
             kernel = self.quantized_kernel
         else:
             # Start with the stored kernel
@@ -273,6 +273,13 @@ class EinsumDense(Layer):
                 kernel = ops.reshape(kernel, self.original_kernel_shape)
             elif is_gptq and gptq_calibrated and gptq_bits == 4:
                 kernel = quantizers.unpack_int4(
+                    self.quantized_kernel,
+                    orig_len=self.gptq_unpacked_column_size,
+                    axis=0,
+                    dtype="uint8",
+                )
+            elif is_gptq and gptq_calibrated and gptq_bits == 2:
+                kernel = quantizers.unpack_int2(
                     self.quantized_kernel,
                     orig_len=self.gptq_unpacked_column_size,
                     axis=0,
@@ -468,8 +475,20 @@ class EinsumDense(Layer):
             elif name == "kernel_zero" and not hasattr(self, "kernel_zero"):
                 # kernel_zero only exists for sub-channel int4 quantization
                 continue
-            elif name == "g_idx" and not hasattr(self, "g_idx"):
-                # g_idx only exists for sub-channel int4 quantization
+            elif name == "g_idx":
+                if not hasattr(self, "g_idx"):
+                    # g_idx only exists for sub-channel int4 quantization
+                    continue
+                # `g_idx` is stored as `float32` (see build). Cast to the
+                # variable dtype on assign so both legacy `float32`
+                # checkpoints and any `int32`-saved ones load correctly.
+                self.g_idx.assign(ops.cast(store[key], self.g_idx.dtype))
+                idx += 1
+                continue
+            elif name == "quantized_kernel" and mode == "gptq":
+                # Handles legacy unpacked 2-bit layouts.
+                self._assign_gptq_quantized_kernel(store[key])
+                idx += 1
                 continue
             else:
                 target = getattr(self, name)
@@ -478,6 +497,24 @@ class EinsumDense(Layer):
         if self.lora_enabled:
             self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))
             self.lora_kernel_b.assign(ops.zeros(self.lora_kernel_b.shape))
+
+    def _assign_gptq_quantized_kernel(self, value):
+        """Assigns a stored GPTQ quantized kernel, handling legacy layouts.
+
+        Older checkpoints stored 2-bit GPTQ kernels unpacked (one value per
+        uint8 byte). Current checkpoints pack four 2-bit values per byte. When
+        a legacy unpacked 2-bit store is detected by shape, it is packed on load
+        so the inference path can always unpack a packed kernel.
+        """
+        from keras.src.quantizers import gptq_core
+
+        if gptq_core.get_weight_bits_for_layer(
+            self, config=None
+        ) == 2 and tuple(value.shape) != tuple(self.quantized_kernel.shape):
+            value, _, _ = quantizers.pack_int2(
+                ops.cast(value, "uint8"), axis=0, dtype="uint8"
+            )
+        self.quantized_kernel.assign(value)
 
     def get_config(self):
         base_config = super().get_config()
@@ -658,8 +695,14 @@ class EinsumDense(Layer):
         self.gptq_unpacked_column_size = columns
 
         weight_bits = gptq_core.get_weight_bits_for_layer(self, config)
-        # For 4-bit weights, we pack two values per byte.
-        kernel_columns = (columns + 1) // 2 if weight_bits == 4 else columns
+        # 4-bit weights pack two values per byte; 2-bit weights pack four.
+        # Other bit-widths (e.g. 3, 8) are stored one value per byte.
+        if weight_bits == 4:
+            kernel_columns = (columns + 1) // 2
+        elif weight_bits == 2:
+            kernel_columns = (columns + 3) // 4
+        else:
+            kernel_columns = columns
 
         self._set_quantization_info()
 
@@ -685,6 +728,9 @@ class EinsumDense(Layer):
             trainable=False,
         )
 
+        # `g_idx` is stored as `float32` because TF has no GPU kernel for
+        # int32 resource variables (would pin the variable to CPU and break
+        # jit_compile on GPU); consumers cast to int32 on-device.
         self.g_idx = self.add_weight(
             name="g_idx",
             shape=(rows,),
@@ -699,19 +745,23 @@ class EinsumDense(Layer):
         if not self.is_gptq_calibrated:
             W = self._kernel
         else:
-            should_unpack = (
-                gptq_core.get_weight_bits_for_layer(self, config=None) == 4
-            )
-            W = (
-                quantizers.unpack_int4(
+            weight_bits = gptq_core.get_weight_bits_for_layer(self, config=None)
+            if weight_bits == 4:
+                W = quantizers.unpack_int4(
                     self.quantized_kernel,
                     orig_len=self.gptq_unpacked_column_size,
                     axis=0,
                     dtype="uint8",
                 )
-                if should_unpack
-                else self.quantized_kernel
-            )
+            elif weight_bits == 2:
+                W = quantizers.unpack_int2(
+                    self.quantized_kernel,
+                    orig_len=self.gptq_unpacked_column_size,
+                    axis=0,
+                    dtype="uint8",
+                )
+            else:
+                W = self.quantized_kernel
             W = dequantize_with_sz_map(
                 W,
                 self.kernel_scale,
@@ -806,6 +856,9 @@ class EinsumDense(Layer):
             trainable=False,
         )
 
+        # `g_idx` is stored as `float32` because TF has no GPU kernel for
+        # int32 resource variables (would pin the variable to CPU and break
+        # jit_compile on GPU); consumers cast to int32 on-device.
         self.g_idx = self.add_weight(
             name="g_idx",
             shape=(rows,),
@@ -917,6 +970,9 @@ class EinsumDense(Layer):
                 dtype="int8",
                 trainable=False,
             )
+            # `g_idx` is stored as `float32` because TF has no GPU kernel for
+            # int32 resource variables (would pin the variable to CPU and
+            # break jit_compile on GPU); consumers cast to int32 on-device.
             self.g_idx = self.add_weight(
                 name="g_idx",
                 shape=(rows,),

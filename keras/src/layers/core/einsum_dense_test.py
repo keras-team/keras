@@ -1282,8 +1282,9 @@ class EinsumDenseTest(testing.TestCase):
             "2": np.random.random((32, 3)).astype("float32"),
             # kernel_zero
             "3": np.random.random((32, 3)).astype("uint8"),
-            # g_idx
-            "4": np.random.random((24,)).astype("float32"),
+            # g_idx: legacy checkpoints stored the integer group indices as
+            # float32; they load into the float32 g_idx variable unchanged.
+            "4": (np.arange(24) // 8).astype("float32"),
         }
         # kernel shape (3, 8, 32), packed: (16, 24) for 4-bit
         awq_store = {
@@ -1292,7 +1293,9 @@ class EinsumDenseTest(testing.TestCase):
             "2": np.random.random((32, 3)).astype("float32"),  # scale
             "3": np.random.random((32, 3)).astype("uint8"),  # zero
             "4": np.random.random((24,)).astype("float32"),  # awq_scales
-            "5": np.random.random((24,)).astype("float32"),  # g_idx
+            # g_idx saved as int32 by a newer checkpoint; the cast on load
+            # brings it into the float32 storage variable (see above).
+            "5": (np.arange(24) // 8).astype("int32"),
         }
         config = dict(
             equation="ab,bcd->acd",
@@ -1346,6 +1349,8 @@ class EinsumDenseTest(testing.TestCase):
         self.assertAllClose(layer.kernel_scale, gptq_store["2"])
         self.assertAllClose(layer.kernel_zero, gptq_store["3"])
         self.assertAllClose(layer.g_idx, gptq_store["4"])
+        # g_idx is stored as float32; the legacy float32 store loads as-is.
+        self.assertDType(layer.g_idx, "float32")
 
         # Test awq-quantized layer.
         layer = layers.EinsumDense(**config, dtype="awq/4/8_from_float32")
@@ -1358,6 +1363,8 @@ class EinsumDenseTest(testing.TestCase):
         self.assertAllClose(layer.kernel_zero, awq_store["3"])
         self.assertAllClose(layer.awq_scales, awq_store["4"])
         self.assertAllClose(layer.g_idx, awq_store["5"])
+        # The int32-saved g_idx is cast to the float32 variable on load.
+        self.assertDType(layer.g_idx, "float32")
 
     @staticmethod
     def _build_einsum_for_mode(mode, input_dim=256):
