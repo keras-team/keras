@@ -433,6 +433,43 @@ class GPTQTest(testing.TestCase):
 
         self.assertAllClose(dequantized_weights, out, atol=1e-6)
 
+    def test_zero_diagonal_inv_hessian_does_not_corrupt_weights(self):
+        """A zero inverse-Hessian diagonal must not corrupt other columns.
+
+        Regression test for a division-by-zero in `gptq_quantize_matrix`:
+        if a diagonal element of the inverse Hessian underflows to zero,
+        the error term becomes NaN/Inf and silently corrupts all subsequent
+        weight columns (the corrupted values cast to garbage integers,
+        rendering the quantized matrix unusable).
+
+        With off-diagonal elements equal to zero, a finite error term cannot
+        affect any other column, so quantizing with a zero diagonal must give
+        the same result as quantizing with a healthy diagonal.
+        """
+        in_features, out_features = 16, 8
+        weights = ops.reshape(
+            ops.linspace(
+                -0.9, 1.1, in_features * out_features, dtype="float32"
+            ),
+            (in_features, out_features),
+        )
+        weights_transpose = ops.transpose(weights)
+
+        def quantize(diagonal_value):
+            inverse_hessian = np.eye(in_features, dtype=np.float32)
+            inverse_hessian[2, 2] = diagonal_value
+            quantized_weights, _, _, _ = gptq_quantize_matrix(
+                weights_transpose,
+                ops.array(inverse_hessian, dtype="float32"),
+                blocksize=4,
+                group_size=1,  # per-column quantization
+                activation_order=False,
+                compute_scale_zero=_compute_scale_zero,
+            )
+            return ops.convert_to_numpy(quantized_weights)
+
+        self.assertAllClose(quantize(0.0), quantize(1.0))
+
     def test_activation_order_produces_equivalent_weights(self):
         """
         Tests that quantizing with `activation_order=True` yields the same
