@@ -2,6 +2,7 @@ from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 from keras.src.layers.preprocessing.data_layer import DataLayer
+from keras.src.layers.preprocessing.random_apply import _check_same_shape
 from keras.src.random.seed_generator import SeedGenerator
 from keras.src.saving import serialization_lib
 
@@ -68,6 +69,7 @@ class RandomChoice(DataLayer):
         # own copy. Sharing one would chain the augmentations together instead
         # of producing independent candidates, and would leave the caller's
         # structure mutated.
+        original = tree.map_structure(lambda x: x, inputs)
         candidates = [
             layer(tree.map_structure(lambda x: x, inputs), training=training)
             for layer in self._wrapped_layers
@@ -77,7 +79,15 @@ class RandomChoice(DataLayer):
             shape=(1,), minval=0, maxval=n, seed=seed
         )
 
-        def _select(*candidate_leaves):
+        def _select(original_leaf, *candidate_leaves):
+            reference_shape = getattr(original_leaf, "shape", None)
+            for i, candidate_leaf in enumerate(candidate_leaves):
+                _check_same_shape(
+                    getattr(candidate_leaf, "shape", None),
+                    reference_shape,
+                    f"`layers[{i}]`, a "
+                    f"`{self._wrapped_layers[i].__class__.__name__}`,",
+                )
             # Stack the candidates for this leaf along a new leading axis and
             # gather the one selected by `choice`. The same `choice` is used
             # for every leaf, so a structured input is transformed by exactly
@@ -85,7 +95,7 @@ class RandomChoice(DataLayer):
             stacked = self.backend.numpy.stack(candidate_leaves, axis=0)
             return self.backend.numpy.take(stacked, choice, axis=0)[0]
 
-        return tree.map_structure(_select, *candidates)
+        return tree.map_structure(_select, original, *candidates)
 
     def compute_output_shape(self, input_shape):
         return input_shape

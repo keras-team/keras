@@ -6,6 +6,31 @@ from keras.src.random.seed_generator import SeedGenerator
 from keras.src.saving import serialization_lib
 
 
+def _check_same_shape(shape, reference_shape, description):
+    """Raise if a wrapped layer changed the shape of a leaf.
+
+    Only statically-known dimensions are compared, so a dynamic batch axis
+    under `tf.data` or a symbolic build does not trip the check.
+    """
+    if shape is None or reference_shape is None:
+        return
+    shape = tuple(shape)
+    reference_shape = tuple(reference_shape)
+    mismatch = len(shape) != len(reference_shape) or any(
+        d is not None and r is not None and d != r
+        for d, r in zip(shape, reference_shape)
+    )
+    if mismatch:
+        raise ValueError(
+            f"{description} must emit an output with the same shape as its "
+            f"input, because the output is selected element-wise against the "
+            f"unmodified input. Received an input of shape {reference_shape} "
+            f"and an output of shape {shape}. Layers that change the shape of "
+            f"their input, such as `Resizing` or `Cropping2D`, cannot be "
+            f"wrapped."
+        )
+
+
 @keras_export("keras.layers.RandomApply")
 class RandomApply(DataLayer):
     """Apply a wrapped layer to the input with a given probability.
@@ -79,6 +104,11 @@ class RandomApply(DataLayer):
         )
 
         def _select(transformed_leaf, original_leaf):
+            _check_same_shape(
+                getattr(transformed_leaf, "shape", None),
+                getattr(original_leaf, "shape", None),
+                f"The wrapped layer `{self.layer.__class__.__name__}`",
+            )
             # Stack [transformed, original] along a new leading axis and
             # gather the one selected by the Bernoulli draw. The same `idx` is
             # used for every leaf, so a structured input is either fully
