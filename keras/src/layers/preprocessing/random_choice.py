@@ -1,3 +1,4 @@
+from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 from keras.src.layers.preprocessing.data_layer import DataLayer
@@ -62,17 +63,29 @@ class RandomChoice(DataLayer):
             return inputs
 
         n = len(self._wrapped_layers)
+        # The image preprocessing layers rebind keys on the structure they are
+        # given and return that same object, so every wrapped layer gets its
+        # own copy. Sharing one would chain the augmentations together instead
+        # of producing independent candidates, and would leave the caller's
+        # structure mutated.
         candidates = [
-            layer(inputs, training=training) for layer in self._wrapped_layers
+            layer(tree.map_structure(lambda x: x, inputs), training=training)
+            for layer in self._wrapped_layers
         ]
         seed = self._get_seed_generator(self.backend._backend)
         choice = self.backend.random.randint(
             shape=(1,), minval=0, maxval=n, seed=seed
         )
-        # Stack all candidate outputs along a new leading axis and gather the
-        # one selected by `choice`.
-        stacked = self.backend.numpy.stack(candidates, axis=0)
-        return self.backend.numpy.take(stacked, choice, axis=0)[0]
+
+        def _select(*candidate_leaves):
+            # Stack the candidates for this leaf along a new leading axis and
+            # gather the one selected by `choice`. The same `choice` is used
+            # for every leaf, so a structured input is transformed by exactly
+            # one of the wrapped layers.
+            stacked = self.backend.numpy.stack(candidate_leaves, axis=0)
+            return self.backend.numpy.take(stacked, choice, axis=0)[0]
+
+        return tree.map_structure(_select, *candidates)
 
     def compute_output_shape(self, input_shape):
         return input_shape
