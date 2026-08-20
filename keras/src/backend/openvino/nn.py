@@ -269,7 +269,7 @@ def sparsemax(x, axis=-1):
         ov_opset.convert(support, et).output(0), axis_1d, True
     ).output(0)
     sum_safe = ov_opset.reduce_sum(
-        ov_opset.select(support, logits_cumsum, zero_fp).output(0),
+        ov_opset.select(support, logits_sorted, zero_fp).output(0),
         axis_1d,
         True,
     ).output(0)

@@ -210,10 +210,10 @@ def sparsemax(x, axis=-1):
     support = logits_sorted - (logits_cumsum - 1) / r > 0
     # Find the threshold
     k = torch.sum(support, dim=axis, keepdim=True)
-    logits_cumsum_safe = torch.where(
-        support, logits_cumsum, torch.tensor(0.0, device=logits.device)
+    logits_sorted_safe = torch.where(
+        support, logits_sorted, torch.tensor(0.0, device=logits.device)
     )
-    tau = (torch.sum(logits_cumsum_safe, dim=axis, keepdim=True) - 1) / k
+    tau = (torch.sum(logits_sorted_safe, dim=axis, keepdim=True) - 1) / k
     output = torch.clamp(logits - tau, min=0.0)
     return output
 
