@@ -40,7 +40,7 @@ def _get_weight_scale(weights, group_size):
         Per-in-channel weight statistic ``[in_features]``.
     """
     weights = ops.cast(weights, "float32")
-    out_features, in_features = weights.shape
+    out_features, in_features = ops.shape(weights)
     w_abs = ops.abs(weights)
     if group_size and group_size > 0 and in_features % group_size == 0:
         n_groups = in_features // group_size
@@ -131,7 +131,7 @@ def awq_search_optimal_scales(
     Returns:
         best_scales: Optimal per-channel scales [in_features].
     """
-    in_features = weights.shape[1]
+    in_features = ops.shape(weights)[1]
 
     # Per-channel activation statistic (reference AWQ uses mean(|x|)).
     x_stat = ops.cast(activation_magnitudes, "float32")
@@ -230,11 +230,11 @@ def awq_search_best_clip(
         gs: Effective group size used for reshaping.
         n_group: Number of groups.
     """
-    out_features, in_features = weights_scaled.shape
+    out_features, in_features = ops.shape(weights_scaled)
     awq_scales = ops.cast(awq_scales, "float32")
 
     x = ops.cast(activation_sample, "float32")
-    if len(x.shape) > 2:
+    if ops.ndim(x) > 2:
         x = ops.reshape(x, (-1, in_features))
     # Effective input to the scaled weights (see docstring).
     x_scaled = ops.divide(x, awq_scales)
@@ -337,8 +337,7 @@ def awq_quantize_matrix(
         awq_scales: AWQ per-channel scales [in_features].
         g_idx: Group indices [in_features].
     """
-    in_features = weights_transpose.shape[1]
-    out_features = weights_transpose.shape[0]
+    out_features, in_features = ops.shape(weights_transpose)
 
     # Step 1: Find optimal AWQ scales via grid search
     awq_scales = awq_search_optimal_scales(
