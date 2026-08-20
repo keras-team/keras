@@ -453,7 +453,6 @@ class GRUTest(testing.TestCase):
         if not torch.cuda.is_available():
             self.skipTest("Requires a CUDA device.")
 
-
         x = torch.randn(4, 6, 5, device="cuda")
         layer = layers.GRU(8, return_sequences=True)
         layer(x)  # build on cuda
