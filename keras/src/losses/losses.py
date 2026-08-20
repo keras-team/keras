@@ -2185,18 +2185,21 @@ def categorical_crossentropy(
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
 
-    if y_pred.shape[-1] == 1:
-        warnings.warn(
-            "In loss categorical_crossentropy, expected "
-            "y_pred.shape to be (batch_size, num_classes) "
-            f"with num_classes > 1. Received: y_pred.shape={y_pred.shape}. "
-            "Consider using 'binary_crossentropy' if you only have 2 classes.",
-            SyntaxWarning,
-            stacklevel=2,
-        )
+    if y_pred.shape is not None:
+        axis = canonicalize_axis(axis, len(y_pred.shape))
+        if y_pred.shape[axis] == 1:
+            warnings.warn(
+                "In loss categorical_crossentropy, expected "
+                "y_pred.shape to be (batch_size, num_classes) "
+                f"with num_classes > 1. Received: y_pred.shape={y_pred.shape}. "
+                "Consider using 'binary_crossentropy' if you only "
+                "have 2 classes.",
+                SyntaxWarning,
+                stacklevel=2,
+            )
 
     if label_smoothing:
-        num_classes = ops.cast(ops.shape(y_true)[-1], y_pred.dtype)
+        num_classes = ops.cast(ops.shape(y_pred)[axis], y_pred.dtype)
         y_true = y_true * (1.0 - label_smoothing) + (
             label_smoothing / num_classes
         )
@@ -2263,18 +2266,21 @@ def categorical_focal_crossentropy(
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
 
-    if y_pred.shape[-1] == 1:
-        warnings.warn(
-            "In loss categorical_focal_crossentropy, expected "
-            "y_pred.shape to be (batch_size, num_classes) "
-            f"with num_classes > 1. Received: y_pred.shape={y_pred.shape}. "
-            "Consider using 'binary_crossentropy' if you only have 2 classes.",
-            SyntaxWarning,
-            stacklevel=2,
-        )
+    if y_pred.shape is not None:
+        axis = canonicalize_axis(axis, len(y_pred.shape))
+        if y_pred.shape[axis] == 1:
+            warnings.warn(
+                "In loss categorical_focal_crossentropy, expected "
+                "y_pred.shape to be (batch_size, num_classes) "
+                f"with num_classes > 1. Received: y_pred.shape={y_pred.shape}. "
+                "Consider using 'binary_crossentropy' if you only "
+                "have 2 classes.",
+                SyntaxWarning,
+                stacklevel=2,
+            )
 
     if label_smoothing:
-        num_classes = ops.cast(ops.shape(y_true)[-1], y_pred.dtype)
+        num_classes = ops.cast(ops.shape(y_pred)[axis], y_pred.dtype)
         y_true = y_true * (1.0 - label_smoothing) + (
             label_smoothing / num_classes
         )
@@ -2637,8 +2643,8 @@ def tversky(y_true, y_pred, alpha=0.5, beta=0.5, axis=None):
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
 
-    inputs = y_true
-    targets = y_pred
+    inputs = y_pred
+    targets = y_true
 
     intersection = ops.sum(inputs * targets, axis=axis)
     fp = ops.sum((1 - targets) * inputs, axis=axis)

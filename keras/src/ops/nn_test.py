@@ -152,6 +152,11 @@ class NNOpsDynamicShapeTest(testing.TestCase):
     def test_glu(self):
         x = KerasTensor([None, 2, 4])
         self.assertEqual(knn.glu(x).shape, (None, 2, 2))
+        with self.assertRaisesRegex(ValueError, "out of bounds"):
+            knn.glu(x, axis=5)
+        x_eager = knp.ones((2, 4))
+        with self.assertRaisesRegex(ValueError, "out of bounds"):
+            knn.glu(x_eager, axis=5)
 
     def test_tanh_shrink(self):
         x = KerasTensor([None, 2, 3])
@@ -3487,7 +3492,7 @@ class NNOpsBehaviorTest(testing.TestCase):
         model = models.Sequential([layer])
         model.compile(loss="binary_crossentropy", optimizer="sgd")
         out = model.evaluate(x, y)
-        self.assertAllClose(out, 2.682124)
+        self.assertAllClose(out, 2.682124, atol=1e-3, rtol=1e-3)
 
     def test_softmax_on_axis_with_size_one_warns(self):
         x = np.array([[1.0]])

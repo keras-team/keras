@@ -1,5 +1,7 @@
 """Tests for AWQ quantization."""
 
+import os
+
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -8,6 +10,7 @@ import keras
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
+from keras.src import saving
 from keras.src import testing
 from keras.src.quantizers.awq import AWQ
 from keras.src.quantizers.awq import awq_quantize_matrix
@@ -370,6 +373,87 @@ class AWQIntegrationTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "quantization structure"):
             model.quantize(config=config)
 
+    @pytest.mark.requires_trainable_backend
+    def test_awq_save_load_round_trip_einsum_dense_block(self):
+        """Regression test for a RecursionError when saving an AWQ model.
+
+        Saving an AWQ-quantized model used to raise a RecursionError because
+        `AWQConfig.get_config` serialized `quantization_layer_structure`,
+        which holds live model layers, forming a reference cycle
+        (layer -> config -> layer). This builds a tiny model whose quantized
+        block contains both `Dense` and `EinsumDense` (unlike the Dense-only
+        round trip in `AWQAccuracyTest`), saves it, reloads it, and checks
+        the predictions are preserved exactly.
+        """
+        vocab_size, seq_len, embed_dim = 32, 8, 4
+
+        inputs = layers.Input(shape=(seq_len,), dtype="int32")
+        embedding = layers.Embedding(vocab_size, embed_dim)
+        x = embedding(inputs)
+        block = models.Sequential(
+            [
+                layers.Dense(embed_dim, activation="relu"),
+                layers.EinsumDense(
+                    "abc,cd->abd", output_shape=(seq_len, embed_dim)
+                ),
+            ]
+        )
+        x = block(x)
+        x = layers.GlobalAveragePooling1D()(x)
+        head = layers.Dense(2)
+        outputs = head(x)
+        model = models.Model(inputs, outputs)
+
+        rng = np.random.default_rng(seed=21)
+        dataset = [
+            rng.integers(0, vocab_size, size=(1, seq_len)).astype("int32")
+            for _ in range(3)
+        ]
+        config = AWQConfig(
+            dataset=dataset,
+            tokenizer=lambda text: text,
+            num_samples=2,
+            sequence_length=seq_len,
+            group_size=4,
+            num_grid_points=5,
+            quantization_layer_structure={
+                "pre_block_layers": [embedding],
+                "sequential_blocks": [block],
+            },
+        )
+
+        # Layers outside the structure (embedding, pooling, head) are not
+        # quantized at all, so the round-trip can be compared exactly.
+        model.quantize("awq", config=config)
+        self.assertIsNone(getattr(head, "quantization_mode", None))
+
+        # The embedding only supports int8/int4; `quantize` must reject the
+        # unsupported mode without stashing a stale AWQ config on it.
+        self.assertIsNone(embedding.quantization_config)
+
+        x_eval = rng.integers(0, vocab_size, size=(2, seq_len)).astype("int32")
+        y_quantized = model.predict(x_eval)
+
+        # This `save` used to raise a RecursionError.
+        path = os.path.join(self.get_temp_dir(), "model.keras")
+        model.save(path)
+        restored = saving.load_model(path)
+        y_restored = restored.predict(x_eval)
+        self.assertAllClose(y_quantized, y_restored)
+
+        # The quantized block state survives the round-trip.
+        restored_block = next(
+            l for l in restored.layers if isinstance(l, models.Sequential)
+        )
+        restored_dense = restored_block.layers[0]
+        self.assertEqual(
+            getattr(restored_dense, "quantization_mode", None), "awq"
+        )
+        self.assertTrue(hasattr(restored_dense, "quantized_kernel"))
+        self.assertIsNone(
+            restored_dense.quantization_config.quantization_layer_structure
+        )
+
 
 # Constants for end-to-end tests
 VOCAB_SIZE = 1000
@@ -658,3 +742,78 @@ class AWQAccuracyTest(testing.TestCase):
         )
 
         awq_obj.free()
+
+    def test_awq_save_load_round_trip(self):
+        """Full AWQ quantize -> save -> load round trip.
+
+        Only the Dense layers inside the structure's ``sequential_blocks``
+        are quantized; the embedding and classifier head stay untouched,
+        and predictions are reproduced after a save/load cycle. Uses small
+        local dimensions to keep the grid search fast.
+        """
+        keras.utils.set_random_seed(123)
+        seq_len = 16
+        vocab = 48
+        num_classes = 4
+        embed_dim = 8
+
+        block = models.Sequential(
+            [
+                layers.Dense(16, activation="relu"),
+                layers.Dense(embed_dim),
+            ]
+        )
+
+        inputs = layers.Input(shape=(seq_len,), dtype="int32")
+        embedding = layers.Embedding(vocab, embed_dim)
+        x = embedding(inputs)
+        x = block(x)
+        x = layers.GlobalAveragePooling1D()(x)
+        head = layers.Dense(num_classes)
+        outputs = head(x)
+        model = models.Model(inputs, outputs)
+
+        rng = np.random.default_rng(seed=7)
+        dataset = [
+            rng.integers(0, vocab, size=(1, seq_len), dtype=np.int32)
+            for _ in range(4)
+        ]
+        tokenizer = _char_tokenizer(vocab_size=vocab, seq_len=seq_len)
+
+        config = AWQConfig(
+            dataset=dataset,
+            tokenizer=tokenizer,
+            group_size=8,
+            num_samples=4,
+            sequence_length=seq_len,
+            num_grid_points=5,
+            quantization_layer_structure={
+                "pre_block_layers": [embedding],
+                "sequential_blocks": [block],
+            },
+        )
+
+        model.quantize("awq", config=config)
+
+        # In-structure Dense layers are quantized and calibrated.
+        for dense in block.layers:
+            self.assertEqual(dense.quantization_mode, "awq")
+            self.assertTrue(dense.is_awq_calibrated)
+
+        # Out-of-structure layers must stay completely untouched.
+        self.assertIsNone(getattr(head, "quantization_mode", None))
+        self.assertFalse(hasattr(head, "quantized_kernel"))
+        self.assertIsNone(getattr(embedding, "quantization_mode", None))
+        self.assertFalse(hasattr(embedding, "quantized_kernel"))
+
+        # Predictions survive a save/load round trip.
+        eval_rng = np.random.default_rng(seed=99)
+        x_eval = eval_rng.integers(0, vocab, size=(4, seq_len), dtype=np.int32)
+        y_before = model.predict(x_eval)
+
+        path = os.path.join(self.get_temp_dir(), "awq_model.keras")
+        model.save(path)
+        reloaded = saving.load_model(path)
+        y_after = reloaded.predict(x_eval)
+
+        self.assertAllClose(y_before, y_after)

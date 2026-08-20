@@ -252,6 +252,8 @@ class Embedding(Layer):
             dtype="float32",
             regularizer=self.embeddings_regularizer,
         )
+        # Freeze the underlying variable, not the `embeddings` property, which
+        # returns a throwaway unpacked tensor in int4 mode.
         self._embeddings.trainable = False
         self._tracker.lock()
         self.lora_enabled = True
@@ -271,23 +273,27 @@ class Embedding(Layer):
         embeddings_value, merged_embeddings_scale, merged_embeddings_zero = (
             self._get_embeddings_with_merged_lora()
         )
+        # Variables are stored under their integer position ("0", "1", ...)
+        # within the mode's serialization spec. Each branch picks the value
+        # for the current spec entry (or skips it); the write happens at a
+        # single point so save and load stay position-consistent.
         idx = 0
         for name in self.variable_serialization_spec[mode]:
             if name == "embeddings":
-                store[str(idx)] = embeddings_value
+                value = embeddings_value
             elif name == "embeddings_zero":
                 if merged_embeddings_zero is None:
                     # embeddings_zero only exists for sub-channel int4
                     # quantization
                     continue
-                store[str(idx)] = merged_embeddings_zero
+                value = merged_embeddings_zero
             elif name == "g_idx" and not hasattr(self, "g_idx"):
                 # g_idx only exists for sub-channel int4 quantization
                 continue
             elif name == "embeddings_scale" and mode in ("int4", "int8"):
                 # For int4/int8, the merged LoRA scale (if any) comes from
                 # `_get_embeddings_with_merged_lora()`
-                store[str(idx)] = merged_embeddings_scale
+                value = merged_embeddings_scale
             else:
                 # Generic handling for subclass variables:
                 # Check if the attribute exists on the instance before saving.
@@ -297,7 +303,8 @@ class Embedding(Layer):
                 # on configuration (e.g., per-channel vs. sub-channel).
                 if not hasattr(self, name):
                     continue
-                store[str(idx)] = getattr(self, name)
+                value = getattr(self, name)
+            store[str(idx)] = value
             idx += 1
 
     def load_own_variables(self, store):
@@ -310,10 +317,16 @@ class Embedding(Layer):
         if mode not in self.variable_serialization_spec:
             raise self._quantization_mode_error(mode)
 
+        spec = self.variable_serialization_spec[mode]
+        # Variables are keyed by their integer position ("0", "1", ...) within
+        # the mode's serialization spec. Each branch picks the target variable
+        # for the current spec entry (or skips it); the assign happens at a
+        # single point so save and load stay position-consistent.
         idx = 0
-        for name in self.variable_serialization_spec[mode]:
+        for name in spec:
+            key = str(idx)
             if name == "embeddings":
-                self._embeddings.assign(store[str(idx)])
+                target = self._embeddings
             elif name == "embeddings_zero" and not hasattr(
                 self, "embeddings_zero"
             ):
@@ -329,7 +342,8 @@ class Embedding(Layer):
                 # we skip it to prevent AttributeError.
                 if not hasattr(self, name):
                     continue
-                getattr(self, name).assign(store[str(idx)])
+                target = getattr(self, name)
+            target.assign(store[key])
             idx += 1
         if self.lora_enabled:
             self.lora_embeddings_a.assign(
@@ -561,6 +575,8 @@ class Embedding(Layer):
         # Prevent quantization of the subclasses.
         if type_check and (type(self) is not Embedding):
             raise self._not_implemented_error(self.quantize)
+        if mode not in ("int8", "int4"):
+            raise self._quantization_mode_error(mode)
 
         self.quantization_config = config
 
@@ -583,14 +599,12 @@ class Embedding(Layer):
             self._embeddings.assign(embeddings_value)
             self.embeddings_scale.assign(embeddings_scale)
         elif mode == "int4":
-            from keras.src.quantizers.quantization_config import (
-                Int4QuantizationConfig,
-            )
-
-            block_size = None
-            if isinstance(self.quantization_config, Int4QuantizationConfig):
-                block_size = self.quantization_config.block_size
-
+            # `get_block_size_for_layer` is the single source of truth for the
+            # group size, shared with `_int4_build` and the dtype-policy naming
+            # below (see `Dense.quantize`). A bare `quantize("int4")` resolves
+            # to the canonical `Int4QuantizationConfig()` (grouped,
+            # block_size=128); `None`/`-1` selects per-channel.
+            block_size = get_block_size_for_layer(self, config)
             use_grouped = block_size is not None and block_size != -1
 
             if not use_grouped:

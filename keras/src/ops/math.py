@@ -230,10 +230,11 @@ def segment_prod(data, segment_ids, num_segments=None, sorted=False):
 
 
 class TopK(Operation):
-    def __init__(self, k, sorted=True, *, name=None):
+    def __init__(self, k, sorted=True, is_stable=True, *, name=None):
         super().__init__(name=name)
         self.k = k
         self.sorted = sorted
+        self.is_stable = is_stable
 
     def compute_output_spec(self, x):
         output_shape = list(x.shape)
@@ -245,18 +246,22 @@ class TopK(Operation):
         )
 
     def call(self, x):
-        return backend.ops.math.top_k(x, self.k, self.sorted)
+        return backend.ops.math.top_k(
+            x, self.k, sorted=self.sorted, is_stable=self.is_stable
+        )
 
 
 @keras_export("keras.ops.top_k")
-def top_k(x, k, sorted=True):
+def top_k(x, k, sorted=True, is_stable=True):
     """Finds the top-k values and their indices in a tensor.
 
     Args:
         x: Input tensor.
         k: An integer representing the number of top elements to retrieve.
         sorted: A boolean indicating whether to sort the output in
-        descending order. Defaults to `True`.
+            descending order. Defaults to `True`.
+        is_stable: Optional boolean indicating whether to preserve the relative
+            order of equal elements. Defaults to `True`.
 
     Returns:
         A tuple containing two tensors. The first tensor contains the
@@ -274,8 +279,8 @@ def top_k(x, k, sorted=True):
 
     """
     if any_symbolic_tensors((x,)):
-        return TopK(k, sorted).symbolic_call(x)
-    return backend.ops.math.top_k(x, k, sorted)
+        return TopK(k, sorted=sorted, is_stable=is_stable).symbolic_call(x)
+    return backend.ops.math.top_k(x, k, sorted=sorted, is_stable=is_stable)
 
 
 class InTopK(Operation):
@@ -326,7 +331,9 @@ class Logsumexp(Operation):
 
     def compute_output_spec(self, x):
         output_shape = reduce_shape(x.shape, self.axis, self.keepdims)
-        return KerasTensor(shape=output_shape)
+        return KerasTensor(
+            shape=output_shape, dtype=result_type(x.dtype, float)
+        )
 
     def call(self, x):
         return backend.ops.math.logsumexp(
@@ -629,6 +636,46 @@ def fft2(x):
     if any_symbolic_tensors(x):
         return FFT2().symbolic_call(x)
     return backend.ops.math.fft2(x)
+
+
+class Gammainc(Operation):
+    def compute_output_spec(self, x1, x2):
+        output_shape = broadcast_shapes(x1.shape, x2.shape)
+        return KerasTensor(
+            shape=output_shape,
+            dtype=result_type(x1.dtype, x2.dtype, float),
+        )
+
+    def call(self, x1, x2):
+        return backend.math.gammainc(x1, x2)
+
+
+@keras_export("keras.ops.gammainc")
+def gammainc(x1, x2):
+    """Computes the regularized lower incomplete gamma function.
+    The regularized lower incomplete gamma function is defined as:
+        P(x1, x2) = 1 / Γ(x1) * ∫₀ˣ² t^(x1 - 1) e^(-t) dt
+    where `Γ(x1)` is the gamma function.
+
+    Args:
+        x1: A tensor containing the shape parameter.
+        x2: A tensor containing the upper limit of integration. Must be
+            broadcast-compatible with `x1`.
+
+    Returns:
+        A tensor containing the regularized lower incomplete gamma function
+        evaluated elementwise.
+
+    Example:
+
+    >>> x1 = keras.ops.convert_to_tensor([1.0, 2.0, 3.0])
+    >>> x2 = keras.ops.convert_to_tensor([0.5, 1.0, 2.0])
+    >>> keras.ops.gammainc(x1, x2)
+    array([0.39346936, 0.26424113, 0.3233236 ], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Gammainc().symbolic_call(x1, x2)
+    return backend.math.gammainc(x1, x2)
 
 
 class IFFT2(Operation):

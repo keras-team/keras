@@ -3,7 +3,7 @@ from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
 
-QUANTIZATION_MODES = ("int8", "float8", "int4", "gptq", "awq")
+QUANTIZATION_MODES = ("int8", "float8", "int4", "ternary", "gptq", "awq")
 
 
 @keras_export(
@@ -321,14 +321,21 @@ class Int4DTypePolicy(QuantizedDTypePolicy):
                 f"{expected_format}, but got '{mode}'."
             )
 
-        # Validate and cast block_size
-        try:
-            block_size = int(parts[1])
-        except ValueError:
-            raise ValueError(
-                "Invalid mode for Int4DTypePolicy. <block_size> must be an "
-                f"integer. Expected format {expected_format}, but got '{mode}'."
-            )
+        # Validate and cast block_size. Older checkpoints encoded per-channel
+        # int4 as the literal "None" in the policy string (e.g.
+        # "int4/None_from_float32"); normalize it to -1 so those checkpoints
+        # still deserialize. Both "None" and -1 mean per-channel quantization.
+        if parts[1] == "None":
+            block_size = -1
+        else:
+            try:
+                block_size = int(parts[1])
+            except ValueError:
+                raise ValueError(
+                    "Invalid mode for Int4DTypePolicy. <block_size> must be "
+                    "an integer. Expected format "
+                    f"{expected_format}, but got '{mode}'."
+                )
 
         # Validate supported values
         if block_size < -1 or block_size == 0:
@@ -344,7 +351,9 @@ class Int4DTypePolicy(QuantizedDTypePolicy):
             source_name=source_name,
         )
 
-        self._name = f"{mode}_from_{source_name}"
+        # Use the normalized block_size so a loaded "int4/None" policy reports
+        # the canonical "int4/-1" name (identical for all other block sizes).
+        self._name = f"{base_mode}/{block_size}_from_{self._source_name}"
         self.mode = base_mode
         self.block_size = block_size
 
@@ -536,6 +545,17 @@ class AWQDTypePolicy(QuantizedDTypePolicy):
         return config
 
 
+@keras_export("keras.dtype_policies.TernaryDTypePolicy")
+class TernaryDTypePolicy(QuantizedDTypePolicy):
+    """Quantized dtype policy for ternary quantization.
+
+    This policy propagates quantization settings for ternary-weight layers
+    when saving and loading a quantized model. It is a stub today; a future
+    version may carry per-layer configuration such as a custom threshold or
+    a packed-kernel spec.
+    """
+
+
 @keras_export(
     [
         "keras.config.set_dtype_policy",
@@ -606,6 +626,8 @@ def _get_quantized_dtype_policy_by_str(policy):
             return Int4DTypePolicy(mode, source_name)
         else:
             return QuantizedDTypePolicy(mode, source_name)
+    elif policy.startswith("ternary"):
+        return TernaryDTypePolicy(mode, source_name)
     elif policy.startswith("gptq"):
         return GPTQDTypePolicy(mode, source_name)
     elif policy.startswith("awq"):
