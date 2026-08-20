@@ -209,8 +209,7 @@ class DenseTest(testing.TestCase):
         # Verify the computation is the same as if it had been a dense tensor
         expected_outputs = ops.add(
             ops.matmul(
-                backend.ops.convert_to_tensor(inputs, sparse=False),
-                layer.kernel,
+                backend.convert_to_tensor(inputs, sparse=False), layer.kernel
             ),
             layer.bias,
         )

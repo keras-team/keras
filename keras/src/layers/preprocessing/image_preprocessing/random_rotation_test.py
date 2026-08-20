@@ -46,9 +46,7 @@ class RandomRotationTest(testing.TestCase):
         ).reshape(input_shape)
 
         self.assertAllClose(
-            backend.ops.convert_to_tensor(expected_output),
-            actual_output,
-            atol=1e-5,
+            backend.convert_to_tensor(expected_output), actual_output, atol=1e-5
         )
 
     def test_training_false(self):

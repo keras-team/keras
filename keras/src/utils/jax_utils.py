@@ -6,6 +6,6 @@ def is_in_jax_tracing_scope(x=None):
         import jax
 
         if x is None:
-            x = backend.ops.numpy.ones(())
+            x = backend.numpy.ones(())
         return isinstance(x, jax.core.Tracer)
     return False

@@ -75,17 +75,17 @@ class Softmax(Layer):
             # We keep the positions where the mask is True or > 0.5, and set the
             # other (masked) positions to -1e.9.
             if backend.standardize_dtype(mask.dtype) != "bool":
-                mask = backend.ops.numpy.greater(
-                    mask, backend.ops.cast(0.5, dtype=mask.dtype)
+                mask = backend.numpy.greater(
+                    mask, backend.cast(0.5, dtype=mask.dtype)
                 )
-            inputs = backend.ops.numpy.where(
+            inputs = backend.numpy.where(
                 mask, inputs, _large_negative_number(inputs.dtype)
             )
         if isinstance(self.axis, (tuple, list)):
             if len(self.axis) > 1:
-                outputs = backend.ops.numpy.exp(
+                outputs = backend.numpy.exp(
                     inputs
-                    - backend.ops.math.logsumexp(
+                    - backend.math.logsumexp(
                         inputs, axis=self.axis, keepdims=True
                     )
                 )
@@ -102,7 +102,7 @@ class Softmax(Layer):
         if mask is not None:
             # Zero out masked positions in case the entire axis is masked
             # (where softmax would output a uniform distribution).
-            outputs = backend.ops.numpy.where(mask, outputs, 0.0)
+            outputs = backend.numpy.where(mask, outputs, 0.0)
 
         return outputs
 

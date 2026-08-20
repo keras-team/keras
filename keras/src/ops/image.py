@@ -2,8 +2,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
-from keras.src.backend.common.keras_tensor import any_symbolic_tensors
-from keras.src.backend.config import standardize_data_format
+from keras.src.backend import any_symbolic_tensors
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import compute_conv_output_shape
 
@@ -11,10 +10,10 @@ from keras.src.ops.operation_utils import compute_conv_output_shape
 class RGBToGrayscale(Operation):
     def __init__(self, data_format=None, *, name=None):
         super().__init__(name=name)
-        self.data_format = standardize_data_format(data_format)
+        self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
-        return backend.ops.image.rgb_to_grayscale(
+        return backend.image.rgb_to_grayscale(
             images, data_format=self.data_format
         )
 
@@ -78,18 +77,16 @@ def rgb_to_grayscale(images, data_format=None):
     """
     if any_symbolic_tensors((images,)):
         return RGBToGrayscale(data_format=data_format).symbolic_call(images)
-    return backend.ops.image.rgb_to_grayscale(images, data_format=data_format)
+    return backend.image.rgb_to_grayscale(images, data_format=data_format)
 
 
 class RGBToHSV(Operation):
     def __init__(self, data_format=None, *, name=None):
         super().__init__(name=name)
-        self.data_format = standardize_data_format(data_format)
+        self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
-        return backend.ops.image.rgb_to_hsv(
-            images, data_format=self.data_format
-        )
+        return backend.image.rgb_to_hsv(images, data_format=self.data_format)
 
     def compute_output_spec(self, images):
         images_shape = list(images.shape)
@@ -159,18 +156,16 @@ def rgb_to_hsv(images, data_format=None):
     """
     if any_symbolic_tensors((images,)):
         return RGBToHSV(data_format=data_format).symbolic_call(images)
-    return backend.ops.image.rgb_to_hsv(images, data_format=data_format)
+    return backend.image.rgb_to_hsv(images, data_format=data_format)
 
 
 class HSVToRGB(Operation):
     def __init__(self, data_format=None, *, name=None):
         super().__init__(name=name)
-        self.data_format = standardize_data_format(data_format)
+        self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
-        return backend.ops.image.hsv_to_rgb(
-            images, data_format=self.data_format
-        )
+        return backend.image.hsv_to_rgb(images, data_format=self.data_format)
 
     def compute_output_spec(self, images):
         images_shape = list(images.shape)
@@ -237,7 +232,7 @@ def hsv_to_rgb(images, data_format=None):
     """
     if any_symbolic_tensors((images,)):
         return HSVToRGB(data_format=data_format).symbolic_call(images)
-    return backend.ops.image.hsv_to_rgb(images, data_format=data_format)
+    return backend.image.hsv_to_rgb(images, data_format=data_format)
 
 
 class Resize(Operation):
@@ -262,7 +257,7 @@ class Resize(Operation):
         self.pad_to_aspect_ratio = pad_to_aspect_ratio
         self.fill_mode = fill_mode
         self.fill_value = fill_value
-        self.data_format = standardize_data_format(data_format)
+        self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
         return _resize(
@@ -417,7 +412,7 @@ def _resize(
     fill_value=0.0,
     data_format=None,
 ):
-    resized = backend.ops.image.resize(
+    resized = backend.image.resize(
         images,
         size,
         interpolation=interpolation,
@@ -451,10 +446,10 @@ class AffineTransform(Operation):
         self.interpolation = interpolation
         self.fill_mode = fill_mode
         self.fill_value = fill_value
-        self.data_format = standardize_data_format(data_format)
+        self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images, transform):
-        return backend.ops.image.affine_transform(
+        return backend.image.affine_transform(
             images,
             transform,
             interpolation=self.interpolation,
@@ -569,7 +564,7 @@ def affine_transform(
             fill_value=fill_value,
             data_format=data_format,
         ).symbolic_call(images, transform)
-    return backend.ops.image.affine_transform(
+    return backend.image.affine_transform(
         images,
         transform,
         interpolation=interpolation,
@@ -600,7 +595,7 @@ class ExtractPatches(Operation):
         self.strides = strides
         self.dilation_rate = dilation_rate
         self.padding = padding
-        self.data_format = standardize_data_format(data_format)
+        self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
         return _extract_patches(
@@ -790,7 +785,7 @@ def _extract_patches_2d(
             "Invalid `size` argument. Expected an "
             f"int or a tuple of length 2. Received: size={size}"
         )
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_last":
         channels_in = images.shape[-1]
     elif data_format == "channels_first":
@@ -798,15 +793,15 @@ def _extract_patches_2d(
     if not strides:
         strides = size
     out_dim = patch_h * patch_w * channels_in
-    kernel = backend.ops.numpy.eye(out_dim, dtype=images.dtype)
-    kernel = backend.ops.numpy.reshape(
+    kernel = backend.numpy.eye(out_dim, dtype=images.dtype)
+    kernel = backend.numpy.reshape(
         kernel, (patch_h, patch_w, channels_in, out_dim)
     )
     _unbatched = False
     if len(images.shape) == 3:
         _unbatched = True
-        images = backend.ops.numpy.expand_dims(images, axis=0)
-    patches = backend.ops.nn.conv(
+        images = backend.numpy.expand_dims(images, axis=0)
+    patches = backend.nn.conv(
         inputs=images,
         kernel=kernel,
         strides=strides,
@@ -815,7 +810,7 @@ def _extract_patches_2d(
         dilation_rate=dilation_rate,
     )
     if _unbatched:
-        patches = backend.ops.numpy.squeeze(patches, axis=0)
+        patches = backend.numpy.squeeze(patches, axis=0)
     return patches
 
 
@@ -842,21 +837,21 @@ def _extract_patches_3d(
         strides = (strides, strides, strides)
     if len(strides) != 3:
         raise ValueError(f"Invalid `strides` argument. Got: {strides}")
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_last":
         channels_in = volumes.shape[-1]
     elif data_format == "channels_first":
         channels_in = volumes.shape[-4]
     out_dim = patch_d * patch_w * patch_h * channels_in
-    kernel = backend.ops.numpy.eye(out_dim, dtype=volumes.dtype)
-    kernel = backend.ops.numpy.reshape(
+    kernel = backend.numpy.eye(out_dim, dtype=volumes.dtype)
+    kernel = backend.numpy.reshape(
         kernel, (patch_d, patch_h, patch_w, channels_in, out_dim)
     )
     _unbatched = False
     if len(volumes.shape) == 4:
         _unbatched = True
-        volumes = backend.ops.numpy.expand_dims(volumes, axis=0)
-    patches = backend.ops.nn.conv(
+        volumes = backend.numpy.expand_dims(volumes, axis=0)
+    patches = backend.nn.conv(
         inputs=volumes,
         kernel=kernel,
         strides=strides,
@@ -865,7 +860,7 @@ def _extract_patches_3d(
         dilation_rate=dilation_rate,
     )
     if _unbatched:
-        patches = backend.ops.numpy.squeeze(patches, axis=0)
+        patches = backend.numpy.squeeze(patches, axis=0)
     return patches
 
 
@@ -958,7 +953,7 @@ class ReconstructPatches(Operation):
             strides = (strides,) * len(self.size)
         self.strides = tuple(strides)
         self.padding = padding
-        self.data_format = standardize_data_format(data_format)
+        self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, patches):
         return _reconstruct_patches(
@@ -1229,14 +1224,14 @@ def _reconstruct_patches_2d(
             f"Invalid `padding`. Expected 'same' or 'valid'. Got: {padding}"
         )
     _validate_reconstruct_strides(size, strides, "reconstruct_patches")
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_first":
         # Reconstruct in channels_last layout, then move channels back.
         # Patches are (flat, gH, gW) unbatched or (B, flat, gH, gW) batched.
         if len(patches.shape) == 3:
-            patches = backend.ops.numpy.transpose(patches, axes=(1, 2, 0))
+            patches = backend.numpy.transpose(patches, axes=(1, 2, 0))
         elif len(patches.shape) == 4:
-            patches = backend.ops.numpy.transpose(patches, axes=(0, 2, 3, 1))
+            patches = backend.numpy.transpose(patches, axes=(0, 2, 3, 1))
         else:
             raise ValueError(
                 "`patches` has unexpected rank for 2D channels_first "
@@ -1247,8 +1242,8 @@ def _reconstruct_patches_2d(
             patches, size, output_size, strides, padding, "channels_last"
         )
         if len(result.shape) == 3:
-            return backend.ops.numpy.transpose(result, axes=(2, 0, 1))
-        return backend.ops.numpy.transpose(result, axes=(0, 3, 1, 2))
+            return backend.numpy.transpose(result, axes=(2, 0, 1))
+        return backend.numpy.transpose(result, axes=(0, 3, 1, 2))
 
     pH, pW = size
     H, W = output_size
@@ -1263,7 +1258,7 @@ def _reconstruct_patches_2d(
     _unbatched = False
     if len(patches.shape) == 3:
         _unbatched = True
-        patches = backend.ops.numpy.expand_dims(patches, axis=0)
+        patches = backend.numpy.expand_dims(patches, axis=0)
 
     shp = ops.shape(patches)
     B, gH, gW = shp[0], shp[1], shp[2]
@@ -1278,9 +1273,9 @@ def _reconstruct_patches_2d(
             )
         C = static_flat // (pH * pW)
 
-    x = backend.ops.numpy.reshape(patches, (B, gH, gW, pH, pW, C))
-    x = backend.ops.numpy.transpose(x, axes=(0, 1, 3, 2, 4, 5))
-    x = backend.ops.numpy.reshape(x, (B, gH * pH, gW * pW, C))
+    x = backend.numpy.reshape(patches, (B, gH, gW, pH, pW, C))
+    x = backend.numpy.transpose(x, axes=(0, 1, 3, 2, 4, 5))
+    x = backend.numpy.reshape(x, (B, gH * pH, gW * pW, C))
 
     if padding == "same":
         static_gH = patches.shape[1]
@@ -1317,7 +1312,7 @@ def _reconstruct_patches_2d(
             )
 
     if _unbatched:
-        x = backend.ops.numpy.squeeze(x, axis=0)
+        x = backend.numpy.squeeze(x, axis=0)
     return x
 
 
@@ -1339,14 +1334,14 @@ def _reconstruct_patches_3d(
             f"Invalid `padding`. Expected 'same' or 'valid'. Got: {padding}"
         )
     _validate_reconstruct_strides(size, strides, "reconstruct_patches")
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_first":
         # Reconstruct in channels_last layout, then move channels back.
         # Patches are (flat, gD, gH, gW) unbatched or (B, flat, gD, gH, gW).
         if len(patches.shape) == 4:
-            patches = backend.ops.numpy.transpose(patches, axes=(1, 2, 3, 0))
+            patches = backend.numpy.transpose(patches, axes=(1, 2, 3, 0))
         elif len(patches.shape) == 5:
-            patches = backend.ops.numpy.transpose(patches, axes=(0, 2, 3, 4, 1))
+            patches = backend.numpy.transpose(patches, axes=(0, 2, 3, 4, 1))
         else:
             raise ValueError(
                 "`patches` has unexpected rank for 3D channels_first "
@@ -1357,8 +1352,8 @@ def _reconstruct_patches_3d(
             patches, size, output_size, strides, padding, "channels_last"
         )
         if len(result.shape) == 4:
-            return backend.ops.numpy.transpose(result, axes=(3, 0, 1, 2))
-        return backend.ops.numpy.transpose(result, axes=(0, 4, 1, 2, 3))
+            return backend.numpy.transpose(result, axes=(3, 0, 1, 2))
+        return backend.numpy.transpose(result, axes=(0, 4, 1, 2, 3))
 
     pD, pH, pW = size
     D, H, W = output_size
@@ -1373,7 +1368,7 @@ def _reconstruct_patches_3d(
     _unbatched = False
     if len(patches.shape) == 4:
         _unbatched = True
-        patches = backend.ops.numpy.expand_dims(patches, axis=0)
+        patches = backend.numpy.expand_dims(patches, axis=0)
 
     shp = ops.shape(patches)
     B, gD, gH, gW = shp[0], shp[1], shp[2], shp[3]
@@ -1389,9 +1384,9 @@ def _reconstruct_patches_3d(
             )
         C = static_flat // (pD * pH * pW)
 
-    x = backend.ops.numpy.reshape(patches, (B, gD, gH, gW, pD, pH, pW, C))
-    x = backend.ops.numpy.transpose(x, axes=(0, 1, 4, 2, 5, 3, 6, 7))
-    x = backend.ops.numpy.reshape(x, (B, gD * pD, gH * pH, gW * pW, C))
+    x = backend.numpy.reshape(patches, (B, gD, gH, gW, pD, pH, pW, C))
+    x = backend.numpy.transpose(x, axes=(0, 1, 4, 2, 5, 3, 6, 7))
+    x = backend.numpy.reshape(x, (B, gD * pD, gH * pH, gW * pW, C))
 
     if padding == "same":
         static_gD = patches.shape[1]
@@ -1445,7 +1440,7 @@ def _reconstruct_patches_3d(
             )
 
     if _unbatched:
-        x = backend.ops.numpy.squeeze(x, axis=0)
+        x = backend.numpy.squeeze(x, axis=0)
     return x
 
 
@@ -1457,7 +1452,7 @@ class MapCoordinates(Operation):
         self.fill_value = fill_value
 
     def call(self, inputs, coordinates):
-        return backend.ops.image.map_coordinates(
+        return backend.image.map_coordinates(
             inputs,
             coordinates,
             order=self.order,
@@ -1527,7 +1522,7 @@ def map_coordinates(
             fill_mode,
             fill_value,
         ).symbolic_call(inputs, coordinates)
-    return backend.ops.image.map_coordinates(
+    return backend.image.map_coordinates(
         inputs,
         coordinates,
         order,
@@ -1627,7 +1622,7 @@ class PadImages(Operation):
         self.right_padding = right_padding
         self.target_height = target_height
         self.target_width = target_width
-        self.data_format = standardize_data_format(data_format)
+        self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
         return _pad_images(
@@ -1804,8 +1799,8 @@ def _pad_images(
     target_width,
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
-    images = backend.ops.convert_to_tensor(images)
+    data_format = backend.standardize_data_format(data_format)
+    images = backend.convert_to_tensor(images)
     images_shape = ops.shape(images)
 
     # Check
@@ -1868,7 +1863,7 @@ def _pad_images(
     if is_batch:
         pad_width = [[0, 0]] + pad_width
 
-    padded_images = backend.ops.numpy.pad(images, pad_width)
+    padded_images = backend.numpy.pad(images, pad_width)
     return padded_images
 
 
@@ -1892,7 +1887,7 @@ class CropImages(Operation):
         self.right_cropping = right_cropping
         self.target_height = target_height
         self.target_width = target_width
-        self.data_format = standardize_data_format(data_format)
+        self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
         return _crop_images(
@@ -2079,8 +2074,8 @@ def _crop_images(
     target_width,
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
-    images = backend.ops.convert_to_tensor(images)
+    data_format = backend.standardize_data_format(data_format)
+    images = backend.convert_to_tensor(images)
     images_shape = ops.shape(images)
 
     # Check
@@ -2166,10 +2161,10 @@ class PerspectiveTransform(Operation):
         super().__init__(name=name)
         self.interpolation = interpolation
         self.fill_value = fill_value
-        self.data_format = standardize_data_format(data_format)
+        self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images, start_points, end_points):
-        return backend.ops.image.perspective_transform(
+        return backend.image.perspective_transform(
             images,
             start_points,
             end_points,
@@ -2289,7 +2284,7 @@ def perspective_transform(
             fill_value=fill_value,
             data_format=data_format,
         ).symbolic_call(images, start_points, end_points)
-    return backend.ops.image.perspective_transform(
+    return backend.image.perspective_transform(
         images,
         start_points,
         end_points,
@@ -2311,10 +2306,10 @@ class GaussianBlur(Operation):
         super().__init__(name=name)
         self.kernel_size = kernel_size
         self.sigma = sigma
-        self.data_format = standardize_data_format(data_format)
+        self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
-        return backend.ops.image.gaussian_blur(
+        return backend.image.gaussian_blur(
             images,
             kernel_size=self.kernel_size,
             sigma=self.sigma,
@@ -2378,7 +2373,7 @@ def gaussian_blur(
             sigma=sigma,
             data_format=data_format,
         ).symbolic_call(images)
-    return backend.ops.image.gaussian_blur(
+    return backend.image.gaussian_blur(
         images,
         kernel_size=kernel_size,
         sigma=sigma,
@@ -2406,10 +2401,10 @@ class ElasticTransform(Operation):
         self.fill_mode = fill_mode
         self.fill_value = fill_value
         self.seed = seed
-        self.data_format = standardize_data_format(data_format)
+        self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
-        return backend.ops.image.elastic_transform(
+        return backend.image.elastic_transform(
             images,
             alpha=self.alpha,
             sigma=self.sigma,
@@ -2505,7 +2500,7 @@ def elastic_transform(
             seed=seed,
             data_format=data_format,
         ).symbolic_call(images)
-    return backend.ops.image.elastic_transform(
+    return backend.image.elastic_transform(
         images,
         alpha=alpha,
         sigma=sigma,
@@ -2525,7 +2520,7 @@ class ScaleAndTranslate(Operation):
         self.antialias = antialias
 
     def call(self, images, output_shape, scale, translation):
-        return backend.ops.image.scale_and_translate(
+        return backend.image.scale_and_translate(
             images,
             output_shape=output_shape,
             scale=scale,
@@ -2615,7 +2610,7 @@ def scale_and_translate(
         return ScaleAndTranslate(spatial_dims, method, antialias).symbolic_call(
             images, output_shape, scale, translation
         )
-    return backend.ops.image.scale_and_translate(
+    return backend.image.scale_and_translate(
         images,
         output_shape,
         scale,
@@ -2629,12 +2624,10 @@ def scale_and_translate(
 class SobelEdges(Operation):
     def __init__(self, data_format=None, *, name=None):
         super().__init__(name=name)
-        self.data_format = standardize_data_format(data_format)
+        self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
-        return backend.ops.image.sobel_edges(
-            images, data_format=self.data_format
-        )
+        return backend.image.sobel_edges(images, data_format=self.data_format)
 
     def compute_output_spec(self, images):
         images_shape = list(images.shape)
@@ -2686,8 +2679,8 @@ def sobel_edges(images, data_format=None):
     """
     if any_symbolic_tensors((images,)):
         return SobelEdges(data_format=data_format).symbolic_call(images)
-    return backend.ops.image.sobel_edges(
-        images, data_format=standardize_data_format(data_format)
+    return backend.image.sobel_edges(
+        images, data_format=backend.standardize_data_format(data_format)
     )
 
 
@@ -2709,7 +2702,7 @@ class SSIM(Operation):
         self.filter_sigma = filter_sigma
         self.k1 = k1
         self.k2 = k2
-        self.data_format = standardize_data_format(data_format)
+        self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, image1, image2):
         return _ssim(
@@ -2842,9 +2835,9 @@ def _ssim(
     data_format=None,
 ):
     """Backend-agnostic SSIM implementation using Keras ops."""
-    data_format = standardize_data_format(data_format)
-    image1 = backend.ops.convert_to_tensor(image1)
-    image2 = backend.ops.convert_to_tensor(image2)
+    data_format = backend.standardize_data_format(data_format)
+    image1 = backend.convert_to_tensor(image1)
+    image2 = backend.convert_to_tensor(image2)
 
     # Ensure float dtype for computation
     original_dtype = image1.dtype
@@ -2949,7 +2942,7 @@ def _create_gaussian_kernel(size, sigma, dtype):
 def _depthwise_conv(images, kernel):
     """Apply depthwise convolution with valid padding."""
     # Expand kernel for conv: (H, W, in_channels=1, out_channels=1)
-    return backend.ops.nn.conv(
+    return backend.nn.conv(
         images,
         kernel,
         strides=1,

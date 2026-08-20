@@ -9,9 +9,9 @@ from torch.distributed.device_mesh import DeviceMesh as TorchDeviceMesh
 
 from keras.src import backend
 from keras.src import testing
+from keras.src.backend.torch import core
 from keras.src.backend.torch import distribution_lib
-from keras.src.backend.torch.ops import core
-from keras.src.backend.torch.ops.core import Variable
+from keras.src.backend.torch.core import Variable
 from keras.src.distribution.distribution_lib import DeviceMesh
 from keras.src.distribution.distribution_lib import TensorLayout
 

@@ -37,10 +37,8 @@ elif backend.backend() == "tensorflow":
     )
 elif backend.backend() == "numpy":
     from keras.src.backend.numpy.trainer import NumpyTrainer as Trainer
-elif backend.backend() == "mlx":
-    from keras_mlx.src.trainer import MLXTrainer as Trainer
 elif backend.backend() == "openvino":
-    from keras_openvino.src.trainer import OpenVINOTrainer as Trainer
+    from keras.src.backend.openvino.trainer import OpenVINOTrainer as Trainer
 else:
     raise ImportError(f"Invalid backend: {backend.backend()}")
 
@@ -167,9 +165,9 @@ class TestPyDataset(py_dataset_adapter.PyDataset):
         CPU_DEVICES = {
             "tensorflow": "CPU:0",
             "jax": "cpu:0",
+            "torch": "cpu",
         }
-        cpu_device = CPU_DEVICES.get(backend.backend(), "cpu")
-        with backend.device(cpu_device):
+        with backend.device(CPU_DEVICES[backend.backend()]):
             return ops.ones((5, 4)), ops.zeros((5, 3))
 
 
@@ -2413,7 +2411,7 @@ class TestTrainer(testing.TestCase):
         model.compile(optimizer="rmsprop", loss="mse")
         model.fit(x, y)
         self.assertGreaterEqual(
-            np.min(backend.ops.convert_to_numpy(model.layers[0].kernel)), 0.0
+            np.min(backend.convert_to_numpy(model.layers[0].kernel)), 0.0
         )
 
     @pytest.mark.requires_trainable_backend

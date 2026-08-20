@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 
 import keras
-from keras.src import backend
 from keras.src import ops
 from keras.src import testing
 from keras.src.saving import deserialize_keras_object
@@ -115,7 +114,7 @@ class SerializationLibTest(testing.TestCase):
         self.assertEqual(..., deserialized)
 
     def test_tensors_and_shapes(self):
-        x = backend.random.normal((2, 2), dtype="float64")
+        x = ops.random.normal((2, 2), dtype="float64")
         obj = {"x": x}
         _, new_obj, _ = self.roundtrip(obj)
         self.assertAllClose(x, new_obj["x"], atol=1e-5)
@@ -137,7 +136,7 @@ class SerializationLibTest(testing.TestCase):
         _, new_dense, _ = self.roundtrip(
             dense, custom_objects={"custom_fn": custom_fn}
         )
-        x = backend.random.normal((2, 2))
+        x = ops.random.normal((2, 2))
         y1 = dense(x)
         _ = new_dense(x)
         new_dense.set_weights(dense.get_weights())
@@ -146,7 +145,7 @@ class SerializationLibTest(testing.TestCase):
 
     def test_custom_layer(self):
         layer = CustomLayer(factor=2)
-        x = backend.random.normal((2, 2))
+        x = ops.random.normal((2, 2))
         y1 = layer(x)
         _, new_layer, _ = self.roundtrip(
             layer, custom_objects={"CustomLayer": CustomLayer}
@@ -155,7 +154,7 @@ class SerializationLibTest(testing.TestCase):
         self.assertAllClose(y1, y2, atol=1e-5)
 
         layer = NestedCustomLayer(factor=2)
-        x = backend.random.normal((2, 2))
+        x = ops.random.normal((2, 2))
         y1 = layer(x)
         _, new_layer, _ = self.roundtrip(
             layer,
@@ -183,7 +182,7 @@ class SerializationLibTest(testing.TestCase):
             self.roundtrip(lmbda, safe_mode=True)
 
         _, new_lmbda, _ = self.roundtrip(lmbda, safe_mode=False)
-        x = backend.random.normal((2, 2))
+        x = ops.random.normal((2, 2))
         y1 = lmbda(x)
         y2 = new_lmbda(x)
         self.assertAllClose(y1, y2, atol=1e-5)
@@ -222,7 +221,7 @@ class SerializationLibTest(testing.TestCase):
                 self.roundtrip(lmbda)
         with serialization_lib.SafeModeScope(safe_mode=False):
             _, new_lmbda, _ = self.roundtrip(lmbda)
-        x = backend.random.normal((2, 2))
+        x = ops.random.normal((2, 2))
         y1 = lmbda(x)
         y2 = new_lmbda(x)
         self.assertAllClose(y1, y2, atol=1e-5)
@@ -273,7 +272,7 @@ class SerializationLibTest(testing.TestCase):
         inputs = keras.Input((2,), batch_size=3)
         outputs = keras.layers.Dense(1)(inputs)
         model = PlainFunctionalSubclass(inputs, outputs)
-        x = backend.random.normal((2, 2))
+        x = ops.random.normal((2, 2))
         y1 = model(x)
         _, new_model, _ = self.roundtrip(
             model,
@@ -295,7 +294,7 @@ class SerializationLibTest(testing.TestCase):
                 return {"num_units": self.num_units}
 
         model = FunctionalSubclassWCustomInit(num_units=3)
-        x = backend.random.normal((2, 2))
+        x = ops.random.normal((2, 2))
         y1 = model(x)
         _, new_model, _ = self.roundtrip(
             model,

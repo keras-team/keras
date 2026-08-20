@@ -1,5 +1,3 @@
-import os
-
 try:
     # When using torch and tensorflow, torch needs to be imported first,
     # otherwise it will segfault upon import. This should force the torch
@@ -42,28 +40,16 @@ def pytest_configure(config):
 def pytest_collection_modifyitems(config, items):
     has_multiple_devices = False
 
-    backend_skipped_tests = []
-    if backend() in ("mlx", "openvino"):
-        if backend() == "mlx":
-            import keras_mlx
-
-            backend_module_file = keras_mlx.__file__
-        elif backend() == "openvino":
-            import keras_openvino
-
-            backend_module_file = keras_openvino.__file__
-
-        exclusions_path = os.path.join(
-            # Remove `src/__init__.py`.
-            os.path.dirname(os.path.dirname(backend_module_file)),
-            "excluded_tests.txt",
-        )
-        with open(exclusions_path, "r") as file:
-            backend_skipped_tests = file.readlines()
+    openvino_skipped_tests = []
+    if backend() == "openvino":
+        with open(
+            "keras/src/backend/openvino/excluded_concrete_tests.txt", "r"
+        ) as file:
+            openvino_skipped_tests = file.readlines()
             # it is necessary to check if stripped line is not empty
             # and exclude such lines
-            backend_skipped_tests = [
-                line.strip() for line in backend_skipped_tests if line.strip()
+            openvino_skipped_tests = [
+                line.strip() for line in openvino_skipped_tests if line.strip()
             ]
 
     if backend() == "jax":
@@ -87,13 +73,15 @@ def pytest_collection_modifyitems(config, items):
         if requires_multiple_devices and "multi_device" in item.keywords:
             item.add_marker(requires_multiple_devices)
 
-        # Skip concrete tests listed in the backend specific file.
-        for skipped_test in backend_skipped_tests:
+        # also, skip concrete tests for openvino, listed in the special file
+        # this is more granular mechanism to exclude tests rather
+        # than using --ignore option
+        for skipped_test in openvino_skipped_tests:
             if skipped_test in item.nodeid:
                 item.add_marker(
                     skip_if_backend(
-                        backend(),
-                        f"Not supported operation by {backend()} backend",
+                        "openvino",
+                        "Not supported operation by openvino backend",
                     )
                 )
 

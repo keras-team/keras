@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backend: [tensorflow, jax, torch, numpy]
+        backend: [tensorflow, jax, torch, numpy, openvino]
         nnx_enabled: [false]
         include:
           - backend: jax

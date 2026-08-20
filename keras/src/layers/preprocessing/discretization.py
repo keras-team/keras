@@ -207,7 +207,7 @@ class Discretization(DataLayer):
             progbar.update(steps if steps is not None else i + 1, finalize=True)
         elif hasattr(data, "__iter__") and not (
             isinstance(data, np.ndarray)
-            or backend.ops.is_tensor(data)
+            or backend.is_tensor(data)
             or tf.is_tensor(data)
         ):
             progbar = Progbar(target=steps, unit_name="step")
@@ -284,7 +284,7 @@ class Discretization(DataLayer):
                 "start using the `Discretization` layer."
             )
 
-        indices = self.backend.ops.numpy.digitize(inputs, self.bin_boundaries)
+        indices = self.backend.numpy.digitize(inputs, self.bin_boundaries)
         return numerical_utils.encode_categorical_inputs(
             indices,
             output_mode=self.output_mode,

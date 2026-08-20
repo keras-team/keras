@@ -23,7 +23,7 @@ def in_tf_graph():
 
 def convert_tf_tensor(outputs, dtype=None):
     if backend_module.backend() != "tensorflow" and not in_tf_graph():
-        outputs = backend_module.ops.convert_to_tensor(outputs, dtype=dtype)
+        outputs = backend_module.convert_to_tensor(outputs, dtype=dtype)
     return outputs
 
 
@@ -82,17 +82,10 @@ class DynamicBackend:
         self._backend = backend or backend_module.backend()
 
     def set_backend(self, backend):
-        if backend not in (
-            "tensorflow",
-            "jax",
-            "torch",
-            "numpy",
-            "mlx",
-            "openvino",
-        ):
+        if backend not in ("tensorflow", "jax", "torch", "numpy", "openvino"):
             raise ValueError(
                 "Available backends are ('tensorflow', 'jax', 'torch', "
-                f"'numpy', 'mlx' and 'openvino'). Received: backend={backend}"
+                f"'numpy' and 'openvino'). Received: backend={backend}"
             )
         self._backend = backend
 
@@ -106,17 +99,24 @@ class DynamicBackend:
     def __getattr__(self, name):
         if self._backend == "tensorflow":
             module = importlib.import_module("keras.src.backend.tensorflow")
+            return getattr(module, name)
         if self._backend == "jax":
             module = importlib.import_module("keras.src.backend.jax")
+            return getattr(module, name)
         if self._backend == "torch":
             module = importlib.import_module("keras.src.backend.torch")
+            return getattr(module, name)
         if self._backend == "numpy":
-            module = importlib.import_module("keras.src.backend.numpy")
-        if self._backend == "mlx":
-            module = importlib.import_module("keras_mlx.src")
+            if backend_module.backend() == "numpy":
+                return getattr(backend_module, name)
+            else:
+                raise NotImplementedError(
+                    "Currently, we cannot dynamically import the numpy backend "
+                    "because it would disrupt the namespace of the import."
+                )
         if self._backend == "openvino":
-            module = importlib.import_module("keras_openvino.src")
-        return getattr(module, name)
+            module = importlib.import_module("keras.src.backend.openvino")
+            return getattr(module, name)
 
 
 @keras_export("keras.config.set_backend")

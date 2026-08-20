@@ -59,7 +59,7 @@ class AlphaDropout(Layer):
             alpha_p = -alpha * scale
 
             kept_idx = ops.greater_equal(
-                backend.random.uniform(noise_shape, seed=self.seed_generator),
+                ops.random.uniform(noise_shape, seed=self.seed_generator),
                 self.rate,
             )
             kept_idx = ops.cast(kept_idx, inputs.dtype)

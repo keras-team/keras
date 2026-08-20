@@ -319,7 +319,7 @@ def validate_reshape_shape(newshape, newshape_arg_name="newshape"):
     are not validated here.
     """
 
-    if backend.ops.is_tensor(newshape) or isinstance(newshape, KerasTensor):
+    if backend.is_tensor(newshape) or isinstance(newshape, KerasTensor):
         return
 
     neg_one_count = 0
@@ -350,7 +350,7 @@ def compute_reshape_output_shape(input_shape, newshape, newshape_arg_name):
     newshape = standardize_reshape_shape(newshape, newshape_arg_name)
     # If `newshape` is a tensor, we infer the output rank based on its shape.
     # For example, a 1D tensor of shape (4,) indicates a 4D output shape.
-    if backend.ops.is_tensor(newshape) or isinstance(newshape, KerasTensor):
+    if backend.is_tensor(newshape) or isinstance(newshape, KerasTensor):
         shape = getattr(newshape, "shape", None)
         if shape and len(shape) == 1 and shape[0] is not None:
             return (None,) * shape[0]

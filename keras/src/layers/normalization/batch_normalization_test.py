@@ -9,7 +9,6 @@ from keras.src import ops
 from keras.src import random
 from keras.src import testing
 from keras.src import utils
-from keras.src.backend.common.variables import AutocastScope
 from keras.src.losses import MeanSquaredError
 from keras.src.models import Model
 
@@ -95,12 +94,12 @@ class BatchNormalizationTest(testing.TestCase):
         # Assert the normalization is correct.
         broadcast_shape = [1] * len(input_shape)
         broadcast_shape[axis] = input_shape[axis]
-        out = backend.ops.convert_to_numpy(out)
+        out = backend.convert_to_numpy(out)
         out = out - np.reshape(
-            backend.ops.convert_to_numpy(layer.beta), broadcast_shape
+            backend.convert_to_numpy(layer.beta), broadcast_shape
         )
         out = out / np.reshape(
-            backend.ops.convert_to_numpy(layer.gamma), broadcast_shape
+            backend.convert_to_numpy(layer.gamma), broadcast_shape
         )
 
         reduction_axes = list(range(len(input_shape)))
@@ -203,12 +202,12 @@ class BatchNormalizationTest(testing.TestCase):
         for _ in range(10):
             out = layer(x, training=True)
 
-        out = backend.ops.convert_to_numpy(out)
+        out = backend.convert_to_numpy(out)
         out = out - np.reshape(
-            backend.ops.convert_to_numpy(layer.beta), (1, 1, 1, 3)
+            backend.convert_to_numpy(layer.beta), (1, 1, 1, 3)
         )
         out = out / np.reshape(
-            backend.ops.convert_to_numpy(layer.gamma), (1, 1, 1, 3)
+            backend.convert_to_numpy(layer.gamma), (1, 1, 1, 3)
         )
 
         self.assertAllClose(np.mean(out, axis=(0, 1, 2)), 0.0, atol=1e-3)
@@ -219,7 +218,7 @@ class BatchNormalizationTest(testing.TestCase):
         layer.build((1, 4, 4, 3))
         # Use 70000 to trigger overflow for float16
         large_value = ops.full(layer.moving_variance.shape, 70000)
-        with AutocastScope("float16"):
+        with backend.AutocastScope("float16"):
             layer.moving_variance.assign(large_value)
             self.assertAllClose(layer.moving_variance.value, large_value)
 

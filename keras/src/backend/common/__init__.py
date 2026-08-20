@@ -1,4 +1,3 @@
-# TODO clean up
 from keras.src.backend.common import backend_utils
 from keras.src.backend.common.dtypes import result_type
 from keras.src.backend.common.variables import AutocastScope

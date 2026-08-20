@@ -1,6 +1,5 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.backend.config import standardize_data_format
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
@@ -67,7 +66,7 @@ class RandomCrop(BaseImagePreprocessingLayer):
             seed if seed is not None else backend.random.make_default_seed()
         )
         self.generator = SeedGenerator(seed)
-        self.data_format = standardize_data_format(data_format)
+        self.data_format = backend.standardize_data_format(data_format)
 
         if self.data_format == "channels_first":
             self.height_axis = -2
@@ -86,9 +85,9 @@ class RandomCrop(BaseImagePreprocessingLayer):
             seed = self._get_seed_generator(self.backend._backend)
 
         if isinstance(data, dict):
-            input_shape = self.backend.ops.shape(data["images"])
+            input_shape = self.backend.shape(data["images"])
         else:
-            input_shape = self.backend.ops.shape(data)
+            input_shape = self.backend.shape(data)
 
         input_height, input_width = (
             input_shape[self.height_axis],
@@ -101,7 +100,7 @@ class RandomCrop(BaseImagePreprocessingLayer):
             )
 
         if training and input_height > self.height and input_width > self.width:
-            h_start = self.backend.ops.cast(
+            h_start = self.backend.cast(
                 self.backend.random.uniform(
                     (),
                     0,
@@ -110,7 +109,7 @@ class RandomCrop(BaseImagePreprocessingLayer):
                 ),
                 "int32",
             )
-            w_start = self.backend.ops.cast(
+            w_start = self.backend.cast(
                 self.backend.random.uniform(
                     (),
                     0,
@@ -131,13 +130,13 @@ class RandomCrop(BaseImagePreprocessingLayer):
 
     def transform_images(self, images, transformation, training=True):
         if training:
-            images = self.backend.ops.cast(images, self.compute_dtype)
+            images = self.backend.cast(images, self.compute_dtype)
             images = self._random_crop(
                 images, transformation, interpolation="bilinear"
             )
             # The resize fallback in `_random_crop` may upcast on some backends
             # (e.g. TF upcasts float16 to float32); restore the compute dtype.
-            images = self.backend.ops.cast(images, self.compute_dtype)
+            images = self.backend.cast(images, self.compute_dtype)
         return images
 
     def _random_crop(self, images, transformation, interpolation="bilinear"):
@@ -174,7 +173,7 @@ class RandomCrop(BaseImagePreprocessingLayer):
                     crop_box_wstart : crop_box_wstart + crop_width,
                 ]
 
-        shape = self.backend.ops.shape(images)
+        shape = self.backend.shape(images)
         new_height = shape[self.height_axis]
         new_width = shape[self.width_axis]
         if (
@@ -217,7 +216,7 @@ class RandomCrop(BaseImagePreprocessingLayer):
 
         if training:
             h_start, w_start = transformation
-            if not self.backend.ops.is_tensor(bounding_boxes["boxes"]):
+            if not self.backend.is_tensor(bounding_boxes["boxes"]):
                 bounding_boxes = densify_bounding_boxes(
                     bounding_boxes, backend=self.backend
                 )
@@ -230,41 +229,25 @@ class RandomCrop(BaseImagePreprocessingLayer):
                 height=self.height,
                 width=self.width,
             )
-            h_start = self.backend.ops.cast(h_start, boxes.dtype)
-            w_start = self.backend.ops.cast(w_start, boxes.dtype)
-            if len(self.backend.ops.shape(boxes)) == 3:
-                boxes = self.backend.ops.numpy.stack(
+            h_start = self.backend.cast(h_start, boxes.dtype)
+            w_start = self.backend.cast(w_start, boxes.dtype)
+            if len(self.backend.shape(boxes)) == 3:
+                boxes = self.backend.numpy.stack(
                     [
-                        self.backend.ops.numpy.maximum(
-                            boxes[:, :, 0] - h_start, 0
-                        ),
-                        self.backend.ops.numpy.maximum(
-                            boxes[:, :, 1] - w_start, 0
-                        ),
-                        self.backend.ops.numpy.maximum(
-                            boxes[:, :, 2] - h_start, 0
-                        ),
-                        self.backend.ops.numpy.maximum(
-                            boxes[:, :, 3] - w_start, 0
-                        ),
+                        self.backend.numpy.maximum(boxes[:, :, 0] - h_start, 0),
+                        self.backend.numpy.maximum(boxes[:, :, 1] - w_start, 0),
+                        self.backend.numpy.maximum(boxes[:, :, 2] - h_start, 0),
+                        self.backend.numpy.maximum(boxes[:, :, 3] - w_start, 0),
                     ],
                     axis=-1,
                 )
             else:
-                boxes = self.backend.ops.numpy.stack(
+                boxes = self.backend.numpy.stack(
                     [
-                        self.backend.ops.numpy.maximum(
-                            boxes[:, 0] - h_start, 0
-                        ),
-                        self.backend.ops.numpy.maximum(
-                            boxes[:, 1] - w_start, 0
-                        ),
-                        self.backend.ops.numpy.maximum(
-                            boxes[:, 2] - h_start, 0
-                        ),
-                        self.backend.ops.numpy.maximum(
-                            boxes[:, 3] - w_start, 0
-                        ),
+                        self.backend.numpy.maximum(boxes[:, 0] - h_start, 0),
+                        self.backend.numpy.maximum(boxes[:, 1] - w_start, 0),
+                        self.backend.numpy.maximum(boxes[:, 2] - h_start, 0),
+                        self.backend.numpy.maximum(boxes[:, 3] - w_start, 0),
                     ],
                     axis=-1,
                 )

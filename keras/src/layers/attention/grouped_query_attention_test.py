@@ -7,8 +7,6 @@ from keras.src import initializers
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
-from keras.src.backend.common.masking import get_keras_mask
-from keras.src.backend.common.masking import set_keras_mask
 from keras.src.backend.config import disable_flash_attention
 from keras.src.backend.config import enable_flash_attention
 from keras.src.backend.config import is_flash_attention_enabled
@@ -308,7 +306,7 @@ class GroupedQueryAttentionTest(testing.TestCase):
         value = np.random.normal(size=(3, 3, 8))
         output = layer(query=masked_query, value=value)
         self.assertAllClose(
-            get_keras_mask(masked_query), get_keras_mask(output)
+            backend.get_keras_mask(masked_query), backend.get_keras_mask(output)
         )
 
         layer = layers.GroupedQueryAttention(
@@ -320,7 +318,7 @@ class GroupedQueryAttentionTest(testing.TestCase):
         value = np.random.normal(size=(3, 3, 8))
         output = layer(query=masked_query, value=value)
         self.assertAllClose(
-            get_keras_mask(masked_query), get_keras_mask(output)
+            backend.get_keras_mask(masked_query), backend.get_keras_mask(output)
         )
 
     @parameterized.named_parameters(("causal", True), ("not_causal", 0))
@@ -347,8 +345,8 @@ class GroupedQueryAttentionTest(testing.TestCase):
             mask = mask & np.array(
                 [[[1, 0, 0], [1, 1, 0]] + [[1, 1, 1]] * 3]
             ).astype(bool)
-        set_keras_mask(masked_query, None)
-        set_keras_mask(masked_value, None)
+        backend.set_keras_mask(masked_query, None)
+        backend.set_keras_mask(masked_value, None)
         output_with_manual_mask = layer(
             query=masked_query, value=masked_value, attention_mask=mask
         )
@@ -375,8 +373,8 @@ class GroupedQueryAttentionTest(testing.TestCase):
             mask = mask & np.array(
                 [[[1, 0, 0], [1, 1, 0]] + [[1, 1, 1]] * 3]
             ).astype(bool)
-        set_keras_mask(masked_query, None)
-        set_keras_mask(masked_value, None)
+        backend.set_keras_mask(masked_query, None)
+        backend.set_keras_mask(masked_value, None)
         output_with_manual_mask = layer(
             query=masked_query, value=masked_value, attention_mask=mask
         )
@@ -493,7 +491,7 @@ class GroupedQueryAttentionTest(testing.TestCase):
                 return_attention_scores=True,
                 training=False,
             )
-            leak = backend.ops.convert_to_numpy(scores)[..., future].sum()
+            leak = backend.convert_to_numpy(scores)[..., future].sum()
             self.assertLess(leak, 1e-6)
         else:
             # use_causal_mask should match passing the same mask explicitly.

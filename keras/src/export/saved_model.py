@@ -28,12 +28,8 @@ elif backend.backend() == "numpy":
     from keras.src.backend.numpy.export import (
         NumpyExportArchive as BackendSavedModelExportArchive,
     )
-elif backend.backend() == "mlx":
-    from keras_mlx.src.export import (
-        MlxExportArchive as BackendSavedModelExportArchive,
-    )
 elif backend.backend() == "openvino":
-    from keras_openvino.src.export import (
+    from keras.src.backend.openvino.export import (
         OpenvinoExportArchive as BackendSavedModelExportArchive,
     )
 else:

@@ -10,7 +10,6 @@ from keras.src import backend
 from keras.src import initializers
 from keras.src import ops
 from keras.src.backend.common import dtypes
-from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.backend.common.variables import AutocastScope
 from keras.src.backend.common.variables import shape_equal
 from keras.src.backend.common.variables import standardize_dtype
@@ -24,7 +23,7 @@ class VariableInitializationTest(test_case.TestCase):
 
     def test_deferred_initialization(self):
         """Tests deferred initialization of variables."""
-        with StatelessScope():
+        with backend.StatelessScope():
             v = backend.Variable(
                 initializer=initializers.RandomNormal(), shape=(2, 2)
             )
@@ -34,7 +33,7 @@ class VariableInitializationTest(test_case.TestCase):
         self.assertEqual(v._value.shape, (2, 2))
 
         with self.assertRaisesRegex(ValueError, "while in a stateless scope"):
-            with StatelessScope():
+            with backend.StatelessScope():
                 v = backend.Variable(initializer=0)
 
     def test_variable_initialization_with_numpy_array(self):
@@ -151,7 +150,7 @@ class VariablePropertiesTest(test_case.TestCase):
     )
     def test_deferred_assignment(self):
         """Tests deferred assignment to variables."""
-        with StatelessScope() as scope:
+        with backend.StatelessScope() as scope:
             v = backend.Variable(
                 initializer=initializers.RandomNormal(), shape=(2, 2)
             )
@@ -358,7 +357,7 @@ class VariablePropertiesTest(test_case.TestCase):
         ):
             self.skipTest(f"openvino backend does not support dtype {dtype}")
 
-        x = backend.ops.convert_to_tensor(np.zeros(()), dtype)
+        x = backend.convert_to_tensor(np.zeros(()), dtype)
         actual = standardize_dtype(x.dtype)
         self.assertEqual(actual, dtype)
 
@@ -514,7 +513,7 @@ class VariableNumpyValueAndAssignmentTest(test_case.TestCase):
         with strategy.scope():
             v = backend.Variable(initializer=0.0)
 
-        np_value = backend.ops.convert_to_numpy(v)
+        np_value = backend.convert_to_numpy(v)
         self.assertIsInstance(np_value, np.ndarray)
         self.assertAllClose(np_value, 0.0)
 
@@ -561,7 +560,7 @@ class VariableNumpyValueAndAssignmentTest(test_case.TestCase):
 
     def test_deferred_initialize_within_stateless_scope(self):
         """Test deferred init within a stateless scope."""
-        with StatelessScope():
+        with backend.StatelessScope():
             v = backend.Variable(
                 initializer=initializers.RandomNormal(), shape=(2, 2)
             )
@@ -605,8 +604,8 @@ class VariableDtypeShapeNdimRepr(test_case.TestCase):
         )
         self.assertEqual(repr(v), expected_repr)
 
-        # Test with `StatelessScope()`
-        with StatelessScope():
+        # Test with `backend.StatelessScope()`
+        with backend.StatelessScope():
             v = backend.Variable(
                 initializer="zeros", shape=(3,), name="test_var"
             )
