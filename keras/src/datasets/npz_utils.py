@@ -52,10 +52,13 @@ def _reject_npz_member_bomb(info):
         info.file_size > _NPZ_MEMBER_BOMB_FLOOR_BYTES
         and info.file_size > _NPZ_MEMBER_MAX_EXPANSION * info.compress_size
     ):
+        from keras.src.utils.summary_utils import readable_memory_size
+
         raise ValueError(
             f"Refusing to load npz member '{info.filename}': it declares "
-            f"{info.file_size} bytes but only {info.compress_size} bytes are "
-            "stored on disk; refusing to load a potential decompression bomb."
+            f"{readable_memory_size(info.file_size)} but only "
+            f"{readable_memory_size(info.compress_size)} are stored on disk; "
+            "refusing to load a potential decompression bomb."
         )
 
 
