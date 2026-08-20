@@ -9,6 +9,7 @@ from keras.src.backend import config
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
+from keras.src.backend.common.backend_utils import normalize_shift_and_axis
 from keras.src.backend.common.variables import standardize_dtype
 from keras.src.backend.openvino.core import DTYPES_MAX
 from keras.src.backend.openvino.core import DTYPES_MIN
@@ -819,9 +820,49 @@ def _view_int_contract(x, new_ov_type, old_itemsize, new_itemsize):
 
 
 def average(x, axis=None, weights=None):
+    x_keras = x
+    weights_keras = weights
     x = get_ov_output(x)
     if weights is not None:
         weights = get_ov_output(weights)
+
+    if weights_keras is not None:
+        x_shape = (
+            x_keras.shape
+            if hasattr(x_keras, "shape")
+            else x.get_partial_shape()
+        )
+        weights_shape = (
+            weights_keras.shape
+            if hasattr(weights_keras, "shape")
+            else weights.get_partial_shape()
+        )
+        if len(weights_shape) == 1 and len(x_shape) > 1:
+            if axis is None or (
+                isinstance(axis, (list, tuple)) and len(axis) != 1
+            ):
+                raise ValueError(
+                    "Axis must be specified when shapes of a and weights "
+                    "differ."
+                )
+            axis_val = axis[0] if isinstance(axis, (list, tuple)) else axis
+            axis_val = canonicalize_axis(axis_val, len(x_shape))
+            if weights_shape[0] != x_shape[axis_val]:
+                raise ValueError(
+                    "Shape of weights must be consistent with shape of a "
+                    "along specified axis."
+                )
+        elif x_shape != weights_shape:
+            if axis is None:
+                raise ValueError(
+                    "Axis must be specified when shapes of a and weights "
+                    "differ."
+                )
+            raise ValueError(
+                "Shape of weights must be consistent with shape of a "
+                "along specified axis."
+            )
+
     if axis is None:
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
@@ -837,8 +878,47 @@ def average(x, axis=None, weights=None):
         ):
             x = ov_opset.convert(x, Type.f32).output(0)
             weights = ov_opset.convert(weights, Type.f32).output(0)
+
+        # Reshape 1D weights
+        x_shape = x.get_partial_shape()
+        w_shape_ov = weights.get_partial_shape()
+        if (
+            w_shape_ov.rank.is_static
+            and w_shape_ov.rank.get_length() == 1
+            and x_shape.rank.is_static
+            and x_shape.rank.get_length() > 1
+            and axis is not None
+        ):
+            rank = x_shape.rank.get_length()
+            a = axis[0] if isinstance(axis, (tuple, list)) else axis
+            if isinstance(a, int):
+                if a < 0:
+                    a += rank
+                w_target_shape = [1] * rank
+                w_target_shape[a] = -1
+                target_shape_const = ov_opset.constant(
+                    w_target_shape, Type.i32
+                ).output(0)
+                weights = ov_opset.reshape(
+                    weights, target_shape_const, False
+                ).output(0)
+
         x, weights = _align_operand_types(x, weights, "multiply()")
-        x = ov_opset.multiply(x, weights)
+        x_weighted = ov_opset.multiply(x, weights)
+
+        if isinstance(axis, tuple):
+            axis = list(axis)
+        if axis == []:
+            return OpenVINOKerasTensor(x)
+
+        axis_const = ov_opset.constant(axis, dtype=Type.i32).output(0)
+
+        sum_weighted = ov_opset.reduce_sum(
+            x_weighted, axis_const, False
+        ).output(0)
+        sum_weights = ov_opset.reduce_sum(weights, axis_const, False).output(0)
+        result = ov_opset.divide(sum_weighted, sum_weights).output(0)
+        return OpenVINOKerasTensor(result)
 
     if isinstance(axis, tuple):
         axis = list(axis)
@@ -1088,10 +1168,10 @@ def bincount(x, weights=None, minlength=0, sparse=False):
     rank_x = ov_opset.reshape(rank_x, scalar_shape, False).output(0)
     const_minus_one = ov_opset.constant(-1, x_type).output(0)
     rank_minus_one = ov_opset.add(rank_x, const_minus_one).output(0)
-    minlength = get_ov_output(minlength)
-    minlength = ov_opset.convert(minlength, x_type).output(0)
     const_one = ov_opset.constant(1, x_type).output(0)
     const_zero = ov_opset.constant(0, x_type).output(0)
+    minlength = get_ov_output(minlength)
+    minlength = ov_opset.convert(minlength, x_type).output(0)
     max_element = ov_opset.reduce_max(x, const_zero, keep_dims=False).output(0)
     depth = ov_opset.add(max_element, const_one).output(0)
     depth = ov_opset.maximum(depth, minlength).output(0)
@@ -1515,67 +1595,11 @@ def rad2deg(x):
 
 def diag(x, k=0):
     x = get_ov_output(x)
-    x_shape = x.get_partial_shape()
-    rank = x_shape.rank.get_length()
-
+    rank = x.get_partial_shape().rank.get_length()
     if rank == 1:
-        N_dim = x_shape[0]
-        if not N_dim.is_static:
-            raise ValueError(
-                "diag requires input with static shape for 1D input."
-            )
-        N = N_dim.get_length()
-        output_size = N + np.abs(k)
-        out_shape = ov_opset.constant(
-            [output_size, output_size], dtype=Type.i32
-        ).output(0)
-        zeros_const = ov_opset.constant(0, x.get_element_type()).output(0)
-        diag_matrix = ov_opset.broadcast(zeros_const, out_shape)
-
-        indices = []
-        if k >= 0:
-            for i in range(N):
-                indices.append([i, i + k])
-        else:
-            for i in range(N):
-                indices.append([i - k, i])
-
-        indices = np.array(indices, dtype=np.int32)
-        indices_const = ov_opset.constant(indices, dtype=Type.i32).output(0)
-        updated = ov_opset.scatter_nd_update(diag_matrix, indices_const, x)
-        return OpenVINOKerasTensor(updated.output(0))
-
+        return diagflat(OpenVINOKerasTensor(x), k)
     elif rank == 2:
-        M_dim = x_shape[0]
-        N_dim = x_shape[1]
-        if not M_dim.is_static or not N_dim.is_static:
-            raise ValueError(
-                "diag requires input with static shape for 2D input."
-            )
-        M = M_dim.get_length()
-        N = N_dim.get_length()
-
-        if k >= 0:
-            L = np.minimum(M, N - k) if (N - k) > 0 else 0
-            indices = [[i, i + k] for i in range(L)]
-        else:
-            L = np.minimum(M + k, N) if (M + k) > 0 else 0
-            indices = [[i - k, i] for i in range(L)]
-
-        if L <= 0:
-            keras_dtype = ov_to_keras_type(x.get_element_type())
-            np_dtype = np.dtype(keras_dtype)
-            empty_np = np.empty((0,), dtype=np_dtype)
-            empty_const = ov_opset.constant(
-                empty_np, x.get_element_type()
-            ).output(0)
-            return OpenVINOKerasTensor(empty_const)
-
-        indices = np.array(indices, dtype=np.int32)
-        indices_const = ov_opset.constant(indices, dtype=Type.i32).output(0)
-        diag_vec = ov_opset.gather_nd(x, indices_const)
-        return OpenVINOKerasTensor(diag_vec.output(0))
-
+        return diagonal(OpenVINOKerasTensor(x), offset=k)
     else:
         raise ValueError("diag supports only 1D or 2D tensors")
 
@@ -1644,7 +1668,6 @@ def diagflat(x, k=0):
 
 def diagonal(x, offset=0, axis1=0, axis2=1):
     x = get_ov_output(x)
-    shape = x.get_partial_shape()
     rank = x.get_partial_shape().rank.get_length()
     if rank is None:
         raise ValueError("`diagonal` requires input tensor with static rank.")
@@ -1663,24 +1686,40 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
     perm_const = ov_opset.constant(perm_order, dtype=Type.i32).output(0)
     x_transposed = ov_opset.transpose(x, perm_const)
 
-    N_dim = shape[axis1]
-    M_dim = shape[axis2]
-    if not N_dim.is_static or not M_dim.is_static:
-        raise ValueError(
-            "`diagonal` requires input tensor with static shape for axes "
-            f"`axis1` ({axis1}) and `axis2` ({axis2})."
-        )
-    N = N_dim.get_length()
-    M = M_dim.get_length()
-    if offset >= 0:
-        L = np.minimum(N, M - offset) if (M - offset) > 0 else 0
-        indices = [[i, i + offset] for i in range(L)]
-    else:
-        L = np.minimum(N + offset, M) if (N + offset) > 0 else 0
-        indices = [[i - offset, i] for i in range(L)]
+    # Build the (row, col) index pairs in the graph so the diagonalized axes
+    # may be dynamic.
+    zero = ov_opset.constant(0, Type.i32).output(0)
+    one = ov_opset.constant(1, Type.i32).output(0)
+    offset_const = ov_opset.constant(
+        offset if offset >= 0 else -offset, Type.i32
+    ).output(0)
+    t_shape = ov_opset.shape_of(x_transposed, Type.i32).output(0)
+    N = ov_opset.gather(t_shape, zero, zero).output(0)
+    M = ov_opset.gather(t_shape, one, zero).output(0)
 
-    indices = np.array(indices, dtype=np.int32).reshape(L, 2)
-    indices_const = ov_opset.constant(indices, dtype=Type.i32).output(0)
+    # Clamped at 0 so an out-of-range offset yields an empty result.
+    if offset >= 0:
+        length = ov_opset.minimum(N, ov_opset.subtract(M, offset_const)).output(
+            0
+        )
+    else:
+        length = ov_opset.minimum(ov_opset.subtract(N, offset_const), M).output(
+            0
+        )
+    length = ov_opset.maximum(length, zero).output(0)
+
+    rng = ov_opset.range(zero, length, one, Type.i32).output(0)
+    if offset >= 0:
+        rows, cols = rng, ov_opset.add(rng, offset_const).output(0)
+    else:
+        rows, cols = ov_opset.add(rng, offset_const).output(0), rng
+    indices_const = ov_opset.concat(
+        [
+            ov_opset.reshape(rows, [-1, 1], False).output(0),
+            ov_opset.reshape(cols, [-1, 1], False).output(0),
+        ],
+        1,
+    ).output(0)
 
     diag_gathered = ov_opset.gather_nd(x_transposed, indices_const)
 
@@ -1801,9 +1840,16 @@ def dot(x1, x2):
     x1 = get_ov_output(x1, element_type)
     x2 = get_ov_output(x2, element_type)
     x1, x2 = _align_operand_types(x1, x2, "dot()")
-    if x1.get_partial_shape().rank == 0 or x2.get_partial_shape().rank == 0:
+
+    rank1 = x1.get_partial_shape().rank.get_length()
+    rank2 = x2.get_partial_shape().rank.get_length()
+
+    if rank1 == 0 or rank2 == 0:
         return OpenVINOKerasTensor(ov_opset.multiply(x1, x2).output(0))
-    return OpenVINOKerasTensor(ov_opset.matmul(x1, x2, False, False).output(0))
+
+    if rank2 == 1:
+        return tensordot(x1, x2, axes=[[rank1 - 1], [0]])
+    return tensordot(x1, x2, axes=[[rank1 - 1], [rank2 - 2]])
 
 
 def dstack(xs):
@@ -2979,9 +3025,15 @@ def median(x, axis=None, keepdims=False):
     # Convert k to a scalar value
     k_scalar = ov_opset.squeeze(k, [0]).output(0)
 
-    # Use topk with k=size_of_axis to get all elements sorted
+    # Only the smallest n // 2 + 1 elements are needed for the middle.
+    k_top = ov_opset.add(
+        ov_opset.divide(
+            k_scalar, ov_opset.constant(2, Type.i32).output(0)
+        ).output(0),
+        ov_opset.constant(1, Type.i32).output(0),
+    ).output(0)
     topk_outputs = ov_opset.topk(
-        x, k=k_scalar, axis=axis, mode="min", sort="value", stable=True
+        x, k=k_top, axis=axis, mode="min", sort="value"
     )
 
     # Get the sorted values
@@ -2993,21 +3045,7 @@ def median(x, axis=None, keepdims=False):
     result_type = OPENVINO_DTYPES[result_type]
     sorted_values = ov_opset.convert(sorted_values, result_type).output(0)
 
-    # Calculate median indices
-    # For odd length: median_idx = (k-1) // 2
-    # For even length: we need indices (k//2 - 1) and k//2, then average
-
-    k_minus_1 = ov_opset.subtract(
-        k_scalar, ov_opset.constant(1, Type.i32).output(0)
-    ).output(0)
-    k_div_2 = ov_opset.divide(
-        k_scalar, ov_opset.constant(2, Type.i32).output(0)
-    ).output(0)
-    k_minus_1_div_2 = ov_opset.divide(
-        k_minus_1, ov_opset.constant(2, Type.i32).output(0)
-    ).output(0)
-
-    # Check if k is odd
+    # Indices are relative to the truncated `k_top` elements.
     k_mod_2 = ov_opset.mod(
         k_scalar, ov_opset.constant(2, Type.i32).output(0)
     ).output(0)
@@ -3016,13 +3054,15 @@ def median(x, axis=None, keepdims=False):
     ).output(0)
 
     # For odd case: take the middle element
-    odd_idx = k_minus_1_div_2
+    odd_idx = ov_opset.subtract(
+        k_top, ov_opset.constant(1, Type.i32).output(0)
+    ).output(0)
 
     # For even case: take average of two middle elements
     even_idx1 = ov_opset.subtract(
-        k_div_2, ov_opset.constant(1, Type.i32).output(0)
+        k_top, ov_opset.constant(2, Type.i32).output(0)
     ).output(0)
-    even_idx2 = k_div_2
+    even_idx2 = odd_idx
 
     # Gather elements for both cases
     # Create gather indices tensor for the axis
@@ -4142,7 +4182,10 @@ def reshape(x, newshape):
 def roll(x, shift, axis=None):
     x = get_ov_output(x)
     if axis is not None:
-        result = ov_opset.roll(x, shift, axis).output(0)
+        # The Roll operation requires `shift` and `axis` to have the same
+        # length, while numpy broadcasts them against each other.
+        shifts, axes = normalize_shift_and_axis(shift, axis)
+        result = ov_opset.roll(x, shifts, axes).output(0)
     else:
         output_shape = ov_opset.shape_of(x).output(0)
         flattened = ov_opset.reshape(
@@ -4283,9 +4326,9 @@ def sort(x, axis=-1):
     # Convert k to a scalar value
     k_scalar = ov_opset.squeeze(k, ov_opset.constant([0], Type.i32)).output(0)
 
-    # Use topk with k=size_of_axis to get all elements sorted
+    # `stable` cannot change sorted values and is far slower.
     topk_outputs = ov_opset.topk(
-        x, k=k_scalar, axis=axis, mode="min", sort="value", stable=True
+        x, k=k_scalar, axis=axis, mode="min", sort="value"
     )
 
     # Get the sorted values
@@ -5974,3 +6017,37 @@ def unique(
 
 def dsplit(x, indices_or_sections):
     return split(x, indices_or_sections, axis=2)
+
+
+def column_stack(xs):
+    if not isinstance(xs, (list, tuple)):
+        xs = (xs,)
+
+    elems = [convert_to_tensor(x) for x in xs]
+    elems = [get_ov_output(x) for x in elems]
+
+    processed_elems = []
+    for elem in elems:
+        rank = elem.get_partial_shape().rank.get_length()
+
+        if rank == 0:
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(0, Type.i32)
+            ).output(0)
+            rank = 1
+
+        if rank == 1:
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(1, Type.i32)
+            ).output(0)
+
+        processed_elems.append(elem)
+
+    base = processed_elems[0]
+    for i in range(1, len(processed_elems)):
+        base, processed_elems[i] = _align_operand_types(
+            base, processed_elems[i], "column_stack()"
+        )
+    processed_elems[0] = base
+
+    return OpenVINOKerasTensor(ov_opset.concat(processed_elems, 1).output(0))

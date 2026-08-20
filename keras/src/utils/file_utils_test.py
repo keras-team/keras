@@ -476,6 +476,19 @@ class GetFileTest(test_case.TestCase):
         ):
             _ = file_utils.get_file("test.txt", origin, file_hash=hashval)
 
+    def test_get_file_with_unusable_origin_file_name(self):
+        """Test that an origin with no usable file name is rejected."""
+        cache_dir = self.get_temp_dir()
+        base = urllib.parse.urljoin(
+            "file://", urllib.request.pathname2url(os.path.abspath(cache_dir))
+        )
+
+        for origin in (f"{base}/", f"{base}/.", f"{base}/.."):
+            with self.assertRaisesRegex(
+                ValueError, "Can't parse the file name from the origin"
+            ):
+                _ = file_utils.get_file(origin=origin, cache_dir=cache_dir)
+
     def _create_tar_file(self, directory):
         """Helper function to create a tar file."""
         text_file_path = os.path.join(directory, "test.txt")

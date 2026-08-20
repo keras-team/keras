@@ -732,6 +732,63 @@ def matrix_rank(x, tol=None):
     return backend.linalg.matrix_rank(x, tol=tol)
 
 
+class MatrixPower(Operation):
+    def __init__(self, n, *, name=None):
+        super().__init__(name=name)
+        if not isinstance(n, int):
+            raise TypeError(
+                f"n must be an integer. Received: n={n} of type {type(n)}"
+            )
+        self.n = n
+
+    def call(self, x):
+        return _matrix_power(x, self.n)
+
+    def compute_output_spec(self, x):
+        _assert_2d(x)
+        _assert_square(x)
+        return KerasTensor(x.shape, x.dtype)
+
+
+@keras_export(["keras.ops.matrix_power", "keras.ops.linalg.matrix_power"])
+def matrix_power(x, n):
+    """Raise a square matrix to the (integer) power `n`.
+
+    For positive integers `n`, the power is computed by repeated matrix
+    squarings and matrix multiplications. If `n == 0`, the identity matrix
+    of the same shape as `x` is returned. If `n < 0`, the inverse is
+    computed and then raised to the `abs(n)`.
+
+    Args:
+        x: Input tensor of shape `(..., M, M)`.
+        n: Exponent (integer).
+
+    Returns:
+        A tensor of shape `(..., M, M)` representing `x**n`.
+
+    Example:
+
+    >>> x = keras.ops.convert_to_tensor([[1., 2.], [3., 4.]])
+    >>> matrix_power(x, 3)
+    array([[ 37.,  54.],
+           [ 81., 118.]], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return MatrixPower(n).symbolic_call(x)
+    return _matrix_power(x, n)
+
+
+def _matrix_power(x, n):
+    if not isinstance(n, int):
+        raise TypeError(
+            f"n must be an integer. Received: n={n} of type {type(n)}"
+        )
+    x = backend.convert_to_tensor(x)
+    _assert_2d(x)
+    _assert_square(x)
+    return backend.linalg.matrix_power(x, n)
+
+
 class Pinv(Operation):
     def __init__(self, rcond=None, *, name=None):
         super().__init__(name=name)

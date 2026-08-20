@@ -385,33 +385,58 @@ class EinsumDense(Layer):
         if mode not in self.variable_serialization_spec:
             raise self._quantization_mode_error(mode)
 
+        # GPTQ/AWQ layers are only serializable after calibration. Before
+        # calibration, the quantized variables hold uninitialized values
+        # while the real weights live in the float `_kernel`, which has no
+        # slot in the serialization spec, so saving would silently drop the
+        # actual weights and produce a corrupted model on reload.
+        if (
+            mode == "gptq" and not getattr(self, "is_gptq_calibrated", False)
+        ) or (mode == "awq" and not getattr(self, "is_awq_calibrated", False)):
+            raise ValueError(
+                f"Cannot save layer '{self.name}' because it is quantized "
+                f"with mode '{mode}' but has never been calibrated. Its "
+                "quantized weights are uninitialized, so saving would "
+                "produce a corrupted model. Run calibration first, e.g. via "
+                "`model.quantize(...)` with a quantization layer structure "
+                "that covers this layer, or exclude the layer from "
+                "quantization with `filters`."
+            )
+
         # Kernel plus optional merged LoRA-aware scale/zero (returns
         # (kernel, None, None) for None/gptq)
         kernel_value, merged_kernel_scale, merged_kernel_zero = (
             self._get_kernel_with_merged_lora()
         )
+        # Variables are stored under their integer position ("0", "1", ...)
+        # within the mode's serialization spec. Each branch picks the value
+        # for the current spec entry (or skips it); the write happens at a
+        # single point so save and load stay position-consistent.
         idx = 0
         for name in self.variable_serialization_spec[mode]:
             if name == "kernel":
-                store[str(idx)] = kernel_value
+                value = kernel_value
             elif name == "bias" and self.bias is None:
                 continue
-            elif name == "kernel_zero":
+            elif name == "kernel_zero" and mode == "int4":
+                # For int4, the (LoRA-merged) zero point comes from
+                # `_get_kernel_with_merged_lora()` and only exists for
+                # sub-channel quantization.
                 if merged_kernel_zero is None:
-                    # kernel_zero only exists for sub-channel int4 quantization
                     continue
-                store[str(idx)] = merged_kernel_zero
+                value = merged_kernel_zero
             elif name == "g_idx":
                 if not hasattr(self, "g_idx"):
                     # g_idx only exists for sub-channel int4 quantization
                     continue
-                store[str(idx)] = self.g_idx
+                value = self.g_idx
             elif name == "kernel_scale" and mode in ("int4", "int8"):
                 # For int4/int8, the merged LoRA scale (if any) comes from
                 # `_get_kernel_with_merged_lora()`
-                store[str(idx)] = merged_kernel_scale
+                value = merged_kernel_scale
             else:
-                store[str(idx)] = getattr(self, name)
+                value = getattr(self, name)
+            store[str(idx)] = value
             idx += 1
 
     def load_own_variables(self, store):
@@ -428,10 +453,16 @@ class EinsumDense(Layer):
         self.is_gptq_calibrated = mode == "gptq"
         self.is_awq_calibrated = mode == "awq"
 
+        spec = self.variable_serialization_spec[mode]
+        # Variables are keyed by their integer position ("0", "1", ...) within
+        # the mode's serialization spec. Each branch picks the target variable
+        # for the current spec entry (or skips it); the assign happens at a
+        # single point so save and load stay position-consistent.
         idx = 0
-        for name in self.variable_serialization_spec[mode]:
+        for name in spec:
+            key = str(idx)
             if name == "kernel":
-                self._kernel.assign(store[str(idx)])
+                target = self._kernel
             elif name == "bias" and self.bias is None:
                 continue
             elif name == "kernel_zero" and not hasattr(self, "kernel_zero"):
@@ -441,7 +472,8 @@ class EinsumDense(Layer):
                 # g_idx only exists for sub-channel int4 quantization
                 continue
             else:
-                getattr(self, name).assign(store[str(idx)])
+                target = getattr(self, name)
+            target.assign(store[key])
             idx += 1
         if self.lora_enabled:
             self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))
@@ -1287,14 +1319,12 @@ class EinsumDense(Layer):
             kernel_scale = self._adjust_scale_for_quant(kernel_scale, "kernel")
             del self._kernel
         elif mode == "int4":
-            from keras.src.quantizers.quantization_config import (
-                Int4QuantizationConfig,
-            )
-
-            block_size = None
-            if isinstance(self.quantization_config, Int4QuantizationConfig):
-                block_size = self.quantization_config.block_size
-
+            # `get_block_size_for_layer` is the single source of truth for the
+            # group size, shared with `_int4_build` and the dtype-policy naming
+            # below (see `Dense.quantize`). A bare `quantize("int4")` resolves
+            # to the canonical `Int4QuantizationConfig()` (grouped,
+            # block_size=128); `None`/`-1` selects per-channel.
+            block_size = get_block_size_for_layer(self, config)
             use_grouped = block_size is not None and block_size != -1
 
             # Flatten kernel to 2D: rows = reduced dims, columns = non-reduced

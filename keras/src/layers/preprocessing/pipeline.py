@@ -1,3 +1,4 @@
+from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
@@ -60,10 +61,7 @@ class Pipeline(Layer):
             outputs = layer(inputs, **kwargs)
             inputs = outputs
 
-            def _get_mask_from_keras_tensor(kt):
-                return getattr(kt, "_keras_mask", None)
-
-            mask = tree.map_structure(_get_mask_from_keras_tensor, outputs)
+            mask = tree.map_structure(backend.get_keras_mask, outputs)
         return outputs
 
     @classmethod

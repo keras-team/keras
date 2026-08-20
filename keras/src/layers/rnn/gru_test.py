@@ -18,7 +18,7 @@ class GRUTest(testing.TestCase):
             expected_output_shape=(3, 3),
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
-            supports_masking=True,
+            supports_masking=False,
         )
         self.run_layer_test(
             layers.GRU,
@@ -28,7 +28,7 @@ class GRUTest(testing.TestCase):
             expected_output_shape=(3, 3),
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
-            supports_masking=True,
+            supports_masking=False,
         )
         self.run_layer_test(
             layers.GRU,
@@ -44,7 +44,7 @@ class GRUTest(testing.TestCase):
             expected_num_losses=3,
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
-            supports_masking=True,
+            supports_masking=False,
         )
 
     @parameterized.parameters([1, 2])
