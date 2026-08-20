@@ -56,7 +56,7 @@ class RandomChoice(DataLayer):
         self.generator = SeedGenerator(seed)
 
     @property
-    def layers(self):
+    def wrapped_layers(self):
         return self._wrapped_layers
 
     def call(self, inputs, training=True):

@@ -1,4 +1,8 @@
+import os
+
 import numpy as np
+import pytest
+from tensorflow import data as tf_data
 
 import keras
 from keras.src import backend
@@ -161,3 +165,78 @@ class RandomApplyTest(testing.TestCase):
         model = keras.Model(inputs, outputs)
         x = np.random.uniform(size=(4, 8, 8, 3)).astype("float32")
         self.assertEqual(model.predict(x, verbose=0).shape, (4, 8, 8, 3))
+
+    def test_layer_basics(self):
+        self.run_layer_test(
+            RandomApply,
+            init_kwargs={"layer": _AddOne(), "rate": 0.5, "seed": 0},
+            input_shape=(2, 3),
+            expected_output_shape=(2, 3),
+            expected_num_trainable_weights=0,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=1,
+            expected_num_losses=0,
+            supports_masking=False,
+        )
+
+    def test_tf_data_compatibility(self):
+        # The layer must run inside a tf.data pipeline on every backend, not
+        # just TensorFlow. This is the regression guard for the wrapper being
+        # a plain `Layer` rather than a `DataLayer`.
+        layer = RandomApply(
+            layers.RandomFlip("horizontal", seed=42), rate=1.0, seed=42
+        )
+        input_data = np.random.uniform(size=(4, 8, 8, 3)).astype("float32")
+        ds = (
+            tf_data.Dataset.from_tensor_slices(input_data)
+            .batch(2)
+            .map(lambda x: layer(x, training=True))
+        )
+        for batch in ds:
+            self.assertEqual(tuple(batch.shape), (2, 8, 8, 3))
+
+    def test_saved_model_roundtrip(self):
+        inputs = keras.Input((8, 8, 3))
+        outputs = RandomApply(
+            layers.RandomFlip("horizontal"), rate=0.3, seed=11
+        )(inputs)
+        model = keras.Model(inputs, outputs)
+        path = os.path.join(self.get_temp_dir(), "random_apply.keras")
+        model.save(path)
+        restored = keras.saving.load_model(path)
+        layer = restored.layers[-1]
+        self.assertIsInstance(layer, RandomApply)
+        self.assertEqual(layer.rate, 0.3)
+        self.assertEqual(layer.seed, 11)
+        self.assertIsInstance(layer.layer, layers.RandomFlip)
+        x = np.random.uniform(size=(2, 8, 8, 3)).astype("float32")
+        self.assertEqual(restored.predict(x, verbose=0).shape, (2, 8, 8, 3))
+
+    @pytest.mark.requires_trainable_backend
+    def test_fit(self):
+        inputs = keras.Input((4,))
+        x = RandomApply(_AddOne(), rate=0.5, seed=0)(inputs)
+        outputs = layers.Dense(1)(x)
+        model = keras.Model(inputs, outputs)
+        model.compile(optimizer="sgd", loss="mse")
+        model.fit(
+            np.random.uniform(size=(8, 4)).astype("float32"),
+            np.random.uniform(size=(8, 1)).astype("float32"),
+            epochs=1,
+            batch_size=4,
+            verbose=0,
+        )
+
+    def test_output_dtype_follows_compute_dtype(self):
+        # A float64 input must come back as the layer's compute dtype, the
+        # same contract the other preprocessing layers follow.
+        x = np.ones((2, 2, 2, 3), dtype="float64")
+        layer = RandomApply(layers.Rescaling(1.0), rate=1.0, seed=0)
+        out = layer(x, training=True)
+        self.assertEqual(
+            backend.standardize_dtype(out.dtype), layer.compute_dtype
+        )
+        self.assertEqual(
+            backend.standardize_dtype(out.dtype),
+            backend.standardize_dtype(layers.Rescaling(1.0)(x).dtype),
+        )
