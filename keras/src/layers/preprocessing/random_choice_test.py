@@ -1,5 +1,6 @@
 import numpy as np
 
+import keras
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
@@ -140,3 +141,21 @@ class RandomChoiceTest(testing.TestCase):
             seen.issubset({1.0, 10.0}),
             f"unexpected outcomes {sorted(seen)}; chaining suspected",
         )
+
+    def test_rejects_shape_changing_layer(self):
+        layer = RandomChoice(
+            [layers.RandomFlip("horizontal"), layers.Resizing(2, 2)], seed=0
+        )
+        x = np.random.uniform(size=(2, 4, 4, 3)).astype("float32")
+        with self.assertRaisesRegex(ValueError, r"layers\[1\]"):
+            layer(x, training=True)
+
+    def test_dynamic_batch_dim_is_not_a_shape_mismatch(self):
+        inputs = keras.Input((8, 8, 3))
+        outputs = RandomChoice(
+            [layers.RandomFlip("horizontal"), layers.RandomRotation(0.1)],
+            seed=0,
+        )(inputs)
+        model = keras.Model(inputs, outputs)
+        x = np.random.uniform(size=(4, 8, 8, 3)).astype("float32")
+        self.assertEqual(model.predict(x, verbose=0).shape, (4, 8, 8, 3))

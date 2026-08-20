@@ -1,5 +1,6 @@
 import numpy as np
 
+import keras
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
@@ -140,3 +141,23 @@ class RandomApplyTest(testing.TestCase):
         )
         layer(data, training=True)
         self.assertAllClose(data["images"], expected)
+
+    def test_rejects_shape_changing_layer(self):
+        # The wrapped output is selected against the unmodified input, so a
+        # layer that resizes its input cannot be wrapped. Without an explicit
+        # check this surfaces as a raw backend error from the stack op.
+        layer = RandomApply(layers.Resizing(2, 2), rate=0.5, seed=0)
+        x = np.random.uniform(size=(2, 4, 4, 3)).astype("float32")
+        with self.assertRaisesRegex(ValueError, "same shape as its input"):
+            layer(x, training=True)
+
+    def test_dynamic_batch_dim_is_not_a_shape_mismatch(self):
+        # The check must compare only statically-known dimensions, or a
+        # symbolic build with an unknown batch axis would raise.
+        inputs = keras.Input((8, 8, 3))
+        outputs = RandomApply(
+            layers.RandomFlip("horizontal"), rate=0.5, seed=0
+        )(inputs)
+        model = keras.Model(inputs, outputs)
+        x = np.random.uniform(size=(4, 8, 8, 3)).astype("float32")
+        self.assertEqual(model.predict(x, verbose=0).shape, (4, 8, 8, 3))
