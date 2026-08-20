@@ -1,22 +1,24 @@
-from keras.src import ops
-from keras.src import random
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
+from keras.src.layers.preprocessing.data_layer import DataLayer
 from keras.src.random.seed_generator import SeedGenerator
 from keras.src.saving import serialization_lib
 
 
 @keras_export("keras.layers.RandomApply")
-class RandomApply(Layer):
+class RandomApply(DataLayer):
     """Apply a wrapped layer to the input with a given probability.
 
-    During training, on each call this layer flips a single Bernoulli coin: with
-    probability `rate` it applies the wrapped `layer`, otherwise it passes the
-    input through unchanged. The decision is batch-wide — the same coin flip is
-    used for every sample in the batch — which keeps the layer compatible with
-    a `tf.data` or `grain` pipeline.
+    During training, on each call this layer flips a single Bernoulli coin:
+    with probability `rate` it applies the wrapped `layer`, otherwise it passes
+    the input through unchanged. The decision is batch-wide — the same coin
+    flip is used for every sample in the batch.
 
     During inference (`training=False`) the layer is always a no-op.
+
+    Note that the wrapped layer is evaluated on every training call, including
+    the calls where its output is discarded. The `rate` argument controls which
+    result is returned, not whether the work is done.
 
     Args:
         layer: A Keras `Layer` to apply with probability `rate`. Typically a
@@ -50,25 +52,27 @@ class RandomApply(Layer):
         self.rate = float(rate)
         self.seed = seed
         self.generator = SeedGenerator(seed)
-        self._convert_input_args = False
-        self._allow_non_tensor_positional_args = True
 
     def call(self, inputs, training=True):
         if not training:
             return inputs
 
         transformed = self.layer(inputs, training=training)
-        # Stack [transformed, inputs] along a new leading axis and gather the
-        # one selected by the Bernoulli draw. The gather-based selection
-        # avoids relying on `ops.where` with a scalar mask broadcasting
-        # against an N-D tensor — behavior of which is uneven across backends.
-        stacked = ops.stack([transformed, inputs], axis=0)
-        u = random.uniform(
-            shape=(1,), minval=0.0, maxval=1.0, seed=self.generator
+        seed = self._get_seed_generator(self.backend._backend)
+        u = self.backend.random.uniform(
+            shape=(1,), minval=0.0, maxval=1.0, seed=seed
         )
+        # Stack [transformed, inputs] along a new leading axis and gather the
+        # one selected by the Bernoulli draw.
         # 0 -> apply transformed, 1 -> skip (return inputs).
-        idx = ops.cast(ops.greater_equal(u, self.rate), "int32")
-        return ops.take(stacked, idx, axis=0)[0]
+        idx = self.backend.cast(
+            self.backend.numpy.greater_equal(u, self.rate), "int32"
+        )
+        stacked = self.backend.numpy.stack([transformed, inputs], axis=0)
+        return self.backend.numpy.take(stacked, idx, axis=0)[0]
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
     def get_config(self):
         config = super().get_config()

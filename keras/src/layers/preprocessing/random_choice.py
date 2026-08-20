@@ -1,23 +1,23 @@
-from keras.src import ops
-from keras.src import random
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
+from keras.src.layers.preprocessing.data_layer import DataLayer
 from keras.src.random.seed_generator import SeedGenerator
 from keras.src.saving import serialization_lib
 
 
 @keras_export("keras.layers.RandomChoice")
-class RandomChoice(Layer):
+class RandomChoice(DataLayer):
     """Apply one randomly-picked layer from a list to the input.
 
-    During training, on each call this layer picks one of the wrapped `layers`
-    uniformly at random and applies it. All other layers are evaluated and
-    discarded, so the per-call compute cost is `len(layers)` evaluations; this
-    keeps the layer compatible with `tf.data` / `grain` pipelines where
-    Python-side branching is not available. The choice is batch-wide — the
-    same layer is applied to every sample in the batch.
+    During training, on each call this layer picks one of the wrapped layers
+    uniformly at random and applies it. The choice is batch-wide — the same
+    layer is applied to every sample in the batch.
 
     During inference (`training=False`) the layer is always a no-op.
+
+    Note that every wrapped layer is evaluated on each training call and all
+    but the selected result are discarded, so the per-call compute cost is
+    `len(layers)` evaluations rather than one.
 
     Args:
         layers: List of Keras `Layer` instances. Each must accept the same
@@ -52,8 +52,6 @@ class RandomChoice(Layer):
         self._wrapped_layers = list(layers)
         self.seed = seed
         self.generator = SeedGenerator(seed)
-        self._convert_input_args = False
-        self._allow_non_tensor_positional_args = True
 
     @property
     def layers(self):
@@ -64,18 +62,20 @@ class RandomChoice(Layer):
             return inputs
 
         n = len(self._wrapped_layers)
-        # Stack all candidate outputs along a new leading axis and gather the
-        # one selected by `choice`. This avoids relying on `ops.where` with a
-        # scalar mask broadcasting against an N-D tensor — which is uneven
-        # across backends.
         candidates = [
             layer(inputs, training=training) for layer in self._wrapped_layers
         ]
-        stacked = ops.stack(candidates, axis=0)
-        choice = random.randint(
-            shape=(1,), minval=0, maxval=n, seed=self.generator
+        seed = self._get_seed_generator(self.backend._backend)
+        choice = self.backend.random.randint(
+            shape=(1,), minval=0, maxval=n, seed=seed
         )
-        return ops.take(stacked, choice, axis=0)[0]
+        # Stack all candidate outputs along a new leading axis and gather the
+        # one selected by `choice`.
+        stacked = self.backend.numpy.stack(candidates, axis=0)
+        return self.backend.numpy.take(stacked, choice, axis=0)[0]
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
     def get_config(self):
         config = super().get_config()
