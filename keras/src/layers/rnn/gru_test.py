@@ -1,3 +1,5 @@
+from unittest import mock
+
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -451,7 +453,6 @@ class GRUTest(testing.TestCase):
         if not torch.cuda.is_available():
             self.skipTest("Requires a CUDA device.")
 
-        from unittest import mock
 
         x = torch.randn(4, 6, 5, device="cuda")
         layer = layers.GRU(8, return_sequences=True)
@@ -487,31 +488,28 @@ class GRUTest(testing.TestCase):
         # clone on the optimized torch path, autograd raises RuntimeError
         # on CUDA: "one of the variables needed for gradient computation
         # has been modified by an inplace operation".
-        from unittest import mock
 
         import torch
 
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        inputs = torch.randn(2, 3, 4, device=device)
+        if not torch.cuda.is_available():
+            self.skipTest("Requires a CUDA device.")
+
+        inputs = torch.randn(2, 3, 4, device="cuda")
         layer = layers.GRU(5, stateful=True)
+        real_vf_gru = torch._VF.gru
+        calls = []
 
-        if device == "cuda":
-            real_vf_gru = torch._VF.gru
-            calls = []
+        def spy(*args, **kwargs):
+            calls.append(True)
+            return real_vf_gru(*args, **kwargs)
 
-            def spy(*args, **kwargs):
-                calls.append(True)
-                return real_vf_gru(*args, **kwargs)
-
-            with mock.patch.object(torch._VF, "gru", side_effect=spy):
-                layer(inputs).sum().backward()
-            self.assertGreaterEqual(
-                len(calls),
-                1,
-                msg=(
-                    "torch._VF.gru was never invoked; the test did not "
-                    "exercise the cuDNN path from #23462."
-                ),
-            )
-        else:
+        with mock.patch.object(torch._VF, "gru", side_effect=spy):
             layer(inputs).sum().backward()
+        self.assertGreaterEqual(
+            len(calls),
+            1,
+            msg=(
+                "torch._VF.gru was never invoked; the test did not "
+                "exercise the cuDNN path from #23462."
+            ),
+        )

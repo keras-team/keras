@@ -1,3 +1,5 @@
+from unittest import mock
+
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -380,31 +382,28 @@ class LSTMTest(testing.TestCase):
         # Same in-place state issue as stateful cuDNN GRU: the optimized
         # kernel retains initial states for backward, then Keras copy_s
         # into the stateful Variables.
-        from unittest import mock
 
         import torch
 
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        inputs = torch.randn(2, 3, 4, device=device)
+        if not torch.cuda.is_available():
+            self.skipTest("Requires a CUDA device.")
+
+        inputs = torch.randn(2, 3, 4, device="cuda")
         layer = layers.LSTM(5, stateful=True)
+        real_vf_lstm = torch._VF.lstm
+        calls = []
 
-        if device == "cuda":
-            real_vf_lstm = torch._VF.lstm
-            calls = []
+        def spy(*args, **kwargs):
+            calls.append(True)
+            return real_vf_lstm(*args, **kwargs)
 
-            def spy(*args, **kwargs):
-                calls.append(True)
-                return real_vf_lstm(*args, **kwargs)
-
-            with mock.patch.object(torch._VF, "lstm", side_effect=spy):
-                layer(inputs).sum().backward()
-            self.assertGreaterEqual(
-                len(calls),
-                1,
-                msg=(
-                    "torch._VF.lstm was never invoked; the test did not "
-                    "exercise the cuDNN path from #23462."
-                ),
-            )
-        else:
+        with mock.patch.object(torch._VF, "lstm", side_effect=spy):
             layer(inputs).sum().backward()
+        self.assertGreaterEqual(
+            len(calls),
+            1,
+            msg=(
+                "torch._VF.lstm was never invoked; the test did not "
+                "exercise the cuDNN path from #23462."
+            ),
+        )
