@@ -354,7 +354,7 @@ class IndexLookupLayerTest(testing.TestCase):
             sparse=True,
         )
         output = layer([[1, 2], [3, 4]])
-        self.assertEqual(backend.is_tensor(output), True)
+        self.assertEqual(backend.ops.is_tensor(output), True)
         self.assertIsInstance(output, tf.SparseTensor)
         self.assertAllClose(
             tf.sparse.to_dense(output), np.array([[0, 1, 1, 0], [1, 0, 0, 1]])

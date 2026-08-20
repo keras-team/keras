@@ -300,7 +300,7 @@ def standardize_reshape_shape(newshape, newshape_arg_name="newshape"):
     tensors are returned as is, since their dimensions are only known at
     runtime.
     """
-    if backend.is_tensor(newshape) or isinstance(newshape, KerasTensor):
+    if backend.ops.is_tensor(newshape) or isinstance(newshape, KerasTensor):
         return newshape
     try:
         newshape = tuple(newshape)
