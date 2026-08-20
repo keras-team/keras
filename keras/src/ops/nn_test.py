@@ -2848,6 +2848,73 @@ class NNOpsCorrectnessTest(testing.TestCase):
             outputs, expected, atol=1e-3 if flash_attention else 1e-6
         )
 
+    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only")
+    def test_dot_product_attention_dtensor(self):
+        import os
+
+        import torch
+
+        from keras.src.backend.torch import distribution_lib as torch_dist_lib
+        from keras.src.backend.torch.core import DTensor
+        from keras.src.backend.torch.core import Replicate
+        from keras.src.backend.torch.distribution_lib import TorchDeviceMesh
+
+        old_addr = os.environ.get("MASTER_ADDR")
+        old_port = os.environ.get("MASTER_PORT")
+        os.environ["MASTER_ADDR"] = "localhost"
+        os.environ["MASTER_PORT"] = "29509"
+
+        try:
+            if not torch.distributed.is_initialized():
+                torch_dist_lib.initialize(num_processes=1, process_id=0)
+
+            mesh = TorchDeviceMesh("cpu", np.array([0]))
+            B, T, S, N, H = 2, 4, 4, 2, 8
+            query_local = torch.rand((B, T, N, H))
+            key_local = torch.rand((B, S, N, H))
+            value_local = torch.rand((B, S, N, H))
+
+            query = DTensor.from_local(query_local, mesh, [Replicate()])
+            key = DTensor.from_local(key_local, mesh, [Replicate()])
+            value = DTensor.from_local(value_local, mesh, [Replicate()])
+
+            result = knn.dot_product_attention(query, key, value)
+            self.assertIsInstance(result, DTensor)
+            self.assertEqual(result.shape, (B, T, N, H))
+
+            mask_local = torch.tril(torch.ones((B, N, T, S), dtype=torch.bool))
+            mask = DTensor.from_local(mask_local, mesh, [Replicate()])
+
+            result_mask = knn.dot_product_attention(
+                query, key, value, mask=mask, is_causal=True
+            )
+            self.assertIsInstance(result_mask, DTensor)
+            self.assertEqual(result_mask.shape, (B, T, N, H))
+
+            expected_local = knn.dot_product_attention(
+                query_local,
+                key_local,
+                value_local,
+                mask=mask_local,
+                is_causal=True,
+            )
+            self.assertTrue(
+                torch.allclose(result_mask.to_local(), expected_local)
+            )
+
+        finally:
+            if old_addr is None:
+                os.environ.pop("MASTER_ADDR", None)
+            else:
+                os.environ["MASTER_ADDR"] = old_addr
+            if old_port is None:
+                os.environ.pop("MASTER_PORT", None)
+            else:
+                os.environ["MASTER_PORT"] = old_port
+
+            if torch.distributed.is_initialized():
+                torch.distributed.destroy_process_group()
+
     @parameterized.named_parameters(named_product(scale=(1.0, 10.0)))
     def test_rms_normalization(self, scale):
         x = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]], dtype="float32")
