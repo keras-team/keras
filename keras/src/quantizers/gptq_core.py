@@ -210,7 +210,7 @@ def _stack_calibration_batch(samples):
     """
     normalized = []
     for sample in samples:
-        if len(sample.shape) == 2:
+        if ops.ndim(sample) == 2:
             sample = ops.expand_dims(sample, axis=0)
         normalized.append(sample)
     if len(normalized) == 1:
