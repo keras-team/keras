@@ -1,12 +1,27 @@
 """Tests for PyTorch backend core utilities."""
 
+import os
+
+import numpy as np
 import pytest
 import torch
+from absl.testing import parameterized
+from torch.distributed.device_mesh import DeviceMesh as TorchDeviceMesh
+from torch.distributed.tensor import DTensor
+from torch.distributed.tensor import Replicate
 
 from keras.src import backend
 from keras.src import testing
+from keras.src.backend.torch import core as torch_core
+from keras.src.backend.torch import distribution_lib
+from keras.src.backend.torch.core import KerasDTensorPromotionMode
+from keras.src.backend.torch.core import Variable
 from keras.src.backend.torch.core import convert_to_tensor
 from keras.src.backend.torch.core import slice as torch_slice
+from keras.src.distribution.distribution_lib import DeviceMesh
+from keras.src.distribution.distribution_lib import LayoutMap
+from keras.src.distribution.distribution_lib import ModelParallel
+from keras.src.distribution.distribution_lib import set_distribution
 
 
 def _get_backed_symint(hint=2):
@@ -104,3 +119,185 @@ class TorchCoreTest(testing.TestCase):
         shape = [batch, 2, 2]
         result = torch_slice(x, start_indices, shape)
         self.assertEqual(tuple(result.shape), (2, 2, 2))
+
+
+@pytest.mark.skipif(
+    backend.backend() != "torch", reason="Requires torch backend"
+)
+class TorchCoreDistributedTest(testing.TestCase):
+    def set_env(self, key, value):
+        old = os.environ.get(key)
+        if value is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = value
+        self.addCleanup(
+            lambda: (
+                os.environ.update({key: old})
+                if old is not None
+                else os.environ.pop(key, None)
+            )
+        )
+
+    def tearDown(self):
+        super().tearDown()
+        if torch.distributed.is_initialized():
+            torch.distributed.destroy_process_group()
+
+        from keras.src.backend.torch import core as torch_core
+
+        if (
+            getattr(torch_core, "_GLOBAL_DTENSOR_PROMOTION_MODE", None)
+            is not None
+        ):
+            torch_core._GLOBAL_DTENSOR_PROMOTION_MODE.__exit__(None, None, None)
+            torch_core._GLOBAL_DTENSOR_PROMOTION_MODE = None
+
+    def _ensure_distributed_initialized(self, port="29500"):
+        if not torch.distributed.is_initialized():
+            self.set_env("MASTER_ADDR", "localhost")
+            self.set_env("MASTER_PORT", port)
+            distribution_lib.initialize(num_processes=1, process_id=0)
+
+    def test_keras_dtensor_promotion_mode(self):
+        self._ensure_distributed_initialized(port="29501")
+
+        device_type = torch_core.get_device().split(":")[0]
+        mesh = TorchDeviceMesh(device_type, np.array([0]))
+        local_tensor = torch.ones((2, 2), device=device_type)
+        dtensor = DTensor.from_local(
+            local_tensor, device_mesh=mesh, placements=[Replicate()]
+        )
+
+        plain_tensor = torch.zeros((2, 2), device=device_type)
+
+        with KerasDTensorPromotionMode():
+            # Test simple addition
+            result = dtensor + plain_tensor
+            self.assertIsInstance(result, DTensor)
+            self.assertTrue(
+                torch.allclose(
+                    result.to_local(),
+                    torch.ones((2, 2), device=device_type),
+                )
+            )
+
+            # Test in-place
+            dtensor += plain_tensor
+            self.assertIsInstance(dtensor, DTensor)
+
+            # Test nested structures
+            result = torch.addcmul(dtensor, plain_tensor, dtensor, value=0.5)
+            self.assertIsInstance(result, DTensor)
+
+    def test_convert_to_tensor_pushes_dtensor_mode(self):
+        self._ensure_distributed_initialized(port="29502")
+
+        device_type = torch_core.get_device().split(":")[0]
+        mesh = TorchDeviceMesh(device_type, np.array([0]))
+        local_tensor = torch.ones((2, 2), device=device_type)
+        dtensor = DTensor.from_local(
+            local_tensor, device_mesh=mesh, placements=[Replicate()]
+        )
+
+        if torch_core._GLOBAL_DTENSOR_PROMOTION_MODE is not None:
+            torch_core._GLOBAL_DTENSOR_PROMOTION_MODE.__exit__(None, None, None)
+            torch_core._GLOBAL_DTENSOR_PROMOTION_MODE = None
+
+        convert_to_tensor(dtensor)
+
+        self.assertIsNotNone(torch_core._GLOBAL_DTENSOR_PROMOTION_MODE)
+
+        plain_tensor = torch.zeros((2, 2), device=device_type)
+        result = dtensor + plain_tensor
+        self.assertIsInstance(result, DTensor)
+        self.assertTrue(
+            torch.allclose(
+                result.to_local(), torch.ones((2, 2), device=device_type)
+            )
+        )
+
+        if torch_core._GLOBAL_DTENSOR_PROMOTION_MODE is not None:
+            torch_core._GLOBAL_DTENSOR_PROMOTION_MODE.__exit__(None, None, None)
+            torch_core._GLOBAL_DTENSOR_PROMOTION_MODE = None
+
+    def test_convert_to_numpy_dtensor(self):
+        self._ensure_distributed_initialized(port="29508")
+        device_type = torch_core.get_device().split(":")[0]
+        mesh = TorchDeviceMesh(device_type, np.array([0]))
+        dtensor = DTensor.from_local(
+            torch.ones((2, 2), device=device_type),
+            device_mesh=mesh,
+            placements=[Replicate()],
+        )
+
+        nv = torch_core.convert_to_numpy(dtensor)
+        self.assertIsInstance(nv, np.ndarray)
+        self.assertEqual(nv.shape, (2, 2))
+        self.assertTrue(np.allclose(nv, 1.0))
+
+    @parameterized.parameters(
+        ("callable",),
+        ("parameter",),
+        ("tensor_with_grad",),
+    )
+    def test_variable_initialize_distributed(self, init_type):
+        self._ensure_distributed_initialized()
+
+        mesh = DeviceMesh(
+            shape=(1,),
+            axis_names=["x"],
+            devices=np.array([distribution_lib.list_devices()[0]]),
+        )
+
+        layout_map = LayoutMap(mesh)
+        layout_map[".*"] = ("x", None)
+        dist = ModelParallel(layout_map=layout_map)
+
+        set_distribution(dist)
+
+        if init_type == "callable":
+
+            def initializer(shape, dtype):
+                return torch.ones(shape)
+
+            v = Variable(initializer, shape=(2, 2), dtype="float32")
+        elif init_type == "parameter":
+            v = Variable(torch.nn.Parameter(torch.ones((2, 2))))
+        elif init_type == "tensor_with_grad":
+            v = Variable(torch.ones((2, 2), requires_grad=True))
+
+        self.assertIsInstance(v.value, torch.nn.Parameter)
+        self.assertIsInstance(v.value.data, DTensor)
+        self.assertEqual(v.value.device.type, mesh.backend_mesh.device_type)
+
+    def test_variable_direct_assign(self):
+        self._ensure_distributed_initialized(port="29505")
+
+        mesh = DeviceMesh(
+            shape=(1,),
+            axis_names=["x"],
+            devices=np.array([distribution_lib.list_devices()[0]]),
+        )
+
+        layout_map = LayoutMap(mesh)
+        layout_map[".*"] = ("x", None)
+        dist = ModelParallel(layout_map=layout_map)
+
+        set_distribution(dist)
+
+        v = Variable(torch.ones((2, 2)))
+
+        self.assertIsInstance(v.value, torch.nn.Parameter)
+        self.assertIsInstance(v.value.data, DTensor)
+
+        new_val = torch.zeros((2, 2))
+        v._direct_assign(new_val)
+
+        self.assertIsInstance(v.value.data, DTensor)
+        self.assertTrue(
+            torch.allclose(
+                v.value.data.to_local(),
+                torch.zeros((2, 2), device=v.value.data.to_local().device),
+            )
+        )
