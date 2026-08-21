@@ -1535,6 +1535,40 @@ class Layer(BackendLayer, Operation):
             self._tracker.lock()
         self._post_untrack_variable(variable)
 
+    def _is_value_referenced_elsewhere(self, target, skip):
+        """Whether an attribute other than `skip` still references `target`.
+
+        Used when reassigning a tracked slot: the tracker dedupes by `id` and
+        has no name->value mapping, so `target` may be reachable from more
+        than one attribute (e.g. `self.dense1` and
+        `self.all_layers = [self.dense1, ...]`). It must not be untracked while
+        another attribute still holds it. Layers/Variables are treated as
+        leaves, so nested state inside *other* sublayers is not scanned.
+        """
+        store_ids = {id(store) for _, store in self._tracker.config.values()}
+        for attr_name, attr_value in self.__dict__.items():
+            if attr_name == skip or attr_name == "_tracker":
+                continue
+            # Skip TensorFlow `AutoTrackable`'s internal dependency mirrors
+            # (`_self_...`); they only duplicate direct attribute assignments,
+            # which are scanned here anyway.
+            if attr_name.startswith("_self_"):
+                continue
+            # Skip the tracker's own backing collections; they still contain
+            # `target` until it is untracked.
+            if id(attr_value) in store_ids:
+                continue
+            if attr_value is target:
+                return True
+            try:
+                leaves = tree.flatten(attr_value)
+            except Exception:
+                continue
+            for leaf in leaves:
+                if leaf is target:
+                    return True
+        return False
+
     def add_metric(self, *args, **kwargs):
         # Permanently disabled
         raise NotImplementedError(
@@ -1652,6 +1686,36 @@ class Layer(BackendLayer, Operation):
         if name != "_tracker":
             if not hasattr(self, "_tracker"):
                 self._initialize_tracker()
+            # Reassigning a name that already holds a tracked sublayer or
+            # `Variable` (e.g. swapping a `Dense` for a LoRA-wrapped variant
+            # after `build()`). Adding brand-new state is still blocked once
+            # the tracker is locked; this only rewires an existing slot. See
+            # keras-team/keras#18601.
+            old_value = getattr(self, name, None)
+            if (
+                old_value is not None
+                and old_value is not value
+                and self._tracker.locked
+                and self._tracker.tracks(old_value)
+            ):
+                # Track the new value despite the lock (this is a
+                # reassignment, not new state).
+                self._tracker.unlock()
+                try:
+                    value = self._tracker.track(value)
+                finally:
+                    self._tracker.lock()
+                super().__setattr__(name, value)
+                # The tracker keeps no name->value mapping and dedupes by id,
+                # so the previous value may still be reachable from another
+                # attribute (e.g. `self.dense1` and
+                # `self.all_layers = [self.dense1, ...]`). Only stop tracking
+                # it if no other attribute still references it.
+                if not self._is_value_referenced_elsewhere(
+                    old_value, skip=name
+                ):
+                    self._tracker.untrack(old_value)
+                return
             value = self._tracker.track(value)
 
         # NNX-specific bypass for Keras-internal bookkeeping attributes:
