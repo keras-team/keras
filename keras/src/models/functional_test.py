@@ -307,20 +307,25 @@ class FunctionalTest(testing.TestCase):
         self.assertEqual(model.get_layer(name="dense_1").name, "dense_1")
 
     def test_training_arg(self):
-        test_obj = self
+        class CustomLayer(layers.Layer):
+            def call(self, inputs, training=False):
+                return inputs * 0.0 if training else inputs
 
-        class Canary(layers.Layer):
-            def call(self, x, training=False):
-                test_obj.assertTrue(training)
-                return x
+        inputs = layers.Input((20,))
+        outputs = CustomLayer()(inputs)
+        model = Functional(inputs=inputs, outputs=outputs)
+        self.assertAllClose(model(np.ones((4, 20))), 1.0)
+        self.assertAllClose(model(np.ones((4, 20)), training=False), 1.0)
+        self.assertAllClose(model(np.ones((4, 20)), training=True), 0.0)
 
-            def compute_output_spec(self, x, training=False):
-                return backend.KerasTensor(x.shape, dtype=x.dtype)
-
-        inputs = Input(shape=(3,), batch_size=2)
-        outputs = Canary()(inputs)
-        model = Functional(inputs, outputs)
-        model(np.random.random((2, 3)), training=True)
+        inputs = layers.Input((20,))
+        # This should hardcode `training=True` even if we pass
+        # `training=False` to the model.
+        outputs = CustomLayer()(inputs, training=True)
+        model = Functional(inputs=inputs, outputs=outputs)
+        self.assertAllClose(model(np.ones((4, 20))), 0.0)
+        self.assertAllClose(model(np.ones((4, 20)), training=False), 0.0)
+        self.assertAllClose(model(np.ones((4, 20)), training=True), 0.0)
 
     def test_mask_arg(self):
         # TODO

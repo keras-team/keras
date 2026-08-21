@@ -118,6 +118,29 @@ def check_data_cardinality(data):
 
 
 def class_weight_to_sample_weights(y, class_weight):
+    # Validate and normalize class_weight keys to integer class indices.
+    # Without this check, invalid keys are silently ignored, and string keys
+    # (e.g., "0") would fail to match integer lookups later, silently
+    # defaulting sample_weight to 1.0.
+    if not hasattr(class_weight, "items") or not hasattr(class_weight, "get"):
+        raise ValueError(
+            "`class_weight` must be a dict-like mapping of class indices "
+            f"to weights. Received: class_weight={class_weight} of type "
+            f"{type(class_weight)}."
+        )
+
+    cleaned_class_weight = {}
+    for key, val in class_weight.items():
+        try:
+            cleaned_class_weight[int(key)] = val
+        except (TypeError, ValueError):
+            raise ValueError(
+                "`class_weight` must be a dictionary with integer keys "
+                "representing class indices. Received an invalid key: "
+                f"{key!r} of type {type(key)}."
+            )
+    class_weight = cleaned_class_weight
+
     # Convert to numpy to ensure consistent handling of operations
     # (e.g., np.round()) across frameworks like TensorFlow, JAX, and PyTorch
 
@@ -353,6 +376,109 @@ def is_torch_tensor(value):
             ):
                 return True
     return False
+
+
+def is_pandas_data_frame(value):
+    return (
+        hasattr(value, "__class__")
+        and value.__class__.__name__ == "DataFrame"
+        and str(value.__class__.__module__).startswith("pandas")
+    )
+
+
+def is_pandas_series(value):
+    return (
+        hasattr(value, "__class__")
+        and value.__class__.__name__ == "Series"
+        and str(value.__class__.__module__).startswith("pandas")
+    )
+
+
+class DistributedBatchSampler:
+    """Sampler that shards a batch sampler.
+
+    This sampler is useful for sharding an existing batch sampler (an iterable
+    of batches) across multiple data shards.
+
+    This is intentionally a batch-level sharding helper for cases where the
+    underlying iterator already produces full batches. In `ArrayDataAdapter`, we
+    build batch samplers over the dataset and then may optionally shuffle within
+    each returned batch.
+
+    Args:
+        batch_sampler: An iterable of batches. For example, a
+            `torch.utils.data.BatchSampler` instance.
+        num_data_shards: Total number of data shards.
+        data_shard_id: ID of the current data shard.
+        drop_last: Whether to drop the last partial batch.
+    """
+
+    def __init__(
+        self, batch_sampler, num_data_shards, data_shard_id, drop_last=False
+    ):
+        """Initialize the DistributedBatchSampler.
+
+        Args:
+            batch_sampler: An iterable of batches.
+            num_data_shards: Total number of data shards.
+            data_shard_id: ID of the current data shard.
+            drop_last: Whether to drop the last partial batch.
+        """
+        if num_data_shards < 1:
+            raise ValueError(
+                f"num_data_shards must be >= 1. Received: {num_data_shards}"
+            )
+        if not (0 <= data_shard_id < num_data_shards):
+            raise ValueError(
+                f"data_shard_id must be in [0, {num_data_shards - 1}]. "
+                f"Received: {data_shard_id}"
+            )
+        self.batch_sampler = batch_sampler
+        self.num_data_shards = num_data_shards
+        self.data_shard_id = data_shard_id
+        self.drop_last = drop_last
+
+    def __iter__(self):
+        sampler_len = len(self.batch_sampler)
+
+        limit = (
+            (sampler_len // self.num_data_shards) * self.num_data_shards
+            if self.drop_last
+            else sampler_len
+        )
+
+        import torch
+
+        # Optimization: if the batch_sampler is a standard BatchSampler
+        # with an indexable sampler, we can skip indices efficiently.
+        if isinstance(self.batch_sampler, torch.utils.data.BatchSampler):
+            sampler = self.batch_sampler.sampler
+            if hasattr(sampler, "__getitem__") and not isinstance(
+                sampler, torch.utils.data.Sampler
+            ):
+                for i in range(self.data_shard_id, limit, self.num_data_shards):
+                    # Manual index-based access is more efficient than filtering
+                    # the iterator.
+                    yield sampler[
+                        i * self.batch_sampler.batch_size : (i + 1)
+                        * self.batch_sampler.batch_size
+                    ]
+                return
+
+        for i, batch in enumerate(self.batch_sampler):
+            if i >= limit:
+                break
+            if i % self.num_data_shards == self.data_shard_id:
+                yield batch
+
+    def __len__(self):
+        sampler_len = len(self.batch_sampler)
+
+        if self.drop_last:
+            return sampler_len // self.num_data_shards
+        return (
+            sampler_len - self.data_shard_id + self.num_data_shards - 1
+        ) // self.num_data_shards
 
 
 def is_scipy_sparse(x):

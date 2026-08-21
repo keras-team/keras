@@ -2,6 +2,7 @@ import torch
 import torch._dynamo as dynamo
 import torch.nn.functional as tnn
 
+from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.config import floatx
 from keras.src.backend.torch.core import convert_to_tensor
 from keras.src.backend.torch.core import get_device
@@ -176,6 +177,8 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
 def shuffle(x, axis=0, seed=None):
     # Ref: https://github.com/pytorch/pytorch/issues/71409
     x = convert_to_tensor(x)
+
+    axis = canonicalize_axis(axis, x.ndim)
 
     # Get permutation indices
     # Do not use generator during symbolic execution.

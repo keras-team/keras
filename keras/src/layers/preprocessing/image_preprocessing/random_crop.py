@@ -131,58 +131,66 @@ class RandomCrop(BaseImagePreprocessingLayer):
     def transform_images(self, images, transformation, training=True):
         if training:
             images = self.backend.cast(images, self.compute_dtype)
-            crop_box_hstart, crop_box_wstart = transformation
-            crop_height = self.height
-            crop_width = self.width
+            images = self._random_crop(
+                images, transformation, interpolation="bilinear"
+            )
+            # The resize fallback in `_random_crop` may upcast on some backends
+            # (e.g. TF upcasts float16 to float32); restore the compute dtype.
+            images = self.backend.cast(images, self.compute_dtype)
+        return images
 
-            if self.data_format == "channels_last":
-                if len(images.shape) == 4:
-                    images = images[
-                        :,
-                        crop_box_hstart : crop_box_hstart + crop_height,
-                        crop_box_wstart : crop_box_wstart + crop_width,
-                        :,
-                    ]
-                else:
-                    images = images[
-                        crop_box_hstart : crop_box_hstart + crop_height,
-                        crop_box_wstart : crop_box_wstart + crop_width,
-                        :,
-                    ]
+    def _random_crop(self, images, transformation, interpolation="bilinear"):
+        crop_box_hstart, crop_box_wstart = transformation
+        crop_height = self.height
+        crop_width = self.width
+
+        if self.data_format == "channels_last":
+            if len(images.shape) == 4:
+                images = images[
+                    :,
+                    crop_box_hstart : crop_box_hstart + crop_height,
+                    crop_box_wstart : crop_box_wstart + crop_width,
+                    :,
+                ]
             else:
-                if len(images.shape) == 4:
-                    images = images[
-                        :,
-                        :,
-                        crop_box_hstart : crop_box_hstart + crop_height,
-                        crop_box_wstart : crop_box_wstart + crop_width,
-                    ]
-                else:
-                    images = images[
-                        :,
-                        crop_box_hstart : crop_box_hstart + crop_height,
-                        crop_box_wstart : crop_box_wstart + crop_width,
-                    ]
+                images = images[
+                    crop_box_hstart : crop_box_hstart + crop_height,
+                    crop_box_wstart : crop_box_wstart + crop_width,
+                    :,
+                ]
+        else:
+            if len(images.shape) == 4:
+                images = images[
+                    :,
+                    :,
+                    crop_box_hstart : crop_box_hstart + crop_height,
+                    crop_box_wstart : crop_box_wstart + crop_width,
+                ]
+            else:
+                images = images[
+                    :,
+                    crop_box_hstart : crop_box_hstart + crop_height,
+                    crop_box_wstart : crop_box_wstart + crop_width,
+                ]
 
-            shape = self.backend.shape(images)
-            new_height = shape[self.height_axis]
-            new_width = shape[self.width_axis]
-            if (
-                not isinstance(new_height, int)
-                or not isinstance(new_width, int)
-                or new_height != self.height
-                or new_width != self.width
-            ):
-                # Resize images if size mismatch or
-                # if size mismatch cannot be determined
-                # (in the case of a TF dynamic shape).
-                images = self.backend.image.resize(
-                    images,
-                    size=(self.height, self.width),
-                    data_format=self.data_format,
-                )
-                # Resize may have upcasted the outputs
-                images = self.backend.cast(images, self.compute_dtype)
+        shape = self.backend.shape(images)
+        new_height = shape[self.height_axis]
+        new_width = shape[self.width_axis]
+        if (
+            not isinstance(new_height, int)
+            or not isinstance(new_width, int)
+            or new_height != self.height
+            or new_width != self.width
+        ):
+            # Resize images if size mismatch or
+            # if size mismatch cannot be determined
+            # (in the case of a TF dynamic shape).
+            images = self.backend.image.resize(
+                images,
+                size=(self.height, self.width),
+                interpolation=interpolation,
+                data_format=self.data_format,
+            )
         return images
 
     def transform_labels(self, labels, transformation, training=True):
@@ -262,7 +270,15 @@ class RandomCrop(BaseImagePreprocessingLayer):
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
-        return self.transform_images(segmentation_masks, transformation)
+        # Use nearest-neighbor interpolation on the resize fallback so masks
+        # keep their discrete class indices and their original (typically
+        # integer) dtype; no `compute_dtype` cast is applied.
+        masks = self.backend.convert_to_tensor(segmentation_masks)
+        if training:
+            masks = self._random_crop(
+                masks, transformation, interpolation="nearest"
+            )
+        return masks
 
     def compute_output_shape(self, input_shape, *args, **kwargs):
         input_shape = list(input_shape)

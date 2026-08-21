@@ -108,6 +108,11 @@ def matrix_rank(x, tol=None):
     return np.linalg.matrix_rank(x, tol=tol).astype("int32")
 
 
+def matrix_power(a, n):
+    a = convert_to_tensor(a)
+    return np.linalg.matrix_power(a, n)
+
+
 def pinv(x, rcond=None):
     x = convert_to_tensor(x)
     return np.linalg.pinv(x, rcond=rcond)

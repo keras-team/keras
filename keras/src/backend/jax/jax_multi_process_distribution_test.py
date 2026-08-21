@@ -10,6 +10,7 @@ from keras.src import testing
 from keras.src.backend import backend
 from keras.src.backend.jax import distribution_lib as jax_distribution_lib
 from keras.src.distribution import distribution_lib
+from keras.src.trainers.data_adapters import tf_dataset_adapter
 from keras.src.utils import rng_utils
 
 
@@ -106,7 +107,10 @@ class JaxMultiProcessDistributeTest(
 
         # Since there are `num_processes` worker/processes, we will have
         # `num_processes` shards of the data.
-        distributed_dataset = distribution.distribute_dataset(dataset)
+        adapter = tf_dataset_adapter.TFDatasetAdapter(
+            dataset, distribution=distribution
+        )
+        distributed_dataset = adapter.get_tf_dataset()
 
         process_id = jax.process_index()
         per_process_batch_size = global_batch_size // num_processes
@@ -150,7 +154,10 @@ class JaxMultiProcessDistributeTest(
         layout_map = distribution_lib.LayoutMap(device_mesh)
         distribution = distribution_lib.ModelParallel(layout_map=layout_map)
 
-        distributed_dataset = distribution.distribute_dataset(dataset)
+        adapter = tf_dataset_adapter.TFDatasetAdapter(
+            dataset, distribution=distribution
+        )
+        distributed_dataset = adapter.get_tf_dataset()
 
         process_id = jax.process_index()
         # Calculate how many replicas this local process is responsible for.

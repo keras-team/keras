@@ -26,6 +26,9 @@ from keras.src.dtype_policies.dtype_policy import (
 from keras.src.dtype_policies.dtype_policy import (
     QuantizedFloat8DTypePolicy as QuantizedFloat8DTypePolicy,
 )
+from keras.src.dtype_policies.dtype_policy import (
+    TernaryDTypePolicy as TernaryDTypePolicy,
+)
 from keras.src.dtype_policies.dtype_policy_map import (
     DTypePolicyMap as DTypePolicyMap,
 )

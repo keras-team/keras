@@ -14,8 +14,8 @@ from keras.src.distribution import distribution_lib
 
 
 @pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="Only JAX has the backend to mock at the moment",
+    backend.backend() not in ("jax", "torch"),
+    reason="Only JAX and Torch have the backend to mock at the moment",
 )
 @mock.patch.object(
     backend_dlib,
@@ -23,10 +23,6 @@ from keras.src.distribution import distribution_lib
     return_value=None,
 )
 class MultiProcessInitializeTest(testing.TestCase):
-    def tearDown(self):
-        super().tearDown()
-        os.environ.clear()
-
     def test_initialize_with_explicit_param(self, mock_backend_initialize):
         job_addresses = "10.0.0.1:1234,10.0.0.2:2345"
         num_processes = 2
@@ -48,10 +44,15 @@ class MultiProcessInitializeTest(testing.TestCase):
         os.environ["KERAS_DISTRIBUTION_NUM_PROCESSES"] = str(num_processes)
         os.environ["KERAS_DISTRIBUTION_PROCESS_ID"] = str(current_process_id)
 
-        distribution_lib.initialize()
-        mock_backend_initialize.assert_called_once_with(
-            job_addresses, num_processes, current_process_id
-        )
+        try:
+            distribution_lib.initialize()
+            mock_backend_initialize.assert_called_once_with(
+                job_addresses, num_processes, current_process_id
+            )
+        finally:
+            os.environ.pop("KERAS_DISTRIBUTION_JOB_ADDRESSES", None)
+            os.environ.pop("KERAS_DISTRIBUTION_NUM_PROCESSES", None)
+            os.environ.pop("KERAS_DISTRIBUTION_PROCESS_ID", None)
 
     def test_init_with_nones(self, mock_backend_initialize):
         # This is also valid case for Cloud TPU on JAX
@@ -209,8 +210,8 @@ class DistributionTest(testing.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="Only JAX has the proper backend distribution lib",
+    backend.backend() not in ("jax", "torch"),
+    reason="Only JAX and Torch have the proper backend distribution lib",
 )
 class DataParallelDistributionTest(testing.TestCase):
     def setUp(self):
@@ -273,7 +274,7 @@ class DataParallelDistributionTest(testing.TestCase):
             device_mesh=self.device_mesh
         )
 
-        variable = backend.Variable(initializer=[1, 2, 3])
+        variable = backend.Variable(initializer=[1.0, 2.0, 3.0])
         variable_layout = distribution.get_variable_layout(variable)
         self.assertIs(variable_layout.device_mesh, self.device_mesh)
         self.assertEqual(variable_layout.axes, (None,))
@@ -286,7 +287,7 @@ class DataParallelDistributionTest(testing.TestCase):
         explicit_mesh = distribution_lib.DeviceMesh((8,), ["x"], self.devices)
         explicit_layout = distribution_lib.TensorLayout(["x"], explicit_mesh)
 
-        variable = backend.Variable(initializer=[1, 2, 3])
+        variable = backend.Variable(initializer=[1.0, 2.0, 3.0])
         variable._layout = explicit_layout
         variable_layout = distribution.get_variable_layout(variable)
         self.assertIs(variable_layout.device_mesh, explicit_mesh)
@@ -308,15 +309,6 @@ class DataParallelDistributionTest(testing.TestCase):
         path = "path/to/tensor"
         tensor_layout = distribution.get_tensor_layout(path)
         self.assertIsNone(tensor_layout)
-
-    def test_distribute_dataset(self):
-        # We can only verify the single worker/process case in OSS for now.
-        dataset = tf.data.Dataset.range(8)
-        distribution = distribution_lib.DataParallel(
-            device_mesh=self.device_mesh
-        )
-        distributed_dataset = distribution.distribute_dataset(dataset)
-        self.assertIs(dataset, distributed_dataset)
 
 
 @pytest.mark.skipif(
@@ -400,16 +392,6 @@ class ModelParallelDistributionTest(testing.TestCase):
         self.assertIs(variable_layout.device_mesh, explicit_mesh)
         self.assertEqual(variable_layout.axes, explicit_layout.axes)
 
-    def test_distribute_dataset(self):
-        # We can only verify the single worker/process case in OSS for now.
-        dataset = tf.data.Dataset.range(8)
-        layout_map = distribution_lib.LayoutMap(self.device_mesh)
-        distribution = distribution_lib.ModelParallel(
-            layout_map=layout_map, batch_dim_name="data"
-        )
-        distributed_dataset = distribution.distribute_dataset(dataset)
-        self.assertIs(dataset, distributed_dataset)
-
     @mock.patch.object(backend_dlib, "num_processes", return_value=4)
     def test_num_processes_validation(self, mock_backend_num_processes):
         device_mesh = distribution_lib.DeviceMesh(
@@ -441,132 +423,6 @@ class ModelParallelDistributionTest(testing.TestCase):
         )
         self.assertEqual(distribution.num_model_replicas, 4)
         self.assertEqual(distribution.num_processes, 2)
-
-
-class TfDatasetDistributionTest(testing.TestCase):
-    def setUp(self):
-        super().setUp()
-        self.devices = [f"cpu:{i}" for i in range(8)]
-        self.device_mesh = distribution_lib.DeviceMesh(
-            (4, 2), ["data", "model"], self.devices
-        )
-        self.layout_map = distribution_lib.LayoutMap(self.device_mesh)
-        self.distribution = distribution_lib.ModelParallel(
-            layout_map=self.layout_map, batch_dim_name="data"
-        )
-
-    def test_distribute_tf_dataset_multiple_replicas_per_process(self):
-        # Case: num_model_replicas=4, num_processes=2 => 2 replicas per process
-        dataset = tf.data.Dataset.range(16).batch(8)
-        with (
-            mock.patch.object(
-                self.distribution.__class__,
-                "num_model_replicas",
-                new_callable=mock.PropertyMock,
-                return_value=4,
-            ),
-            mock.patch.object(
-                self.distribution.__class__,
-                "num_processes",
-                new_callable=mock.PropertyMock,
-                return_value=2,
-            ),
-            mock.patch.object(self.distribution, "_is_multi_process", True),
-            mock.patch.object(self.distribution, "_process_id", 0),
-        ):
-            # Global batch size 8 is divisible by num_processes 2
-            distributed_dataset = self.distribution.distribute_dataset(dataset)
-            # per_process_batch_size = 8 // 2 = 4
-            # num_shards = 2, index = 0
-            # Original dataset has 16 items, batched by 8 => 2 batches:
-            # [0..7], [8..15]
-            # Rebatched by 4 => 4 batches: [0..3], [4..7], [8..11], [12..15]
-            # Sharded by 2, index 0 => batches 0 and 2: [0..3], [8..11]
-            data = list(distributed_dataset.as_numpy_iterator())
-            self.assertEqual(len(data), 2)
-            self.assertAllClose(data[0], [0, 1, 2, 3])
-            self.assertAllClose(data[1], [8, 9, 10, 11])
-
-        with (
-            mock.patch.object(
-                self.distribution.__class__,
-                "num_model_replicas",
-                new_callable=mock.PropertyMock,
-                return_value=4,
-            ),
-            mock.patch.object(
-                self.distribution.__class__,
-                "num_processes",
-                new_callable=mock.PropertyMock,
-                return_value=2,
-            ),
-            mock.patch.object(self.distribution, "_is_multi_process", True),
-            mock.patch.object(self.distribution, "_process_id", 1),
-        ):
-            distributed_dataset = self.distribution.distribute_dataset(dataset)
-            # Sharded by 2, index 1 => batches 1 and 3: [4..7], [12..15]
-            data = list(distributed_dataset.as_numpy_iterator())
-            self.assertEqual(len(data), 2)
-            self.assertAllClose(data[0], [4, 5, 6, 7])
-            self.assertAllClose(data[1], [12, 13, 14, 15])
-
-    def test_distribute_tf_dataset_error_not_divisible(self):
-        dataset = tf.data.Dataset.range(16).batch(7)
-        with (
-            mock.patch.object(
-                self.distribution.__class__,
-                "num_model_replicas",
-                new_callable=mock.PropertyMock,
-                return_value=4,
-            ),
-            mock.patch.object(
-                self.distribution.__class__,
-                "num_processes",
-                new_callable=mock.PropertyMock,
-                return_value=2,
-            ),
-            mock.patch.object(self.distribution, "_is_multi_process", True),
-        ):
-            # Global batch size 7 is NOT divisible by num_processes 2
-            with self.assertRaisesRegex(
-                ValueError, "Global batch size must be divisible by the number"
-            ):
-                self.distribution.distribute_dataset(dataset)
-
-    def test_unsupported_dataset_type(self):
-        with (
-            mock.patch.object(self.distribution, "_is_multi_process", True),
-            self.assertRaisesRegex(
-                ValueError, "is not supported for auto-sharding"
-            ),
-        ):
-            self.distribution.distribute_dataset([1, 2, 3])
-
-    def test_unknown_batch_size(self):
-        dataset = tf.data.Dataset.range(16)
-        with (
-            mock.patch.object(self.distribution, "_is_multi_process", True),
-            self.assertRaisesRegex(ValueError, "batch size .* is unknown"),
-        ):
-            self.distribution.distribute_dataset(dataset)
-
-    def test_num_model_replicas_one(self):
-        dataset = tf.data.Dataset.range(16).batch(8)
-        with (
-            mock.patch.object(
-                self.distribution.__class__,
-                "num_model_replicas",
-                new_callable=mock.PropertyMock,
-                return_value=1,
-            ),
-            mock.patch.object(self.distribution, "_is_multi_process", True),
-        ):
-            distributed_dataset = self.distribution.distribute_dataset(dataset)
-            # Should return the same data (with prefetch)
-            data = list(distributed_dataset.as_numpy_iterator())
-            self.assertEqual(len(data), 2)
-            self.assertAllClose(data[0], np.arange(8))
-            self.assertAllClose(data[1], np.arange(8, 16))
 
 
 class LayoutMapTest(testing.TestCase):
@@ -719,9 +575,14 @@ class DataShardingIntegrationTest(testing.TestCase):
         distribution._num_processes = num_devices
         distribution._is_multi_process = True
 
+        from keras.src.trainers.data_adapters import tf_dataset_adapter
+
         for process_id in range(num_devices):
             distribution._process_id = process_id
-            ds = distribution.distribute_dataset(global_dataset)
+            adapter = tf_dataset_adapter.TFDatasetAdapter(
+                global_dataset, distribution=distribution
+            )
+            ds = adapter.get_tf_dataset()
             shards.append(list(ds.unbatch().as_numpy_iterator()))
 
         processes_per_replica = num_devices // num_model_replicas

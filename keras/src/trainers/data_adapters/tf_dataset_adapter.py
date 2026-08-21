@@ -1,3 +1,4 @@
+from keras.src import backend
 from keras.src import tree
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.data_adapters.data_adapter import DataAdapter
@@ -26,13 +27,66 @@ class TFDatasetAdapter(DataAdapter):
                 "Expected argument `dataset` to be a tf.data.Dataset. "
                 f"Received: {dataset}"
             )
-        if class_weight is not None:
+        if class_weight:
             dataset = dataset.map(
                 make_class_weight_map_fn(class_weight)
             ).prefetch(tf.data.AUTOTUNE)
-        if distribution is not None:
-            dataset = distribution.distribute_dataset(dataset)
+
+        if distribution is not None and distribution.auto_shard_dataset:
+            dataset = self._distribute_dataset(dataset, distribution)
         self._dataset = dataset
+
+    def _distribute_dataset(self, dataset, distribution):
+        from tensorflow.python.data.experimental.ops import (
+            distribute as tf_data_distribute,
+        )
+
+        from keras.src.utils.module_utils import tensorflow as tf
+
+        if distribution.num_processes <= 1:
+            return dataset
+
+        # Check if the dataset is batched.
+        if not all(
+            hasattr(spec, "shape") and spec.shape.rank > 0
+            for spec in tf.nest.flatten(dataset.element_spec)
+        ):
+            raise ValueError(
+                "The batch size of the input dataset is "
+                "unknown. Please config the batch size for "
+                "the input dataset, e.g via `dataset.batch(batch_size)`"
+            )
+
+        global_batch_size = tf_data_distribute.compute_batch_size(dataset)
+        if global_batch_size.numpy() < 0:
+            raise ValueError(
+                "The batch size of the input dataset is "
+                "unknown. Please config the batch size for "
+                "the input dataset, e.g via `dataset.batch(batch_size)`"
+            )
+
+        global_batch_size = int(global_batch_size.numpy())
+        num_model_replicas = distribution.num_model_replicas
+
+        if num_model_replicas == 1:
+            # No sharding is needed. Each process runs the global batch size,
+            # and data from the iterator is replicated across all processes.
+            return dataset.prefetch(tf.data.AUTOTUNE)
+
+        num_shards = distribution.num_data_shards
+        if global_batch_size % num_shards != 0:
+            raise ValueError(
+                "Global batch size must be divisible by the number of "
+                f"shards. `global_batch_size`={global_batch_size} and "
+                f"`num_shards`={num_shards}"
+            )
+        per_process_batch_size = global_batch_size // num_shards
+        dataset = dataset.rebatch(per_process_batch_size)
+        dataset = dataset.shard(
+            num_shards=num_shards,
+            index=distribution.data_shard_id,
+        )
+        return dataset.prefetch(tf.data.AUTOTUNE)
 
     def get_numpy_iterator(self):
         from keras.src.backend.tensorflow.core import convert_to_numpy
@@ -106,11 +160,14 @@ def make_class_weight_map_fn(class_weight):
     """
     from keras.src.utils.module_utils import tensorflow as tf
 
+    class_weight_dtype = tf.as_dtype(backend.floatx())
+    class_weight_clean = {
+        int(key): float(value) for key, value in class_weight.items()
+    }
+    max_class = max(class_weight_clean.keys())
     class_weight_tensor = tf.convert_to_tensor(
-        [
-            class_weight.get(int(c), 1.0)
-            for c in range(max(class_weight.keys()) + 1)
-        ]
+        [class_weight_clean.get(c, 1.0) for c in range(max_class + 1)],
+        dtype=class_weight_dtype,
     )
 
     def class_weights_map_fn(*data):
@@ -137,7 +194,13 @@ def make_class_weight_map_fn(class_weight):
             # Special casing for rank 1, where we can guarantee sparse encoding.
             y_classes = tf.cast(tf.round(y), tf.int32)
 
-        cw = tf.gather(class_weight_tensor, y_classes)
+        clipped_y_classes = tf.clip_by_value(y_classes, 0, max_class)
+        cw = tf.gather(class_weight_tensor, clipped_y_classes)
+        cw = tf.where(
+            (y_classes >= 0) & (y_classes <= max_class),
+            cw,
+            tf.constant(1.0, dtype=class_weight_dtype),
+        )
         return x, y, cw
 
     return class_weights_map_fn
