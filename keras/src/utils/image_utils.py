@@ -234,6 +234,14 @@ def load_img(
 
     Returns:
         A PIL Image instance.
+
+    Note:
+        This function uses Pillow (`PIL.Image`) for decoding and therefore
+        inherits Pillow's decompression-bomb protection. Images whose pixel
+        count exceeds `PIL.Image.MAX_IMAGE_PIXELS` raise
+        `PIL.Image.DecompressionBombError`. To load larger images, raise or
+        disable that limit (see the
+        [Pillow documentation](https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.open)).
     """
     if pil_image is None:
         raise ImportError(
