@@ -567,25 +567,62 @@ def initialize_all_variables():
     global_state.set_global_attribute("uninitialized_variables", [])
 
 
+# Keyed by (type(dtype), dtype): `tf.DType` hashes and compares equal to a
+# plain int (`tf.float32 == 1`), so the type must be part of the key or a
+# cached tf dtype could make a later invalid int falsely resolve.
+_DTYPE_CACHE = {}
+
+
 @keras_export(
     ["keras.utils.standardize_dtype", "keras.backend.standardize_dtype"]
 )
 def standardize_dtype(dtype):
+    if isinstance(dtype, str):
+        if dtype in dtypes.ALLOWED_DTYPES_SET:
+            return dtype
+        # A mapped alias like "int" falls through to PYTHON_DTYPES_MAP.
+        mapped = dtypes.PYTHON_DTYPES_MAP.get(dtype)
+        if mapped is not None:
+            return mapped
+        # Framework-prefixed strings like "torch.float32" or
+        # "jax.numpy.float32" resolve by splitting on ".".
+        if "torch" in dtype or "jax.numpy" in dtype:
+            resolved = dtype.split(".")[-1]
+            if resolved in dtypes.ALLOWED_DTYPES_SET:
+                return resolved
+            raise ValueError(f"Invalid dtype: {resolved}")
+        raise ValueError(f"Invalid dtype: {dtype}")
+
     if dtype is None:
         return config.floatx()
-    dtype = dtypes.PYTHON_DTYPES_MAP.get(dtype, dtype)
-    if hasattr(dtype, "name"):
-        dtype = dtype.name
-    elif hasattr(dtype, "__name__"):
-        dtype = dtype.__name__
-    elif hasattr(dtype, "__str__") and (
-        "torch" in str(dtype) or "jax.numpy" in str(dtype)
-    ):
-        dtype = str(dtype).split(".")[-1]
 
-    if dtype not in dtypes.ALLOWED_DTYPES:
-        raise ValueError(f"Invalid dtype: {dtype}")
-    return dtype
+    if isinstance(dtype, np.dtype):
+        # `.name` is canonical; uint32 is NOT remapped to int64 here.
+        name = dtype.name
+        if name in dtypes.ALLOWED_DTYPES_SET:
+            return name
+        raise ValueError(f"Invalid dtype: {name}")
+
+    cache_key = (type(dtype), dtype)
+    cached = _DTYPE_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+
+    resolved = dtypes.PYTHON_DTYPES_MAP.get(dtype, dtype)
+    if hasattr(resolved, "name"):
+        resolved = resolved.name
+    elif hasattr(resolved, "__name__"):
+        resolved = resolved.__name__
+    elif hasattr(resolved, "__str__") and (
+        "torch" in str(resolved) or "jax.numpy" in str(resolved)
+    ):
+        resolved = str(resolved).split(".")[-1]
+
+    if resolved not in dtypes.ALLOWED_DTYPES_SET:
+        raise ValueError(f"Invalid dtype: {resolved}")
+
+    _DTYPE_CACHE[cache_key] = resolved
+    return resolved
 
 
 def standardize_shape(shape):
