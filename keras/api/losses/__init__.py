@@ -9,6 +9,8 @@ from keras.src.losses import get as get
 from keras.src.losses import serialize as serialize
 from keras.src.losses.loss import Loss as Loss
 from keras.src.losses.losses import CTC as CTC
+from keras.src.losses.losses import MSSSIM as MSSSIM
+from keras.src.losses.losses import PSNR as PSNR
 from keras.src.losses.losses import BinaryCrossentropy as BinaryCrossentropy
 from keras.src.losses.losses import (
     BinaryFocalCrossentropy as BinaryFocalCrossentropy,
@@ -23,9 +25,11 @@ from keras.src.losses.losses import (
     CategoricalGeneralizedCrossEntropy as CategoricalGeneralizedCrossEntropy,
 )
 from keras.src.losses.losses import CategoricalHinge as CategoricalHinge
+from keras.src.losses.losses import Charbonnier as Charbonnier
 from keras.src.losses.losses import Circle as Circle
 from keras.src.losses.losses import CosineSimilarity as CosineSimilarity
 from keras.src.losses.losses import Dice as Dice
+from keras.src.losses.losses import EdgeAwareSmoothness as EdgeAwareSmoothness
 from keras.src.losses.losses import Hinge as Hinge
 from keras.src.losses.losses import Huber as Huber
 from keras.src.losses.losses import KLDivergence as KLDivergence
@@ -43,6 +47,7 @@ from keras.src.losses.losses import (
     SparseCategoricalCrossentropy as SparseCategoricalCrossentropy,
 )
 from keras.src.losses.losses import SquaredHinge as SquaredHinge
+from keras.src.losses.losses import TotalVariation as TotalVariation
 from keras.src.losses.losses import Tversky as Tversky
 from keras.src.losses.losses import binary_crossentropy as binary_crossentropy
 from keras.src.losses.losses import (
@@ -58,10 +63,14 @@ from keras.src.losses.losses import (
     categorical_generalized_cross_entropy as categorical_generalized_cross_entropy,
 )
 from keras.src.losses.losses import categorical_hinge as categorical_hinge
+from keras.src.losses.losses import charbonnier as charbonnier
 from keras.src.losses.losses import circle as circle
 from keras.src.losses.losses import cosine_similarity as cosine_similarity
 from keras.src.losses.losses import ctc as ctc
 from keras.src.losses.losses import dice as dice
+from keras.src.losses.losses import (
+    edge_aware_smoothness as edge_aware_smoothness,
+)
 from keras.src.losses.losses import hinge as hinge
 from keras.src.losses.losses import huber as huber
 from keras.src.losses.losses import kl_divergence as kl_divergence
@@ -74,9 +83,12 @@ from keras.src.losses.losses import mean_squared_error as mean_squared_error
 from keras.src.losses.losses import (
     mean_squared_logarithmic_error as mean_squared_logarithmic_error,
 )
+from keras.src.losses.losses import msssim as msssim
 from keras.src.losses.losses import poisson as poisson
+from keras.src.losses.losses import psnr as psnr
 from keras.src.losses.losses import (
     sparse_categorical_crossentropy as sparse_categorical_crossentropy,
 )
 from keras.src.losses.losses import squared_hinge as squared_hinge
+from keras.src.losses.losses import total_variation as total_variation
 from keras.src.losses.losses import tversky as tversky
