@@ -1757,8 +1757,12 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.copy(x).shape, (None, 3))
 
     def test_corrcoef(self):
+        # `corrcoef` correlates the rows of a 2D input, so the output is
+        # square in the number of rows regardless of the number of columns.
         x = KerasTensor((3, None))
-        self.assertEqual(knp.corrcoef(x).shape, (3, None))
+        self.assertEqual(knp.corrcoef(x).shape, (3, 3))
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.corrcoef(x).shape, (None, None))
 
     def test_cos(self):
         x = KerasTensor((None, 3))
@@ -6014,6 +6018,18 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.corrcoef(x), np.corrcoef(x))
         self.assertAllClose(knp.Corrcoef()(x), np.corrcoef(x))
+
+        # The symbolic shape must match the eager shape for a non-square
+        # input, where the number of variables differs from the number of
+        # observations.
+        x = np.random.uniform(size=(3, 5)).astype("float32")
+        self.assertEqual(knp.corrcoef(x).shape, (3, 3))
+        self.assertEqual(
+            knp.Corrcoef().symbolic_call(KerasTensor((3, 5))).shape, (3, 3)
+        )
+
+        with self.assertRaises(ValueError):
+            knp.Corrcoef().symbolic_call(KerasTensor((2, 3, 5)))
 
     def test_cos(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
