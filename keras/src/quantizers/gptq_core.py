@@ -344,6 +344,8 @@ def apply_gptq_layerwise(dataloader, config, structure, filters=None):
             for start in range(0, num_samples, batch_size):
                 chunk = inputs[start : start + batch_size]
                 output = block(_stack_calibration_batch(chunk))
+                if isinstance(output, (list, tuple)):
+                    output = output[0]
                 # Split the batched output back into per-sample activations so
                 # the next block can be calibrated identically.
                 for sample_idx in range(len(chunk)):
