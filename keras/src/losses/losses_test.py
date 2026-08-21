@@ -2047,6 +2047,49 @@ class DiceTest(testing.TestCase):
         self.assertDType(output, "bfloat16")
 
 
+class IoUTest(testing.TestCase):
+    def test_config(self):
+        self.run_class_serialization_test(losses.IoU(name="myiou"))
+
+    def test_correctness(self):
+        y_true = np.array(([[1, 2], [1, 2]]))
+        y_pred = np.array(([[4, 1], [6, 1]]))
+        # intersection = 1*4 + 2*1 + 1*6 + 2*1 = 4 + 2 + 6 + 2 = 14
+        # sum(y_true) = 1+2+1+2 = 6
+        # sum(y_pred) = 4+1+6+1 = 12
+        # union = 6 + 12 - 14 = 4
+        # IoU = 14 / 4 = 3.5
+        # Loss = 1 - 3.5 = -2.5
+        output = losses.IoU()(y_true, y_pred)
+        self.assertAllClose(output, -2.5)
+
+    def test_binary_segmentation(self):
+        y_true = np.array(
+            ([[1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]])
+        )
+        y_pred = np.array(
+            ([[0, 1, 0, 1], [1, 0, 1, 1], [0, 1, 0, 1], [1, 0, 1, 1]])
+        )
+        output = losses.IoU()(y_true, y_pred)
+        self.assertAllClose(output, 0.875)
+
+    def test_binary_segmentation_with_axis(self):
+        y_true = np.array(
+            [[[[1.0], [1.0]], [[0.0], [0.0]]], [[[1.0], [1.0]], [[0.0], [0.0]]]]
+        )
+        y_pred = np.array(
+            [[[[0.0], [1.0]], [[0.0], [1.0]]], [[[0.4], [0.0]], [[0.0], [0.9]]]]
+        )
+        output = losses.IoU(axis=(1, 2, 3), reduction=None)(y_true, y_pred)
+        self.assertAllClose(output, [0.66666667, 0.86206897])
+
+    def test_dtype_arg(self):
+        y_true = np.array(([[1, 2], [1, 2]]))
+        y_pred = np.array(([[4, 1], [6, 1]]))
+        output = losses.IoU(dtype="bfloat16")(y_true, y_pred)
+        self.assertDType(output, "bfloat16")
+
+
 class TverskyTest(testing.TestCase):
     def test_config(self):
         self.run_class_serialization_test(losses.Tversky(name="mytversky"))

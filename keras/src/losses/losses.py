@@ -1438,6 +1438,60 @@ class Tversky(LossFunctionWrapper):
         return config
 
 
+@keras_export("keras.losses.IoU")
+class IoU(LossFunctionWrapper):
+    """Computes the IoU (Intersection over Union) loss value.
+
+    The IoU loss value is calculated between `y_true` and `y_pred`.
+
+    Arguments:
+        reduction: Type of reduction to apply to the loss. In almost all cases
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
+        name: Optional name for the loss instance.
+        axis: Tuple for which dimensions the loss is calculated. Defaults to
+            `None`.
+        dtype: The dtype of the loss's computations. Defaults to `None`, which
+            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            `"float32"` unless set to different value
+            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            provided, then the `compute_dtype` will be utilized.
+
+    Returns:
+        IoU loss value.
+
+    Example:
+
+    >>> y_true = np.array([[1, 2], [1, 2]])
+    >>> y_pred = np.array([[4, 1], [6, 1]])
+    >>> loss = keras.losses.IoU()
+    >>> loss(y_true, y_pred)
+    -2.5
+    """
+
+    def __init__(
+        self,
+        reduction="sum_over_batch_size",
+        name="iou",
+        axis=None,
+        dtype=None,
+    ):
+        super().__init__(
+            iou, name=name, reduction=reduction, dtype=dtype, axis=axis
+        )
+        self.axis = axis
+
+    def get_config(self):
+        config = Loss.get_config(self)
+        config.update({"axis": self.axis})
+        return config
+
+
 @keras_export("keras.losses.Circle")
 class Circle(LossFunctionWrapper):
     """Computes Circle Loss between integer labels and L2-normalized embeddings.
@@ -2655,6 +2709,41 @@ def tversky(y_true, y_pred, alpha=0.5, beta=0.5, axis=None):
     )
 
     return 1 - tversky
+
+
+@keras_export("keras.losses.iou")
+def iou(y_true, y_pred, axis=None):
+    """Computes the IoU (Intersection over Union) loss value.
+
+    The IoU loss value is calculated between `y_true` and `y_pred`.
+
+    Formula:
+    ```python
+    loss = 1 - sum(y_true * y_pred) / (
+        sum(y_true) + sum(y_pred) - sum(y_true * y_pred))
+    ```
+
+    Args:
+        y_true: tensor of true targets.
+        y_pred: tensor of predicted targets.
+        axis: tuple for which dimensions the loss is calculated.
+
+    Returns:
+        IoU loss value.
+    """
+    y_pred = ops.convert_to_tensor(y_pred)
+    y_true = ops.cast(y_true, y_pred.dtype)
+
+    intersection = ops.sum(y_true * y_pred, axis=axis)
+    total = ops.sum(y_true, axis=axis) + ops.sum(y_pred, axis=axis)
+    union = total - intersection
+
+    iou = ops.divide(
+        intersection,
+        union + backend.epsilon(),
+    )
+
+    return 1 - iou
 
 
 @keras_export("keras.losses.circle")
