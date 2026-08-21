@@ -389,7 +389,7 @@ class GPTQTest(testing.TestCase):
 
         self.assertAllClose(g1.hessian, g2.hessian, rtol=1e-6, atol=1e-6)
 
-    def test_identity_inv_hessian_matches_direct_quantization(self):
+    def test_identity_hessian_matches_direct_quantization(self):
         """Tests that the matrix quantization without error correction
         matches the direct implementation."""
         in_features, out_features = 16, 8
@@ -401,14 +401,14 @@ class GPTQTest(testing.TestCase):
         )
         weights_transpose = ops.transpose(weights)
 
-        # inverse_hessian = identity; no cross-feature correction
-        # (since all off-diagonal elements are zero), which means
-        # there is no interaction between different features
-        inverse_hessian = ops.eye(in_features, dtype="float32")
+        # hessian = identity => inverse Hessian is identity; no cross-feature
+        # correction (since all off-diagonal elements are zero), which means
+        # there is no interaction between different features.
+        hessian = ops.eye(in_features, dtype="float32")
 
         quantized_weights, scale_map, zero_map, g_idx = gptq_quantize_matrix(
             weights_transpose,
-            inverse_hessian,
+            hessian,
             blocksize=128,
             group_size=1,  # per-column quantization
             activation_order=False,

@@ -26,7 +26,7 @@ def _stable_permutation(metric):
 
 def gptq_quantize_matrix(
     weights_transpose,
-    inv_hessian,
+    hessian,
     *,
     blocksize=128,
     group_size=-1,
@@ -53,18 +53,24 @@ def gptq_quantize_matrix(
     - invH[block, future] denotes the cross-block slice of the inverse Hessian,
     - W[:, future] are the columns yet to be quantized.
 
+    The inverse Hessian used for error propagation is derived from the
+    (already dampened) Hessian using the reference GPTQ/AutoGPTQ Cholesky
+    formulation rather than a dense matrix inverse: the upper-triangular
+    Cholesky factor of `H^-1` is computed via triangular solves and indexed
+    directly inside the error-correction loop.
+
     Args:
         weights_transpose: Transposed weight matrix [out_features, in_features]
          to quantize.
-        inv_hessian: Inverse Hessian matrix [in_features, in_features] for
-         error propagation.
+        hessian: Dampened Hessian matrix [in_features, in_features]. The upper
+         Cholesky factor of its inverse drives error propagation.
         blocksize: Size of the blocks to process (default: 128).
         group_size: Size of the groups for parameter reuse
          (default: -1, no grouping).
         activation_order: Whether to apply activation-order permutation
          (default: False).
         order_metric: Metric for ordering features
-         (default: None, uses 1 / diag(invH)).
+         (default: None, uses diag(H)).
         compute_scale_zero: Function to compute scale and zero for
          quantization.
 
@@ -78,11 +84,9 @@ def gptq_quantize_matrix(
     in_features = ops.shape(weights_transpose)[1]
 
     if activation_order:
-        # Use 1 / diag(inverse_hessian) as importance proxy by default.
+        # Use diag(H) as the importance proxy by default (as in AutoGPTQ).
         if order_metric is None:
-            order_metric = ops.reciprocal(
-                ops.add(ops.diagonal(inv_hessian), 1e-12)
-            )
+            order_metric = ops.diagonal(hessian)
         else:
             # sanitize provided metric
             order_metric = ops.cast(order_metric, "float32")
@@ -96,11 +100,19 @@ def gptq_quantize_matrix(
         inv_perm = ops.argsort(perm)
 
         weights_transpose = ops.take(weights_transpose, perm, axis=1)
-        inv_hessian = ops.take(
-            ops.take(inv_hessian, perm, axis=0), perm, axis=1
-        )
+        # Permute the Hessian *before* factorization. Cholesky does not commute
+        # with permutation, so the factor must be computed on the reordered H.
+        hessian = ops.take(ops.take(hessian, perm, axis=0), perm, axis=1)
     else:
         perm = inv_perm = None
+
+    # Reference GPTQ/AutoGPTQ inverse-Hessian factorization. Compute `H^-1`
+    # from its lower Cholesky factor using triangular solves (no dense inverse),
+    # then take the UPPER Cholesky factor of `H^-1`. Indexing this factor inside
+    # the loop below reproduces AutoGPTQ's error-propagation exactly.
+    cholesky_lower = linalg.cholesky(hessian)
+    inverse_hessian = linalg.cholesky_inverse(cholesky_lower)
+    inv_hessian = linalg.cholesky(inverse_hessian, upper=True)
 
     # weights_buffer: [out_features, in_features]
     weights_buffer = weights_transpose
@@ -455,12 +467,12 @@ class GPTQ:
             ops.diag(hessian_diagonal),
         )
 
-        # Compute the inverse Hessian, which is used for error correction
-        inverse_hessian = linalg.inv(hessian_matrix)
-
+        # The inverse Hessian used for error correction is derived inside
+        # `gptq_quantize_matrix` from the dampened Hessian using a numerically
+        # stable Cholesky formulation (triangular solves, no dense inverse).
         quantized, scale, zero, g_idx = gptq_quantize_matrix(
             weights_matrix,
-            inv_hessian=inverse_hessian,
+            hessian=hessian_matrix,
             blocksize=blocksize,
             group_size=self.config.group_size,
             activation_order=self.config.activation_order,

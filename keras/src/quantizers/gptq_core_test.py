@@ -6,9 +6,13 @@ from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.gptq_config import GPTQConfig
+from keras.src.quantizers.gptq_core import _stack_calibration_batch
+from keras.src.quantizers.gptq_core import find_layers_in_block
 from keras.src.quantizers.gptq_core import get_dataloader
 from keras.src.quantizers.gptq_core import gptq_quantize
+from keras.src.quantizers.gptq_core import stream_hessians
 
 VOCAB_SIZE = 100
 
@@ -258,6 +262,51 @@ class TestGPTQCore(testing.TestCase):
                 sequence_length=10,
                 dataset="wikitext2",
                 num_samples=10,
+            )
+
+    def test_calibration_batching_produces_identical_hessian(self):
+        """The Hessian accumulated during calibration must be identical
+        whether calibration samples are streamed one at a time or in
+        batches. `update_hessian_with_batch` flattens activations to
+        `[-1, features]`, so batching only changes the number of forward
+        passes, not the math."""
+        d_model = 16
+        seq_len = 8
+        num_samples = 8
+
+        block = TransformerBlock()  # contains a single Dense(128) layer.
+        # Trigger a build so the inner Dense layer's kernel exists.
+        _ = block(ops.zeros((1, seq_len, d_model)))
+
+        rng = np.random.default_rng(0)
+        samples = [
+            ops.convert_to_tensor(
+                rng.standard_normal((1, seq_len, d_model)).astype("float32")
+            )
+            for _ in range(num_samples)
+        ]
+
+        def accumulate(batch_size):
+            layers_map = find_layers_in_block(block)
+            gptq_objects = {
+                name: GPTQ(layer) for name, layer in layers_map.items()
+            }
+            with stream_hessians(layers_map, gptq_objects):
+                for start in range(0, num_samples, batch_size):
+                    batch = _stack_calibration_batch(
+                        samples[start : start + batch_size]
+                    )
+                    _ = block(batch)
+            return {name: obj.hessian for name, obj in gptq_objects.items()}
+
+        unbatched = accumulate(batch_size=1)
+        batched = accumulate(batch_size=4)
+
+        self.assertEqual(set(unbatched.keys()), set(batched.keys()))
+        self.assertGreater(len(unbatched), 0)
+        for name in unbatched:
+            self.assertAllClose(
+                unbatched[name], batched[name], rtol=1e-5, atol=1e-5
             )
 
     def test_apply_gptq_on_multi_block_model(self):
