@@ -10,3 +10,4 @@ jax[cuda13]
 flax
 
 -r requirements-common.txt
+# bounty-fix-ref: https://github.com/keras-team/keras/issues/23485
