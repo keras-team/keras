@@ -43,6 +43,9 @@ from keras.src.losses.losses import Poisson as Poisson
 from keras.src.losses.losses import (
     SparseCategoricalCrossentropy as SparseCategoricalCrossentropy,
 )
+from keras.src.losses.losses import (
+    SparseCategoricalFocalCrossentropy as SparseCategoricalFocalCrossentropy,
+)
 from keras.src.losses.losses import SquaredHinge as SquaredHinge
 from keras.src.losses.losses import Tversky as Tversky
 from keras.src.losses.losses import binary_crossentropy as binary_crossentropy
@@ -80,6 +83,9 @@ from keras.src.losses.losses import mean_squared_logarithmic_error as msle
 from keras.src.losses.losses import poisson as poisson
 from keras.src.losses.losses import (
     sparse_categorical_crossentropy as sparse_categorical_crossentropy,
+)
+from keras.src.losses.losses import (
+    sparse_categorical_focal_crossentropy as sparse_categorical_focal_crossentropy,
 )
 from keras.src.losses.losses import squared_hinge as squared_hinge
 from keras.src.losses.losses import tversky as tversky
