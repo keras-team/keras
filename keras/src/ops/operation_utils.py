@@ -2,7 +2,6 @@ import math
 
 import numpy as np
 
-from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
