@@ -1685,6 +1685,32 @@ class NNOpsCorrectnessTest(testing.TestCase):
             [0.0, 0.0, 0.0, 0.0, 1.0],
         )
 
+        # The case above is one-hot: the support holds a single element, for
+        # which the threshold happens to be correct even when it is derived
+        # from the wrong quantity. With closely spaced logits the support
+        # holds several elements. Here the sorted logits are `[1, 0.5, 0]`
+        # with cumulative sums `[1, 1.5, 1.5]`, the support is the first two
+        # entries, so `tau = (1.5 - 1) / 2 = 0.25`.
+        x = np.array([0.0, 0.5, 1.0], dtype=np.float32)
+        self.assertAllClose(knn.sparsemax(x), [0.0, 0.25, 0.75])
+
+        # `sparsemax` is a projection onto the probability simplex, so the
+        # output is non-negative and sums to 1 along `axis`.
+        rng = np.random.default_rng(1234)
+        for scale in (0.3, 1.0, 3.0):
+            x = (rng.normal(scale=scale, size=(4, 7))).astype("float32")
+            out = backend.convert_to_numpy(knn.sparsemax(x))
+            self.assertAllClose(out.sum(axis=-1), np.ones(4), atol=1e-5)
+            self.assertTrue((out >= 0).all())
+
+    def test_sparsemax_dtype(self):
+        # The output dtype must follow the input dtype rather than being
+        # promoted by the integer counts or the scalar constants.
+        x = np.random.uniform(size=(2, 5)).astype("float32")
+        for dtype in ("float16", "float32", "bfloat16"):
+            out = knn.sparsemax(ops.cast(x, dtype))
+            self.assertEqual(backend.standardize_dtype(out.dtype), dtype)
+
     def test_max_pool(self):
         data_format = backend.config.image_data_format()
         # Test 1D max pooling.

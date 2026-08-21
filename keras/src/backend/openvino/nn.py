@@ -268,14 +268,17 @@ def sparsemax(x, axis=-1):
     k = ov_opset.reduce_sum(
         ov_opset.convert(support, et).output(0), axis_1d, True
     ).output(0)
-    sum_safe = ov_opset.reduce_sum(
-        ov_opset.select(support, logits_cumsum, zero_fp).output(0),
+    # `tau` is derived from the k-th cumulative sum, which is the sum of the
+    # `k` largest logits. `support` is a prefix mask, so masking the sorted
+    # logits gives that sum directly.
+    sum_masked = ov_opset.reduce_sum(
+        ov_opset.select(support, logits_sorted, zero_fp).output(0),
         axis_1d,
         True,
     ).output(0)
-    tau = ov_opset.divide(ov_opset.subtract(sum_safe, one).output(0), k).output(
-        0
-    )
+    tau = ov_opset.divide(
+        ov_opset.subtract(sum_masked, one).output(0), k
+    ).output(0)
     return OpenVINOKerasTensor(
         ov_opset.maximum(ov_opset.subtract(x, tau).output(0), zero_fp).output(0)
     )

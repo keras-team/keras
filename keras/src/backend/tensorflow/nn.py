@@ -197,9 +197,12 @@ def sparsemax(x, axis=-1):
     r = tf.reshape(r, r_shape)  # Reshape for broadcasting
     support = logits_sorted - (logits_cumsum - 1) / r > 0
     # Find the threshold
-    logits_cumsum_safe = tf.where(support, logits_cumsum, 0.0)
+    # `tau` is derived from the k-th cumulative sum, which is the sum of the
+    # `k` largest logits. `support` is a prefix mask, so masking the sorted
+    # logits gives that sum directly.
+    logits_masked = tf.where(support, logits_sorted, 0.0)
     k = tf.reduce_sum(tf.cast(support, logits.dtype), axis=axis, keepdims=True)
-    tau = (tf.reduce_sum(logits_cumsum_safe, axis=axis, keepdims=True) - 1) / k
+    tau = (tf.reduce_sum(logits_masked, axis=axis, keepdims=True) - 1) / k
     output = tf.maximum(logits - tau, 0.0)
     return output
 
