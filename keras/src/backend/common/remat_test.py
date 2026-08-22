@@ -46,6 +46,17 @@ class TestRematScope(testing.TestCase):
             get_current_remat_mode()
         )  # Mode is restored to None after all scopes
 
+    def test_remat_scope_none(self):
+        """Test that mode=None returns None from get_current_remat_mode."""
+        with RematScope(mode=None):
+            self.assertIsNone(get_current_remat_mode())
+
+        with RematScope(mode="full"):
+            self.assertEqual(get_current_remat_mode().mode, "full")
+            with RematScope(mode=None):
+                self.assertIsNone(get_current_remat_mode())
+            self.assertEqual(get_current_remat_mode().mode, "full")
+
     def test_remat_scope_stack_management(self):
         """Test that the remat_scope_stack is managed correctly."""
         self.assertIsNone(
