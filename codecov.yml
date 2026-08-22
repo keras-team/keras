@@ -2,13 +2,12 @@ coverage:
   status:
     project:
       default:
-        # `auto` compares coverage with the base-commit
+        # `auto` compares coverage with the base commit
         target: auto
-
     patch:
       default:
-        target:auto
-
+        # `auto` compares coverage on the diff (patch) with the base commit
+        target: auto
 comment:
   layout: "header, reach, diff, flags, files"
   behavior: default
@@ -16,7 +15,6 @@ comment:
   require_base: no
   require_head: yes
   show_carryforward_flags: yes
-
 flag_management:
   default_rules:
     carryforward: false
