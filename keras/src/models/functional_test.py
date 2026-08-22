@@ -221,26 +221,54 @@ class FunctionalTest(testing.TestCase):
 
         model = Functional({"a": input_a}, outputs)
 
-        with pytest.warns() as record:
-            # Eager call
-            in_val = {
-                "a": np.random.random((2, 3)),
-                "b": np.random.random((2, 1)),
-            }
-            out_val = model(in_val)
-            self.assertEqual(out_val.shape, (2, 3))
+        in_val = {
+            "a": np.random.random((2, 3)),
+            "b": np.random.random((2, 1)),
+        }
+        out_val = model(in_val)
+        self.assertEqual(out_val.shape, (2, 3))
 
-            # Symbolic call
-            input_a_2 = Input(shape=(3,), batch_size=2)
-            input_b_2 = Input(shape=(1,), batch_size=2)
-            in_val = {"a": input_a_2, "b": input_b_2}
-            out_val = model(in_val)
-            self.assertEqual(out_val.shape, (2, 3))
-        self.assertLen(record, 1)
-        self.assertStartsWith(
-            str(record[0].message),
-            r"The structure of `inputs` doesn't match the expected structure",
+        input_a_2 = Input(shape=(3,), batch_size=2)
+        input_b_2 = Input(shape=(1,), batch_size=2)
+        in_val = {"a": input_a_2, "b": input_b_2}
+        out_val = model(in_val)
+        self.assertEqual(out_val.shape, (2, 3))
+
+        in_val = {
+            "0_extra": np.random.random((2, 1)),
+            "a": np.random.random((2, 3)),
+        }
+        out_val = model(in_val)
+        self.assertEqual(out_val.shape, (2, 3))
+
+        i1, i2 = Input((1,)), Input((2,))
+        nested_model = Functional(
+            {"1": i1, "others": {"2": i2}},
+            i1,
         )
+        nested_in_val = {
+            "1": np.ones((2, 1)),
+            "others": {
+                "2": np.ones((2, 2)),
+                "0_extra": np.ones((2, 1)),
+            },
+            "top_extra": np.ones((2, 1)),
+        }
+        nested_out_val = nested_model(nested_in_val)
+        self.assertEqual(nested_out_val.shape, (2, 1))
+
+        i3 = Input((3,))
+        list_nested_model = Functional(
+            {"1": i1, "others_list": [i2, i3]},
+            i1,
+        )
+        list_nested_in_val = {
+            "1": np.ones((2, 1)),
+            "others_list": [np.ones((2, 2)), np.ones((2, 3)), np.ones((2, 4))],
+            "top_extra": np.ones((2, 1)),
+        }
+        list_nested_out_val = list_nested_model(list_nested_in_val)
+        self.assertEqual(list_nested_out_val.shape, (2, 1))
 
     @parameterized.named_parameters(
         ("list", list),
