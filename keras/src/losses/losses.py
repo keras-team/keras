@@ -2214,6 +2214,73 @@ def categorical_crossentropy(
         "keras.losses.categorical_focal_crossentropy",
     ]
 )
+def sparse_categorical_focal_crossentropy(
+    y_true,
+    y_pred,
+    alpha=0.25,
+    gamma=2.0,
+    from_logits=False,
+    label_smoothing=0.0,
+    axis=-1,
+):
+    """Computes the sparse-label focal crossentropy loss.
+
+    Use this crossentropy loss function when there are two or more label
+    classes and if you want to handle class imbalance without using
+    `class_weights`. Labels are provided as integer class indices (sparse)
+    rather than a `one_hot` representation, which avoids the memory overhead
+    of converting large label tensors to one-hot.
+
+    According to [Lin et al., 2018](https://arxiv.org/pdf/1708.02002.pdf), it
+    helps to apply a focal factor to down-weight easy examples and focus more
+    on hard examples.
+
+    Args:
+        y_true: Tensor of integer true class indices (sparse labels).
+        y_pred: Tensor of predicted targets.
+        alpha: A weight balancing factor for all classes, default is `0.25`.
+            It can be a list of floats or a scalar. In the multi-class case,
+            alpha may be set by inverse class frequency using
+            `compute_class_weight` from `sklearn.utils`.
+        gamma: A focusing parameter, default is `2.0`.
+        from_logits: Whether `y_pred` is expected to be a logits tensor.
+            By default, we assume that `y_pred` encodes a probability
+            distribution.
+        label_smoothing: Float in [0, 1]. If > `0` then smooth the labels.
+        axis: Defaults to `-1`. The dimension along which the entropy is
+            computed.
+
+    Returns:
+        Sparse categorical focal crossentropy loss value.
+
+    Example:
+
+    >>> y_true = [1, 2]
+    >>> y_pred = [[0.05, 0.9, 0.05], [0.1, 0.85, 0.05]]
+    >>> loss = keras.losses.sparse_categorical_focal_crossentropy(
+    ...     y_true, y_pred)
+    >>> assert loss.shape == (2,)
+    """
+    y_pred = ops.convert_to_tensor(y_pred)
+    y_true = ops.cast(y_true, "int32")
+
+    # Convert sparse integer labels to one-hot before applying focal loss.
+    num_classes = y_pred.shape[-1]
+    y_true = ops.one_hot(y_true, num_classes)
+    y_true = ops.cast(y_true, y_pred.dtype)
+
+    return categorical_focal_crossentropy(
+        y_true,
+        y_pred,
+        alpha=alpha,
+        gamma=gamma,
+        from_logits=from_logits,
+        label_smoothing=label_smoothing,
+        axis=axis,
+    )
+
+
+@keras_export("keras.losses.sparse_categorical_focal_crossentropy")
 def categorical_focal_crossentropy(
     y_true,
     y_pred,
@@ -2305,6 +2372,70 @@ def categorical_focal_crossentropy(
     focal_cce = ops.multiply(weighting_factor, cce)
     focal_cce = ops.sum(focal_cce, axis=axis)
     return focal_cce
+
+
+class SparseCategoricalFocalCrossentropy(LossFunctionWrapper):
+    """Computes the alpha balanced focal crossentropy loss with sparse labels.
+
+    Use this crossentropy loss function when there are two or more label
+    classes and you want to handle class imbalance without using
+    `class_weights`. Labels are provided as integer class indices (sparse)
+    rather than a `one_hot` representation, which avoids the memory overhead
+    of converting large label tensors to one-hot.
+
+    According to [Lin et al., 2018](https://arxiv.org/pdf/1708.02002.pdf), it
+    helps to apply a focal factor to down-weight easy examples and focus more
+    on hard examples. The general formula for the focal loss (FL) is:
+
+    `FL(p_t) = -alpha * (1 - p_t) ** gamma * log(p_t)`
+
+    where `p_t` is the model's estimated probability for the true class.
+
+    Examples:
+
+    Standalone usage:
+
+    >>> y_true = [1, 2]
+    >>> y_pred = [[0.05, 0.95, 0], [0.1, 0.8, 0.1]]
+    >>> sfce = keras.losses.SparseCategoricalFocalCrossentropy()
+    >>> sfce(y_true, y_pred)
+    0.23315276
+
+    Usage with the `compile()` API:
+
+    ```python
+    model.compile(
+        optimizer='adam',
+        loss=keras.losses.SparseCategoricalFocalCrossentropy(),
+    )
+    ```
+    """
+
+    def __init__(
+        self,
+        alpha=0.25,
+        gamma=2.0,
+        from_logits=False,
+        label_smoothing=0.0,
+        axis=-1,
+        reduction="sum_over_batch_size",
+        name="sparse_categorical_focal_crossentropy",
+        dtype=None,
+    ):
+        """Initializes `SparseCategoricalFocalCrossentropy` instance."""
+        super().__init__(
+            sparse_categorical_focal_crossentropy,
+            name=name,
+            reduction=reduction,
+            dtype=dtype,
+            alpha=alpha,
+            gamma=gamma,
+            from_logits=from_logits,
+            label_smoothing=label_smoothing,
+            axis=axis,
+        )
+        self.from_logits = from_logits
+        self.label_smoothing = label_smoothing
 
 
 @keras_export(
