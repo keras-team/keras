@@ -176,6 +176,7 @@ def pythonify_logs(logs):
         possible.
     """
     from keras.src import backend
+    from keras.src import ops
 
     logs = logs or {}
     result = {}
@@ -185,7 +186,7 @@ def pythonify_logs(logs):
         else:
             try:
                 # Prevent torch compiler from breaking the graph.
-                if backend.is_tensor(value):
+                if ops.is_tensor(value):
                     value = backend.convert_to_numpy(value)
                 value = float(value)
             except:

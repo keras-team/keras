@@ -9,6 +9,7 @@ from tensorflow import data as tf_data
 from keras.src import backend
 from keras.src import layers
 from keras.src import models
+from keras.src import ops
 from keras.src import saving
 from keras.src import testing
 from keras.src.ops import convert_to_tensor
@@ -67,7 +68,7 @@ class StringLookupTest(testing.TestCase):
         layer.adapt(["a", "a", "a", "b", "b", "c"])
         input_data = ["b", "c", "d"]
         output = layer(input_data)
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         self.assertAllClose(output, np.array([2, 3, 0]))
         self.assertIn("a", [str(v) for v in layer.get_vocabulary()])
 
@@ -116,7 +117,7 @@ class StringLookupTest(testing.TestCase):
         )
         input_data = ["b", "c", "d"]
         output = layer(input_data)
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         self.assertAllClose(output, np.array([2, 3, 0]))
 
     @pytest.mark.skipif(
@@ -144,7 +145,7 @@ class StringLookupTest(testing.TestCase):
         layer.set_vocabulary(["a", "b", "c"])
         input_data = ["b", "c", "d"]
         output = layer(input_data)
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         self.assertAllClose(output, np.array([2, 3, 0]))
 
     def test_tf_data_compatibility(self):

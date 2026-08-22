@@ -5,6 +5,7 @@ import types
 from functools import wraps
 
 from keras.src import backend
+from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
@@ -269,7 +270,7 @@ def inject_argument_info_in_error(e, fn, args, kwargs, object_name=None):
 
 
 def format_argument_value(value):
-    if backend.is_tensor(value):
+    if ops.is_tensor(value):
         # Simplified representation for eager / graph tensors
         # to keep messages readable
         if backend.backend() == "tensorflow":

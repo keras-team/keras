@@ -4,7 +4,7 @@ import warnings
 
 import numpy as np
 
-from keras.src import backend
+from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.callbacks.monitor_callback import MonitorCallback
 from keras.src.utils import file_utils
@@ -281,7 +281,7 @@ class ModelCheckpoint(MonitorCallback):
                 )
                 return True
             elif (
-                isinstance(current, np.ndarray) or backend.is_tensor(current)
+                isinstance(current, np.ndarray) or ops.is_tensor(current)
             ) and len(current.shape) > 0:
                 warnings.warn(
                     "Can save best model only when `monitor` is "

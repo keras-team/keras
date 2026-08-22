@@ -1,6 +1,7 @@
 import numpy as np
 
 from keras.src import backend
+from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 from keras.src.layers.preprocessing.index_lookup import listify_tensors
@@ -440,7 +441,7 @@ class TextVectorization(Layer):
             progbar.update(steps if steps is not None else i + 1, finalize=True)
         elif hasattr(data, "__iter__") and not (
             isinstance(data, (list, tuple, np.ndarray))
-            or backend.is_tensor(data)
+            or ops.is_tensor(data)
             or tf.is_tensor(data)
         ):
             progbar = Progbar(target=steps, unit_name="step")
@@ -556,7 +557,7 @@ class TextVectorization(Layer):
         """
         if isinstance(inputs, np.ndarray):
             np_inputs = inputs
-        elif backend.is_tensor(inputs):
+        elif ops.is_tensor(inputs):
             np_inputs = backend.convert_to_numpy(inputs)
         else:
             np_inputs = np.asarray(inputs)
@@ -578,7 +579,7 @@ class TextVectorization(Layer):
     def _preprocess(self, inputs):
         if not isinstance(
             inputs, (tf.Tensor, tf.RaggedTensor, np.ndarray, list, tuple)
-        ) and backend.is_tensor(inputs):
+        ) and ops.is_tensor(inputs):
             inputs = backend.convert_to_numpy(inputs)
         with tf.device("CPU:0"):
             if (

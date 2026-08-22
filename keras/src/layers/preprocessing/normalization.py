@@ -272,7 +272,7 @@ class Normalization(DataLayer):
                 mean and variance may be incorrectly computed.
         """
         data_is_iterable = False
-        if isinstance(data, np.ndarray) or backend.is_tensor(data):
+        if isinstance(data, np.ndarray) or ops.is_tensor(data):
             input_shape = data.shape
         elif isinstance(data, tf.data.Dataset):
 
@@ -339,7 +339,7 @@ class Normalization(DataLayer):
         if isinstance(data, np.ndarray):
             total_mean = np.mean(data, axis=self._reduce_axis)
             total_var = np.var(data, axis=self._reduce_axis)
-        elif backend.is_tensor(data):
+        elif ops.is_tensor(data):
             total_mean = ops.mean(data, axis=self._reduce_axis)
             total_var = ops.var(data, axis=self._reduce_axis)
         elif isinstance(data, (tf.data.Dataset, PyDataset)) or data_is_iterable:

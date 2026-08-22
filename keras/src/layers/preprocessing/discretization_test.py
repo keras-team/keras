@@ -9,6 +9,7 @@ from tensorflow import data as tf_data
 from keras.src import backend
 from keras.src import layers
 from keras.src import models
+from keras.src import ops
 from keras.src import testing
 from keras.src.saving import saving_api
 from keras.src.testing.test_utils import named_product
@@ -152,7 +153,7 @@ class DiscretizationTest(testing.TestCase):
         )
         output = layer(input_array)
         self.assertSparse(output, sparse)
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         self.assertAllClose(output, expected_output)
 
     def test_tf_data_compatibility(self):

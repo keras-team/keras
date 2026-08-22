@@ -2,6 +2,7 @@ import numpy as np
 from absl.testing import parameterized
 
 from keras.src import backend
+from keras.src import ops
 from keras.src import testing
 from keras.src.utils import numerical_utils
 
@@ -50,7 +51,7 @@ class TestNumericalUtils(testing.TestCase):
             )
         )
         one_hot = numerical_utils.to_categorical(label, NUM_CLASSES)
-        self.assertTrue(backend.is_tensor(one_hot))
+        self.assertTrue(ops.is_tensor(one_hot))
         self.assertAllClose(one_hot, expected)
 
     @parameterized.parameters([1, 2, 3])
@@ -70,7 +71,7 @@ class TestNumericalUtils(testing.TestCase):
 
         # Test backend
         out = numerical_utils.normalize(xb, axis=-1, order=order)
-        self.assertTrue(backend.is_tensor(out))
+        self.assertTrue(ops.is_tensor(out))
         self.assertAllClose(backend.convert_to_numpy(out), expected)
 
     def test_normalize_numpy_axis_zero(self):

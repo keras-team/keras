@@ -11,6 +11,7 @@ from keras.src import Sequential
 from keras.src import backend
 from keras.src import layers
 from keras.src import models
+from keras.src import ops
 from keras.src import saving
 from keras.src import testing
 
@@ -37,7 +38,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         layer.adapt(["foo bar", "bar baz", "baz bada boom"])
         input_data = [["foo qux bar"], ["qux baz"]]
         output = layer(input_data)
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         self.assertAllClose(output, np.array([[4, 1, 3, 0], [1, 2, 0, 0]]))
         self.assertIn("foo", [str(v) for v in layer.get_vocabulary()])
 
@@ -89,7 +90,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         )
         input_data = [["foo qux bar"], ["qux baz"]]
         output = layer(input_data)
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         self.assertAllClose(output, np.array([[4, 1, 3, 0], [1, 2, 0, 0]]))
 
     def test_set_vocabulary(self):
@@ -103,7 +104,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         layer.set_vocabulary(["baz", "bar", "foo"])
         input_data = [["foo qux bar"], ["qux baz"]]
         output = layer(input_data)
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         self.assertAllClose(output, np.array([[4, 1, 3, 0], [1, 2, 0, 0]]))
 
     @pytest.mark.skipif(
@@ -310,7 +311,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
             vocabulary=["hello", "world", "this", "is", "nice", "test"],
         )
         output = layer(["Hello, World!. This is just a nice test!"])
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
 
         # test output sequence length, taking first batch.
         self.assertEqual(len(output[0]), 8)
@@ -331,7 +332,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
             ],
         )
         output = layer(["Hello, World!. This is just a nice test!"])
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         self.assertEqual(len(output[0]), 8)
         """
         The input is lowercased and tokenized into words. The vocab is:
@@ -352,7 +353,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
             split="character", vocabulary=list("abcde"), output_mode="int"
         )
         output = layer(["abcf"])
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         self.assertEqual(len(output[0]), 4)
         self.assertAllClose(output, [[2, 3, 4, 1]])
 
@@ -366,7 +367,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
             output_mode="int",
         )
         output = layer(["foo|bar"])
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
 
         # after custom split, the outputted index should be the last
         # token in the vocab.
@@ -378,7 +379,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
             vocabulary=["Hello", "World", "Test"],
         )
         output = layer(["Hello, World! Test."])
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         # Case is preserved, punctuation stripped
         self.assertAllClose(output, [[2, 3, 4]])
 
@@ -389,7 +390,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         )
         # "Hello" matches, "hello" does not (case-sensitive)
         output = layer(["Hello hello"])
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         self.assertAllClose(output, [[2, 1]])
 
     def test_custom_standardize_callable(self):
@@ -402,7 +403,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
             vocabulary=["foo", "bar"],
         )
         output = layer(["foo-bar"])
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         self.assertAllClose(output, [[2, 3]])
 
     def test_python_standardize_callable_non_tf_backend(self):
@@ -433,7 +434,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         self.assertIn("hello", vocab)
         self.assertIn("world.", vocab)
         output = layer(["Hello, world."])
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
 
     def test_no_split(self):
         layer = layers.TextVectorization(
@@ -443,7 +444,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         )
         # Each element is looked up as a whole string (no splitting)
         output = layer([["foo"], ["bar"], ["unknown"]])
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         self.assertAllClose(output, [[2], [3], [1]])
 
     def test_ngrams_integer(self):
@@ -541,7 +542,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
             vocabulary=["foo", "bar", "baz"],
         )
         output = layer(["foo bar"])
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         # one_hot on a split sentence produces shape (1, num_tokens, vocab_size)
         self.assertEqual(output.shape[-1], 4)
 

@@ -6,6 +6,7 @@ from tensorflow import data as tf_data
 
 from keras.src import backend
 from keras.src import layers
+from keras.src import ops
 from keras.src import testing
 
 
@@ -30,10 +31,10 @@ class IntegerLookupTest(testing.TestCase):
         )
         layer.adapt(adapt_data)
         output = layer(single_sample_input_data)
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         self.assertAllClose(output, np.array([1, 2, 0]))
         output = layer(batch_input_data)
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         self.assertAllClose(output, np.array([[1, 2, 0], [2, 3, 0]]))
 
         # one_hot mode
@@ -42,7 +43,7 @@ class IntegerLookupTest(testing.TestCase):
         )
         layer.adapt(adapt_data)
         output = layer(single_sample_input_data)
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         self.assertAllClose(
             output, np.array([[0, 1, 0, 0], [0, 0, 1, 0], [1, 0, 0, 0]])
         )
@@ -53,7 +54,7 @@ class IntegerLookupTest(testing.TestCase):
         )
         layer.adapt(adapt_data)
         output = layer(single_sample_input_data)
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         self.assertAllClose(output, np.array([1, 1, 1, 0]))
 
         # tf_idf mode
@@ -62,7 +63,7 @@ class IntegerLookupTest(testing.TestCase):
         )
         layer.adapt(adapt_data)
         output = layer(single_sample_input_data)
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         self.assertAllClose(
             output, np.array([1.133732, 0.916291, 1.098612, 0.0])
         )
@@ -73,7 +74,7 @@ class IntegerLookupTest(testing.TestCase):
         )
         layer.adapt(adapt_data)
         output = layer([1, 2, 3, 4, 1, 2, 1])
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         self.assertAllClose(output, np.array([1, 3, 2, 1]))
 
     def test_fixed_vocabulary(self):
@@ -83,7 +84,7 @@ class IntegerLookupTest(testing.TestCase):
         )
         input_data = [2, 3, 4, 5]
         output = layer(input_data)
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         self.assertAllClose(output, np.array([2, 3, 4, 0]))
 
     def test_set_vocabulary(self):
@@ -93,7 +94,7 @@ class IntegerLookupTest(testing.TestCase):
         layer.set_vocabulary([1, 2, 3, 4])
         input_data = [2, 3, 4, 5]
         output = layer(input_data)
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         self.assertAllClose(output, np.array([2, 3, 4, 0]))
 
     def test_tf_data_compatibility(self):

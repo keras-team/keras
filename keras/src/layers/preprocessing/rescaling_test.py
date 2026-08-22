@@ -4,6 +4,7 @@ from tensorflow import data as tf_data
 
 from keras.src import backend
 from keras.src import layers
+from keras.src import ops
 from keras.src import testing
 
 
@@ -78,7 +79,7 @@ class RescalingTest(testing.TestCase):
         ds = grain.MapDataset.source(x).to_iter_dataset().batch(3).map(layer)
         output = next(iter(ds))
 
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         # Ensure the device of the data is on CPU.
         if backend.backend() == "tensorflow":
             self.assertIn("CPU", str(output.device).upper())

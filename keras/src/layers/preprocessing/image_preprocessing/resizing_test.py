@@ -7,6 +7,7 @@ from tensorflow import data as tf_data
 from keras.src import Sequential
 from keras.src import backend
 from keras.src import layers
+from keras.src import ops
 from keras.src import testing
 from keras.src.testing.test_utils import named_product
 
@@ -181,7 +182,7 @@ class ResizingTest(testing.TestCase):
         output_np = backend.convert_to_numpy(output)
 
         self.assertEqual(tuple(output_np.shape), output_shape)
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(ops.is_tensor(output))
         # Ensure the device of the data is on CPU.
         if backend.backend() == "tensorflow":
             self.assertIn("CPU", str(output.device).upper())
