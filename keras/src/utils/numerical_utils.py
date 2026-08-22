@@ -24,7 +24,7 @@ def normalize(x, axis=-1, order=2):
 
     if isinstance(x, np.ndarray):
         # NumPy input
-        norm = np.atleast_1d(np.linalg.norm(x, order, axis))
+        norm = np.asarray(np.linalg.norm(x, order, axis))
         norm[norm == 0] = 1
 
         # axis cannot be `None`
