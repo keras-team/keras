@@ -2383,12 +2383,21 @@ def sparse_categorical_crossentropy(
     if label_smoothing:
         # Smoothing the implied one-hot target splits the loss into the
         # hard-label term plus the crossentropy against a uniform target.
-        smoothing_axis = canonicalize_axis(axis, len(y_pred.shape))
-        num_classes = ops.cast(ops.shape(y_pred)[smoothing_axis], y_pred.dtype)
-        uniform = ops.divide(ops.ones_like(y_pred), num_classes)
-        uniform_res = ops.categorical_crossentropy(
-            uniform, y_pred, from_logits=from_logits, axis=axis
-        )
+        # Logits have a closed form. Probabilities go through
+        # `categorical_crossentropy`, which normalizes `y_pred` first.
+        if from_logits:
+            uniform_res = ops.subtract(
+                ops.logsumexp(y_pred, axis=axis), ops.mean(y_pred, axis=axis)
+            )
+        else:
+            smoothing_axis = canonicalize_axis(axis, len(y_pred.shape))
+            num_classes = ops.cast(
+                ops.shape(y_pred)[smoothing_axis], y_pred.dtype
+            )
+            uniform = ops.divide(ops.ones_like(y_pred), num_classes)
+            uniform_res = ops.categorical_crossentropy(
+                uniform, y_pred, from_logits=False, axis=axis
+            )
         res = ops.add(
             ops.multiply(1.0 - label_smoothing, res),
             ops.multiply(label_smoothing, uniform_res),
