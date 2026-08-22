@@ -4808,6 +4808,40 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.nextafter(x, y), np.nextafter(x, y))
         self.assertAllClose(knp.Nextafter()(x, y), np.nextafter(x, y))
 
+        # These are exact one-ulp steps, so they are compared exactly. The
+        # default tolerance would pass even if a backend returned x1 unchanged,
+        # because the values involved are far smaller than it.
+        dtypes = ["float32"]
+        # A 16-bit step is much larger than a float32 one, so computing in a
+        # wider dtype and casting back returns x1 unchanged. openvino's
+        # nextafter lacks dtype-aware ulp stepping for 16-bit floats
+        # (pre-existing; out of scope for this PR).
+        if backend.backend() != "openvino":
+            dtypes.append("float16")
+        for dtype in dtypes:
+            # Stepping away from an infinity must land on the largest finite
+            # value of the result dtype rather than staying at infinity.
+            x = np.array([np.inf, -np.inf], dtype=dtype)
+            y = np.array([-np.inf, np.inf], dtype=dtype)
+            self.assertAllClose(
+                knp.nextafter(x, y), np.nextafter(x, y), atol=0, rtol=0
+            )
+
+            # Steps near zero are smaller than one ulp of 1.0, so they are lost
+            # if the computation happens in a wider dtype and is cast back.
+            x = np.array([0.0, np.finfo(dtype).tiny], dtype=dtype)
+            y = np.array([1.0, 0.0], dtype=dtype)
+            self.assertAllClose(
+                knp.nextafter(x, y), np.nextafter(x, y), atol=0, rtol=0
+            )
+
+            # A step between ordinary values must move by exactly one ulp.
+            x = np.array([1.0, -1.0], dtype=dtype)
+            y = np.array([2.0, -2.0], dtype=dtype)
+            self.assertAllClose(
+                knp.nextafter(x, y), np.nextafter(x, y), atol=0, rtol=0
+            )
+
     def test_not_equal(self):
         x = np.array([[1, 2], [3, 4]])
         y = np.array([[5, 6], [7, 8]])
