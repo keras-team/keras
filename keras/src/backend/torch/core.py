@@ -77,7 +77,7 @@ def device_scope(device_name):
 
 
 def get_device():
-    device = global_state.get_global_attribute("torch_device", None)
+    device = getattr(global_state.GLOBAL_STATE_TRACKER, "torch_device", None)
     if device is None:
         return DEFAULT_DEVICE
     return device
@@ -195,57 +195,44 @@ class Variable(KerasVariable):
             return False
 
 
-def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
-    if sparse:
-        raise ValueError("`sparse=True` is not supported with torch backend")
-    if ragged:
-        raise ValueError("`ragged=True` is not supported with torch backend")
-    if isinstance(x, Variable) or is_tensor(x):
-        if isinstance(x, Variable):
-            x = x.value
-        device = get_device()
-        if x.device != device:
-            if x.is_meta:
-                x = torch.empty_like(x, device=device)
-            else:
-                x = x.to(device)
-        if dtype is not None:
-            x = x.to(to_torch_dtype(dtype))
-        return x
-    if isinstance(x, (bool, int, float, complex)):
-        if dtype is not None:
-            dt = to_torch_dtype(dtype)
-        elif isinstance(x, bool):
-            dt = torch.bool
-        elif isinstance(x, int):
-            dt = torch.int64 if x < -(2**31) or x >= 2**31 else torch.int32
-        elif isinstance(x, float):
-            dt = to_torch_dtype(floatx())
-        else:
-            dt = torch.complex64
-        return torch.as_tensor(x, dtype=dt, device=get_device())
-    if isinstance(x, (torch.SymInt, torch.SymFloat)):
-        # Scalar symbolic values from torch.export can't go through numpy.
-        dt = to_torch_dtype(dtype) if dtype is not None else None
-        return torch.as_tensor(x, dtype=dt, device=get_device())
+def _tensor_on_device(x, device):
+    """Return True if x already resides on the given device string.
 
+    device is an explicit string arg (e.g. "cpu", "cuda", "cuda:1"), not the
+    result of get_device(). For index-less accelerator targets ("cuda", "xpu")
+    we compare x's device index against the runtime's current device, which is
+    stricter than a plain type check (avoids wrongly matching cuda:1 to cuda:0).
+    """
+    tensor_device = x.device
+    target = torch.device(device)
+    if tensor_device.type != target.type:
+        return False
+    if target.index is not None:
+        return tensor_device.index == target.index
+    # Index-less accelerator target: a tensor on such a device implies the
+    # backend is available, so skip the is_available() guard.
+    if target.type == "cuda":
+        return tensor_device.index == torch.cuda.current_device()
+    if target.type == "xpu":
+        return tensor_device.index == torch.xpu.current_device()
+    # CPU and other index-less single-device backends: type match suffices.
+    return True
+
+
+@torch.compiler.disable()
+def _convert_numpy_or_arraylike_to_tensor(x, dtype):
+    """Convert numpy arrays or array-like objects to torch tensors.
+
+    Decorated with @torch.compiler.disable() so that dynamo never tries to
+    trace through numpy ndarray attribute access (e.g. x.dtype), which causes
+    graph breaks. All torch.Tensor / Variable / primitive fast-paths are
+    handled in convert_to_tensor before this function is called.
+    """
     # Convert to np in case of any array-like that is not list or tuple.
     # Skip scalar Python values to avoid np.array(float) -> float64, which
     # causes dtype issues during torch.export (constants are lifted before
     # the cast to the requested dtype).
-    if isinstance(x, (list, tuple)):
-        if len(x) > 0 and any(isinstance(x1, torch.Tensor) for x1 in x):
-            # Handle list or tuple of torch tensors
-            return torch.stack([convert_to_tensor(x1) for x1 in x])
-        if len(x) > 0 and any(
-            isinstance(x1, (torch.SymInt, torch.SymFloat))
-            for x1 in tree.flatten(x)
-        ):
-            # Symbolic shape values from torch.export can't go through numpy
-            # and don't have a .dtype attribute. Use torch.as_tensor directly.
-            dt = to_torch_dtype(dtype) if dtype is not None else None
-            return torch.as_tensor(x, dtype=dt, device=get_device())
-    elif not isinstance(x, (bool, int, float)):
+    if not isinstance(x, (list, tuple)):
         x = np.array(x)
     if isinstance(x, np.ndarray):
         if x.dtype == np.uint32:
@@ -262,6 +249,83 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         )
     dtype = to_torch_dtype(dtype)
     return torch.as_tensor(x, dtype=dtype, device=get_device())
+
+
+def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
+    # Ultra-fast path covering torch.Tensor and torch.nn.Parameter (the
+    # common case for weights) when no dtype conversion is needed: return
+    # the tensor as-is if it's already on the target device, otherwise move
+    # it there.
+    if (
+        isinstance(x, torch.Tensor)
+        and dtype is None
+        and not sparse
+        and not ragged
+    ):
+        device = get_device()
+        if _tensor_on_device(x, device):
+            return x
+        if x.is_meta:
+            return torch.empty_like(x, device=device)
+        return x.to(device)
+    if sparse:
+        raise ValueError("`sparse=True` is not supported with torch backend")
+    if ragged:
+        raise ValueError("`ragged=True` is not supported with torch backend")
+    if isinstance(x, Variable) or is_tensor(x):
+        if isinstance(x, Variable):
+            x = x.value
+        # Fast path when no dtype conversion is needed and the tensor is
+        # already on the correct device.
+        if dtype is None:
+            device = get_device()
+            if _tensor_on_device(x, device):
+                return x
+            if x.is_meta:
+                return torch.empty_like(x, device=device)
+            return x.to(device)
+        device = get_device()
+        if not _tensor_on_device(x, device):
+            if x.is_meta:
+                x = torch.empty_like(x, device=device)
+            else:
+                x = x.to(device)
+        x = x.to(to_torch_dtype(dtype))
+        return x
+    # Fast path for python primitives — single torch.as_tensor call.
+    if isinstance(x, (bool, int, float, complex)):
+        if dtype is not None:
+            dt = to_torch_dtype(dtype)
+        elif isinstance(x, bool):
+            dt = torch.bool
+        elif isinstance(x, int):
+            dt = torch.int64 if x < -(2**31) or x >= 2**31 else torch.int32
+        elif isinstance(x, float):
+            dt = TORCH_DTYPES[floatx()]
+        else:
+            dt = torch.complex64
+        return torch.as_tensor(x, dtype=dt, device=get_device())
+    if isinstance(x, (torch.SymInt, torch.SymFloat)):
+        # Scalar symbolic values from torch.export can't go through numpy.
+        dt = to_torch_dtype(dtype) if dtype is not None else None
+        return torch.as_tensor(x, dtype=dt, device=get_device())
+
+    # Handle torch.Tensor and SymInt elements in a list/tuple before falling
+    # through to the numpy path.
+    if isinstance(x, (list, tuple)):
+        if len(x) > 0 and any(isinstance(x1, torch.Tensor) for x1 in x):
+            # Handle list or tuple of torch tensors
+            return torch.stack([convert_to_tensor(x1) for x1 in x])
+        if len(x) > 0 and any(
+            isinstance(x1, (torch.SymInt, torch.SymFloat))
+            for x1 in tree.flatten(x)
+        ):
+            # Symbolic shape values from torch.export can't go through numpy
+            # and don't have a .dtype attribute. Use torch.as_tensor directly.
+            dt = to_torch_dtype(dtype) if dtype is not None else None
+            return torch.as_tensor(x, dtype=dt, device=get_device())
+
+    return _convert_numpy_or_arraylike_to_tensor(x, dtype)
 
 
 def convert_to_numpy(x):
@@ -640,23 +704,64 @@ def scatter_update(inputs, indices, updates, reduction=None):
     return outputs
 
 
+def _to_static_index(v):
+    """Return a Python-level slice bound for `v`, or raise `TypeError`.
+
+    The returned value is usable directly as a Python `slice` bound. Python
+    `int` and `torch.SymInt` are returned unchanged, since calling `int()` on
+    a `SymInt` would specialize a `torch.export` dynamic dimension to a
+    constant (#22998); numpy integer scalars are coerced to a Python `int`.
+
+    Floats, tensors, and any other type raise `TypeError` so the caller falls
+    through to the slow `torch.narrow` path. That avoids silently truncating a
+    float bound, and it keeps a tensor bound as a traceable value rather than
+    forcing it into a concrete `int` via `int()`, which would specialize it
+    under `torch.export`/dynamo the same way it would a `SymInt`. Falling back
+    does not by itself avoid a device-to-host sync in eager mode for a 0-d GPU
+    tensor bound, because `torch.narrow` still resolves a tensor `start` to a
+    concrete value internally.
+    """
+    if isinstance(v, (int, torch.SymInt)):
+        return v
+    if isinstance(v, np.integer):
+        return int(v)
+    raise TypeError(
+        f"slice() index element has type {type(v).__name__!r}; "
+        "using torch.narrow path"
+    )
+
+
 def slice(inputs, start_indices, shape):
     inputs = convert_to_tensor(inputs)
 
-    # Fast path: when both start_indices and shape are Python int sequences,
-    # build the slice objects directly. This avoids creating tensors from
-    # the indices, which would introduce data-dependent expressions that
-    # torch.export cannot trace.
+    if len(start_indices) != len(shape):
+        raise ValueError(
+            "Arguments `start_indices` and `shape` must have the same "
+            "length. Received: "
+            f"start_indices={start_indices} (length {len(start_indices)}), "
+            f"shape={shape} (length {len(shape)})."
+        )
+
+    # Fast path: build plain Python slice objects when every bound is a
+    # static integer. _to_static_index raises TypeError for a bound it cannot
+    # turn into one (a float, a tensor, an unsupported type), and a
+    # data-dependent symbolic shape raises RuntimeError under torch.export or
+    # dynamo tracing; either case falls through to the tensor-native slow path
+    # below. The indexing happens in the else clause rather than the try body
+    # so that a genuine indexing error surfaces to the caller instead of being
+    # mistaken for an unsupported bound and silently retried on the slow path.
     if isinstance(start_indices, (list, tuple)) and isinstance(
         shape, (list, tuple)
     ):
-        if all(
-            isinstance(s, (int, torch.SymInt)) for s in start_indices
-        ) and all(isinstance(s, (int, torch.SymInt)) for s in shape):
-            slices = [
-                builtins.slice(start_index, start_index + length)
-                for start_index, length in zip(start_indices, shape)
-            ]
+        try:
+            slices = []
+            for start_index, length in zip(start_indices, shape):
+                start = _to_static_index(start_index)
+                size = _to_static_index(length)
+                slices.append(builtins.slice(start, start + size))
+        except (TypeError, RuntimeError):
+            pass
+        else:
             return inputs[tuple(slices)]
 
     # Slow path: tensor-based slicing via torch.narrow for truly dynamic
