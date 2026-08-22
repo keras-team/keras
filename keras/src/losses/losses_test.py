@@ -1713,6 +1713,104 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
         loss = cce_obj(y_true, y_pred)
         self.assertDType(loss, "bfloat16")
 
+    def test_label_smoothing_config(self):
+        scce_obj = losses.SparseCategoricalCrossentropy(
+            label_smoothing=0.1, name="scce"
+        )
+        self.assertEqual(scce_obj.get_config()["label_smoothing"], 0.1)
+        self.run_class_serialization_test(scce_obj)
+
+    def test_label_smoothing_matches_one_hot(self):
+        # Smoothing an integer label must match `categorical_crossentropy`
+        # on the equivalent one-hot label.
+        y_true = np.array([1, 2, 0], dtype="int32")
+        logits = np.array(
+            [[0.5, 2.0, -1.0], [1.5, 0.0, 0.5], [-0.5, 1.0, 2.0]],
+            dtype="float32",
+        )
+        probs = np.exp(logits) / np.exp(logits).sum(-1, keepdims=True)
+        one_hot = np.eye(3, dtype="float32")[y_true]
+        for from_logits, y_pred in ((True, logits), (False, probs)):
+            for label_smoothing in (0.0, 0.1, 0.5, 1.0):
+                expected = losses.categorical_crossentropy(
+                    one_hot,
+                    y_pred,
+                    from_logits=from_logits,
+                    label_smoothing=label_smoothing,
+                )
+                output = losses.sparse_categorical_crossentropy(
+                    y_true,
+                    y_pred,
+                    from_logits=from_logits,
+                    label_smoothing=label_smoothing,
+                )
+                self.assertAllClose(output, expected)
+
+    def test_label_smoothing_matches_one_hot_3d(self):
+        # Same equivalence on a segmentation-shaped input.
+        y_true = np.array([[0, 2], [1, 1]], dtype="int32")
+        logits = np.array(
+            [
+                [[0.5, 2.0, -1.0], [1.5, 0.0, 0.5]],
+                [[-0.5, 1.0, 2.0], [0.2, 0.3, 0.4]],
+            ],
+            dtype="float32",
+        )
+        one_hot = np.eye(3, dtype="float32")[y_true]
+        expected = losses.categorical_crossentropy(
+            one_hot, logits, from_logits=True, label_smoothing=0.1
+        )
+        output = losses.sparse_categorical_crossentropy(
+            y_true, logits, from_logits=True, label_smoothing=0.1
+        )
+        self.assertAllClose(output, expected)
+
+    def test_label_smoothing_explicit_value(self):
+        # For label_smoothing=0.3 over 3 classes, the target is 0.8 for the
+        # true class and 0.1 for each of the other two.
+        y_true = np.array([0], dtype="int32")
+        y_pred = np.array([[0.6, 0.3, 0.1]], dtype="float32")
+        label_smoothing = 0.3
+        smooth = label_smoothing / 3.0
+        expected = -(
+            (1.0 - label_smoothing + smooth) * np.log(0.6)
+            + smooth * np.log(0.3)
+            + smooth * np.log(0.1)
+        )
+        output = losses.sparse_categorical_crossentropy(
+            y_true, y_pred, label_smoothing=label_smoothing
+        )
+        self.assertAllClose(output, [expected])
+
+    def test_label_smoothing_default_is_a_no_op(self):
+        y_true = np.array([0, 1], dtype="int32")
+        y_pred = np.array([[0.7, 0.2, 0.1], [0.2, 0.5, 0.3]], dtype="float32")
+        self.assertAllClose(
+            losses.sparse_categorical_crossentropy(y_true, y_pred),
+            losses.sparse_categorical_crossentropy(
+                y_true, y_pred, label_smoothing=0.0
+            ),
+        )
+
+    def test_label_smoothing_with_ignore_class(self):
+        y_true = np.array([0, 255, 2], dtype="int32")
+        y_pred = np.array(
+            [[0.7, 0.2, 0.1], [0.2, 0.5, 0.3], [0.1, 0.3, 0.6]],
+            dtype="float32",
+        )
+        output = losses.sparse_categorical_crossentropy(
+            y_true, y_pred, ignore_class=255, label_smoothing=0.1
+        )
+        # The reference uses an in-range label in the ignored position, since
+        # the entries are independent.
+        reference = losses.sparse_categorical_crossentropy(
+            np.array([0, 0, 2], dtype="int32"), y_pred, label_smoothing=0.1
+        )
+        self.assertAllClose(output[0], reference[0])
+        self.assertAllClose(output[2], reference[2])
+        self.assertAllClose(output[1], 0.0)
+        self.assertAllClose(backend.get_keras_mask(output), [True, False, True])
+
 
 class BinaryFocalCrossentropyTest(testing.TestCase):
     def test_config(self):
