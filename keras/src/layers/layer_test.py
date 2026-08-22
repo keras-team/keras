@@ -1114,6 +1114,22 @@ class LayerTest(testing.TestCase):
         for ref_loss, loss in zip(layer1.losses, losses):
             self.assertAllClose(loss, ref_loss)
 
+    def test_global_quantized_policy_falls_back_for_unsupported_layers(self):
+        layer = layers.LayerNormalization()
+        data = np.random.random((2, 4)).astype("float32")
+        expected = layer(data)
+
+        layer.dtype_policy = "float8_from_mixed_bfloat16"
+
+        self.assertIsNone(layer.quantization_mode)
+        self.assertAllClose(layer(data), expected, atol=1e-5)
+        outputs, _ = layer.stateless_call(
+            layer.trainable_variables,
+            layer.non_trainable_variables,
+            data,
+        )
+        self.assertAllClose(outputs, expected, atol=1e-5)
+
     def test_trainable_setting(self):
         class NonTrainableWeightsLayer(layers.Layer):
             def build(self, _):

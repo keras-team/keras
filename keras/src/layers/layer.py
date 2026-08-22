@@ -814,7 +814,14 @@ class Layer(BackendLayer, Operation):
                         "Please use the `.quantize('gptq', config=...)` method "
                         "on the layer or model instead."
                     )
-                self.quantize(policy.quantization_mode)
+                try:
+                    self.quantize(policy.quantization_mode)
+                except NotImplementedError:
+                    # A global quantized policy is also propagated to layers
+                    # that do not implement the selected quantization mode.
+                    # Keep the policy for those layers, but let them use their
+                    # regular call path instead of failing during assignment.
+                    pass
 
     @property
     def dtype(self):
@@ -846,7 +853,18 @@ class Layer(BackendLayer, Operation):
             policy = self._dtype_policy[self.path]
         else:
             policy = self._dtype_policy
-        return policy.quantization_mode
+        mode = policy.quantization_mode
+        if mode is None:
+            return None
+
+        # A policy can be propagated to containers and layers which do not
+        # implement the corresponding quantized call. In that case, report no
+        # runtime quantization so Operation.__call__ falls back to call().
+        quantized_call = getattr(type(self), f"_{mode}_call", None)
+        base_quantized_call = getattr(Layer, f"_{mode}_call", None)
+        if quantized_call is None or quantized_call is base_quantized_call:
+            return None
+        return mode
 
     @property
     def input_dtype(self):
@@ -1190,7 +1208,7 @@ class Layer(BackendLayer, Operation):
             with backend.StatelessScope(
                 state_mapping=mapping, collect_losses=return_losses
             ) as scope:
-                if self.dtype_policy.quantization_mode is not None:
+                if self.quantization_mode is not None:
                     if self._remat_mode is not None:
                         outputs = self.rematerialized_call(
                             self.quantized_call, *args, **kwargs
