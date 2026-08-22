@@ -288,7 +288,40 @@ def istft(
 
 def rsqrt(x):
     x = convert_to_tensor(x)
-    return jax.lax.rsqrt(x)
+
+    if x.dtype == jnp.float64:
+        x_bits = jax.lax.bitcast_convert_type(x, jnp.int64)
+        mantissa_bits = 52
+        bias = 1023
+    elif x.dtype == jnp.float32:
+        x_bits = jax.lax.bitcast_convert_type(x, jnp.int32)
+        mantissa_bits = 23
+        bias = 127
+    elif x.dtype == jnp.float16:
+        x_bits = jax.lax.bitcast_convert_type(x, jnp.int16)
+        mantissa_bits = 10
+        bias = 15
+    elif x.dtype == jnp.bfloat16:
+        x_bits = jax.lax.bitcast_convert_type(x, jnp.int16)
+        mantissa_bits = 7
+        bias = 127
+    else:
+        return jax.lax.rsqrt(x)
+
+    is_positive_subnormal = jnp.logical_and(
+        x_bits > 0, x_bits < (1 << mantissa_bits)
+    )
+
+    # Exponent factor: 2 ** ((bias + mantissa_bits - 1) / 2)
+    exp_factor = 2.0 ** ((bias + mantissa_bits - 1) / 2.0)
+
+    # Compute rsqrt using fraction
+    fraction = x_bits.astype(x.dtype)
+    exp_tensor = jnp.array(exp_factor, dtype=x.dtype)
+    subnormal_res = jax.lax.rsqrt(fraction) * exp_tensor
+
+    res = jax.lax.rsqrt(x)
+    return jnp.where(is_positive_subnormal, subnormal_res, res)
 
 
 def erf(x):
