@@ -4294,6 +4294,7 @@ def size(x):
         ov_opset.constant([0], Type.i64),
         keep_dims=False,
     )
+    final_size = ov_opset.convert(final_size, Type.i32)
     return OpenVINOKerasTensor(final_size.output(0))
 
 

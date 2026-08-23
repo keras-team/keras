@@ -12177,6 +12177,17 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_size(self, dtype):
+        x = knp.ones((1,), dtype=dtype)
+        expected_dtype = "int32"
+
+        self.assertEqual(standardize_dtype(knp.size(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Size().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_sort(self, dtype):
         import jax.numpy as jnp
 
