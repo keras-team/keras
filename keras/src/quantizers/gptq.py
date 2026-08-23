@@ -202,6 +202,10 @@ def gptq_quantize_matrix(
             current_block_influence = block_inv_hessian[block_idx, block_idx]
             # We divide by current_block_influence to get the
             # correct scaling of the error term.
+            current_block_influence = ops.maximum(
+                current_block_influence,
+                ops.cast(1e-12, current_block_influence.dtype),
+            )
             err = ops.divide(
                 ops.subtract(weight_column, dequantized_col),
                 current_block_influence,
