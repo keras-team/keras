@@ -4056,8 +4056,11 @@ def cov(x):
         dtype = "float64"
     x = cast(x, dtype)
 
-    # `tf.matmul` requires rank 2. A 1D input, or a single variable, yields a
-    # scalar variance, matching `np.cov`.
+    # A 0D input has no observations to vary over, as in `np.cov`.
+    if len(x.shape) == 0:
+        return tf.constant(float("nan"), dtype=x.dtype)
+
+    # `np.cov` squeezes the result when there is only one variable.
     is_scalar = len(x.shape) < 2 or x.shape[0] == 1
     if len(x.shape) == 1:
         x = tf.reshape(x, (1, -1))

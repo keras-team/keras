@@ -6080,10 +6080,15 @@ def cov(x):
         ov_type = OPENVINO_DTYPES[config.floatx()]
         x_ov = ov_opset.convert(x_ov, ov_type).output(0)
 
-    # `matmul` needs rank 2. A 1D input, or a single variable, yields a scalar
-    # variance, matching `np.cov`.
     shape = x_ov.get_partial_shape()
     rank = len(shape)
+    # A 0D input has no observations to vary over, as in `np.cov`. The constant
+    # is built as float32 because `bfloat16` rejects a Python float `nan`.
+    if rank == 0:
+        nan = ov_opset.constant(np.array(np.nan, dtype=np.float32)).output(0)
+        return OpenVINOKerasTensor(ov_opset.convert(nan, ov_type).output(0))
+
+    # `np.cov` squeezes the result when there is only one variable.
     is_scalar = rank < 2 or (shape[0].is_static and shape[0].get_length() == 1)
     if rank == 1:
         x_ov = ov_opset.reshape(

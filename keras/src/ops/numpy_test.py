@@ -1771,6 +1771,9 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.cov(x).shape, (None, None))
 
+        with self.assertRaises(ValueError):
+            knp.cov(KerasTensor((2, 3, 4)))
+
     def test_cos(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.cos(x).shape, (None, 3))
@@ -6102,6 +6105,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([1.0, 4.0, 2.0, 8.0])
         self.assertAllClose(knp.cov(x), np.cov(x))
         self.assertAllClose(knp.cov(x[None, :]), np.cov(x[None, :]))
+
+        self.assertTrue(np.isnan(backend.convert_to_numpy(knp.cov(3.0))))
+
+        with self.assertRaises(ValueError):
+            knp.cov(np.ones((2, 3, 4)))
 
     def test_cos(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])

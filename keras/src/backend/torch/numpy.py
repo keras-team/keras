@@ -2499,6 +2499,11 @@ def column_stack(xs):
 
 def cov(x):
     x = convert_to_tensor(x)
+    if len(x.shape) > 2:
+        raise ValueError(
+            "Input tensor must have at most 2 dimensions. "
+            f"Received: x.shape={tuple(x.shape)}"
+        )
 
     if standardize_dtype(x.dtype) == "bool":
         x = cast(x, config.floatx())
