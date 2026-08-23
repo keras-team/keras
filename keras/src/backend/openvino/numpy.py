@@ -6064,3 +6064,49 @@ def column_stack(xs):
     processed_elems[0] = base
 
     return OpenVINOKerasTensor(ov_opset.concat(processed_elems, 1).output(0))
+
+
+def cov(x):
+    x_ov = get_ov_output(x)
+    if len(x_ov.get_partial_shape()) > 2:
+        raise ValueError(
+            "Input tensor must have at most 2 dimensions. "
+            f"Received: x.shape={x_ov.get_partial_shape()}"
+        )
+    x_type = x_ov.get_element_type()
+    ov_type = x_type
+
+    if x_type.is_integral():
+        ov_type = OPENVINO_DTYPES[config.floatx()]
+        x_ov = ov_opset.convert(x_ov, ov_type).output(0)
+
+    # `matmul` needs rank 2. A 1D input, or a single variable, yields a scalar
+    # variance, matching `np.cov`.
+    shape = x_ov.get_partial_shape()
+    rank = len(shape)
+    is_scalar = rank < 2 or (shape[0].is_static and shape[0].get_length() == 1)
+    if rank == 1:
+        x_ov = ov_opset.reshape(
+            x_ov, ov_opset.constant([1, -1], Type.i32).output(0), False
+        ).output(0)
+
+    const_zero = ov_opset.constant(0, dtype=Type.i32).output(0)
+    const_one = ov_opset.constant(1, dtype=Type.i32).output(0)
+
+    mean = ov_opset.reduce_mean(x_ov, const_one, True).output(0)
+    x_centered = ov_opset.subtract(x_ov, mean).output(0)
+
+    x_shape = ov_opset.shape_of(x_ov, Type.i32).output(0)
+    num_samples = ov_opset.gather(x_shape, const_one, const_zero).output(0)
+    num_samples = ov_opset.convert(num_samples, ov_type).output(0)
+    ddof = ov_opset.subtract(
+        num_samples, ov_opset.constant(1, dtype=ov_type).output(0)
+    ).output(0)
+
+    result = ov_opset.matmul(x_centered, x_centered, False, True).output(0)
+    result = ov_opset.divide(result, ddof).output(0)
+    if is_scalar:
+        result = ov_opset.reshape(
+            result, ov_opset.constant([], Type.i32).output(0), False
+        ).output(0)
+    return OpenVINOKerasTensor(result)
