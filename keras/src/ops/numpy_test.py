@@ -4832,6 +4832,17 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.copysign(x, y), np.copysign(x, y))
         self.assertAllClose(knp.Copysign()(x, y), np.copysign(x, y))
 
+        # Signed zeros and infinities. `assertAllClose` cannot tell -0.0
+        # apart from 0.0, so compare the sign bits directly as well.
+        x = np.array([1.0, -1.0, 0.0, -0.0, np.inf, -np.inf], "float32")
+        y = np.array([-0.0, 0.0, -np.inf, np.inf, 1.0, -1.0], "float32")
+        expected = np.copysign(x, y)
+        self.assertAllClose(knp.copysign(x, y), expected)
+        self.assertAllEqual(
+            np.signbit(self.convert_to_numpy(knp.copysign(x, y))),
+            np.signbit(expected),
+        )
+
     def test_nextafter(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])

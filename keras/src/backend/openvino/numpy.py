@@ -1363,7 +1363,9 @@ def copysign(x1, x2):
 
     def sign_bit(x):
         # `less` alone misses -0.0, so also test the sign of 1 / x, which
-        # is -inf for -0.0 and +inf for +0.0, as `signbit` does.
+        # is -inf for -0.0 and +inf for +0.0, as `signbit` does. Neither
+        # test fires for a NaN, so a NaN counts as positive here, the same
+        # way `signbit` treats it on this backend.
         is_negative = ov_opset.less(x, zero).output(0)
         is_negative_zero = ov_opset.logical_and(
             ov_opset.equal(x, zero).output(0),
