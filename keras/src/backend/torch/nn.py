@@ -1,6 +1,5 @@
 import torch
 import torch.nn.functional as tnn
-from torch.distributed.tensor import DTensor
 
 from keras.src import backend
 from keras.src.backend.common.backend_utils import canonicalize_axis
@@ -1521,18 +1520,6 @@ def dot_product_attention(
     key = cast(key, compute_dtype)
     value = cast(value, compute_dtype)
 
-    is_dtensor = isinstance(query, DTensor)
-    if is_dtensor:
-        device_mesh = query.device_mesh
-        placements = query.placements
-        query = query.to_local()
-        key = key.to_local() if hasattr(key, "to_local") else key
-        value = value.to_local() if hasattr(value, "to_local") else value
-        if mask is not None:
-            mask = mask.to_local() if hasattr(mask, "to_local") else mask
-        if bias is not None:
-            bias = bias.to_local() if hasattr(bias, "to_local") else bias
-
     mask = mask if mask is None else convert_to_tensor(mask, dtype="bool")
     if mask is not None:
         if is_causal:
@@ -1599,12 +1586,6 @@ def dot_product_attention(
             is_causal=is_causal,
             scale=scale,
         )
-
-    if is_dtensor:
-        attention_output = DTensor.from_local(
-            attention_output, device_mesh, placements
-        )
-
     return torch.transpose(attention_output, axis1, axis0)
 
 
