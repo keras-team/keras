@@ -389,6 +389,8 @@ class TorchDistributionLibTest(testing.TestCase):
             "einsum_dense_sequence",
             {"equation": "abc,cd->abd", "output_shape": (None, 4)},
         ),
+        ("mlp", {"hidden_units": [4, 4]}),
+        ("mha", {"num_heads": 2, "key_dim": 2}),
     )
     def test_layer_dtensor_compatibility(self, layer_type, layer_kwargs):
         from keras.src import layers
@@ -412,6 +414,10 @@ class TorchDistributionLibTest(testing.TestCase):
             layer_class = layers.Flatten
         elif layer_type.startswith("einsum_dense"):
             layer_class = layers.EinsumDense
+        elif layer_type == "mlp":
+            layer_class = layers.MLP
+        elif layer_type == "mha":
+            layer_class = layers.MultiHeadAttention
 
         mesh = DeviceMesh(
             shape=(1,), axis_names=["model"], devices=self._get_mesh_devices()
@@ -446,12 +452,17 @@ class TorchDistributionLibTest(testing.TestCase):
             ):
                 input_shape = (8, 4)
                 inputs = np.random.normal(size=input_shape).astype("float32")
+            elif layer_class == layers.MultiHeadAttention:
+                input_shape = (8, 16, 4)
+                inputs = np.random.normal(size=input_shape).astype("float32")
             else:
-                input_shape = (8, 4, 4, 3)
+                input_shape = (8, 4)
                 inputs = np.random.normal(size=input_shape).astype("float32")
 
             # Forward pass
-            output = layer(inputs)
+            output = (
+                layer(inputs, inputs) if layer_type == "mha" else layer(inputs)
+            )
 
             # Check output is a DTensor
             if isinstance(output, torch.Tensor):
