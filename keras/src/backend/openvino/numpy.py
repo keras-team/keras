@@ -1347,6 +1347,36 @@ def copy(x):
     return x
 
 
+def copysign(x1, x2):
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "copysign()")
+    x1_keras = ov_to_keras_type(x1.get_element_type())
+    x2_keras = ov_to_keras_type(x2.get_element_type())
+    dtype = dtypes.result_type(x1_keras, x2_keras, float)
+    ov_dtype = OPENVINO_DTYPES[dtype]
+    x1 = ov_opset.convert(x1, ov_dtype).output(0)
+    x2 = ov_opset.convert(x2, ov_dtype).output(0)
+
+    zero = ov_opset.constant(0, ov_dtype).output(0)
+    one = ov_opset.constant(1, ov_dtype).output(0)
+
+    def sign_bit(x):
+        # `less` alone misses -0.0, so also test the sign of 1 / x, which
+        # is -inf for -0.0 and +inf for +0.0, as `signbit` does.
+        is_negative = ov_opset.less(x, zero).output(0)
+        is_negative_zero = ov_opset.logical_and(
+            ov_opset.equal(x, zero).output(0),
+            ov_opset.less(ov_opset.divide(one, x).output(0), zero).output(0),
+        ).output(0)
+        return ov_opset.logical_or(is_negative, is_negative_zero).output(0)
+
+    # Negate `x1` exactly when its sign differs from the sign of `x2`.
+    flip = ov_opset.logical_xor(sign_bit(x1), sign_bit(x2)).output(0)
+    negated = ov_opset.negative(x1).output(0)
+    return OpenVINOKerasTensor(ov_opset.select(flip, negated, x1).output(0))
+
+
 def cos(x):
     x = get_ov_output(x)
     x_type = x.get_element_type()
