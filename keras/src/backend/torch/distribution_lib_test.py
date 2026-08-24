@@ -375,3 +375,74 @@ class TorchDistributionLibTest(testing.TestCase):
             self.assertEqual(res.shape, (2, 2))
             if input_type == "dtensor":
                 self.assertIs(res, inp)
+
+    @parameterized.parameters(
+        ("dense", {"units": 4}),
+        ("conv2d", {"filters": 4, "kernel_size": 3}),
+        ("embedding", {"input_dim": 10, "output_dim": 4}),
+        ("batch_norm", {}),
+        ("layer_norm", {}),
+        ("dropout", {"rate": 0.5}),
+        ("flatten", {}),
+    )
+    def test_layer_dtensor_compatibility(self, layer_type, layer_kwargs):
+        from keras.src import layers
+        from keras.src.distribution import distribution_lib as dist_lib
+
+        self._ensure_distributed_initialized()
+
+        if layer_type == "dense":
+            layer_class = layers.Dense
+        elif layer_type == "conv2d":
+            layer_class = layers.Conv2D
+        elif layer_type == "embedding":
+            layer_class = layers.Embedding
+        elif layer_type == "batch_norm":
+            layer_class = layers.BatchNormalization
+        elif layer_type == "layer_norm":
+            layer_class = layers.LayerNormalization
+        elif layer_type == "dropout":
+            layer_class = layers.Dropout
+        elif layer_type == "flatten":
+            layer_class = layers.Flatten
+
+        mesh = DeviceMesh(
+            shape=(1,), axis_names=["model"], devices=self._get_mesh_devices()
+        )
+        layout_map = dist_lib.LayoutMap(mesh)
+        distribution = dist_lib.ModelParallel(layout_map=layout_map)
+
+        with distribution.scope():
+            layer = layer_class(**layer_kwargs)
+
+            # Build and run the layer
+            if layer_class == layers.Embedding:
+                input_shape = (8, 10)
+                inputs = np.random.randint(0, 10, size=input_shape).astype(
+                    "float32"
+                )
+            elif layer_class == layers.Dense:
+                input_shape = (8, 4)
+                inputs = np.random.normal(size=input_shape).astype("float32")
+            elif layer_class == layers.Conv2D:
+                input_shape = (8, 16, 16, 3)
+                inputs = np.random.normal(size=input_shape).astype("float32")
+            else:
+                input_shape = (8, 4, 4, 3)
+                inputs = np.random.normal(size=input_shape).astype("float32")
+
+            # Forward pass
+            output = layer(inputs)
+
+            # Check output is a DTensor
+            if isinstance(output, torch.Tensor):
+                self.assertIsInstance(output, torch_tensor.DTensor)
+
+            # Backward pass (simple gradient)
+            loss = torch.sum(output)
+            loss.backward()
+
+            # Ensure weights have gradients
+            for weight in layer.weights:
+                if weight.trainable:
+                    self.assertIsNotNone(weight.value.grad)
