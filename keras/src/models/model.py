@@ -482,7 +482,28 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         Args:
             mode: The mode of the quantization. Supported modes are:
                 `"int8"`, `"int4"`, `"float8"`, `"gptq"`, `"awq"`. This is
-                optional if `config` is provided.
+                optional if `config` is provided. Passing a bare string uses
+                the default configuration for that mode, which is identical to
+                passing the corresponding config object with default arguments
+                (e.g. `quantize("int4")` matches
+                `quantize(config=Int4QuantizationConfig())`). The activation
+                (A) times weight (W) semantics of each mode are:
+
+                -   `"int8"`: **W8A8 dynamic**. Weights and activations are both
+                    quantized to `int8` and multiplied with a real integer
+                    GEMM; activation scales are computed dynamically per call.
+                -   `"int4"`: **W4A16 weight-only**, **grouped** with
+                    `block_size=128` by default. Only weights are quantized (to
+                    4 bits, packed two per `int8` byte); this is storage-only
+                    today (weights are dequantized to float before each
+                    matmul). Pass `Int4QuantizationConfig(block_size=-1)` for
+                    per-channel.
+                -   `"float8"`: **float8 QDQ** mixed-precision training scheme
+                    (not post-training compression); weights and activations
+                    are dynamically cast to `float8` during training.
+                -   `"gptq"` / `"awq"`: 4-bit weight-only post-training
+                    quantization; requires a `GPTQConfig` / `AWQConfig` passed
+                    via `config`.
             config: The configuration object specifying additional
                 quantization options. This argument allows to configure
                 the weight and activation quantizers. be an instance of

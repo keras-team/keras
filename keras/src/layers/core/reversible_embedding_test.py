@@ -15,6 +15,7 @@ from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
 from keras.src.testing import test_case
+from keras.src.testing import test_utils
 from keras.src.testing.test_utils import named_product
 
 
@@ -204,6 +205,36 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         new_model.quantize(mode)
         new_model.load_weights(temp_filepath)
         self.assertAllClose(model.predict(x), new_model.predict(x))
+
+    @staticmethod
+    def _build_reversible_for_mode(mode, tie_weights):
+        layer = layers.ReversibleEmbedding(64, 32, tie_weights=tie_weights)
+        layer.build()
+        if mode != "none":
+            layer.quantize(mode)
+        return layer
+
+    @parameterized.named_parameters(
+        named_product(mode=("none", "int8", "int4"), tie_weights=(True, False))
+    )
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
+    def test_serialization_round_trip(self, mode, tie_weights):
+        source = self._build_reversible_for_mode(mode, tie_weights)
+        test_utils.randomize_serialized_variables(source)
+
+        store = {}
+        source.save_own_variables(store)
+        # Variables (incl. `reverse_*` for untied weights) are keyed by
+        # consecutive integer positions in the mode's serialization spec --
+        # the on-disk contract.
+        n_expected = len(test_utils.serialized_variable_names(source))
+        self.assertEqual(set(store.keys()), {str(i) for i in range(n_expected)})
+
+        target = self._build_reversible_for_mode(mode, tie_weights)
+        target.load_own_variables(store)
+        test_utils.assert_serialized_variables_equal(self, source, target)
 
     @parameterized.named_parameters(
         ("int8_tie_weights", "int8_from_mixed_bfloat16", True, 0, 2),
@@ -454,6 +485,9 @@ class ReversibleEmbeddingTest(test_case.TestCase):
 
         # Verify g_idx shape (output_dim for embedding)
         self.assertEqual(layer.g_idx.shape, (output_dim,))
+
+        # g_idx is integer group metadata stored as float32 (see build).
+        self.assertDType(layer.g_idx, "float32")
 
         # Verify g_idx values (should map each column to its group)
         expected_g_idx = np.arange(output_dim) // block_size

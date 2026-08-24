@@ -13,7 +13,9 @@ from keras.src import ops
 from keras.src import saving
 from keras.src import testing
 from keras.src.quantizers.awq import AWQ
+from keras.src.quantizers.awq import _get_weight_scale
 from keras.src.quantizers.awq import awq_quantize_matrix
+from keras.src.quantizers.awq import awq_search_best_clip
 from keras.src.quantizers.awq import awq_search_optimal_scales
 from keras.src.quantizers.awq_config import AWQConfig
 
@@ -76,6 +78,91 @@ class AWQAlgorithmTest(testing.TestCase):
         # Should handle gracefully without NaN or Inf
         self.assertFalse(ops.any(ops.isnan(scales)))
         self.assertFalse(ops.any(ops.isinf(scales)))
+
+    def test_get_weight_scale_shape_and_range(self):
+        """Weight statistic is per-in-channel and normalized to (0, 1]."""
+        weights = RNG.standard_normal((32, 64)).astype("float32")
+        for group_size in (-1, 16):
+            w_stat = _get_weight_scale(weights, group_size)
+            self.assertEqual(w_stat.shape, (64,))
+            self.assertTrue(ops.all(ops.greater(w_stat, 0)))
+            self.assertTrue(ops.all(ops.less_equal(w_stat, 1.0 + 1e-6)))
+
+    def test_search_best_clip_shapes(self):
+        """Clip search returns a per-group bound not exceeding the max."""
+        weights = RNG.standard_normal((64, 32)).astype("float32")
+        scales = ops.add(
+            ops.abs(RNG.standard_normal((32,)).astype("float32")), 0.1
+        )
+        weights_scaled = ops.multiply(weights, scales)
+        sample = RNG.standard_normal((128, 32)).astype("float32")
+
+        best_max, gs, n_group = awq_search_best_clip(
+            weights_scaled, sample, scales, group_size=8, n_grid=20
+        )
+        self.assertEqual(gs, 8)
+        self.assertEqual(n_group, 4)
+        self.assertEqual(best_max.shape, (64, 4, 1))
+        # Bound must be positive and never exceed the original per-group max.
+        w_grouped = ops.reshape(weights_scaled, (64, 4, 8))
+        org_max = ops.max(ops.abs(w_grouped), axis=-1, keepdims=True)
+        self.assertTrue(ops.all(ops.greater(best_max, 0)))
+        self.assertTrue(
+            ops.all(ops.less_equal(best_max, ops.add(org_max, 1e-6)))
+        )
+
+    def test_clip_reduces_per_group_reconstruction_error(self):
+        """Clipping must not increase the per-group output recon error.
+
+        The clip search selects, per (output channel, group), the shrink factor
+        minimizing the reconstruction error of that group's partial output
+        against the (unclipped) scaled weights. Because the search grid always
+        includes the no-shrink candidate, this error can only decrease. This
+        test measures that exact objective with vs without clipping on weights
+        with injected outliers.
+        """
+        from keras.src.quantizers.quantizers import dequantize_with_sz_map
+
+        keras.utils.set_random_seed(0)
+        out_features, in_features, group_size = 64, 128, 32
+        n_group = in_features // group_size
+
+        weights = RNG.standard_normal((out_features, in_features)).astype(
+            "float32"
+        )
+        # Inject weight outliers on a few output rows so clipping matters.
+        weights[::16] *= 6.0
+        sample = RNG.standard_normal((256, in_features)).astype("float32")
+        x_stat = ops.mean(ops.abs(sample), axis=0)
+
+        def _per_group_error(apply_clip):
+            q, sc, z, aw, gi = awq_quantize_matrix(
+                weights,
+                x_stat,
+                num_grid_points=10,
+                group_size=group_size,
+                apply_clip=apply_clip,
+                activation_sample=sample,
+            )
+            # Same FP reference for both: unclipped scaled weights.
+            w_scaled = ops.multiply(weights, aw)
+            x_scaled = ops.divide(sample, aw)
+            w_hat = dequantize_with_sz_map(q, sc, z, ops.cast(gi, "int32"))
+            xg = ops.reshape(x_scaled, (-1, n_group, group_size))
+            wg_fp = ops.reshape(w_scaled, (out_features, n_group, group_size))
+            wg_q = ops.reshape(w_hat, (out_features, n_group, group_size))
+            fp = ops.einsum("rng,ong->orn", xg, wg_fp)
+            qt = ops.einsum("rng,ong->orn", xg, wg_q)
+            return float(ops.sum(ops.square(ops.subtract(qt, fp)))), aw
+
+        err_no_clip, aw_no = _per_group_error(False)
+        err_clip, aw_clip = _per_group_error(True)
+        # Scale search is independent of clipping, so scales must match.
+        self.assertAllClose(aw_no, aw_clip, atol=1e-6)
+        # The clip search can only reduce this objective.
+        self.assertLessEqual(err_clip, err_no_clip + 1e-4)
+        # On outlier weights it should strictly help.
+        self.assertLess(err_clip, err_no_clip)
 
     def test_quantize_matrix_shapes(self):
         """Test that quantize_matrix returns correct shapes."""
@@ -281,7 +368,12 @@ class AWQLayerTest(testing.TestCase):
         )
 
     def test_awq_activation_accumulation(self):
-        """Test that activation magnitudes accumulate correctly."""
+        """Test that activation magnitudes accumulate as a running mean.
+
+        The reference AWQ statistic is the per-channel mean of |x|. The running
+        update must be equivalent to computing that mean over all rows seen so
+        far, regardless of how the rows are split into batches.
+        """
         layer = layers.Dense(32)
         layer.build(input_shape=(None, 16))
 
@@ -291,23 +383,68 @@ class AWQLayerTest(testing.TestCase):
         layer.quantize(config=config)
         awq_obj = AWQ(layer, config)
 
-        # First batch
-        batch1 = ops.abs(RNG.standard_normal((10, 16)).astype("float32"))
-        batch1_max = ops.max(batch1, axis=0)
+        # First batch.
+        batch1 = RNG.standard_normal((10, 16)).astype("float32")
         awq_obj.update_activation_magnitudes(batch1)
 
-        # Second batch with higher values in some channels
-        batch2 = ops.add(
-            ops.abs(RNG.standard_normal((10, 16)).astype("float32")), 1.0
-        )
-        batch2_max = ops.max(batch2, axis=0)
+        # Second batch with a different row count to exercise the weighting.
+        batch2 = ops.add(RNG.standard_normal((30, 16)).astype("float32"), 1.0)
         awq_obj.update_activation_magnitudes(batch2)
 
-        # Accumulated magnitudes should be element-wise max
-        expected_max = ops.maximum(batch1_max, batch2_max)
+        # Running mean must equal the mean of |x| over all rows.
+        combined = ops.concatenate([ops.abs(batch1), ops.abs(batch2)], axis=0)
+        expected_mean = ops.mean(combined, axis=0)
+        self.assertEqual(awq_obj.num_samples, 40)
         self.assertAllClose(
-            awq_obj.activation_magnitudes, expected_max, atol=1e-6
+            awq_obj.activation_magnitudes, expected_mean, atol=1e-6
         )
+
+    def test_awq_clip_sample_capture(self):
+        """Test that a bounded activation sample is stashed for clipping."""
+        from keras.src.quantizers.awq import MAX_CLIP_SAMPLE_ROWS
+
+        layer = layers.Dense(32)
+        layer.build(input_shape=(None, 16))
+
+        config = AWQConfig(
+            dataset=None, tokenizer=None, group_size=-1, num_grid_points=5
+        )
+        layer.quantize(config=config)
+        awq_obj = AWQ(layer, config)
+
+        # Feed more rows than the cap across several batches.
+        for _ in range(4):
+            batch = RNG.standard_normal((MAX_CLIP_SAMPLE_ROWS // 2, 16)).astype(
+                "float32"
+            )
+            awq_obj.update_activation_magnitudes(batch)
+
+        # The stash is bounded by MAX_CLIP_SAMPLE_ROWS.
+        self.assertEqual(awq_obj._clip_sample_rows, MAX_CLIP_SAMPLE_ROWS)
+        total_rows = int(
+            sum(int(ops.shape(s)[0]) for s in awq_obj._clip_samples)
+        )
+        self.assertEqual(total_rows, MAX_CLIP_SAMPLE_ROWS)
+
+    def test_awq_clip_disabled_skips_sample(self):
+        """Test that apply_clip=False does not stash a sample."""
+        layer = layers.Dense(32)
+        layer.build(input_shape=(None, 16))
+
+        config = AWQConfig(
+            dataset=None,
+            tokenizer=None,
+            group_size=-1,
+            num_grid_points=5,
+            apply_clip=False,
+        )
+        layer.quantize(config=config)
+        awq_obj = AWQ(layer, config)
+        awq_obj.update_activation_magnitudes(
+            RNG.standard_normal((32, 16)).astype("float32")
+        )
+        self.assertEqual(awq_obj._clip_sample_rows, 0)
+        self.assertEqual(awq_obj._clip_samples, [])
 
     def test_awq_layer_variables_created(self):
         """Test that AWQ layer variables are properly created."""
