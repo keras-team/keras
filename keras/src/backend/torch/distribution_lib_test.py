@@ -384,6 +384,11 @@ class TorchDistributionLibTest(testing.TestCase):
         ("layer_norm", {}),
         ("dropout", {"rate": 0.5}),
         ("flatten", {}),
+        ("einsum_dense", {"equation": "ab,bc->ac", "output_shape": 4}),
+        (
+            "einsum_dense_sequence",
+            {"equation": "abc,cd->abd", "output_shape": (None, 4)},
+        ),
     )
     def test_layer_dtensor_compatibility(self, layer_type, layer_kwargs):
         from keras.src import layers
@@ -405,6 +410,8 @@ class TorchDistributionLibTest(testing.TestCase):
             layer_class = layers.Dropout
         elif layer_type == "flatten":
             layer_class = layers.Flatten
+        elif layer_type.startswith("einsum_dense"):
+            layer_class = layers.EinsumDense
 
         mesh = DeviceMesh(
             shape=(1,), axis_names=["model"], devices=self._get_mesh_devices()
@@ -426,6 +433,18 @@ class TorchDistributionLibTest(testing.TestCase):
                 inputs = np.random.normal(size=input_shape).astype("float32")
             elif layer_class == layers.Conv2D:
                 input_shape = (8, 16, 16, 3)
+                inputs = np.random.normal(size=input_shape).astype("float32")
+            elif (
+                layer_class == layers.EinsumDense
+                and layer_type == "einsum_dense_sequence"
+            ):
+                input_shape = (8, 16, 4)
+                inputs = np.random.normal(size=input_shape).astype("float32")
+            elif (
+                layer_class == layers.EinsumDense
+                and layer_type == "einsum_dense"
+            ):
+                input_shape = (8, 4)
                 inputs = np.random.normal(size=input_shape).astype("float32")
             else:
                 input_shape = (8, 4, 4, 3)
