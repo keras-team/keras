@@ -193,6 +193,31 @@ def get_dataloader(
     return samples.astype(np.int32)[:, None, :]
 
 
+def _stack_calibration_batch(samples):
+    """Stacks a list of per-sample calibration activations into a single batch.
+
+    Each element may be a 2D `[sequence, features]` or 3D
+    `[1, sequence, features]` tensor. Every element is normalized to a leading
+    batch axis of size 1 and concatenated along axis 0, producing a
+    `[batch, sequence, features]` tensor that can be run through a block in a
+    single forward pass.
+
+    Args:
+        samples: List of per-sample activation tensors.
+
+    Returns:
+        A single `[batch, sequence, features]` tensor.
+    """
+    normalized = []
+    for sample in samples:
+        if ops.ndim(sample) == 2:
+            sample = ops.expand_dims(sample, axis=0)
+        normalized.append(sample)
+    if len(normalized) == 1:
+        return normalized[0]
+    return ops.concatenate(normalized, axis=0)
+
+
 def find_layers_in_block(block):
     """
     Finds all Dense and EinsumDense layers in a transformer block.
@@ -264,6 +289,13 @@ def apply_gptq_layerwise(dataloader, config, structure, filters=None):
         inputs.append(batch)
 
     num_samples = min(num_samples, len(inputs))
+    inputs = inputs[:num_samples]
+
+    # Run calibration forward passes at this batch size. Because the Hessian is
+    # accumulated over the flattened `[-1, features]` activations, batching is
+    # mathematically identical to running one sample at a time; it only reduces
+    # the number of (expensive) forward passes through each block.
+    batch_size = max(1, int(config.calibration_batch_size))
 
     progbar = keras_utils.Progbar(target=len(transformer_blocks))
 
@@ -293,11 +325,11 @@ def apply_gptq_layerwise(dataloader, config, structure, filters=None):
             }
 
             with stream_hessians(sub_layers_map, gptq_objects):
-                for sample_idx in range(num_samples):
-                    current_input = inputs[sample_idx]
-                    if len(current_input.shape) == 2:
-                        current_input = ops.expand_dims(current_input, axis=0)
-                    _ = block(current_input)
+                for start in range(0, num_samples, batch_size):
+                    batch = _stack_calibration_batch(
+                        inputs[start : start + batch_size]
+                    )
+                    _ = block(batch)
 
             for name, gptq_object in gptq_objects.items():
                 logging.info(f"Quantizing {name}...")
@@ -309,12 +341,15 @@ def apply_gptq_layerwise(dataloader, config, structure, filters=None):
         if block_idx < len(transformer_blocks) - 1:
             logging.info(f"Generating inputs for block {block_idx + 1}...")
             next_block_inputs = []
-            for sample_idx in range(num_samples):
-                current_input = inputs[sample_idx]
-                if len(current_input.shape) == 2:
-                    current_input = ops.expand_dims(current_input, axis=0)
-                output = block(current_input)[0]
-                next_block_inputs.append(output)
+            for start in range(0, num_samples, batch_size):
+                chunk = inputs[start : start + batch_size]
+                output = block(_stack_calibration_batch(chunk))
+                if isinstance(output, (list, tuple)):
+                    output = output[0]
+                # Split the batched output back into per-sample activations so
+                # the next block can be calibrated identically.
+                for sample_idx in range(len(chunk)):
+                    next_block_inputs.append(output[sample_idx])
             inputs = next_block_inputs
         progbar.update(current=block_idx + 1)
 

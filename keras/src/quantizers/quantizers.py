@@ -900,6 +900,281 @@ def unpack_int4(packed, orig_len, axis=0, dtype="int8"):
     return unpacked
 
 
+@keras_export("keras.quantizers.pack_int2")
+def pack_int2(arr, axis=0, dtype="int8"):
+    """Pack an int2 tensor into an int8 tensor with 4 values per byte.
+
+    The input values must already be int8/uint8 representing the desired int2
+    values (signed range `[-2, 1]`, or unsigned range `[0, 3]`). Packing is
+    performed along the specified axis (default is 0). Four consecutive values
+    along the packing axis are stored in a single output byte, from the least
+    significant 2-bit field to the most significant one.
+
+    This mirrors the design of `pack_int4` (padding + original-length trim),
+    but achieves a 4x rather than 2x storage reduction, which is what makes
+    2-bit storage worthwhile relative to a plain uint8 tensor.
+
+    Args:
+        arr: An `int8` or `uint8` tensor containing int2 values in the range
+            `[-2, 1]` (signed) or `[0, 3]` (unsigned).
+        axis: The axis along which to pack the tensor. Defaults to 0.
+        dtype: The data type of the input and packed tensor. Can be
+            `"int8"` or `"uint8"`. Defaults to `"int8"`.
+
+    Returns:
+        tuple: A tuple `(packed, packed_shape, orig_len)` where `packed` is
+            the packed tensor with four int2 values per byte, `packed_shape`
+            is the shape of the packed tensor, and `orig_len` is the original
+            (unpacked) length along `axis` prior to any padding that was
+            inserted to reach a multiple of four.
+
+    Example:
+
+    ```python
+    >>> import numpy as np
+    >>> from keras.quantizers import pack_int2, unpack_int2
+
+    # Example with axis=0
+    # Original array has shape (5, 2)
+    >>> original_array = np.array(
+    ...     [[-2, 1], [0, -1], [1, -2], [0, 1], [-1, 0]], dtype=np.int8
+    ... )
+
+    # Pack the array along axis 0. Since the length of axis 0 (5) is
+    # not a multiple of 4, it will be padded to a length of 8. The packed
+    # array will have a shape of (ceil(5/4), 2) = (2, 2).
+    >>> packed, packed_shape, orig_len = pack_int2(original_array, axis=0)
+    >>> print("Packed array:\n", packed)
+    Packed array:
+    [[ 18 109]
+     [  3   0]]
+
+    # Now, unpack the array back to its original form
+    >>> unpacked = unpack_int2(packed, orig_len, axis=0)
+    >>> print("Unpacked array:\n", unpacked)
+    Unpacked array:
+    [[-2  1]
+     [ 0 -1]
+     [ 1 -2]
+     [ 0  1]
+     [-1  0]]
+    >>> np.allclose(original_array, unpacked)
+    True
+
+    # Example with axis=1
+    # Original array has shape (2, 5)
+    >>> original_array = np.array(
+    ...     [[-2, 1, 0, -1, 1], [-2, 0, 1, -1, 0]], dtype=np.int8
+    ... )
+
+    # Pack along axis 1. Length of axis 1 (5) is padded to 8.
+    # The new shape is (2, ceil(5/4)) = (2, 2).
+    >>> packed, packed_shape, orig_len = pack_int2(original_array, axis=1)
+    >>> print("Packed array:\n", packed)
+    Packed array:
+    [[-58   1]
+     [-46   0]]
+
+    # Unpack the array
+    >>> unpacked = unpack_int2(packed, orig_len, axis=1)
+    >>> print("Unpacked array:\n", unpacked)
+    Unpacked array:
+    [[-2  1  0 -1  1]
+     [-2  0  1 -1  0]]
+    >>> np.allclose(original_array, unpacked)
+    True
+    ```
+    """
+    if dtype not in ("int8", "uint8"):
+        raise ValueError(
+            f"Expected dtype to be 'int8' or 'uint8', but got '{dtype}'."
+        )
+    if backend.standardize_dtype(arr.dtype) != dtype:
+        raise TypeError(
+            f"Expected {dtype} tensor for packing, got "
+            f"{backend.standardize_dtype(arr.dtype)}."
+        )
+
+    # Perform packing in numpy for the same reasons as `pack_int4`: it is only
+    # called during quantization (not inference), and numpy correctly handles
+    # int8 overflow in the bitwise shifts that some accelerators mishandle.
+    arr_np = ops.convert_to_numpy(arr)
+    np_dtype = np.dtype(dtype)
+
+    rank = len(arr_np.shape)
+    if axis < 0:
+        axis += rank
+
+    # Move the pack axis to the front for uniform handling.
+    arr_np = np.moveaxis(arr_np, axis, 0)
+
+    # Pad to a multiple of four along the front axis.
+    n = arr_np.shape[0]
+    pad = (-n) % 4
+    if pad:
+        pad_shape = (pad,) + arr_np.shape[1:]
+        arr_np = np.concatenate(
+            [arr_np, np.zeros(pad_shape, dtype=arr_np.dtype)], axis=0
+        )
+
+    # Group in quadruples and pack four 2-bit fields per byte.
+    mask = np.array(0x03, dtype=np_dtype)
+
+    def field(values, shift):
+        masked = np.bitwise_and(values.astype(np_dtype), mask)
+        return np.left_shift(masked, np.array(shift, dtype=np_dtype))
+
+    packed_np = np.bitwise_or(
+        np.bitwise_or(field(arr_np[0::4], 0), field(arr_np[1::4], 2)),
+        np.bitwise_or(field(arr_np[2::4], 4), field(arr_np[3::4], 6)),
+    )
+    packed_np = packed_np.astype(np_dtype)
+
+    # Move the pack axis back to its original position.
+    packed_np = np.moveaxis(packed_np, 0, axis)
+
+    packed = ops.convert_to_tensor(packed_np)
+    return packed, tuple(packed_np.shape), n
+
+
+@keras_export("keras.quantizers.unpack_int2")
+def unpack_int2(packed, orig_len, axis=0, dtype="int8"):
+    """Unpack a packed int2 tensor back to an int8 tensor.
+
+    This reverses `pack_int2`, restoring the original tensor whose values lie in
+    `[-2, 1]` (signed) or `[0, 3]` (unsigned) from a packed tensor where each
+    byte stores four int2 values. It restores the original axis order and
+    removes any padding that was added during packing.
+
+    Args:
+        packed: An `int8` or `uint8` tensor with four int2 values per element
+            along the specified axis.
+        orig_len: The original (unpadded) length of the packed axis. Used to
+            trim the padding inserted during packing.
+        axis: The axis along which the tensor was packed. Defaults to 0.
+        dtype: The data type of the input and unpacked tensor. Can be
+            `"int8"` or `"uint8"`. Defaults to `"int8"`.
+
+    Returns:
+        unpacked: A tensor with the same shape as the original (unpacked)
+            tensor.
+
+    Example:
+
+    ```python
+    >>> import numpy as np
+    >>> from keras.quantizers import pack_int2, unpack_int2
+
+    # Example with axis=0
+    # Original array has shape (5, 2)
+    >>> original_array = np.array(
+    ...     [[-2, 1], [0, -1], [1, -2], [0, 1], [-1, 0]], dtype=np.int8
+    ... )
+
+    # Pack the array along axis 0. Since the length of axis 0 (5) is
+    # not a multiple of 4, it will be padded to a length of 8. The packed
+    # array will have a shape of (ceil(5/4), 2) = (2, 2).
+    >>> packed, packed_shape, orig_len = pack_int2(original_array, axis=0)
+    >>> print("Packed array:\n", packed)
+    Packed array:
+    [[ 18 109]
+     [  3   0]]
+
+    # Now, unpack the array back to its original form
+    >>> unpacked = unpack_int2(packed, orig_len, axis=0)
+    >>> print("Unpacked array:\n", unpacked)
+    Unpacked array:
+    [[-2  1]
+     [ 0 -1]
+     [ 1 -2]
+     [ 0  1]
+     [-1  0]]
+    >>> np.allclose(original_array, unpacked)
+    True
+
+    # Example with axis=1
+    # Original array has shape (2, 5)
+    >>> original_array = np.array(
+    ...     [[-2, 1, 0, -1, 1], [-2, 0, 1, -1, 0]], dtype=np.int8
+    ... )
+
+    # Pack along axis 1. Length of axis 1 (5) is padded to 8.
+    # The new shape is (2, ceil(5/4)) = (2, 2).
+    >>> packed, packed_shape, orig_len = pack_int2(original_array, axis=1)
+    >>> print("Packed array:\n", packed)
+    Packed array:
+    [[-58   1]
+     [-46   0]]
+
+    # Unpack the array
+    >>> unpacked = unpack_int2(packed, orig_len, axis=1)
+    >>> print("Unpacked array:\n", unpacked)
+    Unpacked array:
+    [[-2  1  0 -1  1]
+     [-2  0  1 -1  0]]
+    >>> np.allclose(original_array, unpacked)
+    True
+    ```
+    """
+    if dtype not in ("int8", "uint8"):
+        raise ValueError(
+            f"Expected dtype to be 'int8' or 'uint8', but got '{dtype}'."
+        )
+
+    if backend.standardize_dtype(packed.dtype) not in ("int8", "uint8"):
+        raise TypeError(
+            f"Expected int8 or uint8 tensor for unpacking, got {packed.dtype}"
+        )
+
+    def to_signed(x):
+        """Converts unpacked 2-bit fields [0, 3] to signed int2 [-2, 1].
+
+        Uses the same branchless XOR approach as `unpack_int4`: (x ^ 2) - 2.
+        This maps: 0->0, 1->1, 2->-2, 3->-1.
+        """
+        dtype_x = backend.standardize_dtype(x.dtype)
+        two = ops.cast(2, dtype_x)
+        return ops.subtract(ops.bitwise_xor(x, two), two)
+
+    rank = getattr(packed.shape, "rank", None) or len(packed.shape)
+    if axis < 0:
+        axis += rank
+
+    mask = ops.array(0x03, dtype=packed.dtype)
+
+    def split_fields(x):
+        fields = [
+            ops.bitwise_and(ops.right_shift(x, shift), mask)
+            for shift in (0, 2, 4, 6)
+        ]
+        if dtype == "int8":
+            fields = [to_signed(f) for f in fields]
+        return [ops.cast(f, dtype) for f in fields]
+
+    # Fast path for axis==0 (common case in Dense layers).
+    if axis == 0 and rank == 2:
+        fields = split_fields(packed)
+        # Interleave the four fields along axis 0 and reshape.
+        stacked = ops.stack(fields, axis=1)
+        unpacked = ops.reshape(stacked, (-1,) + tuple(ops.shape(packed)[1:]))
+        return unpacked[:orig_len, ...]
+
+    # General case.
+    perm = [axis] + [i for i in range(rank) if i != axis]
+    inv_perm = [perm.index(i) for i in range(rank)]
+    transposed = ops.transpose(packed, perm)
+
+    fields = split_fields(transposed)
+
+    stacked = ops.stack(fields, axis=1)
+    unpacked = ops.reshape(stacked, (-1,) + tuple(ops.shape(transposed)[1:]))
+
+    unpacked = unpacked[:orig_len, ...]
+    unpacked = ops.transpose(unpacked, inv_perm)
+
+    return unpacked
+
+
 @keras_export("keras.quantizers.pack_ternary")
 def pack_ternary(arr, axis=0):
     """Pack a ternary tensor into a `uint8` tensor at ~1.6 bits per value.

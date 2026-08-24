@@ -66,6 +66,11 @@ class QuantizationConfig:
 class Int8QuantizationConfig(QuantizationConfig):
     """Int8 quantization config.
 
+    Scheme: **W8A8 dynamic** (`int8` weights times `int8` activations). Both
+    the weights and the activations are quantized to 8-bit integers, and the
+    matmul runs as a real integer GEMM. Activation scales are computed
+    dynamically at run time (per call), so no calibration data is required.
+
     Args:
         weight_quantizer: Quantizer for weights.
         activation_quantizer: Quantizer for activations. If "default", uses
@@ -95,15 +100,27 @@ class Int8QuantizationConfig(QuantizationConfig):
 class Int4QuantizationConfig(QuantizationConfig):
     """Int4 quantization config.
 
+    Scheme: **W4A16 weight-only** (`int4` weights times `float16`/high-precision
+    activations). Only the weights are quantized to 4 bits (packed two per
+    `int8` byte); activations stay in the compute dtype. This is
+    **storage-only** today: the packed weights are dequantized back to float
+    before every matmul, so it reduces the model's memory footprint but does
+    not (yet) run a 4-bit GEMM. By default the weights use **grouped**
+    (sub-channel) quantization with a group size of 128 along the input
+    dimension, which is more accurate than per-channel at scale. Pass
+    `block_size=-1` (or `None`) for the per-channel escape hatch.
+
     Args:
         weight_quantizer: Quantizer for weights.
         activation_quantizer: Quantizer for activations. If "default", uses
-            AbsMaxQuantizer with axis=-1.
+            weight-only quantization (activations are left unquantized).
         block_size: Size of groups along the input dimension for sub-channel
             quantization. If a positive integer, uses sub-channel quantization
             with `ceil(input_dim / block_size)` groups. If `None` or `-1`,
             uses per-channel quantization (one scale per output channel).
-            Default: `128` (sub-channel with 128-element groups).
+            Default: `128` (sub-channel with 128-element groups). This default
+            is identical to what the bare string shortcut `quantize("int4")`
+            resolves to.
     """
 
     def __init__(
@@ -184,6 +201,12 @@ class Int4QuantizationConfig(QuantizationConfig):
 @keras_export("keras.quantizers.Float8QuantizationConfig")
 class Float8QuantizationConfig(QuantizationConfig):
     """FP8 quantization config.
+
+    Scheme: **float8 QDQ** (quantize-dequantize) mixed-precision *training*.
+    Unlike the int8/int4 schemes, this is not a post-training weight
+    compression: both weights and activations are dynamically cast to `float8`
+    with maintained amax histories, and the forward/backward passes simulate
+    fp8 arithmetic to keep training numerically faithful.
 
     FP8 mixed-precision training does not support user defined quantizers.
     This config is only used to indicate that FP8 mixed-precision training

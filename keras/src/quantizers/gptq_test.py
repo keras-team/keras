@@ -21,6 +21,7 @@ from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
 from keras.src.quantizers.quantizers import quantize_with_zero_point
+from keras.src.quantizers.quantizers import unpack_int2
 from keras.src.testing.test_utils import named_product
 
 VOCAB_SIZE = 1000
@@ -140,6 +141,103 @@ class GPTQTest(testing.TestCase):
         dense_gptq.free()
         self.assertIsNone(getattr(dense_gptq, "hessian", None))
         self.assertIsNone(getattr(dense_gptq, "layer", None))
+
+    def _calibrate_gptq_dense(self, kernel_shape, weight_bits, group_size):
+        rng = np.random.default_rng(seed=7)
+        dense = _get_test_layer("Dense", kernel_shape=kernel_shape)
+        config = GPTQConfig(
+            dataset=None,
+            tokenizer=None,
+            weight_bits=weight_bits,
+            symmetric=False,
+            group_size=group_size,
+        )
+        dense.quantize("gptq", config=config)
+        gptq = GPTQ(dense, config)
+        gptq.update_hessian_with_batch(
+            rng.standard_normal((128, kernel_shape[0])).astype("float32")
+        )
+        gptq.quantize_and_correct_layer()
+        return dense
+
+    def test_gptq_2bit_packing_end_to_end(self):
+        """2-bit GPTQ packs four values per byte and round-trips through
+        `load_own_variables`, including legacy unpacked checkpoints."""
+        in_dim, out_dim, group_size = 64, 32, 32
+        dense = self._calibrate_gptq_dense((in_dim, out_dim), 2, group_size)
+
+        # The quantized kernel packs four 2-bit values per byte along the
+        # output axis: shape (ceil(out/4), in), dtype uint8.
+        packed_rows = (out_dim + 3) // 4
+        self.assertEqual(
+            tuple(dense.quantized_kernel.shape), (packed_rows, in_dim)
+        )
+        self.assertEqual(
+            backend.standardize_dtype(dense.quantized_kernel.dtype), "uint8"
+        )
+        self.assertEqual(
+            backend.standardize_dtype(dense.g_idx.dtype), "float32"
+        )
+
+        rng = np.random.default_rng(seed=123)
+        x = rng.standard_normal((4, in_dim)).astype("float32")
+        y_ref = ops.convert_to_numpy(dense(x))
+        self.assertTrue(np.isfinite(y_ref).all())
+
+        # Storage: the packed kernel is a quarter of the unpacked byte count.
+        packed_bytes = int(np.prod(dense.quantized_kernel.shape))
+        unpacked_bytes = out_dim * in_dim
+        self.assertEqual(packed_bytes * 4, unpacked_bytes)
+
+        # Rebuild the serialized store (gptq spec order) and reload it into a
+        # fresh layer. `save_own_variables` is not used because the GPTQ save
+        # path has a separate, pre-existing limitation around kernel_zero.
+        store = {
+            "0": ops.convert_to_numpy(dense.bias),
+            "1": ops.convert_to_numpy(dense.quantized_kernel),
+            "2": ops.convert_to_numpy(dense.kernel_scale),
+            "3": ops.convert_to_numpy(dense.kernel_zero),
+            "4": ops.convert_to_numpy(dense.g_idx),
+        }
+        reloaded = layers.Dense(
+            units=out_dim, dtype=f"gptq/2/{group_size}_from_float32"
+        )
+        reloaded.build((None, in_dim))
+        reloaded.load_own_variables(store)
+        self.assertEqual(
+            tuple(reloaded.quantized_kernel.shape), (packed_rows, in_dim)
+        )
+        self.assertAllClose(reloaded(x), y_ref)
+
+        # Backward compat: a legacy checkpoint stored the 2-bit kernel unpacked
+        # (one value per byte, shape (out, in)). It must load and be re-packed
+        # transparently to the compact layout.
+        legacy = dict(store)
+        legacy["1"] = ops.convert_to_numpy(
+            unpack_int2(store["1"], out_dim, axis=0, dtype="uint8")
+        ).astype("uint8")
+        self.assertEqual(legacy["1"].shape, (out_dim, in_dim))
+        legacy_layer = layers.Dense(
+            units=out_dim, dtype=f"gptq/2/{group_size}_from_float32"
+        )
+        legacy_layer.build((None, in_dim))
+        legacy_layer.load_own_variables(legacy)
+        self.assertEqual(
+            tuple(legacy_layer.quantized_kernel.shape), (packed_rows, in_dim)
+        )
+        # Re-packed kernel matches the natively packed one, bit for bit.
+        self.assertAllClose(
+            legacy_layer.quantized_kernel, dense.quantized_kernel
+        )
+        self.assertAllClose(legacy_layer(x), y_ref)
+
+    def test_gptq_2bit_storage_reduction_256(self):
+        """A 256x256 kernel packs from 65536 to 16384 bytes at 2-bit."""
+        dense = self._calibrate_gptq_dense((256, 256), 2, 128)
+        self.assertEqual(tuple(dense.quantized_kernel.shape), (64, 256))
+        packed_bytes = int(np.prod(dense.quantized_kernel.shape))
+        self.assertEqual(packed_bytes, 16384)
+        self.assertEqual(256 * 256, 65536)  # unpacked one value per byte
 
     def test_unsupported_layer_error(self):
         unsupported_layer = _get_test_layer("Unsupported", kernel_shape=None)
@@ -291,7 +389,7 @@ class GPTQTest(testing.TestCase):
 
         self.assertAllClose(g1.hessian, g2.hessian, rtol=1e-6, atol=1e-6)
 
-    def test_identity_inv_hessian_matches_direct_quantization(self):
+    def test_identity_hessian_matches_direct_quantization(self):
         """Tests that the matrix quantization without error correction
         matches the direct implementation."""
         in_features, out_features = 16, 8
@@ -303,14 +401,14 @@ class GPTQTest(testing.TestCase):
         )
         weights_transpose = ops.transpose(weights)
 
-        # inverse_hessian = identity; no cross-feature correction
-        # (since all off-diagonal elements are zero), which means
-        # there is no interaction between different features
-        inverse_hessian = ops.eye(in_features, dtype="float32")
+        # hessian = identity => inverse Hessian is identity; no cross-feature
+        # correction (since all off-diagonal elements are zero), which means
+        # there is no interaction between different features.
+        hessian = ops.eye(in_features, dtype="float32")
 
         quantized_weights, scale_map, zero_map, g_idx = gptq_quantize_matrix(
             weights_transpose,
-            inverse_hessian,
+            hessian,
             blocksize=128,
             group_size=1,  # per-column quantization
             activation_order=False,

@@ -39,11 +39,13 @@ from keras.src.quantizers.quantizers import (
 from keras.src.quantizers.quantizers import (
     fake_quant_with_min_max_vars as fake_quant_with_min_max_vars,
 )
+from keras.src.quantizers.quantizers import pack_int2 as pack_int2
 from keras.src.quantizers.quantizers import pack_int4 as pack_int4
 from keras.src.quantizers.quantizers import pack_ternary as pack_ternary
 from keras.src.quantizers.quantizers import (
     quantize_and_dequantize as quantize_and_dequantize,
 )
+from keras.src.quantizers.quantizers import unpack_int2 as unpack_int2
 from keras.src.quantizers.quantizers import unpack_int4 as unpack_int4
 from keras.src.quantizers.quantizers import unpack_ternary as unpack_ternary
 from keras.src.quantizers.report import QuantizationReport as QuantizationReport
