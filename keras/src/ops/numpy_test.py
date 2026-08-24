@@ -121,6 +121,11 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((3, None, 4, 5))
         self.assertEqual(knp.matmul(x, y).shape, (3, None, 3, 5))
 
+    def test_float_power(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
+        self.assertEqual(knp.float_power(x, y).shape, (2, 3))
+
     def test_power(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
@@ -749,6 +754,15 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         result = knp.matmul(x, y)
         self.assertEqual(result.shape, (2, 2))
         self.assertTrue(result.sparse)
+
+    def test_float_power(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.float_power(x, y).shape, (2, 3))
+
+        x = KerasTensor((2, 3))
+        y = KerasTensor((1, 3))
+        self.assertEqual(knp.float_power(x, y).shape, (2, 3))
 
     def test_power(self):
         x = KerasTensor((2, 3))
@@ -3647,6 +3661,17 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             tpu_rtol=tpu_atol,
         )
         self.assertSparse(knp.matmul(x, y), x_sparse and y_sparse)
+
+    def test_float_power(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [3, 2, 1]])
+        self.assertAllClose(knp.float_power(x, y), np.float_power(x, y))
+        self.assertAllClose(knp.FloatPower()(x, y), np.float_power(x, y))
+
+        # Negative exponents, which integer `power` cannot represent.
+        y = np.array([[-1, -2, -3], [-1, -2, -3]])
+        self.assertAllClose(knp.float_power(x, y), np.float_power(x, y))
+        self.assertAllClose(knp.FloatPower()(x, y), np.float_power(x, y))
 
     def test_power(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -11992,6 +12017,31 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Percentile().symbolic_call(x, 50).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(
+            dtypes=list(itertools.product(BINARY_DTYPES, BINARY_DTYPES))
+        )
+    )
+    def test_float_power(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(
+            jnp.float_power(x1_jax, x2_jax).dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(knp.float_power(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.FloatPower().symbolic_call(x1, x2).dtype),
             expected_dtype,
         )
 
