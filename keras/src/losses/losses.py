@@ -2184,6 +2184,15 @@ def categorical_crossentropy(
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
 
+    if (
+        isinstance(label_smoothing, (int, float))
+        and not 0 <= label_smoothing <= 1
+    ):
+        raise ValueError(
+            "`label_smoothing` must be in the range [0, 1]. "
+            f"Received: label_smoothing={label_smoothing}"
+        )
+
     if y_pred.shape is not None:
         axis = canonicalize_axis(axis, len(y_pred.shape))
         if y_pred.shape[axis] == 1:
@@ -2410,6 +2419,15 @@ def binary_crossentropy(
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
+
+    if (
+        isinstance(label_smoothing, (int, float))
+        and not 0 <= label_smoothing <= 1
+    ):
+        raise ValueError(
+            "`label_smoothing` must be in the range [0, 1]. "
+            f"Received: label_smoothing={label_smoothing}"
+        )
 
     if label_smoothing:
         y_true = y_true * (1.0 - label_smoothing) + 0.5 * label_smoothing
