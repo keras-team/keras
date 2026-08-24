@@ -2853,11 +2853,11 @@ class NNOpsCorrectnessTest(testing.TestCase):
         import os
 
         import torch
+        from torch.distributed.device_mesh import DeviceMesh as TorchDeviceMesh
+        from torch.distributed.tensor import DTensor
+        from torch.distributed.tensor import Replicate
 
         from keras.src.backend.torch import distribution_lib as torch_dist_lib
-        from keras.src.backend.torch.core import DTensor
-        from keras.src.backend.torch.core import Replicate
-        from keras.src.backend.torch.distribution_lib import TorchDeviceMesh
 
         old_addr = os.environ.get("MASTER_ADDR")
         old_port = os.environ.get("MASTER_PORT")
@@ -2868,11 +2868,12 @@ class NNOpsCorrectnessTest(testing.TestCase):
             if not torch.distributed.is_initialized():
                 torch_dist_lib.initialize(num_processes=1, process_id=0)
 
-            mesh = TorchDeviceMesh("cpu", np.array([0]))
+            mesh_device = "cpu"
+            mesh = TorchDeviceMesh(mesh_device, np.array([0]))
             B, T, S, N, H = 2, 4, 4, 2, 8
-            query_local = torch.rand((B, T, N, H))
-            key_local = torch.rand((B, S, N, H))
-            value_local = torch.rand((B, S, N, H))
+            query_local = torch.rand((B, T, N, H), device=mesh_device)
+            key_local = torch.rand((B, S, N, H), device=mesh_device)
+            value_local = torch.rand((B, S, N, H), device=mesh_device)
 
             query = DTensor.from_local(query_local, mesh, [Replicate()])
             key = DTensor.from_local(key_local, mesh, [Replicate()])
@@ -2882,7 +2883,9 @@ class NNOpsCorrectnessTest(testing.TestCase):
             self.assertIsInstance(result, DTensor)
             self.assertEqual(result.shape, (B, T, N, H))
 
-            mask_local = torch.tril(torch.ones((B, N, T, S), dtype=torch.bool))
+            mask_local = torch.tril(
+                torch.ones((B, N, T, S), dtype=torch.bool, device=mesh_device)
+            )
             mask = DTensor.from_local(mask_local, mesh, [Replicate()])
 
             result_mask = knn.dot_product_attention(

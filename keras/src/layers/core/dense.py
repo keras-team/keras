@@ -186,8 +186,8 @@ class Dense(Layer):
             return quantizers.unpack_ternary(
                 self._packed_kernel, self._orig_input_dim, axis=0
             )
-        if is_gptq and gptq_calibrated and gptq_bits != 4:
-            # calibrated GPTQ, not 4-bit, no unpacking needed
+        if is_gptq and gptq_calibrated and gptq_bits not in (2, 4):
+            # calibrated GPTQ, not a packed bit-width, no unpacking needed
             kernel = self.quantized_kernel
         else:
             # Start with the stored kernel
@@ -201,6 +201,13 @@ class Dense(Layer):
                 )
             elif is_gptq and gptq_calibrated and gptq_bits == 4:
                 kernel = quantizers.unpack_int4(
+                    self.quantized_kernel,
+                    orig_len=self.units,
+                    axis=0,
+                    dtype="uint8",
+                )
+            elif is_gptq and gptq_calibrated and gptq_bits == 2:
+                kernel = quantizers.unpack_int2(
                     self.quantized_kernel,
                     orig_len=self.units,
                     axis=0,
@@ -335,13 +342,17 @@ class Dense(Layer):
         kernel_value, merged_kernel_scale, merged_kernel_zero = (
             self._get_kernel_with_merged_lora()
         )
+        # Variables are stored under their integer position ("0", "1", ...)
+        # within the mode's serialization spec. Each branch picks the value
+        # for the current spec entry (or skips it); the write happens at a
+        # single point so save and load stay position-consistent.
         idx = 0
         for name in self.variable_serialization_spec[mode]:
             if name == "kernel":
                 if mode == "ternary":
-                    store[str(idx)] = self._packed_kernel
+                    value = self._packed_kernel
                 else:
-                    store[str(idx)] = kernel_value
+                    value = kernel_value
             elif name == "bias" and self.bias is None:
                 continue
             elif name == "kernel_zero" and mode == "int4":
@@ -350,18 +361,19 @@ class Dense(Layer):
                 # sub-channel quantization.
                 if merged_kernel_zero is None:
                     continue
-                store[str(idx)] = merged_kernel_zero
+                value = merged_kernel_zero
             elif name == "g_idx":
                 if not hasattr(self, "g_idx"):
                     # g_idx only exists for sub-channel int4 quantization
                     continue
-                store[str(idx)] = self.g_idx
+                value = self.g_idx
             elif name == "kernel_scale" and mode in ("int4", "int8"):
                 # For int4/int8, the merged LoRA scale (if any) comes from
                 # `_get_kernel_with_merged_lora()`
-                store[str(idx)] = merged_kernel_scale
+                value = merged_kernel_scale
             else:
-                store[str(idx)] = getattr(self, name)
+                value = getattr(self, name)
+            store[str(idx)] = value
             idx += 1
 
     def load_own_variables(self, store):
@@ -378,27 +390,63 @@ class Dense(Layer):
         self.is_gptq_calibrated = mode == "gptq"
         self.is_awq_calibrated = mode == "awq"
 
+        spec = self.variable_serialization_spec[mode]
+        # Variables are keyed by their integer position ("0", "1", ...) within
+        # the mode's serialization spec. Each branch picks the target variable
+        # for the current spec entry (or skips it); the assign happens at a
+        # single point so save and load stay position-consistent.
         idx = 0
-        for name in self.variable_serialization_spec[mode]:
+        for name in spec:
+            key = str(idx)
             if name == "kernel":
-                if mode == "ternary":
-                    self._packed_kernel.assign(store[str(idx)])
-                else:
-                    self._kernel.assign(store[str(idx)])
+                target = (
+                    self._packed_kernel if mode == "ternary" else self._kernel
+                )
             elif name == "bias" and self.bias is None:
                 continue
             elif name == "kernel_zero" and not hasattr(self, "kernel_zero"):
                 # kernel_zero only exists for sub-channel int4 quantization
                 continue
-            elif name == "g_idx" and not hasattr(self, "g_idx"):
-                # g_idx only exists for sub-channel int4 quantization
+            elif name == "g_idx":
+                if not hasattr(self, "g_idx"):
+                    # g_idx only exists for sub-channel int4 quantization
+                    continue
+                # `g_idx` is stored as `float32` (see build). Cast to the
+                # variable dtype on assign so both legacy `float32`
+                # checkpoints and any `int32`-saved ones load correctly.
+                self.g_idx.assign(ops.cast(store[key], self.g_idx.dtype))
+                idx += 1
+                continue
+            elif name == "quantized_kernel" and mode == "gptq":
+                # Handles legacy unpacked 2-bit layouts.
+                self._assign_gptq_quantized_kernel(store[key])
+                idx += 1
                 continue
             else:
-                getattr(self, name).assign(store[str(idx)])
+                target = getattr(self, name)
+            target.assign(store[key])
             idx += 1
         if self.lora_enabled:
             self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))
             self.lora_kernel_b.assign(ops.zeros(self.lora_kernel_b.shape))
+
+    def _assign_gptq_quantized_kernel(self, value):
+        """Assigns a stored GPTQ quantized kernel, handling legacy layouts.
+
+        Older checkpoints stored 2-bit GPTQ kernels unpacked (one value per
+        uint8 byte). Current checkpoints pack four 2-bit values per byte. When
+        a legacy unpacked 2-bit store is detected by shape, it is packed on load
+        so the inference path can always unpack a packed kernel.
+        """
+        from keras.src.quantizers import gptq_core
+
+        if gptq_core.get_weight_bits_for_layer(
+            self, config=None
+        ) == 2 and tuple(value.shape) != tuple(self.quantized_kernel.shape):
+            value, _, _ = quantizers.pack_int2(
+                ops.cast(value, "uint8"), axis=0, dtype="uint8"
+            )
+        self.quantized_kernel.assign(value)
 
     def get_config(self):
         base_config = super().get_config()
@@ -562,10 +610,14 @@ class Dense(Layer):
         self.kernel_shape = kernel_shape
 
         weight_bits = gptq_core.get_weight_bits_for_layer(self, config)
-        # For 4-bit weights, we pack two values per byte.
-        units = (
-            (kernel_shape[1] + 1) // 2 if weight_bits == 4 else kernel_shape[1]
-        )
+        # 4-bit weights pack two values per byte; 2-bit weights pack four.
+        # Other bit-widths (e.g. 3, 8) are stored one value per byte.
+        if weight_bits == 4:
+            units = (kernel_shape[1] + 1) // 2
+        elif weight_bits == 2:
+            units = (kernel_shape[1] + 3) // 4
+        else:
+            units = kernel_shape[1]
 
         self.quantized_kernel = self.add_weight(
             name="kernel",
@@ -594,6 +646,9 @@ class Dense(Layer):
             dtype="uint8",
             trainable=False,
         )
+        # `g_idx` is stored as `float32` because TF has no GPU kernel for
+        # int32 resource variables (would pin the variable to CPU and break
+        # jit_compile on GPU); consumers cast to int32 on-device.
         self.g_idx = self.add_weight(
             name="g_idx",
             shape=(self.kernel_shape[0],),
@@ -608,19 +663,23 @@ class Dense(Layer):
         if not self.is_gptq_calibrated:
             W = self._kernel
         else:
-            should_unpack = (
-                gptq_core.get_weight_bits_for_layer(self, config=None) == 4
-            )
-            W = (
-                quantizers.unpack_int4(
+            weight_bits = gptq_core.get_weight_bits_for_layer(self, config=None)
+            if weight_bits == 4:
+                W = quantizers.unpack_int4(
                     self.quantized_kernel,
                     orig_len=self.units,
                     axis=0,
                     dtype="uint8",
                 )
-                if should_unpack
-                else self.quantized_kernel
-            )
+            elif weight_bits == 2:
+                W = quantizers.unpack_int2(
+                    self.quantized_kernel,
+                    orig_len=self.units,
+                    axis=0,
+                    dtype="uint8",
+                )
+            else:
+                W = self.quantized_kernel
             W = ops.transpose(
                 dequantize_with_sz_map(
                     W,
@@ -686,6 +745,9 @@ class Dense(Layer):
             initializer="ones",
             trainable=False,
         )
+        # `g_idx` is stored as `float32` because TF has no GPU kernel for
+        # int32 resource variables (would pin the variable to CPU and break
+        # jit_compile on GPU); consumers cast to int32 on-device.
         self.g_idx = self.add_weight(
             name="g_idx",
             shape=(kernel_shape[0],),
@@ -815,6 +877,9 @@ class Dense(Layer):
                 dtype="int8",
                 trainable=False,
             )
+            # `g_idx` is stored as `float32` because TF has no GPU kernel for
+            # int32 resource variables (would pin the variable to CPU and
+            # break jit_compile on GPU); consumers cast to int32 on-device.
             self.g_idx = self.add_weight(
                 name="g_idx",
                 shape=(input_dim,),
@@ -1160,13 +1225,16 @@ class Dense(Layer):
             self._kernel.assign(kernel_value)
             self.kernel_scale.assign(kernel_scale)
         elif mode == "int4":
-            from keras.src.quantizers.quantization_config import (
-                Int4QuantizationConfig,
-            )
-
-            block_size = None
-            if isinstance(self.quantization_config, Int4QuantizationConfig):
-                block_size = self.quantization_config.block_size
+            # Resolve the group size from the (already-resolved) config or the
+            # layer's dtype policy. `get_block_size_for_layer` is the single
+            # source of truth shared with `_int4_build` and the dtype-policy
+            # naming below, so the quantized values, the built variables, and
+            # the saved policy string can never disagree. A bare
+            # `quantize("int4")` reaches here with the canonical
+            # `Int4QuantizationConfig()` (grouped, block_size=128); a
+            # `block_size` of `None` or `-1` selects the per-channel escape
+            # hatch.
+            block_size = get_block_size_for_layer(self, config)
 
             if block_size is None or block_size == -1:
                 # Per-channel quantization

@@ -321,14 +321,21 @@ class Int4DTypePolicy(QuantizedDTypePolicy):
                 f"{expected_format}, but got '{mode}'."
             )
 
-        # Validate and cast block_size
-        try:
-            block_size = int(parts[1])
-        except ValueError:
-            raise ValueError(
-                "Invalid mode for Int4DTypePolicy. <block_size> must be an "
-                f"integer. Expected format {expected_format}, but got '{mode}'."
-            )
+        # Validate and cast block_size. Older checkpoints encoded per-channel
+        # int4 as the literal "None" in the policy string (e.g.
+        # "int4/None_from_float32"); normalize it to -1 so those checkpoints
+        # still deserialize. Both "None" and -1 mean per-channel quantization.
+        if parts[1] == "None":
+            block_size = -1
+        else:
+            try:
+                block_size = int(parts[1])
+            except ValueError:
+                raise ValueError(
+                    "Invalid mode for Int4DTypePolicy. <block_size> must be "
+                    "an integer. Expected format "
+                    f"{expected_format}, but got '{mode}'."
+                )
 
         # Validate supported values
         if block_size < -1 or block_size == 0:
@@ -344,7 +351,9 @@ class Int4DTypePolicy(QuantizedDTypePolicy):
             source_name=source_name,
         )
 
-        self._name = f"{mode}_from_{source_name}"
+        # Use the normalized block_size so a loaded "int4/None" policy reports
+        # the canonical "int4/-1" name (identical for all other block sizes).
+        self._name = f"{base_mode}/{block_size}_from_{self._source_name}"
         self.mode = base_mode
         self.block_size = block_size
 

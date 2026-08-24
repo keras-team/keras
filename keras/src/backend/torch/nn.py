@@ -1521,6 +1521,18 @@ def dot_product_attention(
     key = cast(key, compute_dtype)
     value = cast(value, compute_dtype)
 
+    is_dtensor = isinstance(query, DTensor)
+    if is_dtensor:
+        device_mesh = query.device_mesh
+        placements = query.placements
+        query = query.to_local()
+        key = key.to_local() if hasattr(key, "to_local") else key
+        value = value.to_local() if hasattr(value, "to_local") else value
+        if mask is not None:
+            mask = mask.to_local() if hasattr(mask, "to_local") else mask
+        if bias is not None:
+            bias = bias.to_local() if hasattr(bias, "to_local") else bias
+
     mask = mask if mask is None else convert_to_tensor(mask, dtype="bool")
     if mask is not None:
         if is_causal:
@@ -1553,16 +1565,6 @@ def dot_product_attention(
         groups = num_query_heads // num_kv_heads
         key = torch.repeat_interleave(key, repeats=groups, dim=1)
         value = torch.repeat_interleave(value, repeats=groups, dim=1)
-
-    is_dtensor = isinstance(query, DTensor)
-    if is_dtensor:
-        device_mesh = query.device_mesh
-        placements = query.placements
-        query = query.to_local()
-        key = key.to_local() if hasattr(key, "to_local") else key
-        value = value.to_local() if hasattr(value, "to_local") else value
-        if mask is not None:
-            mask = mask.to_local() if hasattr(mask, "to_local") else mask
 
     if flash_attention is None:
         flash_attention = _can_use_flash_attention(
