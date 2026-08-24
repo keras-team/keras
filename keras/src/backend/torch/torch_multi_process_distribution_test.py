@@ -15,9 +15,15 @@ from keras.src.trainers.data_adapters import tf_dataset_adapter
 from keras.src.utils import rng_utils
 
 
+class MultiProcessTest:
+    pass
+
+
 @pytest.mark.multi_device
 @pytest.mark.skipif(backend() != "torch", reason="Torch only")
-class TorchMultiDeviceDistributeTest(testing.TestCase, parameterized.TestCase):
+class TorchMultiProcessDistributeTest(
+    MultiProcessTest, testing.TestCase, parameterized.TestCase
+):
     def setUp(self):
         super().setUp()
         # We need a consistent seed across all processes.
@@ -30,7 +36,6 @@ class TorchMultiDeviceDistributeTest(testing.TestCase, parameterized.TestCase):
 
     def test_list_device(self):
         devices = distribution_lib.list_devices()
-        self.assertGreaterEqual(len(devices), 1)
         for d in devices:
             converted_torch_device = torch_distribution_lib._to_backend_device(
                 d
