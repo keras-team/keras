@@ -2851,6 +2851,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
     @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only")
     def test_dot_product_attention_dtensor(self):
         import os
+        import socket
 
         import torch
         from torch.distributed.device_mesh import DeviceMesh as TorchDeviceMesh
@@ -2859,10 +2860,15 @@ class NNOpsCorrectnessTest(testing.TestCase):
 
         from keras.src.backend.torch import distribution_lib as torch_dist_lib
 
+        def get_free_port():
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(("", 0))
+                return str(s.getsockname()[1])
+
         old_addr = os.environ.get("MASTER_ADDR")
         old_port = os.environ.get("MASTER_PORT")
         os.environ["MASTER_ADDR"] = "localhost"
-        os.environ["MASTER_PORT"] = "29509"
+        os.environ["MASTER_PORT"] = get_free_port()
 
         try:
             if not torch.distributed.is_initialized():

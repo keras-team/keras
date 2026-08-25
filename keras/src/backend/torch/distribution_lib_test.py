@@ -37,10 +37,17 @@ class TorchDistributionLibTest(testing.TestCase):
         if torch.distributed.is_initialized():
             torch.distributed.destroy_process_group()
 
-    def _ensure_distributed_initialized(self, port="29500"):
+    def _get_free_port(self):
+        import socket
+
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("", 0))
+            return str(s.getsockname()[1])
+
+    def _ensure_distributed_initialized(self, port=None):
         if not torch.distributed.is_initialized():
             self.set_env("MASTER_ADDR", "localhost")
-            self.set_env("MASTER_PORT", port)
+            self.set_env("MASTER_PORT", port or self._get_free_port())
             distribution_lib.initialize(num_processes=1, process_id=0)
 
     def _get_mesh_devices(self):
@@ -238,7 +245,7 @@ class TorchDistributionLibTest(testing.TestCase):
             self.assertEqual(dev.index, eidx)
 
     def test_to_backend_mesh(self):
-        self._ensure_distributed_initialized(port="29509")
+        self._ensure_distributed_initialized()
         device_type = core._parse_device_input(core.get_device()).split(":")[0]
         devs = np.array([f"{device_type}:0"]).reshape(1)
 
@@ -259,7 +266,7 @@ class TorchDistributionLibTest(testing.TestCase):
             self.assertIsNone(distribution_lib._to_backend_layout(None))
             return
 
-        self._ensure_distributed_initialized(port="29510")
+        self._ensure_distributed_initialized()
 
         mesh = DeviceMesh(
             shape=(1,), axis_names=["x"], devices=self._get_mesh_devices()
@@ -317,7 +324,7 @@ class TorchDistributionLibTest(testing.TestCase):
     def test_distribute_tensor(
         self, input_type, layout_is_none, input_is_dtensor
     ):
-        self._ensure_distributed_initialized(port="29511")
+        self._ensure_distributed_initialized()
         mesh = DeviceMesh(
             shape=(1,), axis_names=["x"], devices=self._get_mesh_devices()
         )
@@ -349,7 +356,7 @@ class TorchDistributionLibTest(testing.TestCase):
         ("numpy", False),
     )
     def test_distribute_data_input(self, input_type, layout_is_none):
-        self._ensure_distributed_initialized(port="29513")
+        self._ensure_distributed_initialized()
         mesh = DeviceMesh(
             shape=(1,), axis_names=["x"], devices=self._get_mesh_devices()
         )
