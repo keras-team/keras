@@ -15,6 +15,7 @@ from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
 from keras.src.quantizers.awq import AWQ
 from keras.src.quantizers.awq_config import AWQConfig
 from keras.src.quantizers.gptq_core import find_layers_in_block
+from keras.src.quantizers.gptq_core import get_calibration_call_attribute
 from keras.src.quantizers.gptq_core import get_dataloader
 from keras.src.quantizers.utils import should_quantize_layer
 
@@ -23,8 +24,10 @@ from keras.src.quantizers.utils import should_quantize_layer
 def stream_activations(layers_map, awq_objects):
     """Context manager to capture activations for AWQ calibration.
 
-    Temporarily patches layer.call methods to capture activation statistics
-    for computing per-channel scaling factors.
+    Temporarily patches each layer's dispatched forward method
+    (`layer.quantized_call` if the layer is already in a quantized mode,
+    `layer.call` otherwise) to capture activation statistics for computing
+    per-channel scaling factors.
 
     Args:
         layers_map: Dict[str, Layer]. Mapping from layer names to layers.
@@ -47,12 +50,13 @@ def stream_activations(layers_map, awq_objects):
 
     try:
         for name, layer in layers_map.items():
-            original_calls[name] = layer.call
-            layer.call = create_hook(name, layer.call)
+            attr = get_calibration_call_attribute(layer)
+            original_calls[name] = (attr, getattr(layer, attr))
+            setattr(layer, attr, create_hook(name, original_calls[name][1]))
         yield
     finally:
-        for name, layer in layers_map.items():
-            layer.call = original_calls[name]
+        for name, (attr, original_call) in original_calls.items():
+            setattr(layers_map[name], attr, original_call)
 
 
 def apply_awq_layerwise(dataloader, config, structure, filters=None):

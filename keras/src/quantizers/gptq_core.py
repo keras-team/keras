@@ -1,4 +1,5 @@
 import math
+import warnings
 from contextlib import contextmanager
 
 import numpy as np
@@ -15,23 +16,45 @@ from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.utils import should_quantize_layer
 
 
-@contextmanager
-def stream_hessians(layers_map, gptq_objects):
+def get_calibration_call_attribute(layer):
+    """Returns the name of the forward method dispatched for `layer`.
+
+    `Operation.__call__` dispatches to `layer.quantized_call` (instead of
+    `layer.call`) as soon as the layer has a quantization mode. During
+    `model.quantize(...)`, layers are switched to their quantized dtype
+    policy before calibration runs, so calibration hooks must patch the
+    method that is actually invoked.
+
+    Args:
+        layer: The Keras layer to inspect.
+
+    Returns:
+        str. Either `"quantized_call"` or `"call"`.
     """
-    Temporarily monkey-patch each target layer's `call` method so
+    if getattr(layer, "quantization_mode", None) is not None:
+        return "quantized_call"
+    return "call"
+
+
+@contextmanager
+def stream_hessians(layers_map, gptq_objects, execution_trace=None):
+    """
+    Temporarily monkey-patch each target layer's forward method so
     that input activations are streamed into the GPTQ instance
     running Hessian estimate at capture time.
 
     On `__enter__`: For every (name, layer) in `layers_map`, replaces
-     `layer.call` with a wrapper that:
+     the layer's dispatched forward method (`layer.quantized_call` if the
+     layer is already in a quantized mode, `layer.call` otherwise) with a
+     wrapper that:
      1) extracts the layer input from `*args`/`**kwargs`,
      2) reshapes it to 2D `[-1, rows]` where
       `rows = gptq_objects[name].rows`,
      3) calls `gptq_objects[name].update_hessian_with_batch(x2d)`
-     4) delegates to the original `layer.call` and returns its
+     4) delegates to the original forward method and returns its
       output.
 
-    On `__exit__`: All original `layer.call` methods are restored even if an
+    On `__exit__`: All original forward methods are restored even if an
      exception occurs.
 
     * Space complexity: O(d**2) per layer (for the Hessian).
@@ -42,6 +65,13 @@ def stream_hessians(layers_map, gptq_objects):
          the Keras layers that should be patched during calibration. Keys must
          match `gptq_objects`.
         gptq_objects: Dict[str, GPTQ]. Mapping from names to GPTQ instances.
+        execution_trace: Optional dict. When provided, each layer's FIRST
+         hook invocation records `{name: (call_index, input_tensor)}` into
+         it — the block-level execution order and the identity of the input
+         each layer consumes. Used to derive within-block quantization
+         stages (see `apply_gptq_layerwise`). The recorded tensors are only
+         kept alive for identity comparison; callers should drop the trace
+         after use.
 
     Yields:
         None: The patched state is active only within the `with` block. After
@@ -54,14 +84,21 @@ def stream_hessians(layers_map, gptq_objects):
     ...         if len(sample.shape) == 2:
     ...             sample = ops.expand_dims(sample, 0)
     ...         _ = block(sample)   # hooks update Hessians on-the-fly
-    >>> # <- original layer.call methods restored here
+    >>> # <- original forward methods restored here
     ```
     """
     original_calls = {}
+    call_counter = [0]
 
     def create_hook(name, original_call_func):
         def hook(*args, **kwargs):
             inp = args[0] if args else kwargs["inputs"]
+            if execution_trace is not None and name not in execution_trace:
+                # Record block-level execution order and the input tensor's
+                # identity on the first call (a live reference is kept so the
+                # id cannot be recycled while tracing).
+                execution_trace[name] = (call_counter[0], inp)
+                call_counter[0] += 1
             # Explicitly reshape the input tensor to be 2D, with the
             # second dimension matching the number of input features
             # expected by the layer's kernel.
@@ -76,12 +113,13 @@ def stream_hessians(layers_map, gptq_objects):
 
     try:
         for name, layer in layers_map.items():
-            original_calls[name] = layer.call
-            layer.call = create_hook(name, layer.call)
+            attr = get_calibration_call_attribute(layer)
+            original_calls[name] = (attr, getattr(layer, attr))
+            setattr(layer, attr, create_hook(name, original_calls[name][1]))
         yield
     finally:
-        for name, layer in layers_map.items():
-            layer.call = original_calls[name]
+        for name, (attr, original_call) in original_calls.items():
+            setattr(layers_map[name], attr, original_call)
 
 
 def get_dataloader(
@@ -237,6 +275,58 @@ def find_layers_in_block(block):
     return found_layers
 
 
+def _execution_stages(layer_names, execution_trace):
+    """Groups a block's layers into sequential quantization stages.
+
+    Reference GPTQ implementations quantize a block's sub-layers in
+    topological order ("true sequential"): once an upstream sub-layer is
+    quantized, downstream Hessians are re-estimated on the quantized
+    activations. Without this, e.g. an MLP's Hessian is captured while the
+    attention sub-layers are still full-precision, and the error
+    corrections it derives are tuned to activations that no longer exist
+    once attention is quantized too — which measurably degrades quality
+    below plain round-to-nearest.
+
+    Stages are derived from the calibration trace: layers are ordered by
+    first invocation, and layers that consumed the *same* input tensor
+    (e.g. the query/key/value projections, or an MLP's gate/up pair) share
+    a stage since quantizing one cannot affect the others' inputs. Layers
+    that never fired during tracing are placed in the first stage,
+    preserving their (empty) Hessian behavior.
+
+    Args:
+        layer_names: Iterable of layer names in the block.
+        execution_trace: Dict of `{name: (call_index, input_tensor)}`
+            recorded by `stream_hessians`.
+
+    Returns:
+        List of lists of layer names, one list per stage, in execution
+        order.
+    """
+    traced = [name for name in layer_names if name in execution_trace]
+    untraced = [name for name in layer_names if name not in execution_trace]
+    traced.sort(key=lambda name: execution_trace[name][0])
+
+    stages = []
+    current_stage, current_input_id = [], None
+    for name in traced:
+        input_id = id(execution_trace[name][1])
+        if current_stage and input_id != current_input_id:
+            stages.append(current_stage)
+            current_stage = []
+        current_stage.append(name)
+        current_input_id = input_id
+    if current_stage:
+        stages.append(current_stage)
+
+    if untraced:
+        if stages:
+            stages[0] = untraced + stages[0]
+        else:
+            stages = [untraced]
+    return stages
+
+
 def apply_gptq_layerwise(dataloader, config, structure, filters=None):
     """Applies GPTQ quantization layer-by-layer to a Keras model.
 
@@ -299,6 +389,10 @@ def apply_gptq_layerwise(dataloader, config, structure, filters=None):
 
     progbar = keras_utils.Progbar(target=len(transformer_blocks))
 
+    # Layers whose Hessian saw too few calibration tokens relative to their
+    # input width, collected across all blocks for a single summary warning.
+    undersampled_layers = []
+
     for block_idx, block in enumerate(transformer_blocks):
         logging.info(f"Quantizing Block {block_idx}")
         sub_layers_map = find_layers_in_block(block)
@@ -324,17 +418,50 @@ def apply_gptq_layerwise(dataloader, config, structure, filters=None):
                 for name, layer in sub_layers_map.items()
             }
 
-            with stream_hessians(sub_layers_map, gptq_objects):
+            execution_trace = {}
+            with stream_hessians(
+                sub_layers_map, gptq_objects, execution_trace=execution_trace
+            ):
                 for start in range(0, num_samples, batch_size):
                     batch = _stack_calibration_batch(
                         inputs[start : start + batch_size]
                     )
                     _ = block(batch)
 
-            for name, gptq_object in gptq_objects.items():
-                logging.info(f"Quantizing {name}...")
-                gptq_object.quantize_and_correct_layer()
-                gptq_object.free()
+            # Quantize the block's layers in execution-order stages ("true
+            # sequential", as in reference GPTQ): after each stage is
+            # quantized, downstream stages' Hessians are re-estimated so
+            # their error corrections are computed against the quantized
+            # upstream activations they will actually see at inference.
+            stages = _execution_stages(sub_layers_map, execution_trace)
+            del execution_trace
+
+            for stage_idx, stage_names in enumerate(stages):
+                if stage_idx > 0:
+                    stage_map = {
+                        name: sub_layers_map[name] for name in stage_names
+                    }
+                    stage_objects = {}
+                    for name in stage_names:
+                        gptq_objects[name].free()
+                        gptq_objects[name] = GPTQ(sub_layers_map[name], config)
+                        stage_objects[name] = gptq_objects[name]
+                    with stream_hessians(stage_map, stage_objects):
+                        for start in range(0, num_samples, batch_size):
+                            batch = _stack_calibration_batch(
+                                inputs[start : start + batch_size]
+                            )
+                            _ = block(batch)
+
+                for name in stage_names:
+                    gptq_object = gptq_objects[name]
+                    tokens = int(gptq_object.num_samples)
+                    rows = int(gptq_object.rows)
+                    if tokens < 4 * rows:
+                        undersampled_layers.append((name, tokens, rows))
+                    logging.info(f"Quantizing {name}...")
+                    gptq_object.quantize_and_correct_layer()
+                    gptq_object.free()
 
             del gptq_objects
 
@@ -352,6 +479,25 @@ def apply_gptq_layerwise(dataloader, config, structure, filters=None):
                     next_block_inputs.append(output[sample_idx])
             inputs = next_block_inputs
         progbar.update(current=block_idx + 1)
+
+    if undersampled_layers:
+        worst = min(t / r for _, t, r in undersampled_layers)
+        examples = ", ".join(
+            f"{name} ({tokens} tokens for {rows} input features)"
+            for name, tokens, rows in undersampled_layers[:3]
+        )
+        warnings.warn(
+            f"GPTQ calibration is undersampled for "
+            f"{len(undersampled_layers)} layer(s): fewer than 4 calibration "
+            "tokens per input feature (worst ratio: "
+            f"{worst:.1f}). With this little data the Hessian is close to "
+            "singular and GPTQ's error correction can overfit the "
+            "calibration set and produce worse results than plain "
+            "round-to-nearest. Increase `num_samples` and/or "
+            "`sequence_length` in `GPTQConfig` (8 or more tokens per input "
+            f"feature is recommended). Examples: {examples}.",
+            stacklevel=2,
+        )
 
     logging.info("Quantization process complete.")
 

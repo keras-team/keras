@@ -1487,6 +1487,16 @@ def compute_quantization_parameters(
         min_values = ops.min(x_reshaped, axis=1)
         max_values = ops.max(x_reshaped, axis=1)
 
+    # Unsigned asymmetric quantization: clamp the range to include zero,
+    # matching reference GPTQ/AWQ (`xmin = min(xmin, 0)`,
+    # `xmax = max(xmax, 0)`). This guarantees the zero point lands in
+    # [0, maxq] (so it is representable in `bits`-bit packed formats) and
+    # that the quantized grid can represent 0 exactly, even for groups
+    # whose values are all-negative or all-positive.
+    if not signed and not symmetric:
+        min_values = ops.minimum(min_values, 0.0)
+        max_values = ops.maximum(max_values, 0.0)
+
     # Symmetric quantization: make range symmetric around zero
     if symmetric:
         max_abs = ops.maximum(ops.abs(min_values), max_values)
@@ -1527,6 +1537,7 @@ def compute_quantization_parameters(
             zero = ops.full_like(scale, ops.divide(ops.add(maxq, 1), 2))
         else:
             zero = ops.round(ops.divide(ops.negative(min_values), scale))
+        zero = ops.clip(zero, 0, maxq)
 
     # Reshape output to [out_features, n_groups] or [out_features, 1]
     if n_groups > 1:

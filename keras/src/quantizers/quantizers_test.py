@@ -1171,6 +1171,60 @@ class ComputeScaleZeroTest(testing.TestCase):
         self.assertTrue(ops.all(ops.greater(scale, 0.0)))
 
     @parameterized.named_parameters(
+        ("bits2", 2),
+        ("bits4", 4),
+        ("bits8", 8),
+    )
+    def test_unsigned_asymmetric_zero_point_stays_in_range(self, bits):
+        """Zero point must stay in [0, maxq] for one-sided weight groups.
+
+        Regression test: the unsigned asymmetric branch used to compute
+        `zero = round(-min / scale)` without clamping the range to include
+        zero, so all-negative groups produced zero points far above `maxq`
+        (unrepresentable in `bits`-bit packed export formats), and the
+        quantized grid could not represent 0. Reference GPTQ/AWQ clamp with
+        `xmin = min(xmin, 0)`, `xmax = max(xmax, 0)`.
+        """
+        maxq = 2**bits - 1
+        rng = np.random.default_rng(5)
+
+        # All-negative groups: without the range clamp, zero overflows.
+        x_negative = ops.array((-1.0 - rng.random((8, 16))).astype("float32"))
+        scale, zero, _ = compute_quantization_parameters(
+            x_negative,
+            bits=bits,
+            symmetric=False,
+            per_channel=True,
+            group_size=8,
+        )
+        zero_np = ops.convert_to_numpy(zero)
+        self.assertTrue(np.all(zero_np >= 0))
+        self.assertTrue(np.all(zero_np <= maxq))
+        # With max clamped to 0, the top of the grid is exactly 0:
+        # zero == maxq and (maxq - zero) * scale == 0.
+        self.assertTrue(np.all(zero_np == maxq))
+
+        # All-positive groups: zero must be 0 (bottom of the grid is 0).
+        x_positive = ops.array((1.0 + rng.random((8, 16))).astype("float32"))
+        _, zero, _ = compute_quantization_parameters(
+            x_positive,
+            bits=bits,
+            symmetric=False,
+            per_channel=True,
+            group_size=8,
+        )
+        zero_np = ops.convert_to_numpy(zero)
+        self.assertTrue(np.all(zero_np == 0))
+
+        # The clamped range must still cover the original values.
+        scale_np = ops.convert_to_numpy(scale)
+        min_np = ops.convert_to_numpy(
+            ops.min(ops.reshape(x_negative, (8, 2, 8)), axis=2)
+        )
+        # Lowest representable value (q=0): (0 - zero) * scale <= min.
+        self.assertTrue(np.all(-maxq * scale_np <= min_np + 1e-6))
+
+    @parameterized.named_parameters(
         ("sym_true", True),
         ("sym_false", False),
     )

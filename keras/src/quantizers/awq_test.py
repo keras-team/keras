@@ -954,3 +954,78 @@ class AWQAccuracyTest(testing.TestCase):
         y_after = reloaded.predict(x_eval)
 
         self.assertAllClose(y_before, y_after)
+
+    def test_awq_calibration_hooks_fire_during_model_quantize(self):
+        """Calibration hooks must run during `model.quantize("awq")`.
+
+        Regression test: `model.quantize` switches layers to their quantized
+        dtype policy before calibration, after which `Operation.__call__`
+        dispatches to `quantized_call` instead of `call`. The calibration
+        hooks used to patch `call` only, so they never fired: activation
+        magnitudes stayed zero and the AWQ scale search was
+        activation-blind. Asserts the hook actually runs and records
+        non-zero activation magnitudes.
+        """
+        keras.utils.set_random_seed(123)
+        seq_len = 16
+        vocab = 48
+        embed_dim = 8
+
+        block = models.Sequential(
+            [
+                layers.Dense(16, activation="relu"),
+                layers.Dense(embed_dim),
+            ]
+        )
+
+        inputs = layers.Input(shape=(seq_len,), dtype="int32")
+        embedding = layers.Embedding(vocab, embed_dim)
+        x = embedding(inputs)
+        x = block(x)
+        x = layers.GlobalAveragePooling1D()(x)
+        outputs = layers.Dense(4)(x)
+        model = models.Model(inputs, outputs)
+
+        rng = np.random.default_rng(seed=7)
+        dataset = [
+            rng.integers(0, vocab, size=(1, seq_len), dtype=np.int32)
+            for _ in range(4)
+        ]
+        tokenizer = _char_tokenizer(vocab_size=vocab, seq_len=seq_len)
+
+        config = AWQConfig(
+            dataset=dataset,
+            tokenizer=tokenizer,
+            group_size=8,
+            num_samples=4,
+            sequence_length=seq_len,
+            num_grid_points=5,
+            quantization_layer_structure={
+                "pre_block_layers": [embedding],
+                "sequential_blocks": [block],
+            },
+        )
+
+        hook_calls = [0]
+        max_magnitude = [0.0]
+        original_update = AWQ.update_activation_magnitudes
+
+        def spy_update(awq_self, inp):
+            hook_calls[0] += 1
+            result = original_update(awq_self, inp)
+            magnitudes = ops.convert_to_numpy(awq_self.activation_magnitudes)
+            max_magnitude[0] = max(
+                max_magnitude[0], float(np.abs(magnitudes).max())
+            )
+            return result
+
+        AWQ.update_activation_magnitudes = spy_update
+        try:
+            model.quantize("awq", config=config)
+        finally:
+            AWQ.update_activation_magnitudes = original_update
+
+        self.assertGreater(hook_calls[0], 0)
+        # All-zero magnitudes would be replaced with ones, making the
+        # scale search activation-blind.
+        self.assertGreater(max_magnitude[0], 0.0)
