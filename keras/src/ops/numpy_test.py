@@ -6484,13 +6484,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         # exercised (`tf.pad` / `torch...pad` require a full `[rank, 2]` spec).
         x = np.ones([4, 5, 6], dtype=dtype)
         x_tensor = backend.convert_to_tensor(x)
-        for pad_width, np_pad_width in (
-            (0, 0),
-            (1, 1),
-            ((1,), 1),
-            ((1, 2), (1, 2)),
-            (((1, 2),), (1, 2)),
-        ):
+        for pad_width in (0, 1, (1,), (1, 2), ((1, 2),)):
             self.assertAllClose(
                 knp.pad(
                     x_tensor,
@@ -6498,7 +6492,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
                     mode=mode,
                     constant_values=constant_values,
                 ),
-                np.pad(x, np_pad_width, mode=mode, **kwargs),
+                np.pad(x, pad_width, mode=mode, **kwargs),
             )
 
     def test_prod(self):
