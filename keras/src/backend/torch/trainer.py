@@ -11,8 +11,9 @@ from keras.src import callbacks as callbacks_module
 from keras.src import optimizers as optimizers_module
 from keras.src import tree
 from keras.src.backend import config
-from keras.src.backend.torch.core import get_device
+from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.backend.torch.distribution_lib import _to_backend_mesh
+from keras.src.backend.torch.ops.core import get_device
 from keras.src.distribution.distribution_lib import DataParallel
 from keras.src.distribution.distribution_lib import distribution
 from keras.src.trainers import trainer as base_trainer
@@ -229,7 +230,7 @@ class TorchTrainer(base_trainer.Trainer):
                     )
                     reduced_vars.append(val)
 
-                with backend.StatelessScope(
+                with StatelessScope(
                     state_mapping=list(
                         zip(self.metrics_variables, reduced_vars)
                     )
