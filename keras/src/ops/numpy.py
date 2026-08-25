@@ -1979,6 +1979,7 @@ def broadcast_to(x, shape):
     return backend.ops.numpy.broadcast_to(x, shape)
 
 
+class Cbrt(Operation):
     def call(self, x):
         return backend.ops.numpy.cbrt(x)
 
