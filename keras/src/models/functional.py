@@ -183,12 +183,7 @@ class Functional(Function, Model):
             for x, mask in zip(inputs, masks):
                 if mask is not None:
                     set_keras_mask(x, mask)
-        outputs = self._run_through_graph(
-            inputs,
-            operation_fn=lambda op: operation_fn(
-                op, training=training, **kwargs
-            ),
-        )
+        outputs = self._run_through_graph(inputs)
         return unpack_singleton(outputs)
 
     def compute_output_spec(self, inputs, training=None, mask=None):

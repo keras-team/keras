@@ -174,7 +174,7 @@ class RandomCropTest(testing.TestCase):
         # Target larger than input forces the resize path.
         layer = layers.RandomCrop(16, 16, seed=0)
         out = layer({"images": images, "segmentation_masks": masks})
-        result = backend.convert_to_numpy(out["segmentation_masks"])
+        result = backend.ops.convert_to_numpy(out["segmentation_masks"])
         self.assertEqual(result.dtype, np.uint8)
         self.assertTrue(set(np.unique(result).tolist()).issubset({0, 4}))
 

@@ -294,6 +294,6 @@ class RandomFlipTest(testing.TestCase):
         masks[:, :4] = 4  # only classes {0, 4}
         layer = layers.RandomFlip("horizontal_and_vertical", seed=0)
         out = layer({"images": images, "segmentation_masks": masks})
-        result = backend.convert_to_numpy(out["segmentation_masks"])
+        result = backend.ops.convert_to_numpy(out["segmentation_masks"])
         self.assertEqual(result.dtype, np.uint8)
         self.assertTrue(set(np.unique(result).tolist()).issubset({0, 4}))

@@ -7,7 +7,6 @@ import numpy as np
 from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
-from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
@@ -1979,6 +1978,7 @@ def broadcast_to(x, shape):
     return backend.ops.numpy.broadcast_to(x, shape)
 
 
+class Cbrt(Operation):
     def call(self, x):
         return backend.ops.numpy.cbrt(x)
 

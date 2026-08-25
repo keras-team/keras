@@ -740,8 +740,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
 
     def check_stability(self, values, indices):
         """Helper function to check stability of top_k."""
-        values_np = backend.convert_to_numpy(values)
-        indices_np = backend.convert_to_numpy(indices)
+        values_np = backend.ops.convert_to_numpy(values)
+        indices_np = backend.ops.convert_to_numpy(indices)
         is_equal = values_np[..., :-1] == values_np[..., 1:]
         index_increasing = indices_np[..., :-1] < indices_np[..., 1:]
         self.assertTrue(np.all(np.logical_or(~is_equal, index_increasing)))

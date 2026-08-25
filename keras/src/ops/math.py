@@ -647,7 +647,7 @@ class Gammainc(Operation):
         )
 
     def call(self, x1, x2):
-        return backend.math.gammainc(x1, x2)
+        return backend.ops.math.gammainc(x1, x2)
 
 
 @keras_export("keras.ops.gammainc")
@@ -675,7 +675,7 @@ def gammainc(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Gammainc().symbolic_call(x1, x2)
-    return backend.math.gammainc(x1, x2)
+    return backend.ops.math.gammainc(x1, x2)
 
 
 class IFFT2(Operation):
