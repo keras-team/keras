@@ -186,7 +186,7 @@ class RandomCrop(BaseImagePreprocessingLayer):
             # Resize images if size mismatch or
             # if size mismatch cannot be determined
             # (in the case of a TF dynamic shape).
-            images = self.backend.image.resize(
+            images = self.backend.ops.image.resize(
                 images,
                 size=(self.height, self.width),
                 interpolation=interpolation,
@@ -290,7 +290,7 @@ class RandomCrop(BaseImagePreprocessingLayer):
         # Use nearest-neighbor interpolation on the resize fallback so masks
         # keep their discrete class indices and their original (typically
         # integer) dtype; no `compute_dtype` cast is applied.
-        masks = self.backend.convert_to_tensor(segmentation_masks)
+        masks = self.backend.ops.convert_to_tensor(segmentation_masks)
         if training:
             masks = self._random_crop(
                 masks, transformation, interpolation="nearest"

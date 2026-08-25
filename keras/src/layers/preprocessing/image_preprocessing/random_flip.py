@@ -194,7 +194,7 @@ class RandomFlip(BaseImagePreprocessingLayer):
         # without casting to a float `compute_dtype`. This preserves the
         # original (typically integer) class-index dtype.
         if training:
-            segmentation_masks = self.backend.convert_to_tensor(
+            segmentation_masks = self.backend.ops.convert_to_tensor(
                 segmentation_masks
             )
             return self._flip_inputs(segmentation_masks, transformation)

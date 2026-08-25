@@ -181,7 +181,7 @@ class CenterCrop(BaseImagePreprocessingLayer):
         # interpolation on the resize path so no new class values are invented,
         # and keep the original (typically integer) dtype by not casting to
         # `compute_dtype`.
-        masks = self.backend.convert_to_tensor(segmentation_masks)
+        masks = self.backend.ops.convert_to_tensor(segmentation_masks)
         return self._center_crop(masks, interpolation="nearest")
 
     def transform_images(self, images, transformation=None, training=True):

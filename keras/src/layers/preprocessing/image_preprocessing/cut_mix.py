@@ -224,14 +224,14 @@ class CutMix(BaseImagePreprocessingLayer):
         # this is an exact copy (no blending/interpolation), so keep the
         # original class-index dtype instead of casting to `compute_dtype`.
         if training and transformation is not None:
-            segmentation_masks = self.backend.convert_to_tensor(
+            segmentation_masks = self.backend.ops.convert_to_tensor(
                 segmentation_masks
             )
             permutation_order = transformation["permutation_order"]
             batch_masks = transformation["batch_masks"]
-            segmentation_masks = self.backend.numpy.where(
+            segmentation_masks = self.backend.ops.numpy.where(
                 batch_masks,
-                self.backend.numpy.take(
+                self.backend.ops.numpy.take(
                     segmentation_masks, permutation_order, axis=0
                 ),
                 segmentation_masks,
