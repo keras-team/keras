@@ -4622,13 +4622,16 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         # These are exact one-ulp steps, so they are compared exactly. The
         # default tolerance would pass even if a backend returned x1 unchanged,
         # because the values involved are far smaller than it.
-        dtypes = ["float32"]
-        # A 16-bit step is much larger than a float32 one, so computing in a
-        # wider dtype and casting back returns x1 unchanged. openvino's
-        # nextafter lacks dtype-aware ulp stepping for 16-bit floats
-        # (pre-existing; out of scope for this PR).
-        if backend.backend() != "openvino":
-            dtypes.append("float16")
+        #
+        # openvino steps in float64 and casts the result back, so a step
+        # smaller than a float64 ulp is lost and subnormals are flushed to
+        # zero. Only the step away from a float32 infinity survives that, so
+        # it is the only case asserted there: a float16 infinity stays
+        # infinite because the float64 result overflows the cast back, and
+        # both exact-ulp steps land back on x1 (pre-existing; out of scope for
+        # this PR).
+        openvino = backend.backend() == "openvino"
+        dtypes = ["float32"] if openvino else ["float32", "float16"]
         for dtype in dtypes:
             # Stepping away from an infinity must land on the largest finite
             # value of the result dtype rather than staying at infinity.
@@ -4637,6 +4640,9 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             self.assertAllClose(
                 knp.nextafter(x, y), np.nextafter(x, y), atol=0, rtol=0
             )
+
+            if openvino:
+                continue
 
             # Steps near zero are smaller than one ulp of 1.0, so they are lost
             # if the computation happens in a wider dtype and is cast back.
