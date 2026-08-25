@@ -369,3 +369,48 @@ class TestGPTQCore(testing.TestCase):
         with self.assertRaisesRegex(ValueError, error_message):
             # We pass None as structure to trigger the error
             gptq_quantize(config, quantization_layer_structure=None)
+
+
+class TestExecutionStages(testing.TestCase):
+    def test_stages_group_by_shared_input_and_order(self):
+        from keras.src.quantizers.gptq_core import _execution_stages
+
+        x_attn, x_out, x_mlp, x_down = (
+            object(),
+            object(),
+            object(),
+            object(),
+        )
+        trace = {
+            "query": (0, x_attn),
+            "key": (1, x_attn),
+            "value": (2, x_attn),
+            "attention_output": (3, x_out),
+            "gate": (4, x_mlp),
+            "up": (5, x_mlp),
+            "down": (6, x_down),
+        }
+        stages = _execution_stages(list(trace), trace)
+        self.assertEqual(
+            stages,
+            [
+                ["query", "key", "value"],
+                ["attention_output"],
+                ["gate", "up"],
+                ["down"],
+            ],
+        )
+
+    def test_untraced_layers_join_first_stage(self):
+        from keras.src.quantizers.gptq_core import _execution_stages
+
+        x = object()
+        trace = {"a": (0, x)}
+        stages = _execution_stages(["ghost", "a"], trace)
+        self.assertEqual(stages, [["ghost", "a"]])
+
+    def test_no_trace_single_stage(self):
+        from keras.src.quantizers.gptq_core import _execution_stages
+
+        stages = _execution_stages(["a", "b"], {})
+        self.assertEqual(stages, [["a", "b"]])
