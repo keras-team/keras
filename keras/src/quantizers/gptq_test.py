@@ -505,6 +505,81 @@ class GPTQTest(testing.TestCase):
             self.assertIn(dense.path, found)
             self.assertIs(found[dense.path], dense)
 
+    def test_gptq_calibration_hooks_fire_during_model_quantize(self):
+        """Calibration hooks must run during `model.quantize("gptq")`.
+
+        Regression test: `model.quantize` switches layers to their quantized
+        dtype policy before calibration, after which `Operation.__call__`
+        dispatches to `quantized_call` instead of `call`. The calibration
+        hooks used to patch `call` only, so they never fired: the Hessian
+        stayed all-zeros and GPTQ silently degenerated to plain nearest
+        rounding. Asserts the hook actually runs and accumulates a
+        non-trivial (non-diagonal) Hessian.
+        """
+        keras.utils.set_random_seed(123)
+        embed_dim = 8
+
+        block = models.Sequential(
+            [
+                layers.Dense(16, activation="relu"),
+                layers.Dense(embed_dim),
+            ]
+        )
+
+        inputs = layers.Input(shape=(SEQ_LEN,), dtype="int32")
+        embedding = layers.Embedding(VOCAB_SIZE, embed_dim)
+        x = embedding(inputs)
+        x = block(x)
+        x = layers.GlobalAveragePooling1D()(x)
+        outputs = layers.Dense(NUM_CLASSES)(x)
+        model = models.Model(inputs, outputs)
+
+        rng = np.random.default_rng(seed=7)
+        dataset = [
+            rng.integers(0, VOCAB_SIZE, size=(1, SEQ_LEN), dtype=np.int32)
+            for _ in range(4)
+        ]
+        tokenizer = _char_tokenizer(vocab_size=VOCAB_SIZE, seq_len=SEQ_LEN)
+
+        config = GPTQConfig(
+            dataset=dataset,
+            tokenizer=tokenizer,
+            weight_bits=4,
+            group_size=8,
+            num_samples=4,
+            sequence_length=SEQ_LEN,
+            quantization_layer_structure={
+                "pre_block_layers": [embedding],
+                "sequential_blocks": [block],
+            },
+        )
+
+        hook_calls = [0]
+        max_off_diagonal = [0.0]
+        original_update = GPTQ.update_hessian_with_batch
+
+        def spy_update(gptq_self, inp):
+            hook_calls[0] += 1
+            result = original_update(gptq_self, inp)
+            hessian = ops.convert_to_numpy(gptq_self.hessian)
+            off_diagonal = hessian - np.diag(np.diag(hessian))
+            max_off_diagonal[0] = max(
+                max_off_diagonal[0], float(np.abs(off_diagonal).max())
+            )
+            return result
+
+        GPTQ.update_hessian_with_batch = spy_update
+        try:
+            model.quantize("gptq", config=config)
+        finally:
+            GPTQ.update_hessian_with_batch = original_update
+
+        self.assertGreater(hook_calls[0], 0)
+        # A Hessian built from real activations has non-zero off-diagonal
+        # entries; an all-zeros Hessian would be replaced by the identity
+        # (dead-feature path), silently disabling error correction.
+        self.assertGreater(max_off_diagonal[0], 0.0)
+
 
 def _compute_scale_zero(x, **_):
     # Per-column asymmetric int4 example

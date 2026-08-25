@@ -15,23 +15,45 @@ from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.utils import should_quantize_layer
 
 
+def get_calibration_call_attribute(layer):
+    """Returns the name of the forward method dispatched for `layer`.
+
+    `Operation.__call__` dispatches to `layer.quantized_call` (instead of
+    `layer.call`) as soon as the layer has a quantization mode. During
+    `model.quantize(...)`, layers are switched to their quantized dtype
+    policy before calibration runs, so calibration hooks must patch the
+    method that is actually invoked.
+
+    Args:
+        layer: The Keras layer to inspect.
+
+    Returns:
+        str. Either `"quantized_call"` or `"call"`.
+    """
+    if getattr(layer, "quantization_mode", None) is not None:
+        return "quantized_call"
+    return "call"
+
+
 @contextmanager
 def stream_hessians(layers_map, gptq_objects):
     """
-    Temporarily monkey-patch each target layer's `call` method so
+    Temporarily monkey-patch each target layer's forward method so
     that input activations are streamed into the GPTQ instance
     running Hessian estimate at capture time.
 
     On `__enter__`: For every (name, layer) in `layers_map`, replaces
-     `layer.call` with a wrapper that:
+     the layer's dispatched forward method (`layer.quantized_call` if the
+     layer is already in a quantized mode, `layer.call` otherwise) with a
+     wrapper that:
      1) extracts the layer input from `*args`/`**kwargs`,
      2) reshapes it to 2D `[-1, rows]` where
       `rows = gptq_objects[name].rows`,
      3) calls `gptq_objects[name].update_hessian_with_batch(x2d)`
-     4) delegates to the original `layer.call` and returns its
+     4) delegates to the original forward method and returns its
       output.
 
-    On `__exit__`: All original `layer.call` methods are restored even if an
+    On `__exit__`: All original forward methods are restored even if an
      exception occurs.
 
     * Space complexity: O(d**2) per layer (for the Hessian).
@@ -54,7 +76,7 @@ def stream_hessians(layers_map, gptq_objects):
     ...         if len(sample.shape) == 2:
     ...             sample = ops.expand_dims(sample, 0)
     ...         _ = block(sample)   # hooks update Hessians on-the-fly
-    >>> # <- original layer.call methods restored here
+    >>> # <- original forward methods restored here
     ```
     """
     original_calls = {}
@@ -76,12 +98,13 @@ def stream_hessians(layers_map, gptq_objects):
 
     try:
         for name, layer in layers_map.items():
-            original_calls[name] = layer.call
-            layer.call = create_hook(name, layer.call)
+            attr = get_calibration_call_attribute(layer)
+            original_calls[name] = (attr, getattr(layer, attr))
+            setattr(layer, attr, create_hook(name, original_calls[name][1]))
         yield
     finally:
-        for name, layer in layers_map.items():
-            layer.call = original_calls[name]
+        for name, (attr, original_call) in original_calls.items():
+            setattr(layers_map[name], attr, original_call)
 
 
 def get_dataloader(
