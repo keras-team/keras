@@ -6624,8 +6624,13 @@ def _nonzero(x):
     else:
         nonzero_mask = backend.numpy.not_equal(flat_x, 0)
 
-    flat_indices = backend.numpy.arange(backend.numpy.size(flat_x))
-    flat_nonzero_indices = flat_indices[nonzero_mask]
+    where_res = backend.numpy.where(nonzero_mask)
+    if isinstance(where_res, (tuple, list)):
+        flat_nonzero_indices = where_res[0]
+    else:
+        flat_nonzero_indices = backend.numpy.squeeze(where_res, axis=0)
+
+    flat_nonzero_indices = backend.cast(flat_nonzero_indices, "int32")
 
     return backend.numpy.unravel_index(flat_nonzero_indices, x.shape)
 
