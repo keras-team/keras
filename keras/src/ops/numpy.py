@@ -6587,7 +6587,7 @@ def ndim(x):
 
 class Nonzero(Operation):
     def call(self, x):
-        return backend.numpy.nonzero(x)
+        return _nonzero(x)
 
     def compute_output_spec(self, x):
         return tuple(
@@ -6607,7 +6607,27 @@ def nonzero(x):
     """
     if any_symbolic_tensors((x,)):
         return Nonzero().symbolic_call(x)
-    return backend.numpy.nonzero(x)
+    return _nonzero(x)
+
+
+def _nonzero(x):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.numpy, "nonzero"
+    ):
+        return backend.numpy.nonzero(x)
+
+    x = backend.convert_to_tensor(x)
+    flat_x = backend.numpy.reshape(x, (-1,))
+
+    if backend.standardize_dtype(flat_x.dtype) == "bool":
+        nonzero_mask = flat_x
+    else:
+        nonzero_mask = backend.numpy.not_equal(flat_x, 0)
+
+    flat_indices = backend.numpy.arange(backend.numpy.size(flat_x))
+    flat_nonzero_indices = flat_indices[nonzero_mask]
+
+    return backend.numpy.unravel_index(flat_nonzero_indices, x.shape)
 
 
 class NotEqual(Operation):

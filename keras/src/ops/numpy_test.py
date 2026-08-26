@@ -11,6 +11,7 @@ import keras
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_int_dtype
 from keras.src.backend.common import standardize_dtype
@@ -6586,6 +6587,29 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([[0, 0, 3], [3, 0, 0]])
         self.assertAllClose(knp.nonzero(x), np.nonzero(x))
         self.assertAllClose(knp.Nonzero()(x), np.nonzero(x))
+
+    def test_nonzero_backend_agnostic_fallback(self):
+        try:
+            config._set_use_backend_agnostic_ops(True)
+            test_inputs = [
+                np.array([0, 1, 0, 2, 0, 3]),
+                np.array([[0, 0, 3], [3, 0, 0]]),
+                np.array([[[1, 0], [0, 2]], [[0, 0], [3, 4]]]),
+                np.zeros((2, 3, 4)),
+                np.ones((2, 3)),
+                np.array([True, False, True, False]),
+                np.array([-5, 0, 5, 0, -1]),
+                np.zeros((0, 5)),
+            ]
+            for x in test_inputs:
+                res = knp.nonzero(x)
+                ref = np.nonzero(x)
+                self.assertEqual(len(res), len(ref))
+                for res_idx, ref_idx in zip(res, ref):
+                    self.assertEqual(standardize_dtype(res_idx.dtype), "int32")
+                    self.assertAllClose(res_idx, ref_idx)
+        finally:
+            config._set_use_backend_agnostic_ops(False)
 
     def test_ones_like(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
