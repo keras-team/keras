@@ -1,10 +1,12 @@
 import math
 import warnings
 from contextlib import contextmanager
+from contextlib import nullcontext
 
 import numpy as np
 from absl import logging
 
+from keras.src import backend
 from keras.src import ops
 from keras.src import utils as keras_utils
 from keras.src.dtype_policies.dtype_policy import GPTQDTypePolicy
@@ -34,6 +36,26 @@ def get_calibration_call_attribute(layer):
     if getattr(layer, "quantization_mode", None) is not None:
         return "quantized_call"
     return "call"
+
+
+def calibration_no_grad_scope():
+    """Returns a context manager that disables gradient tracking.
+
+    Calibration is inference-only: it runs forward passes to accumulate
+    statistics and then assigns quantized values to variables. On the torch
+    backend those forwards would otherwise build autograd graphs, and
+    because per-sample activations are retained across the whole
+    calibration loop (and AWQ stashes activation samples for its clipping
+    search), the graphs and every intermediate activation stay alive until
+    the block completes - enough to exhaust GPU memory on models that fit
+    comfortably otherwise. JAX and TensorFlow build no such graphs in eager
+    mode, so this is a no-op there.
+    """
+    if backend.backend() == "torch":
+        import torch
+
+        return torch.no_grad()
+    return nullcontext()
 
 
 @contextmanager
@@ -210,9 +232,13 @@ def get_dataloader(
         # stride chosen to cover the space roughly uniformly
         if stride is None:
             stride = max(1, (max_start + 1) // num_samples)
-        # offset derived deterministically from seed
+        # Offset derived deterministically from the seed. Python's
+        # built-in `hash()` must not be used here: string/tuple hashes are
+        # randomized per process (PYTHONHASHSEED), which silently made
+        # calibration windows - and therefore every quantization result -
+        # unreproducible across runs despite the fixed seed.
         offset = (
-            (abs(hash(("gptq-calib", seed))) % (max_start + 1))
+            int(np.random.default_rng(seed).integers(0, max_start + 1))
             if max_start > 0
             else 0
         )
@@ -540,12 +566,13 @@ def gptq_quantize(config, quantization_layer_structure, filters=None):
     # is now a NumPy array, which can be sliced and reused.
     calibration_dataloader = dataloader[: config.num_samples]
 
-    apply_gptq_layerwise(
-        calibration_dataloader,
-        config,
-        quantization_layer_structure,
-        filters=filters,
-    )
+    with calibration_no_grad_scope():
+        apply_gptq_layerwise(
+            calibration_dataloader,
+            config,
+            quantization_layer_structure,
+            filters=filters,
+        )
 
 
 def get_group_size_for_layer(layer, config):

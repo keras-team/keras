@@ -14,6 +14,8 @@ from keras.src.dtype_policies.dtype_policy import AWQDTypePolicy
 from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
 from keras.src.quantizers.awq import AWQ
 from keras.src.quantizers.awq_config import AWQConfig
+from keras.src.quantizers.gptq_core import _execution_stages
+from keras.src.quantizers.gptq_core import calibration_no_grad_scope
 from keras.src.quantizers.gptq_core import find_layers_in_block
 from keras.src.quantizers.gptq_core import get_calibration_call_attribute
 from keras.src.quantizers.gptq_core import get_dataloader
@@ -21,7 +23,7 @@ from keras.src.quantizers.utils import should_quantize_layer
 
 
 @contextmanager
-def stream_activations(layers_map, awq_objects):
+def stream_activations(layers_map, awq_objects, execution_trace=None):
     """Context manager to capture activations for AWQ calibration.
 
     Temporarily patches each layer's dispatched forward method
@@ -32,15 +34,29 @@ def stream_activations(layers_map, awq_objects):
     Args:
         layers_map: Dict[str, Layer]. Mapping from layer names to layers.
         awq_objects: Dict[str, AWQ]. Mapping from names to AWQ instances.
+        execution_trace: Optional dict. When provided, each layer's FIRST
+            hook invocation records `{name: (call_index, input_tensor)}`
+            into it - the block-level execution order and the identity of
+            the input each layer consumes. Used to derive within-block
+            quantization stages (see `apply_awq_layerwise`). The recorded
+            tensors are only kept alive for identity comparison; callers
+            should drop the trace after use.
 
     Yields:
         None: The patched state is active only within the `with` block.
     """
     original_calls = {}
+    call_counter = [0]
 
     def create_hook(name, original_call_func):
         def hook(*args, **kwargs):
             inp = args[0] if args else kwargs["inputs"]
+            if execution_trace is not None and name not in execution_trace:
+                # Record block-level execution order and the input tensor's
+                # identity on the first call (a live reference is kept so
+                # the id cannot be recycled while tracing).
+                execution_trace[name] = (call_counter[0], inp)
+                call_counter[0] += 1
             num_features = awq_objects[name].rows
             input_2d = ops.reshape(inp, (-1, num_features))
             awq_objects[name].update_activation_magnitudes(input_2d)
@@ -122,19 +138,46 @@ def apply_awq_layerwise(dataloader, config, structure, filters=None):
                 for name, layer in sub_layers_map.items()
             }
 
-            # Capture activation statistics
-            with stream_activations(sub_layers_map, awq_objects):
-                for sample_idx in range(num_samples):
-                    current_input = inputs[sample_idx]
-                    if len(current_input.shape) == 2:
-                        current_input = ops.expand_dims(current_input, axis=0)
-                    _ = block(current_input)
+            def run_calibration_sweep(layers, objects, trace=None):
+                with stream_activations(layers, objects, execution_trace=trace):
+                    for sample_idx in range(num_samples):
+                        current_input = inputs[sample_idx]
+                        if ops.ndim(current_input) == 2:
+                            current_input = ops.expand_dims(
+                                current_input, axis=0
+                            )
+                        _ = block(current_input)
 
-            # Quantize each layer
-            for name, awq_object in awq_objects.items():
-                logging.info(f"Quantizing {name}...")
-                awq_object.quantize_layer()
-                awq_object.free()
+            # Capture activation statistics
+            execution_trace = {}
+            run_calibration_sweep(
+                sub_layers_map, awq_objects, trace=execution_trace
+            )
+
+            # Quantize the block's layers in execution-order stages ("true
+            # sequential", matching the GPTQ path): after each stage is
+            # quantized, downstream stages' activation statistics are
+            # re-estimated so their scale searches see the quantized
+            # upstream activations they will actually get at inference.
+            stages = _execution_stages(sub_layers_map, execution_trace)
+            del execution_trace
+
+            for stage_idx, stage_names in enumerate(stages):
+                if stage_idx > 0:
+                    stage_map = {
+                        name: sub_layers_map[name] for name in stage_names
+                    }
+                    stage_objects = {}
+                    for name in stage_names:
+                        awq_objects[name].free()
+                        awq_objects[name] = AWQ(sub_layers_map[name], config)
+                        stage_objects[name] = awq_objects[name]
+                    run_calibration_sweep(stage_map, stage_objects)
+
+                for name in stage_names:
+                    logging.info(f"Quantizing {name}...")
+                    awq_objects[name].quantize_layer()
+                    awq_objects[name].free()
 
             del awq_objects
 
@@ -186,12 +229,13 @@ def awq_quantize(config, quantization_layer_structure, filters=None):
         num_samples=config.num_samples,
     )
 
-    apply_awq_layerwise(
-        dataloader[: config.num_samples],
-        config,
-        quantization_layer_structure,
-        filters=filters,
-    )
+    with calibration_no_grad_scope():
+        apply_awq_layerwise(
+            dataloader[: config.num_samples],
+            config,
+            quantization_layer_structure,
+            filters=filters,
+        )
 
 
 def get_group_size_for_layer(layer, config):

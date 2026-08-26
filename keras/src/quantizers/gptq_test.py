@@ -581,6 +581,61 @@ class GPTQTest(testing.TestCase):
         # (dead-feature path), silently disabling error correction.
         self.assertGreater(max_off_diagonal[0], 0.0)
 
+    def test_gptq_calibration_runs_without_grad_tracking(self):
+        """Calibration forwards must not build autograd graphs on torch.
+
+        Per-sample activations are retained across the whole calibration
+        loop, so retained graphs previously accumulated every intermediate
+        activation of every forward pass and exhausted GPU memory on
+        models that fit comfortably otherwise.
+        """
+        if backend.backend() != "torch":
+            self.skipTest("gradient tracking is specific to torch")
+        keras.utils.set_random_seed(123)
+        vocab_size, seq_len, embed_dim = 64, 8, 8
+
+        inputs = layers.Input(shape=(seq_len,), dtype="int32")
+        embedding = layers.Embedding(vocab_size, embed_dim)
+        x = embedding(inputs)
+        block = models.Sequential([layers.Dense(embed_dim)])
+        x = block(x)
+        x = layers.GlobalAveragePooling1D()(x)
+        model = models.Model(inputs, layers.Dense(2)(x))
+
+        rng = np.random.default_rng(seed=5)
+        dataset = [
+            rng.integers(0, vocab_size, size=(1, seq_len)).astype("int32")
+            for _ in range(2)
+        ]
+        config = GPTQConfig(
+            dataset=dataset,
+            tokenizer=lambda text: text,
+            weight_bits=4,
+            num_samples=2,
+            sequence_length=seq_len,
+            group_size=8,
+            quantization_layer_structure={
+                "pre_block_layers": [embedding],
+                "sequential_blocks": [block],
+            },
+        )
+
+        graph_free = [True]
+        original_update = GPTQ.update_hessian_with_batch
+
+        def spy_update(gptq_self, inp):
+            if getattr(inp, "grad_fn", None) is not None:
+                graph_free[0] = False
+            return original_update(gptq_self, inp)
+
+        GPTQ.update_hessian_with_batch = spy_update
+        try:
+            model.quantize("gptq", config=config)
+        finally:
+            GPTQ.update_hessian_with_batch = original_update
+
+        self.assertTrue(graph_free[0])
+
     @parameterized.named_parameters(
         ("per_channel", -1, 1),
         ("group_gt_blocksize", 256, 2),
