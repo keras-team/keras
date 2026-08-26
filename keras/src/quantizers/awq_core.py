@@ -142,7 +142,7 @@ def apply_awq_layerwise(dataloader, config, structure, filters=None):
                 with stream_activations(layers, objects, execution_trace=trace):
                     for sample_idx in range(num_samples):
                         current_input = inputs[sample_idx]
-                        if len(current_input.shape) == 2:
+                        if ops.ndim(current_input) == 2:
                             current_input = ops.expand_dims(
                                 current_input, axis=0
                             )
