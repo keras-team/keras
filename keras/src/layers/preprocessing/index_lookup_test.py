@@ -10,6 +10,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import testing
 from keras.src.saving import saving_api
+from keras.src.trainers.data_adapters import py_dataset_adapter
 
 
 @pytest.mark.skipif(
@@ -876,9 +877,7 @@ class IndexLookupLayerTest(testing.TestCase):
             )
 
     def test_adapt_pydataset_tuple_batches(self):
-        from keras.src.trainers.data_adapters.py_dataset_adapter import PyDataset
-
-        class CustomPyDataset(PyDataset):
+        class CustomPyDataset(py_dataset_adapter.PyDataset):
             def __len__(self):
                 return 2
 
