@@ -7,6 +7,7 @@ import pytest
 from absl.testing import parameterized
 
 import keras
+from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
@@ -1029,3 +1030,95 @@ class AWQAccuracyTest(testing.TestCase):
         # All-zero magnitudes would be replaced with ones, making the
         # scale search activation-blind.
         self.assertGreater(max_magnitude[0], 0.0)
+
+    def _tiny_awq_model_and_config(self, num_samples=4):
+        """Embedding -> [Dense(16, relu), Dense(8)] block, tiny AWQ config."""
+        keras.utils.set_random_seed(123)
+        seq_len, vocab, embed_dim = 16, 48, 8
+
+        block = models.Sequential(
+            [
+                layers.Dense(16, activation="relu"),
+                layers.Dense(embed_dim),
+            ]
+        )
+        inputs = layers.Input(shape=(seq_len,), dtype="int32")
+        embedding = layers.Embedding(vocab, embed_dim)
+        x = embedding(inputs)
+        x = block(x)
+        x = layers.GlobalAveragePooling1D()(x)
+        model = models.Model(inputs, layers.Dense(4)(x))
+
+        rng = np.random.default_rng(seed=7)
+        dataset = [
+            rng.integers(0, vocab, size=(1, seq_len), dtype=np.int32)
+            for _ in range(num_samples)
+        ]
+        config = AWQConfig(
+            dataset=dataset,
+            tokenizer=_char_tokenizer(vocab_size=vocab, seq_len=seq_len),
+            group_size=8,
+            num_samples=num_samples,
+            sequence_length=seq_len,
+            num_grid_points=5,
+            quantization_layer_structure={
+                "pre_block_layers": [embedding],
+                "sequential_blocks": [block],
+            },
+        )
+        return model, config
+
+    def test_awq_recalibrates_downstream_stages(self):
+        """AWQ must re-capture downstream statistics between stages.
+
+        The two chained Dense layers form two execution stages. The first
+        sweep captures both layers (2 hook calls per sample); after the
+        first Dense is quantized, the second Dense's statistics must be
+        re-captured against the quantized upstream activations (1 more
+        call per sample). A single-sweep implementation records only
+        2 * num_samples calls.
+        """
+        num_samples = 4
+        model, config = self._tiny_awq_model_and_config(num_samples)
+
+        hook_calls = [0]
+        original_update = AWQ.update_activation_magnitudes
+
+        def spy_update(awq_self, inp):
+            hook_calls[0] += 1
+            return original_update(awq_self, inp)
+
+        AWQ.update_activation_magnitudes = spy_update
+        try:
+            model.quantize("awq", config=config)
+        finally:
+            AWQ.update_activation_magnitudes = original_update
+
+        self.assertEqual(hook_calls[0], 3 * num_samples)
+
+    def test_awq_calibration_runs_without_grad_tracking(self):
+        """Calibration forwards must not build autograd graphs on torch.
+
+        The per-sample activations are retained across the whole
+        calibration loop, so retained graphs previously accumulated every
+        intermediate activation and exhausted GPU memory.
+        """
+        if backend.backend() != "torch":
+            self.skipTest("gradient tracking is specific to torch")
+        model, config = self._tiny_awq_model_and_config()
+
+        graph_free = [True]
+        original_update = AWQ.update_activation_magnitudes
+
+        def spy_update(awq_self, inp):
+            if getattr(inp, "grad_fn", None) is not None:
+                graph_free[0] = False
+            return original_update(awq_self, inp)
+
+        AWQ.update_activation_magnitudes = spy_update
+        try:
+            model.quantize("awq", config=config)
+        finally:
+            AWQ.update_activation_magnitudes = original_update
+
+        self.assertTrue(graph_free[0])
