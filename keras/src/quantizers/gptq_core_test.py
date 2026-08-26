@@ -414,3 +414,31 @@ class TestExecutionStages(testing.TestCase):
 
         stages = _execution_stages(["a", "b"], {})
         self.assertEqual(stages, [["a", "b"]])
+
+
+class TestDataloaderReproducibility(testing.TestCase):
+    def test_strided_offset_is_process_stable(self):
+        """The strided sampling offset must not depend on PYTHONHASHSEED.
+
+        The offset was previously derived via `hash(("gptq-calib", seed))`;
+        Python randomizes string hashing per process, so calibration
+        windows - and therefore every quantization result - silently
+        differed between runs despite the fixed seed. These golden values
+        pin the numpy-based derivation (seed=42, 1000 tokens, seq len 8,
+        4 samples); the old hash-based offset only reproduces them under
+        one specific PYTHONHASHSEED by coincidence.
+        """
+
+        class PassthroughTokenizer:
+            def tokenize(self, x):
+                return np.asarray(x, dtype=np.int32)
+
+        out = get_dataloader(
+            PassthroughTokenizer(),
+            8,
+            [np.arange(1000, dtype=np.int32)],
+            num_samples=4,
+        )
+        self.assertEqual(out.shape, (4, 1, 8))
+        self.assertAllClose(out[:, 0, 0], np.array([88, 336, 584, 832]))
+        self.assertAllClose(out[0, 0], np.arange(88, 96))

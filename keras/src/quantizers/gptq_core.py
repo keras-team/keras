@@ -232,9 +232,13 @@ def get_dataloader(
         # stride chosen to cover the space roughly uniformly
         if stride is None:
             stride = max(1, (max_start + 1) // num_samples)
-        # offset derived deterministically from seed
+        # Offset derived deterministically from the seed. Python's
+        # built-in `hash()` must not be used here: string/tuple hashes are
+        # randomized per process (PYTHONHASHSEED), which silently made
+        # calibration windows - and therefore every quantization result -
+        # unreproducible across runs despite the fixed seed.
         offset = (
-            (abs(hash(("gptq-calib", seed))) % (max_start + 1))
+            int(np.random.default_rng(seed).integers(0, max_start + 1))
             if max_start > 0
             else 0
         )
