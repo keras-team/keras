@@ -6590,6 +6590,11 @@ class Nonzero(Operation):
         return _nonzero(x)
 
     def compute_output_spec(self, x):
+        if len(x.shape) == 0:
+            raise ValueError(
+                "`nonzero` requires an input tensor with at least 1 dimension. "
+                f"Received: input.shape={x.shape}"
+            )
         return tuple(
             [KerasTensor((None,), dtype="int32") for _ in range(len(x.shape))]
         )
@@ -6611,12 +6616,18 @@ def nonzero(x):
 
 
 def _nonzero(x):
+    x = backend.convert_to_tensor(x)
+    if len(x.shape) == 0:
+        raise ValueError(
+            "`nonzero` requires an input tensor with at least 1 dimension. "
+            f"Received: input.shape={x.shape}"
+        )
+
     if not config._use_backend_agnostic_ops() and hasattr(
         backend.numpy, "nonzero"
     ):
         return backend.numpy.nonzero(x)
 
-    x = backend.convert_to_tensor(x)
     flat_x = backend.numpy.reshape(x, (-1,))
 
     if backend.standardize_dtype(flat_x.dtype) == "bool":

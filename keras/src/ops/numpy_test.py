@@ -2277,6 +2277,11 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(result[1].shape, (None,))
         self.assertEqual(result[2].shape, (None,))
 
+        with self.assertRaisesRegex(
+            ValueError, "requires an input tensor with at least 1 dimension"
+        ):
+            knp.nonzero(KerasTensor(()))
+
     def test_ones_like(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.ones_like(x).shape, (None, 3))
@@ -6588,6 +6593,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.nonzero(x), np.nonzero(x))
         self.assertAllClose(knp.Nonzero()(x), np.nonzero(x))
 
+        with self.assertRaisesRegex(
+            ValueError, "requires an input tensor with at least 1 dimension"
+        ):
+            knp.nonzero(np.array(5))
+
     def test_nonzero_backend_agnostic_fallback(self):
         try:
             config._set_use_backend_agnostic_ops(True)
@@ -6608,6 +6618,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
                 for res_idx, ref_idx in zip(res, ref):
                     self.assertEqual(standardize_dtype(res_idx.dtype), "int32")
                     self.assertAllClose(res_idx, ref_idx)
+
+            with self.assertRaisesRegex(
+                ValueError, "requires an input tensor with at least 1 dimension"
+            ):
+                knp.nonzero(np.array(5))
         finally:
             config._set_use_backend_agnostic_ops(False)
 
