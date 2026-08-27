@@ -6590,11 +6590,6 @@ class Nonzero(Operation):
         return _nonzero(x)
 
     def compute_output_spec(self, x):
-        if len(x.shape) == 0:
-            raise ValueError(
-                "`nonzero` requires an input tensor with at least 1 dimension. "
-                f"Received: input.shape={x.shape}"
-            )
         return tuple(
             [KerasTensor((None,), dtype="int32") for _ in range(len(x.shape))]
         )
