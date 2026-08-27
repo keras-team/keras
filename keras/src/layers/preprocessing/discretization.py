@@ -207,7 +207,7 @@ class Discretization(DataLayer):
             progbar.update(steps if steps is not None else i + 1, finalize=True)
         elif hasattr(data, "__iter__") and not (
             isinstance(data, np.ndarray)
-            or backend.is_tensor(data)
+            or backend.ops.is_tensor(data)
             or tf.is_tensor(data)
         ):
             progbar = Progbar(target=steps, unit_name="step")

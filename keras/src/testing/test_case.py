@@ -41,7 +41,7 @@ class TestCase(parameterized.TestCase):
     def convert_to_numpy(self, x):
         if isinstance(x, np.ndarray):
             return x
-        elif backend.is_tensor(x) or isinstance(x, backend.Variable):
+        elif backend.ops.is_tensor(x) or isinstance(x, backend.Variable):
             return backend.convert_to_numpy(x)
         return np.array(x)
 

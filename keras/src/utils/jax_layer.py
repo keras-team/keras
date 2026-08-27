@@ -419,7 +419,7 @@ class JaxLayer(Layer):
         """
 
         def create_variable(value):
-            if backend.is_tensor(value) or isinstance(
+            if backend.ops.is_tensor(value) or isinstance(
                 value, (np.ndarray, np.generic, jax.Array)
             ):
                 dtype = value.dtype

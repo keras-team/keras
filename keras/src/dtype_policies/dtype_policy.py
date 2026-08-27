@@ -156,7 +156,7 @@ class DTypePolicy:
         """
 
         dtype = backend.standardize_dtype(dtype)
-        if backend.is_tensor(x):
+        if backend.ops.is_tensor(x):
             if self._should_cast(x, autocast, dtype):
                 x = backend.cast(x, dtype=dtype)
             return x
