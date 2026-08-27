@@ -234,20 +234,20 @@ class RandomCrop(BaseImagePreprocessingLayer):
             if len(self.backend.shape(boxes)) == 3:
                 boxes = self.backend.numpy.stack(
                     [
-                        self.backend.numpy.maximum(boxes[:, :, 0] - h_start, 0),
-                        self.backend.numpy.maximum(boxes[:, :, 1] - w_start, 0),
-                        self.backend.numpy.maximum(boxes[:, :, 2] - h_start, 0),
-                        self.backend.numpy.maximum(boxes[:, :, 3] - w_start, 0),
+                        self.backend.numpy.maximum(boxes[:, :, 0] - w_start, 0),
+                        self.backend.numpy.maximum(boxes[:, :, 1] - h_start, 0),
+                        self.backend.numpy.maximum(boxes[:, :, 2] - w_start, 0),
+                        self.backend.numpy.maximum(boxes[:, :, 3] - h_start, 0),
                     ],
                     axis=-1,
                 )
             else:
                 boxes = self.backend.numpy.stack(
                     [
-                        self.backend.numpy.maximum(boxes[:, 0] - h_start, 0),
-                        self.backend.numpy.maximum(boxes[:, 1] - w_start, 0),
-                        self.backend.numpy.maximum(boxes[:, 2] - h_start, 0),
-                        self.backend.numpy.maximum(boxes[:, 3] - w_start, 0),
+                        self.backend.numpy.maximum(boxes[:, 0] - w_start, 0),
+                        self.backend.numpy.maximum(boxes[:, 1] - h_start, 0),
+                        self.backend.numpy.maximum(boxes[:, 2] - w_start, 0),
+                        self.backend.numpy.maximum(boxes[:, 3] - h_start, 0),
                     ],
                     axis=-1,
                 )

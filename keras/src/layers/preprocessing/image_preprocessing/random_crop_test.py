@@ -164,6 +164,37 @@ class RandomCropTest(testing.TestCase):
             transformed_data["bounding_boxes"]["labels"],
         )
 
+    def test_bounding_boxes_offsets_applied_to_correct_axes(self):
+        layer = layers.RandomCrop(
+            2, 4, data_format="channels_last", bounding_box_format="xyxy"
+        )
+
+        # Unbatched boxes: shape (num_boxes, 4)
+        bounding_boxes = {
+            "boxes": np.array([[3.0, 4.0, 5.0, 5.0]]),
+            "labels": np.array([0]),
+        }
+        output = layer.transform_bounding_boxes(
+            bounding_boxes, (3, 1), training=True
+        )
+        # Crop starts at row 3 (h_start), column 1 (w_start).
+        # x coordinates must shift by w_start, y coordinates by h_start.
+        expected_boxes = np.array([[2.0, 1.0, 4.0, 2.0]])
+        self.assertAllClose(output["boxes"], expected_boxes)
+        self.assertAllClose(output["labels"], np.array([0]))
+
+        # Batched boxes: shape (batch, num_boxes, 4)
+        bounding_boxes = {
+            "boxes": np.array([[[3.0, 4.0, 5.0, 5.0]]]),
+            "labels": np.array([[0]]),
+        }
+        output = layer.transform_bounding_boxes(
+            bounding_boxes, (3, 1), training=True
+        )
+        expected_boxes = np.array([[[2.0, 1.0, 4.0, 2.0]]])
+        self.assertAllClose(output["boxes"], expected_boxes)
+        self.assertAllClose(output["labels"], np.array([[0]]))
+
     def test_segmentation_mask_preserves_dtype_and_classes(self):
         # Masks hold discrete class indices; the resize fallback must use
         # nearest-neighbor interpolation so no new classes appear, and the
