@@ -216,7 +216,7 @@ def serialize_keras_object(obj):
         }
     if tf.available and isinstance(obj, tf.TensorShape):
         return obj.as_list() if obj._dims is not None else None
-    if backend.is_tensor(obj):
+    if backend.ops.is_tensor(obj):
         return {
             "class_name": "__tensor__",
             "config": {

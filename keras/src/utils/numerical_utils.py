@@ -74,7 +74,7 @@ def to_categorical(x, num_classes=None):
     >>> print(np.around(loss, 5))
     [0. 0. 0. 0.]
     """
-    if backend.is_tensor(x):
+    if backend.ops.is_tensor(x):
         input_shape = backend.core.shape(x)
         # Shrink the last dimension if the shape is (..., 1).
         if (
