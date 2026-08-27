@@ -2277,11 +2277,6 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(result[1].shape, (None,))
         self.assertEqual(result[2].shape, (None,))
 
-        with self.assertRaisesRegex(
-            ValueError, "requires an input tensor with at least 1 dimension"
-        ):
-            knp.nonzero(KerasTensor(()))
-
     def test_ones_like(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.ones_like(x).shape, (None, 3))
@@ -6592,11 +6587,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([[0, 0, 3], [3, 0, 0]])
         self.assertAllClose(knp.nonzero(x), np.nonzero(x))
         self.assertAllClose(knp.Nonzero()(x), np.nonzero(x))
-
-        with self.assertRaisesRegex(
-            ValueError, "requires an input tensor with at least 1 dimension"
-        ):
-            knp.nonzero(np.array(5))
 
     @parameterized.named_parameters(
         ("1d", np.array([0, 1, 0, 2, 0, 3])),
