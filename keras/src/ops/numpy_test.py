@@ -6598,27 +6598,30 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         ):
             knp.nonzero(np.array(5))
 
-    def test_nonzero_backend_agnostic_fallback(self):
+    @parameterized.named_parameters(
+        ("1d", np.array([0, 1, 0, 2, 0, 3])),
+        ("2d", np.array([[0, 0, 3], [3, 0, 0]])),
+        ("3d", np.array([[[1, 0], [0, 2]], [[0, 0], [3, 4]]])),
+        ("all_zeros", np.zeros((2, 3, 4))),
+        ("all_ones", np.ones((2, 3))),
+        ("boolean", np.array([True, False, True, False])),
+        ("negative_and_positive", np.array([-5, 0, 5, 0, -1])),
+        ("empty_dimension", np.zeros((0, 5))),
+    )
+    def test_nonzero_backend_agnostic_fallback(self, x):
         try:
             config._set_use_backend_agnostic_ops(True)
-            test_inputs = [
-                np.array([0, 1, 0, 2, 0, 3]),
-                np.array([[0, 0, 3], [3, 0, 0]]),
-                np.array([[[1, 0], [0, 2]], [[0, 0], [3, 4]]]),
-                np.zeros((2, 3, 4)),
-                np.ones((2, 3)),
-                np.array([True, False, True, False]),
-                np.array([-5, 0, 5, 0, -1]),
-                np.zeros((0, 5)),
-            ]
-            for x in test_inputs:
-                res = knp.nonzero(x)
-                ref = np.nonzero(x)
-                self.assertEqual(len(res), len(ref))
-                for res_idx, ref_idx in zip(res, ref):
-                    self.assertEqual(standardize_dtype(res_idx.dtype), "int32")
-                    self.assertAllClose(res_idx, ref_idx)
+            result = knp.nonzero(x)
+            self.assertAllClose(result, np.nonzero(x))
+            self.assertAllClose(knp.Nonzero()(x), np.nonzero(x))
+            for res_idx in result:
+                self.assertEqual(standardize_dtype(res_idx.dtype), "int32")
+        finally:
+            config._set_use_backend_agnostic_ops(False)
 
+    def test_nonzero_backend_agnostic_fallback_0d_error(self):
+        try:
+            config._set_use_backend_agnostic_ops(True)
             with self.assertRaisesRegex(
                 ValueError, "requires an input tensor with at least 1 dimension"
             ):
