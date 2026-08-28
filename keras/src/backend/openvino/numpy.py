@@ -3885,6 +3885,12 @@ def pad(x, pad_width, mode="constant", constant_values=None):
             constant_values, x.get_element_type()
         ).output(0)
 
+    if len(pad_width) == 1:
+        # A single `(before, after)` pair broadcasts to every axis, matching
+        # `np.pad`. `ov_opset.pad` requires `pads_begin`/`pads_end` to match
+        # the input rank, so expand it here.
+        pad_width = [pad_width[0]] * x.get_partial_shape().rank.get_length()
+
     # split pad_width into two tensors pads_begin and pads_end
     pads_begin = []
     pads_end = []
