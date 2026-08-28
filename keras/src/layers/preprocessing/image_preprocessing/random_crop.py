@@ -234,15 +234,11 @@ class RandomCrop(BaseImagePreprocessingLayer):
             # Shift by the crop offsets and clip to the crop size so boxes
             # stay within the cropped image. `boxes[..., i]` handles both
             # batched (B, N, 4) and unbatched (N, 4) boxes.
-            x1 = self.backend.numpy.clip(
-                boxes[..., 0] - w_start, 0, self.width
-            )
+            x1 = self.backend.numpy.clip(boxes[..., 0] - w_start, 0, self.width)
             y1 = self.backend.numpy.clip(
                 boxes[..., 1] - h_start, 0, self.height
             )
-            x2 = self.backend.numpy.clip(
-                boxes[..., 2] - w_start, 0, self.width
-            )
+            x2 = self.backend.numpy.clip(boxes[..., 2] - w_start, 0, self.width)
             y2 = self.backend.numpy.clip(
                 boxes[..., 3] - h_start, 0, self.height
             )
