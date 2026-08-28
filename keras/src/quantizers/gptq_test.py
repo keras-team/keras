@@ -18,6 +18,7 @@ from keras.src.quantizers.gptq import gptq_quantize_matrix
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.gptq_core import find_layers_in_block
 from keras.src.quantizers.quantization_config import QuantizationConfig
+from keras.src.quantizers.quantizers import GPTQQuantizer
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
 from keras.src.quantizers.quantizers import quantize_with_zero_point
@@ -389,7 +390,7 @@ class GPTQTest(testing.TestCase):
 
         self.assertAllClose(g1.hessian, g2.hessian, rtol=1e-6, atol=1e-6)
 
-    def test_identity_inv_hessian_matches_direct_quantization(self):
+    def test_identity_hessian_matches_direct_quantization(self):
         """Tests that the matrix quantization without error correction
         matches the direct implementation."""
         in_features, out_features = 16, 8
@@ -401,14 +402,14 @@ class GPTQTest(testing.TestCase):
         )
         weights_transpose = ops.transpose(weights)
 
-        # inverse_hessian = identity; no cross-feature correction
-        # (since all off-diagonal elements are zero), which means
-        # there is no interaction between different features
-        inverse_hessian = ops.eye(in_features, dtype="float32")
+        # hessian = identity => inverse Hessian is identity; no cross-feature
+        # correction (since all off-diagonal elements are zero), which means
+        # there is no interaction between different features.
+        hessian = ops.eye(in_features, dtype="float32")
 
         quantized_weights, scale_map, zero_map, g_idx = gptq_quantize_matrix(
             weights_transpose,
-            inverse_hessian,
+            hessian,
             blocksize=128,
             group_size=1,  # per-column quantization
             activation_order=False,
@@ -504,6 +505,265 @@ class GPTQTest(testing.TestCase):
         for dense in block.layers:
             self.assertIn(dense.path, found)
             self.assertIs(found[dense.path], dense)
+
+    def test_gptq_calibration_hooks_fire_during_model_quantize(self):
+        """Calibration hooks must run during `model.quantize("gptq")`.
+
+        Regression test: `model.quantize` switches layers to their quantized
+        dtype policy before calibration, after which `Operation.__call__`
+        dispatches to `quantized_call` instead of `call`. The calibration
+        hooks used to patch `call` only, so they never fired: the Hessian
+        stayed all-zeros and GPTQ silently degenerated to plain nearest
+        rounding. Asserts the hook actually runs and accumulates a
+        non-trivial (non-diagonal) Hessian.
+        """
+        keras.utils.set_random_seed(123)
+        embed_dim = 8
+
+        block = models.Sequential(
+            [
+                layers.Dense(16, activation="relu"),
+                layers.Dense(embed_dim),
+            ]
+        )
+
+        inputs = layers.Input(shape=(SEQ_LEN,), dtype="int32")
+        embedding = layers.Embedding(VOCAB_SIZE, embed_dim)
+        x = embedding(inputs)
+        x = block(x)
+        x = layers.GlobalAveragePooling1D()(x)
+        outputs = layers.Dense(NUM_CLASSES)(x)
+        model = models.Model(inputs, outputs)
+
+        rng = np.random.default_rng(seed=7)
+        dataset = [
+            rng.integers(0, VOCAB_SIZE, size=(1, SEQ_LEN), dtype=np.int32)
+            for _ in range(4)
+        ]
+        tokenizer = _char_tokenizer(vocab_size=VOCAB_SIZE, seq_len=SEQ_LEN)
+
+        config = GPTQConfig(
+            dataset=dataset,
+            tokenizer=tokenizer,
+            weight_bits=4,
+            group_size=8,
+            num_samples=4,
+            sequence_length=SEQ_LEN,
+            quantization_layer_structure={
+                "pre_block_layers": [embedding],
+                "sequential_blocks": [block],
+            },
+        )
+
+        hook_calls = [0]
+        max_off_diagonal = [0.0]
+        original_update = GPTQ.update_hessian_with_batch
+
+        def spy_update(gptq_self, inp):
+            hook_calls[0] += 1
+            result = original_update(gptq_self, inp)
+            hessian = ops.convert_to_numpy(gptq_self.hessian)
+            off_diagonal = hessian - np.diag(np.diag(hessian))
+            max_off_diagonal[0] = max(
+                max_off_diagonal[0], float(np.abs(off_diagonal).max())
+            )
+            return result
+
+        GPTQ.update_hessian_with_batch = spy_update
+        try:
+            model.quantize("gptq", config=config)
+        finally:
+            GPTQ.update_hessian_with_batch = original_update
+
+        self.assertGreater(hook_calls[0], 0)
+        # A Hessian built from real activations has non-zero off-diagonal
+        # entries; an all-zeros Hessian would be replaced by the identity
+        # (dead-feature path), silently disabling error correction.
+        self.assertGreater(max_off_diagonal[0], 0.0)
+
+    def test_gptq_calibration_runs_without_grad_tracking(self):
+        """Calibration forwards must not build autograd graphs on torch.
+
+        Per-sample activations are retained across the whole calibration
+        loop, so retained graphs previously accumulated every intermediate
+        activation of every forward pass and exhausted GPU memory on
+        models that fit comfortably otherwise.
+        """
+        if backend.backend() != "torch":
+            self.skipTest("gradient tracking is specific to torch")
+        keras.utils.set_random_seed(123)
+        vocab_size, seq_len, embed_dim = 64, 8, 8
+
+        inputs = layers.Input(shape=(seq_len,), dtype="int32")
+        embedding = layers.Embedding(vocab_size, embed_dim)
+        x = embedding(inputs)
+        block = models.Sequential([layers.Dense(embed_dim)])
+        x = block(x)
+        x = layers.GlobalAveragePooling1D()(x)
+        model = models.Model(inputs, layers.Dense(2)(x))
+
+        rng = np.random.default_rng(seed=5)
+        dataset = [
+            rng.integers(0, vocab_size, size=(1, seq_len)).astype("int32")
+            for _ in range(2)
+        ]
+        config = GPTQConfig(
+            dataset=dataset,
+            tokenizer=lambda text: text,
+            weight_bits=4,
+            num_samples=2,
+            sequence_length=seq_len,
+            group_size=8,
+            quantization_layer_structure={
+                "pre_block_layers": [embedding],
+                "sequential_blocks": [block],
+            },
+        )
+
+        graph_free = [True]
+        original_update = GPTQ.update_hessian_with_batch
+
+        def spy_update(gptq_self, inp):
+            if getattr(inp, "grad_fn", None) is not None:
+                graph_free[0] = False
+            return original_update(gptq_self, inp)
+
+        GPTQ.update_hessian_with_batch = spy_update
+        try:
+            model.quantize("gptq", config=config)
+        finally:
+            GPTQ.update_hessian_with_batch = original_update
+
+        self.assertTrue(graph_free[0])
+
+    @parameterized.named_parameters(
+        ("per_channel", -1, 1),
+        ("group_gt_blocksize", 256, 2),
+        ("group_eq_blocksize", 128, 4),
+        ("group_lt_blocksize", 64, 8),
+    )
+    def test_gptq_quantize_matrix_group_param_shapes(
+        self, group_size, expected_groups
+    ):
+        """Scale/zero must have one column per quantization group.
+
+        Regression test: the per-group parameter cache was reset at every
+        processing block, so a group spanning several blocks (`group_size`
+        of -1, or larger than `blocksize`) had its params recomputed and
+        re-appended once per block, producing `[out, n_blocks]`-shaped
+        scales that could not be assigned to the layer's
+        `[out, n_groups]` variables.
+        """
+        rng = np.random.default_rng(0)
+        in_features, out_features = 512, 16
+        w = ops.convert_to_tensor(
+            rng.standard_normal((out_features, in_features)).astype("float32")
+        )
+        x = rng.standard_normal((2048, in_features)).astype("float32")
+        hessian = ops.convert_to_tensor(
+            (2.0 / 2048) * (x.T @ x)
+            + 0.01 * np.eye(in_features, dtype="float32")
+        )
+        config = GPTQConfig(
+            tokenizer=None, dataset=None, weight_bits=4, group_size=group_size
+        )
+        _, scale, zero, g_idx = gptq_quantize_matrix(
+            w,
+            hessian=hessian,
+            blocksize=128,
+            group_size=group_size,
+            compute_scale_zero=GPTQQuantizer(config).find_params,
+        )
+        self.assertEqual(tuple(scale.shape), (out_features, expected_groups))
+        self.assertEqual(tuple(zero.shape), (out_features, expected_groups))
+        self.assertEqual(
+            int(ops.convert_to_numpy(ops.max(g_idx))), expected_groups - 1
+        )
+
+    def test_gptq_model_quantize_per_channel_group_size(self):
+        """`model.quantize("gptq")` with `group_size=-1` must not crash.
+
+        Regression test: with per-channel quantization the layer builds
+        `[out, 1]` scale variables, but the solver used to emit one scale
+        chunk per 128-column processing block, crashing the assignment for
+        any layer with more than 128 input features.
+        """
+        vocab_size, seq_len, embed_dim = 64, 8, 256
+
+        inputs = layers.Input(shape=(seq_len,), dtype="int32")
+        embedding = layers.Embedding(vocab_size, embed_dim)
+        x = embedding(inputs)
+        block = models.Sequential([layers.Dense(4)])
+        x = block(x)
+        x = layers.GlobalAveragePooling1D()(x)
+        model = models.Model(inputs, layers.Dense(2)(x))
+
+        rng = np.random.default_rng(seed=5)
+        dataset = [
+            rng.integers(0, vocab_size, size=(1, seq_len)).astype("int32")
+            for _ in range(2)
+        ]
+        config = GPTQConfig(
+            dataset=dataset,
+            tokenizer=lambda text: text,
+            weight_bits=4,
+            num_samples=2,
+            sequence_length=seq_len,
+            group_size=-1,
+            quantization_layer_structure={
+                "pre_block_layers": [embedding],
+                "sequential_blocks": [block],
+            },
+        )
+        model.quantize("gptq", config=config)
+
+        dense = block.layers[0]
+        self.assertTrue(dense.is_gptq_calibrated)
+        self.assertEqual(tuple(dense.kernel_scale.shape), (4, 1))
+        self.assertEqual(tuple(dense.kernel_zero.shape), (4, 1))
+
+    def test_gptq_warns_on_undersampled_calibration(self):
+        """Fewer than 4 calibration tokens per input feature must warn.
+
+        With a near-singular Hessian, GPTQ's error correction overfits the
+        calibration set and can produce worse results than plain
+        round-to-nearest; the user should be told to increase
+        `num_samples`/`sequence_length`.
+        """
+        vocab_size, seq_len, embed_dim = 64, 8, 256
+
+        def build():
+            inputs = layers.Input(shape=(seq_len,), dtype="int32")
+            embedding = layers.Embedding(vocab_size, embed_dim)
+            x = embedding(inputs)
+            block = models.Sequential([layers.Dense(4)])
+            x = block(x)
+            x = layers.GlobalAveragePooling1D()(x)
+            model = models.Model(inputs, layers.Dense(2)(x))
+            return model, embedding, block
+
+        rng = np.random.default_rng(seed=5)
+        dataset = [
+            rng.integers(0, vocab_size, size=(1, seq_len)).astype("int32")
+            for _ in range(2)
+        ]
+
+        model, embedding, block = build()
+        config = GPTQConfig(
+            dataset=dataset,
+            tokenizer=lambda text: text,
+            weight_bits=4,
+            num_samples=2,
+            sequence_length=seq_len,
+            group_size=-1,
+            quantization_layer_structure={
+                "pre_block_layers": [embedding],
+                "sequential_blocks": [block],
+            },
+        )
+        # 2 samples x 8 tokens = 16 tokens for a 256-feature layer.
+        with self.assertWarnsRegex(UserWarning, "undersampled"):
+            model.quantize("gptq", config=config)
 
 
 def _compute_scale_zero(x, **_):
