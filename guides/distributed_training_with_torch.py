@@ -2,7 +2,7 @@
 Title: Multi-GPU distributed training with PyTorch
 Author: [fchollet](https://twitter.com/fchollet)
 Date created: 2023/06/29
-Last modified: 2023/06/29
+Last modified: 2026/08/28
 Description: Guide to multi-GPU training for Keras models with PyTorch.
 Accelerator: GPU
 """
@@ -27,18 +27,26 @@ where the different replicas of the model stay in sync after each batch they pro
 Synchronicity keeps the model convergence behavior identical to what you would see for
 single-device training.
 
-Specifically, this guide teaches you how to use PyTorch's `DistributedDataParallel`
-module wrapper to train Keras, with minimal changes to your code,
-on multiple GPUs (typically 2 to 16) installed on a single machine (single host,
-multi-device training). This is the most common setup for researchers and small-scale
-industry workflows.
+For most workflows, the recommended approach is the **Keras Distribution API**
+(`keras.distribution`). With the PyTorch backend, `keras.distribution.DataParallel`
+configures synchronous data parallel training and works directly with `fit()`,
+`evaluate()`, and `predict()`. Keras handles process group setup details, wraps the
+model in PyTorch's `DistributedDataParallel`, shards input data across replicas, and
+aggregates metrics across processes.
+
+This guide also covers **custom training loops** built directly on top of PyTorch's
+`DistributedDataParallel` module. That path gives you full control over the training loop,
+but requires more boilerplate.
+
+**Note:** `keras.distribution.ModelParallel` (tensor-parallel / model-parallel training
+via PyTorch DTensor) is under active development. See
+[issue #23418](https://github.com/keras-team/keras/issues/23418) for progress.
 """
 
 """
 ## Setup
 
-Let's start by defining the function that creates the model that we will train,
-and the function that creates the dataset we will train on (MNIST in this case).
+Let's start by defining the model and dataset we will train on (MNIST in this case).
 """
 
 import os
@@ -84,6 +92,16 @@ def get_model():
     return model
 
 
+def get_compiled_model():
+    model = get_model()
+    model.compile(
+        optimizer=keras.optimizers.Adam(learning_rate=1e-3),
+        loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+        metrics=[keras.metrics.SparseCategoricalAccuracy()],
+    )
+    return model
+
+
 def get_dataset():
     # Load the data and split it between train and test sets
     (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
@@ -98,14 +116,144 @@ def get_dataset():
 
     # Create a TensorDataset
     dataset = torch.utils.data.TensorDataset(
-        torch.from_numpy(x_train), torch.from_numpy(y_train)
+        torch.from_numpy(x_train), torch.from_numpy(y_train.astype("int64"))
     )
     return dataset
 
 
+def get_dataloader(batch_size):
+    dataset = get_dataset()
+    return torch.utils.data.DataLoader(
+        dataset, batch_size=batch_size, shuffle=True
+    )
+
+
 """
-Next, let's define a simple PyTorch training loop that targets
-a GPU (note the calls to `.cuda()`).
+## Data parallel training with `keras.distribution`
+
+In this setup, you have one machine with several GPUs on it (typically 2 to 16). Each
+device will run a copy of your model (called a **replica**). For simplicity, in what
+follows, we'll assume we're dealing with 8 GPUs, at no loss of generality.
+
+**How it works**
+
+At each step of training:
+
+- The current batch of data (called **global batch**) is split across replicas. For
+instance, if the global batch has 512 samples and you have 8 GPUs, each replica
+processes 64 samples.
+- Each replica independently runs a forward pass and a backward pass on its local batch.
+- Gradients are synchronized across replicas before the optimizer update, so all replicas
+stay in sync.
+
+**How to use it**
+
+To do single-host, multi-device synchronous training with a Keras model, use
+`keras.distribution.DataParallel`. Here's how it works:
+
+- Start one process per GPU with `torch.multiprocessing.start_processes`.
+- In each process, call `keras.distribution.initialize()` to set up the distributed
+process group.
+- Create a `DataParallel` distribution and enter its scope with `distribution.scope()`.
+- Build, compile, and train the model with `fit()` as usual.
+
+Keras will:
+
+- Wrap the model in `torch.nn.parallel.DistributedDataParallel` when training starts.
+- Shard batches from your `torch.utils.data.DataLoader` across processes. You do **not**
+need to use `DistributedSampler` yourself when `auto_shard_dataset=True` (the default).
+- Aggregate metrics across replicas at the end of each epoch.
+
+Schematically, it looks like this:
+
+```python
+devices = [f"cuda:{i}" for i in range(num_gpus)]
+distribution = keras.distribution.DataParallel(devices=devices)
+
+with distribution.scope():
+    model = get_compiled_model()
+    model.fit(train_dataloader, epochs=2)
+```
+
+Here's a complete end-to-end runnable example:
+"""
+
+# Config
+num_gpu = torch.cuda.device_count()
+num_epochs = 2
+batch_size = 64
+print(f"Running on {num_gpu} GPUs")
+
+
+def train_with_keras_distribution(current_gpu_index, num_gpus):
+    # Configure the distributed environment for this process.
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "56492"
+    os.environ["LOCAL_RANK"] = str(current_gpu_index)
+
+    keras.distribution.initialize(
+        num_processes=num_gpus,
+        process_id=current_gpu_index,
+    )
+
+    devices = [f"cuda:{i}" for i in range(num_gpus)]
+    distribution = keras.distribution.DataParallel(devices=devices)
+
+    dataloader = get_dataloader(batch_size)
+
+    with distribution.scope():
+        model = get_compiled_model()
+        model.fit(dataloader, epochs=num_epochs)
+
+    if torch.distributed.is_initialized():
+        torch.distributed.destroy_process_group()
+
+
+"""
+You can also pass a `keras.distribution.DeviceMesh` explicitly if you need finer control
+over device placement:
+
+```python
+mesh = keras.distribution.DeviceMesh(
+    shape=(num_gpus,),
+    axis_names=["batch"],
+    devices=[f"cuda:{i}" for i in range(num_gpus)],
+)
+distribution = keras.distribution.DataParallel(device_mesh=mesh)
+```
+
+For multi-host training, pass `job_addresses`, `num_processes`, and `process_id` to
+`keras.distribution.initialize()`. You can also configure these via the
+`KERAS_DISTRIBUTION_JOB_ADDRESSES`, `KERAS_DISTRIBUTION_NUM_PROCESSES`, and
+`KERAS_DISTRIBUTION_PROCESS_ID` environment variables. See the
+[`keras.distribution.initialize` API docs](https://keras.io/api/distribution/) for
+details.
+
+**DataLoader tips**
+
+- Pass a regular `torch.utils.data.DataLoader`. Keras shards the data for you.
+- Use a global batch size (the size you would use for single-GPU training multiplied by
+the number of replicas). Each replica receives a local batch of
+`global_batch_size / num_replicas` samples.
+- `fit()` also works with NumPy arrays, `tf.data.Dataset`, and Keras `PyDataset`
+objects. Keras applies the same sharding logic regardless of the input type.
+"""
+
+"""
+## Custom training loops with PyTorch DDP
+
+If you need a custom training loop (for example, a GAN or reinforcement learning setup),
+you can use PyTorch's `DistributedDataParallel` module wrapper directly.
+
+In this case you are responsible for:
+
+- Initializing the process group with `torch.distributed.init_process_group`.
+- Creating a `DistributedSampler` and passing it to your `DataLoader`.
+- Wrapping the model in `DistributedDataParallel`.
+- Writing the training loop yourself.
+
+Next, let's define a simple PyTorch training loop that targets a GPU (note the calls to
+`.cuda()`).
 """
 
 
@@ -136,64 +284,10 @@ def train_model(model, dataloader, num_epochs, optimizer, loss_fn):
         )
 
 
-"""
-## Single-host, multi-device synchronous training
-
-In this setup, you have one machine with several GPUs on it (typically 2 to 16). Each
-device will run a copy of your model (called a **replica**). For simplicity, in what
-follows, we'll assume we're dealing with 8 GPUs, at no loss of generality.
-
-**How it works**
-
-At each step of training:
-
-- The current batch of data (called **global batch**) is split into 8 different
-sub-batches (called **local batches**). For instance, if the global batch has 512
-samples, each of the 8 local batches will have 64 samples.
-- Each of the 8 replicas independently processes a local batch: they run a forward pass,
-then a backward pass, outputting the gradient of the weights with respect to the loss of
-the model on the local batch.
-- The weight updates originating from local gradients are efficiently merged across the 8
-replicas. Because this is done at the end of every step, the replicas always stay in
-sync.
-
-In practice, the process of synchronously updating the weights of the model replicas is
-handled at the level of each individual weight variable. This is done through a **mirrored
-variable** object.
-
-**How to use it**
-
-To do single-host, multi-device synchronous training with a Keras model, you would use
-the `torch.nn.parallel.DistributedDataParallel` module wrapper.
-Here's how it works:
-
-- We use `torch.multiprocessing.start_processes` to start multiple Python processes, one
-per device. Each process will run the `per_device_launch_fn` function.
-- The `per_device_launch_fn` function does the following:
-    - It uses `torch.distributed.init_process_group` and `torch.cuda.set_device`
-    to configure the device to be used for that process.
-    - It uses `torch.utils.data.distributed.DistributedSampler`
-    and `torch.utils.data.DataLoader` to turn our data into a distributed data loader.
-    - It also uses `torch.nn.parallel.DistributedDataParallel` to turn our model into
-    a distributed PyTorch module.
-    - It then calls the `train_model` function.
-- The `train_model` function will then run in each process, with the model using
-a separate device in each process.
-
-Here's the flow, where each step is split into its own utility function:
-"""
-
-# Config
-num_gpu = torch.cuda.device_count()
-num_epochs = 2
-batch_size = 64
-print(f"Running on {num_gpu} GPUs")
-
-
 def setup_device(current_gpu_index, num_gpus):
     # Device setup
     os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "56492"
+    os.environ["MASTER_PORT"] = "56493"
     device = torch.device("cuda:{}".format(current_gpu_index))
     torch.distributed.init_process_group(
         backend="nccl",
@@ -254,19 +348,29 @@ def per_device_launch_fn(current_gpu_index, num_gpu):
 
 
 """
-Time to start multiple processes:
+To run the custom-loop example, uncomment the block below. The recommended
+`keras.distribution` path is shown in the `__main__` block at the bottom of this file.
+"""
+
+# torch.multiprocessing.start_processes(
+#     per_device_launch_fn,
+#     args=(num_gpu,),
+#     nprocs=num_gpu,
+#     join=True,
+#     start_method="fork",
+# )
+
+"""
+That's it!
 """
 
 if __name__ == "__main__":
-    # We use the "fork" method rather than "spawn" to support notebooks
+    # Recommended: data parallel training with keras.distribution.
+    # We use the "fork" method rather than "spawn" to support notebooks.
     torch.multiprocessing.start_processes(
-        per_device_launch_fn,
+        train_with_keras_distribution,
         args=(num_gpu,),
         nprocs=num_gpu,
         join=True,
         start_method="fork",
     )
-
-"""
-That's it!
-"""
