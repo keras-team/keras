@@ -5,7 +5,6 @@ from keras.src import constraints
 from keras.src import initializers
 from keras.src import ops
 from keras.src import regularizers
-from keras.src.api_export import keras_export
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 
@@ -30,7 +29,6 @@ def _fake_quant_with_ste(inputs, min_val, max_val, num_bits=8, narrow_range=True
     return dequantized, grad
 
 
-@keras_export("keras.layers.QuantizedDense")
 class QuantizedDense(Layer):
     """A densely-connected layer with fake weight quantization for QAT.
 
