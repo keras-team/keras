@@ -12900,6 +12900,12 @@ class HistogramTest(testing.TestCase):
         self.assertEqual(edges.shape, expected_edges.shape)
         self.assertAllClose(edges, expected_edges)
 
+        # The operation form is what a functional model calls at inference.
+        counts, edges = knp.Histogram()(input_tensor)
+
+        self.assertAllClose(counts, expected_counts)
+        self.assertAllClose(edges, expected_edges)
+
     def test_histogram_custom_bins(self):
         hist_op = knp.histogram
         input_tensor = np.random.rand(8)
