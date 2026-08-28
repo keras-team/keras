@@ -89,10 +89,12 @@ class DynamicBackend:
             "numpy",
             "mlx",
             "openvino",
+            "paddle",
         ):
             raise ValueError(
                 "Available backends are ('tensorflow', 'jax', 'torch', "
-                f"'numpy', 'mlx' and 'openvino'). Received: backend={backend}"
+                "'numpy', 'mlx', 'openvino' and 'paddle'). "
+                f"Received: backend={backend}"
             )
         self._backend = backend
 
@@ -106,16 +108,18 @@ class DynamicBackend:
     def __getattr__(self, name):
         if self._backend == "tensorflow":
             module = importlib.import_module("keras.src.backend.tensorflow")
-        if self._backend == "jax":
+        elif self._backend == "jax":
             module = importlib.import_module("keras.src.backend.jax")
-        if self._backend == "torch":
+        elif self._backend == "torch":
             module = importlib.import_module("keras.src.backend.torch")
-        if self._backend == "numpy":
+        elif self._backend == "numpy":
             module = importlib.import_module("keras.src.backend.numpy")
-        if self._backend == "mlx":
+        elif self._backend == "mlx":
             module = importlib.import_module("keras_mlx.src")
-        if self._backend == "openvino":
+        elif self._backend == "openvino":
             module = importlib.import_module("keras_openvino.src")
+        elif self._backend == "paddle":
+            module = importlib.import_module("keras_paddle.src")
         return getattr(module, name)
 
 

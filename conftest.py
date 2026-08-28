@@ -43,7 +43,7 @@ def pytest_collection_modifyitems(config, items):
     has_multiple_devices = False
 
     backend_skipped_tests = []
-    if backend() in ("mlx", "openvino"):
+    if backend() in ("mlx", "openvino", "paddle"):
         if backend() == "mlx":
             import keras_mlx
 
@@ -52,6 +52,10 @@ def pytest_collection_modifyitems(config, items):
             import keras_openvino
 
             backend_module_file = keras_openvino.__file__
+        elif backend() == "paddle":
+            import keras_paddle
+
+            backend_module_file = keras_paddle.__file__
 
         exclusions_path = os.path.join(
             # Remove `src/__init__.py`.
@@ -60,10 +64,11 @@ def pytest_collection_modifyitems(config, items):
         )
         with open(exclusions_path, "r") as file:
             backend_skipped_tests = file.readlines()
-            # it is necessary to check if stripped line is not empty
-            # and exclude such lines
+            # Exclude empty lines and comments.
             backend_skipped_tests = [
-                line.strip() for line in backend_skipped_tests if line.strip()
+                stripped
+                for line in backend_skipped_tests
+                if (stripped := line.strip()) and not stripped.startswith("#")
             ]
 
     if backend() == "jax":
