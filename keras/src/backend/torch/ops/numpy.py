@@ -1658,6 +1658,11 @@ def pad(x, pad_width, mode="constant", constant_values=None):
             )
         kwargs["value"] = constant_values
     x = convert_to_tensor(x)
+    if len(pad_width) == 1:
+        # A single `(before, after)` pair broadcasts to every axis, matching
+        # `np.pad`. `torch.nn.functional.pad` needs a per-axis spec, so expand
+        # it here.
+        pad_width = [pad_width[0]] * x.ndim
     if mode == "symmetric":
         # torch has no "symmetric" pad, so mirror manually (including the edge
         # value). `replicate` only repeats the edge and is numpy's "edge" mode.
