@@ -221,3 +221,32 @@ class JAXTrainerTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(preds.shape, (40, 2))
         eval_loss = model.evaluate(x, y, batch_size=4, verbose=0)
         self.assertIsInstance(eval_loss, float)
+
+    def test_steps_per_execution_tf_dataset_functional_model(self):
+        import tensorflow as tf
+
+        num_samples = 640
+        batch_size = 64
+        input_dim = 128
+        num_classes = 10
+
+        x = np.random.normal(size=(num_samples, input_dim)).astype("float32")
+        y = np.random.randint(0, num_classes, size=(num_samples,)).astype(
+            "int32"
+        )
+        dataset = tf.data.Dataset.from_tensor_slices((x, y))
+        dataset = dataset.batch(batch_size, drop_remainder=True)
+        dataset = dataset.prefetch(tf.data.AUTOTUNE)
+
+        inputs = layers.Input(shape=(input_dim,))
+        h = layers.Dense(64, activation="relu")(inputs)
+        outputs = layers.Dense(num_classes)(h)
+        model = models.Model(inputs=inputs, outputs=outputs)
+        model.compile(
+            optimizer="adam",
+            loss="sparse_categorical_crossentropy",
+            steps_per_execution=2,
+            jit_compile=True,
+        )
+        history = model.fit(dataset, epochs=1, verbose=0)
+        self.assertLen(history.history["loss"], 1)

@@ -1193,27 +1193,26 @@ class JAXEpochIterator(EpochIterator):
         # Auto-batch dataset by SPE on host and prefetch
         from keras.src.trainers.data_adapters import tf_dataset_adapter
 
-        if (
-            isinstance(self.data_adapter, tf_dataset_adapter.TFDatasetAdapter)
-            and self.data_adapter.batch_size is not None
-        ):
+        if isinstance(self.data_adapter, tf_dataset_adapter.TFDatasetAdapter):
             if self.steps_per_execution > 1:
                 if not getattr(self.data_adapter, "_super_batched", False):
-                    import tensorflow as tf
+                    if self.data_adapter.batch_size is not None:
+                        import tensorflow as tf
 
-                    self.data_adapter._dataset = (
-                        self.data_adapter._dataset.batch(
-                            self.steps_per_execution
-                        ).prefetch(tf.data.AUTOTUNE)
+                        self.data_adapter._dataset = (
+                            self.data_adapter._dataset.batch(
+                                self.steps_per_execution
+                            ).prefetch(tf.data.AUTOTUNE)
+                        )
+                        self.data_adapter._super_batched = True
+
+                if getattr(self.data_adapter, "_super_batched", False):
+                    iterator = self._get_super_batched_distributed_iterator(
+                        distribution
                     )
-                    self.data_adapter._super_batched = True
-
-                iterator = self._get_super_batched_distributed_iterator(
-                    distribution
-                )
-                if jax.default_backend() == "cpu":
-                    return iterator
-                return self._one_batch_ahead_iterator(iterator)
+                    if jax.default_backend() == "cpu":
+                        return iterator
+                    return self._one_batch_ahead_iterator(iterator)
 
         if self.steps_per_execution > 1:
             iterator = self._get_host_stacked_iterator(distribution)
