@@ -130,7 +130,7 @@ class QuantizedDense(Layer):
         max_val = ops.maximum(max_val, min_val + 1e-5)
 
         quantized_kernel = _fake_quant_with_ste(
-            kernel, min_val, max_val, num_bits=self.bits, narrow_range=True
+            kernel, min_val, max_val, self.bits, True
         )
 
         outputs = ops.matmul(inputs, quantized_kernel)

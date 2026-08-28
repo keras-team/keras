@@ -75,5 +75,5 @@ class QuantizedDenseTest(testing.TestCase):
         from keras.src.layers.core.quantized_dense import _fake_quant_with_ste
         from keras.src import ops
         inputs = ops.convert_to_tensor([0.0, 1.0, 2.0, 3.0])
-        quantized, _ = _fake_quant_with_ste(inputs, min_val=0.0, max_val=3.0, num_bits=8, narrow_range=False)
+        quantized = _fake_quant_with_ste(inputs, 0.0, 3.0, 8, False)
         self.assertEqual(quantized.shape, (4,))
