@@ -1271,6 +1271,11 @@ class SparseCategoricalFocalCrossentropy(LossFunctionWrapper):
             ignore_class=ignore_class,
             axis=axis,
         )
+        self.alpha = alpha
+        self.gamma = gamma
+        self.from_logits = from_logits
+        self.ignore_class = ignore_class
+        self.axis = axis
 
     def __call__(self, y_true, y_pred, sample_weight=None):
         # Sparse labels must retain their integer dtype until the loss validates
@@ -1313,8 +1318,16 @@ class SparseCategoricalFocalCrossentropy(LossFunctionWrapper):
         return self.fn(y_true, y_pred, **self._fn_kwargs)
 
     def get_config(self):
-        config = super().get_config()
-        config.pop("fn")
+        config = Loss.get_config(self)
+        config.update(
+            {
+                "alpha": self.alpha,
+                "gamma": self.gamma,
+                "from_logits": self.from_logits,
+                "ignore_class": self.ignore_class,
+                "axis": self.axis,
+            }
+        )
         return config
 
 
