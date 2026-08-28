@@ -484,6 +484,31 @@ class GPTQTest(testing.TestCase):
             msg="Weights should be identical as the permutation is undone.",
         )
 
+    def test_inv_hessian_zero_diagonal_stability(self):
+        """Test zero diagonal in inverse Hessian does not crash."""
+        out_features, in_features = 4, 4
+        weights = ops.ones((out_features, in_features), dtype="float32")
+
+        inv_hessian = np.eye(in_features, dtype=np.float32)
+        inv_hessian[2, 2] = 0.0  # Zero-diagonal underflow trigger
+        inv_hessian = ops.convert_to_tensor(inv_hessian)
+
+        config = GPTQConfig(
+            dataset=None, tokenizer=None, weight_bits=4, group_size=-1
+        )
+        quantizer = GPTQQuantizer(config)
+
+        quantized, scale, zero, g_idx = gptq_quantize_matrix(
+            weights,
+            inv_hessian,
+            blocksize=2,
+            group_size=-1,
+            compute_scale_zero=quantizer.find_params,
+        )
+
+        # All values should be finite and successfully quantized.
+        self.assertFalse(np.isnan(ops.convert_to_numpy(quantized)).any())
+
     def test_find_layers_in_block_includes_layers_with_sub_layers(self):
         """`Dense`/`EinsumDense` are collected even when they own sub-layers.
 
