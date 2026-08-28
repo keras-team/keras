@@ -36,6 +36,10 @@ elif backend.backend() == "openvino":
     from keras_openvino.src.export import (
         OpenvinoExportArchive as BackendSavedModelExportArchive,
     )
+elif backend.backend() == "paddle":
+    from keras_paddle.src.export import (
+        PaddleExportArchive as BackendSavedModelExportArchive,
+    )
 else:
     raise RuntimeError(
         f"Backend '{backend.backend()}' must implement ExportArchive."

@@ -34,6 +34,8 @@ elif backend() == "mlx":
     from keras_mlx.src import *  # noqa: F403
 elif backend() == "openvino":
     from keras_openvino.src import *  # noqa: F403
+elif backend() == "paddle":
+    from keras_paddle.src import *  # noqa: F403
 else:
     raise ValueError(f"Unable to import backend : {backend()}")
 

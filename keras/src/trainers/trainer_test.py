@@ -41,6 +41,8 @@ elif backend.backend() == "mlx":
     from keras_mlx.src.trainer import MLXTrainer as Trainer
 elif backend.backend() == "openvino":
     from keras_openvino.src.trainer import OpenVINOTrainer as Trainer
+elif backend.backend() == "paddle":
+    from keras_paddle.src.trainer import PaddleTrainer as Trainer
 else:
     raise ImportError(f"Invalid backend: {backend.backend()}")
 
