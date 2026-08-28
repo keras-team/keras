@@ -149,3 +149,75 @@ class JAXTrainerTest(testing.TestCase, parameterized.TestCase):
 
         self.assertIsNone(batch[1])
         self.assertIsNotNone(batch[0])
+
+    @parameterized.named_parameters(
+        {"testcase_name": "spe_2", "steps_per_execution": 2},
+        {"testcase_name": "spe_4", "steps_per_execution": 4},
+    )
+    def test_steps_per_execution_numeric_equivalence(self, steps_per_execution):
+        np.random.seed(1337)
+        x = np.random.normal(size=(64, 8)).astype("float32")
+        y = np.random.normal(size=(64, 2)).astype("float32")
+
+        init_weights = [
+            np.random.normal(size=(8, 2)).astype("float32"),
+            np.zeros((2,)).astype("float32"),
+        ]
+
+        # Model with steps_per_execution=1
+        model_1 = models.Sequential([layers.Dense(2, input_shape=(8,))])
+        model_1.compile(
+            loss="mse",
+            optimizer="sgd",
+            steps_per_execution=1,
+            jit_compile=True,
+        )
+        model_1.set_weights(init_weights)
+        h1 = model_1.fit(x, y, batch_size=8, epochs=10, verbose=0)
+
+        # Model with steps_per_execution > 1
+        model_spe = models.Sequential([layers.Dense(2, input_shape=(8,))])
+        model_spe.compile(
+            loss="mse",
+            optimizer="sgd",
+            steps_per_execution=steps_per_execution,
+            jit_compile=True,
+        )
+        model_spe.set_weights(init_weights)
+        h_spe = model_spe.fit(x, y, batch_size=8, epochs=10, verbose=0)
+
+        self.assertAllClose(
+            h1.history["loss"], h_spe.history["loss"], rtol=1e-4, atol=1e-4
+        )
+        for w1, w2 in zip(model_1.get_weights(), model_spe.get_weights()):
+            self.assertAllClose(w1, w2, rtol=1e-4, atol=1e-4)
+        self.assertAllClose(
+            model_1.predict(x, batch_size=8, verbose=0),
+            model_spe.predict(x, batch_size=8, verbose=0),
+            rtol=1e-4,
+            atol=1e-4,
+        )
+        self.assertAllClose(
+            model_1.evaluate(x, y, batch_size=8, verbose=0),
+            model_spe.evaluate(x, y, batch_size=8, verbose=0),
+            rtol=1e-4,
+            atol=1e-4,
+        )
+
+    def test_steps_per_execution_remainder_batches(self):
+        x = np.random.normal(size=(40, 8)).astype("float32")
+        y = np.random.normal(size=(40, 2)).astype("float32")
+
+        model = models.Sequential([layers.Dense(2, input_shape=(8,))])
+        model.compile(
+            loss="mse",
+            optimizer="adam",
+            steps_per_execution=3,
+            jit_compile=True,
+        )
+        history = model.fit(x, y, batch_size=4, epochs=2, verbose=0)
+        self.assertLen(history.history["loss"], 2)
+        preds = model.predict(x, batch_size=4, verbose=0)
+        self.assertEqual(preds.shape, (40, 2))
+        eval_loss = model.evaluate(x, y, batch_size=4, verbose=0)
+        self.assertIsInstance(eval_loss, float)

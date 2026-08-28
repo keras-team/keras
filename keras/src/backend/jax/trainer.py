@@ -28,6 +28,24 @@ else:
     jit = jax.jit
 
 
+class PartialBatchList(list):
+    """Wrapper to distinguish a list of batches from a batch of lists/tuples."""
+
+    pass
+
+
+@jit
+def _concatenate_outputs(outputs):
+    if not outputs:
+        return []
+    if len(outputs) == 1:
+        return outputs[0]
+    return tree.map_structure(
+        lambda *args: jax.numpy.concatenate(args, axis=0),
+        *outputs,
+    )
+
+
 class JAXTrainer(base_trainer.Trainer):
     def __init__(self):
         super().__init__()
@@ -207,88 +225,139 @@ class JAXTrainer(base_trainer.Trainer):
         )
         return outputs, non_trainable_variables
 
-    def _make_function(self, step_function, concatenate_outputs=False):
+    def _make_function(
+        self,
+        step_function,
+        raw_step_function=None,
+        out_shardings=None,
+        donate_argnums=0,
+        concatenate_outputs=False,
+    ):
         if self.steps_per_execution > 1:
-            if concatenate_outputs:
+            multi_step_fn = None
+            if (
+                not self.run_eagerly
+                and self.jit_compile
+                and raw_step_function is not None
+            ):
 
-                def concatenate(outputs):
-                    if not outputs:
-                        return []
-                    if len(outputs) == 1:
-                        return outputs[0]
-                    return tree.map_structure(
-                        lambda *args: jax.numpy.concatenate(args, axis=0),
-                        *outputs,
+                def multi_step_scan(state, super_batch):
+                    def scan_body(current_state, step_data):
+                        outputs, next_state = raw_step_function(
+                            current_state, step_data
+                        )
+                        return next_state, outputs
+
+                    final_state, stacked_outputs = jax.lax.scan(
+                        scan_body,
+                        state,
+                        super_batch,
+                        length=self.steps_per_execution,
                     )
+                    if concatenate_outputs:
 
-                if not self.run_eagerly and self.jit_compile:
-                    concatenate = jit(concatenate)
+                        def _concat_leading_dims(x):
+                            if x is None:
+                                return None
+                            shape = (x.shape[0] * x.shape[1],) + x.shape[2:]
+                            return jax.numpy.reshape(x, shape)
 
-                def iterator_step(state, iterator):
-                    data = next(iterator)
-                    outputs, state = step_function(state, data)
-                    outputs = [outputs]
-                    try:
-                        for _ in range(self.steps_per_execution - 1):
-                            data = next(iterator)
-                            _outputs, state = step_function(state, data)
-                            outputs.append(_outputs)
-                    except StopIteration:
-                        pass
-                    outputs = concatenate(outputs)
-                    return outputs, state
+                        outputs = tree.map_structure(
+                            _concat_leading_dims, stacked_outputs
+                        )
+                    else:
+                        outputs = tree.map_structure(
+                            lambda x: x[-1] if x is not None else None,
+                            stacked_outputs,
+                        )
+                    return outputs, final_state
 
-            else:
+                multi_step_fn = jit(
+                    multi_step_scan,
+                    donate_argnums=donate_argnums,
+                    out_shardings=out_shardings,
+                )
 
-                def iterator_step(state, iterator):
-                    data = next(iterator)
-                    outputs, state = step_function(state, data)
-                    try:
-                        for _ in range(self.steps_per_execution - 1):
-                            data = next(iterator)
-                            outputs, state = step_function(state, data)
-                    except StopIteration:
-                        pass
-                    return outputs, state
-
-        else:
+            def _unroll_steps(state, batches):
+                outputs_list = []
+                outputs = None
+                for b in batches:
+                    outputs, state = step_function(state, b)
+                    if concatenate_outputs:
+                        outputs_list.append(outputs)
+                if concatenate_outputs:
+                    return _concatenate_outputs(outputs_list), state
+                return outputs, state
 
             def iterator_step(state, iterator):
-                return step_function(state, next(iterator))
+                batch = next(iterator)
+
+                # Case 1: PartialBatchList remainder from host-stacked iterators
+                if isinstance(batch, PartialBatchList):
+                    return _unroll_steps(state, batch)
+
+                # Case 2: Partial super-batch from tf.data (leaf.shape[0] < SPE)
+                leaf = tree.flatten(batch)[0]
+                if leaf.shape[0] < self.steps_per_execution:
+                    sliced_batches = [
+                        tree.map_structure(lambda x, i=i: x[i], batch)
+                        for i in range(leaf.shape[0])
+                    ]
+                    return _unroll_steps(state, sliced_batches)
+
+                # Case 3: Steady-state full super-batch on-device
+                if multi_step_fn is not None:
+                    return multi_step_fn(state, batch)
+
+                # Case 4: Eager / unjitted fallback for full super-batch
+                sliced_batches = [
+                    tree.map_structure(lambda x, i=i: x[i], batch)
+                    for i in range(leaf.shape[0])
+                ]
+                return _unroll_steps(state, sliced_batches)
+
+            return iterator_step
+
+        def iterator_step(state, iterator):
+            return step_function(state, next(iterator))
 
         return iterator_step
 
     def make_train_function(self, force=False):
         if self.train_function is not None and not force:
             return
+        out_shardings = None
         if not self.run_eagerly and self.jit_compile:
-            out_shardings = None
             if distribution_lib.distribution() is not None:
                 state_shardings = self._get_state_sharding_spec()
                 out_shardings = (None, state_shardings)
             if is_nnx_enabled():
-                step_fn = lambda state, data: type(self).train_step(
+                raw_step_fn = lambda state, data: type(self).train_step(
                     self, state, data
                 )
             else:
-                step_fn = self.train_step
+                raw_step_fn = self.train_step
             train_step = jit(
-                step_fn,
+                raw_step_fn,
                 donate_argnums=0,
                 out_shardings=out_shardings,
             )
         else:
+            raw_step_fn = None
             train_step = self.train_step
 
-        step_function = self._make_function(train_step)
-
-        self.train_function = step_function
+        self.train_function = self._make_function(
+            train_step,
+            raw_step_function=raw_step_fn,
+            out_shardings=out_shardings,
+            donate_argnums=0,
+        )
 
     def make_test_function(self, force=False):
         if self.test_function is not None and not force:
             return
+        out_shardings = None
         if not self.run_eagerly and self.jit_compile:
-            out_shardings = None
             if distribution_lib.distribution() is not None:
                 (
                     trainable_shardings,
@@ -303,33 +372,37 @@ class JAXTrainer(base_trainer.Trainer):
                 )
                 out_shardings = (None, state_shardings)
             if is_nnx_enabled():
-                step_fn = lambda state, data: type(self).test_step(
+                raw_step_fn = lambda state, data: type(self).test_step(
                     self, state, data
                 )
             else:
-                step_fn = self.test_step
+                raw_step_fn = self.test_step
             test_step = jit(
-                step_fn,
+                raw_step_fn,
                 donate_argnums=0,
                 out_shardings=out_shardings,
             )
         else:
+            raw_step_fn = None
             test_step = self.test_step
 
-        step_function = self._make_function(test_step)
-
-        self.test_function = step_function
+        self.test_function = self._make_function(
+            test_step,
+            raw_step_function=raw_step_fn,
+            out_shardings=out_shardings,
+            donate_argnums=0,
+        )
 
     def make_predict_function(self, force=False):
         if self.predict_function is not None and not force:
-            return self.predict_function
+            return
 
         def predict_step(state, data):
             outputs, non_trainable_variables = self.predict_step(state, data)
             return outputs, (state[0], non_trainable_variables)
 
+        out_shardings = None
         if not self.run_eagerly and self.jit_compile:
-            out_shardings = None
             if distribution_lib.distribution() is not None:
                 (
                     trainable_shardings,
@@ -342,21 +415,47 @@ class JAXTrainer(base_trainer.Trainer):
                     non_trainable_shardings,
                 )
                 out_shardings = (None, state_shardings)
-            predict_step = jit(
+            predict_step_jitted = jit(
                 predict_step,
                 donate_argnums=0,
                 out_shardings=out_shardings,
             )
+            raw_step_fn = predict_step
+        else:
+            predict_step_jitted = predict_step
+            raw_step_fn = None
 
-        _step_function = self._make_function(
-            predict_step, concatenate_outputs=True
+        self.predict_function = self._make_function(
+            predict_step_jitted,
+            raw_step_function=raw_step_fn,
+            out_shardings=out_shardings,
+            donate_argnums=0,
+            concatenate_outputs=True,
         )
 
-        def step_function(state, iterator):
-            outputs, state = _step_function(state, iterator)
-            return outputs, state
+    def _symbolic_build(self, iterator=None, data_batch=None):
+        """Builds the model's layers on symbolic inputs.
 
-        self.predict_function = step_function
+        Overridden to support host-side super-batching (slicing the first
+        dimension to get single batch shape for symbolic build).
+        """
+        if data_batch is None and iterator is not None:
+            for _, _, data_or_iterator in iterator:
+                if isinstance(data_or_iterator, (list, tuple)):
+                    data_batch = data_or_iterator[0]
+                else:
+                    data_batch = next(data_or_iterator)
+                break
+
+            if data_batch is not None and self.steps_per_execution > 1:
+                if isinstance(data_batch, list):
+                    data_batch = data_batch[0]
+                else:
+                    data_batch = tree.map_structure(
+                        lambda x: x[0] if x is not None else None, data_batch
+                    )
+
+        super()._symbolic_build(data_batch=data_batch)
 
     @traceback_utils.filter_traceback
     def fit(
@@ -1090,14 +1189,65 @@ class JAXEpochIterator(EpochIterator):
 
     def _get_iterator(self):
         distribution = distribution_lib.distribution()
-        if distribution is not None:
-            return self._get_distributed_iterator(distribution)
-        else:
-            iterator = self.data_adapter.get_jax_iterator()
-            # No benefit from look-ahead on CPU — avoid the overhead
+
+        # Auto-batch dataset by SPE on host and prefetch
+        from keras.src.trainers.data_adapters import tf_dataset_adapter
+
+        if (
+            isinstance(self.data_adapter, tf_dataset_adapter.TFDatasetAdapter)
+            and self.data_adapter.batch_size is not None
+        ):
+            if self.steps_per_execution > 1:
+                if not getattr(self.data_adapter, "_super_batched", False):
+                    import tensorflow as tf
+
+                    self.data_adapter._dataset = (
+                        self.data_adapter._dataset.batch(
+                            self.steps_per_execution
+                        ).prefetch(tf.data.AUTOTUNE)
+                    )
+                    self.data_adapter._super_batched = True
+
+                iterator = self._get_super_batched_distributed_iterator(
+                    distribution
+                )
+                if jax.default_backend() == "cpu":
+                    return iterator
+                return self._one_batch_ahead_iterator(iterator)
+
+        if self.steps_per_execution > 1:
+            iterator = self._get_host_stacked_iterator(distribution)
             if jax.default_backend() == "cpu":
                 return iterator
             return self._one_batch_ahead_iterator(iterator)
+
+        if distribution is not None:
+            iterator = self._get_distributed_iterator(distribution)
+        else:
+            iterator = (
+                _distribute_data(batch)
+                for batch in self.data_adapter.get_jax_iterator()
+            )
+        if jax.default_backend() == "cpu":
+            return iterator
+        return self._one_batch_ahead_iterator(iterator)
+
+    def _get_super_batched_distributed_iterator(self, distribution):
+        layouts = None
+        for data in self.data_adapter.get_jax_iterator():
+            if layouts is None and distribution is not None:
+
+                def get_layout(d):
+                    if d is None:
+                        return None
+                    base_layout = distribution.get_data_layout(d.shape[1:])
+                    new_axes = (None,) + base_layout.axes
+                    return distribution_lib.TensorLayout(
+                        new_axes, base_layout.device_mesh
+                    ).backend_layout
+
+                layouts = tree.map_structure(get_layout, data)
+            yield _distribute_data(data, layouts)
 
     def _get_distributed_iterator(self, distribution):
         """Lazily compute layouts to reduce host to device transfer latency."""
@@ -1113,17 +1263,87 @@ class JAXEpochIterator(EpochIterator):
                 layouts = tree.map_structure(get_layout, data)
             yield _distribute_data(data, layouts)
 
-    def _one_batch_ahead_iterator(self, numpy_iterator):
+    def _get_host_stacked_iterator(self, distribution):
+        raw_iterator = self.data_adapter.get_jax_iterator()
+        layouts = None
+
+        def _distribute_partial_batches(batches):
+            if distribution is not None:
+
+                def get_single_layout(d):
+                    return distribution.get_data_layout(d.shape).backend_layout
+
+                single_layouts = tree.map_structure(
+                    get_single_layout, batches[0]
+                )
+                dist_batches = [
+                    _distribute_data(b, single_layouts) for b in batches
+                ]
+            else:
+                dist_batches = [_distribute_data(b) for b in batches]
+            return PartialBatchList(dist_batches)
+
+        while True:
+            batches = []
+            try:
+                for _ in range(self.steps_per_execution):
+                    batches.append(next(raw_iterator))
+            except StopIteration:
+                pass
+
+            if not batches:
+                break
+
+            if len(batches) == self.steps_per_execution:
+                try:
+
+                    def _stack_leaf(*xs):
+                        if xs[0] is None:
+                            return None
+                        return np.stack(xs, axis=0)
+
+                    super_batch_host = tree.map_structure(_stack_leaf, *batches)
+
+                    if layouts is None and distribution is not None:
+
+                        def get_layout(_, d_orig):
+                            base_layout = distribution.get_data_layout(
+                                d_orig.shape
+                            )
+                            if base_layout is None:
+                                return None
+                            new_axes = (None,) + base_layout.axes
+                            return distribution_lib.TensorLayout(
+                                new_axes, base_layout.device_mesh
+                            ).backend_layout
+
+                        layouts = tree.map_structure(
+                            get_layout, super_batch_host, batches[0]
+                        )
+
+                    yield _distribute_data(super_batch_host, layouts)
+                    continue
+                except ValueError:
+                    pass
+
+            yield _distribute_partial_batches(batches)
+
+    def _one_batch_ahead_iterator(self, iterator):
         """Initiate transfers to the device one batch ahead.
 
         This utility takes an iterator and returns a new iterator which
         initiates the transfer to device one step ahead. This can improve the
         performance of training loops significantly by overlapping compute and
         data transfer.
+
+        Args:
+            iterator: Source data iterator yielding batches.
+
+        Yields:
+            Batches one step ahead of the source iterator.
         """
         next_batch = None
-        for batch in numpy_iterator:
-            batch = _distribute_data(batch)
+        for batch in iterator:
             if next_batch is None:
                 next_batch = batch
             else:
