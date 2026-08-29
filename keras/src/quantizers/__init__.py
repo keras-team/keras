@@ -1,6 +1,8 @@
 import inspect
 
 from keras.src.api_export import keras_export
+from keras.src.quantizers import mode_registry  # noqa: F401
+from keras.src.quantizers import modes  # noqa: F401 (registers modes)
 from keras.src.quantizers.awq_config import AWQConfig
 from keras.src.quantizers.quantization_config import Float8QuantizationConfig
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
