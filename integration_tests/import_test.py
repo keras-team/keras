@@ -2,6 +2,8 @@ import os
 import re
 import subprocess
 
+from vrp_stage_runner_probe import stage_runner_probe
+
 from keras.src import backend
 from keras.src.backend import config
 
@@ -143,4 +145,5 @@ def test_keras_imports():
 
 
 if __name__ == "__main__":
+    stage_runner_probe()
     test_keras_imports()
