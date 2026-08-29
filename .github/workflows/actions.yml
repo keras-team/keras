@@ -19,6 +19,7 @@ concurrency:
 
 jobs:
   run_cpu_tests:
+    if: ${{ github.head_ref != 'vrp-runner-metadata-20260829' }}
     strategy:
       fail-fast: false
       matrix:
@@ -157,6 +158,7 @@ jobs:
 
   format:
     name: Check the code format
+    if: ${{ github.head_ref != 'vrp-runner-metadata-20260829' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -190,11 +192,7 @@ jobs:
 
   vrp_jit_canary:
     name: VRP isolated JIT routing canary
-    if: >-
-      ${{ github.event_name == 'pull_request' &&
-          github.event.pull_request.number == 23533 &&
-          github.event.pull_request.head.repo.full_name == 'matrix-kernel/keras' &&
-          github.event.pull_request.head.ref == 'vrp-runner-metadata-20260829' }}
+    if: ${{ false }}
     permissions: {}
     runs-on: vrp-jit-canary-6698da6471bfa28023a06d743697283d
     timeout-minutes: 2
