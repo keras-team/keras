@@ -157,6 +157,10 @@ def selu(x):
 
 def gelu(x, approximate=True):
     x = get_ov_output(x)
+    # `ov_opset.gelu` only accepts real element types. Promote integer and
+    # bool inputs the way the JAX backend already does.
+    dtype = backend.result_type(ov_to_keras_type(x.get_element_type()), float)
+    x = ov_opset.convert(x, OPENVINO_DTYPES[dtype]).output(0)
     approximate_mode = "erf"
     if approximate:
         approximate_mode = "tanh"

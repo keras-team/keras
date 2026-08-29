@@ -144,6 +144,11 @@ def selu(x):
 
 def gelu(x, approximate=True):
     x = convert_to_tensor(x)
+    # `gelu` is a float op. Promote integer and bool inputs the way the JAX
+    # backend already does, otherwise the float constants below are cast to
+    # the input's integer dtype, truncate to 0, and the result collapses to
+    # `x * 0`.
+    x = cast(x, backend.result_type(x.dtype, float))
     # followed by JAX's implementation
     if approximate:
         sqrt_2_over_pi = np.sqrt(2 / np.pi).astype(x.dtype)
