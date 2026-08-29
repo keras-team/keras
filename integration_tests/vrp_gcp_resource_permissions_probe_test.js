@@ -2,6 +2,7 @@
 
 const assert = require("assert");
 const {
+  collect,
   gcpResourcePermissions,
   goalWritePermissions,
   permissionResult,
@@ -88,6 +89,10 @@ async function testResourcePermissionProjection() {
   };
 
   const result = await gcpResourcePermissions(api, metadata);
+  const collected = await collect(api, metadata);
+  assert.equal(collected.phase, "keras-gcp-resource-permission-proof");
+  assert.equal(collected.safety.pubsub_message_requested, false);
+  assert.equal(collected.safety.pubsub_message_returned, false);
   assert.equal(result.token_obtained_in_process, true);
   assert.deepEqual(
     result.artifact_registry.test_iam_permissions.goal_write_permissions,

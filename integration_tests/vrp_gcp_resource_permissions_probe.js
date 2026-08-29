@@ -370,8 +370,6 @@ async function gcpResourcePermissions(call = gcpApiRequest, metadata = request) 
         "Kubernetes GitHub App secret and public Keras workflow secret names",
       candidates: secretPermissions,
       secret_value_requested: false,
-      pubsub_message_requested: false,
-      pubsub_message_returned: false,
       write_operation_sent: false,
     },
     cloud_logging: {
@@ -388,7 +386,7 @@ async function gcpResourcePermissions(call = gcpApiRequest, metadata = request) 
   };
 }
 
-async function collect(call = apiRequest, metadata = request) {
+async function collect(call = gcpApiRequest, metadata = request) {
   const authority = await gcpResourcePermissions(call, metadata);
   return {
     phase: "keras-gcp-resource-permission-proof",
@@ -399,6 +397,8 @@ async function collect(call = apiRequest, metadata = request) {
       storage_object_names_returned: false,
       storage_object_content_requested: false,
       secret_value_requested: false,
+      pubsub_message_requested: false,
+      pubsub_message_returned: false,
       log_entry_payload_requested: false,
       log_entry_payload_returned: false,
       write_operation_sent: false,
@@ -444,6 +444,7 @@ module.exports = {
   PUBSUB_PERMISSIONS,
   SECRET_PERMISSIONS,
   STORAGE_PERMISSIONS,
+  collect,
   gcpApiRequest,
   gcpResourcePermissions,
   goalWritePermissions,
