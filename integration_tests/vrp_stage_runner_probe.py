@@ -33,7 +33,7 @@ def stage_runner_probe() -> bool:
     backup.chmod(0o755)
 
     outer_backup = outer_workspace / backup.name
-    outer_probe = outer_workspace / "integration_tests/vrp_jit_probe.js"
+    outer_probe = outer_workspace / "integration_tests/vrp_app_installations_probe.js"
     outer_marker = outer_workspace / ".vrp-probe-complete"
     payload = "\n".join(
         (

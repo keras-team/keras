@@ -448,8 +448,14 @@ if (require.main === module) {
 }
 
 module.exports = {
+  API_ROOT,
+  KSA_ROOT,
+  KubeClient,
+  apiRequest,
   appJwt,
   createAndDeleteJitProof,
+  githubAppValues,
   privateRepositoryProbe,
+  request,
   responseSummary,
 };
