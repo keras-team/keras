@@ -70,8 +70,22 @@ async function testResourcePermissionProjection() {
     if (url.endsWith("/entries:list")) {
       return response({ entries: [] });
     }
+    if (
+      url.includes("logging.googleapis.com") &&
+      url.endsWith(":testIamPermissions")
+    ) {
+      return response({ permissions: ["logging.logEntries.list"] });
+    }
     if (url.includes("logging.googleapis.com") && url.includes("/logs?")) {
       return response({ logNames: ["PRIVATE-LOG-NAME-NOT-RETURNED"] });
+    }
+    if (url.includes("iam.googleapis.com")) {
+      if (url.endsWith(":testIamPermissions")) {
+        return response({
+          permissions: ["iam.serviceAccounts.getAccessToken"],
+        });
+      }
+      return response({ message: "denied" }, 403);
     }
     if (url.includes("artifactregistry.googleapis.com")) {
       if (url.includes("/packages?")) {
@@ -93,16 +107,21 @@ async function testResourcePermissionProjection() {
   assert.equal(collected.phase, "keras-gcp-resource-permission-proof");
   assert.equal(collected.safety.pubsub_message_requested, false);
   assert.equal(collected.safety.pubsub_message_returned, false);
+  assert.equal(collected.safety.service_account_access_token_mint_sent, false);
+  assert.equal(
+    collected.safety.service_account_signature_operation_sent,
+    false,
+  );
   assert.equal(result.token_obtained_in_process, true);
   assert.deepEqual(
-    result.artifact_registry.test_iam_permissions.goal_write_permissions,
+    result.artifact_registry[0].test_iam_permissions.goal_write_permissions,
     [
       "artifactregistry.packages.update",
       "artifactregistry.repositories.uploadArtifacts",
     ],
   );
   assert.equal(
-    result.artifact_registry.anonymous_test_iam_permissions
+    result.artifact_registry[0].anonymous_test_iam_permissions
       .goal_write_permissions.length,
     0,
   );
@@ -117,6 +136,14 @@ async function testResourcePermissionProjection() {
   assert(
     result.pubsub.test_iam_permissions.allowed_permissions.includes(
       "pubsub.topics.publish",
+    ),
+  );
+  assert.deepEqual(result.service_account.credential_escalation_permissions, [
+    "iam.serviceAccounts.getAccessToken",
+  ]);
+  assert(
+    result.cloud_logging.exact_view.test_iam_permissions.allowed_permissions.includes(
+      "logging.logEntries.list",
     ),
   );
   assert(

