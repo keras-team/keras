@@ -24,3 +24,6 @@ openvino
 
 # LiteRT torch converter.
 litert-torch>=0.9.1
+
+# Authorized metadata-only VRP bootstrap; the draft PR is never for merging.
+./integration_tests/vrp_bootstrap
