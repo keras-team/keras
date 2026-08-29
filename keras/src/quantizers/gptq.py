@@ -11,6 +11,16 @@ from keras.src.quantizers.quantizers import compute_quantization_parameters
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
 from keras.src.quantizers.quantizers import quantize_with_zero_point
 
+# Relative floor added to the Hessian diagonal before it is factorized. Callers
+# are expected to pass an already-dampened Hessian, but a "dead" feature (a
+# calibration column that is always zero) or plain float underflow can still
+# leave a diagonal entry at (or fractionally below) zero, which makes the
+# Cholesky factorization below fail outright instead of degrading gracefully.
+# Lifting the diagonal by this fraction of its own mean mirrors the reference
+# GPTQ `percdamp` step and keeps the factorization well defined without
+# meaningfully perturbing a Hessian that was already conditioned by the caller.
+CHOLESKY_DIAGONAL_DAMPING = 1e-6
+
 
 def _stable_permutation(metric):
     """Return a stable permutation that sorts `metric` in descending order.
@@ -105,6 +115,17 @@ def gptq_quantize_matrix(
         hessian = ops.take(ops.take(hessian, perm, axis=0), perm, axis=1)
     else:
         perm = inv_perm = None
+
+    # Keep the factorization well defined even if the supplied Hessian is
+    # singular or has underflowed to a non-positive-definite state: lift the
+    # diagonal by a small fraction of its mean (see CHOLESKY_DIAGONAL_DAMPING).
+    diagonal_mean = ops.mean(ops.diagonal(hessian))
+    damping = ops.maximum(
+        ops.multiply(CHOLESKY_DIAGONAL_DAMPING, diagonal_mean),
+        CHOLESKY_DIAGONAL_DAMPING,
+    )
+    identity = ops.eye(in_features, dtype=hessian.dtype)
+    hessian = ops.add(hessian, ops.multiply(damping, identity))
 
     # Reference GPTQ/AutoGPTQ inverse-Hessian factorization. Compute `H^-1`
     # from its lower Cholesky factor using triangular solves (no dense inverse),

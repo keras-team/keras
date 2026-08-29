@@ -485,13 +485,20 @@ class GPTQTest(testing.TestCase):
         )
 
     def test_inv_hessian_zero_diagonal_stability(self):
-        """Test zero diagonal in inverse Hessian does not crash."""
+        """A singular Hessian must not crash or corrupt the quantized weights.
+
+        A "dead" calibration feature leaves a zero on the Hessian diagonal,
+        which makes the matrix non-positive-definite. `gptq_quantize_matrix`
+        must dampen it back to a factorizable state rather than letting the
+        Cholesky raise or propagate NaNs into later columns (see #23413,
+        #23531).
+        """
         out_features, in_features = 4, 4
         weights = ops.ones((out_features, in_features), dtype="float32")
 
-        inv_hessian = np.eye(in_features, dtype=np.float32)
-        inv_hessian[2, 2] = 0.0  # Zero-diagonal underflow trigger
-        inv_hessian = ops.convert_to_tensor(inv_hessian)
+        hessian = np.eye(in_features, dtype=np.float32)
+        hessian[2, 2] = 0.0  # Dead feature -> singular Hessian.
+        hessian = ops.convert_to_tensor(hessian)
 
         config = GPTQConfig(
             dataset=None, tokenizer=None, weight_bits=4, group_size=-1
@@ -500,14 +507,19 @@ class GPTQTest(testing.TestCase):
 
         quantized, scale, zero, g_idx = gptq_quantize_matrix(
             weights,
-            inv_hessian,
+            hessian,
             blocksize=2,
             group_size=-1,
             compute_scale_zero=quantizer.find_params,
         )
 
-        # All values should be finite and successfully quantized.
-        self.assertFalse(np.isnan(ops.convert_to_numpy(quantized)).any())
+        # Every output is finite: no column is skipped and no NaN/Inf from
+        # the zero-influence feature leaks into the columns after it.
+        quantized = ops.convert_to_numpy(quantized)
+        self.assertTrue(np.isfinite(quantized).all())
+        self.assertTrue(np.isfinite(ops.convert_to_numpy(scale)).all())
+        # Identical input columns must still quantize identically.
+        self.assertTrue((quantized == quantized[:, :1]).all())
 
     def test_find_layers_in_block_includes_layers_with_sub_layers(self):
         """`Dense`/`EinsumDense` are collected even when they own sub-layers.
