@@ -84,13 +84,12 @@ const STORAGE_PERMISSIONS = [
   "storage.buckets.get",
   "storage.buckets.getIamPolicy",
   "storage.buckets.setIamPolicy",
+  "storage.buckets.update",
   "storage.objects.get",
-  "storage.objects.getIamPolicy",
   "storage.objects.list",
   "storage.objects.create",
   "storage.objects.update",
   "storage.objects.delete",
-  "storage.objects.setIamPolicy",
 ];
 
 const SECRET_PERMISSIONS = [
