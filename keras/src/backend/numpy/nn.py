@@ -147,8 +147,7 @@ def gelu(x, approximate=True):
     x = convert_to_tensor(x)
     # Promote integer dtypes to float, otherwise the float constants below
     # would truncate to 0 in the input dtype.
-    dtype = dtypes.result_type(x.dtype, float)
-    x = x.astype(dtype)
+    x = cast(x, dtypes.result_type(x.dtype, float))
     # followed by JAX's implementation
     if approximate:
         sqrt_2_over_pi = np.sqrt(2 / np.pi).astype(x.dtype)
