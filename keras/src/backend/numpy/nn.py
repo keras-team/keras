@@ -5,6 +5,7 @@ import numpy as np
 from jax import lax
 
 from keras.src import backend
+from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
@@ -144,6 +145,10 @@ def selu(x):
 
 def gelu(x, approximate=True):
     x = convert_to_tensor(x)
+    # Promote integer dtypes to float, otherwise the float constants below
+    # would truncate to 0 in the input dtype.
+    dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
     # followed by JAX's implementation
     if approximate:
         sqrt_2_over_pi = np.sqrt(2 / np.pi).astype(x.dtype)

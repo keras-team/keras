@@ -5,6 +5,7 @@ import warnings
 import tensorflow as tf
 
 from keras.src import backend
+from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
@@ -129,6 +130,8 @@ def selu(x):
 
 def gelu(x, approximate=True):
     x = convert_to_tensor(x)
+    # `tf.nn.gelu` doesn't support integer dtypes, so promote them to float.
+    x = cast(x, dtypes.result_type(x.dtype, float))
     return tf.nn.gelu(x, approximate=approximate)
 
 

@@ -1526,6 +1526,16 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.gelu(x),
             [-0.15880796, 0.0, 0.841192, 1.9545977, 2.9963627],
         )
+        # Integer inputs are promoted to float and compute the same values.
+        x_int = np.array([-1, 0, 1, 2, 3], dtype=np.int32)
+        self.assertAllClose(
+            knn.gelu(x_int),
+            [-0.15880796, 0.0, 0.841192, 1.9545977, 2.9963627],
+        )
+        self.assertAllClose(
+            knn.gelu(x_int, approximate=False),
+            [-0.15865525, 0.0, 0.8413447, 1.9544997, 2.9959502],
+        )
 
     def test_celu(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
@@ -2878,6 +2888,12 @@ class NNOpsDtypeTest(testing.TestCase):
     """Test the floating dtype to verify that the behavior matches JAX."""
 
     FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
+    INT_DTYPES = [x for x in dtypes.INT_TYPES if x not in ("uint64", "int64")]
+
+    if backend.backend() == "torch":
+        INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
+    elif backend.backend() == "tensorflow":
+        INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint32",)]
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_elu(self, dtype):
@@ -2897,7 +2913,9 @@ class NNOpsDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @parameterized.named_parameters(
+        named_product(dtype=FLOAT_DTYPES + INT_DTYPES)
+    )
     def test_gelu(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp

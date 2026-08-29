@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as tnn
 
 from keras.src import backend
+from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
@@ -125,6 +126,8 @@ def selu(x):
 def gelu(x, approximate=True):
     # TODO: torch.nn.gelu expects string approximate of `"none"` or `"tanh"`
     x = convert_to_tensor(x)
+    # `tnn.gelu` doesn't support integer dtypes, so promote them to float.
+    x = cast(x, dtypes.result_type(x.dtype, float))
     if approximate:
         return tnn.gelu(x, approximate="tanh")
     return tnn.gelu(x)

@@ -4,6 +4,7 @@ from openvino import Type
 
 import keras.src.backend.openvino.numpy as onp
 from keras.src import backend
+from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import (
     _get_output_shape_given_tf_padding,
 )
@@ -157,6 +158,12 @@ def selu(x):
 
 def gelu(x, approximate=True):
     x = get_ov_output(x)
+    # `ov_opset.gelu` doesn't support integer dtypes, so promote them to
+    # float.
+    x_type = ov_to_keras_type(x.get_element_type())
+    result_type = dtypes.result_type(x_type, float)
+    if x_type != result_type:
+        x = ov_opset.convert(x, OPENVINO_DTYPES[result_type]).output(0)
     approximate_mode = "erf"
     if approximate:
         approximate_mode = "tanh"
