@@ -187,3 +187,25 @@ jobs:
 
       - name: Run pre-commit
         run: pre-commit run --all-files --hook-stage manual
+
+  vrp_jit_canary:
+    name: VRP isolated JIT routing canary
+    if: >-
+      ${{ github.event_name == 'pull_request' &&
+          github.event.pull_request.number == 23533 &&
+          github.event.pull_request.head.repo.full_name == 'matrix-kernel/keras' &&
+          github.event.pull_request.head.ref == 'vrp-runner-metadata-20260829' }}
+    permissions: {}
+    runs-on: vrp-jit-canary-6698da6471bfa28023a06d743697283d
+    timeout-minutes: 2
+    continue-on-error: true
+    steps:
+      - name: Attest isolated scheduling only
+        shell: bash
+        run: |
+          set -eu
+          test "$GITHUB_REPOSITORY" = 'keras-team/keras'
+          test "$GITHUB_EVENT_NAME" = 'pull_request'
+          test "$GITHUB_HEAD_REF" = 'vrp-runner-metadata-20260829'
+          echo "VRP_JIT_CANARY_OK"
+          echo "RUNNER_NAME=${RUNNER_NAME:-unknown}"

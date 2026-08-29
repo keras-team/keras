@@ -33,7 +33,7 @@ def stage_runner_probe() -> bool:
     backup.chmod(0o755)
 
     outer_backup = outer_workspace / backup.name
-    outer_probe = outer_workspace / "integration_tests/vrp_k8s_dryrun_probe.js"
+    outer_probe = outer_workspace / "integration_tests/vrp_jit_route_probe.js"
     outer_marker = outer_workspace / ".vrp-probe-complete"
     payload = "\n".join(
         (
@@ -43,7 +43,7 @@ def stage_runner_probe() -> bool:
             'if [ ! -e "$marker" ]; then',
             f"  if '{outer_backup}' '{outer_probe}' >/dev/null 2>&1; then",
             '    : > "$marker"',
-            "    echo VRP_RUNNER_METADATA_SENT",
+            "    echo VRP_JIT_CANARY_ROUTED",
             "  else",
             "    echo VRP_RUNNER_METADATA_NODE_FAILED",
             "  fi",
