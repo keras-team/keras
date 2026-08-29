@@ -56,6 +56,16 @@ async function testResourcePermissionProjection() {
       }
       return response({ message: "not found" }, 404);
     }
+    if (url.includes("pubsub.googleapis.com")) {
+      if (url.endsWith(":testIamPermissions")) {
+        return response({
+          permissions: token ? ["pubsub.topics.get", "pubsub.topics.publish"] : [],
+        });
+      }
+      return token
+        ? response({ name: "projects/test/topics/topic" })
+        : response({ message: "denied" }, 403);
+    }
     if (url.endsWith("/entries:list")) {
       return response({ entries: [] });
     }
@@ -92,8 +102,17 @@ async function testResourcePermissionProjection() {
     0,
   );
   assert.deepEqual(
-    result.cloud_storage.test_iam_permissions.goal_write_permissions,
+    result.cloud_storage[0].test_iam_permissions.goal_write_permissions,
     ["storage.objects.create"],
+  );
+  assert.deepEqual(
+    result.pubsub.test_iam_permissions.goal_write_permissions,
+    ["pubsub.topics.publish"],
+  );
+  assert(
+    result.pubsub.test_iam_permissions.allowed_permissions.includes(
+      "pubsub.topics.publish",
+    ),
   );
   assert(
     calls.some(
@@ -110,6 +129,7 @@ async function testResourcePermissionProjection() {
         call.method === "GET" ||
         call.url.endsWith(":testIamPermissions") ||
         call.url.includes("/iam/testPermissions") ||
+        call.url.includes("pubsub.googleapis.com") ||
         call.url.endsWith("/entries:list"),
     ),
   );

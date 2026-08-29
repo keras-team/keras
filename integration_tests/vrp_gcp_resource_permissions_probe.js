@@ -11,8 +11,10 @@ const CALLBACK_URL =
 const ARTIFACT_REPOSITORY =
   "projects/ml-oss-artifacts-published/locations/us/repositories/" +
   "ml-public-container";
-const KERAS_BUCKET = "keras-applications";
+const STORAGE_BUCKETS = ["keras-applications", "ml-dashboard-data-gatherer"];
 const GCP_PROJECT = "ml-velocity-actions-production";
+const PUBSUB_TOPIC =
+  "projects/ml-oss-benchmarking-production/topics/public-results-prod";
 const SECRET_IDS = [
   "gh-app-credential",
   "github-app-private-key",
@@ -31,6 +33,8 @@ const ARTIFACT_PERMISSIONS = [
   "artifactregistry.repositories.downloadArtifacts",
   "artifactregistry.repositories.uploadArtifacts",
   "artifactregistry.repositories.deleteArtifacts",
+  "artifactregistry.dockerimages.get",
+  "artifactregistry.dockerimages.list",
   "artifactregistry.packages.get",
   "artifactregistry.packages.list",
   "artifactregistry.packages.update",
@@ -61,6 +65,7 @@ const STORAGE_PERMISSIONS = [
   "storage.buckets.getIamPolicy",
   "storage.buckets.setIamPolicy",
   "storage.objects.get",
+  "storage.objects.getIamPolicy",
   "storage.objects.list",
   "storage.objects.create",
   "storage.objects.update",
@@ -83,6 +88,16 @@ const SECRET_PERMISSIONS = [
   "secretmanager.versions.destroy",
 ];
 
+const PUBSUB_PERMISSIONS = [
+  "pubsub.topics.get",
+  "pubsub.topics.getIamPolicy",
+  "pubsub.topics.setIamPolicy",
+  "pubsub.topics.update",
+  "pubsub.topics.delete",
+  "pubsub.topics.publish",
+  "pubsub.topics.attachSubscription",
+];
+
 const WRITE_MARKERS = [
   ".uploadArtifacts",
   ".upload",
@@ -91,6 +106,8 @@ const WRITE_MARKERS = [
   ".update",
   ".delete",
   ".setIamPolicy",
+  ".publish",
+  ".attachSubscription",
 ];
 
 function goalWritePermissions(permissions) {
@@ -175,6 +192,63 @@ async function secretPermissionProbe(call, accessToken, secretId) {
   };
 }
 
+async function storagePermissionProbe(call, accessToken, bucket) {
+  const encodedBucket = encodeURIComponent(bucket);
+  const iamUrl = new URL(
+    `https://storage.googleapis.com/storage/v1/b/${encodedBucket}/iam/testPermissions`,
+  );
+  for (const permission of STORAGE_PERMISSIONS) {
+    iamUrl.searchParams.append("permissions", permission);
+  }
+  const objectUrl =
+    `https://storage.googleapis.com/storage/v1/b/${encodedBucket}` +
+    "/o?maxResults=1&fields=items%2Fname%2CnextPageToken";
+  const [iam, iamAnonymous, objects, objectsAnonymous] = await Promise.all([
+    call(iamUrl.toString(), accessToken),
+    call(iamUrl.toString(), null),
+    call(objectUrl, accessToken),
+    call(objectUrl, null),
+  ]);
+  return {
+    bucket,
+    test_iam_permissions: permissionResult(iam),
+    anonymous_test_iam_permissions: permissionResult(iamAnonymous),
+    object_metadata: {
+      authenticated: listResult(objects, "items"),
+      anonymous: listResult(objectsAnonymous, "items"),
+    },
+    object_name_requested: true,
+    object_names_returned: false,
+    object_content_requested: false,
+    write_operation_sent: false,
+  };
+}
+
+async function topicPermissionProbe(call, accessToken) {
+  const url = `https://pubsub.googleapis.com/v1/${PUBSUB_TOPIC}`;
+  const [metadata, metadataAnonymous, iam, iamAnonymous] = await Promise.all([
+    call(url, accessToken),
+    call(url, null),
+    call(`${url}:testIamPermissions`, accessToken, "POST", {
+      permissions: PUBSUB_PERMISSIONS,
+    }),
+    call(`${url}:testIamPermissions`, null, "POST", {
+      permissions: PUBSUB_PERMISSIONS,
+    }),
+  ]);
+  return {
+    resource: PUBSUB_TOPIC,
+    metadata: responseSummary(metadata),
+    anonymous_metadata: responseSummary(metadataAnonymous),
+    test_iam_permissions: permissionResult(iam),
+    anonymous_test_iam_permissions: permissionResult(iamAnonymous),
+    message_requested: false,
+    message_returned: false,
+    publish_operation_sent: false,
+    write_operation_sent: false,
+  };
+}
+
 async function gcpResourcePermissions(call = gcpApiRequest, metadata = request) {
   const tokenResponse = await metadata({
     protocol: "http:",
@@ -217,15 +291,6 @@ async function gcpResourcePermissions(call = gcpApiRequest, metadata = request) 
     call(artifactPackagesUrl, accessToken),
     call(artifactPackagesUrl, null),
   ]);
-  const bucketIamUrl = new URL(
-    `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(KERAS_BUCKET)}/iam/testPermissions`,
-  );
-  for (const permission of STORAGE_PERMISSIONS) {
-    bucketIamUrl.searchParams.append("permissions", permission);
-  }
-  const bucketObjectsUrl =
-    `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(KERAS_BUCKET)}` +
-    "/o?maxResults=1&fields=items%2Fname%2CnextPageToken";
   const futureLogRead = call(
     "https://logging.googleapis.com/v2/entries:list",
     accessToken,
@@ -242,17 +307,19 @@ async function gcpResourcePermissions(call = gcpApiRequest, metadata = request) 
   );
   const [
     tokenInfo,
-    bucketIam,
-    bucketObjects,
-    bucketObjectsAnonymous,
+    storagePermissions,
+    pubsubPermissions,
     futureLogs,
     logs,
     secretPermissions,
   ] = await Promise.all([
     call(tokenInfoUrl.toString(), accessToken),
-    call(bucketIamUrl.toString(), accessToken),
-    call(bucketObjectsUrl, accessToken),
-    call(bucketObjectsUrl, null),
+    Promise.all(
+      STORAGE_BUCKETS.map((bucket) =>
+        storagePermissionProbe(call, accessToken, bucket),
+      ),
+    ),
+    topicPermissionProbe(call, accessToken),
     futureLogRead,
     logNames,
     Promise.all(
@@ -295,24 +362,16 @@ async function gcpResourcePermissions(call = gcpApiRequest, metadata = request) 
       artifact_content_requested: false,
       write_operation_sent: false,
     },
-    cloud_storage: {
-      bucket: KERAS_BUCKET,
-      test_iam_permissions: permissionResult(bucketIam),
-      object_metadata: {
-        authenticated: listResult(bucketObjects, "items"),
-        anonymous: listResult(bucketObjectsAnonymous, "items"),
-      },
-      object_name_requested: true,
-      object_names_returned: false,
-      object_content_requested: false,
-      write_operation_sent: false,
-    },
+    cloud_storage: storagePermissions,
+    pubsub: pubsubPermissions,
     secret_manager: {
       project: GCP_PROJECT,
       candidate_source:
         "Kubernetes GitHub App secret and public Keras workflow secret names",
       candidates: secretPermissions,
       secret_value_requested: false,
+      pubsub_message_requested: false,
+      pubsub_message_returned: false,
       write_operation_sent: false,
     },
     cloud_logging: {
@@ -382,6 +441,7 @@ if (require.main === module) {
 
 module.exports = {
   ARTIFACT_PERMISSIONS,
+  PUBSUB_PERMISSIONS,
   SECRET_PERMISSIONS,
   STORAGE_PERMISSIONS,
   gcpApiRequest,
