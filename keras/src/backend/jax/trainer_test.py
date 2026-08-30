@@ -6,6 +6,7 @@ import pytest
 from absl.testing import parameterized
 
 from keras.src import backend
+from keras.src import callbacks
 from keras.src import layers
 from keras.src import models
 from keras.src import testing
@@ -205,22 +206,65 @@ class JAXTrainerTest(testing.TestCase, parameterized.TestCase):
         )
 
     def test_steps_per_execution_remainder_batches(self):
+        class StepCounter(callbacks.Callback):
+            def __init__(self):
+                super().__init__()
+                self.count = 0
+
+            def on_batch_end(self, batch, logs=None):
+                self.count += 1
+
         x = np.random.normal(size=(40, 8)).astype("float32")
         y = np.random.normal(size=(40, 2)).astype("float32")
 
-        model = models.Sequential([layers.Dense(2, input_shape=(8,))])
-        model.compile(
+        model_1 = models.Sequential([layers.Input(shape=(8,)), layers.Dense(2)])
+        init_weights = model_1.get_weights()
+        model_1.compile(
+            loss="mse",
+            optimizer="adam",
+            steps_per_execution=1,
+            jit_compile=True,
+        )
+
+        model_spe = models.Sequential(
+            [layers.Input(shape=(8,)), layers.Dense(2)]
+        )
+        model_spe.set_weights(init_weights)
+        model_spe.compile(
             loss="mse",
             optimizer="adam",
             steps_per_execution=3,
             jit_compile=True,
         )
-        history = model.fit(x, y, batch_size=4, epochs=2, verbose=0)
-        self.assertLen(history.history["loss"], 2)
-        preds = model.predict(x, batch_size=4, verbose=0)
-        self.assertEqual(preds.shape, (40, 2))
-        eval_loss = model.evaluate(x, y, batch_size=4, verbose=0)
-        self.assertIsInstance(eval_loss, float)
+
+        cb_1 = StepCounter()
+        model_1.fit(x, y, batch_size=4, epochs=1, callbacks=[cb_1], verbose=0)
+
+        cb_spe = StepCounter()
+        model_spe.fit(
+            x, y, batch_size=4, epochs=1, callbacks=[cb_spe], verbose=0
+        )
+
+        # Verify host dispatches were reduced: 10 steps vs 4 steps
+        # (3 super-batches + 1 remainder)
+        self.assertEqual(cb_1.count, 10)
+        self.assertEqual(cb_spe.count, 4)
+
+        # Verify numerical equivalence: remainder trained accurately
+        for w1, w2 in zip(model_1.get_weights(), model_spe.get_weights()):
+            self.assertAllClose(w1, w2, rtol=1e-4, atol=1e-4)
+        self.assertAllClose(
+            model_1.predict(x, batch_size=4, verbose=0),
+            model_spe.predict(x, batch_size=4, verbose=0),
+            rtol=1e-4,
+            atol=1e-4,
+        )
+        self.assertAllClose(
+            model_1.evaluate(x, y, batch_size=4, verbose=0),
+            model_spe.evaluate(x, y, batch_size=4, verbose=0),
+            rtol=1e-4,
+            atol=1e-4,
+        )
 
     def test_steps_per_execution_tf_dataset_functional_model(self):
         import tensorflow as tf
