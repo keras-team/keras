@@ -294,6 +294,10 @@ def any(x, axis=None, keepdims=False):
 
 def amax(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+    if axis is None:
+        # Reduce over every dimension explicitly, since older torch versions
+        # do not accept `dim=None` for `torch.amax`.
+        axis = tuple(range(x.ndim))
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
         return x
@@ -302,6 +306,10 @@ def amax(x, axis=None, keepdims=False):
 
 def amin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+    if axis is None:
+        # Reduce over every dimension explicitly, since older torch versions
+        # do not accept `dim=None` for `torch.amin`.
+        axis = tuple(range(x.ndim))
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
         return x
