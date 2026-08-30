@@ -34,7 +34,6 @@ class PartialBatchList(list):
     pass
 
 
-@jit
 def _concatenate_outputs(outputs):
     if not outputs:
         return []
@@ -278,6 +277,11 @@ class JAXTrainer(base_trainer.Trainer):
                     out_shardings=out_shardings,
                 )
 
+            if self.jit_compile and not self.run_eagerly:
+                concat_fn = jit(_concatenate_outputs)
+            else:
+                concat_fn = _concatenate_outputs
+
             def _unroll_steps(state, batches):
                 outputs_list = []
                 outputs = None
@@ -286,7 +290,7 @@ class JAXTrainer(base_trainer.Trainer):
                     if concatenate_outputs:
                         outputs_list.append(outputs)
                 if concatenate_outputs:
-                    return _concatenate_outputs(outputs_list), state
+                    return concat_fn(outputs_list), state
                 return outputs, state
 
             def iterator_step(state, iterator):
@@ -1270,6 +1274,8 @@ class JAXEpochIterator(EpochIterator):
             if distribution is not None:
 
                 def get_single_layout(d):
+                    if d is None:
+                        return None
                     return distribution.get_data_layout(d.shape).backend_layout
 
                 single_layouts = tree.map_structure(
@@ -1306,6 +1312,8 @@ class JAXEpochIterator(EpochIterator):
                     if layouts is None and distribution is not None:
 
                         def get_layout(_, d_orig):
+                            if d_orig is None:
+                                return None
                             base_layout = distribution.get_data_layout(
                                 d_orig.shape
                             )
