@@ -5431,6 +5431,22 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.amin(x, axis=1, keepdims=True),
         )
 
+    def test_reductions_keepdims_with_axis_none(self):
+        # `keepdims=True` must preserve the rank even when `axis=None`,
+        # matching numpy. The tests above only cover an explicit axis.
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        for op_name in ("sum", "prod", "max", "min", "amax", "amin"):
+            knp_op = getattr(knp, op_name)
+            np_op = getattr(np, op_name)
+            expected = np_op(x, axis=None, keepdims=True)
+            result = knp_op(x, axis=None, keepdims=True)
+            self.assertEqual(
+                tuple(result.shape),
+                expected.shape,
+                msg=f"{op_name}(axis=None, keepdims=True) shape mismatch",
+            )
+            self.assertAllClose(result, expected)
+
     def test_square(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.square(x), np.square(x))

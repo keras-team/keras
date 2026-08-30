@@ -208,10 +208,7 @@ def max(x, axis=None, keepdims=False, initial=None):
         else:
             return torch.tensor(initial)
 
-    if axis is None:
-        result = torch.max(x)
-    else:
-        result = amax(x, axis=axis, keepdims=keepdims)
+    result = amax(x, axis=axis, keepdims=keepdims)
     if isinstance(getattr(result, "values", None), torch.Tensor):
         result = result.values
 
@@ -297,8 +294,6 @@ def any(x, axis=None, keepdims=False):
 
 def amax(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    if axis is None:
-        return torch.amax(x)
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
         return x
@@ -307,8 +302,6 @@ def amax(x, axis=None, keepdims=False):
 
 def amin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    if axis is None:
-        return torch.amin(x)
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
         return x
@@ -1348,10 +1341,7 @@ def min(x, axis=None, keepdims=False, initial=None):
         else:
             return torch.tensor(initial)
 
-    if axis is None:
-        result = torch.min(x)
-    else:
-        result = amin(x, axis=axis, keepdims=keepdims)
+    result = amin(x, axis=axis, keepdims=keepdims)
 
     if isinstance(getattr(result, "values", None), torch.Tensor):
         result = result.values
@@ -1740,7 +1730,13 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     if get_device() == "cpu" and compute_dtype == "float16":
         compute_dtype = "float32"
     if axis is None:
-        return cast(torch.prod(x, dtype=to_torch_dtype(compute_dtype)), dtype)
+        # `torch.prod` reduces a single axis at a time and does not accept
+        # `dim=None`, so reduce everything and restore the rank if needed.
+        ndim = x.ndim
+        x = cast(torch.prod(x, dtype=to_torch_dtype(compute_dtype)), dtype)
+        if keepdims:
+            x = torch.reshape(x, (1,) * ndim)
+        return x
     axis = to_tuple_or_list(axis)
     axis = [canonicalize_axis(a, x.ndim) for a in axis]
     for a in sorted(axis, reverse=True):
@@ -2312,9 +2308,7 @@ def sum(x, axis=None, keepdims=False):
     # TODO: torch doesn't support uint32
     if dtype in ("bool", "uint8", "int8", "int16"):
         dtype = "int32"
-    if axis is not None:
-        return cast(torch.sum(x, axis=axis, keepdim=keepdims), dtype)
-    return cast(torch.sum(x), dtype)
+    return cast(torch.sum(x, dim=axis, keepdim=keepdims), dtype)
 
 
 def eye(N, M=None, k=0, dtype=None):
