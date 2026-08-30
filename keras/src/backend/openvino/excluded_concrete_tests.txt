@@ -16,3 +16,4 @@ MathDtypeTest::test_gammainc
 MathOpsCorrectnessTest::test_gammainc
 MathOpsDynamicShapeTest::test_gammainc
 MathOpsStaticShapeTest::test_gammainc
+NumpyOneInputOpsCorrectnessTest::test_reductions_keepdims_with_axis_none
