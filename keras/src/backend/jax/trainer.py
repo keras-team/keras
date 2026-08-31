@@ -13,10 +13,10 @@ from keras.src.backend import distribution_lib as jax_distribution_lib
 from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.backend.config import is_nnx_enabled
 from keras.src.distribution import distribution_lib
-from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
+from keras.src.trainers.trainer import BaseTrainer
 from keras.src.utils import traceback_utils
 from keras.src.utils.python_utils import pythonify_logs
 
@@ -28,7 +28,7 @@ else:
     jit = jax.jit
 
 
-class JAXTrainer(base_trainer.Trainer):
+class Trainer(BaseTrainer):
     def __init__(self):
         super().__init__()
         self.train_function = None

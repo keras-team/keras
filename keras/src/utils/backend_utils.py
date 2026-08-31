@@ -8,6 +8,8 @@ import warnings
 from keras.src import backend as backend_module
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
+from keras.src.backend.config import _BUILT_IN_BACKENDS
+from keras.src.backend.config import _PLUGGABLE_BACKENDS
 
 
 def in_tf_graph():
@@ -82,18 +84,15 @@ class DynamicBackend:
         self._backend = backend or backend_module.backend()
 
     def set_backend(self, backend):
-        if backend not in (
-            "tensorflow",
-            "jax",
-            "torch",
-            "numpy",
-            "mlx",
-            "openvino",
-            "paddle",
+        if (
+            backend not in _BUILT_IN_BACKENDS
+            and backend not in _PLUGGABLE_BACKENDS
         ):
+            all_backends = sorted(
+                list(_BUILT_IN_BACKENDS) + list(_PLUGGABLE_BACKENDS)
+            )
             raise ValueError(
-                "Available backends are ('tensorflow', 'jax', 'torch', "
-                "'numpy', 'mlx', 'openvino' and 'paddle'). "
+                f"Available backends are ({all_backends}). "
                 f"Received: backend={backend}"
             )
         self._backend = backend
@@ -106,20 +105,12 @@ class DynamicBackend:
         return self._backend
 
     def __getattr__(self, name):
-        if self._backend == "tensorflow":
-            module = importlib.import_module("keras.src.backend.tensorflow")
-        elif self._backend == "jax":
-            module = importlib.import_module("keras.src.backend.jax")
-        elif self._backend == "torch":
-            module = importlib.import_module("keras.src.backend.torch")
-        elif self._backend == "numpy":
-            module = importlib.import_module("keras.src.backend.numpy")
-        elif self._backend == "mlx":
-            module = importlib.import_module("keras_mlx.src")
-        elif self._backend == "openvino":
-            module = importlib.import_module("keras_openvino.src")
-        elif self._backend == "paddle":
-            module = importlib.import_module("keras_paddle.src")
+        if self._backend in _BUILT_IN_BACKENDS:
+            module = importlib.import_module(
+                f"keras.src.backend.{self._backend}"
+            )
+        else:
+            module = importlib.import_module(f"keras_{self._backend}.src")
         return getattr(module, name)
 
 

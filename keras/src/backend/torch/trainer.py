@@ -16,16 +16,16 @@ from keras.src.backend.torch.distribution_lib import _to_backend_mesh
 from keras.src.backend.torch.ops.core import get_device
 from keras.src.distribution.distribution_lib import DataParallel
 from keras.src.distribution.distribution_lib import distribution
-from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
+from keras.src.trainers.trainer import BaseTrainer
 from keras.src.utils import traceback_utils
 from keras.src.utils import tracking
 from keras.src.utils.python_utils import pythonify_logs
 
 
-class TorchTrainer(base_trainer.Trainer):
+class Trainer(BaseTrainer):
     def __init__(self):
         super().__init__()
         self.train_function = None

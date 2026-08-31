@@ -1,3 +1,4 @@
+import importlib
 import inspect
 import json
 import typing
@@ -7,6 +8,8 @@ from collections.abc import Callable
 from keras.src import backend
 from keras.src import utils
 from keras.src.api_export import keras_export
+from keras.src.backend.config import _BUILT_IN_BACKENDS
+from keras.src.backend.config import _PLUGGABLE_BACKENDS
 from keras.src.layers.core.input_layer import InputLayer
 from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
@@ -16,35 +19,25 @@ from keras.src.quantizers.gptq_core import gptq_quantize
 from keras.src.quantizers.report import QuantizationReport
 from keras.src.quantizers.utils import should_quantize_layer
 from keras.src.saving import saving_api
-from keras.src.trainers import trainer as base_trainer
 from keras.src.utils import io_utils
 from keras.src.utils import summary_utils
 from keras.src.utils import traceback_utils
 
-if backend.backend() == "tensorflow":
-    from keras.src.backend.tensorflow.trainer import (
-        TensorFlowTrainer as Trainer,
+if backend.backend() in _BUILT_IN_BACKENDS:
+    backend_trainer_module_name = (
+        f"keras.src.backend.{backend.backend()}.trainer"
     )
-elif backend.backend() == "jax":
-    from keras.src.backend.jax.trainer import JAXTrainer as Trainer
-elif backend.backend() == "torch":
-    from keras.src.backend.torch.trainer import TorchTrainer as Trainer
-elif backend.backend() == "numpy":
-    from keras.src.backend.numpy.trainer import NumpyTrainer as Trainer
-elif backend.backend() == "mlx":
-    from keras_mlx.src.trainer import MLXTrainer as Trainer
-elif backend.backend() == "openvino":
-    from keras_openvino.src.trainer import OpenVINOTrainer as Trainer
-elif backend.backend() == "paddle":
-    from keras_paddle.src.trainer import PaddleTrainer as Trainer
+elif backend.backend() in _PLUGGABLE_BACKENDS:
+    backend_trainer_module_name = f"keras_{backend.backend()}.src.trainer"
 else:
-    raise RuntimeError(
-        f"Backend '{backend.backend()}' must implement the Trainer class."
-    )
+    raise ValueError(f"Unsupported backend : {backend.backend()}")
+
+backend_trainer_module = importlib.import_module(backend_trainer_module_name)
+Trainer = getattr(backend_trainer_module, "Trainer")
 
 
 @keras_export(["keras.Model", "keras.models.Model"])
-class Model(Trainer, base_trainer.Trainer, Layer):
+class Model(Trainer, Layer):
     """A model grouping layers into an object with training/inference features.
 
     There are three ways to instantiate a `Model`:

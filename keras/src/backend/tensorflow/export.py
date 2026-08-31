@@ -1,9 +1,11 @@
 import tensorflow as tf
 
-from keras.src.export.saved_model_export_archive import SavedModelExportArchive
+from keras.src.export.saved_model_export_archive import (
+    BaseSavedModelExportArchive,
+)
 
 
-class TFExportArchive(SavedModelExportArchive):
+class SavedModelExportArchive(BaseSavedModelExportArchive):
     """TensorFlow backend implementation of SavedModel export archive."""
 
     def _backend_track_layer(self, layer):

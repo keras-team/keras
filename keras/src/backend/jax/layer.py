@@ -4,7 +4,7 @@ from keras.src.backend.config import is_nnx_enabled
 if is_nnx_enabled():
     from flax import nnx
 
-    class BaseLayer(nnx.Module):
+    class BackendLayer(nnx.Module):
         def __init_subclass__(cls, **kwargs):
             super().__init_subclass__(pytree=False, **kwargs)
 
@@ -25,8 +25,6 @@ if is_nnx_enabled():
                 return
             super()._check_valid_context(error_msg)
 else:
-    BaseLayer = object
 
-
-class JaxLayer(BaseLayer):
-    pass
+    class BackendLayer:
+        pass

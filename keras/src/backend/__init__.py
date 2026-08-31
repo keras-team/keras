@@ -1,3 +1,7 @@
+import importlib
+
+from keras.src.backend.config import _BUILT_IN_BACKENDS
+from keras.src.backend.config import _PLUGGABLE_BACKENDS
 from keras.src.backend.config import backend
 
 if backend() == "torch":
@@ -22,25 +26,26 @@ from keras.src.backend.config import set_floatx
 from keras.src.backend.config import set_image_data_format
 
 # Import backend functions.
-if backend() == "tensorflow":
-    from keras.src.backend.tensorflow import *  # noqa: F403
-elif backend() == "jax":
-    from keras.src.backend.jax import *  # noqa: F403
-elif backend() == "torch":
-    from keras.src.backend.torch import *  # noqa: F403
-elif backend() == "numpy":
-    from keras.src.backend.numpy import *  # noqa: F403
-elif backend() == "mlx":
-    from keras_mlx.src import *  # noqa: F403
-elif backend() == "openvino":
-    from keras_openvino.src import *  # noqa: F403
-elif backend() == "paddle":
-    from keras_paddle.src import *  # noqa: F403
+if backend() in _BUILT_IN_BACKENDS:
+    backend_module_name = f"keras.src.backend.{backend()}"
+elif backend() in _PLUGGABLE_BACKENDS:
+    backend_module_name = f"keras_{backend()}.src"
 else:
-    raise ValueError(f"Unable to import backend : {backend()}")
+    raise ValueError(f"Unsupported backend : {backend()}")
+
+backend_module = importlib.import_module(backend_module_name)
+if hasattr(backend_module, "__all__"):
+    backend_module_names = backend_module.__all__
+else:
+    backend_module_names = [
+        name for name in dir(backend_module) if not name.startswith("_")
+    ]
+globals().update(
+    {name: getattr(backend_module, name) for name in backend_module_names}
+)
 
 
-BackendVariable = Variable  # noqa: F405
+BackendVariable = getattr(backend_module, "Variable")
 
 
 @keras_export("keras.Variable")
@@ -48,12 +53,15 @@ class Variable(BackendVariable):  # noqa: F811
     pass
 
 
-backend_name_scope = name_scope  # noqa: F405
+backend_name_scope = getattr(backend_module, "name_scope")
 
 
 @keras_export("keras.name_scope")
 class name_scope(backend_name_scope):
     pass
+
+
+device_scope = getattr(backend_module, "device_scope")
 
 
 @keras_export("keras.device")

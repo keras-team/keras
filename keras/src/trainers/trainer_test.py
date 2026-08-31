@@ -20,31 +20,11 @@ from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.callbacks.callback import Callback
 from keras.src.distribution.distribution_lib import DataParallel
 from keras.src.distribution.distribution_lib import DeviceMesh
+from keras.src.models.model import Trainer
 from keras.src.optimizers.rmsprop import RMSprop
 from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import py_dataset_adapter
-
-if backend.backend() == "jax":
-    from keras.src.backend.jax.trainer import JAXTrainer as Trainer
-    from keras.src.distribution import DataParallel
-    from keras.src.distribution import DeviceMesh
-elif backend.backend() == "torch":
-    from keras.src.backend.torch.trainer import TorchTrainer as Trainer
-elif backend.backend() == "tensorflow":
-    from keras.src.backend.tensorflow.trainer import (
-        TensorFlowTrainer as Trainer,
-    )
-elif backend.backend() == "numpy":
-    from keras.src.backend.numpy.trainer import NumpyTrainer as Trainer
-elif backend.backend() == "mlx":
-    from keras_mlx.src.trainer import MLXTrainer as Trainer
-elif backend.backend() == "openvino":
-    from keras_openvino.src.trainer import OpenVINOTrainer as Trainer
-elif backend.backend() == "paddle":
-    from keras_paddle.src.trainer import PaddleTrainer as Trainer
-else:
-    raise ImportError(f"Invalid backend: {backend.backend()}")
 
 
 # A model is just a layer mixed in with a Trainer.

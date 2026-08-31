@@ -4,7 +4,7 @@ from keras.src.backend.common.stateless_scope import in_stateless_scope
 from keras.src.ops.operation import Operation
 
 
-class TorchLayer(torch.nn.Module):
+class BackendLayer(torch.nn.Module):
     @property
     def torch_params(self):
         if not hasattr(self, "_torch_params"):

@@ -9,7 +9,7 @@ from keras.src.export.export_utils import make_tf_tensor_spec
 from keras.src.utils.module_utils import tensorflow as tf
 
 
-class SavedModelExportArchive:
+class BaseSavedModelExportArchive:
     """Base class for SavedModel export archive.
 
     This class contains all the common SavedModel export logic that is shared
@@ -94,7 +94,7 @@ class SavedModelExportArchive:
 
     def _backend_track_layer(self, layer):
         raise NotImplementedError(
-            "_backend_track_layer() must be implemented in backend subclasses."
+            f"`ExportArchive` is not supported by backend {backend.backend()}."
         )
 
     def add_endpoint(self, name, fn, input_signature=None, **kwargs):
@@ -156,7 +156,7 @@ class SavedModelExportArchive:
 
     def _backend_add_endpoint(self, name, fn, input_signature, **kwargs):
         raise NotImplementedError(
-            "_backend_add_endpoint() must be implemented in backend subclasses."
+            f"`ExportArchive` is not supported by backend {backend.backend()}."
         )
 
     def track_and_add_endpoint(self, name, resource, input_signature, **kwargs):
