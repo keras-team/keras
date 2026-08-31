@@ -5,6 +5,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 import scipy.signal
+import scipy.special
 from absl.testing import parameterized
 
 from keras.src import backend
