@@ -129,8 +129,20 @@ def sparse_sigmoid(x):
     return OpenVINOKerasTensor(out.output(0))
 
 
+def _cast_to_float(x):
+    """Promote an integer or bool OpenVINO output to a float element type."""
+    keras_dtype = ov_to_keras_type(x.get_element_type())
+    dtype = backend.result_type(keras_dtype, float)
+    if keras_dtype == dtype:
+        return x
+    return ov_opset.convert(x, OPENVINO_DTYPES[dtype]).output(0)
+
+
 def hard_sigmoid(x):
     x = get_ov_output(x)
+    # `ov_opset.hard_sigmoid` only accepts real element types. Promote
+    # integer and bool inputs the way the JAX backend already does.
+    x = _cast_to_float(x)
     alpha = get_ov_output(1.0 / 6.0, x.get_element_type())
     beta = get_ov_output(0.5, x.get_element_type())
     return OpenVINOKerasTensor(ov_opset.hard_sigmoid(x, alpha, beta).output(0))
@@ -138,6 +150,7 @@ def hard_sigmoid(x):
 
 def hard_silu(x):
     x = get_ov_output(x)
+    x = _cast_to_float(x)
     return OpenVINOKerasTensor(ov_opset.hswish(x).output(0))
 
 

@@ -114,6 +114,11 @@ def leaky_relu(x, negative_slope=0.2):
 
 
 def hard_sigmoid(x):
+    x = convert_to_tensor(x)
+    # `hard_sigmoid` is a float op. Promote integer and bool inputs the way
+    # the JAX backend already does, otherwise `0.5` below is cast to the
+    # input's integer dtype, truncates to 0, and the offset is lost.
+    x = cast(x, backend.result_type(x.dtype, float))
     # python numbers will be promoted to float64 by np, so it's necessary to
     # first convert the python numbers to np scalars
     x = x / np.array(6.0, x.dtype) + np.array(0.5, x.dtype)
@@ -125,6 +130,8 @@ def hard_sigmoid(x):
 
 
 def hard_silu(x):
+    x = convert_to_tensor(x)
+    x = cast(x, backend.result_type(x.dtype, float))
     return x * hard_sigmoid(x)
 
 

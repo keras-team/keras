@@ -1494,12 +1494,39 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.hard_sigmoid(x),
             [0.33333334, 0.5, 0.6666667, 0.8333334, 1.0],
         )
+        # Integer input is promoted to float. Previously the numpy backend
+        # cast `0.5` to the input dtype, truncating it to 0, so the result
+        # was `x / 6` instead of `clip(x / 6 + 0.5, 0, 1)`.
+        x_int = np.array([-1, 0, 1, 2, 3], dtype="int32")
+        self.assertAllClose(
+            knn.hard_sigmoid(x_int),
+            [0.33333334, 0.5, 0.6666667, 0.8333334, 1.0],
+        )
+        self.assertEqual(
+            standardize_dtype(
+                knn.HardSigmoid()
+                .symbolic_call(KerasTensor((5,), "int32"))
+                .dtype
+            ),
+            standardize_dtype(knn.hard_sigmoid(x_int).dtype),
+        )
 
     def test_hard_silu(self):
         x = np.array([-3, -2, -1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(
             knn.hard_silu(x),
             [-0.0, -0.333333, -0.333333, 0.0, 0.6666667, 1.6666667, 3.0],
+        )
+        x_int = np.array([-3, -2, -1, 0, 1, 2, 3], dtype="int32")
+        self.assertAllClose(
+            knn.hard_silu(x_int),
+            [-0.0, -0.333333, -0.333333, 0.0, 0.6666667, 1.6666667, 3.0],
+        )
+        self.assertEqual(
+            standardize_dtype(
+                knn.HardSilu().symbolic_call(KerasTensor((7,), "int32")).dtype
+            ),
+            standardize_dtype(knn.hard_silu(x_int).dtype),
         )
 
     def test_elu(self):
