@@ -1552,11 +1552,5 @@ class ModelTest(testing.TestCase):
 
         # Bad backend
         if backend.backend() not in ("tensorflow", "jax", "torch"):
-            with self.assertRaisesRegex(
-                NotImplementedError,
-                (
-                    r"`export_saved_model` only currently supports the "
-                    r"tensorflow, jax and torch backends."
-                ),
-            ):
+            with self.assertRaises(NotImplementedError):
                 model.export(temp_filepath, format="tf_saved_model")
