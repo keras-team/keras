@@ -484,30 +484,96 @@ class GPTQTest(testing.TestCase):
             msg="Weights should be identical as the permutation is undone.",
         )
 
-    def test_inv_hessian_zero_diagonal_stability(self):
-        """Test zero diagonal in inverse Hessian does not crash."""
+    def test_non_positive_definite_hessian_raises(self):
+        """A non-positive-definite Hessian is rejected with a clear error.
+
+        `gptq_quantize_matrix` takes an already dampened Hessian, and
+        `GPTQ.quantize` guarantees positive definiteness by adding
+        `hessian_damping * mean(diag(H))` to the diagonal before calling.
+        A zero or negative diagonal entry breaks that contract, and the
+        Cholesky factorization must surface it as a `ValueError` on every
+        backend rather than silently propagating NaNs.
+        """
         out_features, in_features = 4, 4
         weights = ops.ones((out_features, in_features), dtype="float32")
-
-        inv_hessian = np.eye(in_features, dtype=np.float32)
-        inv_hessian[2, 2] = 0.0  # Zero-diagonal underflow trigger
-        inv_hessian = ops.convert_to_tensor(inv_hessian)
-
         config = GPTQConfig(
             dataset=None, tokenizer=None, weight_bits=4, group_size=-1
         )
         quantizer = GPTQQuantizer(config)
 
-        quantized, scale, zero, g_idx = gptq_quantize_matrix(
-            weights,
-            inv_hessian,
-            blocksize=2,
-            group_size=-1,
-            compute_scale_zero=quantizer.find_params,
-        )
+        for bad_diagonal in (0.0, -1.0):
+            hessian = np.eye(in_features, dtype=np.float32)
+            hessian[2, 2] = bad_diagonal
+            with self.assertRaisesRegex(ValueError, "Cholesky"):
+                gptq_quantize_matrix(
+                    weights,
+                    ops.convert_to_tensor(hessian),
+                    blocksize=2,
+                    group_size=-1,
+                    compute_scale_zero=quantizer.find_params,
+                )
 
-        # All values should be finite and successfully quantized.
-        self.assertFalse(np.isnan(ops.convert_to_numpy(quantized)).any())
+    def test_ill_conditioned_hessian_produces_finite_weights(self):
+        """Severe ill-conditioning must not produce NaNs or infinities.
+
+        The per-column error is divided by `inv_hessian[j, j]`, the diagonal
+        of the upper Cholesky factor of `H^-1`, which satisfies
+        `inv_hessian[j, j] ** 2 = det(H[j+1:, j+1:]) / det(H[j:, j:])`. That
+        is the reciprocal of the trailing Schur pivot of `H` at `j`, which is
+        bounded above by `H[j, j]`. For any float32 positive-definite `H` the
+        divisor is therefore at least `1 / sqrt(float32 max)`, about `5e-20`,
+        so it never underflows to zero.
+
+        The Hessian below is the reachable extreme: one feature is weighted by
+        a power of two, which is exact in binary floating point, so `H` stays
+        exactly positive definite (a congruence of a well-conditioned positive
+        definite matrix) while `inv_hessian[2, 2]` falls to roughly `6e-19`.
+        The off-diagonal entries keep the error-propagation path active.
+        """
+        base = np.array(
+            [
+                [4.0, 1.0, 1.0, 0.5],
+                [1.0, 3.0, 0.5, 1.0],
+                [1.0, 0.5, 2.0, 0.5],
+                [0.5, 1.0, 0.5, 3.0],
+            ],
+            dtype=np.float32,
+        )
+        feature_scale = np.array([1.0, 1.0, 2.0**60, 1.0], dtype=np.float32)
+        hessian = base * feature_scale[:, None] * feature_scale[None, :]
+
+        rng = np.random.default_rng(seed=42)
+        weights = ops.convert_to_tensor(
+            rng.normal(size=(6, 4)).astype("float32")
+        )
+        config = GPTQConfig(
+            dataset=None, tokenizer=None, weight_bits=W_BITS, group_size=-1
+        )
+        quantizer = GPTQQuantizer(config)
+
+        # blocksize=2 puts the ill-conditioned feature at the start of the
+        # second block, so the cross-block error propagation is covered too.
+        for blocksize in (2, 4):
+            quantized, scale, zero, _ = gptq_quantize_matrix(
+                weights,
+                ops.convert_to_tensor(hessian),
+                blocksize=blocksize,
+                group_size=-1,
+                compute_scale_zero=quantizer.find_params,
+            )
+            for name, tensor in (
+                ("quantized", quantized),
+                ("scale", scale),
+                ("zero", zero),
+            ):
+                values = ops.convert_to_numpy(tensor)
+                self.assertTrue(
+                    np.isfinite(values).all(),
+                    msg=f"{name} is not finite for blocksize={blocksize}.",
+                )
+            quantized_values = ops.convert_to_numpy(quantized)
+            self.assertGreaterEqual(quantized_values.min(), 0)
+            self.assertLessEqual(quantized_values.max(), 2**W_BITS - 1)
 
     def test_find_layers_in_block_includes_layers_with_sub_layers(self):
         """`Dense`/`EinsumDense` are collected even when they own sub-layers.

@@ -1451,6 +1451,18 @@ def _can_use_flash_attention(
     query, key, value, mask=None, is_causal=False, raise_error=False
 ):
     """Verify the availability of flash attention."""
+    if (
+        not raise_error
+        and hasattr(torch.compiler, "is_compiling")
+        and torch.compiler.is_compiling()
+    ):
+        # The probe below constructs a pybind11 `SDPAParams` object, which
+        # dynamo cannot trace, so it breaks the graph at every attention call.
+        # Skipping it is safe: `scaled_dot_product_attention` still selects the
+        # flash kernel when the inputs allow. Auto-detection only, so an
+        # explicit `flash_attention=True` still reports an unsupported input.
+        return False
+
     try:
         from torch.backends.cuda import SDPAParams
         from torch.backends.cuda import can_use_flash_attention

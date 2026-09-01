@@ -23,6 +23,6 @@ jobs:
       (github.event_name == 'pull_request_review_comment' || github.event.issue.pull_request) &&
       contains(github.event.comment.body, '@jules') &&
       contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
-    uses: keras-team/shared-workflows/.github/workflows/jules-review.yml@d9d8977425f512c21d72ace682b9fae6e4c5b901 # v1
+    uses: keras-team/shared-workflows/.github/workflows/jules-review.yml@1ff60fd615b03a85abdffac6d7cbe390988bb305 # v1
     secrets:
       JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
