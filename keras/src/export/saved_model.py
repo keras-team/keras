@@ -1,7 +1,12 @@
 """Library for exporting SavedModel for Keras models/layers."""
 
+import importlib
+import importlib.util
+
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.config import _BUILT_IN_BACKENDS
+from keras.src.backend.config import _PLUGGABLE_BACKENDS
 from keras.src.export.export_utils import get_input_signature
 from keras.src.export.neptune_model_export_archive import (
     NeptuneModelExportArchive,
@@ -12,37 +17,21 @@ from keras.src.export.saved_model_export_archive import (  # noqa: F401
     _list_variables_used_by_fns,
 )
 
-if backend.backend() == "tensorflow":
-    from keras.src.backend.tensorflow.export import (
-        TFExportArchive as BackendSavedModelExportArchive,
-    )
-elif backend.backend() == "jax":
-    from keras.src.backend.jax.export import (
-        JaxExportArchive as BackendSavedModelExportArchive,
-    )
-elif backend.backend() == "torch":
-    from keras.src.backend.torch.export import (
-        TorchExportArchive as BackendSavedModelExportArchive,
-    )
-elif backend.backend() == "numpy":
-    from keras.src.backend.numpy.export import (
-        NumpyExportArchive as BackendSavedModelExportArchive,
-    )
-elif backend.backend() == "mlx":
-    from keras_mlx.src.export import (
-        MlxExportArchive as BackendSavedModelExportArchive,
-    )
-elif backend.backend() == "openvino":
-    from keras_openvino.src.export import (
-        OpenvinoExportArchive as BackendSavedModelExportArchive,
-    )
-elif backend.backend() == "paddle":
-    from keras_paddle.src.export import (
-        PaddleExportArchive as BackendSavedModelExportArchive,
+if backend.backend() in _BUILT_IN_BACKENDS:
+    backend_export_module_name = f"keras.src.backend.{backend.backend()}.export"
+elif backend.backend() in _PLUGGABLE_BACKENDS:
+    backend_export_module_name = f"keras_{backend.backend()}.src.export"
+else:
+    raise ValueError(f"Unsupported backend : {backend.backend()}")
+
+if importlib.util.find_spec(backend_export_module_name) is not None:
+    backend_export_module = importlib.import_module(backend_export_module_name)
+    SavedModelExportArchive = getattr(
+        backend_export_module, "SavedModelExportArchive"
     )
 else:
-    raise RuntimeError(
-        f"Backend '{backend.backend()}' must implement ExportArchive."
+    from keras.src.export.saved_model_export_archive import (
+        BaseSavedModelExportArchive as SavedModelExportArchive,
     )
 
 DEFAULT_ENDPOINT_NAME = "serve"
@@ -186,7 +175,7 @@ class ExportArchive:
 
     def __new__(cls, format="saved_model", **kwargs):
         if format == "saved_model":
-            return BackendSavedModelExportArchive()
+            return SavedModelExportArchive()
         elif format == "neptune_model":
             return NeptuneModelExportArchive()
         else:

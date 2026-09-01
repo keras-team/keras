@@ -63,7 +63,9 @@ def export_openvino(
         input_signature = get_input_signature(model)
 
     if backend.backend() == "openvino":
-        from keras_openvino.src.export import get_model_for_openvino_export
+        from keras_openvino.src.openvino_export import (
+            get_model_for_openvino_export,
+        )
 
         ov_model = get_model_for_openvino_export(model, input_signature)
     elif backend.backend() in ("tensorflow", "jax"):

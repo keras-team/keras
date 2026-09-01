@@ -6,11 +6,13 @@ import warnings
 
 from keras.src import tree
 from keras.src.backend.common.stateless_scope import StatelessScope
-from keras.src.export.saved_model_export_archive import SavedModelExportArchive
+from keras.src.export.saved_model_export_archive import (
+    BaseSavedModelExportArchive,
+)
 from keras.src.utils.module_utils import tensorflow as tf
 
 
-class JaxExportArchive(SavedModelExportArchive):
+class SavedModelExportArchive(BaseSavedModelExportArchive):
     """JAX backend implementation of SavedModel export archive."""
 
     def _backend_init(self):

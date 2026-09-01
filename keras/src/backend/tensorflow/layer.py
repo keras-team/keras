@@ -8,7 +8,7 @@ from keras.src.utils import tf_utils
 from keras.src.utils import tracking
 
 
-class TFLayer(KerasAutoTrackable):
+class BackendLayer(KerasAutoTrackable):
     def __init__(self, *args, **kwargs):
         # Export-related attributes
         self._saved_model_inputs_spec = None

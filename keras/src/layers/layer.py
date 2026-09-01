@@ -18,6 +18,8 @@ And some more magic:
 
 import collections
 import functools
+import importlib
+import importlib.util
 import inspect
 import warnings
 from functools import wraps
@@ -46,6 +48,8 @@ from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.backend.common.variables import AutocastScope
 from keras.src.backend.common.variables import get_autocast_scope
 from keras.src.backend.common.variables import standardize_shape
+from keras.src.backend.config import _BUILT_IN_BACKENDS
+from keras.src.backend.config import _PLUGGABLE_BACKENDS
 from keras.src.backend.config import is_nnx_enabled
 from keras.src.distribution import distribution_lib
 from keras.src.dtype_policies import DTypePolicyMap
@@ -59,24 +63,20 @@ from keras.src.utils import summary_utils
 from keras.src.utils import traceback_utils
 from keras.src.utils import tracking
 
-if backend.backend() == "tensorflow":
-    from keras.src.backend.tensorflow.layer import TFLayer as BackendLayer
-elif backend.backend() == "jax":
-    from keras.src.backend.jax.layer import JaxLayer as BackendLayer
-elif backend.backend() == "torch":
-    from keras.src.backend.torch.layer import TorchLayer as BackendLayer
-elif backend.backend() == "numpy":
-    from keras.src.backend.numpy.layer import NumpyLayer as BackendLayer
-elif backend.backend() == "mlx":
-    from keras_mlx.src.layer import MLXLayer as BackendLayer
-elif backend.backend() == "openvino":
-    from keras_openvino.src.layer import OpenvinoLayer as BackendLayer
-elif backend.backend() == "paddle":
-    from keras_paddle.src.layer import PaddleLayer as BackendLayer
+if backend.backend() in _BUILT_IN_BACKENDS:
+    backend_layer_module_name = f"keras.src.backend.{backend.backend()}.layer"
+elif backend.backend() in _PLUGGABLE_BACKENDS:
+    backend_layer_module_name = f"keras_{backend.backend()}.src.layer"
 else:
-    raise RuntimeError(
-        f"Backend '{backend.backend()}' must implement a layer mixin class."
-    )
+    raise ValueError(f"Unsupported backend : {backend.backend()}")
+
+if importlib.util.find_spec(backend_layer_module_name) is not None:
+    backend_layer_module = importlib.import_module(backend_layer_module_name)
+    BackendLayer = getattr(backend_layer_module, "BackendLayer")
+else:
+
+    class BackendLayer:
+        pass
 
 
 @keras_export(["keras.Layer", "keras.layers.Layer"])
