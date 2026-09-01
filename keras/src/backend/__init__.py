@@ -25,6 +25,7 @@ from keras.src.backend.common.variables import is_float_dtype
 from keras.src.backend.common.variables import is_int_dtype
 from keras.src.backend.common.variables import standardize_dtype
 from keras.src.backend.common.variables import standardize_shape
+from keras.src.backend.config import PLUGGABLE_BACKENDS
 from keras.src.backend.config import epsilon
 from keras.src.backend.config import floatx
 from keras.src.backend.config import image_data_format
@@ -32,6 +33,7 @@ from keras.src.backend.config import set_epsilon
 from keras.src.backend.config import set_floatx
 from keras.src.backend.config import set_image_data_format
 from keras.src.backend.config import standardize_data_format
+from keras.src.utils.module_utils import get_pluggable_backend_module
 
 # Import backend functions.
 if backend() == "tensorflow":
@@ -56,7 +58,18 @@ elif backend() == "openvino":
 
     distribution_lib = None
 else:
-    raise ValueError(f"Unable to import backend : {backend()}")
+    backend_module = get_pluggable_backend_module("src")
+    if hasattr(backend_module, "__all__"):
+        backend_module_names = backend_module.__all__
+    else:
+        backend_module_names = [
+            name for name in dir(backend_module) if not name.startswith("_")
+        ]
+    globals().update(
+        {name: getattr(backend_module, name) for name in backend_module_names}
+    )
+
+    BackendVariable = getattr(backend_module, "Variable")
 
 
 @keras_export("keras.Variable")
