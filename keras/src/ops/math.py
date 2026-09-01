@@ -1,5 +1,7 @@
 """Commonly used math operations not included in NumPy."""
 
+import math as python_math
+
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
@@ -1430,6 +1432,9 @@ _LANCZOS_COEFFICIENTS = (
     1.50563273514931155834e-7,
 )
 _PI = 3.14159265358979323846
+_LOG_SQRT_TWO_PI = (python_math.log(2.0) + python_math.log(_PI)) / 2.0
+_LANCZOS_GAMMA_PLUS_HALF = _LANCZOS_GAMMA + 0.5
+_LOG_LANCZOS_GAMMA_PLUS_HALF = python_math.log(_LANCZOS_GAMMA_PLUS_HALF)
 
 
 def _lgamma(x):
@@ -1448,37 +1453,34 @@ def _lgamma(x):
 
     # If the input is less than 0.5 use Euler's reflection formula:
     # gamma(x) = pi / (sin(pi * x) * gamma(1 - x))
-    need_to_reflect = x < 0.5
+    need_to_reflect = ops.less(x, 0.5)
     z = ops.where(need_to_reflect, -x, x - 1.0)
 
     series = ops.cast(_BASE_LANCZOS_COEFF, compute_dtype)
     for i, coeff in enumerate(_LANCZOS_COEFFICIENTS):
         series = series + ops.cast(coeff, compute_dtype) / (z + float(i + 1))
 
-    _LANCZOS_GAMMA_PLUS_HALF = _LANCZOS_GAMMA + 0.5
-    _LOG_LANCZOS_GAMMA_PLUS_HALF = ops.cast(
-        ops.log(_LANCZOS_GAMMA_PLUS_HALF), compute_dtype
+    lanczos_gamma_plus_half = ops.cast(_LANCZOS_GAMMA_PLUS_HALF, compute_dtype)
+    log_lanczos_gamma_plus_half = ops.cast(
+        _LOG_LANCZOS_GAMMA_PLUS_HALF, compute_dtype
     )
+    pi = ops.cast(_PI, compute_dtype)
+    t = z + lanczos_gamma_plus_half
+    log_t = log_lanczos_gamma_plus_half + ops.log1p(z / lanczos_gamma_plus_half)
 
-    t = z + _LANCZOS_GAMMA_PLUS_HALF
-    log_t = _LOG_LANCZOS_GAMMA_PLUS_HALF + ops.log1p(
-        z / _LANCZOS_GAMMA_PLUS_HALF
-    )
-
-    # log(sqrt(2π)) = (log(2) + log(pi)) / 2
-    log_sqrt_two_pi = ops.cast(
-        (ops.log(2.0) + ops.log(_PI)) / 2.0, compute_dtype
-    )
+    log_sqrt_two_pi = ops.cast(_LOG_SQRT_TWO_PI, compute_dtype)
     log_y = log_sqrt_two_pi + (z + 0.5 - t / log_t) * log_t + ops.log(series)
 
     abs_x = ops.abs(x)
     abs_frac_x = abs_x - ops.floor(abs_x)
-    reduced_frac_x = ops.where(abs_frac_x > 0.5, 1.0 - abs_frac_x, abs_frac_x)
-    reflection_denom = ops.log(ops.sin(_PI * reduced_frac_x))
+    reduced_frac_x = ops.where(
+        ops.greater(abs_frac_x, 0.5), 1.0 - abs_frac_x, abs_frac_x
+    )
+    reflection_denom = ops.log(ops.sin(pi * reduced_frac_x))
 
     reflection = ops.where(
         ops.isfinite(reflection_denom),
-        ops.cast(ops.log(_PI), compute_dtype) - reflection_denom - log_y,
+        ops.cast(ops.log(pi), compute_dtype) - reflection_denom - log_y,
         -reflection_denom,
     )
     result = ops.where(need_to_reflect, reflection, log_y)
