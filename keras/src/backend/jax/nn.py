@@ -178,8 +178,8 @@ def sparsemax(x, axis=-1):
     support = logits_sorted - (logits_cumsum - 1) / r > 0
     # Find the threshold
     k = jnp.sum(support, axis=axis, keepdims=True)
-    logits_cumsum_safe = jnp.where(support, logits_cumsum, 0.0)
-    tau = (jnp.sum(logits_cumsum_safe, axis=axis, keepdims=True) - 1) / k
+    logits_sorted_safe = jnp.where(support, logits_sorted, 0.0)
+    tau = (jnp.sum(logits_sorted_safe, axis=axis, keepdims=True) - 1) / k
     output = jnp.maximum(logits - tau, 0.0)
     return output
 

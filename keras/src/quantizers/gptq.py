@@ -206,8 +206,8 @@ def gptq_quantize_matrix(
             # block_inv_hessian_diag: scalar
             current_block_influence = block_inv_hessian[block_idx, block_idx]
             # We divide by current_block_influence to get the
-            # correct scaling of the error term.
-            err = ops.divide(
+            # correct scaling of the error term. Prevent division by zero.
+            err = ops.divide_no_nan(
                 ops.subtract(weight_column, dequantized_col),
                 current_block_influence,
             )

@@ -9687,7 +9687,7 @@ class Histogram(Operation):
         x = backend.convert_to_tensor(x)
         if len(x.shape) > 1:
             raise ValueError("Input tensor must be 1-dimensional")
-        return backend.math.histogram(x, bins=self.bins, range=self.range)
+        return backend.numpy.histogram(x, bins=self.bins, range=self.range)
 
     def compute_output_spec(self, x):
         return (
