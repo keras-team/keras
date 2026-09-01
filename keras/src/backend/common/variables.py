@@ -579,11 +579,13 @@ def standardize_dtype(dtype):
         return config.floatx()
     dtype = dtypes.PYTHON_DTYPES_MAP.get(dtype, dtype)
     if hasattr(dtype, "name"):
-        dtype = dtype.name
+        dtype = dtype.name.lower()
     elif hasattr(dtype, "__name__"):
         dtype = dtype.__name__
     elif hasattr(dtype, "__str__") and (
-        "torch" in str(dtype) or "jax.numpy" in str(dtype)
+        "torch" in str(dtype)
+        or "jax.numpy" in str(dtype)
+        or "mlx" in str(dtype)
     ):
         dtype = str(dtype).split(".")[-1]
 
