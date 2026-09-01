@@ -28,12 +28,6 @@ else:
     jit = jax.jit
 
 
-class PartialBatchList(list):
-    """Wrapper to distinguish a list of batches from a batch of lists/tuples."""
-
-    pass
-
-
 def _concatenate_outputs(outputs):
     if not outputs:
         return []
@@ -227,18 +221,20 @@ class JAXTrainer(base_trainer.Trainer):
     def _make_function(
         self,
         step_function,
-        raw_step_function=None,
         out_shardings=None,
-        donate_argnums=0,
         concatenate_outputs=False,
     ):
+        raw_step_function = step_function
+        if not self.run_eagerly and self.jit_compile:
+            step_function = jit(
+                raw_step_function,
+                donate_argnums=0,
+                out_shardings=out_shardings,
+            )
+
         if self.steps_per_execution > 1:
             multi_step_fn = None
-            if (
-                not self.run_eagerly
-                and self.jit_compile
-                and raw_step_function is not None
-            ):
+            if not self.run_eagerly and self.jit_compile:
 
                 def multi_step_scan(state, super_batch):
                     def scan_body(current_state, step_data):
@@ -273,7 +269,7 @@ class JAXTrainer(base_trainer.Trainer):
 
                 multi_step_fn = jit(
                     multi_step_scan,
-                    donate_argnums=donate_argnums,
+                    donate_argnums=0,
                     out_shardings=out_shardings,
                 )
 
@@ -296,8 +292,8 @@ class JAXTrainer(base_trainer.Trainer):
             def iterator_step(state, iterator):
                 batch = next(iterator)
 
-                # Case 1: PartialBatchList remainder from host-stacked iterators
-                if isinstance(batch, PartialBatchList):
+                # Case 1: List remainder from host-stacked iterators
+                if isinstance(batch, list):
                     return _unroll_steps(state, batch)
 
                 # Case 2: Partial super-batch from tf.data (leaf.shape[0] < SPE)
@@ -335,26 +331,16 @@ class JAXTrainer(base_trainer.Trainer):
             if distribution_lib.distribution() is not None:
                 state_shardings = self._get_state_sharding_spec()
                 out_shardings = (None, state_shardings)
-            if is_nnx_enabled():
-                raw_step_fn = lambda state, data: type(self).train_step(
-                    self, state, data
-                )
-            else:
-                raw_step_fn = self.train_step
-            train_step = jit(
-                raw_step_fn,
-                donate_argnums=0,
-                out_shardings=out_shardings,
+        if is_nnx_enabled():
+            train_step = lambda state, data: type(self).train_step(
+                self, state, data
             )
         else:
-            raw_step_fn = None
             train_step = self.train_step
 
         self.train_function = self._make_function(
             train_step,
-            raw_step_function=raw_step_fn,
             out_shardings=out_shardings,
-            donate_argnums=0,
         )
 
     def make_test_function(self, force=False):
@@ -375,26 +361,16 @@ class JAXTrainer(base_trainer.Trainer):
                     metrics_shardings,
                 )
                 out_shardings = (None, state_shardings)
-            if is_nnx_enabled():
-                raw_step_fn = lambda state, data: type(self).test_step(
-                    self, state, data
-                )
-            else:
-                raw_step_fn = self.test_step
-            test_step = jit(
-                raw_step_fn,
-                donate_argnums=0,
-                out_shardings=out_shardings,
+        if is_nnx_enabled():
+            test_step = lambda state, data: type(self).test_step(
+                self, state, data
             )
         else:
-            raw_step_fn = None
             test_step = self.test_step
 
         self.test_function = self._make_function(
             test_step,
-            raw_step_function=raw_step_fn,
             out_shardings=out_shardings,
-            donate_argnums=0,
         )
 
     def make_predict_function(self, force=False):
@@ -419,21 +395,9 @@ class JAXTrainer(base_trainer.Trainer):
                     non_trainable_shardings,
                 )
                 out_shardings = (None, state_shardings)
-            predict_step_jitted = jit(
-                predict_step,
-                donate_argnums=0,
-                out_shardings=out_shardings,
-            )
-            raw_step_fn = predict_step
-        else:
-            predict_step_jitted = predict_step
-            raw_step_fn = None
-
         self.predict_function = self._make_function(
-            predict_step_jitted,
-            raw_step_function=raw_step_fn,
+            predict_step,
             out_shardings=out_shardings,
-            donate_argnums=0,
             concatenate_outputs=True,
         )
 
@@ -1286,7 +1250,7 @@ class JAXEpochIterator(EpochIterator):
                 ]
             else:
                 dist_batches = [_distribute_data(b) for b in batches]
-            return PartialBatchList(dist_batches)
+            return dist_batches
 
         while True:
             batches = []
