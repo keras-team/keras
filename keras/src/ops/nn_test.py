@@ -1685,6 +1685,21 @@ class NNOpsCorrectnessTest(testing.TestCase):
             [0.0, 0.0, 0.0, 0.0, 1.0],
         )
 
+        # The case above has a support of size one, where the threshold is
+        # just the largest logit. Closely spaced logits keep more than one
+        # coordinate in the support and exercise the threshold itself.
+        x = np.array([0.0, 0.5, 1.0], dtype=np.float32)
+        self.assertAllClose(knn.sparsemax(x), [0.0, 0.25, 0.75])
+
+    def test_sparsemax_dtype(self):
+        # The ranks and counts inside the implementation are integers and the
+        # constants are Python floats. Neither may promote the result away
+        # from the dtype of the input.
+        x = np.random.uniform(size=(2, 5)).astype("float32")
+        for dtype in ("float16", "float32", "bfloat16"):
+            output = knn.sparsemax(ops.cast(x, dtype))
+            self.assertEqual(standardize_dtype(output.dtype), dtype)
+
     def test_max_pool(self):
         data_format = backend.config.image_data_format()
         # Test 1D max pooling.
