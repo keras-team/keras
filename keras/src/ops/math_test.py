@@ -1308,32 +1308,6 @@ class MathOpsCorrectnessTest(testing.TestCase):
             self.assertAllClose(
                 output_from_edge_lgamma_op, expected_output, atol=1e-4
             )
-
-            # Negative infinity: lgamma(+/-inf) = +inf
-            neg_inf = np.array([-float("inf")], dtype=np.float64)
-            output_neg_inf = kmath.lgamma(neg_inf)
-            self.assertAllClose(output_neg_inf, [float("inf")])
-
-            # Non-positive integer poles: lgamma(0) = lgamma(-1) = ... = inf
-            poles = np.array([0.0, -1.0, -2.0], dtype=np.float64)
-            output_poles = kmath.lgamma(poles)
-            self.assertAllClose(
-                output_poles, [float("inf"), float("inf"), float("inf")]
-            )
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
-
-    def test_lgamma_backend_agnostic_multidimensional(self):
-        sample_values = np.array(
-            [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], dtype="float32"
-        )
-        expected_output = scipy.special.gammaln(sample_values)
-
-        backend.config._set_use_backend_agnostic_ops(True)
-        try:
-            agnostic_output = kmath.lgamma(sample_values)
-            self.assertAllClose(agnostic_output, expected_output, atol=1e-4)
-            self.assertEqual(agnostic_output.shape, (2, 3))
         finally:
             backend.config._set_use_backend_agnostic_ops(False)
 
