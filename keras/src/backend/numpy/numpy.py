@@ -310,6 +310,9 @@ def array(x, dtype=None):
 
 def view(x, dtype=None):
     x = convert_to_tensor(x)
+    # `np.ndarray.view` resolves an explicit `dtype=None` to `float64`, so the
+    # default has to be resolved to the dtype of `x` to keep it a no-op.
+    dtype = x.dtype if dtype is None else dtype
     return x.view(dtype=dtype)
 
 

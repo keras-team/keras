@@ -5,6 +5,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 import scipy.signal
+import scipy.special
 from absl.testing import parameterized
 
 from keras.src import backend
@@ -180,6 +181,11 @@ class MathOpsDynamicShapeTest(testing.TestCase):
 
         z = kmath.gammainc(x1, x2)
         self.assertEqual(z.shape, (None, 2, 3))
+
+    def test_lgamma(self):
+        x = KerasTensor((None, 2, 3))
+        y = kmath.lgamma(x)
+        self.assertEqual(y.shape, (None, 2, 3))
 
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     def test_segment_reduce(self, segment_reduce_op):
@@ -402,6 +408,11 @@ class MathOpsStaticShapeTest(testing.TestCase):
 
         z = kmath.gammainc(x1, x2)
         self.assertEqual(z.shape, (1, 2, 3))
+
+    def test_lgamma(self):
+        x = KerasTensor((1, 2, 3))
+        y = kmath.lgamma(x)
+        self.assertEqual(y.shape, (1, 2, 3))
 
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     @pytest.mark.skipif(
@@ -833,6 +844,17 @@ class MathOpsCorrectnessTest(testing.TestCase):
             kmath.in_top_k(targets, predictions, k=2), [False, True]
         )
 
+        # Test multi-dimensional list (not array/tensor) inputs.
+        targets = [[1, 2], [0, 3]]
+        predictions = [
+            [[0.1, 0.9, 0.8, 0.8], [0.05, 0.95, 0, 1]],
+            [[0.9, 0.1, 0.8, 0.8], [0.1, 0.8, 0.3, 1]],
+        ]
+        self.assertAllEqual(
+            kmath.in_top_k(targets, predictions, k=2),
+            [[True, False], [True, True]],
+        )
+
     def test_logsumexp(self):
         x = np.random.rand(5, 5)
         outputs = kmath.logsumexp(x)
@@ -1194,6 +1216,37 @@ class MathOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(out, expected)
         self.assertEqual(out.shape, (2, 2))
 
+    def test_lgamma_operation_basic(self):
+        sample_values = np.array(
+            [1.0, 2.0, 3.0, 4.0, 5.0, 0.5, 1.5, 2.5, 3.5, 10.0]
+        )
+        expected_output = scipy.special.gammaln(sample_values)
+        output_from_lgamma_op = kmath.lgamma(sample_values)
+        self.assertAllClose(output_from_lgamma_op, expected_output, atol=1e-4)
+
+    def test_lgamma_operation_dtype(self):
+        for dtype in ("float32", "float64"):
+            sample_values = np.array(
+                [1.0, 2.0, 3.0, 4.0, 5.0, 0.5, 1.5, 2.5, 3.5, 10.0],
+                dtype=dtype,
+            )
+            expected_output = scipy.special.gammaln(sample_values)
+            output_from_lgamma_op = kmath.lgamma(sample_values)
+            self.assertAllClose(
+                output_from_lgamma_op, expected_output, atol=1e-4
+            )
+
+    def test_lgamma_operation_edge_cases(self):
+        edge_values = np.array(
+            [-0.5, -1.5, -2.5, 1e-5, 50.0, 100.0, float("inf")],
+            dtype=np.float64,
+        )
+        expected_output = scipy.special.gammaln(edge_values)
+        output_from_edge_lgamma_op = kmath.lgamma(edge_values)
+        self.assertAllClose(
+            output_from_edge_lgamma_op, expected_output, atol=1e-4
+        )
+
 
 class MathDtypeTest(testing.TestCase):
     """Test the floating dtype to verify that the behavior matches JAX."""
@@ -1333,6 +1386,24 @@ class MathDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(kmath.Gammainc().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_lgamma(self, dtype):
+        import jax.lax as lax
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+
+        expected_dtype = standardize_dtype(lax.lgamma(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(kmath.lgamma(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(kmath.Lgamma().symbolic_call(x).dtype),
             expected_dtype,
         )
 
