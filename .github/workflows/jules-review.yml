@@ -1,0 +1,28 @@
+name: Jules PR Q&A
+
+# Ask Jules a question during PR review by commenting "@jules <question>",
+# either in the PR conversation or as an inline review comment on a line in
+# the Files changed tab. Jules analyzes the PR in its VM and replies as a PR
+# comment (threaded, for inline questions).
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  jules:
+    # Only PR comments that mention @jules, from maintainers.
+    if: |
+      (github.event_name == 'pull_request_review_comment' || github.event.issue.pull_request) &&
+      contains(github.event.comment.body, '@jules') &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+    uses: keras-team/shared-workflows/.github/workflows/jules-review.yml@1ff60fd615b03a85abdffac6d7cbe390988bb305 # v1
+    secrets:
+      JULES_API_KEY: ${{ secrets.JULES_API_KEY }}

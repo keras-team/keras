@@ -9,6 +9,7 @@ from keras.src.dtype_policies.dtype_policy import GPTQDTypePolicy
 from keras.src.dtype_policies.dtype_policy import Int4DTypePolicy
 from keras.src.dtype_policies.dtype_policy import QuantizedDTypePolicy
 from keras.src.dtype_policies.dtype_policy import QuantizedFloat8DTypePolicy
+from keras.src.dtype_policies.dtype_policy import TernaryDTypePolicy
 from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
 
 ALL_OBJECTS = {
@@ -20,6 +21,7 @@ ALL_OBJECTS = {
     DTypePolicyMap,
     GPTQDTypePolicy,
     Int4DTypePolicy,
+    TernaryDTypePolicy,
 }
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
 

@@ -212,14 +212,14 @@ class JAXTrainer(base_trainer.Trainer):
             if concatenate_outputs:
 
                 def concatenate(outputs):
-                    output = outputs[0]
-                    for next_output in outputs[1:]:
-                        output = tree.map_structure(
-                            lambda t1, t2: jax.numpy.concatenate([t1, t2]),
-                            output,
-                            next_output,
-                        )
-                    return output
+                    if not outputs:
+                        return []
+                    if len(outputs) == 1:
+                        return outputs[0]
+                    return tree.map_structure(
+                        lambda *args: jax.numpy.concatenate(args, axis=0),
+                        *outputs,
+                    )
 
                 if not self.run_eagerly and self.jit_compile:
                     concatenate = jit(concatenate)
@@ -1091,13 +1091,16 @@ class JAXEpochIterator(EpochIterator):
     def _get_iterator(self):
         distribution = distribution_lib.distribution()
         if distribution is not None:
-            return self._get_distributed_iterator(distribution)
+            iterator = self._get_distributed_iterator(distribution)
         else:
-            iterator = self.data_adapter.get_jax_iterator()
-            # No benefit from look-ahead on CPU — avoid the overhead
-            if jax.default_backend() == "cpu":
-                return iterator
-            return self._one_batch_ahead_iterator(iterator)
+            iterator = (
+                _distribute_data(batch)
+                for batch in self.data_adapter.get_jax_iterator()
+            )
+        # No benefit from look-ahead on CPU — avoid the overhead
+        if jax.default_backend() == "cpu":
+            return iterator
+        return self._one_batch_ahead_iterator(iterator)
 
     def _get_distributed_iterator(self, distribution):
         """Lazily compute layouts to reduce host to device transfer latency."""
@@ -1113,17 +1116,22 @@ class JAXEpochIterator(EpochIterator):
                 layouts = tree.map_structure(get_layout, data)
             yield _distribute_data(data, layouts)
 
-    def _one_batch_ahead_iterator(self, numpy_iterator):
+    def _one_batch_ahead_iterator(self, iterator):
         """Initiate transfers to the device one batch ahead.
 
         This utility takes an iterator and returns a new iterator which
         initiates the transfer to device one step ahead. This can improve the
         performance of training loops significantly by overlapping compute and
         data transfer.
+
+        Args:
+            iterator: Source data iterator yielding batches.
+
+        Yields:
+            Batches one step ahead of the source iterator.
         """
         next_batch = None
-        for batch in numpy_iterator:
-            batch = _distribute_data(batch)
+        for batch in iterator:
             if next_batch is None:
                 next_batch = batch
             else:

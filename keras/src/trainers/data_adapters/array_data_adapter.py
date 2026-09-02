@@ -98,9 +98,7 @@ class ArrayDataAdapter(DataAdapter):
         self._num_data_shards = 1
         self._data_shard_id = 0
         if dist is not None and getattr(dist, "auto_shard_dataset", False):
-            self._num_data_shards = min(
-                dist.num_model_replicas, dist.num_processes
-            )
+            self._num_data_shards = dist.num_data_shards
             self._data_shard_id = dist.data_shard_id
 
     def _tf_shuffle(self, tensors):
@@ -450,7 +448,7 @@ def can_convert_arrays(arrays):
     """Check if array like-inputs can be handled by `ArrayDataAdapter`
 
     Args:
-        inputs: Structure of `Tensor`s, NumPy arrays, or tensor-like.
+        arrays: Structure of `Tensor`s, NumPy arrays, or tensor-like.
 
     Returns:
         `True` if `arrays` can be handled by `ArrayDataAdapter`, `False`

@@ -1,3 +1,4 @@
+from keras.src import layers
 from keras.src import testing
 from keras.src.quantizers.gptq_config import GPTQConfig
 
@@ -18,6 +19,28 @@ class TestGPTQConfig(testing.TestCase):
             ValueError, "num_samples must be a positive"
         ):
             GPTQConfig(dataset=None, tokenizer=None, num_samples=-1)
+
+    def test_invalid_calibration_batch_size(self):
+        with self.assertRaisesRegex(
+            ValueError, "calibration_batch_size must be a positive"
+        ):
+            GPTQConfig(dataset=None, tokenizer=None, calibration_batch_size=0)
+        with self.assertRaisesRegex(
+            ValueError, "calibration_batch_size must be a positive"
+        ):
+            GPTQConfig(dataset=None, tokenizer=None, calibration_batch_size=-4)
+
+    def test_calibration_batch_size_default_and_serialization(self):
+        config = GPTQConfig(dataset=None, tokenizer=None)
+        self.assertEqual(config.calibration_batch_size, 8)
+
+        config = GPTQConfig(
+            dataset=None, tokenizer=None, calibration_batch_size=16
+        )
+        serialized_config = config.get_config()
+        self.assertEqual(serialized_config["calibration_batch_size"], 16)
+        deserialized_config = GPTQConfig.from_config(serialized_config)
+        self.assertEqual(deserialized_config.calibration_batch_size, 16)
 
     def test_invalid_sequence_length(self):
         with self.assertRaisesRegex(
@@ -58,3 +81,44 @@ class TestGPTQConfig(testing.TestCase):
         serialized_config = config.get_config()
         deserialized_config = GPTQConfig.from_config(serialized_config)
         self.assertDictEqual(config.__dict__, deserialized_config.__dict__)
+
+    def test_quantization_layer_structure_not_serialized(self):
+        # The layer structure may hold live layer objects; like the
+        # dataset/tokenizer it is calibration-only state and must not be
+        # serialized.
+        config = GPTQConfig(
+            dataset=None,
+            tokenizer=None,
+            weight_bits=4,
+            group_size=64,
+            quantization_layer_structure={
+                "pre_block_layers": [],
+                "sequential_blocks": [],
+            },
+        )
+        cfg = config.get_config()
+        self.assertIsNone(cfg["quantization_layer_structure"])
+
+        restored = GPTQConfig.from_config(cfg)
+        self.assertIsNone(restored.quantization_layer_structure)
+
+    def test_live_layer_structure_not_serialized(self):
+        """The live layer structure must be dropped on serialization.
+
+        It references live model layers; serializing it would create a
+        reference cycle (layer -> config -> layer) and recurse infinitely.
+        """
+        layer = layers.Dense(4)
+        layer.build((None, 4))
+        config = GPTQConfig(
+            dataset=None,
+            tokenizer=None,
+            quantization_layer_structure={
+                "pre_block_layers": [layer],
+                "sequential_blocks": [layer],
+            },
+        )
+        # This must not recurse.
+        self.assertIsNone(config.get_config()["quantization_layer_structure"])
+        restored = GPTQConfig.from_config(config.get_config())
+        self.assertIsNone(restored.quantization_layer_structure)

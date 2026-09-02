@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+from absl.testing import parameterized
 
 from keras.src import testing
 from keras.src.utils import audio_dataset_utils
@@ -65,7 +66,11 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
             i += 1
         return temp_dir
 
-    def test_audio_dataset_from_directory_standalone(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_audio_dataset_from_directory_standalone(self, format):
         # Test retrieving audio samples without labels from a directory and its
         # subdirs.
         # Save a few extra audio in the parent directory.
@@ -76,12 +81,16 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
                 f.write(audio.numpy())
 
         dataset = audio_dataset_utils.audio_dataset_from_directory(
-            directory, batch_size=5, output_sequence_length=30, labels=None
+            directory,
+            batch_size=5,
+            output_sequence_length=30,
+            labels=None,
+            format=format,
         )
         batch = next(iter(dataset))
         # We return plain audio
-        self.assertEqual(batch.shape, (5, 30, 1))
-        self.assertEqual(batch.dtype.name, "float32")
+        self.assertEqual(tuple(batch.shape), (5, 30, 1))
+        self.assertDType(batch, "float32")
         # Count samples
         batch_count = 0
         sample_count = 0
@@ -91,43 +100,53 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
         self.assertEqual(batch_count, 2)
         self.assertEqual(sample_count, 10)
 
-    def test_audio_dataset_from_directory_binary(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_audio_dataset_from_directory_binary(self, format):
         directory = self._prepare_directory(num_classes=2)
         dataset = audio_dataset_utils.audio_dataset_from_directory(
-            directory, batch_size=8, output_sequence_length=30, label_mode="int"
+            directory,
+            batch_size=8,
+            output_sequence_length=30,
+            label_mode="int",
+            format=format,
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, (8, 30, 1))
-        self.assertEqual(batch[0].dtype.name, "float32")
-        self.assertEqual(batch[1].shape, (8,))
-        self.assertEqual(batch[1].dtype.name, "int32")
+        self.assertEqual(tuple(batch[0].shape), (8, 30, 1))
+        self.assertDType(batch[0], "float32")
+        self.assertEqual(tuple(batch[1].shape), (8,))
+        self.assertDType(batch[1], "int32")
 
         dataset = audio_dataset_utils.audio_dataset_from_directory(
             directory,
             batch_size=8,
             output_sequence_length=30,
             label_mode="binary",
+            format=format,
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, (8, 30, 1))
-        self.assertEqual(batch[0].dtype.name, "float32")
-        self.assertEqual(batch[1].shape, (8, 1))
-        self.assertEqual(batch[1].dtype.name, "float32")
+        self.assertEqual(tuple(batch[0].shape), (8, 30, 1))
+        self.assertDType(batch[0], "float32")
+        self.assertEqual(tuple(batch[1].shape), (8, 1))
+        self.assertDType(batch[1], "float32")
 
         dataset = audio_dataset_utils.audio_dataset_from_directory(
             directory,
             batch_size=8,
             output_sequence_length=30,
             label_mode="categorical",
+            format=format,
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, (8, 30, 1))
-        self.assertEqual(batch[0].dtype.name, "float32")
-        self.assertEqual(batch[1].shape, (8, 2))
-        self.assertEqual(batch[1].dtype.name, "float32")
+        self.assertEqual(tuple(batch[0].shape), (8, 30, 1))
+        self.assertDType(batch[0], "float32")
+        self.assertEqual(tuple(batch[1].shape), (8, 2))
+        self.assertDType(batch[1], "float32")
 
     def test_static_shape_in_graph(self):
         directory = self._prepare_directory(num_classes=2)
@@ -143,27 +162,47 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
 
         symbolic_fn(dataset)
 
-    def test_sample_count(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_sample_count(self, format):
         directory = self._prepare_directory(num_classes=4, count=15)
         dataset = audio_dataset_utils.audio_dataset_from_directory(
-            directory, batch_size=8, output_sequence_length=30, label_mode=None
+            directory,
+            batch_size=8,
+            output_sequence_length=30,
+            label_mode=None,
+            format=format,
         )
         sample_count = 0
         for batch in dataset:
             sample_count += batch.shape[0]
         self.assertEqual(sample_count, 15)
 
-    def test_audio_dataset_from_directory_multiclass(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_audio_dataset_from_directory_multiclass(self, format):
         directory = self._prepare_directory(num_classes=4, count=15)
 
         dataset = audio_dataset_utils.audio_dataset_from_directory(
-            directory, batch_size=8, output_sequence_length=30, label_mode=None
+            directory,
+            batch_size=8,
+            output_sequence_length=30,
+            label_mode=None,
+            format=format,
         )
         batch = next(iter(dataset))
-        self.assertEqual(batch.shape, (8, 30, 1))
+        self.assertEqual(tuple(batch.shape), (8, 30, 1))
 
         dataset = audio_dataset_utils.audio_dataset_from_directory(
-            directory, batch_size=8, output_sequence_length=30, label_mode=None
+            directory,
+            batch_size=8,
+            output_sequence_length=30,
+            label_mode=None,
+            format=format,
         )
         sample_count = 0
         iterator = iter(dataset)
@@ -172,29 +211,38 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
         self.assertEqual(sample_count, 15)
 
         dataset = audio_dataset_utils.audio_dataset_from_directory(
-            directory, batch_size=8, output_sequence_length=30, label_mode="int"
+            directory,
+            batch_size=8,
+            output_sequence_length=30,
+            label_mode="int",
+            format=format,
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, (8, 30, 1))
-        self.assertEqual(batch[0].dtype.name, "float32")
-        self.assertEqual(batch[1].shape, (8,))
-        self.assertEqual(batch[1].dtype.name, "int32")
+        self.assertEqual(tuple(batch[0].shape), (8, 30, 1))
+        self.assertDType(batch[0], "float32")
+        self.assertEqual(tuple(batch[1].shape), (8,))
+        self.assertDType(batch[1], "int32")
 
         dataset = audio_dataset_utils.audio_dataset_from_directory(
             directory,
             batch_size=8,
             output_sequence_length=30,
             label_mode="categorical",
+            format=format,
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, (8, 30, 1))
-        self.assertEqual(batch[0].dtype.name, "float32")
-        self.assertEqual(batch[1].shape, (8, 4))
-        self.assertEqual(batch[1].dtype.name, "float32")
+        self.assertEqual(tuple(batch[0].shape), (8, 30, 1))
+        self.assertDType(batch[0], "float32")
+        self.assertEqual(tuple(batch[1].shape), (8, 4))
+        self.assertDType(batch[1], "float32")
 
-    def test_audio_dataset_from_directory_validation_split(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_audio_dataset_from_directory_validation_split(self, format):
         directory = self._prepare_directory(num_classes=2, count=10)
         dataset = audio_dataset_utils.audio_dataset_from_directory(
             directory,
@@ -203,10 +251,11 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
             validation_split=0.2,
             subset="training",
             seed=1337,
+            format=format,
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, (8, 30, 1))
+        self.assertEqual(tuple(batch[0].shape), (8, 30, 1))
         dataset = audio_dataset_utils.audio_dataset_from_directory(
             directory,
             batch_size=10,
@@ -214,12 +263,17 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
             validation_split=0.2,
             subset="validation",
             seed=1337,
+            format=format,
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape, (2, 30, 1))
+        self.assertEqual(tuple(batch[0].shape), (2, 30, 1))
 
-    def test_audio_dataset_from_directory_manual_labels(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_audio_dataset_from_directory_manual_labels(self, format):
         directory = self._prepare_directory(num_classes=2, count=2)
         dataset = audio_dataset_utils.audio_dataset_from_directory(
             directory,
@@ -227,12 +281,17 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
             output_sequence_length=30,
             labels=[0, 1],
             shuffle=False,
+            format=format,
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
         self.assertAllClose(batch[1], [0, 1])
 
-    def test_audio_dataset_from_directory_follow_links(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_audio_dataset_from_directory_follow_links(self, format):
         directory = self._prepare_directory(
             num_classes=2, count=25, nested_dirs=True
         )
@@ -242,6 +301,7 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
             output_sequence_length=30,
             label_mode=None,
             follow_links=True,
+            format=format,
         )
         sample_count = 0
         for batch in dataset:
@@ -266,8 +326,12 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
 
         self.assertEqual(batch[0].shape.as_list(), [8, None, None])
 
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
     def test_audio_dataset_from_directory_no_output_sequence_length_no_ragged(
-        self,
+        self, format
     ):
         # This test case tests `audio_dataset_from_directory` when `ragged` and
         # `output_sequence_length` are not passed while the input sequence
@@ -283,13 +347,19 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
             i for i in range(min_sequence_length, max_sequence_length + 1)
         ]
         dataset = audio_dataset_utils.audio_dataset_from_directory(
-            directory, batch_size=2
+            directory, batch_size=2, format=format
         )
         sequence_lengths = list(set([b.shape[1] for b, _ in dataset]))
         for seq_len in sequence_lengths:
             self.assertIn(seq_len, possible_sequence_lengths)
 
-    def test_audio_dataset_from_directory_variable_length_label_modes(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_audio_dataset_from_directory_variable_length_label_modes(
+        self, format
+    ):
         directory = self._prepare_directory(
             num_classes=2, count=16, different_sequence_lengths=True
         )
@@ -299,9 +369,10 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
             batch_size=8,
             label_mode=None,
             shuffle=False,
+            format=format,
         )
         batch = next(iter(dataset))
-        self.assertEqual(batch.shape.rank, 3)
+        self.assertEqual(len(batch.shape), 3)
         self.assertEqual(batch.shape[0], 8)
         self.assertEqual(batch.shape[-1], 1)
 
@@ -310,31 +381,37 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
             batch_size=8,
             label_mode="binary",
             shuffle=False,
+            format=format,
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape.rank, 3)
+        self.assertEqual(len(batch[0].shape), 3)
         self.assertEqual(batch[0].shape[0], 8)
         self.assertEqual(batch[0].shape[-1], 1)
-        self.assertEqual(batch[1].shape, (8, 1))
-        self.assertEqual(batch[1].dtype.name, "float32")
+        self.assertEqual(tuple(batch[1].shape), (8, 1))
+        self.assertDType(batch[1], "float32")
 
         dataset = audio_dataset_utils.audio_dataset_from_directory(
             directory,
             batch_size=8,
             label_mode="categorical",
             shuffle=False,
+            format=format,
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        self.assertEqual(batch[0].shape.rank, 3)
+        self.assertEqual(len(batch[0].shape), 3)
         self.assertEqual(batch[0].shape[0], 8)
         self.assertEqual(batch[0].shape[-1], 1)
-        self.assertEqual(batch[1].shape, (8, 2))
-        self.assertEqual(batch[1].dtype.name, "float32")
+        self.assertEqual(tuple(batch[1].shape), (8, 2))
+        self.assertDType(batch[1], "float32")
 
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
     def test_audio_dataset_from_directory_no_output_sequence_length_same_lengths(  # noqa: E501
-        self,
+        self, format
     ):
         # This test case tests `audio_dataset_from_directory` when `ragged` and
         # `output_sequence_length` are not passed while the input sequence
@@ -346,7 +423,7 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
         # should work fine and pad each sequence to the length of the longest
         # sequence in it's batch
         dataset = audio_dataset_utils.audio_dataset_from_directory(
-            directory, batch_size=2
+            directory, batch_size=2, format=format
         )
         sequence_lengths = list(set([batch[0].shape[1] for batch in dataset]))
         self.assertEqual(len(sequence_lengths), 1)
@@ -384,7 +461,7 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
 
             @tf.function
             def read_audio(path):
-                return audio_dataset_utils.read_and_decode_audio(
+                return audio_dataset_utils._read_and_decode_audio_tf(
                     path,
                     sampling_rate=target_sampling_rate,
                     output_sequence_length=output_sequence_length,
@@ -395,6 +472,27 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
             self.assertEqual(sample.shape, (output_sequence_length, 1))
         finally:
             audio_dataset_utils.tfio = original_tfio
+
+    def test_output_sequence_length_applied_after_resampling_grain(self):
+        source_sampling_rate = 48000
+        target_sampling_rate = 16000
+        output_sequence_length = 16000
+        directory = self.get_temp_dir()
+        filename = os.path.join(directory, "audio.wav")
+        audio = np.random.random((source_sampling_rate * 2, 1))
+        from scipy.io import wavfile
+
+        wavfile.write(
+            filename, source_sampling_rate, (audio * 32767).astype(np.int16)
+        )
+
+        sample = audio_dataset_utils._read_and_decode_audio_grain(
+            filename,
+            sampling_rate=target_sampling_rate,
+            output_sequence_length=output_sequence_length,
+        )
+
+        self.assertEqual(tuple(sample.shape), (output_sequence_length, 1))
 
     def test_audio_dataset_from_directory_errors(self):
         directory = self._prepare_directory(num_classes=3, count=5)
@@ -440,6 +538,14 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
         ):
             _ = audio_dataset_utils.audio_dataset_from_directory(
                 directory, ragged=True, output_sequence_length=30
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Ragged datasets are not supported when `format='grain'`.",
+        ):
+            _ = audio_dataset_utils.audio_dataset_from_directory(
+                directory, ragged=True, format="grain"
             )
 
         with self.assertRaisesRegex(ValueError, "`labels` argument should be"):
@@ -508,8 +614,23 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
             _ = audio_dataset_utils.audio_dataset_from_directory(
                 directory, validation_split=0.2, subset="training"
             )
+        with self.assertRaisesRegex(ValueError, "`format` should be either"):
+            _ = audio_dataset_utils.audio_dataset_from_directory(
+                directory, format="invalid"
+            )
 
-    def test_audio_dataset_from_directory_not_batched(self):
+        with self.assertRaisesRegex(
+            ValueError, "Remote directories are not supported"
+        ):
+            _ = audio_dataset_utils.audio_dataset_from_directory(
+                "gs://bucket/remote/path", format="grain"
+            )
+
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_audio_dataset_from_directory_not_batched(self, format):
         directory = self._prepare_directory(num_classes=2, count=2)
         dataset = audio_dataset_utils.audio_dataset_from_directory(
             directory,
@@ -517,6 +638,7 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
             output_sequence_length=30,
             label_mode=None,
             shuffle=False,
+            format=format,
         )
         sample = next(iter(dataset))
         self.assertEqual(len(sample.shape), 2)

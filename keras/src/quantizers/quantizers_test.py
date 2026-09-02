@@ -1,3 +1,4 @@
+import itertools
 import math
 
 import numpy as np
@@ -27,6 +28,45 @@ class QuantizersTest(testing.TestCase):
 
         with self.assertRaises(ValueError):
             quantizers.get("typo")
+
+    def test_get_from_string_identifier(self):
+        # A string identifier resolves to a fresh instance whose constructor
+        # ran with no positional garbage (previously the kwargs dict was passed
+        # positionally into `axis`).
+        quantizer = quantizers.get("abs_max_quantizer")
+        self.assertIsInstance(quantizer, quantizers.AbsMaxQuantizer)
+        self.assertIsNone(quantizer.axis)
+        self.assertEqual(quantizer.value_range, (-127, 127))
+
+    def test_get_from_bare_class(self):
+        quantizer = quantizers.get(quantizers.AbsMaxQuantizer)
+        self.assertIsInstance(quantizer, quantizers.AbsMaxQuantizer)
+        self.assertIsNone(quantizer.axis)
+
+    def test_get_from_class_with_kwargs(self):
+        # kwargs must be forwarded by keyword, not positionally.
+        quantizer = quantizers.get(
+            quantizers.AbsMaxQuantizer,
+            value_range=(-8, 7),
+            output_dtype="int8",
+        )
+        self.assertIsInstance(quantizer, quantizers.AbsMaxQuantizer)
+        self.assertEqual(quantizer.value_range, (-8, 7))
+        self.assertEqual(quantizer.output_dtype, "int8")
+        # `axis` stays at its default rather than being clobbered by kwargs.
+        self.assertIsNone(quantizer.axis)
+
+    def test_get_from_config_dict(self):
+        # A serialized `{"class_name": ..., "config": ...}` dict deserializes to
+        # an equivalent instance.
+        original = quantizers.AbsMaxQuantizer(value_range=(-8, 7))
+        config = quantizers.serialize(original)
+        self.assertIn("class_name", config)
+        self.assertIn("config", config)
+        quantizer = quantizers.get(config)
+        self.assertIsInstance(quantizer, quantizers.AbsMaxQuantizer)
+        self.assertEqual(quantizer.value_range, (-8, 7))
+        self.assertIsNone(quantizer.axis)
 
     def test_abs_max_quantizer(self):
         values = random.uniform([3, 4, 5], minval=-1, maxval=1, dtype="float32")
@@ -175,6 +215,110 @@ class QuantizersTest(testing.TestCase):
         self.assertEqual(
             list(ops.convert_to_numpy(packed_shape)), expected_packed_shape
         )
+
+    @parameterized.named_parameters(SHAPE_AXIS_SCENARIOS)
+    def test_pack_unpack_ternary(self, shape, axis):
+        # Random ternary values in {-1, 0, +1}.
+        arr = ops.cast(
+            ops.floor(random.uniform(shape, minval=-1, maxval=2)), "int8"
+        )
+
+        packed, packed_shape, orig_len = quantizers.pack_ternary(arr, axis=axis)
+        unpacked = quantizers.unpack_ternary(packed, orig_len, axis=axis)
+
+        # Packed bytes are uint8, with five trits packed along the pack axis.
+        ax = axis % len(shape)
+        self.assertDType(packed, "uint8")
+        self.assertEqual(packed_shape[ax], (shape[ax] + 4) // 5)
+
+        # The round-trip is lossless back to {-1, 0, +1}.
+        self.assertDType(unpacked, "int8")
+        self.assertAllClose(unpacked, arr)
+
+    def test_pack_ternary_bits_per_value(self):
+        # 100 trits packed along axis 0 (length 25 -> 5 bytes) for 4 columns.
+        arr = ops.cast(
+            ops.floor(random.uniform((25, 4), minval=-1, maxval=2)), "int8"
+        )
+        packed, packed_shape, _ = quantizers.pack_ternary(arr, axis=0)
+
+        n_bytes = 1
+        for dim in packed_shape:
+            n_bytes *= dim
+        # 5 bytes/column * 4 columns = 20 bytes for 100 ternary values: the
+        # log2(3) ~= 1.58-bit floor, denser than int4 (50 bytes) or int8.
+        self.assertEqual(n_bytes, 20)
+        self.assertEqual(8 * n_bytes / 100, 1.6)
+
+    # int2 packs four values per byte, so the packing axis must exercise every
+    # padding remainder (0, 1, 2, 3) along both the fast path (axis=0, rank 2)
+    # and the general transpose path.
+    SHAPE_AXIS_SCENARIOS_INT2 = [
+        {"testcase_name": "2d_axis0_pad0", "shape": (8, 5), "axis": 0},
+        {"testcase_name": "2d_axis0_pad1", "shape": (7, 5), "axis": 0},
+        {"testcase_name": "2d_axis0_pad2", "shape": (6, 5), "axis": 0},
+        {"testcase_name": "2d_axis0_pad3", "shape": (5, 5), "axis": 0},
+        {"testcase_name": "2d_axis1_pad3", "shape": (5, 5), "axis": 1},
+        {"testcase_name": "2d_axis_neg1_pad0", "shape": (5, 8), "axis": -1},
+        {"testcase_name": "4d_axis1_pad3", "shape": (2, 5, 4, 6), "axis": 1},
+        {"testcase_name": "4d_axis2_pad0", "shape": (2, 4, 8, 6), "axis": 2},
+        {
+            "testcase_name": "4d_axis_neg1_pad2",
+            "shape": (2, 4, 6, 6),
+            "axis": -1,
+        },
+    ]
+
+    DTYPE_PARAMS_INT2 = [
+        {"testcase_name": "int8", "dtype": "int8", "minval": -2, "maxval": 2},
+        {"testcase_name": "uint8", "dtype": "uint8", "minval": 0, "maxval": 4},
+    ]
+
+    @parameterized.named_parameters(
+        named_product(SHAPE_AXIS_SCENARIOS_INT2, DTYPE_PARAMS_INT2)
+    )
+    def test_pack_unpack_int2(self, shape, axis, dtype, minval, maxval):
+        arr = ops.cast(
+            ops.floor(random.uniform(shape, minval=minval, maxval=maxval)),
+            dtype,
+        )
+
+        packed, packed_shape, orig_len = quantizers.pack_int2(
+            arr, axis=axis, dtype=dtype
+        )
+        unpacked = quantizers.unpack_int2(
+            packed, orig_len, axis=axis, dtype=dtype
+        )
+
+        self.assertDType(packed, dtype)
+        self.assertDType(unpacked, dtype)
+        self.assertAllClose(unpacked, arr)
+
+        # Four values are packed per byte along `axis`.
+        expected_packed_shape = list(shape)
+        expected_packed_shape[axis] = (expected_packed_shape[axis] + 3) // 4
+        self.assertEqual(
+            list(ops.convert_to_numpy(packed_shape)), expected_packed_shape
+        )
+
+    @parameterized.named_parameters(
+        {"testcase_name": "int8", "dtype": "int8", "values": [-2, -1, 0, 1]},
+        {"testcase_name": "uint8", "dtype": "uint8", "values": [0, 1, 2, 3]},
+    )
+    def test_pack_unpack_int2_exhaustive(self, dtype, values):
+        # Every possible arrangement of four 2-bit values within a byte
+        # (4**4 = 256 quadruples) must round-trip bit-exactly.
+        combos = np.array(
+            list(itertools.product(values, repeat=4)), dtype=dtype
+        )
+        arr = ops.convert_to_tensor(combos.reshape(-1, 1))  # (1024, 1)
+
+        packed, _, orig_len = quantizers.pack_int2(arr, axis=0, dtype=dtype)
+        unpacked = quantizers.unpack_int2(packed, orig_len, axis=0, dtype=dtype)
+
+        # 1024 values -> 256 packed bytes (4 per byte).
+        self.assertEqual(tuple(ops.shape(packed)), (256, 1))
+        self.assertAllClose(unpacked, arr)
 
     @parameterized.named_parameters(
         ("per_tensor", None),
@@ -1025,6 +1169,60 @@ class ComputeScaleZeroTest(testing.TestCase):
         self.assertEqual(scale.shape, (out_features, n_groups))
         self.assertEqual(zero.shape, (out_features, n_groups))
         self.assertTrue(ops.all(ops.greater(scale, 0.0)))
+
+    @parameterized.named_parameters(
+        ("bits2", 2),
+        ("bits4", 4),
+        ("bits8", 8),
+    )
+    def test_unsigned_asymmetric_zero_point_stays_in_range(self, bits):
+        """Zero point must stay in [0, maxq] for one-sided weight groups.
+
+        Regression test: the unsigned asymmetric branch used to compute
+        `zero = round(-min / scale)` without clamping the range to include
+        zero, so all-negative groups produced zero points far above `maxq`
+        (unrepresentable in `bits`-bit packed export formats), and the
+        quantized grid could not represent 0. Reference GPTQ/AWQ clamp with
+        `xmin = min(xmin, 0)`, `xmax = max(xmax, 0)`.
+        """
+        maxq = 2**bits - 1
+        rng = np.random.default_rng(5)
+
+        # All-negative groups: without the range clamp, zero overflows.
+        x_negative = ops.array((-1.0 - rng.random((8, 16))).astype("float32"))
+        scale, zero, _ = compute_quantization_parameters(
+            x_negative,
+            bits=bits,
+            symmetric=False,
+            per_channel=True,
+            group_size=8,
+        )
+        zero_np = ops.convert_to_numpy(zero)
+        self.assertTrue(np.all(zero_np >= 0))
+        self.assertTrue(np.all(zero_np <= maxq))
+        # With max clamped to 0, the top of the grid is exactly 0:
+        # zero == maxq and (maxq - zero) * scale == 0.
+        self.assertTrue(np.all(zero_np == maxq))
+
+        # All-positive groups: zero must be 0 (bottom of the grid is 0).
+        x_positive = ops.array((1.0 + rng.random((8, 16))).astype("float32"))
+        _, zero, _ = compute_quantization_parameters(
+            x_positive,
+            bits=bits,
+            symmetric=False,
+            per_channel=True,
+            group_size=8,
+        )
+        zero_np = ops.convert_to_numpy(zero)
+        self.assertTrue(np.all(zero_np == 0))
+
+        # The clamped range must still cover the original values.
+        scale_np = ops.convert_to_numpy(scale)
+        min_np = ops.convert_to_numpy(
+            ops.min(ops.reshape(x_negative, (8, 2, 8)), axis=2)
+        )
+        # Lowest representable value (q=0): (0 - zero) * scale <= min.
+        self.assertTrue(np.all(-maxq * scale_np <= min_np + 1e-6))
 
     @parameterized.named_parameters(
         ("sym_true", True),
