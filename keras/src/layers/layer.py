@@ -1268,7 +1268,7 @@ class Layer(BackendLayer, Operation):
 
         # Caches info about `call()` signature, args, kwargs.
         call_spec = CallSpec(
-            self._call_signature, self._call_context_args, args, kwargs
+            self._call_param_specs, self._call_context_args, args, kwargs
         )
 
         # Maintains info about the `Layer.call` stack across nested calls.
