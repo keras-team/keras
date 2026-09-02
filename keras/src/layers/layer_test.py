@@ -1,3 +1,4 @@
+import inspect
 import pickle
 from unittest import mock
 
@@ -13,9 +14,77 @@ from keras.src import metrics
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src import tree
 from keras.src.backend.common import global_state
 from keras.src.backend.common.remat import RematScope
+from keras.src.layers import layer as layer_module
+from keras.src.layers.layer import CallSpec
+from keras.src.layers.layer import _bind_call_arguments
 from keras.src.models import Model
+
+
+def _build_small_functional_model(input_dim=8):
+    """Small Dense + LayerNormalization + Dropout + Dense functional model
+    exercising the trainer-style `training=<bool>` call shape: a mix of
+    layers that do and do not accept `training`, called the way
+    `fit()`/`evaluate()`/`predict()` do (a single positional tensor input
+    plus `training=<bool>` passed explicitly by the trainer)."""
+    inputs = Input(shape=(input_dim,))
+    x = layers.Dense(input_dim)(inputs)
+    x = layers.LayerNormalization()(x)
+    x = layers.Dropout(0.5)(x)
+    x = layers.Dense(input_dim)(x)
+    return Model(inputs, x)
+
+
+# Representative `call()`-style signatures for
+# `test_bind_call_arguments_matches_signature_bind`, which checks
+# `_bind_call_arguments` against `inspect.Signature.bind` on these.
+def _binder_single(inputs):
+    pass
+
+
+def _binder_training_mask(inputs, training=None, mask=None):
+    pass
+
+
+def _binder_mha(
+    query,
+    value,
+    key=None,
+    query_mask=None,
+    value_mask=None,
+    key_mask=None,
+    attention_mask=None,
+    return_attention_scores=False,
+    training=None,
+    use_causal_mask=False,
+):
+    pass
+
+
+def _binder_var_args_kwargs(*args, **kwargs):
+    pass
+
+
+def _binder_mixed_varargs(inputs, *args, training=None, **kwargs):
+    pass
+
+
+def _binder_kw_only(a, b=2, *, c, d=4):
+    pass
+
+
+def _binder_mask(inputs, mask=None):
+    pass
+
+
+def _binder_pos_only_var_kw(x, /, **kwargs):
+    pass
+
+
+def _binder_pos_only(x, /):
+    pass
 
 
 class MockRemat:
@@ -1990,3 +2059,513 @@ class LayerTest(testing.TestCase):
         mask = np.ones((2, 1), dtype="float32")
         y = layer(x, attention_mask=mask)
         self.assertEqual(y.shape, (2, 3))
+
+    def _assert_callspec_dict_equal(self, fast_dict, slow_dict):
+        # Compare CallSpec arg dicts. Tensor/symbolic values are the same
+        # object in both specs (compare by identity); everything else by
+        # value. This avoids elementwise tensor comparisons.
+        self.assertEqual(list(fast_dict.keys()), list(slow_dict.keys()))
+        for key in fast_dict:
+            fast_value = fast_dict[key]
+            slow_value = slow_dict[key]
+            if backend.is_tensor(fast_value) or isinstance(
+                fast_value, backend.KerasTensor
+            ):
+                self.assertIs(fast_value, slow_value)
+            else:
+                self.assertEqual(fast_value, slow_value)
+
+    def test_callspec_fast_path_matches_slow_path(self):
+        class OneArg(layers.Layer):
+            def call(self, inputs):
+                return inputs
+
+        class TrainingArg(layers.Layer):
+            def call(self, inputs, training=None):
+                return inputs
+
+        class TrainingMaskArg(layers.Layer):
+            def call(self, inputs, training=None, mask=None):
+                return inputs
+
+        class ScalarDefaultArg(layers.Layer):
+            def call(self, inputs, scale=1.0):
+                return inputs
+
+        eager_input = ops.convert_to_tensor(
+            np.random.rand(2, 3).astype("float32")
+        )
+        symbolic_input = backend.KerasTensor((2, 3))
+
+        for layer_cls in (
+            OneArg,
+            TrainingArg,
+            TrainingMaskArg,
+            ScalarDefaultArg,
+        ):
+            layer = layer_cls()
+            self.assertTrue(
+                layer._call_spec_fast_path,
+                msg=f"{layer_cls.__name__} should be fast-path eligible",
+            )
+            for x in (eager_input, symbolic_input):
+                fast = CallSpec._fast(
+                    layer._call_arg_names,
+                    layer._call_arg_defaults,
+                    layer._call_first_arg_name,
+                    x,
+                )
+                slow = CallSpec(
+                    layer._call_param_specs,
+                    layer._call_context_args,
+                    (x,),
+                    {},
+                )
+                self.assertEqual(fast.argument_names, slow.argument_names)
+                self.assertEqual(
+                    fast.tensor_arguments_names, slow.tensor_arguments_names
+                )
+                self.assertEqual(
+                    fast.nested_tensor_argument_names,
+                    slow.nested_tensor_argument_names,
+                )
+                self.assertEqual(fast.eager, slow.eager)
+                self.assertIs(fast.first_arg, slow.first_arg)
+                self._assert_callspec_dict_equal(
+                    fast.user_arguments_dict, slow.user_arguments_dict
+                )
+                self._assert_callspec_dict_equal(
+                    fast.arguments_dict, slow.arguments_dict
+                )
+                self._assert_callspec_dict_equal(
+                    fast.tensor_arguments_dict, slow.tensor_arguments_dict
+                )
+
+    @parameterized.named_parameters(
+        ("single", _binder_single, ("t0",), {}),
+        ("single_kw", _binder_single, (), {"inputs": "t0"}),
+        ("unexpected_kw", _binder_single, ("t0",), {"training": False}),
+        ("std_training", _binder_training_mask, ("t0",), {"training": False}),
+        (
+            "training_and_mask",
+            _binder_training_mask,
+            ("t0",),
+            {"training": True, "mask": None},
+        ),
+        ("positional_training", _binder_training_mask, ("t0", False), {}),
+        ("defaults_only", _binder_training_mask, ("t0",), {}),
+        (
+            "mha_shape",
+            _binder_mha,
+            ("t0", "t1"),
+            {"use_causal_mask": True, "training": False},
+        ),
+        ("mha_qkv_positional", _binder_mha, ("t0", "t1", "t2"), {}),
+        (
+            "varargs_varkw",
+            _binder_var_args_kwargs,
+            ("t0", 1, 2),
+            {"x": 3, "training": False},
+        ),
+        ("varargs_empty", _binder_var_args_kwargs, (), {}),
+        (
+            "mixed_varargs",
+            _binder_mixed_varargs,
+            ("t0", 1, 2),
+            {"training": True, "extra": 9},
+        ),
+        ("mixed_defaults", _binder_mixed_varargs, ("t0",), {}),
+        ("kwonly_required", _binder_kw_only, (1,), {"c": 3}),
+        ("kwonly_full", _binder_kw_only, (1, 2), {"c": 3, "d": 5}),
+        ("kwonly_missing_raises", _binder_kw_only, (1,), {}),
+        ("too_many_positional_raises", _binder_kw_only, (1, 2, 3), {"c": 1}),
+        (
+            "duplicate_arg_raises",
+            _binder_training_mask,
+            ("t0",),
+            {"inputs": "t0"},
+        ),
+        ("missing_required_raises", _binder_single, (), {}),
+        ("mask_kwarg", _binder_mask, ("t0",), {"mask": "t1"}),
+        # Positional-only: the parameter's name is still usable as a
+        # **kwargs key, so binding must not report it as a duplicate.
+        (
+            "pos_only_name_into_var_kw",
+            _binder_pos_only_var_kw,
+            ("t0",),
+            {"x": 5},
+        ),
+        ("pos_only_unexpected_kw_raises", _binder_pos_only, ("t0",), {"x": 5}),
+    )
+    def test_bind_call_arguments_matches_signature_bind(self, fn, args, kwargs):
+        # `_bind_call_arguments` must reproduce `inspect.Signature.bind` +
+        # `apply_defaults` exactly: same raise/no-raise outcome, same
+        # bound values, and same ordering for both the provided-only dict
+        # (`bind().arguments`) and the defaults-applied dict.
+        sig = inspect.signature(fn)
+        param_specs = tuple(
+            (p.name, p.kind, p.default) for p in sig.parameters.values()
+        )
+        ref_raised = None
+        try:
+            bound = sig.bind(*args, **dict(kwargs))
+            ref_provided = dict(bound.arguments)
+            ref_provided_order = list(bound.arguments)
+            bound.apply_defaults()
+            ref_full = dict(bound.arguments)
+            ref_full_order = list(bound.arguments)
+        except TypeError as e:
+            ref_raised = e
+        try:
+            provided, full = _bind_call_arguments(
+                param_specs, args, dict(kwargs)
+            )
+        except TypeError as e:
+            if ref_raised is None:
+                raise AssertionError(
+                    f"_bind_call_arguments raised {e!r} but "
+                    "inspect.Signature.bind bound successfully"
+                )
+            return
+        self.assertIsNone(
+            ref_raised,
+            msg=(
+                "inspect.Signature.bind raised but _bind_call_arguments "
+                f"bound successfully: provided={provided!r}"
+            ),
+        )
+        self.assertEqual(provided, ref_provided)
+        self.assertEqual(list(provided), ref_provided_order)
+        self.assertEqual(full, ref_full)
+        self.assertEqual(list(full), ref_full_order)
+
+    def test_callspec_fast_path_matches_slow_path_training_kwarg(self):
+        # Extends test_callspec_fast_path_matches_slow_path to the
+        # training=<bool> fast-path shape: one accepting layer (like
+        # Dense) and one non-accepting layer (like LayerNormalization), for
+        # both training=True and training=False, and both eager and
+        # symbolic inputs. Also checks the caller-kwargs pop side effect
+        # for the non-accepting case.
+        class TrainingArg(layers.Layer):
+            def call(self, inputs, training=None):
+                return inputs
+
+        class NoTrainingArg(layers.Layer):
+            def call(self, inputs, scale=1.0):
+                return inputs
+
+        eager_input = ops.convert_to_tensor(
+            np.random.rand(2, 3).astype("float32")
+        )
+        symbolic_input = backend.KerasTensor((2, 3))
+
+        for layer_cls in (TrainingArg, NoTrainingArg):
+            layer = layer_cls()
+            self.assertTrue(
+                layer._call_spec_fast_path,
+                msg=f"{layer_cls.__name__} should be fast-path eligible",
+            )
+            for x in (eager_input, symbolic_input):
+                for training_value in (True, False):
+                    fast = CallSpec._fast(
+                        layer._call_arg_names,
+                        layer._call_arg_defaults,
+                        layer._call_first_arg_name,
+                        x,
+                        training=training_value,
+                    )
+                    slow_kwargs = {"training": training_value}
+                    slow = CallSpec(
+                        layer._call_param_specs,
+                        layer._call_context_args,
+                        (x,),
+                        slow_kwargs,
+                    )
+                    self.assertEqual(fast.argument_names, slow.argument_names)
+                    self.assertEqual(
+                        fast.tensor_arguments_names,
+                        slow.tensor_arguments_names,
+                    )
+                    self.assertEqual(
+                        fast.nested_tensor_argument_names,
+                        slow.nested_tensor_argument_names,
+                    )
+                    self.assertEqual(fast.eager, slow.eager)
+                    self.assertIs(fast.first_arg, slow.first_arg)
+                    self._assert_callspec_dict_equal(
+                        fast.user_arguments_dict, slow.user_arguments_dict
+                    )
+                    self._assert_callspec_dict_equal(
+                        fast.arguments_dict, slow.arguments_dict
+                    )
+                    self._assert_callspec_dict_equal(
+                        fast.tensor_arguments_dict,
+                        slow.tensor_arguments_dict,
+                    )
+                    # Slow path pops non-accepted context args out of the
+                    # caller's kwargs dict; NoTrainingArg does not accept
+                    # `training`, so it must be popped.
+                    if layer_cls is NoTrainingArg:
+                        self.assertNotIn("training", slow_kwargs)
+                    else:
+                        self.assertIn("training", slow_kwargs)
+
+    def test_call_fast_path_training_kwarg_mirrors_kwargs_pop(self):
+        # Layer.__call__'s fast-path gate must mirror CallSpec.__init__'s
+        # side effect of popping non-accepted context args from the
+        # caller-supplied kwargs dict, since downstream code (mask
+        # population, the eventual self.call(**kwargs), Node construction)
+        # reads that same dict.
+        class NoTrainingArg(layers.Layer):
+            def call(self, inputs, scale=1.0):
+                return inputs
+
+        layer = NoTrainingArg()
+        self.assertTrue(layer._call_spec_fast_path)
+        x = ops.convert_to_tensor(np.random.rand(2, 3).astype("float32"))
+        # Calling with training=<bool> must not raise (it would if the pop
+        # did not happen and training leaked into self.call(**kwargs), since
+        # NoTrainingArg.call() does not accept `training`).
+        y = layer(x, training=True)
+        self.assertEqual(tuple(y.shape), (2, 3))
+
+    def test_callspec_fast_path_excludes_unsupported_signatures(self):
+        class MultiArg(layers.Layer):
+            def call(self, inputs, other):
+                return inputs
+
+        class VarArgs(layers.Layer):
+            def call(self, inputs, *args, **kwargs):
+                return inputs
+
+        class RequiredKwOnly(layers.Layer):
+            def call(self, inputs, *, state):
+                return inputs
+
+        self.assertFalse(MultiArg()._call_spec_fast_path)
+        self.assertFalse(VarArgs()._call_spec_fast_path)
+        self.assertFalse(RequiredKwOnly()._call_spec_fast_path)
+
+        # A tensor-valued default would land in tensor_arguments_dict in the
+        # slow path, so it must fall through.
+        tensor_default = ops.convert_to_tensor(np.zeros((3,), dtype="float32"))
+
+        class TensorDefault(layers.Layer):
+            def call(self, inputs, bias=tensor_default):
+                return inputs
+
+        self.assertFalse(TensorDefault()._call_spec_fast_path)
+
+    def test_call_fast_path_training_kwarg_negative_cases(self):
+        # Only kwargs == {"training": <exact Python bool>} may take the
+        # training-kwarg fast path. Everything else (training=None, a
+        # non-bool "truthy" training value, a tensor training value, a
+        # second kwarg alongside training, and a subclass-registered
+        # context arg) must fall through to the slow path unchanged. We
+        # verify this indirectly: patch CallSpec._fast with a counter and
+        # confirm it is *not* invoked for these shapes.
+        class TrainingArg(layers.Layer):
+            def call(self, inputs, training=None, mask=None):
+                return inputs
+
+        class FooModeArg(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self._register_call_context_args("foo_mode")
+
+            def call(self, inputs, foo_mode=None):
+                return inputs
+
+        x = ops.convert_to_tensor(np.random.rand(2, 3).astype("float32"))
+        calls = []
+        original_fast = CallSpec._fast.__func__
+
+        def counting_fast(cls, *args, **kwargs):
+            calls.append(1)
+            return original_fast(cls, *args, **kwargs)
+
+        with mock.patch.object(CallSpec, "_fast", classmethod(counting_fast)):
+            layer = TrainingArg()
+            self.assertTrue(layer._call_spec_fast_path)
+
+            calls.clear()
+            layer(x, training=None)
+            self.assertEqual(len(calls), 0)
+
+            calls.clear()
+            layer(x, training=np.bool_(True))
+            self.assertEqual(len(calls), 0)
+
+            calls.clear()
+            layer(x, training=ops.convert_to_tensor(True))
+            self.assertEqual(len(calls), 0)
+
+            calls.clear()
+            layer(x, training=True, mask=None)
+            self.assertEqual(len(calls), 0)
+
+            foo_layer = FooModeArg()
+            self.assertTrue(foo_layer._call_spec_fast_path)
+            calls.clear()
+            foo_layer(x, foo_mode=True)
+            self.assertEqual(len(calls), 0)
+
+            # Sanity: the eligible shape does take the fast path.
+            calls.clear()
+            layer(x, training=True)
+            self.assertEqual(len(calls), 1)
+
+    def test_callspec_fast_path_dense_numeric(self):
+        x = ops.convert_to_tensor(np.random.rand(4, 8).astype("float32"))
+        dense = layers.Dense(16)
+        # First call builds and runs through the fast path.
+        self.assertTrue(dense._call_spec_fast_path)
+        y_fast = dense(x)
+        # Force the slow path on the same built layer and rerun.
+        dense._call_spec_fast_path = False
+        y_slow = dense(x)
+        np.testing.assert_array_equal(
+            ops.convert_to_numpy(y_fast), ops.convert_to_numpy(y_slow)
+        )
+
+    def test_callspec_fast_path_dense_numeric_training_kwarg(self):
+        # Dense doesn't accept `training`, so this exercises the
+        # kwargs-pop mirror on an accepting-vs-non-accepting boundary case
+        # via a layer that does accept it (BatchNorm-like) is covered by
+        # the end-to-end functional-model test below; here we confirm the
+        # fast vs. slow numeric result matches for a non-accepting layer
+        # called with training=<bool>.
+        x = ops.convert_to_tensor(np.random.rand(4, 8).astype("float32"))
+        dense = layers.Dense(16)
+        self.assertTrue(dense._call_spec_fast_path)
+        y_fast = dense(x, training=True)
+        dense._call_spec_fast_path = False
+        y_slow = dense(x, training=True)
+        np.testing.assert_array_equal(
+            ops.convert_to_numpy(y_fast), ops.convert_to_numpy(y_slow)
+        )
+
+    def test_small_functional_model_training_kwarg_fast_path_numeric(self):
+        # End-to-end: model(x, training=False), the fit()/evaluate()/
+        # predict() call shape, must produce the same numeric output on
+        # the fast path as with the fast path force-disabled on every
+        # layer, and Dropout must still see training=True when called
+        # with training=True (behavioral delivery of the context value,
+        # not just a numeric-parity coincidence).
+        model = _build_small_functional_model()
+        x = np.random.rand(4, 8).astype("float32")
+
+        y_fast = model(x, training=False)
+
+        for layer in model._flatten_layers(include_self=False):
+            layer._call_spec_fast_path = False
+        y_slow = model(x, training=False)
+
+        np.testing.assert_allclose(
+            ops.convert_to_numpy(y_fast),
+            ops.convert_to_numpy(y_slow),
+            atol=1e-5,
+        )
+
+        # Dropout with training=True actually drops (behavioral check that
+        # the context value, not just its numeric shape, is delivered).
+        model2 = _build_small_functional_model()
+        y_train = ops.convert_to_numpy(model2(x, training=True))
+        y_infer = ops.convert_to_numpy(model2(x, training=False))
+        self.assertFalse(np.allclose(y_train, y_infer))
+
+    def test_small_functional_model_training_kwarg_bind_count_drops(self):
+        # Deterministic proof (the series' standard proof style): calling
+        # a functional model the way fit()/evaluate()/predict() do --
+        # model(x, training=<bool>) -- must not cost more slow-path
+        # CallSpec binder invocations than the bare model(x) case, now that
+        # the training-kwarg shape is fast-path eligible too. The slow path
+        # binds call() arguments via `_bind_call_arguments` (a pure-Python
+        # equivalent of inspect.Signature.bind + apply_defaults, introduced
+        # by #23198), so that -- not inspect.Signature.bind itself, which
+        # the slow path no longer calls -- is what this counts.
+        model = _build_small_functional_model()
+        x = np.random.rand(4, 8).astype("float32")
+
+        # Warm up (build all layers) outside of the count.
+        model(x)
+
+        original_bind = layer_module._bind_call_arguments
+        counts = {"n": 0}
+
+        def counting_bind(*args, **kwargs):
+            counts["n"] += 1
+            return original_bind(*args, **kwargs)
+
+        with mock.patch.object(
+            layer_module, "_bind_call_arguments", counting_bind
+        ):
+            counts["n"] = 0
+            model(x)
+            bare_count = counts["n"]
+
+            counts["n"] = 0
+            model(x, training=False)
+            training_kwarg_count = counts["n"]
+
+        self.assertEqual(training_kwarg_count, bare_count)
+
+    def test_construction_with_custom_pytree_default_without_len(self):
+        # Regression test: a call() default that is a custom pytree-
+        # registered object with no `__len__` must not crash the
+        # fast-path eligibility check at layer construction time, and
+        # such a layer must fall through to the slow call path rather
+        # than being (incorrectly) treated as fast-path eligible, since
+        # the fast path cannot safely introspect a value it cannot take
+        # the length of.
+        class NoLenPytree:
+            def __init__(self, value):
+                self.value = value
+
+            # optree (jax/tensorflow/numpy/openvino) interface.
+            def tree_flatten(self):
+                return (self.value,), None
+
+            @classmethod
+            def tree_unflatten(cls, aux_data, children):
+                return cls(children[0])
+
+            # torch interface (torch backend uses its own tree dispatch,
+            # not optree, so both interfaces are needed for this test to
+            # be meaningful on every backend).
+            def torchtree_flatten(self):
+                return [self.value], None
+
+            def torchtree_flatten_with_keys(self):
+                return [("value", self.value)], None
+
+            @classmethod
+            def torchtree_unflatten(cls, children, context):
+                return cls(children[0])
+
+        tree.register_tree_node_class(NoLenPytree)
+        if backend.backend() == "torch":
+            from torch.utils import _pytree as torch_tree
+
+            self.addCleanup(torch_tree._deregister_pytree_node, NoLenPytree)
+        else:
+            optree = pytest.importorskip("optree")
+            self.addCleanup(
+                optree.unregister_pytree_node, NoLenPytree, namespace="keras"
+            )
+
+        self.assertTrue(tree.is_nested(NoLenPytree(1.0)))
+        with self.assertRaises(TypeError):
+            len(NoLenPytree(1.0))
+
+        class CustomDefaultLayer(layers.Layer):
+            def call(self, inputs, config=NoLenPytree(1.0)):
+                return inputs
+
+        # Must not raise, e.g. TypeError: object of type 'NoLenPytree'
+        # has no len().
+        layer = CustomDefaultLayer()
+        self.assertIsInstance(layer, CustomDefaultLayer)
+        # A default whose length can't be determined must not be treated
+        # as fast-path eligible.
+        self.assertFalse(layer._call_spec_fast_path)
