@@ -2560,6 +2560,9 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = knp.array(KerasTensor((None, 4)), dtype="int16")
         self.assertEqual(knp.view(x, dtype="int32").shape, (None, 2))
         self.assertEqual(knp.view(x, dtype="int32").dtype, "int32")
+        x = knp.array(KerasTensor((None, 3)), dtype="int16")
+        self.assertEqual(knp.view(x).shape, (None, 3))
+        self.assertEqual(knp.view(x).dtype, "int16")
 
     def test_array_split(self):
         x = KerasTensor((None, 4))
@@ -3438,6 +3441,9 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         x = knp.array(KerasTensor((2, 4)), dtype="int16")
         self.assertEqual(knp.view(x, dtype="int32").shape, (2, 2))
         self.assertEqual(knp.view(x, dtype="int32").dtype, "int32")
+        x = knp.array(KerasTensor((2, 3)), dtype="int16")
+        self.assertEqual(knp.view(x).shape, (2, 3))
+        self.assertEqual(knp.view(x).dtype, "int16")
 
     def test_array_split(self):
         x = KerasTensor((8, 4))
@@ -5932,6 +5938,17 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
         self.assertAllClose(knp.view(x, dtype="int32"), x.view("int32"))
 
+    def test_view_default_dtype(self):
+        # `dtype=None` is the documented default and must leave the tensor
+        # untouched, rather than reinterpreting its bytes as the backend
+        # default float dtype.
+        for dtype in ("int16", "int32", "float32"):
+            x = np.arange(8, dtype=dtype)
+            result = knp.view(x)
+            self.assertEqual(backend.standardize_dtype(result.dtype), dtype)
+            self.assertEqual(tuple(result.shape), x.shape)
+            self.assertAllClose(result, x)
+
     @parameterized.named_parameters(
         [
             {"testcase_name": "axis_0", "axis": 0},
@@ -6666,6 +6683,23 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.Pad(pad_width, mode=mode)(x, constant_values=constant_values),
             np.pad(x, pad_width, mode=mode, **kwargs),
         )
+
+        # Scalar / single-pair `pad_width` should broadcast to all axes for
+        # eager backend tensors, consistent with `np.pad` (see #22540). Use an
+        # actual backend tensor so the per-backend `pad` implementation is
+        # exercised (`tf.pad` / `torch...pad` require a full `[rank, 2]` spec).
+        x = np.ones([4, 5, 6], dtype=dtype)
+        x_tensor = backend.convert_to_tensor(x)
+        for pad_width in (0, 1, (1,), (1, 2), ((1, 2),)):
+            self.assertAllClose(
+                knp.pad(
+                    x_tensor,
+                    pad_width,
+                    mode=mode,
+                    constant_values=constant_values,
+                ),
+                np.pad(x, pad_width, mode=mode, **kwargs),
+            )
 
     def test_prod(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -12864,6 +12898,12 @@ class HistogramTest(testing.TestCase):
         self.assertEqual(counts.shape, expected_counts.shape)
         self.assertAllClose(counts, expected_counts)
         self.assertEqual(edges.shape, expected_edges.shape)
+        self.assertAllClose(edges, expected_edges)
+
+        # The operation form is what a functional model calls at inference.
+        counts, edges = knp.Histogram()(input_tensor)
+
+        self.assertAllClose(counts, expected_counts)
         self.assertAllClose(edges, expected_edges)
 
     def test_histogram_custom_bins(self):
