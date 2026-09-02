@@ -6769,7 +6769,10 @@ class Pad(Operation):
         if isinstance(pad_width, (tuple, list)) and isinstance(
             pad_width[0], int
         ):
-            return (pad_width,)
+            if len(pad_width) == 1:
+                # A single `(pad,)` means pad before and after, like `np.pad`.
+                return ((pad_width[0], pad_width[0]),)
+            return (tuple(pad_width),)
         first_len = len(pad_width[0])
         for i, pw in enumerate(pad_width):
             if len(pw) != first_len:
@@ -9684,7 +9687,7 @@ class Histogram(Operation):
         x = backend.convert_to_tensor(x)
         if len(x.shape) > 1:
             raise ValueError("Input tensor must be 1-dimensional")
-        return backend.math.histogram(x, bins=self.bins, range=self.range)
+        return backend.numpy.histogram(x, bins=self.bins, range=self.range)
 
     def compute_output_spec(self, x):
         return (
