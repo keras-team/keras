@@ -448,4 +448,9 @@ def gammainc(x1, x2):
 
 def lgamma(x):
     x = convert_to_tensor(x)
-    return torch.lgamma(x)
+    dtype = dtypes.result_type(x.dtype, float)
+    compute_dtype = dtype
+    if standardize_dtype(dtype) in ("float16", "bfloat16"):
+        compute_dtype = "float32"
+    x = cast(x, compute_dtype)
+    return cast(torch.lgamma(x), dtype)
