@@ -420,8 +420,8 @@ def set_max_steps_per_epoch(max_steps_per_epoch):
     a scrip without modifying its source.
 
     Args:
-        max_epochs: The integer limit on the number of epochs or `None`. If
-            `None`, no limit is applied.
+        max_steps_per_epoch: The integer limit on the number of steps per
+            epoch or `None`. If `None`, no limit is applied.
     """
     global _MAX_STEPS_PER_EPOCH
     _MAX_STEPS_PER_EPOCH = max_steps_per_epoch
@@ -446,13 +446,13 @@ def max_epochs():
 def max_steps_per_epoch():
     """Get the maximum number of steps for any call to fit/evaluate/predict.
 
-    Retrieves the limit on the number of epochs set by
+    Retrieves the limit on the number of steps per epoch set by
     `keras.config.set_max_steps_per_epoch` or the `KERAS_MAX_STEPS_PER_EPOCH`
     environment variable.
 
-    Args:
-        max_epochs: The integer limit on the number of epochs or `None`. If
-            `None`, no limit is applied.
+    Returns:
+        The integer limit on the number of steps per epoch or `None`, if no
+        limit has been set.
     """
     return _MAX_STEPS_PER_EPOCH
 

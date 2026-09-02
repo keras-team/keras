@@ -37,7 +37,7 @@ jobs:
           ))
         )
       )
-    uses: keras-team/shared-workflows/.github/workflows/gemini-issue-triage.yml@d9d8977425f512c21d72ace682b9fae6e4c5b901 # v1
+    uses: keras-team/shared-workflows/.github/workflows/gemini-issue-triage.yml@1ff60fd615b03a85abdffac6d7cbe390988bb305 # v1
     secrets:
       GEMINI_API: '${{ secrets.GEMINI_API }}'
     with:
