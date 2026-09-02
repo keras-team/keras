@@ -2495,4 +2495,6 @@ def dsplit(x, indices_or_sections):
 
 def column_stack(xs):
     xs = [convert_to_tensor(x) for x in xs]
+    dtype = dtypes.result_type(*(x.dtype for x in xs))
+    xs = [cast(x, dtype) for x in xs]
     return torch.column_stack(xs)
