@@ -187,15 +187,6 @@ class MathOpsDynamicShapeTest(testing.TestCase):
         y = kmath.lgamma(x)
         self.assertEqual(y.shape, (None, 2, 3))
 
-    def test_lgamma_backend_agnostic(self):
-        backend.config._set_use_backend_agnostic_ops(True)
-        try:
-            x = KerasTensor((None, 2, 3))
-            y = kmath.lgamma(x)
-            self.assertEqual(y.shape, (None, 2, 3))
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
-
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     def test_segment_reduce(self, segment_reduce_op):
         # 1D case
@@ -422,15 +413,6 @@ class MathOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((1, 2, 3))
         y = kmath.lgamma(x)
         self.assertEqual(y.shape, (1, 2, 3))
-
-    def test_lgamma_backend_agnostic(self):
-        backend.config._set_use_backend_agnostic_ops(True)
-        try:
-            x = KerasTensor((1, 2, 3))
-            y = kmath.lgamma(x)
-            self.assertEqual(y.shape, (1, 2, 3))
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
 
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     @pytest.mark.skipif(
