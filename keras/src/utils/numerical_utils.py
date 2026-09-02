@@ -24,11 +24,12 @@ def normalize(x, axis=-1, order=2):
 
     if isinstance(x, np.ndarray):
         # NumPy input
-        norm = np.atleast_1d(np.linalg.norm(x, order, axis))
-        norm[norm == 0] = 1
+        norm = np.linalg.norm(x, order, axis)
+        norm = np.where(norm == 0, 1, norm)
 
-        # axis cannot be `None`
-        axis = axis or -1
+        if axis is None:
+            return x / norm
+
         return x / np.expand_dims(norm, axis)
 
     # Backend tensor input

@@ -1,4 +1,6 @@
 import os
+import zipfile
+from unittest import mock
 
 import h5py
 import numpy as np
@@ -6,6 +8,7 @@ import pytest
 
 import keras
 from keras.src import testing
+from keras.src.saving import saving_lib
 from keras.src.saving.file_editor import KerasFileEditor
 
 
@@ -161,3 +164,33 @@ class SavingTest(testing.TestCase):
 
         with self.assertRaisesRegex(ValueError, "virtual"):
             KerasFileEditor(virtual_fpath)
+
+    def test_rejects_decompression_bomb_config(self):
+        # A `.keras` whose config.json decompresses to far more than it stores
+        # is a decompression bomb: opening the file reads that member fully
+        # into memory. Keep the weights/metadata members valid so only the
+        # config read is exercised.
+        model = keras.Sequential(
+            [keras.Input(shape=(3,)), keras.layers.Dense(5)]
+        )
+        good_fpath = os.path.join(self.get_temp_dir(), "good.keras")
+        model.save(good_fpath)
+        with zipfile.ZipFile(good_fpath) as zf:
+            metadata = zf.read("metadata.json")
+            weights = zf.read("model.weights.h5")
+
+        bomb_fpath = os.path.join(self.get_temp_dir(), "bomb.keras")
+        with zipfile.ZipFile(
+            bomb_fpath, "w", compression=zipfile.ZIP_DEFLATED
+        ) as zf:
+            zf.writestr("metadata.json", metadata)
+            zf.writestr("config.json", b'{"x":"' + b" " * 200_000 + b'"}')
+            info = zipfile.ZipInfo("model.weights.h5")
+            zf.writestr(info, weights)
+
+        with (
+            mock.patch.object(saving_lib, "_ZIP_MEMBER_BOMB_FLOOR_BYTES", 64),
+            mock.patch.object(saving_lib, "_ZIP_MEMBER_MAX_EXPANSION", 10),
+        ):
+            with self.assertRaisesRegex(ValueError, "decompression bomb"):
+                KerasFileEditor(bomb_fpath)

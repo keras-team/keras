@@ -15,6 +15,7 @@ from keras.src.backend import config
 from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
+from keras.src.backend.common.backend_utils import normalize_shift_and_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
 from keras.src.backend.common.backend_utils import vectorize_impl
 from keras.src.backend.tensorflow import sparse
@@ -57,32 +58,18 @@ def rot90(array, k=1, axes=(0, 1)):
         axis if axis >= 0 else array.shape.rank + axis for axis in axes
     )
 
-    perm = [i for i in range(array.shape.rank) if i not in axes]
-    perm.extend(axes)
+    other_axes = [i for i in range(array.shape.rank) if i not in axes]
+    perm = other_axes + list(axes)
     array = tf.transpose(array, perm)
 
-    shape = tf.shape(array)
-    non_rot_shape = shape[:-2]
-    h, w = shape[-2], shape[-1]
-
-    array = tf.reshape(array, tf.concat([[-1], [h, w]], axis=0))
-
-    array = tf.reverse(array, axis=[2])
-    array = tf.transpose(array, [0, 2, 1])
-
-    if k % 2 == 1:
-        final_h, final_w = w, h
-    else:
-        final_h, final_w = h, w
-
-    if k > 1:
-        array = tf.reshape(array, tf.concat([[-1], [final_h, final_w]], axis=0))
-        for _ in range(k - 1):
-            array = tf.reverse(array, axis=[2])
-            array = tf.transpose(array, [0, 2, 1])
-
-    final_shape = tf.concat([non_rot_shape, [final_h, final_w]], axis=0)
-    array = tf.reshape(array, final_shape)
+    if k == 1:
+        array = tf.reverse(array, axis=[-1])
+        array = swapaxes(array, -1, -2)
+    elif k == 2:
+        array = tf.reverse(array, axis=[-2, -1])
+    elif k == 3:
+        array = tf.reverse(array, axis=[-2])
+        array = swapaxes(array, -1, -2)
 
     inv_perm = [0] * len(perm)
     for i, p in enumerate(perm):
@@ -1066,6 +1053,31 @@ def average(x, axis=None, weights=None):
         avg = tf.reduce_mean(x, axis=axis)
     else:
         weights = convert_to_tensor(weights)
+        if len(weights.shape) == 1 and len(x.shape) > 1:
+            if axis is None or (
+                isinstance(axis, (list, tuple)) and len(axis) != 1
+            ):
+                raise ValueError(
+                    "Axis must be specified when shapes of a and weights "
+                    "differ."
+                )
+            axis_val = axis[0] if isinstance(axis, (list, tuple)) else axis
+            axis_val = canonicalize_axis(axis_val, len(x.shape))
+            if weights.shape[0] != x.shape[axis_val]:
+                raise ValueError(
+                    "Shape of weights must be consistent with shape of a "
+                    "along specified axis."
+                )
+        elif x.shape != weights.shape:
+            if axis is None:
+                raise ValueError(
+                    "Axis must be specified when shapes of a and weights "
+                    "differ."
+                )
+            raise ValueError(
+                "Shape of weights must be consistent with shape of a "
+                "along specified axis."
+            )
         dtype = dtypes.result_type(x.dtype, weights.dtype, float)
         x = tf.cast(x, dtype)
         weights = tf.cast(weights, dtype)
@@ -1076,7 +1088,8 @@ def average(x, axis=None, weights=None):
 
         def _rank_not_equal_case():
             weights_sum = tf.reduce_sum(weights)
-            axes = tf.convert_to_tensor([[axis], [0]])
+            a = axis[0] if isinstance(axis, (tuple, list)) else axis
+            axes = tf.convert_to_tensor([[a], [0]])
             return tf.tensordot(x, weights, axes) / weights_sum
 
         if axis is None:
@@ -2648,6 +2661,11 @@ def pad(x, pad_width, mode="constant", constant_values=None):
                 f"Received: mode={mode}"
             )
         kwargs["constant_values"] = constant_values
+    if len(pad_width) == 1:
+        # A single `(before, after)` pair broadcasts to every axis, matching
+        # `np.pad`. `tf.pad` requires an explicit `[rank(x), 2]` spec, so
+        # expand it here.
+        pad_width = [pad_width[0]] * len(x.shape)
     pad_width = convert_to_tensor(pad_width, "int32")
     return tf.pad(x, pad_width, mode.upper(), **kwargs)
 
@@ -2810,19 +2828,9 @@ def unravel_index(indices, shape):
             f"`shape` argument cannot contain `None`. Received: shape={shape}"
         )
 
-    if indices.ndim == 1:
-        coords = []
-        for dim in reversed(shape):
-            coords.append(tf.cast(indices % dim, input_dtype))
-            indices = indices // dim
-        return tuple(reversed(coords))
-
-    indices_shape = indices.shape
     coords = []
-    for dim in shape:
-        coords.append(
-            tf.reshape(tf.cast(indices % dim, input_dtype), indices_shape)
-        )
+    for dim in reversed(shape):
+        coords.append(tf.cast(indices % dim, input_dtype))
         indices = indices // dim
 
     return tuple(reversed(coords))
@@ -2851,6 +2859,8 @@ def repeat(x, repeats, axis=None):
 
 def reshape(x, newshape):
     x = convert_to_tensor(x)
+    if isinstance(newshape, (int, np.integer)):
+        newshape = (newshape,)
     if isinstance(x, tf.SparseTensor):
         from keras.src.ops.operation_utils import compute_reshape_output_shape
 
@@ -2866,7 +2876,10 @@ def reshape(x, newshape):
 def roll(x, shift, axis=None):
     x = convert_to_tensor(x)
     if axis is not None:
-        return tf.roll(x, shift=shift, axis=axis)
+        # `tf.roll` requires `shift` and `axis` to have the same length,
+        # while numpy broadcasts them against each other.
+        shifts, axes = normalize_shift_and_axis(shift, axis)
+        return tf.roll(x, shift=shifts, axis=axes)
 
     # If axis is None, the roll happens as a 1-d tensor.
     original_shape = tf.shape(x)
@@ -2875,6 +2888,8 @@ def roll(x, shift, axis=None):
 
 
 def searchsorted(sorted_sequence, values, side="left"):
+    sorted_sequence = convert_to_tensor(sorted_sequence)
+    values = convert_to_tensor(values)
     if ndim(sorted_sequence) != 1:
         raise ValueError(
             "`searchsorted` only supports 1-D sorted sequences. "
@@ -2888,9 +2903,11 @@ def searchsorted(sorted_sequence, values, side="left"):
         if sequence_len is not None and sequence_len <= np.iinfo(np.int32).max
         else "int64"
     )
-    return tf.searchsorted(
-        sorted_sequence, values, side=side, out_type=out_type
+    values_shape = shape_op(values)
+    result = tf.searchsorted(
+        sorted_sequence, tf.reshape(values, [-1]), side=side, out_type=out_type
     )
+    return tf.reshape(result, values_shape)
 
 
 @sparse.elementwise_unary

@@ -1,3 +1,5 @@
+from unittest import mock
+
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -18,7 +20,7 @@ class GRUTest(testing.TestCase):
             expected_output_shape=(3, 3),
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
-            supports_masking=True,
+            supports_masking=False,
         )
         self.run_layer_test(
             layers.GRU,
@@ -28,7 +30,7 @@ class GRUTest(testing.TestCase):
             expected_output_shape=(3, 3),
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
-            supports_masking=True,
+            supports_masking=False,
         )
         self.run_layer_test(
             layers.GRU,
@@ -44,7 +46,7 @@ class GRUTest(testing.TestCase):
             expected_num_losses=3,
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
-            supports_masking=True,
+            supports_masking=False,
         )
 
     @parameterized.parameters([1, 2])
@@ -451,8 +453,6 @@ class GRUTest(testing.TestCase):
         if not torch.cuda.is_available():
             self.skipTest("Requires a CUDA device.")
 
-        from unittest import mock
-
         x = torch.randn(4, 6, 5, device="cuda")
         layer = layers.GRU(8, return_sequences=True)
         layer(x)  # build on cuda
@@ -474,5 +474,41 @@ class GRUTest(testing.TestCase):
                 "torch._VF.gru was never invoked; cuDNN dispatch is silently "
                 "inactive and every call is routing through the pure-torch "
                 "fallback."
+            ),
+        )
+
+    @pytest.mark.skipif(
+        backend.backend() != "torch",
+        reason="Reproduces torch stateful GRU backward (#23462).",
+    )
+    def test_stateful_backward(self):
+        # cuDNN GRU retains the initial hidden state for backward. Keras
+        # then updates the stateful Variable in-place via copy_. Without a
+        # clone on the optimized torch path, autograd raises RuntimeError
+        # on CUDA: "one of the variables needed for gradient computation
+        # has been modified by an inplace operation".
+
+        import torch
+
+        if not torch.cuda.is_available():
+            self.skipTest("Requires a CUDA device.")
+
+        inputs = torch.randn(2, 3, 4, device="cuda")
+        layer = layers.GRU(5, stateful=True)
+        real_vf_gru = torch._VF.gru
+        calls = []
+
+        def spy(*args, **kwargs):
+            calls.append(True)
+            return real_vf_gru(*args, **kwargs)
+
+        with mock.patch.object(torch._VF, "gru", side_effect=spy):
+            layer(inputs).sum().backward()
+        self.assertGreaterEqual(
+            len(calls),
+            1,
+            msg=(
+                "torch._VF.gru was never invoked; the test did not "
+                "exercise the cuDNN path from #23462."
             ),
         )

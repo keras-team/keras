@@ -73,6 +73,36 @@ class TestNumericalUtils(testing.TestCase):
         self.assertTrue(backend.is_tensor(out))
         self.assertAllClose(backend.convert_to_numpy(out), expected)
 
+    def test_normalize_numpy_axis_zero(self):
+        x = np.array(
+            [
+                [3.0, 0.0, 12.0],
+                [4.0, 5.0, 0.0],
+            ]
+        )
+
+        expected = np.array(
+            [
+                [0.6, 0.0, 1.0],
+                [0.8, 1.0, 0.0],
+            ]
+        )
+
+        out = numerical_utils.normalize(x, axis=0)
+
+        self.assertIsInstance(out, np.ndarray)
+        self.assertEqual(out.shape, x.shape)
+        self.assertAllClose(out, expected)
+
+    @parameterized.parameters([-1, 0, None])
+    def test_normalize_numpy_1d_preserves_shape(self, axis):
+        x = np.array([3.0, 4.0])
+
+        out = numerical_utils.normalize(x, axis=axis)
+
+        self.assertEqual(out.shape, x.shape)
+        self.assertAllClose(out, np.array([0.6, 0.8]))
+
     def test_build_pos_neg_masks(self):
         query_labels = np.array([0, 1, 2, 2, 0])
         key_labels = np.array([0, 1, 2, 0, 2])

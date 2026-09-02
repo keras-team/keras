@@ -3,6 +3,8 @@ import math
 import torch
 
 from keras.src.backend import standardize_dtype
+from keras.src.backend.common import dtypes
+from keras.src.backend.torch.core import cast
 from keras.src.backend.torch.core import convert_to_tensor
 from keras.src.backend.torch.core import get_device
 from keras.src.backend.torch.numpy import pad
@@ -77,16 +79,21 @@ def segment_prod(data, segment_ids, num_segments=None, sorted=False):
     return _segment_reduction_fn(data, segment_ids, "prod", num_segments)
 
 
-def top_k(x, k, sorted=True):
+def top_k(x, k, sorted=True, is_stable=True):
     x = convert_to_tensor(x)
-    return torch.topk(x, k, sorted=sorted)
+    if not is_stable:
+        return torch.topk(x, k, sorted=sorted)
+    sorted_values, sorted_indices = torch.sort(
+        x, dim=-1, descending=True, stable=True
+    )
+    return sorted_values[..., :k], sorted_indices[..., :k]
 
 
 def in_top_k(targets, predictions, k):
     targets = convert_to_tensor(targets).type(torch.int64)
     targets = targets.unsqueeze(-1)
     predictions = convert_to_tensor(predictions)
-    topk_values = top_k(predictions, k).values
+    topk_values = top_k(predictions, k, sorted=False, is_stable=False)[0]
     targets_values = torch.take_along_dim(predictions, targets, dim=-1)
     mask = targets_values >= topk_values
     return torch.any(mask, axis=-1)
@@ -424,3 +431,16 @@ def erfinv(x):
 def logdet(x):
     x = convert_to_tensor(x)
     return torch.logdet(x)
+
+
+def gammainc(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+
+    compute_dtype = dtype
+    if standardize_dtype(dtype) in ("float16", "bfloat16"):
+        compute_dtype = "float32"
+    x1 = cast(x1, compute_dtype)
+    x2 = cast(x2, compute_dtype)
+    return cast(torch.special.gammainc(x1, x2), dtype)

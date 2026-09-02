@@ -5,6 +5,7 @@ import warnings
 import tensorflow as tf
 
 from keras.src import backend
+from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
     check_conv_transpose_input_channels,
@@ -138,6 +139,8 @@ def celu(x, alpha=1.0):
 
 
 def glu(x, axis=-1):
+    x = convert_to_tensor(x)
+    canonicalize_axis(axis, len(x.shape))
     if x.shape[axis] % 2 != 0:
         raise ValueError(
             "axis size must be divisible by 2. "
@@ -194,9 +197,9 @@ def sparsemax(x, axis=-1):
     r = tf.reshape(r, r_shape)  # Reshape for broadcasting
     support = logits_sorted - (logits_cumsum - 1) / r > 0
     # Find the threshold
-    logits_cumsum_safe = tf.where(support, logits_cumsum, 0.0)
+    logits_sorted_safe = tf.where(support, logits_sorted, 0.0)
     k = tf.reduce_sum(tf.cast(support, logits.dtype), axis=axis, keepdims=True)
-    tau = (tf.reduce_sum(logits_cumsum_safe, axis=axis, keepdims=True) - 1) / k
+    tau = (tf.reduce_sum(logits_sorted_safe, axis=axis, keepdims=True) - 1) / k
     output = tf.maximum(logits - tau, 0.0)
     return output
 

@@ -9,11 +9,12 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.data_layer import DataLayer
 from keras.src.trainers.data_adapters.py_dataset_adapter import PyDataset
 from keras.src.utils.module_utils import tensorflow as tf
+from keras.src.utils.progbar import Progbar
 
 
 def _extract_batch(batch):
     """Return input from batch; handle (x, y) or (x, y, sample_weight)."""
-    if isinstance(batch, tuple):
+    if isinstance(batch, (tuple, list)):
         return batch[0]
     return batch
 
@@ -289,7 +290,15 @@ class Normalization(DataLayer):
                 data = data.batch(128)
                 input_shape = get_input_shape(data)
         elif isinstance(data, PyDataset):
-            input_shape = _extract_batch(data[0]).shape
+            if len(data) == 0:
+                raise ValueError(
+                    "adapt() received an empty PyDataset. "
+                    "Expected at least one batch."
+                )
+            first_batch = _extract_batch(data[0])
+            if not hasattr(first_batch, "shape"):
+                first_batch = backend.convert_to_tensor(first_batch)
+            input_shape = tuple(first_batch.shape)
         elif hasattr(data, "__iter__"):
             data_is_iterable = True
             # Consume first batch to infer input_shape; then chain it back for
@@ -345,7 +354,19 @@ class Normalization(DataLayer):
             total_mean = ops.zeros(self._mean_and_var_shape)
             total_var = ops.zeros(self._mean_and_var_shape)
             total_count = 0
-            for batch in data:
+
+            steps = None
+            if hasattr(data, "cardinality"):
+                cardinality = data.cardinality()
+                if cardinality.numpy() not in (
+                    tf.data.UNKNOWN_CARDINALITY,
+                    tf.data.INFINITE_CARDINALITY,
+                ):
+                    steps = int(cardinality.numpy())
+
+            progbar = Progbar(target=steps, unit_name="step")
+
+            for i, batch in enumerate(data):
                 batch = _extract_batch(batch)
                 batch = backend.convert_to_tensor(
                     batch, dtype=self.compute_dtype
@@ -389,6 +410,9 @@ class Normalization(DataLayer):
                     batch_var + (batch_mean - new_total_mean) ** 2
                 ) * batch_weight
                 total_mean = new_total_mean
+                progbar.update(i + 1)
+
+            progbar.update(steps if steps is not None else i + 1, finalize=True)
         else:
             raise NotImplementedError(f"Unsupported data type: {type(data)}")
 

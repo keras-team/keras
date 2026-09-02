@@ -1751,6 +1751,81 @@ def matrix_rank(x, tol=None):
     return OpenVINOKerasTensor(ov_opset.constant(rank_np).output(0))
 
 
+def matrix_power(a, n):
+    a = convert_to_tensor(a)
+    a_ov = get_ov_output(a)
+    rank = a_ov.get_partial_shape().rank.get_length()
+
+    if n == 0:
+        zero_s = ov_opset.constant(0, Type.i32).output(0)
+        a_shape = ov_opset.shape_of(a_ov, output_type="i32").output(0)
+        n_node = ov_opset.squeeze(
+            ov_opset.gather(
+                a_shape, ov_opset.constant([-1], Type.i32).output(0), zero_s
+            ).output(0),
+            zero_s,
+        ).output(0)
+
+        eye = ov_opset.eye(
+            n_node,
+            n_node,
+            zero_s,
+            a_ov.get_element_type(),
+        ).output(0)
+
+        if rank > 2:
+            num_batch_dims = rank - 2
+            batch_dims_shape = ov_opset.broadcast(
+                ov_opset.constant(1, Type.i32).output(0),
+                ov_opset.constant([num_batch_dims], Type.i32).output(0),
+            ).output(0)
+            eye_reshaped_shape = ov_opset.concat(
+                [
+                    batch_dims_shape,
+                    ov_opset.unsqueeze(n_node, zero_s).output(0),
+                    ov_opset.unsqueeze(n_node, zero_s).output(0),
+                ],
+                0,
+            ).output(0)
+            eye_reshaped = ov_opset.reshape(
+                eye, eye_reshaped_shape, False
+            ).output(0)
+            result = ov_opset.broadcast(eye_reshaped, a_shape).output(0)
+        else:
+            result = eye
+
+        return OpenVINOKerasTensor(result)
+
+    is_negative = n < 0
+    if is_negative:
+        n = abs(n)
+
+    if n == 1:
+        result_ov = a_ov
+    else:
+        result_ov = None
+        curr_a_ov = a_ov
+
+        while n > 0:
+            if n % 2 == 1:
+                if result_ov is None:
+                    result_ov = curr_a_ov
+                else:
+                    result_ov = ov_opset.matmul(
+                        result_ov, curr_a_ov, False, False
+                    ).output(0)
+            if n > 1:
+                curr_a_ov = ov_opset.matmul(
+                    curr_a_ov, curr_a_ov, False, False
+                ).output(0)
+            n //= 2
+
+    if is_negative:
+        result_ov = ov_opset.inverse(result_ov, adjoint=False).output(0)
+
+    return OpenVINOKerasTensor(result_ov)
+
+
 def pinv(x, rcond=None):
     raise NotImplementedError("`pinv` is not supported with openvino backend")
 

@@ -40,6 +40,7 @@ from keras.src.ops.linalg import inv as inv
 from keras.src.ops.linalg import jvp as jvp
 from keras.src.ops.linalg import lstsq as lstsq
 from keras.src.ops.linalg import lu_factor as lu_factor
+from keras.src.ops.linalg import matrix_power as matrix_power
 from keras.src.ops.linalg import matrix_rank as matrix_rank
 from keras.src.ops.linalg import norm as norm
 from keras.src.ops.linalg import pinv as pinv
@@ -54,10 +55,12 @@ from keras.src.ops.math import erfinv as erfinv
 from keras.src.ops.math import extract_sequences as extract_sequences
 from keras.src.ops.math import fft as fft
 from keras.src.ops.math import fft2 as fft2
+from keras.src.ops.math import gammainc as gammainc
 from keras.src.ops.math import ifft2 as ifft2
 from keras.src.ops.math import in_top_k as in_top_k
 from keras.src.ops.math import irfft as irfft
 from keras.src.ops.math import istft as istft
+from keras.src.ops.math import lgamma as lgamma
 from keras.src.ops.math import logdet as logdet
 from keras.src.ops.math import logsumexp as logsumexp
 from keras.src.ops.math import rfft as rfft
