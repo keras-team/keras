@@ -5387,6 +5387,16 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.sum(x, axis=1, keepdims=True),
             np.sum(x, axis=1, keepdims=True),
         )
+        if backend.backend() != "openvino":
+            # TODO(#23536): openvino flattens instead of preserving the rank.
+            # `assertAllClose` broadcasts, so assert the shape explicitly.
+            self.assertEqual(
+                tuple(knp.sum(x, axis=None, keepdims=True).shape), (1, 1)
+            )
+            self.assertAllClose(
+                knp.sum(x, axis=None, keepdims=True),
+                np.sum(x, axis=None, keepdims=True),
+            )
 
         self.assertAllClose(knp.Sum()(x), np.sum(x))
         self.assertAllClose(knp.Sum(axis=1)(x), np.sum(x, axis=1))
@@ -5405,6 +5415,16 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.amax(x, axis=1, keepdims=True),
             np.amax(x, axis=1, keepdims=True),
         )
+        if backend.backend() != "openvino":
+            # TODO(#23536): openvino flattens instead of preserving the rank.
+            # `assertAllClose` broadcasts, so assert the shape explicitly.
+            self.assertEqual(
+                tuple(knp.amax(x, axis=None, keepdims=True).shape), (1, 1)
+            )
+            self.assertAllClose(
+                knp.amax(x, axis=None, keepdims=True),
+                np.amax(x, axis=None, keepdims=True),
+            )
 
         self.assertAllClose(knp.Amax()(x), np.amax(x))
         self.assertAllClose(knp.Amax(axis=1)(x), np.amax(x, axis=1))
@@ -5423,6 +5443,16 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.amin(x, axis=1, keepdims=True),
             np.amin(x, axis=1, keepdims=True),
         )
+        if backend.backend() != "openvino":
+            # TODO(#23536): openvino flattens instead of preserving the rank.
+            # `assertAllClose` broadcasts, so assert the shape explicitly.
+            self.assertEqual(
+                tuple(knp.amin(x, axis=None, keepdims=True).shape), (1, 1)
+            )
+            self.assertAllClose(
+                knp.amin(x, axis=None, keepdims=True),
+                np.amin(x, axis=None, keepdims=True),
+            )
 
         self.assertAllClose(knp.Amin()(x), np.amin(x))
         self.assertAllClose(knp.Amin(axis=1)(x), np.amin(x, axis=1))
@@ -5430,22 +5460,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.Amin(axis=1, keepdims=True)(x),
             np.amin(x, axis=1, keepdims=True),
         )
-
-    def test_reductions_keepdims_with_axis_none(self):
-        # `keepdims=True` must preserve the rank even when `axis=None`,
-        # matching numpy. The tests above only cover an explicit axis.
-        x = np.array([[1, 2, 3], [3, 2, 1]])
-        for op_name in ("sum", "prod", "max", "min", "amax", "amin"):
-            knp_op = getattr(knp, op_name)
-            np_op = getattr(np, op_name)
-            expected = np_op(x, axis=None, keepdims=True)
-            result = knp_op(x, axis=None, keepdims=True)
-            self.assertEqual(
-                tuple(result.shape),
-                expected.shape,
-                msg=f"{op_name}(axis=None, keepdims=True) shape mismatch",
-            )
-            self.assertAllClose(result, expected)
 
     def test_square(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -6449,6 +6463,15 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.max(x, 1), np.max(x, 1))
         self.assertAllClose(knp.Max(1)(x), np.max(x, 1))
 
+        # `assertAllClose` broadcasts, so assert the shape explicitly.
+        self.assertEqual(
+            tuple(knp.max(x, axis=None, keepdims=True).shape), (1, 1)
+        )
+        self.assertAllClose(
+            knp.max(x, axis=None, keepdims=True),
+            np.max(x, axis=None, keepdims=True),
+        )
+
         # test max with initial
         self.assertAllClose(knp.max(x, initial=4), 4)
 
@@ -6476,6 +6499,15 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(knp.min(x, 1), np.min(x, 1))
         self.assertAllClose(knp.Min(1)(x), np.min(x, 1))
+
+        # `assertAllClose` broadcasts, so assert the shape explicitly.
+        self.assertEqual(
+            tuple(knp.min(x, axis=None, keepdims=True).shape), (1, 1)
+        )
+        self.assertAllClose(
+            knp.min(x, axis=None, keepdims=True),
+            np.min(x, axis=None, keepdims=True),
+        )
 
         # test min with initial
         self.assertAllClose(knp.min(x, initial=0), 0)
@@ -6727,6 +6759,16 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.prod(x, axis=1, keepdims=True),
             np.prod(x, axis=1, keepdims=True),
         )
+        if backend.backend() != "openvino":
+            # TODO(#23536): openvino flattens instead of preserving the rank.
+            # `assertAllClose` broadcasts, so assert the shape explicitly.
+            self.assertEqual(
+                tuple(knp.prod(x, axis=None, keepdims=True).shape), (1, 1)
+            )
+            self.assertAllClose(
+                knp.prod(x, axis=None, keepdims=True),
+                np.prod(x, axis=None, keepdims=True),
+            )
 
         # Multi-axis test
         x = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])

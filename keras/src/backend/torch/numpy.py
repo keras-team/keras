@@ -209,8 +209,6 @@ def max(x, axis=None, keepdims=False, initial=None):
             return torch.tensor(initial)
 
     result = amax(x, axis=axis, keepdims=keepdims)
-    if isinstance(getattr(result, "values", None), torch.Tensor):
-        result = result.values
 
     if initial is not None:
         dtype = to_torch_dtype(result.dtype)
@@ -1350,9 +1348,6 @@ def min(x, axis=None, keepdims=False, initial=None):
             return torch.tensor(initial)
 
     result = amin(x, axis=axis, keepdims=keepdims)
-
-    if isinstance(getattr(result, "values", None), torch.Tensor):
-        result = result.values
 
     if initial is not None:
         dtype = to_torch_dtype(result.dtype)
