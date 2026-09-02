@@ -90,7 +90,8 @@ def distribute_data_input(per_process_batch, layout, batch_dim_name):
     the data need to be further partitioned to map to each of the devices.
 
     Args:
-        inputs: `jax.Array` that is already sharded to a local process size.
+        per_process_batch: `jax.Array` that is already sharded to a local
+            process size.
         layout: `TensorLayout` for the distribution information, or a
             `jax.sharding.Sharding` instance.
 

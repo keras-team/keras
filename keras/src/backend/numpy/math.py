@@ -89,6 +89,8 @@ def top_k(x, k, sorted=True, is_stable=True):
 
 
 def in_top_k(targets, predictions, k):
+    targets = convert_to_tensor(targets)
+    predictions = convert_to_tensor(predictions)
     targets = targets[..., None]
     topk_values = top_k(predictions, k, sorted=False, is_stable=False)[0]
     targets_values = np.take_along_axis(predictions, targets, axis=-1)
