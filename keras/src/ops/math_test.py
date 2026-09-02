@@ -187,6 +187,15 @@ class MathOpsDynamicShapeTest(testing.TestCase):
         y = kmath.lgamma(x)
         self.assertEqual(y.shape, (None, 2, 3))
 
+    def test_lgamma_backend_agnostic(self):
+        backend.config._set_use_backend_agnostic_ops(True)
+        try:
+            x = KerasTensor((None, 2, 3))
+            y = kmath.lgamma(x)
+            self.assertEqual(y.shape, (None, 2, 3))
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
+
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     def test_segment_reduce(self, segment_reduce_op):
         # 1D case
@@ -413,6 +422,15 @@ class MathOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((1, 2, 3))
         y = kmath.lgamma(x)
         self.assertEqual(y.shape, (1, 2, 3))
+
+    def test_lgamma_backend_agnostic(self):
+        backend.config._set_use_backend_agnostic_ops(True)
+        try:
+            x = KerasTensor((1, 2, 3))
+            y = kmath.lgamma(x)
+            self.assertEqual(y.shape, (1, 2, 3))
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     @pytest.mark.skipif(
@@ -1247,6 +1265,78 @@ class MathOpsCorrectnessTest(testing.TestCase):
             output_from_edge_lgamma_op, expected_output, atol=1e-4
         )
 
+    def test_lgamma_backend_agnostic_basic(self):
+        backend.config._set_use_backend_agnostic_ops(True)
+        try:
+            sample_values = np.array(
+                [1.0, 2.0, 3.0, 4.0, 5.0, 0.5, 1.5, 2.5, 3.5, 10.0]
+            )
+            expected_output = scipy.special.gammaln(sample_values)
+            output_from_lgamma_op = kmath.lgamma(sample_values)
+            self.assertAllClose(
+                output_from_lgamma_op, expected_output, atol=1e-4
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
+
+    def test_lgamma_backend_agnostic_dtype(self):
+        backend.config._set_use_backend_agnostic_ops(True)
+        try:
+            for dtype in ("float32", "float64"):
+                sample_values = np.array(
+                    [1.0, 2.0, 3.0, 4.0, 5.0, 0.5, 1.5, 2.5, 3.5, 10.0],
+                    dtype=dtype,
+                )
+                expected_output = scipy.special.gammaln(sample_values)
+                output_from_lgamma_op = kmath.lgamma(sample_values)
+                self.assertAllClose(
+                    output_from_lgamma_op, expected_output, atol=1e-4
+                )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
+
+    def test_lgamma_backend_agnostic_edge_cases(self):
+        edge_values = np.array(
+            [-0.5, -1.5, -2.5, 1e-5, 50.0, 100.0, float("inf")],
+            dtype=np.float64,
+        )
+        expected_output = scipy.special.gammaln(edge_values)
+
+        backend.config._set_use_backend_agnostic_ops(True)
+        try:
+            output_from_edge_lgamma_op = kmath.lgamma(edge_values)
+            self.assertAllClose(
+                output_from_edge_lgamma_op, expected_output, atol=1e-4
+            )
+
+            # Negative infinity: lgamma(+/-inf) = +inf
+            neg_inf = np.array([-float("inf")], dtype=np.float64)
+            output_neg_inf = kmath.lgamma(neg_inf)
+            self.assertAllClose(output_neg_inf, [float("inf")])
+
+            # Non-positive integer poles: lgamma(0) = lgamma(-1) = ... = inf
+            poles = np.array([0.0, -1.0, -2.0], dtype=np.float64)
+            output_poles = kmath.lgamma(poles)
+            self.assertAllClose(
+                output_poles, [float("inf"), float("inf"), float("inf")]
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
+
+    def test_lgamma_backend_agnostic_multidimensional(self):
+        sample_values = np.array(
+            [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], dtype="float32"
+        )
+        expected_output = scipy.special.gammaln(sample_values)
+
+        backend.config._set_use_backend_agnostic_ops(True)
+        try:
+            agnostic_output = kmath.lgamma(sample_values)
+            self.assertAllClose(agnostic_output, expected_output, atol=1e-4)
+            self.assertEqual(agnostic_output.shape, (2, 3))
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
+
 
 class MathDtypeTest(testing.TestCase):
     """Test the floating dtype to verify that the behavior matches JAX."""
@@ -1406,6 +1496,24 @@ class MathDtypeTest(testing.TestCase):
             standardize_dtype(kmath.Lgamma().symbolic_call(x).dtype),
             expected_dtype,
         )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_lgamma_backend_agnostic(self, dtype):
+        import jax.lax as lax
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+
+        expected_dtype = standardize_dtype(lax.lgamma(x_jax).dtype)
+
+        backend.config._set_use_backend_agnostic_ops(True)
+        try:
+            self.assertEqual(
+                standardize_dtype(kmath.lgamma(x).dtype), expected_dtype
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_logsumexp(self, dtype):
