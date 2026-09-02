@@ -3,8 +3,10 @@ import os
 import numpy as np
 import torch
 import torch.distributed
+from torch.distributed import tensor as torch_distributed_tensor
 
 from keras.src.backend.torch.core import _parse_device_input
+from keras.src.backend.torch.core import convert_to_tensor
 from keras.src.backend.torch.core import get_device
 
 
@@ -193,3 +195,114 @@ def _to_backend_device(device_name):
         return torch.device("cpu")
 
     return torch.device(f"{resolved_device_type}:{device_index}")
+
+
+def _to_backend_layout(tensor_layout):
+    """Convert Keras TensorLayout to PyTorch DTensor placement spec."""
+    if tensor_layout is None:
+        return None
+
+    from keras.src.distribution.distribution_lib import TensorLayout
+
+    if not isinstance(tensor_layout, TensorLayout):
+        # It's already a backend layout
+        return tensor_layout
+
+    keras_mesh = tensor_layout.device_mesh
+    if keras_mesh is None:
+        raise ValueError(
+            "Cannot convert TensorLayout to PyTorch DTensor layout because "
+            "the 'device_mesh' is not specified. Please ensure the layout "
+            "has a valid 'device_mesh'."
+        )
+    torch_mesh = _to_backend_mesh(keras_mesh)
+
+    mesh_axis_to_tensor_dim = {}
+    valid_axis_names = set(keras_mesh.axis_names)
+    if tensor_layout.axes is not None:
+        for tensor_dim, axis_spec in enumerate(tensor_layout.axes):
+            if axis_spec is None:
+                continue
+            axes = [axis_spec] if isinstance(axis_spec, str) else axis_spec
+            for axis_name in axes:
+                if axis_name is not None:
+                    if axis_name not in valid_axis_names:
+                        raise ValueError(
+                            f"Invalid axis name '{axis_name}' in TensorLayout. "
+                            f"Available mesh axes are: {keras_mesh.axis_names}"
+                        )
+                    mesh_axis_to_tensor_dim[axis_name] = tensor_dim
+
+    placements = []
+    for mesh_dim_name in keras_mesh.axis_names:
+        shard_dim = mesh_axis_to_tensor_dim.get(mesh_dim_name)
+        if shard_dim is not None:
+            placements.append(torch_distributed_tensor.Shard(shard_dim))
+        else:
+            placements.append(torch_distributed_tensor.Replicate())
+
+    return DTensorLayout(torch_mesh, tuple(placements))
+
+
+def distribute_tensor(tensor, layout):
+    """Scatters or replicates a tensor across devices according to the
+    layout."""
+    if layout is None:
+        return tensor
+
+    from keras.src.distribution.distribution_lib import TensorLayout
+
+    if isinstance(layout, TensorLayout):
+        layout = _to_backend_layout(layout)
+
+    if isinstance(tensor, torch_distributed_tensor.DTensor):
+        if (
+            tensor.device_mesh == layout.device_mesh
+            and tensor.placements == layout.placements
+        ):
+            return tensor
+
+    if not isinstance(tensor, torch.Tensor):
+        tensor = convert_to_tensor(tensor)
+
+    return torch_distributed_tensor.distribute_tensor(
+        tensor, device_mesh=layout.device_mesh, placements=layout.placements
+    )
+
+
+def distribute_data_input(per_process_batch, layout):
+    """Distribute a local data tensor according to a TensorLayout."""
+    if layout is None:
+        return per_process_batch
+
+    from keras.src.distribution.distribution_lib import TensorLayout
+
+    if isinstance(layout, TensorLayout):
+        layout = _to_backend_layout(layout)
+
+    if isinstance(per_process_batch, torch_distributed_tensor.DTensor):
+        if (
+            per_process_batch.device_mesh == layout.device_mesh
+            and per_process_batch.placements == layout.placements
+        ):
+            return per_process_batch
+
+    if not isinstance(per_process_batch, torch.Tensor):
+        per_process_batch = torch.as_tensor(per_process_batch, device="cpu")
+    elif per_process_batch.device.type != "cpu":
+        per_process_batch = per_process_batch.cpu()
+
+    return torch_distributed_tensor.DTensor.from_local(
+        per_process_batch,
+        device_mesh=layout.device_mesh,
+        placements=layout.placements,
+        run_check=False,
+    )
+
+
+class DTensorLayout:
+    """Wraps a torch DeviceMesh + placements for use as a backend layout."""
+
+    def __init__(self, device_mesh, placements):
+        self.device_mesh = device_mesh
+        self.placements = placements

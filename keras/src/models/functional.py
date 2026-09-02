@@ -171,7 +171,7 @@ class Functional(Function, Model):
             "Please use another name."
         )
 
-    def call(self, inputs, training=None, mask=None, **kwargs):
+    def call(self, inputs, training=None, mask=None):
         # Add support for training, masking
         inputs = self._standardize_inputs(inputs)
         if mask is None:
@@ -181,12 +181,7 @@ class Functional(Function, Model):
             for x, mask in zip(inputs, masks):
                 if mask is not None:
                     backend.set_keras_mask(x, mask)
-        outputs = self._run_through_graph(
-            inputs,
-            operation_fn=lambda op: operation_fn(
-                op, training=training, **kwargs
-            ),
-        )
+        outputs = self._run_through_graph(inputs)
         return unpack_singleton(outputs)
 
     def compute_output_spec(self, inputs, training=None, mask=None):
@@ -690,23 +685,6 @@ def functional_from_config(cls, config, custom_objects=None):
         trainable=trainable,
         **config,
     )
-
-
-def operation_fn(operation, **call_context_args):
-    """Wraps each op to inject the call-context args."""
-
-    def call(*args, **kwargs):
-        # Propagate all registered call-context args
-        for name, value in call_context_args.items():
-            if (
-                name in getattr(operation, "_call_context_args", {})
-                and value is not None
-            ):
-                kwargs[name] = value
-
-        return operation(*args, **kwargs)
-
-    return call
 
 
 def functional_like_constructor(cls):

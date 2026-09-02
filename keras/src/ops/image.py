@@ -360,7 +360,9 @@ def resize(
             "Expected `size` to be a tuple of 2 integers. "
             f"Received: size={size}"
         )
-    if size[0] <= 0 or size[1] <= 0:
+    if (isinstance(size[0], int) and size[0] <= 0) or (
+        isinstance(size[1], int) and size[1] <= 0
+    ):
         raise ValueError(
             f"`size` must have positive height and width. Received: size={size}"
         )
@@ -2445,7 +2447,7 @@ def elastic_transform(
             and `"bilinear"`. Defaults to `"bilinear"`.
         fill_mode: Points outside the boundaries of the input are filled
             according to the given mode. Available methods are `"constant"`,
-            `"nearest"`, `"wrap"` and `"reflect"`. Defaults to `"constant"`.
+            `"nearest"`, `"wrap"` and `"reflect"`. Defaults to `"reflect"`.
             - `"reflect"`: `(d c b a | a b c d | d c b a)`
                 The input is extended by reflecting about the edge of the last
                 pixel.

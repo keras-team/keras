@@ -1,7 +1,6 @@
 import jax
 import jax.experimental.sparse as jax_sparse
 import numpy as np
-import pandas
 import pytest
 import scipy
 import tensorflow as tf
@@ -33,8 +32,12 @@ class TestArrayDataAdapter(testing.TestCase):
         elif array_type == "torch":
             return torch.as_tensor(x)
         elif array_type == "pandas_data_frame":
+            import pandas  # Import pandas after tf, fixes deadlock on MacOS
+
             return pandas.DataFrame(x)
         elif array_type == "pandas_series":
+            import pandas  # Import pandas after tf, fixes deadlock on MacOS
+
             return pandas.Series(x[:, 0])
         elif array_type == "scipy_sparse":
             return scipy.sparse.coo_matrix(x)

@@ -8,14 +8,26 @@ from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
+from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
+from keras.src.backend.common.backend_utils import normalize_shift_and_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
 from keras.src.ops import operation_utils
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import broadcast_shapes
 from keras.src.ops.operation_utils import reduce_shape
+
+
+def _compute_binary_output_spec(x1, x2):
+    x1_shape = getattr(x1, "shape", [])
+    x2_shape = getattr(x2, "shape", [])
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    return KerasTensor(broadcast_shapes(x1_shape, x2_shape), dtype=dtype)
 
 
 class Rot90(Operation):
@@ -1645,8 +1657,7 @@ class BitwiseAnd(Operation):
         return backend.numpy.bitwise_and(x, y)
 
     def compute_output_spec(self, x, y):
-        dtype = dtypes.result_type(x.dtype, y.dtype)
-        return KerasTensor(x.shape, dtype=dtype)
+        return _compute_binary_output_spec(x, y)
 
 
 @keras_export(["keras.ops.bitwise_and", "keras.ops.numpy.bitwise_and"])
@@ -1728,8 +1739,7 @@ class BitwiseOr(Operation):
         return backend.numpy.bitwise_or(x, y)
 
     def compute_output_spec(self, x, y):
-        dtype = dtypes.result_type(x.dtype, y.dtype)
-        return KerasTensor(x.shape, dtype=dtype)
+        return _compute_binary_output_spec(x, y)
 
 
 @keras_export(["keras.ops.bitwise_or", "keras.ops.numpy.bitwise_or"])
@@ -1757,8 +1767,7 @@ class BitwiseXor(Operation):
         return backend.numpy.bitwise_xor(x, y)
 
     def compute_output_spec(self, x, y):
-        dtype = dtypes.result_type(x.dtype, y.dtype)
-        return KerasTensor(x.shape, dtype=dtype)
+        return _compute_binary_output_spec(x, y)
 
 
 @keras_export(["keras.ops.bitwise_xor", "keras.ops.numpy.bitwise_xor"])
@@ -1786,11 +1795,7 @@ class BitwiseLeftShift(Operation):
         return backend.numpy.bitwise_left_shift(x, y)
 
     def compute_output_spec(self, x, y):
-        if isinstance(y, int):
-            dtype = x.dtype
-        else:
-            dtype = dtypes.result_type(x.dtype, y.dtype)
-        return KerasTensor(x.shape, dtype=dtype)
+        return _compute_binary_output_spec(x, y)
 
 
 @keras_export(
@@ -1820,11 +1825,7 @@ class LeftShift(Operation):
         return backend.numpy.left_shift(x, y)
 
     def compute_output_spec(self, x, y):
-        if isinstance(y, int):
-            dtype = x.dtype
-        else:
-            dtype = dtypes.result_type(x.dtype, y.dtype)
-        return KerasTensor(x.shape, dtype=dtype)
+        return _compute_binary_output_spec(x, y)
 
 
 @keras_export(["keras.ops.left_shift", "keras.ops.numpy.left_shift"])
@@ -1852,11 +1853,7 @@ class BitwiseRightShift(Operation):
         return backend.numpy.bitwise_right_shift(x, y)
 
     def compute_output_spec(self, x, y):
-        if isinstance(y, int):
-            dtype = x.dtype
-        else:
-            dtype = dtypes.result_type(x.dtype, y.dtype)
-        return KerasTensor(x.shape, dtype=dtype)
+        return _compute_binary_output_spec(x, y)
 
 
 @keras_export(
@@ -1886,11 +1883,7 @@ class RightShift(Operation):
         return backend.numpy.right_shift(x, y)
 
     def compute_output_spec(self, x, y):
-        if isinstance(y, int):
-            dtype = x.dtype
-        else:
-            dtype = dtypes.result_type(x.dtype, y.dtype)
-        return KerasTensor(x.shape, dtype=dtype)
+        return _compute_binary_output_spec(x, y)
 
 
 @keras_export(["keras.ops.right_shift", "keras.ops.numpy.right_shift"])
@@ -1982,7 +1975,7 @@ def broadcast_to(x, shape):
 
 class Cbrt(Operation):
     def call(self, x):
-        return backend.numpy.cbrt(x)
+        return _cbrt(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(x.dtype)
@@ -2017,7 +2010,25 @@ def cbrt(x):
     """
     if any_symbolic_tensors((x,)):
         return Cbrt().symbolic_call(x)
-    return backend.numpy.cbrt(x)
+    return _cbrt(x)
+
+
+def _cbrt(x):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.numpy, "cbrt"
+    ):
+        return backend.numpy.cbrt(x)
+    x = backend.convert_to_tensor(x)
+    dtype = backend.standardize_dtype(x.dtype)
+    if dtype in ("bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"):
+        dtype = backend.floatx()
+    elif dtype == "int64":
+        dtype = "float64"
+    x = backend.cast(x, dtype)
+    y = backend.numpy.sign(x) * backend.numpy.power(
+        backend.numpy.absolute(x), 1.0 / 3.0
+    )
+    return backend.cast(y, dtype)
 
 
 class Ceil(Operation):
@@ -6758,7 +6769,10 @@ class Pad(Operation):
         if isinstance(pad_width, (tuple, list)) and isinstance(
             pad_width[0], int
         ):
-            return (pad_width,)
+            if len(pad_width) == 1:
+                # A single `(pad,)` means pad before and after, like `np.pad`.
+                return ((pad_width[0], pad_width[0]),)
+            return (tuple(pad_width),)
         first_len = len(pad_width[0])
         for i, pw in enumerate(pad_width):
             if len(pw) != first_len:
@@ -7359,14 +7373,7 @@ def reshape(x, newshape):
     Returns:
         The reshaped tensor.
     """
-    if not backend.is_tensor(newshape) and not isinstance(
-        newshape, KerasTensor
-    ):
-        try:
-            newshape = tuple(newshape)
-        except TypeError:
-            newshape = (newshape,)
-        operation_utils.validate_reshape_shape(newshape)
+    newshape = operation_utils.standardize_reshape_shape(newshape)
     if any_symbolic_tensors((x, newshape)):
         return Reshape(newshape).symbolic_call(x)
     return backend.numpy.reshape(x, newshape)
@@ -7383,7 +7390,8 @@ class Roll(Operation):
 
     def compute_output_spec(self, x):
         if self.axis is not None:
-            canonicalize_axes(self.axis, len(x.shape))
+            _, axes = normalize_shift_and_axis(self.shift, self.axis)
+            canonicalize_axes(axes, len(x.shape))
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
@@ -9499,8 +9507,22 @@ class Select(Operation):
         return backend.numpy.select(condlist, choicelist, default)
 
     def compute_output_spec(self, condlist, choicelist, default=0):
-        first_element = choicelist[0]
-        return KerasTensor(first_element.shape, dtype=first_element.dtype)
+        # `select` broadcasts every array in `condlist` and `choicelist` (and
+        # `default`) to a common shape and promotes the dtype across all
+        # choices, like `where` above -- rather than assuming the first
+        # choice's shape/dtype, which is wrong when a condition, a later
+        # choice, or `default` is broader than the first choice.
+        output_shape = ()
+        for x in list(condlist) + list(choicelist) + [default]:
+            output_shape = broadcast_shapes(
+                output_shape, getattr(x, "shape", [])
+            )
+        dtypes_to_resolve = [
+            getattr(choice, "dtype", type(choice)) for choice in choicelist
+        ]
+        dtypes_to_resolve.append(getattr(default, "dtype", type(default)))
+        output_dtype = dtypes.result_type(*dtypes_to_resolve)
+        return KerasTensor(output_shape, dtype=output_dtype)
 
 
 @keras_export(["keras.ops.select", "keras.ops.numpy.select"])
@@ -9665,7 +9687,7 @@ class Histogram(Operation):
         x = backend.convert_to_tensor(x)
         if len(x.shape) > 1:
             raise ValueError("Input tensor must be 1-dimensional")
-        return backend.math.histogram(x, bins=self.bins, range=self.range)
+        return backend.numpy.histogram(x, bins=self.bins, range=self.range)
 
     def compute_output_spec(self, x):
         return (

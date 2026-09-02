@@ -520,7 +520,7 @@ def deserialize_keras_object(
         config: Python dict describing the object.
         custom_objects: Python dict containing a mapping between custom
             object names the corresponding classes or functions.
-        safe_mode: Boolean, defaults to False. If True, disables unsafe
+        safe_mode: Boolean, defaults to `True`. If `True`, disables unsafe
             lambda deserialization.
 
             Note that safe_mode is designed to protect against code

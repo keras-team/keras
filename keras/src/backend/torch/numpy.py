@@ -8,6 +8,7 @@ from keras.src.backend import KerasTensor
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
+from keras.src.backend.common.backend_utils import normalize_shift_and_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
 from keras.src.backend.common.backend_utils import vectorize_impl
 from keras.src.backend.common.variables import standardize_dtype
@@ -432,8 +433,10 @@ def array(x, dtype=None):
 
 
 def view(x, dtype=None):
-    dtype = to_torch_dtype(dtype)
     x = convert_to_tensor(x)
+    # `to_torch_dtype(None)` resolves to `floatx()`, so the default has to be
+    # resolved to the dtype of `x` to keep it a no-op.
+    dtype = x.dtype if dtype is None else to_torch_dtype(dtype)
     return x.view(dtype=dtype)
 
 
@@ -1617,6 +1620,11 @@ def pad(x, pad_width, mode="constant", constant_values=None):
             )
         kwargs["value"] = constant_values
     x = convert_to_tensor(x)
+    if len(pad_width) == 1:
+        # A single `(before, after)` pair broadcasts to every axis, matching
+        # `np.pad`. `torch.nn.functional.pad` needs a per-axis spec, so expand
+        # it here.
+        pad_width = [pad_width[0]] * x.ndim
     if mode == "symmetric":
         # torch has no "symmetric" pad, so mirror manually (including the edge
         # value). `replicate` only repeats the edge and is numpy's "edge" mode.
@@ -1840,7 +1848,12 @@ def reshape(x, newshape):
 
 def roll(x, shift, axis=None):
     x = convert_to_tensor(x)
-    return torch.roll(x, shift, dims=axis)
+    if axis is not None:
+        # `torch.roll` requires `shifts` and `dims` to have the same length,
+        # while numpy broadcasts them against each other.
+        shifts, axes = normalize_shift_and_axis(shift, axis)
+        return torch.roll(x, tuple(shifts), dims=tuple(axes))
+    return torch.roll(x, shift)
 
 
 def searchsorted(sorted_sequence, values, side="left"):

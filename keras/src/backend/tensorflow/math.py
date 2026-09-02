@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 
 from keras.src.backend import standardize_dtype
@@ -67,12 +68,14 @@ def segment_prod(data, segment_ids, num_segments=None, sorted=False):
         return tf.math.unsorted_segment_prod(data, segment_ids, num_segments)
 
 
-def top_k(x, k, sorted=True):
+def top_k(x, k, sorted=True, is_stable=True):
     return tf.math.top_k(x, k, sorted=sorted)
 
 
 def in_top_k(targets, predictions, k):
-    if len(predictions.shape) > 2:
+    # Use `np.ndim` (rather than `predictions.shape`) so this also works for
+    # plain lists/tuples, which don't have a `.shape` attribute.
+    if np.ndim(predictions) > 2:
         targets = convert_to_tensor(targets)
         predictions = convert_to_tensor(predictions)
         original_shape = tf.shape(targets)
@@ -329,3 +332,17 @@ def erfinv(x):
 def logdet(x):
     x = convert_to_tensor(x)
     return tf.linalg.logdet(x)
+
+
+def gammainc(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+
+    compute_dtype = dtype
+    if standardize_dtype(dtype) in ("float16", "bfloat16"):
+        compute_dtype = "float32"
+    x1 = cast(x1, compute_dtype)
+    x2 = cast(x2, compute_dtype)
+
+    return cast(tf.math.igamma(x1, x2), dtype)

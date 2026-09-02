@@ -866,6 +866,7 @@ def gaussian_blur(
         kernel = kernel.view(1, 1, kernel_size[0], kernel_size[1])
         return kernel
 
+    data_format = backend.standardize_data_format(data_format)
     images = convert_to_tensor(images)
     kernel_size = convert_to_tensor(kernel_size)
     sigma = convert_to_tensor(sigma)

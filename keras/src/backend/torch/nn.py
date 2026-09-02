@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as tnn
 
 from keras.src import backend
+from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
     check_conv_transpose_input_channels,
@@ -136,6 +137,7 @@ def celu(x, alpha=1.0):
 
 def glu(x, axis=-1):
     x = convert_to_tensor(x)
+    canonicalize_axis(axis, len(x.shape))
     return tnn.glu(x, dim=axis)
 
 
@@ -208,10 +210,10 @@ def sparsemax(x, axis=-1):
     support = logits_sorted - (logits_cumsum - 1) / r > 0
     # Find the threshold
     k = torch.sum(support, dim=axis, keepdim=True)
-    logits_cumsum_safe = torch.where(
-        support, logits_cumsum, torch.tensor(0.0, device=logits.device)
+    logits_sorted_safe = torch.where(
+        support, logits_sorted, torch.tensor(0.0, device=logits.device)
     )
-    tau = (torch.sum(logits_cumsum_safe, dim=axis, keepdim=True) - 1) / k
+    tau = (torch.sum(logits_sorted_safe, dim=axis, keepdim=True) - 1) / k
     output = torch.clamp(logits - tau, min=0.0)
     return output
 
@@ -1449,6 +1451,18 @@ def _can_use_flash_attention(
     query, key, value, mask=None, is_causal=False, raise_error=False
 ):
     """Verify the availability of flash attention."""
+    if (
+        not raise_error
+        and hasattr(torch.compiler, "is_compiling")
+        and torch.compiler.is_compiling()
+    ):
+        # The probe below constructs a pybind11 `SDPAParams` object, which
+        # dynamo cannot trace, so it breaks the graph at every attention call.
+        # Skipping it is safe: `scaled_dot_product_attention` still selects the
+        # flash kernel when the inputs allow. Auto-detection only, so an
+        # explicit `flash_attention=True` still reports an unsupported input.
+        return False
+
     try:
         from torch.backends.cuda import SDPAParams
         from torch.backends.cuda import can_use_flash_attention

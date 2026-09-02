@@ -149,11 +149,6 @@ class TensorFlowTrainer(base_trainer.Trainer):
 
         @tf.autograph.experimental.do_not_convert
         def multi_step_on_iterator(iterator):
-            if self.steps_per_execution == 1:
-                return tf.experimental.Optional.from_value(
-                    one_step_on_data(iterator.get_next())
-                )
-
             # the spec is set lazily during the tracing of `tf.while_loop`
             empty_outputs = tf.experimental.Optional.empty(None)
 
@@ -238,13 +233,20 @@ class TensorFlowTrainer(base_trainer.Trainer):
             if isinstance(
                 iterator, (tf.data.Iterator, tf.distribute.DistributedIterator)
             ):
+                if self.steps_per_execution == 1:
+                    next_optional_inputs = iterator.get_next_as_optional()
+                    if not next_optional_inputs.has_value():
+                        raise StopIteration
+                    return one_step_on_data(next_optional_inputs.get_value())
+
                 opt_outputs = multi_step_on_iterator(iterator)
                 if not opt_outputs.has_value():
                     raise StopIteration
                 return opt_outputs.get_value()
             else:
-                for step, data in zip(
-                    range(self.steps_per_execution), iterator
+                for _, data in zip(
+                    range(self.steps_per_execution),
+                    iterator,
                 ):
                     outputs = one_step_on_data(data)
                 return outputs
