@@ -8964,8 +8964,12 @@ class NumpyDtypeTest(testing.TestCase):
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint32",)]
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint32",)]
 
+    BINARY_DTYPES = ALL_DTYPES + (
+        ["float64"] if backend.backend() == "torch" else []
+    )
+
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
     )
     def test_add(self, dtypes):
         import jax.numpy as jnp
@@ -9127,7 +9131,7 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
     )
     def test_subtract(self, dtypes):
         import jax.numpy as jnp
@@ -9202,7 +9206,7 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
     )
     def test_multiply(self, dtypes):
         import jax.numpy as jnp
@@ -9595,7 +9599,7 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
     )
     def test_arctan2(self, dtypes):
         import jax.numpy as jnp
@@ -10159,7 +10163,7 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
     )
     def test_divide(self, dtypes):
         import jax.numpy as jnp
@@ -10173,6 +10177,10 @@ class NumpyDtypeTest(testing.TestCase):
 
         self.assertDType(knp.divide(x1, x2), expected_dtype)
         self.assertDType(knp.Divide().symbolic_call(x1, x2), expected_dtype)
+        self.assertDType(knp.divide_no_nan(x1, x2), expected_dtype)
+        self.assertDType(
+            knp.DivideNoNan().symbolic_call(x1, x2), expected_dtype
+        )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_divide_python_types(self, dtype):
@@ -10522,7 +10530,7 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
     )
     def test_floor_divide(self, dtypes):
         import jax.numpy as jnp
@@ -10706,7 +10714,7 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
     )
     def test_column_stack(self, dtypes):
         import jax.numpy as jnp
@@ -11099,7 +11107,7 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
     )
     def test_logaddexp(self, dtypes):
         import jax.numpy as jnp
@@ -11126,7 +11134,7 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
     )
     def test_logaddexp2(self, dtypes):
         import jax.numpy as jnp
@@ -11298,7 +11306,7 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
     )
     def test_maximum(self, dtypes):
         import jax.numpy as jnp
@@ -11338,7 +11346,7 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertDType(knp.Maximum().symbolic_call(x, 1.0), expected_dtype)
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
     )
     def test_fmax(self, dtypes):
         import jax.numpy as jnp
@@ -11426,7 +11434,7 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
     )
     def test_minimum(self, dtypes):
         import jax.numpy as jnp
@@ -11466,7 +11474,7 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertDType(knp.Minimum().symbolic_call(x, 1.0), expected_dtype)
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
     )
     def test_fmin(self, dtypes):
         import jax.numpy as jnp
@@ -11487,7 +11495,7 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
     )
     def test_mod(self, dtypes):
         import jax.numpy as jnp
@@ -11508,7 +11516,7 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
     )
     def test_fmod(self, dtypes):
         import jax.numpy as jnp
@@ -11825,7 +11833,9 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        named_product(dtypes=list(itertools.product(ALL_DTYPES, ALL_DTYPES)))
+        named_product(
+            dtypes=list(itertools.product(BINARY_DTYPES, BINARY_DTYPES))
+        )
     )
     def test_nextafter(self, dtypes):
         import jax.numpy as jnp
@@ -11964,7 +11974,7 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
     )
     def test_power(self, dtypes):
         import jax.numpy as jnp
@@ -12700,7 +12710,7 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
     )
     def test_true_divide(self, dtypes):
         import jax.numpy as jnp

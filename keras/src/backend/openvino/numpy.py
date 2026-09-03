@@ -4897,7 +4897,7 @@ def divide_no_nan(x1, x2):
         element_type = x2.output.get_element_type()
     x1 = get_ov_output(x1, element_type)
     x2 = get_ov_output(x2, element_type)
-    x1, x2 = _align_operand_types(x1, x2, "divide_no_nan()")
+    x1, x2 = _align_operand_types(x1, x2, "divide_no_nan()", force_float=True)
 
     zero = ov_opset.constant(0, x2.get_element_type())
     div = ov_opset.divide(x1, x2)
