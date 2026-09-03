@@ -392,26 +392,21 @@ _FORCE_THREADPOOL = False
 _MP_CONTEXT = None
 
 
-def reset_mp_state():
-    global _SEQUENCE_COUNTER
-    global _WORKER_ID_QUEUE
-    global _SHARED_SEQUENCES
-    global _MP_CONTEXT
-    _SEQUENCE_COUNTER = None
-    _WORKER_ID_QUEUE = None
-    _SHARED_SEQUENCES = {}
-    _MP_CONTEXT = None
-
-
 def _get_mp_context():
     global _MP_CONTEXT
+    if _MP_CONTEXT is not None:
+        return _MP_CONTEXT
+
     from keras.src.backend import backend
 
+    mp_module = multiprocessing
     use_spawn = False
     if backend() == "torch":
         import torch
+        import torch.multiprocessing as torch_mp
 
-        if (torch.cuda.is_available() and torch.cuda.is_initialized()) or (
+        mp_module = torch_mp
+        if torch.cuda.is_available() or (
             torch.distributed.is_available()
             and torch.distributed.is_initialized()
         ):
@@ -419,18 +414,13 @@ def _get_mp_context():
 
     if use_spawn:
         try:
-            new_context = multiprocessing.get_context("spawn")
+            _MP_CONTEXT = mp_module.get_context("spawn")
         except ValueError:
             # 'spawn' might not be available on some systems
-            new_context = multiprocessing.get_context()
+            _MP_CONTEXT = mp_module.get_context()
     else:
-        new_context = multiprocessing.get_context()
+        _MP_CONTEXT = mp_module.get_context()
 
-    if _MP_CONTEXT is not None and type(_MP_CONTEXT) is not type(new_context):
-        # Context changed, must reset stateful objects like Queue and Value
-        reset_mp_state()
-
-    _MP_CONTEXT = new_context
     return _MP_CONTEXT
 
 
@@ -501,7 +491,7 @@ class PyDatasetEnqueuer:
         global _SEQUENCE_COUNTER
         if _SEQUENCE_COUNTER is None:
             try:
-                _SEQUENCE_COUNTER = multiprocessing.Value("i", 0)
+                _SEQUENCE_COUNTER = _get_mp_context().Value("i", 0)
             except OSError:
                 # In this case the OS does not allow us to use
                 # multiprocessing. We resort to an int
