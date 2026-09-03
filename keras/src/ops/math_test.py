@@ -1223,21 +1223,6 @@ class MathOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(out.shape, (2, 2))
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
-    def test_lgamma_operation_basic(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        try:
-            sample_values = np.array(
-                [1.0, 2.0, 3.0, 4.0, 5.0, 0.5, 1.5, 2.5, 3.5, 10.0]
-            )
-            expected_output = scipy.special.gammaln(sample_values)
-            output_from_lgamma_op = kmath.lgamma(sample_values)
-            self.assertAllClose(
-                output_from_lgamma_op, expected_output, atol=1e-4
-            )
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
-
-    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_lgamma_operation_dtype(self, backend_agnostic_ops):
         backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
         try:
@@ -1266,6 +1251,21 @@ class MathOpsCorrectnessTest(testing.TestCase):
             output_from_edge_lgamma_op = kmath.lgamma(edge_values)
             self.assertAllClose(
                 output_from_edge_lgamma_op, expected_output, atol=1e-4
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
+
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_lgamma_operation_basic(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            sample_values = np.array(
+                [1.0, 2.0, 3.0, 4.0, 5.0, 0.5, 1.5, 2.5, 3.5, 10.0]
+            )
+            expected_output = scipy.special.gammaln(sample_values)
+            output_from_lgamma_op = kmath.lgamma(sample_values)
+            self.assertAllClose(
+                output_from_lgamma_op, expected_output, atol=1e-4
             )
         finally:
             backend.config._set_use_backend_agnostic_ops(False)
