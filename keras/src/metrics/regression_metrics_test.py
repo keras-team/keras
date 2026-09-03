@@ -9,12 +9,12 @@ class MeanSquaredErrorTest(testing.TestCase):
     def test_config(self):
         mse_obj = metrics.MeanSquaredError(name="my_mse", dtype="int32")
         self.assertEqual(mse_obj.name, "my_mse")
-        self.assertEqual(mse_obj._dtype, "int32")
+        self.assertEqual(mse_obj.dtype, "int32")
 
         # Check save and restore config
         mse_obj2 = metrics.MeanSquaredError.from_config(mse_obj.get_config())
         self.assertEqual(mse_obj2.name, "my_mse")
-        self.assertEqual(mse_obj2._dtype, "int32")
+        self.assertEqual(mse_obj2.dtype, "int32")
 
     def test_unweighted(self):
         mse_obj = metrics.MeanSquaredError()
