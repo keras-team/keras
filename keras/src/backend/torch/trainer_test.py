@@ -105,6 +105,53 @@ class TorchTrainerDistributionTest(testing.TestCase):
             join=True,
         )
 
+    def test_get_metrics_result_dtensor(self):
+        from torch.distributed.device_mesh import DeviceMesh as TorchDeviceMesh
+        from torch.distributed.tensor import DTensor
+        from torch.distributed.tensor import Replicate
+
+        from keras.src import metrics
+
+        mesh = TorchDeviceMesh("cpu", np.array([0]))
+
+        model = SimpleModel()
+        model.compile(
+            optimizer="sgd", loss="mse", metrics=[metrics.MeanAbsoluteError()]
+        )
+
+        # Initialize metrics
+        x = np.ones((2, 10), dtype="float32")
+        y = np.ones((2, 1), dtype="float32")
+        model.train_on_batch(x, y)
+
+        # We need to make one of the metric variables a DTensor
+        mean_metric = None
+        for m in model.metrics:
+            if hasattr(m, "metrics"):
+                for inner_m in m.metrics:
+                    if inner_m.name == "mean_absolute_error":
+                        mean_metric = inner_m
+                        break
+            elif m.name == "mean_absolute_error":
+                mean_metric = m
+                break
+            if mean_metric is not None:
+                break
+
+        self.assertIsNotNone(mean_metric, "MeanAbsoluteError metric not found")
+
+        v = mean_metric.total
+        local_tensor = v.value.data if hasattr(v.value, "data") else v.value
+        dtensor = DTensor.from_local(local_tensor, mesh, [Replicate()])
+        v._value = dtensor
+
+        # Now call get_metrics_result
+        results = model.get_metrics_result()
+
+        # Verify result
+        self.assertIn("mean_absolute_error", results)
+        self.assertFalse(hasattr(results["mean_absolute_error"], "placements"))
+
 
 def _distributed_metrics_worker(rank):
     os.environ["MASTER_ADDR"] = "localhost"
