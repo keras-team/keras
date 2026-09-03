@@ -1,4 +1,5 @@
 import itertools
+import multiprocessing
 import multiprocessing.dummy
 import queue
 import random
@@ -388,20 +389,63 @@ _SEQUENCE_COUNTER = None
 _DATA_POOLS = weakref.WeakSet()
 _WORKER_ID_QUEUE = None  # Only created if needed.
 _FORCE_THREADPOOL = False
+_MP_CONTEXT = None
+
+
+def reset_mp_state():
+    global _SEQUENCE_COUNTER
+    global _WORKER_ID_QUEUE
+    global _SHARED_SEQUENCES
+    global _MP_CONTEXT
+    _SEQUENCE_COUNTER = None
+    _WORKER_ID_QUEUE = None
+    _SHARED_SEQUENCES = {}
+    _MP_CONTEXT = None
+
+
+def _get_mp_context():
+    global _MP_CONTEXT
+    from keras.src.backend import backend
+
+    use_spawn = False
+    if backend() == "torch":
+        import torch
+
+        if (torch.cuda.is_available() and torch.cuda.is_initialized()) or (
+            torch.distributed.is_available()
+            and torch.distributed.is_initialized()
+        ):
+            use_spawn = True
+
+    if use_spawn:
+        try:
+            new_context = multiprocessing.get_context("spawn")
+        except ValueError:
+            # 'spawn' might not be available on some systems
+            new_context = multiprocessing.get_context()
+    else:
+        new_context = multiprocessing.get_context()
+
+    if _MP_CONTEXT is not None and type(_MP_CONTEXT) is not type(new_context):
+        # Context changed, must reset stateful objects like Queue and Value
+        reset_mp_state()
+
+    _MP_CONTEXT = new_context
+    return _MP_CONTEXT
 
 
 def get_pool_class(use_multiprocessing):
     global _FORCE_THREADPOOL
     if not use_multiprocessing or _FORCE_THREADPOOL:
         return multiprocessing.dummy.Pool  # ThreadPool
-    return multiprocessing.Pool
+    return _get_mp_context().Pool
 
 
 def get_worker_id_queue():
     """Lazily create the queue to track worker ids."""
     global _WORKER_ID_QUEUE
     if _WORKER_ID_QUEUE is None:
-        _WORKER_ID_QUEUE = multiprocessing.Queue()
+        _WORKER_ID_QUEUE = _get_mp_context().Queue()
     return _WORKER_ID_QUEUE
 
 
