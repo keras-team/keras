@@ -4814,6 +4814,49 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.nextafter(x, y), np.nextafter(x, y))
         self.assertAllClose(knp.Nextafter()(x, y), np.nextafter(x, y))
 
+        # These are exact one-ulp steps, so they are compared exactly. The
+        # default tolerance would pass even if a backend returned x1 unchanged,
+        # because the values involved are far smaller than it.
+        #
+        # openvino's compiled float64 -> narrower conversion flushes
+        # subnormals to zero, so the step out of zero cannot be represented
+        # there no matter how it is computed. Every other case now runs on
+        # every backend.
+        openvino = backend.backend() == "openvino"
+        for dtype in ["float32", "float16"]:
+            # Stepping away from an infinity must land on the largest finite
+            # value of the result dtype rather than staying at infinity.
+            x = np.array([np.inf, -np.inf], dtype=dtype)
+            y = np.array([-np.inf, np.inf], dtype=dtype)
+            self.assertAllClose(
+                knp.nextafter(x, y), np.nextafter(x, y), atol=0, rtol=0
+            )
+
+            # Steps near zero are smaller than one ulp of 1.0, so they are lost
+            # if the computation happens in a wider dtype and is cast back.
+            if not openvino:
+                x = np.array([0.0, np.finfo(dtype).tiny], dtype=dtype)
+                y = np.array([1.0, 0.0], dtype=dtype)
+                self.assertAllClose(
+                    knp.nextafter(x, y), np.nextafter(x, y), atol=0, rtol=0
+                )
+
+            # A NaN in either argument propagates, including from an
+            # infinity, where it has to win over the step to the largest
+            # finite value.
+            x = np.array([np.inf, -np.inf, np.nan, 1.0], dtype=dtype)
+            y = np.array([np.nan, np.nan, 1.0, np.nan], dtype=dtype)
+            self.assertAllClose(
+                knp.nextafter(x, y), np.nextafter(x, y), atol=0, rtol=0
+            )
+
+            # A step between ordinary values must move by exactly one ulp.
+            x = np.array([1.0, -1.0], dtype=dtype)
+            y = np.array([2.0, -2.0], dtype=dtype)
+            self.assertAllClose(
+                knp.nextafter(x, y), np.nextafter(x, y), atol=0, rtol=0
+            )
+
     def test_not_equal(self):
         x = np.array([[1, 2], [3, 4]])
         y = np.array([[5, 6], [7, 8]])

@@ -1,5 +1,6 @@
 import math
 
+import ml_dtypes
 import numpy as np
 import openvino as ov
 import openvino.opset16 as ov_opset
@@ -4943,6 +4944,28 @@ def nextafter(x1, x2):
     dtype = dtypes.result_type(x1_keras, x2_keras, float)
     ov_dtype = OPENVINO_DTYPES[dtype]
 
+    # Step by one ULP of the *result* dtype, not of float64: a float64 ULP is
+    # narrower than a float32 one, so the step is lost when the result is cast
+    # back to `ov_dtype` and nextafter returns x1 unchanged.
+    finfo = ml_dtypes.finfo(dtype)
+
+    # `is_inf` is tested at the result dtype, before the float64 widening
+    # below, because the plugin no longer reports an infinity reliably once the
+    # value has been converted to float64.
+    x1_is_inf = ov_opset.is_inf(
+        ov_opset.convert(x1, ov_dtype).output(0)
+    ).output(0)
+
+    # A NaN x2 must win over the infinity handling below: nextafter(inf, nan)
+    # is nan. Every other NaN combination already propagates through the
+    # float64 arithmetic.
+    x2_is_nan = ov_opset.is_nan(
+        ov_opset.convert(x2, ov_dtype).output(0)
+    ).output(0)
+    x1_is_inf = ov_opset.logical_and(
+        x1_is_inf, ov_opset.logical_not(x2_is_nan).output(0)
+    ).output(0)
+
     # Work in float64 for precision (matches TF/PyTorch approach)
     x1 = ov_opset.convert(x1, Type.f64).output(0)
     x2 = ov_opset.convert(x2, Type.f64).output(0)
@@ -4955,14 +4978,15 @@ def nextafter(x1, x2):
     direction = ov_opset.sign(ov_opset.subtract(x2, x1)).output(0)
     abs_x1 = ov_opset.abs(x1).output(0)
 
-    # Compute ULP = 2^(floor(log2(|x1|)) - 52) for normal float64 numbers
+    # ULP = 2^(floor(log2(|x1|)) - nmant); clamping the exponent at minexp
+    # gives the uniform subnormal spacing 2^(minexp - nmant).
     ln2 = ov_opset.constant(np.log(2.0), Type.f64).output(0)
     log2_abs = ov_opset.floor(
         ov_opset.divide(ov_opset.log(abs_x1), ln2)
     ).output(0)
-    min_exp = ov_opset.constant(-1022.0, Type.f64).output(0)
+    min_exp = ov_opset.constant(float(finfo.minexp), Type.f64).output(0)
     clamped_exp = ov_opset.maximum(log2_abs, min_exp).output(0)
-    mantissa_bits = ov_opset.constant(52.0, Type.f64).output(0)
+    mantissa_bits = ov_opset.constant(float(finfo.nmant), Type.f64).output(0)
     ulp_exp = ov_opset.subtract(clamped_exp, mantissa_bits).output(0)
     ulp = ov_opset.power(two, ulp_exp).output(0)
 
@@ -4981,10 +5005,21 @@ def nextafter(x1, x2):
     result = ov_opset.add(x1, ov_opset.multiply(direction, ulp)).output(0)
 
     # Handle x1 == 0: result is the smallest subnormal towards x2
-    min_subnormal = ov_opset.constant(5e-324, Type.f64).output(0)
+    min_subnormal = ov_opset.constant(
+        float(finfo.smallest_subnormal), Type.f64
+    ).output(0)
     zero_result = ov_opset.multiply(ov_opset.sign(x2), min_subnormal).output(0)
     is_zero = ov_opset.equal(x1, zero).output(0)
     result = ov_opset.select(is_zero, zero_result, result).output(0)
+
+    # log2 of an infinity is not exact, so stepping inwards from one is
+    # selected explicitly: it lands on the dtype's largest finite value.
+    dtype_max = ov_opset.constant(float(finfo.max), Type.f64).output(0)
+    result = ov_opset.select(
+        x1_is_inf,
+        ov_opset.multiply(ov_opset.sign(x1), dtype_max),
+        result,
+    ).output(0)
 
     # Handle x1 == x2: return x2
     result = ov_opset.select(eq_mask, x2, result).output(0)
