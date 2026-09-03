@@ -9407,7 +9407,15 @@ class Corrcoef(Operation):
             dtype = "float64"
         else:
             dtype = dtypes.result_type(dtype, float)
-        return KerasTensor(x.shape, dtype=dtype)
+        if len(x.shape) > 2:
+            raise ValueError(
+                "Input tensor must have at most 2 dimensions. "
+                f"Received: x.shape={x.shape}"
+            )
+        # The correlation matrix of the `N` variables of a 2D input of shape
+        # `(N, D)` has shape `(N, N)`. A 1D input yields a scalar.
+        output_shape = (x.shape[0], x.shape[0]) if len(x.shape) == 2 else ()
+        return KerasTensor(output_shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.corrcoef", "keras.ops.numpy.corrcoef"])

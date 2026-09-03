@@ -244,7 +244,8 @@ class LuFactor(Operation):
         k = min(m, n)
         return (
             KerasTensor(batch_shape + (m, n), x.dtype),
-            KerasTensor(batch_shape + (k,), x.dtype),
+            # The pivots are indices, not values drawn from `x`.
+            KerasTensor(batch_shape + (k,), "int32"),
         )
 
 
