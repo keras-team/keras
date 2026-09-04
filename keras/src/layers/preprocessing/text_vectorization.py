@@ -13,6 +13,19 @@ from keras.src.utils.module_utils import tensorflow as tf
 from keras.src.utils.progbar import Progbar
 
 
+def _extract_batch(batch):
+    """Return input from batch; handle (x, y) or (x, y, sample_weight)."""
+    if isinstance(batch, (tuple, list)) and len(batch) in (2, 3):
+        first = batch[0]
+        if (
+            isinstance(first, (list, tuple, np.ndarray))
+            or tf.is_tensor(first)
+            or backend.is_tensor(first)
+        ):
+            return first
+    return batch
+
+
 @keras_export("keras.layers.TextVectorization")
 class TextVectorization(Layer):
     """A preprocessing layer which maps text features to integer sequences.
@@ -435,7 +448,7 @@ class TextVectorization(Layer):
             if steps is not None:
                 data = data.take(steps)
             for i, batch in enumerate(data):
-                self.update_state(batch)
+                self.update_state(_extract_batch(batch))
                 progbar.update(i + 1)
             progbar.update(steps if steps is not None else i + 1, finalize=True)
         elif hasattr(data, "__iter__") and not (
@@ -447,7 +460,7 @@ class TextVectorization(Layer):
             for i, batch in enumerate(data):
                 if steps is not None and i >= steps:
                     break
-                self.update_state(batch)
+                self.update_state(_extract_batch(batch))
                 progbar.update(i + 1)
             progbar.update(steps if steps is not None else i + 1, finalize=True)
         else:

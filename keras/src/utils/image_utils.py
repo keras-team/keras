@@ -247,17 +247,30 @@ def load_img(
         raise ImportError(
             "Could not import PIL.Image. The use of `load_img` requires PIL."
         )
-    if isinstance(path, io.BytesIO):
-        img = pil_image.open(path)
-    elif isinstance(path, (pathlib.Path, bytes, str)):
-        if isinstance(path, pathlib.Path):
-            path = str(path.resolve())
-        with open(path, "rb") as f:
-            img = pil_image.open(io.BytesIO(f.read()))
-    else:
-        raise TypeError(
-            f"path should be path-like or io.BytesIO, not {type(path)}"
-        )
+    try:
+        if isinstance(path, io.BytesIO):
+            img = pil_image.open(path)
+        elif isinstance(path, (pathlib.Path, bytes, str)):
+            if isinstance(path, pathlib.Path):
+                path = str(path.resolve())
+            with open(path, "rb") as f:
+                img = pil_image.open(io.BytesIO(f.read()))
+        else:
+            raise TypeError(
+                "path must be a string, bytes, pathlib.Path, or BytesIO. "
+                f"Received path={path} (of type {type(path)})"
+            )
+        img.load()
+    except Exception as e:
+        if hasattr(pil_image, "DecompressionBombError") and isinstance(
+            e, pil_image.DecompressionBombError
+        ):
+            raise ValueError(
+                f"Image load failed for path '{path}' due to PIL "
+                "DecompressionBombError. The image exceeds PIL's maximum "
+                "pixel limit."
+            ) from e
+        raise e
 
     if color_mode == "grayscale":
         # if image is not already an 8-bit, 16-bit or 32-bit grayscale image

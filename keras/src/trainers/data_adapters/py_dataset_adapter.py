@@ -92,7 +92,9 @@ class PyDataset:
     ```
     """
 
-    def __init__(self, workers=1, use_multiprocessing=False, max_queue_size=10):
+    def __init__(
+        self, workers=1, use_multiprocessing=False, max_queue_size=10, **kwargs
+    ):
         self._workers = workers
         self._use_multiprocessing = use_multiprocessing
         self._max_queue_size = max_queue_size

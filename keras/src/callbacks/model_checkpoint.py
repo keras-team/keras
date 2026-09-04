@@ -378,6 +378,13 @@ class ModelCheckpoint(MonitorCallback):
                 f'Failed to format this callback filepath: "{self.filepath}". '
                 f"Reason: {e}"
             )
+        if ".." in file_path.replace("/", os.sep).split(os.sep):
+            warnings.warn(
+                f"ModelCheckpoint filepath '{file_path}' contains relative "
+                "path traversal ('..'). Ensure checkpoint directory paths "
+                "are safe.",
+                stacklevel=2,
+            )
         return file_path
 
     def _checkpoint_exists(self, filepath):

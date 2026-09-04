@@ -11,6 +11,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import testing
 from keras.src.saving import saving_api
+from keras.src.trainers.data_adapters import py_dataset_adapter
 
 
 @pytest.mark.skipif(
@@ -875,3 +876,18 @@ class IndexLookupLayerTest(testing.TestCase):
                 np.array_equal(out_farmhash, out_siphash),
                 msg=f"Expected different outputs for dtype={dtype}",
             )
+
+    def test_adapt_pydataset_tuple_batches(self):
+        class CustomPyDataset(py_dataset_adapter.PyDataset):
+            def __len__(self):
+                return 2
+
+            def __getitem__(self, idx):
+                if idx == 0:
+                    return (["a", "b"], [0, 1])
+                return (["b", "c"], [1, 0])
+
+        layer = layers.StringLookup()
+        layer.adapt(CustomPyDataset())
+        vocab = layer.get_vocabulary()
+        self.assertIn("b", vocab)
