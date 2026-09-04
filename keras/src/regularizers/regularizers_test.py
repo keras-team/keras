@@ -211,12 +211,20 @@ class ValidateFloatArgTest(testing.TestCase):
     def test_validate_float_with_valid_args(self):
         self.assertEqual(validate_float_arg(1, "test"), 1.0)
         self.assertEqual(validate_float_arg(1.0, "test"), 1.0)
+        self.assertAlmostEqual(
+            validate_float_arg(np.float32(0.1), "test"), 0.1
+        )
+        self.assertEqual(validate_float_arg(np.int32(1), "test"), 1.0)
 
     def test_validate_float_with_invalid_types(self):
         with self.assertRaisesRegex(
             ValueError, "expected a non-negative float"
         ):
             validate_float_arg("not_a_number", "test")
+        with self.assertRaisesRegex(
+            ValueError, "expected a non-negative float"
+        ):
+            validate_float_arg(np.bool_(True), "test")
 
     def test_validate_float_with_nan(self):
         with self.assertRaisesRegex(
