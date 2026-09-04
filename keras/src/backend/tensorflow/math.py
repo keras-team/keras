@@ -360,3 +360,11 @@ def gammaincc(x1, x2):
     x2 = cast(x2, compute_dtype)
 
     return cast(tf.math.igammac(x1, x2), dtype)
+def lgamma(x):
+    x = convert_to_tensor(x)
+    dtype = dtypes.result_type(x.dtype, float)
+    if standardize_dtype(dtype) == "bfloat16":
+        return cast(tf.math.lgamma(cast(x, "float32")), dtype)
+    if not tf.as_dtype(x.dtype).is_floating:
+        x = cast(x, dtype)
+    return tf.math.lgamma(x)

@@ -326,3 +326,6 @@ def gammaincc(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     return jax.scipy.special.gammaincc(x1, x2)
+def lgamma(x):
+    x = convert_to_tensor(x)
+    return jax.scipy.special.gammaln(x)
