@@ -5,6 +5,7 @@ import re
 import numpy as np
 
 from keras.src import backend
+from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
@@ -8541,7 +8542,7 @@ class Vsplit(Operation):
         self.indices_or_sections = indices_or_sections
 
     def call(self, x):
-        return backend.numpy.vsplit(x, self.indices_or_sections)
+        return _vsplit(x, self.indices_or_sections)
 
     def compute_output_spec(self, x):
         if len(x.shape) < 2:
@@ -8582,7 +8583,16 @@ def vsplit(x, indices_or_sections):
     """
     if any_symbolic_tensors((x,)):
         return Vsplit(indices_or_sections).symbolic_call(x)
-    return backend.numpy.vsplit(x, indices_or_sections)
+    return _vsplit(x, indices_or_sections)
+
+
+def _vsplit(x, indices_or_sections):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.numpy, "vsplit"
+    ):
+        return backend.numpy.vsplit(x, indices_or_sections)
+    x = backend.convert_to_tensor(x)
+    return ops.split(x, indices_or_sections, axis=0)
 
 
 class Where(Operation):
