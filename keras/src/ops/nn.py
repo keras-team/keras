@@ -2736,13 +2736,19 @@ def _normalize(x, axis=-1, order=2, epsilon=None):
         # A special case: L2 normalization with `x * rsqrt(...)`
         # instead of `x / sqrt(...)`. Clamp the squared norm before the
         # rsqrt so zero vectors get a finite gradient.
+        original_dtype = backend.standardize_dtype(x.dtype)
+        # Computes in at least float32 precision: in float16, `epsilon**2`
+        # underflows to zero and the derivative of `rsqrt` overflows for
+        # small norms, producing inf/NaN gradients (see #23546).
+        compute_dtype = backend.result_type(x.dtype, "float32")
+        x = backend.cast(x, compute_dtype)
         square_sum = backend.numpy.sum(
             backend.numpy.square(x), axis=axis, keepdims=True
         )
         inv_norm = backend.math.rsqrt(
             backend.numpy.maximum(square_sum, epsilon * epsilon)
         )
-        return x * inv_norm
+        return backend.cast(x * inv_norm, original_dtype)
     norm = backend.linalg.norm(x, ord=order, axis=axis, keepdims=True)
     denom = backend.numpy.maximum(norm, epsilon)
     return backend.numpy.divide(x, denom)

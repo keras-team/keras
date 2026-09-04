@@ -2733,6 +2733,46 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertFalse(np.isnan(x_grad).any())
         self.assertAllClose(x_grad, expected_grad)
 
+    def test_normalize_l2_half_precision_gradients(self):
+        # The L2 (order=2) fast path must compute the squared norm, epsilon
+        # clamp and rsqrt in at least float32: for float16 inputs, epsilon**2
+        # underflows to zero and the derivative of rsqrt overflows even for
+        # small non-zero vectors, producing -inf gradients (see #23546).
+        x_np = np.full((4, 2), 0.01, dtype=np.float16)
+
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            x = tf.Variable(x_np)
+            with tf.GradientTape() as tape:
+                y = knn.normalize(x, axis=-1, order=2)
+                loss = tf.reduce_sum(y)
+            x_grad = tape.gradient(loss, x)
+        elif backend.backend() == "jax":
+            import jax
+            import jax.numpy as jnp
+
+            def f(x):
+                return jnp.sum(knn.normalize(x, axis=-1, order=2))
+
+            x_grad = jax.grad(f)(jnp.array(x_np))
+        elif backend.backend() == "torch":
+            import torch
+
+            x = torch.tensor(x_np, requires_grad=True)
+            y = knn.normalize(x, axis=-1, order=2)
+            y.sum().backward()
+            x_grad = x.grad
+        else:
+            self.skipTest("Gradient test requires tensorflow, jax or torch.")
+
+        x_grad = ops.convert_to_numpy(x_grad)
+        self.assertFalse(np.isnan(x_grad).any())
+        self.assertFalse(np.isinf(x_grad).any())
+        # The analytic gradient is zero; anything above noise means the
+        # intermediates were computed in half precision.
+        self.assertAllClose(x_grad, np.zeros_like(x_grad), atol=1e-4)
+
     def test_psnr(self):
         x1 = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
         x2 = np.array([[0.2, 0.2, 0.3], [0.4, 0.6, 0.6]])
