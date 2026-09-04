@@ -352,6 +352,20 @@ class SavedModelExportArchive:
                     except TypeError as err:
                         if "missing a required argument" not in str(err):
                             raise
+                        # In SavedModel mode, TF's AutoTrackable calls
+                        # `_list_all_concrete_functions_for_serialization()`
+                        # on every tf.function it finds on a trackable.  For
+                        # Keras 3 layers whose `call()` has required keyword
+                        # arguments (beyond `inputs`), tracing with a partial
+                        # input signature raises `TypeError: missing a
+                        # required argument`.  Returning {} here is safe: the
+                        # walk is only used to collect TrackableResources (e.g.
+                        # lookup tables); layers with complex signatures do not
+                        # hold such resources.  The _DictWrapper / is_tf_type
+                        # TypeError that motivated the original workaround is
+                        # separately eliminated by
+                        # `_patch_tf_is_tf_type_for_object_proxy` above.
+
                         return {}
 
             # Next, track lookup tables.

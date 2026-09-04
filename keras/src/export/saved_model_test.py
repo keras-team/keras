@@ -458,10 +458,6 @@ class ExportArchiveTest(testing.TestCase):
         # Test with a different batch size
         revived_model.call(tf.random.normal((6, 10)))
 
-    @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
-        reason="This test is native to the TF backend.",
-    )
     def test_low_level_model_export_with_alias(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
 
@@ -496,6 +492,10 @@ class ExportArchiveTest(testing.TestCase):
         # Test with a different batch size
         revived_model.function_aliases["call_alias"](tf.random.normal((6, 10)))
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="This test is native to the TF backend.",
+    )
     def test_export_does_not_duplicate_variable_storage(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model()
