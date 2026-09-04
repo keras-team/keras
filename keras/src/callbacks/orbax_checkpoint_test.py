@@ -5,6 +5,7 @@ import pytest
 from absl.testing import parameterized
 
 from keras.src import backend
+from keras.src import callbacks
 from keras.src import layers
 from keras.src import models
 from keras.src import saving
@@ -543,6 +544,68 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
         {"save_on_background": True},
     )
     @pytest.mark.requires_trainable_backend
+    def test_sequential_model_weight_roundtrip(self, save_on_background):
+        """Test model state restoration with exact weight matching for Sequential model."""
+        import numpy as np
+
+        utils.set_random_seed(123)
+
+        model = models.Sequential([
+            layers.Input((8,)),
+            layers.Dense(16, activation="relu"),
+            layers.Dense(1),
+        ])
+
+        model.compile(optimizer="adam", loss="mse")
+
+        x = np.random.randn(128, 8).astype("float32")
+        y = np.random.randn(128, 1).astype("float32")
+
+        class CaptureWeights(callbacks.Callback):
+            def on_epoch_end(self, epoch, logs=None):
+                self.saved_weights = [
+                    w.numpy().copy()
+                    for w in self.model.weights
+                ]
+
+        capture = CaptureWeights()
+
+        checkpoint_dir = os.path.join(
+            self.get_temp_dir(),
+            f"test_sequential_{save_on_background}_{id(self)}",
+        )
+
+        checkpoint = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            max_to_keep=2,
+            save_on_background=save_on_background,
+        )
+
+        model.fit(
+            x,
+            y,
+            epochs=1,
+            batch_size=16,
+            callbacks=[capture, checkpoint],
+            verbose=0,
+        )
+
+        restored = saving.load_model(checkpoint_dir)
+
+        self.assertEqual(len(capture.saved_weights), len(restored.weights))
+        for expected, actual in zip(capture.saved_weights, restored.weights):
+            self.assertAllClose(
+                expected,
+                actual,
+                atol=1e-6,
+                rtol=1e-6,
+                msg="Sequential weight mismatch on load_model",
+            )
+
+    @parameterized.parameters(
+        {"save_on_background": False},
+        {"save_on_background": True},
+    )
     def test_comprehensive_model_state_restoration(self, save_on_background):
         """Test comprehensive model state restoration with exact weight
         matching.
