@@ -462,27 +462,6 @@ class ExportArchiveTest(testing.TestCase):
         backend.backend() != "tensorflow",
         reason="This test is native to the TF backend.",
     )
-    def test_model_export_does_not_duplicate_variables(self):
-        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
-
-        model = get_model()
-        model_input = tf.random.normal((3, 10))
-        model(model_input)  # Build the model.
-
-        model.export(temp_filepath, **self.add_endpoint_kwargs)
-
-        checkpoint_path = os.path.join(temp_filepath, "variables", "variables")
-        reader = tf.train.load_checkpoint(checkpoint_path)
-        variable_shapes = reader.get_variable_to_shape_map()
-
-        num_saved_parameters = sum(
-            np.prod(shape)
-            for name, shape in variable_shapes.items()
-            if "CHECKPOINTABLE" not in name
-        )
-
-        self.assertEqual(num_saved_parameters, model.count_params())
-
     def test_low_level_model_export_with_alias(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
 
@@ -516,6 +495,32 @@ class ExportArchiveTest(testing.TestCase):
         )
         # Test with a different batch size
         revived_model.function_aliases["call_alias"](tf.random.normal((6, 10)))
+
+    def test_export_does_not_duplicate_variable_storage(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model = get_model()
+        ref_input = tf.random.normal((3, 10))
+        model(ref_input)  # build the model — was missing
+
+        export_archive = saved_model.ExportArchive()
+        export_archive.track(model)
+        export_archive.add_endpoint(
+            "call",
+            model.__call__,
+            input_signature=[tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
+        )
+        export_archive.write_out(temp_filepath)
+
+        reader = tf.train.load_checkpoint(
+            os.path.join(temp_filepath, "variables", "variables")
+        )
+        shapes = reader.get_variable_to_shape_map()
+        total = sum(
+            int(np.prod(s))
+            for n, s in shapes.items()
+            if "CHECKPOINTABLE" not in n
+        )
+        self.assertEqual(total, model.count_params())
 
     @parameterized.named_parameters(
         named_product(model_type=["sequential", "functional", "subclass"])

@@ -329,30 +329,17 @@ class SavedModelExportArchive:
     def _filter_and_track_resources(self):
         """Track resources used by endpoints / referenced in `track()` calls."""
         # Start by extracting variables from endpoints.
-        fns = [
-            self._get_connected_fn(name)
-            if hasattr(self, "_get_connected_fn")
-            else self._get_concrete_fn(name)
-            for name in self._endpoint_names
-        ]
+        fns = [self._get_concrete_fn(name) for name in self._endpoint_names]
         tvs, ntvs = _list_variables_used_by_fns(fns)
-        tracked_variable_handles = {
-            v.handle.ref()
-            for v in self._tf_trackable.variables
-            if hasattr(v, "handle") and v.handle is not None
-        }
+        self._tf_trackable._all_variables = list(tvs + ntvs)
+        self._track_lookup_tables_and_misc_assets()
 
-        # Filter out duplicates
-        self._tf_trackable._all_variables = [
-            v
-            for v in tvs + ntvs
-            if not hasattr(v, "handle")
-            or v.handle is None
-            or v.handle.ref() not in tracked_variable_handles
-        ]
-
+    def _track_lookup_tables_and_misc_assets(self):
         # TF < 2.21 fix: see `_patch_tf_is_tf_type_for_object_proxy`.
         with _patch_tf_is_tf_type_for_object_proxy():
+            # `tf.train.TrackableView` hardcodes the `save_type` to
+            # "checkpoint". We need to subclass to use a `save_type` of
+            # "savedmodel".
             savedmodel_cache = {}
 
             class SavedModelTrackableView(tf.train.TrackableView):
@@ -365,19 +352,6 @@ class SavedModelExportArchive:
                     except TypeError as err:
                         if "missing a required argument" not in str(err):
                             raise
-                        # In SavedModel mode, TF's AutoTrackable calls
-                        # `_list_all_concrete_functions_for_serialization()`
-                        # on every tf.function it finds on a trackable.  For
-                        # Keras 3 layers whose `call()` has required keyword
-                        # arguments (beyond `inputs`), tracing with a partial
-                        # input signature raises `TypeError: missing a
-                        # required argument`.  Returning {} here is safe: the
-                        # walk is only used to collect TrackableResources (e.g.
-                        # lookup tables); layers with complex signatures do not
-                        # hold such resources.  The _DictWrapper / is_tf_type
-                        # TypeError that motivated the original workaround is
-                        # separately eliminated by
-                        # `_patch_tf_is_tf_type_for_object_proxy` above.
                         return {}
 
             # Next, track lookup tables.
