@@ -94,6 +94,10 @@ def get_dataset():
     # Make sure images have shape (28, 28, 1)
     x_train = np.expand_dims(x_train, -1)
     x_test = np.expand_dims(x_test, -1)
+
+    # Ensure label targets match PyTorch int64 requirements
+    y_train = y_train.astype("int64")
+    y_test = y_test.astype("int64")
     print("x_train shape:", x_train.shape)
 
     # Create a TensorDataset
@@ -109,8 +113,18 @@ a GPU (note the calls to `.cuda()`).
 """
 
 
-def train_model(model, dataloader, num_epochs, optimizer, loss_fn):
+def train_model(
+    model,
+    dataloader,
+    sampler,
+    num_epochs,
+    optimizer,
+    loss_fn,
+    current_gpu_index=0,
+):
     for epoch in range(num_epochs):
+        if sampler is not None:
+            sampler.set_epoch(epoch)
         running_loss = 0.0
         running_loss_count = 0
         for batch_idx, (inputs, targets) in enumerate(dataloader):
@@ -129,11 +143,12 @@ def train_model(model, dataloader, num_epochs, optimizer, loss_fn):
             running_loss += loss.item()
             running_loss_count += 1
 
-        # Print loss statistics
-        print(
-            f"Epoch {epoch + 1}/{num_epochs}, "
-            f"Loss: {running_loss / running_loss_count}"
-        )
+        # Print loss statistics on main process
+        if current_gpu_index == 0:
+            print(
+                f"Epoch {epoch + 1}/{num_epochs}, "
+                f"Loss: {running_loss / running_loss_count:.4f}"
+            )
 
 
 """
@@ -213,7 +228,7 @@ def prepare_dataloader(dataset, current_gpu_index, num_gpus, batch_size):
         dataset,
         num_replicas=num_gpus,
         rank=current_gpu_index,
-        shuffle=False,
+        shuffle=True,
     )
     dataloader = torch.utils.data.DataLoader(
         dataset,
@@ -221,7 +236,7 @@ def prepare_dataloader(dataset, current_gpu_index, num_gpus, batch_size):
         batch_size=batch_size,
         shuffle=False,
     )
-    return dataloader
+    return dataloader, sampler
 
 
 def per_device_launch_fn(current_gpu_index, num_gpu):
@@ -232,7 +247,7 @@ def per_device_launch_fn(current_gpu_index, num_gpu):
     model = get_model()
 
     # prepare the dataloader
-    dataloader = prepare_dataloader(
+    dataloader, sampler = prepare_dataloader(
         dataset, current_gpu_index, num_gpu, batch_size
     )
 
@@ -248,7 +263,15 @@ def per_device_launch_fn(current_gpu_index, num_gpu):
         model, device_ids=[current_gpu_index], output_device=current_gpu_index
     )
 
-    train_model(ddp_model, dataloader, num_epochs, optimizer, loss_fn)
+    train_model(
+        ddp_model,
+        dataloader,
+        sampler,
+        num_epochs,
+        optimizer,
+        loss_fn,
+        current_gpu_index,
+    )
 
     cleanup()
 
@@ -258,14 +281,16 @@ Time to start multiple processes:
 """
 
 if __name__ == "__main__":
-    # We use the "fork" method rather than "spawn" to support notebooks
-    torch.multiprocessing.start_processes(
-        per_device_launch_fn,
-        args=(num_gpu,),
-        nprocs=num_gpu,
-        join=True,
-        start_method="fork",
-    )
+    if num_gpu < 1:
+        print("No GPUs available for multi-GPU training.")
+    else:
+        torch.multiprocessing.start_processes(
+            per_device_launch_fn,
+            args=(num_gpu,),
+            nprocs=num_gpu,
+            join=True,
+            start_method="spawn",
+        )
 
 """
 That's it!
