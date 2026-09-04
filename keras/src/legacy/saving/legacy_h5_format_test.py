@@ -143,6 +143,16 @@ class LegacyH5WholeModelTest(testing.TestCase):
         ref_input = np.random.random((1, 3))
         self._check_reloading_model(ref_input, model)
 
+    def test_saving_preserves_compile_config(self):
+        model = models.Sequential([layers.Input((3,)), layers.Dense(2)])
+        model.compile(optimizer="adam", loss="mean_squared_error")
+        compile_config = model.get_compile_config()
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "model.h5")
+        legacy_h5_format.save_model_to_hdf5(model, temp_filepath)
+
+        self.assertEqual(model.get_compile_config(), compile_config)
+
     def test_saving_lambda(self):
         mean = ops.random.uniform((4, 2, 3))
         std = ops.abs(ops.random.uniform((4, 2, 3))) + 1e-5
