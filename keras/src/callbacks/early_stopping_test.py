@@ -17,23 +17,27 @@ class EarlyStoppingTest(testing.TestCase):
     def test_patience_zero(self):
         callbacks.EarlyStopping(patience=0)
 
-    def test_patience_improvement_below_baseline_resets_wait(self):
+    def test_patience_improvement_below_baseline_accumulates_wait(self):
         class DummyModel:
             stop_training = False
 
         stopper = callbacks.EarlyStopping(
-            monitor="val_loss", patience=0, baseline=0.3
+            monitor="val_loss", patience=2, baseline=0.3
         )
         stopper.set_model(DummyModel())
         stopper.on_train_begin()
 
         stopper.on_epoch_end(0, logs={"val_loss": 0.5})
-        self.assertEqual(stopper.wait, 0)
+        self.assertEqual(stopper.wait, 1)
         self.assertFalse(stopper.model.stop_training)
 
         stopper.on_epoch_end(1, logs={"val_loss": 0.4})
-        self.assertEqual(stopper.wait, 0)
+        self.assertEqual(stopper.wait, 2)
         self.assertFalse(stopper.model.stop_training)
+
+        stopper.on_epoch_end(2, logs={"val_loss": 0.4})
+        self.assertEqual(stopper.wait, 3)
+        self.assertTrue(stopper.model.stop_training)
 
     @pytest.mark.requires_trainable_backend
     def test_early_stopping(self):
