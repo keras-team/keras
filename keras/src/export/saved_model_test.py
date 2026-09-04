@@ -458,6 +458,31 @@ class ExportArchiveTest(testing.TestCase):
         # Test with a different batch size
         revived_model.call(tf.random.normal((6, 10)))
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="This test is native to the TF backend.",
+    )
+    def test_model_export_does_not_duplicate_variables(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+
+        model = get_model()
+        model_input = tf.random.normal((3, 10))
+        model(model_input)  # Build the model.
+
+        model.export(temp_filepath, **self.add_endpoint_kwargs)
+
+        checkpoint_path = os.path.join(temp_filepath, "variables", "variables")
+        reader = tf.train.load_checkpoint(checkpoint_path)
+        variable_shapes = reader.get_variable_to_shape_map()
+
+        num_saved_parameters = sum(
+            np.prod(shape)
+            for name, shape in variable_shapes.items()
+            if "CHECKPOINTABLE" not in name
+        )
+
+        self.assertEqual(num_saved_parameters, model.count_params())
+
     def test_low_level_model_export_with_alias(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
 

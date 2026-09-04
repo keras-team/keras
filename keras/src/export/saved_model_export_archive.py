@@ -329,15 +329,30 @@ class SavedModelExportArchive:
     def _filter_and_track_resources(self):
         """Track resources used by endpoints / referenced in `track()` calls."""
         # Start by extracting variables from endpoints.
-        fns = [self._get_concrete_fn(name) for name in self._endpoint_names]
+        fns = [
+            self._get_connected_fn(name)
+            if hasattr(self, "_get_connected_fn")
+            else self._get_concrete_fn(name)
+            for name in self._endpoint_names
+        ]
         tvs, ntvs = _list_variables_used_by_fns(fns)
-        self._tf_trackable._all_variables = list(tvs + ntvs)
+        tracked_variable_handles = {
+            v.handle.ref()
+            for v in self._tf_trackable.variables
+            if hasattr(v, "handle") and v.handle is not None
+        }
+
+        # Filter out duplicates
+        self._tf_trackable._all_variables = [
+            v
+            for v in tvs + ntvs
+            if not hasattr(v, "handle")
+            or v.handle is None
+            or v.handle.ref() not in tracked_variable_handles
+        ]
 
         # TF < 2.21 fix: see `_patch_tf_is_tf_type_for_object_proxy`.
         with _patch_tf_is_tf_type_for_object_proxy():
-            # `tf.train.TrackableView` hardcodes the `save_type` to
-            # "checkpoint". We need to subclass to use a `save_type` of
-            # "savedmodel".
             savedmodel_cache = {}
 
             class SavedModelTrackableView(tf.train.TrackableView):
