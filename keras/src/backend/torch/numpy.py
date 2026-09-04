@@ -26,6 +26,23 @@ TORCH_INT_TYPES = (
 )
 
 
+def convert_to_tensors_of_same_dtype(x1, x2, *additional_dtypes):
+    if not hasattr(x1, "dtype") and not isinstance(
+        x1, (bool, int, float, complex)
+    ):
+        x1 = convert_to_tensor(x1)
+    if not hasattr(x2, "dtype") and not isinstance(
+        x2, (bool, int, float, complex)
+    ):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+        *additional_dtypes,
+    )
+    return convert_to_tensor(x1, dtype), convert_to_tensor(x2, dtype), dtype
+
+
 def rot90(array, k=1, axes=(0, 1)):
     """Rotate an array by 90 degrees in the specified plane using PyTorch.
 
@@ -66,8 +83,7 @@ def rot90(array, k=1, axes=(0, 1)):
 
 
 def add(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2)
     return torch.add(x1, x2)
 
 
@@ -88,8 +104,7 @@ def einsum(subscripts, *operands, **kwargs):
 
 
 def subtract(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2)
     # TODO: torch.subtract doesn't support bool
     if standardize_dtype(x1.dtype) == "bool":
         x1 = cast(x1, x2.dtype)
@@ -158,8 +173,7 @@ def matmul(x1, x2):
 
 
 def multiply(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2)
     return torch.multiply(x1, x2)
 
 
@@ -208,12 +222,7 @@ def max(x, axis=None, keepdims=False, initial=None):
         else:
             return torch.tensor(initial)
 
-    if axis is None:
-        result = torch.max(x)
-    else:
-        result = amax(x, axis=axis, keepdims=keepdims)
-    if isinstance(getattr(result, "values", None), torch.Tensor):
-        result = result.values
+    result = amax(x, axis=axis, keepdims=keepdims)
 
     if initial is not None:
         dtype = to_torch_dtype(result.dtype)
@@ -298,7 +307,9 @@ def any(x, axis=None, keepdims=False):
 def amax(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if axis is None:
-        return torch.amax(x)
+        # Reduce over every dimension explicitly, since older torch versions
+        # do not accept `dim=None` for `torch.amax`.
+        axis = tuple(range(x.ndim))
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
         return x
@@ -308,7 +319,9 @@ def amax(x, axis=None, keepdims=False):
 def amin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if axis is None:
-        return torch.amin(x)
+        # Reduce over every dimension explicitly, since older torch versions
+        # do not accept `dim=None` for `torch.amin`.
+        axis = tuple(range(x.ndim))
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
         return x
@@ -366,9 +379,7 @@ def arctan(x):
 
 
 def arctan2(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    result_dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1, x2, result_dtype = convert_to_tensors_of_same_dtype(x1, x2, float)
     compute_dtype = result_dtype
     # TODO: torch.arctan2 doesn't support float16 with cpu
     if get_device() == "cpu" and compute_dtype == "float16":
@@ -421,8 +432,10 @@ def array(x, dtype=None):
 
 
 def view(x, dtype=None):
-    dtype = to_torch_dtype(dtype)
     x = convert_to_tensor(x)
+    # `to_torch_dtype(None)` resolves to `floatx()`, so the default has to be
+    # resolved to the dtype of `x` to keep it a no-op.
+    dtype = x.dtype if dtype is None else to_torch_dtype(dtype)
     return x.view(dtype=dtype)
 
 
@@ -984,10 +997,7 @@ def hsplit(x, indices_or_sections):
 
 
 def hypot(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1, x2, dtype = convert_to_tensors_of_same_dtype(x1, x2)
     if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
         dtype = config.floatx()
     elif dtype == "int64":
@@ -1206,27 +1216,18 @@ def log2(x):
 
 
 def logaddexp(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1, x2, dtype = convert_to_tensors_of_same_dtype(x1, x2, float)
 
     # TODO: torch.logaddexp doesn't support float16 with cpu
     if get_device() == "cpu" and dtype == "float16":
         x1 = cast(x1, "float32")
         x2 = cast(x2, "float32")
         return cast(torch.logaddexp(x1, x2), dtype)
-    else:
-        x1 = cast(x1, dtype)
-        x2 = cast(x2, dtype)
-        return torch.logaddexp(x1, x2)
+    return torch.logaddexp(x1, x2)
 
 
 def logaddexp2(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
-    x1 = cast(x1, dtype)
-    x2 = cast(x2, dtype)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2, float)
     return torch.logaddexp2(x1, x2)
 
 
@@ -1294,30 +1295,12 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
 
 def maximum(x1, x2):
-    if not isinstance(x1, (int, float)):
-        x1 = convert_to_tensor(x1)
-    if not isinstance(x2, (int, float)):
-        x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(
-        getattr(x1, "dtype", type(x1)),
-        getattr(x2, "dtype", type(x2)),
-    )
-    x1 = convert_to_tensor(x1, dtype)
-    x2 = convert_to_tensor(x2, dtype)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2)
     return torch.maximum(x1, x2)
 
 
 def fmax(x1, x2):
-    if not isinstance(x1, (int, float)):
-        x1 = convert_to_tensor(x1)
-    if not isinstance(x2, (int, float)):
-        x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(
-        getattr(x1, "dtype", type(x1)),
-        getattr(x2, "dtype", type(x2)),
-    )
-    x1 = convert_to_tensor(x1, dtype)
-    x2 = convert_to_tensor(x2, dtype)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2)
     return torch.fmax(x1, x2)
 
 
@@ -1346,13 +1329,7 @@ def min(x, axis=None, keepdims=False, initial=None):
         else:
             return torch.tensor(initial)
 
-    if axis is None:
-        result = torch.min(x)
-    else:
-        result = amin(x, axis=axis, keepdims=keepdims)
-
-    if isinstance(getattr(result, "values", None), torch.Tensor):
-        result = result.values
+    result = amin(x, axis=axis, keepdims=keepdims)
 
     if initial is not None:
         dtype = to_torch_dtype(result.dtype)
@@ -1362,37 +1339,17 @@ def min(x, axis=None, keepdims=False, initial=None):
 
 
 def minimum(x1, x2):
-    if not isinstance(x1, (int, float)):
-        x1 = convert_to_tensor(x1)
-    if not isinstance(x2, (int, float)):
-        x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(
-        getattr(x1, "dtype", type(x1)),
-        getattr(x2, "dtype", type(x2)),
-    )
-    x1 = convert_to_tensor(x1, dtype)
-    x2 = convert_to_tensor(x2, dtype)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2)
     return torch.minimum(x1, x2)
 
 
 def fmin(x1, x2):
-    if not isinstance(x1, (int, float)):
-        x1 = convert_to_tensor(x1)
-    if not isinstance(x2, (int, float)):
-        x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(
-        getattr(x1, "dtype", type(x1)),
-        getattr(x2, "dtype", type(x2)),
-    )
-    x1 = convert_to_tensor(x1, dtype)
-    x2 = convert_to_tensor(x2, dtype)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2)
     return torch.fmin(x1, x2)
 
 
 def mod(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1, x2, dtype = convert_to_tensors_of_same_dtype(x1, x2)
     if dtype == "bool":
         x1 = cast(x1, "int32")
         x2 = cast(x2, "int32")
@@ -1400,9 +1357,7 @@ def mod(x1, x2):
 
 
 def fmod(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1, x2, dtype = convert_to_tensors_of_same_dtype(x1, x2)
     if dtype == "bool":
         x1 = cast(x1, "int32")
         x2 = cast(x2, "int32")
@@ -1658,6 +1613,11 @@ def pad(x, pad_width, mode="constant", constant_values=None):
             )
         kwargs["value"] = constant_values
     x = convert_to_tensor(x)
+    if len(pad_width) == 1:
+        # A single `(before, after)` pair broadcasts to every axis, matching
+        # `np.pad`. `torch.nn.functional.pad` needs a per-axis spec, so expand
+        # it here.
+        pad_width = [pad_width[0]] * x.ndim
     if mode == "symmetric":
         # torch has no "symmetric" pad, so mirror manually (including the edge
         # value). `replicate` only repeats the edge and is numpy's "edge" mode.
@@ -1733,7 +1693,13 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     if get_device() == "cpu" and compute_dtype == "float16":
         compute_dtype = "float32"
     if axis is None:
-        return cast(torch.prod(x, dtype=to_torch_dtype(compute_dtype)), dtype)
+        # `torch.prod` reduces a single axis at a time and does not accept
+        # `dim=None`, so reduce everything and restore the rank if needed.
+        ndim = x.ndim
+        x = cast(torch.prod(x, dtype=to_torch_dtype(compute_dtype)), dtype)
+        if keepdims:
+            x = torch.reshape(x, (1,) * ndim)
+        return x
     axis = to_tuple_or_list(axis)
     axis = [canonicalize_axis(a, x.ndim) for a in axis]
     for a in sorted(axis, reverse=True):
@@ -2190,21 +2156,12 @@ def where(condition, x1=None, x2=None):
 
 
 def divide(x1, x2):
-    if not isinstance(x1, (int, float)):
-        x1 = convert_to_tensor(x1)
-    if not isinstance(x2, (int, float)):
-        x2 = convert_to_tensor(x2)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2, float)
     return torch.divide(x1, x2)
 
 
 def divide_no_nan(x1, x2):
-    dtype = dtypes.result_type(
-        getattr(x1, "dtype", type(x1)),
-        getattr(x2, "dtype", type(x2)),
-        float,
-    )
-    x1 = convert_to_tensor(x1, dtype)
-    x2 = convert_to_tensor(x2, dtype)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2, float)
     safe_x2 = torch.where(x2 == 0, torch.ones_like(x2), x2)
     return torch.where(x2 == 0, 0, torch.divide(x1, safe_x2))
 
@@ -2214,7 +2171,7 @@ def true_divide(x1, x2):
 
 
 def power(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2)
     return torch.pow(x1, x2)
 
 
@@ -2224,10 +2181,7 @@ def negative(x):
 
 
 def nextafter(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1, x2, dtype = convert_to_tensors_of_same_dtype(x1, x2, float)
     x1 = cast(x1, torch.float64)
     x2 = cast(x2, torch.float64)
     return cast(torch.nextafter(x1, x2), dtype)
@@ -2305,9 +2259,7 @@ def sum(x, axis=None, keepdims=False):
     # TODO: torch doesn't support uint32
     if dtype in ("bool", "uint8", "int8", "int16"):
         dtype = "int32"
-    if axis is not None:
-        return cast(torch.sum(x, axis=axis, keepdim=keepdims), dtype)
-    return cast(torch.sum(x), dtype)
+    return cast(torch.sum(x, dim=axis, keepdim=keepdims), dtype)
 
 
 def eye(N, M=None, k=0, dtype=None):
@@ -2330,14 +2282,7 @@ def eye(N, M=None, k=0, dtype=None):
 
 
 def floor_divide(x1, x2):
-    if not isinstance(x1, (int, float)):
-        x1 = convert_to_tensor(x1)
-    if not isinstance(x2, (int, float)):
-        x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(
-        getattr(x1, "dtype", type(x1)),
-        getattr(x2, "dtype", type(x2)),
-    )
+    x1, x2, dtype = convert_to_tensors_of_same_dtype(x1, x2)
     return cast(torch.floor_divide(x1, x2), dtype)
 
 
@@ -2547,4 +2492,6 @@ def dsplit(x, indices_or_sections):
 
 def column_stack(xs):
     xs = [convert_to_tensor(x) for x in xs]
+    dtype = dtypes.result_type(*(x.dtype for x in xs))
+    xs = [cast(x, dtype) for x in xs]
     return torch.column_stack(xs)

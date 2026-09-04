@@ -125,6 +125,17 @@ def gptq_quantize_matrix(
     # Compute effective group size
     effective_group = in_features if group_size == -1 else group_size
 
+    # Per-group cached params, reused until the column index crosses into
+    # the next group. The cache must live across processing blocks: a group
+    # can span several blocks (`group_size == -1` covers the whole matrix,
+    # and `group_size > blocksize` covers more than one block). Resetting it
+    # per block would recompute and re-append the same group's params once
+    # per block, corrupting the [out_features, n_groups] scale/zero layout.
+    cached_scale = None
+    cached_zero = None
+    cached_maxq = None
+    cached_group_start = -1
+
     # Process features in blocks
     for block_start in range(0, in_features, blocksize):
         block_end = min(block_start + blocksize, in_features)
@@ -139,12 +150,6 @@ def gptq_quantize_matrix(
         block_inv_hessian = inv_hessian[
             block_start:block_end, block_start:block_end
         ]
-
-        # Per-group cached params for reuse within the group
-        cached_scale = None
-        cached_zero = None
-        cached_maxq = None
-        cached_group_start = -1
 
         for block_idx in range(block_size):
             # Current global column index, represents the original column
@@ -201,8 +206,8 @@ def gptq_quantize_matrix(
             # block_inv_hessian_diag: scalar
             current_block_influence = block_inv_hessian[block_idx, block_idx]
             # We divide by current_block_influence to get the
-            # correct scaling of the error term.
-            err = ops.divide(
+            # correct scaling of the error term. Prevent division by zero.
+            err = ops.divide_no_nan(
                 ops.subtract(weight_column, dequantized_col),
                 current_block_influence,
             )

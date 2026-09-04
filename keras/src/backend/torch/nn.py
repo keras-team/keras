@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as tnn
 from torch.distributed.tensor import DTensor
+from torch.distributed.tensor import Replicate
 
 from keras.src import backend
 from keras.src.backend.common.backend_utils import canonicalize_axis
@@ -211,10 +212,10 @@ def sparsemax(x, axis=-1):
     support = logits_sorted - (logits_cumsum - 1) / r > 0
     # Find the threshold
     k = torch.sum(support, dim=axis, keepdim=True)
-    logits_cumsum_safe = torch.where(
-        support, logits_cumsum, torch.tensor(0.0, device=logits.device)
+    logits_sorted_safe = torch.where(
+        support, logits_sorted, torch.tensor(0.0, device=logits.device)
     )
-    tau = (torch.sum(logits_cumsum_safe, dim=axis, keepdim=True) - 1) / k
+    tau = (torch.sum(logits_sorted_safe, dim=axis, keepdim=True) - 1) / k
     output = torch.clamp(logits - tau, min=0.0)
     return output
 
@@ -1452,6 +1453,18 @@ def _can_use_flash_attention(
     query, key, value, mask=None, is_causal=False, raise_error=False
 ):
     """Verify the availability of flash attention."""
+    if (
+        not raise_error
+        and hasattr(torch.compiler, "is_compiling")
+        and torch.compiler.is_compiling()
+    ):
+        # The probe below constructs a pybind11 `SDPAParams` object, which
+        # dynamo cannot trace, so it breaks the graph at every attention call.
+        # Skipping it is safe: `scaled_dot_product_attention` still selects the
+        # flash kernel when the inputs allow. Auto-detection only, so an
+        # explicit `flash_attention=True` still reports an unsupported input.
+        return False
+
     try:
         from torch.backends.cuda import SDPAParams
         from torch.backends.cuda import can_use_flash_attention
@@ -1521,18 +1534,6 @@ def dot_product_attention(
     key = cast(key, compute_dtype)
     value = cast(value, compute_dtype)
 
-    is_dtensor = isinstance(query, DTensor)
-    if is_dtensor:
-        device_mesh = query.device_mesh
-        placements = query.placements
-        query = query.to_local()
-        key = key.to_local() if hasattr(key, "to_local") else key
-        value = value.to_local() if hasattr(value, "to_local") else value
-        if mask is not None:
-            mask = mask.to_local() if hasattr(mask, "to_local") else mask
-        if bias is not None:
-            bias = bias.to_local() if hasattr(bias, "to_local") else bias
-
     mask = mask if mask is None else convert_to_tensor(mask, dtype="bool")
     if mask is not None:
         if is_causal:
@@ -1546,6 +1547,13 @@ def dot_product_attention(
                     (q_len, kv_len), dtype=torch.bool, device=mask.device
                 )
             )
+            if isinstance(mask, DTensor):
+                causal_mask = DTensor.from_local(
+                    causal_mask,
+                    mask.device_mesh,
+                    [Replicate()] * mask.device_mesh.ndim,
+                )
+                causal_mask = causal_mask.to(mask.to_local().device)
             mask = torch.logical_and(mask, causal_mask)
         # Explicitly set `is_causal` to `False` when `mask` is not `None`.
         is_causal = False
@@ -1565,6 +1573,16 @@ def dot_product_attention(
         groups = num_query_heads // num_kv_heads
         key = torch.repeat_interleave(key, repeats=groups, dim=1)
         value = torch.repeat_interleave(value, repeats=groups, dim=1)
+
+    is_dtensor = isinstance(query, DTensor)
+    if is_dtensor:
+        device_mesh = query.device_mesh
+        placements = query.placements
+        query = query.to_local()
+        key = key.to_local() if hasattr(key, "to_local") else key
+        value = value.to_local() if hasattr(value, "to_local") else value
+        if mask is not None:
+            mask = mask.to_local() if hasattr(mask, "to_local") else mask
 
     if flash_attention is None:
         flash_attention = _can_use_flash_attention(

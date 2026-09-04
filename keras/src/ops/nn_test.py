@@ -1,4 +1,6 @@
 import math
+import os
+import socket
 from itertools import combinations
 from unittest import mock
 
@@ -7,6 +9,9 @@ import pytest
 from absl.testing import parameterized
 
 import keras
+from keras.distribution import DeviceMesh
+from keras.distribution import TensorLayout
+from keras.distribution import initialize
 from keras.src import backend
 from keras.src import layers
 from keras.src import losses
@@ -16,6 +21,8 @@ from keras.src import testing
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.backend.torch.core import get_device
+from keras.src.backend.torch.distribution_lib import distribute_data_input
 from keras.src.layers.convolutional.conv_test import np_conv1d
 from keras.src.layers.convolutional.conv_test import np_conv2d
 from keras.src.layers.convolutional.conv_test import np_conv3d
@@ -1404,10 +1411,15 @@ class NNOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knn.layer_normalization(x, gamma, beta).shape, x.shape)
 
     def test_polar(self):
-        abs_ = KerasTensor([1, 2])
+        abs_ = KerasTensor([3, 4])
         angle = KerasTensor([3, 4])
         out = knn.polar(abs_, angle)
         self.assertEqual(out.shape, abs_.shape)
+        self.assertEqual(out.dtype, "complex64")
+
+        # `polar` broadcasts its two inputs against each other.
+        out = knn.polar(KerasTensor([2, 1]), KerasTensor([1, 3]))
+        self.assertEqual(out.shape, (2, 3))
 
 
 class NNOpsCorrectnessTest(testing.TestCase):
@@ -1677,6 +1689,14 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             out, [-0.41614684 + 0.9092974j, -1.979985 + 0.28224j], atol=1e-3
         )
+        # The symbolic dtype must match the eager one, which is complex.
+        symbolic_out = knn.Polar().symbolic_call(
+            KerasTensor((2,), dtype="float32"),
+            KerasTensor((2,), dtype="float32"),
+        )
+        self.assertEqual(
+            backend.standardize_dtype(out.dtype), symbolic_out.dtype
+        )
 
     def test_sparsemax(self):
         x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
@@ -1684,6 +1704,12 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.sparsemax(x),
             [0.0, 0.0, 0.0, 0.0, 1.0],
         )
+
+        # The case above has a support of size one, where the threshold is
+        # just the largest logit. Closely spaced logits keep more than one
+        # coordinate in the support and exercise the threshold itself.
+        x = np.array([0.0, 0.5, 1.0], dtype=np.float32)
+        self.assertAllClose(knn.sparsemax(x), [0.0, 0.25, 0.75])
 
     def test_max_pool(self):
         data_format = backend.config.image_data_format()
@@ -2850,15 +2876,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
 
     @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only")
     def test_dot_product_attention_dtensor(self):
-        import os
-        import socket
-
         import torch
-        from torch.distributed.device_mesh import DeviceMesh as TorchDeviceMesh
-        from torch.distributed.tensor import DTensor
-        from torch.distributed.tensor import Replicate
-
-        from keras.src.backend.torch import distribution_lib as torch_dist_lib
 
         def get_free_port():
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -2872,45 +2890,53 @@ class NNOpsCorrectnessTest(testing.TestCase):
 
         try:
             if not torch.distributed.is_initialized():
-                torch_dist_lib.initialize(num_processes=1, process_id=0)
+                initialize(num_processes=1, process_id=0)
 
-            mesh_device = "cpu"
-            mesh = TorchDeviceMesh(mesh_device, np.array([0]))
-            B, T, S, N, H = 2, 4, 4, 2, 8
-            query_local = torch.rand((B, T, N, H), device=mesh_device)
-            key_local = torch.rand((B, S, N, H), device=mesh_device)
-            value_local = torch.rand((B, S, N, H), device=mesh_device)
-
-            query = DTensor.from_local(query_local, mesh, [Replicate()])
-            key = DTensor.from_local(key_local, mesh, [Replicate()])
-            value = DTensor.from_local(value_local, mesh, [Replicate()])
-
-            result = knn.dot_product_attention(query, key, value)
-            self.assertIsInstance(result, DTensor)
-            self.assertEqual(result.shape, (B, T, N, H))
-
-            mask_local = torch.tril(
-                torch.ones((B, N, T, S), dtype=torch.bool, device=mesh_device)
+            device_type = get_device().split(":")[0]
+            mesh = DeviceMesh(
+                shape=(1,), axis_names=("data",), devices=[f"{device_type}:0"]
             )
-            mask = DTensor.from_local(mask_local, mesh, [Replicate()])
+            layout = TensorLayout(
+                axes=(None, None, None, None), device_mesh=mesh
+            )
+
+            B, T, S, N, H = 2, 4, 4, 2, 8
+            query_local = torch.rand((B, T, N, H), device="cpu")
+            key_local = torch.rand((B, S, N, H), device="cpu")
+            value_local = torch.rand((B, S, N, H), device="cpu")
+
+            query = distribute_data_input(query_local, layout)
+            key = distribute_data_input(key_local, layout)
+            value = distribute_data_input(value_local, layout)
+
+            # Test without mask
+            result = knn.dot_product_attention(query, key, value)
+            self.assertTrue(hasattr(result, "to_local"))
+            expected = knn.dot_product_attention(
+                query_local.to(get_device()),
+                key_local.to(get_device()),
+                value_local.to(get_device()),
+            )
+            self.assertAllClose(result, expected)
+
+            # Test with mask and is_causal
+            mask_local = torch.tril(
+                torch.ones((B, N, T, S), dtype=torch.bool, device="cpu")
+            )
+            mask = distribute_data_input(mask_local, layout)
 
             result_mask = knn.dot_product_attention(
                 query, key, value, mask=mask, is_causal=True
             )
-            self.assertIsInstance(result_mask, DTensor)
-            self.assertEqual(result_mask.shape, (B, T, N, H))
-
-            expected_local = knn.dot_product_attention(
-                query_local,
-                key_local,
-                value_local,
-                mask=mask_local,
+            self.assertTrue(hasattr(result_mask, "to_local"))
+            expected_mask = knn.dot_product_attention(
+                query_local.to(get_device()),
+                key_local.to(get_device()),
+                value_local.to(get_device()),
+                mask=mask_local.to(get_device()),
                 is_causal=True,
             )
-            self.assertTrue(
-                torch.allclose(result_mask.to_local(), expected_local)
-            )
-
+            self.assertAllClose(result_mask, expected_mask)
         finally:
             if old_addr is None:
                 os.environ.pop("MASTER_ADDR", None)
@@ -3343,6 +3369,25 @@ class NNOpsDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knn.SparseSigmoid().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_sparsemax(self, dtype):
+        # `jax.nn` has no `sparsemax`, so there is no reference to compare
+        # against. `sparsemax` is a projection onto the simplex and returns the
+        # dtype it is given. The ranks and counts inside the implementation are
+        # integers and the constants are Python floats; neither may promote the
+        # result away from that dtype.
+        x = knp.ones((2,), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertEqual(
+            standardize_dtype(knn.sparsemax(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Sparsemax().symbolic_call(x).dtype),
             expected_dtype,
         )
 
