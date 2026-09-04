@@ -1089,6 +1089,10 @@ class BinaryCrossentropyTest(testing.TestCase):
             losses.binary_crossentropy(
                 [[0.0, 1.0]], [[0.6, 0.4]], label_smoothing=True
             )
+        with self.assertRaisesRegex(ValueError, "must be a float or int"):
+            losses.binary_crossentropy(
+                [[0.0, 1.0]], [[0.6, 0.4]], label_smoothing=np.bool_(True)
+            )
         with self.assertRaisesRegex(ValueError, "label_smoothing.*range"):
             losses.binary_crossentropy(
                 [[0.0, 1.0]], [[0.6, 0.4]], label_smoothing=np.float32(-0.1)
@@ -1255,6 +1259,12 @@ class CategoricalCrossentropyTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "must be a float or int"):
             losses.categorical_crossentropy(
                 [[1.0, 0.0, 0.0]], [[0.8, 0.1, 0.1]], label_smoothing=True
+            )
+        with self.assertRaisesRegex(ValueError, "must be a float or int"):
+            losses.categorical_crossentropy(
+                [[1.0, 0.0, 0.0]],
+                [[0.8, 0.1, 0.1]],
+                label_smoothing=np.bool_(True),
             )
         with self.assertRaisesRegex(ValueError, "label_smoothing.*range"):
             losses.categorical_crossentropy(

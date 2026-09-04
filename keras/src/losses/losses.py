@@ -1,3 +1,4 @@
+import numbers
 import warnings
 
 from keras.src import backend
@@ -2184,22 +2185,20 @@ def categorical_crossentropy(
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
 
-    if isinstance(label_smoothing, bool):
-        raise ValueError(
-            "`label_smoothing` must be a float or int. "
-            f"Received: label_smoothing={label_smoothing}"
-        )
     if not ops.is_tensor(label_smoothing):
-        if isinstance(label_smoothing, (int, float)) or (
-            hasattr(label_smoothing, "__float__")
-            and not isinstance(label_smoothing, (str, bytes))
+        if isinstance(label_smoothing, bool) or not isinstance(
+            label_smoothing, numbers.Real
         ):
-            value = float(label_smoothing)
-            if not 0 <= value <= 1:
-                raise ValueError(
-                    "`label_smoothing` must be in the range [0, 1]. "
-                    f"Received: label_smoothing={label_smoothing}"
-                )
+            raise ValueError(
+                "`label_smoothing` must be a float or int. "
+                f"Received: label_smoothing={label_smoothing}"
+            )
+        value = float(label_smoothing)
+        if not 0 <= value <= 1:
+            raise ValueError(
+                "`label_smoothing` must be in the range [0, 1]. "
+                f"Received: label_smoothing={label_smoothing}"
+            )
 
     if y_pred.shape is not None:
         axis = canonicalize_axis(axis, len(y_pred.shape))
@@ -2428,22 +2427,20 @@ def binary_crossentropy(
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
 
-    if isinstance(label_smoothing, bool):
-        raise ValueError(
-            "`label_smoothing` must be a float or int. "
-            f"Received: label_smoothing={label_smoothing}"
-        )
     if not ops.is_tensor(label_smoothing):
-        if isinstance(label_smoothing, (int, float)) or (
-            hasattr(label_smoothing, "__float__")
-            and not isinstance(label_smoothing, (str, bytes))
+        if isinstance(label_smoothing, bool) or not isinstance(
+            label_smoothing, numbers.Real
         ):
-            value = float(label_smoothing)
-            if not 0 <= value <= 1:
-                raise ValueError(
-                    "`label_smoothing` must be in the range [0, 1]. "
-                    f"Received: label_smoothing={label_smoothing}"
-                )
+            raise ValueError(
+                "`label_smoothing` must be a float or int. "
+                f"Received: label_smoothing={label_smoothing}"
+            )
+        value = float(label_smoothing)
+        if not 0 <= value <= 1:
+            raise ValueError(
+                "`label_smoothing` must be in the range [0, 1]. "
+                f"Received: label_smoothing={label_smoothing}"
+            )
 
     if label_smoothing:
         y_true = y_true * (1.0 - label_smoothing) + 0.5 * label_smoothing
