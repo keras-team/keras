@@ -23,7 +23,10 @@ COMPLEX_TYPES = ("complex64", "complex128")
 # Ref: https://github.com/google/jax/issues/16705
 FLOAT8_TYPES = ("float8_e4m3fn", "float8_e5m2")
 
-# All supported dtypes in Keras
+# All supported dtypes in Keras. Kept as an ordered tuple: several test suites
+# build parametrized cases by iterating it, and pytest-xdist requires a
+# deterministic collection order across workers (a set/frozenset iterates in
+# hash-randomized order that differs per process).
 ALLOWED_DTYPES = (
     "float16",
     "float32",
@@ -44,6 +47,9 @@ ALLOWED_DTYPES = (
     "complex64",
     "complex128",
 )
+# O(1) membership set for the hot path in standardize_dtype (called 2-4x per
+# layer call). Derived from ALLOWED_DTYPES so the two never drift.
+ALLOWED_DTYPES_SET = frozenset(ALLOWED_DTYPES)
 PYTHON_DTYPES_MAP = {
     bool: "bool",
     int: "int64" if config.backend() == "tensorflow" else "int32",
