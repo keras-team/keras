@@ -24,6 +24,34 @@ from keras.src.saving import serialization_lib
 from keras.src.utils import tracking
 
 
+def _match_expected_structure(expected, provided):
+    """Map provided inputs onto the expected nested structure.
+
+    Entries are matched by path rather than by flattening order, so extra
+    dict keys cannot shift the alignment of the remaining inputs. Recursion
+    is delegated to the `tree` API so that every registered structure type
+    is handled, not just dicts, lists and tuples.
+
+    Extra entries in `provided` are dropped with a warning. Raises
+    `ValueError` if `provided` is missing anything `expected` requires.
+    """
+    err_msg = "The structure of `inputs` doesn't match the expected structure"
+    provided_by_path = dict(tree.flatten_with_path(provided))
+    expected_paths = [path for path, _ in tree.flatten_with_path(expected)]
+
+    if any(path not in provided_by_path for path in expected_paths):
+        raise ValueError(err_msg)
+    if len(provided_by_path) > len(expected_paths):
+        warnings.warn(
+            f"{err_msg}. Extra fields were ignored.",
+            UserWarning,
+            stacklevel=4,
+        )
+    return tree.pack_sequence_as(
+        expected, [provided_by_path[path] for path in expected_paths]
+    )
+
+
 class Functional(Function, Model):
     """A `Functional` model is a `Model` defined as a directed graph of layers.
 
@@ -335,6 +363,8 @@ class Functional(Function, Model):
             and ops.is_tensor(inputs)
         ):
             inputs = [inputs]
+        elif isinstance(inputs, dict) and isinstance(self._inputs_struct, dict):
+            inputs = _match_expected_structure(self._inputs_struct, inputs)
         elif isinstance(inputs, dict) and not isinstance(
             self._inputs_struct, dict
         ):
@@ -356,6 +386,17 @@ class Functional(Function, Model):
                     raise_exception = True
             else:
                 raise_exception = True
+        else:
+            # Drop extra dict keys nested inside other structures, e.g.
+            # `[{"a": x, "extra": y}]`. Entries are matched by path so extra
+            # keys cannot misalign the remaining inputs. If the structures
+            # are not otherwise reconcilable, leave `inputs` untouched and
+            # let the existing mismatch handling report it, since it gives a
+            # more precise message than a generic structure error.
+            try:
+                inputs = _match_expected_structure(self._inputs_struct, inputs)
+            except ValueError:
+                pass
         if (
             isinstance(self._inputs_struct, dict)
             and not isinstance(inputs, dict)
@@ -421,6 +462,16 @@ class Functional(Function, Model):
                     for name in names
                 ]
             return None  # Deeply nested dict: skip checks.
+        if any(
+            isinstance(key, str)
+            for path, _ in tree.flatten_with_path(self._inputs_struct)
+            for key in path
+        ):
+            # Dict nested inside another structure, e.g. `[{"a": ...}]`.
+            # Flat specs cannot describe this, and comparing them against
+            # the flattened inputs would reject extra dict keys before
+            # `_standardize_inputs` gets a chance to drop them.
+            return None
         return [make_spec_for_tensor(x) for x in self.inputs]
 
     @input_spec.setter
