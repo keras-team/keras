@@ -1698,6 +1698,12 @@ class NNOpsCorrectnessTest(testing.TestCase):
             [0.0, 0.0, 0.0, 0.0, 1.0],
         )
 
+        # The case above has a support of size one, where the threshold is
+        # just the largest logit. Closely spaced logits keep more than one
+        # coordinate in the support and exercise the threshold itself.
+        x = np.array([0.0, 0.5, 1.0], dtype=np.float32)
+        self.assertAllClose(knn.sparsemax(x), [0.0, 0.25, 0.75])
+
     def test_max_pool(self):
         data_format = backend.config.image_data_format()
         # Test 1D max pooling.
@@ -3280,6 +3286,25 @@ class NNOpsDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knn.SparseSigmoid().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_sparsemax(self, dtype):
+        # `jax.nn` has no `sparsemax`, so there is no reference to compare
+        # against. `sparsemax` is a projection onto the simplex and returns the
+        # dtype it is given. The ranks and counts inside the implementation are
+        # integers and the constants are Python floats; neither may promote the
+        # result away from that dtype.
+        x = knp.ones((2,), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertEqual(
+            standardize_dtype(knn.sparsemax(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Sparsemax().symbolic_call(x).dtype),
             expected_dtype,
         )
 
