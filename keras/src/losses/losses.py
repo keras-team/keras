@@ -1,6 +1,8 @@
 import numbers
 import warnings
 
+import numpy as np
+
 from keras.src import backend
 from keras.src import ops
 from keras.src import tree
@@ -2185,8 +2187,8 @@ def categorical_crossentropy(
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
 
-    if not ops.is_tensor(label_smoothing):
-        if isinstance(label_smoothing, bool) or not isinstance(
+    if not ops.is_tensor(label_smoothing) or np.isscalar(label_smoothing):
+        if isinstance(label_smoothing, (bool, np.bool_)) or not isinstance(
             label_smoothing, numbers.Real
         ):
             raise ValueError(
@@ -2427,8 +2429,8 @@ def binary_crossentropy(
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
 
-    if not ops.is_tensor(label_smoothing):
-        if isinstance(label_smoothing, bool) or not isinstance(
+    if not ops.is_tensor(label_smoothing) or np.isscalar(label_smoothing):
+        if isinstance(label_smoothing, (bool, np.bool_)) or not isinstance(
             label_smoothing, numbers.Real
         ):
             raise ValueError(
