@@ -129,6 +129,9 @@ def selu(x):
 
 def gelu(x, approximate=True):
     x = convert_to_tensor(x)
+    # `tf.nn.gelu` does not accept integer or bool dtypes. Promote the way
+    # the JAX backend already does.
+    x = cast(x, backend.result_type(x.dtype, float))
     return tf.nn.gelu(x, approximate=approximate)
 
 

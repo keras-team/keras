@@ -640,7 +640,9 @@ class Gelu(Operation):
         return backend.nn.gelu(x, self.approximate)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        # `gelu` promotes integer and bool inputs to float, so the symbolic
+        # dtype has to match what eager execution returns.
+        return KerasTensor(x.shape, dtype=backend.result_type(x.dtype, float))
 
 
 @keras_export(["keras.ops.gelu", "keras.ops.nn.gelu"])

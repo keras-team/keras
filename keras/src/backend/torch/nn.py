@@ -125,6 +125,9 @@ def selu(x):
 def gelu(x, approximate=True):
     # TODO: torch.nn.gelu expects string approximate of `"none"` or `"tanh"`
     x = convert_to_tensor(x)
+    # `torch.nn.functional.gelu` is not implemented for integer or bool
+    # dtypes. Promote the way the JAX backend already does.
+    x = cast(x, backend.result_type(x.dtype, float))
     if approximate:
         return tnn.gelu(x, approximate="tanh")
     return tnn.gelu(x)
