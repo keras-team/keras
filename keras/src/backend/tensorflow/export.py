@@ -34,7 +34,6 @@ class TFExportArchive(SavedModelExportArchive):
         # tracked directly so that
         # TensorFlow recognizes them as tracked resources during
         # SavedModel export.
-        #
         # Replacing the variable collections with the
         # endpoint-captured variables
         # avoids creating a second Trackable path through `_all_variables`,
