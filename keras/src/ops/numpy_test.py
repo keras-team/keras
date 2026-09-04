@@ -13156,3 +13156,27 @@ class TileTest(testing.TestCase):
         output = TileLayer()(inputs)
 
         self.assertEqual(output.shape, (None, 6, 2, 2))
+
+    def test_tile_with_symbolic_repeats(self):
+        # `repeats` mixes Python ints with a symbolic batch dim
+        # used to broadcast a class token across a dynamic batch.
+        class TileClsToken(keras.layers.Layer):
+            def build(self, input_shape):
+                self.token = self.add_weight(
+                    shape=(1, 1, 8), initializer="ones"
+                )
+
+            def call(self, x):
+                batch_size = ops.shape(x)[0]
+                token = knp.tile(self.token, (batch_size, 1, 1))
+                return knp.concatenate([token, x], axis=1)
+
+        x = np.zeros((2, 4, 8), dtype="float32")
+        expected = np.concatenate([np.ones((2, 1, 8), "float32"), x], axis=1)
+
+        self.assertAllClose(TileClsToken()(x), expected)
+
+        inputs = keras.Input(shape=(4, 8))
+        model = keras.Model(inputs, TileClsToken()(inputs))
+
+        self.assertAllClose(model.predict(x), expected)
