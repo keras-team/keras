@@ -4044,7 +4044,7 @@ class Hsplit(Operation):
         self.indices_or_sections = indices_or_sections
 
     def call(self, x):
-        return backend.numpy.hsplit(x, self.indices_or_sections)
+        return _hsplit(x, self.indices_or_sections)
 
     def compute_output_spec(self, x):
         if len(x.shape) < 1:
@@ -4099,7 +4099,19 @@ def hsplit(x, indices_or_sections):
     """
     if any_symbolic_tensors((x,)):
         return Hsplit(indices_or_sections).symbolic_call(x)
-    return backend.numpy.hsplit(x, indices_or_sections)
+    return _hsplit(x, indices_or_sections)
+
+
+def _hsplit(x, indices_or_sections):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.numpy, "hsplit"
+    ):
+        return backend.numpy.hsplit(x, indices_or_sections)
+    x = backend.convert_to_tensor(x)
+    # 1D inputs are split along axis=0. Inputs with 2 or more dimensions are
+    # split along axis=1.
+    axis = 0 if len(x.shape) == 1 else 1
+    return ops.split(x, indices_or_sections, axis=axis)
 
 
 class Hypot(Operation):
