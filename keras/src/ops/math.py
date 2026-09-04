@@ -707,7 +707,6 @@ def gammaincc(x1, x2):
         function evaluated elementwise.
 
     Example:
-
     >>> x1 = keras.ops.convert_to_tensor([1.0, 2.0, 3.0])
     >>> x2 = keras.ops.convert_to_tensor([0.5, 1.0, 2.0])
     >>> keras.ops.gammaincc(x1, x2)
