@@ -91,9 +91,10 @@ def vectorized_map(function, elements):
         for i, x in enumerate(elements):
             if x.shape[0] != batch_size:
                 raise ValueError(
-                    "All elements passed to `vectorized_map` must have the same batch size "
-                    f"(dimension 0). Element at index 0 has batch size {batch_size}, "
-                    f"but element at index {i} has batch size {x.shape[0]}."
+                    "All elements passed to `vectorized_map` must have the "
+                    f"same batch size (dimension 0). Element at index 0 has "
+                    f"batch size {batch_size}, but element at index {i} has "
+                    f"batch size {x.shape[0]}."
                 )
         output_store = [function(list(x)) for x in zip(*elements)]
         return np.stack(output_store)
