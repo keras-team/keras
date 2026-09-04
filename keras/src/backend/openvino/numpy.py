@@ -4671,12 +4671,17 @@ def trunc(x):
 def tile(x, repeats):
     x = get_ov_output(x)
 
-    if isinstance(repeats, int):
+    if isinstance(repeats, (int, OpenVINOKerasTensor)):
         repeats = [repeats]
-    repeats = get_ov_output(repeats)
+    if isinstance(repeats, (list, tuple)):
+        # `repeats` may mix Python ints with symbolic dimensions, 
+        # which cannot be folded into a single constant.
+        repeats = shape_to_ov_output(list(repeats))
+    else:
+        repeats = get_ov_output(repeats)
 
     if repeats.get_element_type() != Type.i64:
-        repeats = ov_opset.convert(repeats, Type.i64)
+        repeats = ov_opset.convert(repeats, Type.i64).output(0)
 
     if len(repeats.get_partial_shape()) != 1:
         repeats = ov_opset.reshape(repeats, [-1], False)
