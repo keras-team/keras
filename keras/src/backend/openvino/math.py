@@ -954,6 +954,12 @@ def gammainc(x1, x2):
     )
 
 
+def gammaincc(x1, x2):
+    raise NotImplementedError(
+        "`gammaincc` is not supported with openvino backend"
+    )
+
+
 def logdet(x):
     from keras.src.backend.openvino.numpy import slogdet
 

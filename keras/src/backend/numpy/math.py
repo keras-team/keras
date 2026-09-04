@@ -353,6 +353,13 @@ def gammainc(x1, x2):
     return scipy.special.gammainc(x1, x2).astype(dtype)
 
 
+def gammaincc(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    return scipy.special.gammaincc(x1, x2).astype(dtype)
+
+
 def lgamma(x):
     x = convert_to_tensor(x)
     dtype = dtypes.result_type(x.dtype, float)

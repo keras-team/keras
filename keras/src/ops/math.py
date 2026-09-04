@@ -678,6 +678,45 @@ def gammainc(x1, x2):
     return backend.math.gammainc(x1, x2)
 
 
+class Gammaincc(Operation):
+    def compute_output_spec(self, x1, x2):
+        output_shape = broadcast_shapes(x1.shape, x2.shape)
+        return KerasTensor(
+            shape=output_shape,
+            dtype=result_type(x1.dtype, x2.dtype, float),
+        )
+
+    def call(self, x1, x2):
+        return backend.math.gammaincc(x1, x2)
+
+
+@keras_export("keras.ops.gammaincc")
+def gammaincc(x1, x2):
+    """Computes the regularized upper incomplete gamma function.
+    The regularized upper incomplete gamma function is defined as:
+    Q(x1, x2) = 1 / Γ(x1) * ∫ₓ₂^∞ t^(x1 - 1) e^(-t) dt
+    where `Γ(x1)` is the gamma function.
+
+    Args:
+        x1: A tensor containing the shape parameter.
+        x2: A tensor containing the lower limit of integration.
+            Must be broadcast-compatible with `x1`.
+
+    Returns:
+        A tensor containing the regularized upper incomplete gamma
+        function evaluated elementwise.
+
+    Example:
+    >>> x1 = keras.ops.convert_to_tensor([1.0, 2.0, 3.0])
+    >>> x2 = keras.ops.convert_to_tensor([0.5, 1.0, 2.0])
+    >>> keras.ops.gammaincc(x1, x2)
+    array([0.60653067, 0.7357589 , 0.6766764 ], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Gammaincc().symbolic_call(x1, x2)
+    return backend.math.gammaincc(x1, x2)
+
+
 class IFFT2(Operation):
     def compute_output_spec(self, x):
         axes = (-2, -1)
