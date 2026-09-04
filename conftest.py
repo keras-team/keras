@@ -56,6 +56,16 @@ def pytest_collection_modifyitems(config, items):
         import jax
 
         has_multiple_devices = jax.device_count() > 1
+    elif backend() == "torch":
+        import torch
+
+        if torch.cuda.is_available():
+            has_multiple_devices = torch.cuda.device_count() > 1
+        elif torch.backends.mps.is_available():
+            # MPS doesn't support multiple devices in the same way usually
+            has_multiple_devices = False
+        elif hasattr(torch, "xpu") and torch.xpu.is_available():
+            has_multiple_devices = torch.xpu.device_count() > 1
 
     requires_trainable_backend = pytest.mark.skipif(
         backend() in ["numpy", "openvino"],
