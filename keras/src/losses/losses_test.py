@@ -1076,6 +1076,28 @@ class BinaryCrossentropyTest(testing.TestCase):
         loss = bce_obj(y_true, logits)
         self.assertAllClose(loss, [0.0, 6.666], atol=1e-3)
 
+    def test_invalid_label_smoothing(self):
+        with self.assertRaisesRegex(ValueError, "label_smoothing.*range"):
+            losses.binary_crossentropy(
+                [[0.0, 1.0]], [[0.6, 0.4]], label_smoothing=-0.1
+            )
+        with self.assertRaisesRegex(ValueError, "label_smoothing.*range"):
+            losses.BinaryCrossentropy(label_smoothing=1.1)(
+                [[0.0, 1.0]], [[0.6, 0.4]]
+            )
+        with self.assertRaisesRegex(ValueError, "must be a float or int"):
+            losses.binary_crossentropy(
+                [[0.0, 1.0]], [[0.6, 0.4]], label_smoothing=True
+            )
+        with self.assertRaisesRegex(ValueError, "must be a float or int"):
+            losses.binary_crossentropy(
+                [[0.0, 1.0]], [[0.6, 0.4]], label_smoothing=np.bool_(True)
+            )
+        with self.assertRaisesRegex(ValueError, "label_smoothing.*range"):
+            losses.binary_crossentropy(
+                [[0.0, 1.0]], [[0.6, 0.4]], label_smoothing=np.float32(-0.1)
+            )
+
     def test_label_smoothing(self):
         logits = np.array([[10.0, -10.0, -10.0]])
         y_true = np.array([[1, 0, 1]])
@@ -1222,6 +1244,34 @@ class CategoricalCrossentropyTest(testing.TestCase):
         )
         loss = cce_obj(y_true, logits)
         self.assertAllClose(loss, (0.001822, 0.000459, 0.169846))
+
+    def test_invalid_label_smoothing(self):
+        with self.assertRaisesRegex(ValueError, "label_smoothing.*range"):
+            losses.categorical_crossentropy(
+                [[1.0, 0.0, 0.0]],
+                [[0.8, 0.1, 0.1]],
+                label_smoothing=-0.1,
+            )
+        with self.assertRaisesRegex(ValueError, "label_smoothing.*range"):
+            losses.CategoricalCrossentropy(label_smoothing=1.1)(
+                [[1.0, 0.0, 0.0]], [[0.8, 0.1, 0.1]]
+            )
+        with self.assertRaisesRegex(ValueError, "must be a float or int"):
+            losses.categorical_crossentropy(
+                [[1.0, 0.0, 0.0]], [[0.8, 0.1, 0.1]], label_smoothing=True
+            )
+        with self.assertRaisesRegex(ValueError, "must be a float or int"):
+            losses.categorical_crossentropy(
+                [[1.0, 0.0, 0.0]],
+                [[0.8, 0.1, 0.1]],
+                label_smoothing=np.bool_(True),
+            )
+        with self.assertRaisesRegex(ValueError, "label_smoothing.*range"):
+            losses.categorical_crossentropy(
+                [[1.0, 0.0, 0.0]],
+                [[0.8, 0.1, 0.1]],
+                label_smoothing=np.float32(-0.1),
+            )
 
     def test_label_smoothing(self):
         logits = np.array([[100.0, -100.0, -100.0]])
