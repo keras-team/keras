@@ -694,7 +694,7 @@ class Gammaincc(Operation):
 def gammaincc(x1, x2):
     """Computes the regularized upper incomplete gamma function.
     The regularized upper incomplete gamma function is defined as:
-    Q(x1, x2) = 1 / Γ(x1) * ∫ₓ²^∞ t^(x1 - 1) e^(-t) dt
+    Q(x1, x2) = 1 / Γ(x1) * ∫ₓ₂^∞ t^(x1 - 1) e^(-t) dt
     where `Γ(x1)` is the gamma function.
 
     Args:
