@@ -2519,6 +2519,47 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(out, ref_out, atol=1e-2, rtol=1e-2)
 
+    def test_gaussian_blur_default_data_format(self):
+        # Omitting `data_format` must behave exactly like passing the
+        # configured `image_data_format` explicitly.
+        np.random.seed(42)
+        kernel_size = np.array([3, 3])
+        sigma = np.array([1.0, 2.0]).astype("float32")
+
+        # Test channels_last
+        backend.set_image_data_format("channels_last")
+        x = np.random.uniform(size=(20, 20, 3)).astype("float32")
+
+        out = kimage.gaussian_blur(x, kernel_size, sigma)
+        ref_out = gaussian_blur_np(
+            x,
+            kernel_size,
+            sigma,
+            data_format="channels_last",
+        )
+
+        self.assertEqual(tuple(out.shape), (20, 20, 3))
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(out, ref_out, atol=1e-2, rtol=1e-2)
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = np.random.uniform(size=(3, 20, 20)).astype("float32")
+
+        out = kimage.gaussian_blur(x, kernel_size, sigma)
+        ref_out = gaussian_blur_np(
+            x,
+            kernel_size,
+            sigma,
+            data_format="channels_first",
+        )
+
+        self.assertEqual(tuple(out.shape), (3, 20, 20))
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(out, ref_out, atol=1e-2, rtol=1e-2)
+
+        backend.set_image_data_format("channels_last")
+
     def test_elastic_transform(self):
         # Test channels_last
         backend.set_image_data_format("channels_last")

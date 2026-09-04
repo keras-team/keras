@@ -63,6 +63,8 @@ def top_k(x, k, sorted=True, is_stable=True):
 
 
 def in_top_k(targets, predictions, k):
+    targets = convert_to_tensor(targets)
+    predictions = convert_to_tensor(predictions)
     preds_at_label = jnp.take_along_axis(
         predictions, jnp.expand_dims(targets, axis=-1), axis=-1
     )

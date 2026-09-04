@@ -3885,6 +3885,12 @@ def pad(x, pad_width, mode="constant", constant_values=None):
             constant_values, x.get_element_type()
         ).output(0)
 
+    if len(pad_width) == 1:
+        # A single `(before, after)` pair broadcasts to every axis, matching
+        # `np.pad`. `ov_opset.pad` requires `pads_begin`/`pads_end` to match
+        # the input rank, so expand it here.
+        pad_width = [pad_width[0]] * x.get_partial_shape().rank.get_length()
+
     # split pad_width into two tensors pads_begin and pads_end
     pads_begin = []
     pads_end = []
@@ -4891,7 +4897,7 @@ def divide_no_nan(x1, x2):
         element_type = x2.output.get_element_type()
     x1 = get_ov_output(x1, element_type)
     x2 = get_ov_output(x2, element_type)
-    x1, x2 = _align_operand_types(x1, x2, "divide_no_nan()")
+    x1, x2 = _align_operand_types(x1, x2, "divide_no_nan()", force_float=True)
 
     zero = ov_opset.constant(0, x2.get_element_type())
     div = ov_opset.divide(x1, x2)

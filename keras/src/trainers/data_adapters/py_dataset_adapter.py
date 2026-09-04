@@ -1,4 +1,5 @@
 import itertools
+import multiprocessing
 import multiprocessing.dummy
 import queue
 import random
@@ -388,20 +389,53 @@ _SEQUENCE_COUNTER = None
 _DATA_POOLS = weakref.WeakSet()
 _WORKER_ID_QUEUE = None  # Only created if needed.
 _FORCE_THREADPOOL = False
+_MP_CONTEXT = None
+
+
+def _get_mp_context():
+    global _MP_CONTEXT
+    if _MP_CONTEXT is not None:
+        return _MP_CONTEXT
+
+    from keras.src.backend import backend
+
+    mp_module = multiprocessing
+    use_spawn = False
+    if backend() == "torch":
+        import torch
+        import torch.multiprocessing as torch_mp
+
+        mp_module = torch_mp
+        if torch.cuda.is_available() or (
+            torch.distributed.is_available()
+            and torch.distributed.is_initialized()
+        ):
+            use_spawn = True
+
+    if use_spawn:
+        try:
+            _MP_CONTEXT = mp_module.get_context("spawn")
+        except ValueError:
+            # 'spawn' might not be available on some systems
+            _MP_CONTEXT = mp_module.get_context()
+    else:
+        _MP_CONTEXT = mp_module.get_context()
+
+    return _MP_CONTEXT
 
 
 def get_pool_class(use_multiprocessing):
     global _FORCE_THREADPOOL
     if not use_multiprocessing or _FORCE_THREADPOOL:
         return multiprocessing.dummy.Pool  # ThreadPool
-    return multiprocessing.Pool
+    return _get_mp_context().Pool
 
 
 def get_worker_id_queue():
     """Lazily create the queue to track worker ids."""
     global _WORKER_ID_QUEUE
     if _WORKER_ID_QUEUE is None:
-        _WORKER_ID_QUEUE = multiprocessing.Queue()
+        _WORKER_ID_QUEUE = _get_mp_context().Queue()
     return _WORKER_ID_QUEUE
 
 
@@ -457,7 +491,7 @@ class PyDatasetEnqueuer:
         global _SEQUENCE_COUNTER
         if _SEQUENCE_COUNTER is None:
             try:
-                _SEQUENCE_COUNTER = multiprocessing.Value("i", 0)
+                _SEQUENCE_COUNTER = _get_mp_context().Value("i", 0)
             except OSError:
                 # In this case the OS does not allow us to use
                 # multiprocessing. We resort to an int

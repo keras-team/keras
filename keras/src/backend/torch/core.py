@@ -204,11 +204,10 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         if isinstance(x, Variable):
             x = x.value
         device = get_device()
-        if x.device != device:
-            if x.is_meta:
-                x = torch.empty_like(x, device=device)
-            else:
-                x = x.to(device)
+        if x.is_meta:
+            x = torch.empty_like(x, device=device)
+        else:
+            x = x.to(device)
         if dtype is not None:
             x = x.to(to_torch_dtype(dtype))
         return x

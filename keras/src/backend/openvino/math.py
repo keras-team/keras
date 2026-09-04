@@ -948,6 +948,12 @@ def erfinv(x):
     return OpenVINOKerasTensor(ov_opset17.erfinv(x).output(0))
 
 
+def gammainc(x1, x2):
+    raise NotImplementedError(
+        "`gammainc` is not supported with openvino backend"
+    )
+
+
 def logdet(x):
     from keras.src.backend.openvino.numpy import slogdet
 
