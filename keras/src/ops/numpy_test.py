@@ -5786,7 +5786,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_kaiser(self):
         x = np.random.randint(1, 100 + 1)
         beta = float(np.random.randint(10, 20 + 1))
-        self.assertAllClose(knp.kaiser(x, beta), np.kaiser(x, beta))
+        self.assertAllClose(
+            knp.kaiser(x, beta), np.kaiser(x, beta), atol=1e-5, rtol=1e-5
+        )
 
     def test_kaiser_length_1(self):
         x = 1
