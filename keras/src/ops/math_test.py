@@ -864,6 +864,17 @@ class MathOpsCorrectnessTest(testing.TestCase):
             kmath.in_top_k(targets, predictions, k=2), [False, True]
         )
 
+        # Test multi-dimensional list (not array/tensor) inputs.
+        targets = [[1, 2], [0, 3]]
+        predictions = [
+            [[0.1, 0.9, 0.8, 0.8], [0.05, 0.95, 0, 1]],
+            [[0.9, 0.1, 0.8, 0.8], [0.1, 0.8, 0.3, 1]],
+        ]
+        self.assertAllEqual(
+            kmath.in_top_k(targets, predictions, k=2),
+            [[True, False], [True, True]],
+        )
+
     def test_logsumexp(self):
         x = np.random.rand(5, 5)
         outputs = kmath.logsumexp(x)
