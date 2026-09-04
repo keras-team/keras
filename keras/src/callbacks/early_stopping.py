@@ -75,6 +75,8 @@ class EarlyStopping(MonitorCallback):
         start_from_epoch=0,
     ):
         super().__init__(monitor, mode, min_delta=min_delta)
+        if patience < 0:
+            raise ValueError(f"`patience` must be >= 0, got {patience}")
         self.patience = patience
         self.verbose = verbose
         self.baseline = baseline
@@ -113,12 +115,7 @@ class EarlyStopping(MonitorCallback):
             self.best_epoch = epoch
             if self.restore_best_weights:
                 self.best_weights = self.model.get_weights()
-            # Only restart wait if we beat both the baseline and our previous
-            # best.
-            if self.baseline is None or self._is_improvement(
-                current, self.baseline
-            ):
-                self.wait = 0
+            self.wait = 0
             return
 
         if self.wait >= self.patience and epoch > 0:
