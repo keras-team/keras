@@ -95,28 +95,18 @@ class Equalization(BaseImagePreprocessingLayer):
         indices = self.backend.numpy.clip(indices, 0, nbins - 1)
         flat_indices = self.backend.numpy.reshape(indices, [-1])
 
-        if backend.backend() in ("jax", "openvino"):
-            # JAX: bincount output shape is never statically known (not
-            # jittable). OpenVINO: dynamic depth in one_hot causes shape
-            # propagation failures when equalization is applied repeatedly.
-            # Both backends use an explicit loop to keep the output shape fixed.
-            histogram = self.backend.numpy.zeros(nbins, dtype="int32")
-            for i in range(nbins):
-                matches = self.backend.cast(
-                    self.backend.numpy.equal(flat_indices, i), "int32"
-                )
-                bin_count = self.backend.numpy.sum(matches)
-                one_hot = self.backend.cast(
-                    self.backend.numpy.arange(nbins) == i, "int32"
-                )
-                histogram = histogram + (bin_count * one_hot)
-            return histogram
-        else:
-            # TensorFlow/PyTorch/NumPy implementation using bincount
-            return self.backend.numpy.bincount(
-                flat_indices,
-                minlength=nbins,
+        # `bincount` has a data dependent output shape, so it cannot be traced.
+        histogram = self.backend.numpy.zeros(nbins, dtype="int32")
+        for i in range(nbins):
+            matches = self.backend.cast(
+                self.backend.numpy.equal(flat_indices, i), "int32"
             )
+            bin_count = self.backend.numpy.sum(matches)
+            one_hot = self.backend.cast(
+                self.backend.numpy.arange(nbins) == i, "int32"
+            )
+            histogram = histogram + (bin_count * one_hot)
+        return histogram
 
     def _scale_values(self, values, source_range, target_range):
         source_min, source_max = source_range
@@ -146,14 +136,10 @@ class Equalization(BaseImagePreprocessingLayer):
     def _apply_equalization(self, channel, hist):
         cdf = self.backend.numpy.cumsum(hist)
 
-        if self.backend.name in ("jax", "openvino"):
-            mask = cdf > 0
-            first_nonzero_idx = self.backend.numpy.argmax(mask)
-            cdf_min = self.backend.numpy.take(cdf, first_nonzero_idx)
-        else:
-            cdf_min = self.backend.numpy.take(
-                cdf, self.backend.numpy.nonzero(cdf)[0][0]
-            )
+        # `nonzero` has a data dependent output shape, so it cannot be traced.
+        mask = cdf > 0
+        first_nonzero_idx = self.backend.numpy.argmax(mask)
+        cdf_min = self.backend.numpy.take(cdf, first_nonzero_idx)
 
         denominator = cdf[-1] - cdf_min
         denominator = self.backend.numpy.where(
