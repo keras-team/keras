@@ -21,7 +21,6 @@ from keras.src.backend.common.backend_utils import (
 from keras.src.ops import operation_utils
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import reduce_shape
-from keras.src.utils.python_utils import is_continuous_axis
 
 
 class Relu(Operation):
@@ -3047,15 +3046,13 @@ def _rms_normalization(x, scale=None, axis=-1, epsilon=None):
 
     if isinstance(axis, (tuple, list)):
         axis = sorted(axis)
-    if backend.backend() == "torch" and is_continuous_axis(axis):
-        import torch.nn.functional as F
-
-        if isinstance(axis, (tuple, list)):
-            normalized_shape = tuple(x.shape[dim] for dim in axis)
-        else:
-            normalized_shape = (x.shape[axis],)
-        outputs = F.rms_norm(x, normalized_shape, scale, epsilon)
-    else:
+    outputs = None
+    fused_rms_normalization = getattr(backend.nn, "rms_normalization", None)
+    if fused_rms_normalization is not None:
+        outputs = fused_rms_normalization(
+            x, scale=scale, axis=axis, epsilon=epsilon
+        )
+    if outputs is None:
         if len(x.shape) == 0:
             x = backend.numpy.expand_dims(x, axis=0)
         rrms = backend.math.rsqrt(
@@ -3183,19 +3180,22 @@ def _layer_normalization(
             return backend.numpy.reshape(v, broadcast_shape)
         return v
 
+    outputs = None
     if rms_scaling:
         variance = backend.numpy.var(x, axis=axis, keepdims=True)
         inv = backend.math.rsqrt(variance + epsilon)
-        outputs = outputs = x * inv
+        outputs = x * inv
         if gamma is not None:
             outputs = outputs * backend.cast(_broadcast(gamma), x.dtype)
-    elif backend.config.backend() == "torch" and is_continuous_axis(axis):
-        # when using torch backend,use kernel to improve performance
-        import torch.nn.functional as F
-
-        normalized_shape = tuple(input_shape[dim] for dim in axis)
-        outputs = F.layer_norm(x, normalized_shape, gamma, beta, epsilon)
     else:
+        fused_layer_normalization = getattr(
+            backend.nn, "layer_normalization", None
+        )
+        if fused_layer_normalization is not None:
+            outputs = fused_layer_normalization(
+                x, gamma=gamma, beta=beta, axis=axis, epsilon=epsilon
+            )
+    if outputs is None:
         # Calculate the mean & variance along self.axis (layer activations).
         mean, variance = moments(x, axes=axis, keepdims=True)
         gamma, beta = _broadcast(gamma), _broadcast(beta)

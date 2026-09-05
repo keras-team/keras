@@ -1731,3 +1731,47 @@ def space_to_depth(x, block_size, data_format="channels_last"):
         # Reshape: (N, C, bH, bW, new_H, new_W) -> (N, C*bH*bW, new_H, new_W)
         x = x.reshape(n, c * block_size**2, new_h, new_w)
     return x
+
+
+def _trailing_normalized_shape(x, axis):
+    """The shape torch normalizes over, or None if the axes are not trailing.
+
+    `tnn.rms_norm` and `tnn.layer_norm` normalize over the last axes of the
+    input, so axes that are not a trailing run have no fused form and belong
+    on the composed path.
+    """
+    ndim = len(x.shape)
+    if ndim == 0:
+        # A scalar has no axis to normalize over. The composed path expands it
+        # first, so hand it back rather than canonicalizing an axis that is
+        # out of bounds.
+        return None
+    if isinstance(axis, int):
+        axis = [axis]
+    axis = sorted(canonicalize_axis(a, ndim) for a in axis)
+    if axis != list(range(ndim - len(axis), ndim)):
+        return None
+    return tuple(x.shape[d] for d in axis)
+
+
+def rms_normalization(x, scale=None, axis=-1, epsilon=None):
+    normalized_shape = _trailing_normalized_shape(x, axis)
+    if normalized_shape is None:
+        return None
+    if scale is not None and tuple(scale.shape) != normalized_shape:
+        return None
+    if epsilon is None:
+        epsilon = backend.epsilon()
+    return tnn.rms_norm(x, normalized_shape, scale, epsilon)
+
+
+def layer_normalization(x, gamma=None, beta=None, axis=-1, epsilon=None):
+    normalized_shape = _trailing_normalized_shape(x, axis)
+    if normalized_shape is None:
+        return None
+    for weight in (gamma, beta):
+        if weight is not None and tuple(weight.shape) != normalized_shape:
+            return None
+    if epsilon is None:
+        epsilon = backend.epsilon()
+    return tnn.layer_norm(x, normalized_shape, gamma, beta, epsilon)
