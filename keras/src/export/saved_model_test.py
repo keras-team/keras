@@ -492,6 +492,36 @@ class ExportArchiveTest(testing.TestCase):
         # Test with a different batch size
         revived_model.function_aliases["call_alias"](tf.random.normal((6, 10)))
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="This test is native to the TF backend.",
+    )
+    def test_export_does_not_duplicate_variable_storage(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model = get_model()
+        ref_input = tf.random.normal((3, 10))
+        model(ref_input)  # build the model — was missing
+
+        export_archive = saved_model.ExportArchive()
+        export_archive.track(model)
+        export_archive.add_endpoint(
+            "call",
+            model.__call__,
+            input_signature=[tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
+        )
+        export_archive.write_out(temp_filepath)
+
+        reader = tf.train.load_checkpoint(
+            os.path.join(temp_filepath, "variables", "variables")
+        )
+        shapes = reader.get_variable_to_shape_map()
+        total = sum(
+            int(np.prod(s))
+            for n, s in shapes.items()
+            if "CHECKPOINTABLE" not in n
+        )
+        self.assertEqual(total, model.count_params())
+
     @parameterized.named_parameters(
         named_product(model_type=["sequential", "functional", "subclass"])
     )

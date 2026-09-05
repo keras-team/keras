@@ -332,7 +332,9 @@ class SavedModelExportArchive:
         fns = [self._get_concrete_fn(name) for name in self._endpoint_names]
         tvs, ntvs = _list_variables_used_by_fns(fns)
         self._tf_trackable._all_variables = list(tvs + ntvs)
+        self._track_lookup_tables_and_misc_assets()
 
+    def _track_lookup_tables_and_misc_assets(self):
         # TF < 2.21 fix: see `_patch_tf_is_tf_type_for_object_proxy`.
         with _patch_tf_is_tf_type_for_object_proxy():
             # `tf.train.TrackableView` hardcodes the `save_type` to
@@ -363,6 +365,7 @@ class SavedModelExportArchive:
                         # TypeError that motivated the original workaround is
                         # separately eliminated by
                         # `_patch_tf_is_tf_type_for_object_proxy` above.
+
                         return {}
 
             # Next, track lookup tables.
