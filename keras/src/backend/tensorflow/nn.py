@@ -1444,12 +1444,13 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     # each class for every sample adds up to 1
     # This is needed to ensure that the cross entropy is
     # computed correctly.
-    output = output / tf.reduce_sum(output, axis, keepdims=True)
+    epsilon_ = convert_to_tensor(backend.epsilon(), dtype=output.dtype)
 
-    # Compute cross entropy from probabilities.
-    output = tf.clip_by_value(
-        output, backend.epsilon(), 1.0 - backend.epsilon()
+    output = output / tf.maximum(
+        tf.reduce_sum(output, axis, keepdims=True), epsilon_
     )
+
+    output = tf.clip_by_value(output, epsilon_, 1.0 - epsilon_)
     return -tf.reduce_sum(target * tf.math.log(output), axis)
 
 
@@ -1505,9 +1506,9 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
             )
 
     if not from_logits:
-        output = tf.clip_by_value(
-            output, backend.epsilon(), 1 - backend.epsilon()
-        )
+        epsilon_ = convert_to_tensor(backend.epsilon(), dtype=output.dtype)
+
+        output = tf.clip_by_value(output, epsilon_, 1.0 - epsilon_)
         output = tf.math.log(output)
 
     result = tf.nn.sparse_softmax_cross_entropy_with_logits(

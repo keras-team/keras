@@ -885,8 +885,12 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     if from_logits:
         log_prob = log_softmax(output, axis=axis)
     else:
-        output = output / np.sum(output, axis, keepdims=True)
-        output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        epsilon_ = convert_to_tensor(backend.epsilon(), dtype=output.dtype)
+
+        output = output / np.maximum(
+            np.sum(output, axis, keepdims=True), epsilon_
+        )
+        output = np.clip(output, epsilon_, 1.0 - epsilon_)
         log_prob = np.log(output)
     return -np.sum(target * log_prob, axis=axis)
 
@@ -912,8 +916,12 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     if from_logits:
         log_prob = log_softmax(output, axis=axis)
     else:
-        output = output / np.sum(output, axis, keepdims=True)
-        output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        epsilon_ = convert_to_tensor(backend.epsilon(), dtype=output.dtype)
+
+        output = output / np.maximum(
+            np.sum(output, axis, keepdims=True), epsilon_
+        )
+        output = np.clip(output, epsilon_, 1.0 - epsilon_)
         log_prob = np.log(output)
     target = one_hot(target, output.shape[axis], axis=axis)
     return -np.sum(target * log_prob, axis=axis)

@@ -2291,7 +2291,9 @@ def categorical_focal_crossentropy(
     # each class for every sample adds up to 1
     # This is needed to ensure that the cross entropy is
     # computed correctly.
-    output = y_pred / ops.sum(y_pred, axis=axis, keepdims=True)
+    output = y_pred / ops.maximum(
+        ops.sum(y_pred, axis=axis, keepdims=True), backend.epsilon()
+    )
     output = ops.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
 
     # Calculate cross entropy
