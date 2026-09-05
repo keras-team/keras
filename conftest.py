@@ -42,7 +42,7 @@ def pytest_configure(config):
 def pytest_collection_modifyitems(config, items):
     has_multiple_devices = False
 
-    backend_skipped_tests = []
+    backend_skipped_tests = set()
     if backend() in ("mlx", "openvino", "paddle"):
         if backend() == "mlx":
             import keras_mlx
@@ -63,13 +63,12 @@ def pytest_collection_modifyitems(config, items):
             "excluded_tests.txt",
         )
         with open(exclusions_path, "r") as file:
-            backend_skipped_tests = file.readlines()
             # Exclude empty lines and comments.
-            backend_skipped_tests = [
+            backend_skipped_tests = {
                 stripped
-                for line in backend_skipped_tests
+                for line in file.readlines()
                 if (stripped := line.strip()) and not stripped.startswith("#")
-            ]
+            }
 
     if backend() == "jax":
         import jax
@@ -93,14 +92,13 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(requires_multiple_devices)
 
         # Skip concrete tests listed in the backend specific file.
-        for skipped_test in backend_skipped_tests:
-            if skipped_test in item.nodeid:
-                item.add_marker(
-                    skip_if_backend(
-                        backend(),
-                        f"Not supported operation by {backend()} backend",
-                    )
+        if item.nodeid in backend_skipped_tests:
+            item.add_marker(
+                skip_if_backend(
+                    backend(),
+                    f"Not supported operation by {backend()} backend",
                 )
+            )
 
 
 def skip_if_backend(given_backend, reason):
