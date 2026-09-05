@@ -1206,7 +1206,7 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
         label_smoothing: Float in [0, 1]. When > 0, label values are smoothed,
             meaning the confidence on label values are relaxed. For example, if
             `0.1`, use `0.1 / num_classes` for non-target labels and
-            `0.9 + 0.1 / num_classes` for target labels.
+            `0.9 + 0.1 / num_classes` for target labels. Defaults to `0.0`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
@@ -2343,7 +2343,8 @@ def sparse_categorical_crossentropy(
             computed.
         label_smoothing: Float in [0, 1]. If > `0` then smooth the labels. For
             example, if `0.1`, use `0.1 / num_classes` for non-target labels
-            and `0.9 + 0.1 / num_classes` for target labels.
+            and `0.9 + 0.1 / num_classes` for target labels. Defaults to
+            `0.0`.
 
     Returns:
         Sparse categorical crossentropy loss value.
@@ -2380,24 +2381,23 @@ def sparse_categorical_crossentropy(
         axis=axis,
     )
 
-    if label_smoothing:
+    if label_smoothing > 0:
         # Smoothing the implied one-hot target splits the loss into the
         # hard-label term plus the crossentropy against a uniform target.
-        # Logits have a closed form. Probabilities go through
-        # `categorical_crossentropy`, which normalizes `y_pred` first.
+        # That second term has a closed form, so no dense target the size
+        # of `y_pred` is built.
         if from_logits:
             uniform_res = ops.subtract(
                 ops.logsumexp(y_pred, axis=axis), ops.mean(y_pred, axis=axis)
             )
         else:
-            smoothing_axis = canonicalize_axis(axis, len(y_pred.shape))
-            num_classes = ops.cast(
-                ops.shape(y_pred)[smoothing_axis], y_pred.dtype
+            # The crossentropy ops normalize probabilities before taking the
+            # log, so the same is done here.
+            probs = ops.divide(
+                y_pred, ops.sum(y_pred, axis=axis, keepdims=True)
             )
-            uniform = ops.divide(ops.ones_like(y_pred), num_classes)
-            uniform_res = ops.categorical_crossentropy(
-                uniform, y_pred, from_logits=False, axis=axis
-            )
+            probs = ops.clip(probs, backend.epsilon(), 1.0 - backend.epsilon())
+            uniform_res = ops.negative(ops.mean(ops.log(probs), axis=axis))
         res = ops.add(
             ops.multiply(1.0 - label_smoothing, res),
             ops.multiply(label_smoothing, uniform_res),
