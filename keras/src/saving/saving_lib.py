@@ -1198,12 +1198,18 @@ def safe_get_h5_group(parent, name):
     Returns:
         The child h5py.Group.
     """
-    current = parent
+    # A leading "/" addresses the path from the file root (h5py semantics),
+    # not from `parent`. This matters for legacy `by_name=True` weight
+    # loading: pre-Keras-3 layer names were never validated against "/", so
+    # a name like "/dense_1" was legal and was written at the true file
+    # root by the old HDF5 saver.
+    current = (
+        getattr(parent, "file", parent) if name.startswith("/") else parent
+    )
     for name_part in name.split("/"):
         if not name_part:
-            # Keras never builds `name` with a leading `/` (paths are joined
-            # from ""), so this only normalizes accidental double/trailing
-            # separators, not true H5 absolute-path addressing.
+            # Only true for trailing or consecutive separators now that a
+            # leading "/" is handled above; safe to simply skip.
             continue
 
         # Also handles the case when the group is an empty dict initially.
