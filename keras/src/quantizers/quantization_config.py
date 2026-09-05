@@ -1,5 +1,5 @@
 from keras.src.api_export import keras_export
-from keras.src.dtype_policies import QUANTIZATION_MODES
+from keras.src.quantizers import mode_registry
 from keras.src.saving import serialization_lib
 
 
@@ -258,7 +258,8 @@ def validate_and_resolve_config(mode, config):
 
     This function validates the quantization config and resolves the mode.
     If mode is not provided, it is inferred from the config.
-    If config is not provided, a default config is inferred from the mode.
+    If config is not provided, a default config is inferred from the mode
+    through the mode's registered descriptor.
 
     Args:
         mode: Quantization mode.
@@ -273,32 +274,13 @@ def validate_and_resolve_config(mode, config):
 
     # 2. Resolve "mode" into a Config object.
     if config is None:
-        if mode == "int8":
-            config = Int8QuantizationConfig()
-        elif mode == "int4":
-            config = Int4QuantizationConfig()
-        elif mode == "float8":
-            config = Float8QuantizationConfig()
-        elif mode == "ternary":
-            config = TernaryQuantizationConfig()
-        elif mode == "gptq":
-            raise ValueError(
-                "For GPTQ, you must pass a `GPTQConfig` object in the "
-                "`config` argument."
-            )
-        elif mode == "awq":
-            raise ValueError(
-                "For AWQ, you must pass an `AWQConfig` object in the "
-                "`config` argument."
-            )
-        else:
-            if mode is not None:
-                raise ValueError(
-                    f"Invalid quantization mode. Received: mode={mode}"
-                )
+        if mode is None:
             raise ValueError(
                 "You must provide either `mode` or `config` to `quantize`."
             )
+        # `default_config` raises for modes that require an explicit config
+        # (gptq/awq need a calibration dataset).
+        config = mode_registry.get_mode(mode).default_config()
     else:
         if not isinstance(config, QuantizationConfig):
             raise ValueError(
@@ -314,77 +296,34 @@ def validate_and_resolve_config(mode, config):
             f"config.mode='{config.mode}'"
         )
 
-    # Ensure mode is consistent.
+    # Ensure mode is consistent. When `mode` was supplied it is already
+    # validated and equal to `config.mode` (the contradiction check above),
+    # so only a config-derived mode still needs validating.
+    if mode is None:
+        _validate_mode(config.mode)
     mode = config.mode
 
-    # Ensure the mode derived from the config is valid.
-    _validate_mode(mode)
-
-    if mode == "gptq":
-        from keras.src.quantizers.gptq_config import GPTQConfig
-
-        if not isinstance(config, GPTQConfig):
-            raise ValueError(
-                "Mode 'gptq' requires a valid `config` argument of type "
-                f"`GPTQConfig`. Received: {type(config)}"
-            )
-
-    if mode == "awq":
-        from keras.src.quantizers.awq_config import AWQConfig
-
-        if not isinstance(config, AWQConfig):
-            raise ValueError(
-                "Mode 'awq' requires a valid `config` argument of type "
-                f"`AWQConfig`. Received: {type(config)}"
-            )
+    # Mode-specific config validation (e.g. gptq requires a `GPTQConfig`).
+    mode_registry.get_mode(mode).validate_config(config)
 
     return config
 
 
 def _validate_mode(mode):
     """Validates quantization mode."""
-    if mode is not None and mode not in QUANTIZATION_MODES:
+    if mode is not None and not mode_registry.is_registered(mode):
         raise ValueError(
             "Invalid quantization mode. "
-            f"Expected one of {QUANTIZATION_MODES}. Received: mode={mode}"
+            f"Expected one of {mode_registry.registered_mode_names()}. "
+            f"Received: mode={mode}"
         )
 
 
 def get_block_size_for_layer(layer, config):
     """Determine the block size for int4 quantization.
 
-    The block size can be specified either through the `config` argument
-    or through the `dtype_policy` if it is of type `Int4DTypePolicy`.
-
-    The config argument is usually available when quantizing the layer
-    via the `quantize` method. If the layer was deserialized from a
-    saved model, the block size should be specified in the `dtype_policy`.
-
-    Args:
-        layer: The layer being quantized.
-        config: An optional configuration object that may contain the
-            `block_size` attribute.
-    Returns:
-        int or None. The determined block size for int4 quantization.
-        Returns `None` or `-1` for per-channel quantization.
+    The resolution logic lives on the int4 mode descriptor
+    (`Int4Mode.resolve_block_size`); this wrapper remains until the layer
+    call sites dispatch through the registry.
     """
-    from keras.src.dtype_policies.dtype_policy import Int4DTypePolicy
-    from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
-
-    if config and isinstance(config, Int4QuantizationConfig):
-        return config.block_size
-    elif isinstance(layer.dtype_policy, Int4DTypePolicy):
-        block_size = layer.dtype_policy.block_size
-        # Convert -1 to None for consistency
-        return None if block_size == -1 else block_size
-    elif isinstance(layer.dtype_policy, DTypePolicyMap):
-        policy = layer.dtype_policy[layer.path]
-        if isinstance(policy, Int4DTypePolicy):
-            block_size = policy.block_size
-            return None if block_size == -1 else block_size
-        # Fall back to None for legacy QuantizedDTypePolicy
-        return None
-    else:
-        # For backwards compatibility with models that don't have
-        # Int4DTypePolicy (legacy per-channel mode)
-        return None
+    return mode_registry.get_mode("int4").resolve_block_size(layer, config)
