@@ -1177,6 +1177,22 @@ class MathOpsCorrectnessTest(testing.TestCase):
             output_from_edge_erfinv_op, expected_output, atol=1e-4
         )
 
+        # Inputs extremely close to (but not equal to) `1.0` and `-1.0` must
+        # produce a finite value (see keras-team/keras#23133).
+        near_ones = np.array(
+            [
+                np.nextafter(np.float32(1.0), np.float32(0.0)),
+                np.nextafter(np.float32(-1.0), np.float32(0.0)),
+            ],
+            dtype="float32",
+        )
+        expected_output = scipy.special.erfinv(near_ones.astype("float64"))
+        output_from_edge_erfinv_op = kmath.erfinv(near_ones)
+        self.assertFalse(np.isinf(output_from_edge_erfinv_op).any())
+        self.assertAllClose(
+            output_from_edge_erfinv_op, expected_output, atol=0.1
+        )
+
     def test_logdet(self):
         x = np.array(
             [
