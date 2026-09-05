@@ -1,5 +1,6 @@
 """Utilities related to model visualization."""
 
+import html
 import os
 import sys
 
@@ -82,14 +83,15 @@ def make_layer_label(layer, **kwargs):
         table += (
             f'<tr><td colspan="{colspan}" bgcolor="black">'
             '<font point-size="16" color="white">'
-            f"<b>{layer.name}</b> ({class_name})"
+            f"<b>{html.escape(str(layer.name))}</b> "
+            f"({html.escape(class_name)})"
             "</font></td></tr>"
         )
     else:
         table += (
             f'<tr><td colspan="{colspan}" bgcolor="black">'
             '<font point-size="16" color="white">'
-            f"<b>{class_name}</b>"
+            f"<b>{html.escape(class_name)}</b>"
             "</font></td></tr>"
         )
     if (
@@ -100,7 +102,8 @@ def make_layer_label(layer, **kwargs):
         table += (
             f'<tr><td bgcolor="white" colspan="{colspan}">'
             '<font point-size="14">'
-            f"Activation: <b>{get_layer_activation_name(layer)}</b>"
+            "Activation: "
+            f"<b>{html.escape(str(get_layer_activation_name(layer)))}</b>"
             "</font></td></tr>"
         )
 
@@ -125,7 +128,7 @@ def make_layer_label(layer, **kwargs):
                 shape_str = shape_str.replace("}", "").replace("{", "")
             else:
                 shape_str = "?"
-            return shape_str
+            return html.escape(shape_str)
 
         if class_name != "InputLayer":
             cols.append(
@@ -151,7 +154,7 @@ def make_layer_label(layer, **kwargs):
         cols.append(
             (
                 '<td bgcolor="white"><font point-size="14">'
-                f"Output dtype: <b>{dtype or '?'}</b>"
+                f"Output dtype: <b>{html.escape(str(dtype or '?'))}</b>"
                 "</font></td>"
             )
         )
