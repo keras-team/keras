@@ -1410,7 +1410,7 @@ def sinh(x):
 
 
 def size(x):
-    return np.size(x)
+    return convert_to_tensor(np.size(x)).astype("int32")
 
 
 def sort(x, axis=-1):
