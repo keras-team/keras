@@ -91,11 +91,8 @@ def pytest_collection_modifyitems(config, items):
         if requires_multiple_devices and "multi_device" in item.keywords:
             item.add_marker(requires_multiple_devices)
 
-        # An entry is the whole node id or a trailing part of it, cut at a `/`.
-        parts = item.nodeid.split("/")
-        if backend_skipped_tests.intersection(
-            "/".join(parts[i:]) for i in range(len(parts))
-        ):
+        # Skip concrete tests listed in the backend specific file.
+        if item.nodeid in backend_skipped_tests:
             item.add_marker(
                 skip_if_backend(
                     backend(),
