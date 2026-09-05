@@ -10,10 +10,11 @@ permissions:
 
 jobs:
   cpu_tests:
-    uses: ./.github/workflows/cpu_tests.yml
+    uses: ./.github/workflows/cpu_tests.yml # zizmor: ignore[self-repository]
     with:
       timeout: 240
-    secrets: inherit
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   nightly:
     name: Build Wheel file and upload
@@ -44,3 +45,4 @@ jobs:
         with:
           packages-dir: dist/
           verbose: true
+

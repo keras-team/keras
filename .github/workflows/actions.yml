@@ -19,8 +19,9 @@ concurrency:
 
 jobs:
   cpu_tests:
-    uses: ./.github/workflows/cpu_tests.yml
-    secrets: inherit
+    uses: ./.github/workflows/cpu_tests.yml # zizmor: ignore[self-repository]
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   format:
     name: Check the code format
