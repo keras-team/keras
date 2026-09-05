@@ -104,11 +104,15 @@ def leaky_relu(x, negative_slope=0.2):
 
 def hard_sigmoid(x):
     x = convert_to_tensor(x)
+    # `tnn.hardsigmoid` is not implemented for integer or bool dtypes.
+    # Promote the way the JAX backend already does.
+    x = cast(x, backend.result_type(x.dtype, float))
     return tnn.hardsigmoid(x)
 
 
 def hard_silu(x):
     x = convert_to_tensor(x)
+    x = cast(x, backend.result_type(x.dtype, float))
     return tnn.hardswish(x)
 
 
