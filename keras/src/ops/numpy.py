@@ -10199,7 +10199,7 @@ def column_stack(xs):
 
 class Cov(Operation):
     def call(self, x):
-        return backend.numpy.cov(x)
+        return _cov(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
@@ -10237,4 +10237,36 @@ def cov(x):
     """
     if any_symbolic_tensors((x,)):
         return Cov().symbolic_call(x)
-    return backend.numpy.cov(x)
+    return _cov(x)
+
+
+def _cov(x):
+    if not config._use_backend_agnostic_ops() and hasattr(backend.numpy, "cov"):
+        return backend.numpy.cov(x)
+    x = backend.convert_to_tensor(x)
+    if len(x.shape) > 2:
+        raise ValueError(
+            "Input tensor must have at most 2 dimensions. "
+            f"Received: x.shape={x.shape}"
+        )
+    dtype = backend.standardize_dtype(x.dtype)
+    if dtype == "int64":
+        dtype = "float64"
+    else:
+        dtype = dtypes.result_type(dtype, float)
+    x = backend.cast(x, dtype)
+    # A 0D input has no observations to vary over, as in `np.cov`.
+    if len(x.shape) == 0:
+        return backend.numpy.full((), float("nan"), dtype=dtype)
+    # `np.cov` squeezes the result when there is only one variable.
+    is_scalar = len(x.shape) < 2 or x.shape[0] == 1
+    if len(x.shape) == 1:
+        x = backend.numpy.reshape(x, (1, -1))
+    mean = backend.numpy.mean(x, axis=-1, keepdims=True)
+    x_centered = backend.numpy.subtract(x, mean)
+    num_samples = backend.cast(backend.shape(x)[-1], dtype)
+    result = backend.numpy.divide(
+        backend.numpy.matmul(x_centered, backend.numpy.transpose(x_centered)),
+        backend.numpy.subtract(num_samples, 1),
+    )
+    return backend.numpy.reshape(result, ()) if is_scalar else result

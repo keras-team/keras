@@ -6096,20 +6096,26 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         with self.assertRaises(ValueError):
             knp.Corrcoef().symbolic_call(KerasTensor((2, 3, 5)))
 
-    def test_cov(self):
-        x = np.array([[1.0, 2.0, 3.0], [3.0, 2.0, 1.0]])
-        self.assertAllClose(knp.cov(x), np.cov(x))
-        self.assertAllClose(knp.Cov()(x), np.cov(x))
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_cov(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = np.array([[1.0, 2.0, 3.0], [3.0, 2.0, 1.0]])
+            self.assertAllClose(knp.cov(x), np.cov(x))
+            self.assertAllClose(knp.Cov()(x), np.cov(x))
 
-        # A 1D input, or a single variable, reduces to the sample variance.
-        x = np.array([1.0, 4.0, 2.0, 8.0])
-        self.assertAllClose(knp.cov(x), np.cov(x))
-        self.assertAllClose(knp.cov(x[None, :]), np.cov(x[None, :]))
+            # A 1D input, or a single variable, reduces to the sample
+            # variance.
+            x = np.array([1.0, 4.0, 2.0, 8.0])
+            self.assertAllClose(knp.cov(x), np.cov(x))
+            self.assertAllClose(knp.cov(x[None, :]), np.cov(x[None, :]))
 
-        self.assertTrue(np.isnan(backend.convert_to_numpy(knp.cov(3.0))))
+            self.assertTrue(np.isnan(backend.convert_to_numpy(knp.cov(3.0))))
 
-        with self.assertRaises(ValueError):
-            knp.cov(np.ones((2, 3, 4)))
+            with self.assertRaises(ValueError):
+                knp.cov(np.ones((2, 3, 4)))
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     def test_cos(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -10000,19 +10006,27 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_cov(self, dtype):
+    @parameterized.named_parameters(
+        named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
+    )
+    def test_cov(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        x = knp.ones((2, 4), dtype=dtype)
-        x_jax = jnp.ones((2, 4), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.cov(x_jax).dtype)
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = knp.ones((2, 4), dtype=dtype)
+            x_jax = jnp.ones((2, 4), dtype=dtype)
+            expected_dtype = standardize_dtype(jnp.cov(x_jax).dtype)
 
-        self.assertEqual(standardize_dtype(knp.cov(x).dtype), expected_dtype)
-        self.assertEqual(
-            standardize_dtype(knp.Cov().symbolic_call(x).dtype),
-            expected_dtype,
-        )
+            self.assertEqual(
+                standardize_dtype(knp.cov(x).dtype), expected_dtype
+            )
+            self.assertEqual(
+                standardize_dtype(knp.Cov().symbolic_call(x).dtype),
+                expected_dtype,
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
