@@ -2223,7 +2223,7 @@ def copy(x):
 
 class Copysign(Operation):
     def call(self, x1, x2):
-        return backend.numpy.copysign(x1, x2)
+        return _copysign(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -2258,7 +2258,24 @@ def copysign(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Copysign().symbolic_call(x1, x2)
-    return backend.numpy.copysign(x1, x2)
+    return _copysign(x1, x2)
+
+
+def _copysign(x1, x2):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.numpy, "copysign"
+    ):
+        return backend.numpy.copysign(x1, x2)
+    x1 = backend.convert_to_tensor(x1)
+    x2 = backend.convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = backend.cast(x1, dtype)
+    x2 = backend.cast(x2, dtype)
+    # Negate `x1` exactly when its sign differs from the sign of `x2`.
+    flip = backend.numpy.logical_xor(
+        backend.numpy.signbit(x1), backend.numpy.signbit(x2)
+    )
+    return backend.numpy.where(flip, backend.numpy.negative(x1), x1)
 
 
 class Cos(Operation):
