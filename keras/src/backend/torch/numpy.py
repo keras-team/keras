@@ -1716,7 +1716,10 @@ def prod(x, axis=None, keepdims=False, dtype=None):
 def ptp(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if axis is None:
-        return x.max() - x.min()
+        result = x.max() - x.min()
+        if keepdims:
+            result = result.reshape((1,) * x.ndim)
+        return result
     elif axis == ():
         return torch.zeros_like(x)
     else:
