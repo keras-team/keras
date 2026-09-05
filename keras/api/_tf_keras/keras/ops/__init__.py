@@ -181,6 +181,7 @@ from keras.src.ops.numpy import correlate as correlate
 from keras.src.ops.numpy import cos as cos
 from keras.src.ops.numpy import cosh as cosh
 from keras.src.ops.numpy import count_nonzero as count_nonzero
+from keras.src.ops.numpy import cov as cov
 from keras.src.ops.numpy import cross as cross
 from keras.src.ops.numpy import cumprod as cumprod
 from keras.src.ops.numpy import cumsum as cumsum

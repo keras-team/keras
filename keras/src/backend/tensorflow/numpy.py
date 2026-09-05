@@ -4039,3 +4039,37 @@ def column_stack(xs):
         xs = [tf.cast(x, dtype) for x in xs]
     xs = [tf.expand_dims(x, axis=-1) if len(x.shape) == 1 else x for x in xs]
     return tf.concat(xs, axis=1)
+
+
+def cov(x):
+    x = convert_to_tensor(x)
+    if len(x.shape) > 2:
+        raise ValueError(
+            "Input tensor must have at most 2 dimensions. "
+            f"Received: x.shape={x.shape}"
+        )
+
+    dtype = standardize_dtype(x.dtype)
+    if dtype in ["bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+        dtype = config.floatx()
+    elif dtype == "int64":
+        dtype = "float64"
+    x = cast(x, dtype)
+
+    # A 0D input has no observations to vary over, as in `np.cov`.
+    if len(x.shape) == 0:
+        return tf.constant(float("nan"), dtype=x.dtype)
+
+    # `np.cov` squeezes the result when there is only one variable.
+    is_scalar = len(x.shape) < 2 or x.shape[0] == 1
+    if len(x.shape) == 1:
+        x = tf.reshape(x, (1, -1))
+
+    mean = tf.reduce_mean(x, axis=-1, keepdims=True)
+    x_centered = x - mean
+
+    num_samples = tf.cast(tf.shape(x)[-1], x.dtype)
+    result = tf.matmul(x_centered, x_centered, adjoint_b=True) / (
+        num_samples - 1
+    )
+    return tf.reshape(result, ()) if is_scalar else result

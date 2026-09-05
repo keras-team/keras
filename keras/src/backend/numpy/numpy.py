@@ -1854,3 +1854,16 @@ def column_stack(xs):
         dtype = dtypes.result_type(*dtype_set)
         xs = [x.astype(dtype) for x in xs]
     return np.column_stack(xs)
+
+
+def cov(x):
+    x = convert_to_tensor(x)
+
+    if x.dtype in ["int64", "float64"]:
+        dtype = "float64"
+    elif x.dtype in ["bfloat16", "float16"]:
+        dtype = x.dtype
+    else:
+        dtype = config.floatx()
+
+    return np.cov(x).astype(dtype)

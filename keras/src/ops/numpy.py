@@ -10195,3 +10195,78 @@ def column_stack(xs):
     if any_symbolic_tensors((xs,)):
         return ColumnStack().symbolic_call(xs)
     return backend.numpy.column_stack(xs)
+
+
+class Cov(Operation):
+    def call(self, x):
+        return _cov(x)
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
+        if dtype == "int64":
+            dtype = "float64"
+        else:
+            dtype = dtypes.result_type(dtype, float)
+        if len(x.shape) > 2:
+            raise ValueError(
+                "Input tensor must have at most 2 dimensions. "
+                f"Received: x.shape={x.shape}"
+            )
+        # The covariance matrix of a 2D input of shape `(N, D)` has shape
+        # `(N, N)`. A 1D input, or a single variable, yields a scalar.
+        if len(x.shape) == 2 and x.shape[0] != 1:
+            output_shape = (x.shape[0], x.shape[0])
+        else:
+            output_shape = ()
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.cov", "keras.ops.numpy.cov"])
+def cov(x):
+    """Estimate the covariance matrix of the variables in `x`.
+
+    The covariance is normalized by `D - 1`, where `D` is the number of
+    observations.
+
+    Args:
+        x: A 2D tensor of shape `(N, D)`, where N is the number of variables
+           and D is the number of observations.
+
+    Returns:
+        A tensor of shape `(N, N)` representing the covariance matrix.
+    """
+    if any_symbolic_tensors((x,)):
+        return Cov().symbolic_call(x)
+    return _cov(x)
+
+
+def _cov(x):
+    if not config._use_backend_agnostic_ops() and hasattr(backend.numpy, "cov"):
+        return backend.numpy.cov(x)
+    x = backend.convert_to_tensor(x)
+    if len(x.shape) > 2:
+        raise ValueError(
+            "Input tensor must have at most 2 dimensions. "
+            f"Received: x.shape={x.shape}"
+        )
+    dtype = backend.standardize_dtype(x.dtype)
+    if dtype == "int64":
+        dtype = "float64"
+    else:
+        dtype = dtypes.result_type(dtype, float)
+    x = backend.cast(x, dtype)
+    # A 0D input has no observations to vary over, as in `np.cov`.
+    if len(x.shape) == 0:
+        return backend.numpy.full((), float("nan"), dtype=dtype)
+    # `np.cov` squeezes the result when there is only one variable.
+    is_scalar = len(x.shape) < 2 or x.shape[0] == 1
+    if len(x.shape) == 1:
+        x = backend.numpy.reshape(x, (1, -1))
+    mean = backend.numpy.mean(x, axis=-1, keepdims=True)
+    x_centered = backend.numpy.subtract(x, mean)
+    num_samples = backend.cast(backend.shape(x)[-1], dtype)
+    result = backend.numpy.divide(
+        backend.numpy.matmul(x_centered, backend.numpy.transpose(x_centered)),
+        backend.numpy.subtract(num_samples, 1),
+    )
+    return backend.numpy.reshape(result, ()) if is_scalar else result
