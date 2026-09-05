@@ -1,4 +1,6 @@
 import math
+import os
+import socket
 from itertools import combinations
 from unittest import mock
 
@@ -7,6 +9,9 @@ import pytest
 from absl.testing import parameterized
 
 import keras
+from keras.distribution import DeviceMesh
+from keras.distribution import TensorLayout
+from keras.distribution import initialize
 from keras.src import backend
 from keras.src import layers
 from keras.src import losses
@@ -16,6 +21,8 @@ from keras.src import testing
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.backend.torch.core import get_device
+from keras.src.backend.torch.distribution_lib import distribute_data_input
 from keras.src.layers.convolutional.conv_test import np_conv1d
 from keras.src.layers.convolutional.conv_test import np_conv2d
 from keras.src.layers.convolutional.conv_test import np_conv3d
@@ -2866,6 +2873,82 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             outputs, expected, atol=1e-3 if flash_attention else 1e-6
         )
+
+    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only")
+    def test_dot_product_attention_dtensor(self):
+        import torch
+
+        def get_free_port():
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(("", 0))
+                return str(s.getsockname()[1])
+
+        old_addr = os.environ.get("MASTER_ADDR")
+        old_port = os.environ.get("MASTER_PORT")
+        os.environ["MASTER_ADDR"] = "localhost"
+        os.environ["MASTER_PORT"] = get_free_port()
+
+        try:
+            if not torch.distributed.is_initialized():
+                initialize(num_processes=1, process_id=0)
+
+            device_type = get_device().split(":")[0]
+            mesh = DeviceMesh(
+                shape=(1,), axis_names=("data",), devices=[f"{device_type}:0"]
+            )
+            layout = TensorLayout(
+                axes=(None, None, None, None), device_mesh=mesh
+            )
+
+            B, T, S, N, H = 2, 4, 4, 2, 8
+            query_local = torch.rand((B, T, N, H), device="cpu")
+            key_local = torch.rand((B, S, N, H), device="cpu")
+            value_local = torch.rand((B, S, N, H), device="cpu")
+
+            query = distribute_data_input(query_local, layout)
+            key = distribute_data_input(key_local, layout)
+            value = distribute_data_input(value_local, layout)
+
+            # Test without mask
+            result = knn.dot_product_attention(query, key, value)
+            self.assertTrue(hasattr(result, "to_local"))
+            expected = knn.dot_product_attention(
+                query_local.to(get_device()),
+                key_local.to(get_device()),
+                value_local.to(get_device()),
+            )
+            self.assertAllClose(result, expected)
+
+            # Test with mask and is_causal
+            mask_local = torch.tril(
+                torch.ones((B, N, T, S), dtype=torch.bool, device="cpu")
+            )
+            mask = distribute_data_input(mask_local, layout)
+
+            result_mask = knn.dot_product_attention(
+                query, key, value, mask=mask, is_causal=True
+            )
+            self.assertTrue(hasattr(result_mask, "to_local"))
+            expected_mask = knn.dot_product_attention(
+                query_local.to(get_device()),
+                key_local.to(get_device()),
+                value_local.to(get_device()),
+                mask=mask_local.to(get_device()),
+                is_causal=True,
+            )
+            self.assertAllClose(result_mask, expected_mask)
+        finally:
+            if old_addr is None:
+                os.environ.pop("MASTER_ADDR", None)
+            else:
+                os.environ["MASTER_ADDR"] = old_addr
+            if old_port is None:
+                os.environ.pop("MASTER_PORT", None)
+            else:
+                os.environ["MASTER_PORT"] = old_port
+
+            if torch.distributed.is_initialized():
+                torch.distributed.destroy_process_group()
 
     @parameterized.named_parameters(named_product(scale=(1.0, 10.0)))
     def test_rms_normalization(self, scale):
