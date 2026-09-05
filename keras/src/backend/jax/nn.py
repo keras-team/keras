@@ -29,6 +29,7 @@ from keras.src.backend.common.backend_utils import (
 )
 from keras.src.backend.jax.core import cast
 from keras.src.backend.jax.core import convert_to_tensor
+from keras.src.backend.jax.numpy import divide_no_nan
 
 
 def relu(x):
@@ -982,8 +983,9 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     if from_logits:
         log_prob = jax.nn.log_softmax(output, axis=axis)
     else:
-        output = output / jnp.sum(output, axis, keepdims=True)
-        output = jnp.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        epsilon_ = convert_to_tensor(backend.epsilon(), dtype=output.dtype)
+        output = divide_no_nan(output, jnp.sum(output, axis, keepdims=True))
+        output = jnp.clip(output, epsilon_, 1.0 - epsilon_)
         log_prob = jnp.log(output)
     return -jnp.sum(target * log_prob, axis=axis)
 
@@ -1009,8 +1011,9 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     if from_logits:
         log_prob = jax.nn.log_softmax(output, axis=axis)
     else:
-        output = output / jnp.sum(output, axis, keepdims=True)
-        output = jnp.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        epsilon_ = convert_to_tensor(backend.epsilon(), dtype=output.dtype)
+        output = divide_no_nan(output, jnp.sum(output, axis, keepdims=True))
+        output = jnp.clip(output, epsilon_, 1.0 - epsilon_)
         log_prob = jnp.log(output)
     target = jnn.one_hot(target, output.shape[axis], axis=axis)
     return -jnp.sum(target * log_prob, axis=axis)

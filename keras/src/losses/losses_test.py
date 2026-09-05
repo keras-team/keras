@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 
 from keras.src import backend
+from keras.src import ops
 from keras.src import testing
 from keras.src.losses import losses
 
@@ -1115,6 +1116,17 @@ class CategoricalCrossentropyTest(testing.TestCase):
         self.run_class_serialization_test(
             losses.CategoricalCrossentropy(name="cce", axis=-1)
         )
+
+    def test_no_nan_when_zero_predictions(self):
+        target = np.array([[1.0, 0.0, 0.0]])
+
+        output_float16 = np.array([[0.0, 0.0, 0.0]], dtype=np.float16)
+        loss_float16 = losses.categorical_crossentropy(target, output_float16)
+        self.assertFalse(np.any(np.isnan(ops.convert_to_numpy(loss_float16))))
+
+        output_float32 = np.array([[0.0, 0.0, 0.0]], dtype=np.float32)
+        loss_float32 = losses.categorical_crossentropy(target, output_float32)
+        self.assertFalse(np.any(np.isnan(ops.convert_to_numpy(loss_float32))))
 
     def test_all_correct_unweighted(self):
         y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype="int64")
