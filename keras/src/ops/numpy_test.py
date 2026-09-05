@@ -18,6 +18,11 @@ from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import numpy as knp
 from keras.src.testing.test_utils import named_product
 
+BACKEND_AGNOSTIC_OPS = [
+    {"testcase_name": "backend_specific", "backend_agnostic_ops": False},
+    {"testcase_name": "backend_agnostic", "backend_agnostic_ops": True},
+]
+
 
 class NumPyTestRot90(testing.TestCase):
     def test_basic_rotation(self):
@@ -3662,16 +3667,21 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         )
         self.assertSparse(knp.matmul(x, y), x_sparse and y_sparse)
 
-    def test_float_power(self):
-        x = np.array([[1, 2, 3], [3, 2, 1]])
-        y = np.array([[4, 5, 6], [3, 2, 1]])
-        self.assertAllClose(knp.float_power(x, y), np.float_power(x, y))
-        self.assertAllClose(knp.FloatPower()(x, y), np.float_power(x, y))
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_float_power(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = np.array([[1, 2, 3], [3, 2, 1]])
+            y = np.array([[4, 5, 6], [3, 2, 1]])
+            self.assertAllClose(knp.float_power(x, y), np.float_power(x, y))
+            self.assertAllClose(knp.FloatPower()(x, y), np.float_power(x, y))
 
-        # Negative exponents, which integer `power` cannot represent.
-        y = np.array([[-1, -2, -3], [-1, -2, -3]])
-        self.assertAllClose(knp.float_power(x, y), np.float_power(x, y))
-        self.assertAllClose(knp.FloatPower()(x, y), np.float_power(x, y))
+            # Negative exponents, which integer `power` cannot represent.
+            y = np.array([[-1, -2, -3], [-1, -2, -3]])
+            self.assertAllClose(knp.float_power(x, y), np.float_power(x, y))
+            self.assertAllClose(knp.FloatPower()(x, y), np.float_power(x, y))
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     def test_power(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -5252,12 +5262,6 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertTrue(
             standardize_dtype(knp.Digitize()(x, bins).dtype) == "int32"
         )
-
-
-BACKEND_AGNOSTIC_OPS = [
-    {"testcase_name": "backend_specific", "backend_agnostic_ops": False},
-    {"testcase_name": "backend_agnostic", "backend_agnostic_ops": True},
-]
 
 
 class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
@@ -12022,28 +12026,34 @@ class NumpyDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(
         named_product(
-            dtypes=list(itertools.product(BINARY_DTYPES, BINARY_DTYPES))
+            BACKEND_AGNOSTIC_OPS,
+            dtypes=list(itertools.product(BINARY_DTYPES, BINARY_DTYPES)),
         )
     )
-    def test_float_power(self, dtypes):
+    def test_float_power(self, backend_agnostic_ops, dtypes):
         import jax.numpy as jnp
 
-        dtype1, dtype2 = dtypes
-        x1 = knp.ones((), dtype=dtype1)
-        x2 = knp.ones((), dtype=dtype2)
-        x1_jax = jnp.ones((), dtype=dtype1)
-        x2_jax = jnp.ones((), dtype=dtype2)
-        expected_dtype = standardize_dtype(
-            jnp.float_power(x1_jax, x2_jax).dtype
-        )
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            dtype1, dtype2 = dtypes
+            x1 = knp.ones((), dtype=dtype1)
+            x2 = knp.ones((), dtype=dtype2)
+            x1_jax = jnp.ones((), dtype=dtype1)
+            x2_jax = jnp.ones((), dtype=dtype2)
+            expected_dtype = standardize_dtype(
+                jnp.float_power(x1_jax, x2_jax).dtype
+            )
 
-        self.assertEqual(
-            standardize_dtype(knp.float_power(x1, x2).dtype), expected_dtype
-        )
-        self.assertEqual(
-            standardize_dtype(knp.FloatPower().symbolic_call(x1, x2).dtype),
-            expected_dtype,
-        )
+            self.assertEqual(
+                standardize_dtype(knp.float_power(x1, x2).dtype),
+                expected_dtype,
+            )
+            self.assertEqual(
+                standardize_dtype(knp.FloatPower().symbolic_call(x1, x2).dtype),
+                expected_dtype,
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
