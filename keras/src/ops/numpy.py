@@ -8855,6 +8855,60 @@ def power(x1, x2):
     return backend.numpy.power(x1, x2)
 
 
+class FloatPower(Operation):
+    def call(self, x1, x2):
+        return _float_power(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+
+        x1_type = backend.standardize_dtype(getattr(x1, "dtype", type(x1)))
+        x2_type = backend.standardize_dtype(getattr(x2, "dtype", type(x2)))
+        dtype = dtypes.result_type(x1_type, x2_type, float)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.float_power", "keras.ops.numpy.float_power"])
+def float_power(x1, x2):
+    """First tensor elements raised to powers from second tensor, in floats.
+
+    This is `power` with the operands promoted to a float dtype first, so a
+    negative exponent has a well defined result for integer inputs, where
+    `power` either raises an error or returns an integer.
+
+    Args:
+        x1: The bases.
+        x2: The exponents.
+
+    Returns:
+        Output tensor, the bases in `x1` raised to the exponents in `x2`.
+
+    Example:
+    >>> x1 = keras.ops.convert_to_tensor([2, 3, 4])
+    >>> x2 = keras.ops.convert_to_tensor([-1, -2, 2])
+    >>> keras.ops.float_power(x1, x2)
+    array([ 0.5       ,  0.11111111, 16.        ], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return FloatPower().symbolic_call(x1, x2)
+    return _float_power(x1, x2)
+
+
+def _float_power(x1, x2):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.numpy, "float_power"
+    ):
+        return backend.numpy.float_power(x1, x2)
+    x1 = backend.convert_to_tensor(x1)
+    x2 = backend.convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = backend.cast(x1, dtype)
+    x2 = backend.cast(x2, dtype)
+    return backend.numpy.power(x1, x2)
+
+
 class Negative(Operation):
     def call(self, x):
         return backend.numpy.negative(x)

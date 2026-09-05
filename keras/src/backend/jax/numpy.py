@@ -1522,6 +1522,12 @@ def power(x1, x2):
     return jnp.power(x1, x2)
 
 
+def float_power(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.float_power(x1, x2)
+
+
 @sparse.elementwise_unary(linear=True)
 def negative(x):
     x = convert_to_tensor(x)
