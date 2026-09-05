@@ -2733,6 +2733,55 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertFalse(np.isnan(x_grad).any())
         self.assertAllClose(x_grad, expected_grad)
 
+    def test_normalize_l2_float16_gradients(self):
+        # Half-precision L2 normalize must keep finite gradients for ordinary
+        # magnitudes (see #23546). Without an upcast, rsqrt's derivative
+        # overflows float16 for inputs like 0.01.
+        x_np = np.full((4, 2), 0.01, dtype="float16")
+
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            x = tf.Variable(x_np)
+            with tf.GradientTape() as tape:
+                y = knn.normalize(x, axis=-1, order=2)
+                loss = tf.reduce_sum(y)
+            x_grad = tape.gradient(loss, x)
+
+            x32 = tf.Variable(x_np.astype("float32"))
+            with tf.GradientTape() as tape:
+                y32 = knn.normalize(x32, axis=-1, order=2)
+                loss32 = tf.reduce_sum(y32)
+            expected_grad = tape.gradient(loss32, x32)
+        elif backend.backend() == "jax":
+            import jax
+            import jax.numpy as jnp
+
+            def f(x):
+                return jnp.sum(knn.normalize(x, axis=-1, order=2))
+
+            x_grad = jax.grad(f)(jnp.array(x_np))
+            expected_grad = jax.grad(f)(jnp.array(x_np.astype("float32")))
+        elif backend.backend() == "torch":
+            import torch
+
+            x = torch.tensor(x_np, requires_grad=True)
+            y = knn.normalize(x, axis=-1, order=2)
+            y.sum().backward()
+            x_grad = x.grad
+
+            x32 = torch.tensor(x_np.astype("float32"), requires_grad=True)
+            y32 = knn.normalize(x32, axis=-1, order=2)
+            y32.sum().backward()
+            expected_grad = x32.grad
+        else:
+            self.skipTest("Gradient test requires tensorflow, jax or torch.")
+
+        x_grad = ops.convert_to_numpy(x_grad)
+        expected_grad = ops.convert_to_numpy(expected_grad)
+        self.assertTrue(np.isfinite(x_grad).all())
+        self.assertAllClose(x_grad.astype("float32"), expected_grad, atol=1e-3)
+
     def test_psnr(self):
         x1 = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
         x2 = np.array([[0.2, 0.2, 0.3], [0.4, 0.6, 0.6]])
