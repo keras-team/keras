@@ -6,6 +6,7 @@ from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.losses.loss import Loss
+from keras.src.losses.loss import reduce_weighted_values
 from keras.src.losses.loss import squeeze_or_expand_to_same_rank
 from keras.src.saving import serialization_lib
 from keras.src.utils.numerical_utils import build_pos_neg_masks
@@ -1174,6 +1175,162 @@ class CategoricalFocalCrossentropy(LossFunctionWrapper):
         return config
 
 
+@keras_export("keras.losses.SparseCategoricalFocalCrossentropy")
+class SparseCategoricalFocalCrossentropy(LossFunctionWrapper):
+    """Computes the sparse categorical focal crossentropy loss.
+
+    Use this crossentropy loss function when there are two or more label
+    classes and labels are provided as integers. If you want to provide labels
+    using a `one-hot` representation, please use
+    `CategoricalFocalCrossentropy` loss.
+
+    Focal loss applies a modulating factor to down-weight easy examples and
+    focus more on hard examples. For each example, the loss is:
+
+    `FL(p_t) = -alpha_t * (1 - p_t) ** gamma * log(p_t)`
+
+    where `p_t` is the predicted probability of the true class, `gamma` is the
+    focusing parameter, and `alpha_t` is the weight for the true class. When
+    `gamma=0`, there is no focal effect on the crossentropy loss.
+
+    Args:
+        alpha: A weight balancing factor for all classes. Defaults to `0.25`.
+            It can be a list of floats or a scalar. If a list is provided, it
+            must have the same length as the number of classes.
+        gamma: A focusing parameter. Defaults to `2.0`. It gradually reduces
+            the importance given to easy examples.
+        from_logits: Whether `y_pred` is expected to be a logits tensor. By
+            default, `y_pred` is expected to encode a probability distribution.
+        ignore_class: Optional integer. The ID of a class to be ignored during
+            loss computation. This is useful, for example, in segmentation
+            problems featuring a "void" class (commonly -1 or 255). By default
+            (`ignore_class=None`), all classes are considered.
+        axis: The axis along which to compute crossentropy (the features axis).
+            Defaults to `-1`.
+        reduction: Type of reduction to apply to the loss. In almost all cases
+            this should be `"sum_over_batch_size"`. Supported options are
+            `"sum"`, `"sum_over_batch_size"`, `"mean"`,
+            `"mean_with_sample_weight"` or `None`. `"sum"` sums the loss,
+            `"sum_over_batch_size"` and `"mean"` sum the loss and divide by the
+            sample size, and `"mean_with_sample_weight"` sums the loss and
+            divides by the sum of the sample weights. `"none"` and `None`
+            perform no aggregation. Defaults to `"sum_over_batch_size"`.
+        name: Optional name for the loss instance.
+        dtype: The dtype of the loss's computations. Defaults to `None`, which
+            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            `"float32"` unless set to a different value (via
+            `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is provided,
+            then the `compute_dtype` will be utilized.
+
+    Examples:
+
+    >>> y_true = np.array([1, 2])
+    >>> y_pred = np.array([[0.05, 0.95, 0], [0.1, 0.8, 0.1]])
+    >>> loss = keras.losses.SparseCategoricalFocalCrossentropy(
+    ...     reduction=None
+    ... )
+    >>> loss(y_true, y_pred)
+    array([3.2058e-05, 4.6627e-01], dtype=float32)
+
+    Usage with the `compile()` API:
+
+    ```python
+    model.compile(
+        optimizer="adam",
+        loss=keras.losses.SparseCategoricalFocalCrossentropy(),
+    )
+    ```
+
+    An out-of-range, non-ignored label produces a `NaN` loss value. An `alpha`
+    vector with a statically known wrong length raises `ValueError`; if its
+    length or the class dimension is only known at runtime, a mismatch produces
+    `NaN` loss values. This prevents backend-dependent index selection in
+    compiled and symbolic execution, where Keras does not have a portable
+    runtime assertion primitive.
+    """
+
+    def __init__(
+        self,
+        alpha=0.25,
+        gamma=2.0,
+        from_logits=False,
+        ignore_class=None,
+        axis=-1,
+        reduction="sum_over_batch_size",
+        name="sparse_categorical_focal_crossentropy",
+        dtype=None,
+    ):
+        super().__init__(
+            sparse_categorical_focal_crossentropy,
+            name=name,
+            reduction=reduction,
+            dtype=dtype,
+            alpha=alpha,
+            gamma=gamma,
+            from_logits=from_logits,
+            ignore_class=ignore_class,
+            axis=axis,
+        )
+        self.alpha = alpha
+        self.gamma = gamma
+        self.from_logits = from_logits
+        self.ignore_class = ignore_class
+        self.axis = axis
+
+    def __call__(self, y_true, y_pred, sample_weight=None):
+        # Sparse labels must retain their integer dtype until the loss validates
+        # and gathers them. In particular, bfloat16 cannot represent every
+        # integer above 256. The generic Loss.__call__ casts both arguments to
+        # the compute dtype, which can silently change a valid class ID or an
+        # out-of-range ignore sentinel.
+        in_mask = backend.get_keras_mask(y_pred)
+
+        with ops.name_scope(self.name):
+            y_pred = tree.map_structure(
+                lambda x: ops.convert_to_tensor(x, dtype=self.dtype), y_pred
+            )
+            y_true = tree.map_structure(ops.convert_to_tensor, y_true)
+
+            loss_values = self.call(y_true, y_pred)
+            out_mask = backend.get_keras_mask(loss_values)
+
+            if in_mask is not None and out_mask is not None:
+                mask = in_mask & out_mask
+            elif in_mask is not None:
+                mask = in_mask
+            elif out_mask is not None:
+                mask = out_mask
+            else:
+                mask = None
+
+            return reduce_weighted_values(
+                loss_values,
+                sample_weight=sample_weight,
+                mask=mask,
+                reduction=self.reduction,
+                dtype=self.dtype,
+            )
+
+    def call(self, y_true, y_pred):
+        # Shape handling for this loss is relative to its configurable class
+        # axis. Bypass LossFunctionWrapper's last-axis rank adjustment and let
+        # the focal loss perform its axis-aware validation and squeeze.
+        return self.fn(y_true, y_pred, **self._fn_kwargs)
+
+    def get_config(self):
+        config = Loss.get_config(self)
+        config.update(
+            {
+                "alpha": self.alpha,
+                "gamma": self.gamma,
+                "from_logits": self.from_logits,
+                "ignore_class": self.ignore_class,
+                "axis": self.axis,
+            }
+        )
+        return config
+
+
 @keras_export("keras.losses.SparseCategoricalCrossentropy")
 class SparseCategoricalCrossentropy(LossFunctionWrapper):
     """Computes the crossentropy loss between the labels and predictions.
@@ -2305,6 +2462,189 @@ def categorical_focal_crossentropy(
     focal_cce = ops.multiply(weighting_factor, cce)
     focal_cce = ops.sum(focal_cce, axis=axis)
     return focal_cce
+
+
+@keras_export("keras.losses.sparse_categorical_focal_crossentropy")
+def sparse_categorical_focal_crossentropy(
+    y_true,
+    y_pred,
+    alpha=0.25,
+    gamma=2.0,
+    from_logits=False,
+    ignore_class=None,
+    axis=-1,
+):
+    """Computes the sparse categorical focal crossentropy loss.
+
+    Args:
+        y_true: Tensor of integer true targets.
+        y_pred: Tensor of predicted targets.
+        alpha: A weight balancing factor for all classes. Defaults to `0.25`.
+            It can be a list of floats or a scalar. If a list is provided, it
+            must have the same length as the number of classes.
+        gamma: A focusing parameter. Defaults to `2.0`. It gradually reduces
+            the importance given to easy examples. When `gamma=0`, there is no
+            focal effect on the crossentropy loss.
+        from_logits: Whether `y_pred` is expected to be a logits tensor. By
+            default, `y_pred` is expected to encode a probability distribution.
+        ignore_class: Optional integer. The ID of a class to be ignored during
+            loss computation. This is useful, for example, in segmentation
+            problems featuring a "void" class (commonly -1 or 255). By default
+            (`ignore_class=None`), all classes are considered.
+        axis: The axis along which to compute crossentropy (the features axis).
+            Defaults to `-1`.
+
+    Returns:
+        Sparse categorical focal crossentropy loss value.
+
+        An out-of-range, non-ignored label produces a `NaN` loss value. An
+        `alpha` vector with a statically known wrong length raises `ValueError`;
+        if its length or the class dimension is only known at runtime, a
+        mismatch produces `NaN` loss values. This prevents backend-dependent
+        index selection in compiled and symbolic execution, where Keras does
+        not have a portable runtime assertion primitive.
+
+    Example:
+
+    >>> y_true = [1, 2]
+    >>> y_pred = [[0.05, 0.95, 0], [0.1, 0.8, 0.1]]
+    >>> loss = keras.losses.sparse_categorical_focal_crossentropy(
+    ...     y_true, y_pred
+    ... )
+    >>> assert loss.shape == (2,)
+    >>> loss
+    array([3.2058e-05, 4.6627e-01], dtype=float32)
+    """
+    if isinstance(axis, bool):
+        raise ValueError(
+            "`axis` must be of type `int`. "
+            f"Received: axis={axis} of type {type(axis)}"
+        )
+
+    y_pred = ops.convert_to_tensor(y_pred)
+    y_true = ops.convert_to_tensor(y_true)
+    if len(y_pred.shape) < 1:
+        raise ValueError(
+            "Argument `y_pred` must be at least rank 1. "
+            f"Received: y_pred.shape={y_pred.shape}"
+        )
+
+    axis = canonicalize_axis(axis, len(y_pred.shape))
+    if len(y_true.shape) == len(y_pred.shape) and y_true.shape[axis] == 1:
+        y_true = ops.squeeze(y_true, axis=axis)
+
+    expected_y_true_shape = y_pred.shape[:axis] + y_pred.shape[axis + 1 :]
+    if len(y_true.shape) != len(expected_y_true_shape) or any(
+        true_dim is not None and pred_dim is not None and true_dim != pred_dim
+        for true_dim, pred_dim in zip(y_true.shape, expected_y_true_shape)
+    ):
+        raise ValueError(
+            "Arguments `y_true` and `y_pred` must have the same shape up "
+            "until the class dimension: "
+            f"y_true.shape={y_true.shape}, y_pred.shape={y_pred.shape}"
+        )
+
+    # Promote narrow labels before range checks. Casting the class count or an
+    # arbitrary `ignore_class` to the original dtype can overflow at valid
+    # boundaries such as 256 classes with uint8 labels. Preserve int64 inputs
+    # so very large invalid labels are identified before the gather, while using
+    # int32 otherwise to remain compatible with JAX's default dtype mode.
+    if backend.standardize_dtype(y_true.dtype) != "int64":
+        y_true = ops.cast(y_true, "int32")
+
+    valid_mask = None
+    if ignore_class is not None:
+        valid_mask = ops.not_equal(y_true, ignore_class)
+
+    static_num_classes = y_pred.shape[axis]
+    if static_num_classes is None:
+        # `ops.shape()` returns the static shape for a KerasTensor, including
+        # `None` dimensions. Derive the runtime class count from tensor sizes
+        # instead so symbolic inputs with an unknown class dimension work.
+        target_size = ops.maximum(ops.size(y_true), 1)
+        num_classes = ops.floor_divide(ops.size(y_pred), target_size)
+    else:
+        num_classes = static_num_classes
+    num_classes = ops.cast(num_classes, dtype=y_true.dtype)
+    in_range = ops.logical_and(
+        ops.greater_equal(y_true, 0), ops.less(y_true, num_classes)
+    )
+    if valid_mask is None:
+        labels_valid = in_range
+    else:
+        labels_valid = ops.logical_or(ops.logical_not(valid_mask), in_range)
+
+    # Gather only from valid indices. Invalid, non-ignored labels are changed
+    # to NaN below. This ops-only behavior is consistent in eager, symbolic,
+    # and compiled execution and avoids backend-specific assertions or host
+    # synchronization in the loss hot path.
+    safe_y_true = ops.where(in_range, y_true, 0)
+    safe_y_true = ops.cast(safe_y_true, "int32")
+    if from_logits:
+        y_pred = ops.softmax(y_pred, axis=axis)
+
+    output = y_pred / ops.sum(y_pred, axis=axis, keepdims=True)
+    output = ops.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+    true_class_prob = ops.take_along_axis(
+        output, ops.expand_dims(safe_y_true, axis=axis), axis=axis
+    )
+    true_class_prob = ops.squeeze(true_class_prob, axis=axis)
+
+    alpha = ops.convert_to_tensor(alpha, dtype=output.dtype)
+    alpha_rank = len(alpha.shape)
+    if alpha_rank not in (0, 1):
+        raise ValueError(
+            "`alpha` must be a scalar or a rank-1 tensor. "
+            f"Received: alpha.shape={alpha.shape}"
+        )
+
+    alpha_length_valid = None
+    if alpha_rank == 1:
+        alpha_length = alpha.shape[0]
+        if alpha_length is not None and static_num_classes is not None:
+            if alpha_length != static_num_classes:
+                raise ValueError(
+                    "When `alpha` is a list or rank-1 tensor, it must contain "
+                    "one value per class. "
+                    f"Received: alpha.shape={alpha.shape} and "
+                    f"y_pred.shape={y_pred.shape}"
+                )
+        else:
+            alpha_length_valid = ops.equal(ops.size(alpha), num_classes)
+
+    if alpha_rank == 0:
+        alpha_t = alpha
+    else:
+        alpha_indices = safe_y_true
+        if alpha_length_valid is not None:
+            alpha_length = ops.size(alpha)
+            alpha = ops.concatenate(
+                [alpha, ops.zeros((1,), dtype=alpha.dtype)], axis=0
+            )
+            alpha_indices = ops.minimum(
+                alpha_indices, ops.cast(alpha_length, dtype=alpha_indices.dtype)
+            )
+        alpha_t = ops.take(alpha, alpha_indices, axis=0)
+
+    loss = ops.negative(
+        ops.multiply(
+            alpha_t,
+            ops.multiply(
+                ops.power(1.0 - true_class_prob, gamma),
+                ops.log(true_class_prob),
+            ),
+        )
+    )
+    nan = ops.cast(float("nan"), dtype=loss.dtype)
+    loss = ops.where(labels_valid, loss, nan)
+    if alpha_length_valid is not None:
+        loss = ops.where(alpha_length_valid, loss, nan)
+
+    if valid_mask is not None:
+        loss = ops.where(valid_mask, loss, 0.0)
+        backend.set_keras_mask(loss, mask=valid_mask)
+
+    return loss
 
 
 @keras_export(
