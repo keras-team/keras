@@ -595,6 +595,12 @@ def copy(x):
     return jnp.copy(x)
 
 
+def copysign(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.copysign(x1, x2)
+
+
 @sparse.densifying_unary
 def cos(x):
     x = convert_to_tensor(x)

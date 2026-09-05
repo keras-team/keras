@@ -2221,6 +2221,63 @@ def copy(x):
     return backend.numpy.copy(x)
 
 
+class Copysign(Operation):
+    def call(self, x1, x2):
+        return _copysign(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+
+        x1_type = backend.standardize_dtype(getattr(x1, "dtype", type(x1)))
+        x2_type = backend.standardize_dtype(getattr(x2, "dtype", type(x2)))
+        dtype = dtypes.result_type(x1_type, x2_type, float)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.copysign", "keras.ops.numpy.copysign"])
+def copysign(x1, x2):
+    """Compose a value from the magnitude of `x1` and the sign of `x2`.
+
+    The sign of zero is taken into account, so an `x2` of `-0.0` gives a
+    negative result and an `x2` of `0.0` gives a positive one.
+
+    Args:
+        x1: Input tensor providing the magnitude.
+        x2: Input tensor providing the sign.
+
+    Returns:
+        Output tensor with the magnitude of `x1` and the sign of `x2`.
+
+    Example:
+    >>> x1 = keras.ops.convert_to_tensor([-1.0, 2.0, -3.0])
+    >>> x2 = keras.ops.convert_to_tensor([1.0, -1.0, -0.0])
+    >>> keras.ops.copysign(x1, x2)
+    array([ 1., -2., -3.], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Copysign().symbolic_call(x1, x2)
+    return _copysign(x1, x2)
+
+
+def _copysign(x1, x2):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.numpy, "copysign"
+    ):
+        return backend.numpy.copysign(x1, x2)
+    x1 = backend.convert_to_tensor(x1)
+    x2 = backend.convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = backend.cast(x1, dtype)
+    x2 = backend.cast(x2, dtype)
+    # Negate `x1` exactly when its sign differs from the sign of `x2`.
+    flip = backend.numpy.logical_xor(
+        backend.numpy.signbit(x1), backend.numpy.signbit(x2)
+    )
+    return backend.numpy.where(flip, backend.numpy.negative(x1), x1)
+
+
 class Cos(Operation):
     def call(self, x):
         return backend.numpy.cos(x)
