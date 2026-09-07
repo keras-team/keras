@@ -4,12 +4,16 @@ import numpy as np
 import pytest
 import torch
 from absl.testing import parameterized
+from torch.distributed import tensor as torch_tensor
+from torch.distributed.device_mesh import DeviceMesh as TorchDeviceMesh
 
 from keras.src import backend
 from keras.src import testing
 from keras.src.backend.torch import core
 from keras.src.backend.torch import distribution_lib
+from keras.src.backend.torch.core import Variable
 from keras.src.distribution.distribution_lib import DeviceMesh
+from keras.src.distribution.distribution_lib import TensorLayout
 
 
 @pytest.mark.skipif(backend.backend() != "torch", reason="Requires torch")
@@ -32,6 +36,16 @@ class TorchDistributionLibTest(testing.TestCase):
         super().tearDown()
         if torch.distributed.is_initialized():
             torch.distributed.destroy_process_group()
+
+    def _ensure_distributed_initialized(self, port="29500"):
+        if not torch.distributed.is_initialized():
+            self.set_env("MASTER_ADDR", "localhost")
+            self.set_env("MASTER_PORT", port)
+            distribution_lib.initialize(num_processes=1, process_id=0)
+
+    def _get_mesh_devices(self):
+        device_type = core._parse_device_input(core.get_device()).split(":")[0]
+        return np.array([f"{device_type}:0"])
 
     @parameterized.parameters(
         ({}, False, None),
@@ -215,14 +229,7 @@ class TorchDistributionLibTest(testing.TestCase):
         for k, v in env.items():
             self.set_env(k, v)
 
-        if (
-            isinstance(inp, torch.device)
-            and inp.type == "cuda"
-            and not torch.cuda.is_available()
-        ):
-            self.skipTest("No CUDA")
-
-        if inp == "gpu" and not torch.cuda.is_available():
+        if etype == "cuda" and not torch.cuda.is_available():
             self.skipTest("No CUDA")
 
         dev = distribution_lib._to_backend_device(inp)
@@ -230,31 +237,141 @@ class TorchDistributionLibTest(testing.TestCase):
         if eidx is not None:
             self.assertEqual(dev.index, eidx)
 
-    @parameterized.parameters(
-        (np.array(["cpu:0"]).reshape(1), "cpu"),
-        (np.array(["gpu:0"]).reshape(1), "cuda"),
-    )
-    def test_to_backend_mesh(self, devs, etype):
-        if etype == "cuda" and not torch.cuda.is_available():
-            self.skipTest("No CUDA")
-
-        if not torch.distributed.is_initialized():
-            self.set_env("MASTER_ADDR", "localhost")
-            self.set_env("MASTER_PORT", "29509")
-            distribution_lib.initialize(num_processes=1, process_id=0)
-            self.addCleanup(
-                lambda: (
-                    torch.distributed.destroy_process_group()
-                    if torch.distributed.is_initialized()
-                    else None
-                )
-            )
+    def test_to_backend_mesh(self):
+        self._ensure_distributed_initialized(port="29509")
+        device_type = core._parse_device_input(core.get_device()).split(":")[0]
+        devs = np.array([f"{device_type}:0"]).reshape(1)
 
         mesh = DeviceMesh(shape=(1,), axis_names=["x"], devices=devs)
         backend_mesh = distribution_lib._to_backend_mesh(mesh)
 
-        from torch.distributed.device_mesh import DeviceMesh as TorchDeviceMesh
-
         self.assertIsInstance(backend_mesh, TorchDeviceMesh)
-        self.assertEqual(backend_mesh.device_type, etype)
+        self.assertEqual(backend_mesh.device_type, device_type)
         self.assertEqual(backend_mesh.mesh_dim_names, ("x",))
+
+    @parameterized.parameters(
+        (("x", None), torch_tensor.Shard),
+        ((None, None), torch_tensor.Replicate),
+        (None, None),
+    )
+    def test_to_backend_layout(self, axes, expected_placement_type):
+        if axes is None:
+            self.assertIsNone(distribution_lib._to_backend_layout(None))
+            return
+
+        self._ensure_distributed_initialized(port="29510")
+
+        mesh = DeviceMesh(
+            shape=(1,), axis_names=["x"], devices=self._get_mesh_devices()
+        )
+
+        layout = TensorLayout(axes=axes, device_mesh=mesh)
+        backend_layout = distribution_lib._to_backend_layout(layout)
+        self.assertEqual(len(backend_layout.placements), 1)
+        self.assertIsInstance(
+            backend_layout.placements[0], expected_placement_type
+        )
+        if expected_placement_type == torch_tensor.Shard:
+            self.assertEqual(backend_layout.placements[0].dim, 0)
+
+    @parameterized.parameters(
+        (
+            None,
+            "Cannot convert TensorLayout to PyTorch DTensor layout because "
+            "the 'device_mesh' is not specified. Please ensure the layout "
+            "has a valid 'device_mesh'.",
+        ),
+        ("invalid", "Invalid axis name 'invalid'"),
+    )
+    def test_to_backend_layout_errors(self, axis_name, error_msg):
+        if axis_name is None:
+            layout = TensorLayout(axes=("x", None), device_mesh=None)
+        else:
+            self._ensure_distributed_initialized()
+            mesh = DeviceMesh(
+                shape=(1,),
+                axis_names=["data"],
+                devices=self._get_mesh_devices(),
+            )
+
+            class BypassLayout(TensorLayout):
+                def __init__(self, axes, mesh):
+                    self._axes = axes
+                    self._device_mesh = mesh
+
+                def _validate_axes(self):
+                    pass
+
+            layout = BypassLayout(axes=(axis_name,), mesh=mesh)
+
+        with self.assertRaisesRegex(ValueError, error_msg):
+            distribution_lib._to_backend_layout(layout)
+
+    @parameterized.parameters(
+        ("tensor", False, False),
+        ("variable", False, False),
+        ("numpy", False, False),
+        ("tensor", True, False),
+        ("tensor", False, True),
+    )
+    def test_distribute_tensor(
+        self, input_type, layout_is_none, input_is_dtensor
+    ):
+        self._ensure_distributed_initialized(port="29511")
+        mesh = DeviceMesh(
+            shape=(1,), axis_names=["x"], devices=self._get_mesh_devices()
+        )
+        layout = TensorLayout(axes=("x", None), device_mesh=mesh)
+
+        if input_is_dtensor:
+            tensor = distribution_lib.distribute_tensor(
+                torch.ones((2, 2)), layout
+            )
+        elif input_type == "tensor":
+            tensor = torch.ones((2, 2))
+        elif input_type == "variable":
+            tensor = Variable(torch.ones((2, 2)))
+        elif input_type == "numpy":
+            tensor = np.ones((2, 2), dtype="float32")
+
+        actual_layout = None if layout_is_none else layout
+        dtensor = distribution_lib.distribute_tensor(tensor, actual_layout)
+
+        if layout_is_none or input_is_dtensor:
+            self.assertIs(dtensor, tensor)
+        else:
+            self.assertIsInstance(dtensor, torch_tensor.DTensor)
+
+    @parameterized.parameters(
+        ("tensor", False),
+        ("tensor", True),
+        ("dtensor", False),
+        ("numpy", False),
+    )
+    def test_distribute_data_input(self, input_type, layout_is_none):
+        self._ensure_distributed_initialized(port="29513")
+        mesh = DeviceMesh(
+            shape=(1,), axis_names=["x"], devices=self._get_mesh_devices()
+        )
+        layout = TensorLayout(axes=("x", None), device_mesh=mesh)
+
+        if input_type == "tensor":
+            inp = torch.ones((2, 2))
+        elif input_type == "dtensor":
+            inp = distribution_lib.distribute_data_input(
+                torch.ones((2, 2)), layout
+            )
+        elif input_type == "numpy":
+            inp = np.ones((2, 2), dtype="float32")
+
+        actual_layout = None if layout_is_none else layout
+        res = distribution_lib.distribute_data_input(inp, actual_layout)
+
+        if layout_is_none:
+            self.assertIsInstance(res, torch.Tensor)
+            self.assertNotIsInstance(res, torch_tensor.DTensor)
+        else:
+            self.assertIsInstance(res, torch_tensor.DTensor)
+            self.assertEqual(res.shape, (2, 2))
+            if input_type == "dtensor":
+                self.assertIs(res, inp)

@@ -94,6 +94,15 @@ class TestNumericalUtils(testing.TestCase):
         self.assertEqual(out.shape, x.shape)
         self.assertAllClose(out, expected)
 
+    @parameterized.parameters([-1, 0, None])
+    def test_normalize_numpy_1d_preserves_shape(self, axis):
+        x = np.array([3.0, 4.0])
+
+        out = numerical_utils.normalize(x, axis=axis)
+
+        self.assertEqual(out.shape, x.shape)
+        self.assertAllClose(out, np.array([0.6, 0.8]))
+
     def test_build_pos_neg_masks(self):
         query_labels = np.array([0, 1, 2, 2, 0])
         key_labels = np.array([0, 1, 2, 0, 2])

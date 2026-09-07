@@ -18,10 +18,12 @@ from keras.src.quantizers.quantizers import compute_float8_scale
 from keras.src.quantizers.quantizers import compute_quantization_parameters
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import fake_quant_with_min_max_vars
+from keras.src.quantizers.quantizers import pack_int2
 from keras.src.quantizers.quantizers import pack_int4
 from keras.src.quantizers.quantizers import pack_ternary
 from keras.src.quantizers.quantizers import quantize_and_dequantize
 from keras.src.quantizers.quantizers import quantize_with_sz_map
+from keras.src.quantizers.quantizers import unpack_int2
 from keras.src.quantizers.quantizers import unpack_int4
 from keras.src.quantizers.quantizers import unpack_ternary
 from keras.src.saving import serialization_lib
@@ -72,7 +74,7 @@ def get(identifier, **kwargs):
 
     if callable(obj):
         if inspect.isclass(obj):
-            obj = obj(kwargs)
+            obj = obj(**kwargs)
         return obj
     else:
         raise ValueError(

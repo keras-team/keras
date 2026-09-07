@@ -448,7 +448,7 @@ def can_convert_arrays(arrays):
     """Check if array like-inputs can be handled by `ArrayDataAdapter`
 
     Args:
-        inputs: Structure of `Tensor`s, NumPy arrays, or tensor-like.
+        arrays: Structure of `Tensor`s, NumPy arrays, or tensor-like.
 
     Returns:
         `True` if `arrays` can be handled by `ArrayDataAdapter`, `False`

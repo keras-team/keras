@@ -77,15 +77,20 @@ class KerasFileEditor:
 
         if filepath.endswith(".keras"):
             zf = zipfile.ZipFile(filepath, "r")
+            # Reject a decompression-bomb weights member up front, mirroring
+            # `saving_lib._load_model_from_fileobj`.
+            saving_lib._reject_zip_bomb(zf, f"{saving_lib._VARS_FNAME}.h5")
             weights_store = H5IOStore(
                 f"{saving_lib._VARS_FNAME}.h5",
                 archive=zf,
                 mode="r",
             )
-            with zf.open(saving_lib._CONFIG_FILENAME, "r") as f:
-                config_json = f.read()
-            with zf.open(saving_lib._METADATA_FILENAME, "r") as f:
-                metadata_json = f.read()
+            config_json = saving_lib._safe_zip_read(
+                zf, saving_lib._CONFIG_FILENAME
+            )
+            metadata_json = saving_lib._safe_zip_read(
+                zf, saving_lib._METADATA_FILENAME
+            )
             self.config = json.loads(config_json)
             self.metadata = json.loads(metadata_json)
 

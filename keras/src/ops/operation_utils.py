@@ -2,7 +2,6 @@ import math
 
 import numpy as np
 
-from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
@@ -300,7 +299,9 @@ def standardize_reshape_shape(newshape, newshape_arg_name="newshape"):
     tensors are returned as is, since their dimensions are only known at
     runtime.
     """
-    if backend.is_tensor(newshape) or isinstance(newshape, KerasTensor):
+    from keras.src import ops
+
+    if ops.is_tensor(newshape) or isinstance(newshape, KerasTensor):
         return newshape
     try:
         newshape = tuple(newshape)
@@ -318,8 +319,9 @@ def validate_reshape_shape(newshape, newshape_arg_name="newshape"):
     scalars resolved at runtime, such as `torch.SymInt` under `torch.compile`)
     are not validated here.
     """
+    from keras.src import ops
 
-    if backend.is_tensor(newshape) or isinstance(newshape, KerasTensor):
+    if ops.is_tensor(newshape) or isinstance(newshape, KerasTensor):
         return
 
     neg_one_count = 0
@@ -347,10 +349,12 @@ def compute_reshape_output_shape(input_shape, newshape, newshape_arg_name):
 
     This utility does not special case the 0th dimension (batch size).
     """
+    from keras.src import ops
+
     newshape = standardize_reshape_shape(newshape, newshape_arg_name)
     # If `newshape` is a tensor, we infer the output rank based on its shape.
     # For example, a 1D tensor of shape (4,) indicates a 4D output shape.
-    if backend.is_tensor(newshape) or isinstance(newshape, KerasTensor):
+    if ops.is_tensor(newshape) or isinstance(newshape, KerasTensor):
         shape = getattr(newshape, "shape", None)
         if shape and len(shape) == 1 and shape[0] is not None:
             return (None,) * shape[0]

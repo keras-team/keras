@@ -436,3 +436,28 @@ class NormalizationTest(testing.TestCase):
 
         np.testing.assert_allclose(mean, np.ones(3))
         np.testing.assert_allclose(var, np.zeros(3))
+
+    def test_adapt_empty_pydataset_raises(self):
+        class EmptyDataset(PyDataset):
+            def __len__(self):
+                return 0
+
+            def __getitem__(self, idx):
+                raise IndexError
+
+        layer = layers.Normalization()
+        with self.assertRaisesRegex(ValueError, "empty PyDataset"):
+            layer.adapt(EmptyDataset())
+
+    def test_adapt_pydataset_with_list_batches(self):
+        class ListBatchDataset(PyDataset):
+            def __len__(self):
+                return 5
+
+            def __getitem__(self, idx):
+                # Returns list batch [x, y] and x is python list without .shape
+                return [[[1.0, 2.0], [3.0, 4.0]], [0, 1]]
+
+        layer = layers.Normalization()
+        layer.adapt(ListBatchDataset())
+        self.assertTrue(layer.built)

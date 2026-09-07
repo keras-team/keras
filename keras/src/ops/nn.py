@@ -8,6 +8,7 @@ from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
 from keras.src.backend import config
 from keras.src.backend import standardize_data_format
+from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
@@ -346,7 +347,7 @@ class Squareplus(Operation):
         self.b = b
 
     def call(self, x):
-        return backend.nn.squareplus(x, self.b)
+        return _squareplus(x, self.b)
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype=x.dtype)
@@ -377,7 +378,18 @@ def squareplus(x, b=4):
     """
     if any_symbolic_tensors((x,)):
         return Squareplus(b).symbolic_call(x)
-    return backend.nn.squareplus(x, b)
+    return _squareplus(x, b)
+
+
+def _squareplus(x, b):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.nn, "squareplus"
+    ):
+        return backend.nn.squareplus(x, b)
+    x = backend.convert_to_tensor(x)
+    b = backend.convert_to_tensor(b, dtype=x.dtype)
+    y = (x + backend.numpy.sqrt(backend.numpy.square(x) + b)) / 2.0
+    return backend.cast(y, dtype=x.dtype)
 
 
 class LogSigmoid(Operation):
@@ -3201,7 +3213,17 @@ def _layer_normalization(
 
 class Polar(Operation):
     def compute_output_spec(self, abs_, angle):
-        return KerasTensor(shape=abs_.shape)
+        dtype = backend.standardize_dtype(
+            dtypes.result_type(
+                getattr(abs_, "dtype", backend.floatx()),
+                getattr(angle, "dtype", backend.floatx()),
+            )
+        )
+        # `polar` combines two real tensors into a complex one, so the output
+        # is the complex dtype of matching width.
+        dtype = "complex128" if dtype == "float64" else "complex64"
+        output_shape = operation_utils.broadcast_shapes(abs_.shape, angle.shape)
+        return KerasTensor(shape=output_shape, dtype=dtype)
 
     def call(self, abs_, angle):
         return _polar(abs_, angle)

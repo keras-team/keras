@@ -10,6 +10,10 @@ from keras.src import testing
 
 
 class EarlyStoppingTest(testing.TestCase):
+    def test_negative_patience(self):
+        with self.assertRaisesRegex(ValueError, r"patience.*must be >= 0"):
+            callbacks.EarlyStopping(patience=-1)
+
     @pytest.mark.requires_trainable_backend
     def test_early_stopping(self):
         x_train = np.random.random((10, 5))

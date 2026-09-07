@@ -3885,6 +3885,12 @@ def pad(x, pad_width, mode="constant", constant_values=None):
             constant_values, x.get_element_type()
         ).output(0)
 
+    if len(pad_width) == 1:
+        # A single `(before, after)` pair broadcasts to every axis, matching
+        # `np.pad`. `ov_opset.pad` requires `pads_begin`/`pads_end` to match
+        # the input rank, so expand it here.
+        pad_width = [pad_width[0]] * x.get_partial_shape().rank.get_length()
+
     # split pad_width into two tensors pads_begin and pads_end
     pads_begin = []
     pads_end = []
@@ -4665,12 +4671,19 @@ def trunc(x):
 def tile(x, repeats):
     x = get_ov_output(x)
 
-    if isinstance(repeats, int):
+    if isinstance(repeats, int) or (
+        isinstance(repeats, OpenVINOKerasTensor) and repeats.ndim == 0
+    ):
         repeats = [repeats]
-    repeats = get_ov_output(repeats)
+    if isinstance(repeats, (list, tuple)):
+        # `repeats` may mix Python ints with symbolic dimensions,
+        # which cannot be folded into a single constant.
+        repeats = shape_to_ov_output(list(repeats))
+    else:
+        repeats = get_ov_output(repeats)
 
     if repeats.get_element_type() != Type.i64:
-        repeats = ov_opset.convert(repeats, Type.i64)
+        repeats = ov_opset.convert(repeats, Type.i64).output(0)
 
     if len(repeats.get_partial_shape()) != 1:
         repeats = ov_opset.reshape(repeats, [-1], False)
@@ -4891,7 +4904,7 @@ def divide_no_nan(x1, x2):
         element_type = x2.output.get_element_type()
     x1 = get_ov_output(x1, element_type)
     x2 = get_ov_output(x2, element_type)
-    x1, x2 = _align_operand_types(x1, x2, "divide_no_nan()")
+    x1, x2 = _align_operand_types(x1, x2, "divide_no_nan()", force_float=True)
 
     zero = ov_opset.constant(0, x2.get_element_type())
     div = ov_opset.divide(x1, x2)

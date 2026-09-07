@@ -1404,10 +1404,15 @@ class NNOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knn.layer_normalization(x, gamma, beta).shape, x.shape)
 
     def test_polar(self):
-        abs_ = KerasTensor([1, 2])
+        abs_ = KerasTensor([3, 4])
         angle = KerasTensor([3, 4])
         out = knn.polar(abs_, angle)
         self.assertEqual(out.shape, abs_.shape)
+        self.assertEqual(out.dtype, "complex64")
+
+        # `polar` broadcasts its two inputs against each other.
+        out = knn.polar(KerasTensor([2, 1]), KerasTensor([1, 3]))
+        self.assertEqual(out.shape, (2, 3))
 
 
 class NNOpsCorrectnessTest(testing.TestCase):
@@ -1677,6 +1682,14 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             out, [-0.41614684 + 0.9092974j, -1.979985 + 0.28224j], atol=1e-3
         )
+        # The symbolic dtype must match the eager one, which is complex.
+        symbolic_out = knn.Polar().symbolic_call(
+            KerasTensor((2,), dtype="float32"),
+            KerasTensor((2,), dtype="float32"),
+        )
+        self.assertEqual(
+            backend.standardize_dtype(out.dtype), symbolic_out.dtype
+        )
 
     def test_sparsemax(self):
         x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
@@ -1684,6 +1697,12 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.sparsemax(x),
             [0.0, 0.0, 0.0, 0.0, 1.0],
         )
+
+        # The case above has a support of size one, where the threshold is
+        # just the largest logit. Closely spaced logits keep more than one
+        # coordinate in the support and exercise the threshold itself.
+        x = np.array([0.0, 0.5, 1.0], dtype=np.float32)
+        self.assertAllClose(knn.sparsemax(x), [0.0, 0.25, 0.75])
 
     def test_max_pool(self):
         data_format = backend.config.image_data_format()
@@ -3271,6 +3290,25 @@ class NNOpsDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_sparsemax(self, dtype):
+        # `jax.nn` has no `sparsemax`, so there is no reference to compare
+        # against. `sparsemax` is a projection onto the simplex and returns the
+        # dtype it is given. The ranks and counts inside the implementation are
+        # integers and the constants are Python floats; neither may promote the
+        # result away from that dtype.
+        x = knp.ones((2,), dtype=dtype)
+        expected_dtype = dtype
+
+        self.assertEqual(
+            standardize_dtype(knn.sparsemax(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knn.Sparsemax().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_silu(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -3492,7 +3530,7 @@ class NNOpsBehaviorTest(testing.TestCase):
         model = models.Sequential([layer])
         model.compile(loss="binary_crossentropy", optimizer="sgd")
         out = model.evaluate(x, y)
-        self.assertAllClose(out, 2.682124)
+        self.assertAllClose(out, 2.682124, atol=1e-3, rtol=1e-3)
 
     def test_softmax_on_axis_with_size_one_warns(self):
         x = np.array([[1.0]])

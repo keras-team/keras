@@ -148,6 +148,7 @@ class CategoryEncoding(DataLayer):
         config = {
             "num_tokens": self.num_tokens,
             "output_mode": self.output_mode,
+            "sparse": self.sparse,
         }
         base_config = super().get_config()
         return {**base_config, **config}

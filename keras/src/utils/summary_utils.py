@@ -397,8 +397,8 @@ def get_layer_index_bound_by_layer_name(layers, layer_range=None):
     display.
 
     Args:
-        model: `Model` instance.
-        layer_names: a list or tuple of 2 strings, the starting layer name and
+        layers: list of `Layer` instances.
+        layer_range: a list or tuple of 2 strings, the starting layer name and
             ending layer name (both inclusive) for the result. All layers will
             be included when `None` is provided.
 
