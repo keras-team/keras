@@ -587,9 +587,9 @@ class CompileLoss(losses_module.Loss):
         except ValueError as e:
             raise ValueError(
                 f"Error when computing loss for output '{loss_name}'. "
-                f"Received target shape {y_t.shape} and "
-                f"prediction shape {y_p.shape}.\n"
-                f"{e}"
+                f"Received target shape {tuple(y_t.shape)} and "
+                f"prediction shape {tuple(y_p.shape)}.\n"
+                f"{str(e).strip()}"
             ) from e
 
     def build(self, y_true, y_pred):
