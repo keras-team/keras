@@ -2,7 +2,7 @@ from keras.src import backend
 from keras.src.api_export import keras_export
 
 
-@keras_export("keras.random.normal")
+@keras_export(["keras.random.normal", "keras.ops.random.normal"])
 def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     """Draw random samples from a normal (Gaussian) distribution.
 
@@ -34,7 +34,7 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     )
 
 
-@keras_export("keras.random.categorical")
+@keras_export(["keras.random.categorical", "keras.ops.random.categorical"])
 def categorical(logits, num_samples, dtype="int32", seed=None):
     """Draws samples from a categorical distribution.
 
@@ -84,7 +84,7 @@ def categorical(logits, num_samples, dtype="int32", seed=None):
     )
 
 
-@keras_export("keras.random.uniform")
+@keras_export(["keras.random.uniform", "keras.ops.random.uniform"])
 def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     """Draw samples from a uniform distribution.
 
@@ -128,7 +128,7 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     )
 
 
-@keras_export("keras.random.randint")
+@keras_export(["keras.random.randint", "keras.ops.random.randint"])
 def randint(shape, minval, maxval, dtype="int32", seed=None):
     """Draw random integers from a uniform distribution.
 
@@ -172,7 +172,9 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
     )
 
 
-@keras_export("keras.random.truncated_normal")
+@keras_export(
+    ["keras.random.truncated_normal", "keras.ops.random.truncated_normal"]
+)
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     """Draw samples from a truncated normal distribution.
 
@@ -208,14 +210,14 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     )
 
 
-@keras_export("keras.random.dropout")
+@keras_export(["keras.random.dropout", "keras.ops.random.dropout"])
 def dropout(inputs, rate, noise_shape=None, seed=None):
     return backend.random.dropout(
         inputs, rate, noise_shape=noise_shape, seed=seed
     )
 
 
-@keras_export("keras.random.shuffle")
+@keras_export(["keras.random.shuffle", "keras.ops.random.shuffle"])
 def shuffle(x, axis=0, seed=None):
     """Shuffle the elements of a tensor uniformly at random along an axis.
 
@@ -240,7 +242,7 @@ def shuffle(x, axis=0, seed=None):
     return backend.random.shuffle(x, axis=axis, seed=seed)
 
 
-@keras_export("keras.random.gamma")
+@keras_export(["keras.random.gamma", "keras.ops.random.gamma"])
 def gamma(shape, alpha, dtype=None, seed=None):
     """Draw random samples from the Gamma distribution.
 
@@ -268,7 +270,7 @@ def gamma(shape, alpha, dtype=None, seed=None):
     return backend.random.gamma(shape, alpha=alpha, dtype=dtype, seed=seed)
 
 
-@keras_export("keras.random.binomial")
+@keras_export(["keras.random.binomial", "keras.ops.random.binomial"])
 def binomial(shape, counts, probabilities, dtype=None, seed=None):
     """Draw samples from a Binomial distribution.
 
@@ -309,7 +311,7 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
     )
 
 
-@keras_export("keras.random.beta")
+@keras_export(["keras.random.beta", "keras.ops.random.beta"])
 def beta(shape, alpha, beta, dtype=None, seed=None):
     """Draw samples from a Beta distribution.
 

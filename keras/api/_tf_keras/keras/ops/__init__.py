@@ -8,6 +8,7 @@ from keras.ops import image as image
 from keras.ops import linalg as linalg
 from keras.ops import nn as nn
 from keras.ops import numpy as numpy
+from keras.ops import random as random
 from keras.src.ops.core import associative_scan as associative_scan
 from keras.src.ops.core import cast as cast
 from keras.src.ops.core import cond as cond

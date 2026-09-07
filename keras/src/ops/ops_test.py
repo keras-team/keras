@@ -276,3 +276,39 @@ class OperationTest(testing.TestCase):
                 inspect.signature(op_function),
                 f"Signature mismatch for `{name}`",
             )
+
+    def test_ops_random_export(self):
+        try:
+            from keras.api import random as keras_random
+        except ImportError:
+            from keras import random as keras_random
+
+        self.assertTrue(
+            hasattr(api_ops_root, "random"),
+            "keras.ops must export `random` submodule",
+        )
+        api_ops_random = getattr(api_ops_root, "random")
+
+        expected_symbols = [
+            "normal",
+            "categorical",
+            "uniform",
+            "randint",
+            "truncated_normal",
+            "dropout",
+            "shuffle",
+            "gamma",
+            "binomial",
+            "beta",
+            "SeedGenerator",
+        ]
+        for sym in expected_symbols:
+            self.assertTrue(
+                hasattr(api_ops_random, sym),
+                f"keras.ops.random missing `{sym}`",
+            )
+            self.assertIs(
+                getattr(api_ops_random, sym),
+                getattr(keras_random, sym),
+                f"keras.ops.random.{sym} does not match keras.random.{sym}",
+            )

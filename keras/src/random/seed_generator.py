@@ -11,7 +11,7 @@ from keras.src.utils.naming import auto_name
 GLOBAL_SEED_GENERATOR = "global_seed_generator"
 
 
-@keras_export("keras.random.SeedGenerator")
+@keras_export(["keras.random.SeedGenerator", "keras.ops.random.SeedGenerator"])
 class SeedGenerator:
     """Generates variable seeds upon each call to a function generating
     random numbers.

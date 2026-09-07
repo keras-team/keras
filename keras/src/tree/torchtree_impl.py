@@ -1,6 +1,9 @@
 from collections import defaultdict
 
-from torch.utils import _pytree as torch_tree
+try:
+    from torch.utils import _pytree as torch_tree
+except ImportError:
+    torch_tree = None
 
 
 def register_tree_node_class(cls):
