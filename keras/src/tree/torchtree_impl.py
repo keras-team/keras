@@ -7,6 +7,8 @@ except ImportError:
 
 
 def register_tree_node_class(cls):
+    if torch_tree is None:
+        return cls
     torch_tree.register_pytree_node(
         cls,
         flatten_fn=lambda x: x.torchtree_flatten(),
