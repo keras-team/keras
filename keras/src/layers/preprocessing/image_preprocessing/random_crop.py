@@ -1,4 +1,5 @@
 from keras.src import backend
+from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
@@ -216,7 +217,7 @@ class RandomCrop(BaseImagePreprocessingLayer):
 
         if training:
             h_start, w_start = transformation
-            if not self.backend.is_tensor(bounding_boxes["boxes"]):
+            if not self.ops.is_tensor(bounding_boxes["boxes"]):
                 bounding_boxes = densify_bounding_boxes(
                     bounding_boxes, backend=self.backend
                 )

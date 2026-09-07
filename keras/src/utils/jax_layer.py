@@ -6,6 +6,7 @@ import string
 import numpy as np
 
 from keras.src import backend
+from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend.common.variables import is_float_dtype
@@ -419,7 +420,7 @@ class JaxLayer(Layer):
         """
 
         def create_variable(value):
-            if backend.is_tensor(value) or isinstance(
+            if ops.is_tensor(value) or isinstance(
                 value, (np.ndarray, np.generic, jax.Array)
             ):
                 dtype = value.dtype

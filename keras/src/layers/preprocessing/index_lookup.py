@@ -3,6 +3,7 @@ import collections
 import numpy as np
 
 from keras.src import backend
+from keras.src import ops
 from keras.src.layers.layer import Layer
 from keras.src.saving import serialization_lib
 from keras.src.utils import argument_validation
@@ -663,7 +664,7 @@ class IndexLookup(Layer):
             progbar.update(steps if steps is not None else i + 1, finalize=True)
         elif hasattr(data, "__iter__") and not (
             isinstance(data, (list, tuple, np.ndarray))
-            or backend.is_tensor(data)
+            or ops.is_tensor(data)
             or tf.is_tensor(data)
         ):
             progbar = Progbar(target=steps, unit_name="step")

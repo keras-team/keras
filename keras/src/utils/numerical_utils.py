@@ -1,6 +1,7 @@
 import numpy as np
 
 from keras.src import backend
+from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.utils import tf_utils
 
@@ -73,7 +74,7 @@ def to_categorical(x, num_classes=None):
     >>> print(np.around(loss, 5))
     [0. 0. 0. 0.]
     """
-    if backend.is_tensor(x):
+    if ops.is_tensor(x):
         input_shape = backend.core.shape(x)
         # Shrink the last dimension if the shape is (..., 1).
         if (

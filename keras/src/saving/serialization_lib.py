@@ -9,6 +9,7 @@ import numpy as np
 
 from keras.src import api_export
 from keras.src import backend
+from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
 from keras.src.saving import object_registration
@@ -216,7 +217,7 @@ def serialize_keras_object(obj):
         }
     if tf.available and isinstance(obj, tf.TensorShape):
         return obj.as_list() if obj._dims is not None else None
-    if backend.is_tensor(obj):
+    if ops.is_tensor(obj):
         return {
             "class_name": "__tensor__",
             "config": {
