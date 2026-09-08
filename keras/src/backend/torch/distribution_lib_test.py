@@ -67,7 +67,10 @@ class TorchDistributionLibTest(TorchDistributedTestMixin, testing.TestCase):
         res = distribution_lib.get_device_count(device_type)
 
         if torch.distributed.is_initialized() or "WORLD_SIZE" in os.environ:
-            world_size = int(os.environ.get("WORLD_SIZE", 1))
+            if torch.distributed.is_initialized():
+                world_size = torch.distributed.get_world_size()
+            else:
+                world_size = int(os.environ.get("WORLD_SIZE", 1))
             actual_device_type = core._parse_device_input(
                 core.get_device()
             ).split(":")[0]
@@ -152,7 +155,11 @@ class TorchDistributionLibTest(TorchDistributedTestMixin, testing.TestCase):
                 backend="gloo", rank=0, world_size=1
             )
 
-        self.assertEqual(distribution_lib.num_processes(), expected)
+        if torch.distributed.is_initialized():
+            expected_num = torch.distributed.get_world_size()
+        else:
+            expected_num = expected
+        self.assertEqual(distribution_lib.num_processes(), expected_num)
         self.assertEqual(distribution_lib.process_id(), int(env.get("RANK", 0)))
 
     @parameterized.parameters(
