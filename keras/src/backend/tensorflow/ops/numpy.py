@@ -3527,6 +3527,15 @@ def power(x1, x2):
     return tf.pow(x1, x2)
 
 
+def float_power(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+    return tf.pow(x1, x2)
+
+
 @sparse.elementwise_unary
 def negative(x):
     return tf.negative(x)
