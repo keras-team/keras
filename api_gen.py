@@ -145,6 +145,16 @@ def export_version_string(api_init_fname):
         f.write(contents)
 
 
+def export_ops_random_alias(api_ops_init_fname):
+    """Add keras.ops.random as alias to keras.random."""
+    with open(api_ops_init_fname) as f:
+        contents = f.read()
+    if "from keras import random as random" not in contents:
+        contents += "from keras import random as random  # noqa: F401\n"
+        with open(api_ops_init_fname, "w") as f:
+            f.write(contents)
+
+
 def build():
     root_path = os.path.dirname(os.path.abspath(__file__))
     code_api_dir = os.path.join(root_path, PACKAGE, "api")
@@ -168,6 +178,10 @@ def build():
         )
         # Add __version__ to `api/`.
         export_version_string(build_api_init_fname)
+        # Add keras.ops.random alias to keras.random.
+        export_ops_random_alias(
+            os.path.join(build_api_dir, "ops", "__init__.py")
+        )
         # Creates `_tf_keras` with full keras API
         create_legacy_directory(package_dir=os.path.join(build_dir, PACKAGE))
         # Copy back the keras/api and keras/__init__.py from build directory
