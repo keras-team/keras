@@ -24,8 +24,8 @@ def pytest_configure(config):
     )
     config.addinivalue_line(
         "markers",
-        "distributed: mark test that requires torch.distributed or similar "
-        "distributed infrastructure (skipped under pytest-xdist workers)",
+        "no_pytest_xdist: mark test that cannot run under pytest-xdist "
+        "workers (e.g. tests that bind to a fixed port)",
     )
 
     # Disable CUDA TF32 to get higher numerical accuracy for correctness tests.
@@ -83,11 +83,10 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(requires_trainable_backend)
         if requires_multiple_devices and "multi_device" in item.keywords:
             item.add_marker(requires_multiple_devices)
-        if is_xdist_worker and "distributed" in item.keywords:
+        if is_xdist_worker and "no_pytest_xdist" in item.keywords:
             item.add_marker(
                 pytest.mark.skip(
-                    reason="Distributed tests cannot run under "
-                    "pytest-xdist workers"
+                    reason="This test cannot run under pytest-xdist workers"
                 )
             )
 

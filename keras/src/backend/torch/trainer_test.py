@@ -42,7 +42,7 @@ class TrainingAwareModel(models.Model):
 @pytest.mark.skipif(
     backend.backend() != "torch", reason="Requires torch backend"
 )
-@pytest.mark.distributed
+@pytest.mark.no_pytest_xdist
 class TorchTrainerDistributionTest(TorchDistributedTestMixin, testing.TestCase):
     _master_port = "29515"
 

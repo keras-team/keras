@@ -20,7 +20,7 @@ from keras.src.distribution.distribution_lib import TensorLayout
 
 
 @pytest.mark.skipif(backend.backend() != "torch", reason="Requires torch")
-@pytest.mark.distributed
+@pytest.mark.no_pytest_xdist
 class TorchDistributionLibTest(TorchDistributedTestMixin, testing.TestCase):
     def set_env(self, key, value):
         old = os.environ.get(key)
