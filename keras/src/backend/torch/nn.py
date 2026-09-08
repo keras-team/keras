@@ -352,7 +352,19 @@ def _get_channels_last_memory_format(ndim):
 
 def _maybe_convert_to_channels_last(tensor):
     mem_fmt = _get_channels_last_memory_format(tensor.ndim)
-    if mem_fmt is not None and not tensor.is_contiguous(memory_format=mem_fmt):
+    if mem_fmt is None:
+        return tensor
+    # `torch.vmap` does not implement `is_contiguous` for `channels_last` /
+    # `channels_last_3d` (`NYI: querying is_contiguous inside of vmap...`).
+    # Skip the layout conversion in that case; eager conv still uses the
+    # fast memory format. See #23587.
+    try:
+        is_contiguous = tensor.is_contiguous(memory_format=mem_fmt)
+    except RuntimeError as e:
+        if "vmap" not in str(e):
+            raise
+        return tensor
+    if not is_contiguous:
         return tensor.contiguous(memory_format=mem_fmt)
     return tensor
 

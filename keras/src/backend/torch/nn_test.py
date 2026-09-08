@@ -54,3 +54,39 @@ class DotProductAttentionCompileTest(testing.TestCase):
             compiled(query, key, value, **kwargs),
             ops.dot_product_attention(query, key, value, **kwargs),
         )
+
+
+@pytest.mark.skipif(
+    backend.backend() != "torch",
+    reason="This test is only applicable to the PyTorch backend.",
+)
+class ConvVectorizedMapTest(testing.TestCase):
+    def test_vectorized_map_conv3d_channels_last(self):
+        # Regression test for #23587: channels_last conv used to query
+        # `is_contiguous(memory_format=channels_last_3d)` inside torch.vmap.
+        def conv_one(sample):
+            sample = ops.expand_dims(sample, axis=0)
+            kernel = ops.ones((3, 3, 3, 1, 1), dtype="float32")
+            return ops.conv(sample, kernel, padding="same")[0]
+
+        batch = ops.ones((2, 8, 8, 8, 1), dtype="float32")
+        result = ops.vectorized_map(conv_one, batch)
+        expected = ops.conv(
+            batch, ops.ones((3, 3, 3, 1, 1), dtype="float32"), padding="same"
+        )
+        self.assertEqual(tuple(result.shape), (2, 8, 8, 8, 1))
+        self.assertAllClose(result, expected)
+
+    def test_vectorized_map_conv2d_channels_last(self):
+        def conv_one(sample):
+            sample = ops.expand_dims(sample, axis=0)
+            kernel = ops.ones((3, 3, 1, 1), dtype="float32")
+            return ops.conv(sample, kernel, padding="same")[0]
+
+        batch = ops.ones((2, 8, 8, 1), dtype="float32")
+        result = ops.vectorized_map(conv_one, batch)
+        expected = ops.conv(
+            batch, ops.ones((3, 3, 1, 1), dtype="float32"), padding="same"
+        )
+        self.assertEqual(tuple(result.shape), (2, 8, 8, 1))
+        self.assertAllClose(result, expected)
