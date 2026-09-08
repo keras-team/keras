@@ -150,7 +150,11 @@ def export_ops_random_alias(api_ops_init_fname):
     with open(api_ops_init_fname) as f:
         contents = f.read()
     if "from keras import random as random" not in contents:
-        contents += "from keras import random as random  # noqa: F401\n"
+        contents += (
+            "import sys\n"
+            "from keras import random as random  # noqa: F401\n"
+            "sys.modules[__name__ + \".random\"] = random\n"
+        )
         with open(api_ops_init_fname, "w") as f:
             f.write(contents)
 
