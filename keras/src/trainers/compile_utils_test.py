@@ -3,7 +3,7 @@ from collections import namedtuple
 import numpy as np
 from absl.testing import parameterized
 
-import keras
+from keras.src.losses import loss
 from keras.src import backend
 from keras.src import metrics as losses_module
 from keras.src import metrics as metrics_module
@@ -866,7 +866,7 @@ class TestCompileLoss(testing.TestCase):
         self.assertEqual(loss, 0.0)
 
     def test_loss_error_includes_output_name_and_shapes(self):
-        class FailingLoss(keras.losses.Loss):
+        class FailingLoss(loss.Loss):
             def call(self, y_true, y_pred):
                 raise ValueError("Shapes are not compatible")
 
