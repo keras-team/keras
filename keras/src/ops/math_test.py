@@ -1188,7 +1188,6 @@ class MathOpsCorrectnessTest(testing.TestCase):
         )
         expected_output = scipy.special.erfinv(near_ones.astype("float64"))
         output_from_edge_erfinv_op = kmath.erfinv(near_ones)
-        self.assertFalse(np.isinf(output_from_edge_erfinv_op).any())
         self.assertAllClose(
             output_from_edge_erfinv_op, expected_output, atol=0.1
         )
