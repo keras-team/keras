@@ -12,6 +12,7 @@ import warnings
 import tensorflow as tf
 
 from keras.src import backend
+from keras.src import ops
 from keras.src.backend.tensorflow.trackable import KerasAutoTrackable
 from keras.src.optimizers import base_optimizer
 
@@ -201,7 +202,7 @@ class TFOptimizer(KerasAutoTrackable, base_optimizer.BaseOptimizer):
             # The branch bodies may call `merge_call` via all-reduce/update
             # hooks, so the conditional itself must live in cross-replica
             # context.
-            return backend.cond(is_update_step, update_fn, increment_fn)
+            return ops.cond(is_update_step, update_fn, increment_fn)
 
         return replica_context.merge_call(
             _distributed_apply_gradient_accumulation,
