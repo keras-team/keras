@@ -4935,6 +4935,19 @@ def power(x1, x2):
     return OpenVINOKerasTensor(ov_opset.power(x1, x2).output(0))
 
 
+def float_power(x1, x2):
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "float_power()")
+    x1_keras = ov_to_keras_type(x1.get_element_type())
+    x2_keras = ov_to_keras_type(x2.get_element_type())
+    dtype = dtypes.result_type(x1_keras, x2_keras, float)
+    ov_dtype = OPENVINO_DTYPES[dtype]
+    x1 = ov_opset.convert(x1, ov_dtype).output(0)
+    x2 = ov_opset.convert(x2, ov_dtype).output(0)
+    return OpenVINOKerasTensor(ov_opset.power(x1, x2).output(0))
+
+
 def negative(x):
     x = get_ov_output(x)
     return OpenVINOKerasTensor(ov_opset.negative(x).output(0))

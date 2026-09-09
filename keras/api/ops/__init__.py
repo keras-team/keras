@@ -208,6 +208,7 @@ from keras.src.ops.numpy import fabs as fabs
 from keras.src.ops.numpy import flip as flip
 from keras.src.ops.numpy import fliplr as fliplr
 from keras.src.ops.numpy import flipud as flipud
+from keras.src.ops.numpy import float_power as float_power
 from keras.src.ops.numpy import floor as floor
 from keras.src.ops.numpy import floor_divide as floor_divide
 from keras.src.ops.numpy import fmax as fmax

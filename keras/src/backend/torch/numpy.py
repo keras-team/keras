@@ -2175,6 +2175,17 @@ def power(x1, x2):
     return torch.pow(x1, x2)
 
 
+def float_power(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    # `torch.float_power` always computes in float64, which the MPS device
+    # does not support, so raise the operands to a float dtype instead.
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
+    return torch.pow(x1, x2)
+
+
 def negative(x):
     x = convert_to_tensor(x)
     return torch.negative(x)
