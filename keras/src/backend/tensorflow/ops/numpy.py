@@ -1253,6 +1253,16 @@ def copy(x):
     return tf.identity(x)
 
 
+def copysign(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+    magnitude = tf.abs(x1)
+    return tf.where(signbit(x2), -magnitude, magnitude)
+
+
 @sparse.densifying_unary(1)
 def cos(x):
     x = convert_to_tensor(x)
