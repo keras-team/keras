@@ -65,11 +65,11 @@ def manage_venv_installs(whl_path):
     else:
         # A pluggable backend lives in its own package, and its CI says what
         # to install, typically its own checkout.
-        backend_pkg = os.environ.get("KERAS_BACKEND_PACKAGE")
+        backend_pkg = os.environ.get("KERAS_BACKEND_PACKAGES")
         backend_extra_url = ""
         if backend_pkg is None:
             raise ValueError(
-                "Set `KERAS_BACKEND_PACKAGE` to the pip requirement for the "
+                "Set `KERAS_BACKEND_PACKAGES` to the pip requirements for the "
                 f"`{backend_name}` backend package."
             )
     other_backends = [
