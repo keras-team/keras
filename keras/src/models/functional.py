@@ -39,11 +39,20 @@ def _match_expected_structure(expected, provided):
     provided_by_path = dict(tree.flatten_with_path(provided))
     expected_paths = [path for path, _ in tree.flatten_with_path(expected)]
 
-    if any(path not in provided_by_path for path in expected_paths):
-        raise ValueError(err_msg)
-    if len(provided_by_path) > len(expected_paths):
+    def format_paths(paths):
+        return ", ".join(
+            "'" + ".".join(str(key) for key in path) + "'" for path in paths
+        )
+
+    missing = [path for path in expected_paths if path not in provided_by_path]
+    if missing:
+        raise ValueError(f"{err_msg}. Missing fields: {format_paths(missing)}.")
+    extra = [
+        path for path in provided_by_path if path not in set(expected_paths)
+    ]
+    if extra:
         warnings.warn(
-            f"{err_msg}. Extra fields were ignored.",
+            f"{err_msg}. Ignored fields: {format_paths(extra)}.",
             UserWarning,
             stacklevel=4,
         )
@@ -462,15 +471,14 @@ class Functional(Function, Model):
                     for name in names
                 ]
             return None  # Deeply nested dict: skip checks.
-        if any(
-            isinstance(key, str)
-            for path, _ in tree.flatten_with_path(self._inputs_struct)
-            for key in path
-        ):
-            # Dict nested inside another structure, e.g. `[{"a": ...}]`.
-            # Flat specs cannot describe this, and comparing them against
-            # the flattened inputs would reject extra dict keys before
-            # `_standardize_inputs` gets a chance to drop them.
+        struct = self._inputs_struct
+        if not isinstance(struct, (list, tuple)):
+            struct = [struct]
+        if not all(isinstance(x, backend.KerasTensor) for x in struct):
+            # Anything nested inside the sequence, e.g. `[{"a": ...}]` or
+            # `[[x, y], z]`. Flat specs cannot describe those, and comparing
+            # them against the flattened inputs would reject extra dict keys
+            # before `_standardize_inputs` gets a chance to drop them.
             return None
         return [make_spec_for_tensor(x) for x in self.inputs]
 

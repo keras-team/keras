@@ -500,6 +500,23 @@ class FunctionalTest(testing.TestCase):
             model(np.zeros((2, 3, 3)))
         model(np.zeros((2, 4, 3)))
 
+    def test_input_spec_skipped_for_nested_inputs(self):
+        a = Input(shape=(3,), name="a")
+        b = Input(shape=(3,), name="b")
+        c = Input(shape=(3,), name="c")
+        outputs = layers.Add()([layers.Add()([a, b]), c])
+
+        # Flat specs describe a flat sequence of inputs, so they are built
+        # for a flat list and skipped for anything nested inside it.
+        self.assertLen(Functional([a, b, c], outputs).input_spec, 3)
+        self.assertIsNone(Functional([[a, b], c], outputs).input_spec)
+        self.assertIsNone(Functional([{"a": a, "b": b}, c], outputs).input_spec)
+
+        # A single input is not a sequence but is still describable.
+        inputs = Input(shape=(3,), name="solo")
+        model = Functional(inputs, layers.Dense(2)(inputs))
+        self.assertLen(model.input_spec, 1)
+
     def test_functional_slicing(self):
         inputs = Input(shape=(None, 2), name="input")
         x1 = layers.Dense(3, name="dense1")(inputs)
