@@ -6,6 +6,8 @@ try:
 except ImportError:
     torch = None
 
+import os  # noqa: E402
+
 import pytest  # noqa: E402
 
 from keras.src.backend import backend  # noqa: E402
@@ -19,6 +21,11 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers",
         "multi_device: mark test for running with multiple devices only",
+    )
+    config.addinivalue_line(
+        "markers",
+        "no_pytest_xdist: mark test that cannot run under pytest-xdist "
+        "workers (e.g. tests that bind to a fixed port)",
     )
 
     # Disable CUDA TF32 to get higher numerical accuracy for correctness tests.
@@ -66,12 +73,22 @@ def pytest_collection_modifyitems(config, items):
         if has_multiple_devices
         else pytest.mark.skip(reason="Requires multiple devices")
     )
+    # Distributed tests (e.g. torch.distributed) cannot run under
+    # pytest-xdist workers because process group init deadlocks when
+    # multiple workers attempt to bind to the same port.
+    is_xdist_worker = "PYTEST_XDIST_WORKER" in os.environ
 
     for item in items:
         if "requires_trainable_backend" in item.keywords:
             item.add_marker(requires_trainable_backend)
         if requires_multiple_devices and "multi_device" in item.keywords:
             item.add_marker(requires_multiple_devices)
+        if is_xdist_worker and "no_pytest_xdist" in item.keywords:
+            item.add_marker(
+                pytest.mark.skip(
+                    reason="This test cannot run under pytest-xdist workers"
+                )
+            )
 
         # also, skip concrete tests for openvino, listed in the special file
         # this is more granular mechanism to exclude tests rather

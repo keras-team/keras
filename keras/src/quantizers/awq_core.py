@@ -10,10 +10,8 @@ from absl import logging
 
 from keras.src import ops
 from keras.src import utils as keras_utils
-from keras.src.dtype_policies.dtype_policy import AWQDTypePolicy
-from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
+from keras.src.quantizers import mode_registry
 from keras.src.quantizers.awq import AWQ
-from keras.src.quantizers.awq_config import AWQConfig
 from keras.src.quantizers.gptq_core import _execution_stages
 from keras.src.quantizers.gptq_core import calibration_no_grad_scope
 from keras.src.quantizers.gptq_core import find_layers_in_block
@@ -241,25 +239,8 @@ def awq_quantize(config, quantization_layer_structure, filters=None):
 def get_group_size_for_layer(layer, config):
     """Get group size from config or dtype policy.
 
-    Args:
-        layer: The layer to get group size for.
-        config: Optional AWQConfig instance.
-
-    Returns:
-        int: The group size for quantization.
-
-    Raises:
-        ValueError: If group size cannot be determined.
+    The resolution logic lives on the awq mode descriptor
+    (`AWQMode.resolve_group_size`); this wrapper remains until the layer
+    call sites dispatch through the registry.
     """
-    if config and isinstance(config, AWQConfig):
-        return config.group_size
-    elif isinstance(layer.dtype_policy, AWQDTypePolicy):
-        return layer.dtype_policy.group_size
-    elif isinstance(layer.dtype_policy, DTypePolicyMap):
-        policy = layer.dtype_policy[layer.path]
-        if isinstance(policy, AWQDTypePolicy):
-            return policy.group_size
-    raise ValueError(
-        "For AWQ quantization, group_size must be specified "
-        "through AWQConfig or AWQDTypePolicy."
-    )
+    return mode_registry.get_mode("awq").resolve_group_size(layer, config)

@@ -483,9 +483,18 @@ def print_quantization_summary(model, verbose=True):
         storage_dtype = backend.standardize_dtype(primary.dtype)
         storage_bytes = _weight_bytes(primary)
 
-        # 4-bit modes pack two values per stored byte, so the logical
-        # (unpacked) element count is twice the stored count.
-        multiplier = 2 if mode in ("int4", "gptq", "awq") else 1
+        # Packed sub-byte modes store two values per byte, so the logical
+        # (unpacked) element count is a multiple of the stored count. The
+        # multiplier is owned by the mode's descriptor.
+        # Imported here, not at module scope: this module is pulled in
+        # while `keras.src.ops` is still initializing, and the quantizers
+        # package imports back into `keras.src.ops`.
+        from keras.src.quantizers import mode_registry
+
+        descriptor = mode_registry.get_mode(mode)
+        multiplier = (
+            descriptor.summary_byte_multiplier if descriptor is not None else 1
+        )
         logical_params = math.prod(primary.shape) * multiplier
         float_bytes = logical_params * 4  # float32 baseline.
 

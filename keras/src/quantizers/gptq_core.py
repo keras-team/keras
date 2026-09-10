@@ -9,12 +9,10 @@ from absl import logging
 from keras.src import backend
 from keras.src import ops
 from keras.src import utils as keras_utils
-from keras.src.dtype_policies.dtype_policy import GPTQDTypePolicy
-from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
+from keras.src.quantizers import mode_registry
 from keras.src.quantizers.gptq import GPTQ
-from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.utils import should_quantize_layer
 
 
@@ -578,81 +576,18 @@ def gptq_quantize(config, quantization_layer_structure, filters=None):
 def get_group_size_for_layer(layer, config):
     """Determine the group size for GPTQ quantization.
 
-    The group size can be specified either through the `config` argument
-    or through the `dtype_policy` if it is of type `GPTQDTypePolicy`.
-
-    The config argument is usually available when quantizing the layer
-    via the `quantize` method. If the layer was deserialized from a
-    saved model, the group size should be specified in the `dtype_policy`.
-
-    Args:
-        config: An optional configuration object that may contain the
-            `group_size` attribute.
-    Returns:
-        int. The determined group size for GPTQ quantization.
-    Raises:
-        ValueError: If the group size is not specified in either the
-            `config` or the `dtype_policy`.
+    The resolution logic lives on the gptq mode descriptor
+    (`GPTQMode.resolve_group_size`); this wrapper remains until the layer
+    call sites dispatch through the registry.
     """
-    if config and isinstance(config, GPTQConfig):
-        return config.group_size
-    elif isinstance(layer.dtype_policy, GPTQDTypePolicy):
-        return layer.dtype_policy.group_size
-    elif isinstance(layer.dtype_policy, DTypePolicyMap):
-        policy = layer.dtype_policy[layer.path]
-        if not isinstance(policy, GPTQDTypePolicy):
-            # This should never happen based on how we set the
-            # quantization mode, but we check just in case.
-            raise ValueError(
-                "Expected a `dtype_policy` of type `GPTQDTypePolicy`."
-                f"Got: {type(policy)}"
-            )
-        return policy.group_size
-    else:
-        raise ValueError(
-            "For GPTQ quantization, the group_size must be specified"
-            "either through a `dtype_policy` of type "
-            "`GPTQDTypePolicy` or the `config` argument."
-        )
+    return mode_registry.get_mode("gptq").resolve_group_size(layer, config)
 
 
 def get_weight_bits_for_layer(layer, config):
     """Determine the number of weight bits for GPTQ quantization.
 
-    The number of weight bits can be specified either through the `config`
-    argument or through the `dtype_policy` if it is of type
-    `GPTQDTypePolicy`.
-
-    The config argument is usually available when quantizing the layer
-    via the `quantize` method. If the layer was deserialized from a
-    saved model, the weight bits should be specified in the `dtype_policy`.
-
-    Args:
-        config: An optional configuration object that may contain the
-            `weight_bits` attribute.
-    Returns:
-        int. The determined number of weight bits for GPTQ quantization.
-    Raises:
-        ValueError: If the weight bits is not specified in either the
-            `config` or the `dtype_policy`.
+    The resolution logic lives on the gptq mode descriptor
+    (`GPTQMode.resolve_weight_bits`); this wrapper remains until the layer
+    call sites dispatch through the registry.
     """
-    if config and isinstance(config, GPTQConfig):
-        return config.weight_bits
-    elif isinstance(layer.dtype_policy, GPTQDTypePolicy):
-        return layer.dtype_policy.weight_bits
-    elif isinstance(layer.dtype_policy, DTypePolicyMap):
-        policy = layer.dtype_policy[layer.path]
-        if not isinstance(policy, GPTQDTypePolicy):
-            # This should never happen based on how we set the
-            # quantization mode, but we check just in case.
-            raise ValueError(
-                "Expected a `dtype_policy` of type `GPTQDTypePolicy`."
-                f"Got: {type(policy)}"
-            )
-        return policy.weight_bits
-    else:
-        raise ValueError(
-            "For GPTQ quantization, the weight_bits must be specified"
-            "either through a `dtype_policy` of type "
-            "`GPTQDTypePolicy` or the `config` argument."
-        )
+    return mode_registry.get_mode("gptq").resolve_weight_bits(layer, config)

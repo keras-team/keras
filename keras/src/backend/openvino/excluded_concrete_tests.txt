@@ -16,3 +16,5 @@ MathDtypeTest::test_gammainc
 MathOpsCorrectnessTest::test_gammainc
 MathOpsDynamicShapeTest::test_gammainc
 MathOpsStaticShapeTest::test_gammainc
+NumpyTwoInputOpsCorrectnessTest::test_nextafter_float16
+NumpyTwoInputOpsCorrectnessTest::test_nextafter_float32

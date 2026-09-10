@@ -6,7 +6,6 @@ import ml_dtypes
 import numpy as np
 
 from keras.src import activations
-from keras.src import backend
 from keras.src import constraints
 from keras.src import dtype_policies
 from keras.src import initializers
@@ -1083,22 +1082,11 @@ class EinsumDense(Layer):
                 x = ops.cast(x, self.compute_dtype)
                 x = ops.divide(x, ops.multiply(inputs_scale, kernel_scale))
             else:
-                # Weight-only quantization: dequantize kernel and use float
-                # einsum. This is a workaround for PyTorch's einsum which
-                # doesn't support mixed-precision inputs (float input,
-                # int8 kernel).
-                if backend.backend() == "torch":
-                    kernel_scale = self._adjust_scale_for_dequant(kernel_scale)
-                    float_kernel = ops.divide(
-                        ops.cast(kernel, dtype=self.compute_dtype),
-                        kernel_scale,
-                    )
-                    x = ops.einsum(self.equation, inputs, float_kernel)
-                else:
-                    x = ops.einsum(self.equation, inputs, kernel)
-                    # De-scale outputs
-                    x = ops.cast(x, self.compute_dtype)
-                    x = ops.divide(x, kernel_scale)
+                # Weight-only quantization: contract against the int8
+                # kernel and de-scale the outputs.
+                x = ops.einsum(self.equation, inputs, kernel)
+                x = ops.cast(x, self.compute_dtype)
+                x = ops.divide(x, kernel_scale)
             return x, grad_fn
 
         x = einsum_with_inputs_gradient(
@@ -1171,20 +1159,9 @@ class EinsumDense(Layer):
                     inputs_scale = self._adjust_scale_for_quant(
                         inputs_scale, "input"
                     )
-                    # Cast inputs to float for einsum. This is a workaround
-                    # for PyTorch's einsum which doesn't support
-                    # mixed-precision inputs (int8 input, float kernel).
-                    if backend.backend() == "torch":
-                        x = ops.einsum(
-                            self.equation,
-                            ops.cast(inputs_q, self.compute_dtype),
-                            float_kernel,
-                        )
-                        x = ops.divide(x, inputs_scale)
-                    else:
-                        x = ops.einsum(self.equation, inputs_q, float_kernel)
-                        x = ops.cast(x, self.compute_dtype)
-                        x = ops.divide(x, inputs_scale)
+                    x = ops.einsum(self.equation, inputs_q, float_kernel)
+                    x = ops.cast(x, self.compute_dtype)
+                    x = ops.divide(x, inputs_scale)
                 else:
                     # Weight-only per-channel quantization
                     float_kernel = _dequantize_kernel(

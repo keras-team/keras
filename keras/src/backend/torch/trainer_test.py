@@ -11,7 +11,9 @@ from keras.src import layers
 from keras.src import models
 from keras.src import optimizers
 from keras.src import testing
-from keras.src.backend.torch import distribution_lib
+from keras.src.backend.torch.distributed_test_utils import (
+    TorchDistributedTestMixin,
+)
 from keras.src.distribution import distribution_lib as dist_lib
 from keras.src.distribution.distribution_lib import DataParallel
 from keras.src.distribution.distribution_lib import DeviceMesh
@@ -40,22 +42,9 @@ class TrainingAwareModel(models.Model):
 @pytest.mark.skipif(
     backend.backend() != "torch", reason="Requires torch backend"
 )
-class TorchTrainerDistributionTest(testing.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        if not torch.distributed.is_initialized():
-            os.environ["MASTER_ADDR"] = "localhost"
-            os.environ["MASTER_PORT"] = "29515"
-            distribution_lib.initialize(num_processes=1, process_id=0)
-
-    @classmethod
-    def tearDownClass(cls):
-        super().tearDownClass()
-        if torch.distributed.is_initialized():
-            torch.distributed.destroy_process_group()
-        os.environ.pop("MASTER_ADDR", None)
-        os.environ.pop("MASTER_PORT", None)
+@pytest.mark.no_pytest_xdist
+class TorchTrainerDistributionTest(TorchDistributedTestMixin, testing.TestCase):
+    _master_port = "29515"
 
     @parameterized.named_parameters(
         ("base", SimpleModel, False),
