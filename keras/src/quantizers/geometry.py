@@ -8,14 +8,19 @@ no generic quantization support). The strategies in
 quantized values, and run quantized forward passes, so layer classes hold no
 per-mode methods.
 
-Projections are the family so far: a float kernel contracted against the
-inputs. A strategy writes one projection implementation and the geometry
-supplies what differs per layer: how to contract (a plain matmul for
-`Dense`, `ProjectionGeometry`; an einsum for `EinsumDense`,
-`EinsumProjectionGeometry`), which axes the quantizers reduce over, how a
-scale lines up with the kernel and with the outputs, and the 2D
-`(rows, columns)` view of an N-D kernel. Further families are added as
-their layers move onto the protocol.
+Two geometry families exist today:
+
+- Projection: a float kernel contracted against the inputs. A strategy writes
+  one projection implementation and the geometry supplies what differs per
+  layer: how to contract (a plain matmul for `Dense`,
+  `ProjectionGeometry`; an einsum for `EinsumDense`,
+  `EinsumProjectionGeometry`, whose axis analysis lives on the layer
+  itself and is reached through the geometry's hooks), which axes the
+  quantizers reduce over, how a scale lines up with the kernel and with
+  the outputs, and the 2D `(rows, columns)` view of an N-D kernel.
+- Lookup: a float embeddings table indexed by the inputs. `Embedding` is the
+  plain case (`LookupGeometry`); `ReversibleEmbedding` adds a reverse
+  projection (`ReversibleLookupGeometry`).
 
 Making a layer quantizable
 --------------------------
@@ -46,6 +51,10 @@ quantizable layer must define:
   `lora_enabled`, `lora_kernel_a`, `lora_kernel_b`, `lora_alpha` and
   `lora_rank`. `EinsumProjectionGeometry` additionally relies on the
   equation analysis `EinsumDense` prepares in `_set_quantization_info()`.
+- Lookups: `_embeddings`, `input_dim`, `output_dim`, and the
+  `lora_embeddings_a` / `lora_embeddings_b` equivalents. A reversible
+  lookup adds `tie_weights`, `logit_soft_cap`, and, when untied, the
+  `reverse_embeddings` variables.
 
 The rest comes from `Layer` itself: strategies read `compute_dtype`,
 `dtype_policy` and `path`, create their quantized variables through
@@ -89,8 +98,14 @@ class QuantizationGeometry:
     edit anywhere.
     """
 
-    # Dispatch key for building, quantizing and the forward pass.
+    # Dispatch key for building and quantizing, and for the forward pass
+    # unless `call_family` overrides it.
     family = None
+    # Forward-pass dispatch key, when the forward pass needs a different
+    # implementation from build/quantize (a reversible lookup does).
+    call_family = None
+    # Whether the layer also projects back through its weight.
+    reversible = False
 
     def __init__(self, layer):
         self.layer = layer
@@ -334,3 +349,20 @@ class EinsumProjectionGeometry(ProjectionGeometry):
             x = ops.add(x, (layer.lora_alpha / layer.lora_rank) * lora_x)
             x = ops.cast(x, dtype=layer.compute_dtype)
         return x
+
+
+class LookupGeometry(QuantizationGeometry):
+    """Geometry of an embeddings table indexed by integer inputs."""
+
+    family = "lookup"
+
+    @property
+    def weight_shape(self):
+        return (self.layer.input_dim, self.layer.output_dim)
+
+
+class ReversibleLookupGeometry(LookupGeometry):
+    """Lookup geometry with a reverse projection (`ReversibleEmbedding`)."""
+
+    call_family = "reversible_lookup"
+    reversible = True

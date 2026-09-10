@@ -5,6 +5,7 @@ sequence its call sites emitted inline, so modes that adopt them keep
 producing identical traced programs.
 """
 
+from keras.src import backend
 from keras.src import ops
 from keras.src.quantizers.strategy_registry import QuantizationStrategy
 
@@ -25,7 +26,7 @@ class GeometryDispatchStrategy(QuantizationStrategy):
 
     def call(self, layer, *args, **kwargs):
         geometry = self.require_geometry(layer)
-        family = geometry.family
+        family = geometry.call_family or geometry.family
         handler = self._handler("call", family, layer)
         return handler(layer, *args, **kwargs)
 
@@ -46,6 +47,13 @@ class GeometryDispatchStrategy(QuantizationStrategy):
         return handler
 
 
+def cast_lookup_inputs(inputs):
+    """Casts embedding-lookup indices to `int32` unless already integral."""
+    if backend.standardize_dtype(inputs.dtype) not in ("int32", "int64"):
+        inputs = ops.cast(inputs, "int32")
+    return inputs
+
+
 def apply_bias_activation(layer, x):
     """Adds the layer's bias and applies its activation, when present."""
     if layer.bias is not None:
@@ -53,3 +61,23 @@ def apply_bias_activation(layer, x):
     if layer.activation is not None:
         x = layer.activation(x)
     return x
+
+
+def add_lookup_lora_delta(layer, inputs, outputs):
+    """Adds the LoRA update to gathered embeddings, when LoRA is enabled."""
+    if layer.lora_enabled:
+        lora_outputs = ops.take(layer.lora_embeddings_a, inputs, axis=0)
+        lora_outputs = ops.matmul(lora_outputs, layer.lora_embeddings_b)
+        outputs = ops.add(
+            outputs, (layer.lora_alpha / layer.lora_rank) * lora_outputs
+        )
+        outputs = ops.cast(outputs, dtype=layer.compute_dtype)
+    return outputs
+
+
+def apply_logit_soft_cap(layer, logits):
+    """Applies the reverse-projection logit soft cap, when configured."""
+    if layer.logit_soft_cap is not None:
+        soft_cap = layer.logit_soft_cap
+        logits = ops.multiply(ops.tanh(ops.divide(logits, soft_cap)), soft_cap)
+    return logits
