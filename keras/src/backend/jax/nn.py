@@ -29,7 +29,6 @@ from keras.src.backend.common.backend_utils import (
 )
 from keras.src.backend.jax.core import cast
 from keras.src.backend.jax.core import convert_to_tensor
-from keras.src.backend.jax.numpy import divide_no_nan
 
 
 def relu(x):
@@ -963,6 +962,51 @@ def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     )
 
 
+def _categorical_crossentropy_impl(target, output, from_logits, axis):
+    target = jnp.array(target)
+    output = jnp.array(output)
+    if from_logits:
+        log_prob = jax.nn.log_softmax(output, axis=axis)
+    else:
+        epsilon_ = convert_to_tensor(backend.epsilon(), dtype=output.dtype)
+        output = output / jnp.maximum(
+            jnp.sum(output, axis, keepdims=True), epsilon_
+        )
+        output = jnp.clip(output, epsilon_, 1.0 - epsilon_)
+        log_prob = jnp.log(output)
+    return -jnp.sum(target * log_prob, axis=axis)
+
+
+categorical_crossentropy_vjp = jax.custom_vjp(
+    _categorical_crossentropy_impl, nondiff_argnums=(2, 3)
+)
+
+
+def _categorical_crossentropy_fwd(target, output, from_logits, axis):
+    return _categorical_crossentropy_impl(target, output, from_logits, axis), (
+        target,
+        output,
+    )
+
+
+def _categorical_crossentropy_bwd(from_logits, axis, res, g):
+    target, output = res
+
+    def loss_fn_f32(t, o):
+        t_f32 = t.astype(jnp.float32)
+        o_f32 = o.astype(jnp.float32)
+        return _categorical_crossentropy_impl(t_f32, o_f32, from_logits, axis)
+
+    _, vjp_fn = jax.vjp(loss_fn_f32, target, output)
+    grad_t, grad_o = vjp_fn(g.astype(jnp.float32))
+    return grad_t.astype(target.dtype), grad_o.astype(output.dtype)
+
+
+categorical_crossentropy_vjp.defvjp(
+    _categorical_crossentropy_fwd, _categorical_crossentropy_bwd
+)
+
+
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = jnp.array(target)
     output = jnp.array(output)
@@ -980,14 +1024,53 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
             f"target.shape={target.shape}, output.shape={output.shape}"
         )
 
+    return categorical_crossentropy_vjp(target, output, from_logits, axis)
+
+
+def _sparse_categorical_crossentropy_impl(target, output, from_logits, axis):
+    target = jnp.array(target, dtype="int32")
+    output = jnp.array(output)
     if from_logits:
         log_prob = jax.nn.log_softmax(output, axis=axis)
     else:
         epsilon_ = convert_to_tensor(backend.epsilon(), dtype=output.dtype)
-        output = divide_no_nan(output, jnp.sum(output, axis, keepdims=True))
+        output = output / jnp.maximum(
+            jnp.sum(output, axis, keepdims=True), epsilon_
+        )
         output = jnp.clip(output, epsilon_, 1.0 - epsilon_)
         log_prob = jnp.log(output)
+    target = jnn.one_hot(target, output.shape[axis], axis=axis)
     return -jnp.sum(target * log_prob, axis=axis)
+
+
+sparse_categorical_crossentropy_vjp = jax.custom_vjp(
+    _sparse_categorical_crossentropy_impl, nondiff_argnums=(0, 2, 3)
+)
+
+
+def _sparse_categorical_crossentropy_fwd(target, output, from_logits, axis):
+    return _sparse_categorical_crossentropy_impl(
+        target, output, from_logits, axis
+    ), (output,)
+
+
+def _sparse_categorical_crossentropy_bwd(target, from_logits, axis, res, g):
+    (output,) = res
+
+    def loss_fn_f32(o):
+        o_f32 = o.astype(jnp.float32)
+        return _sparse_categorical_crossentropy_impl(
+            target, o_f32, from_logits, axis
+        )
+
+    _, vjp_fn = jax.vjp(loss_fn_f32, output)
+    (grad_o,) = vjp_fn(g.astype(jnp.float32))
+    return (grad_o.astype(output.dtype),)
+
+
+sparse_categorical_crossentropy_vjp.defvjp(
+    _sparse_categorical_crossentropy_fwd, _sparse_categorical_crossentropy_bwd
+)
 
 
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
@@ -1008,15 +1091,10 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
             "up until the last dimension: "
             f"target.shape={target.shape}, output.shape={output.shape}"
         )
-    if from_logits:
-        log_prob = jax.nn.log_softmax(output, axis=axis)
-    else:
-        epsilon_ = convert_to_tensor(backend.epsilon(), dtype=output.dtype)
-        output = divide_no_nan(output, jnp.sum(output, axis, keepdims=True))
-        output = jnp.clip(output, epsilon_, 1.0 - epsilon_)
-        log_prob = jnp.log(output)
-    target = jnn.one_hot(target, output.shape[axis], axis=axis)
-    return -jnp.sum(target * log_prob, axis=axis)
+
+    return sparse_categorical_crossentropy_vjp(
+        target, output, from_logits, axis
+    )
 
 
 def binary_crossentropy(target, output, from_logits=False):
