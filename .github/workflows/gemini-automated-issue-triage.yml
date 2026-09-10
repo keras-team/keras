@@ -42,5 +42,5 @@ jobs:
       GEMINI_API: '${{ secrets.GEMINI_API }}'
     with:
       issue_number: '${{ github.event.inputs.issue_number || inputs.issue_number }}'
-      allowed_labels: 'backend:jax,backend:tensorflow,backend:torch,backend:OpenVino,Gemma,layers,python,dependencies,Duplicate,stale,stat:awaiting response from contributor,stat:awaiting keras-eng,Good first issue,keras-team-review-pending,stat:contributions welcome,wont-fix,user error,to investigate'
+      allowed_labels: 'backend:jax,backend:tensorflow,backend:torch,backend:OpenVino,Gemma,layers,python,dependencies,Duplicate,stale,stat:awaiting response from contributor,Good first issue,stat:contributions welcome,wont-fix,user error,to investigate,gTech-team-review-pending'
       gemini_model: 'gemini-3.5-flash'
