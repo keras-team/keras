@@ -59,19 +59,29 @@ def create_virtualenv():
 
 
 def manage_venv_installs(whl_path):
-    other_backends = list(set(BACKEND_REQ.keys()) - {backend.backend()})
-    backend_pkg, backend_extra_url = BACKEND_REQ[backend.backend()]
+    backend_name = backend.backend()
+    if backend_name in BACKEND_REQ:
+        backend_pkg, backend_extra_url = BACKEND_REQ[backend_name]
+    else:
+        # A pluggable backend lives in its own package, and its CI says what
+        # to install, typically its own checkout.
+        backend_pkg = os.environ.get("KERAS_BACKEND_PACKAGE")
+        backend_extra_url = ""
+        if backend_pkg is None:
+            raise ValueError(
+                "Set `KERAS_BACKEND_PACKAGE` to the pip requirement for the "
+                f"`{backend_name}` backend package."
+            )
+    other_backends = [
+        pkg for name, (pkg, _) in BACKEND_REQ.items() if name != backend_name
+    ]
     install_setup = [
         # Installs the backend's package and common requirements
         f"pip install {backend_extra_url}{backend_pkg}",
         "pip install -r requirements-common.txt",
         "pip install pytest",
         # Ensure other backends are uninstalled
-        "pip uninstall -y {0} {1} {2}".format(
-            BACKEND_REQ[other_backends[0]][0],
-            BACKEND_REQ[other_backends[1]][0],
-            BACKEND_REQ[other_backends[2]][0],
-        ),
+        "pip uninstall -y " + " ".join(other_backends),
         # Install `.whl` package
         f"pip install {whl_path}",
     ]
