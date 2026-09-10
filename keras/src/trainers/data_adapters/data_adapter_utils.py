@@ -295,7 +295,12 @@ def get_numpy_iterator(iterable):
             if hasattr(x, "__array__"):
                 if is_torch_tensor(x):
                     x = x.cpu()
-                x = np.asarray(x)
+                try:
+                    x = np.asarray(x)
+                except (ValueError, TypeError, RuntimeError):
+                    # The backend knows how to convert its own tensors when
+                    # `__array__` does not, e.g. a bfloat16 MLX array.
+                    x = ops.convert_to_numpy(x)
         return x
 
     for batch in iterable:
