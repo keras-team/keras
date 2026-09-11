@@ -485,15 +485,15 @@ def print_quantization_summary(model, verbose=True):
 
         # Packed sub-byte modes store two values per byte, so the logical
         # (unpacked) element count is a multiple of the stored count. The
-        # multiplier is owned by the mode's descriptor.
+        # multiplier is owned by the mode's strategy.
         # Imported here, not at module scope: this module is pulled in
         # while `keras.src.ops` is still initializing, and the quantizers
         # package imports back into `keras.src.ops`.
-        from keras.src.quantizers import mode_registry
+        from keras.src.quantizers import strategy_registry
 
-        descriptor = mode_registry.get_mode(mode)
+        strategy = strategy_registry.get_strategy(mode)
         multiplier = (
-            descriptor.summary_byte_multiplier if descriptor is not None else 1
+            strategy.summary_byte_multiplier if strategy is not None else 1
         )
         logical_params = math.prod(primary.shape) * multiplier
         float_bytes = logical_params * 4  # float32 baseline.

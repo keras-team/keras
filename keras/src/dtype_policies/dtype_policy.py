@@ -6,16 +6,16 @@ from keras.src.backend.common import global_state
 QUANTIZATION_MODES = ("int8", "float8", "int4", "ternary", "gptq", "awq")
 
 
-def _mode_registry():
+def _strategy_registry():
     """Returns the quantization mode registry, imported on first use.
 
     The import must be deferred: `keras.src.quantizers` registers the
     built-in modes on import, and those mode modules import the policy
     classes defined below, so a module-level import here would be a cycle.
     """
-    from keras.src.quantizers import mode_registry
+    from keras.src.quantizers import strategy_registry
 
-    return mode_registry
+    return strategy_registry
 
 
 def _parse_int4_mode(mode_str):
@@ -370,10 +370,10 @@ class QuantizedDTypePolicy(DTypePolicy):
         }
 
     def _check_quantization_mode(self, mode, compute_dtype):
-        if not _mode_registry().is_registered(mode):
+        if not _strategy_registry().is_registered(mode):
             raise ValueError(
                 "Invalid quantization mode. "
-                f"Expected one of {_mode_registry().registered_mode_names()}. "
+                f"Expected one of {_strategy_registry().registered_modes()}. "
                 f"Received: mode={mode}"
             )
         if compute_dtype == "float16" and mode == "int8":
@@ -647,15 +647,15 @@ def _is_quantized_policy_string(policy):
     """Whether a policy string belongs to a registered quantization mode."""
     return any(
         _matches_quantized_mode(policy, name)
-        for name in _mode_registry().registered_mode_names()
+        for name in _strategy_registry().registered_modes()
     )
 
 
 def _get_quantized_dtype_policy_by_str(policy):
     if not isinstance(policy, str):
         raise TypeError(f"`policy` must be a string. Received: policy={policy}")
-    registry = _mode_registry()
-    for name in registry.registered_mode_names():
+    registry = _strategy_registry()
+    for name in registry.registered_modes():
         if _matches_quantized_mode(policy, name):
             break
     else:
@@ -670,4 +670,4 @@ def _get_quantized_dtype_policy_by_str(policy):
             f"Received: policy={policy}"
         )
     mode, source_name = split_name
-    return registry.get_mode(name).policy_from_string(mode, source_name)
+    return registry.get_strategy(name).policy_from_string(mode, source_name)

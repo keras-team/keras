@@ -45,6 +45,7 @@ from keras.src.layers import input_spec
 from keras.src.metrics.metric import Metric
 from keras.src.ops.node import Node
 from keras.src.ops.operation import Operation
+from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.quantization_config import validate_and_resolve_config
 from keras.src.utils import python_utils
 from keras.src.utils import summary_utils
@@ -849,6 +850,27 @@ class Layer(BackendLayer, Operation):
         return policy.quantization_mode
 
     @property
+    def variable_serialization_spec(self):
+        """Maps each supported quantization mode to its variable names.
+
+        A quantizable layer returns a dict from mode name (`None` for the
+        float layer) to the ordered names its `save_own_variables` and
+        `load_own_variables` serialize in that mode. The base implementation
+        returns `None`: the layer has no quantization support.
+
+        Returns:
+            `None`, or a dict such as
+
+            ```python
+            {
+                None: ["kernel", "bias"],
+                "int8": ["kernel", "bias", "kernel_scale"],
+            }
+            ```
+        """
+        return None
+
+    @property
     def input_dtype(self):
         """The dtype layer inputs should be converted to."""
         return self.compute_dtype
@@ -891,15 +913,24 @@ class Layer(BackendLayer, Operation):
                 backend.set_keras_mask(y, mask)
             return y
 
+        # `kwargs` is usually a dict with just the `training` argument, which
+        # doesn't need conversion.
+        kwargs_may_need_convert = bool(kwargs) and not (
+            len(kwargs) == 1 and "training" in kwargs
+        )
+
         # Used to avoid expensive `tree` operations in the most common case.
         if (
-            kwargs
+            kwargs_may_need_convert
             or len(args) != 1
             or not is_backend_tensor_or_symbolic(args[0], allow_none=False)
             or backend.standardize_dtype(args[0].dtype) != self.input_dtype
         ) and self._convert_input_args:
             args = tree.map_structure(maybe_convert, args)
             kwargs = tree.map_structure(maybe_convert, kwargs)
+        else:
+            # `kwargs` get mutated later, so create a copy.
+            kwargs = dict(kwargs)
 
         ##########################################################
         # 2. Enforce that only tensors can be passed positionally.
@@ -1357,13 +1388,94 @@ class Layer(BackendLayer, Operation):
         for layer in self._layers:
             layer._clear_losses()
 
-    # Quantization-related (int8 and float8) methods
+    # Quantization-related methods.
+    #
+    # Mode-specific behavior (variables, forward pass, quantized values,
+    # policy naming) is owned by the strategies in
+    # `keras.src.quantizers.strategy_registry`; the methods below look the
+    # strategy up and delegate. A layer participates by exposing its
+    # quantizable structure through `_quantization_geometry()` and by
+    # listing the modes it supports in its `variable_serialization_spec`.
 
-    def quantized_build(self, input_shape, mode):
-        raise self._not_implemented_error(self.quantized_build)
+    def _supports_quantization_mode(self, strategy):
+        """Whether this layer declares support for `strategy`'s mode.
+
+        A layer declares support by listing the mode name in its
+        `variable_serialization_spec`; an externally registered mode can
+        also claim a layer through its `supports_layer` hook.
+
+        Args:
+            strategy: The `QuantizationStrategy` registered for the mode.
+
+        Returns:
+            A boolean.
+        """
+        spec = self.variable_serialization_spec
+        if spec is not None and strategy.name in spec:
+            return True
+        return strategy.supports_layer(self)
+
+    def quantized_build(self, input_shape, mode, config=None):
+        strategy = strategy_registry.get_strategy(mode)
+        if strategy is None or not self._supports_quantization_mode(strategy):
+            if self.variable_serialization_spec is None:
+                # The layer has no quantization support at all.
+                raise self._not_implemented_error(self.quantized_build)
+            raise self._quantization_mode_error(mode)
+        strategy.build(self, input_shape, config)
+        self._is_quantized = True
 
     def quantize(self, mode=None, type_check=True, config=None):
         raise self._not_implemented_error(self.quantize)
+
+    def _registry_quantize(self, mode, config):
+        """Quantizes this layer through the mode registry.
+
+        The shared `quantize()` body for layers that have moved onto the
+        quantization geometry protocol: validate that the mode is supported
+        by this layer *before* mutating any state, let the mode's strategy
+        compute and swap the variables, then update the dtype policy.
+
+        This is a seam for the migration: each migrated layer's `quantize()`
+        calls it, and once every layer has moved this body becomes
+        `Layer.quantize` itself.
+
+        Args:
+            mode: The quantization mode name, e.g. `"int8"`.
+            config: The resolved `QuantizationConfig`.
+        """
+        strategy = strategy_registry.get_strategy(mode)
+        if strategy is None or not self._supports_quantization_mode(strategy):
+            raise self._quantization_mode_error(mode)
+        # Record the config only after the mode is validated, so a rejected
+        # mode leaves the layer untouched.
+        self.quantization_config = config
+        strategy.quantize(self, config)
+        self._finalize_quantization_policy(strategy, config)
+
+    def _quantization_geometry(self):
+        """Returns this layer's quantization geometry, or `None`.
+
+        The geometry (`keras.src.quantizers.geometry`) describes the layer's
+        quantizable structure; the strategies consume it to build
+        variables, compute quantized values, and run quantized forward
+        passes. The base implementation returns `None`, meaning the layer
+        has no generic quantization support.
+
+        Returns:
+            A `keras.src.quantizers.geometry.QuantizationGeometry` (for
+            example a `ProjectionGeometry` for a 2D kernel), or `None`.
+        """
+        return None
+
+    def _finalize_quantization_policy(self, strategy, config):
+        # Set new dtype policy only for modes that don't already have one.
+        if self.dtype_policy.quantization_mode is None:
+            policy_name = strategy.policy_suffix(self, config)
+            policy = dtype_policies.get(
+                f"{policy_name}_from_{self.dtype_policy.name}"
+            )
+            self.dtype_policy = policy
 
     def _check_quantize_args(self, mode, compute_dtype):
         if not self.built:
@@ -1378,10 +1490,10 @@ class Layer(BackendLayer, Operation):
                 f"dtype_policy='{self.dtype_policy.name}'. "
                 f"Received: mode={mode}"
             )
-        if mode not in dtype_policies.QUANTIZATION_MODES:
+        if not strategy_registry.is_registered(mode):
             raise ValueError(
                 "Invalid quantization mode. "
-                f"Expected one of {dtype_policies.QUANTIZATION_MODES}. "
+                f"Expected one of {strategy_registry.registered_modes()}. "
                 f"Received: mode={mode}"
             )
         if mode == "int8" and compute_dtype == "float16":
@@ -1406,6 +1518,14 @@ class Layer(BackendLayer, Operation):
                 f"Restoring the correct rematerialization mode "
                 f"{self._remat_mode} for this layer."
             )
+        if self._quantization_geometry() is not None:
+            # Layers on the geometry protocol dispatch through the
+            # strategy; the chain below serves the rest.
+            mode = self.quantization_mode
+            strategy = strategy_registry.get_strategy(mode)
+            if strategy is None:
+                raise self._quantization_mode_error(mode)
+            return strategy.call(self, *args, **kwargs)
         if self.quantization_mode == "int8":
             return self._int8_call(*args, **kwargs)
         elif self.quantization_mode == "float8":
@@ -1455,7 +1575,7 @@ class Layer(BackendLayer, Operation):
     def _quantization_mode_error(self, mode):
         return NotImplementedError(
             "Invalid quantization mode. Expected one of "
-            f"{dtype_policies.QUANTIZATION_MODES}. "
+            f"{strategy_registry.registered_modes()}. "
             f"Received: quantization_mode={mode}"
         )
 

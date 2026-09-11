@@ -1,5 +1,5 @@
 from keras.src.api_export import keras_export
-from keras.src.quantizers import mode_registry
+from keras.src.quantizers import strategy_registry
 from keras.src.saving import serialization_lib
 
 
@@ -259,7 +259,7 @@ def validate_and_resolve_config(mode, config):
     This function validates the quantization config and resolves the mode.
     If mode is not provided, it is inferred from the config.
     If config is not provided, a default config is inferred from the mode
-    through the mode's registered descriptor.
+    through the mode's registered strategy.
 
     Args:
         mode: Quantization mode.
@@ -280,7 +280,7 @@ def validate_and_resolve_config(mode, config):
             )
         # `default_config` raises for modes that require an explicit config
         # (gptq/awq need a calibration dataset).
-        config = mode_registry.get_mode(mode).default_config()
+        config = strategy_registry.get_strategy(mode).default_config()
     else:
         if not isinstance(config, QuantizationConfig):
             raise ValueError(
@@ -304,17 +304,17 @@ def validate_and_resolve_config(mode, config):
     mode = config.mode
 
     # Mode-specific config validation (e.g. gptq requires a `GPTQConfig`).
-    mode_registry.get_mode(mode).validate_config(config)
+    strategy_registry.get_strategy(mode).validate_config(config)
 
     return config
 
 
 def _validate_mode(mode):
     """Validates quantization mode."""
-    if mode is not None and not mode_registry.is_registered(mode):
+    if mode is not None and not strategy_registry.is_registered(mode):
         raise ValueError(
             "Invalid quantization mode. "
-            f"Expected one of {mode_registry.registered_mode_names()}. "
+            f"Expected one of {strategy_registry.registered_modes()}. "
             f"Received: mode={mode}"
         )
 
@@ -322,8 +322,10 @@ def _validate_mode(mode):
 def get_block_size_for_layer(layer, config):
     """Determine the block size for int4 quantization.
 
-    The resolution logic lives on the int4 mode descriptor
-    (`Int4Mode.resolve_block_size`); this wrapper remains until the layer
+    The resolution logic lives on the int4 strategy
+    (`Int4Strategy.resolve_block_size`); this wrapper remains until the layer
     call sites dispatch through the registry.
     """
-    return mode_registry.get_mode("int4").resolve_block_size(layer, config)
+    return strategy_registry.get_strategy("int4").resolve_block_size(
+        layer, config
+    )

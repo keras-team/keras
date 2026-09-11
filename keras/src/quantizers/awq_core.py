@@ -10,7 +10,7 @@ from absl import logging
 
 from keras.src import ops
 from keras.src import utils as keras_utils
-from keras.src.quantizers import mode_registry
+from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.awq import AWQ
 from keras.src.quantizers.gptq_core import _execution_stages
 from keras.src.quantizers.gptq_core import calibration_no_grad_scope
@@ -239,8 +239,10 @@ def awq_quantize(config, quantization_layer_structure, filters=None):
 def get_group_size_for_layer(layer, config):
     """Get group size from config or dtype policy.
 
-    The resolution logic lives on the awq mode descriptor
-    (`AWQMode.resolve_group_size`); this wrapper remains until the layer
+    The resolution logic lives on the awq strategy
+    (`AWQStrategy.resolve_group_size`); this wrapper remains until the layer
     call sites dispatch through the registry.
     """
-    return mode_registry.get_mode("awq").resolve_group_size(layer, config)
+    return strategy_registry.get_strategy("awq").resolve_group_size(
+        layer, config
+    )

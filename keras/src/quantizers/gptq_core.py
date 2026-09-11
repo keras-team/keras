@@ -11,7 +11,7 @@ from keras.src import ops
 from keras.src import utils as keras_utils
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
-from keras.src.quantizers import mode_registry
+from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.utils import should_quantize_layer
 
@@ -576,18 +576,22 @@ def gptq_quantize(config, quantization_layer_structure, filters=None):
 def get_group_size_for_layer(layer, config):
     """Determine the group size for GPTQ quantization.
 
-    The resolution logic lives on the gptq mode descriptor
-    (`GPTQMode.resolve_group_size`); this wrapper remains until the layer
+    The resolution logic lives on the gptq strategy
+    (`GPTQStrategy.resolve_group_size`); this wrapper remains until the layer
     call sites dispatch through the registry.
     """
-    return mode_registry.get_mode("gptq").resolve_group_size(layer, config)
+    return strategy_registry.get_strategy("gptq").resolve_group_size(
+        layer, config
+    )
 
 
 def get_weight_bits_for_layer(layer, config):
     """Determine the number of weight bits for GPTQ quantization.
 
-    The resolution logic lives on the gptq mode descriptor
-    (`GPTQMode.resolve_weight_bits`); this wrapper remains until the layer
+    The resolution logic lives on the gptq strategy
+    (`GPTQStrategy.resolve_weight_bits`); this wrapper remains until the layer
     call sites dispatch through the registry.
     """
-    return mode_registry.get_mode("gptq").resolve_weight_bits(layer, config)
+    return strategy_registry.get_strategy("gptq").resolve_weight_bits(
+        layer, config
+    )
