@@ -67,12 +67,17 @@ class ConvVectorizedMapTest(testing.TestCase):
         def conv_one(sample):
             sample = ops.expand_dims(sample, axis=0)
             kernel = ops.ones((3, 3, 3, 1, 1), dtype="float32")
-            return ops.conv(sample, kernel, padding="same")[0]
+            return ops.conv(
+                sample, kernel, padding="same", data_format="channels_last"
+            )[0]
 
         batch = ops.ones((2, 8, 8, 8, 1), dtype="float32")
         result = ops.vectorized_map(conv_one, batch)
         expected = ops.conv(
-            batch, ops.ones((3, 3, 3, 1, 1), dtype="float32"), padding="same"
+            batch,
+            ops.ones((3, 3, 3, 1, 1), dtype="float32"),
+            padding="same",
+            data_format="channels_last",
         )
         self.assertEqual(tuple(result.shape), (2, 8, 8, 8, 1))
         self.assertAllClose(result, expected)
@@ -81,12 +86,17 @@ class ConvVectorizedMapTest(testing.TestCase):
         def conv_one(sample):
             sample = ops.expand_dims(sample, axis=0)
             kernel = ops.ones((3, 3, 1, 1), dtype="float32")
-            return ops.conv(sample, kernel, padding="same")[0]
+            return ops.conv(
+                sample, kernel, padding="same", data_format="channels_last"
+            )[0]
 
         batch = ops.ones((2, 8, 8, 1), dtype="float32")
         result = ops.vectorized_map(conv_one, batch)
         expected = ops.conv(
-            batch, ops.ones((3, 3, 1, 1), dtype="float32"), padding="same"
+            batch,
+            ops.ones((3, 3, 1, 1), dtype="float32"),
+            padding="same",
+            data_format="channels_last",
         )
         self.assertEqual(tuple(result.shape), (2, 8, 8, 1))
         self.assertAllClose(result, expected)
