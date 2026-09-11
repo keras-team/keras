@@ -13,6 +13,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import saving
 from keras.src import testing
+from keras.src.trainers.data_adapters import py_dataset_adapter
 
 
 class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
@@ -593,3 +594,19 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
                 output_mode="multi_hot",
                 output_sequence_length=5,
             )
+
+    def test_adapt_pydataset_tuple_batches(self):
+        class CustomPyDataset(py_dataset_adapter.PyDataset):
+            def __len__(self):
+                return 2
+
+            def __getitem__(self, idx):
+                if idx == 0:
+                    return (["hello world", "foo bar"], [0, 1])
+                return (["bar baz", "hello universe"], [1, 0])
+
+        layer = layers.TextVectorization()
+        layer.adapt(CustomPyDataset())
+        vocab = [str(v) for v in layer.get_vocabulary()]
+        self.assertIn("hello", vocab)
+        self.assertIn("bar", vocab)
