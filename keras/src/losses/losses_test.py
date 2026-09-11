@@ -714,6 +714,10 @@ class HuberLossTest(testing.TestCase):
             losses.Huber(delta=0)
         with self.assertRaisesRegex(ValueError, "greater than 0"):
             losses.Huber(delta=-1.0)
+        with self.assertRaisesRegex(ValueError, "Expected a float"):
+            losses.Huber(delta=1)
+        with self.assertRaisesRegex(ValueError, "Expected a float"):
+            losses.Huber(delta=np.float32(1.0))
 
     def test_dtype_arg(self):
         self.setup()
