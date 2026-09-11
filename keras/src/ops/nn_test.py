@@ -1492,6 +1492,20 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.leaky_relu(x),
             [-0.2, 0, 1, 2, 3],
         )
+        # Integer input is promoted to float. Previously the numpy and
+        # openvino backends cast `negative_slope` to the input dtype, where
+        # it truncated to 0 and turned this into `relu`.
+        x_int = np.array([-1, 0, 1, 2, 3], dtype="int32")
+        self.assertAllClose(
+            knn.leaky_relu(x_int),
+            [-0.2, 0, 1, 2, 3],
+        )
+        self.assertEqual(
+            standardize_dtype(
+                knn.LeakyRelu().symbolic_call(KerasTensor((5,), "int32")).dtype
+            ),
+            standardize_dtype(knn.leaky_relu(x_int).dtype),
+        )
 
     def test_hard_sigmoid(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
