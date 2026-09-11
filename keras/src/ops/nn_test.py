@@ -1628,7 +1628,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             normalized_sum_by_axis = np.sum(
                 ops.convert_to_numpy(result), axis=axis
             )
-            self.assertAllClose(normalized_sum_by_axis, 1.0)
+            self.assertAllClose(normalized_sum_by_axis, np.ones((2,)))
 
     def test_log_softmax(self):
         x = np.array([[1, 2, 3], [1, 2, 3]], dtype=np.float32)
@@ -1669,7 +1669,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             normalized_sum_by_axis = np.sum(
                 np.exp(ops.convert_to_numpy(result)), axis=axis
             )
-            self.assertAllClose(normalized_sum_by_axis, 1.0)
+            self.assertAllClose(normalized_sum_by_axis, np.ones((2,)))
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_COMPLEX_DTYPES,
