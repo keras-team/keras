@@ -2142,13 +2142,17 @@ def logaddexp(x1, x2):
     return tf.where(
         tf.math.is_nan(delta),
         x1 + x2,
-        safe_max + tf.math.log(exp_1 + exp_2),
+        tf.where(
+            tf.math.is_finite(delta),
+            safe_max + tf.math.log(exp_1 + exp_2),
+            amax,
+        ),
     )
 
 
 def logaddexp2(x1, x2):
-    x1 = tf.convert_to_tensor(x1)
-    x2 = tf.convert_to_tensor(x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
@@ -2163,7 +2167,11 @@ def logaddexp2(x1, x2):
     return tf.where(
         tf.math.is_nan(delta),
         x1 + x2,
-        safe_max + tf.math.log(exp_1 + exp_2) / log2,
+        tf.where(
+            tf.math.is_finite(delta),
+            safe_max + tf.math.log(exp_1 + exp_2) / log2,
+            amax,
+        ),
     )
 
 

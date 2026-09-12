@@ -3860,6 +3860,35 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
                 ops.convert_to_numpy(t.grad), 0.53591072263619, atol=1e-7
             )
 
+        # Test gradient with infinite inputs
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            x1 = tf.Variable([np.inf, 5.0])
+            x2 = tf.constant([5.0, -np.inf])
+            with tf.GradientTape() as tape:
+                y = knp.logaddexp(x1, x2)
+                loss = tf.reduce_sum(y)
+            x1_grad = tape.gradient(loss, x1)
+            self.assertAllClose(ops.convert_to_numpy(x1_grad), [1.0, 1.0])
+        elif backend.backend() == "jax":
+            import jax
+            import jax.numpy as jnp
+
+            def f_inf(x1):
+                return jnp.sum(knp.logaddexp(x1, jnp.array([5.0, -jnp.inf])))
+
+            x1_grad = jax.grad(f_inf)(jnp.array([jnp.inf, 5.0]))
+            self.assertAllClose(ops.convert_to_numpy(x1_grad), [1.0, 1.0])
+        elif backend.backend() == "torch":
+            import torch
+
+            x1 = torch.tensor([float("inf"), 5.0], requires_grad=True)
+            x2 = torch.tensor([5.0, float("-inf")])
+            y = knp.logaddexp(x1, x2)
+            y.sum().backward()
+            self.assertAllClose(ops.convert_to_numpy(x1.grad), [1.0, 1.0])
+
     @pytest.mark.skipif(
         backend.backend() not in ("tensorflow", "jax", "torch"),
         reason=f"{backend.backend()} backend does not support gradients.",
@@ -3899,6 +3928,35 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(ops.convert_to_numpy(x1_grad), expected_x1_grad)
         self.assertAllClose(ops.convert_to_numpy(x2_grad), expected_x2_grad)
+
+        # Test gradient with infinite inputs
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            x1 = tf.Variable([np.inf, 5.0])
+            x2 = tf.constant([5.0, -np.inf])
+            with tf.GradientTape() as tape:
+                y = knp.logaddexp2(x1, x2)
+                loss = tf.reduce_sum(y)
+            x1_grad = tape.gradient(loss, x1)
+            self.assertAllClose(ops.convert_to_numpy(x1_grad), [1.0, 1.0])
+        elif backend.backend() == "jax":
+            import jax
+            import jax.numpy as jnp
+
+            def f_inf(x1):
+                return jnp.sum(knp.logaddexp2(x1, jnp.array([5.0, -jnp.inf])))
+
+            x1_grad = jax.grad(f_inf)(jnp.array([jnp.inf, 5.0]))
+            self.assertAllClose(ops.convert_to_numpy(x1_grad), [1.0, 1.0])
+        elif backend.backend() == "torch":
+            import torch
+
+            x1 = torch.tensor([float("inf"), 5.0], requires_grad=True)
+            x2 = torch.tensor([5.0, float("-inf")])
+            y = knp.logaddexp2(x1, x2)
+            y.sum().backward()
+            self.assertAllClose(ops.convert_to_numpy(x1.grad), [1.0, 1.0])
 
     def test_true_divide(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
