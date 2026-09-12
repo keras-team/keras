@@ -471,6 +471,11 @@ class AffineTransform(Operation):
                 "or rank 2 (batch of transforms). Received input with shape: "
                 f"transform.shape={transform.shape}"
             )
+        if transform.shape[-1] is not None and transform.shape[-1] != 8:
+            raise ValueError(
+                "Invalid transform shape: expected the last dimension to be 8. "
+                f"Received: transform.shape={transform.shape}"
+            )
         return KerasTensor(images.shape, dtype=images.dtype)
 
 
