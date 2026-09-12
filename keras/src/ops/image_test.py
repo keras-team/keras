@@ -1236,9 +1236,9 @@ def gaussian_blur_np(
             return kernel1d / np.sum(kernel1d)
 
         def _get_gaussian_kernel2d(size, sigma):
-            kernel1d_x = _get_gaussian_kernel1d(size[0], sigma[0])
-            kernel1d_y = _get_gaussian_kernel1d(size[1], sigma[1])
-            return np.outer(kernel1d_y, kernel1d_x)
+            kernel1d_h = _get_gaussian_kernel1d(size[0], sigma[0])
+            kernel1d_w = _get_gaussian_kernel1d(size[1], sigma[1])
+            return np.outer(kernel1d_h, kernel1d_w)
 
         kernel = _get_gaussian_kernel2d(kernel_size, sigma)
         kernel = kernel[:, :, np.newaxis]
@@ -2508,6 +2508,36 @@ class ImageOpsCorrectnessTest(testing.TestCase):
 
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(out, ref_out, atol=1e-2, rtol=1e-2)
+
+    def test_gaussian_blur_asymmetric_sigma(self):
+        backend.set_image_data_format("channels_last")
+        # Non-symmetric image to verify height and width sigma orientation
+        x = np.array(
+            [(i + 1) ** 2 * (-40.0) - i for i in range(9)], dtype="float32"
+        ).reshape((3, 3, 1))
+        kernel_size = (3, 3)
+        sigma = (0.5, 2.0)
+        out = kimage.gaussian_blur(
+            x,
+            kernel_size=kernel_size,
+            sigma=sigma,
+            data_format="channels_last",
+        )
+        # Center pixel with height sigma 0.5 and width sigma 2.0
+        expected_center = -1106.2184
+        buggy_center = -1242.3214
+        self.assertAllClose(out[1, 1, 0], expected_center, atol=1e-1, rtol=1e-2)
+        self.assertNotAllClose(out[1, 1, 0], buggy_center, atol=1e-1, rtol=1e-2)
+
+        # Test non-square kernel size (3, 5) with asymmetric sigma
+        x_rect = np.ones((10, 12, 3), dtype="float32")
+        out_rect = kimage.gaussian_blur(
+            x_rect,
+            kernel_size=(3, 5),
+            sigma=(0.8, 1.5),
+            data_format="channels_last",
+        )
+        self.assertEqual(tuple(out_rect.shape), (10, 12, 3))
 
     def test_gaussian_blur_even_kernel_size(self):
         """Test gaussian_blur with even kernel sizes"""
