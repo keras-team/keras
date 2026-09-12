@@ -4423,9 +4423,10 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.ldexp(x, y), np.ldexp(x, y))
         self.assertAllClose(knp.Ldexp()(x, y), np.ldexp(x, y))
 
-        # Test zero input values (fixes tensorflow/tensorflow#127244)
+        # Test zero input values and large exponent
+        # (fixes tensorflow/tensorflow#127244)
         x_zero = np.array([0.0, -0.0, 1.0])
-        y_exp = np.array([-3, 0, 4])
+        y_exp = np.array([-3, 0, 1000])
         self.assertAllClose(knp.ldexp(x_zero, y_exp), np.ldexp(x_zero, y_exp))
 
     def test_less(self):

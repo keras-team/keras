@@ -2013,7 +2013,10 @@ def ldexp(x1, x2):
 
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, x1.dtype)
-    result = x1 * tf.pow(tf.constant(2.0, dtype=x1.dtype), x2)
+    pow_val = tf.pow(tf.constant(2.0, dtype=x1.dtype), x2)
+    result = tf.where(
+        tf.math.is_inf(pow_val) & (x1 == 0), tf.zeros_like(x1), x1 * pow_val
+    )
     return tf.cast(tf.where(tf.math.is_inf(x1), x1, result), dtype)
 
 
