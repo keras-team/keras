@@ -136,7 +136,8 @@ def mean(x, axis=None, keepdims=False):
 
     result = ov_opset.reduce_mean(x_resolved, axis_resolved, keepdims).output(0)
 
-    result = _restore_reduced_rank(result, x_ov, was_axis_none, keepdims)
+    if was_axis_none and keepdims:
+        result = _restore_reduced_rank(result, x_ov)
 
     return OpenVINOKerasTensor(result)
 
@@ -178,7 +179,8 @@ def _compute_extrema(x, operation, axis=None, keepdims=False, initial=None):
         initial_tensor = ov_opset.constant(initial, x_type).output(0)
         result = elementwise_op(result, initial_tensor).output(0)
 
-    result = _restore_reduced_rank(result, x_for_rank, was_axis_none, keepdims)
+    if was_axis_none and keepdims:
+        result = _restore_reduced_rank(result, x_for_rank)
 
     if is_bool:
         result = ov_opset.convert(result, Type.boolean).output(0)
@@ -241,7 +243,8 @@ def all(x, axis=None, keepdims=False):
         return OpenVINOKerasTensor(x)
     x = ov_opset.convert(x, Type.boolean).output(0)
     result = ov_opset.reduce_logical_and(x, axis, keepdims).output(0)
-    result = _restore_reduced_rank(result, x_orig, was_axis_none, keepdims)
+    if was_axis_none and keepdims:
+        result = _restore_reduced_rank(result, x_orig)
     return OpenVINOKerasTensor(result)
 
 
@@ -294,7 +297,8 @@ def any(x, axis=None, keepdims=False):
         return OpenVINOKerasTensor(x)
     x = ov_opset.convert(x, Type.boolean).output(0)
     result = ov_opset.reduce_logical_or(x, axis, keepdims).output(0)
-    result = _restore_reduced_rank(result, x_orig, was_axis_none, keepdims)
+    if was_axis_none and keepdims:
+        result = _restore_reduced_rank(result, x_orig)
     return OpenVINOKerasTensor(result)
 
 
@@ -310,7 +314,8 @@ def amax(x, axis=None, keepdims=False):
         result = ov_opset.reduce_logical_or(x, axis, keepdims).output(0)
     else:
         result = ov_opset.reduce_max(x, axis, keepdims).output(0)
-    result = _restore_reduced_rank(result, x_orig, was_axis_none, keepdims)
+    if was_axis_none and keepdims:
+        result = _restore_reduced_rank(result, x_orig)
     return OpenVINOKerasTensor(result)
 
 
@@ -326,7 +331,8 @@ def amin(x, axis=None, keepdims=False):
         result = ov_opset.reduce_logical_and(x, axis, keepdims).output(0)
     else:
         result = ov_opset.reduce_min(x, axis, keepdims).output(0)
-    result = _restore_reduced_rank(result, x_orig, was_axis_none, keepdims)
+    if was_axis_none and keepdims:
+        result = _restore_reduced_rank(result, x_orig)
     return OpenVINOKerasTensor(result)
 
 
@@ -343,17 +349,15 @@ def _resolve_axis(x, axis):
     return x, axis
 
 
-def _restore_reduced_rank(result, x, was_axis_none, keepdims):
-    """Restore the input rank after a flattened ``axis=None`` reduction.
+def _restore_reduced_rank(result, x):
+    """Reshape ``result`` to the rank of ``x``, with every dimension 1.
 
     ``_resolve_axis`` flattens the input to 1-D when ``axis is None``, so a
-    ``keepdims=True`` reduction yields rank 1 instead of the input rank. This
-    reshapes the scalar result back to a shape of all ones matching the input
-    rank, as NumPy and the other backends do. Uses ``shape_of`` rather than the
-    static rank so that dynamic-rank inputs are handled.
+    ``keepdims=True`` reduction yields rank 1 instead of the input rank. Call
+    this on that path to restore the input rank, as NumPy and the other
+    backends do. Uses ``shape_of`` rather than the static rank so that
+    dynamic-rank inputs are handled.
     """
-    if not (keepdims and was_axis_none):
-        return result
     orig_shape = ov_opset.shape_of(x, Type.i32).output(0)
     orig_rank_shape = ov_opset.shape_of(orig_shape, Type.i32).output(0)
     one = ov_opset.constant(1, Type.i32).output(0)
@@ -3975,7 +3979,8 @@ def prod(x, axis=None, keepdims=False, dtype=None):
         return OpenVINOKerasTensor(x)
     # Compute the product
     result = ov_opset.reduce_prod(x, axis, keepdims).output(0)
-    result = _restore_reduced_rank(result, x_orig, was_axis_none, keepdims)
+    if was_axis_none and keepdims:
+        result = _restore_reduced_rank(result, x_orig)
 
     return OpenVINOKerasTensor(result)
 
@@ -3992,7 +3997,8 @@ def ptp(x, axis=None, keepdims=False):
     min_val = ov_opset.reduce_min(x_resolved, resolved_axis, keepdims)
 
     result = ov_opset.subtract(max_val, min_val).output(0)
-    result = _restore_reduced_rank(result, x, was_axis_none, keepdims)
+    if was_axis_none and keepdims:
+        result = _restore_reduced_rank(result, x)
     return OpenVINOKerasTensor(result)
 
 
@@ -5287,7 +5293,8 @@ def var(x, axis=None, keepdims=False):
 
     squared_x_mean = ov_opset.reduce_mean(squared_x, axis, keepdims).output(0)
     variance = ov_opset.subtract(squared_x_mean, squared_mean).output(0)
-    variance = _restore_reduced_rank(variance, x_orig, was_axis_none, keepdims)
+    if was_axis_none and keepdims:
+        variance = _restore_reduced_rank(variance, x_orig)
     return OpenVINOKerasTensor(variance)
 
 
@@ -5300,9 +5307,8 @@ def sum(x, axis=None, keepdims=False):
         return OpenVINOKerasTensor(x)
     x = _upcast_type_if_needed(x)
     summed_value = ov_opset.reduce_sum(x, axis, keepdims).output(0)
-    summed_value = _restore_reduced_rank(
-        summed_value, x_orig, was_axis_none, keepdims
-    )
+    if was_axis_none and keepdims:
+        summed_value = _restore_reduced_rank(summed_value, x_orig)
     return OpenVINOKerasTensor(summed_value)
 
 

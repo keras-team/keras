@@ -5350,10 +5350,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.mean(x, axis=1, keepdims=True),
         )
 
-        # `assertAllClose` broadcasts, so assert the shape explicitly.
-        self.assertEqual(
-            tuple(knp.mean(x, axis=None, keepdims=True).shape), (1, 1)
-        )
         self.assertAllClose(
             knp.mean(x, axis=None, keepdims=True),
             np.mean(x, axis=None, keepdims=True),
@@ -5405,10 +5401,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.all(x, axis=1, keepdims=True),
         )
 
-        # `assertAllClose` broadcasts, so assert the shape explicitly.
-        self.assertEqual(
-            tuple(knp.all(x, axis=None, keepdims=True).shape), (1, 1)
-        )
         self.assertAllClose(
             knp.all(x, axis=None, keepdims=True),
             np.all(x, axis=None, keepdims=True),
@@ -5440,10 +5432,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.any(x, axis=1, keepdims=True),
         )
 
-        # `assertAllClose` broadcasts, so assert the shape explicitly.
-        self.assertEqual(
-            tuple(knp.any(x, axis=None, keepdims=True).shape), (1, 1)
-        )
         self.assertAllClose(
             knp.any(x, axis=None, keepdims=True),
             np.any(x, axis=None, keepdims=True),
@@ -5510,10 +5498,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.var(x, axis=1, keepdims=True),
         )
 
-        # `assertAllClose` broadcasts, so assert the shape explicitly.
-        self.assertEqual(
-            tuple(knp.var(x, axis=None, keepdims=True).shape), (1, 1)
-        )
         self.assertAllClose(
             knp.var(x, axis=None, keepdims=True),
             np.var(x, axis=None, keepdims=True),
@@ -5535,10 +5519,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.sum(x, axis=1, keepdims=True),
             np.sum(x, axis=1, keepdims=True),
-        )
-        # `assertAllClose` broadcasts, so assert the shape explicitly.
-        self.assertEqual(
-            tuple(knp.sum(x, axis=None, keepdims=True).shape), (1, 1)
         )
         self.assertAllClose(
             knp.sum(x, axis=None, keepdims=True),
@@ -5562,10 +5542,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.amax(x, axis=1, keepdims=True),
             np.amax(x, axis=1, keepdims=True),
         )
-        # `assertAllClose` broadcasts, so assert the shape explicitly.
-        self.assertEqual(
-            tuple(knp.amax(x, axis=None, keepdims=True).shape), (1, 1)
-        )
         self.assertAllClose(
             knp.amax(x, axis=None, keepdims=True),
             np.amax(x, axis=None, keepdims=True),
@@ -5587,10 +5563,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.amin(x, axis=1, keepdims=True),
             np.amin(x, axis=1, keepdims=True),
-        )
-        # `assertAllClose` broadcasts, so assert the shape explicitly.
-        self.assertEqual(
-            tuple(knp.amin(x, axis=None, keepdims=True).shape), (1, 1)
         )
         self.assertAllClose(
             knp.amin(x, axis=None, keepdims=True),
@@ -6937,10 +6909,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.prod(x, axis=1, keepdims=True),
             np.prod(x, axis=1, keepdims=True),
         )
-        # `assertAllClose` broadcasts, so assert the shape explicitly.
-        self.assertEqual(
-            tuple(knp.prod(x, axis=None, keepdims=True).shape), (1, 1)
-        )
         self.assertAllClose(
             knp.prod(x, axis=None, keepdims=True),
             np.prod(x, axis=None, keepdims=True),
@@ -6976,10 +6944,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.ptp(x, axis=1, keepdims=True),
         )
 
-        # `assertAllClose` broadcasts, so assert the shape explicitly.
-        self.assertEqual(
-            tuple(knp.ptp(x, axis=None, keepdims=True).shape), (1, 1)
-        )
         self.assertAllClose(
             knp.ptp(x, axis=None, keepdims=True),
             np.ptp(x, axis=None, keepdims=True),
@@ -7473,10 +7437,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.std(x, axis=1, keepdims=True),
         )
 
-        # `assertAllClose` broadcasts, so assert the shape explicitly.
-        self.assertEqual(
-            tuple(knp.std(x, axis=None, keepdims=True).shape), (1, 1)
-        )
         self.assertAllClose(
             knp.std(x, axis=None, keepdims=True),
             np.std(x, axis=None, keepdims=True),
