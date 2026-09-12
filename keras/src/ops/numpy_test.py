@@ -4423,11 +4423,23 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.ldexp(x, y), np.ldexp(x, y))
         self.assertAllClose(knp.Ldexp()(x, y), np.ldexp(x, y))
 
-        # Test zero input values and large exponent
+        # Test zero input values and overflow exponents preserving signed zero
         # (fixes tensorflow/tensorflow#127244)
-        x_zero = np.array([0.0, -0.0, 1.0])
-        y_exp = np.array([-3, 0, 1000])
-        self.assertAllClose(knp.ldexp(x_zero, y_exp), np.ldexp(x_zero, y_exp))
+        x_f64 = np.array([0.0, -0.0, 0.0, -0.0, 1.0], dtype=np.float64)
+        y_f64 = np.array([1024, 1024, -3, -3, 4], dtype=np.int32)
+        out_f64 = self.convert_to_numpy(knp.ldexp(x_f64, y_f64))
+        ref_f64 = np.ldexp(x_f64, y_f64)
+        self.assertFalse(np.any(np.isnan(out_f64)))
+        self.assertAllClose(out_f64, ref_f64)
+        self.assertAllEqual(np.signbit(out_f64), np.signbit(ref_f64))
+
+        x_f32 = np.array([0.0, -0.0, 0.0, -0.0], dtype=np.float32)
+        y_f32 = np.array([128, 128, -3, -3], dtype=np.int32)
+        out_f32 = self.convert_to_numpy(knp.ldexp(x_f32, y_f32))
+        ref_f32 = np.ldexp(x_f32, y_f32)
+        self.assertFalse(np.any(np.isnan(out_f32)))
+        self.assertAllClose(out_f32, ref_f32)
+        self.assertAllEqual(np.signbit(out_f32), np.signbit(ref_f32))
 
     def test_less(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
