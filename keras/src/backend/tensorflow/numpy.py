@@ -2133,10 +2133,16 @@ def logaddexp(x1, x2):
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
     delta = x1 - x2
+    amax = tf.maximum(x1, x2)
+    safe_max = tf.stop_gradient(
+        tf.where(tf.math.is_finite(amax), amax, tf.zeros_like(amax))
+    )
+    exp_1 = tf.math.exp(x1 - safe_max)
+    exp_2 = tf.math.exp(x2 - safe_max)
     return tf.where(
         tf.math.is_nan(delta),
         x1 + x2,
-        tf.maximum(x1, x2) + tf.math.log1p(tf.math.exp(-tf.abs(delta))),
+        safe_max + tf.math.log(exp_1 + exp_2),
     )
 
 
@@ -2147,12 +2153,17 @@ def logaddexp2(x1, x2):
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
     delta = x1 - x2
+    amax = tf.maximum(x1, x2)
+    safe_max = tf.stop_gradient(
+        tf.where(tf.math.is_finite(amax), amax, tf.zeros_like(amax))
+    )
     log2 = tf.cast(tf.math.log(2.0), dtype)
+    exp_1 = tf.math.exp((x1 - safe_max) * log2)
+    exp_2 = tf.math.exp((x2 - safe_max) * log2)
     return tf.where(
         tf.math.is_nan(delta),
         x1 + x2,
-        tf.maximum(x1, x2)
-        + tf.math.log1p(tf.math.exp(-tf.abs(delta) * log2)) / log2,
+        safe_max + tf.math.log(exp_1 + exp_2) / log2,
     )
 
 
