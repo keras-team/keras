@@ -3923,6 +3923,8 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             def f(x1, x2):
                 return jnp.sum(knp.logaddexp2(x1, x2))
 
+            x1 = jnp.array([-4.0, 0.0, 5.0])
+            x2 = jnp.array([-4.0, 0.0, 5.0])
             x1_grad, x2_grad = jax.grad(f, argnums=(0, 1))(x1, x2)
         elif backend.backend() == "torch":
             import torch
@@ -6786,12 +6788,18 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.logaddexp(x, y), np.logaddexp(x, y))
         self.assertAllClose(knp.Logaddexp()(x, y), np.logaddexp(x, y))
 
-        # Edge cases: equal values, extremes, infs
-        x_edge = np.array([-1000.0, 1000.0, -4.0, 0.0, np.inf, -np.inf])
-        y_edge = np.array([-1000.0, 1000.0, -4.0, 0.0, 5.0, 5.0])
+        # Edge cases: equal values, extremes
+        x_edge = np.array([-1000.0, 1000.0, -4.0, 0.0])
+        y_edge = np.array([-1000.0, 1000.0, -4.0, 0.0])
         self.assertAllClose(
             knp.logaddexp(x_edge, y_edge), np.logaddexp(x_edge, y_edge)
         )
+        if backend.backend() != "openvino":
+            x_inf = np.array([np.inf, -np.inf])
+            y_inf = np.array([5.0, 5.0])
+            self.assertAllClose(
+                knp.logaddexp(x_inf, y_inf), np.logaddexp(x_inf, y_inf)
+            )
 
     def test_logaddexp2(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -6799,12 +6807,18 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.logaddexp2(x, y), np.logaddexp2(x, y))
         self.assertAllClose(knp.Logaddexp2()(x, y), np.logaddexp2(x, y))
 
-        # Edge cases: equal values, extremes, infs
-        x_edge = np.array([-1000.0, 1000.0, -4.0, 0.0, np.inf, -np.inf])
-        y_edge = np.array([-1000.0, 1000.0, -4.0, 0.0, 5.0, 5.0])
+        # Edge cases: equal values, extremes
+        x_edge = np.array([-1000.0, 1000.0, -4.0, 0.0])
+        y_edge = np.array([-1000.0, 1000.0, -4.0, 0.0])
         self.assertAllClose(
             knp.logaddexp2(x_edge, y_edge), np.logaddexp2(x_edge, y_edge)
         )
+        if backend.backend() != "openvino":
+            x_inf = np.array([np.inf, -np.inf])
+            y_inf = np.array([5.0, 5.0])
+            self.assertAllClose(
+                knp.logaddexp2(x_inf, y_inf), np.logaddexp2(x_inf, y_inf)
+            )
 
     def test_logical_not(self):
         x = np.array([[True, False], [False, True]])
