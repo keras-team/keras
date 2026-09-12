@@ -2134,19 +2134,22 @@ def logaddexp(x1, x2):
     x2 = tf.cast(x2, dtype)
     delta = x1 - x2
     amax = tf.maximum(x1, x2)
+    finite_amax = tf.math.is_finite(amax)
+    finite_delta = tf.math.is_finite(delta)
+
     safe_max = tf.stop_gradient(
-        tf.where(tf.math.is_finite(amax), amax, tf.zeros_like(amax))
+        tf.where(finite_amax, amax, tf.zeros_like(amax))
     )
-    exp_1 = tf.math.exp(x1 - safe_max)
-    exp_2 = tf.math.exp(x2 - safe_max)
+    # Unused LSE branch must be finite so WhereGrad does not leak 0 * NaN
+    x1_m = tf.where(finite_delta, x1, safe_max)
+    x2_m = tf.where(finite_delta, x2, safe_max)
+    lse = safe_max + tf.math.log(
+        tf.math.exp(x1_m - safe_max) + tf.math.exp(x2_m - safe_max)
+    )
     return tf.where(
         tf.math.is_nan(delta),
         x1 + x2,
-        tf.where(
-            tf.math.is_finite(delta),
-            safe_max + tf.math.log(exp_1 + exp_2),
-            amax,
-        ),
+        tf.where(finite_delta, lse, amax),
     )
 
 
@@ -2158,20 +2161,27 @@ def logaddexp2(x1, x2):
     x2 = tf.cast(x2, dtype)
     delta = x1 - x2
     amax = tf.maximum(x1, x2)
+    finite_amax = tf.math.is_finite(amax)
+    finite_delta = tf.math.is_finite(delta)
+
     safe_max = tf.stop_gradient(
-        tf.where(tf.math.is_finite(amax), amax, tf.zeros_like(amax))
+        tf.where(finite_amax, amax, tf.zeros_like(amax))
     )
     log2 = tf.cast(tf.math.log(2.0), dtype)
-    exp_1 = tf.math.exp((x1 - safe_max) * log2)
-    exp_2 = tf.math.exp((x2 - safe_max) * log2)
+    x1_m = tf.where(finite_delta, x1, safe_max)
+    x2_m = tf.where(finite_delta, x2, safe_max)
+    lse = (
+        safe_max
+        + tf.math.log(
+            tf.math.exp((x1_m - safe_max) * log2)
+            + tf.math.exp((x2_m - safe_max) * log2)
+        )
+        / log2
+    )
     return tf.where(
         tf.math.is_nan(delta),
         x1 + x2,
-        tf.where(
-            tf.math.is_finite(delta),
-            safe_max + tf.math.log(exp_1 + exp_2) / log2,
-            amax,
-        ),
+        tf.where(finite_delta, lse, amax),
     )
 
 
