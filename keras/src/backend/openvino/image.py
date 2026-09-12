@@ -1463,23 +1463,23 @@ def gaussian_blur(
             return ov_opset.divide(kernel1d, kernel1d_sum).output(0)
 
         def _get_gaussian_kernel2d(size, sigma):
-            kernel1d_h = _get_gaussian_kernel1d(size[0], sigma[0])
-            kernel1d_w = _get_gaussian_kernel1d(size[1], sigma[1])
+            kernel1d_height = _get_gaussian_kernel1d(size[0], sigma[0])
+            kernel1d_width = _get_gaussian_kernel1d(size[1], sigma[1])
 
-            # kernel1d_h has kH elements -> column vector [kH, 1]
-            kernel1d_h = ov_opset.reshape(
-                kernel1d_h,
+            # kernel1d_height has kH elements -> column vector [kH, 1]
+            kernel1d_height = ov_opset.reshape(
+                kernel1d_height,
                 ov_opset.constant([int(size[0]), 1], Type.i32).output(0),
                 False,
             ).output(0)
 
-            # kernel1d_w has kW elements -> row vector [1, kW]
-            kernel1d_w = ov_opset.reshape(
-                kernel1d_w,
+            # kernel1d_width has kW elements -> row vector [1, kW]
+            kernel1d_width = ov_opset.reshape(
+                kernel1d_width,
                 ov_opset.constant([1, int(size[1])], Type.i32).output(0),
                 False,
             ).output(0)
-            return ov_opset.multiply(kernel1d_h, kernel1d_w).output(0)
+            return ov_opset.multiply(kernel1d_height, kernel1d_width).output(0)
 
         return _get_gaussian_kernel2d(kernel_size, sigma)
 

@@ -1236,9 +1236,9 @@ def gaussian_blur_np(
             return kernel1d / np.sum(kernel1d)
 
         def _get_gaussian_kernel2d(size, sigma):
-            kernel1d_h = _get_gaussian_kernel1d(size[0], sigma[0])
-            kernel1d_w = _get_gaussian_kernel1d(size[1], sigma[1])
-            return np.outer(kernel1d_h, kernel1d_w)
+            kernel1d_height = _get_gaussian_kernel1d(size[0], sigma[0])
+            kernel1d_width = _get_gaussian_kernel1d(size[1], sigma[1])
+            return np.outer(kernel1d_height, kernel1d_width)
 
         kernel = _get_gaussian_kernel2d(kernel_size, sigma)
         kernel = kernel[:, :, np.newaxis]
@@ -2525,9 +2525,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
         # Center pixel with height sigma 0.5 and width sigma 2.0
         expected_center = -1106.2184
-        buggy_center = -1242.3214
         self.assertAllClose(out[1, 1, 0], expected_center, atol=1e-1, rtol=1e-2)
-        self.assertNotAllClose(out[1, 1, 0], buggy_center, atol=1e-1, rtol=1e-2)
 
         # Test non-square kernel size (3, 5) with asymmetric sigma
         x_rect = np.ones((10, 12, 3), dtype="float32")

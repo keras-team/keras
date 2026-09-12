@@ -986,9 +986,9 @@ def gaussian_blur(
 
         def _get_gaussian_kernel2d(size, sigma):
             size = np.asarray(size, dtype)
-            kernel1d_h = _get_gaussian_kernel1d(size[0], sigma[0])
-            kernel1d_w = _get_gaussian_kernel1d(size[1], sigma[1])
-            return np.outer(kernel1d_h, kernel1d_w)
+            kernel1d_height = _get_gaussian_kernel1d(size[0], sigma[0])
+            kernel1d_width = _get_gaussian_kernel1d(size[1], sigma[1])
+            return np.outer(kernel1d_height, kernel1d_width)
 
         kernel = _get_gaussian_kernel2d(kernel_size, sigma)
         kernel = kernel[:, :, np.newaxis]

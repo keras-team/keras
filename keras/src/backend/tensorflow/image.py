@@ -757,9 +757,9 @@ def gaussian_blur(
 
         def _get_gaussian_kernel2d(size, sigma):
             size = tf.cast(size, dtype)
-            kernel1d_h = _get_gaussian_kernel1d(size[0], sigma[0])
-            kernel1d_w = _get_gaussian_kernel1d(size[1], sigma[1])
-            return tf.tensordot(kernel1d_h, kernel1d_w, axes=0)
+            kernel1d_height = _get_gaussian_kernel1d(size[0], sigma[0])
+            kernel1d_width = _get_gaussian_kernel1d(size[1], sigma[1])
+            return tf.tensordot(kernel1d_height, kernel1d_width, axes=0)
 
         kernel = _get_gaussian_kernel2d(kernel_size, sigma)
         kernel = tf.reshape(kernel, (kernel_size[0], kernel_size[1], 1, 1))

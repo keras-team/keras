@@ -857,9 +857,9 @@ def gaussian_blur(
             return kernel1d / torch.sum(kernel1d)
 
         def _get_gaussian_kernel2d(size, sigma):
-            kernel1d_h = _get_gaussian_kernel1d(size[0], sigma[0])
-            kernel1d_w = _get_gaussian_kernel1d(size[1], sigma[1])
-            return torch.outer(kernel1d_h, kernel1d_w)
+            kernel1d_height = _get_gaussian_kernel1d(size[0], sigma[0])
+            kernel1d_width = _get_gaussian_kernel1d(size[1], sigma[1])
+            return torch.outer(kernel1d_height, kernel1d_width)
 
         kernel = _get_gaussian_kernel2d(kernel_size, sigma)
 
