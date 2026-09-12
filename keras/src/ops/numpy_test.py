@@ -3871,6 +3871,15 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
                 loss = tf.reduce_sum(y)
             x1_grad = tape.gradient(loss, x1)
             self.assertAllClose(ops.convert_to_numpy(x1_grad), [1.0, 1.0])
+
+            # Mixed finite and non-finite batch WhereGrad test
+            xb1 = tf.Variable([1.0, np.inf, -np.inf])
+            xb2 = tf.constant([0.0, 0.0, 5.0])
+            with tf.GradientTape() as tape:
+                yb = knp.logaddexp(xb1, xb2)
+                loss = tf.reduce_sum(tf.where(tf.math.is_finite(yb), yb, 0.0))
+            g_xb1 = tape.gradient(loss, xb1)
+            self.assertTrue(np.isfinite(ops.convert_to_numpy(g_xb1)[0]))
         elif backend.backend() == "jax":
             import jax
             import jax.numpy as jnp
@@ -3914,8 +3923,6 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             def f(x1, x2):
                 return jnp.sum(knp.logaddexp2(x1, x2))
 
-            x1 = jnp.array([-4.0, 0.0, 5.0])
-            x2 = jnp.array([-4.0, 0.0, 5.0])
             x1_grad, x2_grad = jax.grad(f, argnums=(0, 1))(x1, x2)
         elif backend.backend() == "torch":
             import torch
@@ -3940,6 +3947,15 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
                 loss = tf.reduce_sum(y)
             x1_grad = tape.gradient(loss, x1)
             self.assertAllClose(ops.convert_to_numpy(x1_grad), [1.0, 1.0])
+
+            # Mixed finite and non-finite batch WhereGrad test
+            xb1 = tf.Variable([1.0, np.inf, -np.inf])
+            xb2 = tf.constant([0.0, 0.0, 5.0])
+            with tf.GradientTape() as tape:
+                yb = knp.logaddexp2(xb1, xb2)
+                loss = tf.reduce_sum(tf.where(tf.math.is_finite(yb), yb, 0.0))
+            g_xb1 = tape.gradient(loss, xb1)
+            self.assertTrue(np.isfinite(ops.convert_to_numpy(g_xb1)[0]))
         elif backend.backend() == "jax":
             import jax
             import jax.numpy as jnp
