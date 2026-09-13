@@ -135,12 +135,7 @@ class TorchCoreTest(testing.TestCase):
         self.assertAllClose(out.cpu().numpy(), expected.cpu().numpy())
 
     def test_to_static_index_rejects_tensor(self):
-        """_to_static_index must reject torch.Tensor, even 0-d integer ones.
-
-        Rejecting tensors here forces `slice()` to fall through to the
-        tensor-native `torch.narrow` path instead of specializing a
-        data-dependent bound to a concrete Python int on the fast path.
-        """
+        """Tensor bounds must be rejected so `slice()` keeps them traceable."""
         from keras.src.backend.torch.core import _to_static_index
 
         with self.assertRaises(TypeError):
@@ -149,16 +144,7 @@ class TorchCoreTest(testing.TestCase):
             _to_static_index(torch.tensor(0.0))
 
     def test_slice_export_preserves_dynamic_dim(self):
-        """A numpy-int bound alongside a symbolic dim must stay on the fast
-        path under torch.export.
-
-        Mixing a numpy integer bound with a symbolic dim fails the
-        all-int/SymInt check, so the call falls through to the tensor-based
-        slow path and the symbolic dim gets tensorized, specializing it under
-        export. `_to_static_index` coerces the numpy int to a Python int so
-        the fast path still applies and the symbolic dim passes through
-        untouched.
-        """
+        """A numpy-int bound alongside a symbolic dim keeps the dim dynamic."""
 
         class _SliceModule(torch.nn.Module):
             def forward(self, x):

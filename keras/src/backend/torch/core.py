@@ -781,15 +781,12 @@ def scatter_update(inputs, indices, updates, reduction=None):
 
 
 def _to_static_index(v):
-    """Return a Python-level slice bound for `v`, or raise `TypeError`.
+    """Returns `v` as a static slice bound, or raises `TypeError`.
 
-    Python `int` and `torch.SymInt` are returned unchanged, since calling
-    `int()` on a `SymInt` specializes a `torch.export` dynamic dimension to a
-    constant (#22998); numpy integer scalars are coerced to a Python `int`.
-
-    Anything else raises `TypeError` so the caller falls through to the
-    `torch.narrow` path, which keeps the bound as a traceable value instead of
-    forcing it to a concrete `int`.
+    `int` and `torch.SymInt` pass through unchanged: calling `int()` on a
+    `SymInt` would specialize a `torch.export` dynamic dimension to a
+    constant. Anything else raises, so `slice()` falls through to
+    `torch.narrow` and the bound stays traceable.
     """
     if isinstance(v, (int, torch.SymInt)):
         return v
@@ -804,13 +801,11 @@ def _to_static_index(v):
 def slice(inputs, start_indices, shape):
     inputs = convert_to_tensor(inputs)
 
-    # Fast path: build plain Python slice objects when every bound is a static
-    # integer. `_to_static_index` raises `TypeError` for a bound it cannot turn
-    # into one, and a data-dependent symbolic shape raises `RuntimeError` under
-    # `torch.export` or dynamo tracing; either case falls through to the
-    # tensor-native slow path below. The indexing happens in the `else` clause
-    # so that a genuine indexing error surfaces to the caller instead of being
-    # mistaken for an unsupported bound and silently retried on the slow path.
+    # Fast path: plain Python slices, avoiding the tensors the slow path builds
+    # from the indices, which torch.export cannot trace. An unusable bound
+    # raises `TypeError`, a data-dependent symbolic one `RuntimeError`; both
+    # fall through. The indexing sits in the `else` so that its own
+    # `IndexError` is not mistaken for an unusable bound and retried below.
     if isinstance(start_indices, (list, tuple)) and isinstance(
         shape, (list, tuple)
     ):
