@@ -343,6 +343,11 @@ class Huber(LossFunctionWrapper):
         name="huber_loss",
         dtype=None,
     ):
+        if not isinstance(delta, float) or delta <= 0:
+            raise ValueError(
+                "Invalid value for argument `delta`. Expected a float "
+                f"greater than 0. Received: delta={delta}"
+            )
         super().__init__(
             huber,
             name=name,

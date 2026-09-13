@@ -709,6 +709,16 @@ class HuberLossTest(testing.TestCase):
         )
         self.assertAlmostEqual(loss, actual_loss, 3)
 
+    def test_invalid_delta(self):
+        with self.assertRaisesRegex(ValueError, "greater than 0"):
+            losses.Huber(delta=0)
+        with self.assertRaisesRegex(ValueError, "greater than 0"):
+            losses.Huber(delta=-1.0)
+        with self.assertRaisesRegex(ValueError, "Expected a float"):
+            losses.Huber(delta=1)
+        with self.assertRaisesRegex(ValueError, "Expected a float"):
+            losses.Huber(delta=np.float32(1.0))
+
     def test_dtype_arg(self):
         self.setup()
         h_obj = losses.Huber(dtype="bfloat16")
