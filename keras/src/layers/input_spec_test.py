@@ -89,6 +89,14 @@ class AssertInputCompatibilityTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "expected shape"):
             assert_input_compatibility(spec, x, "squeeze")
 
+    def test_error_reports_the_shape_that_was_passed(self):
+        # The squeeze rebinds the local shape; the message must still name the
+        # shape the caller passed, not the squeezed one.
+        spec = InputSpec(shape=(None, 3, 1), allow_last_axis_squeeze=True)
+        x = backend.convert_to_tensor(np.zeros((2, 3, 99, 1)))
+        with self.assertRaisesRegex(ValueError, r"found shape=\(2, 3, 99, 1\)"):
+            assert_input_compatibility(spec, x, "squeeze")
+
     def test_allow_last_axis_squeeze_wrong_squeezed_dim_raises(self):
         # A rank N+1 input squeezed to rank N must match all N spec
         # dimensions, including a spec last axis of size 1.

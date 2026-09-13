@@ -280,6 +280,8 @@ def _check_input_spec(spec, x, input_index, layer_name):
     # Check shape.
     if spec.shape is not None:
         spec_shape = spec.shape
+        # Report the shape the caller passed, not the squeezed one.
+        input_shape = shape
         if spec.allow_last_axis_squeeze:
             if len(shape) == len(spec_shape) + 1 and shape[-1] == 1:
                 # A rank N+1 input with a last axis of size 1 is
@@ -289,12 +291,11 @@ def _check_input_spec(spec, x, input_index, layer_name):
                 # A rank N-1 input is compatible with a rank N spec whose
                 # last axis is of size 1.
                 spec_shape = spec_shape[:-1]
-        # If the ranks still differ, only the leading dimensions are
-        # compared (`zip` truncates to the shorter shape): when
-        # `allow_last_axis_squeeze=True`, rank validation is left to the
-        # caller (`Functional._adjust_input_rank` raises an error that
-        # includes the input path). Otherwise the ranks already match,
-        # since `spec.shape` implies `spec.ndim`, which is checked above.
+        # If the ranks still differ, only the leading dimensions are compared
+        # (`zip` truncates to the shorter shape), so a rank mismatch that
+        # squeezing cannot resolve is not reported here. Without
+        # `allow_last_axis_squeeze` the ranks already match, since
+        # `spec.shape` implies `spec.ndim`, which is checked above.
         for spec_dim, dim in zip(spec_shape, shape):
             if spec_dim is not None and dim is not None:
                 if spec_dim != dim:
@@ -302,5 +303,5 @@ def _check_input_spec(spec, x, input_index, layer_name):
                         f"Input {input_index} with name '{spec.name}' of "
                         f"layer '{layer_name}' is incompatible with the "
                         f"layer: expected shape={spec.shape}, found "
-                        f"shape={shape}"
+                        f"shape={input_shape}"
                     )
