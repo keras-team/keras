@@ -15,19 +15,12 @@ from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import normalize_shift_and_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
 from keras.src.ops import operation_utils
+from keras.src.ops.operation import AutoBinaryBroadcastOperation
+from keras.src.ops.operation import AutoElementwiseOperation
+from keras.src.ops.operation import AutoReductionOperation
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import broadcast_shapes
 from keras.src.ops.operation_utils import reduce_shape
-
-
-def _compute_binary_output_spec(x1, x2):
-    x1_shape = getattr(x1, "shape", [])
-    x2_shape = getattr(x2, "shape", [])
-    dtype = dtypes.result_type(
-        getattr(x1, "dtype", type(x1)),
-        getattr(x2, "dtype", type(x2)),
-    )
-    return KerasTensor(broadcast_shapes(x1_shape, x2_shape), dtype=dtype)
 
 
 class Rot90(Operation):
@@ -157,13 +150,8 @@ def shape_equal(shape1, shape2, axis=None, allow_none=True):
     return shape1 == shape2
 
 
-class Absolute(Operation):
-    def call(self, x):
-        return backend.ops.numpy.absolute(x)
-
-    def compute_output_spec(self, x):
-        sparse = getattr(x, "sparse", False)
-        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
+class Absolute(AutoElementwiseOperation):
+    backend_fn = backend.ops.numpy.absolute
 
 
 @keras_export(["keras.ops.absolute", "keras.ops.numpy.absolute"])
@@ -247,24 +235,8 @@ def fabs(x):
     return backend.ops.numpy.fabs(x)
 
 
-class Add(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.add(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        output_dtype = dtypes.result_type(
-            getattr(x1, "dtype", type(x1)),
-            getattr(x2, "dtype", type(x2)),
-        )
-        x1_sparse = getattr(x1, "sparse", False)
-        x2_sparse = getattr(x2, "sparse", False)
-        output_sparse = x1_sparse and x2_sparse
-        return KerasTensor(
-            output_shape, dtype=output_dtype, sparse=output_sparse
-        )
+class Add(AutoBinaryBroadcastOperation):
+    backend_fn = backend.ops.numpy.add
 
 
 @keras_export(["keras.ops.add", "keras.ops.numpy.add"])
@@ -299,31 +271,9 @@ def add(x1, x2):
     return backend.ops.numpy.add(x1, x2)
 
 
-class All(Operation):
-    def __init__(self, axis=None, keepdims=False, *, name=None):
-        super().__init__(name=name)
-        if isinstance(axis, int):
-            self.axis = [axis]
-        else:
-            self.axis = axis
-        self.keepdims = keepdims
-
-    def call(self, x):
-        return backend.ops.numpy.all(
-            x,
-            axis=self.axis,
-            keepdims=self.keepdims,
-        )
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            reduce_shape(
-                x.shape,
-                axis=self.axis,
-                keepdims=self.keepdims,
-            ),
-            dtype="bool",
-        )
+class All(AutoReductionOperation):
+    backend_fn = backend.ops.numpy.all
+    output_dtype = "bool"
 
 
 @keras_export(["keras.ops.all", "keras.ops.numpy.all"])
@@ -480,31 +430,9 @@ def _angle(x):
     return backend.ops.numpy.arctan2(x_imag, x_real)
 
 
-class Any(Operation):
-    def __init__(self, axis=None, keepdims=False, *, name=None):
-        super().__init__(name=name)
-        if isinstance(axis, int):
-            self.axis = [axis]
-        else:
-            self.axis = axis
-        self.keepdims = keepdims
-
-    def call(self, x):
-        return backend.ops.numpy.any(
-            x,
-            axis=self.axis,
-            keepdims=self.keepdims,
-        )
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            reduce_shape(
-                x.shape,
-                axis=self.axis,
-                keepdims=self.keepdims,
-            ),
-            dtype="bool",
-        )
+class Any(AutoReductionOperation):
+    backend_fn = backend.ops.numpy.any
+    output_dtype = "bool"
 
 
 @keras_export(["keras.ops.any", "keras.ops.numpy.any"])
@@ -544,26 +472,8 @@ def any(x, axis=None, keepdims=False):
     return backend.ops.numpy.any(x, axis=axis, keepdims=keepdims)
 
 
-class Amax(Operation):
-    def __init__(self, axis=None, keepdims=False, *, name=None):
-        super().__init__(name=name)
-        if isinstance(axis, int):
-            axis = [axis]
-        self.axis = axis
-        self.keepdims = keepdims
-
-    def call(self, x):
-        return backend.ops.numpy.amax(
-            x,
-            axis=self.axis,
-            keepdims=self.keepdims,
-        )
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
-            dtype=x.dtype,
-        )
+class Amax(AutoReductionOperation):
+    backend_fn = backend.ops.numpy.amax
 
 
 @keras_export(["keras.ops.amax", "keras.ops.numpy.amax"])
@@ -603,22 +513,8 @@ def amax(x, axis=None, keepdims=False):
     return backend.ops.numpy.amax(x, axis=axis, keepdims=keepdims)
 
 
-class Amin(Operation):
-    def __init__(self, axis=None, keepdims=False, *, name=None):
-        super().__init__(name=name)
-        if isinstance(axis, int):
-            axis = [axis]
-        self.axis = axis
-        self.keepdims = keepdims
-
-    def call(self, x):
-        return backend.ops.numpy.amin(x, axis=self.axis, keepdims=self.keepdims)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
-            dtype=x.dtype,
-        )
+class Amin(AutoReductionOperation):
+    backend_fn = backend.ops.numpy.amin
 
 
 @keras_export(["keras.ops.amin", "keras.ops.numpy.amin"])
@@ -1084,22 +980,9 @@ def arctanh(x):
     return backend.ops.numpy.arctanh(x)
 
 
-class Argmax(Operation):
-    def __init__(self, axis=None, keepdims=False, *, name=None):
-        super().__init__(name=name)
-        self.axis = axis
-        self.keepdims = keepdims
-
-    def call(self, x):
-        return backend.ops.numpy.argmax(
-            x, axis=self.axis, keepdims=self.keepdims
-        )
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
-            dtype="int32",
-        )
+class Argmax(AutoReductionOperation):
+    backend_fn = backend.ops.numpy.argmax
+    output_dtype = "int32"
 
 
 @keras_export(["keras.ops.argmax", "keras.ops.numpy.argmax"])
@@ -1134,22 +1017,9 @@ def argmax(x, axis=None, keepdims=False):
     return backend.ops.numpy.argmax(x, axis=axis, keepdims=keepdims)
 
 
-class Argmin(Operation):
-    def __init__(self, axis=None, keepdims=False, *, name=None):
-        super().__init__(name=name)
-        self.axis = axis
-        self.keepdims = keepdims
-
-    def call(self, x):
-        return backend.ops.numpy.argmin(
-            x, axis=self.axis, keepdims=self.keepdims
-        )
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
-            dtype="int32",
-        )
+class Argmin(AutoReductionOperation):
+    backend_fn = backend.ops.numpy.argmin
+    output_dtype = "int32"
 
 
 @keras_export(["keras.ops.argmin", "keras.ops.numpy.argmin"])
@@ -1690,12 +1560,8 @@ def bincount(x, weights=None, minlength=0, sparse=False):
     )
 
 
-class BitwiseAnd(Operation):
-    def call(self, x, y):
-        return backend.ops.numpy.bitwise_and(x, y)
-
-    def compute_output_spec(self, x, y):
-        return _compute_binary_output_spec(x, y)
+class BitwiseAnd(AutoBinaryBroadcastOperation):
+    backend_fn = backend.ops.numpy.bitwise_and
 
 
 @keras_export(["keras.ops.bitwise_and", "keras.ops.numpy.bitwise_and"])
@@ -1718,12 +1584,8 @@ def bitwise_and(x, y):
     return backend.ops.numpy.bitwise_and(x, y)
 
 
-class BitwiseInvert(Operation):
-    def call(self, x):
-        return backend.ops.numpy.bitwise_invert(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+class BitwiseInvert(AutoElementwiseOperation):
+    backend_fn = backend.ops.numpy.bitwise_invert
 
 
 @keras_export(["keras.ops.bitwise_invert", "keras.ops.numpy.bitwise_invert"])
@@ -1745,12 +1607,8 @@ def bitwise_invert(x):
     return backend.ops.numpy.bitwise_invert(x)
 
 
-class BitwiseNot(Operation):
-    def call(self, x):
-        return backend.ops.numpy.bitwise_not(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+class BitwiseNot(AutoElementwiseOperation):
+    backend_fn = backend.ops.numpy.bitwise_not
 
 
 @keras_export(["keras.ops.bitwise_not", "keras.ops.numpy.bitwise_not"])
@@ -1772,12 +1630,8 @@ def bitwise_not(x):
     return backend.ops.numpy.bitwise_not(x)
 
 
-class BitwiseOr(Operation):
-    def call(self, x, y):
-        return backend.ops.numpy.bitwise_or(x, y)
-
-    def compute_output_spec(self, x, y):
-        return _compute_binary_output_spec(x, y)
+class BitwiseOr(AutoBinaryBroadcastOperation):
+    backend_fn = backend.ops.numpy.bitwise_or
 
 
 @keras_export(["keras.ops.bitwise_or", "keras.ops.numpy.bitwise_or"])
@@ -1800,12 +1654,8 @@ def bitwise_or(x, y):
     return backend.ops.numpy.bitwise_or(x, y)
 
 
-class BitwiseXor(Operation):
-    def call(self, x, y):
-        return backend.ops.numpy.bitwise_xor(x, y)
-
-    def compute_output_spec(self, x, y):
-        return _compute_binary_output_spec(x, y)
+class BitwiseXor(AutoBinaryBroadcastOperation):
+    backend_fn = backend.ops.numpy.bitwise_xor
 
 
 @keras_export(["keras.ops.bitwise_xor", "keras.ops.numpy.bitwise_xor"])
@@ -1828,12 +1678,8 @@ def bitwise_xor(x, y):
     return backend.ops.numpy.bitwise_xor(x, y)
 
 
-class BitwiseLeftShift(Operation):
-    def call(self, x, y):
-        return backend.ops.numpy.bitwise_left_shift(x, y)
-
-    def compute_output_spec(self, x, y):
-        return _compute_binary_output_spec(x, y)
+class BitwiseLeftShift(AutoBinaryBroadcastOperation):
+    backend_fn = backend.ops.numpy.bitwise_left_shift
 
 
 @keras_export(
@@ -1858,12 +1704,8 @@ def bitwise_left_shift(x, y):
     return backend.ops.numpy.bitwise_left_shift(x, y)
 
 
-class LeftShift(Operation):
-    def call(self, x, y):
-        return backend.ops.numpy.left_shift(x, y)
-
-    def compute_output_spec(self, x, y):
-        return _compute_binary_output_spec(x, y)
+class LeftShift(AutoBinaryBroadcastOperation):
+    backend_fn = backend.ops.numpy.left_shift
 
 
 @keras_export(["keras.ops.left_shift", "keras.ops.numpy.left_shift"])
@@ -1886,12 +1728,8 @@ def left_shift(x, y):
     return backend.ops.numpy.left_shift(x, y)
 
 
-class BitwiseRightShift(Operation):
-    def call(self, x, y):
-        return backend.ops.numpy.bitwise_right_shift(x, y)
-
-    def compute_output_spec(self, x, y):
-        return _compute_binary_output_spec(x, y)
+class BitwiseRightShift(AutoBinaryBroadcastOperation):
+    backend_fn = backend.ops.numpy.bitwise_right_shift
 
 
 @keras_export(
@@ -1916,12 +1754,8 @@ def bitwise_right_shift(x, y):
     return backend.ops.numpy.bitwise_right_shift(x, y)
 
 
-class RightShift(Operation):
-    def call(self, x, y):
-        return backend.ops.numpy.right_shift(x, y)
-
-    def compute_output_spec(self, x, y):
-        return _compute_binary_output_spec(x, y)
+class RightShift(AutoBinaryBroadcastOperation):
+    backend_fn = backend.ops.numpy.right_shift
 
 
 @keras_export(["keras.ops.right_shift", "keras.ops.numpy.right_shift"])
@@ -2195,13 +2029,8 @@ def concatenate(xs, axis=0):
     return backend.ops.numpy.concatenate(xs, axis=axis)
 
 
-class Conjugate(Operation):
-    def call(self, x):
-        return backend.ops.numpy.conjugate(x)
-
-    def compute_output_spec(self, x):
-        sparse = getattr(x, "sparse", False)
-        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
+class Conjugate(AutoElementwiseOperation):
+    backend_fn = backend.ops.numpy.conjugate
 
 
 @keras_export(["keras.ops.conjugate", "keras.ops.numpy.conjugate"])
@@ -2234,13 +2063,8 @@ def conj(x):
     return conjugate(x)
 
 
-class Copy(Operation):
-    def call(self, x):
-        return backend.ops.numpy.copy(x)
-
-    def compute_output_spec(self, x):
-        sparse = getattr(x, "sparse", False)
-        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
+class Copy(AutoElementwiseOperation):
+    backend_fn = backend.ops.numpy.copy
 
 
 @keras_export(["keras.ops.copy", "keras.ops.numpy.copy"])
@@ -3522,15 +3346,9 @@ def empty_like(x, dtype=None):
     return backend.ops.numpy.empty_like(x, dtype=dtype)
 
 
-class Equal(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.equal(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype="bool")
+class Equal(AutoBinaryBroadcastOperation):
+    backend_fn = backend.ops.numpy.equal
+    output_dtype = "bool"
 
 
 @keras_export(["keras.ops.equal", "keras.ops.numpy.equal"])
@@ -4054,15 +3872,9 @@ def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
     )
 
 
-class Greater(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.greater(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype="bool")
+class Greater(AutoBinaryBroadcastOperation):
+    backend_fn = backend.ops.numpy.greater
+    output_dtype = "bool"
 
 
 @keras_export(["keras.ops.greater", "keras.ops.numpy.greater"])
@@ -4081,15 +3893,9 @@ def greater(x1, x2):
     return backend.ops.numpy.greater(x1, x2)
 
 
-class GreaterEqual(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.greater_equal(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype="bool")
+class GreaterEqual(AutoBinaryBroadcastOperation):
+    backend_fn = backend.ops.numpy.greater_equal
+    output_dtype = "bool"
 
 
 @keras_export(
@@ -4297,13 +4103,8 @@ def identity(n, dtype=None):
     return backend.ops.numpy.identity(n, dtype=dtype)
 
 
-class Imag(Operation):
-    def call(self, x):
-        return backend.ops.numpy.imag(x)
-
-    def compute_output_spec(self, x):
-        sparse = getattr(x, "sparse", False)
-        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
+class Imag(AutoElementwiseOperation):
+    backend_fn = backend.ops.numpy.imag
 
 
 @keras_export(["keras.ops.imag", "keras.ops.numpy.imag"])
@@ -4384,12 +4185,9 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     return backend.ops.numpy.isclose(x1, x2, rtol, atol, equal_nan)
 
 
-class Isfinite(Operation):
-    def call(self, x):
-        return backend.ops.numpy.isfinite(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype="bool")
+class Isfinite(AutoElementwiseOperation):
+    backend_fn = backend.ops.numpy.isfinite
+    output_dtype = "bool"
 
 
 @keras_export(["keras.ops.isfinite", "keras.ops.numpy.isfinite"])
@@ -4473,12 +4271,9 @@ def isin(x1, x2, assume_unique=False, invert=False):
     )
 
 
-class Isinf(Operation):
-    def call(self, x):
-        return backend.ops.numpy.isinf(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype="bool")
+class Isinf(AutoElementwiseOperation):
+    backend_fn = backend.ops.numpy.isinf
+    output_dtype = "bool"
 
 
 @keras_export(["keras.ops.isinf", "keras.ops.numpy.isinf"])
@@ -4496,12 +4291,9 @@ def isinf(x):
     return backend.ops.numpy.isinf(x)
 
 
-class Isnan(Operation):
-    def call(self, x):
-        return backend.ops.numpy.isnan(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype="bool")
+class Isnan(AutoElementwiseOperation):
+    backend_fn = backend.ops.numpy.isnan
+    output_dtype = "bool"
 
 
 @keras_export(["keras.ops.isnan", "keras.ops.numpy.isnan"])
@@ -4519,12 +4311,9 @@ def isnan(x):
     return backend.ops.numpy.isnan(x)
 
 
-class Isneginf(Operation):
-    def call(self, x):
-        return backend.ops.numpy.isneginf(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype="bool")
+class Isneginf(AutoElementwiseOperation):
+    backend_fn = backend.ops.numpy.isneginf
+    output_dtype = "bool"
 
 
 @keras_export(["keras.ops.isneginf", "keras.ops.numpy.isneginf"])
@@ -4542,12 +4331,9 @@ def isneginf(x):
     return backend.ops.numpy.isneginf(x)
 
 
-class Isposinf(Operation):
-    def call(self, x):
-        return backend.ops.numpy.isposinf(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype="bool")
+class Isposinf(AutoElementwiseOperation):
+    backend_fn = backend.ops.numpy.isposinf
+    output_dtype = "bool"
 
 
 @keras_export(["keras.ops.isposinf", "keras.ops.numpy.isposinf"])
@@ -4565,12 +4351,9 @@ def isposinf(x):
     return backend.ops.numpy.isposinf(x)
 
 
-class Isreal(Operation):
-    def call(self, x):
-        return backend.ops.numpy.isreal(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype="bool")
+class Isreal(AutoElementwiseOperation):
+    backend_fn = backend.ops.numpy.isreal
+    output_dtype = "bool"
 
 
 @keras_export(["keras.ops.isreal", "keras.ops.numpy.isreal"])
@@ -4714,15 +4497,9 @@ def ldexp(x1, x2):
     return backend.ops.numpy.ldexp(x1, x2)
 
 
-class Less(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.less(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype="bool")
+class Less(AutoBinaryBroadcastOperation):
+    backend_fn = backend.ops.numpy.less
+    output_dtype = "bool"
 
 
 @keras_export(["keras.ops.less", "keras.ops.numpy.less"])
@@ -4741,15 +4518,9 @@ def less(x1, x2):
     return backend.ops.numpy.less(x1, x2)
 
 
-class LessEqual(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.less_equal(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype="bool")
+class LessEqual(AutoBinaryBroadcastOperation):
+    backend_fn = backend.ops.numpy.less_equal
+    output_dtype = "bool"
 
 
 @keras_export(
@@ -5059,15 +4830,9 @@ def logaddexp2(x1, x2):
     return backend.ops.numpy.logaddexp2(x1, x2)
 
 
-class LogicalAnd(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.logical_and(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype="bool")
+class LogicalAnd(AutoBinaryBroadcastOperation):
+    backend_fn = backend.ops.numpy.logical_and
+    output_dtype = "bool"
 
 
 @keras_export(
@@ -5093,12 +4858,9 @@ def logical_and(x1, x2):
     return backend.ops.numpy.logical_and(x1, x2)
 
 
-class LogicalNot(Operation):
-    def call(self, x):
-        return backend.ops.numpy.logical_not(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype="bool")
+class LogicalNot(AutoElementwiseOperation):
+    backend_fn = backend.ops.numpy.logical_not
+    output_dtype = "bool"
 
 
 @keras_export(
@@ -5123,15 +4885,9 @@ def logical_not(x):
     return backend.ops.numpy.logical_not(x)
 
 
-class LogicalOr(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.logical_or(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype="bool")
+class LogicalOr(AutoBinaryBroadcastOperation):
+    backend_fn = backend.ops.numpy.logical_or
+    output_dtype = "bool"
 
 
 @keras_export(
@@ -5283,25 +5039,16 @@ def matmul(x1, x2):
     return backend.ops.numpy.matmul(x1, x2)
 
 
-class Max(Operation):
+class Max(AutoReductionOperation):
+    backend_fn = backend.ops.numpy.max
+
     def __init__(self, axis=None, keepdims=False, initial=None, *, name=None):
-        super().__init__(name=name)
-        if isinstance(axis, int):
-            self.axis = [axis]
-        else:
-            self.axis = axis
-        self.keepdims = keepdims
+        super().__init__(axis=axis, keepdims=keepdims, name=name)
         self.initial = initial
 
     def call(self, x):
-        return backend.ops.numpy.max(
+        return self.backend_fn(
             x, axis=self.axis, keepdims=self.keepdims, initial=self.initial
-        )
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
-            dtype=x.dtype,
         )
 
 
@@ -5329,24 +5076,8 @@ def max(x, axis=None, keepdims=False, initial=None):
     )
 
 
-class Maximum(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.maximum(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        output_dtype = dtypes.result_type(
-            getattr(x1, "dtype", type(x1)),
-            getattr(x2, "dtype", type(x2)),
-        )
-        x1_sparse = getattr(x1, "sparse", False)
-        x2_sparse = getattr(x2, "sparse", False)
-        output_sparse = x1_sparse and x2_sparse
-        return KerasTensor(
-            output_shape, dtype=output_dtype, sparse=output_sparse
-        )
+class Maximum(AutoBinaryBroadcastOperation):
+    backend_fn = backend.ops.numpy.maximum
 
 
 @keras_export(["keras.ops.maximum", "keras.ops.numpy.maximum"])
@@ -5365,24 +5096,8 @@ def maximum(x1, x2):
     return backend.ops.numpy.maximum(x1, x2)
 
 
-class Fmax(Operation):
-    def call(self, x1, x2):
-        return _fmax(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        output_dtype = dtypes.result_type(
-            getattr(x1, "dtype", type(x1)),
-            getattr(x2, "dtype", type(x2)),
-        )
-        x1_sparse = getattr(x1, "sparse", False)
-        x2_sparse = getattr(x2, "sparse", False)
-        output_sparse = x1_sparse and x2_sparse
-        return KerasTensor(
-            output_shape, dtype=output_dtype, sparse=output_sparse
-        )
+class Fmax(AutoBinaryBroadcastOperation):
+    backend_fn = backend.ops.numpy.fmax
 
 
 @keras_export(["keras.ops.fmax", "keras.ops.numpy.fmax"])
@@ -5549,25 +5264,16 @@ def meshgrid(*x, indexing="xy"):
     return backend.ops.numpy.meshgrid(*x, indexing=indexing)
 
 
-class Min(Operation):
+class Min(AutoReductionOperation):
+    backend_fn = backend.ops.numpy.min
+
     def __init__(self, axis=None, keepdims=False, initial=None, *, name=None):
-        super().__init__(name=name)
-        if isinstance(axis, int):
-            self.axis = [axis]
-        else:
-            self.axis = axis
-        self.keepdims = keepdims
+        super().__init__(axis=axis, keepdims=keepdims, name=name)
         self.initial = initial
 
     def call(self, x):
-        return backend.ops.numpy.min(
+        return self.backend_fn(
             x, axis=self.axis, keepdims=self.keepdims, initial=self.initial
-        )
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
-            dtype=x.dtype,
         )
 
 
@@ -5595,24 +5301,8 @@ def min(x, axis=None, keepdims=False, initial=None):
     )
 
 
-class Minimum(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.minimum(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        output_dtype = dtypes.result_type(
-            getattr(x1, "dtype", type(x1)),
-            getattr(x2, "dtype", type(x2)),
-        )
-        x1_sparse = getattr(x1, "sparse", False)
-        x2_sparse = getattr(x2, "sparse", False)
-        output_sparse = x1_sparse and x2_sparse
-        return KerasTensor(
-            output_shape, dtype=output_dtype, sparse=output_sparse
-        )
+class Minimum(AutoBinaryBroadcastOperation):
+    backend_fn = backend.ops.numpy.minimum
 
 
 @keras_export(["keras.ops.minimum", "keras.ops.numpy.minimum"])
@@ -5631,24 +5321,8 @@ def minimum(x1, x2):
     return backend.ops.numpy.minimum(x1, x2)
 
 
-class Fmin(Operation):
-    def call(self, x1, x2):
-        return _fmin(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        output_dtype = dtypes.result_type(
-            getattr(x1, "dtype", type(x1)),
-            getattr(x2, "dtype", type(x2)),
-        )
-        x1_sparse = getattr(x1, "sparse", False)
-        x2_sparse = getattr(x2, "sparse", False)
-        output_sparse = x1_sparse and x2_sparse
-        return KerasTensor(
-            output_shape, dtype=output_dtype, sparse=output_sparse
-        )
+class Fmin(AutoBinaryBroadcastOperation):
+    backend_fn = backend.ops.numpy.fmin
 
 
 @keras_export(["keras.ops.fmin", "keras.ops.numpy.fmin"])
@@ -5871,21 +5545,9 @@ def moveaxis(x, source, destination):
     return backend.ops.numpy.moveaxis(x, source=source, destination=destination)
 
 
-class Nanargmax(Operation):
-    def __init__(self, axis=None, keepdims=False, *, name=None):
-        super().__init__(name=name)
-        self.axis = axis
-        self.keepdims = keepdims
-
-    def call(self, x):
-        return _nanargmax(x, axis=self.axis, keepdims=self.keepdims)
-
-    def compute_output_spec(self, x):
-        axis = [self.axis] if self.axis is not None else None
-        return KerasTensor(
-            reduce_shape(x.shape, axis=axis, keepdims=self.keepdims),
-            dtype="int32",
-        )
+class Nanargmax(AutoReductionOperation):
+    backend_fn = backend.ops.numpy.nanargmax
+    output_dtype = "int32"
 
 
 @keras_export(["keras.ops.nanargmax", "keras.ops.numpy.nanargmax"])
@@ -5950,21 +5612,9 @@ def _nanargmax(x, axis=None, keepdims=False):
     )
 
 
-class Nanargmin(Operation):
-    def __init__(self, axis=None, keepdims=False, *, name=None):
-        super().__init__(name=name)
-        self.axis = axis
-        self.keepdims = keepdims
-
-    def call(self, x):
-        return _nanargmin(x, axis=self.axis, keepdims=self.keepdims)
-
-    def compute_output_spec(self, x):
-        axis = [self.axis] if self.axis is not None else None
-        return KerasTensor(
-            reduce_shape(x.shape, axis=axis, keepdims=self.keepdims),
-            dtype="int32",
-        )
+class Nanargmin(AutoReductionOperation):
+    backend_fn = backend.ops.numpy.nanargmin
+    output_dtype = "int32"
 
 
 @keras_export(["keras.ops.nanargmin", "keras.ops.numpy.nanargmin"])
@@ -6934,7 +6584,9 @@ def _nanvar(x, axis=None, keepdims=False):
     return backend.ops.numpy.divide(sum_sq, count)
 
 
-class NanToNum(Operation):
+class NanToNum(AutoElementwiseOperation):
+    backend_fn = backend.ops.numpy.nan_to_num
+
     def __init__(self, nan=0.0, posinf=None, neginf=None, *, name=None):
         super().__init__(name=name)
         self.nan = nan
@@ -6945,9 +6597,6 @@ class NanToNum(Operation):
         return backend.ops.numpy.nan_to_num(
             x, nan=self.nan, posinf=self.posinf, neginf=self.neginf
         )
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
 
 
 @keras_export(
@@ -7019,15 +6668,9 @@ def nonzero(x):
     return backend.ops.numpy.nonzero(x)
 
 
-class NotEqual(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.not_equal(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype="bool")
+class NotEqual(AutoBinaryBroadcastOperation):
+    backend_fn = backend.ops.numpy.not_equal
+    output_dtype = "bool"
 
 
 @keras_export(["keras.ops.not_equal", "keras.ops.numpy.not_equal"])
@@ -7629,13 +7272,8 @@ def unravel_index(indices, shape):
     return backend.ops.numpy.unravel_index(indices, shape)
 
 
-class Real(Operation):
-    def call(self, x):
-        return backend.ops.numpy.real(x)
-
-    def compute_output_spec(self, x):
-        sparse = getattr(x, "sparse", False)
-        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
+class Real(AutoElementwiseOperation):
+    backend_fn = backend.ops.numpy.real
 
 
 @keras_export(["keras.ops.real", "keras.ops.numpy.real"])
@@ -7825,17 +7463,15 @@ def roll(x, shift, axis=None):
     return backend.ops.numpy.roll(x, shift, axis=axis)
 
 
-class Round(Operation):
+class Round(AutoElementwiseOperation):
+    backend_fn = backend.ops.numpy.round
+
     def __init__(self, decimals=0, *, name=None):
         super().__init__(name=name)
         self.decimals = decimals
 
     def call(self, x):
         return backend.ops.numpy.round(x, self.decimals)
-
-    def compute_output_spec(self, x):
-        sparse = getattr(x, "sparse", False)
-        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
 
 
 @keras_export(["keras.ops.round", "keras.ops.numpy.round"])
@@ -7905,13 +7541,8 @@ def searchsorted(sorted_sequence, values, side="left"):
     return backend.ops.numpy.searchsorted(sorted_sequence, values, side=side)
 
 
-class Sign(Operation):
-    def call(self, x):
-        return backend.ops.numpy.sign(x)
-
-    def compute_output_spec(self, x):
-        sparse = getattr(x, "sparse", False)
-        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
+class Sign(AutoElementwiseOperation):
+    backend_fn = backend.ops.numpy.sign
 
 
 @keras_export(["keras.ops.sign", "keras.ops.numpy.sign"])
@@ -7929,13 +7560,9 @@ def sign(x):
     return backend.ops.numpy.sign(x)
 
 
-class Signbit(Operation):
-    def call(self, x):
-        return backend.ops.numpy.signbit(x)
-
-    def compute_output_spec(self, x):
-        sparse = getattr(x, "sparse", False)
-        return KerasTensor(x.shape, dtype="bool", sparse=sparse)
+class Signbit(AutoElementwiseOperation):
+    backend_fn = backend.ops.numpy.signbit
+    output_dtype = "bool"
 
 
 @keras_export(["keras.ops.signbit", "keras.ops.numpy.signbit"])
@@ -8675,16 +8302,15 @@ def tri(N, M=None, k=0, dtype=None):
     return backend.ops.numpy.tri(N, M=M, k=k, dtype=dtype)
 
 
-class Tril(Operation):
+class Tril(AutoElementwiseOperation):
+    backend_fn = backend.ops.numpy.tril
+
     def __init__(self, k=0, *, name=None):
         super().__init__(name=name)
         self.k = k
 
     def call(self, x):
         return backend.ops.numpy.tril(x, k=self.k)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
 
 
 @keras_export(["keras.ops.tril", "keras.ops.numpy.tril"])
@@ -8707,16 +8333,15 @@ def tril(x, k=0):
     return backend.ops.numpy.tril(x, k=k)
 
 
-class Triu(Operation):
+class Triu(AutoElementwiseOperation):
+    backend_fn = backend.ops.numpy.triu
+
     def __init__(self, k=0, *, name=None):
         super().__init__(name=name)
         self.k = k
 
     def call(self, x):
         return backend.ops.numpy.triu(x, k=self.k)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
 
 
 @keras_export(["keras.ops.triu", "keras.ops.numpy.triu"])
@@ -8739,12 +8364,8 @@ def triu(x, k=0):
     return backend.ops.numpy.triu(x, k=k)
 
 
-class Trunc(Operation):
-    def call(self, x):
-        return backend.ops.numpy.trunc(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+class Trunc(AutoElementwiseOperation):
+    backend_fn = backend.ops.numpy.trunc
 
 
 @keras_export(["keras.ops.trunc", "keras.ops.numpy.trunc"])
@@ -9048,22 +8669,8 @@ def where(condition, x1=None, x2=None):
     return backend.ops.numpy.where(condition, x1, x2)
 
 
-class Subtract(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.subtract(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        x1_sparse = getattr(x1, "sparse", False)
-        x2_sparse = getattr(x2, "sparse", False)
-        output_sparse = x1_sparse and x2_sparse
-        dtype = dtypes.result_type(
-            getattr(x1, "dtype", type(x1)),
-            getattr(x2, "dtype", type(x2)),
-        )
-        return KerasTensor(output_shape, dtype=dtype, sparse=output_sparse)
+class Subtract(AutoBinaryBroadcastOperation):
+    backend_fn = backend.ops.numpy.subtract
 
 
 @keras_export(["keras.ops.subtract", "keras.ops.numpy.subtract"])
@@ -9310,13 +8917,8 @@ def _float_power(x1, x2):
     return backend.ops.numpy.power(x1, x2)
 
 
-class Negative(Operation):
-    def call(self, x):
-        return backend.ops.numpy.negative(x)
-
-    def compute_output_spec(self, x):
-        sparse = getattr(x, "sparse", False)
-        return KerasTensor(x.shape, dtype=x.dtype, sparse=sparse)
+class Negative(AutoElementwiseOperation):
+    backend_fn = backend.ops.numpy.negative
 
 
 @keras_export(["keras.ops.negative", "keras.ops.numpy.negative"])
@@ -9846,15 +9448,9 @@ def floor_divide(x1, x2):
     return backend.ops.numpy.floor_divide(x1, x2)
 
 
-class LogicalXor(Operation):
-    def call(self, x1, x2):
-        return backend.ops.numpy.logical_xor(x1, x2)
-
-    def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-        output_shape = broadcast_shapes(x1_shape, x2_shape)
-        return KerasTensor(output_shape, dtype="bool")
+class LogicalXor(AutoBinaryBroadcastOperation):
+    backend_fn = backend.ops.numpy.logical_xor
+    output_dtype = "bool"
 
 
 @keras_export(["keras.ops.logical_xor", "keras.ops.numpy.logical_xor"])
