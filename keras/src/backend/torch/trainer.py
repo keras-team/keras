@@ -110,9 +110,11 @@ class TorchTrainer(base_trainer.Trainer):
         )
         self._loss_tracker.update_state(
             loss,
-            sample_weight=next(
-                i for i in tree.flatten(x) if i is not None
-            ).shape[0],
+            sample_weight=(
+                x.shape[0]
+                if isinstance(x, torch.Tensor)
+                else next(i for i in tree.flatten(x) if i is not None).shape[0]
+            ),
         )
         if self.optimizer is not None:
             loss = self.optimizer.scale_loss(loss)
@@ -150,9 +152,11 @@ class TorchTrainer(base_trainer.Trainer):
         )
         self._loss_tracker.update_state(
             loss,
-            sample_weight=next(
-                i for i in tree.flatten(x) if i is not None
-            ).shape[0],
+            sample_weight=(
+                x.shape[0]
+                if isinstance(x, torch.Tensor)
+                else next(i for i in tree.flatten(x) if i is not None).shape[0]
+            ),
         )
         return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 

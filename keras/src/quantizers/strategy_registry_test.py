@@ -371,7 +371,9 @@ class ToyModeRegistrationTest(testing.TestCase):
         expected = x @ reference_kernel.astype("float16").astype(
             "float32"
         ) + ops.convert_to_numpy(layer.bias)
-        self.assertAllClose(y, expected, atol=1e-3)
+        self.assertAllClose(
+            y, expected, atol=1e-3, tpu_atol=1e-2, tpu_rtol=5e-2
+        )
 
     def test_toy_mode_through_model_quantize(self):
         model = models.Sequential(

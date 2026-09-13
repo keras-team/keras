@@ -1991,6 +1991,29 @@ class LayerTest(testing.TestCase):
         y = layer(x, attention_mask=mask)
         self.assertEqual(y.shape, (2, 3))
 
+    def test_name_scope_opened_once_per_call_when_built(self):
+        # `_maybe_build` opens the name scope itself, after its `built` check,
+        # so a layer that is already built opens it once per call (for the
+        # call itself) rather than twice.
+        opens = []
+
+        class CountingLayer(layers.Layer):
+            def _open_name_scope(self):
+                opens.append(1)
+                return super()._open_name_scope()
+
+            def call(self, x):
+                return x
+
+        layer = CountingLayer()
+        x = np.ones((2, 4), dtype="float32")
+        layer(x)
+
+        opens.clear()
+        layer(x)
+        layer(x)
+        self.assertEqual(len(opens), 2)
+
     def test_called_and_built_flags_set_once(self):
         # Verify that built and _called are True after the first call and
         # remain True on repeated calls, that build() is invoked exactly
