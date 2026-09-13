@@ -385,3 +385,151 @@ class OperationTest(testing.TestCase):
             ValueError, "must be a string and cannot contain character `/`."
         ):
             OpWithMultipleOutputs(name="test/op")
+
+
+class AutoElementwiseOperationTest(testing.TestCase):
+    def test_auto_elementwise_operation_basic(self):
+        class DummyRelu(operation.AutoElementwiseOperation):
+            backend_fn = backend.nn.relu
+
+        op = DummyRelu()
+        x = np.array([-2.0, 0.0, 3.0], dtype="float32")
+        out = op(x)
+        self.assertAllClose(out, [0.0, 0.0, 3.0])
+
+        sym_x = keras_tensor.KerasTensor((2, 3), dtype="float32")
+        sym_out = op(sym_x)
+        self.assertEqual(sym_out.shape, (2, 3))
+        self.assertEqual(sym_out.dtype, "float32")
+        self.assertFalse(sym_out.sparse)
+        self.assertFalse(sym_out.ragged)
+
+        sym_sparse_x = keras_tensor.KerasTensor(
+            (2, 3), dtype="float32", sparse=True
+        )
+        sym_sparse_out = op(sym_sparse_x)
+        self.assertTrue(sym_sparse_out.sparse)
+        self.assertFalse(sym_sparse_out.ragged)
+
+        sym_ragged_x = keras_tensor.KerasTensor(
+            (2, None), dtype="float32", ragged=True
+        )
+        sym_ragged_out = op(sym_ragged_x)
+        self.assertFalse(sym_ragged_out.sparse)
+        self.assertTrue(sym_ragged_out.ragged)
+
+    def test_auto_elementwise_operation_missing_backend_fn(self):
+        with self.assertRaisesRegex(ValueError, "must define `backend_fn`"):
+
+            class MissingFnOp(operation.AutoElementwiseOperation):
+                pass
+
+    def test_auto_elementwise_operation_output_dtype(self):
+        class DummyIsNan(operation.AutoElementwiseOperation):
+            backend_fn = backend.numpy.isnan
+            output_dtype = "bool"
+
+        op = DummyIsNan()
+        sym_x = keras_tensor.KerasTensor((2, 3), dtype="float32")
+        sym_out = op(sym_x)
+        self.assertEqual(sym_out.shape, (2, 3))
+        self.assertEqual(sym_out.dtype, "bool")
+
+
+class AutoBinaryBroadcastOperationTest(testing.TestCase):
+    def test_auto_binary_broadcast_arithmetic(self):
+        class DummyAdd(operation.AutoBinaryBroadcastOperation):
+            backend_fn = backend.numpy.add
+
+        op = DummyAdd()
+        x1 = np.array([1.0, 2.0], dtype="float32")
+        x2 = np.array([3.0, 4.0], dtype="float32")
+        out = op(x1, x2)
+        self.assertAllClose(out, [4.0, 6.0])
+
+        sym_x1 = keras_tensor.KerasTensor((1, 3), dtype="float32")
+        sym_x2 = keras_tensor.KerasTensor((2, 1), dtype="float32")
+        sym_out = op(sym_x1, sym_x2)
+        self.assertEqual(sym_out.shape, (2, 3))
+        self.assertEqual(sym_out.dtype, "float32")
+
+    def test_auto_binary_broadcast_comparison(self):
+        class DummyEqual(operation.AutoBinaryBroadcastOperation):
+            backend_fn = backend.numpy.equal
+            output_dtype = "bool"
+
+        op = DummyEqual()
+        sym_x1 = keras_tensor.KerasTensor((2, 3), dtype="int32")
+        sym_x2 = keras_tensor.KerasTensor((2, 3), dtype="int32")
+        sym_out = op(sym_x1, sym_x2)
+        self.assertEqual(sym_out.shape, (2, 3))
+        self.assertEqual(sym_out.dtype, "bool")
+
+    def test_auto_binary_broadcast_ragged(self):
+        class DummyAdd(operation.AutoBinaryBroadcastOperation):
+            backend_fn = backend.numpy.add
+
+        op = DummyAdd()
+        sym_x1 = keras_tensor.KerasTensor(
+            (2, None), dtype="float32", ragged=True
+        )
+        sym_x2 = keras_tensor.KerasTensor((), dtype="float32")
+        sym_out = op(sym_x1, sym_x2)
+        self.assertTrue(sym_out.ragged)
+        self.assertFalse(sym_out.sparse)
+
+    def test_auto_binary_broadcast_missing_backend_fn(self):
+        with self.assertRaisesRegex(ValueError, "must define `backend_fn`"):
+
+            class MissingFnOp(operation.AutoBinaryBroadcastOperation):
+                pass
+
+
+class AutoReductionOperationTest(testing.TestCase):
+    def test_auto_reduction_basic(self):
+        class DummyAmax(operation.AutoReductionOperation):
+            backend_fn = backend.numpy.amax
+
+        op = DummyAmax(axis=1)
+        x = np.array([[1.0, 3.0], [2.0, 4.0]], dtype="float32")
+        out = op(x)
+        self.assertAllClose(out, [3.0, 4.0])
+
+        sym_x = keras_tensor.KerasTensor((2, 3), dtype="float32")
+        sym_out = op(sym_x)
+        self.assertEqual(sym_out.shape, (2,))
+        self.assertEqual(sym_out.dtype, "float32")
+
+        op_keepdims = DummyAmax(axis=1, keepdims=True)
+        sym_out_keepdims = op_keepdims(sym_x)
+        self.assertEqual(sym_out_keepdims.shape, (2, 1))
+
+        op_all = DummyAmax()
+        sym_out_all = op_all(sym_x)
+        self.assertEqual(sym_out_all.shape, ())
+
+    def test_auto_reduction_output_dtype(self):
+        class DummyAll(operation.AutoReductionOperation):
+            backend_fn = backend.numpy.all
+            output_dtype = "bool"
+
+        op = DummyAll(axis=0)
+        sym_x = keras_tensor.KerasTensor((2, 3), dtype="float32")
+        sym_out = op(sym_x)
+        self.assertEqual(sym_out.shape, (3,))
+        self.assertEqual(sym_out.dtype, "bool")
+
+    def test_auto_reduction_sparse(self):
+        class DummyAmax(operation.AutoReductionOperation):
+            backend_fn = backend.numpy.amax
+
+        op = DummyAmax(axis=1)
+        sym_x = keras_tensor.KerasTensor((2, 3), dtype="float32", sparse=True)
+        sym_out = op(sym_x)
+        self.assertTrue(sym_out.sparse)
+
+    def test_auto_reduction_missing_backend_fn(self):
+        with self.assertRaisesRegex(ValueError, "must define `backend_fn`"):
+
+            class MissingFnOp(operation.AutoReductionOperation):
+                pass

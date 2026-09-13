@@ -9,6 +9,7 @@ from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
 from keras.src.backend import config
 from keras.src.backend.common.dtypes import result_type
+from keras.src.ops.operation import AutoElementwiseOperation
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import broadcast_shapes
 from keras.src.ops.operation_utils import reduce_shape
@@ -1148,13 +1149,8 @@ def istft(
     )
 
 
-class Rsqrt(Operation):
-    def call(self, x):
-        x = backend.convert_to_tensor(x)
-        return backend.math.rsqrt(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+class Rsqrt(AutoElementwiseOperation):
+    backend_fn = backend.math.rsqrt
 
 
 @keras_export("keras.ops.rsqrt")
@@ -1178,12 +1174,8 @@ def rsqrt(x):
     return backend.math.rsqrt(x)
 
 
-class Erf(Operation):
-    def compute_output_spec(self, x):
-        return KerasTensor(shape=x.shape, dtype=x.dtype)
-
-    def call(self, x):
-        return backend.math.erf(x)
+class Erf(AutoElementwiseOperation):
+    backend_fn = backend.math.erf
 
 
 @keras_export("keras.ops.erf")
@@ -1237,12 +1229,8 @@ def erfc(x):
     return backend.math.erfc(x)
 
 
-class Erfinv(Operation):
-    def compute_output_spec(self, x):
-        return KerasTensor(shape=x.shape, dtype=x.dtype)
-
-    def call(self, x):
-        return backend.math.erfinv(x)
+class Erfinv(AutoElementwiseOperation):
+    backend_fn = backend.math.erfinv
 
 
 @keras_export("keras.ops.erfinv")
