@@ -585,8 +585,8 @@ class CompileLoss(losses_module.Loss):
         try:
             return loss_fn(y_t, y_p, sample_weight)
         except ValueError as e:
-            if y_t is None or y_p is None:
-                # `None` targets/predictions carry no shape to report.
+            if not hasattr(y_t, "shape") or not hasattr(y_p, "shape"):
+                # Targets/predictions without a shape attribute cannot report shape.
                 raise ValueError(
                     f"Error when computing loss for output '{loss_name}'. "
                     f"Received y_true={y_t} and y_pred={y_p}.\n"
