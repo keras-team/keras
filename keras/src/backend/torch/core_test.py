@@ -132,7 +132,7 @@ class TorchCoreTest(testing.TestCase):
             [2, 3],
         )
         expected = x[0:2, 1:4]
-        self.assertAllClose(out.cpu().numpy(), expected.cpu().numpy())
+        self.assertAllClose(out, expected)
 
     def test_to_static_index_rejects_tensor(self):
         """Tensor bounds must be rejected so `slice()` keeps them traceable."""
