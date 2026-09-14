@@ -5327,6 +5327,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.mean(x, axis=1, keepdims=True),
         )
 
+        self.assertAllClose(
+            knp.mean(x, axis=None, keepdims=True),
+            np.mean(x, axis=None, keepdims=True),
+        )
+
         self.assertAllClose(knp.Mean()(x), np.mean(x))
         self.assertAllClose(knp.Mean(axis=1)(x), np.mean(x, axis=1))
         self.assertAllClose(
@@ -5373,6 +5378,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.all(x, axis=1, keepdims=True),
         )
 
+        self.assertAllClose(
+            knp.all(x, axis=None, keepdims=True),
+            np.all(x, axis=None, keepdims=True),
+        )
+
         # Multi-axis test
         x = np.array(
             [[[True, True], [True, False]], [[True, True], [True, True]]]
@@ -5397,6 +5407,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.any(x, axis=1, keepdims=True),
             np.any(x, axis=1, keepdims=True),
+        )
+
+        self.assertAllClose(
+            knp.any(x, axis=None, keepdims=True),
+            np.any(x, axis=None, keepdims=True),
         )
 
         # Multi-axis test
@@ -5460,6 +5475,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.var(x, axis=1, keepdims=True),
         )
 
+        self.assertAllClose(
+            knp.var(x, axis=None, keepdims=True),
+            np.var(x, axis=None, keepdims=True),
+        )
+
         self.assertAllClose(knp.Var()(x), np.var(x))
         self.assertAllClose(knp.Var(axis=1)(x), np.var(x, axis=1))
         self.assertAllClose(
@@ -5477,16 +5497,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.sum(x, axis=1, keepdims=True),
             np.sum(x, axis=1, keepdims=True),
         )
-        if backend.backend() != "openvino":
-            # TODO(#23536): openvino flattens instead of preserving the rank.
-            # `assertAllClose` broadcasts, so assert the shape explicitly.
-            self.assertEqual(
-                tuple(knp.sum(x, axis=None, keepdims=True).shape), (1, 1)
-            )
-            self.assertAllClose(
-                knp.sum(x, axis=None, keepdims=True),
-                np.sum(x, axis=None, keepdims=True),
-            )
+        self.assertAllClose(
+            knp.sum(x, axis=None, keepdims=True),
+            np.sum(x, axis=None, keepdims=True),
+        )
 
         self.assertAllClose(knp.Sum()(x), np.sum(x))
         self.assertAllClose(knp.Sum(axis=1)(x), np.sum(x, axis=1))
@@ -5505,16 +5519,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.amax(x, axis=1, keepdims=True),
             np.amax(x, axis=1, keepdims=True),
         )
-        if backend.backend() != "openvino":
-            # TODO(#23536): openvino flattens instead of preserving the rank.
-            # `assertAllClose` broadcasts, so assert the shape explicitly.
-            self.assertEqual(
-                tuple(knp.amax(x, axis=None, keepdims=True).shape), (1, 1)
-            )
-            self.assertAllClose(
-                knp.amax(x, axis=None, keepdims=True),
-                np.amax(x, axis=None, keepdims=True),
-            )
+        self.assertAllClose(
+            knp.amax(x, axis=None, keepdims=True),
+            np.amax(x, axis=None, keepdims=True),
+        )
 
         self.assertAllClose(knp.Amax()(x), np.amax(x))
         self.assertAllClose(knp.Amax(axis=1)(x), np.amax(x, axis=1))
@@ -5533,16 +5541,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.amin(x, axis=1, keepdims=True),
             np.amin(x, axis=1, keepdims=True),
         )
-        if backend.backend() != "openvino":
-            # TODO(#23536): openvino flattens instead of preserving the rank.
-            # `assertAllClose` broadcasts, so assert the shape explicitly.
-            self.assertEqual(
-                tuple(knp.amin(x, axis=None, keepdims=True).shape), (1, 1)
-            )
-            self.assertAllClose(
-                knp.amin(x, axis=None, keepdims=True),
-                np.amin(x, axis=None, keepdims=True),
-            )
+        self.assertAllClose(
+            knp.amin(x, axis=None, keepdims=True),
+            np.amin(x, axis=None, keepdims=True),
+        )
 
         self.assertAllClose(knp.Amin()(x), np.amin(x))
         self.assertAllClose(knp.Amin(axis=1)(x), np.amin(x, axis=1))
@@ -6854,16 +6856,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.prod(x, axis=1, keepdims=True),
             np.prod(x, axis=1, keepdims=True),
         )
-        if backend.backend() != "openvino":
-            # TODO(#23536): openvino flattens instead of preserving the rank.
-            # `assertAllClose` broadcasts, so assert the shape explicitly.
-            self.assertEqual(
-                tuple(knp.prod(x, axis=None, keepdims=True).shape), (1, 1)
-            )
-            self.assertAllClose(
-                knp.prod(x, axis=None, keepdims=True),
-                np.prod(x, axis=None, keepdims=True),
-            )
+        self.assertAllClose(
+            knp.prod(x, axis=None, keepdims=True),
+            np.prod(x, axis=None, keepdims=True),
+        )
 
         # Multi-axis test
         x = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
@@ -6893,6 +6889,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.ptp(x, axis=1, keepdims=True),
             np.ptp(x, axis=1, keepdims=True),
+        )
+
+        self.assertAllClose(
+            knp.ptp(x, axis=None, keepdims=True),
+            np.ptp(x, axis=None, keepdims=True),
         )
 
         self.assertAllClose(knp.Ptp()(x), np.ptp(x))
@@ -7367,6 +7368,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.std(x, axis=1, keepdims=True),
             np.std(x, axis=1, keepdims=True),
+        )
+
+        self.assertAllClose(
+            knp.std(x, axis=None, keepdims=True),
+            np.std(x, axis=None, keepdims=True),
         )
 
         self.assertAllClose(knp.Std()(x), np.std(x))
