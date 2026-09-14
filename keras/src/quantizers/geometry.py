@@ -1,4 +1,4 @@
-"""Quantization geometry: the layer-side protocol behind the mode registry.
+"""Quantization geometry: the layer-side protocol behind the strategy registry.
 
 A layer exposes its quantizable structure through
 `Layer._quantization_geometry()`, which returns one of the geometry classes
@@ -9,13 +9,13 @@ quantized values, and run quantized forward passes, so layer classes hold no
 per-mode methods.
 
 Projections are the family so far: a float kernel contracted against the
-inputs. A mode writes one projection implementation and the geometry
-supplies what differs per layer: how to contract, which axes the
-quantizers reduce over, how a scale lines up with the kernel and with the
-outputs, and the 2D `(rows, columns)` view of the kernel.
-`ProjectionGeometry` holds the plain-matmul answers (`Dense`); a layer
-that contracts its kernel differently subclasses it and overrides those
-hooks. Further families are added as their layers move onto the protocol.
+inputs. A strategy writes one projection implementation and the geometry
+supplies what differs per layer: how to contract (a plain matmul for
+`Dense`, `ProjectionGeometry`; an einsum for `EinsumDense`,
+`EinsumProjectionGeometry`), which axes the quantizers reduce over, how a
+scale lines up with the kernel and with the outputs, and the 2D
+`(rows, columns)` view of an N-D kernel. Further families are added as
+their layers move onto the protocol.
 
 Making a layer quantizable
 --------------------------
@@ -37,39 +37,42 @@ class MyProjection(Layer):
         }
 ```
 
-The geometry is a thin adapter, so the mode implementations still read
+The geometry is a thin adapter, so the strategies still read
 state directly off the layer. Beyond what `Layer` already provides, a
 quantizable layer must define:
 
 - Projections: `_kernel` (the float kernel variable), `units`, `bias` and
   `activation` (either may be `None`), and, while LoRA is enabled,
   `lora_enabled`, `lora_kernel_a`, `lora_kernel_b`, `lora_alpha` and
-  `lora_rank`.
+  `lora_rank`. `EinsumProjectionGeometry` additionally relies on the
+  equation analysis `EinsumDense` prepares in `_set_quantization_info()`.
 
-The rest comes from `Layer` itself: modes read `compute_dtype`,
+The rest comes from `Layer` itself: strategies read `compute_dtype`,
 `dtype_policy` and `path`, create their quantized variables through
 `add_weight`, and re-enter through `Layer.quantized_build`, which routes
-straight back to the mode. A layer never needs to know which mode is
+straight back to the strategy. A layer never needs to know which mode is
 running, and implements none of these itself.
 
-Customizing what a mode does to a layer
----------------------------------------
+Customizing what a strategy does to a layer
+-------------------------------------------
 
-Override a geometry hook rather than a mode method: the hooks on the
-classes below are the only points at which mode implementations vary per
+Override a geometry hook rather than a strategy method: the hooks on the
+classes below are the only points at which strategies vary per
 layer. A layer that owns its own ternarization rule, for example, supplies
-it through `ternary_values`, and the ternary mode needs no knowledge of
+it through `ternary_values`, and the ternary strategy needs no knowledge of
 the layer.
 
 Two things this protocol deliberately does not offer. A layer cannot
-override one mode's math for itself alone, because that surface moved onto
-the strategies; a layer that contracts its kernel differently overrides
-the geometry hooks, and anything beyond that means replacing the mode (by
+override one strategy's math for itself alone, because that surface lives
+on the strategy; a layer that contracts its kernel differently overrides
+the geometry hooks, and anything beyond that means replacing the strategy (by
 subclassing it, overriding the one handler, and registering it under a
-new name). A new geometry family, on the other hand, needs no dispatcher
-change at all: declare its `family` and implement the mode's
+new mode name). A new geometry family, on the other hand, needs no dispatcher
+change at all: declare its `family` and implement the strategy's
 `_build_<family>`, `_call_<family>` and `_quantize_<family>` methods.
 """
+
+import string
 
 import numpy as np
 
@@ -114,10 +117,10 @@ class ProjectionGeometry(QuantizationGeometry):
         """Computes any layout analysis the geometry needs (idempotent)."""
 
     def calibration_rows_columns(self, kernel_shape):
-        """2D `(rows, columns)` view used by the calibration modes.
+        """2D `(rows, columns)` view used by the calibration strategies.
 
-        Kept apart from `rows_columns`: the calibration modes may split a
-        kernel by a different rule than the weight-only modes.
+        Kept apart from `rows_columns`: the calibration strategies may split
+        a kernel by a different rule than the weight-only ones.
         """
         return kernel_shape[0], kernel_shape[1]
 
@@ -202,3 +205,132 @@ class ProjectionGeometry(QuantizationGeometry):
         )
         beta = float(np.mean(abs_k))
         return kernel_ternary, beta
+
+
+def _lora_equations(equation):
+    """The two einsums that apply a LoRA update to `equation` in low-rank
+    form, contracting the rank axis by name.
+
+    `lora_kernel_a` carries the rank on the kernel's last axis and
+    `lora_kernel_b` maps it to that axis's size. Contracting the rank with
+    a matmul would only work when the kernel's last axis is also the last
+    axis of the output; naming it works for every equation (an ellipsis in
+    the output, a permuted output, or a kernel whose last axis is
+    contracted away).
+
+    Returns:
+        `(first, second, a_first)`: `first` contracts the inputs against
+        the factor that shares their subscripts, `second` contracts the
+        rank axis against the other factor; `a_first` is whether that
+        order is `(lora_kernel_a, lora_kernel_b)`, which holds when the
+        kernel's last axis survives in the output.
+    """
+    inputs_spec, rest = equation.split(",")
+    kernel_spec, output_spec = rest.split("->")
+    last = kernel_spec[-1]
+    rank = next(c for c in string.ascii_letters if c not in equation)
+    if last in output_spec:
+        mid = output_spec.replace(last, rank)
+        return (
+            f"{inputs_spec},{kernel_spec[:-1]}{rank}->{mid}",
+            f"{mid},{rank}{last}->{output_spec}",
+            True,
+        )
+    mid = inputs_spec.replace(last, rank)
+    return (
+        f"{inputs_spec},{rank}{last}->{mid}",
+        f"{mid},{kernel_spec[:-1]}{rank}->{output_spec}",
+        False,
+    )
+
+
+class EinsumProjectionGeometry(ProjectionGeometry):
+    """Geometry of an N-D einsum kernel (`EinsumDense`).
+
+    The equation-derived axis analysis (reduced/transpose/expand/squeeze
+    axes, the custom-gradient equation) is the layer's own geometry
+    implementation; this class routes the strategies to it.
+    """
+
+    def prepare(self):
+        self.layer._set_quantization_info()
+
+    def calibration_rows_columns(self, kernel_shape):
+        if len(kernel_shape) == 2:
+            return kernel_shape[0], kernel_shape[1]
+        # 3D kernels are split by locating the model dimension (the largest
+        # one): [d_model, heads, head_dim] is a QKV projection, while
+        # [heads, head_dim, d_model] is an attention output projection.
+        shape = list(kernel_shape)
+        d_model_dim_index = shape.index(max(shape))
+        if d_model_dim_index == 0:  # QKV projection case
+            in_features, heads, head_dim = shape
+            return in_features, heads * head_dim
+        elif d_model_dim_index in [1, 2]:  # Attention Output case
+            heads, head_dim, out_features = shape
+            return heads * head_dim, out_features
+        raise ValueError("Could not determine row/column split.")
+
+    def store_unpacked_columns(self, mode, columns):
+        setattr(self.layer, f"{mode}_unpacked_column_size", columns)
+
+    def unpacked_columns(self, mode):
+        return getattr(self.layer, f"{mode}_unpacked_column_size")
+
+    def contract(self, inputs, kernel):
+        return ops.einsum(self.layer.equation, inputs, kernel)
+
+    def contract_grad(self, upstream, float_kernel):
+        # From https://stackoverflow.com/a/47609896
+        return ops.einsum(
+            self.layer._custom_gradient_equation, upstream, float_kernel
+        )
+
+    def reshape_kernel(self, kernel):
+        return ops.reshape(kernel, self.layer.original_kernel_shape)
+
+    def record_kernel_shape(self, kernel_shape):
+        self.layer.original_kernel_shape = kernel_shape
+
+    def rows_columns(self, kernel_shape):
+        rows = 1
+        columns = 1
+        for i, dim in enumerate(kernel_shape):
+            if i in self.layer._kernel_reduced_axes:
+                rows *= dim
+            else:
+                columns *= dim
+        return rows, columns
+
+    @property
+    def kernel_reduced_axes(self):
+        return self.layer._kernel_reduced_axes
+
+    @property
+    def inputs_quantization_axis(self):
+        return tuple(self.layer._input_reduced_axes)
+
+    def align_inputs_scale(self, scale):
+        return self.layer._adjust_scale_for_quant(scale, "input")
+
+    def kernel_scale_shape(self, kernel_shape):
+        return self.layer._get_kernel_scale_shape(kernel_shape)
+
+    def kernel_scale_for_storage(self, scale):
+        return self.layer._adjust_scale_for_quant(scale, "kernel")
+
+    def kernel_scale_for_dequant(self, scale):
+        return self.layer._adjust_scale_for_dequant(scale)
+
+    def add_lora_delta(self, inputs, x):
+        layer = self.layer
+        if layer.lora_enabled:
+            first, second, a_first = _lora_equations(layer.equation)
+            factors = (layer.lora_kernel_a, layer.lora_kernel_b)
+            if not a_first:
+                factors = factors[::-1]
+            lora_x = ops.einsum(first, inputs, factors[0])
+            lora_x = ops.einsum(second, lora_x, factors[1])
+            x = ops.add(x, (layer.lora_alpha / layer.lora_rank) * lora_x)
+            x = ops.cast(x, dtype=layer.compute_dtype)
+        return x

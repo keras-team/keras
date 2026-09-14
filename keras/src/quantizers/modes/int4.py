@@ -97,7 +97,7 @@ class Int4Strategy(GeometryDispatchStrategy):
         block_size_value = -1 if block_size is None else block_size
         return f"int4/{block_size_value}"
 
-    # --- Projection (Dense) -----------------------------------------------
+    # --- Projection (Dense, EinsumDense) ----------------------------------
     #
     # One implementation serves every kernel contracted against its inputs.
     # The kernel is viewed as 2D `[rows, columns]` (rows: the contracted
