@@ -3319,6 +3319,35 @@ class ImageOpsBehaviorTests(testing.TestCase):
         ):
             kimage.affine_transform(images, invalid_transform)
 
+    def test_affine_transform_invalid_transform_shape(self):
+        # Test rank-1 transform with invalid length (e.g. 4 instead of 8)
+        images = KerasTensor(shape=(10, 10, 3))
+        invalid_transform = KerasTensor(shape=(4,))
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid transform shape: expected the last dimension to be 8",
+        ):
+            kimage.affine_transform(images, invalid_transform)
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid transform shape: expected the last dimension to be 8",
+        ):
+            kimage.AffineTransform()(images, invalid_transform)
+
+        # Test rank-2 transform with invalid last dimension (e.g. (None, 6))
+        images = KerasTensor(shape=(None, 10, 10, 3))
+        invalid_transform = KerasTensor(shape=(None, 6))
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid transform shape: expected the last dimension to be 8",
+        ):
+            kimage.affine_transform(images, invalid_transform)
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid transform shape: expected the last dimension to be 8",
+        ):
+            kimage.AffineTransform()(images, invalid_transform)
+
     def test_extract_patches_invalid_size(self):
         size = "5"  # Invalid size type
         image = np.random.uniform(size=(2, 20, 20, 3))
