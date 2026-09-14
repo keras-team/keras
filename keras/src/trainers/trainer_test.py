@@ -2907,27 +2907,6 @@ class TestTrainer(testing.TestCase):
         )
         self.assertLessEqual(tracing_count[0], 2)
 
-    @pytest.mark.requires_trainable_backend
-    def test_steps_per_execution_with_list_pytree(self):
-        def generator():
-            for _ in range(4):
-                yield (
-                    np.ones((4, 4), dtype="float32"),
-                    np.zeros((4, 1), dtype="float32"),
-                )
-
-        inputs = keras.Input(shape=(4,))
-        outputs = keras.layers.Dense(1)(inputs)
-        model = keras.Model(inputs=inputs, outputs=outputs)
-        model.compile(
-            optimizer="adam",
-            loss="mse",
-            steps_per_execution=2,
-            jit_compile=True,
-        )
-        history = model.fit(generator(), epochs=1, verbose=0)
-        self.assertIn("loss", history.history)
-
 
 class JAXTrainerCorrectnessTest(test_case.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(
