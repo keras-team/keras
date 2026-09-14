@@ -671,6 +671,9 @@ def while_loop(
 class StopGradient(AutoElementwiseOperation):
     backend_fn = backend.ops.core.stop_gradient
 
+    def call(self, variable):
+        return self.backend_fn(variable)
+
 
 @keras_export("keras.ops.stop_gradient")
 def stop_gradient(variable):

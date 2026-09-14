@@ -1563,6 +1563,9 @@ def bincount(x, weights=None, minlength=0, sparse=False):
 class BitwiseAnd(AutoBinaryBroadcastOperation):
     backend_fn = backend.ops.numpy.bitwise_and
 
+    def call(self, x, y):
+        return self.backend_fn(x, y)
+
 
 @keras_export(["keras.ops.bitwise_and", "keras.ops.numpy.bitwise_and"])
 def bitwise_and(x, y):
@@ -1633,6 +1636,9 @@ def bitwise_not(x):
 class BitwiseOr(AutoBinaryBroadcastOperation):
     backend_fn = backend.ops.numpy.bitwise_or
 
+    def call(self, x, y):
+        return self.backend_fn(x, y)
+
 
 @keras_export(["keras.ops.bitwise_or", "keras.ops.numpy.bitwise_or"])
 def bitwise_or(x, y):
@@ -1657,6 +1663,9 @@ def bitwise_or(x, y):
 class BitwiseXor(AutoBinaryBroadcastOperation):
     backend_fn = backend.ops.numpy.bitwise_xor
 
+    def call(self, x, y):
+        return self.backend_fn(x, y)
+
 
 @keras_export(["keras.ops.bitwise_xor", "keras.ops.numpy.bitwise_xor"])
 def bitwise_xor(x, y):
@@ -1680,6 +1689,9 @@ def bitwise_xor(x, y):
 
 class BitwiseLeftShift(AutoBinaryBroadcastOperation):
     backend_fn = backend.ops.numpy.bitwise_left_shift
+
+    def call(self, x, y):
+        return self.backend_fn(x, y)
 
 
 @keras_export(
@@ -1707,6 +1719,9 @@ def bitwise_left_shift(x, y):
 class LeftShift(AutoBinaryBroadcastOperation):
     backend_fn = backend.ops.numpy.left_shift
 
+    def call(self, x, y):
+        return self.backend_fn(x, y)
+
 
 @keras_export(["keras.ops.left_shift", "keras.ops.numpy.left_shift"])
 def left_shift(x, y):
@@ -1730,6 +1745,9 @@ def left_shift(x, y):
 
 class BitwiseRightShift(AutoBinaryBroadcastOperation):
     backend_fn = backend.ops.numpy.bitwise_right_shift
+
+    def call(self, x, y):
+        return self.backend_fn(x, y)
 
 
 @keras_export(
@@ -1756,6 +1774,9 @@ def bitwise_right_shift(x, y):
 
 class RightShift(AutoBinaryBroadcastOperation):
     backend_fn = backend.ops.numpy.right_shift
+
+    def call(self, x, y):
+        return self.backend_fn(x, y)
 
 
 @keras_export(["keras.ops.right_shift", "keras.ops.numpy.right_shift"])
@@ -7471,7 +7492,7 @@ class Round(AutoElementwiseOperation):
         self.decimals = decimals
 
     def call(self, x):
-        return backend.ops.numpy.round(x, self.decimals)
+        return self.backend_fn(x, self.decimals)
 
 
 @keras_export(["keras.ops.round", "keras.ops.numpy.round"])
@@ -8310,7 +8331,7 @@ class Tril(AutoElementwiseOperation):
         self.k = k
 
     def call(self, x):
-        return backend.ops.numpy.tril(x, k=self.k)
+        return self.backend_fn(x, k=self.k)
 
 
 @keras_export(["keras.ops.tril", "keras.ops.numpy.tril"])
@@ -8341,7 +8362,7 @@ class Triu(AutoElementwiseOperation):
         self.k = k
 
     def call(self, x):
-        return backend.ops.numpy.triu(x, k=self.k)
+        return self.backend_fn(x, k=self.k)
 
 
 @keras_export(["keras.ops.triu", "keras.ops.numpy.triu"])
