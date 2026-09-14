@@ -90,11 +90,9 @@ class Sliceable:
         return x
 
     @classmethod
-    def convert_to_torch_compatible(cls, x):
-        """Convert a tensor to something that the Torch backend can consume.
+    def convert_to_native_compatible(cls, x):
+        """Convert a tensor to something that the native backend can consume.
 
-        This can be a Torch tensor, NumPy array or any other type of tensor that
-        `keras.backend.torch.core.convert_to_tensor()` can consume.
         Only called after slicing using `__getitem__`.
         Used to densify sparse tensors and ragged tensors.
 
@@ -107,6 +105,21 @@ class Sliceable:
 
 class NumpySliceable(Sliceable):
     pass
+
+
+class NativeArraySliceable(Sliceable):
+    def __getitem__(self, indices):
+        if isinstance(indices, np.ndarray):
+            indices = indices.tolist()
+        return self.array[indices]
+
+    @classmethod
+    def cast(cls, x, dtype):
+        return backend.ops.cast(x, dtype)
+
+    @classmethod
+    def convert_to_numpy(cls, x):
+        return backend.ops.convert_to_numpy(x)
 
 
 class TensorflowSliceable(Sliceable):
@@ -137,7 +150,7 @@ class TensorflowRaggedSliceable(TensorflowSliceable):
         return cls.convert_to_numpy(x)
 
     @classmethod
-    def convert_to_torch_compatible(cls, x):
+    def convert_to_native_compatible(cls, x):
         return x.to_tensor()
 
 
@@ -161,7 +174,7 @@ class TensorflowSparseSliceable(TensorflowSliceable):
         return data_adapter_utils.tf_sparse_to_jax_sparse(x)
 
     @classmethod
-    def convert_to_torch_compatible(cls, x):
+    def convert_to_native_compatible(cls, x):
         from keras.src.backend.tensorflow import sparse as tf_sparse
 
         return tf_sparse.sparse_to_dense(x)
@@ -184,22 +197,8 @@ class JaxSparseSliceable(Sliceable):
         )
 
     @classmethod
-    def convert_to_torch_compatible(cls, x):
+    def convert_to_native_compatible(cls, x):
         return x.todense()
-
-
-class TorchSliceable(Sliceable):
-    @classmethod
-    def cast(cls, x, dtype):
-        from keras.src.backend.torch.ops.core import cast
-
-        return cast(x, dtype)
-
-    @classmethod
-    def convert_to_numpy(cls, x):
-        from keras.src.backend.torch.ops.core import convert_to_numpy
-
-        return convert_to_numpy(x)
 
 
 class PandasSliceable(Sliceable):
@@ -219,7 +218,7 @@ class PandasSliceable(Sliceable):
         return cls.convert_to_numpy(x)
 
     @classmethod
-    def convert_to_torch_compatible(cls, x):
+    def convert_to_native_compatible(cls, x):
         return cls.convert_to_numpy(x)
 
 
@@ -254,7 +253,7 @@ class ScipySparseSliceable(Sliceable):
         return data_adapter_utils.scipy_sparse_to_jax_sparse(x)
 
     @classmethod
-    def convert_to_torch_compatible(cls, x):
+    def convert_to_native_compatible(cls, x):
         return x.todense()
 
 
@@ -328,10 +327,10 @@ def can_slice_array(x):
         or isinstance(x, np.ndarray)
         or data_adapter_utils.is_tensorflow_tensor(x)
         or data_adapter_utils.is_jax_array(x)
-        or data_adapter_utils.is_torch_tensor(x)
         or data_adapter_utils.is_scipy_sparse(x)
         or data_adapter_utils.is_pandas_data_frame(x)
         or data_adapter_utils.is_pandas_series(x)
+        or backend.ops.is_tensor(x)
         or hasattr(x, "__array__")
     )
 
@@ -384,14 +383,14 @@ def convert_to_sliceable(arrays, target_backend=None):
             else:
                 x = np.asarray(x)
                 sliceable_class = NumpySliceable
-        elif data_adapter_utils.is_torch_tensor(x):
-            sliceable_class = TorchSliceable
         elif data_adapter_utils.is_pandas_data_frame(x):
             sliceable_class = PandasDataFrameSliceable
         elif data_adapter_utils.is_pandas_series(x):
             sliceable_class = PandasSeriesSliceable
         elif data_adapter_utils.is_scipy_sparse(x):
             sliceable_class = ScipySparseSliceable
+        elif backend.ops.is_tensor(x):
+            sliceable_class = NativeArraySliceable
         elif hasattr(x, "__array__"):
             x = np.asarray(x)
             sliceable_class = NumpySliceable
@@ -435,10 +434,7 @@ def convert_to_sliceable(arrays, target_backend=None):
         # which should not use extra memory.
         # See https://github.com/google/jax/issues/1276 for an explanation of
         # why slicing a NumPy array is faster than slicing a JAX array.
-        if target_backend == "jax" and sliceable_class in (
-            TensorflowSliceable,
-            TorchSliceable,
-        ):
+        if target_backend == "jax" and sliceable_class is TensorflowSliceable:
             x = np.asarray(x)
             sliceable_class = NumpySliceable
 
