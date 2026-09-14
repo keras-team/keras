@@ -3777,6 +3777,205 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(ops.convert_to_numpy(x1_grad), expected_x1_grad)
         self.assertAllClose(ops.convert_to_numpy(x2_grad), expected_x2_grad)
 
+    @pytest.mark.skipif(
+        backend.backend() not in ("tensorflow", "jax", "torch"),
+        reason=f"{backend.backend()} backend does not support gradients.",
+    )
+    def test_logaddexp_gradients(self):
+        # Equal inputs should produce 0.5 partial derivatives
+        # (fixes tensorflow/tensorflow#127232)
+        expected_x1_grad = np.array([0.5, 0.5, 0.5], dtype="float32")
+        expected_x2_grad = np.array([0.5, 0.5, 0.5], dtype="float32")
+
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            x1 = tf.Variable([-4.0, 0.0, 5.0])
+            x2 = tf.Variable([-4.0, 0.0, 5.0])
+            with tf.GradientTape() as tape:
+                y = knp.logaddexp(x1, x2)
+                loss = tf.reduce_sum(y)
+            x1_grad, x2_grad = tape.gradient(loss, [x1, x2])
+        elif backend.backend() == "jax":
+            import jax
+            import jax.numpy as jnp
+
+            def f(x1, x2):
+                return jnp.sum(knp.logaddexp(x1, x2))
+
+            x1 = jnp.array([-4.0, 0.0, 5.0])
+            x2 = jnp.array([-4.0, 0.0, 5.0])
+            x1_grad, x2_grad = jax.grad(f, argnums=(0, 1))(x1, x2)
+        elif backend.backend() == "torch":
+            import torch
+
+            x1 = torch.tensor([-4.0, 0.0, 5.0], requires_grad=True)
+            x2 = torch.tensor([-4.0, 0.0, 5.0], requires_grad=True)
+            y = knp.logaddexp(x1, x2)
+            y.sum().backward()
+            x1_grad, x2_grad = x1.grad, x2.grad
+
+        self.assertAllClose(ops.convert_to_numpy(x1_grad), expected_x1_grad)
+        self.assertAllClose(ops.convert_to_numpy(x2_grad), expected_x2_grad)
+
+        # Exact weighted reproducer from tensorflow/tensorflow#127232
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            t = tf.constant(-4.0, dtype=tf.float64)
+            with tf.GradientTape() as tape:
+                tape.watch(t)
+                y = knp.logaddexp(
+                    t, tf.constant([-4.0, 0.0, 5.0], dtype=tf.float64)
+                )
+                loss = y[0] + 2 * y[1] - y[2] / 2
+            grad_t = tape.gradient(loss, t)
+            self.assertAllClose(
+                ops.convert_to_numpy(grad_t), 0.53591072263619, atol=1e-7
+            )
+        elif backend.backend() == "jax":
+            import jax
+            import jax.numpy as jnp
+
+            def f_weighted(t):
+                y = knp.logaddexp(
+                    t, jnp.array([-4.0, 0.0, 5.0], dtype=jnp.float64)
+                )
+                return y[0] + 2 * y[1] - y[2] / 2
+
+            grad_t = jax.grad(f_weighted)(jnp.array(-4.0, dtype=jnp.float64))
+            self.assertAllClose(
+                ops.convert_to_numpy(grad_t), 0.53591072263619, atol=1e-7
+            )
+        elif backend.backend() == "torch":
+            import torch
+
+            t = torch.tensor(-4.0, dtype=torch.float64, requires_grad=True)
+            y = knp.logaddexp(
+                t, torch.tensor([-4.0, 0.0, 5.0], dtype=torch.float64)
+            )
+            loss = y[0] + 2 * y[1] - y[2] / 2
+            loss.backward()
+            self.assertAllClose(
+                ops.convert_to_numpy(t.grad), 0.53591072263619, atol=1e-7
+            )
+
+        # Test gradient with infinite inputs
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            x1 = tf.Variable([np.inf, 5.0])
+            x2 = tf.constant([5.0, -np.inf])
+            with tf.GradientTape() as tape:
+                y = knp.logaddexp(x1, x2)
+                loss = tf.reduce_sum(y)
+            x1_grad = tape.gradient(loss, x1)
+            self.assertAllClose(ops.convert_to_numpy(x1_grad), [1.0, 1.0])
+
+            # Mixed finite and non-finite batch WhereGrad test
+            xb1 = tf.Variable([1.0, np.inf, -np.inf])
+            xb2 = tf.constant([0.0, 0.0, 5.0])
+            with tf.GradientTape() as tape:
+                yb = knp.logaddexp(xb1, xb2)
+                loss = tf.reduce_sum(tf.where(tf.math.is_finite(yb), yb, 0.0))
+            g_xb1 = tape.gradient(loss, xb1)
+            self.assertTrue(np.isfinite(ops.convert_to_numpy(g_xb1)[0]))
+        elif backend.backend() == "jax":
+            import jax
+            import jax.numpy as jnp
+
+            def f_inf(x1):
+                return jnp.sum(knp.logaddexp(x1, jnp.array([5.0, -jnp.inf])))
+
+            x1_grad = jax.grad(f_inf)(jnp.array([jnp.inf, 5.0]))
+            self.assertAllClose(ops.convert_to_numpy(x1_grad), [1.0, 1.0])
+        elif backend.backend() == "torch":
+            import torch
+
+            x1 = torch.tensor([float("inf"), 5.0], requires_grad=True)
+            x2 = torch.tensor([5.0, float("-inf")])
+            y = knp.logaddexp(x1, x2)
+            y.sum().backward()
+            self.assertAllClose(ops.convert_to_numpy(x1.grad), [1.0, 1.0])
+
+    @pytest.mark.skipif(
+        backend.backend() not in ("tensorflow", "jax", "torch"),
+        reason=f"{backend.backend()} backend does not support gradients.",
+    )
+    def test_logaddexp2_gradients(self):
+        # Equal inputs should produce 0.5 partial derivatives
+        expected_x1_grad = np.array([0.5, 0.5, 0.5], dtype="float32")
+        expected_x2_grad = np.array([0.5, 0.5, 0.5], dtype="float32")
+
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            x1 = tf.Variable([-4.0, 0.0, 5.0])
+            x2 = tf.Variable([-4.0, 0.0, 5.0])
+            with tf.GradientTape() as tape:
+                y = knp.logaddexp2(x1, x2)
+                loss = tf.reduce_sum(y)
+            x1_grad, x2_grad = tape.gradient(loss, [x1, x2])
+        elif backend.backend() == "jax":
+            import jax
+            import jax.numpy as jnp
+
+            def f(x1, x2):
+                return jnp.sum(knp.logaddexp2(x1, x2))
+
+            x1 = jnp.array([-4.0, 0.0, 5.0])
+            x2 = jnp.array([-4.0, 0.0, 5.0])
+            x1_grad, x2_grad = jax.grad(f, argnums=(0, 1))(x1, x2)
+        elif backend.backend() == "torch":
+            import torch
+
+            x1 = torch.tensor([-4.0, 0.0, 5.0], requires_grad=True)
+            x2 = torch.tensor([-4.0, 0.0, 5.0], requires_grad=True)
+            y = knp.logaddexp2(x1, x2)
+            y.sum().backward()
+            x1_grad, x2_grad = x1.grad, x2.grad
+
+        self.assertAllClose(ops.convert_to_numpy(x1_grad), expected_x1_grad)
+        self.assertAllClose(ops.convert_to_numpy(x2_grad), expected_x2_grad)
+
+        # Test gradient with infinite inputs
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            x1 = tf.Variable([np.inf, 5.0])
+            x2 = tf.constant([5.0, -np.inf])
+            with tf.GradientTape() as tape:
+                y = knp.logaddexp2(x1, x2)
+                loss = tf.reduce_sum(y)
+            x1_grad = tape.gradient(loss, x1)
+            self.assertAllClose(ops.convert_to_numpy(x1_grad), [1.0, 1.0])
+
+            # Mixed finite and non-finite batch WhereGrad test
+            xb1 = tf.Variable([1.0, np.inf, -np.inf])
+            xb2 = tf.constant([0.0, 0.0, 5.0])
+            with tf.GradientTape() as tape:
+                yb = knp.logaddexp2(xb1, xb2)
+                loss = tf.reduce_sum(tf.where(tf.math.is_finite(yb), yb, 0.0))
+            g_xb1 = tape.gradient(loss, xb1)
+            self.assertTrue(np.isfinite(ops.convert_to_numpy(g_xb1)[0]))
+        elif backend.backend() == "jax":
+            import jax
+            import jax.numpy as jnp
+
+            def f_inf(x1):
+                return jnp.sum(knp.logaddexp2(x1, jnp.array([5.0, -jnp.inf])))
+
+            x1_grad = jax.grad(f_inf)(jnp.array([jnp.inf, 5.0]))
+            self.assertAllClose(ops.convert_to_numpy(x1_grad), [1.0, 1.0])
+        elif backend.backend() == "torch":
+            import torch
+
+            x1 = torch.tensor([float("inf"), 5.0], requires_grad=True)
+            x2 = torch.tensor([5.0, float("-inf")])
+            y = knp.logaddexp2(x1, x2)
+            y.sum().backward()
+            self.assertAllClose(ops.convert_to_numpy(x1.grad), [1.0, 1.0])
+
     def test_true_divide(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
@@ -6589,11 +6788,37 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.logaddexp(x, y), np.logaddexp(x, y))
         self.assertAllClose(knp.Logaddexp()(x, y), np.logaddexp(x, y))
 
+        # Edge cases: equal values, extremes
+        x_edge = np.array([-1000.0, 1000.0, -4.0, 0.0])
+        y_edge = np.array([-1000.0, 1000.0, -4.0, 0.0])
+        self.assertAllClose(
+            knp.logaddexp(x_edge, y_edge), np.logaddexp(x_edge, y_edge)
+        )
+        if backend.backend() != "openvino":
+            x_inf = np.array([np.inf, -np.inf])
+            y_inf = np.array([5.0, 5.0])
+            self.assertAllClose(
+                knp.logaddexp(x_inf, y_inf), np.logaddexp(x_inf, y_inf)
+            )
+
     def test_logaddexp2(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.logaddexp2(x, y), np.logaddexp2(x, y))
         self.assertAllClose(knp.Logaddexp2()(x, y), np.logaddexp2(x, y))
+
+        # Edge cases: equal values, extremes
+        x_edge = np.array([-1000.0, 1000.0, -4.0, 0.0])
+        y_edge = np.array([-1000.0, 1000.0, -4.0, 0.0])
+        self.assertAllClose(
+            knp.logaddexp2(x_edge, y_edge), np.logaddexp2(x_edge, y_edge)
+        )
+        if backend.backend() != "openvino":
+            x_inf = np.array([np.inf, -np.inf])
+            y_inf = np.array([5.0, 5.0])
+            self.assertAllClose(
+                knp.logaddexp2(x_inf, y_inf), np.logaddexp2(x_inf, y_inf)
+            )
 
     def test_logical_not(self):
         x = np.array([[True, False], [False, True]])
