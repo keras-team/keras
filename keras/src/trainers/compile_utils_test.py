@@ -9,6 +9,7 @@ from keras.src import metrics as metrics_module
 from keras.src import ops
 from keras.src import testing
 from keras.src import tree
+from keras.src.losses import loss
 from keras.src.trainers.compile_utils import CompileLoss
 from keras.src.trainers.compile_utils import CompileMetrics
 
@@ -863,3 +864,33 @@ class TestCompileLoss(testing.TestCase):
         # built call
         loss = compile_loss(y_true, y_pred)
         self.assertEqual(loss, 0.0)
+
+    def test_loss_error_includes_output_name_and_shapes(self):
+        class FailingLoss(loss.Loss):
+            def call(self, y_true, y_pred):
+                raise ValueError("Shapes are not compatible")
+
+        compile_loss = CompileLoss(
+            loss={
+                "output_1": "mse",
+                "output_2": FailingLoss(name="failing_loss"),
+            }
+        )
+
+        y_true = {
+            "output_1": ops.ones((2, 3)),
+            "output_2": ops.ones((2, 3)),
+        }
+        y_pred = {
+            "output_1": ops.ones((2, 3)),
+            "output_2": ops.ones((2, 5)),
+        }
+
+        with self.assertRaisesRegex(
+            ValueError,
+            r"Error when computing loss for output 'output_2'\. "
+            r"Received target shape \(2, 3\) and "
+            r"prediction shape \(2, 5\)\.\n"
+            r"Shapes are not compatible",
+        ):
+            compile_loss(y_true, y_pred)

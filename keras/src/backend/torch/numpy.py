@@ -100,6 +100,18 @@ def einsum(subscripts, *operands, **kwargs):
         # prevent overflow
         operands = [cast(operand, compute_dtype) for operand in operands]
         return cast(torch.einsum(subscripts, *operands), "int32")
+    if len(dtypes_to_resolve) > 1:
+        # `torch.einsum` does not promote mixed dtypes (e.g. a float input
+        # against an int8 kernel), unlike `matmul` above and the other
+        # backends. Resolve the result dtype the way the op's output spec
+        # does and cast the operands to it.
+        result_dtype = dtypes.result_type(*dtypes_to_resolve)
+        compute_dtype = result_dtype
+        # TODO: torch.einsum doesn't support integer types with cuda
+        if get_device() == "cuda" and "int" in compute_dtype:
+            compute_dtype = config.floatx()
+        operands = [cast(operand, compute_dtype) for operand in operands]
+        return cast(torch.einsum(subscripts, *operands), result_dtype)
     return torch.einsum(subscripts, *operands)
 
 
@@ -686,6 +698,15 @@ def conj(x):
 def copy(x):
     x = convert_to_tensor(x)
     return torch.clone(x)
+
+
+def copysign(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
+    return torch.copysign(x1, x2)
 
 
 def cos(x):
@@ -2175,16 +2196,30 @@ def power(x1, x2):
     return torch.pow(x1, x2)
 
 
+def float_power(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    # `torch.float_power` always computes in float64, which the MPS device
+    # does not support, so raise the operands to a float dtype instead.
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
+    return torch.pow(x1, x2)
+
+
 def negative(x):
     x = convert_to_tensor(x)
     return torch.negative(x)
 
 
 def nextafter(x1, x2):
-    x1, x2, dtype = convert_to_tensors_of_same_dtype(x1, x2, float)
-    x1 = cast(x1, torch.float64)
-    x2 = cast(x2, torch.float64)
-    return cast(torch.nextafter(x1, x2), dtype)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
+    return torch.nextafter(x1, x2)
 
 
 def square(x):
@@ -2495,3 +2530,19 @@ def column_stack(xs):
     dtype = dtypes.result_type(*(x.dtype for x in xs))
     xs = [cast(x, dtype) for x in xs]
     return torch.column_stack(xs)
+
+
+def cov(x):
+    x = convert_to_tensor(x)
+    if len(x.shape) > 2:
+        raise ValueError(
+            "Input tensor must have at most 2 dimensions. "
+            f"Received: x.shape={tuple(x.shape)}"
+        )
+
+    if standardize_dtype(x.dtype) == "bool":
+        x = cast(x, config.floatx())
+    elif standardize_dtype(x.dtype) == "int64":
+        x = cast(x, "float64")
+
+    return torch.cov(x)

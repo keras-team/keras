@@ -1347,6 +1347,38 @@ def copy(x):
     return x
 
 
+def copysign(x1, x2):
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "copysign()")
+    x1_keras = ov_to_keras_type(x1.get_element_type())
+    x2_keras = ov_to_keras_type(x2.get_element_type())
+    dtype = dtypes.result_type(x1_keras, x2_keras, float)
+    ov_dtype = OPENVINO_DTYPES[dtype]
+    x1 = ov_opset.convert(x1, ov_dtype).output(0)
+    x2 = ov_opset.convert(x2, ov_dtype).output(0)
+
+    zero = ov_opset.constant(0, ov_dtype).output(0)
+    one = ov_opset.constant(1, ov_dtype).output(0)
+
+    def sign_bit(x):
+        # `less` alone misses -0.0, so also test the sign of 1 / x, which
+        # is -inf for -0.0 and +inf for +0.0, as `signbit` does. Neither
+        # test fires for a NaN, so a NaN counts as positive here, the same
+        # way `signbit` treats it on this backend.
+        is_negative = ov_opset.less(x, zero).output(0)
+        is_negative_zero = ov_opset.logical_and(
+            ov_opset.equal(x, zero).output(0),
+            ov_opset.less(ov_opset.divide(one, x).output(0), zero).output(0),
+        ).output(0)
+        return ov_opset.logical_or(is_negative, is_negative_zero).output(0)
+
+    # Negate `x1` exactly when its sign differs from the sign of `x2`.
+    flip = ov_opset.logical_xor(sign_bit(x1), sign_bit(x2)).output(0)
+    negated = ov_opset.negative(x1).output(0)
+    return OpenVINOKerasTensor(ov_opset.select(flip, negated, x1).output(0))
+
+
 def cos(x):
     x = get_ov_output(x)
     x_type = x.get_element_type()
@@ -4671,12 +4703,19 @@ def trunc(x):
 def tile(x, repeats):
     x = get_ov_output(x)
 
-    if isinstance(repeats, int):
+    if isinstance(repeats, int) or (
+        isinstance(repeats, OpenVINOKerasTensor) and repeats.ndim == 0
+    ):
         repeats = [repeats]
-    repeats = get_ov_output(repeats)
+    if isinstance(repeats, (list, tuple)):
+        # `repeats` may mix Python ints with symbolic dimensions,
+        # which cannot be folded into a single constant.
+        repeats = shape_to_ov_output(list(repeats))
+    else:
+        repeats = get_ov_output(repeats)
 
     if repeats.get_element_type() != Type.i64:
-        repeats = ov_opset.convert(repeats, Type.i64)
+        repeats = ov_opset.convert(repeats, Type.i64).output(0)
 
     if len(repeats.get_partial_shape()) != 1:
         repeats = ov_opset.reshape(repeats, [-1], False)
@@ -4925,6 +4964,19 @@ def power(x1, x2):
     x1 = get_ov_output(x1, element_type)
     x2 = get_ov_output(x2, element_type)
     x1, x2 = _align_operand_types(x1, x2, "power()")
+    return OpenVINOKerasTensor(ov_opset.power(x1, x2).output(0))
+
+
+def float_power(x1, x2):
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "float_power()")
+    x1_keras = ov_to_keras_type(x1.get_element_type())
+    x2_keras = ov_to_keras_type(x2.get_element_type())
+    dtype = dtypes.result_type(x1_keras, x2_keras, float)
+    ov_dtype = OPENVINO_DTYPES[dtype]
+    x1 = ov_opset.convert(x1, ov_dtype).output(0)
+    x2 = ov_opset.convert(x2, ov_dtype).output(0)
     return OpenVINOKerasTensor(ov_opset.power(x1, x2).output(0))
 
 
@@ -6057,3 +6109,54 @@ def column_stack(xs):
     processed_elems[0] = base
 
     return OpenVINOKerasTensor(ov_opset.concat(processed_elems, 1).output(0))
+
+
+def cov(x):
+    x_ov = get_ov_output(x)
+    if len(x_ov.get_partial_shape()) > 2:
+        raise ValueError(
+            "Input tensor must have at most 2 dimensions. "
+            f"Received: x.shape={x_ov.get_partial_shape()}"
+        )
+    x_type = x_ov.get_element_type()
+    ov_type = x_type
+
+    if x_type.is_integral():
+        ov_type = OPENVINO_DTYPES[config.floatx()]
+        x_ov = ov_opset.convert(x_ov, ov_type).output(0)
+
+    shape = x_ov.get_partial_shape()
+    rank = len(shape)
+    # A 0D input has no observations to vary over, as in `np.cov`. The constant
+    # is built as float32 because `bfloat16` rejects a Python float `nan`.
+    if rank == 0:
+        nan = ov_opset.constant(np.array(np.nan, dtype=np.float32)).output(0)
+        return OpenVINOKerasTensor(ov_opset.convert(nan, ov_type).output(0))
+
+    # `np.cov` squeezes the result when there is only one variable.
+    is_scalar = rank < 2 or (shape[0].is_static and shape[0].get_length() == 1)
+    if rank == 1:
+        x_ov = ov_opset.reshape(
+            x_ov, ov_opset.constant([1, -1], Type.i32).output(0), False
+        ).output(0)
+
+    const_zero = ov_opset.constant(0, dtype=Type.i32).output(0)
+    const_one = ov_opset.constant(1, dtype=Type.i32).output(0)
+
+    mean = ov_opset.reduce_mean(x_ov, const_one, True).output(0)
+    x_centered = ov_opset.subtract(x_ov, mean).output(0)
+
+    x_shape = ov_opset.shape_of(x_ov, Type.i32).output(0)
+    num_samples = ov_opset.gather(x_shape, const_one, const_zero).output(0)
+    num_samples = ov_opset.convert(num_samples, ov_type).output(0)
+    ddof = ov_opset.subtract(
+        num_samples, ov_opset.constant(1, dtype=ov_type).output(0)
+    ).output(0)
+
+    result = ov_opset.matmul(x_centered, x_centered, False, True).output(0)
+    result = ov_opset.divide(result, ddof).output(0)
+    if is_scalar:
+        result = ov_opset.reshape(
+            result, ov_opset.constant([], Type.i32).output(0), False
+        ).output(0)
+    return OpenVINOKerasTensor(result)

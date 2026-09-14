@@ -2090,3 +2090,30 @@ class EinsumDenseTest(testing.TestCase):
 
         x = np.random.random((2, input_dim)).astype("float32")
         self.assertEqual(tuple(layer(x).shape), (2, output_dim))
+
+    def test_int8_weight_only_matches_dense(self):
+        """Weight-only int8 `EinsumDense` and `Dense` agree on every backend.
+
+        Both contract the float inputs against the int8 kernel and de-scale
+        the outputs, so the two layers must produce the same values from the
+        same float kernel and bias."""
+        input_dim, units = 16, 8
+        dense = layers.Dense(units)
+        dense.build((None, input_dim))
+        dense.bias.assign(np.random.random((units,)).astype("float32"))
+        einsum_dense = layers.EinsumDense(
+            "ab,bc->ac", output_shape=(units,), bias_axes="c"
+        )
+        einsum_dense.build((None, input_dim))
+        einsum_dense.kernel.assign(dense.kernel)
+        einsum_dense.bias.assign(dense.bias)
+
+        dense.quantize(
+            "int8", config=Int8QuantizationConfig(activation_quantizer=None)
+        )
+        einsum_dense.quantize(
+            "int8", config=Int8QuantizationConfig(activation_quantizer=None)
+        )
+
+        x = np.random.random((4, input_dim)).astype("float32")
+        self.assertAllClose(einsum_dense(x), dense(x), atol=1e-6, rtol=1e-6)
