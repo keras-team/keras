@@ -471,8 +471,8 @@ class AutoElementwiseOperation(Operation):
             )
         cls.backend_fn = staticmethod(cls.backend_fn)
 
-    def call(self, *args, **kwargs):
-        return self.backend_fn(*args, **kwargs)
+    def call(self, x):
+        return self.backend_fn(x)
 
     def compute_output_spec(self, x, *args, **kwargs):
         if (
