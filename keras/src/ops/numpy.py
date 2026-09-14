@@ -10177,7 +10177,7 @@ class Dsplit(Operation):
         self.indices_or_sections = indices_or_sections
 
     def call(self, x):
-        return backend.numpy.dsplit(x, self.indices_or_sections)
+        return _dsplit(x, self.indices_or_sections)
 
     def compute_output_spec(self, x):
         if len(x.shape) < 3:
@@ -10216,7 +10216,16 @@ def dsplit(x, indices_or_sections):
     """
     if any_symbolic_tensors((x,)):
         return Dsplit(indices_or_sections).symbolic_call(x)
-    return backend.numpy.dsplit(x, indices_or_sections)
+    return _dsplit(x, indices_or_sections)
+
+
+def _dsplit(x, indices_or_sections):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.numpy, "dsplit"
+    ):
+        return backend.numpy.dsplit(x, indices_or_sections)
+    x = backend.convert_to_tensor(x)
+    return ops.split(x, indices_or_sections, axis=2)
 
 
 class ColumnStack(Operation):
