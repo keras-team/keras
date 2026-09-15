@@ -80,3 +80,72 @@ def apply_logit_soft_cap(layer, logits):
         soft_cap = layer.logit_soft_cap
         logits = ops.multiply(ops.tanh(ops.divide(logits, soft_cap)), soft_cap)
     return logits
+
+
+def reverse_lookup_params(layer, with_zero_point=False):
+    """The stored table, scale and zero point of the reverse projection.
+
+    An untied layer stores the reverse table in its own layout. A tied layer
+    stores only the forward table, `(input_dim, ...)`, so its tensors are
+    transposed into the reverse layout (transposing the 1-D per-channel
+    scale is a no-op, so per-channel and grouped take the same path). The
+    zero point is `None` unless `with_zero_point`.
+    """
+    if not layer.tie_weights:
+        return (
+            layer.reverse_embeddings,
+            layer.reverse_embeddings_scale,
+            layer.reverse_embeddings_zero if with_zero_point else None,
+        )
+    return (
+        ops.transpose(layer._embeddings),
+        ops.transpose(layer.embeddings_scale),
+        ops.transpose(layer.embeddings_zero) if with_zero_point else None,
+    )
+
+
+def reverse_lookup_dtype(layer):
+    """The dtype the reverse projection computes in.
+
+    Mirrors the float layer, which casts the inputs and the kernel to
+    `reverse_dtype` when it is set and otherwise runs in `compute_dtype`.
+    """
+    return layer.reverse_dtype or layer.compute_dtype
+
+
+def add_reverse_lookup_lora_delta(layer, inputs, logits):
+    """Adds the LoRA update to reverse-projection logits, when enabled.
+
+    Only a tied layer projects back through the adapted table (an untied
+    layer's reverse table has no adapter), and the delta is taken from the
+    float inputs, before any activation quantization.
+    """
+    if layer.tie_weights and layer.lora_enabled:
+        lora_logits = ops.matmul(inputs, ops.transpose(layer.lora_embeddings_b))
+        lora_logits = ops.matmul(
+            lora_logits, ops.transpose(layer.lora_embeddings_a)
+        )
+        logits = ops.add(
+            logits,
+            ops.cast(
+                (layer.lora_alpha / layer.lora_rank) * lora_logits, logits.dtype
+            ),
+        )
+    return logits
+
+
+def encode_reverse_lookup(strategy, layer, geometry, config):
+    """Quantizes the reverse table by the forward rule on its transpose.
+
+    The reverse table is the forward layout transposed, so encoding its
+    transpose and transposing the results back applies exactly the rule the
+    forward table gets, including a user-supplied `weight_quantizer`.
+    """
+    codes, scale, zero_point = strategy._encode_lookup(
+        layer, geometry, ops.transpose(layer.reverse_embeddings), config
+    )
+    return (
+        ops.transpose(codes),
+        ops.transpose(scale),
+        None if zero_point is None else ops.transpose(zero_point),
+    )

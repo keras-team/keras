@@ -1,9 +1,13 @@
 from keras.src import ops
 from keras.src.quantizers.modes.common import GeometryDispatchStrategy
 from keras.src.quantizers.modes.common import add_lookup_lora_delta
+from keras.src.quantizers.modes.common import add_reverse_lookup_lora_delta
 from keras.src.quantizers.modes.common import apply_bias_activation
 from keras.src.quantizers.modes.common import apply_logit_soft_cap
 from keras.src.quantizers.modes.common import cast_lookup_inputs
+from keras.src.quantizers.modes.common import encode_reverse_lookup
+from keras.src.quantizers.modes.common import reverse_lookup_dtype
+from keras.src.quantizers.modes.common import reverse_lookup_params
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
 from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
@@ -162,55 +166,48 @@ class Int8Strategy(GeometryDispatchStrategy):
         return add_lookup_lora_delta(layer, inputs, outputs)
 
     def _reverse_lookup(self, layer, inputs):
-        if layer.tie_weights:
-            kernel = ops.transpose(layer._embeddings)
-            scale = ops.transpose(layer.embeddings_scale)
-        else:
-            kernel = layer.reverse_embeddings
-            scale = layer.reverse_embeddings_scale
+        dtype = reverse_lookup_dtype(layer)
+        inputs = ops.cast(inputs, dtype)
+        kernel, scale, _ = reverse_lookup_params(layer)
         if layer.inputs_quantizer:
-            inputs, inputs_scale = layer.inputs_quantizer(inputs)
+            inputs_q, inputs_scale = layer.inputs_quantizer(inputs)
         else:
-            inputs_scale = ops.ones((1,), dtype=layer.compute_dtype)
-        logits = ops.matmul(inputs, kernel)
+            inputs_q, inputs_scale = inputs, ops.ones((1,), dtype=dtype)
+        logits = ops.matmul(inputs_q, kernel)
         # De-scale outputs
-        logits = ops.cast(logits, layer.compute_dtype)
+        logits = ops.cast(logits, dtype)
         logits = ops.divide(logits, ops.multiply(inputs_scale, scale))
+        # The scale is a float32 variable; the projection reports its own
+        # dtype, as the float layer does.
+        logits = ops.cast(logits, dtype)
+        logits = add_reverse_lookup_lora_delta(layer, inputs, logits)
         return apply_logit_soft_cap(layer, logits)
 
-    def _quantize_lookup(self, layer, geometry, config):
-        embeddings_shape = (layer.input_dim, layer.output_dim)
-        # Quantize `layer._embeddings` to int8 and compute corresponding
-        # scale.
+    def _encode_lookup(self, layer, geometry, weight, config):
         weight_quantizer = QuantizationConfig.weight_quantizer_or_default(
             config,
             AbsMaxQuantizer(axis=-1),
         )
         embeddings_value, embeddings_scale = weight_quantizer(
-            layer._embeddings, to_numpy=True
+            weight, to_numpy=True
         )
-        embeddings_scale = ops.squeeze(embeddings_scale, axis=-1)
+        return embeddings_value, ops.squeeze(embeddings_scale, axis=-1), None
+
+    def _quantize_lookup(self, layer, geometry, config):
+        embeddings_shape = geometry.weight_shape
+        embeddings_value, embeddings_scale, _ = self._encode_lookup(
+            layer, geometry, layer._embeddings, config
+        )
         del layer._embeddings
         untied = geometry.reversible and not layer.tie_weights
         if untied:
-            reverse_weight_quantizer = (
-                QuantizationConfig.weight_quantizer_or_default(
-                    config,
-                    AbsMaxQuantizer(axis=0),
-                )
-            )
-            reverse_embeddings_value, reverse_embeddings_scale = (
-                reverse_weight_quantizer(
-                    layer.reverse_embeddings, to_numpy=True
-                )
-            )
-            reverse_embeddings_scale = ops.squeeze(
-                reverse_embeddings_scale, axis=0
+            reverse_value, reverse_scale, _ = encode_reverse_lookup(
+                self, layer, geometry, config
             )
             del layer.reverse_embeddings
         layer.quantized_build(embeddings_shape, "int8", config)
         layer._embeddings.assign(embeddings_value)
         layer.embeddings_scale.assign(embeddings_scale)
         if untied:
-            layer.reverse_embeddings.assign(reverse_embeddings_value)
-            layer.reverse_embeddings_scale.assign(reverse_embeddings_scale)
+            layer.reverse_embeddings.assign(reverse_value)
+            layer.reverse_embeddings_scale.assign(reverse_scale)
