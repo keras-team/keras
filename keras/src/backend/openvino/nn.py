@@ -64,14 +64,25 @@ def hard_tanh(x):
 
 def soft_shrink(x, threshold=0.5):
     x = get_ov_output(x)
+    # Promote integer/bool inputs to float, matching the other backends;
+    # otherwise `threshold` is cast to the integer element type and truncates.
+    keras_dtype = ov_to_keras_type(x.get_element_type())
+    dtype = backend.result_type(keras_dtype, float)
+    if keras_dtype != dtype:
+        x = ov_opset.convert(x, OPENVINO_DTYPES[dtype]).output(0)
     et = x.get_element_type()
     thr = get_ov_output(threshold, et)
+    neg_thr = get_ov_output(-threshold, et)
     zero = get_ov_output(0.0, et)
-    abs_x = ov_opset.abs(x)
-    sub = ov_opset.subtract(abs_x, thr)
-    shrunk = ov_opset.maximum(sub, zero)
-    sign = ov_opset.sign(x)
-    out = ov_opset.multiply(sign, shrunk)
+    out = ov_opset.select(
+        ov_opset.greater(x, thr),
+        ov_opset.subtract(x, thr),
+        ov_opset.select(
+            ov_opset.less(x, neg_thr),
+            ov_opset.add(x, thr),
+            zero,
+        ),
+    )
     return OpenVINOKerasTensor(out.output(0))
 
 
@@ -150,6 +161,13 @@ def selu(x):
     alpha = 1.6732632423543772848170429916717
     scale = 1.0507009873554804934193349852946
     x = get_ov_output(x)
+    # Promote integer/bool inputs to float, matching the other backends;
+    # otherwise `alpha`/`scale` are cast to the integer element type and
+    # truncate (scale -> 1), turning this into a bare `elu`.
+    keras_dtype = ov_to_keras_type(x.get_element_type())
+    dtype = backend.result_type(keras_dtype, float)
+    if keras_dtype != dtype:
+        x = ov_opset.convert(x, OPENVINO_DTYPES[dtype]).output(0)
     alpha = get_ov_output(alpha, x.get_element_type())
     scale = get_ov_output(scale, x.get_element_type())
     return OpenVINOKerasTensor(ov_opset.selu(x, alpha, scale).output(0))
@@ -296,6 +314,13 @@ def squareplus(x, b=4):
 
 def sparse_plus(x):
     x = get_ov_output(x)
+    # Promote integer/bool inputs to float, matching the other backends;
+    # otherwise `0.25` and the quadratic are cast to the integer element type
+    # and truncate.
+    keras_dtype = ov_to_keras_type(x.get_element_type())
+    dtype = backend.result_type(keras_dtype, float)
+    if keras_dtype != dtype:
+        x = ov_opset.convert(x, OPENVINO_DTYPES[dtype]).output(0)
     et = x.get_element_type()
     one = get_ov_output(1.0, et)
     neg_one = get_ov_output(-1.0, et)

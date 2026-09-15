@@ -72,6 +72,11 @@ def softsign(x):
 
 
 def soft_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    # `soft_shrink` is a float op. Promote integer/bool inputs the way the JAX
+    # backend already does; otherwise the fractional branches and the integer
+    # `tf.zeros_like(x)` branch of `tf.where` have mismatched dtypes.
+    x = cast(x, backend.result_type(x.dtype, float))
     return tf.where(
         x > threshold,
         x - threshold,
@@ -80,6 +85,11 @@ def soft_shrink(x, threshold=0.5):
 
 
 def sparse_plus(x):
+    x = convert_to_tensor(x)
+    # `sparse_plus` is a float op. Promote integer/bool inputs the way the JAX
+    # backend already does; otherwise the float quadratic branch and the
+    # integer identity branch of `tf.where` have mismatched dtypes.
+    x = cast(x, backend.result_type(x.dtype, float))
     return tf.where(
         x <= -1,
         tf.zeros_like(x),
@@ -124,6 +134,10 @@ def elu(x, alpha=1.0):
 
 
 def selu(x):
+    x = convert_to_tensor(x)
+    # `tf.nn.selu` does not accept integer or bool dtypes. Promote the way the
+    # JAX backend already does.
+    x = cast(x, backend.result_type(x.dtype, float))
     return tf.nn.selu(x)
 
 
