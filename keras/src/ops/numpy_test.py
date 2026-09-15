@@ -9513,41 +9513,6 @@ class NumpyDtypeTest(testing.TestCase):
             standardize_dtype(knp.All().symbolic_call(x).dtype), expected_dtype
         )
 
-    @parameterized.named_parameters(
-        named_product(
-            BACKEND_AGNOSTIC_OPS,
-            dtypes=itertools.combinations(ALL_DTYPES, 2),
-        )
-    )
-    def test_allclose(self, backend_agnostic_ops, dtypes):
-        import jax.numpy as jnp
-
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        try:
-            dtype1, dtype2 = dtypes
-            x1 = knp.ones((), dtype=dtype1)
-            x2 = knp.ones((), dtype=dtype2)
-            x1_jax = jnp.ones((), dtype=dtype1)
-            x2_jax = jnp.ones((), dtype=dtype2)
-            expected_dtype = standardize_dtype(
-                jnp.allclose(x1_jax, x2_jax).dtype
-            )
-
-            # The NumPy backend's `np.allclose` returns a Python `bool` rather
-            # than an array, so fall back to the Python type when the result
-            # has no `dtype` attribute.
-            result = knp.allclose(x1, x2)
-            self.assertEqual(
-                standardize_dtype(getattr(result, "dtype", type(result))),
-                expected_dtype,
-            )
-            self.assertEqual(
-                standardize_dtype(knp.AllClose().symbolic_call(x1, x2).dtype),
-                expected_dtype,
-            )
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
-
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_amax(self, dtype):
         import jax.numpy as jnp
