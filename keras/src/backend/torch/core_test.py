@@ -15,6 +15,7 @@ from keras.src.backend.torch import distribution_lib
 from keras.src.backend.torch.core import KerasDTensorPromotionMode
 from keras.src.backend.torch.core import Variable
 from keras.src.backend.torch.core import convert_to_tensor
+from keras.src.backend.torch.core import get_device
 from keras.src.backend.torch.core import slice as torch_slice
 from keras.src.backend.torch.distributed_test_utils import (
     TorchDistributedTestMixin,
@@ -120,6 +121,45 @@ class TorchCoreTest(testing.TestCase):
         shape = [batch, 2, 2]
         result = torch_slice(x, start_indices, shape)
         self.assertEqual(tuple(result.shape), (2, 2, 2))
+
+    def test_slice_with_zero_d_tensor_start_indices(self):
+        """slice must accept 0-d integer tensors as start indices."""
+        device = get_device()
+        x = torch.arange(10, dtype=torch.float32).reshape(2, 5).to(device)
+        out = torch_slice(
+            x,
+            [torch.tensor(0).to(device), torch.tensor(1).to(device)],
+            [2, 3],
+        )
+        expected = x[0:2, 1:4]
+        self.assertAllClose(out, expected)
+
+    def test_to_static_index_rejects_tensor(self):
+        """Tensor bounds must be rejected so `slice()` keeps them traceable."""
+        from keras.src.backend.torch.core import _to_static_index
+
+        with self.assertRaises(TypeError):
+            _to_static_index(torch.tensor(0))
+        with self.assertRaises(TypeError):
+            _to_static_index(torch.tensor(0.0))
+
+    def test_slice_export_preserves_dynamic_dim(self):
+        """A numpy-int bound alongside a symbolic dim keeps the dim dynamic."""
+
+        class _SliceModule(torch.nn.Module):
+            def forward(self, x):
+                n = x.shape[0]
+                return torch_slice(x, [np.int64(0), 0], [n, 2])
+
+        ep = torch.export.export(
+            _SliceModule(),
+            (torch.arange(8).reshape(2, 4),),
+            dynamic_shapes={"x": {0: torch.export.Dim("batch", min=2)}},
+        )
+        # Re-running with a different batch size must work; a specialized dim
+        # would have failed export above or fixed the first output dim to 2.
+        out = ep.module()(torch.arange(12).reshape(3, 4))
+        self.assertEqual(tuple(out.shape), (3, 2))
 
 
 @pytest.mark.skipif(
