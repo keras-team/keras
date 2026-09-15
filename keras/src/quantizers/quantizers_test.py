@@ -1038,7 +1038,7 @@ class Int4QuantizationConfigTest(testing.TestCase):
         self.assertIsNone(deserialized.block_size)
 
 
-class GPTQQuantizerTest(testing.TestCase):
+class ZeroPointPrimitivesTest(testing.TestCase):
     @parameterized.named_parameters(
         ("bits_2_sym_False", 2, False),
         ("bits_4_sym_False", 4, False),

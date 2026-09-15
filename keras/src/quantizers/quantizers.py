@@ -11,7 +11,6 @@ from keras.src.backend import any_symbolic_tensors
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import standardize_axis_for_numpy
 from keras.src.ops.operation import Operation
-from keras.src.quantizers.gptq_config import GPTQConfig
 
 """Int8-related classes and methods"""
 
@@ -1326,78 +1325,6 @@ def unpack_ternary(packed, orig_len, axis=0):
     unpacked = ops.cast(unpacked, "int8")
     unpacked = ops.transpose(unpacked, inv_perm)
     return unpacked
-
-
-class GPTQQuantizer(Quantizer):
-    """A class that handles the quantization of weights using GPTQ method.
-
-    This class provides methods to find quantization parameters (scale and zero)
-    for a given tensor and can be used to quantize weights in a GPTQ context.
-
-    Args:
-        weight_bits: (int) The number of bits to quantize to (e.g., 4).
-        per_channel: (bool) A flag indicating whether quantization is
-            applied per-channel (`True`) or per-tensor (`False`).
-            Defaults to `False`.
-        symmetric: (bool) A flag indicating whether symmetric (`True`) or
-            asymmetric (`False`) quantization is used. Defaults to `False`.
-        group_size: (int) The size of weight groups for quantization. A
-            value of -1 indicates that grouping is not used.
-            Defaults to -1.
-    """
-
-    def __init__(
-        self,
-        config=GPTQConfig(tokenizer=None, dataset=None),
-        compute_dtype="float32",
-    ):
-        Quantizer.__init__(self)
-        self.weight_bits = config.weight_bits
-        self.per_channel = config.per_channel
-        self.symmetric = config.symmetric
-        self.group_size = config.group_size
-        self.compute_dtype = compute_dtype
-
-        # These are now determined later by `find_params`
-        self.scale = None
-        self.zero = None
-        self.maxq = None
-
-    def find_params(self, input_tensor):
-        """Finds quantization parameters (scale and zero) for a given tensor."""
-        self.scale, self.zero, self.maxq = compute_quantization_parameters(
-            input_tensor,
-            bits=self.weight_bits,
-            symmetric=self.symmetric,
-            per_channel=self.per_channel,
-            group_size=self.group_size,
-            compute_dtype=self.compute_dtype,
-        )
-        return self.scale, self.zero, self.maxq
-
-    def get_config(self):
-        config = super().get_config()
-        config.update(
-            {
-                "weight_bits": self.weight_bits,
-                "per_channel": self.per_channel,
-                "symmetric": self.symmetric,
-                "group_size": self.group_size,
-            }
-        )
-        return config
-
-    @classmethod
-    def from_config(cls, config):
-        gptq = GPTQConfig(
-            tokenizer=None,
-            dataset=None,
-            weight_bits=config["weight_bits"],
-            per_channel=config["per_channel"],
-            symmetric=config["symmetric"],
-            group_size=config["group_size"],
-        )
-        return cls(gptq)
 
 
 def compute_quantization_parameters(
