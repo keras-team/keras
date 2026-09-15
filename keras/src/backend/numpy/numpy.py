@@ -1347,7 +1347,9 @@ def real(x):
 
 
 def reciprocal(x):
-    return np.reciprocal(x)
+    x = convert_to_tensor(x)
+    dtype = dtypes.result_type(x.dtype, float)
+    return np.reciprocal(x.astype(dtype))
 
 
 def repeat(x, repeats, axis=None):
