@@ -72,6 +72,12 @@ def softsign(x):
 
 
 def soft_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    # `soft_shrink` is a float op. Promote integer/bool inputs the way the JAX
+    # backend already does, otherwise the fractional `threshold` shift is cast
+    # back to the input's integer dtype and truncates (turning this into a
+    # hard-shrink-like step).
+    x = cast(x, backend.result_type(x.dtype, float))
     return np.where(
         x > threshold,
         np.array(x - threshold, dtype=x.dtype),
@@ -84,6 +90,11 @@ def soft_shrink(x, threshold=0.5):
 
 
 def sparse_plus(x):
+    x = convert_to_tensor(x)
+    # `sparse_plus` is a float op. Promote integer/bool inputs the way the JAX
+    # backend already does, otherwise the quadratic branch `(1/4)*(x+1)**2` is
+    # cast back to the input's integer dtype and truncates.
+    x = cast(x, backend.result_type(x.dtype, float))
     return np.where(
         x <= -1,
         np.zeros_like(x, dtype=x.dtype),
@@ -139,6 +150,10 @@ def selu(x):
     alpha = 1.6732632423543772848170429916717
     scale = 1.0507009873554804934193349852946
     x = convert_to_tensor(x)
+    # `selu` is a float op. Promote integer/bool inputs the way the JAX backend
+    # already does, otherwise `scale` is cast to the input's integer dtype,
+    # truncates to 1, and this returns a bare `elu`.
+    x = cast(x, backend.result_type(x.dtype, float))
     return np.array(scale, x.dtype) * elu(x, alpha)
 
 
