@@ -1,8 +1,8 @@
 from keras.src import initializers
 from keras.src import ops
+from keras.src.quantizers.packing import pack_ternary
+from keras.src.quantizers.packing import unpack_ternary
 from keras.src.quantizers.quantization_config import TernaryQuantizationConfig
-from keras.src.quantizers.quantizers import pack_ternary
-from keras.src.quantizers.quantizers import unpack_ternary
 from keras.src.quantizers.strategy_registry import QuantizationStrategy
 
 
