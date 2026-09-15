@@ -950,6 +950,9 @@ class JAXTrainer(base_trainer.Trainer):
         batch_outputs = tree.map_structure(lambda x: np.array(x), batch_outputs)
         return batch_outputs
 
+    def _backend_state_sync(self):
+        self.jax_state_sync()
+
     def jax_state_sync(self):
         if not getattr(self, "_jax_state", None) or self._jax_state_synced:
             return
