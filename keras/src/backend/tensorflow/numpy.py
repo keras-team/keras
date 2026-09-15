@@ -730,7 +730,7 @@ def max(x, axis=None, keepdims=False, initial=None):
     # TensorFlow returns -inf by default for an empty list, but for consistency
     # with other backends and the numpy API we want to throw in this case.
     if tf.executing_eagerly():
-        size_x = size(x)
+        size_x = tf.size(x)
         tf.assert_greater(
             size_x,
             tf.constant(0, dtype=size_x.dtype),
@@ -2251,7 +2251,7 @@ def min(x, axis=None, keepdims=False, initial=None):
     # TensorFlow returns inf by default for an empty list, but for consistency
     # with other backends and the numpy API we want to throw in this case.
     if tf.executing_eagerly():
-        size_x = size(x)
+        size_x = tf.size(x)
         tf.assert_greater(
             size_x,
             tf.constant(0, dtype=size_x.dtype),
@@ -2990,6 +2990,9 @@ def sinh(x):
 
 def size(x):
     x = convert_to_tensor(x)
+    # A dynamic shape has no static size, so return a tensor instead.
+    if x.shape.is_fully_defined():
+        return x.shape.num_elements()
     return tf.size(x)
 
 

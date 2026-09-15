@@ -4354,13 +4354,15 @@ def sinh(x):
 
 def size(x):
     x = get_ov_output(x)
+    partial_shape = x.get_partial_shape()
+    if partial_shape.is_static:
+        return math.prod(partial_shape.to_shape())
     shape_tensor = ov_opset.shape_of(x, output_type=Type.i64)
     final_size = ov_opset.reduce_prod(
         shape_tensor,
         ov_opset.constant([0], Type.i64),
         keep_dims=False,
     )
-    final_size = ov_opset.convert(final_size, Type.i32)
     return OpenVINOKerasTensor(final_size.output(0))
 
 

@@ -2447,7 +2447,7 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
 
     def test_size(self):
         x = KerasTensor((None, 3))
-        self.assertEqual(knp.size(x).shape, ())
+        self.assertIsNone(knp.size(x))
 
     def test_sort(self):
         x = KerasTensor((None, 3))
@@ -3287,7 +3287,7 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
 
     def test_size(self):
         x = KerasTensor((2, 3))
-        self.assertEqual(knp.size(x).shape, ())
+        self.assertEqual(knp.size(x), 6)
 
     def test_sort(self):
         x = KerasTensor((2, 3))
@@ -7151,8 +7151,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     def test_size(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(knp.size(x), np.size(x))
-        self.assertAllClose(knp.Size()(x), np.size(x))
+        self.assertEqual(knp.size(x).__class__, int)
+        self.assertEqual(knp.size(x), 6)
+
+        self.assertEqual(knp.size(np.ones(())), 1)
+        self.assertEqual(knp.size(np.ones((0, 3))), 0)
 
     def test_sort(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -12566,17 +12569,6 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertEqual(standardize_dtype(knp.sinh(x).dtype), expected_dtype)
         self.assertEqual(
             standardize_dtype(knp.Sinh().symbolic_call(x).dtype),
-            expected_dtype,
-        )
-
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_size(self, dtype):
-        x = knp.ones((1,), dtype=dtype)
-        expected_dtype = "int32"
-
-        self.assertEqual(standardize_dtype(knp.size(x).dtype), expected_dtype)
-        self.assertEqual(
-            standardize_dtype(knp.Size().symbolic_call(x).dtype),
             expected_dtype,
         )
 
