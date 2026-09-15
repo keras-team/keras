@@ -5,6 +5,123 @@ from keras.src import dtype_policies
 from keras.src.api_export import keras_export
 from keras.src.dtype_policies import DTypePolicy
 
+# `DTypePolicyMap` keys are matched against layer paths with `re.fullmatch`, and
+# both the keys and the paths come from a (possibly untrusted) model config, so
+# a crafted key can drive `re` into catastrophic backtracking (ReDoS,
+# CWE-1333) and hang `load_model`. Keys are full regular expressions by design
+# -- beyond exact paths and `prefix/.*` globs, real maps use a mid-pattern
+# wildcard (`encoder.*/kernel`) or an alternation group
+# (`dense.*/(kernel|bias)`) -- so rather than restrict the syntax we keep regex
+# support and reject only the two constructs that make backtracking blow up:
+#   * a repetition quantifier applied to a group, e.g. `(a+)+` or `(a|a)*`,
+#     which causes *exponential* backtracking (hangs even on a short path); and
+#   * more than a few unbounded quantifiers, e.g. `a.*a.*a.*a.*b`, whose cost is
+#     *polynomial* in the path length and still hangs on a long path.
+# A quantifier over a single character or character class (`.*`, `\w+`) is
+# linear and always allowed. Together with the path-length ceiling enforced in
+# `__getitem__`, this keeps every legitimate key working while bounding the
+# worst-case match to a few milliseconds.
+_MAX_DTYPE_POLICY_KEY_LENGTH = 256
+# Each unbounded quantifier multiplies the worst-case match cost by the path
+# length. Measured against a 256-character adversarial path: 3 wildcards take
+# ~1.6 ms, 5 wildcards hang. Cap below that; genuine keys use one or two.
+_MAX_UNBOUNDED_QUANTIFIERS = 3
+
+
+def _validate_dtype_policy_map_key(key):
+    if not isinstance(key, str):
+        return
+    if len(key) > _MAX_DTYPE_POLICY_KEY_LENGTH:
+        raise ValueError(
+            "A `DTypePolicyMap` key must be at most "
+            f"{_MAX_DTYPE_POLICY_KEY_LENGTH} characters; received a key of "
+            f"length {len(key)}. Keys are matched as regular expressions "
+            "against layer paths; an overly long key can cause catastrophic "
+            "backtracking when loading a model."
+        )
+    try:
+        re.compile(key)
+    except re.error as e:
+        raise ValueError(
+            f"Invalid `DTypePolicyMap` key '{key}': it is not a valid regular "
+            f"expression ({e})."
+        ) from e
+
+    def _reject():
+        raise ValueError(
+            f"Unsafe `DTypePolicyMap` key '{key}': it can cause catastrophic "
+            "regular-expression backtracking (ReDoS) when matched against a "
+            "layer path. Do not apply a repeating quantifier to a group (e.g. "
+            "`(a+)+`) and use at most "
+            f"{_MAX_UNBOUNDED_QUANTIFIERS} unbounded quantifiers (`*`/`+`/"
+            "`{m,}`). A quantifier over a single character, like `.*`, is fine."
+        )
+
+    # Single left-to-right scan. `prev` is the kind of the token the next
+    # quantifier would apply to: an "atom" (single char / char class / escape),
+    # a "group" (a closing `)`), or neither. Applying `*`/`+`/`{m,}` to a group
+    # is the exponential trigger; too many unbounded quantifiers is the
+    # polynomial one. Quantifiers over an atom are linear and allowed.
+    unbounded = 0
+    in_class = False
+    prev = None
+    i, n = 0, len(key)
+    while i < n:
+        c = key[i]
+        if in_class:
+            if c == "\\":
+                i += 2
+            else:
+                if c == "]":
+                    in_class = False
+                    prev = "atom"
+                i += 1
+            continue
+        if c == "\\":
+            prev = "atom"  # escaped literal or class shorthand (`\w`, `\.`)
+            i += 2
+            continue
+        if c == "[":
+            in_class = True
+            i += 1
+            continue
+        if c in "*+":
+            # A quantifier is safe only over a single atom; over a group,
+            # another quantifier, or nothing, it is backtracking-prone.
+            if prev != "atom":
+                _reject()
+            unbounded += 1
+            if unbounded > _MAX_UNBOUNDED_QUANTIFIERS:
+                _reject()
+            prev = "quantifier"
+            i += 1
+            continue
+        if c == "{":
+            close = key.find("}", i)
+            body = key[i + 1 : close] if close != -1 else ""
+            if close == -1 or not re.fullmatch(r"\d+(?:,\d*)?", body):
+                prev = "atom"  # a bare `{` is a literal to `re`
+                i += 1
+                continue
+            if prev != "atom":
+                _reject()
+            if body.endswith(","):  # `{m,}` is unbounded
+                unbounded += 1
+                if unbounded > _MAX_UNBOUNDED_QUANTIFIERS:
+                    _reject()
+            prev = "quantifier"
+            i = close + 1
+            continue
+        if c == ")":
+            prev = "group"
+        elif c == "(":
+            prev = "open"
+        elif c == "?":
+            prev = "quantifier"  # optional/lazy modifier: linear, uncounted
+        else:
+            prev = "atom"  # ordinary char or `.`
+        i += 1
+
 
 @keras_export(["keras.dtype_policies.DTypePolicyMap"])
 class DTypePolicyMap(DTypePolicy, MutableMapping):
@@ -96,6 +213,10 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
         self._default_policy_arg = default_policy
         self._default_policy = dtype_policies.get(default_policy)
         self._policy_map = policy_map or dict()
+        # `policy_map` may come straight from a deserialized config (this is the
+        # path `from_config` takes), bypassing `__setitem__`, so validate here.
+        for key in self._policy_map:
+            _validate_dtype_policy_map_key(key)
 
     @property
     def name(self):
@@ -190,6 +311,12 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
         if key in self._policy_map:
             return self._policy_map[key]
 
+        # An exact match has already been ruled out; skip the regex fallback for
+        # an implausibly long path so the (backtracking-safe) patterns are never
+        # run against a huge subject.
+        if isinstance(key, str) and len(key) > _MAX_DTYPE_POLICY_KEY_LENGTH:
+            return self.default_policy
+
         # 2. Fallback to a full regex match.
         matching_keys = [
             pattern
@@ -218,6 +345,7 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
             key: String key for the `DTypePolicy`.
             policy: The `DTypePolicy`.
         """
+        _validate_dtype_policy_map_key(key)
         if key in self._policy_map:
             raise ValueError(
                 f"{key} already exist in the DTypePolicyMap with "
