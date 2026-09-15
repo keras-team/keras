@@ -8,15 +8,20 @@ from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import layers
+from keras.src import metrics
 from keras.src import models
 from keras.src import optimizers
 from keras.src import testing
 from keras.src.backend.torch.distributed_test_utils import (
     TorchDistributedTestMixin,
 )
+from keras.src.backend.torch.trainer import TorchEpochIterator
+from keras.src.backend.torch.trainer import _distribute_data
 from keras.src.distribution import distribution_lib as dist_lib
 from keras.src.distribution.distribution_lib import DataParallel
 from keras.src.distribution.distribution_lib import DeviceMesh
+from keras.src.distribution.distribution_lib import LayoutMap
+from keras.src.distribution.distribution_lib import ModelParallel
 
 
 class SimpleModel(models.Model):
@@ -93,6 +98,59 @@ class TorchTrainerDistributionTest(TorchDistributedTestMixin, testing.TestCase):
             nprocs=2,
             join=True,
         )
+
+    def test_get_metrics_result_dtensor(self):
+        from torch.distributed.device_mesh import DeviceMesh as TorchDeviceMesh
+        from torch.distributed.tensor import DTensor
+        from torch.distributed.tensor import Replicate
+
+        mesh = TorchDeviceMesh("cpu", np.array([0]))
+
+        model = SimpleModel()
+        mean_metric = metrics.MeanAbsoluteError()
+        model.compile(optimizer="sgd", loss="mse", metrics=[mean_metric])
+
+        # Initialize metrics
+        x = np.ones((2, 10), dtype="float32")
+        y = np.ones((2, 1), dtype="float32")
+        model.train_on_batch(x, y)
+
+        v = mean_metric.total
+        local_tensor = v.value.detach()
+        dtensor = DTensor.from_local(local_tensor, mesh, [Replicate()])
+        v._value = dtensor
+
+        # Now call get_metrics_result
+        results = model.get_metrics_result()
+
+        # Verify result
+        self.assertIn("mean_absolute_error", results)
+        self.assertNotIsInstance(results["mean_absolute_error"], DTensor)
+
+    def test_model_parallel_data_distribution(self):
+        from torch.distributed.tensor import DTensor
+
+        mesh = DeviceMesh(
+            shape=(1,), axis_names=["batch"], devices=np.array(["cpu:0"])
+        )
+        distribution = ModelParallel(layout_map=LayoutMap(mesh))
+        dist_lib.set_distribution(distribution)
+        self.addCleanup(lambda: dist_lib.set_distribution(None))
+
+        x = np.ones((4, 2), dtype="float32")
+        y = np.ones((4, 1), dtype="float32")
+        distributed_data = _distribute_data((x, y, None))
+
+        self.assertIsInstance(distributed_data[0], DTensor)
+        self.assertIsInstance(distributed_data[1], DTensor)
+        self.assertIsNone(distributed_data[2])
+
+        iterator = TorchEpochIterator(x=x, y=y, batch_size=2)
+        batches = list(iterator._get_iterator())
+        self.assertLen(batches, 2)
+        for batch in batches:
+            self.assertIsInstance(batch[0], DTensor)
+            self.assertIsInstance(batch[1], DTensor)
 
 
 def _distributed_metrics_worker(rank):
