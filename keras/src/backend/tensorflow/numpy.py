@@ -1102,13 +1102,13 @@ def average(x, axis=None, weights=None):
     return avg
 
 
-def bitwise_and(x, y):
-    x = convert_to_tensor(x)
-    y = convert_to_tensor(y)
-    dtype = dtypes.result_type(x.dtype, y.dtype)
-    x = tf.cast(x, dtype)
-    y = tf.cast(y, dtype)
-    return tf.bitwise.bitwise_and(x, y)
+def bitwise_and(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+    return tf.bitwise.bitwise_and(x1, x2)
 
 
 def bitwise_invert(x):
@@ -1120,50 +1120,50 @@ def bitwise_not(x):
     return bitwise_invert(x)
 
 
-def bitwise_or(x, y):
-    x = convert_to_tensor(x)
-    y = convert_to_tensor(y)
-    dtype = dtypes.result_type(x.dtype, y.dtype)
-    x = tf.cast(x, dtype)
-    y = tf.cast(y, dtype)
-    return tf.bitwise.bitwise_or(x, y)
+def bitwise_or(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+    return tf.bitwise.bitwise_or(x1, x2)
 
 
-def bitwise_xor(x, y):
-    x = convert_to_tensor(x)
-    y = convert_to_tensor(y)
-    dtype = dtypes.result_type(x.dtype, y.dtype)
-    x = tf.cast(x, dtype)
-    y = tf.cast(y, dtype)
-    return tf.bitwise.bitwise_xor(x, y)
+def bitwise_xor(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+    return tf.bitwise.bitwise_xor(x1, x2)
 
 
-def bitwise_left_shift(x, y):
-    x = convert_to_tensor(x)
-    if not isinstance(y, int):
-        y = convert_to_tensor(y)
-        dtype = dtypes.result_type(x.dtype, y.dtype)
-        x = tf.cast(x, dtype)
-        y = tf.cast(y, dtype)
-    return tf.bitwise.left_shift(x, y)
+def bitwise_left_shift(x1, x2):
+    x1 = convert_to_tensor(x1)
+    if not isinstance(x2, int):
+        x2 = convert_to_tensor(x2)
+        dtype = dtypes.result_type(x1.dtype, x2.dtype)
+        x1 = tf.cast(x1, dtype)
+        x2 = tf.cast(x2, dtype)
+    return tf.bitwise.left_shift(x1, x2)
 
 
-def left_shift(x, y):
-    return bitwise_left_shift(x, y)
+def left_shift(x1, x2):
+    return bitwise_left_shift(x1, x2)
 
 
-def bitwise_right_shift(x, y):
-    x = convert_to_tensor(x)
-    if not isinstance(y, int):
-        y = convert_to_tensor(y)
-        dtype = dtypes.result_type(x.dtype, y.dtype)
-        x = tf.cast(x, dtype)
-        y = tf.cast(y, dtype)
-    return tf.bitwise.right_shift(x, y)
+def bitwise_right_shift(x1, x2):
+    x1 = convert_to_tensor(x1)
+    if not isinstance(x2, int):
+        x2 = convert_to_tensor(x2)
+        dtype = dtypes.result_type(x1.dtype, x2.dtype)
+        x1 = tf.cast(x1, dtype)
+        x2 = tf.cast(x2, dtype)
+    return tf.bitwise.right_shift(x1, x2)
 
 
-def right_shift(x, y):
-    return bitwise_right_shift(x, y)
+def right_shift(x1, x2):
+    return bitwise_right_shift(x1, x2)
 
 
 def blackman(x):
