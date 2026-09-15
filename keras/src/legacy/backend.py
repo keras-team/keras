@@ -342,10 +342,10 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     # each class for every sample adds up to 1
     # This is needed to ensure that the cross entropy is
     # computed correctly.
-    output = output / tf.reduce_sum(output, axis, True)
+    epsilon_ = tf.convert_to_tensor(backend.epsilon(), output.dtype)
+    output = output / tf.maximum(tf.reduce_sum(output, axis, True), epsilon_)
 
     # Compute cross entropy from probabilities.
-    epsilon_ = tf.convert_to_tensor(backend.epsilon(), output.dtype)
     output = tf.clip_by_value(output, epsilon_, 1.0 - epsilon_)
     return -tf.reduce_sum(target * tf.math.log(output), axis)
 
@@ -371,9 +371,10 @@ def categorical_focal_crossentropy(
     # each class for every sample adds up to 1
     # This is needed to ensure that the cross entropy is
     # computed correctly.
-    output = output / tf.reduce_sum(output, axis=axis, keepdims=True)
-
     epsilon_ = tf.convert_to_tensor(backend.epsilon(), output.dtype)
+    output = output / tf.maximum(
+        tf.reduce_sum(output, axis=axis, keepdims=True), epsilon_
+    )
     output = tf.clip_by_value(output, epsilon_, 1.0 - epsilon_)
 
     # Calculate cross entropy

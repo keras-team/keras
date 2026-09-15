@@ -802,11 +802,19 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     if from_logits:
         log_prob = ov_opset.log_softmax(output, axis).output(0)
     else:
+        output_type = output.get_element_type()
         sum_result = ov_opset.reduce_sum(output, axis, keep_dims=True).output(0)
-        output = ov_opset.divide(output, sum_result).output(0)
-        output = ov_opset.clamp(
-            output, min_value=backend.epsilon(), max_value=1 - backend.epsilon()
+        epsilon_node = ov_opset.constant(
+            backend.epsilon(), dtype=output_type
         ).output(0)
+        sum_result = ov_opset.maximum(sum_result, epsilon_node).output(0)
+        output = ov_opset.divide(output, sum_result).output(0)
+
+        one_minus_epsilon_node = ov_opset.constant(
+            1.0 - backend.epsilon(), dtype=output_type
+        ).output(0)
+        output = ov_opset.maximum(output, epsilon_node).output(0)
+        output = ov_opset.minimum(output, one_minus_epsilon_node).output(0)
         log_prob = ov_opset.log(output).output(0)
     result = ov_opset.multiply(target, log_prob).output(0)
     loss = ov_opset.reduce_sum(result, axis).output(0)
@@ -844,11 +852,19 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     if from_logits:
         log_prob = ov_opset.log_softmax(output, axis).output(0)
     else:
-        sum = ov_opset.reduce_sum(output, axis, keep_dims=True).output(0)
-        output = ov_opset.divide(output, sum).output(0)
-        output = ov_opset.clamp(
-            output, min_value=backend.epsilon(), max_value=1 - backend.epsilon()
+        output_type = output.get_element_type()
+        sum_result = ov_opset.reduce_sum(output, axis, keep_dims=True).output(0)
+        epsilon_node = ov_opset.constant(
+            backend.epsilon(), dtype=output_type
         ).output(0)
+        sum_result = ov_opset.maximum(sum_result, epsilon_node).output(0)
+        output = ov_opset.divide(output, sum_result).output(0)
+
+        one_minus_epsilon_node = ov_opset.constant(
+            1.0 - backend.epsilon(), dtype=output_type
+        ).output(0)
+        output = ov_opset.maximum(output, epsilon_node).output(0)
+        output = ov_opset.minimum(output, one_minus_epsilon_node).output(0)
         log_prob = ov_opset.log(output).output(0)
 
     output_type = output.get_element_type()
@@ -894,9 +910,16 @@ def binary_crossentropy(target, output, from_logits=False):
         ).output(0)
         return OpenVINOKerasTensor(bce)
 
-    output = ov_opset.clamp(
-        output, min_value=backend.epsilon(), max_value=1 - backend.epsilon()
+    output_type = output.get_element_type()
+    epsilon_node = ov_opset.constant(
+        backend.epsilon(), dtype=output_type
     ).output(0)
+    one_minus_epsilon_node = ov_opset.constant(
+        1.0 - backend.epsilon(), dtype=output_type
+    ).output(0)
+    output = ov_opset.maximum(output, epsilon_node).output(0)
+    output = ov_opset.minimum(output, one_minus_epsilon_node).output(0)
+
     one = ov_opset.constant(1, target.get_element_type()).output(0)
 
     minus_output = ov_opset.subtract(one, output).output(0)
