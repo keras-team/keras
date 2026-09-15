@@ -135,7 +135,8 @@ def abs_max_quantize_grouped_with_zero_point(
     Groups are formed along axis 0 (the input/contracting dimension).
     Each group of `block_size` rows gets its own scale factor and zero point
     per column. This is useful for weight distributions that are not centered
-    around zero.
+    around zero. A group's range always includes zero, so its zero point is
+    representable in `value_range` and the grid holds an exact zero.
 
     Args:
         inputs: Input tensor to quantize. Shape: `(input_dim, output_dim)`.
@@ -206,9 +207,11 @@ def _abs_max_quantize_grouped_with_zero_point_numpy(
 
     inputs_reshaped = inputs_padded.reshape(n_groups, block_size, output_dim)
 
-    # Compute per-group min/max for asymmetric quantization
-    min_val = np.min(inputs_reshaped, axis=1, keepdims=True)
-    max_val = np.max(inputs_reshaped, axis=1, keepdims=True)
+    # Per-group min/max, widened to include zero: the zero point then lands
+    # inside `[qmin, qmax]` and the grid represents 0 exactly. A group whose
+    # values are all one sign would otherwise clip to one end of the range.
+    min_val = np.minimum(np.min(inputs_reshaped, axis=1, keepdims=True), 0.0)
+    max_val = np.maximum(np.max(inputs_reshaped, axis=1, keepdims=True), 0.0)
 
     # Scale maps the [min, max] range to [qmin, qmax]
     scale = np.divide(np.subtract(max_val, min_val) + epsilon, qmax - qmin)
@@ -1487,13 +1490,14 @@ def compute_quantization_parameters(
         min_values = ops.min(x_reshaped, axis=1)
         max_values = ops.max(x_reshaped, axis=1)
 
-    # Unsigned asymmetric quantization: clamp the range to include zero,
-    # matching reference GPTQ/AWQ (`xmin = min(xmin, 0)`,
-    # `xmax = max(xmax, 0)`). This guarantees the zero point lands in
-    # [0, maxq] (so it is representable in `bits`-bit packed formats) and
-    # that the quantized grid can represent 0 exactly, even for groups
-    # whose values are all-negative or all-positive.
-    if not signed and not symmetric:
+    # Asymmetric quantization: clamp the range to include zero, matching
+    # reference GPTQ/AWQ (`xmin = min(xmin, 0)`, `xmax = max(xmax, 0)`).
+    # This guarantees the zero point lands in the code range (`[0, maxq]`
+    # unsigned, `[qmin, qmax]` signed), so it is representable in
+    # `bits`-bit packed formats, and that the quantized grid can represent
+    # 0 exactly, even for groups whose values are all-negative or
+    # all-positive.
+    if not symmetric:
         min_values = ops.minimum(min_values, 0.0)
         max_values = ops.maximum(max_values, 0.0)
 
