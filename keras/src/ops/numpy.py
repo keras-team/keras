@@ -1530,12 +1530,9 @@ def bincount(x, weights=None, minlength=0, sparse=False):
 class BitwiseAnd(AutoBinaryBroadcastOperation):
     backend_fn = backend.numpy.bitwise_and
 
-    def call(self, x, y):
-        return self.backend_fn(x, y)
-
 
 @keras_export(["keras.ops.bitwise_and", "keras.ops.numpy.bitwise_and"])
-def bitwise_and(x, y):
+def bitwise_and(x1, x2):
     """Compute the bit-wise AND of two arrays element-wise.
 
     Computes the bit-wise AND of the underlying binary representation of the
@@ -1543,15 +1540,15 @@ def bitwise_and(x, y):
     `&`.
 
     Args:
-        x: Input integer tensor.
-        y: Input integer tensor.
+        x1: Input integer tensor.
+        x2: Input integer tensor.
 
     Returns:
         Result tensor.
     """
-    if any_symbolic_tensors((x, y)):
-        return BitwiseAnd().symbolic_call(x, y)
-    return backend.numpy.bitwise_and(x, y)
+    if any_symbolic_tensors((x1, x2)):
+        return BitwiseAnd().symbolic_call(x1, x2)
+    return backend.numpy.bitwise_and(x1, x2)
 
 
 class BitwiseInvert(AutoElementwiseOperation):
@@ -1603,12 +1600,9 @@ def bitwise_not(x):
 class BitwiseOr(AutoBinaryBroadcastOperation):
     backend_fn = backend.numpy.bitwise_or
 
-    def call(self, x, y):
-        return self.backend_fn(x, y)
-
 
 @keras_export(["keras.ops.bitwise_or", "keras.ops.numpy.bitwise_or"])
-def bitwise_or(x, y):
+def bitwise_or(x1, x2):
     """Compute the bit-wise OR of two arrays element-wise.
 
     Computes the bit-wise OR of the underlying binary representation of the
@@ -1616,26 +1610,23 @@ def bitwise_or(x, y):
     `|`.
 
     Args:
-        x: Input integer tensor.
-        y: Input integer tensor.
+        x1: Input integer tensor.
+        x2: Input integer tensor.
 
     Returns:
         Result tensor.
     """
-    if any_symbolic_tensors((x, y)):
-        return BitwiseOr().symbolic_call(x, y)
-    return backend.numpy.bitwise_or(x, y)
+    if any_symbolic_tensors((x1, x2)):
+        return BitwiseOr().symbolic_call(x1, x2)
+    return backend.numpy.bitwise_or(x1, x2)
 
 
 class BitwiseXor(AutoBinaryBroadcastOperation):
     backend_fn = backend.numpy.bitwise_xor
 
-    def call(self, x, y):
-        return self.backend_fn(x, y)
-
 
 @keras_export(["keras.ops.bitwise_xor", "keras.ops.numpy.bitwise_xor"])
-def bitwise_xor(x, y):
+def bitwise_xor(x1, x2):
     """Compute the bit-wise XOR of two arrays element-wise.
 
     Computes the bit-wise XOR of the underlying binary representation of the
@@ -1643,127 +1634,115 @@ def bitwise_xor(x, y):
     `^`.
 
     Args:
-        x: Input integer tensor.
-        y: Input integer tensor.
+        x1: Input integer tensor.
+        x2: Input integer tensor.
 
     Returns:
         Result tensor.
     """
-    if any_symbolic_tensors((x, y)):
-        return BitwiseXor().symbolic_call(x, y)
-    return backend.numpy.bitwise_xor(x, y)
+    if any_symbolic_tensors((x1, x2)):
+        return BitwiseXor().symbolic_call(x1, x2)
+    return backend.numpy.bitwise_xor(x1, x2)
 
 
 class BitwiseLeftShift(AutoBinaryBroadcastOperation):
     backend_fn = backend.numpy.bitwise_left_shift
 
-    def call(self, x, y):
-        return self.backend_fn(x, y)
-
 
 @keras_export(
     ["keras.ops.bitwise_left_shift", "keras.ops.numpy.bitwise_left_shift"]
 )
-def bitwise_left_shift(x, y):
+def bitwise_left_shift(x1, x2):
     """Shift the bits of an integer to the left.
 
-    Bits are shifted to the left by appending `y` 0s at the right of `x`.
+    Bits are shifted to the left by appending `x2` 0s at the right of `x1`.
     Since the internal representation of numbers is in binary format, this
-    operation is equivalent to multiplying `x` by `2**y`.
+    operation is equivalent to multiplying `x1` by `2**x2`.
 
     Args:
-        x: Input integer tensor.
-        y: Input integer tensor.
+        x1: Input integer tensor.
+        x2: Number of bits to shift.
 
     Returns:
         Result tensor.
     """
-    if any_symbolic_tensors((x, y)):
-        return BitwiseLeftShift().symbolic_call(x, y)
-    return backend.numpy.bitwise_left_shift(x, y)
+    if any_symbolic_tensors((x1, x2)):
+        return BitwiseLeftShift().symbolic_call(x1, x2)
+    return backend.numpy.bitwise_left_shift(x1, x2)
 
 
 class LeftShift(AutoBinaryBroadcastOperation):
     backend_fn = backend.numpy.left_shift
 
-    def call(self, x, y):
-        return self.backend_fn(x, y)
-
 
 @keras_export(["keras.ops.left_shift", "keras.ops.numpy.left_shift"])
-def left_shift(x, y):
+def left_shift(x1, x2):
     """Shift the bits of an integer to the left.
 
-    Bits are shifted to the left by appending `y` 0s at the right of `x`.
+    Bits are shifted to the left by appending `x2` 0s at the right of `x1`.
     Since the internal representation of numbers is in binary format, this
-    operation is equivalent to multiplying `x` by `2**y`.
+    operation is equivalent to multiplying `x1` by `2**x2`.
 
     Args:
-        x: Input integer tensor.
-        y: Input integer tensor.
+        x1: Input integer tensor.
+        x2: Number of bits to shift.
 
     Returns:
         Result tensor.
     """
-    if any_symbolic_tensors((x, y)):
-        return LeftShift().symbolic_call(x, y)
-    return backend.numpy.left_shift(x, y)
+    if any_symbolic_tensors((x1, x2)):
+        return LeftShift().symbolic_call(x1, x2)
+    return backend.numpy.left_shift(x1, x2)
 
 
 class BitwiseRightShift(AutoBinaryBroadcastOperation):
     backend_fn = backend.numpy.bitwise_right_shift
 
-    def call(self, x, y):
-        return self.backend_fn(x, y)
-
 
 @keras_export(
     ["keras.ops.bitwise_right_shift", "keras.ops.numpy.bitwise_right_shift"]
 )
-def bitwise_right_shift(x, y):
+def bitwise_right_shift(x1, x2):
     """Shift the bits of an integer to the right.
 
-    Bits are shifted to the right `y`. Because the internal representation of
-    numbers is in binary format, this operation is equivalent to dividing `x` by
-    `2**y`.
+    Bits are shifted to the right `x2`. Because the internal representation of
+    numbers is in binary format, this operation is equivalent to dividing `x1`
+    by `2**x2`.
 
     Args:
-        x: Input integer tensor.
-        y: Input integer tensor.
+        x1: Input integer tensor.
+        x2: Number of bits to shift.
 
     Returns:
         Result tensor.
     """
-    if any_symbolic_tensors((x, y)):
-        return BitwiseRightShift().symbolic_call(x, y)
-    return backend.numpy.bitwise_right_shift(x, y)
+    if any_symbolic_tensors((x1, x2)):
+        return BitwiseRightShift().symbolic_call(x1, x2)
+    return backend.numpy.bitwise_right_shift(x1, x2)
 
 
 class RightShift(AutoBinaryBroadcastOperation):
     backend_fn = backend.numpy.right_shift
 
-    def call(self, x, y):
-        return self.backend_fn(x, y)
-
 
 @keras_export(["keras.ops.right_shift", "keras.ops.numpy.right_shift"])
-def right_shift(x, y):
+def right_shift(x1, x2):
     """Shift the bits of an integer to the right.
 
-    Bits are shifted to the right `y`. Because the internal representation of
-    numbers is in binary format, this operation is equivalent to dividing `x` by
-    `2**y`.
+    Bits are shifted to the right `x2`. Because the internal representation of
+    numbers is in binary format, this operation is equivalent to dividing `x1`
+    by `2**x2`.
 
     Args:
-        x: Input integer tensor.
-        y: Input integer tensor.
+        x1: Input integer tensor.
+        x2: Number of bits to shift.
 
     Returns:
         Result tensor.
     """
-    if any_symbolic_tensors((x, y)):
-        return RightShift().symbolic_call(x, y)
-    return backend.numpy.right_shift(x, y)
+    if any_symbolic_tensors((x1, x2)):
+        return RightShift().symbolic_call(x1, x2)
+    return backend.numpy.right_shift(x1, x2)
 
 
 @keras_export(["keras.ops.blackman", "keras.ops.numpy.blackman"])

@@ -1122,36 +1122,36 @@ def kaiser(x, beta):
     return OpenVINOKerasTensor(result)
 
 
-def bitwise_left_shift(x, y):
+def bitwise_left_shift(x1, x2):
     element_type = None
-    if isinstance(x, OpenVINOKerasTensor):
-        element_type = x.output.get_element_type()
-    if isinstance(y, OpenVINOKerasTensor):
-        element_type = y.output.get_element_type()
-    x = get_ov_output(x, element_type)
-    y = get_ov_output(y, element_type)
-    x, y = _align_operand_types(x, y, "bitwise_left_shift()")
-    return OpenVINOKerasTensor(ov_opset.bitwise_left_shift(x, y).output(0))
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "bitwise_left_shift()")
+    return OpenVINOKerasTensor(ov_opset.bitwise_left_shift(x1, x2).output(0))
 
 
-def left_shift(x, y):
-    return bitwise_left_shift(x, y)
+def left_shift(x1, x2):
+    return bitwise_left_shift(x1, x2)
 
 
-def bitwise_right_shift(x, y):
+def bitwise_right_shift(x1, x2):
     element_type = None
-    if isinstance(x, OpenVINOKerasTensor):
-        element_type = x.output.get_element_type()
-    if isinstance(y, OpenVINOKerasTensor):
-        element_type = y.output.get_element_type()
-    x = get_ov_output(x, element_type)
-    y = get_ov_output(y, element_type)
-    x, y = _align_operand_types(x, y, "bitwise_right_shift()")
-    return OpenVINOKerasTensor(ov_opset.bitwise_right_shift(x, y).output(0))
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "bitwise_right_shift()")
+    return OpenVINOKerasTensor(ov_opset.bitwise_right_shift(x1, x2).output(0))
 
 
-def right_shift(x, y):
-    return bitwise_right_shift(x, y)
+def right_shift(x1, x2):
+    return bitwise_right_shift(x1, x2)
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
@@ -1199,18 +1199,18 @@ def bincount(x, weights=None, minlength=0, sparse=False):
         return OpenVINOKerasTensor(final_output)
 
 
-def bitwise_and(x, y):
-    x = get_ov_output(x)
-    y = get_ov_output(y)
-    x, y = _align_operand_types(x, y, "bitwise_and()")
-    return OpenVINOKerasTensor(ov_opset.bitwise_and(x, y).output(0))
+def bitwise_and(x1, x2):
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "bitwise_and()")
+    return OpenVINOKerasTensor(ov_opset.bitwise_and(x1, x2).output(0))
 
 
-def bitwise_xor(x, y):
-    x = get_ov_output(x)
-    y = get_ov_output(y)
-    x, y = _align_operand_types(x, y, "bitwise_xor()")
-    return OpenVINOKerasTensor(ov_opset.bitwise_xor(x, y).output(0))
+def bitwise_xor(x1, x2):
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "bitwise_xor()")
+    return OpenVINOKerasTensor(ov_opset.bitwise_xor(x1, x2).output(0))
 
 
 def bitwise_invert(x):
@@ -1222,11 +1222,11 @@ def bitwise_not(x):
     return bitwise_invert(x)
 
 
-def bitwise_or(x, y):
-    x = get_ov_output(x)
-    y = get_ov_output(y)
-    x, y = _align_operand_types(x, y, "bitwise_or()")
-    return OpenVINOKerasTensor(ov_opset.bitwise_or(x, y).output(0))
+def bitwise_or(x1, x2):
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "bitwise_or()")
+    return OpenVINOKerasTensor(ov_opset.bitwise_or(x1, x2).output(0))
 
 
 def blackman(x):
