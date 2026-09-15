@@ -150,8 +150,7 @@ class Embedding(Layer):
                 mode=self.quantization_mode,
                 config=self.quantization_config,
             )
-        strategy = strategy_registry.get_strategy(self.quantization_mode)
-        if strategy is None or not strategy.owns_weight_storage:
+        if not self._strategy_owns_weight_storage():
             self._embeddings = self.add_weight(
                 shape=embeddings_shape,
                 initializer=self.embeddings_initializer,
@@ -163,6 +162,11 @@ class Embedding(Layer):
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
+
+    def _strategy_owns_weight_storage(self):
+        """Whether the quantization strategy creates the table itself."""
+        strategy = strategy_registry.get_strategy(self.quantization_mode)
+        return strategy is not None and strategy.owns_weight_storage
 
     @property
     def embeddings(self):

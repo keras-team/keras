@@ -5,7 +5,6 @@ from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import set_keras_mask
-from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.geometry import ReversibleLookupGeometry
 
 
@@ -104,10 +103,7 @@ class ReversibleEmbedding(layers.Embedding):
 
     def build(self, input_shape=None):
         super().build(input_shape)
-        strategy = strategy_registry.get_strategy(self.quantization_mode)
-        if not self.tie_weights and (
-            strategy is None or not strategy.owns_weight_storage
-        ):
+        if not self.tie_weights and not self._strategy_owns_weight_storage():
             self.reverse_embeddings = self.add_weight(
                 shape=(self.output_dim, self.input_dim),
                 initializer=self.embeddings_initializer,
@@ -138,6 +134,15 @@ class ReversibleEmbedding(layers.Embedding):
                     ops.tanh(ops.divide(logits, soft_cap)), soft_cap
                 )
             return logits
+
+    def quantized_call(self, inputs, reverse=False):
+        outputs = super().quantized_call(inputs, reverse=reverse)
+        if not reverse:
+            # The forward lookup carries the mask, as in float mode.
+            mask = super().compute_mask(inputs)
+            if mask is not None:
+                set_keras_mask(outputs, mask)
+        return outputs
 
     def compute_mask(self, inputs, mask=None):
         # Disable masking from super class, masking is done directly in call.
