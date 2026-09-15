@@ -2100,7 +2100,10 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
         expected_valid = losses.sparse_categorical_focal_crossentropy(
             y_true[[0, 2]], y_pred[[0, 2]]
         )
-        self.assertAllClose(result, [expected_valid[0], 0.0, expected_valid[1]])
+        self.assertAllClose(
+            result,
+            backend.convert_to_tensor([expected_valid[0], 0.0, expected_valid[1]]),
+        )
 
         weighted_result = loss_obj(
             y_true, y_pred, sample_weight=np.array([2.0, 100.0, 3.0])
@@ -2139,7 +2142,9 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
         expected = losses.sparse_categorical_focal_crossentropy(
             np.array([2]), y_pred_values[2:]
         )
-        self.assertAllClose(result, [0.0, 0.0, expected[0]])
+        self.assertAllClose(
+            result, backend.convert_to_tensor([0.0, 0.0, expected[0]])
+        )
 
     def test_custom_axis(self):
         y_true = np.array([[0, 1], [2, 0]])
