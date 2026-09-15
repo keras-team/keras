@@ -6,9 +6,13 @@ from keras.src.dtype_policies.dtype_policy import QuantizedDTypePolicy
 from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
 from keras.src.quantizers.modes.common import GeometryDispatchStrategy
 from keras.src.quantizers.modes.common import add_lookup_lora_delta
+from keras.src.quantizers.modes.common import add_reverse_lookup_lora_delta
 from keras.src.quantizers.modes.common import apply_bias_activation
 from keras.src.quantizers.modes.common import apply_logit_soft_cap
 from keras.src.quantizers.modes.common import cast_lookup_inputs
+from keras.src.quantizers.modes.common import encode_reverse_lookup
+from keras.src.quantizers.modes.common import reverse_lookup_dtype
+from keras.src.quantizers.modes.common import reverse_lookup_params
 from keras.src.quantizers.packing import pack_int4
 from keras.src.quantizers.packing import unpack_int4
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
@@ -33,29 +37,6 @@ def _is_per_channel(block_size):
 def _is_grouped(block_size):
     """Whether `block_size` selects sub-channel (grouped) quantization."""
     return not _is_per_channel(block_size)
-
-
-def _reverse_int4_params(layer, per_channel):
-    """Packed embeddings, scale and zero point in the reverse layout.
-
-    The embeddings are packed along `output_dim`, which is axis 0 here; the
-    scale and zero point are `(input_dim,)` per channel or
-    `(n_groups, input_dim)` grouped.
-    """
-    if not layer.tie_weights:
-        return (
-            layer.reverse_embeddings,
-            layer.reverse_embeddings_scale,
-            None if per_channel else layer.reverse_embeddings_zero,
-        )
-    # Tied: the forward tensors are stored `(input_dim, ...)`, so transpose
-    # them into the reverse layout. Transposing the 1-D per-channel scale
-    # is a no-op, so both modes take the same path.
-    return (
-        ops.transpose(layer._embeddings),
-        ops.transpose(layer.embeddings_scale),
-        None if per_channel else ops.transpose(layer.embeddings_zero),
-    )
 
 
 class Int4Strategy(GeometryDispatchStrategy):
@@ -313,39 +294,38 @@ class Int4Strategy(GeometryDispatchStrategy):
             config: Optional quantization config specifying block_size.
         """
         input_dim, output_dim = embeddings_shape
-        packed_rows = (output_dim + 1) // 2
+        block_size = self.resolve_block_size(layer, config)
+        layer._int4_block_size = block_size
 
-        # Embeddings are stored packed: each int8 byte contains two
-        # int4 values.
+        # The table is packed two int4 values per byte along `output_dim`;
+        # the scale runs per row (per channel) or per row and group.
         layer._embeddings = layer.add_weight(
             name="embeddings",
-            shape=(input_dim, packed_rows),
+            shape=(input_dim, (output_dim + 1) // 2),
             initializer="zeros",
             dtype="int8",
             trainable=False,
         )
-
-        block_size = self.resolve_block_size(layer, config)
-        layer._int4_block_size = block_size
-
         if _is_per_channel(block_size):
-            scale_shape = (layer.input_dim,)
+            scale_shape = (input_dim,)
         else:
-            n_groups = math.ceil(output_dim / block_size)
-            scale_shape = (layer.input_dim, n_groups)
-
+            scale_shape = (input_dim, math.ceil(output_dim / block_size))
         layer.embeddings_scale = layer.add_weight(
             name="embeddings_scale",
             shape=scale_shape,
             initializer="ones",
             trainable=False,
         )
-
-        # Sub-channel quantization uses asymmetric quantization with
-        # zero point
         if _is_grouped(block_size):
+            # Grouped quantization is asymmetric: a zero point per row and
+            # group, and the column-to-group index.
+            def idx_initializer(shape, dtype):
+                return ops.floor_divide(
+                    ops.arange(output_dim, dtype=dtype), block_size
+                )
+
             layer.embeddings_zero = layer.add_weight(
-                name="zero_point",
+                name="embeddings_zero",
                 shape=scale_shape,
                 initializer="zeros",
                 dtype="int8",
@@ -357,57 +337,43 @@ class Int4Strategy(GeometryDispatchStrategy):
             layer.g_idx = layer.add_weight(
                 name="g_idx",
                 shape=(output_dim,),
-                initializer="zeros",
+                initializer=idx_initializer,
                 dtype="float32",
                 trainable=False,
-            )
-            layer.g_idx.assign(
-                ops.floor_divide(
-                    ops.arange(output_dim, dtype="float32"), block_size
-                )
             )
 
         layer._orig_output_dim = output_dim
 
         if geometry.reversible:
+            # Weight-only by default, like an int4 projection; a config may
+            # add an activation quantizer for the reverse projection.
             layer.inputs_quantizer = (
-                QuantizationConfig.activation_quantizer_or_default(
-                    config, AbsMaxQuantizer(axis=-1)
-                )
+                QuantizationConfig.activation_quantizer_or_default(config, None)
             )
             if not layer.tie_weights:
-                packed_reverse_rows = (
-                    layer.output_dim + 1
-                ) // 2  # ceil, odd dims
+                # The reverse table is the forward layout transposed: packed
+                # along `output_dim` (axis 0), with the scale and zero point
+                # per column or per group of rows and column.
+                reverse_scale_shape = tuple(reversed(scale_shape))
                 layer.reverse_embeddings = layer.add_weight(
                     name="reverse_embeddings",
-                    shape=(packed_reverse_rows, layer.input_dim),
+                    shape=((output_dim + 1) // 2, input_dim),
                     initializer="zeros",
                     dtype="int8",
                     trainable=False,
                 )
-
-                if _is_per_channel(block_size):
-                    # Per-channel: one scale per output unit (input_dim)
-                    reverse_scale_shape = (layer.input_dim,)
-                else:
-                    # Grouped: scale per group along output_dim (axis=0)
-                    reverse_n_groups = math.ceil(layer.output_dim / block_size)
-                    reverse_scale_shape = (reverse_n_groups, layer.input_dim)
-
                 layer.reverse_embeddings_scale = layer.add_weight(
                     name="reverse_embeddings_scale",
                     shape=reverse_scale_shape,
                     initializer="ones",
                     trainable=False,
                 )
-
-                # Zero point for asymmetric grouped quantization
                 if _is_grouped(block_size):
                     layer.reverse_embeddings_zero = layer.add_weight(
-                        name="reverse_zero_point",
+                        name="reverse_embeddings_zero",
                         shape=reverse_scale_shape,
                         initializer="zeros",
+                        dtype="int8",
                         trainable=False,
                     )
 
@@ -415,10 +381,9 @@ class Int4Strategy(GeometryDispatchStrategy):
         """Forward pass for an int4 quantized embeddings lookup."""
         inputs = cast_lookup_inputs(inputs)
 
-        unpacked_embeddings = unpack_int4(
-            layer._embeddings, layer._orig_output_dim, axis=-1
-        )
-        outputs = ops.take(unpacked_embeddings, inputs, axis=0)
+        # Gather the packed rows first, then unpack only those.
+        rows = ops.take(layer._embeddings, inputs, axis=0)
+        outputs = unpack_int4(rows, layer._orig_output_dim, axis=-1)
 
         block_size = getattr(layer, "_int4_block_size", None)
 
@@ -450,46 +415,52 @@ class Int4Strategy(GeometryDispatchStrategy):
             return self._call_lookup(layer, inputs)
 
         per_channel = _is_per_channel(getattr(layer, "_int4_block_size", None))
-        embeddings, scale, zero = _reverse_int4_params(layer, per_channel)
+        dtype = reverse_lookup_dtype(layer)
+        inputs = ops.cast(inputs, dtype)
+        embeddings, scale, zero = reverse_lookup_params(
+            layer, with_zero_point=not per_channel
+        )
         unpacked_embeddings = unpack_int4(embeddings, layer.output_dim, axis=0)
 
         if layer.inputs_quantizer:
-            inputs, inputs_scale = layer.inputs_quantizer(inputs)
+            inputs_q, inputs_scale = layer.inputs_quantizer(inputs)
         else:
-            inputs_scale = ops.ones((1,), dtype=layer.compute_dtype)
+            inputs_q, inputs_scale = inputs, ops.ones((1,), dtype=dtype)
 
         if per_channel:
             # Symmetric: matmul on the int values, then fold both scales
             # into the logits.
-            logits = ops.matmul(inputs, unpacked_embeddings)
-            logits = ops.cast(logits, layer.compute_dtype)
+            logits = ops.matmul(inputs_q, unpacked_embeddings)
+            logits = ops.cast(logits, dtype)
             logits = ops.divide(logits, ops.multiply(inputs_scale, scale))
         else:
             # Asymmetric sub-channel: the zero point cannot be pulled out of
             # the matmul, so dequantize the embeddings first.
             float_embeddings = dequantize_with_sz_map(
-                ops.cast(unpacked_embeddings, layer.compute_dtype),
+                ops.cast(unpacked_embeddings, dtype),
                 scale,
                 zero,
                 layer.g_idx,
                 group_axis=0,
             )
-            logits = ops.matmul(inputs, float_embeddings)
+            logits = ops.matmul(inputs_q, float_embeddings)
             logits = ops.divide(logits, inputs_scale)
 
+        # The scales are float32 variables; the projection reports its own
+        # dtype, as the float layer does.
+        logits = ops.cast(logits, dtype)
+        logits = add_reverse_lookup_lora_delta(layer, inputs, logits)
         return apply_logit_soft_cap(layer, logits)
 
-    def _quantize_lookup(self, layer, geometry, config):
-        embeddings_shape = (layer.input_dim, layer.output_dim)
+    def _encode_lookup(self, layer, geometry, weight, config):
         # `Int4Strategy.resolve_block_size` is the single source of truth for
         # the group size, shared with the build path and the dtype-policy
         # naming. A bare `quantize("int4")` resolves to the canonical
         # `Int4QuantizationConfig()` (grouped, block_size=128); `None`/`-1`
         # selects per-channel.
         block_size = self.resolve_block_size(layer, config)
-        use_grouped = _is_grouped(block_size)
 
-        if not use_grouped:
+        if _is_per_channel(block_size):
             # Per-channel quantization
             weight_quantizer = QuantizationConfig.weight_quantizer_or_default(
                 config,
@@ -498,13 +469,14 @@ class Int4Strategy(GeometryDispatchStrategy):
                 ),
             )
             embeddings_value, embeddings_scale = weight_quantizer(
-                layer._embeddings, to_numpy=True
+                weight, to_numpy=True
             )
             embeddings_scale = ops.squeeze(embeddings_scale, axis=-1)
+            embeddings_zero = None
         else:
             # Sub-channel quantization with asymmetric zero point
             # Transpose to put output_dim first for grouped quantization
-            embeddings_t = ops.transpose(layer._embeddings)
+            embeddings_t = ops.transpose(weight)
 
             embeddings_value_t, scale_t, zero_t = (
                 abs_max_quantize_grouped_with_zero_point(
@@ -521,54 +493,29 @@ class Int4Strategy(GeometryDispatchStrategy):
             embeddings_zero = ops.transpose(zero_t)
 
         packed_embeddings_value, _, _ = pack_int4(embeddings_value, axis=-1)
-        del layer._embeddings
+        return packed_embeddings_value, embeddings_scale, embeddings_zero
 
-        # Quantize reverse embeddings if not tied
+    def _quantize_lookup(self, layer, geometry, config):
+        embeddings_shape = geometry.weight_shape
+        grouped = _is_grouped(self.resolve_block_size(layer, config))
+        packed_embeddings_value, embeddings_scale, embeddings_zero = (
+            self._encode_lookup(layer, geometry, layer._embeddings, config)
+        )
+        del layer._embeddings
         untied = geometry.reversible and not layer.tie_weights
         if untied:
-            if not use_grouped:
-                reverse_weight_quantizer = (
-                    QuantizationConfig.weight_quantizer_or_default(
-                        config,
-                        AbsMaxQuantizer(
-                            axis=0, value_range=(-8, 7), output_dtype="int8"
-                        ),
-                    )
-                )
-                reverse_embeddings_value, reverse_embeddings_scale = (
-                    reverse_weight_quantizer(
-                        layer.reverse_embeddings, to_numpy=True
-                    )
-                )
-                reverse_embeddings_scale = ops.squeeze(
-                    reverse_embeddings_scale, axis=0
-                )
-            else:
-                reverse_value, reverse_scale, reverse_zero = (
-                    abs_max_quantize_grouped_with_zero_point(
-                        layer.reverse_embeddings,
-                        block_size=block_size,
-                        value_range=(-8, 7),
-                        dtype="int8",
-                        to_numpy=True,
-                    )
-                )
-                reverse_embeddings_value = reverse_value
-                reverse_embeddings_scale = reverse_scale
-                reverse_embeddings_zero = reverse_zero
-
-            packed_reverse_embeddings_value, _, _ = pack_int4(
-                reverse_embeddings_value, axis=0
+            reverse_value, reverse_scale, reverse_zero = encode_reverse_lookup(
+                self, layer, geometry, config
             )
             del layer.reverse_embeddings
 
         layer.quantized_build(embeddings_shape, "int4", config)
         layer._embeddings.assign(packed_embeddings_value)
         layer.embeddings_scale.assign(embeddings_scale)
-        if use_grouped:
+        if grouped:
             layer.embeddings_zero.assign(embeddings_zero)
         if untied:
-            layer.reverse_embeddings.assign(packed_reverse_embeddings_value)
-            layer.reverse_embeddings_scale.assign(reverse_embeddings_scale)
-            if use_grouped:
-                layer.reverse_embeddings_zero.assign(reverse_embeddings_zero)
+            layer.reverse_embeddings.assign(reverse_value)
+            layer.reverse_embeddings_scale.assign(reverse_scale)
+            if grouped:
+                layer.reverse_embeddings_zero.assign(reverse_zero)
