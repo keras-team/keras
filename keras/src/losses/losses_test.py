@@ -2102,7 +2102,9 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
         )
         self.assertAllClose(
             result,
-            backend.convert_to_tensor([expected_valid[0], 0.0, expected_valid[1]]),
+            backend.convert_to_tensor(
+                [expected_valid[0], 0.0, expected_valid[1]]
+            ),
         )
 
         weighted_result = loss_obj(
