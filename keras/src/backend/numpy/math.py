@@ -318,7 +318,8 @@ def istft(
 
 
 def rsqrt(x):
-    dtype = dtypes.result_type(x.dtype)
+    x = convert_to_tensor(x)
+    dtype = dtypes.result_type(x.dtype, float)
     return (1.0 / np.sqrt(x)).astype(dtype)
 
 
