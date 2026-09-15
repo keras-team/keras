@@ -112,6 +112,38 @@ class QuantizersTest(testing.TestCase):
         self.assertAllClose(quantized_values, ref_quantized_values)
         self.assertAllClose(scale, ref_scale)
 
+    def test_pack_int4_layout_is_pinned(self):
+        # The packed bytes are a checkpoint format: value `2i` sits in the
+        # low nibble of byte `i` and value `2i + 1` in the high nibble, and
+        # an odd length is padded with a zero nibble.
+        codes = np.array([[-3, 7], [2, -8], [1, 0]], "int8")
+        packed, _, orig_len = quantizers.pack_int4(codes, axis=0)
+        self.assertEqual(orig_len, 3)
+        self.assertAllEqual(packed, [[45, -121], [1, 0]])
+        codes = np.array([[-3, 7, 2], [-8, 1, 0]], "int8")
+        packed, _, _ = quantizers.pack_int4(codes, axis=1)
+        self.assertAllEqual(packed, [[125, 2], [24, 0]])
+
+    @parameterized.named_parameters(
+        ("int4_int8", 4, "int8"),
+        ("int4_uint8", 4, "uint8"),
+        ("int2_int8", 2, "int8"),
+        ("int2_uint8", 2, "uint8"),
+    )
+    def test_unpack_every_byte(self, bits, dtype):
+        # Every byte value unpacks to its fields, lowest bits first,
+        # sign-extended for `int8`.
+        every_byte = np.arange(256, dtype="uint8").astype(dtype).reshape(256, 1)
+        unpack = quantizers.unpack_int4 if bits == 4 else quantizers.unpack_int2
+        fields = 8 // bits
+        unpacked = unpack(every_byte, fields, axis=1, dtype=dtype)
+        values = np.arange(256)[:, None] >> (bits * np.arange(fields))
+        values = values & ((1 << bits) - 1)
+        if dtype == "int8":
+            half = 1 << (bits - 1)
+            values = (values ^ half) - half
+        self.assertAllEqual(unpacked, values)
+
     SHAPE_AXIS_SCENARIOS = [
         # 1. 2D Tensors
         # Covers the unpack fast path (rank=2, axis=0) for both parities
