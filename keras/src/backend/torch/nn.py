@@ -1,3 +1,5 @@
+import math
+
 import torch
 import torch.nn.functional as tnn
 
@@ -1721,45 +1723,76 @@ def space_to_depth(x, block_size, data_format="channels_last"):
     return x
 
 
-def _trailing_normalized_shape(x, axis):
-    """The shape torch normalizes over, or None if the axes are not trailing.
-
-    `tnn.rms_norm` and `tnn.layer_norm` normalize over the last axes of the
-    input, so axes that are not a trailing run have no fused form and belong
-    on the composed path.
-    """
-    ndim = len(x.shape)
-    if ndim == 0:
-        # A scalar has no axis to normalize over. The composed path expands it
-        # first, so hand it back rather than canonicalizing an axis that is
-        # out of bounds.
-        return None
+def _canonical_axes(x, axis):
     if isinstance(axis, int):
         axis = [axis]
-    axis = sorted(canonicalize_axis(a, ndim) for a in axis)
-    if axis != list(range(ndim - len(axis), ndim)):
-        return None
-    return tuple(x.shape[d] for d in axis)
+    return sorted(canonicalize_axis(a, x.dim()) for a in axis)
+
+
+def _normalization_operands(x, weights, axis):
+    """Prepare `x` and `weights` for the torch normalization kernels.
+
+    `tnn.rms_norm` and `tnn.layer_norm` normalize over the trailing axes of
+    the input and take weights shaped like those axes, so the axes are moved
+    to the end here and the caller moves the output back. Returns None when
+    a weight is not shaped like the axes it scales, in which case the caller
+    composes the normalization from elementary ops instead.
+    """
+    normalized_shape = tuple(x.shape[a] for a in axis)
+    size = math.prod(normalized_shape)
+    reshaped = []
+    for weight in weights:
+        if weight is None:
+            reshaped.append(None)
+        elif weight.numel() == size:
+            reshaped.append(weight.reshape(normalized_shape))
+        else:
+            return None
+    kept = [d for d in range(x.dim()) if d not in axis]
+    perm = kept + list(axis)
+    return x.permute(perm), normalized_shape, reshaped, perm
+
+
+def _inverse_permutation(perm):
+    return [perm.index(d) for d in range(len(perm))]
 
 
 def rms_normalization(x, scale=None, axis=-1, epsilon=None):
-    normalized_shape = _trailing_normalized_shape(x, axis)
-    if normalized_shape is None:
-        return None
-    if scale is not None and tuple(scale.shape) != normalized_shape:
-        return None
     if epsilon is None:
         epsilon = backend.epsilon()
-    return tnn.rms_norm(x, normalized_shape, scale, epsilon)
+    if x.dim() == 0:
+        # A scalar is normalized as a single element, like the composed op.
+        x = x.unsqueeze(0)
+    axis = _canonical_axes(x, axis)
+    operands = _normalization_operands(x, (scale,), axis) if axis else None
+    if operands is None:
+        rrms = torch.rsqrt(
+            torch.mean(torch.square(x), dim=axis, keepdim=True) + epsilon
+        )
+        outputs = x * rrms
+        if scale is not None:
+            outputs = outputs * scale
+        return outputs
+    x, normalized_shape, (scale,), perm = operands
+    outputs = tnn.rms_norm(x, normalized_shape, scale, epsilon)
+    return outputs.permute(_inverse_permutation(perm))
 
 
 def layer_normalization(x, gamma=None, beta=None, axis=-1, epsilon=None):
-    normalized_shape = _trailing_normalized_shape(x, axis)
-    if normalized_shape is None:
-        return None
-    for weight in (gamma, beta):
-        if weight is not None and tuple(weight.shape) != normalized_shape:
-            return None
     if epsilon is None:
         epsilon = backend.epsilon()
-    return tnn.layer_norm(x, normalized_shape, gamma, beta, epsilon)
+    axis = _canonical_axes(x, axis)
+    operands = _normalization_operands(x, (gamma, beta), axis) if axis else None
+    if operands is None:
+        mean = torch.mean(x, dim=axis, keepdim=True)
+        variance = torch.var(x, dim=axis, keepdim=True, unbiased=False)
+        inv = torch.rsqrt(variance + epsilon)
+        if gamma is not None:
+            inv = inv * gamma
+        res = -mean * inv
+        if beta is not None:
+            res = res + beta
+        return x * inv + res
+    x, normalized_shape, (gamma, beta), perm = operands
+    outputs = tnn.layer_norm(x, normalized_shape, gamma, beta, epsilon)
+    return outputs.permute(_inverse_permutation(perm))

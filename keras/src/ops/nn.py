@@ -3045,24 +3045,22 @@ def _rms_normalization(x, scale=None, axis=-1, epsilon=None):
 
     if isinstance(axis, (tuple, list)):
         axis = sorted(axis)
-    outputs = None
-    fused_rms_normalization = getattr(backend.nn, "rms_normalization", None)
-    if fused_rms_normalization is not None:
-        outputs = fused_rms_normalization(
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.nn, "rms_normalization"
+    ):
+        outputs = backend.nn.rms_normalization(
             x, scale=scale, axis=axis, epsilon=epsilon
         )
-    if outputs is None:
-        if len(x.shape) == 0:
-            x = backend.numpy.expand_dims(x, axis=0)
-        rrms = backend.math.rsqrt(
-            backend.numpy.mean(
-                backend.numpy.square(x), axis=axis, keepdims=True
-            )
-            + epsilon
-        )
-        outputs = backend.numpy.multiply(x, rrms)
-        if scale is not None:
-            outputs = backend.numpy.multiply(outputs, scale)
+        return backend.cast(outputs, original_dtype)
+    if len(x.shape) == 0:
+        x = backend.numpy.expand_dims(x, axis=0)
+    rrms = backend.math.rsqrt(
+        backend.numpy.mean(backend.numpy.square(x), axis=axis, keepdims=True)
+        + epsilon
+    )
+    outputs = backend.numpy.multiply(x, rrms)
+    if scale is not None:
+        outputs = backend.numpy.multiply(outputs, scale)
     return backend.cast(outputs, original_dtype)
 
 
@@ -3179,34 +3177,34 @@ def _layer_normalization(
             return backend.numpy.reshape(v, broadcast_shape)
         return v
 
-    outputs = None
     if rms_scaling:
         variance = backend.numpy.var(x, axis=axis, keepdims=True)
         inv = backend.math.rsqrt(variance + epsilon)
         outputs = x * inv
         if gamma is not None:
             outputs = outputs * backend.cast(_broadcast(gamma), x.dtype)
-    else:
-        fused_layer_normalization = getattr(
-            backend.nn, "layer_normalization", None
+        return backend.cast(outputs, original_dtype)
+
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.nn, "layer_normalization"
+    ):
+        outputs = backend.nn.layer_normalization(
+            x, gamma=gamma, beta=beta, axis=axis, epsilon=epsilon
         )
-        if fused_layer_normalization is not None:
-            outputs = fused_layer_normalization(
-                x, gamma=gamma, beta=beta, axis=axis, epsilon=epsilon
-            )
-    if outputs is None:
-        # Calculate the mean & variance along self.axis (layer activations).
-        mean, variance = moments(x, axes=axis, keepdims=True)
-        gamma, beta = _broadcast(gamma), _broadcast(beta)
-        inv = backend.math.rsqrt(variance + epsilon)
-        if gamma is not None:
-            inv = inv * gamma
+        return backend.cast(outputs, original_dtype)
 
-        res = -mean * inv
-        if beta is not None:
-            res = res + beta
+    # Calculate the mean & variance along self.axis (layer activations).
+    mean, variance = moments(x, axes=axis, keepdims=True)
+    gamma, beta = _broadcast(gamma), _broadcast(beta)
+    inv = backend.math.rsqrt(variance + epsilon)
+    if gamma is not None:
+        inv = inv * gamma
 
-        outputs = x * inv + res
+    res = -mean * inv
+    if beta is not None:
+        res = res + beta
+
+    outputs = x * inv + res
     return backend.cast(outputs, original_dtype)
 
 

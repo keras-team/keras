@@ -2874,34 +2874,39 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knn.LayerNorm()(x), expected_output, atol=1e-3)
 
     @parameterized.named_parameters(
-        ("leading", [0, 1]),
-        ("interior", [1, 2]),
-        ("trailing", [1, 2, 3]),
+        named_product(
+            axis=[[0, 1], [1, 2], [1, 2, 3], [0, 2]],
+            backend_agnostic_ops=[False, True],
+        )
     )
-    def test_normalization_over_continuous_axes(self, axis):
-        # A backend that normalizes with a fused kernel only handles trailing
-        # axes, so any other continuous run has to reach the composed path.
-        x = np.arange(120, dtype="float32").reshape((2, 3, 4, 5)) / 120.0
-        axes = tuple(axis)
-        epsilon = 1e-5
+    def test_normalization_over_axes(self, axis, backend_agnostic_ops):
+        # A backend kernel normalizes over trailing axes, so any other set of
+        # axes exercises the backend moving them into place.
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = np.arange(120, dtype="float32").reshape((2, 3, 4, 5)) / 120.0
+            axes = tuple(axis)
+            epsilon = 1e-5
 
-        expected = x / np.sqrt(
-            np.mean(np.square(x), axis=axes, keepdims=True) + epsilon
-        )
-        self.assertAllClose(
-            knn.rms_normalization(x, axis=axis, epsilon=epsilon),
-            expected,
-            atol=1e-5,
-        )
+            expected = x / np.sqrt(
+                np.mean(np.square(x), axis=axes, keepdims=True) + epsilon
+            )
+            self.assertAllClose(
+                knn.rms_normalization(x, axis=axis, epsilon=epsilon),
+                expected,
+                atol=1e-5,
+            )
 
-        mean = np.mean(x, axis=axes, keepdims=True)
-        variance = np.var(x, axis=axes, keepdims=True)
-        expected = (x - mean) / np.sqrt(variance + epsilon)
-        self.assertAllClose(
-            knn.layer_normalization(x, axis=axis, epsilon=epsilon),
-            expected,
-            atol=1e-5,
-        )
+            mean = np.mean(x, axis=axes, keepdims=True)
+            variance = np.var(x, axis=axes, keepdims=True)
+            expected = (x - mean) / np.sqrt(variance + epsilon)
+            self.assertAllClose(
+                knn.layer_normalization(x, axis=axis, epsilon=epsilon),
+                expected,
+                atol=1e-5,
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
 
 class NNOpsDtypeTest(testing.TestCase):
