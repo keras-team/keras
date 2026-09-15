@@ -14,7 +14,6 @@ from keras.src.api_export import keras_export
 from keras.src.initializers.random_initializers import VarianceScaling
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
-from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.geometry import EinsumProjectionGeometry
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.saving import serialization_lib
@@ -199,11 +198,7 @@ class EinsumDense(Layer):
                 mode=self.quantization_mode,
                 config=self.quantization_config,
             )
-        # Skip creating a duplicate kernel variable when the quantized build
-        # has already created the kernel storage. For other modes (e.g.,
-        # float8 or no quantization), we still need the floating-point kernel.
-        strategy = strategy_registry.get_strategy(self.quantization_mode)
-        if strategy is None or not strategy.owns_weight_storage:
+        if not self._strategy_owns_weight_storage():
             self._kernel = self.add_weight(
                 name="kernel",
                 shape=tuple(kernel_shape),
