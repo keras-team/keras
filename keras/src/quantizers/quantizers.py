@@ -1499,80 +1499,39 @@ def dequantize_with_zero_point(input_tensor, scale, zero):
     )
 
 
+def _take_group_params(scale, zero, g_idx, group_axis):
+    """Gathers each position's group scale and zero point.
+
+    `g_idx` is a 1-D integer tensor with one entry per position along the
+    quantized dimension, naming that position's group (`0` to
+    `n_groups - 1`; with 128 columns and `group_size=32` it is
+    `[0] * 32 + [1] * 32 + [2] * 32 + [3] * 32`). `group_axis` is the axis
+    of `scale` and `zero` that holds the per-group values. The gathered
+    zero point is cast to the scale's dtype.
+    """
+    groups = ops.cast(g_idx, "int32")
+    scales = ops.take(scale, groups, axis=group_axis)
+    zeros = ops.cast(ops.take(zero, groups, axis=group_axis), scales.dtype)
+    return scales, zeros
+
+
 def quantize_with_sz_map(
     weights_matrix, scale, zero, g_idx, maxq, group_axis=-1
 ):
-    """Quantize the weight matrix from group params.
+    """Quantizes `weights_matrix` with per-group multiplier scales.
 
-    This function uses the provided scale and zero tensors to quantize the
-    input weights_matrix according to the group indices. It maps each position
-    along group_axis of the weights_matrix to its corresponding group
-    parameters and performs the quantization operation.
-
-    Args:
-        weights_matrix: Tensor to quantize.
-        scale: Per-group scale tensor with n_groups along group_axis.
-        zero: Per-group zero-point tensor with n_groups along group_axis.
-        g_idx: 1D integer tensor of length equal to the size of
-            `weights_matrix` along the dimension being quantized. Each
-            element specifies which group index (0 to n_groups-1) that
-            position belongs to. For example, with 128 columns and
-            group_size=32, g_idx would be
-            `[0,0,...,0, 1,1,...,1, 2,2,...,2, 3,3,...,3]` (32 of each).
-        maxq: Scalar (float) representing the maximum integer quantization
-            level (e.g., 2^bits - 1).
-        group_axis: The axis in `scale` and `zero` along which to index
-            using `g_idx`. This determines which dimension of the
-            scale/zero tensors contains the per-group values. Default: -1
-            (last axis).
-
-    Returns:
-        A tensor with the same shape as `weights_matrix` containing the
-        quantized weights produced using the provided group parameters.
+    See `_take_group_params` for `g_idx` and `group_axis`; `maxq` is the
+    largest code, `2**bits - 1`.
     """
-    groups = ops.cast(g_idx, "int32")
-    scale_cols = ops.take(scale, groups, axis=group_axis)
-    zero_cols = ops.take(zero, groups, axis=group_axis)
-
-    # Quantize elementwise, then cast to int
-    return quantize_with_zero_point(weights_matrix, scale_cols, zero_cols, maxq)
+    scales, zeros = _take_group_params(scale, zero, g_idx, group_axis)
+    return quantize_with_zero_point(weights_matrix, scales, zeros, maxq)
 
 
 def dequantize_with_sz_map(weights_matrix, scale, zero, g_idx, group_axis=-1):
-    """Rebuild a dequantized weight matrix from group params.
+    """Dequantizes codes with per-group multiplier scales.
 
-    This function uses the provided scale and zero tensors to dequantize the
-    input weights_matrix according to the group indices. It maps each position
-    along group_axis of the weights_matrix to its corresponding group
-    parameters and performs the dequantization operation.
-
-    Args:
-        weights_matrix: Tensor to dequantize.
-        scale: Per-group scale tensor with n_groups along group_axis.
-        zero: Per-group zero-point tensor with n_groups along group_axis.
-        g_idx: 1D integer tensor of length equal to the size of
-            `weights_matrix` along the dimension being dequantized. Each
-            element specifies which group index (0 to n_groups-1) that
-            position belongs to. For example, with 128 columns and
-            group_size=32, g_idx would be
-            `[0,0,...,0, 1,1,...,1, 2,2,...,2, 3,3,...,3]` (32 of each).
-        group_axis: The axis in `scale` and `zero` along which to index
-            using `g_idx`. This determines which dimension of the
-            scale/zero tensors contains the per-group values. Default: -1
-            (last axis).
-
-    Returns:
-        A tensor with the same shape as `weights_matrix` containing the
-        dequantized weights produced using the provided group parameters.
+    The real value is `(code - zero) * scale`; see `_take_group_params`
+    for `g_idx` and `group_axis`.
     """
-    # Map group indices to scales and zeros
-    groups = ops.cast(g_idx, "int32")
-    scales_mapped = ops.take(scale, groups, axis=group_axis)
-    zeros_mapped = ops.take(zero, groups, axis=group_axis)
-    zeros_mapped = ops.cast(zeros_mapped, scales_mapped.dtype)
-
-    dequantized = ops.multiply(
-        ops.subtract(weights_matrix, zeros_mapped), scales_mapped
-    )
-
-    return dequantized
+    scales, zeros = _take_group_params(scale, zero, g_idx, group_axis)
+    return dequantize_with_zero_point(weights_matrix, scales, zeros)
