@@ -391,6 +391,7 @@ class AutoElementwiseOperationTest(testing.TestCase):
     def test_auto_elementwise_operation_basic(self):
         class DummyRelu(operation.AutoElementwiseOperation):
             backend_fn = backend.nn.relu
+            preserves_sparse = True
 
         op = DummyRelu()
         x = np.array([-2.0, 0.0, 3.0], dtype="float32")
@@ -410,6 +411,13 @@ class AutoElementwiseOperationTest(testing.TestCase):
         sym_sparse_out = op(sym_sparse_x)
         self.assertTrue(sym_sparse_out.sparse)
         self.assertFalse(sym_sparse_out.ragged)
+
+        # Non-sparse preserving op should not propagate sparse=True
+        class DummySigmoid(operation.AutoElementwiseOperation):
+            backend_fn = backend.nn.sigmoid
+
+        dense_op = DummySigmoid()
+        self.assertFalse(dense_op(sym_sparse_x).sparse)
 
         sym_ragged_x = keras_tensor.KerasTensor(
             (2, None), dtype="float32", ragged=True
@@ -464,6 +472,24 @@ class AutoBinaryBroadcastOperationTest(testing.TestCase):
         sym_out = op(sym_x1, sym_x2)
         self.assertEqual(sym_out.shape, (2, 3))
         self.assertEqual(sym_out.dtype, "bool")
+
+    def test_auto_binary_broadcast_sparse(self):
+        class DummyAdd(operation.AutoBinaryBroadcastOperation):
+            backend_fn = backend.numpy.add
+            preserves_sparse = True
+
+        op = DummyAdd()
+        sym_x1 = keras_tensor.KerasTensor((2, 3), dtype="float32", sparse=True)
+        sym_x2 = keras_tensor.KerasTensor((2, 3), dtype="float32", sparse=True)
+        sym_out = op(sym_x1, sym_x2)
+        self.assertTrue(sym_out.sparse)
+
+        class DummyEqual(operation.AutoBinaryBroadcastOperation):
+            backend_fn = backend.numpy.equal
+            output_dtype = "bool"
+
+        op_eq = DummyEqual()
+        self.assertFalse(op_eq(sym_x1, sym_x2).sparse)
 
     def test_auto_binary_broadcast_ragged(self):
         class DummyAdd(operation.AutoBinaryBroadcastOperation):
@@ -522,11 +548,19 @@ class AutoReductionOperationTest(testing.TestCase):
     def test_auto_reduction_sparse(self):
         class DummyAmax(operation.AutoReductionOperation):
             backend_fn = backend.numpy.amax
+            preserves_sparse = True
 
         op = DummyAmax(axis=1)
         sym_x = keras_tensor.KerasTensor((2, 3), dtype="float32", sparse=True)
         sym_out = op(sym_x)
         self.assertTrue(sym_out.sparse)
+
+        class DummyArgmax(operation.AutoReductionOperation):
+            backend_fn = backend.numpy.argmax
+            output_dtype = "int32"
+
+        op_argmax = DummyArgmax(axis=1)
+        self.assertFalse(op_argmax(sym_x).sparse)
 
     def test_auto_reduction_missing_backend_fn(self):
         with self.assertRaisesRegex(ValueError, "must define `backend_fn`"):

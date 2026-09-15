@@ -153,6 +153,7 @@ def shape_equal(shape1, shape2, axis=None, allow_none=True):
 
 class Absolute(AutoElementwiseOperation):
     backend_fn = backend.numpy.absolute
+    preserves_sparse = True
 
 
 @keras_export(["keras.ops.absolute", "keras.ops.numpy.absolute"])
@@ -238,6 +239,7 @@ def fabs(x):
 
 class Add(AutoBinaryBroadcastOperation):
     backend_fn = backend.numpy.add
+    preserves_sparse = True
 
 
 @keras_export(["keras.ops.add", "keras.ops.numpy.add"])
@@ -443,6 +445,7 @@ def any(x, axis=None, keepdims=False):
 
 class Amax(AutoReductionOperation):
     backend_fn = backend.numpy.amax
+    preserves_sparse = True
 
 
 @keras_export(["keras.ops.amax", "keras.ops.numpy.amax"])
@@ -1529,6 +1532,7 @@ def bincount(x, weights=None, minlength=0, sparse=False):
 
 class BitwiseAnd(AutoBinaryBroadcastOperation):
     backend_fn = backend.numpy.bitwise_and
+    preserves_sparse = True
 
 
 @keras_export(["keras.ops.bitwise_and", "keras.ops.numpy.bitwise_and"])
@@ -1998,6 +2002,7 @@ def concatenate(xs, axis=0):
 
 class Conjugate(AutoElementwiseOperation):
     backend_fn = backend.numpy.conjugate
+    preserves_sparse = True
 
 
 @keras_export(["keras.ops.conjugate", "keras.ops.numpy.conjugate"])
@@ -2032,6 +2037,7 @@ def conj(x):
 
 class Copy(AutoElementwiseOperation):
     backend_fn = backend.numpy.copy
+    preserves_sparse = True
 
 
 @keras_export(["keras.ops.copy", "keras.ops.numpy.copy"])
@@ -4044,6 +4050,7 @@ def identity(n, dtype=None):
 
 class Imag(AutoElementwiseOperation):
     backend_fn = backend.numpy.imag
+    preserves_sparse = True
 
 
 @keras_export(["keras.ops.imag", "keras.ops.numpy.imag"])
@@ -5015,6 +5022,7 @@ def max(x, axis=None, keepdims=False, initial=None):
 
 class Maximum(AutoBinaryBroadcastOperation):
     backend_fn = backend.numpy.maximum
+    preserves_sparse = True
 
 
 @keras_export(["keras.ops.maximum", "keras.ops.numpy.maximum"])
@@ -5035,6 +5043,7 @@ def maximum(x1, x2):
 
 class Fmax(AutoBinaryBroadcastOperation):
     backend_fn = backend.numpy.fmax
+    preserves_sparse = True
 
 
 @keras_export(["keras.ops.fmax", "keras.ops.numpy.fmax"])
@@ -5213,6 +5222,7 @@ def min(x, axis=None, keepdims=False, initial=None):
 
 class Minimum(AutoBinaryBroadcastOperation):
     backend_fn = backend.numpy.minimum
+    preserves_sparse = True
 
 
 @keras_export(["keras.ops.minimum", "keras.ops.numpy.minimum"])
@@ -5233,6 +5243,7 @@ def minimum(x1, x2):
 
 class Fmin(AutoBinaryBroadcastOperation):
     backend_fn = backend.numpy.fmin
+    preserves_sparse = True
 
 
 @keras_export(["keras.ops.fmin", "keras.ops.numpy.fmin"])
@@ -6935,6 +6946,7 @@ def unravel_index(indices, shape):
 
 class Real(AutoElementwiseOperation):
     backend_fn = backend.numpy.real
+    preserves_sparse = True
 
 
 @keras_export(["keras.ops.real", "keras.ops.numpy.real"])
@@ -7126,6 +7138,7 @@ def roll(x, shift, axis=None):
 
 class Round(AutoElementwiseOperation):
     backend_fn = backend.numpy.round
+    preserves_sparse = True
 
     def __init__(self, decimals=0, *, name=None):
         super().__init__(name=name)
@@ -7204,6 +7217,7 @@ def searchsorted(sorted_sequence, values, side="left"):
 
 class Sign(AutoElementwiseOperation):
     backend_fn = backend.numpy.sign
+    preserves_sparse = True
 
 
 @keras_export(["keras.ops.sign", "keras.ops.numpy.sign"])
@@ -7224,6 +7238,7 @@ def sign(x):
 class Signbit(AutoElementwiseOperation):
     backend_fn = backend.numpy.signbit
     output_dtype = "bool"
+    preserves_sparse = True
 
 
 @keras_export(["keras.ops.signbit", "keras.ops.numpy.signbit"])
@@ -8327,6 +8342,7 @@ def where(condition, x1=None, x2=None):
 
 class Subtract(AutoBinaryBroadcastOperation):
     backend_fn = backend.numpy.subtract
+    preserves_sparse = True
 
 
 @keras_export(["keras.ops.subtract", "keras.ops.numpy.subtract"])
@@ -8575,6 +8591,7 @@ def _float_power(x1, x2):
 
 class Negative(AutoElementwiseOperation):
     backend_fn = backend.numpy.negative
+    preserves_sparse = True
 
 
 @keras_export(["keras.ops.negative", "keras.ops.numpy.negative"])
