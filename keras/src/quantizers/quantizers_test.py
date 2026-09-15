@@ -146,10 +146,10 @@ class QuantizersTest(testing.TestCase):
 
     SHAPE_AXIS_SCENARIOS = [
         # 1. 2D Tensors
-        # Covers the unpack fast path (rank=2, axis=0) for both parities
+        # Axis 0, both parities
         {"testcase_name": "2d_axis0_odd", "shape": (5, 8), "axis": 0},
         {"testcase_name": "2d_axis0_even", "shape": (4, 8), "axis": 0},
-        # Covers the general path and a negative axis for 2D tensors
+        # A middle axis and a negative axis of a 2D tensor
         {"testcase_name": "2d_axis1_odd", "shape": (8, 7), "axis": 1},
         {"testcase_name": "2d_axis_neg1_even", "shape": (8, 6), "axis": -1},
         # 2. Higher-Rank Tensors
@@ -243,29 +243,13 @@ class QuantizersTest(testing.TestCase):
     # int2 packs four values per byte, so the packing axis must exercise every
     # padding remainder (0, 1, 2, 3) along both the fast path (axis=0, rank 2)
     # and the general transpose path.
-    SHAPE_AXIS_SCENARIOS_INT2 = [
-        {"testcase_name": "2d_axis0_pad0", "shape": (8, 5), "axis": 0},
-        {"testcase_name": "2d_axis0_pad1", "shape": (7, 5), "axis": 0},
-        {"testcase_name": "2d_axis0_pad2", "shape": (6, 5), "axis": 0},
-        {"testcase_name": "2d_axis0_pad3", "shape": (5, 5), "axis": 0},
-        {"testcase_name": "2d_axis1_pad3", "shape": (5, 5), "axis": 1},
-        {"testcase_name": "2d_axis_neg1_pad0", "shape": (5, 8), "axis": -1},
-        {"testcase_name": "4d_axis1_pad3", "shape": (2, 5, 4, 6), "axis": 1},
-        {"testcase_name": "4d_axis2_pad0", "shape": (2, 4, 8, 6), "axis": 2},
-        {
-            "testcase_name": "4d_axis_neg1_pad2",
-            "shape": (2, 4, 6, 6),
-            "axis": -1,
-        },
-    ]
-
     DTYPE_PARAMS_INT2 = [
         {"testcase_name": "int8", "dtype": "int8", "minval": -2, "maxval": 2},
         {"testcase_name": "uint8", "dtype": "uint8", "minval": 0, "maxval": 4},
     ]
 
     @parameterized.named_parameters(
-        named_product(SHAPE_AXIS_SCENARIOS_INT2, DTYPE_PARAMS_INT2)
+        named_product(SHAPE_AXIS_SCENARIOS, DTYPE_PARAMS_INT2)
     )
     def test_pack_unpack_int2(self, shape, axis, dtype, minval, maxval):
         arr = ops.cast(
