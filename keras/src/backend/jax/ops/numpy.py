@@ -1385,7 +1385,7 @@ def sinh(x):
 
 
 def size(x):
-    return cast(jnp.size(x), "int32")
+    return jnp.size(x)
 
 
 def sort(x, axis=-1):
