@@ -998,6 +998,13 @@ def binary_crossentropy(target, output, from_logits=False):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
 
+    if target.shape != output.shape:
+        raise ValueError(
+            "Arguments `target` and `output` must have the same shape. "
+            "Received: "
+            f"target.shape={target.shape}, output.shape={output.shape}"
+        )
+
     # Some backends cannot compute binary crossentropy when the trailing
     # dimension has size 1. We work around this by squeezing the trailing
     # dimension before computing the loss and restoring it afterward.
@@ -1005,20 +1012,11 @@ def binary_crossentropy(target, output, from_logits=False):
     squeeze_trailing = (
         target.device.type == "mps"
         and target.ndim > 1
-        and output.ndim == target.ndim
         and target.shape[-1] == 1
-        and output.shape[-1] == 1
     )
     if squeeze_trailing:
         target = torch.squeeze(target, -1).contiguous()
         output = torch.squeeze(output, -1).contiguous()
-
-    if target.shape != output.shape:
-        raise ValueError(
-            "Arguments `target` and `output` must have the same shape. "
-            "Received: "
-            f"target.shape={target.shape}, output.shape={output.shape}"
-        )
 
     # By default, PyTorch, does reduction of `sum` over all rows,
     # change reduction to `none` to keep dim
