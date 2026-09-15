@@ -124,6 +124,13 @@ class LossTest(testing.TestCase):
         self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
         self.assertAllClose(loss, 0)  # No NaN.
 
+    def test_y_true_none(self):
+        loss_fn = ExampleLoss()
+        with self.assertRaisesRegex(
+            ValueError, "Loss computation received `y_true=None`"
+        ):
+            loss_fn(None, np.ones((2, 2)))
+
     def test_mask_and_sample_weight(self):
         sample_weight = np.array([0.4, 0.3, 0.2, 0.1])
         y_true = np.array([1.0, 0.0, 1.0, 0.0])
