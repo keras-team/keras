@@ -72,12 +72,17 @@ def soft_shrink(x, threshold=0.5):
         x = ov_opset.convert(x, OPENVINO_DTYPES[dtype]).output(0)
     et = x.get_element_type()
     thr = get_ov_output(threshold, et)
+    neg_thr = get_ov_output(-threshold, et)
     zero = get_ov_output(0.0, et)
-    abs_x = ov_opset.abs(x)
-    sub = ov_opset.subtract(abs_x, thr)
-    shrunk = ov_opset.maximum(sub, zero)
-    sign = ov_opset.sign(x)
-    out = ov_opset.multiply(sign, shrunk)
+    out = ov_opset.select(
+        ov_opset.greater(x, thr),
+        ov_opset.subtract(x, thr),
+        ov_opset.select(
+            ov_opset.less(x, neg_thr),
+            ov_opset.add(x, thr),
+            zero,
+        ),
+    )
     return OpenVINOKerasTensor(out.output(0))
 
 
