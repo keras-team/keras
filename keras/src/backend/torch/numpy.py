@@ -1919,8 +1919,7 @@ def sinh(x):
 
 
 def size(x):
-    x_shape = convert_to_tensor(tuple(x.shape))
-    return torch.prod(x_shape)
+    return math.prod(x.shape)
 
 
 def sort(x, axis=-1):
