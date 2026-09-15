@@ -462,6 +462,7 @@ class AutoElementwiseOperation(Operation):
 
     backend_fn = None
     output_dtype = None
+    preserves_sparse = False
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -482,7 +483,7 @@ class AutoElementwiseOperation(Operation):
             and hasattr(x, "dtype")
         ):
             dtype = self.output_dtype or x.dtype
-            sparse = getattr(x, "sparse", False)
+            sparse = self.preserves_sparse and getattr(x, "sparse", False)
             ragged = getattr(x, "ragged", False)
             return KerasTensor(
                 x.shape, dtype=dtype, sparse=sparse, ragged=ragged
@@ -501,6 +502,7 @@ class AutoBinaryBroadcastOperation(Operation):
 
     backend_fn = None
     output_dtype = None
+    preserves_sparse = False
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -529,7 +531,11 @@ class AutoBinaryBroadcastOperation(Operation):
         x1_ragged = getattr(x1, "ragged", False)
         x2_ragged = getattr(x2, "ragged", False)
         output_ragged = x1_ragged or x2_ragged
-        output_sparse = (x1_sparse and x2_sparse) and not output_ragged
+        output_sparse = (
+            self.preserves_sparse
+            and (x1_sparse and x2_sparse)
+            and not output_ragged
+        )
         return KerasTensor(
             output_shape,
             dtype=dtype,
@@ -550,6 +556,7 @@ class AutoReductionOperation(Operation):
 
     backend_fn = None
     output_dtype = None
+    preserves_sparse = False
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -572,5 +579,5 @@ class AutoReductionOperation(Operation):
             x.shape, axis=self.axis, keepdims=self.keepdims
         )
         dtype = self.output_dtype or x.dtype
-        sparse = getattr(x, "sparse", False)
+        sparse = self.preserves_sparse and getattr(x, "sparse", False)
         return KerasTensor(output_shape, dtype=dtype, sparse=sparse)
