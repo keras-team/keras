@@ -8,6 +8,7 @@ from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import slice_along_axis
+from keras.src.ops.operation import AutoElementwiseOperation
 from keras.src.ops.operation import Operation
 from keras.src.saving import serialization_lib
 from keras.src.utils import traceback_utils
@@ -665,12 +666,11 @@ def while_loop(
     )
 
 
-class StopGradient(Operation):
-    def call(self, variable):
-        return backend.core.stop_gradient(variable)
+class StopGradient(AutoElementwiseOperation):
+    backend_fn = backend.core.stop_gradient
 
-    def compute_output_spec(self, variable):
-        return KerasTensor(variable.shape, dtype=variable.dtype)
+    def call(self, variable):
+        return self.backend_fn(variable)
 
 
 @keras_export("keras.ops.stop_gradient")
