@@ -7,6 +7,8 @@ import pytest
 from absl.testing import parameterized
 
 import keras
+from keras.distribution import DeviceMesh
+from keras.distribution import TensorLayout
 from keras.src import backend
 from keras.src import layers
 from keras.src import losses
@@ -16,6 +18,11 @@ from keras.src import testing
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.backend.torch.core import get_device
+from keras.src.backend.torch.distributed_test_utils import (
+    TorchDistributedTestMixin,
+)
+from keras.src.backend.torch.distribution_lib import distribute_data_input
 from keras.src.layers.convolutional.conv_test import np_conv1d
 from keras.src.layers.convolutional.conv_test import np_conv2d
 from keras.src.layers.convolutional.conv_test import np_conv3d
@@ -4131,3 +4138,54 @@ class DotProductAttentionGQATest(testing.TestCase):
         self.assertEqual(
             output.shape, (batch_size, q_len, num_q_heads, head_dim)
         )
+
+
+@pytest.mark.no_pytest_xdist
+class TorchNNDistributedTest(TorchDistributedTestMixin, testing.TestCase):
+    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only")
+    def test_dot_product_attention_dtensor(self):
+        import torch
+
+        device_type = get_device().split(":")[0]
+        mesh = DeviceMesh(
+            shape=(1,), axis_names=("data",), devices=[f"{device_type}:0"]
+        )
+        layout = TensorLayout(axes=(None, None, None, None), device_mesh=mesh)
+
+        B, T, S, N, H = 2, 4, 4, 2, 8
+        query_local = torch.rand((B, T, N, H), device="cpu")
+        key_local = torch.rand((B, S, N, H), device="cpu")
+        value_local = torch.rand((B, S, N, H), device="cpu")
+
+        query = distribute_data_input(query_local, layout)
+        key = distribute_data_input(key_local, layout)
+        value = distribute_data_input(value_local, layout)
+
+        # Test without mask
+        result = knn.dot_product_attention(query, key, value)
+        self.assertTrue(hasattr(result, "to_local"))
+        expected = knn.dot_product_attention(
+            query_local.to(get_device()),
+            key_local.to(get_device()),
+            value_local.to(get_device()),
+        )
+        self.assertAllClose(result, expected)
+
+        # Test with mask and is_causal
+        mask_local = torch.tril(
+            torch.ones((B, N, T, S), dtype=torch.bool, device="cpu")
+        )
+        mask = distribute_data_input(mask_local, layout)
+
+        result_mask = knn.dot_product_attention(
+            query, key, value, mask=mask, is_causal=True
+        )
+        self.assertTrue(hasattr(result_mask, "to_local"))
+        expected_mask = knn.dot_product_attention(
+            query_local.to(get_device()),
+            key_local.to(get_device()),
+            value_local.to(get_device()),
+            mask=mask_local.to(get_device()),
+            is_causal=True,
+        )
+        self.assertAllClose(result_mask, expected_mask)
