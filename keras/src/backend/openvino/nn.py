@@ -111,6 +111,13 @@ def log_sigmoid(x):
 
 def leaky_relu(x, negative_slope=0.2):
     x = get_ov_output(x)
+    # Promote integer and bool inputs the way the JAX backend already does.
+    # Otherwise `negative_slope` is cast to the input's integer element type,
+    # truncates to 0, and `prelu` below computes `relu`.
+    keras_dtype = ov_to_keras_type(x.get_element_type())
+    dtype = backend.result_type(keras_dtype, float)
+    if keras_dtype != dtype:
+        x = ov_opset.convert(x, OPENVINO_DTYPES[dtype]).output(0)
     slope_const = ov_opset.constant(
         negative_slope, x.get_element_type()
     ).output(0)

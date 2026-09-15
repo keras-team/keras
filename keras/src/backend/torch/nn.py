@@ -101,6 +101,9 @@ def log_sigmoid(x):
 
 def leaky_relu(x, negative_slope=0.2):
     x = convert_to_tensor(x)
+    # `tnn.leaky_relu` is not implemented for integer or bool dtypes. Promote
+    # the way the JAX backend already does.
+    x = cast(x, backend.result_type(x.dtype, float))
     return tnn.leaky_relu(x, negative_slope=negative_slope)
 
 

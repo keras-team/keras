@@ -110,6 +110,10 @@ def log_sigmoid(x):
 
 def leaky_relu(x, negative_slope=0.2):
     x = convert_to_tensor(x)
+    # `leaky_relu` is a float op. Promote integer and bool inputs the way the
+    # JAX backend already does, otherwise `negative_slope` is cast to the
+    # input's integer dtype, truncates to 0, and this computes `relu`.
+    x = cast(x, backend.result_type(x.dtype, float))
     return np.maximum(x, np.array(negative_slope, x.dtype) * x)
 
 
