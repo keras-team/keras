@@ -4186,6 +4186,21 @@ def repeat(x, repeats, axis=None):
         result = ov_opset.gather(x, idx, ov_opset.constant(axis, Type.i32))
         return OpenVINOKerasTensor(result.output(0))
     repeats_tensor = get_ov_output(repeats)
+    repeats_rank = repeats_tensor.get_partial_shape().rank
+    if repeats_rank.is_static and repeats_rank.get_length() == 0:
+        # numpy also accepts a scalar `repeats`, meaning every element along
+        # `axis` is repeated that many times. The code below expects one count
+        # per element, so broadcast the scalar to the length of `axis`. This
+        # path is reached whenever `repeats` comes from a dynamic dimension,
+        # e.g. `ops.repeat(x, ops.shape(y)[0], axis=0)`.
+        axis_len = ov_opset.gather(
+            ov_opset.shape_of(x, Type.i32),
+            ov_opset.constant([axis], Type.i32),
+            const_0,
+        ).output(0)
+        repeats_tensor = ov_opset.broadcast(
+            ov_opset.unsqueeze(repeats_tensor, const_0), axis_len
+        ).output(0)
     cumsum = ov_opset.cumsum(repeats_tensor, const_0)
     total = ov_opset.reduce_sum(
         repeats_tensor, ov_opset.constant([0], Type.i32), keep_dims=False
