@@ -914,6 +914,46 @@ class QuantizersTest(testing.TestCase):
         half_step = scale[g_idx] / 2 + 1e-6
         self.assertTrue(np.all(np.abs(dequantized - kernel) <= half_step))
 
+    @parameterized.named_parameters(("tensor", False), ("numpy", True))
+    def test_grouped_zero_point_exact_values(self, to_numpy):
+        # One group of three rows: column 0 is all positive and column 1
+        # all negative, so each range is widened to include zero.
+        kernel = np.array([[0.5, -1.5], [1.0, -1.0], [1.5, -0.5]], "float32")
+        _, scale, zero = quantizers.abs_max_quantize_grouped_with_zero_point(
+            kernel, block_size=3, to_numpy=to_numpy
+        )
+        self.assertAllClose(scale, [[1.5 / 15, 1.5 / 15]])
+        self.assertAllClose(zero, [[-8, 7]])
+
+    @parameterized.named_parameters(
+        ("int4", (-8, 7)),
+        ("uint4", (0, 15)),
+        ("int3", (-4, 3)),
+        ("int2", (-2, 1)),
+        ("int8", (-128, 127)),
+    )
+    def test_grouped_paths_agree(self, value_range):
+        # The NumPy path and the backend path apply one formula, for any
+        # code range, with a padded last group and an all-zero group.
+        rng = np.random.default_rng(0)
+        kernel = rng.standard_normal((11, 3)).astype("float32")
+        kernel[4:8, 1] = 0.0
+        results = []
+        for to_numpy in (True, False):
+            outputs = quantizers.abs_max_quantize_grouped_with_zero_point(
+                kernel,
+                block_size=4,
+                value_range=value_range,
+                to_numpy=to_numpy,
+            )
+            results.append([ops.convert_to_numpy(t) for t in outputs])
+        for numpy_result, tensor_result in zip(*results):
+            self.assertAllClose(numpy_result, tensor_result)
+        codes, _, zero = results[0]
+        low, high = value_range
+        self.assertTrue(low <= codes.min() and codes.max() <= high)
+        self.assertTrue(low <= zero.min() and zero.max() <= high)
+
 
 class Int4QuantizationConfigTest(testing.TestCase):
     def test_default_block_size(self):
@@ -1100,17 +1140,6 @@ class ComputeScaleZeroTest(testing.TestCase):
         x = ops.array([1.0, 2.0], "float32")  # rank-1
         with self.assertRaisesRegex(ValueError, "rank of at least 2"):
             compute_quantization_parameters(x, bits=4)
-
-    def test_signed_asymmetric_range_includes_zero(self):
-        # A row whose values are all one sign gets a range widened to
-        # include zero, like the unsigned path, so the zero point is
-        # representable and the code grid holds an exact zero.
-        x = ops.array([[0.5, 1.0, 1.5], [-1.5, -1.0, -0.5]], "float32")
-        scale, zero, _ = compute_quantization_parameters(
-            x, bits=4, symmetric=False, per_channel=True, signed=True
-        )
-        self.assertAllClose(scale, [[1.5 / 15], [1.5 / 15]])
-        self.assertAllClose(zero, [[-8], [7]])
 
     @parameterized.named_parameters(
         ("bits2_asym", 2, False),
