@@ -8,7 +8,6 @@ from keras.src import regularizers
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.layers.layer import Layer
-from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.geometry import LookupGeometry
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.saving import serialization_lib
@@ -162,11 +161,6 @@ class Embedding(Layer):
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
-
-    def _strategy_owns_weight_storage(self):
-        """Whether the quantization strategy creates the table itself."""
-        strategy = strategy_registry.get_strategy(self.quantization_mode)
-        return strategy is not None and strategy.owns_weight_storage
 
     @property
     def embeddings(self):
