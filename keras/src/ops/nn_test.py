@@ -1842,7 +1842,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         strides=(1, 2, 3),
         padding=("valid", "same"),
         dilation_rate=(1, 2),
-        data_format=("channels_first", "channels_last")
+        data_format=("channels_first", "channels_last"),
     )
     def test_conv_1d(self, strides, padding, dilation_rate, data_format):
         if data_format == "channels_last":
@@ -1875,7 +1875,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
     @parameterized.product(
         strides=(1, 2, (1, 2)),
         padding=("valid", "same"),
-        data_format=("channels_last", "channels_first")
+        data_format=("channels_last", "channels_first"),
     )
     def test_conv_2d(self, strides, padding, data_format):
         if data_format == "channels_last":
@@ -1886,11 +1886,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         kernel = np.arange(24, dtype=float).reshape([2, 2, 3, 2])
 
         outputs = knn.conv(
-            inputs_2d,
-            kernel,
-            strides,
-            padding=padding,
-            data_format=data_format
+            inputs_2d, kernel, strides, padding=padding, data_format=data_format
         )
         expected = np_conv2d(
             inputs_2d,
