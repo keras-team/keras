@@ -26,21 +26,48 @@ class TFExportArchive(SavedModelExportArchive):
         return decorated_fn
 
     def _filter_and_track_resources(self):
-        # Under the TensorFlow backend, endpoint functions
-        # capture the underlying
-        # TensorFlow variables used by the Keras Variable
-        # wrappers registered by
-        # `track()`. These captured variables must be
-        # tracked directly so that
-        # TensorFlow recognizes them as tracked resources during
+        # Under the TensorFlow backend, endpoint functions capture the
+        # `tf.Variable` objects associated with Keras `Variable` wrappers
+        # registered through `track()`. These captured variables must be
+        # tracked directly TensorFlow recognizes them as trackable during
         # SavedModel export.
-        # Replacing the variable collections with the
-        # endpoint-captured variables
-        # avoids creating a second Trackable path through `_all_variables`,
-        # which previously caused each variable to be serialized twice.
+        #
+        # Compare the captured TensorFlow variables with the underlying `_value`
+        # of the originally tracked Keras variables to avoid adding the
+        # same resource through two Trackable paths. Variables
+        # that were explicitly tracked but
+        # are not captured by any endpoint are preserved.
+        #
+        # `_all_variables` is updated from the final deduplicated collections
+        # so that the same variables are not serialized twice while
+        # remaining available for downstream consumers such as LiteRT.
         fns = [self._get_concrete_fn(name) for name in self._endpoint_names]
         tvs, ntvs = _list_variables_used_by_fns(fns)
-        self._tf_trackable.trainable_variables = list(tvs)
-        self._tf_trackable.non_trainable_variables = list(ntvs)
-        self._tf_trackable.variables = list(tvs + ntvs)
+
+        captured_ids = {id(v) for v in tvs + ntvs}
+
+        original_trainable = list(self._tf_trackable.trainable_variables)
+        original_non_trainable = list(
+            self._tf_trackable.non_trainable_variables
+        )
+        extra_trainable = [
+            v
+            for v in original_trainable
+            if id(getattr(v, "_value", v)) not in captured_ids
+        ]
+        extra_non_trainable = [
+            v
+            for v in original_non_trainable
+            if id(getattr(v, "_value", v)) not in captured_ids
+        ]
+        self._tf_trackable.trainable_variables = list(tvs) + extra_trainable
+        self._tf_trackable.non_trainable_variables = (
+            list(ntvs) + extra_non_trainable
+        )
+        self._tf_trackable.variables = (
+            self._tf_trackable.trainable_variables
+            + self._tf_trackable.non_trainable_variables
+        )
+        self._tf_trackable._all_variables = self._tf_trackable.variables
+
         self._track_lookup_tables_and_misc_assets()
