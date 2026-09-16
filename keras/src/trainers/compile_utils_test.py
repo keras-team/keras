@@ -690,7 +690,7 @@ class TestCompileLoss(testing.TestCase):
         )
         compile_loss.build(y_true, y_pred)
         value = compile_loss(y_true, y_pred)
-        self.assertAllClose(value, 4)
+        self.assertAllClose(value, np.full((2,), 4.0))
 
         # Metrics still report unweighted loss.
         a_loss_mean, b_loss_mean = compile_loss.metrics

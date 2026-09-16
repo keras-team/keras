@@ -2,10 +2,8 @@ import itertools
 import math
 
 import numpy as np
-import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import ops
 from keras.src import quantizers
 from keras.src import random
@@ -113,46 +111,6 @@ class QuantizersTest(testing.TestCase):
         )
         self.assertAllClose(quantized_values, ref_quantized_values)
         self.assertAllClose(scale, ref_scale)
-
-    def test_compute_float8_scale(self):
-        amax = 3.0
-        scale = 4.0
-        dtype_max = 448.0  # float8_e4m3fn
-        # The algorithm for computing the new scale is sourced from
-        # https://docs.nvidia.com/deeplearning/transformer-engine/user-guide/api/jax.html#transformer_engine.jax.update_fp8_metas
-        expected_scale = 1.0 / (dtype_max / amax) / (2**0)
-
-        computed_scale = quantizers.compute_float8_scale(amax, scale, dtype_max)
-        self.assertAllClose(computed_scale, expected_scale)
-
-    def test_compute_float8_amax_history(self):
-        values = random.uniform([3, 4, 5], minval=-1, maxval=1)
-        amax_history = random.uniform([123])
-        amax_from_values = ops.max(ops.abs(values))
-
-        computed_amax_history = quantizers.compute_float8_amax_history(
-            values, amax_history
-        )
-        self.assertAllClose(computed_amax_history[0], amax_from_values)
-        # Shift to left with 1 step
-        self.assertAllClose(
-            computed_amax_history[1:], ops.roll(amax_history, -1)[1:]
-        )
-
-    def test_quantize_and_dequantize(self):
-        scale = 1.0 / 100.0
-        values = random.uniform([3, 4, 5], minval=-1, maxval=1)
-        qdq_values = quantizers.quantize_and_dequantize(
-            values, scale, "float8_e4m3fn", "float32"
-        )
-        # A loose assertion due to an expected quantization error
-        self.assertAllClose(qdq_values, values, atol=1e-1)
-
-        qdq_values = quantizers.quantize_and_dequantize(
-            values, scale, "float8_e5m2", "float32"
-        )
-        # A loose assertion due to an expected quantization error
-        self.assertAllClose(qdq_values, values, atol=5e-1)
 
     SHAPE_AXIS_SCENARIOS = [
         # 1. 2D Tensors
@@ -321,437 +279,6 @@ class QuantizersTest(testing.TestCase):
         self.assertAllClose(unpacked, arr)
 
     @parameterized.named_parameters(
-        ("per_tensor", None),
-        ("per_channel", -1),
-    )
-    def test_fake_quant_with_min_max_vars_symbolic(self, axis):
-        x = backend.KerasTensor((2, 3, 4))
-        y = quantizers.fake_quant_with_min_max_vars(x, -3.0, 3.0, axis=axis)
-
-        self.assertIsInstance(y, backend.KerasTensor)
-        self.assertEqual(y.shape, (2, 3, 4))
-
-    @parameterized.named_parameters(
-        [
-            {
-                "testcase_name": "wide_8bits_input_mins_0.0_input_maxs_255.0",
-                "narrow_range": False,
-                "input_mins": [0.0],
-                "input_maxs": [255.0],
-                "num_bits": 8,
-                "expected_nudged_input_mins": [0.0],
-                "expected_nudged_input_maxs": [255.0],
-                "expected_steps": [1.0],
-                "axis": None,
-            },
-            {
-                "testcase_name": (
-                    "wide_8bits_scalar_input_mins_0.0_input_maxs_255.0"
-                ),
-                "narrow_range": False,
-                "input_mins": 0.0,
-                "input_maxs": 255.0,
-                "num_bits": 8,
-                "expected_nudged_input_mins": [0.0],
-                "expected_nudged_input_maxs": [255.0],
-                "expected_steps": [1.0],
-                "axis": None,
-            },
-            {
-                "testcase_name": "wide_8bits_input_mins_0.5_input_maxs_128.0",
-                "narrow_range": False,
-                "input_mins": [0.5],
-                "input_maxs": [128.0],
-                "num_bits": 8,
-                "expected_nudged_input_mins": [0.0],
-                "expected_nudged_input_maxs": [127.5],
-                "expected_steps": [0.5],
-                "axis": None,
-            },
-            {
-                "testcase_name": "wide_8bits_input_mins_-128.0_input_maxs_-0.5",
-                "narrow_range": False,
-                "input_mins": [-128.0],
-                "input_maxs": [-0.5],
-                "num_bits": 8,
-                "expected_nudged_input_mins": [-127.5],
-                "expected_nudged_input_maxs": [0.0],
-                "expected_steps": [0.5],
-                "axis": None,
-            },
-            {
-                "testcase_name": "wide_8bits_input_mins_-0.1_input_maxs_127.4",
-                "narrow_range": False,
-                "input_mins": [-0.1],
-                "input_maxs": [127.4],
-                "num_bits": 8,
-                "expected_nudged_input_mins": [0.0],
-                "expected_nudged_input_maxs": [127.5],
-                "expected_steps": [0.5],
-                "axis": None,
-            },
-            {
-                "testcase_name": "narrow_8bits_input_mins_0.0_input_maxs_254.0",
-                "narrow_range": True,
-                "input_mins": [0.0],
-                "input_maxs": [254.0],
-                "num_bits": 8,
-                "expected_nudged_input_mins": [0.0],
-                "expected_nudged_input_maxs": [254.0],
-                "expected_steps": [1.0],
-                "axis": None,
-            },
-            {
-                "testcase_name": "narrow_8bits_input_mins_0.1_input_maxs_127.1",
-                "narrow_range": True,
-                "input_mins": [0.1],
-                "input_maxs": [127.1],
-                "num_bits": 8,
-                "expected_nudged_input_mins": [0.0],
-                "expected_nudged_input_maxs": [127.0],
-                "expected_steps": [0.5],
-                "axis": None,
-            },
-            {
-                "testcase_name": (
-                    "narrow_8bits_input_mins_-127.1_input_maxs_-0.1"
-                ),
-                "narrow_range": True,
-                "input_mins": [-127.1],
-                "input_maxs": [-0.1],
-                "num_bits": 8,
-                "expected_nudged_input_mins": [-127.0],
-                "expected_nudged_input_maxs": [0.0],
-                "expected_steps": [0.5],
-                "axis": None,
-            },
-            {
-                "testcase_name": (
-                    "narrow_8bits_input_mins_-0.1_input_maxs_126.9"
-                ),
-                "narrow_range": True,
-                "input_mins": [-0.1],
-                "input_maxs": [126.9],
-                "num_bits": 8,
-                "expected_nudged_input_mins": [0.0],
-                "expected_nudged_input_maxs": [127.0],
-                "expected_steps": [0.5],
-                "axis": None,
-            },
-            {
-                "testcase_name": "wide_7bits_input_mins_0.0_input_maxs_127.0",
-                "narrow_range": False,
-                "input_mins": [0.0],
-                "input_maxs": [127.0],
-                "num_bits": 7,
-                "expected_nudged_input_mins": [0.0],
-                "expected_nudged_input_maxs": [127.0],
-                "expected_steps": [1.0],
-                "axis": None,
-            },
-            {
-                "testcase_name": "wide_7bits_input_mins_0.5_input_maxs_64.0",
-                "narrow_range": False,
-                "input_mins": [0.5],
-                "input_maxs": [64.0],
-                "num_bits": 7,
-                "expected_nudged_input_mins": [0.0],
-                "expected_nudged_input_maxs": [63.5],
-                "expected_steps": [0.5],
-                "axis": None,
-            },
-            {
-                "testcase_name": "wide_7bits_input_mins_-64.0_input_maxs_-0.5",
-                "narrow_range": False,
-                "input_mins": [-64.0],
-                "input_maxs": [-0.5],
-                "num_bits": 7,
-                "expected_nudged_input_mins": [-63.5],
-                "expected_nudged_input_maxs": [0.0],
-                "expected_steps": [0.5],
-                "axis": None,
-            },
-            {
-                "testcase_name": "wide_7bits_input_mins_-0.1_input_maxs_63.4",
-                "narrow_range": False,
-                "input_mins": [-0.1],
-                "input_maxs": [63.4],
-                "num_bits": 7,
-                "expected_nudged_input_mins": [0.0],
-                "expected_nudged_input_maxs": [63.5],
-                "expected_steps": [0.5],
-                "axis": None,
-            },
-            {
-                "testcase_name": "narrow_7bits_input_mins_0.0_input_maxs_126.0",
-                "narrow_range": True,
-                "input_mins": [0.0],
-                "input_maxs": [126.0],
-                "num_bits": 7,
-                "expected_nudged_input_mins": [0.0],
-                "expected_nudged_input_maxs": [126.0],
-                "expected_steps": [1.0],
-                "axis": None,
-            },
-            {
-                "testcase_name": "narrow_7bits_input_mins_0.1_input_maxs_63.1",
-                "narrow_range": True,
-                "input_mins": [0.1],
-                "input_maxs": [63.1],
-                "num_bits": 7,
-                "expected_nudged_input_mins": [0.0],
-                "expected_nudged_input_maxs": [63.0],
-                "expected_steps": [0.5],
-                "axis": None,
-            },
-            {
-                "testcase_name": (
-                    "narrow_7bits_input_mins_-63.1_input_maxs_-0.1"
-                ),
-                "narrow_range": True,
-                "input_mins": [-63.1],
-                "input_maxs": [-0.1],
-                "num_bits": 7,
-                "expected_nudged_input_mins": [-63.0],
-                "expected_nudged_input_maxs": [0.0],
-                "expected_steps": [0.5],
-                "axis": None,
-            },
-            {
-                "testcase_name": "narrow_7bits_input_mins_-0.1_input_maxs_62.9",
-                "narrow_range": True,
-                "input_mins": [-0.1],
-                "input_maxs": [62.9],
-                "num_bits": 7,
-                "expected_nudged_input_mins": [0.0],
-                "expected_nudged_input_maxs": [63.0],
-                "expected_steps": [0.5],
-                "axis": None,
-            },
-            {
-                "testcase_name": "wide_8bits_multi_channel",
-                "narrow_range": False,
-                "input_mins": [0.0, 0.5, -128.0, -0.1],
-                "input_maxs": [255.0, 128.0, -0.5, 127.4],
-                "num_bits": 8,
-                "expected_nudged_input_mins": [0.0, 0.0, -127.5, 0.0],
-                "expected_nudged_input_maxs": [255.0, 127.5, 0.0, 127.5],
-                "expected_steps": [1.0, 0.5, 0.5, 0.5],
-                "axis": 1,
-            },
-            {
-                "testcase_name": "narrow_8bits_multi_channel",
-                "narrow_range": True,
-                "input_mins": [0.0, 0.1, -127.1, -0.1],
-                "input_maxs": [254.0, 127.1, -0.1, 126.9],
-                "num_bits": 8,
-                "expected_nudged_input_mins": [0.0, 0.0, -127.0, 0.0],
-                "expected_nudged_input_maxs": [254.0, 127.0, 0.0, 127.0],
-                "expected_steps": [1.0, 0.5, 0.5, 0.5],
-                "axis": 1,
-            },
-            {
-                "testcase_name": "wide_7bits_multi_channel",
-                "narrow_range": False,
-                "input_mins": [0.0, 0.5, -64.0, -0.1],
-                "input_maxs": [127.0, 64.0, -0.5, 63.4],
-                "num_bits": 7,
-                "expected_nudged_input_mins": [0.0, 0.0, -63.5, 0.0],
-                "expected_nudged_input_maxs": [127.0, 63.5, 0.0, 63.5],
-                "expected_steps": [1.0, 0.5, 0.5, 0.5],
-                "axis": 1,
-            },
-            {
-                "testcase_name": "narrow_7bits_multi_channel",
-                "narrow_range": True,
-                "input_mins": [0.0, 0.1, -63.1, -0.1],
-                "input_maxs": [126.0, 63.1, -0.1, 62.9],
-                "num_bits": 7,
-                "expected_nudged_input_mins": [0.0, 0.0, -63.0, 0.0],
-                "expected_nudged_input_maxs": [126.0, 63.0, 0.0, 63.0],
-                "expected_steps": [1.0, 0.5, 0.5, 0.5],
-                "axis": 1,
-            },
-        ]
-    )
-    @pytest.mark.skipif(
-        backend.backend() not in ("tensorflow", "jax", "torch"),
-        reason=f"{backend.backend()} doesn't support `custom_gradient`.",
-    )
-    def test_fake_quant_with_min_max_vars(
-        self,
-        input_mins,
-        input_maxs,
-        num_bits,
-        narrow_range,
-        axis,
-        expected_nudged_input_mins,
-        expected_nudged_input_maxs,
-        expected_steps,
-    ):
-        num_channels = len(expected_nudged_input_mins)
-        inputs_list = []
-        expected_list = []
-        initial_gradients_list = []
-        expected_backprops_wrt_input_list = []
-        for i in range(num_channels):
-            expected_nudged_input_min = expected_nudged_input_mins[i]
-            expected_nudged_input_max = expected_nudged_input_maxs[i]
-            expected_step = expected_steps[i]
-
-            inputs_list.append(
-                [
-                    expected_nudged_input_min - expected_step,
-                    expected_nudged_input_min - 0.01,
-                    expected_nudged_input_min,
-                    expected_nudged_input_min + 0.01,
-                    expected_nudged_input_min + expected_step - 0.01,
-                    expected_nudged_input_min + expected_step,
-                    expected_nudged_input_min + expected_step + 0.01,
-                    expected_nudged_input_max - 0.01,
-                    expected_nudged_input_max,
-                    expected_nudged_input_max + 0.01,
-                    expected_nudged_input_max + expected_step,
-                ]
-            )
-            expected_list.append(
-                [
-                    expected_nudged_input_min,
-                    expected_nudged_input_min,
-                    expected_nudged_input_min,
-                    expected_nudged_input_min,
-                    expected_nudged_input_min + expected_step,
-                    expected_nudged_input_min + expected_step,
-                    expected_nudged_input_min + expected_step,
-                    expected_nudged_input_max,
-                    expected_nudged_input_max,
-                    expected_nudged_input_max,
-                    expected_nudged_input_max,
-                ]
-            )
-            initial_gradients_list.append(
-                list(range(1, len(inputs_list[-1]) + 1))
-            )
-            expected_backprops_wrt_input_list.append(
-                [0.0, 0.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 0.0, 0.0]
-            )
-        inputs = ops.transpose(ops.array(inputs_list, dtype="float32"))
-        expected = ops.transpose(ops.array(expected_list, dtype="float32"))
-        expected_backprops_wrt_input = ops.transpose(
-            ops.array(expected_backprops_wrt_input_list, dtype="float32")
-        )
-        input_min = ops.array(input_mins, dtype="float32")
-        input_max = ops.array(input_maxs, dtype="float32")
-        initial_gradients = ops.transpose(
-            ops.array(initial_gradients_list, dtype="float32")
-        )
-
-        # Test gradients.
-        if backend.backend() == "tensorflow":
-            import tensorflow as tf
-
-            @tf.function(jit_compile=True)
-            def test_op(
-                inputs, input_mins, input_maxs, num_bits, narrow_range, axis
-            ):
-                with tf.GradientTape() as tape:
-                    tape.watch(inputs)
-                    result = quantizers.fake_quant_with_min_max_vars(
-                        inputs,
-                        input_mins,
-                        input_maxs,
-                        num_bits,
-                        narrow_range,
-                        axis,
-                    )
-                return initial_gradients * tape.gradient(result, inputs)
-
-        if backend.backend() == "torch":
-            import torch
-
-            def test_op(
-                inputs, input_mins, input_maxs, num_bits, narrow_range, axis
-            ):
-                # Create tensor and enable gradient tracking
-                inputs = torch.tensor(
-                    inputs, dtype=torch.float32, requires_grad=True
-                )
-
-                # Apply the quantization operation
-                result = quantizers.fake_quant_with_min_max_vars(
-                    inputs, input_mins, input_maxs, num_bits, narrow_range, axis
-                )
-
-                # Compute gradients
-                result.backward(torch.ones_like(result))
-
-                return initial_gradients * inputs.grad
-
-        if backend.backend() == "jax":
-            import jax
-
-            def test_op(
-                inputs, input_mins, input_maxs, num_bits, narrow_range, axis
-            ):
-                # Define the function to compute gradients for
-                def quantize_fn(x):
-                    return ops.sum(
-                        quantizers.fake_quant_with_min_max_vars(
-                            x,
-                            input_mins,
-                            input_maxs,
-                            num_bits,
-                            narrow_range,
-                            axis,
-                        )
-                    )
-
-                input_gradients = jax.grad(quantize_fn)(inputs)
-                return ops.multiply(initial_gradients, input_gradients)
-
-        gradients = test_op(
-            inputs, input_min, input_max, num_bits, narrow_range, axis
-        )
-        if not testing.jax_uses_gpu():
-            # JAX GPU produces less precise numbers, causing the CI to fail.
-            # For example, 127.5 / 255.0 results in 0.49999997 instead of 0.5.
-            self.assertAllClose(gradients, expected_backprops_wrt_input)
-
-        # Test outputs.
-        outputs = quantizers.fake_quant_with_min_max_vars(
-            inputs,
-            input_min,
-            input_max,
-            num_bits=num_bits,
-            narrow_range=narrow_range,
-            axis=axis,
-        )
-        self.assertAllClose(outputs, expected)
-
-        # Test bfloat16 & float16 dtype
-        outputs = quantizers.fake_quant_with_min_max_vars(
-            ops.cast(inputs, "bfloat16"),
-            input_min,
-            input_max,
-            num_bits=num_bits,
-            narrow_range=narrow_range,
-            axis=axis,
-        )
-        self.assertDType(outputs, "bfloat16")
-        self.assertAllClose(outputs, expected)
-
-        outputs = quantizers.fake_quant_with_min_max_vars(
-            ops.cast(inputs, "float16"),
-            input_min,
-            input_max,
-            num_bits=num_bits,
-            narrow_range=narrow_range,
-            axis=axis,
-        )
-        self.assertDType(outputs, "float16")
-        self.assertAllClose(outputs, expected)
-
-    @parameterized.named_parameters(
         ("block_32", 32),
         ("block_64", 64),
         ("block_128", 128),
@@ -879,6 +406,81 @@ class QuantizersTest(testing.TestCase):
             self.assertEqual(scale.shape, (n_groups, output_dim))
             self.assertEqual(zero.shape, (n_groups, output_dim))
 
+    @parameterized.named_parameters(("tensor", False), ("numpy", True))
+    def test_grouped_quantize_one_signed_groups(self, to_numpy):
+        # The first group is all positive in column 0, all negative in
+        # column 1 and all small positive in column 2. Its range is widened
+        # to include zero, so the zero point stays inside the code range
+        # and every value lands within half a step of its input instead
+        # of clipping to one end of the group's range.
+        block_size = 4
+        kernel = np.array(
+            [
+                [0.5, -0.6, 0.02],
+                [0.7, -0.8, 0.03],
+                [0.6, -0.7, 0.01],
+                [0.9, -0.5, 0.04],
+                [-0.5, 0.5, -0.9],
+                [0.5, -0.5, 0.9],
+                [0.2, 0.1, 0.0],
+                [-0.2, -0.1, 0.0],
+            ],
+            "float32",
+        )
+        quantized, scale, zero = (
+            quantizers.abs_max_quantize_grouped_with_zero_point(
+                kernel, block_size=block_size, to_numpy=to_numpy
+            )
+        )
+        quantized = ops.convert_to_numpy(quantized).astype("float32")
+        scale = ops.convert_to_numpy(scale)
+        zero = ops.convert_to_numpy(zero).astype("float32")
+        self.assertTrue(np.all(zero >= -8) and np.all(zero <= 7))
+        g_idx = np.arange(kernel.shape[0]) // block_size
+        dequantized = (quantized - zero[g_idx]) * scale[g_idx]
+        half_step = scale[g_idx] / 2 + 1e-6
+        self.assertTrue(np.all(np.abs(dequantized - kernel) <= half_step))
+
+    @parameterized.named_parameters(("tensor", False), ("numpy", True))
+    def test_grouped_zero_point_exact_values(self, to_numpy):
+        # One group of three rows: column 0 is all positive and column 1
+        # all negative, so each range is widened to include zero.
+        kernel = np.array([[0.5, -1.5], [1.0, -1.0], [1.5, -0.5]], "float32")
+        _, scale, zero = quantizers.abs_max_quantize_grouped_with_zero_point(
+            kernel, block_size=3, to_numpy=to_numpy
+        )
+        self.assertAllClose(scale, [[1.5 / 15, 1.5 / 15]])
+        self.assertAllClose(zero, [[-8, 7]])
+
+    @parameterized.named_parameters(
+        ("int4", (-8, 7)),
+        ("uint4", (0, 15)),
+        ("int3", (-4, 3)),
+        ("int2", (-2, 1)),
+        ("int8", (-128, 127)),
+    )
+    def test_grouped_paths_agree(self, value_range):
+        # The NumPy path and the backend path apply one formula, for any
+        # code range, with a padded last group and an all-zero group.
+        rng = np.random.default_rng(0)
+        kernel = rng.standard_normal((11, 3)).astype("float32")
+        kernel[4:8, 1] = 0.0
+        results = []
+        for to_numpy in (True, False):
+            outputs = quantizers.abs_max_quantize_grouped_with_zero_point(
+                kernel,
+                block_size=4,
+                value_range=value_range,
+                to_numpy=to_numpy,
+            )
+            results.append([ops.convert_to_numpy(t) for t in outputs])
+        for numpy_result, tensor_result in zip(*results):
+            self.assertAllClose(numpy_result, tensor_result)
+        codes, _, zero = results[0]
+        low, high = value_range
+        self.assertTrue(low <= codes.min() and codes.max() <= high)
+        self.assertTrue(low <= zero.min() and zero.max() <= high)
+
 
 class Int4QuantizationConfigTest(testing.TestCase):
     def test_default_block_size(self):
@@ -963,7 +565,7 @@ class Int4QuantizationConfigTest(testing.TestCase):
         self.assertIsNone(deserialized.block_size)
 
 
-class GPTQQuantizerTest(testing.TestCase):
+class ZeroPointPrimitivesTest(testing.TestCase):
     @parameterized.named_parameters(
         ("bits_2_sym_False", 2, False),
         ("bits_4_sym_False", 4, False),

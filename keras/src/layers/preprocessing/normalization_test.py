@@ -73,8 +73,8 @@ class NormalizationTest(testing.TestCase):
         self.assertTrue(layer.built)
         output = layer(x)
         output = backend.convert_to_numpy(output)
-        self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
-        self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
+        self.assertAllClose(np.var(output, axis=0), np.ones((4,)), atol=1e-5)
+        self.assertAllClose(np.mean(output, axis=0), np.zeros((4,)), atol=1e-5)
 
         # Test in high-dim and with tuple axis.
         x = np.random.random((32, 4, 3, 5))
@@ -90,8 +90,12 @@ class NormalizationTest(testing.TestCase):
         self.assertTrue(layer.built)
         output = layer(x)
         output = backend.convert_to_numpy(output)
-        self.assertAllClose(np.var(output, axis=(0, 3)), 1.0, atol=1e-5)
-        self.assertAllClose(np.mean(output, axis=(0, 3)), 0.0, atol=1e-5)
+        self.assertAllClose(
+            np.var(output, axis=(0, 3)), np.ones((4, 3)), atol=1e-5
+        )
+        self.assertAllClose(
+            np.mean(output, axis=(0, 3)), np.zeros((4, 3)), atol=1e-5
+        )
 
     @pytest.mark.skipif(
         backend.backend() != "torch",
@@ -287,8 +291,8 @@ class NormalizationTest(testing.TestCase):
         self.assertTrue(layer.built)
         output = layer(x)
         output = backend.convert_to_numpy(output)
-        self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
-        self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
+        self.assertAllClose(np.var(output, axis=0), np.ones((4,)), atol=1e-5)
+        self.assertAllClose(np.mean(output, axis=0), np.zeros((4,)), atol=1e-5)
 
     def test_adapt_generator(self):
         x = np.random.random((32, 4)).astype("float32")
@@ -302,8 +306,8 @@ class NormalizationTest(testing.TestCase):
         self.assertTrue(layer.built)
         output = layer(x)
         output = backend.convert_to_numpy(output)
-        self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
-        self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
+        self.assertAllClose(np.var(output, axis=0), np.ones((4,)), atol=1e-5)
+        self.assertAllClose(np.mean(output, axis=0), np.zeros((4,)), atol=1e-5)
 
     def test_adapt_iterable_same_result_as_ndarray(self):
         x = np.random.random((64, 5)).astype("float32")
@@ -326,8 +330,8 @@ class NormalizationTest(testing.TestCase):
         self.assertTrue(layer.built)
         output = layer(x)
         output = backend.convert_to_numpy(output)
-        self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
-        self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
+        self.assertAllClose(np.var(output, axis=0), np.ones((3,)), atol=1e-5)
+        self.assertAllClose(np.mean(output, axis=0), np.zeros((3,)), atol=1e-5)
 
     def test_adapt_iterable_axis_none(self):
         x = np.random.random((20, 2, 3)).astype("float32")
@@ -382,8 +386,8 @@ class NormalizationTest(testing.TestCase):
         self.assertTrue(layer.built)
         output = layer(x)
         output = backend.convert_to_numpy(output)
-        self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
-        self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
+        self.assertAllClose(np.var(output, axis=0), np.ones((4,)), atol=1e-5)
+        self.assertAllClose(np.mean(output, axis=0), np.zeros((4,)), atol=1e-5)
 
     def test_adapt_iterable_high_dim_axis_tuple(self):
         x = np.random.random((32, 4, 3, 5)).astype("float32")
@@ -393,8 +397,12 @@ class NormalizationTest(testing.TestCase):
         self.assertTrue(layer.built)
         output = layer(x)
         output = backend.convert_to_numpy(output)
-        self.assertAllClose(np.var(output, axis=(0, 3)), 1.0, atol=1e-5)
-        self.assertAllClose(np.mean(output, axis=(0, 3)), 0.0, atol=1e-5)
+        self.assertAllClose(
+            np.var(output, axis=(0, 3)), np.ones((4, 3)), atol=1e-5
+        )
+        self.assertAllClose(
+            np.mean(output, axis=(0, 3)), np.zeros((4, 3)), atol=1e-5
+        )
 
     def test_adapt_iterator_of_batches(self):
         x = np.random.random((24, 3)).astype("float32")
@@ -404,8 +412,8 @@ class NormalizationTest(testing.TestCase):
         self.assertTrue(layer.built)
         output = layer(x)
         output = backend.convert_to_numpy(output)
-        self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
-        self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
+        self.assertAllClose(np.var(output, axis=0), np.ones((3,)), atol=1e-5)
+        self.assertAllClose(np.mean(output, axis=0), np.zeros((3,)), atol=1e-5)
 
     def test_adapt_grain_dataset(self):
         grain = pytest.importorskip("grain")
@@ -416,8 +424,8 @@ class NormalizationTest(testing.TestCase):
         self.assertTrue(layer.built)
         output = layer(x)
         output = backend.convert_to_numpy(output)
-        self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
-        self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
+        self.assertAllClose(np.var(output, axis=0), np.ones((3,)), atol=1e-5)
+        self.assertAllClose(np.mean(output, axis=0), np.zeros((3,)), atol=1e-5)
 
     def test_adapt_tf_dataset_with_labels(self):
         """Normalization.adapt should support supervised tf.data.Dataset."""
