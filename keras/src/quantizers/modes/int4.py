@@ -6,6 +6,8 @@ from keras.src.dtype_policies.dtype_policy import QuantizedDTypePolicy
 from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
 from keras.src.quantizers.modes.common import GeometryDispatchStrategy
 from keras.src.quantizers.modes.common import apply_bias_activation
+from keras.src.quantizers.packing import pack_int4
+from keras.src.quantizers.packing import unpack_int4
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
@@ -13,8 +15,6 @@ from keras.src.quantizers.quantizers import (
     abs_max_quantize_grouped_with_zero_point,
 )
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
-from keras.src.quantizers.quantizers import pack_int4
-from keras.src.quantizers.quantizers import unpack_int4
 
 
 def _is_per_channel(block_size):
