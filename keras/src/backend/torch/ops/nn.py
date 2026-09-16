@@ -1001,7 +1001,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
 def binary_crossentropy(target, output, from_logits=False):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
-    target = target.to(output.dtype)
+    target = cast(target, output.dtype)
 
     if target.shape != output.shape:
         raise ValueError(
