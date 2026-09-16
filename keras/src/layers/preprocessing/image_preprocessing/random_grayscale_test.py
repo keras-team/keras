@@ -53,6 +53,21 @@ class RandomGrayscaleTest(testing.TestCase):
                 r, g, b = img[0], img[1], img[2]
                 self.assertTrue(np.allclose(r, g) and np.allclose(g, b))
 
+    def test_seed_is_serialized(self):
+        layer = layers.RandomGrayscale(factor=0.5, seed=1337)
+        self.assertEqual(layer.get_config()["seed"], 1337)
+
+        # Without the seed in the config the restored layer grayscales a
+        # different subset of the batch.
+        images = np.random.random((8, 4, 4, 3)).astype("float32")
+        restored = layers.RandomGrayscale.from_config(layer.get_config())
+        self.assertAllClose(
+            layers.RandomGrayscale(factor=0.5, seed=1337)(
+                images, training=True
+            ),
+            restored(images, training=True),
+        )
+
     def test_invalid_factor(self):
         with self.assertRaises(ValueError):
             layers.RandomGrayscale(factor=-0.1)
