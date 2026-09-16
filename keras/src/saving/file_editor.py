@@ -79,6 +79,7 @@ class KerasFileEditor:
         with contextlib.ExitStack() as stack:
             if filepath.endswith(".keras"):
                 zf = stack.enter_context(zipfile.ZipFile(filepath, "r"))
+                saving_lib._reject_zip_archive_bomb(zf)
                 saving_lib._reject_zip_bomb(zf, saving_lib._VARS_FNAME_H5)
                 weights_store = H5IOStore(
                     saving_lib._VARS_FNAME_H5, archive=zf, mode="r"

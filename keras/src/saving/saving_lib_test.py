@@ -1744,6 +1744,119 @@ class SafeZipReadTest(testing.TestCase):
             with self.assertRaisesRegex(ValueError, "decompression bomb"):
                 saving_lib.load_model(evil)
 
+    def test_rejects_cumulative_archive_bomb_under_floor(self):
+        # Several members that each stay under the (real, 4 GiB) per-member
+        # floor but jointly declare far more than is stored on disk: the
+        # per-member guard passes each one, the cumulative guard rejects them.
+        path = os.path.join(self.get_temp_dir(), "a.zip")
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
+            for i in range(4):
+                zf.writestr(f"m{i}.json", b"A" * 100_000)
+        self.assertLess(os.path.getsize(path), 1 << 16)  # tiny file on disk
+        with mock.patch.object(
+            saving_lib, "_ZIP_CUMULATIVE_BOMB_FLOOR_BYTES", 250_000
+        ):
+            with zipfile.ZipFile(path, "r") as zf:
+                # The per-member guard (real 4 GiB floor) passes each member.
+                for i in range(4):
+                    saving_lib._reject_zip_bomb(zf, f"m{i}.json")
+                # The cumulative guard rejects the archive as a whole.
+                with self.assertRaisesRegex(ValueError, "decompression bomb"):
+                    saving_lib._reject_zip_archive_bomb(zf)
+
+    @parameterized.parameters("model", "weights", "editor")
+    def test_load_model_rejects_cumulative_bomb(self, consumer):
+        # End-to-end: a tiny `.keras` whose config.json declares well under the
+        # 4 GiB per-member floor (so `_reject_zip_bomb` passes) is still
+        # rejected by the cumulative guard before any member is read.
+        path = os.path.join(self.get_temp_dir(), "bomb.keras")
+        payload = b'{"x":"' + b" " * 400_000 + b'"}'
+        with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("metadata.json", b'{"keras_version":"3"}')
+            zf.writestr("config.json", payload)
+        self.assertLess(os.path.getsize(path), 1 << 16)  # tiny file on disk
+        model = keras.Sequential([keras.Input((4,)), keras.layers.Dense(3)])
+        with (
+            mock.patch.object(
+                saving_lib, "_ZIP_CUMULATIVE_BOMB_FLOOR_BYTES", 64
+            ),
+            mock.patch.object(
+                zipfile.ZipFile,
+                "open",
+                side_effect=AssertionError("Member read"),
+            ),
+        ):
+            with self.assertRaisesRegex(ValueError, "decompression bomb"):
+                if consumer == "model":
+                    saving_lib.load_model(path)
+                elif consumer == "weights":
+                    saving_lib.load_weights_only(model, path)
+                else:
+                    keras.saving.KerasFileEditor(path)
+
+    def test_archive_check_only_reads_directory_metadata(self):
+        path = self._zip_with_member("weights", os.urandom(100_000))
+        with zipfile.ZipFile(path) as archive:
+            with mock.patch.object(
+                archive, "open", side_effect=AssertionError("Member read")
+            ):
+                saving_lib._reject_zip_archive_bomb(archive)
+
+    def test_stored_weights_do_not_hide_compressed_assets(self):
+        path = os.path.join(self.get_temp_dir(), "padded.keras")
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr("model.weights.h5", b"A" * 100_000)
+            archive.writestr(
+                "assets/large.txt",
+                b"A" * 100_000,
+                compress_type=zipfile.ZIP_DEFLATED,
+            )
+        with (
+            zipfile.ZipFile(path) as archive,
+            mock.patch.object(
+                saving_lib, "_ZIP_CUMULATIVE_BOMB_FLOOR_BYTES", 64
+            ),
+        ):
+            infos = archive.infolist()
+            self.assertLess(
+                sum(info.file_size for info in infos),
+                100 * sum(info.compress_size for info in infos),
+            )
+            with self.assertRaisesRegex(ValueError, "decompression bomb"):
+                saving_lib._reject_zip_archive_bomb(archive)
+
+    @parameterized.parameters(True, False)
+    def test_load_model_requires_h5_weights(self, zipped):
+        model = keras.Sequential([keras.Input((4,)), keras.layers.Dense(3)])
+        config, metadata = saving_lib._serialize_model_as_json(model)
+        path = os.path.join(self.get_temp_dir(), "unsupported")
+        if zipped:
+            path += ".keras"
+            with zipfile.ZipFile(path, "w") as archive:
+                archive.writestr("config.json", config)
+                archive.writestr("metadata.json", metadata)
+                archive.writestr("model.weights.npz", b"")
+        else:
+            os.makedirs(path)
+            with open(os.path.join(path, "config.json"), "w") as f:
+                f.write(config)
+            with open(os.path.join(path, "model.weights.npz"), "wb"):
+                pass
+        with self.assertRaisesRegex(ValueError, "Expected a model.weights.h5"):
+            saving_lib.load_model(path)
+
+    def test_does_not_reject_genuine_keras(self):
+        # A genuine `.keras` (members stored ~uncompressed, ratio ~1) must pass
+        # both the direct cumulative guard and an end-to-end load.
+        model = keras.Sequential(
+            [keras.Input((16,)), keras.layers.Dense(64), keras.layers.Dense(8)]
+        )
+        path = os.path.join(self.get_temp_dir(), "good.keras")
+        model.save(path)
+        with zipfile.ZipFile(path, "r") as zf:
+            saving_lib._reject_zip_archive_bomb(zf)  # must not raise
+        keras.saving.load_model(path)  # must not raise
+
     def test_load_model_rejects_extraction_bomb(self):
         model = keras.Sequential([keras.Input((4,)), keras.layers.Dense(3)])
         good = os.path.join(self.get_temp_dir(), "good.keras")
@@ -1759,7 +1872,9 @@ class SafeZipReadTest(testing.TestCase):
             info.compress_type = zipfile.ZIP_DEFLATED
             zf.writestr(info, b"\x00" * 200_000)  # 4th member, deflated bomb
 
-        with mock.patch.object(saving_lib, "_ZIP_EXTRACT_BOMB_FLOOR_BYTES", 64):
+        with mock.patch.object(
+            saving_lib, "_ZIP_CUMULATIVE_BOMB_FLOOR_BYTES", 64
+        ):
             with self.assertRaisesRegex(ValueError, "decompression bomb"):
                 saving_lib.load_model(evil)
 
@@ -1890,36 +2005,3 @@ class SavingDiskIOStoreTest(testing.TestCase):
         for bad in ["../escape", "/abs", os.path.join("x", "..", "..", "y")]:
             with self.assertRaisesRegex(ValueError, "Invalid asset path"):
                 store._full_path(bad)
-
-
-class SavingNpzIOStoreTest(testing.TestCase):
-    def _write_npz_member(self, path, name, shape, descr="<f8", data=b""):
-        """Write an npz `name` member declaring `shape` but storing no `data`.
-
-        Used to craft a member whose `.npy` header declares a huge array while
-        almost nothing is stored on disk (a shape/decompression bomb).
-        """
-        header = BytesIO()
-        np.lib.format.write_array_header_1_0(
-            header,
-            {"descr": descr, "fortran_order": False, "shape": shape},
-        )
-        with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
-            zf.writestr(f"{name}.npy", header.getvalue() + data)
-
-    def test_npz_io_store_rejects_shape_bomb(self):
-        # Member declares an 8 PiB array but stores only its header.
-        temp_filepath = os.path.join(self.get_temp_dir(), "bomb.npz")
-        self._write_npz_member(temp_filepath, "w", shape=(2**50,))
-        store = saving_lib.NpzIOStore(temp_filepath, mode="r")
-        with self.assertRaisesRegex(
-            ValueError, r"Refusing to load npz weight 'w'"
-        ):
-            store.get("w")
-
-    def test_npz_io_store_loads_normal_array(self):
-        temp_filepath = os.path.join(self.get_temp_dir(), "store.npz")
-        a = np.arange(6, dtype="float32").reshape(2, 3)
-        np.savez(temp_filepath, w=a)
-        store = saving_lib.NpzIOStore(temp_filepath, mode="r")
-        self.assertAllClose(store.get("w"), a.tolist())
