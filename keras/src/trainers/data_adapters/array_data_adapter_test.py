@@ -11,10 +11,10 @@ from keras.src import backend
 from keras.src.distribution import distribution_lib as dist_lib
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import array_data_adapter
-from keras.src.trainers.data_adapters import data_adapter_test
+from keras.src.trainers.data_adapters import data_adapter_test_base
 
 
-class TestArrayDataAdapter(data_adapter_test.DataAdapterTest):
+class TestArrayDataAdapter(data_adapter_test_base.DataAdapterTest):
     def make_array(self, array_type, shape, dtype):
         x = np.array([[i] * shape[1] for i in range(shape[0])], dtype=dtype)
         if array_type == "np":
