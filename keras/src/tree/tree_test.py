@@ -2528,3 +2528,33 @@ class TreeTest(testing.TestCase):
                 (7, None, 9),
             ],
         )
+
+    @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
+    def test_traverse_torch_compile_fullgraph(self, t):
+        import torch
+
+        from keras.src.tree import torchtree_impl
+
+        if t is not torchtree_impl:
+            self.skipTest("Only applicable to torchtree implementation.")
+
+        x = [
+            torch.ones((2, 2)),
+            {"b": torch.zeros((2, 2)), "a": torch.ones((2, 2))},
+        ]
+
+        def fn(s):
+            return t.traverse(
+                lambda tensor: (
+                    tensor + 1 if isinstance(tensor, torch.Tensor) else None
+                ),
+                s,
+            )
+
+        compiled_fn = torch.compile(fn, fullgraph=True)
+        out = compiled_fn(x)
+        expected = fn(x)
+        self.assertAllClose(out[0], expected[0])
+        self.assertAllClose(out[1]["a"], expected[1]["a"])
+        self.assertAllClose(out[1]["b"], expected[1]["b"])
+        self.assertEqual(list(out[1].keys()), ["a", "b"])
