@@ -1028,7 +1028,14 @@ def binary_crossentropy(target, output, from_logits=False):
         )
     else:
         output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
-        return tnn.binary_cross_entropy(output, target, reduction="none")
+        # PyTorch's BCE rejects NaNs on CPU and returns a finite loss on MPS.
+        # Replace them for the native call, then restore them in the result.
+        nan_mask = torch.isnan(output)
+        valid_output = torch.where(nan_mask, 0.5, output)
+        loss = tnn.binary_cross_entropy(
+            valid_output, target, reduction="none"
+        )
+        return torch.where(nan_mask, output, loss)
 
 
 def moments(x, axes, keepdims=False, synchronized=False):
