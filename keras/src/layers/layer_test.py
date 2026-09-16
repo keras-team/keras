@@ -1,3 +1,4 @@
+import inspect
 import pickle
 from unittest import mock
 
@@ -2103,3 +2104,64 @@ class LayerTest(testing.TestCase):
             # `training=False`/`None` never update the running stats, so
             # they are still mean 0 / variance 1.
             self.assertAllClose(y, x / np.sqrt(1.0 + 1e-3), atol=1e-3)
+
+    @parameterized.named_parameters(
+        ("inputs", lambda self, inputs: None, ("inputs", {})),
+        (
+            "inputs_training_mask",
+            lambda self, inputs, training=None, mask=None: None,
+            ("inputs", {"training": None, "mask": None}),
+        ),
+        ("first_has_default", lambda self, x=None: None, ("x", {})),
+        ("no_parameters", lambda self: None, None),
+        ("two_required", lambda self, query, value, key=None: None, None),
+        ("var_positional", lambda self, *args: None, None),
+        ("var_keyword", lambda self, inputs, **kwargs: None, None),
+        ("keyword_only", lambda self, *, inputs=None: None, None),
+    )
+    def test_single_positional_call_defaults(self, call, expected):
+        layer = type("MyLayer", (layers.Layer,), {"call": call})()
+        self.assertEqual(layer._call_defaults, expected)
+
+    def test_call_spec_fast_path_matches_signature_bind(self):
+        from keras.src.layers.layer import CallSpec
+        from keras.src.layers.layer import _single_positional_call_defaults
+
+        class NoBindSignature(inspect.Signature):
+            def bind(self, *args, **kwargs):
+                raise AssertionError("`signature.bind` was called")
+
+        def call(inputs, training=None, mask=None):
+            pass
+
+        signature = inspect.signature(call)
+        no_bind = NoBindSignature(signature.parameters.values())
+        defaults = _single_positional_call_defaults(signature)
+        x, y = ops.ones((2, 3)), ops.zeros((2, 3))
+
+        for args, kwargs in (((x,), {}), (([x, y],), {}), ((x,), {"foo": 1})):
+            context_args = {"training", "foo"}
+            fast = CallSpec(no_bind, context_args, args, dict(kwargs), defaults)
+            slow = CallSpec(signature, context_args, args, dict(kwargs))
+            self.assertEqual(vars(fast), vars(slow))
+
+        for args, kwargs in (((x, y), {}), ((x,), {"mask": y}), ((), {})):
+            with self.assertRaisesRegex(AssertionError, "was called"):
+                CallSpec(no_bind, {"training"}, args, dict(kwargs), defaults)
+
+    def test_call_skips_signature_bind_for_single_input(self):
+        x = ops.ones((2, 3))
+        dense, relu = layers.Dense(4), layers.ReLU()
+        dense(x), relu(x)
+        original_bind, bind_calls = inspect.Signature.bind, []
+
+        def counting_bind(signature, *args, **kwargs):
+            bind_calls.append(args)
+            return original_bind(signature, *args, **kwargs)
+
+        with mock.patch.object(inspect.Signature, "bind", counting_bind):
+            dense(x)
+            relu(x, training=True)
+            self.assertEqual(len(bind_calls), 0)
+            dense(x, training=True)
+            self.assertEqual(len(bind_calls), 1)
