@@ -314,10 +314,6 @@ class ExportONNXTest(testing.TestCase):
             dynamic_type=["batch_only", "height_width"],
         )
     )
-    @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="Dynamic shapes are not supported with torch",
-    )
     def test_dynamic_shapes_export(self, model_type, dynamic_type):
         """Test ONNX export with various dynamic shape configurations.
 
@@ -327,14 +323,28 @@ class ExportONNXTest(testing.TestCase):
         """
 
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        channels_last = backend.image_data_format() == "channels_last"
 
-        # Define input shapes based on dynamic type
+        # Define input shapes based on dynamic type, ordered for the active
+        # image data format so the channel axis is always static. The torch CI
+        # runs with `channels_first`, where a dynamic spatial axis would
+        # otherwise land on the channel position and break `Conv2D.build`.
         if dynamic_type == "batch_only":
-            input_shape = (32, 32, 3)  # Only batch is dynamic (None)
-            test_shapes = [(1, 32, 32, 3), (2, 32, 32, 3), (4, 32, 32, 3)]
+            # Only batch is dynamic, spatial and channels fixed.
+            if channels_last:
+                input_shape = (32, 32, 3)
+                test_shapes = [(1, 32, 32, 3), (2, 32, 32, 3), (4, 32, 32, 3)]
+            else:
+                input_shape = (3, 32, 32)
+                test_shapes = [(1, 3, 32, 32), (2, 3, 32, 32), (4, 3, 32, 32)]
         elif dynamic_type == "height_width":
-            input_shape = (None, None, 3)  # Height and width are dynamic
-            test_shapes = [(1, 28, 28, 3), (1, 64, 64, 3), (1, 128, 96, 3)]
+            # Height and width are dynamic, channels fixed.
+            if channels_last:
+                input_shape = (None, None, 3)
+                test_shapes = [(1, 28, 28, 3), (1, 64, 64, 3), (1, 128, 96, 3)]
+            else:
+                input_shape = (3, None, None)
+                test_shapes = [(1, 3, 28, 28), (1, 3, 64, 64), (1, 3, 128, 96)]
 
         # Create model with appropriate layers for dynamic shapes
         layer_list = [
@@ -367,16 +377,19 @@ class ExportONNXTest(testing.TestCase):
 
         # Check that dynamic dimensions are preserved
         input_shape_onnx = input_info.shape
+        channel_axis = len(input_shape_onnx) - 1 if channels_last else 1
         if dynamic_type == "batch_only":
             # Batch should be dynamic, others static
             self.assertTrue(isinstance(input_shape_onnx[0], str))  # Dynamic
-            self.assertEqual(input_shape_onnx[1:], [32, 32, 3])  # Static
+            expected_static = [32, 32, 3] if channels_last else [3, 32, 32]
+            self.assertEqual(input_shape_onnx[1:], expected_static)  # Static
         elif dynamic_type == "height_width":
             # Batch, height, width should be dynamic, channels static
-            self.assertTrue(isinstance(input_shape_onnx[0], str))  # Dynamic
-            self.assertTrue(isinstance(input_shape_onnx[1], str))  # Dynamic
-            self.assertTrue(isinstance(input_shape_onnx[2], str))  # Dynamic
-            self.assertEqual(input_shape_onnx[3], 3)  # Static
+            for axis, dim in enumerate(input_shape_onnx):
+                if axis == channel_axis:
+                    self.assertEqual(dim, 3)  # Static
+                else:
+                    self.assertTrue(isinstance(dim, str))  # Dynamic
 
         # Test inference with different input shapes
         for test_shape in test_shapes:
@@ -389,26 +402,30 @@ class ExportONNXTest(testing.TestCase):
             self.assertEqual(result[0].shape[0], expected_batch_size)
             self.assertEqual(result[0].shape[1], 10)  # Number of classes
 
-    @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="Dynamic shapes are not supported with torch",
-    )
     def test_multi_input_dynamic_shapes(self):
         """Test ONNX export with multi-input model having dynamic shapes."""
 
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        channels_last = backend.image_data_format() == "channels_last"
 
-        # Create multi-input model with dynamic shapes
+        # Create multi-input model with dynamic shapes. The image input is
+        # ordered for the active data format so the dynamic spatial axes never
+        # collide with the static channel axis (torch CI runs channels_first).
         text_input = layers.Input(
             shape=(None, 64), name="text_input"
         )  # Variable sequence length
         image_input = layers.Input(
-            shape=(None, None, 3), name="image_input"
+            shape=(None, None, 3) if channels_last else (3, None, None),
+            name="image_input",
         )  # Variable image size
 
-        # Process text input
+        # Process text input. The text tensor is laid out (batch, steps,
+        # features) regardless of the image data format, so pin the pooling
+        # to `channels_last` to pool over the dynamic steps axis.
         text_features = layers.Dense(128, activation="relu")(text_input)
-        text_pooled = layers.GlobalAveragePooling1D()(text_features)
+        text_pooled = layers.GlobalAveragePooling1D(
+            data_format="channels_last"
+        )(text_features)
 
         # Process image input
         image_features = layers.Conv2D(32, 1, activation="relu")(
@@ -424,7 +441,9 @@ class ExportONNXTest(testing.TestCase):
 
         # Build model
         sample_text = np.random.normal(size=(1, 20, 64)).astype(np.float32)
-        sample_image = np.random.normal(size=(1, 32, 32, 3)).astype(np.float32)
+        sample_image = np.random.normal(
+            size=(1, 32, 32, 3) if channels_last else (1, 3, 32, 32)
+        ).astype(np.float32)
         model([sample_text, sample_image])
 
         # Export to ONNX
@@ -443,17 +462,25 @@ class ExportONNXTest(testing.TestCase):
         self.assertTrue(isinstance(text_shape[1], str))  # Dynamic
         self.assertEqual(text_shape[2], 64)  # Static
 
-        # Image input: [batch, height, width, channels] - batch, h, w dynamic
-        self.assertTrue(isinstance(image_shape[0], str))  # Dynamic
-        self.assertTrue(isinstance(image_shape[1], str))  # Dynamic
-        self.assertTrue(isinstance(image_shape[2], str))  # Dynamic
-        self.assertEqual(image_shape[3], 3)  # Static
+        # Image input: batch + spatial dynamic, channels static. The channel
+        # axis position depends on the active data format.
+        image_channel_axis = len(image_shape) - 1 if channels_last else 1
+        for axis, dim in enumerate(image_shape):
+            if axis == image_channel_axis:
+                self.assertEqual(dim, 3)  # Static
+            else:
+                self.assertTrue(isinstance(dim, str))  # Dynamic
 
         # Test inference with different input shapes
+        def image_shape_for(batch, height, width):
+            if channels_last:
+                return (batch, height, width, 3)
+            return (batch, 3, height, width)
+
         test_cases = [
-            ((1, 10, 64), (1, 28, 28, 3)),
-            ((2, 15, 64), (2, 64, 64, 3)),
-            ((1, 25, 64), (1, 48, 32, 3)),
+            ((1, 10, 64), image_shape_for(1, 28, 28)),
+            ((2, 15, 64), image_shape_for(2, 64, 64)),
+            ((1, 25, 64), image_shape_for(1, 48, 32)),
         ]
 
         for text_shape, image_shape in test_cases:
@@ -470,3 +497,92 @@ class ExportONNXTest(testing.TestCase):
             expected_batch_size = text_shape[0]
             self.assertEqual(result[0].shape[0], expected_batch_size)
             self.assertEqual(result[0].shape[1], 5)  # Number of classes
+
+    @pytest.mark.skipif(
+        backend.backend() != "torch",
+        reason="The dynamic recurrent guard is specific to the torch backend.",
+    )
+    def test_dynamic_sequence_recurrent_raises(self):
+        """A recurrent layer with a dynamic time axis must fail loudly.
+
+        TorchScript bakes the sequence length into the exported graph, so the
+        torch backend cannot honor a dynamic time dimension for recurrent
+        layers. Exporting one silently produced wrong outputs (LSTM/GRU) or a
+        runtime crash (SimpleRNN), so it now raises at export time instead.
+        """
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model = models.Sequential(
+            [layers.Input(shape=(None, 16)), layers.LSTM(8)]
+        )
+        model(np.zeros((1, 12, 16), dtype="float32"))
+        with self.assertRaisesRegex(ValueError, "dynamic time dimension"):
+            onnx.export_onnx(model, temp_filepath, verbose=False)
+
+    @pytest.mark.skipif(
+        backend.backend() != "torch",
+        reason="The dynamic recurrent guard is specific to the torch backend.",
+    )
+    def test_static_sequence_recurrent_dynamic_batch_exports(self):
+        """A recurrent model with a static time axis still exports.
+
+        Only the time dimension is constrained: a dynamic batch dimension is
+        fine because the sequence length stays fixed, so the guard must not
+        reject this case.
+        """
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model = models.Sequential(
+            [layers.Input(shape=(12, 16)), layers.LSTM(8)]
+        )
+        ref_input = np.random.normal(size=(2, 12, 16)).astype("float32")
+        ref_output = model(ref_input)
+
+        onnx.export_onnx(model, temp_filepath, verbose=False)
+        ort_session = onnxruntime.InferenceSession(temp_filepath)
+        # Batch dimension stays dynamic.
+        self.assertTrue(isinstance(ort_session.get_inputs()[0].shape[0], str))
+        ort_inputs = {
+            k.name: v for k, v in zip(ort_session.get_inputs(), [ref_input])
+        }
+        self.assertAllClose(
+            ort_session.run(None, ort_inputs)[0],
+            ref_output,
+            atol=1e-4,
+        )
+
+    @pytest.mark.skipif(
+        backend.backend() != "torch",
+        reason="The dynamic recurrent guard is specific to the torch backend.",
+    )
+    def test_static_recurrent_with_dynamic_nonrecurrent_input_exports(self):
+        """A static RNN alongside a dynamic non-recurrent input still exports.
+
+        The guard inspects each recurrent layer's own sequence shape, so a
+        dynamic axis that only feeds a non-recurrent branch (here a `Conv2D`
+        with dynamic spatial dims) must not trip it while the `LSTM` sequence
+        length is static.
+        """
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        channels_last = backend.image_data_format() == "channels_last"
+        seq_input = layers.Input(shape=(10, 16), name="seq_input")
+        image_input = layers.Input(
+            shape=(None, None, 3) if channels_last else (3, None, None),
+            name="image_input",
+        )
+        seq_features = layers.LSTM(8)(seq_input)
+        image_features = layers.GlobalAveragePooling2D()(
+            layers.Conv2D(8, 1)(image_input)
+        )
+        combined = layers.Concatenate()([seq_features, image_features])
+        output = layers.Dense(4)(combined)
+        model = models.Model(inputs=[seq_input, image_input], outputs=output)
+        sample_image = (
+            np.zeros((1, 8, 8, 3), dtype="float32")
+            if channels_last
+            else np.zeros((1, 3, 8, 8), dtype="float32")
+        )
+        model([np.zeros((1, 10, 16), dtype="float32"), sample_image])
+
+        # Must not raise despite the dynamic spatial dims on the image input.
+        onnx.export_onnx(model, temp_filepath, verbose=False)
+        ort_session = onnxruntime.InferenceSession(temp_filepath)
+        self.assertEqual(len(ort_session.get_inputs()), 2)

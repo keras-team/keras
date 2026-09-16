@@ -188,9 +188,15 @@ class RandomFlip(BaseImagePreprocessingLayer):
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
-        return self.transform_images(
-            segmentation_masks, transformation, training=training
-        )
+        # Flipping only reorders pixels, so run it directly on the masks
+        # without casting to a float `compute_dtype`. This preserves the
+        # original (typically integer) class-index dtype.
+        if training:
+            segmentation_masks = self.backend.convert_to_tensor(
+                segmentation_masks
+            )
+            return self._flip_inputs(segmentation_masks, transformation)
+        return segmentation_masks
 
     def _flip_inputs(self, inputs, transformation):
         if transformation is None:

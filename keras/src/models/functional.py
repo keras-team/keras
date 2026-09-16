@@ -24,6 +24,43 @@ from keras.src.saving import serialization_lib
 from keras.src.utils import tracking
 
 
+def _match_expected_structure(expected, provided):
+    """Map provided inputs onto the expected nested structure.
+
+    Entries are matched by path rather than by flattening order, so extra
+    dict keys cannot shift the alignment of the remaining inputs. Recursion
+    is delegated to the `tree` API so that every registered structure type
+    is handled, not just dicts, lists and tuples.
+
+    Extra entries in `provided` are dropped with a warning. Raises
+    `ValueError` if `provided` is missing anything `expected` requires.
+    """
+    err_msg = "The structure of `inputs` doesn't match the expected structure"
+    provided_by_path = dict(tree.flatten_with_path(provided))
+    expected_paths = [path for path, _ in tree.flatten_with_path(expected)]
+
+    def format_paths(paths):
+        return ", ".join(
+            "'" + ".".join(str(key) for key in path) + "'" for path in paths
+        )
+
+    missing = [path for path in expected_paths if path not in provided_by_path]
+    if missing:
+        raise ValueError(f"{err_msg}. Missing fields: {format_paths(missing)}.")
+    extra = [
+        path for path in provided_by_path if path not in set(expected_paths)
+    ]
+    if extra:
+        warnings.warn(
+            f"{err_msg}. Ignored fields: {format_paths(extra)}.",
+            UserWarning,
+            stacklevel=4,
+        )
+    return tree.pack_sequence_as(
+        expected, [provided_by_path[path] for path in expected_paths]
+    )
+
+
 class Functional(Function, Model):
     """A `Functional` model is a `Model` defined as a directed graph of layers.
 
@@ -171,7 +208,7 @@ class Functional(Function, Model):
             "Please use another name."
         )
 
-    def call(self, inputs, training=None, mask=None, **kwargs):
+    def call(self, inputs, training=None, mask=None):
         # Add support for training, masking
         inputs = self._standardize_inputs(inputs)
         if mask is None:
@@ -181,12 +218,7 @@ class Functional(Function, Model):
             for x, mask in zip(inputs, masks):
                 if mask is not None:
                     backend.set_keras_mask(x, mask)
-        outputs = self._run_through_graph(
-            inputs,
-            operation_fn=lambda op: operation_fn(
-                op, training=training, **kwargs
-            ),
-        )
+        outputs = self._run_through_graph(inputs)
         return unpack_singleton(outputs)
 
     def compute_output_spec(self, inputs, training=None, mask=None):
@@ -340,6 +372,8 @@ class Functional(Function, Model):
             and ops.is_tensor(inputs)
         ):
             inputs = [inputs]
+        elif isinstance(inputs, dict) and isinstance(self._inputs_struct, dict):
+            inputs = _match_expected_structure(self._inputs_struct, inputs)
         elif isinstance(inputs, dict) and not isinstance(
             self._inputs_struct, dict
         ):
@@ -361,6 +395,17 @@ class Functional(Function, Model):
                     raise_exception = True
             else:
                 raise_exception = True
+        else:
+            # Drop extra dict keys nested inside other structures, e.g.
+            # `[{"a": x, "extra": y}]`. Entries are matched by path so extra
+            # keys cannot misalign the remaining inputs. If the structures
+            # are not otherwise reconcilable, leave `inputs` untouched and
+            # let the existing mismatch handling report it, since it gives a
+            # more precise message than a generic structure error.
+            try:
+                inputs = _match_expected_structure(self._inputs_struct, inputs)
+            except ValueError:
+                pass
         if (
             isinstance(self._inputs_struct, dict)
             and not isinstance(inputs, dict)
@@ -426,6 +471,15 @@ class Functional(Function, Model):
                     for name in names
                 ]
             return None  # Deeply nested dict: skip checks.
+        struct = self._inputs_struct
+        if not isinstance(struct, (list, tuple)):
+            struct = [struct]
+        if not all(isinstance(x, backend.KerasTensor) for x in struct):
+            # Anything nested inside the sequence, e.g. `[{"a": ...}]` or
+            # `[[x, y], z]`. Flat specs cannot describe those, and comparing
+            # them against the flattened inputs would reject extra dict keys
+            # before `_standardize_inputs` gets a chance to drop them.
+            return None
         return [make_spec_for_tensor(x) for x in self.inputs]
 
     @input_spec.setter
@@ -690,23 +744,6 @@ def functional_from_config(cls, config, custom_objects=None):
         trainable=trainable,
         **config,
     )
-
-
-def operation_fn(operation, **call_context_args):
-    """Wraps each op to inject the call-context args."""
-
-    def call(*args, **kwargs):
-        # Propagate all registered call-context args
-        for name, value in call_context_args.items():
-            if (
-                name in getattr(operation, "_call_context_args", {})
-                and value is not None
-            ):
-                kwargs[name] = value
-
-        return operation(*args, **kwargs)
-
-    return call
 
 
 def functional_like_constructor(cls):

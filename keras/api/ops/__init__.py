@@ -40,6 +40,7 @@ from keras.src.ops.linalg import inv as inv
 from keras.src.ops.linalg import jvp as jvp
 from keras.src.ops.linalg import lstsq as lstsq
 from keras.src.ops.linalg import lu_factor as lu_factor
+from keras.src.ops.linalg import matrix_power as matrix_power
 from keras.src.ops.linalg import matrix_rank as matrix_rank
 from keras.src.ops.linalg import norm as norm
 from keras.src.ops.linalg import pinv as pinv
@@ -54,10 +55,12 @@ from keras.src.ops.math import erfinv as erfinv
 from keras.src.ops.math import extract_sequences as extract_sequences
 from keras.src.ops.math import fft as fft
 from keras.src.ops.math import fft2 as fft2
+from keras.src.ops.math import gammainc as gammainc
 from keras.src.ops.math import ifft2 as ifft2
 from keras.src.ops.math import in_top_k as in_top_k
 from keras.src.ops.math import irfft as irfft
 from keras.src.ops.math import istft as istft
+from keras.src.ops.math import lgamma as lgamma
 from keras.src.ops.math import logdet as logdet
 from keras.src.ops.math import logsumexp as logsumexp
 from keras.src.ops.math import rfft as rfft
@@ -168,15 +171,18 @@ from keras.src.ops.numpy import broadcast_to as broadcast_to
 from keras.src.ops.numpy import cbrt as cbrt
 from keras.src.ops.numpy import ceil as ceil
 from keras.src.ops.numpy import clip as clip
+from keras.src.ops.numpy import column_stack as column_stack
 from keras.src.ops.numpy import concatenate as concatenate
 from keras.src.ops.numpy import conj as conj
 from keras.src.ops.numpy import conjugate as conjugate
 from keras.src.ops.numpy import copy as copy
+from keras.src.ops.numpy import copysign as copysign
 from keras.src.ops.numpy import corrcoef as corrcoef
 from keras.src.ops.numpy import correlate as correlate
 from keras.src.ops.numpy import cos as cos
 from keras.src.ops.numpy import cosh as cosh
 from keras.src.ops.numpy import count_nonzero as count_nonzero
+from keras.src.ops.numpy import cov as cov
 from keras.src.ops.numpy import cross as cross
 from keras.src.ops.numpy import cumprod as cumprod
 from keras.src.ops.numpy import cumsum as cumsum
@@ -204,6 +210,7 @@ from keras.src.ops.numpy import fabs as fabs
 from keras.src.ops.numpy import flip as flip
 from keras.src.ops.numpy import fliplr as fliplr
 from keras.src.ops.numpy import flipud as flipud
+from keras.src.ops.numpy import float_power as float_power
 from keras.src.ops.numpy import floor as floor
 from keras.src.ops.numpy import floor_divide as floor_divide
 from keras.src.ops.numpy import fmax as fmax

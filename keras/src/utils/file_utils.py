@@ -314,14 +314,21 @@ def get_file(
 
     if not fname:
         fname = os.path.basename(urllib.parse.urlsplit(origin).path)
-        if not fname:
+        # `basename` strips separators, but a URL path ending in `/.` or `/..`
+        # (or, on Windows, in a drive letter) still yields a name that escapes
+        # `datadir` when joined to it.
+        if (
+            not fname
+            or fname in (os.curdir, os.pardir)
+            or os.path.splitdrive(fname)[0]
+        ):
             raise ValueError(
                 "Can't parse the file name from the origin provided: "
-                f"'{origin}'."
+                f"'{origin}'. "
                 "Please specify the `fname` argument."
             )
     else:
-        if os.sep in fname:
+        if os.sep in fname or (os.altsep and os.altsep in fname):
             raise ValueError(
                 "Paths are no longer accepted as the `fname` argument. "
                 "To specify the file's parent directory, use "

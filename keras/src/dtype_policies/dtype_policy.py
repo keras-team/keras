@@ -3,7 +3,134 @@ from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
 
-QUANTIZATION_MODES = ("int8", "float8", "int4", "gptq", "awq")
+QUANTIZATION_MODES = ("int8", "float8", "int4", "ternary", "gptq", "awq")
+
+
+def _strategy_registry():
+    """Returns the quantization mode registry, imported on first use.
+
+    The import must be deferred: `keras.src.quantizers` registers the
+    built-in modes on import, and those mode modules import the policy
+    classes defined below, so a module-level import here would be a cycle.
+    """
+    from keras.src.quantizers import strategy_registry
+
+    return strategy_registry
+
+
+def _parse_int4_mode(mode_str):
+    """Parses the `"int4/<block_size>"` grammar into policy parameters."""
+    parts = mode_str.split("/")
+    expected_format = "'int4/<block_size>'"
+
+    # Validate format
+    if len(parts) != 2 or parts[0] != "int4":
+        raise ValueError(
+            "Invalid mode for Int4DTypePolicy. Expected format "
+            f"{expected_format}, but got '{mode_str}'."
+        )
+
+    # Validate and cast block_size. Older checkpoints encoded per-channel
+    # int4 as the literal "None" in the policy string (e.g.
+    # "int4/None_from_float32"); normalize it to -1 so those checkpoints
+    # still deserialize. Both "None" and -1 mean per-channel quantization.
+    if parts[1] == "None":
+        block_size = -1
+    else:
+        try:
+            block_size = int(parts[1])
+        except ValueError:
+            raise ValueError(
+                "Invalid mode for Int4DTypePolicy. <block_size> must be "
+                "an integer. Expected format "
+                f"{expected_format}, but got '{mode_str}'."
+            )
+
+    # Validate supported values
+    if block_size < -1 or block_size == 0:
+        raise ValueError(
+            "Invalid block_size in mode. Supported values are "
+            "-1 (per-channel) or a positive integer (sub-channel), "
+            f"but got {block_size} from '{mode_str}'."
+        )
+    return {"block_size": block_size}
+
+
+def _parse_bits_and_group_mode(
+    mode_str, name, policy_name, validate_weight_bits, group_size_semantics
+):
+    """Parses the `"<name>/<weight_bits>/<group_size>"` grammar.
+
+    Shared by the two calibration policies, which differ only in the
+    bit-widths they accept and in how `group_size=-1` reads.
+    """
+    parts = mode_str.split("/")
+    expected_format = f"'{name}/<weight_bits>/<group_size>'"
+
+    # Validate format
+    if len(parts) != 3 or parts[0] != name:
+        raise ValueError(
+            f"Invalid mode for {policy_name}. Expected format "
+            f"{expected_format}, but got '{mode_str}'."
+        )
+
+    # Validate and cast weight_bits and group_size
+    try:
+        weight_bits = int(parts[1])
+        group_size = int(parts[2])
+    except ValueError:
+        raise ValueError(
+            f"Invalid mode for {policy_name}. <weight_bits> and "
+            "<group_size> must be integers. Expected format "
+            f"{expected_format}, but got '{mode_str}'."
+        )
+
+    validate_weight_bits(weight_bits, mode_str)
+
+    if group_size < -1 or group_size == 0:
+        raise ValueError(
+            "Invalid group_size in mode. Supported values are "
+            f"-1 ({group_size_semantics}) or a positive integer, "
+            f"but got {group_size} from '{mode_str}'."
+        )
+    return {"weight_bits": weight_bits, "group_size": group_size}
+
+
+def _validate_gptq_weight_bits(weight_bits, mode_str):
+    if weight_bits not in [2, 3, 4, 8]:
+        raise ValueError(
+            "Invalid weight_bits in mode. Supported values are "
+            f"2, 3, 4, and 8, but got {weight_bits} from '{mode_str}'."
+        )
+
+
+def _validate_awq_weight_bits(weight_bits, mode_str):
+    # AWQ presently only supports 4-bit quantization.
+    if weight_bits != 4:
+        raise ValueError(
+            "Invalid weight_bits in mode. AWQ only supports 4-bit "
+            f"quantization, but got {weight_bits} from '{mode_str}'."
+        )
+
+
+def _parse_gptq_mode(mode_str):
+    return _parse_bits_and_group_mode(
+        mode_str,
+        "gptq",
+        "GPTQDTypePolicy",
+        _validate_gptq_weight_bits,
+        "whole-tensor",
+    )
+
+
+def _parse_awq_mode(mode_str):
+    return _parse_bits_and_group_mode(
+        mode_str,
+        "awq",
+        "AWQDTypePolicy",
+        _validate_awq_weight_bits,
+        "per-channel",
+    )
 
 
 @keras_export(
@@ -243,10 +370,10 @@ class QuantizedDTypePolicy(DTypePolicy):
         }
 
     def _check_quantization_mode(self, mode, compute_dtype):
-        if mode not in QUANTIZATION_MODES:
+        if not _strategy_registry().is_registered(mode):
             raise ValueError(
                 "Invalid quantization mode. "
-                f"Expected one of {QUANTIZATION_MODES}. "
+                f"Expected one of {_strategy_registry().registered_modes()}. "
                 f"Received: mode={mode}"
             )
         if compute_dtype == "float16" and mode == "int8":
@@ -311,40 +438,18 @@ class Int4DTypePolicy(QuantizedDTypePolicy):
         mode,
         source_name=None,
     ):
-        parts = mode.split("/")
-        expected_format = "'int4/<block_size>'"
+        params = _parse_int4_mode(mode)
+        block_size = params["block_size"]
 
-        # Validate format
-        if len(parts) != 2 or parts[0] != "int4":
-            raise ValueError(
-                "Invalid mode for Int4DTypePolicy. Expected format "
-                f"{expected_format}, but got '{mode}'."
-            )
-
-        # Validate and cast block_size
-        try:
-            block_size = int(parts[1])
-        except ValueError:
-            raise ValueError(
-                "Invalid mode for Int4DTypePolicy. <block_size> must be an "
-                f"integer. Expected format {expected_format}, but got '{mode}'."
-            )
-
-        # Validate supported values
-        if block_size < -1 or block_size == 0:
-            raise ValueError(
-                "Invalid block_size in mode. Supported values are "
-                "-1 (per-channel) or a positive integer (sub-channel), "
-                f"but got {block_size} from '{mode}'."
-            )
-
-        base_mode = parts[0]
+        base_mode = "int4"
         super().__init__(
             mode=base_mode,
             source_name=source_name,
         )
 
-        self._name = f"{mode}_from_{source_name}"
+        # Use the normalized block_size so a loaded "int4/None" policy reports
+        # the canonical "int4/-1" name (identical for all other block sizes).
+        self._name = f"{base_mode}/{block_size}_from_{self._source_name}"
         self.mode = base_mode
         self.block_size = block_size
 
@@ -387,42 +492,9 @@ class GPTQDTypePolicy(QuantizedDTypePolicy):
         mode,
         source_name=None,
     ):
-        parts = mode.split("/")
-        expected_format = "'gptq/<weight_bits>/<group_size>'"
+        params = _parse_gptq_mode(mode)
 
-        # Validate format
-        if len(parts) != 3 or parts[0] != "gptq":
-            raise ValueError(
-                "Invalid mode for GPTQDTypePolicy. Expected format "
-                f"{expected_format}, but got '{mode}'."
-            )
-
-        # Validate and cast weight_bits and group_size
-        try:
-            weight_bits = int(parts[1])
-            group_size = int(parts[2])
-        except ValueError:
-            raise ValueError(
-                "Invalid mode for GPTQDTypePolicy. <weight_bits> and "
-                "<group_size> must be integers. Expected format "
-                f"{expected_format}, but got '{mode}'."
-            )
-
-        # Validate supported values
-        if weight_bits not in [2, 3, 4, 8]:
-            raise ValueError(
-                "Invalid weight_bits in mode. Supported values are "
-                f"2, 3, 4, and 8, but got {weight_bits} from '{mode}'."
-            )
-
-        if group_size < -1 or group_size == 0:
-            raise ValueError(
-                "Invalid group_size in mode. Supported values are "
-                "-1 (whole-tensor) or a positive integer, "
-                f"but got {group_size} from '{mode}'."
-            )
-
-        base_mode = parts[0]
+        base_mode = "gptq"
         super().__init__(
             mode=base_mode,
             source_name=source_name,
@@ -430,8 +502,8 @@ class GPTQDTypePolicy(QuantizedDTypePolicy):
 
         self._name = f"{mode}_from_{source_name}"
         self.mode = base_mode
-        self.weight_bits = weight_bits
-        self.group_size = group_size
+        self.weight_bits = params["weight_bits"]
+        self.group_size = params["group_size"]
 
     def __eq__(self, other):
         if super().__eq__(other) is False:
@@ -474,42 +546,9 @@ class AWQDTypePolicy(QuantizedDTypePolicy):
         mode,
         source_name=None,
     ):
-        parts = mode.split("/")
-        expected_format = "'awq/<weight_bits>/<group_size>'"
+        params = _parse_awq_mode(mode)
 
-        # Validate format.
-        if len(parts) != 3 or parts[0] != "awq":
-            raise ValueError(
-                "Invalid mode for AWQDTypePolicy. Expected format "
-                f"{expected_format}, but got '{mode}'."
-            )
-
-        # Validate and cast weight_bits and group_size.
-        try:
-            weight_bits = int(parts[1])
-            group_size = int(parts[2])
-        except ValueError:
-            raise ValueError(
-                "Invalid mode for AWQDTypePolicy. <weight_bits> and "
-                "<group_size> must be integers. Expected format "
-                f"{expected_format}, but got '{mode}'."
-            )
-
-        # AWQ presently only supports 4-bit quantization.
-        if weight_bits != 4:
-            raise ValueError(
-                "Invalid weight_bits in mode. AWQ only supports 4-bit "
-                f"quantization, but got {weight_bits} from '{mode}'."
-            )
-
-        if group_size < -1 or group_size == 0:
-            raise ValueError(
-                "Invalid group_size in mode. Supported values are "
-                "-1 (per-channel) or a positive integer, "
-                f"but got {group_size} from '{mode}'."
-            )
-
-        base_mode = parts[0]
+        base_mode = "awq"
         super().__init__(
             mode=base_mode,
             source_name=source_name,
@@ -517,8 +556,8 @@ class AWQDTypePolicy(QuantizedDTypePolicy):
 
         self._name = f"{mode}_from_{source_name}"
         self.mode = base_mode
-        self.weight_bits = weight_bits
-        self.group_size = group_size
+        self.weight_bits = params["weight_bits"]
+        self.group_size = params["group_size"]
 
     def __eq__(self, other):
         if super().__eq__(other) is False:
@@ -552,7 +591,7 @@ def set_dtype_policy(policy):
     """
     if not isinstance(policy, DTypePolicy):
         if isinstance(policy, str):
-            if policy.startswith(QUANTIZATION_MODES):
+            if _is_quantized_policy_string(policy):
                 policy = _get_quantized_dtype_policy_by_str(policy)
             else:
                 policy = DTypePolicy(policy)
@@ -583,10 +622,43 @@ def dtype_policy():
     return policy
 
 
+def _matches_quantized_mode(policy, name):
+    """Whether a policy string belongs to quantization mode `name`.
+
+    The built-in modes keep their historical loose matching (any string
+    that starts with the mode name routes to the quantized parser, with
+    its pinned error messages for malformed strings). An externally
+    registered mode matches only its actual policy grammar (the bare name,
+    `name` + "/params", or `name` + "_from_source"), so registering a mode
+    cannot capture ordinary dtype or mixed-precision policy strings that
+    merely share a prefix with its name (e.g. a mode named "mixed" must
+    not swallow "mixed_bfloat16").
+    """
+    if name in QUANTIZATION_MODES:
+        return policy.startswith(name)
+    return (
+        policy == name
+        or policy.startswith(name + "/")
+        or policy.startswith(name + "_from_")
+    )
+
+
+def _is_quantized_policy_string(policy):
+    """Whether a policy string belongs to a registered quantization mode."""
+    return any(
+        _matches_quantized_mode(policy, name)
+        for name in _strategy_registry().registered_modes()
+    )
+
+
 def _get_quantized_dtype_policy_by_str(policy):
     if not isinstance(policy, str):
         raise TypeError(f"`policy` must be a string. Received: policy={policy}")
-    if not policy.startswith(QUANTIZATION_MODES):
+    registry = _strategy_registry()
+    for name in registry.registered_modes():
+        if _matches_quantized_mode(policy, name):
+            break
+    else:
         raise ValueError(
             "`policy` is incompatible with the current supported quantization."
         )
@@ -598,19 +670,4 @@ def _get_quantized_dtype_policy_by_str(policy):
             f"Received: policy={policy}"
         )
     mode, source_name = split_name
-    if policy.startswith("int8"):
-        return QuantizedDTypePolicy(mode, source_name)
-    elif policy.startswith("int4"):
-        # Check if mode has block_size component (e.g., "int4/128")
-        if "/" in mode:
-            return Int4DTypePolicy(mode, source_name)
-        else:
-            return QuantizedDTypePolicy(mode, source_name)
-    elif policy.startswith("gptq"):
-        return GPTQDTypePolicy(mode, source_name)
-    elif policy.startswith("awq"):
-        return AWQDTypePolicy(mode, source_name)
-    elif policy.startswith("float8"):
-        return QuantizedFloat8DTypePolicy(mode, source_name)
-    else:
-        raise NotImplementedError
+    return registry.get_strategy(name).policy_from_string(mode, source_name)

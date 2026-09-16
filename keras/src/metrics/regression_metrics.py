@@ -522,12 +522,29 @@ class R2Score(reduction_metrics.Metric):
             )
         )
         self.count.assign(self.count + ops.sum(sample_weight, axis=0))
-        self.num_samples.assign(self.num_samples + ops.size(y_true))
+        # Count non-zero samples. We count a sample if it has a
+        # non-zero weight in at least one output. This avoids N x K inflation
+        # for multi-output regression and ensures num_samples is an integer.
+        is_nonzero = ops.not_equal(sample_weight, 0.0)
+        nonzero_per_sample = ops.any(is_nonzero, axis=-1)
+        num_samples_update = ops.sum(ops.cast(nonzero_per_sample, self.dtype))
+        self.num_samples.assign_add(num_samples_update)
 
     def result(self):
         mean = self.sum / self.count
         total = self.squared_sum - self.sum * mean
-        raw_scores = 1 - (self.total_mse / total)
+        # Branch on the state variables themselves (matching sklearn's
+        # `force_finite` check on its raw numerator/denominator) rather than
+        # on properties of the computed ratio: a NaN in total_mse can also
+        # come from unrelated numerical instability (e.g. exploding
+        # gradients), and checking isnan(raw_scores) can't tell that case
+        # apart from the deliberate 0/0 of a zero-variance perfect
+        # prediction. It would silently report a perfect score instead of
+        # surfacing the NaN.
+        safe_total = ops.where(ops.equal(total, 0.0), 1.0, total)
+        raw_scores = 1.0 - (self.total_mse / safe_total)
+        raw_scores = ops.where(ops.equal(total, 0.0), 0.0, raw_scores)
+        raw_scores = ops.where(ops.equal(self.total_mse, 0.0), 1.0, raw_scores)
         raw_scores = ops.where(ops.isinf(raw_scores), 0.0, raw_scores)
 
         if self.class_aggregation == "uniform_average":

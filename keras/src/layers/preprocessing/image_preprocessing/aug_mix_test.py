@@ -6,7 +6,7 @@ from keras.src import layers
 from keras.src import testing
 
 
-class RandAugmentTest(testing.TestCase):
+class AugMixTest(testing.TestCase):
     def test_layer(self):
         self.run_layer_test(
             layers.AugMix,

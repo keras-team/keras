@@ -343,6 +343,20 @@ class SequentialTest(testing.TestCase):
         self.assertEqual(model.input_shape, (None, 2))
         self.assertEqual(model.output_shape, (None, 4))
 
+    def test_training_arg(self):
+        class CustomLayer(layers.Layer):
+            def call(self, inputs, training=False):
+                return inputs * 0.0 if training else inputs
+
+        model = Sequential([CustomLayer()])
+        self.assertAllClose(model(np.ones((4, 20))), np.ones((4, 20)))
+        self.assertAllClose(
+            model(np.ones((4, 20)), training=False), np.ones((4, 20))
+        )
+        self.assertAllClose(
+            model(np.ones((4, 20)), training=True), np.zeros((4, 20))
+        )
+
     def test_pickleable(self):
         model = Sequential(name="seq")
         model.add(layers.Dense(4))

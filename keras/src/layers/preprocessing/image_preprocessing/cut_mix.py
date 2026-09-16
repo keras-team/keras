@@ -220,9 +220,23 @@ class CutMix(BaseImagePreprocessingLayer):
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
-        return self.transform_images(
-            segmentation_masks, transformation, training
-        )
+        # CutMix pastes a rectangular region from another sample. For masks
+        # this is an exact copy (no blending/interpolation), so keep the
+        # original class-index dtype instead of casting to `compute_dtype`.
+        if training and transformation is not None:
+            segmentation_masks = self.backend.convert_to_tensor(
+                segmentation_masks
+            )
+            permutation_order = transformation["permutation_order"]
+            batch_masks = transformation["batch_masks"]
+            segmentation_masks = self.backend.numpy.where(
+                batch_masks,
+                self.backend.numpy.take(
+                    segmentation_masks, permutation_order, axis=0
+                ),
+                segmentation_masks,
+            )
+        return segmentation_masks
 
     def compute_output_shape(self, input_shape):
         return input_shape

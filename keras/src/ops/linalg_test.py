@@ -85,6 +85,8 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         lu, p = linalg.lu_factor(x)
         self.assertEqual(lu.shape, (None, 2, 3))
         self.assertEqual(p.shape, (None, 2))
+        # The pivots are indices, so they are integers, not floats.
+        self.assertEqual(p.dtype, "int32")
 
     def test_matrix_rank(self):
         x = KerasTensor([None, 4, 5])
@@ -97,6 +99,25 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor([None])
         with self.assertRaises(ValueError):
             linalg.matrix_rank(x)
+
+    def test_matrix_power(self):
+        x = KerasTensor([None, 20, 20])
+        out = linalg.matrix_power(x, 3)
+        self.assertEqual(out.shape, (None, 20, 20))
+
+        out = linalg.matrix_power(x, 0)
+        self.assertEqual(out.shape, (None, 20, 20))
+
+        out = linalg.matrix_power(x, -2)
+        self.assertEqual(out.shape, (None, 20, 20))
+
+        x = KerasTensor([None, None, 20])
+        with self.assertRaises(ValueError):
+            linalg.matrix_power(x, 3)
+
+        x = KerasTensor([None, 20, 15])
+        with self.assertRaises(ValueError):
+            linalg.matrix_power(x, 3)
 
     def test_norm(self):
         x = KerasTensor((None, 3))
@@ -286,6 +307,8 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
         lu, p = linalg.lu_factor(x)
         self.assertEqual(lu.shape, (10, 2, 3))
         self.assertEqual(p.shape, (10, 2))
+        # The pivots are indices, so they are integers, not floats.
+        self.assertEqual(p.dtype, "int32")
 
     def test_matrix_rank(self):
         x = KerasTensor([4, 3, 5])
@@ -295,6 +318,15 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([10])
         with self.assertRaises(ValueError):
             linalg.matrix_rank(x)
+
+    def test_matrix_power(self):
+        x = KerasTensor([4, 3, 3])
+        out = linalg.matrix_power(x, 3)
+        self.assertEqual(out.shape, (4, 3, 3))
+
+        x = KerasTensor([10, 20, 15])
+        with self.assertRaises(ValueError):
+            linalg.matrix_power(x, 3)
 
     def test_norm(self):
         x = KerasTensor((10, 3))
@@ -509,6 +541,14 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         x_reconstructed = _reconstruct(lu, pivots, m, n)
         self.assertAllClose(x_reconstructed, x, atol=1e-5)
 
+        # The symbolic pivots dtype must match the eager one.
+        _, symbolic_pivots = linalg.LuFactor().symbolic_call(
+            KerasTensor((m, n), dtype="float32")
+        )
+        self.assertEqual(
+            backend.standardize_dtype(pivots.dtype), symbolic_pivots.dtype
+        )
+
         m, n = 4, 3
         x = np.random.rand(m, n)
         if backend.backend() == "tensorflow":
@@ -696,6 +736,58 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         # Symbolic shape propagation.
         a_symb = backend.KerasTensor((4, 3, 5), dtype="float32")
         self.assertEqual(linalg.matrix_rank(a_symb).shape, (4,))
+
+    def test_matrix_power(self):
+        # Seeded: the negative-power case inverts the input, so its accuracy
+        # depends on how well conditioned the drawn matrix is.
+        rng = np.random.default_rng(0)
+        x = rng.random((4, 3, 3)).astype("float32")
+        # Positive power
+        out = linalg.matrix_power(x, 3)
+        expected = np.linalg.matrix_power(x, 3)
+        self.assertAllClose(
+            out, expected, atol=1e-6, tpu_atol=1e-2, tpu_rtol=1e-2
+        )
+
+        # Zero power
+        out = linalg.matrix_power(x, 0)
+        expected = np.linalg.matrix_power(x, 0)
+        self.assertAllClose(
+            out, expected, atol=1e-6, tpu_atol=1e-2, tpu_rtol=1e-2
+        )
+
+        # Zero power (2D)
+        x_2d = rng.random((3, 3)).astype("float32")
+        out = linalg.matrix_power(x_2d, 0)
+        expected = np.linalg.matrix_power(x_2d, 0)
+        self.assertAllClose(
+            out, expected, atol=1e-6, tpu_atol=1e-2, tpu_rtol=1e-2
+        )
+
+        # Negative power. The `3 *` keeps the matrix well conditioned so the
+        # float32 inverse stays within `atol`.
+        x_inv_stable = (x + 3 * np.eye(3)).astype("float32")
+        out = linalg.matrix_power(x_inv_stable, -2)
+        expected = np.linalg.matrix_power(x_inv_stable, -2)
+        self.assertAllClose(
+            out, expected, atol=1e-6, tpu_atol=1e-2, tpu_rtol=1e-2
+        )
+
+        # Power 1
+        out = linalg.matrix_power(x, 1)
+        self.assertAllClose(out, x, atol=1e-6, tpu_atol=1e-2, tpu_rtol=1e-2)
+
+        # Error cases
+        with self.assertRaises(TypeError):
+            linalg.matrix_power(x, 3.5)
+
+        with self.assertRaises(ValueError):
+            # Non-square
+            linalg.matrix_power(rng.random((4, 3, 2)), 2)
+
+        with self.assertRaises(ValueError):
+            # Rank < 2
+            linalg.matrix_power(rng.random((4,)), 2)
 
     @parameterized.named_parameters(
         ("tall_default_rcond", (7, 4), None),

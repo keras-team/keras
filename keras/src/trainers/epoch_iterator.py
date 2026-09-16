@@ -160,8 +160,11 @@ class EpochIterator:
             yield
         except StopIteration:
             if self._num_batches is None:
+                # Running out of data is how an unknown epoch size gets
+                # discovered, not an interruption.
                 self._num_batches = self._steps_seen
-            self._interrupted_warning()
+            if self.steps_per_epoch:
+                self._interrupted_warning()
             self._current_iterator = None
             self.data_adapter.on_epoch_end()
 

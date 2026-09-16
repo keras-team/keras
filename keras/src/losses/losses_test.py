@@ -1,4 +1,5 @@
 import re
+import warnings
 
 import numpy as np
 import pytest
@@ -534,7 +535,10 @@ class CosineSimilarityTest(testing.TestCase):
         self.assertEqual(cosine_obj.name, "cosine_loss")
         self.assertEqual(cosine_obj.reduction, "sum")
         config = cosine_obj.get_config()
-        self.assertEqual(config, {"name": "cosine_loss", "reduction": "sum"})
+        self.assertEqual(
+            config, {"name": "cosine_loss", "reduction": "sum", "axis": 2}
+        )
+        self.run_class_serialization_test(cosine_obj)
 
     def test_unweighted(self):
         self.setup()
@@ -622,11 +626,14 @@ class HuberLossTest(testing.TestCase):
         self.y_true = self.np_y_true
 
     def test_config(self):
-        h_obj = losses.Huber(reduction="sum", name="huber")
+        h_obj = losses.Huber(delta=2.0, reduction="sum", name="huber")
         self.assertEqual(h_obj.name, "huber")
         self.assertEqual(h_obj.reduction, "sum")
         config = h_obj.get_config()
-        self.assertEqual(config, {"name": "huber", "reduction": "sum"})
+        self.assertEqual(
+            config, {"name": "huber", "reduction": "sum", "delta": 2.0}
+        )
+        self.run_class_serialization_test(h_obj)
 
     def test_all_correct(self):
         self.setup()
@@ -701,6 +708,16 @@ class HuberLossTest(testing.TestCase):
             sample_weight * np.sum(self.expected_losses) / self.batch_size
         )
         self.assertAlmostEqual(loss, actual_loss, 3)
+
+    def test_invalid_delta(self):
+        with self.assertRaisesRegex(ValueError, "greater than 0"):
+            losses.Huber(delta=0)
+        with self.assertRaisesRegex(ValueError, "greater than 0"):
+            losses.Huber(delta=-1.0)
+        with self.assertRaisesRegex(ValueError, "Expected a float"):
+            losses.Huber(delta=1)
+        with self.assertRaisesRegex(ValueError, "Expected a float"):
+            losses.Huber(delta=np.float32(1.0))
 
     def test_dtype_arg(self):
         self.setup()
@@ -1159,6 +1176,37 @@ class CategoricalCrossentropyTest(testing.TestCase):
         loss = cce_obj(y_true, logits, sample_weight=2.3)
         self.assertAlmostEqual(loss, 0.1317)
 
+    def test_warning_for_invalid_shape(self):
+        # 2D case: should warn
+        y_true = np.array([[1], [1]], dtype="float32")
+        y_pred = np.array([[0.5], [0.5]], dtype="float32")
+        with pytest.warns(
+            SyntaxWarning,
+            match=r"expected y_pred.shape to be \(batch_size, num_classes\)",
+        ):
+            losses.categorical_crossentropy(y_true, y_pred)
+
+        # 3D case: axis=1, classes=1, should warn
+        y_true = np.ones((2, 1, 4), dtype="float32")
+        y_pred = np.ones((2, 1, 4), dtype="float32")
+        with pytest.warns(
+            SyntaxWarning,
+            match=r"expected y_pred.shape to be \(batch_size, num_classes\)",
+        ):
+            losses.categorical_crossentropy(y_true, y_pred, axis=1)
+
+        # 3D case: axis=1, classes=4, should NOT warn
+        y_true = np.ones((2, 4, 1), dtype="float32")
+        y_pred = np.ones((2, 4, 1), dtype="float32")
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            losses.categorical_crossentropy(y_true, y_pred, axis=1)
+            # Check if any SyntaxWarning was issued
+            syntax_warnings = [
+                warn for warn in w if issubclass(warn.category, SyntaxWarning)
+            ]
+            self.assertEqual(len(syntax_warnings), 0)
+
     def test_sample_weighted(self):
         cce_obj = losses.CategoricalCrossentropy()
         y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
@@ -1207,6 +1255,35 @@ class CategoricalCrossentropyTest(testing.TestCase):
         expected_value = 400.0 * label_smoothing / 3.0
         self.assertAlmostEqual(loss, expected_value)
 
+    def test_label_smoothing_with_axis(self):
+        # (batch, classes, spatial)
+        num_classes = 3
+        y_true = np.array(
+            [[[1, 0], [0, 1], [0, 0]], [[0, 1], [1, 0], [0, 0]]],
+            dtype="float32",
+        )
+        y_pred = np.array(
+            [
+                [[0.8, 0.1], [0.1, 0.8], [0.1, 0.1]],
+                [[0.1, 0.8], [0.8, 0.1], [0.1, 0.1]],
+            ],
+            dtype="float32",
+        )
+        label_smoothing = 0.1
+        axis = 1
+        cce_obj = losses.CategoricalCrossentropy(
+            label_smoothing=label_smoothing, axis=axis
+        )
+        loss = cce_obj(y_true, y_pred)
+
+        y_true_smoothed = y_true * (1.0 - label_smoothing) + (
+            label_smoothing / num_classes
+        )
+        expected_loss = -np.sum(y_true_smoothed * np.log(y_pred), axis=axis)
+        expected_loss = np.mean(expected_loss)
+
+        self.assertAlmostEqual(loss, expected_loss, decimal=5)
+
     def test_shape_mismatch(self):
         y_true = np.array([[0], [1], [2]])
         y_pred = np.array(
@@ -1233,6 +1310,14 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
         self.run_class_serialization_test(
             losses.SparseCategoricalCrossentropy(name="scce")
         )
+        scce_obj = losses.SparseCategoricalCrossentropy(
+            from_logits=True, ignore_class=3, axis=0, name="scce"
+        )
+        config = scce_obj.get_config()
+        self.assertEqual(config["from_logits"], True)
+        self.assertEqual(config["ignore_class"], 3)
+        self.assertEqual(config["axis"], 0)
+        self.run_class_serialization_test(scce_obj)
 
     def test_all_correct_unweighted(self):
         y_true = np.array([[0], [1], [2]], dtype="int64")
@@ -1638,6 +1723,104 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
         loss = cce_obj(y_true, y_pred)
         self.assertDType(loss, "bfloat16")
 
+    def test_label_smoothing_config(self):
+        scce_obj = losses.SparseCategoricalCrossentropy(
+            label_smoothing=0.1, name="scce"
+        )
+        self.assertEqual(scce_obj.get_config()["label_smoothing"], 0.1)
+        self.run_class_serialization_test(scce_obj)
+
+    def test_label_smoothing_matches_one_hot(self):
+        # Smoothing an integer label must match `categorical_crossentropy`
+        # on the equivalent one-hot label.
+        y_true = np.array([1, 2, 0], dtype="int32")
+        logits = np.array(
+            [[0.5, 2.0, -1.0], [1.5, 0.0, 0.5], [-0.5, 1.0, 2.0]],
+            dtype="float32",
+        )
+        probs = np.exp(logits) / np.exp(logits).sum(-1, keepdims=True)
+        one_hot = np.eye(3, dtype="float32")[y_true]
+        for from_logits, y_pred in ((True, logits), (False, probs)):
+            for label_smoothing in (0.0, 0.1, 0.5, 1.0):
+                expected = losses.categorical_crossentropy(
+                    one_hot,
+                    y_pred,
+                    from_logits=from_logits,
+                    label_smoothing=label_smoothing,
+                )
+                output = losses.sparse_categorical_crossentropy(
+                    y_true,
+                    y_pred,
+                    from_logits=from_logits,
+                    label_smoothing=label_smoothing,
+                )
+                self.assertAllClose(output, expected)
+
+    def test_label_smoothing_matches_one_hot_3d(self):
+        # Same equivalence on a segmentation-shaped input.
+        y_true = np.array([[0, 2], [1, 1]], dtype="int32")
+        logits = np.array(
+            [
+                [[0.5, 2.0, -1.0], [1.5, 0.0, 0.5]],
+                [[-0.5, 1.0, 2.0], [0.2, 0.3, 0.4]],
+            ],
+            dtype="float32",
+        )
+        one_hot = np.eye(3, dtype="float32")[y_true]
+        expected = losses.categorical_crossentropy(
+            one_hot, logits, from_logits=True, label_smoothing=0.1
+        )
+        output = losses.sparse_categorical_crossentropy(
+            y_true, logits, from_logits=True, label_smoothing=0.1
+        )
+        self.assertAllClose(output, expected)
+
+    def test_label_smoothing_explicit_value(self):
+        # For label_smoothing=0.3 over 3 classes, the target is 0.8 for the
+        # true class and 0.1 for each of the other two.
+        y_true = np.array([0], dtype="int32")
+        y_pred = np.array([[0.6, 0.3, 0.1]], dtype="float32")
+        label_smoothing = 0.3
+        smooth = label_smoothing / 3.0
+        expected = -(
+            (1.0 - label_smoothing + smooth) * np.log(0.6)
+            + smooth * np.log(0.3)
+            + smooth * np.log(0.1)
+        )
+        output = losses.sparse_categorical_crossentropy(
+            y_true, y_pred, label_smoothing=label_smoothing
+        )
+        self.assertAllClose(output, [expected])
+
+    def test_label_smoothing_default_is_a_no_op(self):
+        y_true = np.array([0, 1], dtype="int32")
+        y_pred = np.array([[0.7, 0.2, 0.1], [0.2, 0.5, 0.3]], dtype="float32")
+        self.assertAllClose(
+            losses.sparse_categorical_crossentropy(y_true, y_pred),
+            losses.sparse_categorical_crossentropy(
+                y_true, y_pred, label_smoothing=0.0
+            ),
+        )
+
+    def test_label_smoothing_with_ignore_class(self):
+        y_true = np.array([0, 255, 2], dtype="int32")
+        y_pred = np.array(
+            [[0.7, 0.2, 0.1], [0.2, 0.5, 0.3], [0.1, 0.3, 0.6]],
+            dtype="float32",
+        )
+        output = losses.sparse_categorical_crossentropy(
+            y_true, y_pred, ignore_class=255, label_smoothing=0.1
+        )
+        # The reference uses an in-range label in the ignored position, since
+        # the entries are independent.
+        reference = losses.sparse_categorical_crossentropy(
+            np.array([0, 0, 2], dtype="int32"), y_pred, label_smoothing=0.1
+        )
+        self.assertAllClose(output[0], reference[0])
+        self.assertAllClose(output[2], reference[2])
+        self.assertAllClose(output[1], 0.0)
+        self.assertAllClose(backend.get_keras_mask(output), [True, False, True])
+
 
 class BinaryFocalCrossentropyTest(testing.TestCase):
     def test_config(self):
@@ -1801,6 +1984,37 @@ class CategoricalFocalCrossentropyTest(testing.TestCase):
         loss = cce_obj(y_true, logits, sample_weight=2.3)
         self.assertAlmostEqual(loss, 0.000794, 4)
 
+    def test_warning_for_invalid_shape(self):
+        # 2D case: should warn
+        y_true = np.array([[1], [1]], dtype="float32")
+        y_pred = np.array([[0.5], [0.5]], dtype="float32")
+        with pytest.warns(
+            SyntaxWarning,
+            match=r"expected y_pred.shape to be \(batch_size, num_classes\)",
+        ):
+            losses.categorical_focal_crossentropy(y_true, y_pred)
+
+        # 3D case: axis=1, classes=1, should warn
+        y_true = np.ones((2, 1, 4), dtype="float32")
+        y_pred = np.ones((2, 1, 4), dtype="float32")
+        with pytest.warns(
+            SyntaxWarning,
+            match=r"expected y_pred.shape to be \(batch_size, num_classes\)",
+        ):
+            losses.categorical_focal_crossentropy(y_true, y_pred, axis=1)
+
+        # 3D case: axis=1, classes=4, should NOT warn
+        y_true = np.ones((2, 4, 1), dtype="float32")
+        y_pred = np.ones((2, 4, 1), dtype="float32")
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            losses.categorical_focal_crossentropy(y_true, y_pred, axis=1)
+            # Check if any SyntaxWarning was issued
+            syntax_warnings = [
+                warn for warn in w if issubclass(warn.category, SyntaxWarning)
+            ]
+            self.assertEqual(len(syntax_warnings), 0)
+
     def test_sample_weighted(self):
         cce_obj = losses.CategoricalFocalCrossentropy()
         y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
@@ -1839,6 +2053,43 @@ class CategoricalFocalCrossentropyTest(testing.TestCase):
 
         expected_value = 0.06685
         self.assertAlmostEqual(loss, expected_value, 3)
+
+    def test_label_smoothing_with_axis(self):
+        # (batch, classes, spatial)
+        num_classes = 3
+        y_true = np.array(
+            [[[1, 0], [0, 1], [0, 0]], [[0, 1], [1, 0], [0, 0]]],
+            dtype="float32",
+        )
+        y_pred = np.array(
+            [
+                [[0.8, 0.1], [0.1, 0.8], [0.1, 0.1]],
+                [[0.1, 0.8], [0.8, 0.1], [0.1, 0.1]],
+            ],
+            dtype="float32",
+        )
+        label_smoothing = 0.1
+        axis = 1
+        focal_obj = losses.CategoricalFocalCrossentropy(
+            label_smoothing=label_smoothing, axis=axis
+        )
+        loss = focal_obj(y_true, y_pred)
+
+        # Manually compute smoothed focal loss for verification
+        y_true_smoothed = y_true * (1.0 - label_smoothing) + (
+            label_smoothing / num_classes
+        )
+        # alpha=0.25, gamma=2.0 (defaults)
+        alpha = 0.25
+        gamma = 2.0
+
+        cross_entropy = -y_true_smoothed * np.log(y_pred)
+        p_t = y_pred
+        focal_loss = alpha * np.power(1 - p_t, gamma) * cross_entropy
+        expected_loss = np.sum(focal_loss, axis=axis)
+        expected_loss = np.mean(expected_loss)
+
+        self.assertAlmostEqual(loss, expected_loss, decimal=5)
 
     def test_dtype_arg(self):
         logits = np.array([[4.9, -0.5, 2.05]])
@@ -1912,13 +2163,13 @@ class TverskyTest(testing.TestCase):
         y_true = np.array(([[1, 2], [1, 2]]))
         y_pred = np.array(([[4, 1], [6, 1]]))
         output = losses.Tversky()(y_true, y_pred)
-        self.assertAllClose(output, -0.55555546)
+        self.assertAllClose(output, -0.55555558)
 
     def test_correctness_custom_coefficients(self):
         y_true = np.array(([[1, 2], [1, 2]]))
         y_pred = np.array(([[4, 1], [6, 1]]))
         output = losses.Tversky(alpha=0.2, beta=0.8)(y_true, y_pred)
-        self.assertAllClose(output, -0.29629636)
+        self.assertAllClose(output, -0.94444442)
 
     def test_binary_segmentation(self):
         y_true = np.array(
@@ -1928,7 +2179,7 @@ class TverskyTest(testing.TestCase):
             ([[0, 1, 0, 1], [1, 0, 1, 1], [0, 1, 0, 1], [1, 0, 1, 1]])
         )
         output = losses.Tversky()(y_true, y_pred)
-        self.assertAllClose(output, 0.77777773)
+        self.assertAllClose(output, 0.77777779)
 
     def test_binary_segmentation_with_axis(self):
         y_true = np.array(
@@ -1948,7 +2199,7 @@ class TverskyTest(testing.TestCase):
             ([[0, 1, 0, 1], [1, 0, 1, 1], [0, 1, 0, 1], [1, 0, 1, 1]])
         )
         output = losses.Tversky(alpha=0.2, beta=0.8)(y_true, y_pred)
-        self.assertAllClose(output, 0.7916667)
+        self.assertAllClose(output, 0.76190472)
 
     def test_binary_segmentation_custom_coefficients_with_axis(self):
         y_true = np.array(
@@ -1960,7 +2211,7 @@ class TverskyTest(testing.TestCase):
         output = losses.Tversky(
             alpha=0.2, beta=0.8, axis=(1, 2, 3), reduction=None
         )(y_true, y_pred)
-        self.assertAllClose(output, [0.5, 0.7222222])
+        self.assertAllClose(output, [0.5, 0.78494626])
 
     def test_dtype_arg(self):
         y_true = np.array(([[1, 2], [1, 2]]))

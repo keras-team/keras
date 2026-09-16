@@ -83,7 +83,7 @@ class SGD(optimizer.Optimizer):
         is not 0.
 
         Args:
-          var_list: list of model variables to build SGD variables on.
+          variables: list of model variables to build SGD variables on.
         """
         if self.built:
             return

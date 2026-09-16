@@ -309,3 +309,17 @@ class CenterCropTest(testing.TestCase):
             yield (np.random.random(small_input).astype("float32"),)
 
         model.predict(generator())
+
+    def test_segmentation_mask_preserves_dtype_and_classes(self):
+        # Masks hold discrete class indices; the resize fallback must use
+        # nearest-neighbor interpolation so no new classes appear, and the
+        # integer dtype must be preserved. See keras-team/keras#20857.
+        images = np.random.random((2, 8, 8, 3)).astype("float32")
+        masks = np.zeros((2, 8, 8, 1), dtype="uint8")
+        masks[:, :4] = 4  # only classes {0, 4}
+        # Target larger than input forces the resize path.
+        layer = layers.CenterCrop(16, 16)
+        out = layer({"images": images, "segmentation_masks": masks})
+        result = backend.convert_to_numpy(out["segmentation_masks"])
+        self.assertEqual(result.dtype, np.uint8)
+        self.assertTrue(set(np.unique(result).tolist()).issubset({0, 4}))

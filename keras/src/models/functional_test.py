@@ -307,20 +307,33 @@ class FunctionalTest(testing.TestCase):
         self.assertEqual(model.get_layer(name="dense_1").name, "dense_1")
 
     def test_training_arg(self):
-        test_obj = self
+        class CustomLayer(layers.Layer):
+            def call(self, inputs, training=False):
+                return inputs * 0.0 if training else inputs
 
-        class Canary(layers.Layer):
-            def call(self, x, training=False):
-                test_obj.assertTrue(training)
-                return x
+        inputs = layers.Input((20,))
+        outputs = CustomLayer()(inputs)
+        model = Functional(inputs=inputs, outputs=outputs)
+        self.assertAllClose(model(np.ones((4, 20))), np.ones((4, 20)))
+        self.assertAllClose(
+            model(np.ones((4, 20)), training=False), np.ones((4, 20))
+        )
+        self.assertAllClose(
+            model(np.ones((4, 20)), training=True), np.zeros((4, 20))
+        )
 
-            def compute_output_spec(self, x, training=False):
-                return backend.KerasTensor(x.shape, dtype=x.dtype)
-
-        inputs = Input(shape=(3,), batch_size=2)
-        outputs = Canary()(inputs)
-        model = Functional(inputs, outputs)
-        model(np.random.random((2, 3)), training=True)
+        inputs = layers.Input((20,))
+        # This should hardcode `training=True` even if we pass
+        # `training=False` to the model.
+        outputs = CustomLayer()(inputs, training=True)
+        model = Functional(inputs=inputs, outputs=outputs)
+        self.assertAllClose(model(np.ones((4, 20))), np.zeros((4, 20)))
+        self.assertAllClose(
+            model(np.ones((4, 20)), training=False), np.zeros((4, 20))
+        )
+        self.assertAllClose(
+            model(np.ones((4, 20)), training=True), np.zeros((4, 20))
+        )
 
     def test_mask_arg(self):
         # TODO
@@ -494,6 +507,23 @@ class FunctionalTest(testing.TestCase):
         ):
             model(np.zeros((2, 3, 3)))
         model(np.zeros((2, 4, 3)))
+
+    def test_input_spec_skipped_for_nested_inputs(self):
+        a = Input(shape=(3,), name="a")
+        b = Input(shape=(3,), name="b")
+        c = Input(shape=(3,), name="c")
+        outputs = layers.Add()([layers.Add()([a, b]), c])
+
+        # Flat specs describe a flat sequence of inputs, so they are built
+        # for a flat list and skipped for anything nested inside it.
+        self.assertLen(Functional([a, b, c], outputs).input_spec, 3)
+        self.assertIsNone(Functional([[a, b], c], outputs).input_spec)
+        self.assertIsNone(Functional([{"a": a, "b": b}, c], outputs).input_spec)
+
+        # A single input is not a sequence but is still describable.
+        inputs = Input(shape=(3,), name="solo")
+        model = Functional(inputs, layers.Dense(2)(inputs))
+        self.assertLen(model.input_spec, 1)
 
     def test_functional_slicing(self):
         inputs = Input(shape=(None, 2), name="input")

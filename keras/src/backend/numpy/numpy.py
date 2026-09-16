@@ -310,6 +310,9 @@ def array(x, dtype=None):
 
 def view(x, dtype=None):
     x = convert_to_tensor(x)
+    # `np.ndarray.view` resolves an explicit `dtype=None` to `float64`, so the
+    # default has to be resolved to the dtype of `x` to keep it a no-op.
+    dtype = x.dtype if dtype is None else dtype
     return x.view(dtype=dtype)
 
 
@@ -517,6 +520,13 @@ def copy(x):
     return np.copy(x)
 
 
+def copysign(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    return np.copysign(x1, x2).astype(dtype)
+
+
 def cos(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
@@ -551,14 +561,41 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
     dtype = dtypes.result_type(x1.dtype, x2.dtype)
     x1 = x1.astype(dtype)
     x2 = x2.astype(dtype)
-    return np.cross(
-        x1,
-        x2,
-        axisa=axisa,
-        axisb=axisb,
-        axisc=axisc,
-        axis=axis,
-    )
+
+    if axis is not None:
+        axisa = axis
+        axisb = axis
+        axisc = axis
+    x1 = np.moveaxis(x1, axisa, -1)
+    x2 = np.moveaxis(x2, axisb, -1)
+
+    x1_dim = x1.shape[-1]
+    x2_dim = x2.shape[-1]
+    if x1_dim not in (2, 3) or x2_dim not in (2, 3):
+        raise ValueError(
+            "Both input arrays must be (arrays of) 2 or 3-dimensional "
+            f"vectors, but they are {x1_dim} and {x2_dim} dimensional "
+            "instead."
+        )
+
+    # NumPy>=2.5 removed support for 2-dimensional vectors in `np.cross`
+    # (https://numpy.org/doc/stable/release/2.5.0-notes.html), so pad them
+    # to 3 dimensions ourselves (with an implicit zero z-component) before
+    # delegating the cross product of the resulting 3-dimensional vectors
+    # to `np.cross`.
+    def _pad_2d_vector_to_3d(x):
+        if x.shape[-1] == 2:
+            return np.pad(x, [(0, 0)] * (x.ndim - 1) + [(0, 1)])
+        return x
+
+    x1 = _pad_2d_vector_to_3d(x1)
+    x2 = _pad_2d_vector_to_3d(x2)
+
+    c = np.cross(x1, x2)
+
+    if x1_dim == 2 and x2_dim == 2:
+        return c[..., 2]
+    return np.moveaxis(c, -1, axisc)
 
 
 def cumprod(x, axis=None, dtype=None):
@@ -1605,6 +1642,13 @@ def power(x1, x2):
     return np.power(x1, x2)
 
 
+def float_power(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    return np.float_power(x1, x2).astype(dtype)
+
+
 def negative(x):
     return np.negative(x)
 
@@ -1815,3 +1859,25 @@ def unique(
 def dsplit(x, indices_or_sections):
     x = convert_to_tensor(x)
     return np.dsplit(x, indices_or_sections)
+
+
+def column_stack(xs):
+    xs = [convert_to_tensor(x) for x in xs]
+    dtype_set = set([x.dtype for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = [x.astype(dtype) for x in xs]
+    return np.column_stack(xs)
+
+
+def cov(x):
+    x = convert_to_tensor(x)
+
+    if x.dtype in ["int64", "float64"]:
+        dtype = "float64"
+    elif x.dtype in ["bfloat16", "float16"]:
+        dtype = x.dtype
+    else:
+        dtype = config.floatx()
+
+    return np.cov(x).astype(dtype)

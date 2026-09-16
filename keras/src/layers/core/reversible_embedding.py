@@ -383,6 +383,11 @@ class ReversibleEmbedding(layers.Embedding):
     def quantize(self, mode=None, type_check=True, config=None):
         if type_check and type(self) is not ReversibleEmbedding:
             raise self._not_implemented_error(self.quantize)
+        # Reject unsupported modes before mutating any state so that
+        # `Model.quantize` records the layer as skipped instead of leaving it
+        # half-quantized.
+        if mode not in ("int8", "int4"):
+            raise self._quantization_mode_error(mode)
 
         self.quantization_config = config
 

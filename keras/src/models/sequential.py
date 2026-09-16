@@ -234,11 +234,9 @@ class Sequential(Model):
         outputs = x
         self._functional = Functional(inputs=inputs, outputs=outputs)
 
-    def call(self, inputs, training=None, mask=None, **kwargs):
+    def call(self, inputs, training=None, mask=None):
         if self._functional:
-            return self._functional.call(
-                inputs, training=training, mask=mask, **kwargs
-            )
+            return self._functional.call(inputs, training=training, mask=mask)
 
         # Fallback: Just apply the layer sequence.
         # This typically happens if `inputs` is a nested struct.
@@ -247,17 +245,10 @@ class Sequential(Model):
             # `outputs` are the outputs of `layer` applied to `inputs`. At the
             # end of each iteration `inputs` is set to `outputs` to prepare for
             # the next layer.
-            layer_kwargs = {
-                k: kwargs[k]
-                # only inject if this layer’s signature actually has that arg
-                for k in getattr(layer, "_call_has_context_arg", {})
-                if k in kwargs
-            }
             if layer._call_has_mask_arg:
-                layer_kwargs["mask"] = mask
-            if layer._call_has_training_arg and training is not None:
-                layer_kwargs["training"] = training
-            outputs = layer(inputs, **layer_kwargs)
+                outputs = layer(inputs, mask=mask)
+            else:
+                outputs = layer(inputs)
             inputs = outputs
 
             mask = tree.map_structure(backend.get_keras_mask, outputs)

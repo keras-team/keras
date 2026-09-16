@@ -150,7 +150,7 @@ class Bidirectional(Layer):
         self.stateful = layer.stateful
         self.return_sequences = layer.return_sequences
         self.return_state = layer.return_state
-        self.supports_masking = True
+        self.supports_masking = False
         self.input_spec = layer.input_spec
 
     def _verify_layer_config(self):

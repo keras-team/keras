@@ -26,6 +26,11 @@ class TestRematScope(testing.TestCase):
             get_current_remat_mode()
         )  # Mode is restored to None after scope ends
 
+        with RematScope(mode=None):
+            self.assertIsNone(
+                get_current_remat_mode()
+            )  # Mode is None when explicitly disabled
+
     def test_remat_scope_nested(self):
         """Test nested scopes with different rematerialization modes."""
         with RematScope(mode="full"):

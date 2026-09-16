@@ -40,6 +40,12 @@ class AWQConfig(QuantizationConfig):
         num_grid_points: The number of grid search points for finding optimal
             per-channel scales. Higher values may find better scales but
             take longer. Defaults to 20.
+        apply_clip: Whether to run the AutoAWQ-style weight clipping search
+            after the scale search. This grid-searches a per-group shrink
+            factor on the weight max and clips the (scaled) weights to the
+            value that minimizes activation-aware reconstruction error before
+            quantization. Improves accuracy at a small calibration cost.
+            Defaults to True.
         quantization_layer_structure: A dictionary defining the model's
             quantization structure. It should contain:
             - "pre_block_layers": list of layers to run before the first
@@ -79,6 +85,7 @@ class AWQConfig(QuantizationConfig):
         sequence_length: int = 512,
         group_size: int = 128,
         num_grid_points: int = 20,
+        apply_clip: bool = True,
         quantization_layer_structure: dict = None,
     ):
         super().__init__()
@@ -107,6 +114,7 @@ class AWQConfig(QuantizationConfig):
         self.sequence_length = sequence_length
         self.group_size = group_size
         self.num_grid_points = num_grid_points
+        self.apply_clip = apply_clip
         self.quantization_layer_structure = quantization_layer_structure
 
     @property
@@ -123,16 +131,19 @@ class AWQConfig(QuantizationConfig):
 
     def get_config(self):
         return {
-            # Dataset and Tokenizer are only required for one-time
-            # calibration and are not saved in the config.
+            # Dataset, tokenizer and quantization layer structure are only
+            # required for one-time calibration and are not saved in the
+            # config. The structure also holds references to live layer
+            # objects, which cannot be serialized.
             "dataset": None,
             "tokenizer": None,
+            "quantization_layer_structure": None,
             "weight_bits": self.weight_bits,
             "num_samples": self.num_samples,
             "sequence_length": self.sequence_length,
             "group_size": self.group_size,
             "num_grid_points": self.num_grid_points,
-            "quantization_layer_structure": self.quantization_layer_structure,
+            "apply_clip": self.apply_clip,
         }
 
     @classmethod

@@ -100,6 +100,11 @@ def matrix_rank(x, tol=None):
     return torch.linalg.matrix_rank(x, atol=tol).to(torch.int32)
 
 
+def matrix_power(a, n):
+    a = convert_to_tensor(a)
+    return torch.linalg.matrix_power(a, n)
+
+
 def pinv(x, rcond=None):
     x = convert_to_tensor(x)
     # `torch.linalg.pinv` expresses the threshold as `rtol` (relative

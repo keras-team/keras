@@ -6,9 +6,13 @@ from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.gptq_config import GPTQConfig
+from keras.src.quantizers.gptq_core import _stack_calibration_batch
+from keras.src.quantizers.gptq_core import find_layers_in_block
 from keras.src.quantizers.gptq_core import get_dataloader
 from keras.src.quantizers.gptq_core import gptq_quantize
+from keras.src.quantizers.gptq_core import stream_hessians
 
 VOCAB_SIZE = 100
 
@@ -260,6 +264,51 @@ class TestGPTQCore(testing.TestCase):
                 num_samples=10,
             )
 
+    def test_calibration_batching_produces_identical_hessian(self):
+        """The Hessian accumulated during calibration must be identical
+        whether calibration samples are streamed one at a time or in
+        batches. `update_hessian_with_batch` flattens activations to
+        `[-1, features]`, so batching only changes the number of forward
+        passes, not the math."""
+        d_model = 16
+        seq_len = 8
+        num_samples = 8
+
+        block = TransformerBlock()  # contains a single Dense(128) layer.
+        # Trigger a build so the inner Dense layer's kernel exists.
+        _ = block(ops.zeros((1, seq_len, d_model)))
+
+        rng = np.random.default_rng(0)
+        samples = [
+            ops.convert_to_tensor(
+                rng.standard_normal((1, seq_len, d_model)).astype("float32")
+            )
+            for _ in range(num_samples)
+        ]
+
+        def accumulate(batch_size):
+            layers_map = find_layers_in_block(block)
+            gptq_objects = {
+                name: GPTQ(layer) for name, layer in layers_map.items()
+            }
+            with stream_hessians(layers_map, gptq_objects):
+                for start in range(0, num_samples, batch_size):
+                    batch = _stack_calibration_batch(
+                        samples[start : start + batch_size]
+                    )
+                    _ = block(batch)
+            return {name: obj.hessian for name, obj in gptq_objects.items()}
+
+        unbatched = accumulate(batch_size=1)
+        batched = accumulate(batch_size=4)
+
+        self.assertEqual(set(unbatched.keys()), set(batched.keys()))
+        self.assertGreater(len(unbatched), 0)
+        for name in unbatched:
+            self.assertAllClose(
+                unbatched[name], batched[name], rtol=1e-5, atol=1e-5
+            )
+
     def test_apply_gptq_on_multi_block_model(self):
         """Tests quantization on a model with multiple blocks."""
         model = models.Sequential(
@@ -320,3 +369,76 @@ class TestGPTQCore(testing.TestCase):
         with self.assertRaisesRegex(ValueError, error_message):
             # We pass None as structure to trigger the error
             gptq_quantize(config, quantization_layer_structure=None)
+
+
+class TestExecutionStages(testing.TestCase):
+    def test_stages_group_by_shared_input_and_order(self):
+        from keras.src.quantizers.gptq_core import _execution_stages
+
+        x_attn, x_out, x_mlp, x_down = (
+            object(),
+            object(),
+            object(),
+            object(),
+        )
+        trace = {
+            "query": (0, x_attn),
+            "key": (1, x_attn),
+            "value": (2, x_attn),
+            "attention_output": (3, x_out),
+            "gate": (4, x_mlp),
+            "up": (5, x_mlp),
+            "down": (6, x_down),
+        }
+        stages = _execution_stages(list(trace), trace)
+        self.assertEqual(
+            stages,
+            [
+                ["query", "key", "value"],
+                ["attention_output"],
+                ["gate", "up"],
+                ["down"],
+            ],
+        )
+
+    def test_untraced_layers_join_first_stage(self):
+        from keras.src.quantizers.gptq_core import _execution_stages
+
+        x = object()
+        trace = {"a": (0, x)}
+        stages = _execution_stages(["ghost", "a"], trace)
+        self.assertEqual(stages, [["ghost", "a"]])
+
+    def test_no_trace_single_stage(self):
+        from keras.src.quantizers.gptq_core import _execution_stages
+
+        stages = _execution_stages(["a", "b"], {})
+        self.assertEqual(stages, [["a", "b"]])
+
+
+class TestDataloaderReproducibility(testing.TestCase):
+    def test_strided_offset_is_process_stable(self):
+        """The strided sampling offset must not depend on PYTHONHASHSEED.
+
+        The offset was previously derived via `hash(("gptq-calib", seed))`;
+        Python randomizes string hashing per process, so calibration
+        windows - and therefore every quantization result - silently
+        differed between runs despite the fixed seed. These golden values
+        pin the numpy-based derivation (seed=42, 1000 tokens, seq len 8,
+        4 samples); the old hash-based offset only reproduces them under
+        one specific PYTHONHASHSEED by coincidence.
+        """
+
+        class PassthroughTokenizer:
+            def tokenize(self, x):
+                return np.asarray(x, dtype=np.int32)
+
+        out = get_dataloader(
+            PassthroughTokenizer(),
+            8,
+            [np.arange(1000, dtype=np.int32)],
+            num_samples=4,
+        )
+        self.assertEqual(out.shape, (4, 1, 8))
+        self.assertAllClose(out[:, 0, 0], np.array([88, 336, 584, 832]))
+        self.assertAllClose(out[0, 0], np.arange(88, 96))
