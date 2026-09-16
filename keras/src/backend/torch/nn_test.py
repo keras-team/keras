@@ -54,3 +54,20 @@ class DotProductAttentionCompileTest(testing.TestCase):
             compiled(query, key, value, **kwargs),
             ops.dot_product_attention(query, key, value, **kwargs),
         )
+
+
+@pytest.mark.skipif(
+    backend.backend() != "torch",
+    reason="This test is only applicable to the PyTorch backend.",
+)
+class BinaryCrossentropyTest(testing.TestCase):
+    def test_nan_output(self):
+        target = ops.convert_to_tensor([1.0, 1.0, 0.0, 0.0])
+        output = ops.convert_to_tensor([0.3, float("nan"), 0.3, 0.9])
+
+        result = ops.binary_crossentropy(target, output)
+
+        self.assertAllClose(
+            result,
+            np.array([1.2039728, np.nan, 0.35667497, 2.3025851]),
+        )
