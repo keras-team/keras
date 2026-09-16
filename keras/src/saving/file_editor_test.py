@@ -5,6 +5,7 @@ from unittest import mock
 import h5py
 import numpy as np
 import pytest
+from absl.testing import parameterized
 
 import keras
 from keras.src import testing
@@ -165,7 +166,20 @@ class SavingTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "virtual"):
             KerasFileEditor(virtual_fpath)
 
-    def test_rejects_shape_bomb(self):
+    def _wrap_weights_in_keras(self, weights_path):
+        model_path = os.path.join(self.get_temp_dir(), "model.keras")
+        get_source_model().save(model_path)
+        with zipfile.ZipFile(model_path) as archive:
+            config = archive.read("config.json")
+            metadata = archive.read("metadata.json")
+        with zipfile.ZipFile(model_path, "w") as archive:
+            archive.writestr("config.json", config)
+            archive.writestr("metadata.json", metadata)
+            archive.write(weights_path, "model.weights.h5")
+        return model_path
+
+    @parameterized.parameters(False, True)
+    def test_rejects_shape_bomb(self, zipped):
         # A few-KB file whose dataset declares far more than it stores on disk
         # (chunked + gzip + fillvalue) must be rejected before the editor reads
         # it into memory.
@@ -185,10 +199,18 @@ class SavingTest(testing.TestCase):
                 fillvalue=0,
             )
         self.assertLess(os.path.getsize(bomb_fpath), 1 << 20)  # tiny on disk
-        with self.assertRaisesRegex(ValueError, "shape bomb"):
-            KerasFileEditor(bomb_fpath)
+        if zipped:
+            bomb_fpath = self._wrap_weights_in_keras(bomb_fpath)
+        with mock.patch.object(
+            h5py.Dataset,
+            "__getitem__",
+            side_effect=AssertionError("Array read"),
+        ):
+            with self.assertRaisesRegex(ValueError, "shape bomb"):
+                KerasFileEditor(bomb_fpath)
 
-    def test_rejects_cumulative_shape_bomb(self):
+    @parameterized.parameters(False, True)
+    def test_rejects_cumulative_shape_bomb(self, zipped):
         # Several datasets that each declare under the floor but jointly declare
         # far more than is stored: the cumulative guard must reject them.
         bomb_fpath = os.path.join(
@@ -210,15 +232,32 @@ class SavingTest(testing.TestCase):
                     fillvalue=0,
                 )
         self.assertLess(os.path.getsize(bomb_fpath), 1 << 20)  # tiny on disk
-        with self.assertRaisesRegex(ValueError, "shape bomb"):
-            KerasFileEditor(bomb_fpath)
+        if zipped:
+            bomb_fpath = self._wrap_weights_in_keras(bomb_fpath)
+        with mock.patch.object(
+            h5py.Dataset,
+            "__getitem__",
+            side_effect=AssertionError("Array read"),
+        ):
+            with self.assertRaisesRegex(ValueError, "shape bomb"):
+                KerasFileEditor(bomb_fpath)
+
+    def test_rejected_file_closes_weights_store(self):
+        path = os.path.join(self.get_temp_dir(), "cyclic.weights.h5")
+        with h5py.File(path, "w") as f:
+            f["cycle"] = f
+        close = saving_lib.H5IOStore.close
+        with mock.patch.object(
+            saving_lib.H5IOStore, "close", autospec=True, side_effect=close
+        ) as close_mock:
+            with self.assertRaisesRegex(ValueError, "cyclic"):
+                KerasFileEditor(path)
+            close_mock.assert_called_once()
 
     def test_shape_bomb_guard_rejects_external_link(self):
         # The guard traverses the group manually and rejects an external/soft
         # link itself (without resolving it), rather than relying only on
         # `_extract_weights_from_store` to catch it.
-        from keras.src.saving.file_editor import _reject_h5_shape_bomb
-
         secret_fpath = os.path.join(self.get_temp_dir(), "secret.h5")
         with h5py.File(secret_fpath, "w") as f:
             f.create_dataset("k", data=np.zeros((2, 2), "float32"))
@@ -227,7 +266,9 @@ class SavingTest(testing.TestCase):
             f["ext"] = h5py.ExternalLink(secret_fpath, "/")
         with h5py.File(mal_fpath, "r") as f:
             with self.assertRaisesRegex(ValueError, "ExternalLink"):
-                _reject_h5_shape_bomb(f, file_size=os.path.getsize(mal_fpath))
+                saving_lib._reject_h5_shape_bomb(
+                    f, file_size=os.path.getsize(mal_fpath)
+                )
 
     def test_rejects_decompression_bomb_config(self):
         # A `.keras` whose config.json decompresses to far more than it stores

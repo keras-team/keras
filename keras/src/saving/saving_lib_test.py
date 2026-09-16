@@ -1765,6 +1765,38 @@ class SafeZipReadTest(testing.TestCase):
 
 
 class SafeGetH5DatasetTest(testing.TestCase):
+    def test_cumulative_guard_reads_metadata_only(self):
+        path = os.path.join(self.get_temp_dir(), "ordinary.weights.h5")
+        with h5py.File(path, "w") as f:
+            f.create_dataset("scalar", data=1.0)
+            f.create_dataset("empty", shape=(0,), dtype="float32")
+            f.create_dataset("null", dtype="float32")
+            group = f.create_group("nested")
+            group.create_dataset("weights", data=np.arange(16))
+        with (
+            h5py.File(path) as f,
+            mock.patch.object(
+                h5py.Dataset,
+                "__getitem__",
+                side_effect=AssertionError("Array read"),
+            ),
+        ):
+            saving_lib._reject_h5_shape_bomb(f)
+
+    def test_cumulative_guard_uses_explicit_file_size(self):
+        path = os.path.join(self.get_temp_dir(), "stored.weights.h5")
+        with h5py.File(path, "w") as f:
+            f.create_dataset("weights", data=np.zeros(10_000, dtype="uint8"))
+        with (
+            h5py.File(path) as f,
+            mock.patch.object(
+                saving_lib, "_H5_CUMULATIVE_BOMB_FLOOR_BYTES", 64
+            ),
+        ):
+            saving_lib._reject_h5_shape_bomb(f)
+            with self.assertRaisesRegex(ValueError, "shape bomb"):
+                saving_lib._reject_h5_shape_bomb(f, file_size=1)
+
     def _shape_bomb_file(self):
         """An HDF5 file with a dataset declaring ~8 PiB but storing ~nothing."""
         path = os.path.join(self.get_temp_dir(), "bomb.h5")

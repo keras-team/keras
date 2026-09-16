@@ -1271,7 +1271,11 @@ def safe_get_h5_dataset(group, name):
         )
     if dataset.is_virtual:
         raise ValueError("Not allowed: H5 file with virtual Dataset")
-    declared_bytes = math.prod(dataset.shape) * dataset.dtype.itemsize
+    declared_bytes = (
+        math.prod(dataset.shape) * dataset.dtype.itemsize
+        if dataset.shape is not None
+        else 0
+    )
     stored_bytes = dataset.id.get_storage_size()
     if (
         declared_bytes > _H5_DATASET_BOMB_FLOOR_BYTES
@@ -1284,6 +1288,57 @@ def safe_get_h5_dataset(group, name):
             "refusing to load a potential decompression/shape bomb."
         )
     return dataset
+
+
+_H5_CUMULATIVE_BOMB_FLOOR_BYTES = 1 << 26  # 64 MiB
+
+
+def _reject_h5_shape_bomb(h5_file, file_size=None):
+    """Check cumulative dataset sizes before the file editor reads any arrays.
+
+    Traversal reads HDF5 metadata only and reuses the loader's group and dataset
+    validation. The caller can supply the uncompressed ZIP member size for an
+    embedded HDF5 file, or the filesystem size for a standalone weights file.
+    """
+    if file_size is None:
+        file_size = h5_file.id.get_filesize()
+    total_declared = 0
+    ancestors = set()
+
+    def accumulate(group):
+        nonlocal total_declared
+        if group.id in ancestors:
+            raise ValueError("Not allowed: H5 file with cyclic group links")
+        ancestors.add(group.id)
+        try:
+            for key in group.keys():
+                link_type = group.get(key, getclass=True, getlink=True)
+                if link_type in (h5py.ExternalLink, h5py.SoftLink):
+                    raise ValueError(
+                        f"Not allowed: H5 file with {link_type.__name__}"
+                    )
+                if group.get(key, getclass=True) is h5py.Group:
+                    accumulate(safe_get_h5_group(group, key))
+                else:
+                    dataset = safe_get_h5_dataset(group, key)
+                    if dataset.shape is not None:
+                        total_declared += (
+                            math.prod(dataset.shape) * dataset.dtype.itemsize
+                        )
+        finally:
+            ancestors.remove(group.id)
+
+    accumulate(h5_file)
+    if (
+        total_declared > _H5_CUMULATIVE_BOMB_FLOOR_BYTES
+        and total_declared > _H5_DATASET_MAX_EXPANSION * file_size
+    ):
+        raise ValueError(
+            "Refusing to open a potential decompression/shape bomb: the "
+            f"HDF5 weights declare {readable_memory_size(total_declared)} "
+            f"of array data but only {readable_memory_size(file_size)} "
+            "are stored on disk."
+        )
 
 
 class H5IOStore:
