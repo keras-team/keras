@@ -864,10 +864,15 @@ def conv(
 
     # Channels first "NCW", NCHW" and "NCDHW" (1d, 2d and 3d convolutions) are
     # broken on CPU without XLA.
-    needs_xla = data_format == "channels_first" and len(inputs.shape) in (
-        3,
-        4,
-        5,
+    needs_xla = (
+        data_format == "channels_first"
+        and len(inputs.shape)
+        in (
+            3,
+            4,
+            5,
+        )
+        and _cpu_only()
     )
     # grouped convolutions are broken on CPU without XLA.
     if data_format == "channels_last":
