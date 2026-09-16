@@ -2207,6 +2207,46 @@ def copy(x):
     return backend.ops.numpy.copy(x)
 
 
+class Copysign(Operation):
+    def call(self, x1, x2):
+        return backend.ops.numpy.copysign(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+
+        x1_type = backend.standardize_dtype(getattr(x1, "dtype", type(x1)))
+        x2_type = backend.standardize_dtype(getattr(x2, "dtype", type(x2)))
+        dtype = dtypes.result_type(x1_type, x2_type, float)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.copysign", "keras.ops.numpy.copysign"])
+def copysign(x1, x2):
+    """Compose a value from the magnitude of `x1` and the sign of `x2`.
+
+    The sign of zero is taken into account, so an `x2` of `-0.0` gives a
+    negative result and an `x2` of `0.0` gives a positive one.
+
+    Args:
+        x1: Input tensor providing the magnitude.
+        x2: Input tensor providing the sign.
+
+    Returns:
+        Output tensor with the magnitude of `x1` and the sign of `x2`.
+
+    Example:
+    >>> x1 = keras.ops.convert_to_tensor([-1.0, 2.0, -3.0])
+    >>> x2 = keras.ops.convert_to_tensor([1.0, -1.0, -0.0])
+    >>> keras.ops.copysign(x1, x2)
+    array([ 1., -2., -3.], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Copysign().symbolic_call(x1, x2)
+    return backend.ops.numpy.copysign(x1, x2)
+
+
 class Cos(Operation):
     def call(self, x):
         return backend.ops.numpy.cos(x)
@@ -6778,7 +6818,10 @@ class Pad(Operation):
         if isinstance(pad_width, (tuple, list)) and isinstance(
             pad_width[0], int
         ):
-            return (pad_width,)
+            if len(pad_width) == 1:
+                # A single `(pad,)` means pad before and after, like `np.pad`.
+                return ((pad_width[0], pad_width[0]),)
+            return (tuple(pad_width),)
         first_len = len(pad_width[0])
         for i, pw in enumerate(pad_width):
             if len(pw) != first_len:
@@ -8841,6 +8884,47 @@ def power(x1, x2):
     return backend.ops.numpy.power(x1, x2)
 
 
+class FloatPower(Operation):
+    def call(self, x1, x2):
+        return backend.ops.numpy.float_power(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+
+        x1_type = backend.standardize_dtype(getattr(x1, "dtype", type(x1)))
+        x2_type = backend.standardize_dtype(getattr(x2, "dtype", type(x2)))
+        dtype = dtypes.result_type(x1_type, x2_type, float)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.float_power", "keras.ops.numpy.float_power"])
+def float_power(x1, x2):
+    """First tensor elements raised to powers from second tensor, in floats.
+
+    This is `power` with the operands promoted to a float dtype first, so a
+    negative exponent has a well defined result for integer inputs, where
+    `power` either raises an error or returns an integer.
+
+    Args:
+        x1: The bases.
+        x2: The exponents.
+
+    Returns:
+        Output tensor, the bases in `x1` raised to the exponents in `x2`.
+
+    Example:
+    >>> x1 = keras.ops.convert_to_tensor([2, 3, 4])
+    >>> x2 = keras.ops.convert_to_tensor([-1, -2, 2])
+    >>> keras.ops.float_power(x1, x2)
+    array([ 0.5       ,  0.11111111, 16.        ], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return FloatPower().symbolic_call(x1, x2)
+    return backend.ops.numpy.float_power(x1, x2)
+
+
 class Negative(Operation):
     def call(self, x):
         return backend.ops.numpy.negative(x)
@@ -10175,3 +10259,46 @@ def column_stack(xs):
     if any_symbolic_tensors((xs,)):
         return ColumnStack().symbolic_call(xs)
     return backend.ops.numpy.column_stack(xs)
+
+
+class Cov(Operation):
+    def call(self, x):
+        return backend.ops.numpy.cov(x)
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
+        if dtype == "int64":
+            dtype = "float64"
+        else:
+            dtype = dtypes.result_type(dtype, float)
+        if len(x.shape) > 2:
+            raise ValueError(
+                "Input tensor must have at most 2 dimensions. "
+                f"Received: x.shape={x.shape}"
+            )
+        # The covariance matrix of a 2D input of shape `(N, D)` has shape
+        # `(N, N)`. A 1D input, or a single variable, yields a scalar.
+        if len(x.shape) == 2 and x.shape[0] != 1:
+            output_shape = (x.shape[0], x.shape[0])
+        else:
+            output_shape = ()
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.cov", "keras.ops.numpy.cov"])
+def cov(x):
+    """Estimate the covariance matrix of the variables in `x`.
+
+    The covariance is normalized by `D - 1`, where `D` is the number of
+    observations.
+
+    Args:
+        x: A 2D tensor of shape `(N, D)`, where N is the number of variables
+           and D is the number of observations.
+
+    Returns:
+        A tensor of shape `(N, N)` representing the covariance matrix.
+    """
+    if any_symbolic_tensors((x,)):
+        return Cov().symbolic_call(x)
+    return backend.ops.numpy.cov(x)
