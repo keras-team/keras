@@ -1069,6 +1069,10 @@ def convert_to_numpy(x):
 class Cond(Operation):
     @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
+        # `Operation.__call__` routes through `rematerialized_call` whenever a
+        # `RematScope` is active, but `call` receives Python callables rather
+        # than tensors and rematerialization cannot trace those, so `Cond`
+        # dispatches on its own and stays out of that path.
         def call_fn(*args, **kwargs):
             if any_symbolic_tensors(args, kwargs):
                 return self.symbolic_call(*args, **kwargs)
@@ -1076,12 +1080,18 @@ class Cond(Operation):
                 return self.call(*args, **kwargs)
 
         if traceback_utils.is_traceback_filtering_enabled():
-            # Wrap self.call to provide helpful info in case of exception
-            call_fn = traceback_utils.inject_argument_info_in_traceback(
-                call_fn,
-                object_name=(f"{self.__class__.__name__}.call()"),
-            )
-            return call_fn(*args, **kwargs)
+            try:
+                return call_fn(*args, **kwargs)
+            except Exception as e:
+                if not getattr(e, "_keras_call_info_injected", False):
+                    raise traceback_utils.inject_argument_info_in_error(
+                        e,
+                        self.call,
+                        args,
+                        kwargs,
+                        object_name=(f"{self.__class__.__name__}.call()"),
+                    ) from None
+                raise
 
         # Plain flow.
         return call_fn(*args, **kwargs)

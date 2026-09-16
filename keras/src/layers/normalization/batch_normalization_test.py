@@ -105,10 +105,22 @@ class BatchNormalizationTest(testing.TestCase):
         reduction_axes = list(range(len(input_shape)))
         del reduction_axes[axis]
         reduction_axes = tuple(reduction_axes)
-        self.assertAllClose(np.mean(out, axis=reduction_axes), 0.0, atol=1e-3)
-        self.assertAllClose(np.std(out, axis=reduction_axes), 1.0, atol=1e-3)
-        self.assertAllClose(layer.moving_mean, 0.0, atol=1e-3)
-        self.assertAllClose(layer.moving_variance, 1.0, atol=1e-3)
+        self.assertAllClose(
+            np.mean(out, axis=reduction_axes),
+            np.zeros((input_shape[axis],)),
+            atol=1e-3,
+        )
+        self.assertAllClose(
+            np.std(out, axis=reduction_axes),
+            np.ones((input_shape[axis],)),
+            atol=1e-3,
+        )
+        self.assertAllClose(
+            layer.moving_mean, np.zeros((input_shape[axis],)), atol=1e-3
+        )
+        self.assertAllClose(
+            layer.moving_variance, np.ones((input_shape[axis],)), atol=1e-3
+        )
 
         # Inference done before training shouldn't match.
         inference_out = layer(x, training=False)
@@ -210,8 +222,12 @@ class BatchNormalizationTest(testing.TestCase):
             backend.convert_to_numpy(layer.gamma), (1, 1, 1, 3)
         )
 
-        self.assertAllClose(np.mean(out, axis=(0, 1, 2)), 0.0, atol=1e-3)
-        self.assertAllClose(np.std(out, axis=(0, 1, 2)), 1.0, atol=1e-3)
+        self.assertAllClose(
+            np.mean(out, axis=(0, 1, 2)), np.zeros((3,)), atol=1e-3
+        )
+        self.assertAllClose(
+            np.std(out, axis=(0, 1, 2)), np.ones((3,)), atol=1e-3
+        )
 
     def test_large_value_within_autocast_scope(self):
         layer = layers.BatchNormalization()

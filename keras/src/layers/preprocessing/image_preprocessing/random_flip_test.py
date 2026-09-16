@@ -283,3 +283,15 @@ class RandomFlipTest(testing.TestCase):
         output = next(iter(ds))
         expected_boxes = np.array(expected_boxes)
         self.assertAllClose(output["boxes"], expected_boxes)
+
+    def test_segmentation_mask_preserves_dtype_and_classes(self):
+        # Flipping only reorders pixels; masks must keep their integer dtype
+        # and contain no invented classes. See keras-team/keras#20857.
+        images = np.random.random((2, 8, 8, 3)).astype("float32")
+        masks = np.zeros((2, 8, 8, 1), dtype="uint8")
+        masks[:, :4] = 4  # only classes {0, 4}
+        layer = layers.RandomFlip("horizontal_and_vertical", seed=0)
+        out = layer({"images": images, "segmentation_masks": masks})
+        result = backend.convert_to_numpy(out["segmentation_masks"])
+        self.assertEqual(result.dtype, np.uint8)
+        self.assertTrue(set(np.unique(result).tolist()).issubset({0, 4}))

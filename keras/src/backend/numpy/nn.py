@@ -5,6 +5,7 @@ import numpy as np
 from jax import lax
 
 from keras.src import backend
+from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
     check_conv_transpose_input_channels,
@@ -143,6 +144,9 @@ def selu(x):
 
 def gelu(x, approximate=True):
     x = convert_to_tensor(x)
+    # Cast integer inputs to float for consistent behavior across backends
+    if np.issubdtype(x.dtype, np.integer):
+        x = x.astype("float32")
     # followed by JAX's implementation
     if approximate:
         sqrt_2_over_pi = np.sqrt(2 / np.pi).astype(x.dtype)
@@ -174,6 +178,7 @@ def celu(x, alpha=1.0):
 def glu(x, axis=-1):
     x = convert_to_tensor(x)
     dtype = x.dtype
+    canonicalize_axis(axis, len(x.shape))
     if x.shape[axis] % 2 != 0:
         raise ValueError(
             "axis size must be divisible by 2. "
@@ -218,18 +223,23 @@ def log_softmax(x, axis=-1):
 def sparsemax(x, axis=-1):
     # Sort logits along the specified axis in descending order
     logits = convert_to_tensor(x)
-    logits_sorted = -1.0 * np.sort(-1.0 * logits, axis=axis)
+    # The ranks in `r` and the counts in `k` are integers, and dividing by them
+    # promotes the result to `float64`. The Python float constants promote
+    # `bfloat16` as well. Both are materialized in the dtype of `logits` so the
+    # computation stays in it.
+    zero = np.array(0.0, logits.dtype)
+    logits_sorted = -np.sort(-logits, axis=axis)
     logits_cumsum = np.cumsum(logits_sorted, axis=axis)
     r = np.arange(1, logits.shape[axis] + 1)
     r_shape = [1] * logits.ndim
     r_shape[axis] = -1  # Broadcast to match the target axis
-    r = r.reshape(r_shape)
-    support = logits_sorted - (logits_cumsum - 1) / r > 0
+    r = r.reshape(r_shape).astype(logits.dtype)
+    support = logits_sorted - (logits_cumsum - 1) / r > zero
     # Find the threshold
-    k = np.sum(support, axis=axis, keepdims=True)
-    logits_cumsum_safe = np.where(support, logits_cumsum, 0.0)
-    tau = (np.sum(logits_cumsum_safe, axis=axis, keepdims=True) - 1) / k
-    output = np.maximum(logits - tau, 0.0)
+    k = np.sum(support, axis=axis, keepdims=True).astype(logits.dtype)
+    logits_sorted_safe = np.where(support, logits_sorted, zero)
+    tau = (np.sum(logits_sorted_safe, axis=axis, keepdims=True) - 1) / k
+    output = np.maximum(logits - tau, zero)
     return output
 
 

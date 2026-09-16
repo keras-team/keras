@@ -1,6 +1,5 @@
 import os
 
-import grain
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -12,6 +11,7 @@ from keras.src import models
 from keras.src import testing
 from keras.src.saving import saving_api
 from keras.src.testing.test_utils import named_product
+from keras.src.trainers.data_adapters.py_dataset_adapter import PyDataset
 
 
 class DiscretizationTest(testing.TestCase):
@@ -70,6 +70,7 @@ class DiscretizationTest(testing.TestCase):
         self.assertLen(layer.bin_boundaries, 2)
 
     def test_adapt_with_grain_dataset(self):
+        grain = pytest.importorskip("grain")
         raw = np.random.uniform(0, 10, size=(100,)).astype("float32")
 
         class Source(grain.sources.RandomAccessDataSource):
@@ -520,3 +521,26 @@ class DiscretizationTest(testing.TestCase):
             expected_shape,
             f"Failed for num_bins={num_bins}, mode={output_mode}",
         )
+
+    @parameterized.parameters([("x",), ("x_and_y",), ("x_y_and_weights",)])
+    def test_adapt_pydataset_compat(self, pydataset_type):
+        class CustomDataset(PyDataset):
+            def __len__(self):
+                return 5
+
+            def __getitem__(self, idx):
+                x = np.random.uniform(0, 10, size=(20,))
+                y = np.random.randint(0, 2, size=(20,))
+                weights = np.ones((20,))
+                if pydataset_type == "x":
+                    return x
+                elif pydataset_type == "x_and_y":
+                    return x, y
+                elif pydataset_type == "x_y_and_weights":
+                    return x, y, weights
+                else:
+                    raise NotImplementedError(pydataset_type)
+
+        layer = layers.Discretization(num_bins=4)
+        layer.adapt(CustomDataset())
+        self.assertLen(layer.bin_boundaries, 3)

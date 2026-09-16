@@ -22,7 +22,7 @@ class StackedRNNTest(testing.TestCase):
             expected_num_trainable_weights=6,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
-            supports_masking=True,
+            supports_masking=False,
             custom_objects={"OneStateRNNCell": OneStateRNNCell},
         )
         self.run_layer_test(
@@ -40,7 +40,7 @@ class StackedRNNTest(testing.TestCase):
             expected_num_trainable_weights=6,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
-            supports_masking=True,
+            supports_masking=False,
             custom_objects={"OneStateRNNCell": OneStateRNNCell},
         )
         # Two-state case.
@@ -58,7 +58,7 @@ class StackedRNNTest(testing.TestCase):
             expected_num_trainable_weights=9,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
-            supports_masking=True,
+            supports_masking=False,
             custom_objects={"TwoStatesRNNCell": TwoStatesRNNCell},
         )
         self.run_layer_test(
@@ -76,7 +76,7 @@ class StackedRNNTest(testing.TestCase):
             expected_num_trainable_weights=9,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
-            supports_masking=True,
+            supports_masking=False,
             custom_objects={"TwoStatesRNNCell": TwoStatesRNNCell},
         )
         self.run_layer_test(
@@ -94,7 +94,7 @@ class StackedRNNTest(testing.TestCase):
             expected_num_trainable_weights=9,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=3,
-            supports_masking=True,
+            supports_masking=False,
         )
         self.run_layer_test(
             layers.RNN,
@@ -111,7 +111,7 @@ class StackedRNNTest(testing.TestCase):
             expected_num_trainable_weights=9,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=3,
-            supports_masking=True,
+            supports_masking=False,
         )
         self.run_layer_test(
             layers.RNN,
@@ -128,7 +128,7 @@ class StackedRNNTest(testing.TestCase):
             expected_num_trainable_weights=9,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=3,
-            supports_masking=True,
+            supports_masking=False,
         )
 
     def test_correctness_single_state_stack(self):

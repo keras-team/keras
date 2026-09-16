@@ -7,8 +7,14 @@ from keras.src.metrics import regression_metrics as metrics
 
 class MeanSquaredErrorTest(testing.TestCase):
     def test_config(self):
-        # TODO
-        pass
+        mse_obj = metrics.MeanSquaredError(name="my_mse", dtype="int32")
+        self.assertEqual(mse_obj.name, "my_mse")
+        self.assertEqual(mse_obj.dtype, "int32")
+
+        # Check save and restore config
+        mse_obj2 = metrics.MeanSquaredError.from_config(mse_obj.get_config())
+        self.assertEqual(mse_obj2.name, "my_mse")
+        self.assertEqual(mse_obj2.dtype, "int32")
 
     def test_unweighted(self):
         mse_obj = metrics.MeanSquaredError()
@@ -331,6 +337,7 @@ class R2ScoreTest(testing.TestCase):
     @parameterized.parameters(
         # class_aggregation, num_regressors, result
         (None, 0, [0.37, -1.295, 0.565]),
+        (None, 1, [-0.26, -3.59, 0.13]),
         ("uniform_average", 0, -0.12),
         ("variance_weighted_average", 0, -0.12),
     )
@@ -351,14 +358,14 @@ class R2ScoreTest(testing.TestCase):
     @parameterized.parameters(
         # class_aggregation, num_regressors, result
         (None, 0, [0.17305559, -8.836666, -0.521]),
-        (None, 1, [0.054920673, -10.241904, -0.7382858]),
-        (None, 2, [-0.10259259, -12.115555, -1.0280001]),
+        (None, 1, [-0.65388882, -18.673332, -2.042]),
+        (None, 2, [0.17305559, -8.836666, -0.521]),
         ("uniform_average", 0, -3.0615367889404297),
-        ("uniform_average", 1, -3.641756534576416),
-        ("uniform_average", 2, -4.415382385253906),
+        ("uniform_average", 1, -7.123073577880859),
+        ("uniform_average", 2, -3.0615367889404297),
         ("variance_weighted_average", 0, -1.3710224628448486),
-        ("variance_weighted_average", 1, -1.7097399234771729),
-        ("variance_weighted_average", 2, -2.161363363265991),
+        ("variance_weighted_average", 1, -3.742044448852539),
+        ("variance_weighted_average", 2, -1.3710224628448486),
     )
     def test_r2_tfa_comparison(self, class_aggregation, num_regressors, result):
         y_true = [[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]]
@@ -390,3 +397,55 @@ class R2ScoreTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "expects 2D inputs with shape"):
             r2 = metrics.R2Score()
             r2.update_state([0.0, 1.0], [0.0, 1.0])
+
+    def test_r2_zero_variance_perfect_prediction(self):
+        # When y_true is constant (zero variance) and the prediction is
+        # exact, sklearn's r2_score returns 1.0 rather than the raw 0/0
+        # NaN (see sklearn.metrics._regression._assemble_r2_explained_variance,
+        # `force_finite=True` branch: a zero numerator is treated as a
+        # perfect prediction and defaults to 1.0 regardless of the
+        # denominator).
+        y_true = [[1.0], [1.0], [1.0]]
+        y_pred = [[1.0], [1.0], [1.0]]
+        self._run_test(
+            y_true,
+            y_pred,
+            None,
+            class_aggregation="uniform_average",
+            num_regressors=0,
+            reference_result=1.0,
+        )
+
+    def test_r2_zero_variance_imperfect_prediction(self):
+        # When y_true is constant but the prediction is not exact, sklearn
+        # returns 0.0 rather than -Inf (non-zero numerator over a zero
+        # denominator is arbitrarily set to 0.0). R2Score already handles
+        # this case correctly via its `isinf` guard; this test locks in
+        # that existing behavior alongside the perfect-prediction case
+        # above.
+        y_true = [[1.0], [1.0], [1.0]]
+        y_pred = [[1.0], [1.0], [2.0]]
+        self._run_test(
+            y_true,
+            y_pred,
+            None,
+            class_aggregation="uniform_average",
+            num_regressors=0,
+            reference_result=0.0,
+        )
+
+    def test_r2_nan_total_mse_propagates(self):
+        # y_true has normal (nonzero) variance, but one prediction is NaN
+        # (e.g. from a diverged model). This must surface as NaN, not be
+        # mistaken for the zero-variance perfect-prediction case and
+        # reported as a spurious 1.0.
+        y_true = [[1.0], [2.0], [3.0]]
+        y_pred = [[1.0], [2.0], [float("nan")]]
+        self._run_test(
+            y_true,
+            y_pred,
+            None,
+            class_aggregation="uniform_average",
+            num_regressors=0,
+            reference_result=float("nan"),
+        )

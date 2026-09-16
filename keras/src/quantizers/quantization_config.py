@@ -1,5 +1,5 @@
 from keras.src.api_export import keras_export
-from keras.src.dtype_policies import QUANTIZATION_MODES
+from keras.src.quantizers import strategy_registry
 from keras.src.saving import serialization_lib
 
 
@@ -66,6 +66,11 @@ class QuantizationConfig:
 class Int8QuantizationConfig(QuantizationConfig):
     """Int8 quantization config.
 
+    Scheme: **W8A8 dynamic** (`int8` weights times `int8` activations). Both
+    the weights and the activations are quantized to 8-bit integers, and the
+    matmul runs as a real integer GEMM. Activation scales are computed
+    dynamically at run time (per call), so no calibration data is required.
+
     Args:
         weight_quantizer: Quantizer for weights.
         activation_quantizer: Quantizer for activations. If "default", uses
@@ -95,15 +100,27 @@ class Int8QuantizationConfig(QuantizationConfig):
 class Int4QuantizationConfig(QuantizationConfig):
     """Int4 quantization config.
 
+    Scheme: **W4A16 weight-only** (`int4` weights times `float16`/high-precision
+    activations). Only the weights are quantized to 4 bits (packed two per
+    `int8` byte); activations stay in the compute dtype. This is
+    **storage-only** today: the packed weights are dequantized back to float
+    before every matmul, so it reduces the model's memory footprint but does
+    not (yet) run a 4-bit GEMM. By default the weights use **grouped**
+    (sub-channel) quantization with a group size of 128 along the input
+    dimension, which is more accurate than per-channel at scale. Pass
+    `block_size=-1` (or `None`) for the per-channel escape hatch.
+
     Args:
         weight_quantizer: Quantizer for weights.
         activation_quantizer: Quantizer for activations. If "default", uses
-            AbsMaxQuantizer with axis=-1.
+            weight-only quantization (activations are left unquantized).
         block_size: Size of groups along the input dimension for sub-channel
             quantization. If a positive integer, uses sub-channel quantization
             with `ceil(input_dim / block_size)` groups. If `None` or `-1`,
             uses per-channel quantization (one scale per output channel).
-            Default: `128` (sub-channel with 128-element groups).
+            Default: `128` (sub-channel with 128-element groups). This default
+            is identical to what the bare string shortcut `quantize("int4")`
+            resolves to.
     """
 
     def __init__(
@@ -185,6 +202,12 @@ class Int4QuantizationConfig(QuantizationConfig):
 class Float8QuantizationConfig(QuantizationConfig):
     """FP8 quantization config.
 
+    Scheme: **float8 QDQ** (quantize-dequantize) mixed-precision *training*.
+    Unlike the int8/int4 schemes, this is not a post-training weight
+    compression: both weights and activations are dynamically cast to `float8`
+    with maintained amax histories, and the forward/backward passes simulate
+    fp8 arithmetic to keep training numerically faithful.
+
     FP8 mixed-precision training does not support user defined quantizers.
     This config is only used to indicate that FP8 mixed-precision training
     should be used.
@@ -205,12 +228,38 @@ class Float8QuantizationConfig(QuantizationConfig):
         return cls()
 
 
+@keras_export("keras.quantizers.TernaryQuantizationConfig")
+class TernaryQuantizationConfig(QuantizationConfig):
+    """Ternary quantization config.
+
+    Quantizes weights to `{-1, 0, +1}` (BitNet b1.58) and stores them at the
+    information-theoretic floor of `log2(3) ~= 1.58` bits/value by packing five
+    trits per byte. The quantization rule (threshold and scale) is owned by the
+    layer, so this config takes no quantizer arguments.
+    """
+
+    def __init__(self):
+        super().__init__(None, None)
+
+    @property
+    def mode(self):
+        return "ternary"
+
+    def get_config(self):
+        return {}
+
+    @classmethod
+    def from_config(cls, config):
+        return cls()
+
+
 def validate_and_resolve_config(mode, config):
     """Validate and resolve quantization config.
 
     This function validates the quantization config and resolves the mode.
     If mode is not provided, it is inferred from the config.
-    If config is not provided, a default config is inferred from the mode.
+    If config is not provided, a default config is inferred from the mode
+    through the mode's registered strategy.
 
     Args:
         mode: Quantization mode.
@@ -225,30 +274,13 @@ def validate_and_resolve_config(mode, config):
 
     # 2. Resolve "mode" into a Config object.
     if config is None:
-        if mode == "int8":
-            config = Int8QuantizationConfig()
-        elif mode == "int4":
-            config = Int4QuantizationConfig()
-        elif mode == "float8":
-            config = Float8QuantizationConfig()
-        elif mode == "gptq":
-            raise ValueError(
-                "For GPTQ, you must pass a `GPTQConfig` object in the "
-                "`config` argument."
-            )
-        elif mode == "awq":
-            raise ValueError(
-                "For AWQ, you must pass an `AWQConfig` object in the "
-                "`config` argument."
-            )
-        else:
-            if mode is not None:
-                raise ValueError(
-                    f"Invalid quantization mode. Received: mode={mode}"
-                )
+        if mode is None:
             raise ValueError(
                 "You must provide either `mode` or `config` to `quantize`."
             )
+        # `default_config` raises for modes that require an explicit config
+        # (gptq/awq need a calibration dataset).
+        config = strategy_registry.get_strategy(mode).default_config()
     else:
         if not isinstance(config, QuantizationConfig):
             raise ValueError(
@@ -264,77 +296,36 @@ def validate_and_resolve_config(mode, config):
             f"config.mode='{config.mode}'"
         )
 
-    # Ensure mode is consistent.
+    # Ensure mode is consistent. When `mode` was supplied it is already
+    # validated and equal to `config.mode` (the contradiction check above),
+    # so only a config-derived mode still needs validating.
+    if mode is None:
+        _validate_mode(config.mode)
     mode = config.mode
 
-    # Ensure the mode derived from the config is valid.
-    _validate_mode(mode)
-
-    if mode == "gptq":
-        from keras.src.quantizers.gptq_config import GPTQConfig
-
-        if not isinstance(config, GPTQConfig):
-            raise ValueError(
-                "Mode 'gptq' requires a valid `config` argument of type "
-                f"`GPTQConfig`. Received: {type(config)}"
-            )
-
-    if mode == "awq":
-        from keras.src.quantizers.awq_config import AWQConfig
-
-        if not isinstance(config, AWQConfig):
-            raise ValueError(
-                "Mode 'awq' requires a valid `config` argument of type "
-                f"`AWQConfig`. Received: {type(config)}"
-            )
+    # Mode-specific config validation (e.g. gptq requires a `GPTQConfig`).
+    strategy_registry.get_strategy(mode).validate_config(config)
 
     return config
 
 
 def _validate_mode(mode):
     """Validates quantization mode."""
-    if mode is not None and mode not in QUANTIZATION_MODES:
+    if mode is not None and not strategy_registry.is_registered(mode):
         raise ValueError(
             "Invalid quantization mode. "
-            f"Expected one of {QUANTIZATION_MODES}. Received: mode={mode}"
+            f"Expected one of {strategy_registry.registered_modes()}. "
+            f"Received: mode={mode}"
         )
 
 
 def get_block_size_for_layer(layer, config):
     """Determine the block size for int4 quantization.
 
-    The block size can be specified either through the `config` argument
-    or through the `dtype_policy` if it is of type `Int4DTypePolicy`.
-
-    The config argument is usually available when quantizing the layer
-    via the `quantize` method. If the layer was deserialized from a
-    saved model, the block size should be specified in the `dtype_policy`.
-
-    Args:
-        layer: The layer being quantized.
-        config: An optional configuration object that may contain the
-            `block_size` attribute.
-    Returns:
-        int or None. The determined block size for int4 quantization.
-        Returns `None` or `-1` for per-channel quantization.
+    The resolution logic lives on the int4 strategy
+    (`Int4Strategy.resolve_block_size`); this wrapper remains until the layer
+    call sites dispatch through the registry.
     """
-    from keras.src.dtype_policies.dtype_policy import Int4DTypePolicy
-    from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
-
-    if config and isinstance(config, Int4QuantizationConfig):
-        return config.block_size
-    elif isinstance(layer.dtype_policy, Int4DTypePolicy):
-        block_size = layer.dtype_policy.block_size
-        # Convert -1 to None for consistency
-        return None if block_size == -1 else block_size
-    elif isinstance(layer.dtype_policy, DTypePolicyMap):
-        policy = layer.dtype_policy[layer.path]
-        if isinstance(policy, Int4DTypePolicy):
-            block_size = policy.block_size
-            return None if block_size == -1 else block_size
-        # Fall back to None for legacy QuantizedDTypePolicy
-        return None
-    else:
-        # For backwards compatibility with models that don't have
-        # Int4DTypePolicy (legacy per-channel mode)
-        return None
+    return strategy_registry.get_strategy("int4").resolve_block_size(
+        layer, config
+    )

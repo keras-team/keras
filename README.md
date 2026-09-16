@@ -64,7 +64,7 @@ The following table lists the minimum supported versions of each backend for the
 | TensorFlow | 2.16.1                    |
 | JAX        | 0.4.20                    |
 | PyTorch    | 2.1.0                     |
-| OpenVINO   | 2025.3.0                  |
+| OpenVINO   | 2026.2.0                  |
 
 #### Adding GPU support
 

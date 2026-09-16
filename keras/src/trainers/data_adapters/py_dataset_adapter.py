@@ -1,4 +1,5 @@
 import itertools
+import multiprocessing
 import multiprocessing.dummy
 import queue
 import random
@@ -10,6 +11,7 @@ from contextlib import closing
 import numpy as np
 
 from keras.src.api_export import keras_export
+from keras.src.distribution import distribution_lib
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.data_adapters.data_adapter import DataAdapter
 
@@ -210,6 +212,14 @@ class PyDatasetAdapter(DataAdapter):
         self.shuffle = shuffle
         self._output_signature = None
         self._within_epoch = False
+        self._epoch = 0
+
+        dist = distribution_lib.distribution()
+        self._num_data_shards = 1
+        self._data_shard_id = 0
+        if dist is not None and getattr(dist, "auto_shard_dataset", False):
+            self._num_data_shards = dist.num_data_shards
+            self._data_shard_id = dist.data_shard_id
 
         workers = self.py_dataset.workers
         use_multiprocessing = self.py_dataset.use_multiprocessing
@@ -220,6 +230,8 @@ class PyDatasetAdapter(DataAdapter):
                 use_multiprocessing=use_multiprocessing,
                 max_queue_size=self.py_dataset.max_queue_size,
                 shuffle=self.shuffle,
+                num_data_shards=self._num_data_shards,
+                data_shard_id=self._data_shard_id,
             )
 
     def _standardize_batch(self, batch):
@@ -251,29 +263,30 @@ class PyDatasetAdapter(DataAdapter):
         return batch
 
     def _infinite_generator(self):
-        for i in itertools.count():
+        for i in itertools.count(
+            start=self._data_shard_id, step=self._num_data_shards
+        ):
             yield self._standardize_batch(self.py_dataset[i])
 
     def _finite_generator(self):
-        indices = range(self.py_dataset.num_batches)
+        num_batches = self.py_dataset.num_batches
+        indices = list(range(num_batches))
         if self.shuffle:
-            indices = list(indices)
-            random.shuffle(indices)
+            random.Random(self._epoch).shuffle(indices)
 
-        for i in indices:
-            yield self._standardize_batch(self.py_dataset[i])
+        for i in range(self._data_shard_id, num_batches, self._num_data_shards):
+            yield self._standardize_batch(self.py_dataset[indices[i]])
 
     def _infinite_enqueuer_generator(self):
-        self.enqueuer.start()
+        self.enqueuer.start(self._epoch)
         for batch in self.enqueuer.get():
             yield self._standardize_batch(batch)
 
     def _finite_enqueuer_generator(self):
-        self.enqueuer.start()
-        num_batches = self.py_dataset.num_batches
+        self.enqueuer.start(self._epoch)
         for i, batch in enumerate(self.enqueuer.get()):
             yield self._standardize_batch(batch)
-            if i >= num_batches - 1:
+            if i >= self.num_batches - 1:
                 self.enqueuer.stop()
                 return
 
@@ -292,8 +305,15 @@ class PyDatasetAdapter(DataAdapter):
     def get_numpy_iterator(self):
         return data_adapter_utils.get_numpy_iterator(self._get_iterator())
 
-    def get_jax_iterator(self):
-        return data_adapter_utils.get_jax_iterator(self._get_iterator())
+    def get_jax_iterator(self, super_batch=None):
+        iterator = data_adapter_utils.get_jax_iterator(self._get_iterator())
+        if super_batch:
+            import jax.numpy as jnp
+
+            iterator = data_adapter_utils.super_batch_iterator(
+                iterator, super_batch, stack_fn=jnp.stack
+            )
+        return iterator
 
     def get_tf_dataset(self):
         from keras.src.utils.module_utils import tensorflow as tf
@@ -337,19 +357,27 @@ class PyDatasetAdapter(DataAdapter):
                 "having been called."
             )
         self._within_epoch = True
-        if self.enqueuer:
-            self.enqueuer.start()
         self.py_dataset.on_epoch_begin()
+        if self.enqueuer:
+            self.enqueuer.start(self._epoch)
 
     def on_epoch_end(self):
         if self.enqueuer:
             self.enqueuer.stop()
         self.py_dataset.on_epoch_end()
         self._within_epoch = False
+        self._epoch += 1
 
     @property
     def num_batches(self):
-        return self.py_dataset.num_batches
+        if self.py_dataset.num_batches is None:
+            return None
+        return (
+            self.py_dataset.num_batches
+            - self._data_shard_id
+            + self._num_data_shards
+            - 1
+        ) // self._num_data_shards
 
     @property
     def batch_size(self):
@@ -368,20 +396,53 @@ _SEQUENCE_COUNTER = None
 _DATA_POOLS = weakref.WeakSet()
 _WORKER_ID_QUEUE = None  # Only created if needed.
 _FORCE_THREADPOOL = False
+_MP_CONTEXT = None
+
+
+def _get_mp_context():
+    global _MP_CONTEXT
+    if _MP_CONTEXT is not None:
+        return _MP_CONTEXT
+
+    from keras.src.backend import backend
+
+    mp_module = multiprocessing
+    use_spawn = False
+    if backend() == "torch":
+        import torch
+        import torch.multiprocessing as torch_mp
+
+        mp_module = torch_mp
+        if torch.cuda.is_available() or (
+            torch.distributed.is_available()
+            and torch.distributed.is_initialized()
+        ):
+            use_spawn = True
+
+    if use_spawn:
+        try:
+            _MP_CONTEXT = mp_module.get_context("spawn")
+        except ValueError:
+            # 'spawn' might not be available on some systems
+            _MP_CONTEXT = mp_module.get_context()
+    else:
+        _MP_CONTEXT = mp_module.get_context()
+
+    return _MP_CONTEXT
 
 
 def get_pool_class(use_multiprocessing):
     global _FORCE_THREADPOOL
     if not use_multiprocessing or _FORCE_THREADPOOL:
         return multiprocessing.dummy.Pool  # ThreadPool
-    return multiprocessing.Pool
+    return _get_mp_context().Pool
 
 
 def get_worker_id_queue():
     """Lazily create the queue to track worker ids."""
     global _WORKER_ID_QUEUE
     if _WORKER_ID_QUEUE is None:
-        _WORKER_ID_QUEUE = multiprocessing.Queue()
+        _WORKER_ID_QUEUE = _get_mp_context().Queue()
     return _WORKER_ID_QUEUE
 
 
@@ -414,7 +475,7 @@ class PyDatasetEnqueuer:
 
     ```python
         enqueuer = PyDatasetEnqueuer(...)
-        enqueuer.start()
+        enqueuer.start(epoch=0)
         datas = enqueuer.get()
         for data in datas:
             # Use the inputs; training, evaluating, predicting.
@@ -437,7 +498,7 @@ class PyDatasetEnqueuer:
         global _SEQUENCE_COUNTER
         if _SEQUENCE_COUNTER is None:
             try:
-                _SEQUENCE_COUNTER = multiprocessing.Value("i", 0)
+                _SEQUENCE_COUNTER = _get_mp_context().Value("i", 0)
             except OSError:
                 # In this case the OS does not allow us to use
                 # multiprocessing. We resort to an int
@@ -473,15 +534,19 @@ class PyDatasetEnqueuer:
         """
         return self.running
 
-    def start(self):
+    def start(self, epoch):
         """Starts the handler's workers.
 
         This method is thread safe but is called from the main thread.
         It is safe to call this method multiple times, extra calls are ignored.
+
+        Args:
+            epoch: Integer, the current epoch.
         """
         with self.start_stop_lock:
             if self.running:
                 return
+            self.epoch = epoch
             self.running = True
             self.run_thread = threading.Thread(target=self._run)
             self.run_thread.name = f"Worker_{self.uid}"
@@ -579,15 +644,21 @@ class OrderedEnqueuer(PyDatasetEnqueuer):
         use_multiprocessing=False,
         max_queue_size=10,
         shuffle=False,
+        num_data_shards=1,
+        data_shard_id=0,
     ):
         super().__init__(
             py_dataset, workers, use_multiprocessing, max_queue_size
         )
         self.shuffle = shuffle
+        self._num_data_shards = num_data_shards
+        self._data_shard_id = data_shard_id
         if self.py_dataset.num_batches is None:
             # For infinite datasets, `self.indices` is created here once for all
             # so that subsequent runs resume from where they stopped.
-            self.indices = itertools.count()
+            self.indices = itertools.count(
+                start=self._data_shard_id, step=self._num_data_shards
+            )
 
     def _get_executor_init(self, workers):
         """Gets the Pool initializer for multiprocessing.
@@ -622,7 +693,17 @@ class OrderedEnqueuer(PyDatasetEnqueuer):
                 indices = range(self.py_dataset.num_batches)
                 if self.shuffle:
                     indices = list(indices)
-                    random.shuffle(indices)
+                    random.Random(self.epoch).shuffle(indices)
+
+                if self._num_data_shards > 1:
+                    indices = [
+                        indices[i]
+                        for i in range(
+                            self._data_shard_id,
+                            len(indices),
+                            self._num_data_shards,
+                        )
+                    ]
                 self.indices = iter(indices)
             self._send_py_dataset()  # Share the initial py_dataset
 

@@ -1,6 +1,6 @@
 """Utilities common to CIFAR10 and CIFAR100 datasets."""
 
-import _pickle as cPickle
+from keras.src.datasets.npz_utils import RestrictedUnpickler
 
 
 def load_batch(fpath, label_key="labels"):
@@ -15,7 +15,7 @@ def load_batch(fpath, label_key="labels"):
         A tuple `(data, labels)`.
     """
     with open(fpath, "rb") as f:
-        d = cPickle.load(f, encoding="bytes")
+        d = RestrictedUnpickler(f, encoding="bytes").load()
         # decode utf8
         d_decoded = {}
         for k, v in d.items():

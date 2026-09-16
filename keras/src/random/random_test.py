@@ -185,6 +185,13 @@ class RandomCorrectnessTest(testing.TestCase):
         self.assertAllClose(np.sum(x, axis=1), ops.sum(y, axis=1))
         self.assertNotAllClose(np.sum(x, axis=0), ops.sum(y, axis=0))
 
+        # Test axis=-1
+        y = random.shuffle(x, axis=-1, seed=0)
+
+        self.assertFalse(np.all(x == ops.convert_to_numpy(y)))
+        self.assertAllClose(np.sum(x, axis=-1), ops.sum(y, axis=-1))
+        self.assertNotAllClose(np.sum(x, axis=0), ops.sum(y, axis=0))
+
     @parameterized.parameters(
         {"seed": 10, "shape": (5, 2), "alpha": 2.0, "dtype": "float16"},
         {"seed": 10, "shape": (2,), "alpha": 1.5, "dtype": "float32"},

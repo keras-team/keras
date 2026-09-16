@@ -707,6 +707,49 @@ class LayerTest(testing.TestCase):
         y = layer(x)
         self.assertEqual(ops.min(y), 1)
 
+    def test_signature_default_training_does_not_leak(self):
+        """A `training=True` call() signature default (as on `Resizing`/
+        `CenterCrop`) stays local to that layer: it is not propagated
+        through the shared call context to sibling or downstream layers.
+        """
+
+        class DefaultsTrainingTrue(layers.Layer):
+            def call(self, x, training=True):  # mirrors `Resizing.call`
+                return x
+
+        x = np.ones((4, 4))
+
+        # Functional graph: the downstream layer defaults training=None so
+        # any value propagated from the upstream layer is directly visible.
+        seen = {}
+
+        class RecordTraining(layers.Layer):
+            def call(self, x, training=None):
+                seen["training"] = training
+                return x
+
+        inp = Input((4,))
+        out = RecordTraining()(DefaultsTrainingTrue()(inp))
+        model = Model(inp, out)
+        model(x)
+        self.assertIsNone(seen["training"])
+        model(x, training=True)
+        self.assertTrue(seen["training"])
+
+        # Imperative call: same invariant inside another layer's call().
+        class Wrapper(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.pre = DefaultsTrainingTrue()
+                self.dp = layers.Dropout(0.9)
+
+            def call(self, x):
+                return self.dp(self.pre(x))
+
+        layer = Wrapper()
+        self.assertEqual(ops.min(layer(x)), 1)
+        self.assertEqual(ops.min(layer(x, training=True)), 0)
+
     @pytest.mark.skipif(
         backend.backend() == "torch",
         reason="Some torch ops not implemented for float16 on CPU.",
@@ -1947,3 +1990,116 @@ class LayerTest(testing.TestCase):
         mask = np.ones((2, 1), dtype="float32")
         y = layer(x, attention_mask=mask)
         self.assertEqual(y.shape, (2, 3))
+
+    def test_name_scope_opened_once_per_call_when_built(self):
+        # `_maybe_build` opens the name scope itself, after its `built` check,
+        # so a layer that is already built opens it once per call (for the
+        # call itself) rather than twice.
+        opens = []
+
+        class CountingLayer(layers.Layer):
+            def _open_name_scope(self):
+                opens.append(1)
+                return super()._open_name_scope()
+
+            def call(self, x):
+                return x
+
+        layer = CountingLayer()
+        x = np.ones((2, 4), dtype="float32")
+        layer(x)
+
+        opens.clear()
+        layer(x)
+        layer(x)
+        self.assertEqual(len(opens), 2)
+
+    def test_called_and_built_flags_set_once(self):
+        # Verify that built and _called are True after the first call and
+        # remain True on repeated calls, that build() is invoked exactly
+        # once regardless of how many times the layer is called, and that
+        # `built`/`_called` are not reassigned once already True (the
+        # optimization this test guards against regressing).
+        build_count = []
+
+        class CountingLayer(layers.Layer):
+            def __init__(self, *args, **kwargs):
+                # Set up before calling `super().__init__()` since that
+                # call already triggers `__setattr__` for `built` and
+                # `_called`.
+                object.__setattr__(self, "setattr_calls", [])
+                super().__init__(*args, **kwargs)
+
+            def __setattr__(self, name, value):
+                if name in ("built", "_called"):
+                    self.setattr_calls.append((name, value))
+                super().__setattr__(name, value)
+
+            def build(self, input_shape):
+                build_count.append(1)
+                self.built = True
+
+            def call(self, x):
+                return x
+
+        layer = CountingLayer()
+        x = np.ones((2, 4), dtype="float32")
+        layer(x)
+
+        self.assertTrue(layer.built)
+        self.assertTrue(layer._called)
+        self.assertEqual(len(build_count), 1)
+
+        # Reset the recorded setattr traffic and call the already
+        # built/called layer a couple more times: `built` and `_called`
+        # must not be reassigned since they are already True.
+        layer.setattr_calls.clear()
+        layer(x)
+        layer(x)
+
+        self.assertTrue(layer.built)
+        self.assertTrue(layer._called)
+        self.assertEqual(len(build_count), 1)
+        self.assertEqual(len(layer.setattr_calls), 0)
+
+    @parameterized.named_parameters(
+        ("true", True), ("false", False), ("none", None)
+    )
+    def test_symbolic_call_records_training_kwarg_not_taken_by_call(
+        self, training
+    ):
+        # `CallSpec` pops call-context args that `call()` does not accept out
+        # of the `kwargs` dict it is handed. That dict must not be the one
+        # `Node` records, or the recorded call loses `training` and replaying
+        # the model runs the wrapped layer in the wrong mode.
+        class Wrapper(layers.Layer):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.bn = layers.BatchNormalization(momentum=0.0)
+
+            def call(self, x):  # Deliberately does not accept `training`.
+                return self.bn(x)
+
+        inputs = Input(shape=(4,), batch_size=4)
+        layer = Wrapper()
+        model = Model(inputs, layer(inputs, training=training))
+
+        self.assertEqual(
+            dict(model.layers[1]._inbound_nodes[0].arguments.kwargs),
+            {"training": training},
+        )
+
+        x = np.arange(16, dtype="float32").reshape(4, 4)
+        y = ops.convert_to_numpy(model(x))
+        if training is True:
+            # `momentum=0.0` snaps the running stats to the batch seen in
+            # training mode, so replaying normalizes with them: column `j`
+            # of `x` is `[0, 4, 8, 12] + j`, i.e. mean `6 + j`, variance 20.
+            column_means = 6.0 + np.arange(4, dtype="float32")
+            self.assertAllClose(
+                y, (x - column_means) / np.sqrt(20.0 + 1e-3), atol=1e-3
+            )
+        else:
+            # `training=False`/`None` never update the running stats, so
+            # they are still mean 0 / variance 1.
+            self.assertAllClose(y, x / np.sqrt(1.0 + 1e-3), atol=1e-3)

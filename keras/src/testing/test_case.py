@@ -66,6 +66,10 @@ class TestCase(parameterized.TestCase):
             rtol = tpu_rtol
         actual = self.convert_to_numpy(actual)
         desired = self.convert_to_numpy(desired)
+        shape_msg = (
+            f"Shapes don't match. {msg}" if msg else "Shapes don't match"
+        )
+        self.assertEqual(actual.shape, desired.shape, shape_msg)
         np.testing.assert_allclose(
             actual, desired, atol=atol, rtol=rtol, err_msg=msg or ""
         )
@@ -93,6 +97,10 @@ class TestCase(parameterized.TestCase):
         msg = msg or ""
         actual = self.convert_to_numpy(actual)
         desired = self.convert_to_numpy(desired)
+        shape_msg = (
+            f"Shapes don't match. {msg}" if msg else "Shapes don't match"
+        )
+        self.assertEqual(actual.shape, desired.shape, shape_msg)
         np.testing.assert_almost_equal(
             actual, desired, decimal=decimal, err_msg=msg or ""
         )
@@ -105,6 +113,10 @@ class TestCase(parameterized.TestCase):
         """
         actual = self.convert_to_numpy(actual)
         desired = self.convert_to_numpy(desired)
+        shape_msg = (
+            f"Shapes don't match. {msg}" if msg else "Shapes don't match"
+        )
+        self.assertEqual(actual.shape, desired.shape, shape_msg)
         np.testing.assert_array_equal(actual, desired, err_msg=msg or "")
 
     def assertLen(self, iterable, expected_len, msg=None):

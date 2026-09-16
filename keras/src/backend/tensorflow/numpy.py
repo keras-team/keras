@@ -15,6 +15,7 @@ from keras.src.backend import config
 from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
+from keras.src.backend.common.backend_utils import normalize_shift_and_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
 from keras.src.backend.common.backend_utils import vectorize_impl
 from keras.src.backend.tensorflow import sparse
@@ -57,32 +58,18 @@ def rot90(array, k=1, axes=(0, 1)):
         axis if axis >= 0 else array.shape.rank + axis for axis in axes
     )
 
-    perm = [i for i in range(array.shape.rank) if i not in axes]
-    perm.extend(axes)
+    other_axes = [i for i in range(array.shape.rank) if i not in axes]
+    perm = other_axes + list(axes)
     array = tf.transpose(array, perm)
 
-    shape = tf.shape(array)
-    non_rot_shape = shape[:-2]
-    h, w = shape[-2], shape[-1]
-
-    array = tf.reshape(array, tf.concat([[-1], [h, w]], axis=0))
-
-    array = tf.reverse(array, axis=[2])
-    array = tf.transpose(array, [0, 2, 1])
-
-    if k % 2 == 1:
-        final_h, final_w = w, h
-    else:
-        final_h, final_w = h, w
-
-    if k > 1:
-        array = tf.reshape(array, tf.concat([[-1], [final_h, final_w]], axis=0))
-        for _ in range(k - 1):
-            array = tf.reverse(array, axis=[2])
-            array = tf.transpose(array, [0, 2, 1])
-
-    final_shape = tf.concat([non_rot_shape, [final_h, final_w]], axis=0)
-    array = tf.reshape(array, final_shape)
+    if k == 1:
+        array = tf.reverse(array, axis=[-1])
+        array = swapaxes(array, -1, -2)
+    elif k == 2:
+        array = tf.reverse(array, axis=[-2, -1])
+    elif k == 3:
+        array = tf.reverse(array, axis=[-2])
+        array = swapaxes(array, -1, -2)
 
     inv_perm = [0] * len(perm)
     for i, p in enumerate(perm):
@@ -1066,6 +1053,31 @@ def average(x, axis=None, weights=None):
         avg = tf.reduce_mean(x, axis=axis)
     else:
         weights = convert_to_tensor(weights)
+        if len(weights.shape) == 1 and len(x.shape) > 1:
+            if axis is None or (
+                isinstance(axis, (list, tuple)) and len(axis) != 1
+            ):
+                raise ValueError(
+                    "Axis must be specified when shapes of a and weights "
+                    "differ."
+                )
+            axis_val = axis[0] if isinstance(axis, (list, tuple)) else axis
+            axis_val = canonicalize_axis(axis_val, len(x.shape))
+            if weights.shape[0] != x.shape[axis_val]:
+                raise ValueError(
+                    "Shape of weights must be consistent with shape of a "
+                    "along specified axis."
+                )
+        elif x.shape != weights.shape:
+            if axis is None:
+                raise ValueError(
+                    "Axis must be specified when shapes of a and weights "
+                    "differ."
+                )
+            raise ValueError(
+                "Shape of weights must be consistent with shape of a "
+                "along specified axis."
+            )
         dtype = dtypes.result_type(x.dtype, weights.dtype, float)
         x = tf.cast(x, dtype)
         weights = tf.cast(weights, dtype)
@@ -1076,7 +1088,8 @@ def average(x, axis=None, weights=None):
 
         def _rank_not_equal_case():
             weights_sum = tf.reduce_sum(weights)
-            axes = tf.convert_to_tensor([[axis], [0]])
+            a = axis[0] if isinstance(axis, (tuple, list)) else axis
+            axes = tf.convert_to_tensor([[a], [0]])
             return tf.tensordot(x, weights, axes) / weights_sum
 
         if axis is None:
@@ -1238,6 +1251,16 @@ def conj(x):
 def copy(x):
     x = convert_to_tensor(x)
     return tf.identity(x)
+
+
+def copysign(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+    magnitude = tf.abs(x1)
+    return tf.where(signbit(x2), -magnitude, magnitude)
 
 
 @sparse.densifying_unary(1)
@@ -1762,7 +1785,12 @@ def hypot(x1, x2):
     min_val = tf.minimum(x1_abs, x2_abs)
 
     ratio = tf.math.divide_no_nan(min_val, max_val)
-    return max_val * tf.sqrt(1.0 + tf.square(ratio))
+    result = max_val * tf.sqrt(1.0 + tf.square(ratio))
+    return tf.where(
+        tf.math.is_inf(x1_abs) | tf.math.is_inf(x2_abs),
+        tf.constant(float("inf"), dtype=result.dtype),
+        result,
+    )
 
 
 def identity(n, dtype=None):
@@ -1792,7 +1820,9 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
     if "float" in dtype:
-        result = tf.abs(x1 - x2) <= (atol + rtol * tf.abs(x2))
+        finite = tf.math.is_finite(x1) & tf.math.is_finite(x2)
+        close = tf.abs(x1 - x2) <= (atol + rtol * tf.abs(x2))
+        result = (finite & close) | tf.equal(x1, x2)
         if equal_nan:
             result = result | (is_nan(x1) & is_nan(x2))
         return result
@@ -2362,12 +2392,12 @@ def nanargmin(x, axis=None, keepdims=False):
 
 
 def nancumsum(x, axis=None, dtype=None):
-    x = nan_to_num(x)
+    x = nan_to_num(x, posinf=float("inf"), neginf=float("-inf"))
     return cumsum(x, axis=axis, dtype=dtype)
 
 
 def nancumprod(x, axis=None, dtype=None):
-    x = nan_to_num(x, nan=1.0)
+    x = nan_to_num(x, nan=1.0, posinf=float("inf"), neginf=float("-inf"))
     return cumprod(x, axis=axis, dtype=dtype)
 
 
@@ -2641,6 +2671,11 @@ def pad(x, pad_width, mode="constant", constant_values=None):
                 f"Received: mode={mode}"
             )
         kwargs["constant_values"] = constant_values
+    if len(pad_width) == 1:
+        # A single `(before, after)` pair broadcasts to every axis, matching
+        # `np.pad`. `tf.pad` requires an explicit `[rank(x), 2]` spec, so
+        # expand it here.
+        pad_width = [pad_width[0]] * len(x.shape)
     pad_width = convert_to_tensor(pad_width, "int32")
     return tf.pad(x, pad_width, mode.upper(), **kwargs)
 
@@ -2803,19 +2838,9 @@ def unravel_index(indices, shape):
             f"`shape` argument cannot contain `None`. Received: shape={shape}"
         )
 
-    if indices.ndim == 1:
-        coords = []
-        for dim in reversed(shape):
-            coords.append(tf.cast(indices % dim, input_dtype))
-            indices = indices // dim
-        return tuple(reversed(coords))
-
-    indices_shape = indices.shape
     coords = []
-    for dim in shape:
-        coords.append(
-            tf.reshape(tf.cast(indices % dim, input_dtype), indices_shape)
-        )
+    for dim in reversed(shape):
+        coords.append(tf.cast(indices % dim, input_dtype))
         indices = indices // dim
 
     return tuple(reversed(coords))
@@ -2844,6 +2869,8 @@ def repeat(x, repeats, axis=None):
 
 def reshape(x, newshape):
     x = convert_to_tensor(x)
+    if isinstance(newshape, (int, np.integer)):
+        newshape = (newshape,)
     if isinstance(x, tf.SparseTensor):
         from keras.src.ops.operation_utils import compute_reshape_output_shape
 
@@ -2859,7 +2886,10 @@ def reshape(x, newshape):
 def roll(x, shift, axis=None):
     x = convert_to_tensor(x)
     if axis is not None:
-        return tf.roll(x, shift=shift, axis=axis)
+        # `tf.roll` requires `shift` and `axis` to have the same length,
+        # while numpy broadcasts them against each other.
+        shifts, axes = normalize_shift_and_axis(shift, axis)
+        return tf.roll(x, shift=shifts, axis=axes)
 
     # If axis is None, the roll happens as a 1-d tensor.
     original_shape = tf.shape(x)
@@ -2868,6 +2898,8 @@ def roll(x, shift, axis=None):
 
 
 def searchsorted(sorted_sequence, values, side="left"):
+    sorted_sequence = convert_to_tensor(sorted_sequence)
+    values = convert_to_tensor(values)
     if ndim(sorted_sequence) != 1:
         raise ValueError(
             "`searchsorted` only supports 1-D sorted sequences. "
@@ -2881,9 +2913,11 @@ def searchsorted(sorted_sequence, values, side="left"):
         if sequence_len is not None and sequence_len <= np.iinfo(np.int32).max
         else "int64"
     )
-    return tf.searchsorted(
-        sorted_sequence, values, side=side, out_type=out_type
+    values_shape = shape_op(values)
+    result = tf.searchsorted(
+        sorted_sequence, tf.reshape(values, [-1]), side=side, out_type=out_type
     )
+    return tf.reshape(result, values_shape)
 
 
 @sparse.elementwise_unary
@@ -3503,9 +3537,53 @@ def power(x1, x2):
     return tf.pow(x1, x2)
 
 
+def float_power(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+    return tf.pow(x1, x2)
+
+
 @sparse.elementwise_unary
 def negative(x):
     return tf.negative(x)
+
+
+def _nextafter_16bit(x1, x2, dtype):
+    """`nextafter` for 16-bit floats, which `tf.math.nextafter` rejects.
+
+    Steps the IEEE 754 bit pattern by one, which is exactly a one-ulp step.
+    Computing in float32 and casting back does not work: a float32 step is
+    much smaller than a 16-bit ulp, so the result rounds back to `x1`.
+    """
+    b1 = tf.bitcast(x1, tf.int16)
+    b2 = tf.bitcast(x2, tf.int16)
+    zero_i = tf.constant(0, tf.int16)
+    one_i = tf.constant(1, tf.int16)
+    # Zero is tested on the bit pattern rather than with `==`, because
+    # bfloat16 subnormals compare equal to zero in tf's comparison ops.
+    abs_mask = tf.constant(32767, tf.int16)
+    is_zero_1 = tf.equal(tf.bitwise.bitwise_and(b1, abs_mask), zero_i)
+    is_zero_2 = tf.equal(tf.bitwise.bitwise_and(b2, abs_mask), zero_i)
+    same = tf.equal(b1, b2) | (is_zero_1 & is_zero_2)
+    # The bit pattern grows with magnitude for both signs, so stepping away
+    # from zero is +1 for a non-negative x1 and -1 for a negative one.
+    step = tf.where(tf.equal(x2 > x1, b1 >= zero_i), one_i, -one_i)
+    stepped = tf.bitcast(b1 + step, dtype)
+    # Zero has no bit predecessor, so its neighbour is the smallest subnormal
+    # carrying the sign of the direction travelled.
+    tiny = tf.bitcast(
+        tf.where(b2 < zero_i, tf.constant(-32767, tf.int16), one_i), dtype
+    )
+    out = tf.where(is_zero_1, tiny, stepped)
+    out = tf.where(same, x2, out)
+    return tf.where(
+        tf.math.is_nan(x1) | tf.math.is_nan(x2),
+        tf.constant(float("nan"), dtype),
+        out,
+    )
 
 
 def nextafter(x1, x2):
@@ -3513,9 +3591,12 @@ def nextafter(x1, x2):
     x2 = convert_to_tensor(x2)
 
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
-    x1 = tf.cast(x1, tf.float64)
-    x2 = tf.cast(x2, tf.float64)
-    return tf.cast(tf.math.nextafter(x1, x2), dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+    # tf.math.nextafter supports only float32 and float64.
+    if dtype in ("float16", "bfloat16"):
+        return _nextafter_16bit(x1, x2, dtype)
+    return tf.math.nextafter(x1, x2)
 
 
 @sparse.elementwise_unary
@@ -4005,3 +4086,47 @@ def unique(
 
 def dsplit(x, indices_or_sections):
     return split(x, indices_or_sections, axis=2)
+
+
+def column_stack(xs):
+    xs = [convert_to_tensor(x) for x in xs]
+    dtype_set = set([x.dtype for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = [tf.cast(x, dtype) for x in xs]
+    xs = [tf.expand_dims(x, axis=-1) if len(x.shape) == 1 else x for x in xs]
+    return tf.concat(xs, axis=1)
+
+
+def cov(x):
+    x = convert_to_tensor(x)
+    if len(x.shape) > 2:
+        raise ValueError(
+            "Input tensor must have at most 2 dimensions. "
+            f"Received: x.shape={x.shape}"
+        )
+
+    dtype = standardize_dtype(x.dtype)
+    if dtype in ["bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+        dtype = config.floatx()
+    elif dtype == "int64":
+        dtype = "float64"
+    x = cast(x, dtype)
+
+    # A 0D input has no observations to vary over, as in `np.cov`.
+    if len(x.shape) == 0:
+        return tf.constant(float("nan"), dtype=x.dtype)
+
+    # `np.cov` squeezes the result when there is only one variable.
+    is_scalar = len(x.shape) < 2 or x.shape[0] == 1
+    if len(x.shape) == 1:
+        x = tf.reshape(x, (1, -1))
+
+    mean = tf.reduce_mean(x, axis=-1, keepdims=True)
+    x_centered = x - mean
+
+    num_samples = tf.cast(tf.shape(x)[-1], x.dtype)
+    result = tf.matmul(x_centered, x_centered, adjoint_b=True) / (
+        num_samples - 1
+    )
+    return tf.reshape(result, ()) if is_scalar else result

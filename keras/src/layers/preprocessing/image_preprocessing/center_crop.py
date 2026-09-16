@@ -177,12 +177,18 @@ class CenterCrop(BaseImagePreprocessingLayer):
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
-        return self.transform_images(
-            segmentation_masks, transformation, training=training
-        )
+        # Segmentation masks hold discrete class indices. Use nearest-neighbor
+        # interpolation on the resize path so no new class values are invented,
+        # and keep the original (typically integer) dtype by not casting to
+        # `compute_dtype`.
+        masks = self.backend.convert_to_tensor(segmentation_masks)
+        return self._center_crop(masks, interpolation="nearest")
 
     def transform_images(self, images, transformation=None, training=True):
-        inputs = self.backend.cast(images, self.compute_dtype)
+        images = self.backend.cast(images, self.compute_dtype)
+        return self._center_crop(images, interpolation="bilinear")
+
+    def _center_crop(self, inputs, interpolation="bilinear"):
         inputs_shape = self.backend.shape(inputs)
 
         if self.data_format == "channels_first":
@@ -232,6 +238,7 @@ class CenterCrop(BaseImagePreprocessingLayer):
         return image_utils.smart_resize(
             inputs,
             [self.height, self.width],
+            interpolation=interpolation,
             data_format=self.data_format,
             backend_module=self.backend,
         )

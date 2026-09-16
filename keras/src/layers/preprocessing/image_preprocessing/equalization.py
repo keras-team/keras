@@ -95,25 +95,18 @@ class Equalization(BaseImagePreprocessingLayer):
         indices = self.backend.numpy.clip(indices, 0, nbins - 1)
         flat_indices = self.backend.numpy.reshape(indices, [-1])
 
-        if backend.backend() == "jax":
-            # for JAX bincount is never jittable because of output shape
-            histogram = self.backend.numpy.zeros(nbins, dtype="int32")
-            for i in range(nbins):
-                matches = self.backend.cast(
-                    self.backend.numpy.equal(flat_indices, i), "int32"
-                )
-                bin_count = self.backend.numpy.sum(matches)
-                one_hot = self.backend.cast(
-                    self.backend.numpy.arange(nbins) == i, "int32"
-                )
-                histogram = histogram + (bin_count * one_hot)
-            return histogram
-        else:
-            # TensorFlow/PyTorch/NumPy implementation using bincount
-            return self.backend.numpy.bincount(
-                flat_indices,
-                minlength=nbins,
+        # `bincount` has a data dependent output shape, so it cannot be traced.
+        histogram = self.backend.numpy.zeros(nbins, dtype="int32")
+        for i in range(nbins):
+            matches = self.backend.cast(
+                self.backend.numpy.equal(flat_indices, i), "int32"
             )
+            bin_count = self.backend.numpy.sum(matches)
+            one_hot = self.backend.cast(
+                self.backend.numpy.arange(nbins) == i, "int32"
+            )
+            histogram = histogram + (bin_count * one_hot)
+        return histogram
 
     def _scale_values(self, values, source_range, target_range):
         source_min, source_max = source_range
@@ -143,14 +136,10 @@ class Equalization(BaseImagePreprocessingLayer):
     def _apply_equalization(self, channel, hist):
         cdf = self.backend.numpy.cumsum(hist)
 
-        if self.backend.name in ("jax", "openvino"):
-            mask = cdf > 0
-            first_nonzero_idx = self.backend.numpy.argmax(mask)
-            cdf_min = self.backend.numpy.take(cdf, first_nonzero_idx)
-        else:
-            cdf_min = self.backend.numpy.take(
-                cdf, self.backend.numpy.nonzero(cdf)[0][0]
-            )
+        # `nonzero` has a data dependent output shape, so it cannot be traced.
+        mask = cdf > 0
+        first_nonzero_idx = self.backend.numpy.argmax(mask)
+        cdf_min = self.backend.numpy.take(cdf, first_nonzero_idx)
 
         denominator = cdf[-1] - cdf_min
         denominator = self.backend.numpy.where(

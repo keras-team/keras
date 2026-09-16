@@ -251,6 +251,36 @@ def matrix_rank(x, tol=None):
     return tf.linalg.matrix_rank(x, tol=tol)
 
 
+def matrix_power(a, n):
+    a = convert_to_tensor(a)
+    if n == 0:
+        return tf.eye(
+            num_rows=tf.shape(a)[-1],
+            batch_shape=tf.shape(a)[:-2],
+            dtype=a.dtype,
+        )
+
+    if n < 0:
+        a = inv(a)
+        n = abs(n)
+
+    if n == 1:
+        return a
+
+    result = tf.eye(
+        num_rows=tf.shape(a)[-1],
+        batch_shape=tf.shape(a)[:-2],
+        dtype=a.dtype,
+    )
+    base = a
+    while n > 0:
+        if n % 2 == 1:
+            result = tf.matmul(result, base)
+        base = tf.matmul(base, base)
+        n //= 2
+    return result
+
+
 def pinv(x, rcond=None):
     x = convert_to_tensor(x)
     return tf.linalg.pinv(x, rcond=rcond)

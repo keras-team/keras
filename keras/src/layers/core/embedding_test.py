@@ -14,10 +14,13 @@ from keras.src import ops
 from keras.src import quantizers
 from keras.src import saving
 from keras.src import testing
+from keras.src.quantizers.awq_config import AWQConfig
+from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
 from keras.src.testing import test_case
+from keras.src.testing import test_utils
 
 
 class EmbeddingTest(test_case.TestCase):
@@ -341,6 +344,17 @@ class EmbeddingTest(test_case.TestCase):
         with self.assertRaisesRegex(ValueError, "lora is already enabled"):
             layer.enable_lora(rank=2)
 
+    def test_enable_lora_after_int4_quantization_freezes_variable(self):
+        # In int4 mode the `embeddings` property returns a freshly unpacked
+        # tensor rather than the variable, so freezing must go through
+        # `_embeddings`. Backends whose tensors reject attribute assignment
+        # raise `AttributeError` here otherwise.
+        layer = layers.Embedding(input_dim=10, output_dim=16)
+        layer.build()
+        layer.quantize("int4")
+        layer.enable_lora(rank=2)
+        self.assertFalse(layer._embeddings.trainable)
+
     # Test quantization-related methods.
 
     @parameterized.named_parameters(
@@ -490,6 +504,23 @@ class EmbeddingTest(test_case.TestCase):
             layer._dtype_policy._quantization_mode = mode
             layer.quantized_call(x)
         self.assertEqual(layer.dtype_policy, original_dtype_policy)
+
+    @parameterized.named_parameters(
+        ("gptq", "gptq"),
+        ("awq", "awq"),
+    )
+    def test_quantize_unsupported_calibration_modes(self, mode):
+        # Embedding only supports int8/int4. GPTQ/AWQ must be rejected
+        # without stashing a stale quantization config on the layer.
+        layer = layers.Embedding(10, 16)
+        layer.build()
+        if mode == "gptq":
+            config = GPTQConfig(dataset=None, tokenizer=None)
+        else:
+            config = AWQConfig(dataset=None, tokenizer=None)
+        with self.assertRaises(NotImplementedError):
+            layer.quantize(mode, config=config)
+        self.assertIsNone(layer.quantization_config)
 
     @parameterized.named_parameters(
         ("int8", "int8_from_mixed_bfloat16", 0, 2),
@@ -656,6 +687,73 @@ class EmbeddingTest(test_case.TestCase):
         layer.load_own_variables(int4_store)
         self.assertAllClose(layer._embeddings, int4_store["0"])
         self.assertAllClose(layer.embeddings_scale, int4_store["1"])
+
+    @staticmethod
+    def _build_embedding_for_mode(mode, input_dim=64, output_dim=64):
+        """Builds an `Embedding` populated for `mode`'s serialization spec."""
+        if mode == "none":
+            layer = layers.Embedding(input_dim, output_dim)
+            layer.build()
+        elif mode == "int8":
+            layer = layers.Embedding(
+                input_dim, output_dim, dtype="int8_from_float32"
+            )
+            layer.build()
+        elif mode == "int4_per_channel":
+            layer = layers.Embedding(
+                input_dim, output_dim, dtype="int4_from_float32"
+            )
+            layer.build()
+        elif mode == "int4_grouped":
+            layer = layers.Embedding(input_dim, output_dim)
+            layer.build()
+            layer.quantize("int4", config=Int4QuantizationConfig(block_size=16))
+        else:
+            raise ValueError(f"Unhandled test mode: {mode}")
+        return layer
+
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
+    def test_serialization_round_trip(self):
+        for mode in ("none", "int8", "int4_per_channel", "int4_grouped"):
+            with self.subTest(mode=mode):
+                source = self._build_embedding_for_mode(mode)
+                test_utils.randomize_serialized_variables(source)
+
+                store = {}
+                source.save_own_variables(store)
+                # Variables are keyed by consecutive integer positions in the
+                # mode's serialization spec -- the on-disk contract.
+                n_expected = len(test_utils.serialized_variable_names(source))
+                self.assertEqual(
+                    set(store.keys()), {str(i) for i in range(n_expected)}
+                )
+
+                target = self._build_embedding_for_mode(mode)
+                target.load_own_variables(store)
+                test_utils.assert_serialized_variables_equal(
+                    self, source, target
+                )
+
+    def test_load_own_variables_reports_clear_errors(self):
+        # int8 spec order: embeddings ("0"), embeddings_scale ("1").
+        source = self._build_embedding_for_mode("int8")
+        test_utils.randomize_serialized_variables(source)
+        store = test_utils.positional_store(source)
+
+        # A missing variable trips the variable-count check with a clear error.
+        missing = dict(store)
+        del missing["1"]
+        with self.assertRaisesRegex(ValueError, "expected 2 variables"):
+            self._build_embedding_for_mode("int8").load_own_variables(missing)
+
+        # A renumbered/corrupted key keeps the count but fails on the exact
+        # missing position.
+        corrupted = dict(store)
+        corrupted["9"] = corrupted.pop("1")
+        with self.assertRaises(KeyError):
+            self._build_embedding_for_mode("int8").load_own_variables(corrupted)
 
     def test_embedding_int8_custom_quantizer(self):
         """
@@ -835,6 +933,9 @@ class EmbeddingTest(test_case.TestCase):
         # Verify g_idx shape (output_dim for embedding)
         self.assertEqual(layer.g_idx.shape, (output_dim,))
 
+        # g_idx is integer group metadata stored as float32 (see build).
+        self.assertDType(layer.g_idx, "float32")
+
         # Verify g_idx values (should map each column to its group)
         expected_g_idx = np.arange(output_dim) // block_size
         self.assertAllClose(layer.g_idx, expected_g_idx)
@@ -887,3 +988,104 @@ class EmbeddingTest(test_case.TestCase):
         # Verify outputs match
         y_after = loaded_model(x)
         self.assertAllClose(y_before, y_after)
+
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
+    def test_int4_string_matches_default_config(self):
+        """`quantize("int4")` must resolve to the exact same scheme as the
+        default `Int4QuantizationConfig()` (grouped, block_size=128): identical
+        variables (names/shapes/dtypes/values), dtype policy, and outputs."""
+        input_dim, output_dim = 32, 256
+        embeddings = np.random.RandomState(0).randn(input_dim, output_dim)
+        embeddings = embeddings.astype("float32")
+
+        def build_quantized(config):
+            layer = layers.Embedding(input_dim=input_dim, output_dim=output_dim)
+            layer.build()
+            layer._embeddings.assign(embeddings)
+            layer.quantize("int4", config=config)
+            return layer
+
+        layer_str = build_quantized(config=None)
+        layer_cfg = build_quantized(config=Int4QuantizationConfig())
+
+        self.assertEqual(layer_str.dtype_policy.name, "int4/128_from_float32")
+        self.assertEqual(
+            layer_str.dtype_policy.name, layer_cfg.dtype_policy.name
+        )
+
+        vars_str = {v.name: v for v in layer_str.weights}
+        vars_cfg = {v.name: v for v in layer_cfg.weights}
+        self.assertEqual(set(vars_str.keys()), set(vars_cfg.keys()))
+        for name, v_str in vars_str.items():
+            v_cfg = vars_cfg[name]
+            self.assertEqual(tuple(v_str.shape), tuple(v_cfg.shape))
+            self.assertEqual(
+                backend.standardize_dtype(v_str.dtype),
+                backend.standardize_dtype(v_cfg.dtype),
+            )
+            self.assertAllClose(v_str, v_cfg)
+
+        x = np.array([[1, 2, 3], [4, 5, 6]], dtype="int32")
+        self.assertAllClose(layer_str(x), layer_cfg(x))
+
+    @parameterized.named_parameters(
+        ("none", None),
+        ("neg1", -1),
+    )
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
+    def test_int4_per_channel_escape_hatch(self, block_size):
+        """`block_size=None` and `block_size=-1` both select the per-channel
+        escape hatch: no zero-point / g_idx and an `int4/-1` dtype policy."""
+        layer = layers.Embedding(input_dim=32, output_dim=256)
+        layer.build()
+        layer.quantize(
+            "int4", config=Int4QuantizationConfig(block_size=block_size)
+        )
+        self.assertEqual(tuple(layer.embeddings_scale.shape), (32,))
+        self.assertFalse(hasattr(layer, "embeddings_zero"))
+        self.assertFalse(hasattr(layer, "g_idx"))
+        self.assertEqual(layer.dtype_policy.name, "int4/-1_from_float32")
+
+    @parameterized.named_parameters(
+        ("block_none", "None", True),
+        ("block_neg1", "-1", True),
+        ("block_128", "128", False),
+    )
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
+    def test_int4_policy_string_reload_builds_right_variables(
+        self, block_token, per_channel
+    ):
+        """Old checkpoints identified only by their int4 dtype-policy string
+        must deserialize and rebuild the correct variables. Covers the legacy
+        `int4/None` spelling of per-channel plus `int4/-1` and `int4/128`."""
+        input_dim, output_dim = 32, 256
+        policy = f"int4/{block_token}_from_float32"
+        layer = layers.Embedding(
+            input_dim=input_dim, output_dim=output_dim, dtype=policy
+        )
+        layer.build()
+
+        self.assertEqual(layer.quantization_mode, "int4")
+        if per_channel:
+            self.assertEqual(tuple(layer.embeddings_scale.shape), (input_dim,))
+            self.assertFalse(hasattr(layer, "g_idx"))
+        else:
+            block_size = int(block_token)
+            n_groups = math.ceil(output_dim / block_size)
+            self.assertEqual(
+                tuple(layer.embeddings_scale.shape), (input_dim, n_groups)
+            )
+            self.assertTrue(hasattr(layer, "g_idx"))
+            self.assertEqual(tuple(layer.g_idx.shape), (output_dim,))
+        self.assertEqual(
+            backend.standardize_dtype(layer._embeddings.dtype), "int8"
+        )
+
+        x = np.array([[1, 2, 3], [4, 5, 6]], dtype="int32")
+        self.assertEqual(tuple(layer(x).shape), (2, 3, output_dim))
