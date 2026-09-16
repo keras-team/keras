@@ -59,7 +59,11 @@ class RandomGrayscaleTest(testing.TestCase):
 
         # Without the seed in the config the restored layer grayscales a
         # different subset of the batch.
-        images = np.random.random((8, 4, 4, 3)).astype("float32")
+        if backend.config.image_data_format() == "channels_last":
+            shape = (8, 4, 4, 3)
+        else:
+            shape = (8, 3, 4, 4)
+        images = np.random.random(shape).astype("float32")
         restored = layers.RandomGrayscale.from_config(layer.get_config())
         self.assertAllClose(
             layers.RandomGrayscale(factor=0.5, seed=1337)(
