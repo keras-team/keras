@@ -1886,6 +1886,7 @@ class SafeGetH5DatasetTest(testing.TestCase):
             f.create_dataset("scalar", data=1.0)
             f.create_dataset("empty", shape=(0,), dtype="float32")
             f.create_dataset("null", dtype="float32")
+            f["named_dtype"] = np.dtype("float32")
             group = f.create_group("nested")
             group.create_dataset("weights", data=np.arange(16))
         with (

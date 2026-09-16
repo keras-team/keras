@@ -1285,9 +1285,10 @@ def _reject_h5_shape_bomb(h5_file, file_size=None):
                     raise ValueError(
                         f"Not allowed: H5 file with {link_type.__name__}"
                     )
-                if group.get(key, getclass=True) is h5py.Group:
+                child_class = group.get(key, getclass=True)
+                if child_class is h5py.Group:
                     accumulate(safe_get_h5_group(group, key))
-                else:
+                elif child_class is h5py.Dataset:
                     dataset = safe_get_h5_dataset(group, key)
                     if dataset.shape is not None:
                         total_declared += (
