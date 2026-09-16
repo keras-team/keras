@@ -135,7 +135,8 @@ def abs_max_quantize_grouped_with_zero_point(
     Groups are formed along axis 0 (the input/contracting dimension).
     Each group of `block_size` rows gets its own scale factor and zero point
     per column. This is useful for weight distributions that are not centered
-    around zero.
+    around zero. A group's range always includes zero, so its zero point is
+    representable in `value_range` and the grid holds an exact zero.
 
     Args:
         inputs: Input tensor to quantize. Shape: `(input_dim, output_dim)`.
@@ -143,15 +144,17 @@ def abs_max_quantize_grouped_with_zero_point(
         value_range: Tuple of `(min, max)` quantization range.
         dtype: Data type of quantized output.
         epsilon: Small value to avoid division by zero.
-        to_numpy: Whether to perform computation in numpy for memory
-            efficiency.
+        to_numpy: Whether to compute in NumPy, which keeps the weight off
+            the accelerator during quantization, rather than in backend
+            ops. Both paths apply the same formula; `bfloat16` inputs can
+            differ between them at the ulp level.
 
     Returns:
         A tuple `(quantized_tensor, scale, zero_point)` where:
             - `quantized_tensor`: Same shape as inputs, dtype=`dtype`.
             - `scale`: Shape `(n_groups, output_dim)` where
               `n_groups = ceil(input_dim / block_size)`.
-            - `zero_point`: Shape `(n_groups, output_dim)`, dtype=`uint8`.
+            - `zero_point`: Shape `(n_groups, output_dim)`, dtype=`int8`.
 
     Example:
 
@@ -206,12 +209,16 @@ def _abs_max_quantize_grouped_with_zero_point_numpy(
 
     inputs_reshaped = inputs_padded.reshape(n_groups, block_size, output_dim)
 
-    # Compute per-group min/max for asymmetric quantization
-    min_val = np.min(inputs_reshaped, axis=1, keepdims=True)
-    max_val = np.max(inputs_reshaped, axis=1, keepdims=True)
+    # Per-group min/max, widened to include zero: the zero point then lands
+    # inside `[qmin, qmax]` and the grid represents 0 exactly. A group whose
+    # values are all one sign would otherwise clip to one end of the range.
+    min_val = np.minimum(np.min(inputs_reshaped, axis=1, keepdims=True), 0.0)
+    max_val = np.maximum(np.max(inputs_reshaped, axis=1, keepdims=True), 0.0)
 
-    # Scale maps the [min, max] range to [qmin, qmax]
+    # Scale maps the [min, max] range to [qmin, qmax]; the floor keeps an
+    # all-zero group finite when `epsilon` underflows in the input dtype.
     scale = np.divide(np.subtract(max_val, min_val) + epsilon, qmax - qmin)
+    scale = np.maximum(scale, ml_dtypes.finfo(scale.dtype).tiny)
 
     # Zero point shifts the quantized range to include the original zero
     zero_point = np.round(np.divide(-min_val, scale)) + qmin
@@ -237,69 +244,55 @@ def _abs_max_quantize_grouped_with_zero_point_numpy(
 def _abs_max_quantize_grouped_with_zero_point_tensor(
     inputs, block_size, value_range, dtype, epsilon
 ):
-    """Tensor backend implementation of grouped asymmetric quantization."""
+    """Backend-ops implementation of grouped asymmetric quantization.
+
+    The same formula as `_abs_max_quantize_grouped_with_zero_point_numpy`,
+    for callers that keep the weight on the accelerator.
+    """
     original_dtype = backend.standardize_dtype(inputs.dtype)
     inputs = ops.convert_to_tensor(inputs)
 
     input_shape = ops.shape(inputs)
-    input_dim = input_shape[0]
-    output_dim = input_shape[1]
+    input_dim, output_dim = int(input_shape[0]), int(input_shape[1])
+    n_groups = math.ceil(input_dim / block_size)
     qmin, qmax = value_range
 
-    # Infer bit-width from quantization range (e.g., [-8, 7] -> 4 bits)
-    num_levels = qmax - qmin + 1
-    bits = int(math.log2(num_levels))
-
-    n_groups = int(math.ceil(int(input_dim) / block_size))
-    padded_input_dim = n_groups * block_size
-
-    # Transpose to [out_features, in_features] for
-    # compute_quantization_parameters
-    inputs_t = ops.transpose(inputs)
-
-    # Compute scale and zero point using the unified quantization function
-    scale_t, zero_point_t, _ = compute_quantization_parameters(
-        inputs_t,
-        bits=bits,
-        symmetric=False,
-        per_channel=True,
-        group_size=block_size,
-        compute_dtype=original_dtype,
-        epsilon=epsilon,
-        signed=True,
-    )
-
-    # Transpose results back to (n_groups, output_dim)
-    scale = ops.transpose(scale_t)
-    zero_point = ops.transpose(zero_point_t)
-
     # Zero-pad rows so input_dim is divisible by block_size
-    pad_size = padded_input_dim - int(input_dim)
-    if pad_size > 0:
-        padding = ops.zeros((pad_size, output_dim), dtype=inputs.dtype)
-        inputs_padded = ops.concatenate([inputs, padding], axis=0)
-    else:
-        inputs_padded = inputs
+    padded_input_dim = n_groups * block_size
+    if padded_input_dim > input_dim:
+        padding = ops.zeros(
+            (padded_input_dim - input_dim, output_dim), dtype=inputs.dtype
+        )
+        inputs = ops.concatenate([inputs, padding], axis=0)
 
-    inputs_reshaped = ops.reshape(
-        inputs_padded, (n_groups, block_size, output_dim)
+    inputs_reshaped = ops.reshape(inputs, (n_groups, block_size, output_dim))
+
+    # Per-group min/max, widened to include zero (see the NumPy path).
+    min_val = ops.minimum(ops.min(inputs_reshaped, axis=1, keepdims=True), 0.0)
+    max_val = ops.maximum(ops.max(inputs_reshaped, axis=1, keepdims=True), 0.0)
+
+    # Scale maps the [min, max] range to [qmin, qmax]; the floor keeps an
+    # all-zero group finite when `epsilon` underflows in the input dtype.
+    scale = ops.divide(
+        ops.add(ops.subtract(max_val, min_val), epsilon), qmax - qmin
     )
+    scale = ops.maximum(scale, float(ml_dtypes.finfo(original_dtype).tiny))
 
-    # Expand scale and zero_point for broadcasting across block_size
-    scale_expanded = ops.expand_dims(scale, axis=1)
-    zero_point_expanded = ops.expand_dims(zero_point, axis=1)
+    # Zero point shifts the quantized range to include the original zero
+    zero_point = ops.add(
+        ops.round(ops.divide(ops.negative(min_val), scale)), qmin
+    )
+    zero_point = ops.clip(zero_point, qmin, qmax)
 
     # Quantize: q = round(input / scale) + zero_point
-    outputs = ops.add(
-        ops.round(ops.divide(inputs_reshaped, scale_expanded)),
-        zero_point_expanded,
-    )
-    outputs = ops.clip(outputs, qmin, qmax)
-    outputs = ops.cast(outputs, dtype)
+    outputs = ops.add(ops.round(ops.divide(inputs_reshaped, scale)), zero_point)
+    outputs = ops.cast(ops.clip(outputs, qmin, qmax), dtype)
 
-    # Remove padding
+    # Remove padding and squeeze to (n_groups, output_dim)
     outputs = ops.reshape(outputs, (padded_input_dim, output_dim))
     outputs = outputs[:input_dim, :]
+    scale = ops.cast(ops.squeeze(scale, axis=1), original_dtype)
+    zero_point = ops.cast(ops.squeeze(zero_point, axis=1), "int8")
 
     return outputs, scale, zero_point
 
@@ -1416,7 +1409,6 @@ def compute_quantization_parameters(
     group_size=-1,
     compute_dtype="float32",
     epsilon=0.0,
-    signed=False,
 ):
     """
     Computes the scale and zero-point for quantizing weight tensors.
@@ -1439,15 +1431,10 @@ def compute_quantization_parameters(
         compute_dtype: str. The dtype for computation. Defaults to "float32".
         epsilon: float. Small value added to (max - min) before computing
             scale to avoid division by zero. Defaults to 0.0.
-        signed: bool. Whether to use signed quantization range. If True, uses
-            range [-2^(bits-1), 2^(bits-1)-1] (e.g., [-8, 7] for 4-bit).
-            If False, uses range [0, 2^bits-1] (e.g., [0, 15] for 4-bit).
-            Defaults to False.
 
     Returns:
         scale: KerasTensor. The scale tensor for quantization.
-        zero: KerasTensor. The zero tensor for quantization (int8 if signed,
-            uint8 if unsigned).
+        zero: KerasTensor. The `uint8` zero tensor for quantization.
         maxq: scalar. The maximum quantization value.
     """
     # Input validation
@@ -1487,13 +1474,13 @@ def compute_quantization_parameters(
         min_values = ops.min(x_reshaped, axis=1)
         max_values = ops.max(x_reshaped, axis=1)
 
-    # Unsigned asymmetric quantization: clamp the range to include zero,
-    # matching reference GPTQ/AWQ (`xmin = min(xmin, 0)`,
-    # `xmax = max(xmax, 0)`). This guarantees the zero point lands in
-    # [0, maxq] (so it is representable in `bits`-bit packed formats) and
-    # that the quantized grid can represent 0 exactly, even for groups
-    # whose values are all-negative or all-positive.
-    if not signed and not symmetric:
+    # Asymmetric quantization: clamp the range to include zero, matching
+    # reference GPTQ/AWQ (`xmin = min(xmin, 0)`, `xmax = max(xmax, 0)`).
+    # This guarantees the zero point lands in `[0, maxq]`, so it is
+    # representable in `bits`-bit packed formats, and that the quantized
+    # grid can represent 0 exactly, even for groups whose values are
+    # all-negative or all-positive.
+    if not symmetric:
         min_values = ops.minimum(min_values, 0.0)
         max_values = ops.maximum(max_values, 0.0)
 
@@ -1518,26 +1505,12 @@ def compute_quantization_parameters(
     scale = ops.divide(range_values, maxq)
     scale = ops.where(ops.less_equal(scale, 0), 1e-8, scale)
 
-    # Compute zero-point based on signed/unsigned mode
-    if signed:
-        # For signed range [-2^(bits-1), 2^(bits-1)-1], e.g., [-8, 7] for 4-bit
-        qmin = -(2 ** (bits - 1))  # e.g., -8 for 4-bit
-        qmax_signed = 2 ** (bits - 1) - 1  # e.g., 7 for 4-bit
-        if symmetric:
-            zero = ops.full_like(scale, ops.divide(ops.add(maxq, 1), 2) + qmin)
-        else:
-            # zero_signed = round(-min / scale) + qmin
-            zero = ops.add(
-                ops.round(ops.divide(ops.negative(min_values), scale)), qmin
-            )
-        zero = ops.clip(zero, qmin, qmax_signed)
+    # Zero point in the unsigned range [0, 2^bits-1], e.g., [0, 15] for 4-bit
+    if symmetric:
+        zero = ops.full_like(scale, ops.divide(ops.add(maxq, 1), 2))
     else:
-        # For unsigned range [0, 2^bits-1], e.g., [0, 15] for 4-bit
-        if symmetric:
-            zero = ops.full_like(scale, ops.divide(ops.add(maxq, 1), 2))
-        else:
-            zero = ops.round(ops.divide(ops.negative(min_values), scale))
-        zero = ops.clip(zero, 0, maxq)
+        zero = ops.round(ops.divide(ops.negative(min_values), scale))
+    zero = ops.clip(zero, 0, maxq)
 
     # Reshape output to [out_features, n_groups] or [out_features, 1]
     if n_groups > 1:
@@ -1550,8 +1523,7 @@ def compute_quantization_parameters(
         scale = ops.tile(ops.reshape(scale, (1, 1)), (out_features, 1))
         zero = ops.tile(ops.reshape(zero, (1, 1)), (out_features, 1))
 
-    zero_dtype = "int8" if signed else "uint8"
-    return scale, ops.cast(zero, zero_dtype), maxq
+    return scale, ops.cast(zero, "uint8"), maxq
 
 
 def quantize_with_zero_point(input_tensor, scale, zero, maxq):
