@@ -1,14 +1,15 @@
 import math
 
 import numpy as np
+import pytest
 import tensorflow as tf
 import torch
 from absl.testing import parameterized
 
 from keras.src import backend
-from keras.src import testing
 from keras.src.distribution import distribution_lib as dist_lib
 from keras.src.testing.test_utils import named_product
+from keras.src.trainers.data_adapters import data_adapter_test
 from keras.src.trainers.data_adapters.torch_data_loader_adapter import (
     TorchDataLoaderAdapter,
 )
@@ -20,7 +21,7 @@ class TestIterableDataset(torch.utils.data.IterableDataset):
             yield torch.tensor([float(i)]), torch.tensor([float(i)])
 
 
-class TestTorchDataLoaderAdapter(testing.TestCase):
+class TestTorchDataLoaderAdapter(data_adapter_test.DataAdapterTest):
     def test_basic_dataloader(self):
         x = torch.normal(2, 3, size=(34, 4))
         y = torch.normal(1, 3, size=(34, 2))
@@ -408,3 +409,33 @@ class TestTorchDataLoaderAdapter(testing.TestCase):
                 adapter._dataloader.sampler.set_epoch(2)
                 order3 = get_order(it_fn)
                 self.assertNotAllClose(order1, order3)
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="JAX only",
+    )
+    def test_get_jax_iterator_with_super_batch(self):
+        # Even batches: 4 batches with super_batch=2 -> 2 super-batches
+        x = torch.ones((64, 4), dtype=torch.float32)
+        y = torch.ones((64, 2), dtype=torch.float32)
+        ds = torch.utils.data.TensorDataset(x, y)
+        dataloader = torch.utils.data.DataLoader(ds, batch_size=16)
+        adapter = TorchDataLoaderAdapter(dataloader)
+        self.verify_super_batched_iterator(
+            adapter.get_jax_iterator(super_batch=2),
+            expected_super_batches=2,
+            has_partial_batch=False,
+        )
+
+        # Uneven batches: 5 batches with super_batch=2 -> 2 super-batches +
+        # 1 partial batch list
+        x = torch.ones((80, 4), dtype=torch.float32)
+        y = torch.ones((80, 2), dtype=torch.float32)
+        ds = torch.utils.data.TensorDataset(x, y)
+        dataloader = torch.utils.data.DataLoader(ds, batch_size=16)
+        adapter = TorchDataLoaderAdapter(dataloader)
+        self.verify_super_batched_iterator(
+            adapter.get_jax_iterator(super_batch=2),
+            expected_super_batches=2,
+            has_partial_batch=True,
+        )

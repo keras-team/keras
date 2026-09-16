@@ -343,6 +343,11 @@ class Huber(LossFunctionWrapper):
         name="huber_loss",
         dtype=None,
     ):
+        if not isinstance(delta, float) or delta <= 0:
+            raise ValueError(
+                "Invalid value for argument `delta`. Expected a float "
+                f"greater than 0. Received: delta={delta}"
+            )
         super().__init__(
             huber,
             name=name,
@@ -1203,6 +1208,10 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
         axis: The axis along which to compute crossentropy (the features
             axis). Defaults to `-1`.
+        label_smoothing: Float in [0, 1]. When > 0, label values are smoothed,
+            meaning the confidence on label values are relaxed. For example, if
+            `0.1`, use `0.1 / num_classes` for non-target labels and
+            `0.9 + 0.1 / num_classes` for target labels. Defaults to `0.0`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
@@ -1249,6 +1258,7 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
         ignore_class=None,
         reduction="sum_over_batch_size",
         axis=-1,
+        label_smoothing=0.0,
         name="sparse_categorical_crossentropy",
         dtype=None,
     ):
@@ -1260,6 +1270,7 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
             from_logits=from_logits,
             ignore_class=ignore_class,
             axis=axis,
+            label_smoothing=label_smoothing,
         )
 
     def get_config(self):
@@ -2314,7 +2325,12 @@ def categorical_focal_crossentropy(
     ]
 )
 def sparse_categorical_crossentropy(
-    y_true, y_pred, from_logits=False, ignore_class=None, axis=-1
+    y_true,
+    y_pred,
+    from_logits=False,
+    ignore_class=None,
+    axis=-1,
+    label_smoothing=0.0,
 ):
     """Computes the sparse categorical crossentropy loss.
 
@@ -2330,6 +2346,10 @@ def sparse_categorical_crossentropy(
             considered.
         axis: Defaults to `-1`. The dimension along which the entropy is
             computed.
+        label_smoothing: Float in [0, 1]. If > `0` then smooth the labels. For
+            example, if `0.1`, use `0.1 / num_classes` for non-target labels
+            and `0.9 + 0.1 / num_classes` for target labels. Defaults to
+            `0.0`.
 
     Returns:
         Sparse categorical crossentropy loss value.
@@ -2365,6 +2385,28 @@ def sparse_categorical_crossentropy(
         from_logits=from_logits,
         axis=axis,
     )
+
+    if label_smoothing > 0:
+        # Smoothing the implied one-hot target splits the loss into the
+        # hard-label term plus the crossentropy against a uniform target.
+        # That second term has a closed form, so no dense target the size
+        # of `y_pred` is built.
+        if from_logits:
+            uniform_res = ops.subtract(
+                ops.logsumexp(y_pred, axis=axis), ops.mean(y_pred, axis=axis)
+            )
+        else:
+            # The crossentropy ops normalize probabilities before taking the
+            # log, so the same is done here.
+            probs = ops.divide(
+                y_pred, ops.sum(y_pred, axis=axis, keepdims=True)
+            )
+            probs = ops.clip(probs, backend.epsilon(), 1.0 - backend.epsilon())
+            uniform_res = ops.negative(ops.mean(ops.log(probs), axis=axis))
+        res = ops.add(
+            ops.multiply(1.0 - label_smoothing, res),
+            ops.multiply(label_smoothing, uniform_res),
+        )
 
     if ignore_class is not None:
         valid_mask = ops.reshape(valid_mask, res_shape)

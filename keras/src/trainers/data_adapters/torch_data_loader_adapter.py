@@ -132,9 +132,14 @@ class TorchDataLoaderAdapter(DataAdapter):
                 lambda x: np.asarray(x.cpu()), batch, none_is_leaf=False
             )
 
-    def get_jax_iterator(self):
+    def get_jax_iterator(self, super_batch=None):
         # We use numpy as an intermediary because it is faster.
-        return self.get_numpy_iterator()
+        iterator = self.get_numpy_iterator()
+        if super_batch:
+            iterator = data_adapter_utils.super_batch_iterator(
+                iterator, super_batch, stack_fn=np.stack
+            )
+        return iterator
 
     def get_tf_dataset(self):
         from keras.src.utils.module_utils import tensorflow as tf

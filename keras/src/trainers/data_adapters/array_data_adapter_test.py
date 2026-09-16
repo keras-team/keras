@@ -8,13 +8,13 @@ import torch
 from absl.testing import parameterized
 
 from keras.src import backend
-from keras.src import testing
 from keras.src.distribution import distribution_lib as dist_lib
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import array_data_adapter
+from keras.src.trainers.data_adapters import data_adapter_test
 
 
-class TestArrayDataAdapter(testing.TestCase):
+class TestArrayDataAdapter(data_adapter_test.DataAdapterTest):
     def make_array(self, array_type, shape, dtype):
         x = np.array([[i] * shape[1] for i in range(shape[0])], dtype=dtype)
         if array_type == "np":
@@ -473,3 +473,28 @@ class TestArrayDataAdapter(testing.TestCase):
                 adapter._epoch = 2
                 order3 = get_order(it_fn)
                 self.assertNotAllClose(order1, order3)
+
+    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
+    def test_get_jax_iterator_with_super_batch(self):
+        # Even batches: 4 batches with super_batch=2 -> 2 super-batches
+        x = np.ones((64, 4), dtype="float32")
+        y = np.ones((64, 2), dtype="float32")
+        adapter = array_data_adapter.ArrayDataAdapter(x, y, batch_size=16)
+        self.verify_super_batched_iterator(
+            adapter.get_jax_iterator(super_batch=2),
+            expected_super_batches=2,
+            has_partial_batch=False,
+        )
+
+        # Uneven batches: 5 batches with super_batch=2 -> 2 super-batches + 1
+        # partial batch list
+        x_uneven = np.ones((80, 4), dtype="float32")
+        y_uneven = np.ones((80, 2), dtype="float32")
+        adapter_uneven = array_data_adapter.ArrayDataAdapter(
+            x_uneven, y_uneven, batch_size=16
+        )
+        self.verify_super_batched_iterator(
+            adapter_uneven.get_jax_iterator(super_batch=2),
+            expected_super_batches=2,
+            has_partial_batch=True,
+        )

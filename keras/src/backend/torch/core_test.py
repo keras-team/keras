@@ -1,7 +1,5 @@
 """Tests for PyTorch backend core utilities."""
 
-import os
-
 import numpy as np
 import pytest
 import torch
@@ -17,7 +15,11 @@ from keras.src.backend.torch import distribution_lib
 from keras.src.backend.torch.core import KerasDTensorPromotionMode
 from keras.src.backend.torch.core import Variable
 from keras.src.backend.torch.core import convert_to_tensor
+from keras.src.backend.torch.core import get_device
 from keras.src.backend.torch.core import slice as torch_slice
+from keras.src.backend.torch.distributed_test_utils import (
+    TorchDistributedTestMixin,
+)
 from keras.src.distribution.distribution_lib import DeviceMesh
 from keras.src.distribution.distribution_lib import LayoutMap
 from keras.src.distribution.distribution_lib import ModelParallel
@@ -120,43 +122,59 @@ class TorchCoreTest(testing.TestCase):
         result = torch_slice(x, start_indices, shape)
         self.assertEqual(tuple(result.shape), (2, 2, 2))
 
+    def test_slice_with_zero_d_tensor_start_indices(self):
+        """slice must accept 0-d integer tensors as start indices."""
+        device = get_device()
+        x = torch.arange(10, dtype=torch.float32).reshape(2, 5).to(device)
+        out = torch_slice(
+            x,
+            [torch.tensor(0).to(device), torch.tensor(1).to(device)],
+            [2, 3],
+        )
+        expected = x[0:2, 1:4]
+        self.assertAllClose(out, expected)
+
+    def test_to_static_index_rejects_tensor(self):
+        """Tensor bounds must be rejected so `slice()` keeps them traceable."""
+        from keras.src.backend.torch.core import _to_static_index
+
+        with self.assertRaises(TypeError):
+            _to_static_index(torch.tensor(0))
+        with self.assertRaises(TypeError):
+            _to_static_index(torch.tensor(0.0))
+
+    def test_slice_export_preserves_dynamic_dim(self):
+        """A numpy-int bound alongside a symbolic dim keeps the dim dynamic."""
+
+        class _SliceModule(torch.nn.Module):
+            def forward(self, x):
+                n = x.shape[0]
+                return torch_slice(x, [np.int64(0), 0], [n, 2])
+
+        ep = torch.export.export(
+            _SliceModule(),
+            (torch.arange(8).reshape(2, 4),),
+            dynamic_shapes={"x": {0: torch.export.Dim("batch", min=2)}},
+        )
+        # Re-running with a different batch size must work; a specialized dim
+        # would have failed export above or fixed the first output dim to 2.
+        out = ep.module()(torch.arange(12).reshape(3, 4))
+        self.assertEqual(tuple(out.shape), (3, 2))
+
 
 @pytest.mark.skipif(
     backend.backend() != "torch", reason="Requires torch backend"
 )
-class TorchCoreDistributedTest(testing.TestCase):
-    def set_env(self, key, value):
-        old = os.environ.get(key)
-        if value is None:
-            os.environ.pop(key, None)
-        else:
-            os.environ[key] = value
-        self.addCleanup(
-            lambda: (
-                os.environ.update({key: old})
-                if old is not None
-                else os.environ.pop(key, None)
-            )
-        )
-
+@pytest.mark.no_pytest_xdist
+class TorchCoreDistributedTest(TorchDistributedTestMixin, testing.TestCase):
     def tearDown(self):
         super().tearDown()
-        if torch.distributed.is_initialized():
-            torch.distributed.destroy_process_group()
 
-        from keras.src.backend.torch import core as torch_core
-
+        # Reset Keras-level distribution state after each test.
+        set_distribution(None)
         torch_core.deactivate_dtensor_promotion()
 
-    def _ensure_distributed_initialized(self, port="29500"):
-        if not torch.distributed.is_initialized():
-            self.set_env("MASTER_ADDR", "localhost")
-            self.set_env("MASTER_PORT", port)
-            distribution_lib.initialize(num_processes=1, process_id=0)
-
     def test_keras_dtensor_promotion_mode(self):
-        self._ensure_distributed_initialized(port="29501")
-
         device_type = torch_core.get_device().split(":")[0]
         mesh = TorchDeviceMesh(device_type, np.array([0]))
         local_tensor = torch.ones((2, 2), device=device_type)
@@ -186,8 +204,6 @@ class TorchCoreDistributedTest(testing.TestCase):
             self.assertIsInstance(result, DTensor)
 
     def test_convert_to_tensor_pushes_dtensor_mode(self):
-        self._ensure_distributed_initialized(port="29502")
-
         device_type = torch_core.get_device().split(":")[0]
         mesh = TorchDeviceMesh(device_type, np.array([0]))
         local_tensor = torch.ones((2, 2), device=device_type)
@@ -209,7 +225,6 @@ class TorchCoreDistributedTest(testing.TestCase):
         )
 
     def test_convert_to_numpy_dtensor(self):
-        self._ensure_distributed_initialized(port="29508")
         device_type = torch_core.get_device().split(":")[0]
         mesh = TorchDeviceMesh(device_type, np.array([0]))
         dtensor = DTensor.from_local(
@@ -229,8 +244,6 @@ class TorchCoreDistributedTest(testing.TestCase):
         ("tensor_with_grad",),
     )
     def test_variable_initialize_distributed(self, init_type):
-        self._ensure_distributed_initialized()
-
         mesh = DeviceMesh(
             shape=(1,),
             axis_names=["x"],
@@ -259,8 +272,6 @@ class TorchCoreDistributedTest(testing.TestCase):
         self.assertEqual(v.value.device.type, mesh.backend_mesh.device_type)
 
     def test_variable_direct_assign(self):
-        self._ensure_distributed_initialized(port="29505")
-
         mesh = DeviceMesh(
             shape=(1,),
             axis_names=["x"],

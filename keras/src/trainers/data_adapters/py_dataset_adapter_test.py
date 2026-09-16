@@ -12,6 +12,7 @@ from keras.src import backend
 from keras.src import testing
 from keras.src.distribution import distribution_lib as dist_lib
 from keras.src.testing.test_utils import named_product
+from keras.src.trainers.data_adapters import data_adapter_test
 from keras.src.trainers.data_adapters import py_dataset_adapter
 from keras.src.utils.rng_utils import set_random_seed
 
@@ -98,7 +99,7 @@ class ExceptionPyDataset(py_dataset_adapter.PyDataset):
     testing.tensorflow_uses_gpu() or testing.uses_tpu(),
     reason="Flaky on TPU and GPU",
 )
-class PyDatasetAdapterTest(testing.TestCase):
+class PyDatasetAdapterTest(data_adapter_test.DataAdapterTest):
     @parameterized.named_parameters(
         named_product(
             [
@@ -583,3 +584,31 @@ class PyDatasetAdapterTest(testing.TestCase):
                 adapter._epoch = 2
                 order3 = get_order(it_fn)
                 self.assertNotAllClose(order1, order3)
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="JAX only",
+    )
+    def test_get_jax_iterator_with_super_batch(self):
+        # Even batches: 4 batches with super_batch=2 -> 2 super-batches
+        x = np.ones((64, 4), dtype="float32")
+        y = np.ones((64, 2), dtype="float32")
+        dataset = ExamplePyDataset(x, y, batch_size=16)
+        adapter = py_dataset_adapter.PyDatasetAdapter(dataset)
+        self.verify_super_batched_iterator(
+            adapter.get_jax_iterator(super_batch=2),
+            expected_super_batches=2,
+            has_partial_batch=False,
+        )
+
+        # Uneven batches: 5 batches with super_batch=2 -> 2 super-batches +
+        # 1 partial batch list
+        x = np.ones((80, 4), dtype="float32")
+        y = np.ones((80, 2), dtype="float32")
+        dataset = ExamplePyDataset(x, y, batch_size=16)
+        adapter = py_dataset_adapter.PyDatasetAdapter(dataset)
+        self.verify_super_batched_iterator(
+            adapter.get_jax_iterator(super_batch=2),
+            expected_super_batches=2,
+            has_partial_batch=True,
+        )

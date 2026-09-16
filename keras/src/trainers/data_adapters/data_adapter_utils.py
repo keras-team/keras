@@ -519,3 +519,49 @@ def jax_sparse_to_tf_sparse(x):
     from keras.src.utils.module_utils import tensorflow as tf
 
     return tf.SparseTensor(x.indices, x.data, x.shape)
+
+
+class PartialBatchList(list):
+    """Container for unstacked remainder batches from super_batch_iterator."""
+
+    pass
+
+
+def super_batch_iterator(iterator, super_batch, stack_fn=np.stack):
+    """Wraps an iterator to stack batches into super-batches along axis 0."""
+    while True:
+        batches = []
+        try:
+            for _ in range(super_batch):
+                batches.append(next(iterator))
+        except StopIteration:
+            pass
+
+        if not batches:
+            break
+
+        for leaf in tree.flatten(batches[0]):
+            if (
+                is_scipy_sparse(leaf)
+                or is_tensorflow_sparse(leaf)
+                or is_jax_sparse(leaf)
+            ):
+                raise ValueError(
+                    "`steps_per_execution > 1` is not supported with sparse "
+                    "tensors."
+                )
+
+        if len(batches) == super_batch:
+            try:
+
+                def _stack_leaf(*xs):
+                    if xs[0] is None:
+                        return None
+                    return stack_fn(xs)
+
+                yield tree.map_structure(_stack_leaf, *batches)
+                continue
+            except (ValueError, RuntimeError):
+                pass
+
+        yield PartialBatchList(batches)

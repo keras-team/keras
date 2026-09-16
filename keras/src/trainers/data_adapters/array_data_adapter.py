@@ -269,7 +269,7 @@ class ArrayDataAdapter(DataAdapter):
         dataset = dataset.with_options(options)
         return dataset.prefetch(tf.data.AUTOTUNE)
 
-    def get_jax_iterator(self):
+    def get_jax_iterator(self, super_batch=None):
         inputs = array_slicing.convert_to_sliceable(
             self._inputs, target_backend="jax"
         )
@@ -279,7 +279,14 @@ class ArrayDataAdapter(DataAdapter):
             x = sliceable.convert_to_jax_compatible(x)
             return x
 
-        return self._get_iterator(slice_and_convert_to_jax, inputs)
+        iterator = self._get_iterator(slice_and_convert_to_jax, inputs)
+        if super_batch:
+            import jax.numpy as jnp
+
+            iterator = data_adapter_utils.super_batch_iterator(
+                iterator, super_batch, stack_fn=jnp.stack
+            )
+        return iterator
 
     def get_torch_dataloader(self):
         import torch
@@ -393,7 +400,6 @@ class ArrayDataAdapter(DataAdapter):
         dataloader = torch.utils.data.DataLoader(
             dataset, batch_sampler=batch_sampler, collate_fn=no_op_collate
         )
-
         return dataloader
 
     def _get_iterator(self, slice_and_convert_fn, inputs):
