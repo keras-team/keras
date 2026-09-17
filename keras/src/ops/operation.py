@@ -7,10 +7,13 @@ from keras.src import dtype_policies
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
+from keras.src.backend.common import dtypes
 from keras.src.backend.common import remat
 from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.backend.config import is_nnx_enabled
 from keras.src.ops.node import Node
+from keras.src.ops.operation_utils import broadcast_shapes
+from keras.src.ops.operation_utils import reduce_shape
 from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils import python_utils
 from keras.src.utils import traceback_utils
@@ -446,3 +449,135 @@ class Operation(KerasSaveable):
     def _post_untrack_variable(self, variable):
         """Can be overridden for per backend post untrack actions."""
         pass
+
+
+class AutoElementwiseOperation(Operation):
+    """Base class for elementwise ops dispatching directly to backend.
+
+    Subclasses must specify `backend_fn` as a class attribute.
+    Optionally, subclasses may specify `output_dtype` (e.g., `"bool"` for
+    predicates). If `output_dtype` is `None`, the output dtype matches the
+    input tensor's dtype.
+    """
+
+    backend_fn = None
+    output_dtype = None
+    preserves_sparse = False
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if cls.backend_fn is None:
+            raise ValueError(
+                f"Class '{cls.__name__}' must define `backend_fn`."
+            )
+        cls.backend_fn = staticmethod(cls.backend_fn)
+
+    def call(self, x):
+        return self.backend_fn(x)
+
+    def compute_output_spec(self, x, *args, **kwargs):
+        if (
+            not args
+            and not kwargs
+            and hasattr(x, "shape")
+            and hasattr(x, "dtype")
+        ):
+            dtype = self.output_dtype or x.dtype
+            sparse = self.preserves_sparse and getattr(x, "sparse", False)
+            ragged = getattr(x, "ragged", False)
+            return KerasTensor(
+                x.shape, dtype=dtype, sparse=sparse, ragged=ragged
+            )
+        return super().compute_output_spec(x, *args, **kwargs)
+
+
+class AutoBinaryBroadcastOperation(Operation):
+    """Base class for binary broadcast ops dispatching directly to backend.
+
+    Subclasses must specify `backend_fn` as a class attribute.
+    Optionally, subclasses may specify `output_dtype` (e.g., `"bool"` for
+    comparison ops). If `output_dtype` is `None`, the output dtype is inferred
+    via `dtypes.result_type(x1.dtype, x2.dtype)`.
+    """
+
+    backend_fn = None
+    output_dtype = None
+    preserves_sparse = False
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if cls.backend_fn is None:
+            raise ValueError(
+                f"Class '{cls.__name__}' must define `backend_fn`."
+            )
+        cls.backend_fn = staticmethod(cls.backend_fn)
+
+    def call(self, x1, x2):
+        return self.backend_fn(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+        if self.output_dtype:
+            dtype = self.output_dtype
+        else:
+            dtype = dtypes.result_type(
+                getattr(x1, "dtype", type(x1)),
+                getattr(x2, "dtype", type(x2)),
+            )
+        x1_sparse = getattr(x1, "sparse", False)
+        x2_sparse = getattr(x2, "sparse", False)
+        x1_ragged = getattr(x1, "ragged", False)
+        x2_ragged = getattr(x2, "ragged", False)
+        output_ragged = x1_ragged or x2_ragged
+        output_sparse = (
+            self.preserves_sparse
+            and (x1_sparse and x2_sparse)
+            and not output_ragged
+        )
+        return KerasTensor(
+            output_shape,
+            dtype=dtype,
+            sparse=output_sparse,
+            ragged=output_ragged,
+        )
+
+
+class AutoReductionOperation(Operation):
+    """Base class for axis reduction ops dispatching directly to backend.
+
+    Subclasses must specify `backend_fn` as a class attribute.
+    Optionally, subclasses may specify `output_dtype` (e.g., `"bool"` for
+    predicates like `all`/`any` or `"int32"` for index reductions like
+    `argmax`/`argmin`). If `output_dtype` is `None`, the output dtype matches
+    the input tensor's dtype.
+    """
+
+    backend_fn = None
+    output_dtype = None
+    preserves_sparse = False
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if cls.backend_fn is None:
+            raise ValueError(
+                f"Class '{cls.__name__}' must define `backend_fn`."
+            )
+        cls.backend_fn = staticmethod(cls.backend_fn)
+
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return self.backend_fn(x, axis=self.axis, keepdims=self.keepdims)
+
+    def compute_output_spec(self, x):
+        output_shape = reduce_shape(
+            x.shape, axis=self.axis, keepdims=self.keepdims
+        )
+        dtype = self.output_dtype or x.dtype
+        sparse = self.preserves_sparse and getattr(x, "sparse", False)
+        return KerasTensor(output_shape, dtype=dtype, sparse=sparse)
