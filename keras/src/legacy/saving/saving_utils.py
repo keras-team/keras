@@ -112,7 +112,7 @@ def model_metadata(model, include_optimizer=True, require_config=True):
     )
     if getattr(model, "optimizer", False) and include_optimizer:
         if model.compiled:
-            training_config = model._compile_config.config
+            training_config = model._compile_config.config.copy()
             training_config.pop("optimizer", None)  # Handled separately.
             metadata["training_config"] = _serialize_nested_config(
                 training_config

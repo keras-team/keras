@@ -1253,6 +1253,16 @@ def copy(x):
     return tf.identity(x)
 
 
+def copysign(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+    magnitude = tf.abs(x1)
+    return tf.where(signbit(x2), -magnitude, magnitude)
+
+
 @sparse.densifying_unary(1)
 def cos(x):
     x = convert_to_tensor(x)
@@ -3527,9 +3537,53 @@ def power(x1, x2):
     return tf.pow(x1, x2)
 
 
+def float_power(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+    return tf.pow(x1, x2)
+
+
 @sparse.elementwise_unary
 def negative(x):
     return tf.negative(x)
+
+
+def _nextafter_16bit(x1, x2, dtype):
+    """`nextafter` for 16-bit floats, which `tf.math.nextafter` rejects.
+
+    Steps the IEEE 754 bit pattern by one, which is exactly a one-ulp step.
+    Computing in float32 and casting back does not work: a float32 step is
+    much smaller than a 16-bit ulp, so the result rounds back to `x1`.
+    """
+    b1 = tf.bitcast(x1, tf.int16)
+    b2 = tf.bitcast(x2, tf.int16)
+    zero_i = tf.constant(0, tf.int16)
+    one_i = tf.constant(1, tf.int16)
+    # Zero is tested on the bit pattern rather than with `==`, because
+    # bfloat16 subnormals compare equal to zero in tf's comparison ops.
+    abs_mask = tf.constant(32767, tf.int16)
+    is_zero_1 = tf.equal(tf.bitwise.bitwise_and(b1, abs_mask), zero_i)
+    is_zero_2 = tf.equal(tf.bitwise.bitwise_and(b2, abs_mask), zero_i)
+    same = tf.equal(b1, b2) | (is_zero_1 & is_zero_2)
+    # The bit pattern grows with magnitude for both signs, so stepping away
+    # from zero is +1 for a non-negative x1 and -1 for a negative one.
+    step = tf.where(tf.equal(x2 > x1, b1 >= zero_i), one_i, -one_i)
+    stepped = tf.bitcast(b1 + step, dtype)
+    # Zero has no bit predecessor, so its neighbour is the smallest subnormal
+    # carrying the sign of the direction travelled.
+    tiny = tf.bitcast(
+        tf.where(b2 < zero_i, tf.constant(-32767, tf.int16), one_i), dtype
+    )
+    out = tf.where(is_zero_1, tiny, stepped)
+    out = tf.where(same, x2, out)
+    return tf.where(
+        tf.math.is_nan(x1) | tf.math.is_nan(x2),
+        tf.constant(float("nan"), dtype),
+        out,
+    )
 
 
 def nextafter(x1, x2):
@@ -3537,9 +3591,12 @@ def nextafter(x1, x2):
     x2 = convert_to_tensor(x2)
 
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
-    x1 = tf.cast(x1, tf.float64)
-    x2 = tf.cast(x2, tf.float64)
-    return tf.cast(tf.math.nextafter(x1, x2), dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+    # tf.math.nextafter supports only float32 and float64.
+    if dtype in ("float16", "bfloat16"):
+        return _nextafter_16bit(x1, x2, dtype)
+    return tf.math.nextafter(x1, x2)
 
 
 @sparse.elementwise_unary
@@ -4039,3 +4096,37 @@ def column_stack(xs):
         xs = [tf.cast(x, dtype) for x in xs]
     xs = [tf.expand_dims(x, axis=-1) if len(x.shape) == 1 else x for x in xs]
     return tf.concat(xs, axis=1)
+
+
+def cov(x):
+    x = convert_to_tensor(x)
+    if len(x.shape) > 2:
+        raise ValueError(
+            "Input tensor must have at most 2 dimensions. "
+            f"Received: x.shape={x.shape}"
+        )
+
+    dtype = standardize_dtype(x.dtype)
+    if dtype in ["bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"]:
+        dtype = config.floatx()
+    elif dtype == "int64":
+        dtype = "float64"
+    x = cast(x, dtype)
+
+    # A 0D input has no observations to vary over, as in `np.cov`.
+    if len(x.shape) == 0:
+        return tf.constant(float("nan"), dtype=x.dtype)
+
+    # `np.cov` squeezes the result when there is only one variable.
+    is_scalar = len(x.shape) < 2 or x.shape[0] == 1
+    if len(x.shape) == 1:
+        x = tf.reshape(x, (1, -1))
+
+    mean = tf.reduce_mean(x, axis=-1, keepdims=True)
+    x_centered = x - mean
+
+    num_samples = tf.cast(tf.shape(x)[-1], x.dtype)
+    result = tf.matmul(x_centered, x_centered, adjoint_b=True) / (
+        num_samples - 1
+    )
+    return tf.reshape(result, ()) if is_scalar else result

@@ -1,5 +1,7 @@
 import torch
 import torch.nn.functional as tnn
+from torch.distributed.tensor import DTensor
+from torch.distributed.tensor import Replicate
 
 from keras.src import backend
 from keras.src.backend.common.backend_utils import canonicalize_axis
@@ -284,7 +286,7 @@ def _apply_same_padding(
     return tnn.pad(inputs, pad=tuple(flattened_padding), mode=padding_mode), 0
 
 
-def _transpose_spatial_inputs(inputs):
+def _transpose_spatial_inputs(inputs, channels_last_memory_format=False):
     """Transpose inputs from channels_last to channels_first format."""
     # Torch pooling does not support `channels_last` format, so
     # we need to transpose to `channels_first` format.
@@ -292,13 +294,24 @@ def _transpose_spatial_inputs(inputs):
     # failures in view-based ops (e.g., conv2d, torch.export) that
     # require contiguous memory. Adding .contiguous() ensures
     # compatible memory layout.
+    # `channels_last_memory_format` selects torch's channels_last
+    # `memory_format` for the result instead of the default contiguous one.
+    # It does not change the dimension order, which is always channels_first
+    # here: a permuted NHWC->NCHW view of a contiguous tensor already has
+    # channels_last strides, so requesting that format copies nothing.
     ndim = inputs.ndim - 2
     if ndim == 1:  # 1D case
         return torch.permute(inputs, (0, 2, 1)).contiguous()
     elif ndim == 2:  # 2D case
-        return torch.permute(inputs, (0, 3, 1, 2)).contiguous()
+        inputs = torch.permute(inputs, (0, 3, 1, 2))
+        if channels_last_memory_format:
+            return inputs.contiguous(memory_format=torch.channels_last)
+        return inputs.contiguous()
     elif ndim == 3:  # 3D case
-        return torch.permute(inputs, (0, 4, 1, 2, 3)).contiguous()
+        inputs = torch.permute(inputs, (0, 4, 1, 2, 3))
+        if channels_last_memory_format:
+            return inputs.contiguous(memory_format=torch.channels_last_3d)
+        return inputs.contiguous()
     raise ValueError(
         "Inputs must have ndim=3, 4 or 5, "
         "corresponding to 1D, 2D and 3D inputs. "
@@ -646,12 +659,13 @@ def conv(
         return _conv_pointwise_channels_last(inputs, kernel, strides)
 
     if data_format == "channels_last":
-        inputs = _transpose_spatial_inputs(inputs)
+        inputs = _transpose_spatial_inputs(
+            inputs, channels_last_memory_format=True
+        )
 
     kernel = _transpose_conv_kernel(kernel)
 
     if data_format == "channels_last":
-        inputs = _maybe_convert_to_channels_last(inputs)
         kernel = _maybe_convert_to_channels_last(kernel)
 
     # calc. groups snippet
@@ -1545,6 +1559,12 @@ def dot_product_attention(
                     (q_len, kv_len), dtype=torch.bool, device=mask.device
                 )
             )
+            if isinstance(mask, DTensor):
+                causal_mask = DTensor.from_local(
+                    causal_mask,
+                    mask.device_mesh,
+                    [Replicate()] * mask.device_mesh.ndim,
+                )
             mask = torch.logical_and(mask, causal_mask)
         # Explicitly set `is_causal` to `False` when `mask` is not `None`.
         is_causal = False
@@ -1564,6 +1584,16 @@ def dot_product_attention(
         groups = num_query_heads // num_kv_heads
         key = torch.repeat_interleave(key, repeats=groups, dim=1)
         value = torch.repeat_interleave(value, repeats=groups, dim=1)
+
+    is_dtensor = isinstance(query, DTensor)
+    if is_dtensor:
+        device_mesh = query.device_mesh
+        placements = query.placements
+        query = query.to_local()
+        key = key.to_local() if hasattr(key, "to_local") else key
+        value = value.to_local() if hasattr(value, "to_local") else value
+        if mask is not None:
+            mask = mask.to_local() if hasattr(mask, "to_local") else mask
 
     if flash_attention is None:
         flash_attention = _can_use_flash_attention(
@@ -1598,6 +1628,12 @@ def dot_product_attention(
             is_causal=is_causal,
             scale=scale,
         )
+
+    if is_dtensor:
+        attention_output = DTensor.from_local(
+            attention_output, device_mesh, placements
+        )
+
     return torch.transpose(attention_output, axis1, axis0)
 
 

@@ -520,6 +520,13 @@ def copy(x):
     return np.copy(x)
 
 
+def copysign(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    return np.copysign(x1, x2).astype(dtype)
+
+
 def cos(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
@@ -1635,6 +1642,13 @@ def power(x1, x2):
     return np.power(x1, x2)
 
 
+def float_power(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    return np.float_power(x1, x2).astype(dtype)
+
+
 def negative(x):
     return np.negative(x)
 
@@ -1854,3 +1868,16 @@ def column_stack(xs):
         dtype = dtypes.result_type(*dtype_set)
         xs = [x.astype(dtype) for x in xs]
     return np.column_stack(xs)
+
+
+def cov(x):
+    x = convert_to_tensor(x)
+
+    if x.dtype in ["int64", "float64"]:
+        dtype = "float64"
+    elif x.dtype in ["bfloat16", "float16"]:
+        dtype = x.dtype
+    else:
+        dtype = config.floatx()
+
+    return np.cov(x).astype(dtype)

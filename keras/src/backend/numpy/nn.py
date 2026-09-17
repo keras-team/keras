@@ -144,6 +144,9 @@ def selu(x):
 
 def gelu(x, approximate=True):
     x = convert_to_tensor(x)
+    # Cast integer inputs to float for consistent behavior across backends
+    if np.issubdtype(x.dtype, np.integer):
+        x = x.astype("float32")
     # followed by JAX's implementation
     if approximate:
         sqrt_2_over_pi = np.sqrt(2 / np.pi).astype(x.dtype)
