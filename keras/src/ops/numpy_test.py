@@ -4296,20 +4296,28 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             np.greater_equal(2, x),
         )
 
-    def test_allclose(self):
-        x = np.array([1], dtype="int32")
-        y = np.array([2], dtype="int32")
-        self.assertAllClose(knp.allclose(x, y, rtol=0.1, atol=1e-8), False)
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_allclose(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = np.array([1], dtype="int32")
+            y = np.array([2], dtype="int32")
+            self.assertAllClose(knp.allclose(x, y, rtol=0.1, atol=1e-8), False)
 
-        x = np.array([1.0], dtype="float32")
-        y = np.array([1.0000001], dtype="float32")
-        self.assertAllClose(knp.allclose(x, y, rtol=0.1, atol=1e-8), True)
+            x = np.array([1.0], dtype="float32")
+            y = np.array([1.0000001], dtype="float32")
+            self.assertAllClose(knp.allclose(x, y, rtol=0.1, atol=1e-8), True)
+            self.assertAllClose(knp.AllClose(rtol=0.1, atol=1e-8)(x, y), True)
 
-        # Test with NaNs
-        x_nan = np.array([np.nan, 1.0])
-        y_nan = np.array([np.nan, 1.0])
-        self.assertAllClose(knp.allclose(x_nan, y_nan), False)
-        self.assertAllClose(knp.allclose(x_nan, y_nan, equal_nan=True), True)
+            # Test with NaNs
+            x_nan = np.array([np.nan, 1.0])
+            y_nan = np.array([np.nan, 1.0])
+            self.assertAllClose(knp.allclose(x_nan, y_nan), False)
+            self.assertAllClose(
+                knp.allclose(x_nan, y_nan, equal_nan=True), True
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     def test_isclose(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
