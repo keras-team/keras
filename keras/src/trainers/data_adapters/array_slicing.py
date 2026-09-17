@@ -122,6 +122,20 @@ class NativeArraySliceable(Sliceable):
         return backend.convert_to_numpy(x)
 
 
+class TorchSliceable(Sliceable):
+    @classmethod
+    def cast(cls, x, dtype):
+        from keras.src.backend.torch.core import cast
+
+        return cast(x, dtype)
+
+    @classmethod
+    def convert_to_numpy(cls, x):
+        from keras.src.backend.torch.core import convert_to_numpy
+
+        return convert_to_numpy(x)
+
+
 class TensorflowSliceable(Sliceable):
     def __getitem__(self, indices):
         from keras.src.utils.module_utils import tensorflow as tf
@@ -331,6 +345,7 @@ def can_slice_array(x):
         or data_adapter_utils.is_pandas_data_frame(x)
         or data_adapter_utils.is_pandas_series(x)
         or backend.is_tensor(x)
+        or data_adapter_utils.is_torch_tensor(x)
         or hasattr(x, "__array__")
     )
 
@@ -391,6 +406,8 @@ def convert_to_sliceable(arrays, target_backend=None):
             sliceable_class = ScipySparseSliceable
         elif backend.is_tensor(x):
             sliceable_class = NativeArraySliceable
+        elif data_adapter_utils.is_torch_tensor(x):
+            sliceable_class = TorchSliceable
         elif hasattr(x, "__array__"):
             x = np.asarray(x)
             sliceable_class = NumpySliceable
@@ -434,7 +451,10 @@ def convert_to_sliceable(arrays, target_backend=None):
         # which should not use extra memory.
         # See https://github.com/google/jax/issues/1276 for an explanation of
         # why slicing a NumPy array is faster than slicing a JAX array.
-        if target_backend == "jax" and sliceable_class is TensorflowSliceable:
+        if target_backend == "jax" and sliceable_class in (
+            TensorflowSliceable,
+            TorchSliceable,
+        ):
             x = np.asarray(x)
             sliceable_class = NumpySliceable
 
