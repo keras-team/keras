@@ -159,10 +159,6 @@ def create_legacy_directory(package_dir):
                         f"keras.{legacy_submodule}",
                         f"keras._tf_keras.keras.{legacy_submodule}",
                     )
-                # Remove duplicate generated comments string. (Docstrings
-                # are stripped with a non-greedy-unsafe pattern, so
-                # newlines are escaped first to keep the match on one
-                # logical line and avoid `re.DOTALL` surprises.)
                 # Remove duplicate generated comments/docstrings safely using a non-greedy pattern.
                 legacy_contents = re.sub(r'""".*?"""', "", legacy_contents, flags=re.DOTALL)
 
