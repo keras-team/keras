@@ -122,20 +122,6 @@ class NativeArraySliceable(Sliceable):
         return backend.convert_to_numpy(x)
 
 
-class TorchSliceable(Sliceable):
-    @classmethod
-    def cast(cls, x, dtype):
-        from keras.src.backend.torch.core import cast
-
-        return cast(x, dtype)
-
-    @classmethod
-    def convert_to_numpy(cls, x):
-        from keras.src.backend.torch.core import convert_to_numpy
-
-        return convert_to_numpy(x)
-
-
 class TensorflowSliceable(Sliceable):
     def __getitem__(self, indices):
         from keras.src.utils.module_utils import tensorflow as tf
@@ -213,6 +199,20 @@ class JaxSparseSliceable(Sliceable):
     @classmethod
     def convert_to_native_compatible(cls, x):
         return x.todense()
+
+
+class TorchSliceable(Sliceable):
+    @classmethod
+    def cast(cls, x, dtype):
+        from keras.src.backend.torch.core import cast
+
+        return cast(x, dtype)
+
+    @classmethod
+    def convert_to_numpy(cls, x):
+        from keras.src.backend.torch.core import convert_to_numpy
+
+        return convert_to_numpy(x)
 
 
 class PandasSliceable(Sliceable):
