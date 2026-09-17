@@ -289,18 +289,17 @@ def get_jax_iterator(iterable):
 def get_numpy_iterator(iterable):
     def convert_to_numpy(x):
         if not isinstance(x, np.ndarray):
-            # Using `__array__` should handle `tf.Tensor`, `jax.np.ndarray`,
-            # `torch.Tensor`, as well as any other tensor-like object that
-            # has added numpy support.
-            if hasattr(x, "__array__"):
+            if backend.ops.is_tensor(x):
+                # The backend knows how to convert its own tensors, including
+                # the ones `__array__` cannot, e.g. a bfloat16 MLX array.
+                x = ops.convert_to_numpy(x)
+            elif hasattr(x, "__array__"):
+                # Using `__array__` should handle `tf.Tensor`,
+                # `jax.np.ndarray`, `torch.Tensor`, as well as any other
+                # tensor-like object that has added numpy support.
                 if is_torch_tensor(x):
                     x = x.cpu()
-                try:
-                    x = np.asarray(x)
-                except (ValueError, TypeError, RuntimeError):
-                    # The backend knows how to convert its own tensors when
-                    # `__array__` does not, e.g. a bfloat16 MLX array.
-                    x = ops.convert_to_numpy(x)
+                x = np.asarray(x)
         return x
 
     for batch in iterable:
