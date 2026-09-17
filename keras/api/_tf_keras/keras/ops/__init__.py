@@ -56,6 +56,7 @@ from keras.src.ops.math import extract_sequences as extract_sequences
 from keras.src.ops.math import fft as fft
 from keras.src.ops.math import fft2 as fft2
 from keras.src.ops.math import gammainc as gammainc
+from keras.src.ops.math import gammaincc as gammaincc
 from keras.src.ops.math import ifft2 as ifft2
 from keras.src.ops.math import in_top_k as in_top_k
 from keras.src.ops.math import irfft as irfft

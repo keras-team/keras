@@ -66,11 +66,50 @@ keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('uint8', 'int32')
 keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('uint8', 'int8')
 keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('uint8', 'uint16')
 keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('uint8', 'uint32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('bfloat16', 'float16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('bfloat16', 'float32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('bfloat16', 'int16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('bfloat16', 'int32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('bfloat16', 'int8')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('bfloat16', 'uint16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('bfloat16', 'uint32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('bfloat16', 'uint8')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('float16', 'float32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('float16', 'int16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('float16', 'int32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('float16', 'int8')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('float16', 'uint16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('float16', 'uint32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('float16', 'uint8')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('float32', 'int16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('float32', 'int32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('float32', 'int8')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('float32', 'uint16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('float32', 'uint32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('float32', 'uint8')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('int16', 'int32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('int8', 'int16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('int8', 'int32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('uint16', 'int16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('uint16', 'int32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('uint16', 'int8')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('uint16', 'uint32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('uint32', 'int16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('uint32', 'int32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('uint32', 'int8')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('uint8', 'int16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('uint8', 'int32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('uint8', 'int8')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('uint8', 'uint16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc_('uint8', 'uint32')
 keras/src/ops/math_test.py::MathOpsCorrectnessTest::test_erfinv_operation_basic
 keras/src/ops/math_test.py::MathOpsCorrectnessTest::test_erfinv_operation_dtype
 keras/src/ops/math_test.py::MathOpsCorrectnessTest::test_gammainc
+keras/src/ops/math_test.py::MathOpsCorrectnessTest::test_gammaincc
 keras/src/ops/math_test.py::MathOpsDynamicShapeTest::test_gammainc
+keras/src/ops/math_test.py::MathOpsDynamicShapeTest::test_gammaincc
 keras/src/ops/math_test.py::MathOpsStaticShapeTest::test_gammainc
+keras/src/ops/math_test.py::MathOpsStaticShapeTest::test_gammaincc
 keras/src/ops/nn_test.py::NNOpsCorrectnessTest::test_ctc_decode
 keras/src/ops/nn_test.py::NNOpsDtypeTest::test_ctc_decode_bfloat16
 keras/src/ops/nn_test.py::NNOpsDtypeTest::test_ctc_decode_float16
