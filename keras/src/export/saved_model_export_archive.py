@@ -15,9 +15,10 @@ class SavedModelExportArchive:
     This class contains all the common SavedModel export logic that is shared
     across different backends (TensorFlow, JAX, Torch). Backend-specific
     implementations should extend this class and override the following methods:
+
     - `_backend_track_layer(layer)`: Track variables of a layer.
     - `_backend_add_endpoint(name, fn, input_signature, **kwargs)`: Backend-
-        specific endpoint creation logic.
+      specific endpoint creation logic.
     - `_backend_init()`: Backend-specific initialization (optional).
     """
 
@@ -27,7 +28,6 @@ class SavedModelExportArchive:
                 "`ExportArchive` is only compatible with TensorFlow, JAX and "
                 "Torch backends."
             )
-
         self._endpoint_names = []
         self._endpoint_signatures = {}
         self.tensorflow_version = tf.__version__
@@ -82,9 +82,8 @@ class SavedModelExportArchive:
             if not hasattr(self, "_tracked"):
                 self._tracked = []
             self._tracked.append(resource)
-
-        if isinstance(resource, layers.Layer):
-            self._backend_track_layer(resource)
+            if isinstance(resource, layers.Layer):
+                self._backend_track_layer(resource)
         elif not isinstance(resource, tf.__internal__.tracking.Trackable):
             raise ValueError(
                 "Invalid resource type. Expected a Keras `Layer` or `Model` "
@@ -185,7 +184,6 @@ class SavedModelExportArchive:
                             https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md).
                         If `native_serialization` and `polymorphic_shapes` are
                         not provided, they are automatically computed.
-
         """
         self.track(resource)
         return self.add_endpoint(
@@ -195,30 +193,31 @@ class SavedModelExportArchive:
     def add_variable_collection(self, name, variables):
         """Register a set of variables to be retrieved after reloading.
 
-        Arguments:
-            name: The string name for the collection.
-            variables: A tuple/list/set of `keras.Variable` instances.
+                Arguments:
+                    name: The string name for the collection.
+                    variables: A tuple/list/set of `keras.Variable` instances.
 
-        Example:
+                Example:
 
         ```python
-        export_archive = ExportArchive()
-        export_archive.track(model)
-        # Register an endpoint
-        export_archive.add_endpoint(
-            name="serve",
-            fn=model.call,
-            input_signature=[keras.InputSpec(shape=(None, 3), dtype="float32")],
-        )
-        # Save a variable collection
-        export_archive.add_variable_collection(
-            name="optimizer_variables", variables=model.optimizer.variables)
-        export_archive.write_out("path/to/location")
-
-        # Reload the object
-        revived_object = tf.saved_model.load("path/to/location")
-        # Retrieve the variables
-        optimizer_variables = revived_object.optimizer_variables
+                export_archive = ExportArchive()
+                export_archive.track(model)
+                # Register an endpoint
+                export_archive.add_endpoint(
+                    name="serve",
+                    fn=model.call,
+                    input_signature=[keras.InputSpec(shape=(None, 3),
+                    dtype="float32")],
+                )
+                # Save a variable collection
+                export_archive.add_variable_collection(
+                    name="optimizer_variables",
+                    variables=model.optimizer.variables)
+                export_archive.write_out("path/to/location")
+                # Reload the object
+                revived_object = tf.saved_model.load("path/to/location")
+                # Retrieve the variables
+                optimizer_variables = revived_object.optimizer_variables
         ```
         """
         if not isinstance(variables, (list, tuple, set)):
@@ -236,7 +235,7 @@ class SavedModelExportArchive:
                 "`tf.Variable` instances. Found instead the following types: "
                 f"{list(set(type(v) for v in variables))}"
             )
-        if backend.backend() == "jax":
+        if backend.backend() in ("jax", "tensorflow"):
             variables = tree.flatten(
                 tree.map_structure(self._convert_to_tf_variable, variables)
             )
@@ -332,6 +331,7 @@ class SavedModelExportArchive:
         fns = [self._get_concrete_fn(name) for name in self._endpoint_names]
         tvs, ntvs = _list_variables_used_by_fns(fns)
         self._tf_trackable._all_variables = list(tvs + ntvs)
+
         self._track_lookup_tables_and_misc_assets()
 
     def _track_lookup_tables_and_misc_assets(self):
@@ -354,18 +354,17 @@ class SavedModelExportArchive:
                             raise
                         # In SavedModel mode, TF's AutoTrackable calls
                         # `_list_all_concrete_functions_for_serialization()`
-                        # on every tf.function it finds on a trackable.  For
+                        # on every tf.function it finds on a trackable. For
                         # Keras 3 layers whose `call()` has required keyword
                         # arguments (beyond `inputs`), tracing with a partial
                         # input signature raises `TypeError: missing a
-                        # required argument`.  Returning {} here is safe: the
+                        # required argument`. Returning {} here is safe: the
                         # walk is only used to collect TrackableResources (e.g.
                         # lookup tables); layers with complex signatures do not
-                        # hold such resources.  The _DictWrapper / is_tf_type
+                        # hold such resources. The _DictWrapper / is_tf_type
                         # TypeError that motivated the original workaround is
                         # separately eliminated by
                         # `_patch_tf_is_tf_type_for_object_proxy` above.
-
                         return {}
 
             # Next, track lookup tables.
