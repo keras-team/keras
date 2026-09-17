@@ -439,6 +439,29 @@ class MeanIoUTest(testing.TestCase):
         expected_result = 1.0
         self.assertAllClose(result, expected_result, atol=1e-3)
 
+    def test_axis(self):
+        # Class probabilities on axis 1, i.e. channels first predictions of
+        # shape (batch_size, num_classes, width).
+        y_true = np.array([[2, 0], [1, 0]])
+        y_pred = np.array(
+            [
+                [[0.2, 0.1], [0.3, 0.2], [0.5, 0.7]],
+                [[0.5, 0.1], [0.3, 0.4], [0.1, 0.5]],
+            ]
+        )
+        # y_pred will be converted to [[2, 2], [0, 2]]
+
+        m_obj = metrics.MeanIoU(num_classes=3, sparse_y_pred=False, axis=1)
+        result = m_obj(y_true, y_pred)
+
+        # cm = [[0, 0, 2],
+        #       [1, 0, 0],
+        #       [0, 0, 1]]
+        # sum_row = [1, 0, 3], sum_col = [2, 1, 1], true_positives = [0, 0, 1]
+        # iou = true_positives / (sum_row + sum_col - true_positives))
+        expected_result = (0 + 0 + 1 / (3 + 1 - 1)) / 3
+        self.assertAllClose(result, expected_result, atol=1e-3)
+
     @staticmethod
     def _confusion_matrix(y_true, y_pred, num_classes):
         """
@@ -585,6 +608,33 @@ class OneHotIoUTest(testing.TestCase):
         result = obj(y_true, y_pred, sample_weight=sample_weight)
         self.assertAllClose(result, expected_result, atol=1e-3)
 
+    def test_axis(self):
+        # One-hot labels and class probabilities on axis 1, i.e. channels
+        # first inputs of shape (batch_size, num_classes, width).
+        y_true = np.array(
+            [
+                [[0, 1], [0, 0], [1, 0]],
+                [[0, 1], [1, 0], [0, 0]],
+            ]
+        )
+        # y_true will be converted to [[2, 0], [1, 0]]
+        y_pred = np.array(
+            [
+                [[0.2, 0.1], [0.3, 0.2], [0.5, 0.7]],
+                [[0.5, 0.1], [0.3, 0.4], [0.1, 0.5]],
+            ]
+        )
+        # y_pred will be converted to [[2, 2], [0, 2]]
+        # cm = [[0, 0, 2],
+        #       [1, 0, 0],
+        #       [0, 0, 1]
+        # sum_row = [1, 0, 3], sum_col = [2, 1, 1], true_positives = [0, 0, 1]
+        # iou = true_positives / (sum_row + sum_col - true_positives))
+        expected_result = (0 / (1 + 2 - 0) + 1 / (3 + 1 - 1)) / 2
+        obj = metrics.OneHotIoU(num_classes=3, target_class_ids=[0, 2], axis=1)
+        result = obj(y_true, y_pred)
+        self.assertAllClose(result, expected_result, atol=1e-3)
+
 
 class OneHotMeanIoUTest(testing.TestCase):
     def test_unweighted(self):
@@ -644,3 +694,30 @@ class OneHotMeanIoUTest(testing.TestCase):
         obj_int = metrics.OneHotMeanIoU(num_classes=3)
         result_int = obj_int(y_true, y_pred, sample_weight=sample_weight_int)
         self.assertAllClose(result_int, expected_result, atol=1e-3)
+
+    def test_axis(self):
+        # One-hot labels and class probabilities on axis 1, i.e. channels
+        # first inputs of shape (batch_size, num_classes, width).
+        y_true = np.array(
+            [
+                [[0, 1], [0, 0], [1, 0]],
+                [[0, 1], [1, 0], [0, 0]],
+            ]
+        )
+        # y_true will be converted to [[2, 0], [1, 0]]
+        y_pred = np.array(
+            [
+                [[0.2, 0.1], [0.3, 0.2], [0.5, 0.7]],
+                [[0.5, 0.1], [0.3, 0.4], [0.1, 0.5]],
+            ]
+        )
+        # y_pred will be converted to [[2, 2], [0, 2]]
+        # cm = [[0, 0, 2],
+        #       [1, 0, 0],
+        #       [0, 0, 1]
+        # sum_row = [1, 0, 3], sum_col = [2, 1, 1], true_positives = [0, 0, 1]
+        # iou = true_positives / (sum_row + sum_col - true_positives))
+        expected_result = (0 + 0 + 1 / (3 + 1 - 1)) / 3
+        obj = metrics.OneHotMeanIoU(num_classes=3, axis=1)
+        result = obj(y_true, y_pred)
+        self.assertAllClose(result, expected_result, atol=1e-3)
