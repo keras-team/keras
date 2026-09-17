@@ -6,6 +6,8 @@ try:
 except ImportError:
     torch = None
 
+import os  # noqa: E402
+
 import pytest  # noqa: E402
 
 from keras.src.backend import backend  # noqa: E402
@@ -20,6 +22,11 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers",
         "multi_device: mark test for running with multiple devices only",
+    )
+    config.addinivalue_line(
+        "markers",
+        "no_pytest_xdist: mark test that cannot run under pytest-xdist "
+        "workers (e.g. tests that bind to a fixed port)",
     )
 
     # Disable CUDA TF32 to get higher numerical accuracy for correctness
@@ -42,20 +49,18 @@ def pytest_configure(config):
 def pytest_collection_modifyitems(config, items):
     """Applies backend-specific skip/require markers to collected tests."""
     has_multiple_devices = False
-    openvino_skipped_tests = []
 
+    openvino_skipped_tests = set()
     if backend() == "openvino":
         with open(
             "keras/src/backend/openvino/excluded_concrete_tests.txt", "r"
         ) as file:
-            openvino_skipped_tests = file.readlines()
-            # It is necessary to check if the stripped line is not empty
-            # and exclude such lines.
-            openvino_skipped_tests = [
-                line.strip()
-                for line in openvino_skipped_tests
-                if line.strip()
-            ]
+            # Exclude empty lines and comments.
+            openvino_skipped_tests = {
+                stripped
+                for line in file.readlines()
+                if (stripped := line.strip()) and not stripped.startswith("#")
+            }
 
     if backend() == "jax":
         import jax
@@ -71,23 +76,33 @@ def pytest_collection_modifyitems(config, items):
         if has_multiple_devices
         else pytest.mark.skip(reason="Requires multiple devices")
     )
+    # Distributed tests (e.g. torch.distributed) cannot run under
+    # pytest-xdist workers because process group init deadlocks when
+    # multiple workers attempt to bind to the same port.
+    is_xdist_worker = "PYTEST_XDIST_WORKER" in os.environ
 
     for item in items:
         if "requires_trainable_backend" in item.keywords:
             item.add_marker(requires_trainable_backend)
         if requires_multiple_devices and "multi_device" in item.keywords:
             item.add_marker(requires_multiple_devices)
-        # Also skip concrete tests for openvino, listed in the special
-        # file. This is a more granular mechanism to exclude tests rather
-        # than using the `--ignore` option.
-        for skipped_test in openvino_skipped_tests:
-            if skipped_test in item.nodeid:
-                item.add_marker(
-                    skip_if_backend(
-                        "openvino",
-                        "Not supported operation by openvino backend",
-                    )
+        if is_xdist_worker and "no_pytest_xdist" in item.keywords:
+            item.add_marker(
+                pytest.mark.skip(
+                    reason="This test cannot run under pytest-xdist workers"
                 )
+            )
+
+        # also, skip concrete tests for openvino, listed in the special file
+        # this is more granular mechanism to exclude tests rather
+        # than using --ignore option
+        if item.nodeid in openvino_skipped_tests:
+            item.add_marker(
+                skip_if_backend(
+                    "openvino",
+                    "Not supported operation by openvino backend",
+                )
+            )
 
 
 def skip_if_backend(given_backend, reason):

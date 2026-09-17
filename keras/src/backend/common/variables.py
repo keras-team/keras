@@ -571,6 +571,10 @@ def initialize_all_variables():
     ["keras.utils.standardize_dtype", "keras.backend.standardize_dtype"]
 )
 def standardize_dtype(dtype):
+    # Fast path: an already-canonical dtype string is by far the common case
+    # and needs none of the normalization below.
+    if isinstance(dtype, str) and dtype in dtypes.ALLOWED_DTYPES_SET:
+        return dtype
     if dtype is None:
         return config.floatx()
     dtype = dtypes.PYTHON_DTYPES_MAP.get(dtype, dtype)
@@ -583,7 +587,7 @@ def standardize_dtype(dtype):
     ):
         dtype = str(dtype).split(".")[-1]
 
-    if dtype not in dtypes.ALLOWED_DTYPES:
+    if dtype not in dtypes.ALLOWED_DTYPES_SET:
         raise ValueError(f"Invalid dtype: {dtype}")
     return dtype
 

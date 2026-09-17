@@ -705,6 +705,7 @@ def gaussian_blur(
         ]
         return kernel
 
+    data_format = backend.standardize_data_format(data_format)
     images = convert_to_tensor(images)
     dtype = backend.standardize_dtype(images.dtype)
     sigma = convert_to_tensor(sigma, dtype=dtype)

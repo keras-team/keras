@@ -63,6 +63,8 @@ def top_k(x, k, sorted=True, is_stable=True):
 
 
 def in_top_k(targets, predictions, k):
+    targets = convert_to_tensor(targets)
+    predictions = convert_to_tensor(predictions)
     preds_at_label = jnp.take_along_axis(
         predictions, jnp.expand_dims(targets, axis=-1), axis=-1
     )
@@ -318,3 +320,8 @@ def gammainc(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     return jax.scipy.special.gammainc(x1, x2)
+
+
+def lgamma(x):
+    x = convert_to_tensor(x)
+    return jax.scipy.special.gammaln(x)

@@ -231,26 +231,18 @@ class RandomCrop(BaseImagePreprocessingLayer):
             )
             h_start = self.backend.cast(h_start, boxes.dtype)
             w_start = self.backend.cast(w_start, boxes.dtype)
-            if len(self.backend.shape(boxes)) == 3:
-                boxes = self.backend.numpy.stack(
-                    [
-                        self.backend.numpy.maximum(boxes[:, :, 0] - h_start, 0),
-                        self.backend.numpy.maximum(boxes[:, :, 1] - w_start, 0),
-                        self.backend.numpy.maximum(boxes[:, :, 2] - h_start, 0),
-                        self.backend.numpy.maximum(boxes[:, :, 3] - w_start, 0),
-                    ],
-                    axis=-1,
-                )
-            else:
-                boxes = self.backend.numpy.stack(
-                    [
-                        self.backend.numpy.maximum(boxes[:, 0] - h_start, 0),
-                        self.backend.numpy.maximum(boxes[:, 1] - w_start, 0),
-                        self.backend.numpy.maximum(boxes[:, 2] - h_start, 0),
-                        self.backend.numpy.maximum(boxes[:, 3] - w_start, 0),
-                    ],
-                    axis=-1,
-                )
+            # Shift by the crop offsets and clip to the crop size so boxes
+            # stay within the cropped image. `boxes[..., i]` handles both
+            # batched (B, N, 4) and unbatched (N, 4) boxes.
+            x1 = self.backend.numpy.clip(boxes[..., 0] - w_start, 0, self.width)
+            y1 = self.backend.numpy.clip(
+                boxes[..., 1] - h_start, 0, self.height
+            )
+            x2 = self.backend.numpy.clip(boxes[..., 2] - w_start, 0, self.width)
+            y2 = self.backend.numpy.clip(
+                boxes[..., 3] - h_start, 0, self.height
+            )
+            boxes = self.backend.numpy.stack([x1, y1, x2, y2], axis=-1)
 
             # Convert to user defined bounding box format
             boxes = convert_format(

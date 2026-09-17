@@ -5,6 +5,7 @@ import re
 import numpy as np
 
 from keras.src import backend
+from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
@@ -2220,6 +2221,63 @@ def copy(x):
     return backend.numpy.copy(x)
 
 
+class Copysign(Operation):
+    def call(self, x1, x2):
+        return _copysign(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+
+        x1_type = backend.standardize_dtype(getattr(x1, "dtype", type(x1)))
+        x2_type = backend.standardize_dtype(getattr(x2, "dtype", type(x2)))
+        dtype = dtypes.result_type(x1_type, x2_type, float)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.copysign", "keras.ops.numpy.copysign"])
+def copysign(x1, x2):
+    """Compose a value from the magnitude of `x1` and the sign of `x2`.
+
+    The sign of zero is taken into account, so an `x2` of `-0.0` gives a
+    negative result and an `x2` of `0.0` gives a positive one.
+
+    Args:
+        x1: Input tensor providing the magnitude.
+        x2: Input tensor providing the sign.
+
+    Returns:
+        Output tensor with the magnitude of `x1` and the sign of `x2`.
+
+    Example:
+    >>> x1 = keras.ops.convert_to_tensor([-1.0, 2.0, -3.0])
+    >>> x2 = keras.ops.convert_to_tensor([1.0, -1.0, -0.0])
+    >>> keras.ops.copysign(x1, x2)
+    array([ 1., -2., -3.], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Copysign().symbolic_call(x1, x2)
+    return _copysign(x1, x2)
+
+
+def _copysign(x1, x2):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.numpy, "copysign"
+    ):
+        return backend.numpy.copysign(x1, x2)
+    x1 = backend.convert_to_tensor(x1)
+    x2 = backend.convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = backend.cast(x1, dtype)
+    x2 = backend.cast(x2, dtype)
+    # Negate `x1` exactly when its sign differs from the sign of `x2`.
+    flip = backend.numpy.logical_xor(
+        backend.numpy.signbit(x1), backend.numpy.signbit(x2)
+    )
+    return backend.numpy.where(flip, backend.numpy.negative(x1), x1)
+
+
 class Cos(Operation):
     def call(self, x):
         return backend.numpy.cos(x)
@@ -4043,7 +4101,7 @@ class Hsplit(Operation):
         self.indices_or_sections = indices_or_sections
 
     def call(self, x):
-        return backend.numpy.hsplit(x, self.indices_or_sections)
+        return _hsplit(x, self.indices_or_sections)
 
     def compute_output_spec(self, x):
         if len(x.shape) < 1:
@@ -4098,7 +4156,19 @@ def hsplit(x, indices_or_sections):
     """
     if any_symbolic_tensors((x,)):
         return Hsplit(indices_or_sections).symbolic_call(x)
-    return backend.numpy.hsplit(x, indices_or_sections)
+    return _hsplit(x, indices_or_sections)
+
+
+def _hsplit(x, indices_or_sections):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.numpy, "hsplit"
+    ):
+        return backend.numpy.hsplit(x, indices_or_sections)
+    x = backend.convert_to_tensor(x)
+    # 1D inputs are split along axis=0. Inputs with 2 or more dimensions are
+    # split along axis=1.
+    axis = 0 if len(x.shape) == 1 else 1
+    return ops.split(x, indices_or_sections, axis=axis)
 
 
 class Hypot(Operation):
@@ -6769,7 +6839,10 @@ class Pad(Operation):
         if isinstance(pad_width, (tuple, list)) and isinstance(
             pad_width[0], int
         ):
-            return (pad_width,)
+            if len(pad_width) == 1:
+                # A single `(pad,)` means pad before and after, like `np.pad`.
+                return ((pad_width[0], pad_width[0]),)
+            return (tuple(pad_width),)
         first_len = len(pad_width[0])
         for i, pw in enumerate(pad_width):
             if len(pw) != first_len:
@@ -8538,7 +8611,7 @@ class Vsplit(Operation):
         self.indices_or_sections = indices_or_sections
 
     def call(self, x):
-        return backend.numpy.vsplit(x, self.indices_or_sections)
+        return _vsplit(x, self.indices_or_sections)
 
     def compute_output_spec(self, x):
         if len(x.shape) < 2:
@@ -8579,7 +8652,16 @@ def vsplit(x, indices_or_sections):
     """
     if any_symbolic_tensors((x,)):
         return Vsplit(indices_or_sections).symbolic_call(x)
-    return backend.numpy.vsplit(x, indices_or_sections)
+    return _vsplit(x, indices_or_sections)
+
+
+def _vsplit(x, indices_or_sections):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.numpy, "vsplit"
+    ):
+        return backend.numpy.vsplit(x, indices_or_sections)
+    x = backend.convert_to_tensor(x)
+    return ops.split(x, indices_or_sections, axis=0)
 
 
 class Where(Operation):
@@ -8827,6 +8909,60 @@ def power(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Power().symbolic_call(x1, x2)
+    return backend.numpy.power(x1, x2)
+
+
+class FloatPower(Operation):
+    def call(self, x1, x2):
+        return _float_power(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+
+        x1_type = backend.standardize_dtype(getattr(x1, "dtype", type(x1)))
+        x2_type = backend.standardize_dtype(getattr(x2, "dtype", type(x2)))
+        dtype = dtypes.result_type(x1_type, x2_type, float)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.float_power", "keras.ops.numpy.float_power"])
+def float_power(x1, x2):
+    """First tensor elements raised to powers from second tensor, in floats.
+
+    This is `power` with the operands promoted to a float dtype first, so a
+    negative exponent has a well defined result for integer inputs, where
+    `power` either raises an error or returns an integer.
+
+    Args:
+        x1: The bases.
+        x2: The exponents.
+
+    Returns:
+        Output tensor, the bases in `x1` raised to the exponents in `x2`.
+
+    Example:
+    >>> x1 = keras.ops.convert_to_tensor([2, 3, 4])
+    >>> x2 = keras.ops.convert_to_tensor([-1, -2, 2])
+    >>> keras.ops.float_power(x1, x2)
+    array([ 0.5       ,  0.11111111, 16.        ], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return FloatPower().symbolic_call(x1, x2)
+    return _float_power(x1, x2)
+
+
+def _float_power(x1, x2):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.numpy, "float_power"
+    ):
+        return backend.numpy.float_power(x1, x2)
+    x1 = backend.convert_to_tensor(x1)
+    x2 = backend.convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = backend.cast(x1, dtype)
+    x2 = backend.cast(x2, dtype)
     return backend.numpy.power(x1, x2)
 
 
@@ -9404,7 +9540,15 @@ class Corrcoef(Operation):
             dtype = "float64"
         else:
             dtype = dtypes.result_type(dtype, float)
-        return KerasTensor(x.shape, dtype=dtype)
+        if len(x.shape) > 2:
+            raise ValueError(
+                "Input tensor must have at most 2 dimensions. "
+                f"Received: x.shape={x.shape}"
+            )
+        # The correlation matrix of the `N` variables of a 2D input of shape
+        # `(N, D)` has shape `(N, N)`. A 1D input yields a scalar.
+        output_shape = (x.shape[0], x.shape[0]) if len(x.shape) == 2 else ()
+        return KerasTensor(output_shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.corrcoef", "keras.ops.numpy.corrcoef"])
@@ -9684,7 +9828,7 @@ class Histogram(Operation):
         x = backend.convert_to_tensor(x)
         if len(x.shape) > 1:
             raise ValueError("Input tensor must be 1-dimensional")
-        return backend.math.histogram(x, bins=self.bins, range=self.range)
+        return backend.numpy.histogram(x, bins=self.bins, range=self.range)
 
     def compute_output_spec(self, x):
         return (
@@ -10033,7 +10177,7 @@ class Dsplit(Operation):
         self.indices_or_sections = indices_or_sections
 
     def call(self, x):
-        return backend.numpy.dsplit(x, self.indices_or_sections)
+        return _dsplit(x, self.indices_or_sections)
 
     def compute_output_spec(self, x):
         if len(x.shape) < 3:
@@ -10072,7 +10216,16 @@ def dsplit(x, indices_or_sections):
     """
     if any_symbolic_tensors((x,)):
         return Dsplit(indices_or_sections).symbolic_call(x)
-    return backend.numpy.dsplit(x, indices_or_sections)
+    return _dsplit(x, indices_or_sections)
+
+
+def _dsplit(x, indices_or_sections):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.numpy, "dsplit"
+    ):
+        return backend.numpy.dsplit(x, indices_or_sections)
+    x = backend.convert_to_tensor(x)
+    return ops.split(x, indices_or_sections, axis=2)
 
 
 class ColumnStack(Operation):
@@ -10162,3 +10315,78 @@ def column_stack(xs):
     if any_symbolic_tensors((xs,)):
         return ColumnStack().symbolic_call(xs)
     return backend.numpy.column_stack(xs)
+
+
+class Cov(Operation):
+    def call(self, x):
+        return _cov(x)
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
+        if dtype == "int64":
+            dtype = "float64"
+        else:
+            dtype = dtypes.result_type(dtype, float)
+        if len(x.shape) > 2:
+            raise ValueError(
+                "Input tensor must have at most 2 dimensions. "
+                f"Received: x.shape={x.shape}"
+            )
+        # The covariance matrix of a 2D input of shape `(N, D)` has shape
+        # `(N, N)`. A 1D input, or a single variable, yields a scalar.
+        if len(x.shape) == 2 and x.shape[0] != 1:
+            output_shape = (x.shape[0], x.shape[0])
+        else:
+            output_shape = ()
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.cov", "keras.ops.numpy.cov"])
+def cov(x):
+    """Estimate the covariance matrix of the variables in `x`.
+
+    The covariance is normalized by `D - 1`, where `D` is the number of
+    observations.
+
+    Args:
+        x: A 2D tensor of shape `(N, D)`, where N is the number of variables
+           and D is the number of observations.
+
+    Returns:
+        A tensor of shape `(N, N)` representing the covariance matrix.
+    """
+    if any_symbolic_tensors((x,)):
+        return Cov().symbolic_call(x)
+    return _cov(x)
+
+
+def _cov(x):
+    if not config._use_backend_agnostic_ops() and hasattr(backend.numpy, "cov"):
+        return backend.numpy.cov(x)
+    x = backend.convert_to_tensor(x)
+    if len(x.shape) > 2:
+        raise ValueError(
+            "Input tensor must have at most 2 dimensions. "
+            f"Received: x.shape={x.shape}"
+        )
+    dtype = backend.standardize_dtype(x.dtype)
+    if dtype == "int64":
+        dtype = "float64"
+    else:
+        dtype = dtypes.result_type(dtype, float)
+    x = backend.cast(x, dtype)
+    # A 0D input has no observations to vary over, as in `np.cov`.
+    if len(x.shape) == 0:
+        return backend.numpy.full((), float("nan"), dtype=dtype)
+    # `np.cov` squeezes the result when there is only one variable.
+    is_scalar = len(x.shape) < 2 or x.shape[0] == 1
+    if len(x.shape) == 1:
+        x = backend.numpy.reshape(x, (1, -1))
+    mean = backend.numpy.mean(x, axis=-1, keepdims=True)
+    x_centered = backend.numpy.subtract(x, mean)
+    num_samples = backend.cast(backend.shape(x)[-1], dtype)
+    result = backend.numpy.divide(
+        backend.numpy.matmul(x_centered, backend.numpy.transpose(x_centered)),
+        backend.numpy.subtract(num_samples, 1),
+    )
+    return backend.numpy.reshape(result, ()) if is_scalar else result

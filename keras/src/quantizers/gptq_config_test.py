@@ -20,6 +20,28 @@ class TestGPTQConfig(testing.TestCase):
         ):
             GPTQConfig(dataset=None, tokenizer=None, num_samples=-1)
 
+    def test_invalid_calibration_batch_size(self):
+        with self.assertRaisesRegex(
+            ValueError, "calibration_batch_size must be a positive"
+        ):
+            GPTQConfig(dataset=None, tokenizer=None, calibration_batch_size=0)
+        with self.assertRaisesRegex(
+            ValueError, "calibration_batch_size must be a positive"
+        ):
+            GPTQConfig(dataset=None, tokenizer=None, calibration_batch_size=-4)
+
+    def test_calibration_batch_size_default_and_serialization(self):
+        config = GPTQConfig(dataset=None, tokenizer=None)
+        self.assertEqual(config.calibration_batch_size, 8)
+
+        config = GPTQConfig(
+            dataset=None, tokenizer=None, calibration_batch_size=16
+        )
+        serialized_config = config.get_config()
+        self.assertEqual(serialized_config["calibration_batch_size"], 16)
+        deserialized_config = GPTQConfig.from_config(serialized_config)
+        self.assertEqual(deserialized_config.calibration_batch_size, 16)
+
     def test_invalid_sequence_length(self):
         with self.assertRaisesRegex(
             ValueError, "sequence_length must be a positive"

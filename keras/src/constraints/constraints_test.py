@@ -38,7 +38,7 @@ class ConstraintsTest(testing.TestCase):
         output = constraint_fn(get_example_array())
         output = backend.convert_to_numpy(output)
         l2 = np.sqrt(np.sum(np.square(output), axis=0))
-        self.assertAllClose(l2, 1.0)
+        self.assertAllClose(l2, np.ones((100,)))
 
     def test_min_max_norm(self):
         constraint_fn = constraints.MinMaxNorm(min_value=0.2, max_value=0.5)

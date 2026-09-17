@@ -1,9 +1,13 @@
 """Commonly used math operations not included in NumPy."""
 
+import math as python_math
+
 from keras.src import backend
+from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
+from keras.src.backend import config
 from keras.src.backend.common.dtypes import result_type
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import broadcast_shapes
@@ -1381,3 +1385,110 @@ def view_as_real(x):
     real_part = backend.numpy.real(x)
     imag_part = backend.numpy.imag(x)
     return backend.numpy.stack((real_part, imag_part), axis=-1)
+
+
+class Lgamma(Operation):
+    def compute_output_spec(self, x):
+        return KerasTensor(shape=x.shape, dtype=result_type(x.dtype, float))
+
+    def call(self, x):
+        return _lgamma(x)
+
+
+@keras_export("keras.ops.lgamma")
+def lgamma(x):
+    """Computes the natural log of the absolute value of the Gamma function.
+
+    `lgamma(x) = log(|Gamma(x)|)`
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        A tensor with the same shape and floating-point dtype as `x`.
+
+    Example:
+
+    >>> x = np.array([1.0, 2.0, 3.0, 4.0])
+    >>> keras.ops.lgamma(x)
+    array([0.       , 0.       , 0.6931472, 1.7917595], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Lgamma().symbolic_call(x)
+    return _lgamma(x)
+
+
+# Lanczos approximation parameters
+_LANCZOS_GAMMA = 7.0
+_BASE_LANCZOS_COEFF = 0.99999999999980993227684700473478
+_LANCZOS_COEFFICIENTS = (
+    676.520368121885098567009190444019,
+    -1259.13921672240287047156078755283,
+    771.3234287776530788486528258894,
+    -176.61502916214059906584551354,
+    12.507343278686904814458936853,
+    -0.13857109526572011689554707,
+    9.984369578019570859563e-6,
+    1.50563273514931155834e-7,
+)
+_PI = 3.14159265358979323846
+_LOG_SQRT_TWO_PI = (python_math.log(2.0) + python_math.log(_PI)) / 2.0
+_LANCZOS_GAMMA_PLUS_HALF = _LANCZOS_GAMMA + 0.5
+_LOG_LANCZOS_GAMMA_PLUS_HALF = python_math.log(_LANCZOS_GAMMA_PLUS_HALF)
+
+
+def _lgamma(x):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.math, "lgamma"
+    ):
+        return backend.math.lgamma(x)
+
+    x = backend.convert_to_tensor(x)
+    orig_dtype = x.dtype
+    target_dtype = result_type(orig_dtype, float)
+    compute_dtype = (
+        "float32" if target_dtype in ("float16", "bfloat16") else target_dtype
+    )
+    x = backend.cast(x, compute_dtype)
+
+    # If the input is less than 0.5 use Euler's reflection formula:
+    # gamma(x) = pi / (sin(pi * x) * gamma(1 - x))
+    need_to_reflect = ops.less(x, 0.5)
+    z = ops.where(need_to_reflect, -x, x - 1.0)
+
+    series = ops.cast(_BASE_LANCZOS_COEFF, compute_dtype)
+    for i, coeff in enumerate(_LANCZOS_COEFFICIENTS):
+        series = series + ops.cast(coeff, compute_dtype) / (z + float(i + 1))
+
+    lanczos_gamma_plus_half = ops.cast(_LANCZOS_GAMMA_PLUS_HALF, compute_dtype)
+    log_lanczos_gamma_plus_half = ops.cast(
+        _LOG_LANCZOS_GAMMA_PLUS_HALF, compute_dtype
+    )
+    pi = ops.cast(_PI, compute_dtype)
+    t = z + lanczos_gamma_plus_half
+    log_t = log_lanczos_gamma_plus_half + ops.log1p(z / lanczos_gamma_plus_half)
+
+    log_sqrt_two_pi = ops.cast(_LOG_SQRT_TWO_PI, compute_dtype)
+    log_y = log_sqrt_two_pi + (z + 0.5 - t / log_t) * log_t + ops.log(series)
+
+    abs_x = ops.abs(x)
+    abs_frac_x = abs_x - ops.floor(abs_x)
+    reduced_frac_x = ops.where(
+        ops.greater(abs_frac_x, 0.5), 1.0 - abs_frac_x, abs_frac_x
+    )
+    reflection_denom = ops.log(ops.sin(pi * reduced_frac_x))
+
+    reflection = ops.where(
+        ops.isfinite(reflection_denom),
+        ops.cast(ops.log(pi), compute_dtype) - reflection_denom - log_y,
+        -reflection_denom,
+    )
+    result = ops.where(need_to_reflect, reflection, log_y)
+
+    # Handle +/-inf edge cases: lgamma(+/-inf) = +inf
+    inf_val = ops.cast(float("inf"), compute_dtype)
+    result = ops.where(ops.isinf(x), inf_val, result)
+
+    if compute_dtype != target_dtype:
+        result = backend.cast(result, target_dtype)
+    return result

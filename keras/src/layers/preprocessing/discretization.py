@@ -9,6 +9,13 @@ from keras.src.utils.module_utils import tensorflow as tf
 from keras.src.utils.progbar import Progbar
 
 
+def _extract_batch(batch):
+    """Return input from batch; handle (x, y) or (x, y, sample_weight)."""
+    if isinstance(batch, (tuple, list)):
+        return batch[0]
+    return batch
+
+
 @keras_export("keras.layers.Discretization")
 class Discretization(DataLayer):
     """A preprocessing layer which buckets continuous features by ranges.
@@ -222,6 +229,7 @@ class Discretization(DataLayer):
         self.finalize_state()
 
     def update_state(self, data):
+        data = _extract_batch(data)
         data = np.array(data).astype("float32")
         summary = summarize(data, self.epsilon)
         self.summary = merge_summaries(summary, self.summary, self.epsilon)
