@@ -172,33 +172,6 @@ A **function docstring** may contain the following items:
 You can check out `text_dataset_from_directory` as an example
 [(link)](https://github.com/keras-team/keras/blob/v3.0.0/keras/utils/text_dataset_utils.py#L27).
 
-## Backend-agnostic implementation for new ops
-
-A backend-agnostic implementation is the version of the op written in
-`keras/src/ops/` using only other Keras ops, so that it works on every backend
-without requiring per-backend code. This guarantees that an op is
-immediately available on all backends, including ones that lack a backend-specific
-implementation.
-
-### The pattern
-
-Put the fallback logic in a private module-level helper named `_op()` (where
-`op` is the name of the op), and have both the public function and its
-`Operation` subclass call it. [Here](https://github.com/keras-team/keras/blob/5edcf00a9e818838988c8c0cf45a79e279851803/keras/src/ops/numpy.py#L8606-L8664) is a minimal version of `vsplit` from
-`keras/src/ops/numpy.py`.
-
-### Testing both paths
-
-Both code paths must be tested. Parameterize the test with the
-`BACKEND_AGNOSTIC_OPS` constant and always reset the flag in a `finally` block. [Here](https://github.com/keras-team/keras/blob/5edcf00a9e818838988c8c0cf45a79e279851803/keras/src/ops/numpy_test.py#L7327-L7366) is an example of testing both code paths for `vsplit`.
-
-You can also test the fallback across an entire test run by setting the
-`KERAS_USE_BACKEND_AGNOSTIC_OPS` environment variable:
-
-```shell
-KERAS_USE_BACKEND_AGNOSTIC_OPS=1 pytest keras/src/ops/numpy_test.py
-```
-
 ## Run tests
 
 We use [pytest](https://pytest.org/) to run the tests.
@@ -248,6 +221,32 @@ command line.
 
 ```shell
 KERAS_BACKEND=jax SKIP_APPLICATIONS_TESTS=True pytest keras
+```
+## Backend-agnostic implementation for new ops
+
+A backend-agnostic implementation is the version of the op written in
+`keras/src/ops/` using only other Keras ops, so that it works on every backend
+without requiring per-backend code. This guarantees that an op is
+immediately available on all backends, including ones that lack a backend-specific
+implementation.
+
+### The pattern
+
+Put the fallback logic in a private module-level helper named `_op()` (where
+`op` is the name of the op), and have both the public function and its
+`Operation` subclass call it. [Here](https://github.com/keras-team/keras/blob/5edcf00a9e818838988c8c0cf45a79e279851803/keras/src/ops/numpy.py#L8606-L8664) is a minimal version of `vsplit` from
+`keras/src/ops/numpy.py`.
+
+### Testing both paths
+
+Both code paths must be tested. Parameterize the test with the
+`BACKEND_AGNOSTIC_OPS` constant and always reset the flag in a `finally` block. [Here](https://github.com/keras-team/keras/blob/5edcf00a9e818838988c8c0cf45a79e279851803/keras/src/ops/numpy_test.py#L7327-L7366) is an example of testing both code paths for `vsplit`.
+
+You can also test the fallback across an entire test run by setting the
+`KERAS_USE_BACKEND_AGNOSTIC_OPS` environment variable:
+
+```shell
+KERAS_USE_BACKEND_AGNOSTIC_OPS=1 pytest keras/src/ops/numpy_test.py
 ```
 
 ## GitHub Actions Security Validation
