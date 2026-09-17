@@ -229,7 +229,7 @@ backend-specific fast path.
 Flag the following in the diff:
 
 - **No agnostic path**: the op is only implemented in `keras/src/backend/<backend>/`
-  and the `keras/src/ops/` function just forwards to `backend.numpy.my_op(x)`.
+  and the `keras/src/ops/` function just forwards to backend-specific implementation.
   The op then breaks on any backend that does not implement it.
 - **Logic not centralized**: the implementation is inlined in the public
   function or in `Operation.call()`, and the other one duplicates it. Both must
