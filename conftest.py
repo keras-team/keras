@@ -62,13 +62,16 @@ def pytest_collection_modifyitems(config, items):
             os.path.dirname(os.path.dirname(backend_module_file)),
             "excluded_tests.txt",
         )
-        with open(exclusions_path, "r") as file:
-            # Exclude empty lines and comments.
-            backend_skipped_tests = {
-                stripped
-                for line in file.readlines()
-                if (stripped := line.strip()) and not stripped.startswith("#")
-            }
+        # An installed backend package has no exclusion list.
+        if os.path.exists(exclusions_path):
+            with open(exclusions_path, "r") as file:
+                # Exclude empty lines and comments.
+                backend_skipped_tests = {
+                    stripped
+                    for line in file.readlines()
+                    if (stripped := line.strip())
+                    and not stripped.startswith("#")
+                }
 
     if backend() == "jax":
         import jax
