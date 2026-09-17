@@ -7712,26 +7712,25 @@ def sinh(x):
     return backend.numpy.sinh(x)
 
 
-class Size(Operation):
-    def call(self, x):
-        return backend.numpy.size(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor([], dtype="int32")
-
-
 @keras_export(["keras.ops.size", "keras.ops.numpy.size"])
 def size(x):
     """Return the number of elements in a tensor.
+
+    Note: On the TensorFlow backend, when `x` is a `tf.Tensor` with dynamic
+    shape, the size in the context of a compiled function will be a
+    `tf.Tensor` instead of a static integer value.
 
     Args:
         x: Input tensor.
 
     Returns:
-        Number of elements in `x`.
+        An integer, the number of elements in `x`. When `x` is a symbolic
+        tensor with an unknown dimension, returns `None`.
     """
     if any_symbolic_tensors((x,)):
-        return Size().symbolic_call(x)
+        if None in x.shape:
+            return None
+        return python_math.prod(x.shape)
     return backend.numpy.size(x)
 
 
