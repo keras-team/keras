@@ -1000,19 +1000,6 @@ def binary_crossentropy(target, output, from_logits=False):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
 
-    # We only apply the squeeze fix if we are on an MPS device,
-    # as this change breaks tests on other platforms that
-    # expect the original tensor shape to be preserved.
-    if (
-        torch.backends.mps.is_available()
-        and target.ndim > 1
-        and output.ndim == target.ndim
-        and target.shape[-1] == 1
-        and output.shape[-1] == 1
-    ):
-        target = torch.squeeze(target, -1).contiguous()
-        output = torch.squeeze(output, -1).contiguous()
-
     if target.shape != output.shape:
         raise ValueError(
             "Arguments `target` and `output` must have the same shape. "
@@ -1026,9 +1013,17 @@ def binary_crossentropy(target, output, from_logits=False):
         return tnn.binary_cross_entropy_with_logits(
             output, target, reduction="none"
         )
-    else:
-        output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
-        return tnn.binary_cross_entropy(output, target, reduction="none")
+
+    output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+    # Before torch 2.10, the MPS `binary_cross_entropy` kernel squeezes every
+    # size-1 dimension of its inputs but not of `grad_output`, so the backward
+    # pass aborts or returns wrong gradients. Computing the loss on 1-D
+    # tensors avoids this on every device.
+    # See https://github.com/pytorch/pytorch/issues/166746.
+    loss = tnn.binary_cross_entropy(
+        output.reshape(-1), target.reshape(-1), reduction="none"
+    )
+    return loss.reshape(output.shape)
 
 
 def moments(x, axes, keepdims=False, synchronized=False):
