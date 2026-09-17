@@ -1842,9 +1842,10 @@ class NNOpsCorrectnessTest(testing.TestCase):
         strides=(1, 2, 3),
         padding=("valid", "same"),
         dilation_rate=(1, 2),
+        data_format=("channels_first", "channels_last"),
     )
-    def test_conv_1d(self, strides, padding, dilation_rate):
-        if backend.config.image_data_format() == "channels_last":
+    def test_conv_1d(self, strides, padding, dilation_rate, data_format):
+        if data_format == "channels_last":
             input_shape = (2, 20, 3)
         else:
             input_shape = (2, 3, 20)
@@ -1857,6 +1858,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             strides=strides,
             padding=padding,
             dilation_rate=dilation_rate,
+            data_format=data_format,
         )
         expected = np_conv1d(
             inputs_1d,
@@ -1864,29 +1866,35 @@ class NNOpsCorrectnessTest(testing.TestCase):
             bias_weights=np.zeros((2,)),
             strides=strides,
             padding=padding.lower(),
-            data_format=backend.config.image_data_format(),
+            data_format=data_format,
             dilation_rate=dilation_rate,
             groups=1,
         )
         self.assertAllClose(outputs, expected)
 
-    @parameterized.product(strides=(1, 2, (1, 2)), padding=("valid", "same"))
-    def test_conv_2d(self, strides, padding):
-        if backend.config.image_data_format() == "channels_last":
+    @parameterized.product(
+        strides=(1, 2, (1, 2)),
+        padding=("valid", "same"),
+        data_format=("channels_last", "channels_first"),
+    )
+    def test_conv_2d(self, strides, padding, data_format):
+        if data_format == "channels_last":
             input_shape = (2, 10, 10, 3)
         else:
             input_shape = (2, 3, 10, 10)
         inputs_2d = np.arange(600, dtype=float).reshape(input_shape)
         kernel = np.arange(24, dtype=float).reshape([2, 2, 3, 2])
 
-        outputs = knn.conv(inputs_2d, kernel, strides, padding=padding)
+        outputs = knn.conv(
+            inputs_2d, kernel, strides, padding=padding, data_format=data_format
+        )
         expected = np_conv2d(
             inputs_2d,
             kernel,
             bias_weights=np.zeros((2,)),
             strides=strides,
             padding=padding,
-            data_format=backend.config.image_data_format(),
+            data_format=data_format,
             dilation_rate=1,
             groups=1,
         )
