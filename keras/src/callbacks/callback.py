@@ -89,13 +89,11 @@ class Callback:
                 # instances instead.
                 return self._model.module
 
-        state_sync = getattr(self._model, "_backend_state_sync", None)
-        if state_sync is not None:
-            # A backend with a stateless training function does not keep the
-            # model state attached to the model in the middle of an epoch. We
-            # have to force a sync before accessing model state for e.g.
-            # checkpointing.
-            state_sync()
+        # A backend with a stateless training function does not keep the
+        # model state attached to the model in the middle of an epoch. We
+        # have to force a sync before accessing model state for e.g.
+        # checkpointing.
+        self._model.state_sync()
         return self._model
 
     @utils.default
