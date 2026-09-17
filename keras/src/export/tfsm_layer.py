@@ -66,13 +66,13 @@ class TFSMLayer(layers.Layer):
         # a deserialization scope remains supported.
         if serialization_lib.in_safe_mode():
             raise ValueError(
-                "Requested the deserialization of a `TFSMLayer`, which "
-                "loads an external SavedModel. This carries a potential risk "
-                "of arbitrary code execution and thus it is disallowed by "
-                "default. If you trust the source of the artifact, you can "
-                "override this error by passing `safe_mode=False` to the "
-                "loading function, or calling "
-                "`keras.config.enable_unsafe_deserialization()`."
+                "Requested the deserialization of a 'TFSMLayer' with "
+                f"filepath='{filepath}', which loads an external SavedModel. "
+                "This carries a potential risk of arbitrary code execution "
+                "and thus it is disallowed by default. If you trust the "
+                "source of the artifact, you can override this error by "
+                "passing 'safe_mode=False' to the loading function, or calling "
+                "'keras.config.enable_unsafe_deserialization()'."
             )
 
         # Initialize an empty layer, then add_weight() etc. as needed.
