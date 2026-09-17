@@ -389,7 +389,9 @@ def max_pool(
 
     data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_last":
-        inputs = _transpose_spatial_inputs(inputs)
+        inputs = _transpose_spatial_inputs(
+            inputs, channels_last_memory_format=True
+        )
 
     if padding == "same":
         # Torch does not natively support `"same"` padding, we need to manually
@@ -454,7 +456,9 @@ def average_pool(
     orig_format = data_format
 
     if data_format == "channels_last":
-        inputs = _transpose_spatial_inputs(inputs)
+        inputs = _transpose_spatial_inputs(
+            inputs, channels_last_memory_format=True
+        )
 
     orig_inputs = inputs
     manual_padded = False
@@ -553,7 +557,9 @@ def adaptive_average_pool(inputs, output_size, data_format=None):
     data_format = backend.standardize_data_format(data_format)
     orig_format = data_format
     if data_format == "channels_last":
-        inputs = _transpose_spatial_inputs(inputs)
+        inputs = _transpose_spatial_inputs(
+            inputs, channels_last_memory_format=True
+        )
 
     if isinstance(output_size, int):
         torch_output_size = (
@@ -596,7 +602,9 @@ def adaptive_max_pool(inputs, output_size, data_format=None):
     data_format = backend.standardize_data_format(data_format)
     orig_format = data_format
     if data_format == "channels_last":
-        inputs = _transpose_spatial_inputs(inputs)
+        inputs = _transpose_spatial_inputs(
+            inputs, channels_last_memory_format=True
+        )
 
     if isinstance(output_size, int):
         torch_output_size = (
