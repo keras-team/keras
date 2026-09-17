@@ -224,7 +224,7 @@ KERAS_BACKEND=jax SKIP_APPLICATIONS_TESTS=True pytest keras
 ```
 ## Backend-agnostic implementation for new ops
 
-A backend-agnostic implementation is the version of the op written in
+Any new op that is implemented must include a backend-agnostic implementation. A backend-agnostic implementation is the version of the op written in
 `keras/src/ops/` using only other Keras ops, so that it works on every backend
 without requiring per-backend code. This guarantees that an op is
 immediately available on all backends, including ones that lack a backend-specific
