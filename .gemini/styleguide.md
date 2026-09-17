@@ -82,9 +82,8 @@ Note that Keras uses the following naming rules:
 ### Example:
 
 ```python
-MyConstructor(
-    per_variable_sparsity_config=["layer_1/kernel:0.8", "layer_2/kernel:1.5"]
-)
+per_variable_sparsity_config=[
+      'layer_1/kernel:0.8', 'layer_2/kernel:1.5'])
 ```
 
 What's wrong with this?
