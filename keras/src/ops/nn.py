@@ -438,7 +438,9 @@ class LeakyRelu(Operation):
         return backend.nn.leaky_relu(x, self.negative_slope)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        # `leaky_relu` promotes integer and bool inputs to float, so the
+        # symbolic dtype has to match what eager execution returns.
+        return KerasTensor(x.shape, dtype=backend.result_type(x.dtype, float))
 
 
 @keras_export(["keras.ops.leaky_relu", "keras.ops.nn.leaky_relu"])
