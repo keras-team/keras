@@ -1,8 +1,8 @@
 from keras.src.dtype_policies.dtype_policy import GPTQDTypePolicy
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.modes.calibration import CalibrationStrategy
-from keras.src.quantizers.quantizers import unpack_int2
-from keras.src.quantizers.quantizers import unpack_int4
+from keras.src.quantizers.packing import unpack_int2
+from keras.src.quantizers.packing import unpack_int4
 
 
 class GPTQStrategy(CalibrationStrategy):

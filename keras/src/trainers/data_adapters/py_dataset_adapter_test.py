@@ -12,7 +12,7 @@ from keras.src import backend
 from keras.src import testing
 from keras.src.distribution import distribution_lib as dist_lib
 from keras.src.testing.test_utils import named_product
-from keras.src.trainers.data_adapters import data_adapter_test
+from keras.src.trainers.data_adapters import data_adapter_test_base
 from keras.src.trainers.data_adapters import py_dataset_adapter
 from keras.src.utils.rng_utils import set_random_seed
 
@@ -99,7 +99,7 @@ class ExceptionPyDataset(py_dataset_adapter.PyDataset):
     testing.tensorflow_uses_gpu() or testing.uses_tpu(),
     reason="Flaky on TPU and GPU",
 )
-class PyDatasetAdapterTest(data_adapter_test.DataAdapterTest):
+class PyDatasetAdapterTest(data_adapter_test_base.DataAdapterTest):
     @parameterized.named_parameters(
         named_product(
             [
