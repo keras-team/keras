@@ -77,3 +77,7 @@ keras/src/ops/nn_test.py::NNOpsDtypeTest::test_ctc_decode_float16
 keras/src/ops/nn_test.py::NNOpsDtypeTest::test_ctc_decode_float32
 keras/src/ops/numpy_test.py::NumpyTwoInputOpsCorrectnessTest::test_nextafter_float16
 keras/src/ops/numpy_test.py::NumpyTwoInputOpsCorrectnessTest::test_nextafter_float32
+keras/src/ops/math_test.py::MathDtypeTest::test_gammaincc
+keras/src/ops/math_test.py::MathOpsCorrectnessTest::test_gammaincc
+keras/src/ops/math_test.py::MathOpsDynamicShapeTest::test_gammaincc
+keras/src/ops/math_test.py::MathOpsStaticShapeTest::test_gammaincc
