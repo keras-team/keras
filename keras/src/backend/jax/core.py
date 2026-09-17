@@ -748,7 +748,8 @@ def grad(f, argnums=0):
         args = list(args)
         for i in positions:
             args[i] = tree.map_structure(convert_to_tensor, args[i])
-        return jax.grad(scalar_f, argnums=argnums)(*args, **kwargs)
+        jax_argnums = positions[0] if isinstance(argnums, int) else positions
+        return jax.grad(scalar_f, argnums=jax_argnums)(*args, **kwargs)
 
     def scalar_f(*args, **kwargs):
         output = f(*args, **kwargs)

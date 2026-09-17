@@ -711,14 +711,15 @@ def standardize_argnums(argnums, num_args):
             "`argnums` must be an int or a tuple of ints. "
             f"Received: argnums={argnums}"
         )
-    if len(set(positions)) != len(positions):
-        raise ValueError(
-            f"`argnums` must not repeat a position. Received: argnums={argnums}"
-        )
     for i in positions:
-        if i < 0 or i >= num_args:
+        if i < -num_args or i >= num_args:
             raise ValueError(
                 f"`argnums` refers to positional argument {i}, but the "
                 f"function was called with {num_args} positional arguments."
             )
+    positions = tuple(i % num_args for i in positions)
+    if len(set(positions)) != len(positions):
+        raise ValueError(
+            f"`argnums` must not repeat a position. Received: argnums={argnums}"
+        )
     return positions

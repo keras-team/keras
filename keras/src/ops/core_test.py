@@ -1986,6 +1986,10 @@ class CoreOpsGradTest(testing.TestCase):
         self.assertAllClose(dy, [1.0, 2.0])
         (dy,) = ops.grad(f, argnums=(1,))(x, y)
         self.assertAllClose(dy, [1.0, 2.0])
+        self.assertAllClose(ops.grad(f, argnums=-1)(x, y), [1.0, 2.0])
+        dx, dy = ops.grad(f, argnums=(-2, -1))(x, y)
+        self.assertAllClose(dx, [3.0, 4.0])
+        self.assertAllClose(dy, [1.0, 2.0])
 
     def test_grad_keyword_arguments_pass_through(self):
         def f(x, scale=1.0):
@@ -2059,8 +2063,12 @@ class CoreOpsGradTest(testing.TestCase):
         x = ops.array([1.0])
         with self.assertRaisesRegex(ValueError, "positional argument 2"):
             ops.grad(f, argnums=2)(x, x)
+        with self.assertRaisesRegex(ValueError, "positional argument -3"):
+            ops.grad(f, argnums=-3)(x, x)
         with self.assertRaisesRegex(ValueError, "must not repeat"):
             ops.grad(f, argnums=(0, 0))(x, x)
+        with self.assertRaisesRegex(ValueError, "must not repeat"):
+            ops.grad(f, argnums=(1, -1))(x, x)
         with self.assertRaisesRegex(TypeError, "int or a tuple of ints"):
             ops.grad(f, argnums="0")(x, x)
 
