@@ -82,8 +82,9 @@ class SavedModelExportArchive:
             if not hasattr(self, "_tracked"):
                 self._tracked = []
             self._tracked.append(resource)
-            if isinstance(resource, layers.Layer):
-                self._backend_track_layer(resource)
+
+        if isinstance(resource, layers.Layer):
+            self._backend_track_layer(resource)
         elif not isinstance(resource, tf.__internal__.tracking.Trackable):
             raise ValueError(
                 "Invalid resource type. Expected a Keras `Layer` or `Model` "
