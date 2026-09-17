@@ -133,7 +133,7 @@ def create_legacy_directory(package_dir):
                     # matching across more than one docstring block if a
                     # generated file ever contains more than one.
                     legacy_contents = re.sub(
-                        '""".*?"""', "", legacy_contents, flags=re.DOTALL
+                        '""".*?"""', "", legacy_contents, count=1, flags=re.DOTALL
                     )
                     # If the same module is in legacy and core_api, use legacy
                     legacy_imports = re.findall(
