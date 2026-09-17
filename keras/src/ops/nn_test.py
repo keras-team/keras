@@ -2700,6 +2700,10 @@ class NNOpsCorrectnessTest(testing.TestCase):
             [[1e-1, 1e-3]],
         )
 
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_GRADIENT,
+        reason="Backend does not support gradients.",
+    )
     def test_normalize_l2_zero_vector_gradients(self):
         # The L2 (order=2) fast path must not produce NaN gradients for a zero
         # vector: rsqrt(0) is inf and its derivative is 0 * inf = NaN, which a
@@ -2708,33 +2712,10 @@ class NNOpsCorrectnessTest(testing.TestCase):
         epsilon = 1e-3
         expected_grad = np.full((3,), 1.0 / epsilon, dtype="float32")
 
-        if backend.backend() == "tensorflow":
-            import tensorflow as tf
+        def f(x):
+            return ops.sum(knn.normalize(x, axis=-1, order=2, epsilon=epsilon))
 
-            x = tf.Variable([0.0, 0.0, 0.0])
-            with tf.GradientTape() as tape:
-                y = knn.normalize(x, axis=-1, order=2, epsilon=epsilon)
-                loss = tf.reduce_sum(y)
-            x_grad = tape.gradient(loss, x)
-        elif backend.backend() == "jax":
-            import jax
-            import jax.numpy as jnp
-
-            def f(x):
-                return jnp.sum(
-                    knn.normalize(x, axis=-1, order=2, epsilon=epsilon)
-                )
-
-            x_grad = jax.grad(f)(jnp.array([0.0, 0.0, 0.0]))
-        elif backend.backend() == "torch":
-            import torch
-
-            x = torch.zeros(3, requires_grad=True)
-            y = knn.normalize(x, axis=-1, order=2, epsilon=epsilon)
-            y.sum().backward()
-            x_grad = x.grad
-        else:
-            self.skipTest("Gradient test requires tensorflow, jax or torch.")
+        x_grad = ops.grad(f)(ops.zeros((3,)))
 
         x_grad = ops.convert_to_numpy(x_grad)
         self.assertFalse(np.isnan(x_grad).any())

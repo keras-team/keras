@@ -1229,6 +1229,42 @@ def is_tensor(x):
     return backend.core.is_tensor(x)
 
 
+@keras_export("keras.ops.grad")
+def grad(f, argnums=0):
+    """Return a function that computes the gradient of `f`.
+
+    Experimental. `f` must return a scalar. This works on concrete tensors
+    only, not symbolic ones, and raises `NotImplementedError` on backends
+    without automatic differentiation.
+
+    Args:
+        f: A function returning a scalar tensor. The arguments at `argnums`
+            may be tensors, variables or nested structures of them.
+        argnums: An integer or a tuple of integers, the positions of the
+            arguments to differentiate with respect to. Defaults to `0`.
+
+    Returns:
+        A function with the signature of `f` that returns the gradient for
+        each position in `argnums`, a single value for an integer and a
+        tuple for a tuple. Arguments that do not affect the output get zeros.
+
+    Example:
+
+    ```python
+    def f(x, y):
+        return ops.sum(x * y)
+
+    x = ops.array([1.0, 2.0])
+    y = ops.array([3.0, 4.0])
+    dx = ops.grad(f)(x, y)
+    # dx is [3.0, 4.0]
+    dx, dy = ops.grad(f, argnums=(0, 1))(x, y)
+    # dy is [1.0, 2.0]
+    ```
+    """
+    return backend.core.grad(f, argnums=argnums)
+
+
 @keras_export("keras.ops.custom_gradient")
 def custom_gradient(f):
     """Decorator to define a function with a custom gradient.

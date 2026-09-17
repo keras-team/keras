@@ -713,61 +713,19 @@ class DenseTest(testing.TestCase):
         optimizer = optimizers.AdamW(learning_rate=0.1)
         optimizer.build(layer.trainable_variables)
 
-        def loss_fn(x, dy):
-            y = layer(x, training=True)
+        def stateless_loss_fn(trainable_variables, x, dy):
+            y = layer.stateless_call(trainable_variables, [], x, training=True)[
+                0
+            ]
             loss = y * ops.cast(dy, y.dtype)
             return ops.sum(loss)
 
-        if backend.backend() == "tensorflow":
-            import tensorflow as tf
+        grad_fn = ops.grad(stateless_loss_fn)
 
-            @tf.function(jit_compile=True)
-            def train_one_step(x, dy):
-                with tf.GradientTape() as tape:
-                    loss = loss_fn(x, dy)
-                grads = tape.gradient(loss, layer.trainable_variables)
-                optimizer.apply(grads, layer.trainable_variables)
-
-        elif backend.backend() == "jax":
-            import jax
-
-            def stateless_loss_fn(trainable_variables, x, dy):
-                y = layer.stateless_call(
-                    trainable_variables, [], x, training=True
-                )[0]
-                loss = y * ops.cast(dy, y.dtype)
-                return ops.sum(loss)
-
-            grad_fn = jax.jit(jax.grad(stateless_loss_fn))
-
-            def train_one_step(x, dy):
-                trainable_variables = [
-                    v.value for v in layer.trainable_variables
-                ]
-                optimizer_variables = [v.value for v in optimizer.variables]
-                grads = grad_fn(trainable_variables, x, dy)
-                trainable_variables, optimizer_variables = (
-                    optimizer.stateless_apply(
-                        optimizer_variables, grads, trainable_variables
-                    )
-                )
-                for variable, value in zip(
-                    layer.trainable_variables, trainable_variables
-                ):
-                    variable.assign(value)
-                for variable, value in zip(
-                    optimizer.variables, optimizer_variables
-                ):
-                    variable.assign(value)
-
-        elif backend.backend() == "torch":
-
-            def train_one_step(x, dy):
-                layer.zero_grad()
-                loss = loss_fn(x, dy)
-                loss.backward()
-                grads = [v.value.grad for v in layer.trainable_variables]
-                optimizer.apply(grads, layer.trainable_variables)
+        def train_one_step(x, dy):
+            trainable_variables = [v.value for v in layer.trainable_variables]
+            grads = grad_fn(trainable_variables, x, dy)
+            optimizer.apply(grads, layer.trainable_variables)
 
         scale_x, amax_history_x = ops.ones(()), ops.zeros((1024,))
         scale_k, amax_history_k = ops.ones(()), ops.zeros((1024,))

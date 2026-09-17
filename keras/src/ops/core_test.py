@@ -674,13 +674,11 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertIsInstance(x_numpy, np.ndarray)
         self.assertAllClose(x_numpy, x_dense)
 
-    @pytest.mark.skipif(
-        backend.backend() not in ("tensorflow", "jax", "torch"),
-        reason=(
-            f"{backend.backend()} backend doesn't support `custom_gradient`."
-        ),
-    )
     @parameterized.named_parameters(named_product(use_variable=(False, True)))
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_GRADIENT,
+        reason="Backend does not support gradients.",
+    )
     def test_custom_gradient(self, use_variable):
         # function to test custom_gradient on
         @ops.custom_gradient
@@ -715,32 +713,12 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         else:
             to_derive = log1pexp
 
-        if backend.backend() == "tensorflow":
-            import tensorflow as tf
-
-            with tf.GradientTape() as tape1:
-                tape1.watch(x)
-                y = to_derive(x)
-            with tf.GradientTape() as tape2:
-                tape2.watch(x)
-                z = log1pexp_nan(x)
-            dy_dx = tape1.gradient(y, x)
-            dz_dx = tape2.gradient(z, x)
-            self.assertEqual(ops.convert_to_numpy(dy_dx), 1.0)
-        elif backend.backend() == "jax":
-            import jax
-
-            dy_dx = jax.grad(to_derive)(x)
-            dz_dx = jax.grad(log1pexp_nan)(x)
-            self.assertEqual(ops.convert_to_numpy(dy_dx), 1.0)
+        dy_dx = ops.grad(to_derive)(x)
+        self.assertEqual(ops.convert_to_numpy(dy_dx), 1.0)
+        if backend.backend() != "tensorflow":
+            # TensorFlow's `log` and `exp` gradients are defined at 100.0.
+            dz_dx = ops.grad(log1pexp_nan)(x)
             self.assertTrue(ops.isnan(dz_dx))
-        elif backend.backend() == "torch":
-            import torch
-
-            x = torch.tensor(100.0, requires_grad=True)
-            z = to_derive(x)
-            z.sum().backward()
-            self.assertEqual(ops.convert_to_numpy(x.grad), 1.0)
 
     def test_dynamic_slice(self):
         def cond(index, inputs, sum):
@@ -1982,3 +1960,115 @@ class CoreOpsBehaviorTests(testing.TestCase):
         x = KerasTensor((3, 4))
         with self.assertRaisesRegex(ValueError, r"axis 10 is out of bounds"):
             core.unstack(x, axis=10)
+
+
+@pytest.mark.skipif(
+    not backend.SUPPORTS_GRADIENT,
+    reason="Backend does not support gradients.",
+)
+class CoreOpsGradTest(testing.TestCase):
+    def test_grad_single_argument(self):
+        def f(x):
+            return ops.sum(x**2)
+
+        x = ops.array([1.0, 2.0, 3.0])
+        self.assertAllClose(ops.grad(f)(x), [2.0, 4.0, 6.0])
+
+    def test_grad_argnums(self):
+        def f(x, y):
+            return ops.sum(x * y)
+
+        x = ops.array([1.0, 2.0])
+        y = ops.array([3.0, 4.0])
+        self.assertAllClose(ops.grad(f, argnums=1)(x, y), [1.0, 2.0])
+        dx, dy = ops.grad(f, argnums=(0, 1))(x, y)
+        self.assertAllClose(dx, [3.0, 4.0])
+        self.assertAllClose(dy, [1.0, 2.0])
+        (dy,) = ops.grad(f, argnums=(1,))(x, y)
+        self.assertAllClose(dy, [1.0, 2.0])
+
+    def test_grad_keyword_arguments_pass_through(self):
+        def f(x, scale=1.0):
+            return ops.sum(x) * scale
+
+        x = ops.array([1.0, 2.0])
+        self.assertAllClose(ops.grad(f)(x, scale=3.0), [3.0, 3.0])
+
+    def test_grad_nested_structure(self):
+        def f(params):
+            return ops.sum(params["a"] ** 2) + ops.sum(params["b"])
+
+        params = {"a": ops.array([1.0, 2.0]), "b": ops.array([3.0])}
+        grads = ops.grad(f)(params)
+        self.assertEqual(set(grads.keys()), {"a", "b"})
+        self.assertAllClose(grads["a"], [2.0, 4.0])
+        self.assertAllClose(grads["b"], [1.0])
+
+    def test_grad_variable_argument(self):
+        def f(x):
+            return ops.sum(x**2)
+
+        v = backend.Variable([1.0, 2.0])
+        self.assertAllClose(ops.grad(f)(v), [2.0, 4.0])
+
+    def test_grad_unused_argument_is_zeros(self):
+        def f(x, y):
+            return ops.sum(y)
+
+        x = ops.array([1.0, 2.0, 3.0])
+        y = ops.array([1.0])
+        dx, dy = ops.grad(f, argnums=(0, 1))(x, y)
+        self.assertAllClose(dx, [0.0, 0.0, 0.0])
+        self.assertAllClose(dy, [1.0])
+
+    def test_grad_through_layer(self):
+        layer = layers.Dense(2, kernel_initializer="ones", use_bias=False)
+        layer.build((None, 3))
+
+        def f(x):
+            return ops.sum(layer(x))
+
+        x = ops.ones((1, 3))
+        self.assertAllClose(ops.grad(f)(x), [[2.0, 2.0, 2.0]])
+
+    def test_grad_stateless_call(self):
+        layer = layers.Dense(1, kernel_initializer="ones", use_bias=False)
+        layer.build((None, 2))
+
+        def f(trainable_variables, x):
+            y = layer.stateless_call(trainable_variables, [], x)[0]
+            return ops.sum(y)
+
+        x = ops.array([[1.0, 2.0]])
+        (dkernel,) = ops.grad(f)(
+            [v.value for v in layer.trainable_variables], x
+        )
+        self.assertAllClose(dkernel, [[1.0], [2.0]])
+
+    def test_grad_non_scalar_output(self):
+        def f(x):
+            return x * 2
+
+        with self.assertRaisesRegex(ValueError, "must return a scalar"):
+            ops.grad(f)(ops.array([1.0, 2.0]))
+
+    def test_grad_invalid_argnums(self):
+        def f(x, y):
+            return ops.sum(x * y)
+
+        x = ops.array([1.0])
+        with self.assertRaisesRegex(ValueError, "positional argument 2"):
+            ops.grad(f, argnums=2)(x, x)
+        with self.assertRaisesRegex(ValueError, "must not repeat"):
+            ops.grad(f, argnums=(0, 0))(x, x)
+        with self.assertRaisesRegex(TypeError, "int or a tuple of ints"):
+            ops.grad(f, argnums="0")(x, x)
+
+
+@pytest.mark.skipif(
+    backend.SUPPORTS_GRADIENT, reason="Backend supports gradients."
+)
+class CoreOpsGradUnsupportedTest(testing.TestCase):
+    def test_grad_raises(self):
+        with self.assertRaisesRegex(NotImplementedError, "not supported"):
+            ops.grad(lambda x: ops.sum(x))(ops.array([1.0]))
