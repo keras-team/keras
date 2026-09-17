@@ -2132,27 +2132,52 @@ def logaddexp(x1, x2):
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
-    delta = x1 - x2
+    amax = tf.maximum(x1, x2)
+    amin = tf.minimum(x1, x2)
+    finite_max = tf.math.is_finite(amax)
+    # Dummy center is 0 when amax is non-finite so exp/log stay finite.
+    safe_max = tf.stop_gradient(tf.where(finite_max, amax, tf.zeros_like(amax)))
+    # Unused branch: both operands = safe_max -> log(2) finite (WhereGrad).
+    use_lse = finite_max & tf.math.is_finite(amin)
+    x1_masked = tf.where(use_lse, x1, safe_max)
+    x2_masked = tf.where(use_lse, x2, safe_max)
+    lse = safe_max + tf.math.log(
+        tf.math.exp(x1_masked - safe_max) + tf.math.exp(x2_masked - safe_max)
+    )
+    # NaN in, NaN out; non-finite inputs resolve via amax (including inf pairs).
     return tf.where(
-        tf.math.is_nan(delta),
+        tf.math.is_nan(x1) | tf.math.is_nan(x2),
         x1 + x2,
-        tf.maximum(x1, x2) + tf.math.log1p(tf.math.exp(-tf.abs(delta))),
+        tf.where(use_lse, lse, amax),
     )
 
 
 def logaddexp2(x1, x2):
-    x1 = tf.convert_to_tensor(x1)
-    x2 = tf.convert_to_tensor(x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
-    delta = x1 - x2
+    amax = tf.maximum(x1, x2)
+    amin = tf.minimum(x1, x2)
+    finite_max = tf.math.is_finite(amax)
+    safe_max = tf.stop_gradient(tf.where(finite_max, amax, tf.zeros_like(amax)))
+    use_lse = finite_max & tf.math.is_finite(amin)
     log2 = tf.cast(tf.math.log(2.0), dtype)
+    x1_masked = tf.where(use_lse, x1, safe_max)
+    x2_masked = tf.where(use_lse, x2, safe_max)
+    lse = (
+        safe_max
+        + tf.math.log(
+            tf.math.exp((x1_masked - safe_max) * log2)
+            + tf.math.exp((x2_masked - safe_max) * log2)
+        )
+        / log2
+    )
     return tf.where(
-        tf.math.is_nan(delta),
+        tf.math.is_nan(x1) | tf.math.is_nan(x2),
         x1 + x2,
-        tf.maximum(x1, x2)
-        + tf.math.log1p(tf.math.exp(-tf.abs(delta) * log2)) / log2,
+        tf.where(use_lse, lse, amax),
     )
 
 
