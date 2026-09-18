@@ -205,8 +205,21 @@ class Bidirectional(Layer):
         elif self.merge_mode is None:
             output_shape = [forward_output_shape, backward_output_shape]
         else:
-            # "sum", "mul" and "ave" combine the two elementwise, which
-            # requires them to agree, so either one describes the result.
+            # "sum", "mul" and "ave" combine the two directions elementwise,
+            # so they only make sense when both produce the same width.
+            # Without this check the mismatch surfaces much later as a raw
+            # backend error about an add or multiply node.
+            if forward_output_shape[-1] != backward_output_shape[-1]:
+                raise ValueError(
+                    "The forward and backward layers must produce the same "
+                    "number of units when `merge_mode` combines them "
+                    "elementwise. Received: "
+                    f"merge_mode={self.merge_mode}, "
+                    f"forward units={forward_output_shape[-1]}, "
+                    f"backward units={backward_output_shape[-1]}. Use "
+                    'merge_mode="concat" or merge_mode=None to combine '
+                    "layers of different sizes."
+                )
             output_shape = forward_output_shape
 
         if self.return_state:
