@@ -1,9 +1,14 @@
+import json
 import os
+import zipfile
+from unittest import mock
 
 import numpy as np
 import pytest
 import tensorflow as tf
+from absl.testing import parameterized
 
+from keras.src import activations
 from keras.src import backend
 from keras.src import layers
 from keras.src import models
@@ -12,7 +17,9 @@ from keras.src import utils
 from keras.src.export import saved_model
 from keras.src.export import tfsm_layer
 from keras.src.export.saved_model_test import get_model
+from keras.src.saving import saving_api
 from keras.src.saving import saving_lib
+from keras.src.saving import serialization_lib
 
 
 @pytest.mark.skipif(
@@ -155,6 +162,118 @@ class TestTFSMLayer(testing.TestCase):
 
         x = tf.random.normal((2, 10))
         self.assertAllClose(loaded_model(x), wrapper_model(x))
+
+    def test_safe_mode_blocks_constructor(self):
+        with mock.patch.object(tf.saved_model, "load") as load:
+            with serialization_lib.SafeModeScope(True):
+                with self.assertRaisesRegex(
+                    ValueError, "arbitrary code execution"
+                ):
+                    tfsm_layer.TFSMLayer("unused_saved_model")
+            load.assert_not_called()
+
+    @parameterized.parameters(
+        (None, None, True),
+        (None, False, False),
+        (None, True, True),
+        (False, None, False),
+        (True, False, False),
+        (False, True, True),
+    )
+    def test_from_config_safe_mode(self, outer_mode, safe_mode, blocked):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model = get_model()
+        ref_input = tf.random.normal((3, 10))
+        ref_output = model(ref_input)
+        saved_model.export_saved_model(model, temp_filepath)
+
+        with serialization_lib.SafeModeScope(outer_mode):
+            with mock.patch.object(
+                tf.saved_model, "load", wraps=tf.saved_model.load
+            ) as load:
+                if blocked:
+                    with self.assertRaisesRegex(
+                        ValueError, "arbitrary code execution"
+                    ):
+                        tfsm_layer.TFSMLayer.from_config(
+                            {"filepath": temp_filepath}, safe_mode=safe_mode
+                        )
+                    load.assert_not_called()
+                else:
+                    layer = tfsm_layer.TFSMLayer.from_config(
+                        {"filepath": temp_filepath}, safe_mode=safe_mode
+                    )
+                    load.assert_called_once_with(temp_filepath)
+                    self.assertAllClose(layer(ref_input), ref_output)
+            self.assertIs(serialization_lib.in_safe_mode(), outer_mode)
+
+    @parameterized.named_parameters(
+        ("default", {}),
+        ("safe", {"safe_mode": True}),
+        ("unsafe", {"safe_mode": False}),
+    )
+    def test_safe_mode_blocks_constructor_during_model_loading(
+        self, load_kwargs
+    ):
+        temp_dir = self.get_temp_dir()
+        temp_filepath = os.path.join(temp_dir, "exported_model")
+        exported_model = get_model()
+        exported_model(tf.zeros((1, 10)))
+        saved_model.export_saved_model(exported_model, temp_filepath)
+
+        inputs = layers.Input((10,))
+        outputs = layers.Dense(1, name="dense")(inputs)
+        lambda_outputs = layers.Lambda(activations.relu, name="lambda")(inputs)
+        model = models.Model(inputs, [outputs, lambda_outputs])
+        ref_input = tf.random.normal((3, 10))
+        ref_output = model(ref_input)[0]
+        original_path = os.path.join(temp_dir, "original.keras")
+        model.save(original_path)
+
+        model_path = os.path.join(temp_dir, "constructor.keras")
+        with zipfile.ZipFile(original_path) as source:
+            config = json.loads(source.read("config.json"))
+            lambda_config = next(
+                layer
+                for layer in config["config"]["layers"]
+                if layer["name"] == "lambda"
+            )
+            # Resolve the constructor as a callable, bypassing from_config().
+            lambda_config["config"]["function"] = {
+                "module": "keras.layers",
+                "class_name": "function",
+                "config": "TFSMLayer",
+                "registered_name": "TFSMLayer",
+            }
+            lambda_config["inbound_nodes"][0] = {
+                "args": [],
+                "kwargs": {"inputs": temp_filepath},
+            }
+            config["config"]["output_layers"] = config["config"][
+                "output_layers"
+            ][0]
+            with zipfile.ZipFile(model_path, "w") as target:
+                for name in source.namelist():
+                    target.writestr(
+                        name,
+                        json.dumps(config)
+                        if name == "config.json"
+                        else source.read(name),
+                    )
+
+        with mock.patch.object(
+            tf.saved_model, "load", wraps=tf.saved_model.load
+        ) as load:
+            if load_kwargs.get("safe_mode", True):
+                with self.assertRaisesRegex(
+                    ValueError, "arbitrary code execution"
+                ):
+                    saving_api.load_model(model_path, **load_kwargs)
+                load.assert_not_called()
+            else:
+                loaded_model = saving_api.load_model(model_path, **load_kwargs)
+                load.assert_called_once_with(temp_filepath)
+                self.assertAllClose(loaded_model(ref_input), ref_output)
 
     def test_errors(self):
         # Test missing call endpoint
