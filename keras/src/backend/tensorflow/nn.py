@@ -108,10 +108,15 @@ def leaky_relu(x, negative_slope=0.2):
 
 def hard_sigmoid(x):
     x = convert_to_tensor(x)
+    # `hard_sigmoid` is a float op. Promote integer and bool inputs the way
+    # the JAX backend already does.
+    x = cast(x, backend.result_type(x.dtype, float))
     return relu6(x + tf.constant(3.0, x.dtype)) / tf.constant(6.0, x.dtype)
 
 
 def hard_silu(x):
+    x = convert_to_tensor(x)
+    x = cast(x, backend.result_type(x.dtype, float))
     return x * hard_sigmoid(x)
 
 

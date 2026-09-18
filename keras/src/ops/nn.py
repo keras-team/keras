@@ -474,7 +474,9 @@ class HardSigmoid(Operation):
         return backend.nn.hard_sigmoid(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        # `hard_sigmoid` promotes integer and bool inputs to float, so the
+        # symbolic dtype has to match what eager execution returns.
+        return KerasTensor(x.shape, dtype=backend.result_type(x.dtype, float))
 
 
 @keras_export(
@@ -514,7 +516,7 @@ class HardSilu(Operation):
         return backend.nn.hard_silu(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return KerasTensor(x.shape, dtype=backend.result_type(x.dtype, float))
 
 
 @keras_export(
