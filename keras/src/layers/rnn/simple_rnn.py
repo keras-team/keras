@@ -439,6 +439,7 @@ class SimpleRNN(RNN):
             "bias_constraint": constraints.serialize(self.bias_constraint),
             "dropout": self.dropout,
             "recurrent_dropout": self.recurrent_dropout,
+            "seed": self.cell.seed,
         }
         base_config = super().get_config()
         del base_config["cell"]
