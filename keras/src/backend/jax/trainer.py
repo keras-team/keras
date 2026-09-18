@@ -480,7 +480,7 @@ class JAXTrainer(base_trainer.Trainer):
             steps_per_execution=self.steps_per_execution,
         )
 
-        self._symbolic_build(iterator=epoch_iterator)
+        self._maybe_symbolic_build(iterator=epoch_iterator)
         epoch_iterator.reset()
 
         # Container that configures and calls callbacks.
@@ -645,7 +645,7 @@ class JAXTrainer(base_trainer.Trainer):
                 steps_per_execution=self.steps_per_execution,
             )
 
-        self._symbolic_build(iterator=epoch_iterator)
+        self._maybe_symbolic_build(iterator=epoch_iterator)
         epoch_iterator.reset()
 
         # Container that configures and calls callbacks.
@@ -941,6 +941,26 @@ class JAXTrainer(base_trainer.Trainer):
         self.state_sync()
         batch_outputs = tree.map_structure(lambda x: np.array(x), batch_outputs)
         return batch_outputs
+
+    def _maybe_symbolic_build(self, iterator=None, data_batch=None):
+        if (
+            all(layer.built for layer in self._flatten_layers())
+            and (self._compile_metrics is None or self._compile_metrics.built)
+            and (self._compile_loss is None or self._compile_loss.built)
+            and (self.optimizer is None or self.optimizer.built)
+        ):
+            return
+        if data_batch is None and iterator is not None:
+            try:
+                data_batch = next(
+                    iter(iterator.data_adapter.get_jax_iterator())
+                )
+            except StopIteration:
+                raise ValueError(
+                    "The symbolic build failed because train or validation "
+                    "dataset is empty."
+                )
+        self._symbolic_build(data_batch=data_batch)
 
     def state_sync(self):
         if not getattr(self, "_jax_state", None) or self._jax_state_synced:
