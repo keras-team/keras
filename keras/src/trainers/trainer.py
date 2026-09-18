@@ -35,6 +35,9 @@ class Trainer:
         self._compile_metrics = None
         self._loss_tracker = None
 
+    def state_sync(self):
+        """Write the training state back to the model variables."""
+
     @traceback_utils.filter_traceback
     @tracking.no_automatic_dependency_tracking
     def compile(

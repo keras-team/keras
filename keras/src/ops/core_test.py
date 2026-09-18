@@ -1364,7 +1364,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         d = ops.stop_gradient(b) + c
         model = models.Model(inputs=a, outputs=d)
         output = model(ops.convert_to_tensor([[1.0, 2.0]]))
-        self.assertAllClose(output, 15.0)
+        self.assertAllClose(output, np.full((1, 4), 15.0))
 
         # Test Operation call.
         variable = ops.convert_to_tensor(

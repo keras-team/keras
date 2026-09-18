@@ -1,5 +1,9 @@
+import math
+
 import torch
 import torch.nn.functional as tnn
+from torch.distributed.tensor import DTensor
+from torch.distributed.tensor import Replicate
 
 from keras.src import backend
 from keras.src.backend.common.backend_utils import canonicalize_axis
@@ -998,19 +1002,6 @@ def binary_crossentropy(target, output, from_logits=False):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
 
-    # We only apply the squeeze fix if we are on an MPS device,
-    # as this change breaks tests on other platforms that
-    # expect the original tensor shape to be preserved.
-    if (
-        torch.backends.mps.is_available()
-        and target.ndim > 1
-        and output.ndim == target.ndim
-        and target.shape[-1] == 1
-        and output.shape[-1] == 1
-    ):
-        target = torch.squeeze(target, -1).contiguous()
-        output = torch.squeeze(output, -1).contiguous()
-
     if target.shape != output.shape:
         raise ValueError(
             "Arguments `target` and `output` must have the same shape. "
@@ -1024,9 +1015,17 @@ def binary_crossentropy(target, output, from_logits=False):
         return tnn.binary_cross_entropy_with_logits(
             output, target, reduction="none"
         )
-    else:
-        output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
-        return tnn.binary_cross_entropy(output, target, reduction="none")
+
+    output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+    # Before torch 2.10, the MPS `binary_cross_entropy` kernel squeezes every
+    # size-1 dimension of its inputs but not of `grad_output`, so the backward
+    # pass aborts or returns wrong gradients. Computing the loss on 1-D
+    # tensors avoids this on every device.
+    # See https://github.com/pytorch/pytorch/issues/166746.
+    loss = tnn.binary_cross_entropy(
+        output.reshape(-1), target.reshape(-1), reduction="none"
+    )
+    return loss.reshape(output.shape)
 
 
 def moments(x, axes, keepdims=False, synchronized=False):
@@ -1557,6 +1556,12 @@ def dot_product_attention(
                     (q_len, kv_len), dtype=torch.bool, device=mask.device
                 )
             )
+            if isinstance(mask, DTensor):
+                causal_mask = DTensor.from_local(
+                    causal_mask,
+                    mask.device_mesh,
+                    [Replicate()] * mask.device_mesh.ndim,
+                )
             mask = torch.logical_and(mask, causal_mask)
         # Explicitly set `is_causal` to `False` when `mask` is not `None`.
         is_causal = False
@@ -1576,6 +1581,16 @@ def dot_product_attention(
         groups = num_query_heads // num_kv_heads
         key = torch.repeat_interleave(key, repeats=groups, dim=1)
         value = torch.repeat_interleave(value, repeats=groups, dim=1)
+
+    is_dtensor = isinstance(query, DTensor)
+    if is_dtensor:
+        device_mesh = query.device_mesh
+        placements = query.placements
+        query = query.to_local()
+        key = key.to_local() if hasattr(key, "to_local") else key
+        value = value.to_local() if hasattr(value, "to_local") else value
+        if mask is not None:
+            mask = mask.to_local() if hasattr(mask, "to_local") else mask
 
     if flash_attention is None:
         flash_attention = _can_use_flash_attention(
@@ -1610,6 +1625,12 @@ def dot_product_attention(
             is_causal=is_causal,
             scale=scale,
         )
+
+    if is_dtensor:
+        attention_output = DTensor.from_local(
+            attention_output, device_mesh, placements
+        )
+
     return torch.transpose(attention_output, axis1, axis0)
 
 
@@ -1743,3 +1764,78 @@ def space_to_depth(x, block_size, data_format="channels_last"):
         # Reshape: (N, C, bH, bW, new_H, new_W) -> (N, C*bH*bW, new_H, new_W)
         x = x.reshape(n, c * block_size**2, new_h, new_w)
     return x
+
+
+def _canonical_axes(x, axis):
+    if isinstance(axis, int):
+        axis = [axis]
+    return sorted(canonicalize_axis(a, x.dim()) for a in axis)
+
+
+def _normalization_operands(x, weights, axis):
+    """Prepare `x` and `weights` for the torch normalization kernels.
+
+    `tnn.rms_norm` and `tnn.layer_norm` normalize over the trailing axes of
+    the input and take weights shaped like those axes, so the axes are moved
+    to the end here and the caller moves the output back. Returns None when
+    a weight is not shaped like the axes it scales, in which case the caller
+    composes the normalization from elementary ops instead.
+    """
+    normalized_shape = tuple(x.shape[a] for a in axis)
+    size = math.prod(normalized_shape)
+    reshaped = []
+    for weight in weights:
+        if weight is None:
+            reshaped.append(None)
+        elif weight.numel() == size:
+            reshaped.append(weight.reshape(normalized_shape))
+        else:
+            return None
+    kept = [d for d in range(x.dim()) if d not in axis]
+    perm = kept + list(axis)
+    return x.permute(perm), normalized_shape, reshaped, perm
+
+
+def _inverse_permutation(perm):
+    return [perm.index(d) for d in range(len(perm))]
+
+
+def rms_normalization(x, scale=None, axis=-1, epsilon=None):
+    if epsilon is None:
+        epsilon = backend.epsilon()
+    if x.dim() == 0:
+        # A scalar is normalized as a single element, like the composed op.
+        x = x.unsqueeze(0)
+    axis = _canonical_axes(x, axis)
+    operands = _normalization_operands(x, (scale,), axis) if axis else None
+    if operands is None:
+        rrms = torch.rsqrt(
+            torch.mean(torch.square(x), dim=axis, keepdim=True) + epsilon
+        )
+        outputs = x * rrms
+        if scale is not None:
+            outputs = outputs * scale
+        return outputs
+    x, normalized_shape, (scale,), perm = operands
+    outputs = tnn.rms_norm(x, normalized_shape, scale, epsilon)
+    return outputs.permute(_inverse_permutation(perm))
+
+
+def layer_normalization(x, gamma=None, beta=None, axis=-1, epsilon=None):
+    if epsilon is None:
+        epsilon = backend.epsilon()
+    axis = _canonical_axes(x, axis)
+    operands = _normalization_operands(x, (gamma, beta), axis) if axis else None
+    if operands is None:
+        mean = torch.mean(x, dim=axis, keepdim=True)
+        variance = torch.var(x, dim=axis, keepdim=True, unbiased=False)
+        inv = torch.rsqrt(variance + epsilon)
+        if gamma is not None:
+            inv = inv * gamma
+        res = -mean * inv
+        if beta is not None:
+            res = res + beta
+        return x * inv + res
+    x, normalized_shape, (gamma, beta), perm = operands
+    outputs = tnn.layer_norm(x, normalized_shape, gamma, beta, epsilon)
+    return outputs.permute(_inverse_permutation(perm))

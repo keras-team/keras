@@ -192,6 +192,9 @@ class EarlyStoppingTest(testing.TestCase):
             def set_weight_to_epoch(self, epoch):
                 self.weights = epoch
 
+            def state_sync(self):
+                pass
+
         early_stop = callbacks.EarlyStopping(
             monitor="val_loss", patience=2, restore_best_weights=True
         )

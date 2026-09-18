@@ -436,7 +436,10 @@ def argsort(x, axis=-1):
     if axis is None:
         axis = -1
         x = x.reshape(-1)
-    return cast(torch.argsort(x, dim=axis, stable=True), dtype="int32")
+    indices = cast(torch.argsort(x, dim=axis, stable=True), dtype="int32")
+    if indices.ndim == 0:
+        return indices.unsqueeze(0)
+    return indices
 
 
 def array(x, dtype=None):
@@ -1737,7 +1740,10 @@ def prod(x, axis=None, keepdims=False, dtype=None):
 def ptp(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if axis is None:
-        return x.max() - x.min()
+        result = x.max() - x.min()
+        if keepdims:
+            result = result.reshape((1,) * x.ndim)
+        return result
     elif axis == ():
         return torch.zeros_like(x)
     else:
@@ -2381,7 +2387,7 @@ def correlate(x1, x2, mode="valid"):
         start_idx = (result.size(-1) - x1_len) // 2
         result = result[..., start_idx : start_idx + x1_len]
 
-    return torch.squeeze(result)
+    return torch.squeeze(result, dim=0)
 
 
 def select(condlist, choicelist, default=0):

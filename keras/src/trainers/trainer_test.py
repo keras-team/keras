@@ -758,7 +758,7 @@ class TestTrainer(testing.TestCase):
         history = history.history
         self.assertIn("loss", history)
         self.assertIn("mean_squared_error", history)
-        self.assertAllClose(history["my_custom_metric"], 10.0)
+        self.assertAllClose(history["my_custom_metric"], [10.0])
 
     @parameterized.named_parameters(
         named_product(
@@ -2308,7 +2308,9 @@ class TestTrainer(testing.TestCase):
         history = model.fit(
             [np.ones((3, 2)), np.ones((3, 3))], np.ones((3, 2))
         ).history
-        self.assertAllClose(history["loss"], 16.0, tpu_atol=1e-4, tpu_rtol=1e-4)
+        self.assertAllClose(
+            history["loss"], [16.0], tpu_atol=1e-4, tpu_rtol=1e-4
+        )
         train_out = model.train_on_batch(
             [np.ones((3, 2)), np.ones((3, 3))], np.ones((3, 2))
         )

@@ -956,8 +956,7 @@ class Layer(BackendLayer, Operation):
 
         ################
         # 4. Call build
-        with self._open_name_scope():
-            self._maybe_build(call_spec)
+        self._maybe_build(call_spec)
 
         ##########################
         # 5. Infer training value
@@ -1687,6 +1686,10 @@ class Layer(BackendLayer, Operation):
         if self.built:
             return
 
+        with self._open_name_scope():
+            self._build_from_call_spec(call_spec)
+
+    def _build_from_call_spec(self, call_spec):
         shapes_dict = get_shapes_dict(call_spec)
         first_shape = next(iter(shapes_dict.values()), None)
 

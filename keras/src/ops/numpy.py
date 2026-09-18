@@ -372,7 +372,7 @@ class AllClose(Operation):
         self.equal_nan = equal_nan
 
     def call(self, x1, x2):
-        return backend.numpy.allclose(
+        return _allclose(
             x1,
             x2,
             rtol=self.rtol,
@@ -409,8 +409,18 @@ def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
         return AllClose(
             rtol=rtol, atol=atol, equal_nan=equal_nan
         ).symbolic_call(x1, x2)
-    return backend.numpy.allclose(
-        x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan
+    return _allclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
+
+
+def _allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.numpy, "allclose"
+    ):
+        return backend.numpy.allclose(
+            x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan
+        )
+    return ops.all(
+        ops.isclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
     )
 
 
@@ -10177,7 +10187,7 @@ class Dsplit(Operation):
         self.indices_or_sections = indices_or_sections
 
     def call(self, x):
-        return backend.numpy.dsplit(x, self.indices_or_sections)
+        return _dsplit(x, self.indices_or_sections)
 
     def compute_output_spec(self, x):
         if len(x.shape) < 3:
@@ -10216,7 +10226,16 @@ def dsplit(x, indices_or_sections):
     """
     if any_symbolic_tensors((x,)):
         return Dsplit(indices_or_sections).symbolic_call(x)
-    return backend.numpy.dsplit(x, indices_or_sections)
+    return _dsplit(x, indices_or_sections)
+
+
+def _dsplit(x, indices_or_sections):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.numpy, "dsplit"
+    ):
+        return backend.numpy.dsplit(x, indices_or_sections)
+    x = backend.convert_to_tensor(x)
+    return ops.split(x, indices_or_sections, axis=2)
 
 
 class ColumnStack(Operation):
