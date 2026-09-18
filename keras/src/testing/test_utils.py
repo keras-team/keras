@@ -1,4 +1,10 @@
+import functools
+import inspect
+
 import numpy as np
+from absl.testing import parameterized
+
+from keras.src import backend
 
 
 def get_test_data(
@@ -250,3 +256,61 @@ def assert_serialized_variables_equal(test_case, expected_layer, actual_layer):
             np.asarray(serialized_variable(actual_layer, name)),
             msg=f"Mismatch for serialized variable '{name}'.",
         )
+
+
+BACKEND_AGNOSTIC_OPS = (
+    {"testcase_name": "backend_specific", "backend_agnostic_ops": False},
+    {"testcase_name": "backend_agnostic", "backend_agnostic_ops": True},
+)
+
+
+def use_backend_agnostic_ops(*args, **kwargs):
+    """Parameterizes a test to run with both backend-specific and agnostic ops.
+
+    Automatically sets and resets `backend.config._set_use_backend_agnostic_ops`
+    for each test case.
+
+    Can be used as a parameterless decorator:
+    ```python
+    @use_backend_agnostic_ops
+    def test_my_op(self):
+        ...
+    ```
+
+    Or combined with other parameters via keywords or positional lists (similar
+    to `named_product`):
+    ```python
+    @use_backend_agnostic_ops(dtype=FLOAT_DTYPES)
+    def test_my_op(self, dtype):
+        ...
+    ```
+    """
+
+    def decorator(fn):
+        combined = named_product(BACKEND_AGNOSTIC_OPS, *args, **kwargs)
+        sig = inspect.signature(fn)
+        pass_flag = "backend_agnostic_ops" in sig.parameters or any(
+            p.kind == inspect.Parameter.VAR_KEYWORD
+            for p in sig.parameters.values()
+        )
+
+        @parameterized.named_parameters(combined)
+        @functools.wraps(fn)
+        def wrapper(self, *a, **kw):
+            val = kw.get("backend_agnostic_ops", False)
+            if not pass_flag:
+                kw.pop("backend_agnostic_ops", None)
+            original = backend.config._use_backend_agnostic_ops()
+            backend.config._set_use_backend_agnostic_ops(val)
+            try:
+                return fn(self, *a, **kw)
+            finally:
+                backend.config._set_use_backend_agnostic_ops(original)
+
+        return wrapper
+
+    if len(args) == 1 and callable(args[0]) and not kwargs:
+        fn = args[0]
+        args = ()
+        return decorator(fn)
+    return decorator
