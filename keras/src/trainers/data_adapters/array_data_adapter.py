@@ -303,7 +303,7 @@ class ArrayDataAdapter(DataAdapter):
             def __getitems__(self, indices):
                 def slice_and_convert(sliceable):
                     x = sliceable[indices]
-                    x = sliceable.convert_to_native_compatible(x)
+                    x = sliceable.convert_to_torch_compatible(x)
                     x = convert_to_tensor(x)
                     return x
 

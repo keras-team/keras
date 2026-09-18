@@ -90,6 +90,21 @@ class Sliceable:
         return x
 
     @classmethod
+    def convert_to_torch_compatible(cls, x):
+        """Convert a tensor to something that the Torch backend can consume.
+
+        This can be a Torch tensor, NumPy array or any other type of tensor that
+        `keras.backend.torch.core.convert_to_tensor()` can consume.
+        Only called after slicing using `__getitem__`.
+        Used to densify sparse tensors and ragged tensors.
+
+        Args:
+            x: the tensor to convert.
+        Returns: the converted tensor.
+        """
+        return x
+
+    @classmethod
     def convert_to_native_compatible(cls, x):
         """Convert a tensor to something that the native backend can consume.
 
@@ -150,6 +165,10 @@ class TensorflowRaggedSliceable(TensorflowSliceable):
         return cls.convert_to_numpy(x)
 
     @classmethod
+    def convert_to_torch_compatible(cls, x):
+        return x.to_tensor()
+
+    @classmethod
     def convert_to_native_compatible(cls, x):
         return x.to_tensor()
 
@@ -174,6 +193,12 @@ class TensorflowSparseSliceable(TensorflowSliceable):
         return data_adapter_utils.tf_sparse_to_jax_sparse(x)
 
     @classmethod
+    def convert_to_torch_compatible(cls, x):
+        from keras.src.backend.tensorflow import sparse as tf_sparse
+
+        return tf_sparse.sparse_to_dense(x)
+
+    @classmethod
     def convert_to_native_compatible(cls, x):
         from keras.src.backend.tensorflow import sparse as tf_sparse
 
@@ -195,6 +220,10 @@ class JaxSparseSliceable(Sliceable):
         return to_tensorflow_sparse_wrapper(
             data_adapter_utils.jax_sparse_to_tf_sparse(array)
         )
+
+    @classmethod
+    def convert_to_torch_compatible(cls, x):
+        return x.todense()
 
     @classmethod
     def convert_to_native_compatible(cls, x):
@@ -232,6 +261,10 @@ class PandasSliceable(Sliceable):
         return cls.convert_to_numpy(x)
 
     @classmethod
+    def convert_to_torch_compatible(cls, x):
+        return cls.convert_to_numpy(x)
+
+    @classmethod
     def convert_to_native_compatible(cls, x):
         return cls.convert_to_numpy(x)
 
@@ -265,6 +298,10 @@ class ScipySparseSliceable(Sliceable):
     @classmethod
     def convert_to_jax_compatible(cls, x):
         return data_adapter_utils.scipy_sparse_to_jax_sparse(x)
+
+    @classmethod
+    def convert_to_torch_compatible(cls, x):
+        return x.todense()
 
     @classmethod
     def convert_to_native_compatible(cls, x):
@@ -341,11 +378,11 @@ def can_slice_array(x):
         or isinstance(x, np.ndarray)
         or data_adapter_utils.is_tensorflow_tensor(x)
         or data_adapter_utils.is_jax_array(x)
+        or data_adapter_utils.is_torch_tensor(x)
         or data_adapter_utils.is_scipy_sparse(x)
         or data_adapter_utils.is_pandas_data_frame(x)
         or data_adapter_utils.is_pandas_series(x)
         or backend.is_tensor(x)
-        or data_adapter_utils.is_torch_tensor(x)
         or hasattr(x, "__array__")
     )
 
@@ -398,6 +435,8 @@ def convert_to_sliceable(arrays, target_backend=None):
             else:
                 x = np.asarray(x)
                 sliceable_class = NumpySliceable
+        elif data_adapter_utils.is_torch_tensor(x):
+            sliceable_class = TorchSliceable
         elif data_adapter_utils.is_pandas_data_frame(x):
             sliceable_class = PandasDataFrameSliceable
         elif data_adapter_utils.is_pandas_series(x):
@@ -406,8 +445,6 @@ def convert_to_sliceable(arrays, target_backend=None):
             sliceable_class = ScipySparseSliceable
         elif backend.is_tensor(x):
             sliceable_class = NativeArraySliceable
-        elif data_adapter_utils.is_torch_tensor(x):
-            sliceable_class = TorchSliceable
         elif hasattr(x, "__array__"):
             x = np.asarray(x)
             sliceable_class = NumpySliceable
@@ -455,7 +492,7 @@ def convert_to_sliceable(arrays, target_backend=None):
             TensorflowSliceable,
             TorchSliceable,
         ):
-            x = np.asarray(x)
+            x = sliceable_class.convert_to_numpy(x)
             sliceable_class = NumpySliceable
 
         return sliceable_class(x)
