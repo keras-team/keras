@@ -480,11 +480,7 @@ class JAXTrainer(base_trainer.Trainer):
             steps_per_execution=self.steps_per_execution,
         )
 
-        self._symbolic_build(
-            data_batch=next(
-                iter(epoch_iterator.data_adapter.get_jax_iterator())
-            )
-        )
+        self._symbolic_build(iterator=epoch_iterator)
         epoch_iterator.reset()
 
         # Container that configures and calls callbacks.
@@ -649,11 +645,7 @@ class JAXTrainer(base_trainer.Trainer):
                 steps_per_execution=self.steps_per_execution,
             )
 
-        self._symbolic_build(
-            data_batch=next(
-                iter(epoch_iterator.data_adapter.get_jax_iterator())
-            )
-        )
+        self._symbolic_build(iterator=epoch_iterator)
         epoch_iterator.reset()
 
         # Container that configures and calls callbacks.

@@ -1137,6 +1137,13 @@ class Trainer:
         optimizer_unbuilt = (
             self.optimizer is not None and not self.optimizer.built
         )
+        if not (
+            model_unbuilt
+            or compile_metrics_unbuilt
+            or compile_loss_unbuilt
+            or optimizer_unbuilt
+        ):
+            return
         if model_unbuilt or compile_metrics_unbuilt or compile_loss_unbuilt:
             # Create symbolic tensors matching an input batch.
 
@@ -1149,11 +1156,19 @@ class Trainer:
 
             if data_batch is None:
                 for _, _, data_or_iterator in iterator:
-                    if isinstance(data_or_iterator, (list, tuple)):
-                        data_batch = data_or_iterator[0]
-                    else:
-                        data_batch = next(data_or_iterator)
+                    try:
+                        if isinstance(data_or_iterator, (list, tuple)):
+                            data_batch = data_or_iterator[0]
+                        else:
+                            data_batch = next(data_or_iterator)
+                    except StopIteration:
+                        pass
                     break
+            if data_batch is None:
+                raise ValueError(
+                    "The symbolic build failed because train or validation "
+                    "dataset is empty."
+                )
             data_batch = tree.map_structure(to_symbolic_input, data_batch)
             (
                 x,
