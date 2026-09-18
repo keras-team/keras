@@ -1332,6 +1332,10 @@ class H5IOStore:
         self._h5_entry_metadata = None
         self._h5_entry_initialized = False
 
+        # Track already-written variables so that shared variables are stored
+        # as HDF5 hard links instead of duplicated datasets.
+        self._written_variable_datasets = {}
+
     def __bool__(self):
         # Delegate `__bool__` to the underlying `h5_file`. Otherwise, Python
         # will mistakenly using `__len__` to determine the value.
@@ -1467,12 +1471,35 @@ class H5IOStore:
         if not self._h5_entry_initialized:
             self._create_h5_group(self._h5_entry_path)
 
+        variable_id = self._get_variable_id(value)
+        linked_dataset_path = self._written_variable_datasets.get(variable_id)
+        if linked_dataset_path is not None:
+            try:
+                # The variable has already been written. Create a hard link
+                # to the existing dataset instead of storing a second copy.
+                self._h5_entry_group[key] = self.h5_file[linked_dataset_path]
+                return
+            except KeyError:
+                # The previously written dataset is not reachable from the
+                # current H5 file (e.g. it lives in another shard). Fall
+                # through and store a new copy.
+                pass
+
         value = backend.convert_to_numpy(value)
         if backend.standardize_dtype(value.dtype) == "bfloat16":
             ds = self._h5_entry_group.create_dataset(key, data=value)
             ds.attrs["dtype"] = "bfloat16"
         else:
             self._h5_entry_group[key] = value
+            ds = self._h5_entry_group[key]
+
+        if variable_id is not None:
+            self._written_variable_datasets[variable_id] = ds.name
+
+    def _get_variable_id(self, value):
+        if isinstance(value, backend.Variable):
+            return id(value)
+        return None
 
     def __delitem__(self, key):
         if self.mode not in ("w", "a"):
@@ -1531,6 +1558,10 @@ class ShardedH5IOStore(H5IOStore):
         self._h5_entry_group = {}
         self._h5_entry_metadata = None
         self._h5_entry_initialized = False
+
+        # Track already-written variables so that shared variables are stored
+        # as HDF5 hard links instead of duplicated datasets.
+        self._written_variable_datasets = {}
 
         # Init shard parameters.
         self.current_shard_index = 0
@@ -1740,29 +1771,45 @@ class ShardedH5IOStore(H5IOStore):
     def __setitem__(self, key, value):
         self._restore_h5_file()
 
-        # Accumulate `current_shard_size`.
-        value = backend.convert_to_numpy(value)
-        dtype = backend.standardize_dtype(value.dtype)
-        weight_counts = math.prod(value.shape)
-        per_param_size = dtype_utils.dtype_size(dtype)
-        value_size = weight_counts * per_param_size / 8  # In bytes.
-        self.total_shard_size += value_size
-        if value_size > self.max_shard_size:
-            value_size_str = readable_memory_size(value_size)
-            max_shard_size_str = readable_memory_size(self.max_shard_size)
-            raise ValueError(
-                f"The size of {key} is {value_size_str} which "
-                f"exceeds the maximum shard size {max_shard_size_str}. You "
-                "can increase the `max_shard_size` parameter to accommodate "
-                "the size."
+        variable_id = self._get_variable_id(value)
+        is_linked = False
+        if variable_id is not None:
+            linked_dataset_path = self._written_variable_datasets.get(
+                variable_id
             )
+            if linked_dataset_path is not None:
+                try:
+                    self.h5_file[linked_dataset_path]
+                    is_linked = True
+                except KeyError:
+                    # The previously written dataset is not reachable from the
+                    # current shard file. Fall through and store a new copy.
+                    pass
 
-        # Create a new shard if the current shard is full.
-        self.current_shard_size += value_size
-        if self.current_shard_size > self.max_shard_size:
-            self.close()
-            self.h5_file = self._create_new_shard_file()
-            self.current_shard_size = value_size
+        if not is_linked:
+            # Accumulate `current_shard_size`.
+            value_for_size = backend.convert_to_numpy(value)
+            dtype = backend.standardize_dtype(value_for_size.dtype)
+            weight_counts = math.prod(value_for_size.shape)
+            per_param_size = dtype_utils.dtype_size(dtype)
+            value_size = weight_counts * per_param_size / 8  # In bytes.
+            self.total_shard_size += value_size
+            if value_size > self.max_shard_size:
+                value_size_str = readable_memory_size(value_size)
+                max_shard_size_str = readable_memory_size(self.max_shard_size)
+                raise ValueError(
+                    f"The size of {key} is {value_size_str} which "
+                    f"exceeds the maximum shard size {max_shard_size_str}. "
+                    "You can increase the `max_shard_size` parameter to "
+                    "accommodate the size."
+                )
+
+            # Create a new shard if the current shard is full.
+            self.current_shard_size += value_size
+            if self.current_shard_size > self.max_shard_size:
+                self.close()
+                self.h5_file = self._create_new_shard_file()
+                self.current_shard_size = value_size
 
         super().__setitem__(key, value)
 

@@ -88,6 +88,34 @@ class LayerWithCustomSaving(MyDense):
 
 
 @keras.saving.register_keras_serializable(package="my_custom_package")
+class SharedKernelLayer(keras.layers.Layer):
+    def __init__(self, shared_kernel=None, **kwargs):
+        super().__init__(**kwargs)
+        self.shared_kernel = shared_kernel
+
+    def build(self, input_shape):
+        if self.shared_kernel is None:
+            self.kernel = self.add_weight(
+                shape=(input_shape[-1], 1),
+                name="kernel",
+                initializer="ones",
+            )
+        else:
+            self.kernel = self.shared_kernel
+        self.bias = self.add_weight(
+            shape=(1,),
+            name="bias",
+            initializer="zeros",
+        )
+
+    def call(self, inputs):
+        return ops.matmul(inputs, self.kernel) + self.bias
+
+    def get_config(self):
+        return super().get_config()
+
+
+@keras.saving.register_keras_serializable(package="my_custom_package")
 class CustomModelX(keras.Model):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1427,6 +1455,107 @@ class SavingBattleTest(testing.TestCase):
             model = _get_basic_functional_model()
             model.save_weights(temp_filepath)
             model.load_weights(temp_filepath)
+
+    def _get_shared_kernel_model(self):
+        inputs = keras.Input((2,))
+        layer_a = SharedKernelLayer(name="shared_a")
+        output_a = layer_a(inputs)
+        layer_b = SharedKernelLayer(
+            shared_kernel=layer_a.kernel, name="shared_b"
+        )
+        output_b = layer_b(inputs)
+        return keras.Model(inputs, output_a + output_b)
+
+    def _assert_shared_kernels_hard_linked(self, h5_file):
+        shared_kernel_paths = []
+
+        def collect(group, prefix=""):
+            for key in group.keys():
+                path = f"{prefix}/{key}" if prefix else key
+                value = group[key]
+                if (
+                    isinstance(value, h5py.Dataset)
+                    and path.endswith("/vars/0")
+                    and "shared_kernel_layer" in path
+                ):
+                    shared_kernel_paths.append(path)
+                elif isinstance(value, h5py.Group):
+                    collect(value, path)
+
+        collect(h5_file)
+        self.assertLen(shared_kernel_paths, 2)
+        dataset_addresses = [
+            h5py.h5o.get_info(h5_file[path].id).addr
+            for path in shared_kernel_paths
+        ]
+        self.assertEqual(dataset_addresses[0], dataset_addresses[1])
+
+    def test_model_save_deduplicates_shared_variables(self):
+        model = self._get_shared_kernel_model()
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "shared_variable_model.keras"
+        )
+        x = np.array([[1.0, 2.0]])
+        ref_output = model(x)
+
+        model.save(temp_filepath)
+
+        with (
+            zipfile.ZipFile(temp_filepath, "r") as zf,
+            zf.open("model.weights.h5", "r") as weights_file,
+        ):
+            with h5py.File(BytesIO(weights_file.read()), "r") as h5_file:
+                self._assert_shared_kernels_hard_linked(h5_file)
+
+        loaded_model = keras.saving.load_model(temp_filepath)
+        self.assertAllClose(loaded_model(x), ref_output)
+
+    def test_save_weights_deduplicates_shared_variables(self):
+        model = self._get_shared_kernel_model()
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "shared_variable_model.weights.h5"
+        )
+        x = np.array([[1.0, 2.0]])
+        ref_output = model(x)
+
+        model.save_weights(temp_filepath)
+
+        with h5py.File(temp_filepath, "r") as h5_file:
+            self._assert_shared_kernels_hard_linked(h5_file)
+
+        loaded_model = self._get_shared_kernel_model()
+        loaded_model.load_weights(temp_filepath)
+        self.assertAllClose(loaded_model(x), ref_output)
+
+    def test_sharded_save_weights_deduplicates_shared_variables(self):
+        model = self._get_shared_kernel_model()
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "shared_variable_model.weights.json"
+        )
+        x = np.array([[1.0, 2.0]])
+        ref_output = model(x)
+
+        model.save_weights(temp_filepath, max_shard_size=0.005)
+
+        with open(temp_filepath) as f:
+            sharding_config = json.load(f)
+        shard_filenames = {
+            filename
+            for filenames in sharding_config["weight_map"].values()
+            for filename in (
+                filenames if isinstance(filenames, list) else [filenames]
+            )
+        }
+        self.assertLen(shard_filenames, 1)
+        shard_filepath = os.path.join(
+            os.path.dirname(temp_filepath), shard_filenames.pop()
+        )
+        with h5py.File(shard_filepath, "r") as h5_file:
+            self._assert_shared_kernels_hard_linked(h5_file)
+
+        loaded_model = self._get_shared_kernel_model()
+        loaded_model.load_weights(temp_filepath)
+        self.assertAllClose(loaded_model(x), ref_output)
 
 
 class SavingH5IOStoreTest(testing.TestCase):
