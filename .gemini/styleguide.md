@@ -220,6 +220,32 @@ Keras supports multiple backends (JAX, TensorFlow, PyTorch) and uses symbolic ex
     - Use `isinstance(d, int)` to detect that a dimension is static and not dynamic. `None` is not the only representation for dynamic dimensions.
     - Use plain Python operators (e.g. `+`, `*`, `//`) to perform math on the dimensions of a shape, not Keras ops. This works seamlessly for static dimensions, symbolic dimensions (JAX, Torch) and tensor dimensions (TensorFlow). For instance, `math.prod(shape)` is the correct way to determine the size of an array.
 
+### Backend-Agnostic Implementation for New Ops
+
+Applies when a PR adds an op under `keras/src/ops/`. Every op must have 
+an implementation written purely with other Keras ops, in addition to any
+backend-specific fast path.
+
+Flag the following in the diff:
+
+- **No agnostic path**: the op is only implemented in `keras/src/backend/<backend>/`
+  and the `keras/src/ops/` function just forwards to backend-specific implementation.
+  The op then breaks on any backend that does not implement it.
+- **Logic not centralized**: the implementation is inlined in the public
+  function or in `Operation.call()`, and the other one duplicates it. Both must
+  delegate to a single private module-level `_my_op()` helper that owns the
+  dispatch and the fallback.
+- **Only one path tested**: the test is not parameterized with
+  `@parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))`.
+- **Leaked test flag**: a test calls `_set_use_backend_agnostic_ops(True)`
+  without restoring it with `_set_use_backend_agnostic_ops(False)` in a
+  `finally` block. A failing assertion then silently changes the behavior of
+  every subsequent test in the process.
+
+When flagging, cite "Backend-agnostic implementation for new ops" in
+`CONTRIBUTING.md` and point to `vsplit`/`_vsplit` in `keras/src/ops/numpy.py`
+as the reference implementation.
+
 ### Optimization & Numeric Stability
 
 - **Division by Zero**: Use `ops.divide_no_nan` for mask weight calculations or any situation where a zero divisor is possible.

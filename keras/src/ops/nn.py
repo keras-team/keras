@@ -21,7 +21,6 @@ from keras.src.backend.common.backend_utils import (
 from keras.src.ops import operation_utils
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import reduce_shape
-from keras.src.utils.python_utils import is_continuous_axis
 
 
 class Relu(Operation):
@@ -3047,26 +3046,22 @@ def _rms_normalization(x, scale=None, axis=-1, epsilon=None):
 
     if isinstance(axis, (tuple, list)):
         axis = sorted(axis)
-    if backend.backend() == "torch" and is_continuous_axis(axis):
-        import torch.nn.functional as F
-
-        if isinstance(axis, (tuple, list)):
-            normalized_shape = tuple(x.shape[dim] for dim in axis)
-        else:
-            normalized_shape = (x.shape[axis],)
-        outputs = F.rms_norm(x, normalized_shape, scale, epsilon)
-    else:
-        if len(x.shape) == 0:
-            x = backend.numpy.expand_dims(x, axis=0)
-        rrms = backend.math.rsqrt(
-            backend.numpy.mean(
-                backend.numpy.square(x), axis=axis, keepdims=True
-            )
-            + epsilon
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.nn, "rms_normalization"
+    ):
+        outputs = backend.nn.rms_normalization(
+            x, scale=scale, axis=axis, epsilon=epsilon
         )
-        outputs = backend.numpy.multiply(x, rrms)
-        if scale is not None:
-            outputs = backend.numpy.multiply(outputs, scale)
+        return backend.cast(outputs, original_dtype)
+    if len(x.shape) == 0:
+        x = backend.numpy.expand_dims(x, axis=0)
+    rrms = backend.math.rsqrt(
+        backend.numpy.mean(backend.numpy.square(x), axis=axis, keepdims=True)
+        + epsilon
+    )
+    outputs = backend.numpy.multiply(x, rrms)
+    if scale is not None:
+        outputs = backend.numpy.multiply(outputs, scale)
     return backend.cast(outputs, original_dtype)
 
 
@@ -3186,28 +3181,31 @@ def _layer_normalization(
     if rms_scaling:
         variance = backend.numpy.var(x, axis=axis, keepdims=True)
         inv = backend.math.rsqrt(variance + epsilon)
-        outputs = outputs = x * inv
+        outputs = x * inv
         if gamma is not None:
             outputs = outputs * backend.cast(_broadcast(gamma), x.dtype)
-    elif backend.config.backend() == "torch" and is_continuous_axis(axis):
-        # when using torch backend,use kernel to improve performance
-        import torch.nn.functional as F
+        return backend.cast(outputs, original_dtype)
 
-        normalized_shape = tuple(input_shape[dim] for dim in axis)
-        outputs = F.layer_norm(x, normalized_shape, gamma, beta, epsilon)
-    else:
-        # Calculate the mean & variance along self.axis (layer activations).
-        mean, variance = moments(x, axes=axis, keepdims=True)
-        gamma, beta = _broadcast(gamma), _broadcast(beta)
-        inv = backend.math.rsqrt(variance + epsilon)
-        if gamma is not None:
-            inv = inv * gamma
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.nn, "layer_normalization"
+    ):
+        outputs = backend.nn.layer_normalization(
+            x, gamma=gamma, beta=beta, axis=axis, epsilon=epsilon
+        )
+        return backend.cast(outputs, original_dtype)
 
-        res = -mean * inv
-        if beta is not None:
-            res = res + beta
+    # Calculate the mean & variance along self.axis (layer activations).
+    mean, variance = moments(x, axes=axis, keepdims=True)
+    gamma, beta = _broadcast(gamma), _broadcast(beta)
+    inv = backend.math.rsqrt(variance + epsilon)
+    if gamma is not None:
+        inv = inv * gamma
 
-        outputs = x * inv + res
+    res = -mean * inv
+    if beta is not None:
+        res = res + beta
+
+    outputs = x * inv + res
     return backend.cast(outputs, original_dtype)
 
 
