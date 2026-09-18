@@ -1,3 +1,5 @@
+import functools
+
 import numpy as np
 from absl.testing import parameterized
 
@@ -293,6 +295,14 @@ class NamedProductTest(parameterized.TestCase):
         self.assertIn(numeral_type, (float, int))
 
 
+def _dummy_decorator(f):
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        return f(*args, **kwargs)
+
+    return wrapper
+
+
 class UseBackendAgnosticOpsTest(test_case.TestCase):
     @test_utils.use_backend_agnostic_ops
     def test_decorator_bare(self):
@@ -312,3 +322,8 @@ class UseBackendAgnosticOpsTest(test_case.TestCase):
         self.assertEqual(
             backend.config._use_backend_agnostic_ops(), backend_agnostic_ops
         )
+
+    @test_utils.use_backend_agnostic_ops
+    @_dummy_decorator
+    def test_decorator_with_wrapped_function(self):
+        self.assertIn(backend.config._use_backend_agnostic_ops(), (True, False))
