@@ -281,6 +281,18 @@ class MeanIoUTest(testing.TestCase):
         self.assertEqual(m_obj2.name, "mean_iou")
         self.assertEqual(m_obj2.num_classes, 2)
 
+    def test_axis_not_last_dimension(self):
+        y_true = np.array([[2, 0], [1, 0]])
+        y_pred = np.array(
+            [
+                [[0.2, 0.1], [0.3, 0.2], [0.5, 0.7]],
+                [[0.5, 0.1], [0.3, 0.4], [0.1, 0.5]],
+            ]
+        )
+        m = metrics.MeanIoU(num_classes=3, sparse_y_pred=False, axis=1)
+        m.update_state(y_true, y_pred)
+        self.assertAllClose(m.result(), 1 / 9, atol=1e-3)
+
     def test_unweighted(self):
         y_pred = [0, 1, 0, 1]
         y_true = [0, 0, 1, 1]

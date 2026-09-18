@@ -322,7 +322,7 @@ class IoU(_IoUBase):
         iou = ops.where(valid_entries, iou, 0.0)
 
         return ops.divide(
-            ops.sum(iou, axis=self.axis),
+            ops.sum(iou),
             num_valid_entries + backend.epsilon(),
         )
 
