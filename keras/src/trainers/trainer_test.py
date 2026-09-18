@@ -2413,7 +2413,7 @@ class TestTrainer(testing.TestCase):
         model.compile(optimizer="rmsprop", loss="mse")
         model.fit(x, y)
         self.assertGreaterEqual(
-            np.min(backend.convert_to_numpy(model.layers[0].kernel)), 0.0
+            np.min(backend.ops.convert_to_numpy(model.layers[0].kernel)), 0.0
         )
 
     @pytest.mark.requires_trainable_backend
