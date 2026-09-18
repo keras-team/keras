@@ -272,7 +272,7 @@ from `keras.src.testing` (or `keras.src.testing.test_utils`):
 ```python
 from keras.src.testing import use_backend_agnostic_ops
 
-@use_backend_agnostic_ops()
+@use_backend_agnostic_ops
 def test_my_op(self):
     x = np.array([1.0, 2.0, 3.0])
     self.assertAllClose(knp.my_op(x), np.my_op(x))

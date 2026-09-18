@@ -286,16 +286,25 @@ def use_backend_agnostic_ops(*args, **kwargs):
     ```
     """
 
-    def decorator(fn):
-        combined = named_product(BACKEND_AGNOSTIC_OPS, *args, **kwargs)
-        sig = inspect.signature(fn)
+    if len(args) == 1 and callable(args[0]) and not kwargs:
+        fn = args[0]
+        decorator_args = ()
+    else:
+        fn = None
+        decorator_args = args
+
+    def decorator(func):
+        combined = named_product(
+            BACKEND_AGNOSTIC_OPS, *decorator_args, **kwargs
+        )
+        sig = inspect.signature(func)
         pass_flag = "backend_agnostic_ops" in sig.parameters or any(
             p.kind == inspect.Parameter.VAR_KEYWORD
             for p in sig.parameters.values()
         )
 
         @parameterized.named_parameters(combined)
-        @functools.wraps(fn)
+        @functools.wraps(func)
         def wrapper(self, *a, **kw):
             val = kw.get("backend_agnostic_ops", False)
             if not pass_flag:
@@ -303,14 +312,12 @@ def use_backend_agnostic_ops(*args, **kwargs):
             original = backend.config._use_backend_agnostic_ops()
             backend.config._set_use_backend_agnostic_ops(val)
             try:
-                return fn(self, *a, **kw)
+                return func(self, *a, **kw)
             finally:
                 backend.config._set_use_backend_agnostic_ops(original)
 
         return wrapper
 
-    if len(args) == 1 and callable(args[0]) and not kwargs:
-        fn = args[0]
-        args = ()
+    if fn is not None:
         return decorator(fn)
     return decorator
