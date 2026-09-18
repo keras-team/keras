@@ -297,7 +297,7 @@ def use_backend_agnostic_ops(*args, **kwargs):
         combined = named_product(
             BACKEND_AGNOSTIC_OPS, *decorator_args, **kwargs
         )
-        sig = inspect.signature(func)
+        sig = inspect.signature(inspect.unwrap(func))
         pass_flag = "backend_agnostic_ops" in sig.parameters or any(
             p.kind == inspect.Parameter.VAR_KEYWORD
             for p in sig.parameters.values()
