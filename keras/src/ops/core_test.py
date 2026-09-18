@@ -1700,6 +1700,29 @@ class CoreOpsDtypeTest(testing.TestCase):
 
         self.assertDType(ops.convert_to_tensor(x, dtype=dtype), dtype)
 
+    def test_convert_to_tensor_keeps_dtype_when_floatx_is_bfloat16(self):
+        # Regression for #23679: with floatx=bfloat16, convert_to_tensor must
+        # still keep the input dtype when dtype is not passed explicitly.
+        original_floatx = backend.floatx()
+        try:
+            backend.set_floatx("bfloat16")
+            for dtype in ("int32", "uint8", "bool", "float16"):
+                x = ops.convert_to_tensor(np.ones((2,), dtype=dtype))
+                self.assertDType(x, dtype)
+
+            # Explicit bfloat16 requests must still produce bfloat16.
+            x = ops.convert_to_tensor(
+                np.ones((2,), dtype="float32"), dtype="bfloat16"
+            )
+            self.assertDType(x, "bfloat16")
+
+            table = np.arange(12, dtype="float32").reshape(4, 3)
+            ids = np.array([1, 2], dtype="int32")
+            result = ops.take(table, ids, axis=0)
+            self.assertAllClose(result, table[[1, 2]])
+        finally:
+            backend.set_floatx(original_floatx)
+
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_saturate_cast(self, dtype):
         x = np.ones((1,))
