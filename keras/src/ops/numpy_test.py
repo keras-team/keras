@@ -17,11 +17,7 @@ from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import numpy as knp
 from keras.src.testing.test_utils import named_product
-
-BACKEND_AGNOSTIC_OPS = [
-    {"testcase_name": "backend_specific", "backend_agnostic_ops": False},
-    {"testcase_name": "backend_agnostic", "backend_agnostic_ops": True},
-]
+from keras.src.testing.test_utils import use_backend_agnostic_ops
 
 
 class NumPyTestRot90(testing.TestCase):
@@ -3691,21 +3687,17 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         )
         self.assertSparse(knp.matmul(x, y), x_sparse and y_sparse)
 
-    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
-    def test_float_power(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        try:
-            x = np.array([[1, 2, 3], [3, 2, 1]])
-            y = np.array([[4, 5, 6], [3, 2, 1]])
-            self.assertAllClose(knp.float_power(x, y), np.float_power(x, y))
-            self.assertAllClose(knp.FloatPower()(x, y), np.float_power(x, y))
+    @use_backend_agnostic_ops
+    def test_float_power(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [3, 2, 1]])
+        self.assertAllClose(knp.float_power(x, y), np.float_power(x, y))
+        self.assertAllClose(knp.FloatPower()(x, y), np.float_power(x, y))
 
-            # Negative exponents, which integer `power` cannot represent.
-            y = np.array([[-1, -2, -3], [-1, -2, -3]])
-            self.assertAllClose(knp.float_power(x, y), np.float_power(x, y))
-            self.assertAllClose(knp.FloatPower()(x, y), np.float_power(x, y))
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
+        # Negative exponents, which integer `power` cannot represent.
+        y = np.array([[-1, -2, -3], [-1, -2, -3]])
+        self.assertAllClose(knp.float_power(x, y), np.float_power(x, y))
+        self.assertAllClose(knp.FloatPower()(x, y), np.float_power(x, y))
 
     def test_power(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -4296,28 +4288,22 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             np.greater_equal(2, x),
         )
 
-    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
-    def test_allclose(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        try:
-            x = np.array([1], dtype="int32")
-            y = np.array([2], dtype="int32")
-            self.assertAllClose(knp.allclose(x, y, rtol=0.1, atol=1e-8), False)
+    @use_backend_agnostic_ops
+    def test_allclose(self):
+        x = np.array([1], dtype="int32")
+        y = np.array([2], dtype="int32")
+        self.assertAllClose(knp.allclose(x, y, rtol=0.1, atol=1e-8), False)
 
-            x = np.array([1.0], dtype="float32")
-            y = np.array([1.0000001], dtype="float32")
-            self.assertAllClose(knp.allclose(x, y, rtol=0.1, atol=1e-8), True)
-            self.assertAllClose(knp.AllClose(rtol=0.1, atol=1e-8)(x, y), True)
+        x = np.array([1.0], dtype="float32")
+        y = np.array([1.0000001], dtype="float32")
+        self.assertAllClose(knp.allclose(x, y, rtol=0.1, atol=1e-8), True)
+        self.assertAllClose(knp.AllClose(rtol=0.1, atol=1e-8)(x, y), True)
 
-            # Test with NaNs
-            x_nan = np.array([np.nan, 1.0])
-            y_nan = np.array([np.nan, 1.0])
-            self.assertAllClose(knp.allclose(x_nan, y_nan), False)
-            self.assertAllClose(
-                knp.allclose(x_nan, y_nan, equal_nan=True), True
-            )
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
+        # Test with NaNs
+        x_nan = np.array([np.nan, 1.0])
+        y_nan = np.array([np.nan, 1.0])
+        self.assertAllClose(knp.allclose(x_nan, y_nan), False)
+        self.assertAllClose(knp.allclose(x_nan, y_nan, equal_nan=True), True)
 
     def test_isclose(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -4881,27 +4867,23 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             np.nanquantile(x4, 0.5, axis=(1, 2)),
         )
 
-    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
-    def test_copysign(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        try:
-            x = np.array([[1, -2, 3], [-3, 2, -1]])
-            y = np.array([[-4, 5, -6], [3, -2, 1]])
-            self.assertAllClose(knp.copysign(x, y), np.copysign(x, y))
-            self.assertAllClose(knp.Copysign()(x, y), np.copysign(x, y))
+    @use_backend_agnostic_ops
+    def test_copysign(self):
+        x = np.array([[1, -2, 3], [-3, 2, -1]])
+        y = np.array([[-4, 5, -6], [3, -2, 1]])
+        self.assertAllClose(knp.copysign(x, y), np.copysign(x, y))
+        self.assertAllClose(knp.Copysign()(x, y), np.copysign(x, y))
 
-            # Signed zeros and infinities. `assertAllClose` cannot tell -0.0
-            # apart from 0.0, so compare the sign bits directly as well.
-            x = np.array([1.0, -1.0, 0.0, -0.0, np.inf, -np.inf], "float32")
-            y = np.array([-0.0, 0.0, -np.inf, np.inf, 1.0, -1.0], "float32")
-            expected = np.copysign(x, y)
-            self.assertAllClose(knp.copysign(x, y), expected)
-            self.assertAllEqual(
-                np.signbit(self.convert_to_numpy(knp.copysign(x, y))),
-                np.signbit(expected),
-            )
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
+        # Signed zeros and infinities. `assertAllClose` cannot tell -0.0
+        # apart from 0.0, so compare the sign bits directly as well.
+        x = np.array([1.0, -1.0, 0.0, -0.0, np.inf, -np.inf], "float32")
+        y = np.array([-0.0, 0.0, -np.inf, np.inf, 1.0, -1.0], "float32")
+        expected = np.copysign(x, y)
+        self.assertAllClose(knp.copysign(x, y), expected)
+        self.assertAllEqual(
+            np.signbit(self.convert_to_numpy(knp.copysign(x, y))),
+            np.signbit(expected),
+        )
 
     @parameterized.named_parameters(
         ("float32", "float32"),
@@ -6201,28 +6183,24 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         with self.assertRaises(ValueError):
             knp.Corrcoef().symbolic_call(KerasTensor((2, 3, 5)))
 
-    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
-    def test_cov(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        try:
-            x = np.array([[1.0, 2.0, 3.0], [3.0, 2.0, 1.0]])
-            self.assertAllClose(knp.cov(x), np.cov(x))
-            self.assertAllClose(knp.Cov()(x), np.cov(x))
+    @use_backend_agnostic_ops
+    def test_cov(self):
+        x = np.array([[1.0, 2.0, 3.0], [3.0, 2.0, 1.0]])
+        self.assertAllClose(knp.cov(x), np.cov(x))
+        self.assertAllClose(knp.Cov()(x), np.cov(x))
 
-            # A 1D input, or a single variable, reduces to the sample
-            # variance.
-            x = np.array([1.0, 4.0, 2.0, 8.0])
-            self.assertAllClose(knp.cov(x), np.cov(x))
-            self.assertAllClose(knp.cov(x[None, :]), np.cov(x[None, :]))
+        # A 1D input, or a single variable, reduces to the sample
+        # variance.
+        x = np.array([1.0, 4.0, 2.0, 8.0])
+        self.assertAllClose(knp.cov(x), np.cov(x))
+        self.assertAllClose(knp.cov(x[None, :]), np.cov(x[None, :]))
 
-            self.assertTrue(
-                np.isnan(backend.ops.convert_to_numpy(knp.cov(3.0)))
-            )
+        self.assertTrue(
+            np.isnan(backend.ops.convert_to_numpy(knp.cov(3.0)))
+        )
 
-            with self.assertRaises(ValueError):
-                knp.cov(np.ones((2, 3, 4)))
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
+        with self.assertRaises(ValueError):
+            knp.cov(np.ones((2, 3, 4)))
 
     def test_cos(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -7257,165 +7235,149 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.split(x_np, indices_np, axis=1),
         )
 
-    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
-    def test_hsplit(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        try:
-            x = np.arange(18).reshape((3, 6))
+    @use_backend_agnostic_ops
+    def test_hsplit(self):
+        x = np.arange(18).reshape((3, 6))
 
-            self.assertIsInstance(knp.hsplit(x, 3), list)
+        self.assertIsInstance(knp.hsplit(x, 3), list)
 
-            for split_knp, split_np in zip(knp.hsplit(x, 3), np.hsplit(x, 3)):
-                self.assertAllClose(split_knp, split_np)
+        for split_knp, split_np in zip(knp.hsplit(x, 3), np.hsplit(x, 3)):
+            self.assertAllClose(split_knp, split_np)
 
-            for split_knp, split_np in zip(knp.Hsplit(3)(x), np.hsplit(x, 3)):
-                self.assertAllClose(split_knp, split_np)
+        for split_knp, split_np in zip(knp.Hsplit(3)(x), np.hsplit(x, 3)):
+            self.assertAllClose(split_knp, split_np)
 
-            indices = [1, 3, 5]
+        indices = [1, 3, 5]
 
-            # Compare each split
-            for split_knp, split_np in zip(
-                knp.hsplit(x, indices), np.hsplit(x, indices)
-            ):
-                self.assertAllClose(split_knp, split_np)
+        # Compare each split
+        for split_knp, split_np in zip(
+            knp.hsplit(x, indices), np.hsplit(x, indices)
+        ):
+            self.assertAllClose(split_knp, split_np)
 
-            for split_knp, split_np in zip(
-                knp.Hsplit(indices)(x), np.hsplit(x, indices)
-            ):
-                self.assertAllClose(split_knp, split_np)
+        for split_knp, split_np in zip(
+            knp.Hsplit(indices)(x), np.hsplit(x, indices)
+        ):
+            self.assertAllClose(split_knp, split_np)
 
-            with self.assertRaises(Exception):
-                knp.hsplit(x, 4)
+        with self.assertRaises(Exception):
+            knp.hsplit(x, 4)
 
-            x_kr = knp.array(x)
-            indices_kr = knp.array(indices)
-            indices_np = np.array(indices)
+        x_kr = knp.array(x)
+        indices_kr = knp.array(indices)
+        indices_np = np.array(indices)
 
-            for split_knp, split_np in zip(
-                knp.hsplit(x_kr, indices_kr), np.hsplit(x, indices_np)
-            ):
-                self.assertAllClose(split_knp, split_np)
+        for split_knp, split_np in zip(
+            knp.hsplit(x_kr, indices_kr), np.hsplit(x, indices_np)
+        ):
+            self.assertAllClose(split_knp, split_np)
 
-            # Test 1D case
-            x_1d = np.arange(10)
-            indices_1d = [2, 5, 9]
+        # Test 1D case
+        x_1d = np.arange(10)
+        indices_1d = [2, 5, 9]
 
-            self.assertIsInstance(knp.hsplit(x_1d, 2), list)
+        self.assertIsInstance(knp.hsplit(x_1d, 2), list)
 
-            for split_knp, split_np in zip(
-                knp.hsplit(x_1d, 2), np.hsplit(x_1d, 2)
-            ):
-                self.assertAllClose(split_knp, split_np)
+        for split_knp, split_np in zip(knp.hsplit(x_1d, 2), np.hsplit(x_1d, 2)):
+            self.assertAllClose(split_knp, split_np)
 
-            for split_knp, split_np in zip(
-                knp.Hsplit(2)(x_1d), np.hsplit(x_1d, 2)
-            ):
-                self.assertAllClose(split_knp, split_np)
+        for split_knp, split_np in zip(knp.Hsplit(2)(x_1d), np.hsplit(x_1d, 2)):
+            self.assertAllClose(split_knp, split_np)
 
-            for split_knp, split_np in zip(
-                knp.hsplit(x_1d, indices_1d), np.hsplit(x_1d, indices_1d)
-            ):
-                self.assertAllClose(split_knp, split_np)
+        for split_knp, split_np in zip(
+            knp.hsplit(x_1d, indices_1d), np.hsplit(x_1d, indices_1d)
+        ):
+            self.assertAllClose(split_knp, split_np)
 
-            for split_knp, split_np in zip(
-                knp.Hsplit(indices_1d)(x_1d), np.hsplit(x_1d, indices_1d)
-            ):
-                self.assertAllClose(split_knp, split_np)
+        for split_knp, split_np in zip(
+            knp.Hsplit(indices_1d)(x_1d), np.hsplit(x_1d, indices_1d)
+        ):
+            self.assertAllClose(split_knp, split_np)
 
-            with self.assertRaises(Exception):
-                knp.hsplit(x_1d, 3)
+        with self.assertRaises(Exception):
+            knp.hsplit(x_1d, 3)
 
-            x_kr = knp.array(x_1d)
-            indices_kr = knp.array(indices_1d)
-            indices_np = np.array(indices_1d)
+        x_kr = knp.array(x_1d)
+        indices_kr = knp.array(indices_1d)
+        indices_np = np.array(indices_1d)
 
-            for split_knp, split_np in zip(
-                knp.hsplit(x_kr, indices_kr), np.hsplit(x_1d, indices_np)
-            ):
-                self.assertAllClose(split_knp, split_np)
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
+        for split_knp, split_np in zip(
+            knp.hsplit(x_kr, indices_kr), np.hsplit(x_1d, indices_np)
+        ):
+            self.assertAllClose(split_knp, split_np)
 
-    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
-    def test_vsplit(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        try:
-            x = np.arange(18).reshape((6, 3))
+    @use_backend_agnostic_ops
+    def test_vsplit(self):
+        x = np.arange(18).reshape((6, 3))
 
-            self.assertIsInstance(knp.vsplit(x, 3), list)
+        self.assertIsInstance(knp.vsplit(x, 3), list)
 
-            for split_knp, split_np in zip(knp.vsplit(x, 3), np.vsplit(x, 3)):
-                self.assertAllClose(split_knp, split_np)
+        for split_knp, split_np in zip(knp.vsplit(x, 3), np.vsplit(x, 3)):
+            self.assertAllClose(split_knp, split_np)
 
-            for split_knp, split_np in zip(knp.Vsplit(3)(x), np.vsplit(x, 3)):
-                self.assertAllClose(split_knp, split_np)
+        for split_knp, split_np in zip(knp.Vsplit(3)(x), np.vsplit(x, 3)):
+            self.assertAllClose(split_knp, split_np)
 
-            indices = [1, 3, 5]
+        indices = [1, 3, 5]
 
-            # Compare each split
-            for split_knp, split_np in zip(
-                knp.vsplit(x, indices), np.vsplit(x, indices)
-            ):
-                self.assertAllClose(split_knp, split_np)
+        # Compare each split
+        for split_knp, split_np in zip(
+            knp.vsplit(x, indices), np.vsplit(x, indices)
+        ):
+            self.assertAllClose(split_knp, split_np)
 
-            for split_knp, split_np in zip(
-                knp.Vsplit(indices)(x), np.vsplit(x, indices)
-            ):
-                self.assertAllClose(split_knp, split_np)
+        for split_knp, split_np in zip(
+            knp.Vsplit(indices)(x), np.vsplit(x, indices)
+        ):
+            self.assertAllClose(split_knp, split_np)
 
-            with self.assertRaises(Exception):
-                knp.vsplit(x, 4)
+        with self.assertRaises(Exception):
+            knp.vsplit(x, 4)
 
-            x_kr = knp.array(x)
-            indices_kr = knp.array(indices)
-            indices_np = np.array(indices)
+        x_kr = knp.array(x)
+        indices_kr = knp.array(indices)
+        indices_np = np.array(indices)
 
-            for split_knp, split_np in zip(
-                knp.vsplit(x_kr, indices_kr), np.vsplit(x, indices_np)
-            ):
-                self.assertAllClose(split_knp, split_np)
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
+        for split_knp, split_np in zip(
+            knp.vsplit(x_kr, indices_kr), np.vsplit(x, indices_np)
+        ):
+            self.assertAllClose(split_knp, split_np)
 
-    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
-    def test_dsplit(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        try:
-            x = np.arange(24).reshape((2, 2, 6))
-            self.assertIsInstance(knp.dsplit(x, 3), list)
+    @use_backend_agnostic_ops
+    def test_dsplit(self):
+        x = np.arange(24).reshape((2, 2, 6))
+        self.assertIsInstance(knp.dsplit(x, 3), list)
 
-            for split_knp, split_np in zip(knp.dsplit(x, 3), np.dsplit(x, 3)):
-                self.assertAllClose(split_knp, split_np)
+        for split_knp, split_np in zip(knp.dsplit(x, 3), np.dsplit(x, 3)):
+            self.assertAllClose(split_knp, split_np)
 
-            for split_knp, split_np in zip(knp.Dsplit(3)(x), np.dsplit(x, 3)):
-                self.assertAllClose(split_knp, split_np)
+        for split_knp, split_np in zip(knp.Dsplit(3)(x), np.dsplit(x, 3)):
+            self.assertAllClose(split_knp, split_np)
 
-            indices = [1, 3, 5]
+        indices = [1, 3, 5]
 
-            # Compare each split
-            for split_knp, split_np in zip(
-                knp.dsplit(x, indices), np.dsplit(x, indices)
-            ):
-                self.assertAllClose(split_knp, split_np)
+        # Compare each split
+        for split_knp, split_np in zip(
+            knp.dsplit(x, indices), np.dsplit(x, indices)
+        ):
+            self.assertAllClose(split_knp, split_np)
 
-            for split_knp, split_np in zip(
-                knp.Dsplit(indices)(x), np.dsplit(x, indices)
-            ):
-                self.assertAllClose(split_knp, split_np)
+        for split_knp, split_np in zip(
+            knp.Dsplit(indices)(x), np.dsplit(x, indices)
+        ):
+            self.assertAllClose(split_knp, split_np)
 
-            with self.assertRaises(Exception):
-                knp.dsplit(x, 4)
+        with self.assertRaises(Exception):
+            knp.dsplit(x, 4)
 
-            x_kr = knp.array(x)
-            indices_kr = knp.array(indices)
-            indices_np = np.array(indices)
+        x_kr = knp.array(x)
+        indices_kr = knp.array(indices)
+        indices_np = np.array(indices)
 
-            for split_knp, split_np in zip(
-                knp.dsplit(x_kr, indices_kr), np.dsplit(x, indices_np)
-            ):
-                self.assertAllClose(split_knp, split_np)
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
+        for split_knp, split_np in zip(
+            knp.dsplit(x_kr, indices_kr), np.dsplit(x, indices_np)
+        ):
+            self.assertAllClose(split_knp, split_np)
 
     def test_sqrt(self):
         x = np.array([[1, 4, 9], [16, 25, 36]], dtype="float32")
@@ -10129,27 +10091,19 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(
-        named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
-    )
-    def test_cov(self, backend_agnostic_ops, dtype):
+    @use_backend_agnostic_ops(dtype=ALL_DTYPES)
+    def test_cov(self, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        try:
-            x = knp.ones((2, 4), dtype=dtype)
-            x_jax = jnp.ones((2, 4), dtype=dtype)
-            expected_dtype = standardize_dtype(jnp.cov(x_jax).dtype)
+        x = knp.ones((2, 4), dtype=dtype)
+        x_jax = jnp.ones((2, 4), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.cov(x_jax).dtype)
 
-            self.assertEqual(
-                standardize_dtype(knp.cov(x).dtype), expected_dtype
-            )
-            self.assertEqual(
-                standardize_dtype(knp.Cov().symbolic_call(x).dtype),
-                expected_dtype,
-            )
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
+        self.assertEqual(standardize_dtype(knp.cov(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Cov().symbolic_call(x).dtype),
+            expected_dtype,
+        )
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
@@ -12065,35 +12019,26 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(
-        named_product(
-            BACKEND_AGNOSTIC_OPS,
-            dtypes=list(itertools.product(BINARY_DTYPES, BINARY_DTYPES)),
-        )
+    @use_backend_agnostic_ops(
+        dtypes=list(itertools.product(BINARY_DTYPES, BINARY_DTYPES))
     )
-    def test_copysign(self, backend_agnostic_ops, dtypes):
+    def test_copysign(self, dtypes):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        try:
-            dtype1, dtype2 = dtypes
-            x1 = knp.ones((), dtype=dtype1)
-            x2 = knp.ones((), dtype=dtype2)
-            x1_jax = jnp.ones((), dtype=dtype1)
-            x2_jax = jnp.ones((), dtype=dtype2)
-            expected_dtype = standardize_dtype(
-                jnp.copysign(x1_jax, x2_jax).dtype
-            )
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.copysign(x1_jax, x2_jax).dtype)
 
-            self.assertEqual(
-                standardize_dtype(knp.copysign(x1, x2).dtype), expected_dtype
-            )
-            self.assertEqual(
-                standardize_dtype(knp.Copysign().symbolic_call(x1, x2).dtype),
-                expected_dtype,
-            )
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
+        self.assertEqual(
+            standardize_dtype(knp.copysign(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Copysign().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
 
     @parameterized.named_parameters(
         named_product(
@@ -12236,36 +12181,29 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(
-        named_product(
-            BACKEND_AGNOSTIC_OPS,
-            dtypes=list(itertools.product(BINARY_DTYPES, BINARY_DTYPES)),
-        )
+    @use_backend_agnostic_ops(
+        dtypes=list(itertools.product(BINARY_DTYPES, BINARY_DTYPES))
     )
-    def test_float_power(self, backend_agnostic_ops, dtypes):
+    def test_float_power(self, dtypes):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        try:
-            dtype1, dtype2 = dtypes
-            x1 = knp.ones((), dtype=dtype1)
-            x2 = knp.ones((), dtype=dtype2)
-            x1_jax = jnp.ones((), dtype=dtype1)
-            x2_jax = jnp.ones((), dtype=dtype2)
-            expected_dtype = standardize_dtype(
-                jnp.float_power(x1_jax, x2_jax).dtype
-            )
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(
+            jnp.float_power(x1_jax, x2_jax).dtype
+        )
 
-            self.assertEqual(
-                standardize_dtype(knp.float_power(x1, x2).dtype),
-                expected_dtype,
-            )
-            self.assertEqual(
-                standardize_dtype(knp.FloatPower().symbolic_call(x1, x2).dtype),
-                expected_dtype,
-            )
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
+        self.assertEqual(
+            standardize_dtype(knp.float_power(x1, x2).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.FloatPower().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
@@ -12622,91 +12560,73 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(
-        named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
-    )
-    def test_hsplit(self, backend_agnostic_ops, dtype):
+    @use_backend_agnostic_ops(dtype=ALL_DTYPES)
+    def test_hsplit(self, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        try:
-            x = knp.ones((2, 1), dtype=dtype)
-            x_jax = jnp.ones((2, 1), dtype=dtype)
-            expected_dtype = standardize_dtype(jnp.hsplit(x_jax, [1])[0].dtype)
+        x = knp.ones((2, 1), dtype=dtype)
+        x_jax = jnp.ones((2, 1), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.hsplit(x_jax, [1])[0].dtype)
 
-            self.assertEqual(
-                standardize_dtype(knp.hsplit(x, [1])[0].dtype),
-                expected_dtype,
-            )
-            self.assertEqual(
-                standardize_dtype(knp.Hsplit([1]).symbolic_call(x)[0].dtype),
-                expected_dtype,
-            )
+        self.assertEqual(
+            standardize_dtype(knp.hsplit(x, [1])[0].dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Hsplit([1]).symbolic_call(x)[0].dtype),
+            expected_dtype,
+        )
 
-            # test 1d case
-            x_1d = knp.ones((4,), dtype=dtype)
-            x_1d_jax = jnp.ones((4,), dtype=dtype)
-            expected_dtype_1d = standardize_dtype(
-                jnp.hsplit(x_1d_jax, [2])[0].dtype
-            )
+        # test 1d case
+        x_1d = knp.ones((4,), dtype=dtype)
+        x_1d_jax = jnp.ones((4,), dtype=dtype)
+        expected_dtype_1d = standardize_dtype(
+            jnp.hsplit(x_1d_jax, [2])[0].dtype
+        )
 
-            self.assertEqual(
-                standardize_dtype(knp.hsplit(x_1d, [2])[0].dtype),
-                expected_dtype_1d,
-            )
-            self.assertEqual(
-                standardize_dtype(knp.Hsplit([2]).symbolic_call(x_1d)[0].dtype),
-                expected_dtype_1d,
-            )
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
+        self.assertEqual(
+            standardize_dtype(knp.hsplit(x_1d, [2])[0].dtype),
+            expected_dtype_1d,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Hsplit([2]).symbolic_call(x_1d)[0].dtype),
+            expected_dtype_1d,
+        )
 
-    @parameterized.named_parameters(
-        named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
-    )
-    def test_vsplit(self, backend_agnostic_ops, dtype):
+    @use_backend_agnostic_ops(dtype=ALL_DTYPES)
+    def test_vsplit(self, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        try:
-            x = knp.ones((1, 2), dtype=dtype)
-            x_jax = jnp.ones((1, 2), dtype=dtype)
-            expected_dtype = standardize_dtype(jnp.vsplit(x_jax, [1])[0].dtype)
+        x = knp.ones((1, 2), dtype=dtype)
+        x_jax = jnp.ones((1, 2), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.vsplit(x_jax, [1])[0].dtype)
 
-            self.assertEqual(
-                standardize_dtype(knp.vsplit(x, [1])[0].dtype),
-                expected_dtype,
-            )
-            self.assertEqual(
-                standardize_dtype(knp.Vsplit([1]).symbolic_call(x)[0].dtype),
-                expected_dtype,
-            )
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
+        self.assertEqual(
+            standardize_dtype(knp.vsplit(x, [1])[0].dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Vsplit([1]).symbolic_call(x)[0].dtype),
+            expected_dtype,
+        )
 
-    @parameterized.named_parameters(
-        named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
-    )
-    def test_dsplit(self, backend_agnostic_ops, dtype):
+    @use_backend_agnostic_ops(dtype=ALL_DTYPES)
+    def test_dsplit(self, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        try:
-            x = knp.ones((1, 1, 2), dtype=dtype)
-            x_jax = jnp.ones((1, 1, 2), dtype=dtype)
-            expected_dtype = standardize_dtype(jnp.dsplit(x_jax, [1])[0].dtype)
+        x = knp.ones((1, 1, 2), dtype=dtype)
+        x_jax = jnp.ones((1, 1, 2), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.dsplit(x_jax, [1])[0].dtype)
 
-            self.assertEqual(
-                standardize_dtype(knp.dsplit(x, [1])[0].dtype),
-                expected_dtype,
-            )
+        self.assertEqual(
+            standardize_dtype(knp.dsplit(x, [1])[0].dtype),
+            expected_dtype,
+        )
 
-            self.assertEqual(
-                standardize_dtype(knp.Dsplit([1]).symbolic_call(x)[0].dtype),
-                expected_dtype,
-            )
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
+        self.assertEqual(
+            standardize_dtype(knp.Dsplit([1]).symbolic_call(x)[0].dtype),
+            expected_dtype,
+        )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_sqrt(self, dtype):

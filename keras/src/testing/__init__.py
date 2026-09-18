@@ -6,3 +6,4 @@ from keras.src.testing.test_case import tensorflow_uses_tpu
 from keras.src.testing.test_case import torch_uses_gpu
 from keras.src.testing.test_case import uses_gpu
 from keras.src.testing.test_case import uses_tpu
+from keras.src.testing.test_utils import use_backend_agnostic_ops
