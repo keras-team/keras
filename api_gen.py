@@ -115,10 +115,26 @@ def create_legacy_directory(package_dir):
                             f"keras.{legacy_submodule}",
                             f"keras._tf_keras.keras.{legacy_submodule}",
                         )
-                    # Remove duplicate generated comments string.
-                    legacy_contents = re.sub(r"\n", r"\\n", legacy_contents)
-                    legacy_contents = re.sub('""".*"""', "", legacy_contents)
-                    legacy_contents = re.sub(r"\\n", r"\n", legacy_contents)
+                    # Remove the duplicate generated-comments docstring.
+                    # Uses `re.DOTALL` so `.` matches real newlines
+                    # directly, instead of the previous approach of
+                    # encoding all newlines as literal `\n` text, running
+                    # the strip, then decoding literal `\n` text back to
+                    # real newlines. That round-trip corrupted any file
+                    # that legitimately contained a literal two-character
+                    # `\n` escape sequence inside a string (e.g. a default
+                    # value like `"a\nb"` written in source) -- the final
+                    # decode step couldn't distinguish "a `\n` we just
+                    # encoded from a real newline" from "a `\n` that was
+                    # already literal text in the source", and converted
+                    # both into an actual embedded newline character,
+                    # corrupting the generated file's source text.
+                    # Non-greedy (`.*?`) additionally guards against
+                    # matching across more than one docstring block if a
+                    # generated file ever contains more than one.
+                    legacy_contents = re.sub(
+                        '""".*?"""', "", legacy_contents, count=1, flags=re.DOTALL
+                    )
                     # If the same module is in legacy and core_api, use legacy
                     legacy_imports = re.findall(
                         r"import (\w+)", legacy_contents
