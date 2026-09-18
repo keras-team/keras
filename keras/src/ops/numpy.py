@@ -372,7 +372,7 @@ class AllClose(Operation):
         self.equal_nan = equal_nan
 
     def call(self, x1, x2):
-        return backend.numpy.allclose(
+        return _allclose(
             x1,
             x2,
             rtol=self.rtol,
@@ -409,8 +409,18 @@ def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
         return AllClose(
             rtol=rtol, atol=atol, equal_nan=equal_nan
         ).symbolic_call(x1, x2)
-    return backend.numpy.allclose(
-        x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan
+    return _allclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
+
+
+def _allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.numpy, "allclose"
+    ):
+        return backend.numpy.allclose(
+            x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan
+        )
+    return ops.all(
+        ops.isclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
     )
 
 
