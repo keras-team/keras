@@ -68,6 +68,11 @@ class Adadelta(optimizer.Optimizer):
             name=name,
             **kwargs,
         )
+        if not 0 <= rho <= 1:
+            raise ValueError(
+                "Argument `rho` must be in the range [0, 1]. "
+                f"Received: rho={rho}"
+            )
         self.rho = rho
         self.epsilon = epsilon
 
