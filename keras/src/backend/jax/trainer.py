@@ -943,12 +943,7 @@ class JAXTrainer(base_trainer.Trainer):
         return batch_outputs
 
     def _maybe_symbolic_build(self, iterator=None, data_batch=None):
-        if (
-            all(layer.built for layer in self._flatten_layers())
-            and (self._compile_metrics is None or self._compile_metrics.built)
-            and (self._compile_loss is None or self._compile_loss.built)
-            and (self.optimizer is None or self.optimizer.built)
-        ):
+        if not any(self._get_unbuilt_components()):
             return
         if data_batch is None and iterator is not None:
             try:
