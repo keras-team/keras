@@ -194,31 +194,30 @@ class SavedModelExportArchive:
     def add_variable_collection(self, name, variables):
         """Register a set of variables to be retrieved after reloading.
 
-                Arguments:
-                    name: The string name for the collection.
-                    variables: A tuple/list/set of `keras.Variable` instances.
+        Arguments:
+            name: The string name for the collection.
+            variables: A tuple/list/set of `keras.Variable` instances.
 
-                Example:
+        Example:
 
         ```python
-                export_archive = ExportArchive()
-                export_archive.track(model)
-                # Register an endpoint
-                export_archive.add_endpoint(
-                    name="serve",
-                    fn=model.call,
-                    input_signature=[keras.InputSpec(shape=(None, 3),
-                    dtype="float32")],
-                )
-                # Save a variable collection
-                export_archive.add_variable_collection(
-                    name="optimizer_variables",
-                    variables=model.optimizer.variables)
-                export_archive.write_out("path/to/location")
-                # Reload the object
-                revived_object = tf.saved_model.load("path/to/location")
-                # Retrieve the variables
-                optimizer_variables = revived_object.optimizer_variables
+        export_archive = ExportArchive()
+        export_archive.track(model)
+        # Register an endpoint
+        export_archive.add_endpoint(
+            name="serve",
+            fn=model.call,
+            input_signature=[keras.InputSpec(shape=(None, 3), dtype="float32")],
+        )
+        # Save a variable collection
+        export_archive.add_variable_collection(
+            name="optimizer_variables", variables=model.optimizer.variables)
+        export_archive.write_out("path/to/location")
+
+        # Reload the object
+        revived_object = tf.saved_model.load("path/to/location")
+        # Retrieve the variables
+        optimizer_variables = revived_object.optimizer_variables
         ```
         """
         if not isinstance(variables, (list, tuple, set)):
@@ -236,10 +235,9 @@ class SavedModelExportArchive:
                 "`tf.Variable` instances. Found instead the following types: "
                 f"{list(set(type(v) for v in variables))}"
             )
-        if backend.backend() in ("jax", "tensorflow"):
-            variables = tree.flatten(
-                tree.map_structure(self._convert_to_tf_variable, variables)
-            )
+        variables = tree.flatten(
+            tree.map_structure(self._convert_to_tf_variable, variables)
+        )
         setattr(self._tf_trackable, name, list(variables))
 
     def write_out(self, filepath, options=None, verbose=True):
@@ -299,6 +297,10 @@ class SavedModelExportArchive:
             )
 
     def _convert_to_tf_variable(self, backend_variable):
+        # `add_variable_collection()` accepts plain `tf.Variable`s, which
+        # require no conversion.
+        if isinstance(backend_variable, tf.Variable):
+            return backend_variable
         if not isinstance(backend_variable, backend.Variable):
             raise TypeError(
                 "`backend_variable` must be a `backend.Variable`. "
