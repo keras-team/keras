@@ -178,22 +178,49 @@ class Bidirectional(Layer):
                 )
 
     def compute_output_shape(self, sequences_shape, initial_state_shape=None):
-        output_shape = self.forward_layer.compute_output_shape(sequences_shape)
+        # An explicit `backward_layer` may have a different number of units
+        # from the forward layer, so the result cannot be derived from the
+        # forward layer alone.
+        forward_output_shape = self.forward_layer.compute_output_shape(
+            sequences_shape
+        )
+        backward_output_shape = self.backward_layer.compute_output_shape(
+            sequences_shape
+        )
 
         if self.return_state:
-            output_shape, state_shape = output_shape[0], output_shape[1:]
+            forward_output_shape, forward_state_shape = (
+                forward_output_shape[0],
+                forward_output_shape[1:],
+            )
+            backward_output_shape, backward_state_shape = (
+                backward_output_shape[0],
+                backward_output_shape[1:],
+            )
 
         if self.merge_mode == "concat":
-            output_shape = list(output_shape)
-            output_shape[-1] *= 2
+            output_shape = list(forward_output_shape)
+            output_shape[-1] += backward_output_shape[-1]
             output_shape = tuple(output_shape)
         elif self.merge_mode is None:
-            output_shape = [output_shape, output_shape]
+            output_shape = [forward_output_shape, backward_output_shape]
+        else:
+            # "sum", "mul" and "ave" combine the two elementwise, which
+            # requires them to agree, so either one describes the result.
+            output_shape = forward_output_shape
 
         if self.return_state:
             if self.merge_mode is None:
-                return tuple(output_shape) + state_shape + state_shape
-            return tuple([output_shape]) + (state_shape) + (state_shape)
+                return (
+                    tuple(output_shape)
+                    + forward_state_shape
+                    + backward_state_shape
+                )
+            return (
+                tuple([output_shape])
+                + forward_state_shape
+                + backward_state_shape
+            )
         return tuple(output_shape)
 
     def call(
