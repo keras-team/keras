@@ -15,10 +15,9 @@ class SavedModelExportArchive:
     This class contains all the common SavedModel export logic that is shared
     across different backends (TensorFlow, JAX, Torch). Backend-specific
     implementations should extend this class and override the following methods:
-
     - `_backend_track_layer(layer)`: Track variables of a layer.
     - `_backend_add_endpoint(name, fn, input_signature, **kwargs)`: Backend-
-      specific endpoint creation logic.
+        specific endpoint creation logic.
     - `_backend_init()`: Backend-specific initialization (optional).
     """
 
@@ -28,6 +27,7 @@ class SavedModelExportArchive:
                 "`ExportArchive` is only compatible with TensorFlow, JAX and "
                 "Torch backends."
             )
+
         self._endpoint_names = []
         self._endpoint_signatures = {}
         self.tensorflow_version = tf.__version__
@@ -185,6 +185,7 @@ class SavedModelExportArchive:
                             https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md).
                         If `native_serialization` and `polymorphic_shapes` are
                         not provided, they are automatically computed.
+
         """
         self.track(resource)
         return self.add_endpoint(
@@ -335,9 +336,6 @@ class SavedModelExportArchive:
         tvs, ntvs = _list_variables_used_by_fns(fns)
         self._tf_trackable._all_variables = list(tvs + ntvs)
 
-        self._track_lookup_tables_and_misc_assets()
-
-    def _track_lookup_tables_and_misc_assets(self):
         # TF < 2.21 fix: see `_patch_tf_is_tf_type_for_object_proxy`.
         with _patch_tf_is_tf_type_for_object_proxy():
             # `tf.train.TrackableView` hardcodes the `save_type` to
@@ -357,14 +355,14 @@ class SavedModelExportArchive:
                             raise
                         # In SavedModel mode, TF's AutoTrackable calls
                         # `_list_all_concrete_functions_for_serialization()`
-                        # on every tf.function it finds on a trackable. For
+                        # on every tf.function it finds on a trackable.  For
                         # Keras 3 layers whose `call()` has required keyword
                         # arguments (beyond `inputs`), tracing with a partial
                         # input signature raises `TypeError: missing a
-                        # required argument`. Returning {} here is safe: the
+                        # required argument`.  Returning {} here is safe: the
                         # walk is only used to collect TrackableResources (e.g.
                         # lookup tables); layers with complex signatures do not
-                        # hold such resources. The _DictWrapper / is_tf_type
+                        # hold such resources.  The _DictWrapper / is_tf_type
                         # TypeError that motivated the original workaround is
                         # separately eliminated by
                         # `_patch_tf_is_tf_type_for_object_proxy` above.
