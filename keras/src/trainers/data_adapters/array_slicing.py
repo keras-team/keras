@@ -492,7 +492,7 @@ def convert_to_sliceable(arrays, target_backend=None):
             TensorflowSliceable,
             TorchSliceable,
         ):
-            x = sliceable_class.convert_to_numpy(x)
+            x = np.asarray(x)
             sliceable_class = NumpySliceable
 
         return sliceable_class(x)
