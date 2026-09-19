@@ -1,5 +1,8 @@
 import base64
 import marshal
+from unittest import mock
+
+from absl.testing import parameterized
 
 from keras.src import testing
 from keras.src.utils import python_utils
@@ -13,6 +16,37 @@ class PythonUtilsTest(testing.TestCase):
         serialized = python_utils.func_dump(my_function)
         deserialized = python_utils.func_load(serialized)
         self.assertEqual(deserialized(2, y=3), 5)
+
+    @parameterized.parameters("nt", "posix")
+    def test_func_dump_preserves_constants(self, os_name):
+        def my_function():
+            return 92, b"\x5c", r"a\b"
+
+        with mock.patch("os.name", os_name):
+            serialized = python_utils.func_dump(my_function)
+        deserialized = python_utils.func_load(serialized)
+        self.assertEqual(deserialized(), my_function())
+
+    @parameterized.parameters("nt", "posix")
+    def test_func_dump_preserves_code_metadata(self, os_name):
+        def my_function():
+            return 1
+
+        my_function.__code__ = my_function.__code__.replace(
+            co_filename=r"C:\users\keras\model.py", co_firstlineno=92
+        )
+        with mock.patch("os.name", os_name):
+            serialized = python_utils.func_dump(my_function)
+        deserialized = python_utils.func_load(serialized)
+        self.assertEqual(
+            deserialized.__code__.co_filename,
+            my_function.__code__.co_filename,
+        )
+        self.assertEqual(
+            deserialized.__code__.co_firstlineno,
+            my_function.__code__.co_firstlineno,
+        )
+        self.assertEqual(deserialized(), my_function())
 
     def test_removesuffix(self):
         x = "model.keras"
