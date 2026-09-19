@@ -1,6 +1,9 @@
+import functools
+
 import numpy as np
 from absl.testing import parameterized
 
+from keras.src import backend
 from keras.src.testing import test_case
 from keras.src.testing import test_utils
 
@@ -290,3 +293,37 @@ class NamedProductTest(parameterized.TestCase):
     )
     def test_via_decorator_no_product(self, numeral_type):
         self.assertIn(numeral_type, (float, int))
+
+
+def _dummy_decorator(f):
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        return f(*args, **kwargs)
+
+    return wrapper
+
+
+class UseBackendAgnosticOpsTest(test_case.TestCase):
+    @test_utils.use_backend_agnostic_ops
+    def test_decorator_bare(self):
+        # Checks that the flag is active as a boolean during execution
+        self.assertIn(backend.config._use_backend_agnostic_ops(), (True, False))
+
+    @test_utils.use_backend_agnostic_ops()
+    def test_decorator_empty_call(self):
+        self.assertIn(backend.config._use_backend_agnostic_ops(), (True, False))
+
+    @test_utils.use_backend_agnostic_ops(dtype=["float16", "float32"])
+    def test_decorator_with_params(self, dtype):
+        self.assertIn(dtype, ("float16", "float32"))
+
+    @test_utils.use_backend_agnostic_ops
+    def test_decorator_with_explicit_flag(self, backend_agnostic_ops):
+        self.assertEqual(
+            backend.config._use_backend_agnostic_ops(), backend_agnostic_ops
+        )
+
+    @test_utils.use_backend_agnostic_ops
+    @_dummy_decorator
+    def test_decorator_with_wrapped_function(self):
+        self.assertIn(backend.config._use_backend_agnostic_ops(), (True, False))

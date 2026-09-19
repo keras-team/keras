@@ -266,24 +266,27 @@ is a minimal version of `vsplit` from `keras/src/ops/numpy.py`.
 
 ### Testing both paths
 
-Both code paths must be tested. Parameterize the test with the
-`BACKEND_AGNOSTIC_OPS` constant and always reset the flag in a `finally` block.
+Both code paths must be tested. Use the `@use_backend_agnostic_ops` decorator
+from `keras.src.testing` (or `keras.src.testing.test_utils`):
 
 ```python
-@parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
-def test_my_op(self, backend_agnostic_ops):
-    backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-    try:
-        x = np.array([1.0, 2.0, 3.0])
-        self.assertAllClose(knp.my_op(x), np.my_op(x))
-        self.assertAllClose(knp.MyOp()(x), np.my_op(x))
-        ...
-    finally:
-        backend.config._set_use_backend_agnostic_ops(False)
+from keras.src.testing import use_backend_agnostic_ops
+
+@use_backend_agnostic_ops
+def test_my_op(self):
+    x = np.array([1.0, 2.0, 3.0])
+    self.assertAllClose(knp.my_op(x), np.my_op(x))
+    self.assertAllClose(knp.MyOp()(x), np.my_op(x))
+    ...
 ```
 
-[Here](https://github.com/keras-team/keras/blob/5edcf00a9e818838988c8c0cf45a79e279851803/keras/src/ops/numpy_test.py#L7327-L7366)
-is an example of testing both code paths for `vsplit`.
+You can also pass additional parameterizations to `@use_backend_agnostic_ops`:
+
+```python
+@use_backend_agnostic_ops(dtype=["float32", "float64"])
+def test_my_op(self, dtype):
+    ...
+```
 
 You can also test the fallback across an entire test run by setting the
 `KERAS_USE_BACKEND_AGNOSTIC_OPS` environment variable:
