@@ -54,6 +54,15 @@ class Loss(KerasSaveable):
         return self._dtype
 
     def __call__(self, y_true, y_pred, sample_weight=None):
+        if y_true is None:
+            raise ValueError(
+                "Loss computation received `y_true=None`. This typically "
+                "means the data passed to `fit()` or `evaluate()` did not "
+                "include labels. When a loss that requires `y_true` is "
+                "compiled, the data must yield `(x, y)` or "
+                "`(x, y, sample_weight)` tuples instead of features alone. "
+                "Received: y_true=None"
+            )
         in_mask = backend.get_keras_mask(y_pred)
 
         with ops.name_scope(self.name):
