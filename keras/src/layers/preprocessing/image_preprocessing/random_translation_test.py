@@ -70,12 +70,12 @@ class RandomTranslationTest(testing.TestCase):
         )
         if data_format == "channels_last":
             input_image = np.reshape(input_image, (1, 5, 5, 1))
-            expected_output = backend.convert_to_tensor(
+            expected_output = backend.ops.convert_to_tensor(
                 np.reshape(expected_output, (1, 5, 5, 1))
             )
         else:
             input_image = np.reshape(input_image, (1, 1, 5, 5))
-            expected_output = backend.convert_to_tensor(
+            expected_output = backend.ops.convert_to_tensor(
                 np.reshape(expected_output, (1, 1, 5, 5))
             )
         self.run_layer_test(
@@ -107,12 +107,12 @@ class RandomTranslationTest(testing.TestCase):
         )
         if data_format == "channels_last":
             input_image = np.reshape(input_image, (1, 5, 5, 1))
-            expected_output = backend.convert_to_tensor(
+            expected_output = backend.ops.convert_to_tensor(
                 np.reshape(expected_output, (1, 5, 5, 1)), dtype="float32"
             )
         else:
             input_image = np.reshape(input_image, (1, 1, 5, 5))
-            expected_output = backend.convert_to_tensor(
+            expected_output = backend.ops.convert_to_tensor(
                 np.reshape(expected_output, (1, 1, 5, 5)), dtype="float32"
             )
         self.run_layer_test(
@@ -145,12 +145,12 @@ class RandomTranslationTest(testing.TestCase):
         )
         if data_format == "channels_last":
             input_image = np.reshape(input_image, (1, 5, 5, 1))
-            expected_output = backend.convert_to_tensor(
+            expected_output = backend.ops.convert_to_tensor(
                 np.reshape(expected_output, (1, 5, 5, 1))
             )
         else:
             input_image = np.reshape(input_image, (1, 1, 5, 5))
-            expected_output = backend.convert_to_tensor(
+            expected_output = backend.ops.convert_to_tensor(
                 np.reshape(expected_output, (1, 1, 5, 5))
             )
         self.run_layer_test(
@@ -187,12 +187,12 @@ class RandomTranslationTest(testing.TestCase):
         )
         if data_format == "channels_last":
             input_image = np.reshape(input_image, (1, 8, 2, 1))
-            expected_output = backend.convert_to_tensor(
+            expected_output = backend.ops.convert_to_tensor(
                 np.reshape(expected_output, (1, 8, 2, 1))
             )
         else:
             input_image = np.reshape(input_image, (1, 1, 8, 2))
-            expected_output = backend.convert_to_tensor(
+            expected_output = backend.ops.convert_to_tensor(
                 np.reshape(expected_output, (1, 1, 8, 2))
             )
         self.run_layer_test(
@@ -224,12 +224,12 @@ class RandomTranslationTest(testing.TestCase):
         )
         if data_format == "channels_last":
             input_image = np.reshape(input_image, (1, 5, 5, 1))
-            expected_output = backend.convert_to_tensor(
+            expected_output = backend.ops.convert_to_tensor(
                 np.reshape(expected_output, (1, 5, 5, 1))
             )
         else:
             input_image = np.reshape(input_image, (1, 1, 5, 5))
-            expected_output = backend.convert_to_tensor(
+            expected_output = backend.ops.convert_to_tensor(
                 np.reshape(expected_output, (1, 1, 5, 5))
             )
         self.run_layer_test(
@@ -263,12 +263,12 @@ class RandomTranslationTest(testing.TestCase):
         )
         if data_format == "channels_last":
             input_image = np.reshape(input_image, (1, 5, 5, 1))
-            expected_output = backend.convert_to_tensor(
+            expected_output = backend.ops.convert_to_tensor(
                 np.reshape(expected_output, (1, 5, 5, 1))
             )
         else:
             input_image = np.reshape(input_image, (1, 1, 5, 5))
-            expected_output = backend.convert_to_tensor(
+            expected_output = backend.ops.convert_to_tensor(
                 np.reshape(expected_output, (1, 1, 5, 5))
             )
         self.run_layer_test(
@@ -300,12 +300,12 @@ class RandomTranslationTest(testing.TestCase):
         )
         if data_format == "channels_last":
             input_image = np.reshape(input_image, (1, 5, 5, 1))
-            expected_output = backend.convert_to_tensor(
+            expected_output = backend.ops.convert_to_tensor(
                 np.reshape(expected_output, (1, 5, 5, 1))
             )
         else:
             input_image = np.reshape(input_image, (1, 1, 5, 5))
-            expected_output = backend.convert_to_tensor(
+            expected_output = backend.ops.convert_to_tensor(
                 np.reshape(expected_output, (1, 1, 5, 5))
             )
         self.run_layer_test(

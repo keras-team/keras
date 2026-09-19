@@ -1004,7 +1004,8 @@ class ActivationsTest(testing.TestCase):
         x_2d = np.array([[0.1, 0.2, 0.3], [-1.0, 0.5, 0.4]])
         self.assertAllClose(
             np.sum(
-                backend.convert_to_numpy(activations.sparsemax(x_2d)), axis=-1
+                backend.ops.convert_to_numpy(activations.sparsemax(x_2d)),
+                axis=-1,
             ),
             np.ones(2),
         )

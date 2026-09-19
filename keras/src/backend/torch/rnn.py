@@ -1,7 +1,7 @@
 import torch
 
 from keras.src import tree
-from keras.src.backend.torch.core import convert_to_tensor
+from keras.src.backend.torch.ops.core import convert_to_tensor
 
 
 def rnn(
