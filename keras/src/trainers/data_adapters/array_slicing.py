@@ -130,11 +130,11 @@ class NativeArraySliceable(Sliceable):
 
     @classmethod
     def cast(cls, x, dtype):
-        return backend.cast(x, dtype)
+        return backend.ops.cast(x, dtype)
 
     @classmethod
     def convert_to_numpy(cls, x):
-        return backend.convert_to_numpy(x)
+        return backend.ops.convert_to_numpy(x)
 
 
 class TensorflowSliceable(Sliceable):
@@ -382,7 +382,7 @@ def can_slice_array(x):
         or data_adapter_utils.is_scipy_sparse(x)
         or data_adapter_utils.is_pandas_data_frame(x)
         or data_adapter_utils.is_pandas_series(x)
-        or backend.is_tensor(x)
+        or backend.ops.is_tensor(x)
         or hasattr(x, "__array__")
     )
 
@@ -443,7 +443,7 @@ def convert_to_sliceable(arrays, target_backend=None):
             sliceable_class = PandasSeriesSliceable
         elif data_adapter_utils.is_scipy_sparse(x):
             sliceable_class = ScipySparseSliceable
-        elif backend.is_tensor(x):
+        elif backend.ops.is_tensor(x):
             sliceable_class = NativeArraySliceable
         elif hasattr(x, "__array__"):
             x = np.asarray(x)
