@@ -8,7 +8,6 @@ import torch
 from absl.testing import parameterized
 
 from keras.src import backend
-from keras.src import ops
 from keras.src.distribution import distribution_lib as dist_lib
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import array_data_adapter
@@ -278,8 +277,8 @@ class TestArrayDataAdapter(data_adapter_test_base.DataAdapterTest):
             self.assertAllClose(bw, [0.1, 0.2, 0.3, 0.4])
 
     def test_native_tensor_flow(self):
-        x = ops.convert_to_tensor(np.random.random((34, 2)))
-        y = ops.convert_to_tensor(np.random.random((34, 1)))
+        x = backend.ops.convert_to_tensor(np.random.random((34, 2)))
+        y = backend.ops.convert_to_tensor(np.random.random((34, 1)))
         adapter = array_data_adapter.ArrayDataAdapter(x=x, y=y, batch_size=16)
         it = adapter.get_native_iterator()
         batches = list(it)
