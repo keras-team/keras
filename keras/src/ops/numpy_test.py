@@ -6195,9 +6195,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.cov(x), np.cov(x))
         self.assertAllClose(knp.cov(x[None, :]), np.cov(x[None, :]))
 
-        self.assertTrue(
-            np.isnan(backend.ops.convert_to_numpy(knp.cov(3.0)))
-        )
+        self.assertTrue(np.isnan(backend.ops.convert_to_numpy(knp.cov(3.0))))
 
         with self.assertRaises(ValueError):
             knp.cov(np.ones((2, 3, 4)))
