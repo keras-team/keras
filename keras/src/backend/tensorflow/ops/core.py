@@ -897,24 +897,16 @@ def grad(f, argnums=0):
         positions = standardize_argnums(argnums, len(args))
         args = list(args)
 
-        def track(x):
-            # Read variables into tensors so the tape watches a value and
-            # not the variable itself.
-            if isinstance(x, (Variable, tf.Variable)):
-                x = tf.convert_to_tensor(x)
-            return convert_to_tensor(x)
+        def to_tensor(x):
+            # The tape can only watch a tensor, not a variable.
+            return tf.convert_to_tensor(convert_to_tensor(x))
 
         for i in positions:
-            args[i] = tree.map_structure(track, args[i])
+            args[i] = tree.map_structure(to_tensor, args[i])
         inputs = [args[i] for i in positions]
-        with tf.GradientTape() as tape:
+        with tf.GradientTape(watch_accessed_variables=False) as tape:
             tape.watch(inputs)
             output = f(*args, **kwargs)
-        if output.shape.rank is not None and output.shape.rank != 0:
-            raise ValueError(
-                "The function passed to `grad` must return a scalar. "
-                f"Received output shape: {output.shape}"
-            )
         grads = tape.gradient(
             output, inputs, unconnected_gradients=tf.UnconnectedGradients.ZERO
         )

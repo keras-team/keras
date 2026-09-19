@@ -1235,13 +1235,14 @@ def is_tensor(x):
 def grad(f, argnums=0):
     """Return a function that computes the gradient of `f`.
 
-    Experimental. `f` must return a scalar. This works on concrete tensors
-    only, not symbolic ones, and raises `NotImplementedError` on backends
-    without automatic differentiation.
+    Experimental. This works on concrete tensors only, not symbolic ones,
+    and raises `NotImplementedError` on backends without automatic
+    differentiation. A non-scalar output is summed before differentiating,
+    the same as a gradient tape would.
 
     Args:
-        f: A function returning a scalar tensor. The arguments at `argnums`
-            may be tensors, variables or nested structures of them.
+        f: A function returning a tensor. The arguments at `argnums` may be
+            tensors, variables or nested structures of them.
         argnums: An integer or a tuple of integers, the positions of the
             arguments to differentiate with respect to. Defaults to `0`.
 
@@ -1254,7 +1255,7 @@ def grad(f, argnums=0):
 
     ```python
     def f(x, y):
-        return ops.sum(x * y)
+        return x * y
 
     x = ops.array([1.0, 2.0])
     y = ops.array([3.0, 4.0])
@@ -1262,6 +1263,8 @@ def grad(f, argnums=0):
     # dx is [3.0, 4.0]
     dx, dy = ops.grad(f, argnums=(0, 1))(x, y)
     # dy is [1.0, 2.0]
+    ops.grad(ops.tanh)(x)
+    # the elementwise derivative of tanh at x
     ```
     """
     return backend.ops.core.grad(f, argnums=argnums)

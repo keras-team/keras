@@ -336,10 +336,8 @@ class FakeQuantTest(testing.TestCase):
 
         # Test gradients.
         def quantize_fn(x):
-            return ops.sum(
-                quantizers.fake_quant_with_min_max_vars(
-                    x, input_min, input_max, num_bits, narrow_range, axis
-                )
+            return quantizers.fake_quant_with_min_max_vars(
+                x, input_min, input_max, num_bits, narrow_range, axis
             )
 
         gradients = initial_gradients * ops.grad(quantize_fn)(inputs)

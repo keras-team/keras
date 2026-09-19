@@ -1971,14 +1971,14 @@ class CoreOpsBehaviorTests(testing.TestCase):
 class CoreOpsGradTest(testing.TestCase):
     def test_grad_single_argument(self):
         def f(x):
-            return ops.sum(x**2)
+            return x**2
 
         x = ops.array([1.0, 2.0, 3.0])
         self.assertAllClose(ops.grad(f)(x), [2.0, 4.0, 6.0])
 
     def test_grad_argnums(self):
         def f(x, y):
-            return ops.sum(x * y)
+            return x * y
 
         x = ops.array([1.0, 2.0])
         y = ops.array([3.0, 4.0])
@@ -1995,31 +1995,31 @@ class CoreOpsGradTest(testing.TestCase):
 
     def test_grad_keyword_arguments_pass_through(self):
         def f(x, scale=1.0):
-            return ops.sum(x) * scale
+            return x * scale
 
         x = ops.array([1.0, 2.0])
         self.assertAllClose(ops.grad(f)(x, scale=3.0), [3.0, 3.0])
 
     def test_grad_nested_structure(self):
         def f(params):
-            return ops.sum(params["a"] ** 2) + ops.sum(params["b"])
+            return params["a"] ** 2 + params["b"]
 
         params = {"a": ops.array([1.0, 2.0]), "b": ops.array([3.0])}
         grads = ops.grad(f)(params)
         self.assertEqual(set(grads.keys()), {"a", "b"})
         self.assertAllClose(grads["a"], [2.0, 4.0])
-        self.assertAllClose(grads["b"], [1.0])
+        self.assertAllClose(grads["b"], [2.0])
 
     def test_grad_variable_argument(self):
         def f(x):
-            return ops.sum(x**2)
+            return x**2
 
         v = backend.Variable([1.0, 2.0])
         self.assertAllClose(ops.grad(f)(v), [2.0, 4.0])
 
     def test_grad_unused_argument_is_zeros(self):
         def f(x, y):
-            return ops.sum(y)
+            return y
 
         x = ops.array([1.0, 2.0, 3.0])
         y = ops.array([1.0])
@@ -2032,7 +2032,7 @@ class CoreOpsGradTest(testing.TestCase):
         layer.build((None, 3))
 
         def f(x):
-            return ops.sum(layer(x))
+            return layer(x)
 
         x = ops.ones((1, 3))
         self.assertAllClose(ops.grad(f)(x), [[2.0, 2.0, 2.0]])
@@ -2042,8 +2042,7 @@ class CoreOpsGradTest(testing.TestCase):
         layer.build((None, 2))
 
         def f(trainable_variables, x):
-            y = layer.stateless_call(trainable_variables, [], x)[0]
-            return ops.sum(y)
+            return layer.stateless_call(trainable_variables, [], x)[0]
 
         x = ops.array([[1.0, 2.0]])
         (dkernel,) = ops.grad(f)(
@@ -2051,12 +2050,10 @@ class CoreOpsGradTest(testing.TestCase):
         )
         self.assertAllClose(dkernel, [[1.0], [2.0]])
 
-    def test_grad_non_scalar_output(self):
-        def f(x):
-            return x * 2
-
-        with self.assertRaisesRegex(ValueError, "must return a scalar"):
-            ops.grad(f)(ops.array([1.0, 2.0]))
+    def test_grad_non_scalar_output_is_summed(self):
+        x = ops.array([0.0, 1.0])
+        expected = 1.0 - np.tanh(ops.convert_to_numpy(x)) ** 2
+        self.assertAllClose(ops.grad(ops.tanh)(x), expected)
 
     def test_grad_invalid_argnums(self):
         def f(x, y):
@@ -2081,4 +2078,4 @@ class CoreOpsGradTest(testing.TestCase):
 class CoreOpsGradUnsupportedTest(testing.TestCase):
     def test_grad_raises(self):
         with self.assertRaisesRegex(NotImplementedError, "not supported"):
-            ops.grad(lambda x: ops.sum(x))(ops.array([1.0]))
+            ops.grad(lambda x: x)(ops.array([1.0]))

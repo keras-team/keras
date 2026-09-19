@@ -743,6 +743,10 @@ def device_scope(device_name):
 
 
 def grad(f, argnums=0):
+    def scalar_f(*args, **kwargs):
+        # A gradient tape sums a non scalar output, so do the same here.
+        return jnp.sum(f(*args, **kwargs))
+
     def grad_fn(*args, **kwargs):
         positions = standardize_argnums(argnums, len(args))
         args = list(args)
@@ -750,14 +754,5 @@ def grad(f, argnums=0):
             args[i] = tree.map_structure(convert_to_tensor, args[i])
         jax_argnums = positions[0] if isinstance(argnums, int) else positions
         return jax.grad(scalar_f, argnums=jax_argnums)(*args, **kwargs)
-
-    def scalar_f(*args, **kwargs):
-        output = f(*args, **kwargs)
-        if jnp.shape(output) != ():
-            raise ValueError(
-                "The function passed to `grad` must return a scalar. "
-                f"Received output shape: {jnp.shape(output)}"
-            )
-        return output
 
     return grad_fn

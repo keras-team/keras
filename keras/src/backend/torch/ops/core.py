@@ -1018,12 +1018,8 @@ def grad(f, argnums=0):
         inputs = [args[i] for i in positions]
         leaves = tree.flatten(inputs)
         with torch.enable_grad():
-            output = f(*args, **kwargs)
-        if output.dim() != 0:
-            raise ValueError(
-                "The function passed to `grad` must return a scalar. "
-                f"Received output shape: {tuple(output.shape)}"
-            )
+            # A gradient tape sums a non scalar output, so do the same here.
+            output = torch.sum(f(*args, **kwargs))
         leaf_grads = torch.autograd.grad(output, leaves, allow_unused=True)
         leaf_grads = [
             torch.zeros_like(x) if g is None else g

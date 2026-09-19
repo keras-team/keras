@@ -2729,7 +2729,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         expected_grad = np.full((3,), 1.0 / epsilon, dtype="float32")
 
         def f(x):
-            return ops.sum(knn.normalize(x, axis=-1, order=2, epsilon=epsilon))
+            return knn.normalize(x, axis=-1, order=2, epsilon=epsilon)
 
         x_grad = ops.grad(f)(ops.zeros((3,)))
 

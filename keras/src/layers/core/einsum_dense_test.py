@@ -969,8 +969,7 @@ class EinsumDenseTest(testing.TestCase):
             y = layer.stateless_call(trainable_variables, [], x, training=True)[
                 0
             ]
-            loss = y * ops.cast(dy, y.dtype)
-            return ops.sum(loss)
+            return y * ops.cast(dy, y.dtype)
 
         grad_fn = ops.grad(stateless_loss_fn)
 

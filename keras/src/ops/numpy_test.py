@@ -3747,7 +3747,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         expected_x2_grad = np.array([0.0, -0.5], dtype="float32")
 
         def f(x1, x2):
-            return knp.sum(knp.divide_no_nan(x1, x2))
+            return knp.divide_no_nan(x1, x2)
 
         x1 = knp.array([1.0, 2.0])
         x2 = knp.array([0.0, 2.0])
