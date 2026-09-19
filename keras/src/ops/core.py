@@ -688,7 +688,7 @@ def stop_gradient(variable):
 
     Examples:
 
-    >>> var = keras.backend.convert_to_tensor(
+    >>> var = keras.ops.convert_to_tensor(
     ...     [1., 2., 3.],
     ...     dtype="float32"
     ... )
