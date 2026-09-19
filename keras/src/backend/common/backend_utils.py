@@ -696,3 +696,30 @@ def compute_adaptive_pooling_window_sizes(input_dim, output_dim):
     small = math.ceil(input_dim / output_dim)
     big = small + 1
     return small, big
+
+
+def standardize_argnums(argnums, num_args):
+    """Validate `argnums` for `grad` and return a tuple of positions."""
+    if isinstance(argnums, int):
+        positions = (argnums,)
+    elif isinstance(argnums, (list, tuple)) and all(
+        isinstance(i, int) for i in argnums
+    ):
+        positions = tuple(argnums)
+    else:
+        raise TypeError(
+            "`argnums` must be an int or a tuple of ints. "
+            f"Received: argnums={argnums}"
+        )
+    for i in positions:
+        if i < -num_args or i >= num_args:
+            raise ValueError(
+                f"`argnums` refers to positional argument {i}, but the "
+                f"function was called with {num_args} positional arguments."
+            )
+    positions = tuple(i % num_args for i in positions)
+    if len(set(positions)) != len(positions):
+        raise ValueError(
+            f"`argnums` must not repeat a position. Received: argnums={argnums}"
+        )
+    return positions

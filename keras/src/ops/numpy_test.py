@@ -3739,40 +3739,19 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.DivideNoNan()(x, y), expected_result)
 
     @pytest.mark.skipif(
-        backend.backend() not in ("tensorflow", "jax", "torch"),
-        reason=f"{backend.backend()} backend does not support gradients.",
+        not backend.SUPPORTS_GRADIENT,
+        reason="Backend does not support gradients.",
     )
     def test_divide_no_nan_gradients(self):
         expected_x1_grad = np.array([0.0, 0.5], dtype="float32")
         expected_x2_grad = np.array([0.0, -0.5], dtype="float32")
 
-        if backend.backend() == "tensorflow":
-            import tensorflow as tf
+        def f(x1, x2):
+            return knp.divide_no_nan(x1, x2)
 
-            x1 = tf.Variable([1.0, 2.0])
-            x2 = tf.Variable([0.0, 2.0])
-            with tf.GradientTape() as tape:
-                y = knp.divide_no_nan(x1, x2)
-                loss = tf.reduce_sum(y)
-            x1_grad, x2_grad = tape.gradient(loss, [x1, x2])
-        elif backend.backend() == "jax":
-            import jax
-            import jax.numpy as jnp
-
-            def f(x1, x2):
-                return jnp.sum(knp.divide_no_nan(x1, x2))
-
-            x1 = jnp.array([1.0, 2.0])
-            x2 = jnp.array([0.0, 2.0])
-            x1_grad, x2_grad = jax.grad(f, argnums=(0, 1))(x1, x2)
-        elif backend.backend() == "torch":
-            import torch
-
-            x1 = torch.tensor([1.0, 2.0], requires_grad=True)
-            x2 = torch.tensor([0.0, 2.0], requires_grad=True)
-            y = knp.divide_no_nan(x1, x2)
-            y.sum().backward()
-            x1_grad, x2_grad = x1.grad, x2.grad
+        x1 = knp.array([1.0, 2.0])
+        x2 = knp.array([0.0, 2.0])
+        x1_grad, x2_grad = ops.grad(f, argnums=(0, 1))(x1, x2)
 
         self.assertAllClose(ops.convert_to_numpy(x1_grad), expected_x1_grad)
         self.assertAllClose(ops.convert_to_numpy(x2_grad), expected_x2_grad)

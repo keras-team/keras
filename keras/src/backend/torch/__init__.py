@@ -20,6 +20,7 @@ from keras.src.backend.torch import ops
 from keras.src.backend.torch import random
 from keras.src.backend.torch.ops.core import IS_THREAD_SAFE
 from keras.src.backend.torch.ops.core import SUPPORTS_COMPLEX_DTYPES
+from keras.src.backend.torch.ops.core import SUPPORTS_GRADIENT
 from keras.src.backend.torch.ops.core import SUPPORTS_RAGGED_TENSORS
 from keras.src.backend.torch.ops.core import SUPPORTS_SPARSE_TENSORS
 from keras.src.backend.torch.ops.core import Variable

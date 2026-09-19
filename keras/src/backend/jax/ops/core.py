@@ -14,6 +14,7 @@ from keras.src.backend import config
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import global_state
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.backend_utils import standardize_argnums
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.name_scope import name_scope as base_name_scope
 from keras.src.backend.common.stateless_scope import StatelessScope
@@ -25,6 +26,7 @@ from keras.src.backend.jax import distribution_lib
 SUPPORTS_SPARSE_TENSORS = True
 SUPPORTS_RAGGED_TENSORS = False
 SUPPORTS_COMPLEX_DTYPES = True
+SUPPORTS_GRADIENT = True
 IS_THREAD_SAFE = True
 
 
@@ -738,3 +740,19 @@ def device_scope(device_name):
     else:
         jax_device = device_name
     return jax.default_device(jax_device)
+
+
+def grad(f, argnums=0):
+    def scalar_f(*args, **kwargs):
+        # A gradient tape sums a non scalar output, so do the same here.
+        return jnp.sum(f(*args, **kwargs))
+
+    def grad_fn(*args, **kwargs):
+        positions = standardize_argnums(argnums, len(args))
+        args = list(args)
+        for i in positions:
+            args[i] = tree.map_structure(convert_to_tensor, args[i])
+        jax_argnums = positions[0] if isinstance(argnums, int) else positions
+        return jax.grad(scalar_f, argnums=jax_argnums)(*args, **kwargs)
+
+    return grad_fn

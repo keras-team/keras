@@ -23,6 +23,7 @@ from keras.src.backend.common.stateless_scope import StatelessScope
 SUPPORTS_SPARSE_TENSORS = False
 SUPPORTS_RAGGED_TENSORS = False
 SUPPORTS_COMPLEX_DTYPES = False
+SUPPORTS_GRADIENT = False
 IS_THREAD_SAFE = True
 
 OPENVINO_DTYPES = {
@@ -1845,3 +1846,9 @@ def remat(f):
         "utilize this feature."
     )
     return f
+
+
+def grad(f, argnums=0):
+    raise NotImplementedError(
+        "`grad` is not supported with the openvino backend."
+    )
