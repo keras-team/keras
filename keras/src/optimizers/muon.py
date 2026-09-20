@@ -1,6 +1,6 @@
 import re
 
-from keras.src import ops
+from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.optimizers import optimizer
 
@@ -196,9 +196,11 @@ class Muon(optimizer.Optimizer):
             self._muon_update_step(gradient, variable, learning_rate, m)
 
     def _muon_update_step(self, gradient, variable, lr, m):
-        self.assign_add(m, ops.add(gradient, m * (self.momentum - 1)))
+        self.assign_add(
+            m, backend.ops.numpy.add(gradient, m * (self.momentum - 1))
+        )
         if self.nesterov:
-            g = ops.add(gradient, self.momentum * m)
+            g = backend.ops.numpy.add(gradient, self.momentum * m)
         else:
             g = m
         update = self.zeropower_via_newtonschulz5(g, self.ns_steps)
@@ -207,40 +209,51 @@ class Muon(optimizer.Optimizer):
 
     def _adamw_update_step(self, gradient, variable, learning_rate, m, v):
         """Update step given gradient and the associated model variable."""
-        lr = ops.cast(learning_rate, variable.dtype)
-        gradient = ops.cast(gradient, variable.dtype)
-        local_step = ops.cast(self.iterations + 1, variable.dtype)
-        adam_beta_1_power = ops.power(
-            ops.cast(self.adam_beta_1, variable.dtype), local_step
+        lr = backend.ops.cast(learning_rate, variable.dtype)
+        gradient = backend.ops.cast(gradient, variable.dtype)
+        local_step = backend.ops.cast(self.iterations + 1, variable.dtype)
+        adam_beta_1_power = backend.ops.numpy.power(
+            backend.ops.cast(self.adam_beta_1, variable.dtype), local_step
         )
-        adam_beta_2_power = ops.power(
-            ops.cast(self.adam_beta_2, variable.dtype), local_step
+        adam_beta_2_power = backend.ops.numpy.power(
+            backend.ops.cast(self.adam_beta_2, variable.dtype), local_step
         )
 
-        alpha = lr * ops.sqrt(1 - adam_beta_2_power) / (1 - adam_beta_1_power)
+        alpha = (
+            lr
+            * backend.ops.numpy.sqrt(1 - adam_beta_2_power)
+            / (1 - adam_beta_1_power)
+        )
 
         self.assign_add(
-            m, ops.multiply(ops.subtract(gradient, m), 1 - self.adam_beta_1)
+            m,
+            backend.ops.numpy.multiply(
+                backend.ops.numpy.subtract(gradient, m), 1 - self.adam_beta_1
+            ),
         )
         self.assign_add(
             v,
-            ops.multiply(
-                ops.subtract(ops.square(gradient), v), 1 - self.adam_beta_2
+            backend.ops.numpy.multiply(
+                backend.ops.numpy.subtract(
+                    backend.ops.numpy.square(gradient), v
+                ),
+                1 - self.adam_beta_2,
             ),
         )
         self.assign_sub(
             variable,
-            ops.divide(
-                ops.multiply(m, alpha), ops.add(ops.sqrt(v), self.epsilon)
+            backend.ops.numpy.divide(
+                backend.ops.numpy.multiply(m, alpha),
+                backend.ops.numpy.add(backend.ops.numpy.sqrt(v), self.epsilon),
             ),
         )
 
     def transpose_last_axis(self, X):
-        shape = ops.shape(X)
+        shape = backend.ops.shape(X)
         temp_order = list(range(len(shape)))
         temp_order[-2] = temp_order[-1]
         temp_order[-1] = len(shape) - 2
-        X = ops.transpose(X, temp_order)
+        X = backend.ops.numpy.transpose(X, temp_order)
         return X
 
     def lr_adjust(self, x):
@@ -255,7 +268,13 @@ class Muon(optimizer.Optimizer):
             return x
         # moonlight version
         # https://github.com/MoonshotAI/Moonlight/blob/master/examples/toy_train.py
-        return x * ops.sqrt(ops.maximum(x.shape[0], x.shape[1])) * self.rms_rate
+        return (
+            x
+            * backend.ops.numpy.sqrt(
+                backend.ops.numpy.maximum(x.shape[0], x.shape[1])
+            )
+            * self.rms_rate
+        )
 
     def zeropower_via_newtonschulz5(self, x, steps: int):
         """We apply the Newton-Schulz iteration to compute matrix G.
@@ -267,7 +286,7 @@ class Muon(optimizer.Optimizer):
         approximation, model performance remains unaffected compared to using
         the exact UV^T from the SVD.
         """
-        shape = ops.shape(x)
+        shape = backend.ops.shape(x)
         if len(shape) < 2:
             raise ValueError(
                 "Expected gradient or momentum to have at least 2 dimensions. "
@@ -279,7 +298,9 @@ class Muon(optimizer.Optimizer):
             x = self.transpose_last_axis(x)
 
         # Ensure spectral norm is at most 1
-        x = x / (ops.norm(x, axis=(-2, -1), keepdims=True) + 1e-7)
+        x = x / (
+            backend.ops.linalg.norm(x, axis=(-2, -1), keepdims=True) + 1e-7
+        )
         # Perform the NS iterations
         for _ in range(steps):
             temp_a = x @ self.transpose_last_axis(x)
@@ -300,8 +321,8 @@ class Muon(optimizer.Optimizer):
                 weight_decay_value = self.weight_decay
             if weight_decay_value is None:
                 continue
-            wd = ops.cast(weight_decay_value, variable.dtype)
-            lr = ops.cast(self.learning_rate, variable.dtype)
+            wd = backend.ops.cast(weight_decay_value, variable.dtype)
+            lr = backend.ops.cast(self.learning_rate, variable.dtype)
             variable.assign(variable - variable * wd * lr)
 
     def get_config(self):

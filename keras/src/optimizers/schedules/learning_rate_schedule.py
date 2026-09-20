@@ -2,7 +2,7 @@
 
 import math
 
-from keras.src import ops
+from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.saving import serialization_lib
 
@@ -160,19 +160,21 @@ class ExponentialDecay(LearningRateSchedule):
             )
 
     def __call__(self, step):
-        with ops.name_scope(self.name):
-            initial_learning_rate = ops.convert_to_tensor(
+        with backend.name_scope(self.name):
+            initial_learning_rate = backend.ops.convert_to_tensor(
                 self.initial_learning_rate
             )
             dtype = initial_learning_rate.dtype
-            decay_steps = ops.cast(self.decay_steps, dtype)
-            decay_rate = ops.cast(self.decay_rate, dtype)
+            decay_steps = backend.ops.cast(self.decay_steps, dtype)
+            decay_rate = backend.ops.cast(self.decay_rate, dtype)
 
-            global_step_recomp = ops.cast(step, dtype)
+            global_step_recomp = backend.ops.cast(step, dtype)
             p = global_step_recomp / decay_steps
             if self.staircase:
-                p = ops.floor(p)
-            return ops.multiply(initial_learning_rate, ops.power(decay_rate, p))
+                p = backend.ops.numpy.floor(p)
+            return backend.ops.numpy.multiply(
+                initial_learning_rate, backend.ops.numpy.power(decay_rate, p)
+            )
 
     def get_config(self):
         return {
@@ -254,30 +256,32 @@ class PiecewiseConstantDecay(LearningRateSchedule):
         self.name = name
 
     def __call__(self, step):
-        with ops.name_scope(self.name):
-            boundaries = [ops.convert_to_tensor(x) for x in self.boundaries]
-            values = [ops.convert_to_tensor(x) for x in self.values]
-            step = ops.convert_to_tensor(step)
+        with backend.name_scope(self.name):
+            boundaries = [
+                backend.ops.convert_to_tensor(x) for x in self.boundaries
+            ]
+            values = [backend.ops.convert_to_tensor(x) for x in self.values]
+            step = backend.ops.convert_to_tensor(step)
 
             for i, b in enumerate(boundaries):
                 if b.dtype != step.dtype:
                     # We cast the boundaries to have the same type as the step
-                    b = ops.cast(b, step.dtype)
+                    b = backend.ops.cast(b, step.dtype)
                     boundaries[i] = b
 
             result_dtype = values[0].dtype
-            result_value = ops.array(0, dtype=result_dtype)
+            result_value = backend.ops.numpy.array(0, dtype=result_dtype)
 
             # For each range between boundaries, we check whether the step is
             # within that range, cast the resulting boolean to a number,
             # and multiply the result by the corresponding value for the range.
             # Taking the sum of these yields a piecewise constant function.
-            step_less_than_first_boundary = ops.cast(
+            step_less_than_first_boundary = backend.ops.cast(
                 step <= boundaries[0], result_dtype
             )
             result_value += step_less_than_first_boundary * values[0]
 
-            step_greater_than_last_boundary = ops.cast(
+            step_greater_than_last_boundary = backend.ops.cast(
                 step > boundaries[-1], result_dtype
             )
             result_value += step_greater_than_last_boundary * values[-1]
@@ -286,7 +290,7 @@ class PiecewiseConstantDecay(LearningRateSchedule):
                 boundaries[:-1], boundaries[1:], values[1:-1]
             ):
                 # Need to bind v here; can do this with lambda v=v: ...
-                step_in_range = ops.cast(
+                step_in_range = backend.ops.cast(
                     (step > low) & (step <= high), result_dtype
                 )
                 result_value += step_in_range * value
@@ -409,39 +413,41 @@ class PolynomialDecay(LearningRateSchedule):
             )
 
     def __call__(self, step):
-        with ops.name_scope(self.name):
-            initial_learning_rate = ops.convert_to_tensor(
+        with backend.name_scope(self.name):
+            initial_learning_rate = backend.ops.convert_to_tensor(
                 self.initial_learning_rate
             )
             dtype = initial_learning_rate.dtype
-            end_learning_rate = ops.cast(self.end_learning_rate, dtype)
-            power = ops.cast(self.power, dtype)
+            end_learning_rate = backend.ops.cast(self.end_learning_rate, dtype)
+            power = backend.ops.cast(self.power, dtype)
 
-            global_step_recomp = ops.cast(step, dtype)
-            decay_steps_recomp = ops.cast(self.decay_steps, dtype)
+            global_step_recomp = backend.ops.cast(step, dtype)
+            decay_steps_recomp = backend.ops.cast(self.decay_steps, dtype)
             if self.cycle:
                 # Find the first multiple of decay_steps that is bigger than
                 # global_step. If global_step is zero set the multiplier to 1
-                multiplier = ops.where(
-                    ops.equal(global_step_recomp, 0),
+                multiplier = backend.ops.numpy.where(
+                    backend.ops.numpy.equal(global_step_recomp, 0),
                     1.0,
-                    ops.ceil(global_step_recomp / self.decay_steps),
+                    backend.ops.numpy.ceil(
+                        global_step_recomp / self.decay_steps
+                    ),
                 )
-                decay_steps_recomp = ops.multiply(
+                decay_steps_recomp = backend.ops.numpy.multiply(
                     decay_steps_recomp, multiplier
                 )
             else:
                 # Make sure that the global_step used is not bigger than
                 # decay_steps.
-                global_step_recomp = ops.minimum(
+                global_step_recomp = backend.ops.numpy.minimum(
                     global_step_recomp, decay_steps_recomp
                 )
 
-            p = ops.divide(global_step_recomp, decay_steps_recomp)
-            return ops.add(
-                ops.multiply(
+            p = backend.ops.numpy.divide(global_step_recomp, decay_steps_recomp)
+            return backend.ops.numpy.add(
+                backend.ops.numpy.multiply(
                     initial_learning_rate - end_learning_rate,
-                    ops.power(1 - p, power),
+                    backend.ops.numpy.power(1 - p, power),
                 ),
                 end_learning_rate,
             )
@@ -543,21 +549,23 @@ class InverseTimeDecay(LearningRateSchedule):
             )
 
     def __call__(self, step):
-        with ops.name_scope(self.name):
-            initial_learning_rate = ops.convert_to_tensor(
+        with backend.name_scope(self.name):
+            initial_learning_rate = backend.ops.convert_to_tensor(
                 self.initial_learning_rate
             )
             dtype = initial_learning_rate.dtype
-            decay_steps = ops.cast(self.decay_steps, dtype)
-            decay_rate = ops.cast(self.decay_rate, dtype)
+            decay_steps = backend.ops.cast(self.decay_steps, dtype)
+            decay_rate = backend.ops.cast(self.decay_rate, dtype)
 
-            global_step_recomp = ops.cast(step, dtype)
+            global_step_recomp = backend.ops.cast(step, dtype)
             p = global_step_recomp / decay_steps
             if self.staircase:
-                p = ops.floor(p)
-            const = ops.cast(ops.array(1), dtype)
-            denom = ops.add(const, ops.multiply(decay_rate, p))
-            return ops.divide(initial_learning_rate, denom)
+                p = backend.ops.numpy.floor(p)
+            const = backend.ops.cast(backend.ops.numpy.array(1), dtype)
+            denom = backend.ops.numpy.add(
+                const, backend.ops.numpy.multiply(decay_rate, p)
+            )
+            return backend.ops.numpy.divide(initial_learning_rate, denom)
 
     def get_config(self):
         return {
@@ -693,34 +701,37 @@ class CosineDecay(LearningRateSchedule):
             )
 
     def _decay_function(self, step, decay_steps, decay_from_lr, dtype):
-        with ops.name_scope(self.name):
-            completed_fraction = ops.divide(step, decay_steps)
-            pi = ops.array(math.pi, dtype=dtype)
+        with backend.name_scope(self.name):
+            completed_fraction = backend.ops.numpy.divide(step, decay_steps)
+            pi = backend.ops.numpy.array(math.pi, dtype=dtype)
             cosine_decayed = 0.5 * (
-                1.0 + ops.cos(ops.multiply(pi, completed_fraction))
+                1.0
+                + backend.ops.numpy.cos(
+                    backend.ops.numpy.multiply(pi, completed_fraction)
+                )
             )
             decayed = (1 - self.alpha) * cosine_decayed + self.alpha
-            return ops.multiply(decay_from_lr, decayed)
+            return backend.ops.numpy.multiply(decay_from_lr, decayed)
 
     def _warmup_function(
         self, step, warmup_steps, warmup_target, initial_learning_rate
     ):
-        with ops.name_scope(self.name):
+        with backend.name_scope(self.name):
             completed_fraction = step / warmup_steps
             total_step_delta = warmup_target - initial_learning_rate
             return total_step_delta * completed_fraction + initial_learning_rate
 
     def __call__(self, step):
-        with ops.name_scope(self.name):
-            initial_learning_rate = ops.convert_to_tensor(
+        with backend.name_scope(self.name):
+            initial_learning_rate = backend.ops.convert_to_tensor(
                 self.initial_learning_rate
             )
             dtype = initial_learning_rate.dtype
-            decay_steps = ops.cast(self.decay_steps, dtype)
-            global_step_recomp = ops.cast(step, dtype)
+            decay_steps = backend.ops.cast(self.decay_steps, dtype)
+            global_step_recomp = backend.ops.cast(step, dtype)
 
             if self.warmup_target is None:
-                global_step_recomp = ops.minimum(
+                global_step_recomp = backend.ops.numpy.minimum(
                     global_step_recomp, decay_steps
                 )
                 return self._decay_function(
@@ -730,14 +741,14 @@ class CosineDecay(LearningRateSchedule):
                     dtype,
                 )
 
-            warmup_target = ops.cast(self.warmup_target, dtype)
-            warmup_steps = ops.cast(self.warmup_steps, dtype)
+            warmup_target = backend.ops.cast(self.warmup_target, dtype)
+            warmup_steps = backend.ops.cast(self.warmup_steps, dtype)
 
-            global_step_recomp = ops.minimum(
+            global_step_recomp = backend.ops.numpy.minimum(
                 global_step_recomp, decay_steps + warmup_steps
             )
 
-            return ops.cond(
+            return backend.ops.cond(
                 global_step_recomp < warmup_steps,
                 lambda: self._warmup_function(
                     global_step_recomp,
@@ -843,17 +854,17 @@ class CosineDecayRestarts(LearningRateSchedule):
             )
 
     def __call__(self, step):
-        with ops.name_scope(self.name):
-            initial_learning_rate = ops.convert_to_tensor(
+        with backend.name_scope(self.name):
+            initial_learning_rate = backend.ops.convert_to_tensor(
                 self.initial_learning_rate
             )
             dtype = initial_learning_rate.dtype
-            first_decay_steps = ops.cast(self.first_decay_steps, dtype)
-            alpha = ops.cast(self.alpha, dtype)
-            t_mul = ops.cast(self._t_mul, dtype)
-            m_mul = ops.cast(self._m_mul, dtype)
+            first_decay_steps = backend.ops.cast(self.first_decay_steps, dtype)
+            alpha = backend.ops.cast(self.alpha, dtype)
+            t_mul = backend.ops.cast(self._t_mul, dtype)
+            m_mul = backend.ops.cast(self._m_mul, dtype)
 
-            global_step_recomp = ops.cast(step, dtype)
+            global_step_recomp = backend.ops.cast(step, dtype)
             completed_fraction = global_step_recomp / first_decay_steps
 
             def compute_step(completed_fraction, geometric=False):
@@ -861,51 +872,55 @@ class CosineDecayRestarts(LearningRateSchedule):
                 if geometric:
                     # ops.log is sensitive to the precision of dtype, so we need
                     # the additional casting
-                    i_restart = ops.floor(
-                        ops.log(
-                            ops.cast(
+                    i_restart = backend.ops.numpy.floor(
+                        backend.ops.numpy.log(
+                            backend.ops.cast(
                                 1.0 - completed_fraction * (1.0 - t_mul), dtype
                             )
                         )
-                        / ops.log(t_mul)
+                        / backend.ops.numpy.log(t_mul)
                     )
 
-                    sum_r = ops.divide(
-                        1.0 - ops.power(t_mul, i_restart), (1.0 - t_mul)
+                    sum_r = backend.ops.numpy.divide(
+                        1.0 - backend.ops.numpy.power(t_mul, i_restart),
+                        (1.0 - t_mul),
                     )
-                    completed_fraction = ops.divide(
-                        ops.subtract(completed_fraction, sum_r),
-                        ops.power(t_mul, i_restart),
+                    completed_fraction = backend.ops.numpy.divide(
+                        backend.ops.numpy.subtract(completed_fraction, sum_r),
+                        backend.ops.numpy.power(t_mul, i_restart),
                     )
 
                 else:
-                    i_restart = ops.floor(completed_fraction)
+                    i_restart = backend.ops.numpy.floor(completed_fraction)
                     completed_fraction -= i_restart
 
                 return i_restart, completed_fraction
 
-            i_restart, completed_fraction = ops.cond(
-                ops.equal(t_mul, 1.0),
+            i_restart, completed_fraction = backend.ops.cond(
+                backend.ops.numpy.equal(t_mul, 1.0),
                 lambda: compute_step(completed_fraction, geometric=False),
                 lambda: compute_step(completed_fraction, geometric=True),
             )
 
-            m_fac = ops.power(m_mul, i_restart)
+            m_fac = backend.ops.numpy.power(m_mul, i_restart)
             cosine_decayed = (
                 0.5
                 * m_fac
                 * (
                     1.0
-                    + ops.cos(
-                        ops.multiply(
-                            ops.array(math.pi, dtype=dtype), completed_fraction
+                    + backend.ops.numpy.cos(
+                        backend.ops.numpy.multiply(
+                            backend.ops.numpy.array(math.pi, dtype=dtype),
+                            completed_fraction,
                         )
                     )
                 )
             )
-            decayed = ops.add(ops.multiply((1 - alpha), cosine_decayed), alpha)
+            decayed = backend.ops.numpy.add(
+                backend.ops.numpy.multiply((1 - alpha), cosine_decayed), alpha
+            )
 
-            return ops.multiply(initial_learning_rate, decayed)
+            return backend.ops.numpy.multiply(initial_learning_rate, decayed)
 
     def get_config(self):
         return {
