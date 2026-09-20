@@ -111,18 +111,16 @@ class DynamicBackend:
             module = importlib.import_module("keras.src.backend.numpy")
         if self._backend == "openvino":
             module = importlib.import_module("keras.src.backend.openvino")
-        try:
+        if hasattr(module, name):
             return getattr(module, name)
-        except AttributeError:
-            pass
-        try:
-            # Op implementations live in `keras.src.backend.<backend>.ops`
-            # and are no longer re-exported on the backend package itself.
-            return getattr(module.ops, name)
-        except AttributeError:
-            raise AttributeError(
-                f"Backend '{self._backend}' has no attribute '{name}'."
-            ) from None
+        # Op implementations live in `keras.src.backend.<backend>.ops` and are
+        # no longer re-exported on the backend package itself.
+        module_ops = getattr(module, "ops", None)
+        if module_ops is not None and hasattr(module_ops, name):
+            return getattr(module_ops, name)
+        raise AttributeError(
+            f"Backend '{self._backend}' has no attribute '{name}'."
+        )
 
 
 @keras_export("keras.config.set_backend")
