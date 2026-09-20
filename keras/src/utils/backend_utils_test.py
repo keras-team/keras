@@ -61,6 +61,10 @@ class BackendUtilsTest(testing.TestCase):
         self.assertAllClose(dynamic_backend.numpy.log10(x), np.log10(x))
         self.assertAllClose(dynamic_backend.nn.relu(-x), np.zeros_like(x))
 
+        # `numerical_utils.encode_categorical_inputs` branches on
+        # `backend_module.__name__`, so dunders have to resolve too.
+        self.assertEqual(dynamic_backend.__name__, f"keras.src.backend.{name}")
+
         with self.assertRaisesRegex(AttributeError, "has no attribute"):
             dynamic_backend.not_an_op
 

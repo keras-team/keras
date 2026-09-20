@@ -97,10 +97,6 @@ class DynamicBackend:
         return self._backend
 
     def __getattr__(self, name):
-        if name.startswith("_"):
-            # `self._backend` below would recurse for an instance restored
-            # without `__init__`, e.g. by `copy` or `pickle`.
-            raise AttributeError(name)
         if self._backend == "tensorflow":
             module = importlib.import_module("keras.src.backend.tensorflow")
         if self._backend == "jax":
