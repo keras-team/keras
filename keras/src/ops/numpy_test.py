@@ -39,6 +39,25 @@ class NumPyTestRot90(testing.TestCase):
             self.assertAllClose(rotated, expected)
 
     @parameterized.named_parameters(
+        ("3d_axes_1_2", (2, 2, 3), (1, 2)),
+        ("3d_axes_0_2", (2, 2, 3), (0, 2)),
+        ("4d_axes_2_3", (2, 3, 2, 5), (2, 3)),
+        ("4d_axes_1_3", (2, 3, 4, 5), (1, 3)),
+    )
+    def test_batched_non_square_rotation(self, shape, axes):
+        # A rotation with `k > 1` of a non-square plane in an array with more
+        # than two dimensions used to mix elements across the leading (batch)
+        # axes, because the TensorFlow backend flattened the batch into the
+        # reshaped `(-1, h, w)` tensor. Only `k == 1` and rank-2 inputs were
+        # covered, which is why the regression went unnoticed.
+        array = np.arange(np.prod(shape)).reshape(shape)
+        for k in (0, 1, 2, 3, 4, -1, -2, -3):
+            self.assertAllClose(
+                knp.rot90(array, k=k, axes=axes),
+                np.rot90(array, k=k, axes=axes),
+            )
+
+    @parameterized.named_parameters(
         ("k_0", 0, [[1, 2], [3, 4]]),
         ("k_1", 1, [[2, 4], [1, 3]]),
         ("k_2", 2, [[4, 3], [2, 1]]),
