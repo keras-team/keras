@@ -97,6 +97,10 @@ class DynamicBackend:
         return self._backend
 
     def __getattr__(self, name):
+        if name.startswith("_"):
+            # `self._backend` below would recurse for an instance restored
+            # without `__init__`, e.g. by `copy` or `pickle`.
+            raise AttributeError(name)
         if self._backend == "tensorflow":
             module = importlib.import_module("keras.src.backend.tensorflow")
         if self._backend == "jax":
@@ -107,7 +111,18 @@ class DynamicBackend:
             module = importlib.import_module("keras.src.backend.numpy")
         if self._backend == "openvino":
             module = importlib.import_module("keras.src.backend.openvino")
-        return getattr(module, name)
+        try:
+            return getattr(module, name)
+        except AttributeError:
+            pass
+        try:
+            # Op implementations live in `keras.src.backend.<backend>.ops`
+            # and are no longer re-exported on the backend package itself.
+            return getattr(module.ops, name)
+        except AttributeError:
+            raise AttributeError(
+                f"Backend '{self._backend}' has no attribute '{name}'."
+            ) from None
 
 
 @keras_export("keras.config.set_backend")
