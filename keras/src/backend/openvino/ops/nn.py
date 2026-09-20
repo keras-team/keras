@@ -129,15 +129,28 @@ def sparse_sigmoid(x):
     return OpenVINOKerasTensor(out.output(0))
 
 
+def _promote_to_float(x):
+    """Promote integer and bool input to `floatx`; real types are left alone.
+
+    `Type.boolean.is_integral()` is `True`, so bool is promoted as well, and
+    `f64` and the `f8` types keep their element type.
+    """
+    if x.get_element_type().is_real():
+        return x
+    return ov_opset.convert(x, OPENVINO_DTYPES[backend.floatx()]).output(0)
+
+
 def hard_sigmoid(x):
-    x = get_ov_output(x)
+    # `alpha` and `beta` below truncate to 0 under an integer element type,
+    # which makes this return all zeros instead of raising.
+    x = _promote_to_float(get_ov_output(x))
     alpha = get_ov_output(1.0 / 6.0, x.get_element_type())
     beta = get_ov_output(0.5, x.get_element_type())
     return OpenVINOKerasTensor(ov_opset.hard_sigmoid(x, alpha, beta).output(0))
 
 
 def hard_silu(x):
-    x = get_ov_output(x)
+    x = _promote_to_float(get_ov_output(x))
     return OpenVINOKerasTensor(ov_opset.hswish(x).output(0))
 
 

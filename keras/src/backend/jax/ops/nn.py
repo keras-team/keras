@@ -105,13 +105,28 @@ def leaky_relu(x, negative_slope=0.2):
     return jnn.leaky_relu(x, negative_slope=negative_slope)
 
 
+def _promote_to_float(x):
+    """Cast integer and bool input to `floatx`, leaving float dtypes alone.
+
+    `result_type(dtype, float)` is not usable here: it demotes `float64` to
+    `float32` on every backend but TensorFlow, and it derives the float width
+    from `floatx()[-2:]`, which turns `bfloat16` into `float16`.
+    """
+    dtype = backend.standardize_dtype(x.dtype)
+    if "int" in dtype or dtype == "bool":
+        return cast(x, backend.floatx())
+    return x
+
+
 def hard_sigmoid(x):
-    x = convert_to_tensor(x)
+    # JAX promotes integers on its own, but to `float32` rather than to
+    # `floatx`, which would disagree with `compute_output_spec`.
+    x = _promote_to_float(convert_to_tensor(x))
     return jnn.hard_sigmoid(x)
 
 
 def hard_silu(x):
-    x = convert_to_tensor(x)
+    x = _promote_to_float(convert_to_tensor(x))
     return jnn.hard_silu(x)
 
 
