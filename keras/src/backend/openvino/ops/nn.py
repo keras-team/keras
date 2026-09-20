@@ -109,8 +109,21 @@ def log_sigmoid(x):
     )
 
 
+def _promote_to_float(x):
+    """Promote integer and bool input to `floatx`; real types are left alone.
+
+    `Type.boolean.is_integral()` is `True`, so bool is promoted as well, and
+    `f64` and the `f8` types keep their element type.
+    """
+    if x.get_element_type().is_real():
+        return x
+    return ov_opset.convert(x, OPENVINO_DTYPES[backend.floatx()]).output(0)
+
+
 def leaky_relu(x, negative_slope=0.2):
-    x = get_ov_output(x)
+    # `slope_const` truncates to 0 under an integer element type, which makes
+    # `prelu` below compute `relu`.
+    x = _promote_to_float(get_ov_output(x))
     slope_const = ov_opset.constant(
         negative_slope, x.get_element_type()
     ).output(0)

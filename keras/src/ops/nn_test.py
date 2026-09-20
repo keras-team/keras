@@ -1499,6 +1499,11 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.leaky_relu(x),
             [-0.2, 0, 1, 2, 3],
         )
+        # Integer input is promoted to float. The numpy and openvino backends
+        # previously truncated `negative_slope` to 0 under an integer dtype,
+        # which turned this into `relu`.
+        x_int = np.array([-1, 0, 1, 2, 3], dtype="int32")
+        self.assertAllClose(knn.leaky_relu(x_int), [-0.2, 0, 1, 2, 3])
 
     def test_hard_sigmoid(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
@@ -2955,6 +2960,11 @@ class NNOpsDtypeTest(testing.TestCase):
     """Test the floating dtype to verify that the behavior matches JAX."""
 
     FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
+    INT_DTYPES = [x for x in dtypes.INT_TYPES if x not in ("uint64", "int64")]
+    if backend.backend() == "torch":
+        INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
+    elif backend.backend() == "tensorflow":
+        INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint32",)]
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_elu(self, dtype):
@@ -3203,7 +3213,24 @@ class NNOpsDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_leaky_relu_preserves_float_dtypes(self):
+        # `FLOAT_DTYPES` excludes float64 and the JAX reference runs with x64
+        # off, so the dtype test below does not cover it. Promotion must not
+        # change a float dtype. Some backends already narrow float64 in
+        # `convert_to_tensor`, so that is the dtype to compare against.
+        for dtype in ("float64", "float32", "float16"):
+            try:
+                x = knp.ones((2,), dtype=dtype)
+                expected = standardize_dtype(knp.convert_to_tensor(x).dtype)
+            except Exception:
+                continue  # backend cannot represent this dtype
+            self.assertEqual(
+                standardize_dtype(knn.leaky_relu(x).dtype), expected
+            )
+
+    @parameterized.named_parameters(
+        named_product(dtype=FLOAT_DTYPES + INT_DTYPES + ["bool"])
+    )
     def test_leaky_relu(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
