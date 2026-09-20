@@ -1,3 +1,4 @@
+import functools
 import types
 
 from keras.src import ops
@@ -6,7 +7,6 @@ from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
 from keras.src.ops import linalg
 from keras.src.quantizers.gptq_config import GPTQConfig
-from keras.src.quantizers.quantizers import GPTQQuantizer
 from keras.src.quantizers.quantizers import compute_quantization_parameters
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
 from keras.src.quantizers.quantizers import quantize_with_zero_point
@@ -291,8 +291,13 @@ class GPTQ:
         self.original_layer = layer
         self.num_samples = 0
         self.config = config
-        self.quantizer = GPTQQuantizer(
-            config, compute_dtype=layer.variable_dtype
+        self.compute_scale_zero = functools.partial(
+            compute_quantization_parameters,
+            bits=config.weight_bits,
+            symmetric=config.symmetric,
+            per_channel=config.per_channel,
+            group_size=config.group_size,
+            compute_dtype=layer.variable_dtype,
         )
 
         # Explicitly handle each supported layer type
@@ -482,7 +487,7 @@ class GPTQ:
             group_size=self.config.group_size,
             activation_order=self.config.activation_order,
             order_metric=ops.diagonal(hessian_matrix),
-            compute_scale_zero=self.quantizer.find_params,
+            compute_scale_zero=self.compute_scale_zero,
         )
         quantized = ops.cast(
             quantized, self.original_layer.quantized_kernel.dtype

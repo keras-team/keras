@@ -4296,20 +4296,28 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             np.greater_equal(2, x),
         )
 
-    def test_allclose(self):
-        x = np.array([1], dtype="int32")
-        y = np.array([2], dtype="int32")
-        self.assertAllClose(knp.allclose(x, y, rtol=0.1, atol=1e-8), False)
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_allclose(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = np.array([1], dtype="int32")
+            y = np.array([2], dtype="int32")
+            self.assertAllClose(knp.allclose(x, y, rtol=0.1, atol=1e-8), False)
 
-        x = np.array([1.0], dtype="float32")
-        y = np.array([1.0000001], dtype="float32")
-        self.assertAllClose(knp.allclose(x, y, rtol=0.1, atol=1e-8), True)
+            x = np.array([1.0], dtype="float32")
+            y = np.array([1.0000001], dtype="float32")
+            self.assertAllClose(knp.allclose(x, y, rtol=0.1, atol=1e-8), True)
+            self.assertAllClose(knp.AllClose(rtol=0.1, atol=1e-8)(x, y), True)
 
-        # Test with NaNs
-        x_nan = np.array([np.nan, 1.0])
-        y_nan = np.array([np.nan, 1.0])
-        self.assertAllClose(knp.allclose(x_nan, y_nan), False)
-        self.assertAllClose(knp.allclose(x_nan, y_nan, equal_nan=True), True)
+            # Test with NaNs
+            x_nan = np.array([np.nan, 1.0])
+            y_nan = np.array([np.nan, 1.0])
+            self.assertAllClose(knp.allclose(x_nan, y_nan), False)
+            self.assertAllClose(
+                knp.allclose(x_nan, y_nan, equal_nan=True), True
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     def test_isclose(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -4500,11 +4508,13 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         # Test `num` as a tensor
         # https://github.com/keras-team/keras/issues/19772
         self.assertAllClose(
-            knp.linspace(0, 10, backend.convert_to_tensor(5)),
+            knp.linspace(0, 10, backend.ops.convert_to_tensor(5)),
             np.linspace(0, 10, 5),
         )
         self.assertAllClose(
-            knp.linspace(0, 10, backend.convert_to_tensor(5), endpoint=False),
+            knp.linspace(
+                0, 10, backend.ops.convert_to_tensor(5), endpoint=False
+            ),
             np.linspace(0, 10, 5, endpoint=False),
         )
 
@@ -5154,7 +5164,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(
             knp.take(x, indices, axis=axis),
-            np.take(x, backend.convert_to_numpy(indices), axis=axis),
+            np.take(x, backend.ops.convert_to_numpy(indices), axis=axis),
         )
 
     @parameterized.named_parameters(
@@ -5188,7 +5198,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             import tensorflow as tf
 
             indices = tf.ragged.constant([[2], [0, -1, 1]])
-            mask = backend.convert_to_numpy(tf.ones_like(indices))
+            mask = backend.ops.convert_to_numpy(tf.ones_like(indices))
 
         if axis == 0:
             mask = np.expand_dims(mask, (2, 3))
@@ -5197,7 +5207,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(
             knp.take(x, indices, axis=axis),
-            np.take(x, backend.convert_to_numpy(indices), axis=axis)
+            np.take(x, backend.ops.convert_to_numpy(indices), axis=axis)
             * mask.astype(dtype),
         )
 
@@ -5350,6 +5360,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.mean(x, axis=1, keepdims=True),
         )
 
+        self.assertAllClose(
+            knp.mean(x, axis=None, keepdims=True),
+            np.mean(x, axis=None, keepdims=True),
+        )
+
         self.assertAllClose(knp.Mean()(x), np.mean(x))
         self.assertAllClose(knp.Mean(axis=1)(x), np.mean(x, axis=1))
         self.assertAllClose(
@@ -5396,6 +5411,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.all(x, axis=1, keepdims=True),
         )
 
+        self.assertAllClose(
+            knp.all(x, axis=None, keepdims=True),
+            np.all(x, axis=None, keepdims=True),
+        )
+
         # Multi-axis test
         x = np.array(
             [[[True, True], [True, False]], [[True, True], [True, True]]]
@@ -5420,6 +5440,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.any(x, axis=1, keepdims=True),
             np.any(x, axis=1, keepdims=True),
+        )
+
+        self.assertAllClose(
+            knp.any(x, axis=None, keepdims=True),
+            np.any(x, axis=None, keepdims=True),
         )
 
         # Multi-axis test
@@ -5483,6 +5508,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.var(x, axis=1, keepdims=True),
         )
 
+        self.assertAllClose(
+            knp.var(x, axis=None, keepdims=True),
+            np.var(x, axis=None, keepdims=True),
+        )
+
         self.assertAllClose(knp.Var()(x), np.var(x))
         self.assertAllClose(knp.Var(axis=1)(x), np.var(x, axis=1))
         self.assertAllClose(
@@ -5500,16 +5530,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.sum(x, axis=1, keepdims=True),
             np.sum(x, axis=1, keepdims=True),
         )
-        if backend.backend() != "openvino":
-            # TODO(#23536): openvino flattens instead of preserving the rank.
-            # `assertAllClose` broadcasts, so assert the shape explicitly.
-            self.assertEqual(
-                tuple(knp.sum(x, axis=None, keepdims=True).shape), (1, 1)
-            )
-            self.assertAllClose(
-                knp.sum(x, axis=None, keepdims=True),
-                np.sum(x, axis=None, keepdims=True),
-            )
+        self.assertAllClose(
+            knp.sum(x, axis=None, keepdims=True),
+            np.sum(x, axis=None, keepdims=True),
+        )
 
         self.assertAllClose(knp.Sum()(x), np.sum(x))
         self.assertAllClose(knp.Sum(axis=1)(x), np.sum(x, axis=1))
@@ -5528,16 +5552,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.amax(x, axis=1, keepdims=True),
             np.amax(x, axis=1, keepdims=True),
         )
-        if backend.backend() != "openvino":
-            # TODO(#23536): openvino flattens instead of preserving the rank.
-            # `assertAllClose` broadcasts, so assert the shape explicitly.
-            self.assertEqual(
-                tuple(knp.amax(x, axis=None, keepdims=True).shape), (1, 1)
-            )
-            self.assertAllClose(
-                knp.amax(x, axis=None, keepdims=True),
-                np.amax(x, axis=None, keepdims=True),
-            )
+        self.assertAllClose(
+            knp.amax(x, axis=None, keepdims=True),
+            np.amax(x, axis=None, keepdims=True),
+        )
 
         self.assertAllClose(knp.Amax()(x), np.amax(x))
         self.assertAllClose(knp.Amax(axis=1)(x), np.amax(x, axis=1))
@@ -5556,16 +5574,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.amin(x, axis=1, keepdims=True),
             np.amin(x, axis=1, keepdims=True),
         )
-        if backend.backend() != "openvino":
-            # TODO(#23536): openvino flattens instead of preserving the rank.
-            # `assertAllClose` broadcasts, so assert the shape explicitly.
-            self.assertEqual(
-                tuple(knp.amin(x, axis=None, keepdims=True).shape), (1, 1)
-            )
-            self.assertAllClose(
-                knp.amin(x, axis=None, keepdims=True),
-                np.amin(x, axis=None, keepdims=True),
-            )
+        self.assertAllClose(
+            knp.amin(x, axis=None, keepdims=True),
+            np.amin(x, axis=None, keepdims=True),
+        )
 
         self.assertAllClose(knp.Amin()(x), np.amin(x))
         self.assertAllClose(knp.Amin(axis=1)(x), np.amin(x, axis=1))
@@ -5757,8 +5769,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.array(x), np.array(x))
         self.assertAllClose(knp.Array()(x), np.array(x))
-        self.assertTrue(backend.is_tensor(knp.array(x)))
-        self.assertTrue(backend.is_tensor(knp.Array()(x)))
+        self.assertTrue(backend.ops.is_tensor(knp.array(x)))
+        self.assertTrue(backend.ops.is_tensor(knp.Array()(x)))
 
         # Check dtype conversion.
         x = [[1, 0, 1], [1, 1, 0]]
@@ -6116,8 +6128,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             x = jax_sparse.BCOO(([1.0, 2.0], [[0, 0], [1, 2]]), shape=(2, 3))
             y = jax_sparse.BCOO(([4.0, 5.0], [[0, 0], [1, 1]]), shape=(2, 3))
 
-        x_np = backend.convert_to_numpy(x)
-        y_np = backend.convert_to_numpy(y)
+        x_np = backend.ops.convert_to_numpy(x)
+        y_np = backend.ops.convert_to_numpy(y)
         z = np.random.rand(2, 3).astype("float32")
 
         self.assertAllClose(
@@ -6203,7 +6215,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             self.assertAllClose(knp.cov(x), np.cov(x))
             self.assertAllClose(knp.cov(x[None, :]), np.cov(x[None, :]))
 
-            self.assertTrue(np.isnan(backend.convert_to_numpy(knp.cov(3.0))))
+            self.assertTrue(
+                np.isnan(backend.ops.convert_to_numpy(knp.cov(3.0)))
+            )
 
             with self.assertRaises(ValueError):
                 knp.cov(np.ones((2, 3, 4)))
@@ -6885,7 +6899,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         # actual backend tensor so the per-backend `pad` implementation is
         # exercised (`tf.pad` / `torch...pad` require a full `[rank, 2]` spec).
         x = np.ones([4, 5, 6], dtype=dtype)
-        x_tensor = backend.convert_to_tensor(x)
+        x_tensor = backend.ops.convert_to_tensor(x)
         for pad_width in (0, 1, (1,), (1, 2), ((1, 2),)):
             self.assertAllClose(
                 knp.pad(
@@ -6907,16 +6921,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.prod(x, axis=1, keepdims=True),
             np.prod(x, axis=1, keepdims=True),
         )
-        if backend.backend() != "openvino":
-            # TODO(#23536): openvino flattens instead of preserving the rank.
-            # `assertAllClose` broadcasts, so assert the shape explicitly.
-            self.assertEqual(
-                tuple(knp.prod(x, axis=None, keepdims=True).shape), (1, 1)
-            )
-            self.assertAllClose(
-                knp.prod(x, axis=None, keepdims=True),
-                np.prod(x, axis=None, keepdims=True),
-            )
+        self.assertAllClose(
+            knp.prod(x, axis=None, keepdims=True),
+            np.prod(x, axis=None, keepdims=True),
+        )
 
         # Multi-axis test
         x = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
@@ -6946,6 +6954,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.ptp(x, axis=1, keepdims=True),
             np.ptp(x, axis=1, keepdims=True),
+        )
+
+        self.assertAllClose(
+            knp.ptp(x, axis=None, keepdims=True),
+            np.ptp(x, axis=None, keepdims=True),
         )
 
         self.assertAllClose(knp.Ptp()(x), np.ptp(x))
@@ -7032,7 +7045,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.reshape(x, -1), np.reshape(x, -1))
         self.assertAllClose(knp.Reshape(6)(x), np.reshape(x, 6))
         self.assertAllClose(
-            backend.numpy.reshape(backend.convert_to_tensor(x), -1),
+            backend.ops.numpy.reshape(backend.ops.convert_to_tensor(x), -1),
             np.reshape(x, -1),
         )
 
@@ -7364,40 +7377,45 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         finally:
             backend.config._set_use_backend_agnostic_ops(False)
 
-    def test_dsplit(self):
-        x = np.arange(24).reshape((2, 2, 6))
-        self.assertIsInstance(knp.dsplit(x, 3), list)
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_dsplit(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = np.arange(24).reshape((2, 2, 6))
+            self.assertIsInstance(knp.dsplit(x, 3), list)
 
-        for split_knp, split_np in zip(knp.dsplit(x, 3), np.dsplit(x, 3)):
-            self.assertAllClose(split_knp, split_np)
+            for split_knp, split_np in zip(knp.dsplit(x, 3), np.dsplit(x, 3)):
+                self.assertAllClose(split_knp, split_np)
 
-        for split_knp, split_np in zip(knp.Dsplit(3)(x), np.dsplit(x, 3)):
-            self.assertAllClose(split_knp, split_np)
+            for split_knp, split_np in zip(knp.Dsplit(3)(x), np.dsplit(x, 3)):
+                self.assertAllClose(split_knp, split_np)
 
-        indices = [1, 3, 5]
+            indices = [1, 3, 5]
 
-        # Compare each split
-        for split_knp, split_np in zip(
-            knp.dsplit(x, indices), np.dsplit(x, indices)
-        ):
-            self.assertAllClose(split_knp, split_np)
+            # Compare each split
+            for split_knp, split_np in zip(
+                knp.dsplit(x, indices), np.dsplit(x, indices)
+            ):
+                self.assertAllClose(split_knp, split_np)
 
-        for split_knp, split_np in zip(
-            knp.Dsplit(indices)(x), np.dsplit(x, indices)
-        ):
-            self.assertAllClose(split_knp, split_np)
+            for split_knp, split_np in zip(
+                knp.Dsplit(indices)(x), np.dsplit(x, indices)
+            ):
+                self.assertAllClose(split_knp, split_np)
 
-        with self.assertRaises(Exception):
-            knp.dsplit(x, 4)
+            with self.assertRaises(Exception):
+                knp.dsplit(x, 4)
 
-        x_kr = knp.array(x)
-        indices_kr = knp.array(indices)
-        indices_np = np.array(indices)
+            x_kr = knp.array(x)
+            indices_kr = knp.array(indices)
+            indices_np = np.array(indices)
 
-        for split_knp, split_np in zip(
-            knp.dsplit(x_kr, indices_kr), np.dsplit(x, indices_np)
-        ):
-            self.assertAllClose(split_knp, split_np)
+            for split_knp, split_np in zip(
+                knp.dsplit(x_kr, indices_kr), np.dsplit(x, indices_np)
+            ):
+                self.assertAllClose(split_knp, split_np)
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     def test_sqrt(self):
         x = np.array([[1, 4, 9], [16, 25, 36]], dtype="float32")
@@ -7434,6 +7452,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.std(x, axis=1, keepdims=True),
             np.std(x, axis=1, keepdims=True),
+        )
+
+        self.assertAllClose(
+            knp.std(x, axis=None, keepdims=True),
+            np.std(x, axis=None, keepdims=True),
         )
 
         self.assertAllClose(knp.Std()(x), np.std(x))
@@ -8240,7 +8263,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.argpartition(x, 2), np.argpartition(x, 2))
         self.assertAllClose(knp.Argpartition(2)(x), np.argpartition(x, 2))
 
-        result = backend.convert_to_numpy(knp.argpartition(x, 2, axis=None))
+        result = backend.ops.convert_to_numpy(knp.argpartition(x, 2, axis=None))
         flat_x = x.flatten()
         kth_value = np.sort(flat_x)[2]
         self.assertTrue(np.all(flat_x[result[:2]] <= kth_value))
@@ -8250,7 +8273,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.argpartition(x, 1), np.argpartition(x, 1))
         self.assertAllClose(knp.Argpartition(1)(x), np.argpartition(x, 1))
 
-        result = backend.convert_to_numpy(knp.argpartition(x, 1, axis=None))
+        result = backend.ops.convert_to_numpy(knp.argpartition(x, 1, axis=None))
         flat_x = x.flatten()
         kth_value = np.sort(flat_x)[1]
         self.assertTrue(np.all(flat_x[result[:1]] <= kth_value))
@@ -8260,7 +8283,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.argpartition(x, 1), np.argpartition(x, 1))
         self.assertAllClose(knp.Argpartition(1)(x), np.argpartition(x, 1))
 
-        result = backend.convert_to_numpy(knp.argpartition(x, 1, axis=None))
+        result = backend.ops.convert_to_numpy(knp.argpartition(x, 1, axis=None))
         flat_x = x.flatten()
         kth_value = np.sort(flat_x)[1]
         self.assertTrue(np.all(flat_x[result[:1]] <= kth_value))
@@ -8332,7 +8355,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
         self.assertEqual(ops.shape(v)[0], 4)
 
-        v_np = backend.convert_to_numpy(v)
+        v_np = backend.ops.convert_to_numpy(v)
         nan_count = np.isnan(v_np).sum()
         self.assertEqual(nan_count, 2)
 
@@ -8350,7 +8373,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([3, 1, 2])
         res = knp.unique(x, sorted=False)
         # Convert to numpy and sort to verify the content
-        self.assertAllClose(np.sort(backend.convert_to_numpy(res)), [1, 2, 3])
+        self.assertAllClose(
+            np.sort(backend.ops.convert_to_numpy(res)), [1, 2, 3]
+        )
 
         # test_unique_negative_axis
         x = np.array([[1, 0, 1], [0, 1, 0]])
@@ -8617,14 +8642,14 @@ def create_indexed_slices(x, indices_from=None, start=0, delta=2):
 def get_sparseness_combinations(dense_to_sparse_fn):
     x = np.array([[1, 2, 3], [3, 2, 1]])
     y = np.array([[4, 5, 6], [3, 2, 1]])
-    scalar = backend.convert_to_tensor(2)
+    scalar = backend.ops.convert_to_tensor(2)
     x_sp = dense_to_sparse_fn(x)
     y_sp = dense_to_sparse_fn(y, indices_from=x_sp)
     x_sp_sup = dense_to_sparse_fn(x, start=0, delta=1)
     y_sp_dis = dense_to_sparse_fn(y, start=1)
     y_sp_sup = dense_to_sparse_fn(y, start=0, delta=1)
-    x = backend.convert_to_tensor(x)
-    y = backend.convert_to_tensor(y)
+    x = backend.ops.convert_to_tensor(x)
+    y = backend.ops.convert_to_tensor(y)
     return [
         {"testcase_name": "sparse_dense", "x": x_sp, "y": y},
         {"testcase_name": "dense_sparse", "x": x, "y": y_sp},
@@ -8898,7 +8923,7 @@ class SparseTest(testing.TestCase):
     ):
         x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
         x = create_sparse_tensor(x)
-        x_np = backend.convert_to_numpy(x)
+        x_np = backend.ops.convert_to_numpy(x)
 
         self.assertAllClose(op_function(x), np_op(x_np))
         self.assertAllClose(op_class()(x), np_op(x_np))
@@ -8909,7 +8934,7 @@ class SparseTest(testing.TestCase):
     ):
         x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
         x = create_indexed_slices(x)
-        x_np = backend.convert_to_numpy(x)
+        x_np = backend.ops.convert_to_numpy(x)
 
         self.assertAllClose(op_function(x), np_op(x_np))
         self.assertAllClose(op_class()(x), np_op(x_np))
@@ -8923,7 +8948,7 @@ class SparseTest(testing.TestCase):
         else:
             x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
         x = create_sparse_tensor(x)
-        x_np = backend.convert_to_numpy(x)
+        x_np = backend.ops.convert_to_numpy(x)
 
         self.assertAllClose(op_function(x), np_op(x_np))
         self.assertSameSparseness(op_function(x), x)
@@ -8939,7 +8964,7 @@ class SparseTest(testing.TestCase):
         else:
             x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
         x = create_indexed_slices(x)
-        x_np = backend.convert_to_numpy(x)
+        x_np = backend.ops.convert_to_numpy(x)
 
         self.assertAllClose(op_function(x), np_op(x_np))
         self.assertSameSparseness(op_function(x), x)
@@ -8955,7 +8980,7 @@ class SparseTest(testing.TestCase):
             x = create_indexed_slices(x)
         else:
             x = create_sparse_tensor(x)
-        x_np = backend.convert_to_numpy(x)
+        x_np = backend.ops.convert_to_numpy(x)
 
         # `newshape` was renamed `shape` in Numpy.
         np_init_kwargs = init_kwargs.copy()
@@ -9020,10 +9045,10 @@ class SparseTest(testing.TestCase):
     def test_binary_correctness_sparse_tensor(
         self, x, y, op_function, op_class, np_op, op_sparseness, dtype
     ):
-        x = backend.cast(x, dtype)
-        y = backend.cast(y, dtype)
+        x = backend.ops.cast(x, dtype)
+        y = backend.ops.cast(y, dtype)
         expected_result = np_op(
-            backend.convert_to_numpy(x), backend.convert_to_numpy(y)
+            backend.ops.convert_to_numpy(x), backend.ops.convert_to_numpy(y)
         )
 
         self.assertAllClose(op_function(x, y), expected_result)
@@ -9041,10 +9066,10 @@ class SparseTest(testing.TestCase):
     def test_binary_correctness_indexed_slices(
         self, x, y, op_function, op_class, np_op, op_sparseness, dtype
     ):
-        x = backend.cast(x, dtype)
-        y = backend.cast(y, dtype)
+        x = backend.ops.cast(x, dtype)
+        y = backend.ops.cast(y, dtype)
         expected_result = np_op(
-            backend.convert_to_numpy(x), backend.convert_to_numpy(y)
+            backend.ops.convert_to_numpy(x), backend.ops.convert_to_numpy(y)
         )
 
         self.assertAllClose(op_function(x, y), expected_result)
@@ -9059,7 +9084,7 @@ class SparseTest(testing.TestCase):
         )
     )
     def test_divide_with_zeros_nans(self, sparse_type, dtype):
-        x = backend.convert_to_tensor([[0, 2, 3], [3, 2, 1]], dtype=dtype)
+        x = backend.ops.convert_to_tensor([[0, 2, 3], [3, 2, 1]], dtype=dtype)
         if sparse_type == "indexed_slices":
             x = create_indexed_slices(x, start=0, delta=2)
         else:
@@ -9068,9 +9093,9 @@ class SparseTest(testing.TestCase):
             y = [[0, 0, 3], [0, 0, 1]]
         else:
             y = [[np.nan, np.nan, 3], [0, 0, 1]]
-        y = backend.convert_to_tensor(y, dtype=dtype)
+        y = backend.ops.convert_to_tensor(y, dtype=dtype)
         expected_result = np.divide(
-            backend.convert_to_numpy(x), backend.convert_to_numpy(y)
+            backend.ops.convert_to_numpy(x), backend.ops.convert_to_numpy(y)
         )
 
         self.assertAllClose(knp.divide(x, y), expected_result)
@@ -12654,23 +12679,29 @@ class NumpyDtypeTest(testing.TestCase):
         finally:
             backend.config._set_use_backend_agnostic_ops(False)
 
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_dsplit(self, dtype):
+    @parameterized.named_parameters(
+        named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
+    )
+    def test_dsplit(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        x = knp.ones((1, 1, 2), dtype=dtype)
-        x_jax = jnp.ones((1, 1, 2), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.dsplit(x_jax, [1])[0].dtype)
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = knp.ones((1, 1, 2), dtype=dtype)
+            x_jax = jnp.ones((1, 1, 2), dtype=dtype)
+            expected_dtype = standardize_dtype(jnp.dsplit(x_jax, [1])[0].dtype)
 
-        self.assertEqual(
-            standardize_dtype(knp.dsplit(x, [1])[0].dtype),
-            expected_dtype,
-        )
+            self.assertEqual(
+                standardize_dtype(knp.dsplit(x, [1])[0].dtype),
+                expected_dtype,
+            )
 
-        self.assertEqual(
-            standardize_dtype(knp.Dsplit([1]).symbolic_call(x)[0].dtype),
-            expected_dtype,
-        )
+            self.assertEqual(
+                standardize_dtype(knp.Dsplit([1]).symbolic_call(x)[0].dtype),
+                expected_dtype,
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_sqrt(self, dtype):

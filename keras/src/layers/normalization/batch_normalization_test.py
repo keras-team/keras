@@ -94,21 +94,33 @@ class BatchNormalizationTest(testing.TestCase):
         # Assert the normalization is correct.
         broadcast_shape = [1] * len(input_shape)
         broadcast_shape[axis] = input_shape[axis]
-        out = backend.convert_to_numpy(out)
+        out = backend.ops.convert_to_numpy(out)
         out = out - np.reshape(
-            backend.convert_to_numpy(layer.beta), broadcast_shape
+            backend.ops.convert_to_numpy(layer.beta), broadcast_shape
         )
         out = out / np.reshape(
-            backend.convert_to_numpy(layer.gamma), broadcast_shape
+            backend.ops.convert_to_numpy(layer.gamma), broadcast_shape
         )
 
         reduction_axes = list(range(len(input_shape)))
         del reduction_axes[axis]
         reduction_axes = tuple(reduction_axes)
-        self.assertAllClose(np.mean(out, axis=reduction_axes), 0.0, atol=1e-3)
-        self.assertAllClose(np.std(out, axis=reduction_axes), 1.0, atol=1e-3)
-        self.assertAllClose(layer.moving_mean, 0.0, atol=1e-3)
-        self.assertAllClose(layer.moving_variance, 1.0, atol=1e-3)
+        self.assertAllClose(
+            np.mean(out, axis=reduction_axes),
+            np.zeros((input_shape[axis],)),
+            atol=1e-3,
+        )
+        self.assertAllClose(
+            np.std(out, axis=reduction_axes),
+            np.ones((input_shape[axis],)),
+            atol=1e-3,
+        )
+        self.assertAllClose(
+            layer.moving_mean, np.zeros((input_shape[axis],)), atol=1e-3
+        )
+        self.assertAllClose(
+            layer.moving_variance, np.ones((input_shape[axis],)), atol=1e-3
+        )
 
         # Inference done before training shouldn't match.
         inference_out = layer(x, training=False)
@@ -202,16 +214,20 @@ class BatchNormalizationTest(testing.TestCase):
         for _ in range(10):
             out = layer(x, training=True)
 
-        out = backend.convert_to_numpy(out)
+        out = backend.ops.convert_to_numpy(out)
         out = out - np.reshape(
-            backend.convert_to_numpy(layer.beta), (1, 1, 1, 3)
+            backend.ops.convert_to_numpy(layer.beta), (1, 1, 1, 3)
         )
         out = out / np.reshape(
-            backend.convert_to_numpy(layer.gamma), (1, 1, 1, 3)
+            backend.ops.convert_to_numpy(layer.gamma), (1, 1, 1, 3)
         )
 
-        self.assertAllClose(np.mean(out, axis=(0, 1, 2)), 0.0, atol=1e-3)
-        self.assertAllClose(np.std(out, axis=(0, 1, 2)), 1.0, atol=1e-3)
+        self.assertAllClose(
+            np.mean(out, axis=(0, 1, 2)), np.zeros((3,)), atol=1e-3
+        )
+        self.assertAllClose(
+            np.std(out, axis=(0, 1, 2)), np.ones((3,)), atol=1e-3
+        )
 
     def test_large_value_within_autocast_scope(self):
         layer = layers.BatchNormalization()

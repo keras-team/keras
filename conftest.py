@@ -47,17 +47,17 @@ def pytest_configure(config):
 def pytest_collection_modifyitems(config, items):
     has_multiple_devices = False
 
-    openvino_skipped_tests = []
+    openvino_skipped_tests = set()
     if backend() == "openvino":
         with open(
             "keras/src/backend/openvino/excluded_concrete_tests.txt", "r"
         ) as file:
-            openvino_skipped_tests = file.readlines()
-            # it is necessary to check if stripped line is not empty
-            # and exclude such lines
-            openvino_skipped_tests = [
-                line.strip() for line in openvino_skipped_tests if line.strip()
-            ]
+            # Exclude empty lines and comments.
+            openvino_skipped_tests = {
+                stripped
+                for line in file.readlines()
+                if (stripped := line.strip()) and not stripped.startswith("#")
+            }
 
     if backend() == "jax":
         import jax
@@ -93,14 +93,13 @@ def pytest_collection_modifyitems(config, items):
         # also, skip concrete tests for openvino, listed in the special file
         # this is more granular mechanism to exclude tests rather
         # than using --ignore option
-        for skipped_test in openvino_skipped_tests:
-            if skipped_test in item.nodeid:
-                item.add_marker(
-                    skip_if_backend(
-                        "openvino",
-                        "Not supported operation by openvino backend",
-                    )
+        if item.nodeid in openvino_skipped_tests:
+            item.add_marker(
+                skip_if_backend(
+                    "openvino",
+                    "Not supported operation by openvino backend",
                 )
+            )
 
 
 def skip_if_backend(given_backend, reason):

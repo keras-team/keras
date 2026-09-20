@@ -18,7 +18,7 @@ class MeanSquaredErrorTest(testing.TestCase):
         y_true = np.array([4, 8, 12])
         y_pred = np.array([[3], [0], [1]])
         loss = mse_fn(y_true, y_pred)
-        self.assertEqual(backend.shape(loss), (3,))
+        self.assertEqual(backend.ops.shape(loss), (3,))
 
     def test_all_correct_unweighted(self):
         mse_obj = losses.MeanSquaredError()
@@ -708,6 +708,16 @@ class HuberLossTest(testing.TestCase):
             sample_weight * np.sum(self.expected_losses) / self.batch_size
         )
         self.assertAlmostEqual(loss, actual_loss, 3)
+
+    def test_invalid_delta(self):
+        with self.assertRaisesRegex(ValueError, "greater than 0"):
+            losses.Huber(delta=0)
+        with self.assertRaisesRegex(ValueError, "greater than 0"):
+            losses.Huber(delta=-1.0)
+        with self.assertRaisesRegex(ValueError, "Expected a float"):
+            losses.Huber(delta=1)
+        with self.assertRaisesRegex(ValueError, "Expected a float"):
+            losses.Huber(delta=np.float32(1.0))
 
     def test_dtype_arg(self):
         self.setup()

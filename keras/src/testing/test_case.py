@@ -41,8 +41,8 @@ class TestCase(parameterized.TestCase):
     def convert_to_numpy(self, x):
         if isinstance(x, np.ndarray):
             return x
-        elif backend.is_tensor(x) or isinstance(x, backend.Variable):
-            return backend.convert_to_numpy(x)
+        elif backend.ops.is_tensor(x) or isinstance(x, backend.Variable):
+            return backend.ops.convert_to_numpy(x)
         return np.array(x)
 
     def assertAllClose(
@@ -66,6 +66,10 @@ class TestCase(parameterized.TestCase):
             rtol = tpu_rtol
         actual = self.convert_to_numpy(actual)
         desired = self.convert_to_numpy(desired)
+        shape_msg = (
+            f"Shapes don't match. {msg}" if msg else "Shapes don't match"
+        )
+        self.assertEqual(actual.shape, desired.shape, shape_msg)
         np.testing.assert_allclose(
             actual, desired, atol=atol, rtol=rtol, err_msg=msg or ""
         )
@@ -93,6 +97,10 @@ class TestCase(parameterized.TestCase):
         msg = msg or ""
         actual = self.convert_to_numpy(actual)
         desired = self.convert_to_numpy(desired)
+        shape_msg = (
+            f"Shapes don't match. {msg}" if msg else "Shapes don't match"
+        )
+        self.assertEqual(actual.shape, desired.shape, shape_msg)
         np.testing.assert_almost_equal(
             actual, desired, decimal=decimal, err_msg=msg or ""
         )
@@ -105,6 +113,10 @@ class TestCase(parameterized.TestCase):
         """
         actual = self.convert_to_numpy(actual)
         desired = self.convert_to_numpy(desired)
+        shape_msg = (
+            f"Shapes don't match. {msg}" if msg else "Shapes don't match"
+        )
+        self.assertEqual(actual.shape, desired.shape, shape_msg)
         np.testing.assert_array_equal(actual, desired, err_msg=msg or "")
 
     def assertLen(self, iterable, expected_len, msg=None):
@@ -480,7 +492,7 @@ class TestCase(parameterized.TestCase):
 
             data = (input_data, output_data)
             if backend.backend() == "torch":
-                data = tree.map_structure(backend.convert_to_numpy, data)
+                data = tree.map_structure(backend.ops.convert_to_numpy, data)
 
             def data_generator():
                 while True:
@@ -660,7 +672,7 @@ def _tensorflow_uses(device_type):
 
 def _torch_uses(device_type):
     if device_type == "gpu":
-        from keras.src.backend.torch.core import get_device
+        from keras.src.backend.torch.ops.core import get_device
 
         return get_device() == "cuda"
     return device_type == "cpu"

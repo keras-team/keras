@@ -956,8 +956,7 @@ class Layer(BackendLayer, Operation):
 
         ################
         # 4. Call build
-        with self._open_name_scope():
-            self._maybe_build(call_spec)
+        self._maybe_build(call_spec)
 
         ##########################
         # 5. Infer training value
@@ -1051,7 +1050,7 @@ class Layer(BackendLayer, Operation):
                 # Record activity regularizer loss.
                 if self.activity_regularizer is not None:
                     for output in tree.flatten(outputs):
-                        if backend.is_tensor(output):
+                        if backend.ops.is_tensor(output):
                             loss = self.activity_regularizer(output)
                             if output.ndim > 0:
                                 # Normalize by batch size to ensure consistent
@@ -1321,7 +1320,7 @@ class Layer(BackendLayer, Operation):
         # Eager only.
         losses = tree.flatten(loss)
         for x in losses:
-            if not backend.is_tensor(x):
+            if not backend.ops.is_tensor(x):
                 raise ValueError(
                     "`add_loss()` can only be called from inside `build()` or "
                     f"`call()`, on a tensor input. Received invalid value: {x}"
@@ -1687,6 +1686,10 @@ class Layer(BackendLayer, Operation):
         if self.built:
             return
 
+        with self._open_name_scope():
+            self._build_from_call_spec(call_spec)
+
+    def _build_from_call_spec(self, call_spec):
         shapes_dict = get_shapes_dict(call_spec)
         first_shape = next(iter(shapes_dict.values()), None)
 
@@ -2013,7 +2016,7 @@ class Layer(BackendLayer, Operation):
 def is_backend_tensor_or_symbolic(x, allow_none=False):
     if allow_none and x is None:
         return True
-    return backend.is_tensor(x) or isinstance(x, backend.KerasTensor)
+    return backend.ops.is_tensor(x) or isinstance(x, backend.KerasTensor)
 
 
 class CallSpec:
@@ -2070,7 +2073,8 @@ class CallSpec:
         self.nested_tensor_argument_names = nested_tensor_arg_names
         self.first_arg = arg_dict[arg_names[0]]
         if all(
-            backend.is_tensor(x) for x in self.tensor_arguments_dict.values()
+            backend.ops.is_tensor(x)
+            for x in self.tensor_arguments_dict.values()
         ):
             self.eager = True
         else:
