@@ -2154,9 +2154,13 @@ class LayerTest(testing.TestCase):
         dense, relu = layers.Dense(4), layers.ReLU()
         dense(x), relu(x)
         original_bind, bind_calls = inspect.Signature.bind, []
+        # Only count binds of the layers' own `call` signatures: backends may
+        # bind unrelated signatures internally (e.g. `jax.nn.relu`).
+        watched = {id(dense._call_signature), id(relu._call_signature)}
 
         def counting_bind(signature, *args, **kwargs):
-            bind_calls.append(args)
+            if id(signature) in watched:
+                bind_calls.append(args)
             return original_bind(signature, *args, **kwargs)
 
         with mock.patch.object(inspect.Signature, "bind", counting_bind):
