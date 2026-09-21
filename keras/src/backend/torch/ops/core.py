@@ -413,10 +413,7 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
             dtype = "bfloat16"
         if dtype is None:
             x_dtype = standardize_dtype(x.dtype)
-            if (
-                x_dtype in MPS_UNSUPPORTED_DTYPES
-                and "mps" in str(get_device())
-            ):
+            if x_dtype in MPS_UNSUPPORTED_DTYPES and "mps" in str(get_device()):
                 warnings.warn(
                     f"`{x_dtype}` is not supported on MPS; "
                     f"downcasting to `{MPS_UNSUPPORTED_DTYPES[x_dtype]}`."
