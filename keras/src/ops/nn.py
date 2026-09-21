@@ -2675,7 +2675,11 @@ class Normalize(Operation):
     def compute_output_spec(self, x):
         if self.axis is not None:
             canonicalize_axes(self.axis, len(x.shape))
-        return KerasTensor(shape=x.shape)
+        if backend.is_float_dtype(x.dtype):
+            dtype = x.dtype
+        else:
+            dtype = backend.result_type(x.dtype, backend.floatx())
+        return KerasTensor(shape=x.shape, dtype=dtype)
 
     def call(self, x):
         return _normalize(
@@ -2732,25 +2736,33 @@ def _normalize(x, axis=-1, order=2, epsilon=None):
         x = backend.numpy.expand_dims(x, axis=0)
     if epsilon is None:
         epsilon = backend.epsilon()
+    original_dtype = backend.standardize_dtype(x.dtype)
+    if backend.is_float_dtype(original_dtype):
+        output_dtype = original_dtype
+    else:
+        output_dtype = backend.result_type(original_dtype, backend.floatx())
+    # Compute half-precision inputs in float32 so the norm and its gradient
+    # do not lose range or precision (see #23546).
+    compute_dtype = (
+        "float32" if output_dtype in ("float16", "bfloat16") else output_dtype
+    )
+    x = backend.cast(x, compute_dtype)
     if 2 == order:
         # A special case: L2 normalization with `x * rsqrt(...)`
         # instead of `x / sqrt(...)`. Clamp the squared norm before the
-        # rsqrt so zero vectors get a finite gradient. Compute in at least
-        # float32 so half-precision inputs do not underflow `epsilon**2` or
-        # overflow the rsqrt derivative (see #23546).
-        original_dtype = backend.standardize_dtype(x.dtype)
-        compute_dtype = backend.result_type(x.dtype, "float32")
-        x = backend.cast(x, compute_dtype)
+        # rsqrt so zero vectors get a finite gradient.
         square_sum = backend.numpy.sum(
             backend.numpy.square(x), axis=axis, keepdims=True
         )
         inv_norm = backend.math.rsqrt(
             backend.numpy.maximum(square_sum, epsilon * epsilon)
         )
-        return backend.cast(x * inv_norm, original_dtype)
-    norm = backend.linalg.norm(x, ord=order, axis=axis, keepdims=True)
-    denom = backend.numpy.maximum(norm, epsilon)
-    return backend.numpy.divide(x, denom)
+        outputs = x * inv_norm
+    else:
+        norm = backend.linalg.norm(x, ord=order, axis=axis, keepdims=True)
+        denom = backend.numpy.maximum(norm, epsilon)
+        outputs = backend.numpy.divide(x, denom)
+    return backend.cast(outputs, output_dtype)
 
 
 class PSNR(Operation):

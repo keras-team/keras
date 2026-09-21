@@ -2733,54 +2733,46 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertFalse(np.isnan(x_grad).any())
         self.assertAllClose(x_grad, expected_grad)
 
-    def test_normalize_l2_float16_gradients(self):
-        # Half-precision L2 normalize must keep finite gradients for ordinary
-        # magnitudes (see #23546). Without an upcast, rsqrt's derivative
-        # overflows float16 for inputs like 0.01.
-        x_np = np.full((4, 2), 0.01, dtype="float16")
+    @parameterized.product(order=[1, 2, 3], dtype=["float16", "bfloat16"])
+    def test_normalize_half_precision_gradients(self, order, dtype):
+        # Half-precision gradients must match float32 for ordinary magnitudes
+        # (see #23546). The weights make the loss depend on the direction of
+        # each row. Without them, `sum(normalize(x))` is constant for `order=1`
+        # with positive values and at its maximum for a row with equal values,
+        # so its gradient is exactly zero and the comparison would be vacuous.
+        if backend.backend() not in ("tensorflow", "jax", "torch"):
+            self.skipTest("Gradient test requires tensorflow, jax or torch.")
+        x_np = np.array([[0.001, 0.002], [0.003, 0.0005]], dtype="float32")
+        weights = np.array([[1.0, -2.0], [0.5, -3.0]], dtype="float32")
 
-        if backend.backend() == "tensorflow":
-            import tensorflow as tf
+        def loss_fn(x):
+            y = knn.normalize(x, axis=-1, order=order)
+            return ops.sum(ops.multiply(y, weights))
 
-            x = tf.Variable(x_np)
-            with tf.GradientTape() as tape:
-                y = knn.normalize(x, axis=-1, order=2)
-                loss = tf.reduce_sum(y)
-            x_grad = tape.gradient(loss, x)
+        def grad(x_dtype):
+            if backend.backend() == "tensorflow":
+                import tensorflow as tf
 
-            x32 = tf.Variable(x_np.astype("float32"))
-            with tf.GradientTape() as tape:
-                y32 = knn.normalize(x32, axis=-1, order=2)
-                loss32 = tf.reduce_sum(y32)
-            expected_grad = tape.gradient(loss32, x32)
-        elif backend.backend() == "jax":
-            import jax
-            import jax.numpy as jnp
+                x = tf.Variable(tf.cast(x_np, x_dtype))
+                with tf.GradientTape() as tape:
+                    loss = loss_fn(x)
+                return tape.gradient(loss, x)
+            if backend.backend() == "jax":
+                import jax
 
-            def f(x):
-                return jnp.sum(knn.normalize(x, axis=-1, order=2))
-
-            x_grad = jax.grad(f)(jnp.array(x_np))
-            expected_grad = jax.grad(f)(jnp.array(x_np.astype("float32")))
-        elif backend.backend() == "torch":
+                return jax.grad(loss_fn)(jax.numpy.array(x_np, dtype=x_dtype))
             import torch
 
-            x = torch.tensor(x_np, requires_grad=True)
-            y = knn.normalize(x, axis=-1, order=2)
-            y.sum().backward()
-            x_grad = x.grad
+            x = torch.tensor(
+                x_np, dtype=getattr(torch, x_dtype), requires_grad=True
+            )
+            loss_fn(x).backward()
+            return x.grad
 
-            x32 = torch.tensor(x_np.astype("float32"), requires_grad=True)
-            y32 = knn.normalize(x32, axis=-1, order=2)
-            y32.sum().backward()
-            expected_grad = x32.grad
-        else:
-            self.skipTest("Gradient test requires tensorflow, jax or torch.")
-
-        x_grad = ops.convert_to_numpy(x_grad)
-        expected_grad = ops.convert_to_numpy(expected_grad)
+        x_grad = ops.convert_to_numpy(grad(dtype)).astype("float32")
+        expected_grad = ops.convert_to_numpy(grad("float32"))
         self.assertTrue(np.isfinite(x_grad).all())
-        self.assertAllClose(x_grad.astype("float32"), expected_grad, atol=1e-3)
+        self.assertAllClose(x_grad, expected_grad, atol=1e-2, rtol=1e-2)
 
     def test_psnr(self):
         x1 = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
@@ -3562,6 +3554,21 @@ class NNOpsDtypeTest(testing.TestCase):
         )
         self.assertDType(
             knn.LayerNorm().symbolic_call(inputs, gamma, beta), expected_dtype
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtype=FLOAT_DTYPES + ["int32", "bool"], order=[1, 2])
+    )
+    def test_normalize(self, dtype, order):
+        x = knp.ones((2, 8), dtype=dtype)
+        if dtype in self.FLOAT_DTYPES:
+            expected_dtype = dtype
+        else:
+            expected_dtype = backend.result_type(dtype, backend.floatx())
+
+        self.assertDType(knn.normalize(x, order=order), expected_dtype)
+        self.assertDType(
+            knn.Normalize(order=order).symbolic_call(x), expected_dtype
         )
 
 
