@@ -417,31 +417,34 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
 
 class LinalgOpsCorrectnessTest(testing.TestCase):
     def test_cholesky(self):
-        rng = np.random.default_rng(0)
         if backend.backend() != "openvino":
             # OpenVINO builds a lazy graph and cannot raise on non-PSD inputs
             # at graph-construction time; sqrt of a negative produces
             # NaN silently at inference. There is no check_numerics equivalent
             # in opset15 that can interrupt execution and surface a Python
             # exception.
-            x_non_psd = rng.random((4, 3, 3), dtype="float32") - 10.0 * np.eye(
-                3, dtype="float32"
-            )
+            # Shift the diagonal negative: without it the four uniform
+            # matrices are occasionally all positive definite, and
+            # assertRaises then fails intermittently.
+            x_non_psd = np.random.rand(4, 3, 3).astype("float32")
+            x_non_psd -= 10.0 * np.eye(3, dtype="float32")
             with self.assertRaises(ValueError):
                 linalg.cholesky(x_non_psd)
 
-        x = rng.random((4, 3, 3), dtype="float32")
-        x_psd = np.matmul(x, x.transpose((0, 2, 1))) + 1e-5 * np.eye(
+        x = np.random.rand(4, 3, 3).astype("float32")
+        # 0.1 keeps the matrix well conditioned; at 1e-5 the smallest pivot
+        # could reach ~3e-3 and float32 rounding then exceeded atol.
+        x_psd = np.matmul(x, x.transpose((0, 2, 1))) + 0.1 * np.eye(
             3, dtype="float32"
         )
 
         l_out = linalg.cholesky(x_psd, upper=False)
         l_expected = np.linalg.cholesky(x_psd)
-        self.assertAllClose(l_out, l_expected, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(l_out, l_expected, atol=1e-4)
 
         u_out = linalg.cholesky(x_psd, upper=True)
         u_expected = l_expected.transpose((0, 2, 1))
-        self.assertAllClose(u_out, u_expected, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(u_out, u_expected, atol=1e-4)
 
     @parameterized.named_parameters(
         {"testcase_name": "lower", "upper": False},
