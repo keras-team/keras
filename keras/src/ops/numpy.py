@@ -464,7 +464,7 @@ def _angle(x):
         backend.ops.numpy, "angle"
     ):
         return backend.ops.numpy.angle(x)
-    x = backend.ops.convert_to_tensor(x)
+    x = backend.convert_to_tensor(x)
     dtype = backend.standardize_dtype(x.dtype)
     if dtype in dtypes.COMPLEX_TYPES:
         x_imag = ops.imag(x)
