@@ -352,10 +352,21 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         device = get_device()
         if x.is_meta:
             x = torch.empty_like(x, device=device)
+            if dtype is not None:
+                x = x.to(to_torch_dtype(dtype))
+        elif dtype is None:
+            x_dtype = standardize_dtype(x.dtype)
+            fallback_dtype = MPS_UNSUPPORTED_DTYPES.get(x_dtype)
+            if fallback_dtype is not None and "mps" in str(device):
+                warnings.warn(
+                    f"`{x_dtype}` is not supported on MPS; "
+                    f"downcasting to `{fallback_dtype}`."
+                )
+                x = x.to(device=device, dtype=to_torch_dtype(fallback_dtype))
+            else:
+                x = x.to(device)
         else:
-            x = x.to(device)
-        if dtype is not None:
-            x = x.to(to_torch_dtype(dtype))
+            x = x.to(device=device, dtype=to_torch_dtype(dtype))
         return x
     if isinstance(x, (bool, int, float, complex)):
         if dtype is not None:
@@ -400,13 +411,17 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
             # Torch backend does not support converting bfloat16 ndarray.
             x = x.astype(np.float32)
             dtype = "bfloat16"
-        x_dtype = standardize_dtype(x.dtype)
-        if x_dtype in MPS_UNSUPPORTED_DTYPES and "mps" in str(get_device()):
-            warnings.warn(
-                f"`{x_dtype}` is not supported on MPS; "
-                f"downcasting to `{MPS_UNSUPPORTED_DTYPES[x_dtype]}`."
-            )
-            x = x.astype(MPS_UNSUPPORTED_DTYPES[x_dtype])
+        if dtype is None:
+            x_dtype = standardize_dtype(x.dtype)
+            if (
+                x_dtype in MPS_UNSUPPORTED_DTYPES
+                and "mps" in str(get_device())
+            ):
+                warnings.warn(
+                    f"`{x_dtype}` is not supported on MPS; "
+                    f"downcasting to `{MPS_UNSUPPORTED_DTYPES[x_dtype]}`."
+                )
+                x = x.astype(MPS_UNSUPPORTED_DTYPES[x_dtype])
         dtype = dtype or x.dtype
     if dtype is None:
         dtype = result_type(
