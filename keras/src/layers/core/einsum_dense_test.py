@@ -2205,9 +2205,13 @@ class EinsumDenseLoRAEquationsTest(testing.TestCase):
             )
             return ops.convert_to_numpy(layer(x)) - ops.convert_to_numpy(before)
 
+        # TPU matmuls run at bfloat16 precision by default, which moves the
+        # two paths apart by up to about 5e-3.
         self.assertAllClose(
             lora_delta(quantize=True),
             lora_delta(quantize=False),
             atol=1e-5,
             rtol=1e-5,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )

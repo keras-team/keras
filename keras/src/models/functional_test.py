@@ -314,18 +314,26 @@ class FunctionalTest(testing.TestCase):
         inputs = layers.Input((20,))
         outputs = CustomLayer()(inputs)
         model = Functional(inputs=inputs, outputs=outputs)
-        self.assertAllClose(model(np.ones((4, 20))), 1.0)
-        self.assertAllClose(model(np.ones((4, 20)), training=False), 1.0)
-        self.assertAllClose(model(np.ones((4, 20)), training=True), 0.0)
+        self.assertAllClose(model(np.ones((4, 20))), np.ones((4, 20)))
+        self.assertAllClose(
+            model(np.ones((4, 20)), training=False), np.ones((4, 20))
+        )
+        self.assertAllClose(
+            model(np.ones((4, 20)), training=True), np.zeros((4, 20))
+        )
 
         inputs = layers.Input((20,))
         # This should hardcode `training=True` even if we pass
         # `training=False` to the model.
         outputs = CustomLayer()(inputs, training=True)
         model = Functional(inputs=inputs, outputs=outputs)
-        self.assertAllClose(model(np.ones((4, 20))), 0.0)
-        self.assertAllClose(model(np.ones((4, 20)), training=False), 0.0)
-        self.assertAllClose(model(np.ones((4, 20)), training=True), 0.0)
+        self.assertAllClose(model(np.ones((4, 20))), np.zeros((4, 20)))
+        self.assertAllClose(
+            model(np.ones((4, 20)), training=False), np.zeros((4, 20))
+        )
+        self.assertAllClose(
+            model(np.ones((4, 20)), training=True), np.zeros((4, 20))
+        )
 
     def test_mask_arg(self):
         # TODO

@@ -11,11 +11,11 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import testing
 from keras.src.distribution import distribution_lib
-from keras.src.trainers.data_adapters import data_adapter_test
+from keras.src.trainers.data_adapters import data_adapter_test_base
 from keras.src.trainers.data_adapters import tf_dataset_adapter
 
 
-class TestTFDatasetAdapter(data_adapter_test.DataAdapterTest):
+class TestTFDatasetAdapter(data_adapter_test_base.DataAdapterTest):
     def test_basic_flow(self):
         x = tf.random.normal((34, 4))
         y = tf.random.normal((34, 2))

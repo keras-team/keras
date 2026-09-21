@@ -1,3 +1,4 @@
+import functools
 import os
 from collections.abc import Callable
 
@@ -17,12 +18,12 @@ from keras.src.quantizers.gptq import _stable_permutation
 from keras.src.quantizers.gptq import gptq_quantize_matrix
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.gptq_core import find_layers_in_block
+from keras.src.quantizers.packing import unpack_int2
 from keras.src.quantizers.quantization_config import QuantizationConfig
-from keras.src.quantizers.quantizers import GPTQQuantizer
+from keras.src.quantizers.quantizers import compute_quantization_parameters
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
 from keras.src.quantizers.quantizers import quantize_with_zero_point
-from keras.src.quantizers.quantizers import unpack_int2
 from keras.src.testing.test_utils import named_product
 
 VOCAB_SIZE = 1000
@@ -75,6 +76,18 @@ def _get_test_layer(layer_type, kernel_shape):
     else:
         layer = layers.Layer()
     return layer
+
+
+def _scale_zero_fn(config, compute_dtype="float32"):
+    """The scale and zero rule `GPTQ` binds for a layer of `compute_dtype`."""
+    return functools.partial(
+        compute_quantization_parameters,
+        bits=config.weight_bits,
+        symmetric=config.symmetric,
+        per_channel=config.per_channel,
+        group_size=config.group_size,
+        compute_dtype=compute_dtype,
+    )
 
 
 @pytest.mark.requires_trainable_backend
@@ -499,7 +512,7 @@ class GPTQTest(testing.TestCase):
         config = GPTQConfig(
             dataset=None, tokenizer=None, weight_bits=4, group_size=-1
         )
-        quantizer = GPTQQuantizer(config)
+        compute_scale_zero = _scale_zero_fn(config)
 
         for bad_diagonal in (0.0, -1.0):
             hessian = np.eye(in_features, dtype=np.float32)
@@ -510,7 +523,7 @@ class GPTQTest(testing.TestCase):
                     ops.convert_to_tensor(hessian),
                     blocksize=2,
                     group_size=-1,
-                    compute_scale_zero=quantizer.find_params,
+                    compute_scale_zero=compute_scale_zero,
                 )
 
     def test_ill_conditioned_hessian_produces_finite_weights(self):
@@ -549,7 +562,7 @@ class GPTQTest(testing.TestCase):
         config = GPTQConfig(
             dataset=None, tokenizer=None, weight_bits=W_BITS, group_size=-1
         )
-        quantizer = GPTQQuantizer(config)
+        compute_scale_zero = _scale_zero_fn(config)
 
         # blocksize=2 puts the ill-conditioned feature at the start of the
         # second block, so the cross-block error propagation is covered too.
@@ -559,7 +572,7 @@ class GPTQTest(testing.TestCase):
                 ops.convert_to_tensor(hessian),
                 blocksize=blocksize,
                 group_size=-1,
-                compute_scale_zero=quantizer.find_params,
+                compute_scale_zero=compute_scale_zero,
             )
             for name, tensor in (
                 ("quantized", quantized),
@@ -763,7 +776,7 @@ class GPTQTest(testing.TestCase):
             hessian=hessian,
             blocksize=128,
             group_size=group_size,
-            compute_scale_zero=GPTQQuantizer(config).find_params,
+            compute_scale_zero=_scale_zero_fn(config),
         )
         self.assertEqual(tuple(scale.shape), (out_features, expected_groups))
         self.assertEqual(tuple(zero.shape), (out_features, expected_groups))

@@ -65,7 +65,7 @@ class RandomHue(BaseImagePreprocessingLayer):
             images = data["images"]
         else:
             images = data
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         rank = len(images_shape)
         if rank == 3:
             batch_size = 1
@@ -81,10 +81,10 @@ class RandomHue(BaseImagePreprocessingLayer):
             seed = self._get_seed_generator(self.backend._backend)
         invert = self.backend.random.uniform((batch_size,), seed=seed)
 
-        invert = self.backend.numpy.where(
+        invert = self.backend.ops.numpy.where(
             invert > 0.5,
-            -self.backend.numpy.ones_like(invert),
-            self.backend.numpy.ones_like(invert),
+            -self.backend.ops.numpy.ones_like(invert),
+            self.backend.ops.numpy.ones_like(invert),
         )
         factor = self.backend.random.uniform(
             (batch_size,),
@@ -96,47 +96,51 @@ class RandomHue(BaseImagePreprocessingLayer):
 
     def transform_images(self, images, transformation=None, training=True):
         def _apply_random_hue(images, transformation):
-            images = self.backend.cast(images, self.compute_dtype)
+            images = self.backend.ops.cast(images, self.compute_dtype)
             images = self._transform_value_range(
                 images, self.value_range, (0, 1)
             )
             adjust_factors = transformation["factor"]
-            adjust_factors = self.backend.cast(adjust_factors, images.dtype)
-            adjust_factors = self.backend.numpy.expand_dims(adjust_factors, -1)
-            adjust_factors = self.backend.numpy.expand_dims(adjust_factors, -1)
-            images = self.backend.image.rgb_to_hsv(
+            adjust_factors = self.backend.ops.cast(adjust_factors, images.dtype)
+            adjust_factors = self.backend.ops.numpy.expand_dims(
+                adjust_factors, -1
+            )
+            adjust_factors = self.backend.ops.numpy.expand_dims(
+                adjust_factors, -1
+            )
+            images = self.backend.ops.image.rgb_to_hsv(
                 images, data_format=self.data_format
             )
             if self.data_format == "channels_first":
                 h_channel = images[:, 0, :, :] + adjust_factors
-                h_channel = self.backend.numpy.where(
+                h_channel = self.backend.ops.numpy.where(
                     h_channel > 1.0, h_channel - 1.0, h_channel
                 )
-                h_channel = self.backend.numpy.where(
+                h_channel = self.backend.ops.numpy.where(
                     h_channel < 0.0, h_channel + 1.0, h_channel
                 )
-                images = self.backend.numpy.stack(
+                images = self.backend.ops.numpy.stack(
                     [h_channel, images[:, 1, :, :], images[:, 2, :, :]], axis=1
                 )
             else:
                 h_channel = images[..., 0] + adjust_factors
-                h_channel = self.backend.numpy.where(
+                h_channel = self.backend.ops.numpy.where(
                     h_channel > 1.0, h_channel - 1.0, h_channel
                 )
-                h_channel = self.backend.numpy.where(
+                h_channel = self.backend.ops.numpy.where(
                     h_channel < 0.0, h_channel + 1.0, h_channel
                 )
-                images = self.backend.numpy.stack(
+                images = self.backend.ops.numpy.stack(
                     [h_channel, images[..., 1], images[..., 2]], axis=-1
                 )
-            images = self.backend.image.hsv_to_rgb(
+            images = self.backend.ops.image.hsv_to_rgb(
                 images, data_format=self.data_format
             )
-            images = self.backend.numpy.clip(images, 0, 1)
+            images = self.backend.ops.numpy.clip(images, 0, 1)
             images = self._transform_value_range(
                 images, (0, 1), self.value_range
             )
-            images = self.backend.cast(images, self.compute_dtype)
+            images = self.backend.ops.cast(images, self.compute_dtype)
             return images
 
         if training:

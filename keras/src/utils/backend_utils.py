@@ -23,7 +23,7 @@ def in_tf_graph():
 
 def convert_tf_tensor(outputs, dtype=None):
     if backend_module.backend() != "tensorflow" and not in_tf_graph():
-        outputs = backend_module.convert_to_tensor(outputs, dtype=dtype)
+        outputs = backend_module.ops.convert_to_tensor(outputs, dtype=dtype)
     return outputs
 
 
@@ -99,24 +99,24 @@ class DynamicBackend:
     def __getattr__(self, name):
         if self._backend == "tensorflow":
             module = importlib.import_module("keras.src.backend.tensorflow")
-            return getattr(module, name)
         if self._backend == "jax":
             module = importlib.import_module("keras.src.backend.jax")
-            return getattr(module, name)
         if self._backend == "torch":
             module = importlib.import_module("keras.src.backend.torch")
-            return getattr(module, name)
         if self._backend == "numpy":
-            if backend_module.backend() == "numpy":
-                return getattr(backend_module, name)
-            else:
-                raise NotImplementedError(
-                    "Currently, we cannot dynamically import the numpy backend "
-                    "because it would disrupt the namespace of the import."
-                )
+            module = importlib.import_module("keras.src.backend.numpy")
         if self._backend == "openvino":
             module = importlib.import_module("keras.src.backend.openvino")
+        if hasattr(module, name):
             return getattr(module, name)
+        # Op implementations live in `keras.src.backend.<backend>.ops` and are
+        # no longer re-exported on the backend package itself.
+        module_ops = getattr(module, "ops", None)
+        if module_ops is not None and hasattr(module_ops, name):
+            return getattr(module_ops, name)
+        raise AttributeError(
+            f"Backend '{self._backend}' has no attribute '{name}'."
+        )
 
 
 @keras_export("keras.config.set_backend")
