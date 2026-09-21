@@ -8,6 +8,7 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend.torch.ops.core import device_scope
 
 
 @pytest.mark.skipif(
@@ -54,3 +55,46 @@ class DotProductAttentionCompileTest(testing.TestCase):
             compiled(query, key, value, **kwargs),
             ops.dot_product_attention(query, key, value, **kwargs),
         )
+
+
+@pytest.mark.skipif(
+    backend.backend() != "torch",
+    reason="This test is only applicable to the PyTorch backend.",
+)
+class PoolingChannelsLastContiguityTest(testing.TestCase):
+    def test_pooling_2d_channels_last_output_is_contiguous(self):
+        with device_scope("cpu"):
+            for shape, padding in (
+                ((2, 8, 8, 4), "valid"),
+                ((2, 7, 7, 4), "same"),
+            ):
+                x = torch.randn(shape)
+                for out in (
+                    ops.max_pool(
+                        x, (2, 2), padding=padding, data_format="channels_last"
+                    ),
+                    ops.average_pool(
+                        x, (2, 2), padding=padding, data_format="channels_last"
+                    ),
+                    ops.adaptive_max_pool(
+                        x, (4, 4), data_format="channels_last"
+                    ),
+                    ops.adaptive_average_pool(
+                        x, (4, 4), data_format="channels_last"
+                    ),
+                ):
+                    self.assertTrue(out.is_contiguous())
+
+    def test_max_pool_3d_channels_last_output_is_contiguous(self):
+        # PyTorch ATen preserves `channels_last_3d` on output for `max_pool3d`
+        # (both `valid` and `same` padding via `F.pad`).
+        with device_scope("cpu"):
+            for shape, padding in (
+                ((2, 6, 6, 6, 4), "valid"),
+                ((2, 5, 5, 5, 4), "same"),
+            ):
+                x = torch.randn(shape)
+                out = ops.max_pool(
+                    x, (2, 2, 2), padding=padding, data_format="channels_last"
+                )
+                self.assertTrue(out.is_contiguous())
