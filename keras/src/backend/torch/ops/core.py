@@ -2,6 +2,7 @@ import builtins
 import contextlib
 import functools
 import os
+import warnings
 
 import ml_dtypes
 import numpy as np
@@ -84,6 +85,14 @@ TORCH_DTYPES = {
     "complex32": torch.complex32,
     "complex64": torch.complex64,
     "complex128": torch.complex128,
+}
+
+# TODO: Remove the MPS dtype downcasts if PyTorch adds support for these
+# dtypes on MPS (Metal currently has no double-precision support, see
+# https://github.com/pytorch/pytorch/issues/79019).
+MPS_UNSUPPORTED_DTYPES = {
+    "float64": "float32",
+    "complex128": "complex64",
 }
 
 
@@ -391,6 +400,13 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
             # Torch backend does not support converting bfloat16 ndarray.
             x = x.astype(np.float32)
             dtype = "bfloat16"
+        x_dtype = standardize_dtype(x.dtype)
+        if x_dtype in MPS_UNSUPPORTED_DTYPES and "mps" in str(get_device()):
+            warnings.warn(
+                f"`{x_dtype}` is not supported on MPS; "
+                f"downcasting to `{MPS_UNSUPPORTED_DTYPES[x_dtype]}`."
+            )
+            x = x.astype(MPS_UNSUPPORTED_DTYPES[x_dtype])
         dtype = dtype or x.dtype
     if dtype is None:
         dtype = result_type(
