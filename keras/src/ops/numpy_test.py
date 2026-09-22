@@ -6228,16 +6228,18 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         not backend.SUPPORTS_COMPLEX_DTYPES,
         reason=f"{backend.backend()} backend doesn't support complex dtypes.",
     )
-    def test_cov_complex_backend_agnostic(self):
-        # The fallback must conjugate before the matmul: without it the
-        # diagonal variances come out complex and the result is not Hermitian.
-        backend.config._set_use_backend_agnostic_ops(True)
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_cov_complex(self, backend_agnostic_ops):
+        # Complex covariance uses the conjugate transpose: the result is
+        # Hermitian, with real variances on the diagonal.
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
         try:
             x = np.array(
                 [[1 + 1j, 2 + 0j, 4 - 1j], [0 + 2j, 3 - 1j, 5 + 3j]],
                 dtype="complex64",
             )
             self.assertAllClose(knp.cov(x), np.cov(x))
+            self.assertAllClose(knp.Cov()(x), np.cov(x))
         finally:
             backend.config._set_use_backend_agnostic_ops(False)
 
