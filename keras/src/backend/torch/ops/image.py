@@ -857,9 +857,9 @@ def gaussian_blur(
             return kernel1d / torch.sum(kernel1d)
 
         def _get_gaussian_kernel2d(size, sigma):
-            kernel1d_x = _get_gaussian_kernel1d(size[0], sigma[0])
-            kernel1d_y = _get_gaussian_kernel1d(size[1], sigma[1])
-            return torch.outer(kernel1d_y, kernel1d_x)
+            kernel1d_height = _get_gaussian_kernel1d(size[0], sigma[0])
+            kernel1d_width = _get_gaussian_kernel1d(size[1], sigma[1])
+            return torch.outer(kernel1d_height, kernel1d_width)
 
         kernel = _get_gaussian_kernel2d(kernel_size, sigma)
 
@@ -892,11 +892,23 @@ def gaussian_blur(
 
     kernel = kernel.expand(num_channels, 1, kernel_size[0], kernel_size[1])
 
+    pad_height = (kernel_size[0] - 1) // 2
+    pad_width = (kernel_size[1] - 1) // 2
+    images = torch.nn.functional.pad(
+        images,
+        (
+            pad_width,
+            kernel_size[1] - 1 - pad_width,
+            pad_height,
+            kernel_size[0] - 1 - pad_height,
+        ),
+    )
+
     blurred_images = torch.nn.functional.conv2d(
         images,
         kernel,
         stride=1,
-        padding=int(kernel_size[0] // 2),
+        padding=0,
         groups=num_channels,
     )
 
