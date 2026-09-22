@@ -1,4 +1,20 @@
 import importlib
+import sys
+
+
+def _is_namespace_package(module):
+    spec = getattr(module, "__spec__", None)
+    return (
+        spec is not None
+        and spec.origin is None
+        and spec.submodule_search_locations is not None
+    )
+
+
+def _cleanup_namespace_modules(names):
+    for name in names:
+        if _is_namespace_package(sys.modules.get(name)):
+            sys.modules.pop(name, None)
 
 
 class LazyModule:
@@ -22,11 +38,22 @@ class LazyModule:
                 self._available = False
         return self._available
 
-    def initialize(self):
+    def _import_module(self, name):
+        parts = name.split(".")
+        prefixes = [".".join(parts[: i + 1]) for i in range(len(parts))]
+        newly_loaded = [p for p in prefixes if p not in sys.modules]
         try:
-            self.module = importlib.import_module(self.name)
+            module = importlib.import_module(name)
         except ImportError:
+            _cleanup_namespace_modules(newly_loaded)
             raise ImportError(self.import_error_msg)
+        if _is_namespace_package(module):
+            _cleanup_namespace_modules(newly_loaded)
+            raise ImportError(self.import_error_msg)
+        return module
+
+    def initialize(self):
+        self.module = self._import_module(self.name)
 
     def __getattr__(self, name):
         if name == "_api_export_path":
@@ -41,12 +68,15 @@ class LazyModule:
 
 class OrbaxLazyModule(LazyModule):
     def initialize(self):
+        parent_module = self._import_module("orbax.checkpoint")
         try:
-            parent_module = importlib.import_module("orbax.checkpoint")
-            self.module = parent_module.v1
-            self.parent_module = parent_module
+            v1_module = parent_module.v1
         except ImportError:
             raise ImportError(self.import_error_msg)
+        if _is_namespace_package(v1_module):
+            raise ImportError(self.import_error_msg)
+        self.module = v1_module
+        self.parent_module = parent_module
 
     def __getattr__(self, name):
         if name == "_api_export_path":
