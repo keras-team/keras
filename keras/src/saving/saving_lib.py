@@ -1467,7 +1467,7 @@ class H5IOStore:
         if not self._h5_entry_initialized:
             self._create_h5_group(self._h5_entry_path)
 
-        value = backend.convert_to_numpy(value)
+        value = backend.ops.convert_to_numpy(value)
         if backend.standardize_dtype(value.dtype) == "bfloat16":
             ds = self._h5_entry_group.create_dataset(key, data=value)
             ds.attrs["dtype"] = "bfloat16"
@@ -1741,7 +1741,7 @@ class ShardedH5IOStore(H5IOStore):
         self._restore_h5_file()
 
         # Accumulate `current_shard_size`.
-        value = backend.convert_to_numpy(value)
+        value = backend.ops.convert_to_numpy(value)
         dtype = backend.standardize_dtype(value.dtype)
         weight_counts = math.prod(value.shape)
         per_param_size = dtype_utils.dtype_size(dtype)

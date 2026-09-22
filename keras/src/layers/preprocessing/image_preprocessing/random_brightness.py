@@ -92,7 +92,7 @@ class RandomBrightness(BaseImagePreprocessingLayer):
             images = data["images"]
         else:
             images = data
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         rank = len(images_shape)
         if rank == 3:
             rgb_delta_shape = (1, 1, 1)
@@ -106,7 +106,7 @@ class RandomBrightness(BaseImagePreprocessingLayer):
                 f"inputs.shape={images_shape}"
             )
         if not training:
-            return {"rgb_delta": self.backend.numpy.zeros(rgb_delta_shape)}
+            return {"rgb_delta": self.backend.ops.numpy.zeros(rgb_delta_shape)}
 
         if seed is None:
             seed = self._get_seed_generator(self.backend._backend)
@@ -122,9 +122,9 @@ class RandomBrightness(BaseImagePreprocessingLayer):
     def transform_images(self, images, transformation, training=True):
         if training:
             rgb_delta = transformation["rgb_delta"]
-            rgb_delta = self.backend.cast(rgb_delta, images.dtype)
+            rgb_delta = self.backend.ops.cast(rgb_delta, images.dtype)
             images += rgb_delta
-            return self.backend.numpy.clip(
+            return self.backend.ops.numpy.clip(
                 images, self.value_range[0], self.value_range[1]
             )
         return images

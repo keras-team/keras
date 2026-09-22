@@ -423,12 +423,18 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
             # NaN silently at inference. There is no check_numerics equivalent
             # in opset15 that can interrupt execution and surface a Python
             # exception.
+            # Shift the diagonal negative: without it the four uniform
+            # matrices are occasionally all positive definite, and
+            # assertRaises then fails intermittently.
             x_non_psd = np.random.rand(4, 3, 3).astype("float32")
+            x_non_psd -= 10.0 * np.eye(3, dtype="float32")
             with self.assertRaises(ValueError):
                 linalg.cholesky(x_non_psd)
 
         x = np.random.rand(4, 3, 3).astype("float32")
-        x_psd = np.matmul(x, x.transpose((0, 2, 1))) + 1e-5 * np.eye(
+        # 0.1 keeps the matrix well conditioned; at 1e-5 the smallest pivot
+        # could reach ~3e-3 and float32 rounding then exceeded atol.
+        x_psd = np.matmul(x, x.transpose((0, 2, 1))) + 0.1 * np.eye(
             3, dtype="float32"
         )
 
@@ -876,12 +882,12 @@ class QrOpTest(testing.TestCase):
         if backend.backend() in ["openvino", "numpy"]:
             pytest.skip("Backend does not support jvp operation")
         a1, a2 = ops.convert_to_tensor(0.1), ops.convert_to_tensor(0.2)
-        primals, tangents = linalg.jvp(backend.numpy.sin, (a1,), (a2,))
+        primals, tangents = linalg.jvp(backend.ops.numpy.sin, (a1,), (a2,))
         self.assertAllClose(primals, 0.0998, atol=1e-4)
         self.assertAllClose(tangents, 0.1990, atol=1e-4)
 
         def f(x):
-            return backend.numpy.sin(x), x**2
+            return backend.ops.numpy.sin(x), x**2
 
         primals_out, tangents_out, aux = linalg.jvp(
             f, (a1,), (a2,), has_aux=True

@@ -16,7 +16,7 @@ from keras.src import testing
 class OptimizerTest(testing.TestCase):
     def test_iterations_counter(self):
         v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
-        grads = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+        grads = backend.ops.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
         optimizer = optimizers.Adam(learning_rate=1.0)
         self.assertAllClose(optimizer.iterations, 0)
         optimizer.apply_gradients([(grads, v)])
@@ -36,7 +36,7 @@ class OptimizerTest(testing.TestCase):
 
         # Test filtering of empty gradients
         v2 = backend.Variable([[3.0, 4.0], [5.0, 6.0]])
-        grads2 = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+        grads2 = backend.ops.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
         optimizer = optimizers.SGD(learning_rate=1.0)
         with self.assertWarns(Warning):
             optimizer.apply_gradients([(grads, v), (grads2, v2)])
@@ -73,13 +73,13 @@ class OptimizerTest(testing.TestCase):
 
     def test_clip_norm(self):
         optimizer = optimizers.SGD(clipnorm=1)
-        grad = backend.convert_to_tensor([100.0, 100.0])
+        grad = backend.ops.convert_to_tensor([100.0, 100.0])
         clipped_grad = optimizer._clip_gradients([grad])
         self.assertAllClose(clipped_grad[0], [2**0.5 / 2, 2**0.5 / 2])
 
     def test_clip_value(self):
         optimizer = optimizers.SGD(clipvalue=1)
-        grad = backend.convert_to_tensor([100.0, 100.0])
+        grad = backend.ops.convert_to_tensor([100.0, 100.0])
         clipped_grad = optimizer._clip_gradients([grad])
         self.assertAllClose(clipped_grad[0], [1.0, 1.0])
 
@@ -88,13 +88,13 @@ class OptimizerTest(testing.TestCase):
         grad = np.array([50.0, 100.0], dtype="float32")
         global_norm = np.linalg.norm(grad)
         clipped_grad = optimizer._clip_gradients(
-            [backend.convert_to_tensor(grad)]
+            [backend.ops.convert_to_tensor(grad)]
         )
         self.assertAllClose(clipped_grad[0], grad / global_norm)
 
     def test_ema(self):
         v = backend.Variable([[3.0, 4.0], [5.0, 6.0]])
-        grads = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+        grads = backend.ops.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
         optimizer = optimizers.SGD(
             learning_rate=1.0,
             use_ema=True,
@@ -148,7 +148,7 @@ class OptimizerTest(testing.TestCase):
         v = backend.Variable(np.random.random((2, 2)) - 1.0)
         v.constraint = constraints.NonNeg()
         optimizer = optimizers.SGD(learning_rate=0.0001)
-        grad = backend.numpy.zeros((2, 2))
+        grad = backend.ops.numpy.zeros((2, 2))
         optimizer.apply_gradients([(grad, v)])
         self.assertAlmostEqual(np.min(v), 0.0)
 
@@ -166,7 +166,7 @@ class OptimizerTest(testing.TestCase):
 
     def test_static_loss_scaling(self):
         v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
-        grads = backend.convert_to_tensor([[1.0, 2.0], [3.0, 4.0]]) * 1024.0
+        grads = backend.ops.convert_to_tensor([[1.0, 2.0], [3.0, 4.0]]) * 1024.0
         optimizer = optimizers.SGD(learning_rate=1.0, loss_scale_factor=1024.0)
         optimizer.apply_gradients([(grads, v)])
         self.assertEqual(optimizer.scale_loss(1.0), 1024.0)
@@ -175,7 +175,7 @@ class OptimizerTest(testing.TestCase):
     def test_set_weights(self):
         x = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
         optimizer_1 = optimizers.Adam()
-        grads = backend.convert_to_tensor([[1.0, 2.0], [3.0, 4.0]])
+        grads = backend.ops.convert_to_tensor([[1.0, 2.0], [3.0, 4.0]])
         optimizer_1.apply_gradients(zip([grads], [x]))
         optimizer_2 = optimizers.Adam()
         with self.assertRaisesRegex(ValueError, "You are calling*"):
@@ -190,7 +190,7 @@ class OptimizerTest(testing.TestCase):
 
     def test_gradient_accumulation(self):
         v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
-        grads = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+        grads = backend.ops.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
         optimizer = optimizers.SGD(
             learning_rate=1.0, gradient_accumulation_steps=3
         )
@@ -260,7 +260,7 @@ class OptimizerTest(testing.TestCase):
 
     def test_callable_learning_rate(self):
         v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
-        grads = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+        grads = backend.ops.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
         optimizer = optimizers.SGD(learning_rate=lambda: 0.1)
         self.assertAllClose(optimizer.iterations, 0)
         optimizer.apply_gradients([(grads, v)])
@@ -271,8 +271,8 @@ class OptimizerTest(testing.TestCase):
         v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
         v.overwrite_with_gradient = True
         v2 = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
-        grads = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
-        grads2 = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+        grads = backend.ops.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+        grads2 = backend.ops.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
 
         optimizer = optimizers.SGD(learning_rate=1.0)
         optimizer.apply_gradients([(grads, v), (grads2, v2)])
@@ -285,8 +285,8 @@ class OptimizerTest(testing.TestCase):
         v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
         v.overwrite_with_gradient = True
         v2 = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
-        grad_ones = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
-        grad_twos = backend.convert_to_tensor([[2.0, 2.0], [2.0, 2.0]])
+        grad_ones = backend.ops.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+        grad_twos = backend.ops.convert_to_tensor([[2.0, 2.0], [2.0, 2.0]])
         optimizer = optimizers.SGD(
             learning_rate=1.0, gradient_accumulation_steps=2
         )
@@ -364,11 +364,11 @@ class OptimizerTest(testing.TestCase):
         for epoch in range(8):
             grads3 = np.random.random([3, 2, 1]).astype("float32")
 
-            grads1 = backend.convert_to_tensor(grads3.mean(axis=0))
+            grads1 = backend.ops.convert_to_tensor(grads3.mean(axis=0))
             optimizer1.apply_gradients([(grads1, variable1)])
 
             for batch in range(3):
-                grads3_ = backend.convert_to_tensor(grads3[batch])
+                grads3_ = backend.ops.convert_to_tensor(grads3[batch])
                 optimizer3.apply_gradients([(grads3_, variable3)])
 
         self.assertAllClose(variable1, variable3)
@@ -410,9 +410,9 @@ class OptimizerTest(testing.TestCase):
         import tensorflow as tf
 
         v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
-        grads = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+        grads = backend.ops.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
         tf_v = tf.Variable([[1.0, 2.0], [3.0, 4.0]])
-        tf_grads = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+        tf_grads = backend.ops.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
         optimizer = optimizers.Adam(learning_rate=1.0)
         optimizer.apply_gradients([(grads, v), (tf_grads, tf_v)])
         self.assertAllClose(optimizer.iterations, 1)

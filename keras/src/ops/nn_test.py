@@ -18,11 +18,11 @@ from keras.src import testing
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
-from keras.src.backend.torch.core import get_device
 from keras.src.backend.torch.distributed_test_utils import (
     TorchDistributedTestMixin,
 )
 from keras.src.backend.torch.distribution_lib import distribute_data_input
+from keras.src.backend.torch.ops.core import get_device
 from keras.src.layers.convolutional.conv_test import np_conv1d
 from keras.src.layers.convolutional.conv_test import np_conv2d
 from keras.src.layers.convolutional.conv_test import np_conv3d
@@ -1894,7 +1894,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
 
     @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only")
     def test_torch_channels_last_pointwise_conv_direct_path(self):
-        from keras.src.backend.torch import nn as torch_nn
+        from keras.src.backend.torch.ops import nn as torch_nn
 
         inputs_2d = np.arange(120, dtype="float32").reshape((2, 4, 5, 3))
         kernel = np.arange(6, dtype="float32").reshape((1, 1, 3, 2))

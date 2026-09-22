@@ -276,6 +276,18 @@ class TestArrayDataAdapter(data_adapter_test_base.DataAdapterTest):
             _, _, bw = batch
             self.assertAllClose(bw, [0.1, 0.2, 0.3, 0.4])
 
+    def test_native_tensor_flow(self):
+        x = backend.ops.convert_to_tensor(np.random.random((34, 2)))
+        y = backend.ops.convert_to_tensor(np.random.random((34, 1)))
+        adapter = array_data_adapter.ArrayDataAdapter(x=x, y=y, batch_size=16)
+        it = adapter.get_native_iterator()
+        batches = list(it)
+        self.assertEqual(len(batches), 3)
+        self.assertEqual(tuple(batches[0][0].shape), (16, 2))
+        self.assertEqual(tuple(batches[0][1].shape), (16, 1))
+        self.assertEqual(tuple(batches[-1][0].shape), (2, 2))
+        self.assertEqual(tuple(batches[-1][1].shape), (2, 1))
+
     def test_errors(self):
         x = np.random.random((34, 1))
         y = np.random.random((34, 3))
@@ -426,7 +438,7 @@ class TestArrayDataAdapter(data_adapter_test_base.DataAdapterTest):
             order = []
             for batch in it_fn():
                 bx = batch[0]
-                bx = backend.convert_to_numpy(bx)
+                bx = backend.ops.convert_to_numpy(bx)
                 order.extend(bx[:, 0].tolist())
             return order
 
@@ -441,8 +453,8 @@ class TestArrayDataAdapter(data_adapter_test_base.DataAdapterTest):
 
                 for i, batch in enumerate(batches):
                     bx, by = batch
-                    bx = backend.convert_to_numpy(bx)
-                    by = backend.convert_to_numpy(by)
+                    bx = backend.ops.convert_to_numpy(bx)
+                    by = backend.ops.convert_to_numpy(by)
                     expected_batch_index = (
                         expected_shard_id + i * expected_num_replicas
                     )
