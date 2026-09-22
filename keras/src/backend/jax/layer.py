@@ -10,7 +10,9 @@ if is_nnx_enabled():
 
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
-            from keras.src.backend.jax.core import stamp_with_enclosing_trace
+            from keras.src.backend.jax.ops.core import (
+                stamp_with_enclosing_trace,
+            )
 
             stamp_with_enclosing_trace(self)
 

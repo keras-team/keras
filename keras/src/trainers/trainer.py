@@ -1122,7 +1122,8 @@ class Trainer:
             raise ValueError(msg)
             self._warn_if_trainable_state_changed()
 
-    def _symbolic_build(self, iterator=None, data_batch=None):
+    def _get_unbuilt_components(self):
+        """Returns a 4-tuple of booleans for unbuilt trainer components."""
         model_unbuilt = not all(layer.built for layer in self._flatten_layers())
         compile_metrics_unbuilt = (
             self._compile_metrics is not None
@@ -1134,6 +1135,27 @@ class Trainer:
         optimizer_unbuilt = (
             self.optimizer is not None and not self.optimizer.built
         )
+        return (
+            model_unbuilt,
+            compile_metrics_unbuilt,
+            compile_loss_unbuilt,
+            optimizer_unbuilt,
+        )
+
+    def _symbolic_build(self, iterator=None, data_batch=None):
+        (
+            model_unbuilt,
+            compile_metrics_unbuilt,
+            compile_loss_unbuilt,
+            optimizer_unbuilt,
+        ) = self._get_unbuilt_components()
+        if not (
+            model_unbuilt
+            or compile_metrics_unbuilt
+            or compile_loss_unbuilt
+            or optimizer_unbuilt
+        ):
+            return
         if model_unbuilt or compile_metrics_unbuilt or compile_loss_unbuilt:
             # Create symbolic tensors matching an input batch.
 

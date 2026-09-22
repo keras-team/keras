@@ -12,7 +12,7 @@ from jax import numpy as jnp
 
 from keras.src import backend
 from keras.src.testing.test_utils import named_product
-from keras.src.trainers.data_adapters import data_adapter_test
+from keras.src.trainers.data_adapters import data_adapter_test_base
 from keras.src.trainers.data_adapters import generator_data_adapter
 
 
@@ -31,7 +31,7 @@ def example_generator(x, y, sample_weight=None, batch_size=32):
     return make
 
 
-class GeneratorDataAdapterTest(data_adapter_test.DataAdapterTest):
+class GeneratorDataAdapterTest(data_adapter_test_base.DataAdapterTest):
     @parameterized.named_parameters(
         named_product(
             [
@@ -101,7 +101,7 @@ class GeneratorDataAdapterTest(data_adapter_test.DataAdapterTest):
             if use_sample_weight:
                 self.assertIsInstance(bsw, expected_class)
             for j in range(by.shape[0]):
-                sample_order.append(backend.convert_to_numpy(by[j, 0]))
+                sample_order.append(backend.ops.convert_to_numpy(by[j, 0]))
         self.assertAllClose(sample_order, list(range(34)))
 
     def test_empty_generator_raises_clear_error(self):

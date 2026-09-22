@@ -1,20 +1,80 @@
-LinalgOpsCorrectnessTest::test_eig
-LinalgOpsCorrectnessTest::test_norm_2_-2
-LinalgOpsCorrectnessTest::test_norm_2_2
-LinalgOpsCorrectnessTest::test_norm_2_nuc
-LinalgOpsCorrectnessTest::test_pinv_batched
-LinalgOpsCorrectnessTest::test_pinv_square_default_rcond
-LinalgOpsCorrectnessTest::test_pinv_tall_default_rcond
-LinalgOpsCorrectnessTest::test_pinv_tall_explicit_rcond
-LinalgOpsCorrectnessTest::test_pinv_wide_default_rcond
-LinalgOpsCorrectnessTest::test_svd
-MathOpsCorrectnessTest::test_erfinv_operation_basic
-MathOpsCorrectnessTest::test_erfinv_operation_dtype
-NNOpsCorrectnessTest::test_ctc_decode
-NNOpsDtypeTest::test_ctc_decode
-MathDtypeTest::test_gammainc
-MathOpsCorrectnessTest::test_gammainc
-MathOpsDynamicShapeTest::test_gammainc
-MathOpsStaticShapeTest::test_gammainc
-NumpyTwoInputOpsCorrectnessTest::test_nextafter_float16
-NumpyTwoInputOpsCorrectnessTest::test_nextafter_float32
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_eig
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_eigh
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_-2_(0, 1)_false
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_-2_(0, 1)_true
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_-2_-1_false
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_-2_-1_true
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_-2_1_false
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_-2_1_true
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_-2_none_false
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_-2_none_true
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_2_(0, 1)_false
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_2_(0, 1)_true
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_2_-1_false
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_2_-1_true
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_2_1_false
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_2_1_true
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_2_none_false
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_2_none_true
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_nuc_(0, 1)_false
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_nuc_(0, 1)_true
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_nuc_-1_false
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_nuc_-1_true
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_nuc_1_false
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_nuc_1_true
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_nuc_none_false
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_nuc_none_true
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_pinv_batched
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_pinv_square_default_rcond
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_pinv_tall_default_rcond
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_pinv_tall_explicit_rcond
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_pinv_wide_default_rcond
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_svd
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('bfloat16', 'float16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('bfloat16', 'float32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('bfloat16', 'int16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('bfloat16', 'int32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('bfloat16', 'int8')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('bfloat16', 'uint16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('bfloat16', 'uint32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('bfloat16', 'uint8')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('float16', 'float32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('float16', 'int16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('float16', 'int32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('float16', 'int8')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('float16', 'uint16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('float16', 'uint32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('float16', 'uint8')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('float32', 'int16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('float32', 'int32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('float32', 'int8')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('float32', 'uint16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('float32', 'uint32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('float32', 'uint8')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('int16', 'int32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('int8', 'int16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('int8', 'int32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('uint16', 'int16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('uint16', 'int32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('uint16', 'int8')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('uint16', 'uint32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('uint32', 'int16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('uint32', 'int32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('uint32', 'int8')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('uint8', 'int16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('uint8', 'int32')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('uint8', 'int8')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('uint8', 'uint16')
+keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('uint8', 'uint32')
+keras/src/ops/math_test.py::MathOpsCorrectnessTest::test_erfinv_operation_basic
+keras/src/ops/math_test.py::MathOpsCorrectnessTest::test_erfinv_operation_dtype
+keras/src/ops/math_test.py::MathOpsCorrectnessTest::test_gammainc
+keras/src/ops/math_test.py::MathOpsDynamicShapeTest::test_gammainc
+keras/src/ops/math_test.py::MathOpsStaticShapeTest::test_gammainc
+keras/src/ops/nn_test.py::NNOpsCorrectnessTest::test_ctc_decode
+keras/src/ops/nn_test.py::NNOpsDtypeTest::test_ctc_decode_bfloat16
+keras/src/ops/nn_test.py::NNOpsDtypeTest::test_ctc_decode_float16
+keras/src/ops/nn_test.py::NNOpsDtypeTest::test_ctc_decode_float32
+keras/src/ops/numpy_test.py::NumpyTwoInputOpsCorrectnessTest::test_allclose_backend_agnostic
+keras/src/ops/numpy_test.py::NumpyTwoInputOpsCorrectnessTest::test_nextafter_float16
+keras/src/ops/numpy_test.py::NumpyTwoInputOpsCorrectnessTest::test_nextafter_float32

@@ -9,7 +9,7 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src.distribution import distribution_lib as dist_lib
 from keras.src.testing.test_utils import named_product
-from keras.src.trainers.data_adapters import data_adapter_test
+from keras.src.trainers.data_adapters import data_adapter_test_base
 from keras.src.trainers.data_adapters.torch_data_loader_adapter import (
     TorchDataLoaderAdapter,
 )
@@ -21,7 +21,7 @@ class TestIterableDataset(torch.utils.data.IterableDataset):
             yield torch.tensor([float(i)]), torch.tensor([float(i)])
 
 
-class TestTorchDataLoaderAdapter(data_adapter_test.DataAdapterTest):
+class TestTorchDataLoaderAdapter(data_adapter_test_base.DataAdapterTest):
     def test_basic_dataloader(self):
         x = torch.normal(2, 3, size=(34, 4))
         y = torch.normal(1, 3, size=(34, 2))
@@ -360,7 +360,7 @@ class TestTorchDataLoaderAdapter(data_adapter_test.DataAdapterTest):
             order = []
             for batch in it_fn():
                 by = batch[1]
-                by = backend.convert_to_numpy(by)
+                by = backend.ops.convert_to_numpy(by)
                 order.extend(by[:, 0].tolist())
             return order
 
@@ -377,8 +377,8 @@ class TestTorchDataLoaderAdapter(data_adapter_test.DataAdapterTest):
 
                 for i, batch in enumerate(batches):
                     bx, by = batch
-                    bx = backend.convert_to_numpy(bx)
-                    by = backend.convert_to_numpy(by)
+                    bx = backend.ops.convert_to_numpy(bx)
+                    by = backend.ops.convert_to_numpy(by)
                     # DistributedSampler and ShardedIterableDataset both use
                     # interleaved sharding.
                     # Each replica gets samples: [rank, rank + num_replicas,
