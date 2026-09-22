@@ -2645,8 +2645,8 @@ def _deg2rad(x):
         dtype = "float64"
     elif dtype not in ("bfloat16", "float16"):
         dtype = backend.floatx()
-    x = backend.ops.cast(x, dtype)
-    return backend.ops.numpy.multiply(x, python_math.pi / 180.0)
+    x = ops.cast(x, dtype)
+    return ops.multiply(x, python_math.pi / 180.0)
 
 
 class Rad2deg(Operation):
