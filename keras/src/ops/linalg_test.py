@@ -128,6 +128,8 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(
             linalg.norm(x, axis=1, keepdims=True).shape, (None, 1, 3)
         )
+        self.assertEqual(linalg.norm(x, axis=(1, 2)).shape, (None,))
+        self.assertEqual(linalg.norm(x, axis=[1, 2]).shape, (None,))
 
     def test_pinv(self):
         x = KerasTensor([None, 4, 3])
@@ -582,7 +584,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         named_product(
             ndim=[1, 2],
             ord=[None, "fro", "nuc", -np.inf, -2, -1, 0, 1, 2, np.inf, 3],
-            axis=[None, 1, -1, (0, 1)],
+            axis=[None, 1, -1, (0, 1), [0, 1]],
             keepdims=[False, True],
         )
     )
@@ -595,19 +597,20 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         vector_norm = (ndim == 1) or isinstance(axis, int)
 
         axis_out_of_bounds = ndim == 1 and (
-            axis == 1 or isinstance(axis, tuple)
+            axis == 1 or isinstance(axis, (list, tuple))
         )
         expected_error = None
         # when an out of bounds axis triggers an IndexError on torch is complex
         if (
             axis_out_of_bounds
-            and (not isinstance(axis, tuple) or ord is None)
+            and (not isinstance(axis, (list, tuple)) or ord is None)
             and ord not in ("fro", "nuc")
         ):
             expected_error = IndexError
         elif (
             axis_out_of_bounds
-            or (vector_norm and isinstance(axis, tuple))  # inv. axis for vector
+            # invalid axis for vector
+            or (vector_norm and isinstance(axis, (list, tuple)))
             or (vector_norm and ord in ("fro", "nuc"))  # invalid ord for vector
             or (not vector_norm and ord in (0, 3))  # invalid ord for matrix
         ):
@@ -623,7 +626,10 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
             return
         output = linalg.norm(x, ord=ord, axis=axis, keepdims=keepdims)
         expected_result = np.linalg.norm(
-            x, ord=ord, axis=axis, keepdims=keepdims
+            x,
+            ord=ord,
+            axis=tuple(axis) if isinstance(axis, list) else axis,
+            keepdims=keepdims,
         )
         self.assertAllClose(output, expected_result, atol=1e-5)
 

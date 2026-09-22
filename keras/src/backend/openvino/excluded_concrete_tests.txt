@@ -6,6 +6,8 @@ keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_-2_-1_false
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_-2_-1_true
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_-2_1_false
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_-2_1_true
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_-2_[0, 1]_false
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_-2_[0, 1]_true
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_-2_none_false
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_-2_none_true
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_2_(0, 1)_false
@@ -14,6 +16,8 @@ keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_2_-1_false
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_2_-1_true
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_2_1_false
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_2_1_true
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_2_[0, 1]_false
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_2_[0, 1]_true
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_2_none_false
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_2_none_true
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_nuc_(0, 1)_false
@@ -22,6 +26,8 @@ keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_nuc_-1_false
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_nuc_-1_true
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_nuc_1_false
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_nuc_1_true
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_nuc_[0, 1]_false
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_nuc_[0, 1]_true
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_nuc_none_false
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_nuc_none_true
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_pinv_batched
