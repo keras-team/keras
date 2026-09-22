@@ -2598,7 +2598,7 @@ def cumsum(x, axis=None, dtype=None):
 
 class Deg2rad(Operation):
     def call(self, x):
-        return backend.ops.numpy.deg2rad(x)
+        return _deg2rad(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(x.dtype)
@@ -2631,7 +2631,22 @@ def deg2rad(x):
     """
     if any_symbolic_tensors((x,)):
         return Deg2rad().symbolic_call(x)
-    return backend.ops.numpy.deg2rad(x)
+    return _deg2rad(x)
+
+
+def _deg2rad(x):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "deg2rad"
+    ):
+        return backend.ops.numpy.deg2rad(x)
+    x = backend.ops.convert_to_tensor(x)
+    dtype = backend.standardize_dtype(x.dtype)
+    if dtype in ("bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"):
+        dtype = backend.floatx()
+    elif dtype == "int64":
+        dtype = "float64"
+    x = backend.ops.cast(x, dtype)
+    return backend.ops.numpy.multiply(x, python_math.pi / 180.0)
 
 
 class Rad2deg(Operation):
