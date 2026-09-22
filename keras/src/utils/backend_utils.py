@@ -17,6 +17,8 @@ def in_tf_graph():
     if "tensorflow" in sys.modules:
         from keras.src.utils.module_utils import tensorflow as tf
 
+        if not tf.available:
+            return False
         return not tf.executing_eagerly()
     return False
 
