@@ -6224,6 +6224,23 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         finally:
             backend.config._set_use_backend_agnostic_ops(False)
 
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_COMPLEX_DTYPES,
+        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+    )
+    def test_cov_complex_backend_agnostic(self):
+        # The fallback must conjugate before the matmul: without it the
+        # diagonal variances come out complex and the result is not Hermitian.
+        backend.config._set_use_backend_agnostic_ops(True)
+        try:
+            x = np.array(
+                [[1 + 1j, 2 + 0j, 4 - 1j], [0 + 2j, 3 - 1j, 5 + 3j]],
+                dtype="complex64",
+            )
+            self.assertAllClose(knp.cov(x), np.cov(x))
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
+
     def test_cos(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.cos(x), np.cos(x))
