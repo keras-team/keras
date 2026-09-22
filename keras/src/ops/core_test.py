@@ -1713,8 +1713,6 @@ class CoreOpsDtypeTest(testing.TestCase):
 class ConvertToTensorFloatxTest(testing.TestCase):
     """`convert_to_tensor` must not let `floatx` override an input's dtype.
 
-    Regression tests for https://github.com/keras-team/keras/issues/23679
-    and https://github.com/keras-team/keras/issues/23703.
     The jax and numpy backends gated their bfloat16 fast path on
     `standardize_dtype(dtype) == "bfloat16"`. Because
     `standardize_dtype(None)` returns `floatx()`, that branch fired for

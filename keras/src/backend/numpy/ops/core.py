@@ -46,6 +46,7 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         if dtype and dtype != x.dtype:
             return x.value.astype(dtype)
         return x.value
+    
     # The branch must run only for an explicit bfloat16 request:
     if (
         not is_tensor(x)
