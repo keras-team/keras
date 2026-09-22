@@ -21,6 +21,7 @@ from keras.src.backend.common.backend_utils import (
 from keras.src.ops import operation_utils
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import reduce_shape
+from keras.src.utils.argument_validation import standardize_tuple
 
 
 class Relu(Operation):
@@ -1206,7 +1207,7 @@ class AdaptiveMaxPool(Operation):
     def __init__(self, output_size, data_format=None, *, name=None):
         super().__init__(name=name)
         self.output_size = output_size
-        self.data_format = data_format
+        self.data_format = standardize_data_format(data_format)
 
     def call(self, inputs):
         return backend.ops.nn.adaptive_max_pool(
@@ -1214,15 +1215,15 @@ class AdaptiveMaxPool(Operation):
         )
 
     def compute_output_spec(self, inputs):
+        num_spatial_dims = len(inputs.shape) - 2
+        spatial_dims = standardize_tuple(
+            self.output_size, num_spatial_dims, "output_size"
+        )
         if self.data_format == "channels_last":
-            spatial_dims = self.output_size
             output_shape = (
-                inputs.shape[: -len(self.output_size)]
-                + spatial_dims
-                + (inputs.shape[-1],)
+                (inputs.shape[0],) + spatial_dims + (inputs.shape[-1],)
             )
         else:
-            spatial_dims = self.output_size
             output_shape = (inputs.shape[0], inputs.shape[1]) + spatial_dims
         return backend.KerasTensor(output_shape, dtype=inputs.dtype)
 
@@ -1270,8 +1271,7 @@ def adaptive_max_pool(
     >>> y.shape
     (2, 7, 7, 3)
     """
-    if data_format is None:
-        data_format = config.image_data_format()
+    data_format = standardize_data_format(data_format)
 
     if any_symbolic_tensors((inputs,)):
         return AdaptiveMaxPool(output_size, data_format).symbolic_call(inputs)
@@ -1382,7 +1382,7 @@ class AdaptiveAveragePool(Operation):
     def __init__(self, output_size, data_format=None, *, name=None):
         super().__init__(name=name)
         self.output_size = output_size
-        self.data_format = data_format
+        self.data_format = standardize_data_format(data_format)
 
     def call(self, inputs):
         return backend.ops.nn.adaptive_average_pool(
@@ -1390,15 +1390,15 @@ class AdaptiveAveragePool(Operation):
         )
 
     def compute_output_spec(self, inputs):
+        num_spatial_dims = len(inputs.shape) - 2
+        spatial_dims = standardize_tuple(
+            self.output_size, num_spatial_dims, "output_size"
+        )
         if self.data_format == "channels_last":
-            spatial_dims = self.output_size
             output_shape = (
-                inputs.shape[: -len(self.output_size)]
-                + spatial_dims
-                + (inputs.shape[-1],)
+                (inputs.shape[0],) + spatial_dims + (inputs.shape[-1],)
             )
         else:
-            spatial_dims = self.output_size
             output_shape = (inputs.shape[0], inputs.shape[1]) + spatial_dims
         return backend.KerasTensor(output_shape, dtype=inputs.dtype)
 
@@ -1449,8 +1449,7 @@ def adaptive_average_pool(
     >>> y.shape
     (2, 7, 7, 3)
     """
-    if data_format is None:
-        data_format = config.image_data_format()
+    data_format = standardize_data_format(data_format)
 
     if any_symbolic_tensors((inputs,)):
         return AdaptiveAveragePool(output_size, data_format).symbolic_call(
