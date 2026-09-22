@@ -426,7 +426,7 @@ def _allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
 
 class Angle(Operation):
     def call(self, x):
-        return backend.ops.numpy.angle(x)
+        return _angle(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
@@ -456,7 +456,27 @@ def angle(x):
     """
     if any_symbolic_tensors((x,)):
         return Angle().symbolic_call(x)
-    return backend.ops.numpy.angle(x)
+    return _angle(x)
+
+
+def _angle(x):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "angle"
+    ):
+        return backend.ops.numpy.angle(x)
+    x = backend.ops.convert_to_tensor(x)
+    dtype = backend.standardize_dtype(x.dtype)
+    if dtype in dtypes.COMPLEX_TYPES:
+        x_imag = ops.imag(x)
+        x_real = ops.real(x)
+    else:
+        if dtype == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(dtype, float)
+        x_real = ops.cast(x, dtype)
+        x_imag = ops.zeros_like(x_real)
+    return ops.arctan2(x_imag, x_real)
 
 
 class Any(Operation):

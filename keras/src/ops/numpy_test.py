@@ -8289,11 +8289,16 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertTrue(np.all(flat_x[result[:1]] <= kth_value))
         self.assertTrue(np.all(flat_x[result[2:]] >= kth_value))
 
-    def test_angle(self):
-        x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
-        self.assertAllClose(knp.angle(x), np.angle(x))
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_angle(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
+            self.assertAllClose(knp.angle(x), np.angle(x))
 
-        self.assertAllClose(knp.Angle()(x), np.angle(x))
+            self.assertAllClose(knp.Angle()(x), np.angle(x))
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     def test_unique(self):
         x = np.array([3, 1, 2, 1, 4, 2])
@@ -13224,24 +13229,32 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_angle(self, dtype):
+    @parameterized.named_parameters(
+        named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
+    )
+    def test_angle(self, backend_agnostic_ops, dtype):
         if dtype == "bfloat16" and testing.torch_uses_gpu():
             self.skipTest("Torch cuda does not support bfloat16")
 
         import jax.numpy as jnp
 
-        x = knp.ones((1,), dtype=dtype)
-        x_jax = jnp.ones((1,), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.angle(x_jax).dtype)
-        if dtype == "bool" or is_int_dtype(dtype):
-            expected_dtype = backend.floatx()
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = knp.ones((1,), dtype=dtype)
+            x_jax = jnp.ones((1,), dtype=dtype)
+            expected_dtype = standardize_dtype(jnp.angle(x_jax).dtype)
+            if dtype == "bool" or is_int_dtype(dtype):
+                expected_dtype = backend.floatx()
 
-        self.assertEqual(standardize_dtype(knp.angle(x).dtype), expected_dtype)
-        self.assertEqual(
-            standardize_dtype(knp.Angle().symbolic_call(x).dtype),
-            expected_dtype,
-        )
+            self.assertEqual(
+                standardize_dtype(knp.angle(x).dtype), expected_dtype
+            )
+            self.assertEqual(
+                standardize_dtype(knp.Angle().symbolic_call(x).dtype),
+                expected_dtype,
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     VIEW_DTYPES = [x for x in ALL_DTYPES if x != "bool" and x is not None]
 
