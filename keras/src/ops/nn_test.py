@@ -3557,6 +3557,23 @@ class NNOpsDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
+        named_product(dtype=["int32", "uint8", "bool"])
+    )
+    def test_rms_normalization_non_float(self, dtype):
+        inputs = knp.array([[1, 2, 3], [4, 5, 6]], dtype=dtype)
+        expected_dtype = backend.result_type(dtype, backend.floatx())
+        expected = knn.rms_normalization(
+            knp.array(inputs, dtype=expected_dtype)
+        )
+
+        outputs = knn.rms_normalization(inputs)
+        self.assertDType(outputs, expected_dtype)
+        self.assertAllClose(outputs, expected)
+        self.assertDType(
+            knn.RMSNorm().symbolic_call(inputs, None), expected_dtype
+        )
+
+    @parameterized.named_parameters(
         named_product(dtypes=combinations(FLOAT_DTYPES, 2))
     )
     def test_layer_normalization(self, dtypes):
@@ -3571,6 +3588,23 @@ class NNOpsDtypeTest(testing.TestCase):
         )
         self.assertDType(
             knn.LayerNorm().symbolic_call(inputs, gamma, beta), expected_dtype
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtype=["int32", "uint8", "bool"])
+    )
+    def test_layer_normalization_non_float(self, dtype):
+        inputs = knp.array([[1, 2, 3], [4, 5, 6]], dtype=dtype)
+        expected_dtype = backend.result_type(dtype, backend.floatx())
+        expected = knn.layer_normalization(
+            knp.array(inputs, dtype=expected_dtype)
+        )
+
+        outputs = knn.layer_normalization(inputs)
+        self.assertDType(outputs, expected_dtype)
+        self.assertAllClose(outputs, expected)
+        self.assertDType(
+            knn.LayerNorm().symbolic_call(inputs, None, None), expected_dtype
         )
 
 
