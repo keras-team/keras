@@ -1713,13 +1713,14 @@ class CoreOpsDtypeTest(testing.TestCase):
 class ConvertToTensorFloatxTest(testing.TestCase):
     """`convert_to_tensor` must not let `floatx` override an input's dtype.
 
-    Regression tests for https://github.com/keras-team/keras/issues/23679.
-    The jax backend gated its bfloat16 fast path on
+    Regression tests for https://github.com/keras-team/keras/issues/23679
+    and https://github.com/keras-team/keras/issues/23703.
+    The jax and numpy backends gated their bfloat16 fast path on
     `standardize_dtype(dtype) == "bfloat16"`. Because
     `standardize_dtype(None)` returns `floatx()`, that branch fired for
     *every* call without an explicit `dtype` once `floatx` was
     `"bfloat16"`, and the subsequent `astype(None)` silently produced
-    float32.
+    float32 on jax and float64 on numpy.
     """
 
     # 64-bit dtypes are excluded: jax truncates them to 32-bit unless
@@ -1766,6 +1767,29 @@ class ConvertToTensorFloatxTest(testing.TestCase):
                 "bfloat16",
                 msg=f"floatx={floatx}, input={x}",
             )
+
+    @parameterized.named_parameters(
+        named_product(floatx=["float32", "bfloat16"])
+    )
+    def test_python_ints_do_not_become_floats(self, floatx):
+        """Python ints and int sequences must not turn into floats.
+
+        Unlike a numpy array, a Python list or scalar is not a backend
+        tensor, so it takes the `bfloat16` branch. The numpy backend
+        returned float64 for these until the same guard was applied
+        there. The exact integer width is backend dependent (it follows
+        `floatx` precision via `_lattice_result_type`), so only the kind
+        of the dtype is asserted.
+        """
+        backend.set_floatx(floatx)
+        for x in ([1, 2, 3], 3, (1, 2)):
+            dtype = backend.standardize_dtype(ops.convert_to_tensor(x).dtype)
+            self.assertIn(
+                dtype,
+                dtypes.INT_TYPES,
+                msg=f"floatx={floatx}, input={x}, got {dtype}",
+            )
+        self.assertDType(ops.convert_to_tensor(True), "bool")
 
     def test_integer_indices_survive_bfloat16_floatx(self):
         """Downstream ops that require integer inputs keep working."""
