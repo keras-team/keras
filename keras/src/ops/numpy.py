@@ -2641,10 +2641,10 @@ def _deg2rad(x):
         return backend.ops.numpy.deg2rad(x)
     x = backend.ops.convert_to_tensor(x)
     dtype = backend.standardize_dtype(x.dtype)
-    if dtype in ("bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"):
-        dtype = backend.floatx()
-    elif dtype == "int64":
+    if dtype in ("int64", "float64"):
         dtype = "float64"
+    elif dtype not in ("bfloat16", "float16"):
+        dtype = backend.floatx()
     x = backend.ops.cast(x, dtype)
     return backend.ops.numpy.multiply(x, python_math.pi / 180.0)
 
