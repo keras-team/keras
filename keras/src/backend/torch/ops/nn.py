@@ -1015,6 +1015,7 @@ def binary_crossentropy(target, output, from_logits=False):
         return tnn.binary_cross_entropy_with_logits(
             output, target, reduction="none"
         )
+
     output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
     # PyTorch's BCE rejects NaNs on CPU and returns a finite loss on MPS.
     # Replace them for the native call, then restore them in the result.
