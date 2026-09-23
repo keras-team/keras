@@ -172,6 +172,11 @@ class LegacyH5WholeModelTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "arbitrary code execution"):
             legacy_h5_format.load_model_from_hdf5(temp_filepath)
 
+        # `safe_mode=None` reaches the scope unchanged; only an explicit
+        # `False` may opt out.
+        with self.assertRaisesRegex(ValueError, "arbitrary code execution"):
+            legacy_h5_format.load_model_from_hdf5(temp_filepath, safe_mode=None)
+
         loaded = legacy_h5_format.load_model_from_hdf5(
             temp_filepath, safe_mode=False
         )
