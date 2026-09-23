@@ -2342,6 +2342,26 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(tuple(result.shape), shape)
         self.assertAllClose(result, expected)
 
+    @parameterized.product(
+        target_dtype=["int32", "bool", "float32"],
+        output_dtype=["float32", "float16"],
+        from_logits=[True, False],
+    )
+    def test_binary_crossentropy_target_dtype(
+        self, target_dtype, output_dtype, from_logits
+    ):
+        target = np.array([0, 1, 1, 0]).astype(target_dtype)
+        output = np.array([0.1, 0.9, 0.8, 0.2]).astype(output_dtype)
+        result = knn.binary_crossentropy(
+            target, output, from_logits=from_logits
+        )
+        t = target.astype("float64")
+        o = output.astype("float64")
+        probs = 1.0 / (1.0 + np.exp(-o)) if from_logits else o
+        expected = -(t * np.log(probs) + (1 - t) * np.log(1 - probs))
+        tol = 1e-3 if output_dtype == "float16" else 1e-6
+        self.assertAllClose(result, expected, atol=tol, rtol=tol)
+
     def test_categorical_crossentropy(self):
         target = np.array(
             [

@@ -871,7 +871,7 @@ def binary_crossentropy(target, output, from_logits=False):
     target = get_ov_output(target)
     output = get_ov_output(output)
     if target.get_element_type() != output.get_element_type():
-        output = ov_opset.convert(output, target.get_element_type()).output(0)
+        target = ov_opset.convert(target, output.get_element_type()).output(0)
 
     if target.shape != output.shape:
         raise ValueError(
