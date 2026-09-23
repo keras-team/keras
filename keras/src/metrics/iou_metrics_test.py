@@ -627,7 +627,7 @@ class OneHotIoUTest(testing.TestCase):
         # y_pred will be converted to [[2, 2], [0, 2]]
         # cm = [[0, 0, 2],
         #       [1, 0, 0],
-        #       [0, 0, 1]
+        #       [0, 0, 1]]
         # sum_row = [1, 0, 3], sum_col = [2, 1, 1], true_positives = [0, 0, 1]
         # iou = true_positives / (sum_row + sum_col - true_positives))
         expected_result = (0 / (1 + 2 - 0) + 1 / (3 + 1 - 1)) / 2
@@ -714,7 +714,7 @@ class OneHotMeanIoUTest(testing.TestCase):
         # y_pred will be converted to [[2, 2], [0, 2]]
         # cm = [[0, 0, 2],
         #       [1, 0, 0],
-        #       [0, 0, 1]
+        #       [0, 0, 1]]
         # sum_row = [1, 0, 3], sum_col = [2, 1, 1], true_positives = [0, 0, 1]
         # iou = true_positives / (sum_row + sum_col - true_positives))
         expected_result = (0 + 0 + 1 / (3 + 1 - 1)) / 3
