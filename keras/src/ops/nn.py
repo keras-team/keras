@@ -2432,7 +2432,7 @@ class BatchNorm(Operation):
         self._check_shape("variance", tuple(variance.shape), shape)
         if offset is not None:
             self._check_shape("offset", tuple(offset.shape), shape)
-        if offset is not scale:
+        if scale is not None:
             self._check_shape("scale", tuple(scale.shape), shape)
         return KerasTensor(x.shape, dtype=x.dtype)
 
