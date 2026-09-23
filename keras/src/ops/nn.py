@@ -2087,7 +2087,10 @@ class CategoricalCrossentropy(Operation):
                 "Received: "
                 f"target.shape={target.shape}, output.shape={output.shape}"
             )
-        return KerasTensor(output.shape[:-1], dtype=output.dtype)
+        axis = canonicalize_axis(self.axis, len(output.shape))
+        return KerasTensor(
+            output.shape[:axis] + output.shape[axis + 1 :], dtype=output.dtype
+        )
 
 
 @keras_export(
