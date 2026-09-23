@@ -1032,9 +1032,7 @@ def binary_crossentropy(target, output, from_logits=False):
         # Replace them for the native call, then restore them in the result.
         nan_mask = torch.isnan(output)
         valid_output = torch.where(nan_mask, 0.5, output)
-        loss = tnn.binary_cross_entropy(
-            valid_output, target, reduction="none"
-        )
+        loss = tnn.binary_cross_entropy(valid_output, target, reduction="none")
         return torch.where(nan_mask, output, loss)
 
 
