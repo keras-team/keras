@@ -9768,7 +9768,7 @@ class Slogdet(Operation):
         return backend.ops.numpy.slogdet(x)
 
     def compute_output_spec(self, x):
-        sign = KerasTensor((), dtype=x.dtype)
+        sign = KerasTensor(x.shape[:-2], dtype=x.dtype)
         logabsdet = KerasTensor(x.shape[:-2], dtype=x.dtype)
         return (sign, logabsdet)
 
