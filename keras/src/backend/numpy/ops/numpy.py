@@ -1670,10 +1670,13 @@ def square(x):
 
 def sqrt(x):
     x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = x.astype(config.floatx())
     # upcast to float64 for int64 which matches JAX's behavior
     dtype = (
         config.floatx()
-        if standardize_dtype(x.dtype) == "int64"
+        if ori_dtype == "int64"
         else dtypes.result_type(x.dtype, float)
     )
     return np.sqrt(x, dtype=dtype)
