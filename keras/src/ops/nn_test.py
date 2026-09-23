@@ -320,9 +320,9 @@ class NNOpsDynamicShapeTest(testing.TestCase):
 
     def test_multi_hot(self):
         x = KerasTensor([None, 3, 1])
-        self.assertEqual(knn.multi_hot(x, 5).shape, (None, 1, 5))
-        self.assertEqual(knn.multi_hot(x, 5, 1).shape, (None, 3, 1))
-        self.assertEqual(knn.multi_hot(x, 5, 2).shape, (None, 5, 1))
+        self.assertEqual(knn.multi_hot(x, 5).shape, (None, 3, 5))
+        self.assertEqual(knn.multi_hot(x, 5, 1).shape, (None, 5, 1))
+        self.assertEqual(knn.multi_hot(x, 5, 2).shape, (None, 3, 5))
         self.assertSparse(knn.multi_hot(x, 5, sparse=True))
 
     @parameterized.named_parameters(
@@ -1295,9 +1295,9 @@ class NNOpsStaticShapeTest(testing.TestCase):
         out = knn.multi_hot(unbatched_input, 5, -1)
         self.assertEqual(out.shape, (5,))
         self.assertEqual(out.dtype, backend.floatx())
-        self.assertEqual(knn.multi_hot(x, 5).shape, (2, 1, 5))
-        self.assertEqual(knn.multi_hot(x, 5, 1).shape, (2, 3, 1))
-        self.assertEqual(knn.multi_hot(x, 5, 2).shape, (2, 5, 1))
+        self.assertEqual(knn.multi_hot(x, 5).shape, (2, 3, 5))
+        self.assertEqual(knn.multi_hot(x, 5, 1).shape, (2, 5, 1))
+        self.assertEqual(knn.multi_hot(x, 5, 2).shape, (2, 3, 5))
         self.assertEqual(knn.multi_hot(x, 5, dtype="bool").dtype, "bool")
 
     def test_one_hot(self):
