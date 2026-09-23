@@ -1743,6 +1743,32 @@ class NNOpsCorrectnessTest(testing.TestCase):
             np_maxpool2d(x, 2, (2, 1), padding="same", data_format=data_format),
         )
 
+    def test_adaptive_max_pool(self):
+        x = np.ones((2, 64, 64, 3), dtype="float32")
+        y = knn.adaptive_max_pool(
+            x, output_size=(32, 32), data_format="channels_last"
+        )
+        self.assertEqual(y.shape, (2, 32, 32, 3))
+
+        x_cf = np.ones((2, 3, 64, 64), dtype="float32")
+        y_cf = knn.adaptive_max_pool(
+            x_cf, output_size=(32, 32), data_format="channels_first"
+        )
+        self.assertEqual(y_cf.shape, (2, 3, 32, 32))
+
+    def test_adaptive_average_pool(self):
+        x = np.ones((2, 64, 64, 3), dtype="float32")
+        y = knn.adaptive_average_pool(
+            x, output_size=(32, 32), data_format="channels_last"
+        )
+        self.assertEqual(y.shape, (2, 32, 32, 3))
+
+        x_cf = np.ones((2, 3, 64, 64), dtype="float32")
+        y_cf = knn.adaptive_average_pool(
+            x_cf, output_size=(32, 32), data_format="channels_first"
+        )
+        self.assertEqual(y_cf.shape, (2, 3, 32, 32))
+
     def test_average_pool_valid_padding(self):
         data_format = backend.config.image_data_format()
         # Test 1D average pooling.
