@@ -2263,6 +2263,7 @@ class MultiHot(Operation):
             num_classes=self.num_classes,
             axis=self.axis,
             dtype=self.dtype,
+            sparse=self.sparse,
         )
 
     def compute_output_spec(self, inputs):
@@ -2282,7 +2283,7 @@ class MultiHot(Operation):
         else:
             x_shape = [x_shape[0]] + x_shape[2:]
 
-        return KerasTensor(x_shape, dtype=inputs.dtype, sparse=self.sparse)
+        return KerasTensor(x_shape, dtype=self.dtype, sparse=self.sparse)
 
 
 @keras_export(
