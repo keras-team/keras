@@ -2601,11 +2601,10 @@ class Deg2rad(Operation):
         return _deg2rad(x)
 
     def compute_output_spec(self, x):
-        dtype = backend.standardize_dtype(x.dtype)
-        if dtype in ["int64", "float64"]:
-            dtype = "float64"
-        elif dtype not in ["bfloat16", "float16"]:
-            dtype = backend.floatx()
+        if backend.standardize_dtype(x.dtype) == "int64":
+            dtype = config.floatx()
+        else:
+            dtype = dtypes.result_type(x.dtype, float)
         return KerasTensor(x.shape, dtype)
 
 
@@ -2640,11 +2639,10 @@ def _deg2rad(x):
     ):
         return backend.ops.numpy.deg2rad(x)
     x = backend.ops.convert_to_tensor(x)
-    dtype = backend.standardize_dtype(x.dtype)
-    if dtype in ("int64", "float64"):
-        dtype = "float64"
-    elif dtype not in ("bfloat16", "float16"):
-        dtype = backend.floatx()
+    if backend.standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
     x = ops.cast(x, dtype)
     return ops.multiply(x, python_math.pi / 180.0)
 
