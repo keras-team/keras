@@ -442,6 +442,6 @@ class IntegerLookup(IndexLookup):
         if not isinstance(
             inputs, (tf.Tensor, tf.RaggedTensor, np.ndarray, list, tuple)
         ):
-            inputs = tf.convert_to_tensor(backend.convert_to_numpy(inputs))
+            inputs = tf.convert_to_tensor(backend.ops.convert_to_numpy(inputs))
         outputs = super().call(inputs)
         return backend_utils.convert_tf_tensor(outputs)
