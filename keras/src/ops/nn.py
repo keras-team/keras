@@ -2268,9 +2268,11 @@ class MultiHot(Operation):
 
     def compute_output_spec(self, inputs):
         x_shape = list(getattr(inputs, "shape", []))
-        axis = canonicalize_axis(self.axis, len(x_shape) + 1)
+        input_rank = len(x_shape)
+        axis = canonicalize_axis(self.axis, input_rank + 1)
         x_shape.insert(axis, self.num_classes)
-        del x_shape[0 if len(x_shape) == 2 else 1]
+        reduction_axis = 1 if input_rank > 1 else 0
+        del x_shape[reduction_axis]
 
         return KerasTensor(x_shape, dtype=self.dtype, sparse=self.sparse)
 
