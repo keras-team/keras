@@ -78,11 +78,10 @@ class TFSMLayer(layers.Layer):
         # Guard the load itself: deserialization can invoke the constructor
         # without going through `from_config()`, e.g. via a serialized
         # callable or via a custom layer that forwards a config value to
-        # `TFSMLayer(filepath)`. Note that this is a behavior change: a
-        # construction performed by a custom layer, model or metric while that
-        # object is itself being deserialized in safe mode is now rejected as
-        # well, and has to opt out with `safe_mode=False`. Direct construction
-        # outside a deserialization scope remains supported.
+        # `TFSMLayer(filepath)`. A construction by a custom layer, model or
+        # metric that is itself being deserialized in safe mode is also
+        # rejected and needs `safe_mode=False`. Direct construction outside
+        # a deserialization scope is allowed.
         if serialization_lib.in_safe_mode():
             raise ValueError(
                 "Requested the deserialization of a `TFSMLayer`, which "

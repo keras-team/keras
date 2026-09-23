@@ -138,9 +138,8 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
             by a `keras.layers.TFSMLayer`. The latter also covers a
             `TFSMLayer` instantiated by a custom layer, model or metric that
             is itself being deserialized. When `safe_mode=False`, loading an
-            object has the potential to trigger arbitrary code execution. This
-            argument is only applicable to the Keras v3 model format. Defaults
-            to `True`.
+            object has the potential to trigger arbitrary code execution.
+            Defaults to `True`.
 
     Returns:
         A Keras model instance. If the original model was compiled,
