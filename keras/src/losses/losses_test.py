@@ -6,6 +6,7 @@ import pytest
 from absl.testing import parameterized
 
 from keras.src import backend
+from keras.src import ops
 from keras.src import testing
 from keras.src.layers import Input
 from keras.src.losses import losses
@@ -2048,7 +2049,7 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
         categorical_alpha = (
             alpha
             if np.ndim(alpha) == 0
-            else backend.convert_to_tensor(alpha, dtype="float32")
+            else ops.convert_to_tensor(alpha, dtype="float32")
         )
         expected = losses.categorical_focal_crossentropy(
             y_true_one_hot,
@@ -2075,7 +2076,7 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
         alpha = np.array([0.2, 0.3, 0.5], dtype="float32")
         expected = losses.sparse_categorical_crossentropy(
             y_true, y_pred
-        ) * backend.convert_to_tensor(alpha[y_true])
+        ) * ops.convert_to_tensor(alpha[y_true])
         result = losses.sparse_categorical_focal_crossentropy(
             y_true, y_pred, alpha=alpha, gamma=0.0
         )
@@ -2102,9 +2103,7 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
         )
         self.assertAllClose(
             result,
-            backend.convert_to_tensor(
-                [expected_valid[0], 0.0, expected_valid[1]]
-            ),
+            ops.convert_to_tensor([expected_valid[0], 0.0, expected_valid[1]]),
         )
 
         weighted_result = loss_obj(
@@ -2112,7 +2111,7 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
         )
         self.assertAllClose(
             weighted_result,
-            backend.convert_to_tensor(
+            ops.convert_to_tensor(
                 [expected_valid[0] * 2.0, 0.0, expected_valid[1] * 3.0]
             ),
         )
@@ -2121,7 +2120,7 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
             ignore_class=255
         )(y_true, y_pred)
         self.assertAllClose(
-            reduced_result, np.mean(backend.convert_to_numpy(expected_valid))
+            reduced_result, np.mean(ops.convert_to_numpy(expected_valid))
         )
 
         all_ignored_result = losses.SparseCategoricalFocalCrossentropy(
@@ -2135,9 +2134,9 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
             [[0.8, 0.1, 0.1], [0.1, 0.8, 0.1], [0.1, 0.2, 0.7]],
             dtype="float32",
         )
-        y_pred = backend.convert_to_tensor(y_pred_values)
+        y_pred = ops.convert_to_tensor(y_pred_values)
         backend.set_keras_mask(
-            y_pred, backend.convert_to_tensor([False, True, True])
+            y_pred, ops.convert_to_tensor([False, True, True])
         )
 
         result = losses.SparseCategoricalFocalCrossentropy(
@@ -2147,7 +2146,7 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
             np.array([2]), y_pred_values[2:]
         )
         self.assertAllClose(
-            result, backend.convert_to_tensor([0.0, 0.0, expected[0]])
+            result, ops.convert_to_tensor([0.0, 0.0, expected[0]])
         )
 
     def test_custom_axis(self):
@@ -2203,7 +2202,7 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
         y_pred = np.array([[0.8, 0.1, 0.1], [0.2, 0.7, 0.1]], dtype="float32")
         y_true = np.array([0, invalid_label], dtype="int64")
         result = losses.sparse_categorical_focal_crossentropy(y_true, y_pred)
-        result = backend.convert_to_numpy(result)
+        result = ops.convert_to_numpy(result)
         self.assertTrue(np.isfinite(result[0]))
         self.assertTrue(np.isnan(result[1]))
 
@@ -2268,9 +2267,7 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
         mixed_precision_result = loss_obj(y_true, y_pred)
         self.assertDType(mixed_precision_result, "float16")
         self.assertTrue(
-            np.all(
-                np.isfinite(backend.convert_to_numpy(mixed_precision_result))
-            )
+            np.all(np.isfinite(ops.convert_to_numpy(mixed_precision_result)))
         )
 
     # JAX and NumPy standardize int64 label arrays to int32 before the loss
@@ -2293,7 +2290,7 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
             (1, num_classes), 0.1 / (num_classes - 1), dtype="float32"
         )
         y_pred[0, label] = 0.9
-        low_precision_y_pred = backend.convert_to_tensor(
+        low_precision_y_pred = ops.convert_to_tensor(
             y_pred, dtype="bfloat16"
         )
         expected = losses.sparse_categorical_focal_crossentropy(
@@ -2345,7 +2342,7 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
                 np.array([[0.8, 0.1, 0.1], [0.1, 0.2, 0.7]], dtype="float32"),
             ]
         )
-        invalid = backend.convert_to_numpy(invalid)
+        invalid = ops.convert_to_numpy(invalid)
         self.assertTrue(np.isfinite(invalid[0]))
         self.assertTrue(np.isnan(invalid[1]))
 
@@ -2395,7 +2392,7 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
             ]
         )
         self.assertTrue(
-            np.all(np.isnan(backend.convert_to_numpy(invalid_alpha)))
+            np.all(np.isnan(ops.convert_to_numpy(invalid_alpha)))
         )
 
         y_true = Input(shape=(2,), dtype="int32")
