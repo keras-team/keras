@@ -1295,9 +1295,9 @@ class NNOpsStaticShapeTest(testing.TestCase):
         out = knn.multi_hot(unbatched_input, 5, -1)
         self.assertEqual(out.shape, (5,))
         self.assertEqual(out.dtype, backend.floatx())
-        self.assertEqual(knn.multi_hot(x, 5).shape, (2, 1, 5))
-        self.assertEqual(knn.multi_hot(x, 5, 1).shape, (2, 3, 1))
-        self.assertEqual(knn.multi_hot(x, 5, 2).shape, (2, 5, 1))
+        self.assertEqual(knn.multi_hot(x, 5).shape, (2, 3, 5))
+        self.assertEqual(knn.multi_hot(x, 5, 1).shape, (2, 5, 1))
+        self.assertEqual(knn.multi_hot(x, 5, 2).shape, (2, 3, 5))
         self.assertEqual(knn.multi_hot(x, 5, dtype="bool").dtype, "bool")
 
     def test_one_hot(self):
