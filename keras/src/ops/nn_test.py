@@ -1315,7 +1315,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(
             knn.categorical_crossentropy(x1, x2, axis=1).shape, (2, 4)
         )
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(ValueError, "out of bounds"):
             knn.categorical_crossentropy(x1, x2, axis=3)
 
     def test_sparse_categorical_crossentropy(self):
