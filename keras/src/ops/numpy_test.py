@@ -12808,6 +12808,25 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
+    @parameterized.named_parameters(
+        ("complex64", "complex64", "float32"),
+        ("complex128", "complex128", "float64"),
+    )
+    def test_std_complex_symbolic_dtype(self, input_dtype, expected_dtype):
+        x = KerasTensor((None, 2), dtype=input_dtype)
+        self.assertEqual(knp.std(x, axis=-1).dtype, expected_dtype)
+
+    def test_std_complex_functional_output_dtype(self):
+        inputs = keras.Input(shape=(2,), dtype="complex64")
+        model = keras.Model(inputs, knp.std(inputs, axis=-1))
+        values = np.array([[1 + 2j, 3 + 4j]], dtype="complex64")
+        actual = model(values)
+        expected = np.std(values, axis=-1)
+
+        self.assertEqual(model.output.dtype, str(expected.dtype))
+        self.assertEqual(standardize_dtype(actual.dtype), str(expected.dtype))
+        self.assertAllClose(actual, expected)
+
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_sum(self, dtype):
         import jax.numpy as jnp
