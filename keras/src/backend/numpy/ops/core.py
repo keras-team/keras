@@ -51,7 +51,7 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if (
         not is_tensor(x)
         and dtype is not None
-        and standardize_dtype(dtype) == "bfloat16"
+        and dtype == "bfloat16"
     ):
         # Can't create bfloat16 arrays on the fly (e.g. from a h5 Dataset).
         # Instead we convert "as is" (to stored dtype) and cast.
