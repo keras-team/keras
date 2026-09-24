@@ -36,6 +36,7 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
             `(batch, height, width, channels)` while `"channels_first"`
             corresponds to inputs with shape
             `(batch, channels, height, width)`.
+        seed: Integer. Used to create a random seed.
 
     Input shape:
         3D (unbatched) or 4D (batched) tensor with shape:

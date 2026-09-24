@@ -54,22 +54,17 @@ class RandomGrayscaleTest(testing.TestCase):
                 self.assertTrue(np.allclose(r, g) and np.allclose(g, b))
 
     def test_seed_is_serialized(self):
-        layer = layers.RandomGrayscale(factor=0.5, seed=1337)
+        layer = layers.RandomGrayscale(
+            factor=0.5, data_format="channels_last", seed=1337
+        )
         self.assertEqual(layer.get_config()["seed"], 1337)
 
         # Without the seed in the config the restored layer grayscales a
         # different subset of the batch.
-        if backend.config.image_data_format() == "channels_last":
-            shape = (8, 4, 4, 3)
-        else:
-            shape = (8, 3, 4, 4)
-        images = np.random.random(shape).astype("float32")
+        images = np.random.random((8, 4, 4, 3)).astype("float32")
         restored = layers.RandomGrayscale.from_config(layer.get_config())
         self.assertAllClose(
-            layers.RandomGrayscale(factor=0.5, seed=1337)(
-                images, training=True
-            ),
-            restored(images, training=True),
+            layer(images, training=True), restored(images, training=True)
         )
 
     def test_invalid_factor(self):
