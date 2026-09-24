@@ -2536,6 +2536,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         expected = -(t * np.log(probs) + (1 - t) * np.log(1 - probs))
         tol = {"float32": 1e-6, "float16": 1e-3, "bfloat16": 1e-2}[output_dtype]
         self.assertAllClose(result, expected, atol=tol, rtol=tol)
+        self.assertEqual(backend.standardize_dtype(result.dtype), output_dtype)
 
     @parameterized.parameters(
         ("int32", True), ("int32", False), ("uint8", False), ("bool", False)
@@ -2557,6 +2558,21 @@ class NNOpsCorrectnessTest(testing.TestCase):
             KerasTensor((4,), "float32"), KerasTensor((4,), output_dtype)
         )
         self.assertEqual(symbolic.dtype, backend.floatx())
+
+    @parameterized.product(
+        target_dtype=["int32", "bool", "float32"],
+        output_dtype=["float16", "bfloat16", "float32"],
+        from_logits=[True, False],
+    )
+    def test_binary_crossentropy_dtype(
+        self, target_dtype, output_dtype, from_logits
+    ):
+        target = np.ones((2,), dtype=target_dtype)
+        output = np.full((2,), 0.5, dtype=output_dtype)
+        result = knn.binary_crossentropy(
+            target, output, from_logits=from_logits
+        )
+        self.assertEqual(backend.standardize_dtype(result.dtype), output_dtype)
 
     def test_categorical_crossentropy(self):
         target = np.array(

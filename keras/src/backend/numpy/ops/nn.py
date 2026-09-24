@@ -936,6 +936,10 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
 def binary_crossentropy(target, output, from_logits=False):
     target = np.array(target)
     output = np.array(output)
+    if not backend.is_float_dtype(output.dtype):
+        output = cast(output, backend.floatx())
+    target = cast(target, output.dtype)
+    dtype = output.dtype
 
     if target.shape != output.shape:
         raise ValueError(
@@ -950,7 +954,7 @@ def binary_crossentropy(target, output, from_logits=False):
     output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
     bce = target * np.log(output)
     bce += (1.0 - target) * np.log(1.0 - output)
-    return -bce
+    return (-bce).astype(dtype)
 
 
 def moments(x, axes, keepdims=False, synchronized=False):
