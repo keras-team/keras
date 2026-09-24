@@ -12817,6 +12817,8 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertEqual(knp.std(x, axis=-1).dtype, expected_dtype)
 
     def test_std_complex_functional_output_dtype(self):
+        if backend.backend() == "openvino":
+            self.skipTest("OpenVINO does not support complex tensors")
         inputs = keras.Input(shape=(2,), dtype="complex64")
         model = keras.Model(inputs, knp.std(inputs, axis=-1))
         values = np.array([[1 + 2j, 3 + 4j]], dtype="complex64")
