@@ -1710,6 +1710,97 @@ class CoreOpsDtypeTest(testing.TestCase):
         self.assertDType(core.SaturateCast(dtype).symbolic_call(x), dtype)
 
 
+class ConvertToTensorFloatxTest(testing.TestCase):
+    """`convert_to_tensor` must not let `floatx` override an input's dtype.
+
+    The jax and numpy backends gated their bfloat16 fast path on
+    `standardize_dtype(dtype) == "bfloat16"`. Because
+    `standardize_dtype(None)` returns `floatx()`, that branch fired for
+    *every* call without an explicit `dtype` once `floatx` was
+    `"bfloat16"`, and the subsequent `astype(None)` silently produced
+    float32 on jax and float64 on numpy.
+    """
+
+    # 64-bit dtypes are excluded: jax truncates them to 32-bit unless
+    # x64 is enabled, which is unrelated to this behavior.
+    PRESERVED_DTYPES = ["bool", "uint8", "int32", "float16", "float32"]
+
+    def setUp(self):
+        super().setUp()
+        self._floatx = backend.floatx()
+
+    def tearDown(self):
+        super().tearDown()
+        backend.set_floatx(self._floatx)
+
+    @parameterized.named_parameters(
+        named_product(floatx=["float32", "bfloat16"])
+    )
+    def test_preserves_input_dtype(self, floatx):
+        """An input that already carries a dtype keeps it."""
+        backend.set_floatx(floatx)
+        for dtype in self.PRESERVED_DTYPES:
+            x = np.ones((2,), dtype=dtype)
+            self.assertDType(
+                ops.convert_to_tensor(x),
+                dtype,
+                msg=f"floatx={floatx}, input dtype={dtype}",
+            )
+
+    @parameterized.named_parameters(
+        named_product(floatx=["float32", "bfloat16"])
+    )
+    def test_explicit_bfloat16_is_honored(self, floatx):
+        """An explicit `dtype="bfloat16"` still works, for any input type."""
+        backend.set_floatx(floatx)
+        for x in (
+            np.ones((2,), dtype="int32"),
+            np.ones((2,), dtype="float32"),
+            [1, 2, 3],
+            (1.0, 2.0),
+            1.0,
+        ):
+            self.assertDType(
+                ops.convert_to_tensor(x, dtype="bfloat16"),
+                "bfloat16",
+                msg=f"floatx={floatx}, input={x}",
+            )
+
+    @parameterized.named_parameters(
+        named_product(floatx=["float32", "bfloat16"])
+    )
+    def test_python_ints_do_not_become_floats(self, floatx):
+        """Python ints and int sequences must not turn into floats.
+
+        Unlike a numpy array, a Python list or scalar is not a backend
+        tensor, so it takes the `bfloat16` branch. The numpy backend
+        returned float64 for these until the same guard was applied
+        there. The exact integer width is backend dependent (it follows
+        `floatx` precision via `_lattice_result_type`), so only the kind
+        of the dtype is asserted.
+        """
+        backend.set_floatx(floatx)
+        for x in ([1, 2, 3], 3, (1, 2)):
+            dtype = backend.standardize_dtype(ops.convert_to_tensor(x).dtype)
+            self.assertIn(
+                dtype,
+                dtypes.INT_TYPES,
+                msg=f"floatx={floatx}, input={x}, got {dtype}",
+            )
+        self.assertDType(ops.convert_to_tensor(True), "bool")
+
+    def test_integer_indices_survive_bfloat16_floatx(self):
+        """Downstream ops that require integer inputs keep working."""
+        backend.set_floatx("bfloat16")
+        table = np.arange(12, dtype="float32").reshape(4, 3)
+        indices = np.array([1, 2], dtype="int32")
+
+        self.assertDType(ops.convert_to_tensor(indices), "int32")
+        self.assertAllClose(
+            ops.take(table, indices, axis=0), table[[1, 2]], atol=1e-2
+        )
+
+
 class CoreOpsBehaviorTests(testing.TestCase):
     def test_associative_scan_invalid_arguments(self):
         # varying dimension at scan axis
