@@ -47,11 +47,6 @@ class TorchTrainer(base_trainer.Trainer):
         except (ImportError, AttributeError):
             pass
 
-    def compile(self, *args, **kwargs):
-        super().compile(*args, **kwargs)
-        if not self.run_eagerly and self.jit_compile:
-            self._dynamo_trace_autograd_ops()
-
     @tracking.no_automatic_dependency_tracking
     def _initialize_ddp(self):
         if torch.distributed.is_initialized() and self.ddp_model is None:
