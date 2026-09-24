@@ -2290,9 +2290,7 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
             (1, num_classes), 0.1 / (num_classes - 1), dtype="float32"
         )
         y_pred[0, label] = 0.9
-        low_precision_y_pred = ops.convert_to_tensor(
-            y_pred, dtype="bfloat16"
-        )
+        low_precision_y_pred = ops.convert_to_tensor(y_pred, dtype="bfloat16")
         expected = losses.sparse_categorical_focal_crossentropy(
             y_true, low_precision_y_pred
         )
@@ -2310,7 +2308,7 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
             np.array([ignored_label], dtype="int64"),
             np.full((1, 3), 1 / 3, dtype="float32"),
         )
-        self.assertAllClose(ignored_result, 0.0)
+        self.assertAllClose(ignored_result, [0.0])
 
     def test_symbolic_inputs(self):
         y_true = Input(shape=(), dtype="int32", name="y_true")
@@ -2391,9 +2389,7 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
                 np.array([[0.8, 0.1, 0.1], [0.1, 0.2, 0.7]], dtype="float32"),
             ]
         )
-        self.assertTrue(
-            np.all(np.isnan(ops.convert_to_numpy(invalid_alpha)))
-        )
+        self.assertTrue(np.all(np.isnan(ops.convert_to_numpy(invalid_alpha))))
 
         y_true = Input(shape=(2,), dtype="int32")
         y_pred = Input(shape=(None, 2))
