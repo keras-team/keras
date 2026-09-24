@@ -1214,16 +1214,17 @@ class AdaptiveMaxPool(Operation):
         )
 
     def compute_output_spec(self, inputs):
+        output_size = self.output_size
+        if isinstance(output_size, int):
+            output_size = (output_size,) * (len(inputs.shape) - 2)
+        else:
+            output_size = tuple(output_size)
         if self.data_format == "channels_last":
-            spatial_dims = self.output_size
             output_shape = (
-                inputs.shape[: -len(self.output_size)]
-                + spatial_dims
-                + (inputs.shape[-1],)
+                (inputs.shape[0],) + output_size + (inputs.shape[-1],)
             )
         else:
-            spatial_dims = self.output_size
-            output_shape = (inputs.shape[0], inputs.shape[1]) + spatial_dims
+            output_shape = (inputs.shape[0], inputs.shape[1]) + output_size
         return backend.KerasTensor(output_shape, dtype=inputs.dtype)
 
 
@@ -1390,16 +1391,17 @@ class AdaptiveAveragePool(Operation):
         )
 
     def compute_output_spec(self, inputs):
+        output_size = self.output_size
+        if isinstance(output_size, int):
+            output_size = (output_size,) * (len(inputs.shape) - 2)
+        else:
+            output_size = tuple(output_size)
         if self.data_format == "channels_last":
-            spatial_dims = self.output_size
             output_shape = (
-                inputs.shape[: -len(self.output_size)]
-                + spatial_dims
-                + (inputs.shape[-1],)
+                (inputs.shape[0],) + output_size + (inputs.shape[-1],)
             )
         else:
-            spatial_dims = self.output_size
-            output_shape = (inputs.shape[0], inputs.shape[1]) + spatial_dims
+            output_shape = (inputs.shape[0], inputs.shape[1]) + output_size
         return backend.KerasTensor(output_shape, dtype=inputs.dtype)
 
 
