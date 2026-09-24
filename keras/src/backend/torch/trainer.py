@@ -3,7 +3,6 @@ import warnings
 import numpy as np
 import torch
 import torch.distributed as dist
-from packaging.version import parse
 from torch.distributed.tensor import DTensor
 from torch.distributed.tensor import Replicate
 from torch.nn.parallel import DistributedDataParallel
@@ -37,19 +36,21 @@ class TorchTrainer(base_trainer.Trainer):
         self.predict_function = None
         self.ddp_model = None
 
-    def _should_torch_compile(self):
-        # require torch>=2.1.0 to enable dynamo since it
-        # includes many improvements/fixes to torch.compile()
-        # TODO eventually we want to get rid of this when
-        # torch is upgraded to >=2.1 (from 2.0.1) in g3
-        if self.jit_compile and parse(torch.__version__) < parse("2.1.0"):
-            warnings.warn(
-                "Please upgrade to torch>=2.1.0 for `jit_compile=True` "
-                "to take effect. Using `jit_compile=False`"
-            )
-            self.jit_compile = False
+    def _dynamo_trace_autograd_ops(self):
+        try:
+            import torch._dynamo as dynamo
 
-        return self.jit_compile
+            # Setting `trace_autograd_ops = True` gives Dynamo permission
+            # to trace into the functional autograd engine and capture the
+            # backward operations directly into the single fused graph.
+            dynamo.config.trace_autograd_ops = True
+        except (ImportError, AttributeError):
+            pass
+
+    def compile(self, *args, **kwargs):
+        super().compile(*args, **kwargs)
+        if self.jit_compile:
+            self._dynamo_trace_autograd_ops()
 
     @tracking.no_automatic_dependency_tracking
     def _initialize_ddp(self):
@@ -114,7 +115,7 @@ class TorchTrainer(base_trainer.Trainer):
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=True
         )
         self._loss_tracker.update_state(
-            loss,
+            loss.detach() if isinstance(loss, torch.Tensor) else loss,
             sample_weight=(
                 x.shape[0]
                 if isinstance(x, torch.Tensor)
@@ -126,12 +127,17 @@ class TorchTrainer(base_trainer.Trainer):
 
         # Compute gradients
         if self.trainable_weights:
-            # Call torch.Tensor.backward() on the loss to compute gradients
-            # for the weights.
-            loss.backward()
-
             trainable_weights = self.trainable_weights[:]
-            gradients = [v.value.grad for v in trainable_weights]
+            if self.jit_compile and self.ddp_model is None:
+                trainable_tensors = [v.value for v in trainable_weights]
+                gradients = torch.autograd.grad(
+                    loss, trainable_tensors, allow_unused=True
+                )
+            else:
+                # Call torch.Tensor.backward() on the loss to compute gradients
+                # for the weights (required for DDP bucket all-reduce hooks).
+                loss.backward()
+                gradients = [v.value.grad for v in trainable_weights]
 
             # Update weights
             with torch.no_grad():
@@ -181,7 +187,8 @@ class TorchTrainer(base_trainer.Trainer):
         self._initialize_ddp()
 
         train_step = self.train_step
-        if self._should_torch_compile():
+        if self.jit_compile:
+            self._dynamo_trace_autograd_ops()
             train_step = torch.compile(train_step)
 
         def train_function(data):
@@ -200,7 +207,7 @@ class TorchTrainer(base_trainer.Trainer):
         self._initialize_ddp()
 
         test_step = self.test_step
-        if self._should_torch_compile():
+        if self.jit_compile:
             test_step = torch.compile(test_step)
 
         def test_function(data):
@@ -265,7 +272,7 @@ class TorchTrainer(base_trainer.Trainer):
         self._initialize_ddp()
 
         predict_step = self.predict_step
-        if self._should_torch_compile():
+        if self.jit_compile:
             predict_step = torch.compile(predict_step)
 
         def predict_function(data):
