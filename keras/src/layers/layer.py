@@ -1414,6 +1414,20 @@ class Layer(BackendLayer, Operation):
             return True
         return strategy.supports_layer(self)
 
+    def _strategy_owns_weight_storage(self):
+        """Whether the quantization strategy creates the weight storage.
+
+        A strategy that owns its weight storage (int8, int4) creates the
+        quantized variables in `quantized_build`, so `build` must not add
+        the floating-point weight. Float8 and the unquantized layer keep
+        the floating-point weight.
+
+        Returns:
+            A boolean.
+        """
+        strategy = strategy_registry.get_strategy(self.quantization_mode)
+        return strategy is not None and strategy.owns_weight_storage
+
     def quantized_build(self, input_shape, mode, config=None):
         strategy = strategy_registry.get_strategy(mode)
         if strategy is None or not self._supports_quantization_mode(strategy):

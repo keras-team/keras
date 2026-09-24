@@ -6288,10 +6288,15 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.cumsum(x, axis=axis, dtype=dtype or x.dtype),
         )
 
-    def test_deg2rad(self):
-        x = np.random.uniform(-360, 360, size=(3, 3))
-        self.assertAllClose(knp.deg2rad(x), np.deg2rad(x))
-        self.assertAllClose(knp.Deg2rad()(x), np.deg2rad(x))
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_deg2rad(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = np.random.uniform(-360, 360, size=(3, 3))
+            self.assertAllClose(knp.deg2rad(x), np.deg2rad(x))
+            self.assertAllClose(knp.Deg2rad()(x), np.deg2rad(x))
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     def test_rad2deg(self):
         x = np.random.uniform(-2 * np.pi, 2 * np.pi, size=(3, 3))
@@ -10235,22 +10240,28 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_deg2rad(self, dtype):
+    @parameterized.named_parameters(
+        named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
+    )
+    def test_deg2rad(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        x = knp.ones((1,), dtype=dtype)
-        x_jax = jnp.ones((1,), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.deg2rad(x_jax).dtype)
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = knp.ones((1,), dtype=dtype)
+            x_jax = jnp.ones((1,), dtype=dtype)
+            expected_dtype = standardize_dtype(jnp.deg2rad(x_jax).dtype)
 
-        self.assertEqual(
-            standardize_dtype(knp.deg2rad(x).dtype), expected_dtype
-        )
+            self.assertEqual(
+                standardize_dtype(knp.deg2rad(x).dtype), expected_dtype
+            )
 
-        self.assertEqual(
-            standardize_dtype(knp.Deg2rad().symbolic_call(x).dtype),
-            expected_dtype,
-        )
+            self.assertEqual(
+                standardize_dtype(knp.Deg2rad().symbolic_call(x).dtype),
+                expected_dtype,
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_rad2deg(self, dtype):

@@ -291,8 +291,6 @@ class Norm(Operation):
                     "Expected one of {'fro', 'nuc'} when using string. "
                     f"Received: ord={ord}"
                 )
-        if isinstance(axis, int):
-            axis = [axis]
         self.ord = ord
         self.axis = axis
         self.keepdims = keepdims
@@ -302,10 +300,11 @@ class Norm(Operation):
         if "int" in output_dtype or output_dtype == "bool":
             output_dtype = backend.floatx()
         if self.axis is None:
-            axis = tuple(range(len(x.shape)))
+            num_axes = len(x.shape)
+        elif isinstance(self.axis, int):
+            num_axes = 1
         else:
-            axis = self.axis
-        num_axes = len(axis)
+            num_axes = len(self.axis)
         if num_axes == 1 and isinstance(self.ord, str):
             raise ValueError(
                 "Invalid `ord` argument for vector norm. "
