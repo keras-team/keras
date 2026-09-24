@@ -177,3 +177,41 @@ def _distributed_metrics_worker(rank):
         raise RuntimeError(f"Metrics missing from results: {results}")
 
     torch.distributed.destroy_process_group()
+
+
+@pytest.mark.skipif(
+    backend.backend() != "torch", reason="Requires torch backend"
+)
+class TorchTrainerJitCompileTest(testing.TestCase):
+    def test_jit_compile_with_frozen_weights(self):
+        model = SimpleModel()
+        x = np.ones((8, 10), dtype="float32")
+        y = np.ones((8, 1), dtype="float32")
+        model(x)
+        # Manually set requires_grad = False on one of the trainable weight
+        # tensors (kernel is frozen, but bias is still trainable)
+        model.dense.kernel.value.requires_grad = False
+
+        model.compile(
+            optimizer=optimizers.Adam(),
+            loss="mse",
+            jit_compile=True,
+        )
+        history = model.fit(x, y, epochs=1, batch_size=4, verbose=0)
+        self.assertIn("loss", history.history)
+
+    def test_jit_compile_with_all_weights_frozen(self):
+        model = SimpleModel()
+        x = np.ones((8, 10), dtype="float32")
+        y = np.ones((8, 1), dtype="float32")
+        model(x)
+        model.dense.kernel.value.requires_grad = False
+        model.dense.bias.value.requires_grad = False
+
+        model.compile(
+            optimizer=optimizers.Adam(),
+            loss="mse",
+            jit_compile=True,
+        )
+        with self.assertRaises(ValueError):
+            model.fit(x, y, epochs=1, batch_size=4, verbose=0)
