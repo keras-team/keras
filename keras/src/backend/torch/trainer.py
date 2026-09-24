@@ -134,9 +134,23 @@ class TorchTrainer(base_trainer.Trainer):
                 and self.ddp_model is None
             ):
                 trainable_tensors = [v.value for v in trainable_weights]
-                gradients = torch.autograd.grad(
-                    loss, trainable_tensors, allow_unused=True
-                )
+                if all(t.requires_grad for t in trainable_tensors):
+                    gradients = torch.autograd.grad(
+                        loss, trainable_tensors, allow_unused=True
+                    )
+                else:
+                    inputs = [t for t in trainable_tensors if t.requires_grad]
+                    grads = (
+                        iter(
+                            torch.autograd.grad(loss, inputs, allow_unused=True)
+                        )
+                        if inputs
+                        else ()
+                    )
+                    gradients = [
+                        next(grads) if t.requires_grad else None
+                        for t in trainable_tensors
+                    ]
             else:
                 # Call torch.Tensor.backward() on the loss to compute gradients
                 # for the weights (required for DDP bucket all-reduce hooks).
