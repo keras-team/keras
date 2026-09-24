@@ -1,4 +1,4 @@
-from keras.src import ops
+from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.optimizers import optimizer
 
@@ -88,44 +88,59 @@ class Lamb(optimizer.Optimizer):
 
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
-        lr = ops.cast(learning_rate, variable.dtype)
-        gradient = ops.cast(gradient, variable.dtype)
-        local_step = ops.cast(self.iterations + 1, variable.dtype)
+        lr = backend.ops.cast(learning_rate, variable.dtype)
+        gradient = backend.ops.cast(gradient, variable.dtype)
+        local_step = backend.ops.cast(self.iterations + 1, variable.dtype)
 
-        beta_1_power = ops.power(
-            ops.cast(self.beta_1, variable.dtype), local_step
+        beta_1_power = backend.ops.numpy.power(
+            backend.ops.cast(self.beta_1, variable.dtype), local_step
         )
-        beta_2_power = ops.power(
-            ops.cast(self.beta_2, variable.dtype), local_step
+        beta_2_power = backend.ops.numpy.power(
+            backend.ops.cast(self.beta_2, variable.dtype), local_step
         )
 
         m = self._momentums[self._get_variable_index(variable)]
         v = self._velocities[self._get_variable_index(variable)]
 
         self.assign_add(
-            m, ops.multiply(ops.subtract(gradient, m), 1 - self.beta_1)
+            m,
+            backend.ops.numpy.multiply(
+                backend.ops.numpy.subtract(gradient, m), 1 - self.beta_1
+            ),
         )
 
         self.assign_add(
             v,
-            ops.multiply(
-                ops.subtract(ops.square(gradient), v), 1 - self.beta_2
+            backend.ops.numpy.multiply(
+                backend.ops.numpy.subtract(
+                    backend.ops.numpy.square(gradient), v
+                ),
+                1 - self.beta_2,
             ),
         )
 
-        m_t_hat = ops.divide(m, (1.0 - beta_1_power))
-        v_sqrt = ops.add(
-            ops.sqrt(ops.divide(v, (1.0 - beta_2_power))), self.epsilon
+        m_t_hat = backend.ops.numpy.divide(m, (1.0 - beta_1_power))
+        v_sqrt = backend.ops.numpy.add(
+            backend.ops.numpy.sqrt(
+                backend.ops.numpy.divide(v, (1.0 - beta_2_power))
+            ),
+            self.epsilon,
         )
 
-        update = ops.divide(m_t_hat, v_sqrt)
-        w_norm = ops.sqrt(ops.sum(ops.power(variable, 2)))
-        g_norm = ops.sqrt(ops.sum(ops.power(update, 2)))
+        update = backend.ops.numpy.divide(m_t_hat, v_sqrt)
+        w_norm = backend.ops.numpy.sqrt(
+            backend.ops.numpy.sum(backend.ops.numpy.power(variable, 2))
+        )
+        g_norm = backend.ops.numpy.sqrt(
+            backend.ops.numpy.sum(backend.ops.numpy.power(update, 2))
+        )
 
         # ratio = w_norm / g_norm if w_norm > 0 and g_norm > 0 else 1
-        ratio = ops.where(
-            ops.greater(w_norm, 0),
-            ops.where(ops.greater(g_norm, 0), (w_norm / g_norm), 1.0),
+        ratio = backend.ops.numpy.where(
+            backend.ops.numpy.greater(w_norm, 0),
+            backend.ops.numpy.where(
+                backend.ops.numpy.greater(g_norm, 0), (w_norm / g_norm), 1.0
+            ),
             1.0,
         )
 

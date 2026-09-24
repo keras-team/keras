@@ -1,4 +1,4 @@
-from keras.src import ops
+from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.optimizers import optimizer
 
@@ -111,22 +111,24 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
         # Initialize momentum to match the initial parameter values
         for momentum, var in zip(self._momentums, var_list):
             if momentum is not None:
-                self.assign(momentum, ops.copy(var))
+                self.assign(momentum, backend.ops.numpy.copy(var))
 
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
-        lr = ops.cast(learning_rate, variable.dtype)
-        gradient = ops.cast(gradient, variable.dtype)
-        local_step = ops.cast(self.iterations + 1, variable.dtype)
+        lr = backend.ops.cast(learning_rate, variable.dtype)
+        gradient = backend.ops.cast(gradient, variable.dtype)
+        local_step = backend.ops.cast(self.iterations + 1, variable.dtype)
 
-        beta_1 = ops.cast(self.beta_1, variable.dtype)
-        beta_2 = ops.cast(self.beta_2, variable.dtype)
-        epsilon = ops.cast(self.epsilon, variable.dtype)
+        beta_1 = backend.ops.cast(self.beta_1, variable.dtype)
+        beta_2 = backend.ops.cast(self.beta_2, variable.dtype)
+        epsilon = backend.ops.cast(self.epsilon, variable.dtype)
 
         # Apply warmup
         if self.warmup_steps > 0:
-            warmup_steps = ops.cast(self.warmup_steps, variable.dtype)
-            warmup_factor = ops.minimum(local_step / warmup_steps, 1.0)
+            warmup_steps = backend.ops.cast(self.warmup_steps, variable.dtype)
+            warmup_factor = backend.ops.numpy.minimum(
+                local_step / warmup_steps, 1.0
+            )
             lr = lr * warmup_factor
 
         var_index = self._get_variable_index(variable)
@@ -137,22 +139,29 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
         momentum_old = momentum.value
 
         # Bias correction for Adam's second moment
-        bias_correction_2 = 1 - ops.power(beta_2, local_step)
+        bias_correction_2 = 1 - backend.ops.numpy.power(beta_2, local_step)
 
         # Update velocity (second moment estimate)
         # velocity = beta_2 * velocity + (1 - beta_2) * gradient^2
         self.assign_add(
             velocity,
-            ops.multiply(
-                ops.subtract(ops.square(gradient), velocity), 1 - beta_2
+            backend.ops.numpy.multiply(
+                backend.ops.numpy.subtract(
+                    backend.ops.numpy.square(gradient), velocity
+                ),
+                1 - beta_2,
             ),
         )
 
         # Compute the denominator (RMSprop-style with bias correction)
-        denom = ops.add(ops.sqrt(velocity / bias_correction_2), epsilon)
+        denom = backend.ops.numpy.add(
+            backend.ops.numpy.sqrt(velocity / bias_correction_2), epsilon
+        )
 
         # Update momentum: momentum = momentum - lr * gradient / denom
-        grad_scaled = ops.divide(ops.multiply(lr, gradient), denom)
+        grad_scaled = backend.ops.numpy.divide(
+            backend.ops.numpy.multiply(lr, gradient), denom
+        )
         self.assign_sub(momentum, grad_scaled)
 
         # Compute weight for averaging: weight = 1 / step
@@ -161,21 +170,25 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
         # Recover x_old from y_old and momentum_old
         # x_old = (y_old - (1 - beta_1) * momentum_old) / beta_1
         y_old = variable
-        x_old = ops.divide(
-            ops.subtract(y_old, ops.multiply(1 - beta_1, momentum_old)),
+        x_old = backend.ops.numpy.divide(
+            backend.ops.numpy.subtract(
+                y_old, backend.ops.numpy.multiply(1 - beta_1, momentum_old)
+            ),
             beta_1,
         )
 
         # x_new = lerp(x_old, momentum, weight)
         # x_new = (1 - weight) * x_old + weight * momentum
-        x_new = ops.add(
-            ops.multiply(1 - weight, x_old), ops.multiply(weight, momentum)
+        x_new = backend.ops.numpy.add(
+            backend.ops.numpy.multiply(1 - weight, x_old),
+            backend.ops.numpy.multiply(weight, momentum),
         )
 
         # y_new = lerp(momentum, x_new, beta_1)
         # y_new = (1 - beta_1) * momentum + beta_1 * x_new
-        y_new = ops.add(
-            ops.multiply(1 - beta_1, momentum), ops.multiply(beta_1, x_new)
+        y_new = backend.ops.numpy.add(
+            backend.ops.numpy.multiply(1 - beta_1, momentum),
+            backend.ops.numpy.multiply(beta_1, x_new),
         )
 
         self.assign(variable, y_new)
