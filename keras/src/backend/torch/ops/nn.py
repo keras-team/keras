@@ -926,6 +926,7 @@ def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
+    target = cast(target, output.dtype)
 
     if target.shape != output.shape:
         raise ValueError(

@@ -1411,6 +1411,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     """
     target = tf.convert_to_tensor(target)
     output = tf.convert_to_tensor(output)
+    target = tf.cast(target, output.dtype)
 
     if len(target.shape) < 1:
         raise ValueError(
