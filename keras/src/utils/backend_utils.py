@@ -90,9 +90,11 @@ class DynamicBackend:
                 f"'numpy' and 'openvino'). Received: backend={backend}"
             )
         self._backend = backend
+        self._get_module()
 
     def reset(self):
         self._backend = backend_module.backend()
+        self._get_module()
 
     @property
     def name(self):

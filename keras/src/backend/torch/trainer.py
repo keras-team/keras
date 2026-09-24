@@ -145,7 +145,7 @@ class TorchTrainer(base_trainer.Trainer):
                             torch.autograd.grad(loss, inputs, allow_unused=True)
                         )
                         if inputs
-                        else ()
+                        else iter(())
                     )
                     gradients = [
                         next(grads) if t.requires_grad else None
