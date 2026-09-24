@@ -215,3 +215,32 @@ class TorchTrainerJitCompileTest(testing.TestCase):
         )
         with self.assertRaises(ValueError):
             model.fit(x, y, epochs=1, batch_size=4, verbose=0)
+
+    def test_jit_compile_with_detached_loss(self):
+        class DetachedLossModel(models.Model):
+            def __init__(self):
+                super().__init__()
+                self.dense = layers.Dense(1)
+
+            def call(self, x):
+                return self.dense(x)
+
+            def compute_loss(
+                self,
+                x=None,
+                y=None,
+                y_pred=None,
+                sample_weight=None,
+                training=True,
+            ):
+                return torch.tensor(1.0)
+
+        model = DetachedLossModel()
+        x = np.ones((8, 10), dtype="float32")
+        y = np.ones((8, 1), dtype="float32")
+        model.compile(
+            optimizer=optimizers.Adam(),
+            jit_compile=True,
+        )
+        with self.assertRaises(ValueError):
+            model.fit(x, y, epochs=1, batch_size=4, verbose=0)

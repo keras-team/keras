@@ -129,7 +129,9 @@ class TorchTrainer(base_trainer.Trainer):
                 and self.ddp_model is None
             ):
                 trainable_tensors = [v.value for v in trainable_weights]
-                if all(t.requires_grad for t in trainable_tensors):
+                if isinstance(loss, torch.Tensor) and not loss.requires_grad:
+                    gradients = [None] * len(trainable_weights)
+                elif all(t.requires_grad for t in trainable_tensors):
                     gradients = torch.autograd.grad(
                         loss, trainable_tensors, allow_unused=True
                     )
