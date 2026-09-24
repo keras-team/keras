@@ -12,7 +12,7 @@ Two geometry families exist today:
 
 - Projection: a float kernel contracted against the inputs. A strategy writes
   one projection implementation and the geometry supplies what differs per
-  layer: how to contract (a plain matmul for `Dense`,
+  layer: how to contract (a plain matmul for `Dense` and `TernaryDense`,
   `ProjectionGeometry`; an einsum for `EinsumDense`,
   `EinsumProjectionGeometry`, whose axis analysis lives on the layer
   itself and is reached through the geometry's hooks), which axes the
@@ -67,9 +67,9 @@ Customizing what a strategy does to a layer
 
 Override a geometry hook rather than a strategy method: the hooks on the
 classes below are the only points at which strategies vary per
-layer. A layer that owns its own ternarization rule, for example, supplies
-it through `ternary_values`, and the ternary strategy needs no knowledge of
-the layer.
+layer. `TernaryDense` is the in-tree example: its geometry supplies its
+own straight-through ternarization values, and the ternary strategy needs no
+knowledge of the layer.
 
 Two things this protocol deliberately does not offer. A layer cannot
 override one strategy's math for itself alone, because that surface lives
@@ -207,7 +207,8 @@ class ProjectionGeometry(QuantizationGeometry):
 
         The default applies the BitNet b1.58 rule to the float kernel:
         `threshold = 0.5 * mean(|W|)` and `scale = mean(|W|)`. A layer that
-        owns its own ternarization rule overrides this in its geometry.
+        owns its own ternarization rule (`TernaryDense` and its straight-
+        through estimator) overrides this in its geometry.
         """
         kernel = self.layer._kernel
         kernel_np = ops.convert_to_numpy(kernel)
