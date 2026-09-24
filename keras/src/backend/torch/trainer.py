@@ -49,7 +49,7 @@ class TorchTrainer(base_trainer.Trainer):
 
     def compile(self, *args, **kwargs):
         super().compile(*args, **kwargs)
-        if self.jit_compile:
+        if not self.run_eagerly and self.jit_compile:
             self._dynamo_trace_autograd_ops()
 
     @tracking.no_automatic_dependency_tracking
@@ -128,7 +128,11 @@ class TorchTrainer(base_trainer.Trainer):
         # Compute gradients
         if self.trainable_weights:
             trainable_weights = self.trainable_weights[:]
-            if self.jit_compile and self.ddp_model is None:
+            if (
+                not self.run_eagerly
+                and self.jit_compile
+                and self.ddp_model is None
+            ):
                 trainable_tensors = [v.value for v in trainable_weights]
                 gradients = torch.autograd.grad(
                     loss, trainable_tensors, allow_unused=True
@@ -187,7 +191,7 @@ class TorchTrainer(base_trainer.Trainer):
         self._initialize_ddp()
 
         train_step = self.train_step
-        if self.jit_compile:
+        if not self.run_eagerly and self.jit_compile:
             self._dynamo_trace_autograd_ops()
             train_step = torch.compile(train_step)
 
@@ -207,7 +211,7 @@ class TorchTrainer(base_trainer.Trainer):
         self._initialize_ddp()
 
         test_step = self.test_step
-        if self.jit_compile:
+        if not self.run_eagerly and self.jit_compile:
             test_step = torch.compile(test_step)
 
         def test_function(data):
@@ -272,7 +276,7 @@ class TorchTrainer(base_trainer.Trainer):
         self._initialize_ddp()
 
         predict_step = self.predict_step
-        if self.jit_compile:
+        if not self.run_eagerly and self.jit_compile:
             predict_step = torch.compile(predict_step)
 
         def predict_function(data):
