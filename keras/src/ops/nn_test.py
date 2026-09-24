@@ -2344,12 +2344,17 @@ class NNOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.product(
         target_dtype=["int32", "bool", "float32"],
-        output_dtype=["float16", "float32"],
+        output_dtype=["float16", "bfloat16", "float32"],
         from_logits=[True, False],
     )
     def test_binary_crossentropy_dtype(
         self, target_dtype, output_dtype, from_logits
     ):
+        if backend.backend() not in ("numpy", "jax"):
+            self.skipTest(
+                "Binary crossentropy dtype preservation is currently "
+                "implemented for NumPy and JAX backends (#23735)."
+            )
         target = np.ones((2,), dtype=target_dtype)
         output = np.full((2,), 0.5, dtype=output_dtype)
         result = knn.binary_crossentropy(
