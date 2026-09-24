@@ -5353,7 +5353,7 @@ def maximum(x1, x2):
 
 class Fmax(Operation):
     def call(self, x1, x2):
-        return backend.ops.numpy.fmax(x1, x2)
+        return _fmax(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -5394,7 +5394,26 @@ def fmax(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Fmax().symbolic_call(x1, x2)
-    return backend.ops.numpy.fmax(x1, x2)
+    return _fmax(x1, x2)
+
+
+def _fmax(x1, x2):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "fmax"
+    ):
+        return backend.ops.numpy.fmax(x1, x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = backend.ops.convert_to_tensor(x1, dtype)
+    x2 = backend.ops.convert_to_tensor(x2, dtype)
+    res = ops.maximum(x1, x2)
+    if "float" not in dtype:
+        return res
+
+    res = ops.where(ops.isnan(x2), x1, res)
+    return ops.where(ops.isnan(x1), x2, res)
 
 
 class Median(Operation):
