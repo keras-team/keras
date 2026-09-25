@@ -4626,16 +4626,21 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Minimum()(x, 1), np.minimum(x, 1))
         self.assertAllClose(knp.Minimum()(1, x), np.minimum(1, x))
 
-    def test_fmin(self):
-        x = np.array([[1.0, np.nan], [3.0, 4.0]])
-        y = np.array([[5.0, 6.0], [np.nan, 8.0]])
-        self.assertAllClose(knp.fmin(x, y), np.fmin(x, y))
-        self.assertAllClose(knp.fmin(x, 1.0), np.fmin(x, 1.0))
-        self.assertAllClose(knp.fmin(1.0, x), np.fmin(1.0, x))
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_fmin(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = np.array([[1.0, np.nan], [3.0, 4.0]])
+            y = np.array([[5.0, 6.0], [np.nan, 8.0]])
+            self.assertAllClose(knp.fmin(x, y), np.fmin(x, y))
+            self.assertAllClose(knp.fmin(x, 1.0), np.fmin(x, 1.0))
+            self.assertAllClose(knp.fmin(1.0, x), np.fmin(1.0, x))
 
-        self.assertAllClose(knp.Fmin()(x, y), np.fmin(x, y))
-        self.assertAllClose(knp.Fmin()(x, 1.0), np.fmin(x, 1.0))
-        self.assertAllClose(knp.Fmin()(1.0, x), np.fmin(1.0, x))
+            self.assertAllClose(knp.Fmin()(x, y), np.fmin(x, y))
+            self.assertAllClose(knp.Fmin()(x, 1.0), np.fmin(x, 1.0))
+            self.assertAllClose(knp.Fmin()(1.0, x), np.fmin(1.0, x))
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     def test_mod(self):
         x = np.array([[1, 2], [3, 4]])
@@ -11735,25 +11740,32 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertDType(knp.Minimum().symbolic_call(x, 1.0), expected_dtype)
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
+        named_product(
+            BACKEND_AGNOSTIC_OPS,
+            dtypes=itertools.combinations(BINARY_DTYPES, 2),
+        )
     )
-    def test_fmin(self, dtypes):
+    def test_fmin(self, backend_agnostic_ops, dtypes):
         import jax.numpy as jnp
 
-        dtype1, dtype2 = dtypes
-        x1 = knp.ones((), dtype=dtype1)
-        x2 = knp.ones((), dtype=dtype2)
-        x1_jax = jnp.ones((), dtype=dtype1)
-        x2_jax = jnp.ones((), dtype=dtype2)
-        expected_dtype = standardize_dtype(jnp.fmin(x1_jax, x2_jax).dtype)
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            dtype1, dtype2 = dtypes
+            x1 = knp.ones((), dtype=dtype1)
+            x2 = knp.ones((), dtype=dtype2)
+            x1_jax = jnp.ones((), dtype=dtype1)
+            x2_jax = jnp.ones((), dtype=dtype2)
+            expected_dtype = standardize_dtype(jnp.fmin(x1_jax, x2_jax).dtype)
 
-        self.assertEqual(
-            standardize_dtype(knp.fmin(x1, x2).dtype), expected_dtype
-        )
-        self.assertEqual(
-            standardize_dtype(knp.Fmin().symbolic_call(x1, x2).dtype),
-            expected_dtype,
-        )
+            self.assertEqual(
+                standardize_dtype(knp.fmin(x1, x2).dtype), expected_dtype
+            )
+            self.assertEqual(
+                standardize_dtype(knp.Fmin().symbolic_call(x1, x2).dtype),
+                expected_dtype,
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
