@@ -139,6 +139,8 @@ class DtypesTest(test_case.TestCase):
         try:
             self.assertEqual(backend.result_type(float), "bfloat16")
             self.assertEqual(backend.result_type("int32", float), "bfloat16")
+            self.assertEqual(backend.result_type("int64", float), "bfloat16")
+            self.assertEqual(backend.result_type("bool", float), "bfloat16")
         finally:
             backend.config.set_floatx(original_floatx)
 

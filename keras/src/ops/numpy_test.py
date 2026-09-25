@@ -7437,6 +7437,53 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(standardize_dtype(y.dtype), "float32")
         self.assertAllClose(y, ref_y)
 
+    @pytest.mark.skipif(
+        backend.backend() != "numpy", reason="NumPy backend only"
+    )
+    def test_sqrt_log_int_bool_with_bfloat16_floatx(self):
+        orig_floatx = backend.floatx()
+        backend.set_floatx("bfloat16")
+        try:
+            sqrt_inputs = {
+                "int32": np.array([[1, 4, 9], [16, 25, 36]], dtype="int32"),
+                "int64": np.array([[1, 4, 9], [16, 25, 36]], dtype="int64"),
+                "bool": np.ones((2, 3), dtype="bool"),
+            }
+            log_inputs = {
+                "int32": np.array([[1, 2, 4], [8, 16, 32]], dtype="int32"),
+                "int64": np.array([[1, 2, 4], [8, 16, 32]], dtype="int64"),
+                "bool": np.ones((2, 3), dtype="bool"),
+            }
+            for dtype, x in sqrt_inputs.items():
+                y = knp.sqrt(x)
+                self.assertEqual(standardize_dtype(y.dtype), "bfloat16")
+                ref = np.sqrt(x.astype("float32")).astype("bfloat16")
+                self.assertAllClose(y, ref, rtol=1e-2, atol=1e-2)
+                spec = knp.Sqrt().symbolic_call(
+                    KerasTensor(x.shape, dtype=dtype)
+                )
+                self.assertEqual(standardize_dtype(spec.dtype), "bfloat16")
+            for op, op_class, ref_fn in [
+                (knp.log, knp.Log, np.log),
+                (knp.log10, knp.Log10, np.log10),
+                (knp.log1p, knp.Log1p, np.log1p),
+                (knp.log2, knp.Log2, np.log2),
+            ]:
+                for dtype, x in log_inputs.items():
+                    y = op(x)
+                    self.assertEqual(standardize_dtype(y.dtype), "bfloat16")
+                    ref = ref_fn(x.astype("float32")).astype("bfloat16")
+                    self.assertAllClose(y, ref, rtol=1e-2, atol=1e-2)
+                    spec = op_class().symbolic_call(
+                        KerasTensor(x.shape, dtype=dtype)
+                    )
+                    self.assertEqual(
+                        standardize_dtype(spec.dtype),
+                        "bfloat16",
+                    )
+        finally:
+            backend.set_floatx(orig_floatx)
+
     def test_stack(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [6, 5, 4]])
