@@ -178,7 +178,7 @@ class RandomTranslation(BaseImagePreprocessingLayer):
         return labels
 
     def get_transformed_x_y(self, x, y, transform):
-        a0, a1, a2, b0, b1, b2, c0, c1 = self.backend.numpy.split(
+        a0, a1, a2, b0, b1, b2, c0, c1 = self.backend.ops.numpy.split(
             transform, 8, axis=-1
         )
 
@@ -189,20 +189,24 @@ class RandomTranslation(BaseImagePreprocessingLayer):
 
     def get_shifted_bbox(self, bounding_boxes, w_shift_factor, h_shift_factor):
         bboxes = bounding_boxes["boxes"]
-        x1, x2, x3, x4 = self.backend.numpy.split(bboxes, 4, axis=-1)
+        x1, x2, x3, x4 = self.backend.ops.numpy.split(bboxes, 4, axis=-1)
 
-        w_shift_factor = self.backend.convert_to_tensor(
+        w_shift_factor = self.backend.ops.convert_to_tensor(
             w_shift_factor, dtype=x1.dtype
         )
-        h_shift_factor = self.backend.convert_to_tensor(
+        h_shift_factor = self.backend.ops.convert_to_tensor(
             h_shift_factor, dtype=x1.dtype
         )
 
         if len(bboxes.shape) == 3:
-            w_shift_factor = self.backend.numpy.expand_dims(w_shift_factor, -1)
-            h_shift_factor = self.backend.numpy.expand_dims(h_shift_factor, -1)
+            w_shift_factor = self.backend.ops.numpy.expand_dims(
+                w_shift_factor, -1
+            )
+            h_shift_factor = self.backend.ops.numpy.expand_dims(
+                h_shift_factor, -1
+            )
 
-        bounding_boxes["boxes"] = self.backend.numpy.concatenate(
+        bounding_boxes["boxes"] = self.backend.ops.numpy.concatenate(
             [
                 x1 - w_shift_factor,
                 x2 - h_shift_factor,
@@ -281,10 +285,10 @@ class RandomTranslation(BaseImagePreprocessingLayer):
         else:
             images = data
 
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         unbatched = len(images_shape) == 3
         if unbatched:
-            images_shape = self.backend.shape(images)
+            images_shape = self.backend.ops.shape(images)
             batch_size = 1
         else:
             batch_size = images_shape[0]
@@ -304,16 +308,20 @@ class RandomTranslation(BaseImagePreprocessingLayer):
             shape=[batch_size, 1],
             seed=seed,
         )
-        height_translate = self.backend.numpy.multiply(height_translate, height)
+        height_translate = self.backend.ops.numpy.multiply(
+            height_translate, height
+        )
         width_translate = self.backend.random.uniform(
             minval=self.width_lower,
             maxval=self.width_upper,
             shape=[batch_size, 1],
             seed=seed,
         )
-        width_translate = self.backend.numpy.multiply(width_translate, width)
-        translations = self.backend.cast(
-            self.backend.numpy.concatenate(
+        width_translate = self.backend.ops.numpy.multiply(
+            width_translate, width
+        )
+        translations = self.backend.ops.cast(
+            self.backend.ops.numpy.concatenate(
                 [width_translate, height_translate], axis=1
             ),
             dtype="float32",
@@ -324,13 +332,13 @@ class RandomTranslation(BaseImagePreprocessingLayer):
         if transformation is None:
             return inputs
 
-        inputs_shape = self.backend.shape(inputs)
+        inputs_shape = self.backend.ops.shape(inputs)
         unbatched = len(inputs_shape) == 3
         if unbatched:
-            inputs = self.backend.numpy.expand_dims(inputs, axis=0)
+            inputs = self.backend.ops.numpy.expand_dims(inputs, axis=0)
 
         translations = transformation["translations"]
-        outputs = self.backend.image.affine_transform(
+        outputs = self.backend.ops.image.affine_transform(
             inputs,
             transform=self._get_translation_matrix(translations),
             interpolation=interpolation,
@@ -340,26 +348,26 @@ class RandomTranslation(BaseImagePreprocessingLayer):
         )
 
         if unbatched:
-            outputs = self.backend.numpy.squeeze(outputs, axis=0)
+            outputs = self.backend.ops.numpy.squeeze(outputs, axis=0)
         return outputs
 
     def _get_translation_matrix(self, translations):
-        num_translations = self.backend.shape(translations)[0]
+        num_translations = self.backend.ops.shape(translations)[0]
         # The translation matrix looks like:
         #     [[1 0 -dx]
         #      [0 1 -dy]
         #      [0 0 1]]
         # where the last entry is implicit.
         # translation matrices are always float32.
-        return self.backend.numpy.concatenate(
+        return self.backend.ops.numpy.concatenate(
             [
-                self.backend.numpy.ones((num_translations, 1)),
-                self.backend.numpy.zeros((num_translations, 1)),
+                self.backend.ops.numpy.ones((num_translations, 1)),
+                self.backend.ops.numpy.zeros((num_translations, 1)),
                 -translations[:, 0:1],
-                self.backend.numpy.zeros((num_translations, 1)),
-                self.backend.numpy.ones((num_translations, 1)),
+                self.backend.ops.numpy.zeros((num_translations, 1)),
+                self.backend.ops.numpy.ones((num_translations, 1)),
                 -translations[:, 1:],
-                self.backend.numpy.zeros((num_translations, 2)),
+                self.backend.ops.numpy.zeros((num_translations, 2)),
             ],
             axis=1,
         )

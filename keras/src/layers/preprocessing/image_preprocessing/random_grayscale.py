@@ -70,7 +70,7 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
         batch_size = 1
         if len(images.shape) == 4:
             # This is a batch of images (4D input)
-            batch_size = self.backend.core.shape(images)[0]
+            batch_size = self.backend.ops.shape(images)[0]
 
         random_values = self.backend.random.uniform(
             shape=(batch_size,),
@@ -78,7 +78,7 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
             maxval=1,
             seed=seed,
         )
-        should_apply = self.backend.numpy.expand_dims(
+        should_apply = self.backend.ops.numpy.expand_dims(
             random_values < self.factor, axis=[1, 2, 3]
         )
         return should_apply
@@ -91,10 +91,10 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
                 else self.get_random_transformation(images)
             )
 
-            grayscale_images = self.backend.image.rgb_to_grayscale(
+            grayscale_images = self.backend.ops.image.rgb_to_grayscale(
                 images, data_format=self.data_format
             )
-            return self.backend.numpy.where(
+            return self.backend.ops.numpy.where(
                 should_apply, grayscale_images, images
             )
         return images

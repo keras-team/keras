@@ -85,25 +85,25 @@ class Equalization(BaseImagePreprocessingLayer):
         self.value_range = sorted(value_range)
 
     def _custom_histogram_fixed_width(self, values, value_range, nbins):
-        values = self.backend.cast(values, "float32")
+        values = self.backend.ops.cast(values, "float32")
         value_min, value_max = value_range
-        value_min = self.backend.cast(value_min, "float32")
-        value_max = self.backend.cast(value_max, "float32")
+        value_min = self.backend.ops.cast(value_min, "float32")
+        value_max = self.backend.ops.cast(value_max, "float32")
 
         scaled = (values - value_min) * (nbins - 1) / (value_max - value_min)
-        indices = self.backend.cast(scaled, "int32")
-        indices = self.backend.numpy.clip(indices, 0, nbins - 1)
-        flat_indices = self.backend.numpy.reshape(indices, [-1])
+        indices = self.backend.ops.cast(scaled, "int32")
+        indices = self.backend.ops.numpy.clip(indices, 0, nbins - 1)
+        flat_indices = self.backend.ops.numpy.reshape(indices, [-1])
 
         # `bincount` has a data dependent output shape, so it cannot be traced.
-        histogram = self.backend.numpy.zeros(nbins, dtype="int32")
+        histogram = self.backend.ops.numpy.zeros(nbins, dtype="int32")
         for i in range(nbins):
-            matches = self.backend.cast(
-                self.backend.numpy.equal(flat_indices, i), "int32"
+            matches = self.backend.ops.cast(
+                self.backend.ops.numpy.equal(flat_indices, i), "int32"
             )
-            bin_count = self.backend.numpy.sum(matches)
-            one_hot = self.backend.cast(
-                self.backend.numpy.arange(nbins) == i, "int32"
+            bin_count = self.backend.ops.numpy.sum(matches)
+            one_hot = self.backend.ops.cast(
+                self.backend.ops.numpy.arange(nbins) == i, "int32"
             )
             histogram = histogram + (bin_count * one_hot)
         return histogram
@@ -123,8 +123,8 @@ class Equalization(BaseImagePreprocessingLayer):
             channel, value_range=(0, 255), nbins=self.bins
         )
 
-        nonzero_bins = self.backend.numpy.count_nonzero(hist)
-        equalized = self.backend.numpy.where(
+        nonzero_bins = self.backend.ops.numpy.count_nonzero(hist)
+        equalized = self.backend.ops.numpy.where(
             nonzero_bins <= 1, channel, self._apply_equalization(channel, hist)
         )
 
@@ -134,55 +134,60 @@ class Equalization(BaseImagePreprocessingLayer):
         return equalized
 
     def _apply_equalization(self, channel, hist):
-        cdf = self.backend.numpy.cumsum(hist)
+        cdf = self.backend.ops.numpy.cumsum(hist)
 
         # `nonzero` has a data dependent output shape, so it cannot be traced.
         mask = cdf > 0
-        first_nonzero_idx = self.backend.numpy.argmax(mask)
-        cdf_min = self.backend.numpy.take(cdf, first_nonzero_idx)
+        first_nonzero_idx = self.backend.ops.numpy.argmax(mask)
+        cdf_min = self.backend.ops.numpy.take(cdf, first_nonzero_idx)
 
         denominator = cdf[-1] - cdf_min
-        denominator = self.backend.numpy.where(
+        denominator = self.backend.ops.numpy.where(
             denominator == 0,
-            self.backend.numpy.ones_like(1, dtype=denominator.dtype),
+            self.backend.ops.numpy.ones_like(1, dtype=denominator.dtype),
             denominator,
         )
 
         lookup_table = ((cdf - cdf_min) * 255) / denominator
-        lookup_table = self.backend.numpy.clip(
-            self.backend.numpy.round(lookup_table), 0, 255
+        lookup_table = self.backend.ops.numpy.clip(
+            self.backend.ops.numpy.round(lookup_table), 0, 255
         )
 
         scaled_channel = (channel / 255.0) * (self.bins - 1)
-        indices = self.backend.cast(
-            self.backend.numpy.clip(scaled_channel, 0, self.bins - 1), "int32"
+        indices = self.backend.ops.cast(
+            self.backend.ops.numpy.clip(scaled_channel, 0, self.bins - 1),
+            "int32",
         )
-        return self.backend.numpy.take(lookup_table, indices)
+        return self.backend.ops.numpy.take(lookup_table, indices)
 
     def transform_images(self, images, transformation, training=True):
         if training:
-            images = self.backend.cast(images, self.compute_dtype)
+            images = self.backend.ops.cast(images, self.compute_dtype)
 
             if self.data_format == "channels_first":
                 channels = []
-                for i in range(self.backend.core.shape(images)[-3]):
+                for i in range(self.backend.ops.shape(images)[-3]):
                     channel = images[..., i, :, :]
                     equalized = self._equalize_channel(
                         channel, self.value_range
                     )
                     channels.append(equalized)
-                equalized_images = self.backend.numpy.stack(channels, axis=-3)
+                equalized_images = self.backend.ops.numpy.stack(
+                    channels, axis=-3
+                )
             else:
                 channels = []
-                for i in range(self.backend.core.shape(images)[-1]):
+                for i in range(self.backend.ops.shape(images)[-1]):
                     channel = images[..., i]
                     equalized = self._equalize_channel(
                         channel, self.value_range
                     )
                     channels.append(equalized)
-                equalized_images = self.backend.numpy.stack(channels, axis=-1)
+                equalized_images = self.backend.ops.numpy.stack(
+                    channels, axis=-1
+                )
 
-            return self.backend.cast(equalized_images, self.compute_dtype)
+            return self.backend.ops.cast(equalized_images, self.compute_dtype)
         return images
 
     def compute_output_shape(self, input_shape):

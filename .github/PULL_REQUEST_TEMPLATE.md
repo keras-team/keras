@@ -5,7 +5,7 @@ Fixes #<!-- issue number -->
 
 ## Contributor Agreement
 
-**Please review our [PR Contribution Policy](https://github.com/keras-team/keras/issues/23601) and [AI-Assisted Contribution Policy](../CONTRIBUTING.md#ai-assisted-contribution-policy) and check all boxes below before submitting your PR for review:**
+**Please review our [PR Contribution Policy](https://github.com/keras-team/keras/issues/23601) and [AI-Assisted Contribution Policy](https://github.com/keras-team/keras/blob/master/CONTRIBUTING.md#ai-assisted-contribution-policy) and check all boxes below before submitting your PR for review:**
 
 - [ ] This PR is linked to an issue that has been assigned to me (see `Fixes #xxx` above).
 - [ ] I am a human, and not a bot.

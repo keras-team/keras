@@ -4,6 +4,16 @@ from keras.src.api_export import keras_export
 from keras.src.quantizers import modes  # noqa: F401 (registers modes)
 from keras.src.quantizers import strategy_registry  # noqa: F401
 from keras.src.quantizers.awq_config import AWQConfig
+from keras.src.quantizers.fake_quant import fake_quant_with_min_max_vars
+from keras.src.quantizers.float8_scaling import compute_float8_amax_history
+from keras.src.quantizers.float8_scaling import compute_float8_scale
+from keras.src.quantizers.float8_scaling import quantize_and_dequantize
+from keras.src.quantizers.packing import pack_int2
+from keras.src.quantizers.packing import pack_int4
+from keras.src.quantizers.packing import pack_ternary
+from keras.src.quantizers.packing import unpack_int2
+from keras.src.quantizers.packing import unpack_int4
+from keras.src.quantizers.packing import unpack_ternary
 from keras.src.quantizers.quantization_config import Float8QuantizationConfig
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
@@ -15,19 +25,9 @@ from keras.src.quantizers.quantizers import abs_max_quantize
 from keras.src.quantizers.quantizers import (
     abs_max_quantize_grouped_with_zero_point,
 )
-from keras.src.quantizers.quantizers import compute_float8_amax_history
-from keras.src.quantizers.quantizers import compute_float8_scale
 from keras.src.quantizers.quantizers import compute_quantization_parameters
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
-from keras.src.quantizers.quantizers import fake_quant_with_min_max_vars
-from keras.src.quantizers.quantizers import pack_int2
-from keras.src.quantizers.quantizers import pack_int4
-from keras.src.quantizers.quantizers import pack_ternary
-from keras.src.quantizers.quantizers import quantize_and_dequantize
 from keras.src.quantizers.quantizers import quantize_with_sz_map
-from keras.src.quantizers.quantizers import unpack_int2
-from keras.src.quantizers.quantizers import unpack_int4
-from keras.src.quantizers.quantizers import unpack_ternary
 from keras.src.saving import serialization_lib
 from keras.src.utils.naming import to_snake_case
 

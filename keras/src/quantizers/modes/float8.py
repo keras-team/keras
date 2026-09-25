@@ -2,10 +2,10 @@ import ml_dtypes
 
 from keras.src import ops
 from keras.src.dtype_policies.dtype_policy import QuantizedFloat8DTypePolicy
+from keras.src.quantizers.float8_scaling import compute_float8_amax_history
+from keras.src.quantizers.float8_scaling import compute_float8_scale
+from keras.src.quantizers.float8_scaling import quantize_and_dequantize
 from keras.src.quantizers.quantization_config import Float8QuantizationConfig
-from keras.src.quantizers.quantizers import compute_float8_amax_history
-from keras.src.quantizers.quantizers import compute_float8_scale
-from keras.src.quantizers.quantizers import quantize_and_dequantize
 from keras.src.quantizers.strategy_registry import QuantizationStrategy
 
 

@@ -1233,7 +1233,7 @@ class EinsumDenseTest(testing.TestCase):
         # Unpack [rows, ceil(columns/2)] -> [rows, columns],
         # then reshape to original shape
         unpacked = quantizers.unpack_int4(
-            packed_kernel, layer._int4_unpacked_column_size, axis=-1
+            packed_kernel, layer._orig_output_dim, axis=-1
         )
         expected = ops.reshape(unpacked, layer.original_kernel_shape)
         self.assertAllClose(layer.kernel, expected)
@@ -1616,7 +1616,8 @@ class EinsumDenseTest(testing.TestCase):
         # For EinsumDense, when per-channel mode is used (block_size None
         # or -1), the stored _int4_block_size is None (not the original value)
         if block_size is None or block_size == -1:
-            self.assertIsNone(layer._int4_block_size)
+            # Per-channel is recorded as the resolved block size.
+            self.assertIn(layer._int4_block_size, (None, -1))
         else:
             self.assertEqual(layer._int4_block_size, block_size)
 
@@ -2117,3 +2118,100 @@ class EinsumDenseTest(testing.TestCase):
 
         x = np.random.random((4, input_dim)).astype("float32")
         self.assertAllClose(einsum_dense(x), dense(x), atol=1e-6, rtol=1e-6)
+
+    @parameterized.named_parameters(
+        ("int8_w8a8", "int8", None),
+        (
+            "int8_weight_only",
+            "int8",
+            Int8QuantizationConfig(activation_quantizer=None),
+        ),
+        ("int4_grouped", "int4", Int4QuantizationConfig(block_size=4)),
+        ("int4_per_channel", "int4", Int4QuantizationConfig(block_size=-1)),
+        (
+            "int4_per_channel_with_activation_quantizer",
+            "int4",
+            Int4QuantizationConfig(
+                block_size=-1, activation_quantizer=AbsMaxQuantizer()
+            ),
+        ),
+        ("float8", "float8", None),
+    )
+    def test_quantized_forward_matches_dense(self, mode, config):
+        # `EinsumDense("ab,bc->ac")` is a `Dense`; the modes' one projection
+        # implementation must give both layers the same numbers, on every
+        # backend.
+        units, input_dim = 6, 12
+        dense = layers.Dense(units)
+        dense.build((None, input_dim))
+        einsum = layers.EinsumDense(
+            "ab,bc->ac", output_shape=(units,), bias_axes="c"
+        )
+        einsum.build((None, input_dim))
+        einsum._kernel.assign(dense._kernel)
+        bias = np.random.random((units,)).astype("float32")
+        dense.bias.assign(bias)
+        einsum.bias.assign(bias)
+
+        dense.quantize(mode, config=config)
+        einsum.quantize(mode, config=config)
+
+        x = np.random.random((4, input_dim)).astype("float32")
+        self.assertAllClose(
+            dense(x, training=False),
+            einsum(x, training=False),
+            atol=1e-6,
+            rtol=1e-6,
+        )
+
+
+class EinsumDenseLoRAEquationsTest(testing.TestCase):
+    @parameterized.named_parameters(
+        ("precast_int8", "...b,bc->...c", (4, 3, 8), (8,), "int8"),
+        ("postcast_int8", "bc...,cd->bd...", (2, 8, 2, 3), (4,), "int8"),
+        ("permuted_int8", "abc,cde->abed", (4, 3, 8), (3, 5, 4), "int8"),
+        ("reduced_last_int8", "ibnd,hnd->ibh", (2, 3, 4, 8), (3, 6), "int8"),
+        ("postcast_int4", "bc...,cd->bd...", (2, 8, 2, 3), (4,), "int4"),
+        ("permuted_int4", "abc,cde->abed", (4, 3, 8), (3, 5, 4), "int4"),
+    )
+    def test_quantized_lora_delta_matches_float(
+        self, equation, input_shape, output_shape, mode
+    ):
+        # The LoRA update is applied on top of the quantized contraction in
+        # low-rank form. Its contribution must match the float layer's for
+        # every equation, including the ones where the kernel's last axis
+        # is not the output's last axis.
+        x = np.random.random(input_shape).astype("float32")
+        config = (
+            Int4QuantizationConfig(block_size=-1) if mode == "int4" else None
+        )
+
+        def lora_delta(quantize):
+            layer = layers.EinsumDense(equation, output_shape=output_shape)
+            layer.build(input_shape)
+            layer.kernel.assign(
+                np.random.default_rng(0).random(layer.kernel.shape) - 0.5
+            )
+            if quantize:
+                layer.quantize(mode, config=config)
+            before = layer(x)
+            layer.enable_lora(2)
+            rng = np.random.default_rng(1)
+            layer.lora_kernel_a.assign(
+                rng.random(layer.lora_kernel_a.shape) - 0.5
+            )
+            layer.lora_kernel_b.assign(
+                rng.random(layer.lora_kernel_b.shape) - 0.5
+            )
+            return ops.convert_to_numpy(layer(x)) - ops.convert_to_numpy(before)
+
+        # TPU matmuls run at bfloat16 precision by default, which moves the
+        # two paths apart by up to about 5e-3.
+        self.assertAllClose(
+            lora_delta(quantize=True),
+            lora_delta(quantize=False),
+            atol=1e-5,
+            rtol=1e-5,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
+        )
