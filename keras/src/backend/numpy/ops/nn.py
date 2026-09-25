@@ -108,8 +108,24 @@ def log_sigmoid(x):
     return -softplus(-x)
 
 
+def _promote_to_float(x):
+    """Cast integer and bool input to `floatx`, leaving float dtypes alone.
+
+    `result_type(dtype, float)` is not usable here: it demotes `float64` to
+    `float32` on every backend but TensorFlow, and it derives the float width
+    from `floatx()[-2:]`, which turns `bfloat16` into `float16`.
+    """
+    dtype = backend.standardize_dtype(x.dtype)
+    if "int" in dtype or dtype == "bool":
+        return cast(x, backend.floatx())
+    return x
+
+
 def leaky_relu(x, negative_slope=0.2):
     x = convert_to_tensor(x)
+    # `negative_slope` truncates to 0 under an integer dtype, which leaves
+    # `maximum(x, 0)`, i.e. `relu`.
+    x = _promote_to_float(x)
     return np.maximum(x, np.array(negative_slope, x.dtype) * x)
 
 
