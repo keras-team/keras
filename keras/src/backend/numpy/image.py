@@ -582,6 +582,11 @@ def affine_transform(
             "or rank 2 (batch of transforms). Received input with shape: "
             f"transform.shape={transform.shape}"
         )
+    if isinstance(transform.shape[-1], int) and transform.shape[-1] != 8:
+        raise ValueError(
+            "Invalid transform shape: expected the last dimension to be 8. "
+            f"Received: transform.shape={transform.shape}"
+        )
 
     # `scipy.ndimage.map_coordinates` lacks support for float16 and bfloat16.
     input_dtype = backend.standardize_dtype(images.dtype)
