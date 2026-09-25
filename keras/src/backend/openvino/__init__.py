@@ -3,6 +3,7 @@ from keras.src.backend.openvino import ops
 from keras.src.backend.openvino import random
 from keras.src.backend.openvino.ops.core import IS_THREAD_SAFE
 from keras.src.backend.openvino.ops.core import SUPPORTS_COMPLEX_DTYPES
+from keras.src.backend.openvino.ops.core import SUPPORTS_GRADIENT
 from keras.src.backend.openvino.ops.core import SUPPORTS_RAGGED_TENSORS
 from keras.src.backend.openvino.ops.core import SUPPORTS_SPARSE_TENSORS
 from keras.src.backend.openvino.ops.core import Variable

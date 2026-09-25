@@ -14,6 +14,7 @@ from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import global_state
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import slice_along_axis
+from keras.src.backend.common.backend_utils import standardize_argnums
 from keras.src.backend.common.dtypes import result_type
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.stateless_scope import StatelessScope
@@ -25,6 +26,7 @@ from keras.src.backend.config import floatx
 SUPPORTS_SPARSE_TENSORS = False
 SUPPORTS_RAGGED_TENSORS = False
 SUPPORTS_COMPLEX_DTYPES = True
+SUPPORTS_GRADIENT = True
 IS_THREAD_SAFE = True
 _GLOBAL_DTENSOR_PROMOTION_MODE = None
 _DTENSOR_PROMOTION_ACTIVE = False
@@ -1001,3 +1003,31 @@ class CustomGradientFunction(torch.autograd.Function):
         if not isinstance(grads, tuple):
             grads = (grads,)
         return (None,) + grads
+
+
+def grad(f, argnums=0):
+    def grad_fn(*args, **kwargs):
+        positions = standardize_argnums(argnums, len(args))
+        args = list(args)
+
+        def track(x):
+            return convert_to_tensor(x).detach().requires_grad_(True)
+
+        for i in positions:
+            args[i] = tree.map_structure(track, args[i])
+        inputs = [args[i] for i in positions]
+        leaves = tree.flatten(inputs)
+        with torch.enable_grad():
+            # A gradient tape sums a non scalar output, so do the same here.
+            output = torch.sum(f(*args, **kwargs))
+        leaf_grads = torch.autograd.grad(output, leaves, allow_unused=True)
+        leaf_grads = [
+            torch.zeros_like(x) if g is None else g
+            for g, x in zip(leaf_grads, leaves)
+        ]
+        grads = tree.pack_sequence_as(inputs, leaf_grads)
+        if isinstance(argnums, int):
+            return grads[0]
+        return tuple(grads)
+
+    return grad_fn

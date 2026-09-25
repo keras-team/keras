@@ -426,7 +426,7 @@ def _allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
 
 class Angle(Operation):
     def call(self, x):
-        return backend.ops.numpy.angle(x)
+        return _angle(x)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
@@ -456,7 +456,27 @@ def angle(x):
     """
     if any_symbolic_tensors((x,)):
         return Angle().symbolic_call(x)
-    return backend.ops.numpy.angle(x)
+    return _angle(x)
+
+
+def _angle(x):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "angle"
+    ):
+        return backend.ops.numpy.angle(x)
+    x = backend.ops.convert_to_tensor(x)
+    dtype = backend.standardize_dtype(x.dtype)
+    if dtype in dtypes.COMPLEX_TYPES:
+        x_imag = ops.imag(x)
+        x_real = ops.real(x)
+    else:
+        if dtype == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(dtype, float)
+        x_real = ops.cast(x, dtype)
+        x_imag = ops.zeros_like(x_real)
+    return ops.arctan2(x_imag, x_real)
 
 
 class Any(Operation):
@@ -2598,14 +2618,13 @@ def cumsum(x, axis=None, dtype=None):
 
 class Deg2rad(Operation):
     def call(self, x):
-        return backend.ops.numpy.deg2rad(x)
+        return _deg2rad(x)
 
     def compute_output_spec(self, x):
-        dtype = backend.standardize_dtype(x.dtype)
-        if dtype in ["int64", "float64"]:
-            dtype = "float64"
-        elif dtype not in ["bfloat16", "float16"]:
-            dtype = backend.floatx()
+        if backend.standardize_dtype(x.dtype) == "int64":
+            dtype = config.floatx()
+        else:
+            dtype = dtypes.result_type(x.dtype, float)
         return KerasTensor(x.shape, dtype)
 
 
@@ -2631,7 +2650,21 @@ def deg2rad(x):
     """
     if any_symbolic_tensors((x,)):
         return Deg2rad().symbolic_call(x)
-    return backend.ops.numpy.deg2rad(x)
+    return _deg2rad(x)
+
+
+def _deg2rad(x):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "deg2rad"
+    ):
+        return backend.ops.numpy.deg2rad(x)
+    x = backend.ops.convert_to_tensor(x)
+    if backend.standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = ops.cast(x, dtype)
+    return ops.multiply(x, python_math.pi / 180.0)
 
 
 class Rad2deg(Operation):
@@ -5320,7 +5353,7 @@ def maximum(x1, x2):
 
 class Fmax(Operation):
     def call(self, x1, x2):
-        return backend.ops.numpy.fmax(x1, x2)
+        return _fmax(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -5361,7 +5394,30 @@ def fmax(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Fmax().symbolic_call(x1, x2)
-    return backend.ops.numpy.fmax(x1, x2)
+    return _fmax(x1, x2)
+
+
+def _fmax(x1, x2):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "fmax"
+    ):
+        return backend.ops.numpy.fmax(x1, x2)
+    if not isinstance(x1, (int, float)):
+        x1 = backend.ops.convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = backend.ops.convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = backend.ops.convert_to_tensor(x1, dtype)
+    x2 = backend.ops.convert_to_tensor(x2, dtype)
+    res = ops.maximum(x1, x2)
+    if "float" not in dtype:
+        return res
+
+    res = ops.where(ops.isnan(x2), x1, res)
+    return ops.where(ops.isnan(x1), x2, res)
 
 
 class Median(Operation):
@@ -5563,7 +5619,7 @@ def minimum(x1, x2):
 
 class Fmin(Operation):
     def call(self, x1, x2):
-        return backend.ops.numpy.fmin(x1, x2)
+        return _fmin(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -5604,7 +5660,30 @@ def fmin(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Fmin().symbolic_call(x1, x2)
-    return backend.ops.numpy.fmin(x1, x2)
+    return _fmin(x1, x2)
+
+
+def _fmin(x1, x2):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "fmin"
+    ):
+        return backend.ops.numpy.fmin(x1, x2)
+    if not isinstance(x1, (int, float)):
+        x1 = backend.ops.convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = backend.ops.convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = backend.ops.convert_to_tensor(x1, dtype)
+    x2 = backend.ops.convert_to_tensor(x2, dtype)
+    res = ops.minimum(x1, x2)
+    if "float" not in dtype:
+        return res
+
+    res = ops.where(ops.isnan(x2), x1, res)
+    return ops.where(ops.isnan(x1), x2, res)
 
 
 class Mod(Operation):

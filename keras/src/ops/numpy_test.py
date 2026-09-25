@@ -3739,40 +3739,19 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.DivideNoNan()(x, y), expected_result)
 
     @pytest.mark.skipif(
-        backend.backend() not in ("tensorflow", "jax", "torch"),
-        reason=f"{backend.backend()} backend does not support gradients.",
+        not backend.SUPPORTS_GRADIENT,
+        reason="Backend does not support gradients.",
     )
     def test_divide_no_nan_gradients(self):
         expected_x1_grad = np.array([0.0, 0.5], dtype="float32")
         expected_x2_grad = np.array([0.0, -0.5], dtype="float32")
 
-        if backend.backend() == "tensorflow":
-            import tensorflow as tf
+        def f(x1, x2):
+            return knp.divide_no_nan(x1, x2)
 
-            x1 = tf.Variable([1.0, 2.0])
-            x2 = tf.Variable([0.0, 2.0])
-            with tf.GradientTape() as tape:
-                y = knp.divide_no_nan(x1, x2)
-                loss = tf.reduce_sum(y)
-            x1_grad, x2_grad = tape.gradient(loss, [x1, x2])
-        elif backend.backend() == "jax":
-            import jax
-            import jax.numpy as jnp
-
-            def f(x1, x2):
-                return jnp.sum(knp.divide_no_nan(x1, x2))
-
-            x1 = jnp.array([1.0, 2.0])
-            x2 = jnp.array([0.0, 2.0])
-            x1_grad, x2_grad = jax.grad(f, argnums=(0, 1))(x1, x2)
-        elif backend.backend() == "torch":
-            import torch
-
-            x1 = torch.tensor([1.0, 2.0], requires_grad=True)
-            x2 = torch.tensor([0.0, 2.0], requires_grad=True)
-            y = knp.divide_no_nan(x1, x2)
-            y.sum().backward()
-            x1_grad, x2_grad = x1.grad, x2.grad
+        x1 = knp.array([1.0, 2.0])
+        x2 = knp.array([0.0, 2.0])
+        x1_grad, x2_grad = ops.grad(f, argnums=(0, 1))(x1, x2)
 
         self.assertAllClose(ops.convert_to_numpy(x1_grad), expected_x1_grad)
         self.assertAllClose(ops.convert_to_numpy(x2_grad), expected_x2_grad)
@@ -4594,16 +4573,26 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Maximum()(x, 1), np.maximum(x, 1))
         self.assertAllClose(knp.Maximum()(1, x), np.maximum(1, x))
 
-    def test_fmax(self):
-        x = np.array([[1.0, np.nan], [3.0, 4.0]])
-        y = np.array([[5.0, 6.0], [np.nan, 8.0]])
-        self.assertAllClose(knp.fmax(x, y), np.fmax(x, y))
-        self.assertAllClose(knp.fmax(x, 1.0), np.fmax(x, 1.0))
-        self.assertAllClose(knp.fmax(1.0, x), np.fmax(1.0, x))
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_fmax(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = np.array([[1.0, np.nan], [3.0, np.nan]])
+            y = np.array([[5.0, 6.0], [np.nan, 8.0]])
+            self.assertAllClose(knp.fmax(x, y), np.fmax(x, y))
+            self.assertAllClose(knp.fmax(x, 1.0), np.fmax(x, 1.0))
+            self.assertAllClose(knp.fmax(1.0, x), np.fmax(1.0, x))
 
-        self.assertAllClose(knp.Fmax()(x, y), np.fmax(x, y))
-        self.assertAllClose(knp.Fmax()(x, 1.0), np.fmax(x, 1.0))
-        self.assertAllClose(knp.Fmax()(1.0, x), np.fmax(1.0, x))
+            self.assertAllClose(knp.Fmax()(x, y), np.fmax(x, y))
+            self.assertAllClose(knp.Fmax()(x, 1.0), np.fmax(x, 1.0))
+            self.assertAllClose(knp.Fmax()(1.0, x), np.fmax(1.0, x))
+
+            xi = np.array([[1, 7], [3, 4]], dtype="int32")
+            yi = np.array([[5, 6], [2, 8]], dtype="int32")
+            self.assertAllClose(knp.fmax(xi, yi), np.fmax(xi, yi))
+            self.assertAllClose(knp.Fmax()(xi, yi), np.fmax(xi, yi))
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     def test_minimum(self):
         x = np.array([[1, 2], [3, 4]])
@@ -4616,16 +4605,21 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Minimum()(x, 1), np.minimum(x, 1))
         self.assertAllClose(knp.Minimum()(1, x), np.minimum(1, x))
 
-    def test_fmin(self):
-        x = np.array([[1.0, np.nan], [3.0, 4.0]])
-        y = np.array([[5.0, 6.0], [np.nan, 8.0]])
-        self.assertAllClose(knp.fmin(x, y), np.fmin(x, y))
-        self.assertAllClose(knp.fmin(x, 1.0), np.fmin(x, 1.0))
-        self.assertAllClose(knp.fmin(1.0, x), np.fmin(1.0, x))
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_fmin(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = np.array([[1.0, np.nan], [3.0, 4.0]])
+            y = np.array([[5.0, 6.0], [np.nan, 8.0]])
+            self.assertAllClose(knp.fmin(x, y), np.fmin(x, y))
+            self.assertAllClose(knp.fmin(x, 1.0), np.fmin(x, 1.0))
+            self.assertAllClose(knp.fmin(1.0, x), np.fmin(1.0, x))
 
-        self.assertAllClose(knp.Fmin()(x, y), np.fmin(x, y))
-        self.assertAllClose(knp.Fmin()(x, 1.0), np.fmin(x, 1.0))
-        self.assertAllClose(knp.Fmin()(1.0, x), np.fmin(1.0, x))
+            self.assertAllClose(knp.Fmin()(x, y), np.fmin(x, y))
+            self.assertAllClose(knp.Fmin()(x, 1.0), np.fmin(x, 1.0))
+            self.assertAllClose(knp.Fmin()(1.0, x), np.fmin(1.0, x))
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     def test_mod(self):
         x = np.array([[1, 2], [3, 4]])
@@ -6288,10 +6282,15 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.cumsum(x, axis=axis, dtype=dtype or x.dtype),
         )
 
-    def test_deg2rad(self):
-        x = np.random.uniform(-360, 360, size=(3, 3))
-        self.assertAllClose(knp.deg2rad(x), np.deg2rad(x))
-        self.assertAllClose(knp.Deg2rad()(x), np.deg2rad(x))
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_deg2rad(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = np.random.uniform(-360, 360, size=(3, 3))
+            self.assertAllClose(knp.deg2rad(x), np.deg2rad(x))
+            self.assertAllClose(knp.Deg2rad()(x), np.deg2rad(x))
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     def test_rad2deg(self):
         x = np.random.uniform(-2 * np.pi, 2 * np.pi, size=(3, 3))
@@ -8289,11 +8288,16 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertTrue(np.all(flat_x[result[:1]] <= kth_value))
         self.assertTrue(np.all(flat_x[result[2:]] >= kth_value))
 
-    def test_angle(self):
-        x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
-        self.assertAllClose(knp.angle(x), np.angle(x))
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_angle(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
+            self.assertAllClose(knp.angle(x), np.angle(x))
 
-        self.assertAllClose(knp.Angle()(x), np.angle(x))
+            self.assertAllClose(knp.Angle()(x), np.angle(x))
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     def test_unique(self):
         x = np.array([3, 1, 2, 1, 4, 2])
@@ -10230,22 +10234,28 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_deg2rad(self, dtype):
+    @parameterized.named_parameters(
+        named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
+    )
+    def test_deg2rad(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        x = knp.ones((1,), dtype=dtype)
-        x_jax = jnp.ones((1,), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.deg2rad(x_jax).dtype)
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = knp.ones((1,), dtype=dtype)
+            x_jax = jnp.ones((1,), dtype=dtype)
+            expected_dtype = standardize_dtype(jnp.deg2rad(x_jax).dtype)
 
-        self.assertEqual(
-            standardize_dtype(knp.deg2rad(x).dtype), expected_dtype
-        )
+            self.assertEqual(
+                standardize_dtype(knp.deg2rad(x).dtype), expected_dtype
+            )
 
-        self.assertEqual(
-            standardize_dtype(knp.Deg2rad().symbolic_call(x).dtype),
-            expected_dtype,
-        )
+            self.assertEqual(
+                standardize_dtype(knp.Deg2rad().symbolic_call(x).dtype),
+                expected_dtype,
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_rad2deg(self, dtype):
@@ -11574,25 +11584,32 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertDType(knp.Maximum().symbolic_call(x, 1.0), expected_dtype)
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
+        named_product(
+            BACKEND_AGNOSTIC_OPS,
+            dtypes=itertools.combinations(BINARY_DTYPES, 2),
+        )
     )
-    def test_fmax(self, dtypes):
+    def test_fmax(self, backend_agnostic_ops, dtypes):
         import jax.numpy as jnp
 
-        dtype1, dtype2 = dtypes
-        x1 = knp.ones((), dtype=dtype1)
-        x2 = knp.ones((), dtype=dtype2)
-        x1_jax = jnp.ones((), dtype=dtype1)
-        x2_jax = jnp.ones((), dtype=dtype2)
-        expected_dtype = standardize_dtype(jnp.fmax(x1_jax, x2_jax).dtype)
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            dtype1, dtype2 = dtypes
+            x1 = knp.ones((), dtype=dtype1)
+            x2 = knp.ones((), dtype=dtype2)
+            x1_jax = jnp.ones((), dtype=dtype1)
+            x2_jax = jnp.ones((), dtype=dtype2)
+            expected_dtype = standardize_dtype(jnp.fmax(x1_jax, x2_jax).dtype)
 
-        self.assertEqual(
-            standardize_dtype(knp.fmax(x1, x2).dtype), expected_dtype
-        )
-        self.assertEqual(
-            standardize_dtype(knp.Fmax().symbolic_call(x1, x2).dtype),
-            expected_dtype,
-        )
+            self.assertEqual(
+                standardize_dtype(knp.fmax(x1, x2).dtype), expected_dtype
+            )
+            self.assertEqual(
+                standardize_dtype(knp.Fmax().symbolic_call(x1, x2).dtype),
+                expected_dtype,
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_median(self, dtype):
@@ -11702,25 +11719,32 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertDType(knp.Minimum().symbolic_call(x, 1.0), expected_dtype)
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
+        named_product(
+            BACKEND_AGNOSTIC_OPS,
+            dtypes=itertools.combinations(BINARY_DTYPES, 2),
+        )
     )
-    def test_fmin(self, dtypes):
+    def test_fmin(self, backend_agnostic_ops, dtypes):
         import jax.numpy as jnp
 
-        dtype1, dtype2 = dtypes
-        x1 = knp.ones((), dtype=dtype1)
-        x2 = knp.ones((), dtype=dtype2)
-        x1_jax = jnp.ones((), dtype=dtype1)
-        x2_jax = jnp.ones((), dtype=dtype2)
-        expected_dtype = standardize_dtype(jnp.fmin(x1_jax, x2_jax).dtype)
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            dtype1, dtype2 = dtypes
+            x1 = knp.ones((), dtype=dtype1)
+            x2 = knp.ones((), dtype=dtype2)
+            x1_jax = jnp.ones((), dtype=dtype1)
+            x2_jax = jnp.ones((), dtype=dtype2)
+            expected_dtype = standardize_dtype(jnp.fmin(x1_jax, x2_jax).dtype)
 
-        self.assertEqual(
-            standardize_dtype(knp.fmin(x1, x2).dtype), expected_dtype
-        )
-        self.assertEqual(
-            standardize_dtype(knp.Fmin().symbolic_call(x1, x2).dtype),
-            expected_dtype,
-        )
+            self.assertEqual(
+                standardize_dtype(knp.fmin(x1, x2).dtype), expected_dtype
+            )
+            self.assertEqual(
+                standardize_dtype(knp.Fmin().symbolic_call(x1, x2).dtype),
+                expected_dtype,
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
@@ -13224,24 +13248,32 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_angle(self, dtype):
+    @parameterized.named_parameters(
+        named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
+    )
+    def test_angle(self, backend_agnostic_ops, dtype):
         if dtype == "bfloat16" and testing.torch_uses_gpu():
             self.skipTest("Torch cuda does not support bfloat16")
 
         import jax.numpy as jnp
 
-        x = knp.ones((1,), dtype=dtype)
-        x_jax = jnp.ones((1,), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.angle(x_jax).dtype)
-        if dtype == "bool" or is_int_dtype(dtype):
-            expected_dtype = backend.floatx()
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = knp.ones((1,), dtype=dtype)
+            x_jax = jnp.ones((1,), dtype=dtype)
+            expected_dtype = standardize_dtype(jnp.angle(x_jax).dtype)
+            if dtype == "bool" or is_int_dtype(dtype):
+                expected_dtype = backend.floatx()
 
-        self.assertEqual(standardize_dtype(knp.angle(x).dtype), expected_dtype)
-        self.assertEqual(
-            standardize_dtype(knp.Angle().symbolic_call(x).dtype),
-            expected_dtype,
-        )
+            self.assertEqual(
+                standardize_dtype(knp.angle(x).dtype), expected_dtype
+            )
+            self.assertEqual(
+                standardize_dtype(knp.Angle().symbolic_call(x).dtype),
+                expected_dtype,
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     VIEW_DTYPES = [x for x in ALL_DTYPES if x != "bool" and x is not None]
 
