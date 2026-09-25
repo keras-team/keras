@@ -741,6 +741,7 @@ def _adaptive_max_pool3d(inputs, output_size, data_format="channels_first"):
 
 
 def adaptive_average_pool(inputs, output_size, data_format=None):
+    inputs = convert_to_tensor(inputs)
     data_format = backend.standardize_data_format(data_format)
     ndims = len(inputs.shape) - 2
     if ndims == 1:
@@ -756,6 +757,7 @@ def adaptive_average_pool(inputs, output_size, data_format=None):
 
 
 def adaptive_max_pool(inputs, output_size, data_format=None):
+    inputs = convert_to_tensor(inputs)
     data_format = backend.standardize_data_format(data_format)
     ndims = len(inputs.shape) - 2
     if ndims == 1:
