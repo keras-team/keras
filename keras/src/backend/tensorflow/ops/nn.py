@@ -1270,11 +1270,10 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
         dtype = "float32"
     else:
         dtype = backend.standardize_dtype(dtype)
+    axis = canonicalize_axis(axis, len(x.shape) + 1)
     if sparse:
         # We don't use `tf.sparse.bincount`, it doesn't handle negative indices
         # and only support rank 1 and 2 tensors (`one_hot` adds a dimension).
-        if axis < 0:
-            axis = axis + len(x.shape) + 1
         values_count = math.prod(x.shape)
         values = tf.reshape(x, (values_count,))
         # We deal with negative inputs by having zeros in the output although

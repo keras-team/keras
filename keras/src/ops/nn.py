@@ -1935,15 +1935,8 @@ class OneHot(Operation):
 
     def compute_output_spec(self, x):
         x_shape = list(getattr(x, "shape", []))
-        if self.axis == -1:
-            x_shape.append(self.num_classes)
-        elif self.axis >= 0 and self.axis < len(x_shape):
-            x_shape.insert(self.axis, self.num_classes)
-        else:
-            raise ValueError(
-                f"axis must be -1 or between [0, {len(x.shape)}), but "
-                f"received {self.axis}."
-            )
+        axis = canonicalize_axis(self.axis, len(x_shape) + 1)
+        x_shape.insert(axis, self.num_classes)
         return KerasTensor(x_shape, dtype=self.dtype, sparse=self.sparse)
 
 
