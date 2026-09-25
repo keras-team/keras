@@ -18,15 +18,18 @@ def _has_live_descendant(name):
 
 
 def _cleanup_namespace_modules(names):
-    for name in reversed(names):
-        mod = sys.modules.get(name)
-        if _is_namespace_package(mod) and not _has_live_descendant(name):
-            sys.modules.pop(name, None)
-            parent_name, _, attr = name.rpartition(".")
-            if parent_name:
-                parent_mod = sys.modules.get(parent_name)
-                if getattr(parent_mod, attr, None) is mod:
-                    delattr(parent_mod, attr)
+    # Hold the import lock so that no thread can start a child import
+    # between the live-descendant check and the pop.
+    with importlib._bootstrap._ImportLockContext():
+        for name in reversed(names):
+            mod = sys.modules.get(name)
+            if _is_namespace_package(mod) and not _has_live_descendant(name):
+                sys.modules.pop(name, None)
+                parent_name, _, attr = name.rpartition(".")
+                if parent_name:
+                    parent_mod = sys.modules.get(parent_name)
+                    if getattr(parent_mod, attr, None) is mod:
+                        delattr(parent_mod, attr)
 
 
 class LazyModule:
@@ -85,8 +88,7 @@ class LazyModule:
         if name == "_api_export_path":
             raise AttributeError
         if self.module is None:
-            if not self.available:
-                raise ImportError(self.import_error_msg)
+            self.initialize()
         return getattr(self.module, name)
 
     def __repr__(self):
@@ -122,10 +124,7 @@ class OrbaxLazyModule(LazyModule):
             )
             self._available = False
             raise ImportError(self.import_error_msg)
-        cleanup_targets = [
-            *self._newly_loaded_orbax_modules(pre_existing),
-            "orbax.checkpoint.v1",
-        ]
+        cleanup_targets = self._newly_loaded_orbax_modules(pre_existing)
         self.module = self._reject_if_namespace(v1_module, cleanup_targets)
         self.parent_module = parent_module
         self._available = True
@@ -134,8 +133,7 @@ class OrbaxLazyModule(LazyModule):
         if name == "_api_export_path":
             raise AttributeError
         if self.module is None:
-            if not self.available:
-                raise ImportError(self.import_error_msg)
+            self.initialize()
         if name == "multihost":
             return self.parent_module.multihost
         return getattr(self.module, name)

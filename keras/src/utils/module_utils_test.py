@@ -1,5 +1,6 @@
 import importlib
 import importlib.machinery
+import importlib.util
 import os
 import sys
 import threading
@@ -97,18 +98,20 @@ class LazyModuleTest(test_case.TestCase):
         self.assertEqual(lm.sentinel, 7)
 
     def test_failed_import_under_namespace_parent_keeps_live_sibling(self):
-        tmp, pkg_name = self._make_namespace_dir(subdirs=("other", "empty_sub"))
-        init_py = os.path.join(tmp, pkg_name, "other", "__init__.py")
-        with open(init_py, "w") as f:
+        tmp, pkg_name = self._make_namespace_dir(subdirs=("other",))
+        root = os.path.join(tmp, pkg_name)
+        os.makedirs(os.path.join(root, "broken"))
+        with open(os.path.join(root, "other", "__init__.py"), "w") as f:
             f.write("VALUE = 123\n")
+        with open(os.path.join(root, "broken", "__init__.py"), "w") as f:
+            f.write(f"import {pkg_name}.other\nraise ImportError('broken')\n")
         importlib.invalidate_caches()
 
-        sibling = importlib.import_module(f"{pkg_name}.other")
-        parent_before = sys.modules[pkg_name]
-        lm = module_utils.LazyModule(f"{pkg_name}.empty_sub")
+        lm = module_utils.LazyModule(f"{pkg_name}.broken")
         self.assertFalse(lm.available)
-        self.assertIs(sys.modules.get(pkg_name), parent_before)
-        self.assertIs(getattr(parent_before, "other", None), sibling)
+        sibling = importlib.import_module(f"{pkg_name}.other")
+        self.assertEqual(sibling.VALUE, 123)
+        self.assertIs(getattr(sys.modules[pkg_name], "other", None), sibling)
         self.assertIs(importlib.reload(sibling), sibling)
 
     def test_preexisting_parent_in_sys_modules_stays_same_object(self):
@@ -119,7 +122,7 @@ class LazyModuleTest(test_case.TestCase):
         self.assertIs(sys.modules.get(pkg_name), parent_before)
 
     def test_concurrent_import_under_namespace_root_completes(self):
-        tmp, pkg_name = self._make_namespace_dir(subdirs=("other", "empty_sub"))
+        tmp, pkg_name = self._make_namespace_dir(subdirs=("other",))
         init_py = os.path.join(tmp, pkg_name, "other", "__init__.py")
         with open(init_py, "w") as f:
             f.write("VALUE = 456\n")
@@ -140,10 +143,73 @@ class LazyModuleTest(test_case.TestCase):
         thread = threading.Thread(target=_worker)
         thread.start()
         barrier.wait(timeout=5)
-        lm = module_utils.LazyModule(f"{pkg_name}.empty_sub")
+        lm = module_utils.LazyModule(f"{pkg_name}.missing")
         self.assertFalse(lm.available)
         thread.join(timeout=5)
+        self.assertFalse(thread.is_alive())
         self.assertEqual(errors, [])
+
+    def test_parent_kept_while_child_import_holds_its_lock(self):
+        tmp, pkg_name = self._make_namespace_dir(subdirs=("other",))
+        init_py = os.path.join(tmp, pkg_name, "other", "__init__.py")
+        with open(init_py, "w") as f:
+            f.write("VALUE = 456\n")
+        importlib.invalidate_caches()
+        parked, release = threading.Event(), threading.Event()
+
+        class _ParkingLoader(importlib.machinery.SourceFileLoader):
+            # Runs with the child's module lock held, before the child
+            # enters `sys.modules`, and without the global import lock.
+            def create_module(self, spec):
+                parked.set()
+                release.wait(10)
+                return None
+
+        class _ParkingFinder:
+            def find_spec(self, name, path=None, target=None):
+                if name != f"{pkg_name}.other":
+                    return None
+                return importlib.util.spec_from_file_location(
+                    name,
+                    init_py,
+                    loader=_ParkingLoader(name, init_py),
+                    submodule_search_locations=[os.path.dirname(init_py)],
+                )
+
+        finder = _ParkingFinder()
+        self.enterContext(
+            mock.patch.object(sys, "meta_path", [finder, *sys.meta_path])
+        )
+        real_import = importlib.import_module
+        errors = []
+
+        def _worker():
+            try:
+                self.assertEqual(real_import(f"{pkg_name}.other").VALUE, 456)
+            except BaseException as exc:
+                errors.append(exc)
+
+        worker = threading.Thread(target=_worker)
+
+        def _import_after_child_parks(name, *args, **kwargs):
+            # `LazyModule` has already recorded `pkg_name` as newly loaded.
+            if name == f"{pkg_name}.missing":
+                worker.start()
+                self.assertTrue(parked.wait(10))
+            return real_import(name, *args, **kwargs)
+
+        with mock.patch.object(
+            importlib, "import_module", side_effect=_import_after_child_parks
+        ):
+            lm = module_utils.LazyModule(f"{pkg_name}.missing")
+            self.assertFalse(lm.available)
+        parent = sys.modules.get(pkg_name)
+        release.set()
+        worker.join(10)
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(errors, [])
+        self.assertIsNotNone(parent)
+        self.assertIs(sys.modules.get(pkg_name), parent)
 
     def test_in_tf_graph_returns_false_when_preimported_tf_is_namespace(self):
         _, pkg_name = self._make_namespace_dir()
@@ -154,6 +220,19 @@ class LazyModuleTest(test_case.TestCase):
             mock.patch.object(module_utils, "tensorflow", fresh_tf_lazy)
         )
         self.assertFalse(backend_utils.in_tf_graph())
+
+    def test_in_tf_graph_reads_live_module_after_lazy_cache_false(self):
+        # Model a failed first check followed by a later TF import
+        stale_tf = module_utils.LazyModule("tensorflow")
+        stale_tf._available = False
+        self.enterContext(
+            mock.patch.object(module_utils, "tensorflow", stale_tf)
+        )
+
+        mock_tf = types.ModuleType("tensorflow")
+        mock_tf.executing_eagerly = lambda: False
+        self.enterContext(mock.patch.dict(sys.modules, {"tensorflow": mock_tf}))
+        self.assertTrue(backend_utils.in_tf_graph())
 
     @parameterized.named_parameters(
         ("stdlib_package", "json"),
@@ -168,6 +247,17 @@ class LazyModuleTest(test_case.TestCase):
         lm = module_utils.LazyModule(pkg_name, pip_name="missing-pkg")
         self.assertFalse(lm.available)
         with self.assertRaisesRegex(ImportError, "pip install missing-pkg"):
+            _ = lm.some_attr
+
+    def test_import_raising_attribute_error_propagates(self):
+        tmp, pkg_name = self._make_namespace_dir()
+        with open(os.path.join(tmp, pkg_name, "__init__.py"), "w") as f:
+            f.write("raise AttributeError('partial install')\n")
+        importlib.invalidate_caches()
+        lm = module_utils.LazyModule(pkg_name)
+        with self.assertRaisesRegex(AttributeError, "partial install"):
+            _ = lm.available
+        with self.assertRaisesRegex(AttributeError, "partial install"):
             _ = lm.some_attr
 
     def test_bare_module_type_mock_is_spared(self):
@@ -205,7 +295,7 @@ class LazyModuleTest(test_case.TestCase):
         )
         self.assertFalse(ocp.available)
         self.assertIsNone(ocp.module)
-        self.assertNotIn("orbax.checkpoint.v1", sys.modules)
+        self.assertIn("orbax.checkpoint.v1", sys.modules)
         with self.assertRaisesRegex(
             ImportError, "pip install orbax-checkpoint"
         ):
