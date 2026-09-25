@@ -227,7 +227,9 @@ class SoftShrink(Operation):
         return backend.ops.nn.soft_shrink(x, self.threshold)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        # `soft_shrink` promotes integer and bool inputs to float, so the
+        # symbolic dtype has to match what eager execution returns.
+        return KerasTensor(x.shape, dtype=backend.result_type(x.dtype, float))
 
 
 @keras_export(["keras.ops.soft_shrink", "keras.ops.nn.soft_shrink"])
@@ -265,7 +267,9 @@ class SparsePlus(Operation):
         return backend.ops.nn.sparse_plus(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        # `sparse_plus` promotes integer and bool inputs to float, so the
+        # symbolic dtype has to match what eager execution returns.
+        return KerasTensor(x.shape, dtype=backend.result_type(x.dtype, float))
 
 
 @keras_export(["keras.ops.sparse_plus", "keras.ops.nn.sparse_plus"])
@@ -599,7 +603,9 @@ class Selu(Operation):
         return backend.ops.nn.selu(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        # `selu` promotes integer and bool inputs to float, so the symbolic
+        # dtype has to match what eager execution returns.
+        return KerasTensor(x.shape, dtype=backend.result_type(x.dtype, float))
 
 
 @keras_export(["keras.ops.selu", "keras.ops.nn.selu"])

@@ -1531,6 +1531,17 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.selu(x),
             [-1.1113307, 0.0, 1.050701, 2.101402, 3.152103],
         )
+        # Integer input is promoted to float. Previously the numpy, tensorflow
+        # and openvino backends cast `scale` to the input's integer dtype where
+        # it truncated to 1 (turning this into a bare `elu`), and torch raised.
+        x_int = np.array([-2, -1, 0, 1, 2], dtype="int32")
+        self.assertAllClose(knn.selu(x_int), knn.selu(x_int.astype("float32")))
+        self.assertEqual(
+            standardize_dtype(
+                knn.Selu().symbolic_call(KerasTensor((5,), "int32")).dtype
+            ),
+            standardize_dtype(knn.selu(x_int).dtype),
+        )
 
     def test_gelu(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
@@ -1594,12 +1605,34 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.soft_shrink(x),
             [0.0, 0.0, 0.5, 1.5, 2.5],
         )
+        # Integer input is promoted to float. Previously the numpy, tensorflow
+        # and openvino backends cast the fractional `threshold` shift back to
+        # the input's integer dtype where it truncated, and torch raised.
+        x_int = np.array([-2, -1, 0, 1, 2], dtype="int32")
+        self.assertAllClose(knn.soft_shrink(x_int), [-1.5, -0.5, 0.0, 0.5, 1.5])
+        self.assertEqual(
+            standardize_dtype(
+                knn.SoftShrink().symbolic_call(KerasTensor((5,), "int32")).dtype
+            ),
+            standardize_dtype(knn.soft_shrink(x_int).dtype),
+        )
 
     def test_sparse_plus(self):
         x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(
             knn.sparse_plus(x),
             [0.0625, 0.25, 1.0, 2.0, 3.0],
+        )
+        # Integer input is promoted to float. Previously the numpy, tensorflow
+        # and openvino backends cast the quadratic branch back to the input's
+        # integer dtype where it truncated, and torch raised.
+        x_int = np.array([-2, -1, 0, 1, 2], dtype="int32")
+        self.assertAllClose(knn.sparse_plus(x_int), [0.0, 0.0, 0.25, 1.0, 2.0])
+        self.assertEqual(
+            standardize_dtype(
+                knn.SparsePlus().symbolic_call(KerasTensor((5,), "int32")).dtype
+            ),
+            standardize_dtype(knn.sparse_plus(x_int).dtype),
         )
 
     def test_softmax(self):
