@@ -1,4 +1,7 @@
+from unittest import mock
+
 import numpy as np
+from absl.testing import parameterized
 
 from keras.src import layers
 from keras.src import ops
@@ -79,6 +82,16 @@ class LambdaTest(testing.TestCase):
         layer = layers.Lambda.from_config(config, safe_mode=False)
         output = layer(2 * np.ones((2, 3)))
         self.assertAllClose(4 * np.ones((2, 3)), output)
+
+    @parameterized.parameters("nt", "posix")
+    def test_serialization_preserves_integer_constant(self, os_name):
+        layer = layers.Lambda(lambda x: x + 92)
+        inputs = np.array([0, 1, 2], dtype="float32")
+        expected = layer(inputs)
+        with mock.patch("os.name", os_name):
+            config = layer.get_config()
+        restored = layers.Lambda.from_config(config, safe_mode=False)
+        self.assertAllClose(restored(inputs), expected)
 
     def test_from_config_fails_closed_without_safe_mode_scope(self):
         # Without an ambient `SafeModeScope` and without an explicit
