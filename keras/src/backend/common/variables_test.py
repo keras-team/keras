@@ -357,7 +357,7 @@ class VariablePropertiesTest(test_case.TestCase):
         ):
             self.skipTest(f"openvino backend does not support dtype {dtype}")
 
-        x = backend.convert_to_tensor(np.zeros(()), dtype)
+        x = backend.ops.convert_to_tensor(np.zeros(()), dtype)
         actual = standardize_dtype(x.dtype)
         self.assertEqual(actual, dtype)
 
@@ -513,7 +513,7 @@ class VariableNumpyValueAndAssignmentTest(test_case.TestCase):
         with strategy.scope():
             v = backend.Variable(initializer=0.0)
 
-        np_value = backend.convert_to_numpy(v)
+        np_value = backend.ops.convert_to_numpy(v)
         self.assertIsInstance(np_value, np.ndarray)
         self.assertAllClose(np_value, 0.0)
 

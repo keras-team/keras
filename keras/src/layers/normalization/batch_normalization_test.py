@@ -94,12 +94,12 @@ class BatchNormalizationTest(testing.TestCase):
         # Assert the normalization is correct.
         broadcast_shape = [1] * len(input_shape)
         broadcast_shape[axis] = input_shape[axis]
-        out = backend.convert_to_numpy(out)
+        out = backend.ops.convert_to_numpy(out)
         out = out - np.reshape(
-            backend.convert_to_numpy(layer.beta), broadcast_shape
+            backend.ops.convert_to_numpy(layer.beta), broadcast_shape
         )
         out = out / np.reshape(
-            backend.convert_to_numpy(layer.gamma), broadcast_shape
+            backend.ops.convert_to_numpy(layer.gamma), broadcast_shape
         )
 
         reduction_axes = list(range(len(input_shape)))
@@ -214,12 +214,12 @@ class BatchNormalizationTest(testing.TestCase):
         for _ in range(10):
             out = layer(x, training=True)
 
-        out = backend.convert_to_numpy(out)
+        out = backend.ops.convert_to_numpy(out)
         out = out - np.reshape(
-            backend.convert_to_numpy(layer.beta), (1, 1, 1, 3)
+            backend.ops.convert_to_numpy(layer.beta), (1, 1, 1, 3)
         )
         out = out / np.reshape(
-            backend.convert_to_numpy(layer.gamma), (1, 1, 1, 3)
+            backend.ops.convert_to_numpy(layer.gamma), (1, 1, 1, 3)
         )
 
         self.assertAllClose(

@@ -1050,7 +1050,7 @@ class Layer(BackendLayer, Operation):
                 # Record activity regularizer loss.
                 if self.activity_regularizer is not None:
                     for output in tree.flatten(outputs):
-                        if backend.is_tensor(output):
+                        if backend.ops.is_tensor(output):
                             loss = self.activity_regularizer(output)
                             if output.ndim > 0:
                                 # Normalize by batch size to ensure consistent
@@ -1320,7 +1320,7 @@ class Layer(BackendLayer, Operation):
         # Eager only.
         losses = tree.flatten(loss)
         for x in losses:
-            if not backend.is_tensor(x):
+            if not backend.ops.is_tensor(x):
                 raise ValueError(
                     "`add_loss()` can only be called from inside `build()` or "
                     f"`call()`, on a tensor input. Received invalid value: {x}"
@@ -1413,6 +1413,20 @@ class Layer(BackendLayer, Operation):
         if spec is not None and strategy.name in spec:
             return True
         return strategy.supports_layer(self)
+
+    def _strategy_owns_weight_storage(self):
+        """Whether the quantization strategy creates the weight storage.
+
+        A strategy that owns its weight storage (int8, int4) creates the
+        quantized variables in `quantized_build`, so `build` must not add
+        the floating-point weight. Float8 and the unquantized layer keep
+        the floating-point weight.
+
+        Returns:
+            A boolean.
+        """
+        strategy = strategy_registry.get_strategy(self.quantization_mode)
+        return strategy is not None and strategy.owns_weight_storage
 
     def quantized_build(self, input_shape, mode, config=None):
         strategy = strategy_registry.get_strategy(mode)
@@ -2016,7 +2030,7 @@ class Layer(BackendLayer, Operation):
 def is_backend_tensor_or_symbolic(x, allow_none=False):
     if allow_none and x is None:
         return True
-    return backend.is_tensor(x) or isinstance(x, backend.KerasTensor)
+    return backend.ops.is_tensor(x) or isinstance(x, backend.KerasTensor)
 
 
 class CallSpec:
@@ -2073,7 +2087,8 @@ class CallSpec:
         self.nested_tensor_argument_names = nested_tensor_arg_names
         self.first_arg = arg_dict[arg_names[0]]
         if all(
-            backend.is_tensor(x) for x in self.tensor_arguments_dict.values()
+            backend.ops.is_tensor(x)
+            for x in self.tensor_arguments_dict.values()
         ):
             self.eager = True
         else:

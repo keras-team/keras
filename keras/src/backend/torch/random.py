@@ -4,9 +4,9 @@ import torch.nn.functional as tnn
 
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.config import floatx
-from keras.src.backend.torch.core import convert_to_tensor
-from keras.src.backend.torch.core import get_device
-from keras.src.backend.torch.core import to_torch_dtype
+from keras.src.backend.torch.ops.core import convert_to_tensor
+from keras.src.backend.torch.ops.core import get_device
+from keras.src.backend.torch.ops.core import to_torch_dtype
 from keras.src.random.seed_generator import SeedGenerator
 from keras.src.random.seed_generator import draw_seed
 from keras.src.random.seed_generator import make_default_seed

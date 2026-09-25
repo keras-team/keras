@@ -5,8 +5,8 @@ from keras.src import testing
 
 
 def example_fn(x):
-    x = (x + 2) * backend.numpy.ones_like(x)
-    x = backend.numpy.stack([x, x], axis=-1)
+    x = (x + 2) * backend.ops.numpy.ones_like(x)
+    x = backend.ops.numpy.stack([x, x], axis=-1)
     return x
 
 
@@ -39,12 +39,12 @@ class ComputeOutputSpecTest(testing.TestCase):
                 self.canary = False
 
             def example_meta_fn(self, x):
-                y = backend.numpy.ones(x.shape)
+                y = backend.ops.numpy.ones(x.shape)
                 if str(y.device) == "meta":
                     self.canary = True
                     raise ValueError("Erroring out on meta device")
                 x = (x + 2) * y
-                x = backend.numpy.stack([x, x], axis=-1)
+                x = backend.ops.numpy.stack([x, x], axis=-1)
                 return x
 
         instance = Container()
