@@ -66,7 +66,7 @@ def MobileNet(
             `input_shape` will be ignored if the `input_tensor` is provided.
         alpha: Controls the width of the network. This is known as the width
             multiplier in the MobileNet paper.
-            When `weights` is `imagenet`, `alpha` can be one of `0.25`,
+            When `weights` is `"imagenet"`, `alpha` can be one of `0.25`,
             `0.50`, `0.75` or `1.0` only.
             - If `alpha < 1.0`, proportionally decreases the number
                 of filters in each layer.
