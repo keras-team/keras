@@ -222,12 +222,8 @@ class TernaryDense(Layer):
     # information-theoretic floor of ~1.6 bits/value (five trits per byte,
     # `3 ** 5 == 243 <= 256`), denser than int4 or int8 can express. Inference
     # then runs from the packed kernel via the ternary mode's forward pass.
-
-    def quantize(self, mode="ternary", type_check=True, config=None):
-        # Prevent quantization of subclasses with a different kernel layout.
-        if type_check and type(self) is not TernaryDense:
-            raise self._not_implemented_error(self.quantize)
-        self._registry_quantize(mode, config)
+    # The layer contributes only its geometry; `Layer.quantize` does the
+    # rest.
 
     def _quantization_geometry(self):
         return _TernaryDenseGeometry(self)
