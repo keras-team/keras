@@ -630,14 +630,50 @@ def count_nonzero(x, axis=None):
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    return jnp.cross(
-        x1,
-        x2,
-        axisa=axisa,
-        axisb=axisb,
-        axisc=axisc,
-        axis=axis,
-    )
+
+    axisa = canonicalize_axis(axisa if axis is None else axis, x1.ndim)
+    axisb = canonicalize_axis(axisb if axis is None else axis, x2.ndim)
+
+    x1_dim = x1.shape[axisa]
+    x2_dim = x2.shape[axisb]
+
+    if x1_dim not in (2, 3) or x2_dim not in (2, 3):
+        raise ValueError(
+            "Both input arrays must be (arrays of) 2 or 3-dimensional "
+            f"vectors, but they are {x1_dim} and {x2_dim} dimensional "
+            "instead."
+        )
+
+    if x1_dim == 3 and x2_dim == 3:
+        return jnp.cross(
+            x1,
+            x2,
+            axisa=axisa,
+            axisb=axisb,
+            axisc=axisc,
+            axis=axis,
+        )
+
+    # Newer versions of JAX removed support for 2-dimensional vectors in
+    # `jnp.cross`, so pad them to 3 dimensions ourselves (with an implicit zero
+    # z-component) before delegating the cross product of the resulting
+    # 3-dimensional vectors to `jnp.cross`.
+    def _pad_2d_vector_to_3d(x):
+        if x.shape[-1] == 2:
+            return jnp.pad(x, [(0, 0)] * (x.ndim - 1) + [(0, 1)])
+        return x
+
+    x1 = jnp.moveaxis(x1, axisa if axis is None else axis, -1)
+    x2 = jnp.moveaxis(x2, axisb if axis is None else axis, -1)
+    x1 = _pad_2d_vector_to_3d(x1)
+    x2 = _pad_2d_vector_to_3d(x2)
+
+    c = jnp.cross(x1, x2)
+
+    if x1_dim == 2 and x2_dim == 2:
+        return c[..., 2]
+    axisc = canonicalize_axis(axisc if axis is None else axis, c.ndim)
+    return jnp.moveaxis(c, -1, axisc)
 
 
 def cumprod(x, axis=None, dtype=None):
