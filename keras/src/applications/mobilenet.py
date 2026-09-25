@@ -76,7 +76,7 @@ def MobileNet(
                 are used at each layer. Defaults to `1.0`.
         depth_multiplier: Depth multiplier for depthwise convolution.
             This is called the resolution multiplier in the MobileNet paper.
-            When `weights` is `imagenet`, `depth_multiplier` must be `1`.
+            When `weights` is `"imagenet"`, `depth_multiplier` must be `1`.
             Defaults to `1`.
         dropout: Dropout rate. Defaults to `0.001`.
         include_top: Boolean, whether to include the fully-connected layer
