@@ -1506,6 +1506,14 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.hard_sigmoid(x),
             [0.33333334, 0.5, 0.6666667, 0.8333334, 1.0],
         )
+        # Integer input is promoted to float. The numpy and openvino backends
+        # previously truncated the `0.5` offset to 0 under an integer dtype,
+        # leaving `clip(x / 6, 0, 1)` rather than `clip(x / 6 + 0.5, 0, 1)`.
+        x_int = np.array([-1, 0, 1, 2, 3], dtype="int32")
+        self.assertAllClose(
+            knn.hard_sigmoid(x_int),
+            [0.33333334, 0.5, 0.6666667, 0.8333334, 1.0],
+        )
 
     def test_hard_silu(self):
         x = np.array([-3, -2, -1, 0, 1, 2, 3], dtype=np.float32)
@@ -2955,6 +2963,11 @@ class NNOpsDtypeTest(testing.TestCase):
     """Test the floating dtype to verify that the behavior matches JAX."""
 
     FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
+    INT_DTYPES = [x for x in dtypes.INT_TYPES if x not in ("uint64", "int64")]
+    if backend.backend() == "torch":
+        INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
+    elif backend.backend() == "tensorflow":
+        INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint32",)]
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_elu(self, dtype):
@@ -3167,7 +3180,9 @@ class NNOpsDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @parameterized.named_parameters(
+        named_product(dtype=FLOAT_DTYPES + INT_DTYPES + ["bool"])
+    )
     def test_hard_sigmoid(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -3185,7 +3200,9 @@ class NNOpsDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @parameterized.named_parameters(
+        named_product(dtype=FLOAT_DTYPES + INT_DTYPES + ["bool"])
+    )
     def test_hard_silu(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -3202,6 +3219,20 @@ class NNOpsDtypeTest(testing.TestCase):
             standardize_dtype(knn.HardSilu().symbolic_call(x).dtype),
             expected_dtype,
         )
+
+    def test_hard_activations_preserve_float_dtypes(self):
+        # `FLOAT_DTYPES` excludes float64 and the JAX reference runs with x64
+        # off, so neither of the tests above covers it. Promotion must leave
+        # every float dtype alone, whatever the backend resolves it to.
+        for dtype in ("float64", "float32", "float16"):
+            try:
+                x = knp.ones((2,), dtype=dtype)
+            except Exception:
+                continue  # backend cannot represent this dtype
+            for fn in (knn.hard_sigmoid, knn.hard_silu):
+                self.assertEqual(
+                    standardize_dtype(fn(x).dtype), standardize_dtype(x.dtype)
+                )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_leaky_relu(self, dtype):
