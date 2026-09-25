@@ -1,0 +1,18 @@
+name: PR approved issue check
+# Every PR from an external contributor is converted to a draft if its
+# description does not link an approved issue assigned to the PR author.
+# Repository owners, org members, collaborators and bots bypass this check.
+on:
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
+    types: [opened, edited, reopened, ready_for_review]
+
+permissions:
+  contents: write # Needed, with pull-requests: write, to toggle draft state.
+  issues: read
+  pull-requests: write
+
+jobs:
+  approved-issue:
+    uses: keras-team/shared-workflows/.github/workflows/pr-approved-issue.yml@f89ada831b82a2399422326e37b3bf0ea402e146
+    with:
+      ref: 'f89ada831b82a2399422326e37b3bf0ea402e146'
