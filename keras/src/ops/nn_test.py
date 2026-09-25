@@ -318,6 +318,113 @@ class NNOpsDynamicShapeTest(testing.TestCase):
             ),
         )
 
+    def test_adaptive_max_pool(self):
+        # 1D, 2D, and 3D symbolic inputs with channels_last and channels_first
+        x_1d = KerasTensor((None, 16, 3))
+        self.assertEqual(
+            knn.adaptive_max_pool(x_1d, 8, data_format="channels_last").shape,
+            (None, 8, 3),
+        )
+        self.assertEqual(
+            knn.adaptive_max_pool(
+                x_1d, (8,), data_format="channels_last"
+            ).shape,
+            (None, 8, 3),
+        )
+
+        x_2d_cl = KerasTensor((2, 64, 64, 3))
+        self.assertEqual(
+            knn.adaptive_max_pool(
+                x_2d_cl, (32, 16), data_format="channels_last"
+            ).shape,
+            (2, 32, 16, 3),
+        )
+        self.assertEqual(
+            knn.adaptive_max_pool(
+                x_2d_cl, [32, 16], data_format="channels_last"
+            ).shape,
+            (2, 32, 16, 3),
+        )
+        self.assertEqual(
+            knn.adaptive_max_pool(
+                x_2d_cl, 7, data_format="channels_last"
+            ).shape,
+            (2, 7, 7, 3),
+        )
+
+        x_2d_cf = KerasTensor((2, 3, 64, 64))
+        self.assertEqual(
+            knn.adaptive_max_pool(
+                x_2d_cf, (32, 16), data_format="channels_first"
+            ).shape,
+            (2, 3, 32, 16),
+        )
+        self.assertEqual(
+            knn.adaptive_max_pool(
+                x_2d_cf, 7, data_format="channels_first"
+            ).shape,
+            (2, 3, 7, 7),
+        )
+
+        x_3d_cl = KerasTensor((2, 16, 16, 16, 3))
+        self.assertEqual(
+            knn.adaptive_max_pool(
+                x_3d_cl, 4, data_format="channels_last"
+            ).shape,
+            (2, 4, 4, 4, 3),
+        )
+
+    def test_adaptive_average_pool(self):
+        x_1d = KerasTensor((None, 16, 3))
+        self.assertEqual(
+            knn.adaptive_average_pool(
+                x_1d, 8, data_format="channels_last"
+            ).shape,
+            (None, 8, 3),
+        )
+
+        x_2d_cl = KerasTensor((2, 64, 64, 3))
+        self.assertEqual(
+            knn.adaptive_average_pool(
+                x_2d_cl, (32, 16), data_format="channels_last"
+            ).shape,
+            (2, 32, 16, 3),
+        )
+        self.assertEqual(
+            knn.adaptive_average_pool(
+                x_2d_cl, [32, 16], data_format="channels_last"
+            ).shape,
+            (2, 32, 16, 3),
+        )
+        self.assertEqual(
+            knn.adaptive_average_pool(
+                x_2d_cl, 7, data_format="channels_last"
+            ).shape,
+            (2, 7, 7, 3),
+        )
+
+        x_2d_cf = KerasTensor((2, 3, 64, 64))
+        self.assertEqual(
+            knn.adaptive_average_pool(
+                x_2d_cf, (32, 16), data_format="channels_first"
+            ).shape,
+            (2, 3, 32, 16),
+        )
+        self.assertEqual(
+            knn.adaptive_average_pool(
+                x_2d_cf, 7, data_format="channels_first"
+            ).shape,
+            (2, 3, 7, 7),
+        )
+
+        x_3d_cl = KerasTensor((2, 16, 16, 16, 3))
+        self.assertEqual(
+            knn.adaptive_average_pool(
+                x_3d_cl, 4, data_format="channels_last"
+            ).shape,
+            (2, 4, 4, 4, 3),
+        )
+
     def test_multi_hot(self):
         x = KerasTensor([None, 3, 1])
         self.assertEqual(knn.multi_hot(x, 5).shape, (None, 1, 5))
