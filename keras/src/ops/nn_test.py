@@ -1285,16 +1285,21 @@ class NNOpsStaticShapeTest(testing.TestCase):
         knn.conv_transpose(dyn_inputs, bad_kernel, 2)
 
     def test_batched_and_unbatched_inputs_multi_hot(self):
-        x = KerasTensor([2, 3, 1])
+        x = KerasTensor([2, 3, 1], dtype="int32")
         unbatched_input = KerasTensor(
             [
                 5,
-            ]
+            ],
+            dtype="int32",
         )
-        self.assertEqual(knn.multi_hot(unbatched_input, 5, -1).shape, (5,))
+        out = knn.multi_hot(unbatched_input, 5, -1)
+        self.assertEqual(out.shape, (5,))
+        self.assertEqual(out.dtype, backend.floatx())
+        self.assertEqual(knn.multi_hot(unbatched_input, 5, 0).shape, (5,))
         self.assertEqual(knn.multi_hot(x, 5).shape, (2, 1, 5))
         self.assertEqual(knn.multi_hot(x, 5, 1).shape, (2, 3, 1))
         self.assertEqual(knn.multi_hot(x, 5, 2).shape, (2, 5, 1))
+        self.assertEqual(knn.multi_hot(x, 5, dtype="bool").dtype, "bool")
 
     def test_one_hot(self):
         x = KerasTensor([2, 3, 1])

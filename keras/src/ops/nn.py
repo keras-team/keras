@@ -2263,26 +2263,18 @@ class MultiHot(Operation):
             num_classes=self.num_classes,
             axis=self.axis,
             dtype=self.dtype,
+            sparse=self.sparse,
         )
 
     def compute_output_spec(self, inputs):
         x_shape = list(getattr(inputs, "shape", []))
-        if self.axis == -1:
-            x_shape.append(self.num_classes)
-        elif self.axis >= 0 and self.axis < len(x_shape):
-            x_shape.insert(self.axis, self.num_classes)
-        else:
-            raise ValueError(
-                f"axis must be -1 or between [0, {len(inputs.shape)}), but "
-                f"received {self.axis}."
-            )
+        input_rank = len(x_shape)
+        axis = canonicalize_axis(self.axis, input_rank + 1)
+        x_shape.insert(axis, self.num_classes)
+        reduction_axis = 1 if input_rank > 1 else 0
+        del x_shape[reduction_axis]
 
-        if len(x_shape) == 2:
-            x_shape = [x_shape[-1]]
-        else:
-            x_shape = [x_shape[0]] + x_shape[2:]
-
-        return KerasTensor(x_shape, dtype=inputs.dtype, sparse=self.sparse)
+        return KerasTensor(x_shape, dtype=self.dtype, sparse=self.sparse)
 
 
 @keras_export(
