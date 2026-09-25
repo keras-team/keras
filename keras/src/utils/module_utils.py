@@ -1,7 +1,45 @@
 import importlib
+import sys
+
+
+def _is_namespace_package(module):
+    spec = getattr(module, "__spec__", None)
+    return getattr(spec, "origin", False) is None and not any(
+        not attr.startswith("_") for attr in dir(module)
+    )
+
+
+def _has_live_descendant(name):
+    prefix = f"{name}."
+    locks = getattr(importlib._bootstrap, "_module_locks", ())
+    return any(
+        key.startswith(prefix) for key in (*list(sys.modules), *list(locks))
+    )
+
+
+def _cleanup_namespace_modules(names):
+    # Hold the import lock so that no thread can start a child import
+    # between the live-descendant check and the pop.
+    with importlib._bootstrap._ImportLockContext():
+        for name in reversed(names):
+            mod = sys.modules.get(name)
+            if _is_namespace_package(mod) and not _has_live_descendant(name):
+                sys.modules.pop(name, None)
+                parent_name, _, attr = name.rpartition(".")
+                if parent_name:
+                    parent_mod = sys.modules.get(parent_name)
+                    if getattr(parent_mod, attr, None) is mod:
+                        delattr(parent_mod, attr)
 
 
 class LazyModule:
+    """Lazily imports a module on first check or attribute access.
+
+    `available` is `True` only when the import succeeds and the module is not
+    an attribute-less namespace package. Direct attribute access on an
+    unavailable or leftover namespace install raises `ImportError`.
+    """
+
     def __init__(self, name, pip_name=None, import_error_msg=None):
         self.name = name
         self.pip_name = pip_name or name
@@ -17,16 +55,34 @@ class LazyModule:
         if self._available is None:
             try:
                 self.initialize()
-                self._available = True
             except ImportError:
                 self._available = False
         return self._available
 
-    def initialize(self):
-        try:
-            self.module = importlib.import_module(self.name)
-        except ImportError:
+    def _reject_if_namespace(self, module, newly_loaded=()):
+        if _is_namespace_package(module):
+            _cleanup_namespace_modules(newly_loaded)
+            self._available = False
             raise ImportError(self.import_error_msg)
+        return module
+
+    def _import_module(self, name):
+        parts = name.split(".")
+        prefixes = [".".join(parts[: i + 1]) for i in range(len(parts))]
+        newly_loaded = [p for p in prefixes if p not in sys.modules]
+        try:
+            module = importlib.import_module(name)
+        except ImportError:
+            _cleanup_namespace_modules(newly_loaded)
+            self._available = False
+            raise ImportError(self.import_error_msg)
+        return self._reject_if_namespace(module, newly_loaded)
+
+    def initialize(self):
+        if self._available is False:
+            raise ImportError(self.import_error_msg)
+        self.module = self._import_module(self.name)
+        self._available = True
 
     def __getattr__(self, name):
         if name == "_api_export_path":
@@ -40,13 +96,38 @@ class LazyModule:
 
 
 class OrbaxLazyModule(LazyModule):
+    def _newly_loaded_orbax_modules(self, pre_existing):
+        return sorted(
+            (
+                k
+                for k in list(sys.modules)
+                if (k == "orbax" or k.startswith("orbax."))
+                and k not in pre_existing
+            ),
+            key=lambda s: s.count("."),
+        )
+
     def initialize(self):
-        try:
-            parent_module = importlib.import_module("orbax.checkpoint")
-            self.module = parent_module.v1
-            self.parent_module = parent_module
-        except ImportError:
+        if self._available is False:
             raise ImportError(self.import_error_msg)
+        pre_existing = {
+            k
+            for k in list(sys.modules)
+            if k == "orbax" or k.startswith("orbax.")
+        }
+        parent_module = self._import_module("orbax.checkpoint")
+        try:
+            v1_module = parent_module.v1
+        except (ImportError, AttributeError):
+            _cleanup_namespace_modules(
+                self._newly_loaded_orbax_modules(pre_existing)
+            )
+            self._available = False
+            raise ImportError(self.import_error_msg)
+        cleanup_targets = self._newly_loaded_orbax_modules(pre_existing)
+        self.module = self._reject_if_namespace(v1_module, cleanup_targets)
+        self.parent_module = parent_module
+        self._available = True
 
     def __getattr__(self, name):
         if name == "_api_export_path":

@@ -14,10 +14,12 @@ def in_tf_graph():
     if global_state.get_global_attribute("in_tf_graph_scope", False):
         return True
 
-    if "tensorflow" in sys.modules:
-        from keras.src.utils.module_utils import tensorflow as tf
+    tf_mod = sys.modules.get("tensorflow")
+    if tf_mod is not None:
+        from keras.src.utils.module_utils import _is_namespace_package
 
-        return not tf.executing_eagerly()
+        if not _is_namespace_package(tf_mod):
+            return not tf_mod.executing_eagerly()
     return False
 
 
