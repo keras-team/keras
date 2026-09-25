@@ -1659,7 +1659,7 @@ class DenseTest(testing.TestCase):
 
     def test_dense_quantize_ternary_beta_scale(self):
         # With default threshold (None), beta = mean(|W|) is stored in
-        # kernel_scale and applied in _ternary_call.
+        # kernel_scale and applied by the ternary forward pass.
         layer = layers.Dense(units=4, use_bias=False)
         layer.build((None, 4))
         kernel = np.array(

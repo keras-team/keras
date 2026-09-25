@@ -10,9 +10,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.core.input_layer import InputLayer
 from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
-from keras.src.quantizers.awq_core import awq_quantize
+from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.gptq_core import find_layers_in_block
-from keras.src.quantizers.gptq_core import gptq_quantize
+from keras.src.quantizers.quantization_config import validate_and_resolve_config
 from keras.src.quantizers.report import QuantizationReport
 from keras.src.quantizers.utils import should_quantize_layer
 from keras.src.saving import saving_api
@@ -563,6 +563,14 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         model.quantize(config=config)
         ```
         """
+        # Resolve `mode`/`config` into a concrete mode string and
+        # `QuantizationConfig`, and validate that the model can be quantized,
+        # before validating the remaining arguments (mirroring
+        # `Layer.quantize`'s validation order).
+        config = validate_and_resolve_config(mode, config)
+        mode = config.mode
+        self._check_quantize_args(mode, self.compute_dtype)
+
         # Validate inputs.
         type_check = kwargs.pop("type_check", True)
         if kwargs:
@@ -579,11 +587,6 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     f"{type(filters)}"
                 )
 
-        # `mode` and `config` arrive here already resolved to a concrete mode
-        # string and `QuantizationConfig`, because `Layer.__new__` wraps
-        # `quantize` with `quantize_wrapper`, which calls
-        # `validate_and_resolve_config`.
-
         # For structure-aware modes (`gptq`/`awq`), resolve and validate the
         # layer structure *before* mutating any layer, and restrict
         # quantization to the layers covered by the structure. Resolving it
@@ -594,9 +597,10 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         # quantizing any other layer would leave it uncalibrated, and its
         # uninitialized quantized weights would silently replace the real
         # ones when the model is saved and reloaded.
+        strategy = strategy_registry.get_strategy(mode)
         structure = None
         structure_layer_ids = None
-        if mode in ("gptq", "awq"):
+        if strategy.requires_layer_structure:
             # 1. If quantization_layer_structure is provided inside the
             # config, use that.
             structure = config.quantization_layer_structure
@@ -673,10 +677,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             )
             graph_modified = True
 
-        if mode == "gptq":
-            gptq_quantize(config, structure, filters=filters)
-        elif mode == "awq":
-            awq_quantize(config, structure, filters=filters)
+        # Structure-aware modes run their calibration pass here (a no-op
+        # for the other modes).
+        strategy.finalize_model_quantization(self, config, structure, filters)
 
         # Emit a single summary warning in place of the previous per-layer
         # warning storm (one `UserWarning` per non-quantizable leaf).

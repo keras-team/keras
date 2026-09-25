@@ -168,8 +168,6 @@ class LayerTest(testing.TestCase):
             {"input_shape": None, "mode": None},
         ),
         ("quantize", "quantize", {"mode": "int8"}),
-        ("_int8_call", "_int8_call", None),
-        ("_float8_call", "_float8_call", None),
     )
     def test_not_implemented_error(self, method, args):
         layer = layers.Layer()
