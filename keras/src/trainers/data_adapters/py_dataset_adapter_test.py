@@ -12,7 +12,7 @@ from keras.src import backend
 from keras.src import testing
 from keras.src.distribution import distribution_lib as dist_lib
 from keras.src.testing.test_utils import named_product
-from keras.src.trainers.data_adapters import data_adapter_test
+from keras.src.trainers.data_adapters import data_adapter_test_base
 from keras.src.trainers.data_adapters import py_dataset_adapter
 from keras.src.utils.rng_utils import set_random_seed
 
@@ -99,7 +99,7 @@ class ExceptionPyDataset(py_dataset_adapter.PyDataset):
     testing.tensorflow_uses_gpu() or testing.uses_tpu(),
     reason="Flaky on TPU and GPU",
 )
-class PyDatasetAdapterTest(data_adapter_test.DataAdapterTest):
+class PyDatasetAdapterTest(data_adapter_test_base.DataAdapterTest):
     @parameterized.named_parameters(
         named_product(
             [
@@ -203,7 +203,7 @@ class PyDatasetAdapterTest(data_adapter_test.DataAdapterTest):
             self.assertEqual(bx.shape, (16, 4))
             self.assertEqual(by.shape, (16, 2))
             for i in range(by.shape[0]):
-                sample_order.append(backend.convert_to_numpy(by[i, 0]))
+                sample_order.append(backend.ops.convert_to_numpy(by[i, 0]))
             if infinite:
                 if len(sample_order) == 64:
                     adapter.on_epoch_end()
@@ -244,7 +244,7 @@ class PyDatasetAdapterTest(data_adapter_test.DataAdapterTest):
         for index, batch in enumerate(gen):
             # Batch is a tuple of (x, y, class_weight)
             self.assertLen(batch, 3)
-            batch = [backend.convert_to_numpy(x) for x in batch]
+            batch = [backend.ops.convert_to_numpy(x) for x in batch]
             # Let's verify the data and class weights match for each element
             # of the batch (2 elements in each batch)
             for sub_elem in range(2):
@@ -537,7 +537,7 @@ class PyDatasetAdapterTest(data_adapter_test.DataAdapterTest):
             order = []
             for batch in it_fn():
                 bx = batch[0]
-                bx = backend.convert_to_numpy(bx)
+                bx = backend.ops.convert_to_numpy(bx)
                 order.extend(bx[:, 0].tolist())
             return order
 
@@ -552,8 +552,8 @@ class PyDatasetAdapterTest(data_adapter_test.DataAdapterTest):
 
                 for i, batch in enumerate(batches):
                     bx, by = batch
-                    bx = backend.convert_to_numpy(bx)
-                    by = backend.convert_to_numpy(by)
+                    bx = backend.ops.convert_to_numpy(bx)
+                    by = backend.ops.convert_to_numpy(by)
                     expected_batch_index = (
                         expected_shard_id + i * expected_num_replicas
                     )

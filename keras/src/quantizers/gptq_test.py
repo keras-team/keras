@@ -18,12 +18,12 @@ from keras.src.quantizers.gptq import _stable_permutation
 from keras.src.quantizers.gptq import gptq_quantize_matrix
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.gptq_core import find_layers_in_block
+from keras.src.quantizers.packing import unpack_int2
 from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantizers import compute_quantization_parameters
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
 from keras.src.quantizers.quantizers import quantize_with_zero_point
-from keras.src.quantizers.quantizers import unpack_int2
 from keras.src.testing.test_utils import named_product
 
 VOCAB_SIZE = 1000

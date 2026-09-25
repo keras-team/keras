@@ -18,11 +18,11 @@ from keras.src import testing
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
-from keras.src.backend.torch.core import get_device
 from keras.src.backend.torch.distributed_test_utils import (
     TorchDistributedTestMixin,
 )
 from keras.src.backend.torch.distribution_lib import distribute_data_input
+from keras.src.backend.torch.ops.core import get_device
 from keras.src.layers.convolutional.conv_test import np_conv1d
 from keras.src.layers.convolutional.conv_test import np_conv2d
 from keras.src.layers.convolutional.conv_test import np_conv3d
@@ -1894,7 +1894,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
 
     @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only")
     def test_torch_channels_last_pointwise_conv_direct_path(self):
-        from keras.src.backend.torch import nn as torch_nn
+        from keras.src.backend.torch.ops import nn as torch_nn
 
         inputs_2d = np.arange(120, dtype="float32").reshape((2, 4, 5, 3))
         kernel = np.arange(6, dtype="float32").reshape((1, 1, 3, 2))
@@ -2325,6 +2325,22 @@ class NNOpsCorrectnessTest(testing.TestCase):
             result,
             np.array([[1.206961], [0.778139], [1.061154], [0.913015]]),
         )
+
+    @parameterized.product(
+        shape=[(4, 1), (4, 5, 1), (4, 1, 1), (4, 5, 1, 1), (2, 1, 3)],
+        from_logits=[True, False],
+    )
+    def test_binary_crossentropy_size_one_dims(self, shape, from_logits):
+        rng = np.random.default_rng(0)
+        target = rng.integers(0, 2, size=shape).astype("float32")
+        output = rng.uniform(0.1, 0.9, size=shape).astype("float32")
+        result = knn.binary_crossentropy(
+            target, output, from_logits=from_logits
+        )
+        probs = 1.0 / (1.0 + np.exp(-output)) if from_logits else output
+        expected = -(target * np.log(probs) + (1 - target) * np.log(1 - probs))
+        self.assertEqual(tuple(result.shape), shape)
+        self.assertAllClose(result, expected)
 
     def test_categorical_crossentropy(self):
         target = np.array(
@@ -2898,6 +2914,41 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.layer_normalization(x), expected_output, atol=1e-3
         )
         self.assertAllClose(knn.LayerNorm()(x), expected_output, atol=1e-3)
+
+    @parameterized.named_parameters(
+        named_product(
+            axis=[[0, 1], [1, 2], [1, 2, 3], [0, 2]],
+            backend_agnostic_ops=[False, True],
+        )
+    )
+    def test_normalization_over_axes(self, axis, backend_agnostic_ops):
+        # A backend kernel normalizes over trailing axes, so any other set of
+        # axes exercises the backend moving them into place.
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = np.arange(120, dtype="float32").reshape((2, 3, 4, 5)) / 120.0
+            axes = tuple(axis)
+            epsilon = 1e-5
+
+            expected = x / np.sqrt(
+                np.mean(np.square(x), axis=axes, keepdims=True) + epsilon
+            )
+            self.assertAllClose(
+                knn.rms_normalization(x, axis=axis, epsilon=epsilon),
+                expected,
+                atol=1e-5,
+            )
+
+            mean = np.mean(x, axis=axes, keepdims=True)
+            variance = np.var(x, axis=axes, keepdims=True)
+            expected = (x - mean) / np.sqrt(variance + epsilon)
+            self.assertAllClose(
+                knn.layer_normalization(x, axis=axis, epsilon=epsilon),
+                expected,
+                atol=1e-5,
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
 
 class NNOpsDtypeTest(testing.TestCase):

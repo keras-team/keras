@@ -7,7 +7,7 @@ from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src.testing.test_utils import named_product
-from keras.src.trainers.data_adapters import data_adapter_test
+from keras.src.trainers.data_adapters import data_adapter_test_base
 from keras.src.trainers.data_adapters import grain_dataset_adapter
 
 
@@ -23,7 +23,7 @@ class Range2DSource(grain.sources.RandomAccessDataSource):
         return self.stop - self.start
 
 
-class GrainDatasetAdapterTest(data_adapter_test.DataAdapterTest):
+class GrainDatasetAdapterTest(data_adapter_test_base.DataAdapterTest):
     def _get_dataset(
         self, dataset_type, num_samples=34, worker_count=0, num_threads=0
     ):

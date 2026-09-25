@@ -5,11 +5,11 @@ import openvino.opset16 as ov_opset
 from openvino import Type
 
 from keras.src.backend.config import floatx
-from keras.src.backend.openvino import numpy as ov_numpy
-from keras.src.backend.openvino.core import OPENVINO_DTYPES
-from keras.src.backend.openvino.core import OpenVINOKerasTensor
-from keras.src.backend.openvino.core import convert_to_numpy
-from keras.src.backend.openvino.core import get_ov_output
+from keras.src.backend.openvino.ops import numpy as ov_numpy
+from keras.src.backend.openvino.ops.core import OPENVINO_DTYPES
+from keras.src.backend.openvino.ops.core import OpenVINOKerasTensor
+from keras.src.backend.openvino.ops.core import convert_to_numpy
+from keras.src.backend.openvino.ops.core import get_ov_output
 from keras.src.random.seed_generator import SeedGenerator
 from keras.src.random.seed_generator import draw_seed
 from keras.src.random.seed_generator import make_default_seed

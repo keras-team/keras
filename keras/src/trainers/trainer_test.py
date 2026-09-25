@@ -2365,6 +2365,33 @@ class TestTrainer(testing.TestCase):
         self.assertEqual(recorder.train_counter, 3)
         self.assertEqual(recorder.val_counter, 4)
 
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="Only JAX backend uses _maybe_symbolic_build.",
+    )
+    @pytest.mark.requires_trainable_backend
+    def test_symbolic_build_empty_dataset(self):
+        val_x = np.empty((0, 2), dtype="float32")
+        val_y = np.empty((0, 3), dtype="float32")
+        unbuilt_model = ExampleModel(units=3)
+        unbuilt_model.compile(optimizer="sgd", loss="mse")
+        with self.assertRaisesRegex(
+            ValueError,
+            "The symbolic build failed because train or validation dataset "
+            "is empty",
+        ):
+            unbuilt_model.evaluate(val_x, val_y)
+
+    @pytest.mark.requires_trainable_backend
+    def test_fit_empty_validation_data(self):
+        model = ExampleModel(units=3)
+        model.compile(optimizer="sgd", loss="mse")
+        x = np.ones((4, 2), dtype="float32")
+        y = np.ones((4, 3), dtype="float32")
+        val_x = np.empty((0, 2), dtype="float32")
+        val_y = np.empty((0, 3), dtype="float32")
+        model.fit(x, y, epochs=1, batch_size=2, validation_data=(val_x, val_y))
+
     @parameterized.named_parameters(
         [
             ("fit", "fit", "training", "train"),
@@ -2413,7 +2440,7 @@ class TestTrainer(testing.TestCase):
         model.compile(optimizer="rmsprop", loss="mse")
         model.fit(x, y)
         self.assertGreaterEqual(
-            np.min(backend.convert_to_numpy(model.layers[0].kernel)), 0.0
+            np.min(backend.ops.convert_to_numpy(model.layers[0].kernel)), 0.0
         )
 
     @pytest.mark.requires_trainable_backend

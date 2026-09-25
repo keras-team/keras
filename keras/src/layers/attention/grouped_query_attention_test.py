@@ -491,7 +491,7 @@ class GroupedQueryAttentionTest(testing.TestCase):
                 return_attention_scores=True,
                 training=False,
             )
-            leak = backend.convert_to_numpy(scores)[..., future].sum()
+            leak = backend.ops.convert_to_numpy(scores)[..., future].sum()
             self.assertLess(leak, 1e-6)
         else:
             # use_causal_mask should match passing the same mask explicitly.
