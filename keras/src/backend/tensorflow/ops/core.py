@@ -10,6 +10,7 @@ from keras.src.backend.common import global_state
 from keras.src.backend.common import is_int_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import slice_along_axis
+from keras.src.backend.common.backend_utils import standardize_argnums
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.name_scope import name_scope as base_name_scope
 from keras.src.backend.common.stateless_scope import StatelessScope
@@ -21,6 +22,7 @@ from keras.src.utils.naming import auto_name
 SUPPORTS_SPARSE_TENSORS = True
 SUPPORTS_RAGGED_TENSORS = True
 SUPPORTS_COMPLEX_DTYPES = True
+SUPPORTS_GRADIENT = True
 # https://github.com/tensorflow/tensorflow/issues/78338
 IS_THREAD_SAFE = False
 
@@ -888,3 +890,28 @@ class name_scope(base_name_scope):
 
 def device_scope(device_name):
     return tf.device(device_name)
+
+
+def grad(f, argnums=0):
+    def grad_fn(*args, **kwargs):
+        positions = standardize_argnums(argnums, len(args))
+        args = list(args)
+
+        def to_tensor(x):
+            # The tape can only watch a tensor, not a variable.
+            return tf.convert_to_tensor(convert_to_tensor(x))
+
+        for i in positions:
+            args[i] = tree.map_structure(to_tensor, args[i])
+        inputs = [args[i] for i in positions]
+        with tf.GradientTape(watch_accessed_variables=False) as tape:
+            tape.watch(inputs)
+            output = f(*args, **kwargs)
+        grads = tape.gradient(
+            output, inputs, unconnected_gradients=tf.UnconnectedGradients.ZERO
+        )
+        if isinstance(argnums, int):
+            return grads[0]
+        return tuple(grads)
+
+    return grad_fn
