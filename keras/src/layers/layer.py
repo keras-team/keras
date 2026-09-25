@@ -804,18 +804,28 @@ class Layer(BackendLayer, Operation):
             self._dtype_policy[self.path] = policy
         else:
             self._dtype_policy = policy
+        # A map answers `quantization_mode` for its default policy; the
+        # layer's own entry decides whether, and how, it quantizes.
+        if isinstance(policy, DTypePolicyMap) and self.path:
+            policy = policy[self.path]
         if policy.quantization_mode is not None:
             if self.built and not getattr(self, "_is_quantized", False):
-                if policy.quantization_mode == "gptq":
-                    raise ValueError(
-                        "Implicitly enabling GPTQ quantization by setting "
-                        f"`dtype_policy` to '{value}' is not supported. "
-                        "GPTQ requires a calibration dataset and a "
-                        "`GPTQConfig` object.\n\n"
-                        "Please use the `.quantize('gptq', config=...)` method "
-                        "on the layer or model instead."
-                    )
-                self.quantize(policy.quantization_mode)
+                # Forward the policy's full parameters into `quantize` so the
+                # built variables agree with the policy name: assigning
+                # "int4/32_from_float32" quantizes with block_size=32 instead
+                # of silently falling back to the default block size while
+                # keeping a name that says 32. A mode may refuse
+                # policy-triggered quantization by raising here (GPTQ needs
+                # a calibration dataset that a bare policy cannot carry).
+                strategy = strategy_registry.get_strategy(
+                    policy.quantization_mode
+                )
+                config = (
+                    strategy.config_from_policy(policy)
+                    if strategy is not None
+                    else None
+                )
+                self.quantize(policy.quantization_mode, config=config)
 
     @property
     def dtype(self):
@@ -1222,7 +1232,7 @@ class Layer(BackendLayer, Operation):
             with backend.StatelessScope(
                 state_mapping=mapping, collect_losses=return_losses
             ) as scope:
-                if self.dtype_policy.quantization_mode is not None:
+                if self.quantization_mode is not None:
                     if self._remat_mode is not None:
                         outputs = self.rematerialized_call(
                             self.quantized_call, *args, **kwargs
@@ -1483,12 +1493,16 @@ class Layer(BackendLayer, Operation):
 
     def _finalize_quantization_policy(self, strategy, config):
         # Set new dtype policy only for modes that don't already have one.
-        if self.dtype_policy.quantization_mode is None:
+        # A map's `quantization_mode` and `name` are its default policy's;
+        # the layer's own entry is what applies to it.
+        policy = self.dtype_policy
+        if isinstance(policy, DTypePolicyMap) and self.path:
+            policy = policy[self.path]
+        if policy.quantization_mode is None:
             policy_name = strategy.policy_suffix(self, config)
-            policy = dtype_policies.get(
-                f"{policy_name}_from_{self.dtype_policy.name}"
+            self.dtype_policy = dtype_policies.get(
+                f"{policy_name}_from_{policy.name}"
             )
-            self.dtype_policy = policy
 
     def _check_quantize_args(self, mode, compute_dtype):
         if not self.built:
