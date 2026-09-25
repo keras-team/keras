@@ -5615,7 +5615,7 @@ def minimum(x1, x2):
 
 class Fmin(Operation):
     def call(self, x1, x2):
-        return backend.ops.numpy.fmin(x1, x2)
+        return _fmin(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -5656,7 +5656,26 @@ def fmin(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Fmin().symbolic_call(x1, x2)
-    return backend.ops.numpy.fmin(x1, x2)
+    return _fmin(x1, x2)
+
+
+def _fmin(x1, x2):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "fmin"
+    ):
+        return backend.ops.numpy.fmin(x1, x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = backend.ops.convert_to_tensor(x1, dtype)
+    x2 = backend.ops.convert_to_tensor(x2, dtype)
+    res = ops.minimum(x1, x2)
+    if "float" not in dtype:
+        return res
+
+    res = ops.where(ops.isnan(x2), x1, res)
+    return ops.where(ops.isnan(x1), x2, res)
 
 
 class Mod(Operation):
