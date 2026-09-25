@@ -5398,6 +5398,10 @@ def fmax(x1, x2):
 
 
 def _fmax(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = backend.ops.convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = backend.ops.convert_to_tensor(x2)
     if not config._use_backend_agnostic_ops() and hasattr(
         backend.ops.numpy, "fmax"
     ):
@@ -5660,6 +5664,10 @@ def fmin(x1, x2):
 
 
 def _fmin(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = backend.ops.convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = backend.ops.convert_to_tensor(x2)
     if not config._use_backend_agnostic_ops() and hasattr(
         backend.ops.numpy, "fmin"
     ):

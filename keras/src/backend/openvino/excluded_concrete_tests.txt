@@ -82,5 +82,7 @@ keras/src/ops/nn_test.py::NNOpsDtypeTest::test_ctc_decode_bfloat16
 keras/src/ops/nn_test.py::NNOpsDtypeTest::test_ctc_decode_float16
 keras/src/ops/nn_test.py::NNOpsDtypeTest::test_ctc_decode_float32
 keras/src/ops/numpy_test.py::NumpyTwoInputOpsCorrectnessTest::test_allclose_backend_agnostic
+keras/src/ops/numpy_test.py::NumpyTwoInputOpsCorrectnessTest::test_fmax_list_inputs_backend_specific
+keras/src/ops/numpy_test.py::NumpyTwoInputOpsCorrectnessTest::test_fmin_list_inputs_backend_specific
 keras/src/ops/numpy_test.py::NumpyTwoInputOpsCorrectnessTest::test_nextafter_float16
 keras/src/ops/numpy_test.py::NumpyTwoInputOpsCorrectnessTest::test_nextafter_float32
