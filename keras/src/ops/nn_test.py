@@ -1344,6 +1344,18 @@ class NNOpsStaticShapeTest(testing.TestCase):
             knn.batch_normalization(x, mean, variance, axis=-1).shape,
             (10, 3, 4),
         )
+        self.assertEqual(
+            knn.batch_normalization(
+                x, mean, variance, axis=-1, offset=KerasTensor([4]), scale=None
+            ).shape,
+            (10, 3, 4),
+        )
+        self.assertEqual(
+            knn.batch_normalization(
+                x, mean, variance, axis=-1, offset=None, scale=KerasTensor([4])
+            ).shape,
+            (10, 3, 4),
+        )
 
         x = KerasTensor([10, 3, 4, 5])
         self.assertEqual(
