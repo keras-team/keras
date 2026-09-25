@@ -2669,14 +2669,13 @@ def _deg2rad(x):
 
 class Rad2deg(Operation):
     def call(self, x):
-        return backend.ops.numpy.rad2deg(x)
+        return _rad2deg(x)
 
     def compute_output_spec(self, x):
-        dtype = backend.standardize_dtype(x.dtype)
-        if dtype in ["int64", "float64"]:
-            dtype = "float64"
-        elif dtype not in ["bfloat16", "float16"]:
-            dtype = backend.floatx()
+        if backend.standardize_dtype(x.dtype) == "int64":
+            dtype = config.floatx()
+        else:
+            dtype = dtypes.result_type(x.dtype, float)
         return KerasTensor(x.shape, dtype)
 
 
@@ -2702,7 +2701,21 @@ def rad2deg(x):
     """
     if any_symbolic_tensors((x,)):
         return Rad2deg().symbolic_call(x)
-    return backend.ops.numpy.rad2deg(x)
+    return _rad2deg(x)
+
+
+def _rad2deg(x):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "rad2deg"
+    ):
+        return backend.ops.numpy.rad2deg(x)
+    x = backend.ops.convert_to_tensor(x)
+    if backend.standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = ops.cast(x, dtype)
+    return ops.multiply(x, 180.0 / python_math.pi)
 
 
 class Diag(Operation):
