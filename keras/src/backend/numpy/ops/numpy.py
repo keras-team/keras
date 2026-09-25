@@ -928,7 +928,8 @@ def log(x):
         if standardize_dtype(x.dtype) == "int64"
         else dtypes.result_type(x.dtype, float)
     )
-    return np.log(x, dtype=dtype)
+    x = x.astype(dtype)
+    return np.log(x)
 
 
 def log10(x):
@@ -938,7 +939,8 @@ def log10(x):
         if standardize_dtype(x.dtype) == "int64"
         else dtypes.result_type(x.dtype, float)
     )
-    return np.log10(x, dtype=dtype)
+    x = x.astype(dtype)
+    return np.log10(x)
 
 
 def log1p(x):
@@ -948,7 +950,8 @@ def log1p(x):
         if standardize_dtype(x.dtype) == "int64"
         else dtypes.result_type(x.dtype, float)
     )
-    return np.log1p(x, dtype=dtype)
+    x = x.astype(dtype)
+    return np.log1p(x)
 
 
 def log2(x):
@@ -958,7 +961,8 @@ def log2(x):
         if standardize_dtype(x.dtype) == "int64"
         else dtypes.result_type(x.dtype, float)
     )
-    return np.log2(x, dtype=dtype)
+    x = x.astype(dtype)
+    return np.log2(x)
 
 
 def logaddexp(x1, x2):
@@ -1670,13 +1674,15 @@ def square(x):
 
 def sqrt(x):
     x = convert_to_tensor(x)
-    # upcast to float64 for int64 which matches JAX's behavior
+    ori_dtype = standardize_dtype(x.dtype)
+    # upcast to floatx for int64 which matches JAX's behavior
     dtype = (
         config.floatx()
-        if standardize_dtype(x.dtype) == "int64"
+        if ori_dtype == "int64"
         else dtypes.result_type(x.dtype, float)
     )
-    return np.sqrt(x, dtype=dtype)
+    x = x.astype(dtype)
+    return np.sqrt(x)
 
 
 def squeeze(x, axis=None):
