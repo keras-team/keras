@@ -11,7 +11,8 @@ class TernaryStrategy(QuantizationStrategy):
 
     The ternarization rule (threshold and scale) is owned by the layer's
     geometry: the default is the BitNet b1.58 rule applied to the float
-    kernel; a layer with its own rule supplies its values instead.
+    kernel, and `TernaryDense` supplies its straight-through-estimator
+    values instead.
     """
 
     name = "ternary"
@@ -71,7 +72,9 @@ class TernaryStrategy(QuantizationStrategy):
         geometry = self.require_geometry(layer)
         kernel_shape = layer._kernel.shape
         # The geometry owns the ternarization rule: the BitNet b1.58 rule by
-        # default, or the layer's own values.
+        # default, or the layer's own values (`TernaryDense` freezes exactly
+        # the forward value of its straight-through kernel, so quantizing
+        # does not change the layer's outputs).
         kernel_ternary, beta = geometry.ternary_values()
         packed_kernel, _, _ = pack_ternary(kernel_ternary, axis=0)
         del layer._kernel

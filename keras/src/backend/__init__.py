@@ -36,21 +36,23 @@ from keras.src.backend.config import standardize_data_format
 # Import backend functions.
 if backend() == "tensorflow":
     from keras.src.backend.tensorflow import *  # noqa: F403
-    from keras.src.backend.tensorflow.core import Variable as BackendVariable
+    from keras.src.backend.tensorflow.ops.core import (
+        Variable as BackendVariable,
+    )
 elif backend() == "jax":
     from keras.src.backend.jax import *  # noqa: F403
-    from keras.src.backend.jax.core import Variable as BackendVariable
+    from keras.src.backend.jax.ops.core import Variable as BackendVariable
 elif backend() == "torch":
     from keras.src.backend.torch import *  # noqa: F403
-    from keras.src.backend.torch.core import Variable as BackendVariable
+    from keras.src.backend.torch.ops.core import Variable as BackendVariable
 elif backend() == "numpy":
     from keras.src.backend.numpy import *  # noqa: F403
-    from keras.src.backend.numpy.core import Variable as BackendVariable
+    from keras.src.backend.numpy.ops.core import Variable as BackendVariable
 
     distribution_lib = None
 elif backend() == "openvino":
     from keras.src.backend.openvino import *  # noqa: F403
-    from keras.src.backend.openvino.core import Variable as BackendVariable
+    from keras.src.backend.openvino.ops.core import Variable as BackendVariable
 
     distribution_lib = None
 else:

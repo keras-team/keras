@@ -125,7 +125,7 @@ class RandomGaussianBlur(BaseImagePreprocessingLayer):
         else:
             images = data
 
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         rank = len(images_shape)
         if rank == 3:
             batch_size = 1
@@ -171,29 +171,29 @@ class RandomGaussianBlur(BaseImagePreprocessingLayer):
         }
 
     def transform_images(self, images, transformation=None, training=True):
-        images = self.backend.cast(images, self.compute_dtype)
+        images = self.backend.ops.cast(images, self.compute_dtype)
         if training and transformation is not None:
             blur_factor = transformation["blur_factor"]
             should_apply_blur = transformation["should_apply_blur"]
 
-            blur_images = self.backend.image.gaussian_blur(
+            blur_images = self.backend.ops.image.gaussian_blur(
                 images,
                 kernel_size=self.kernel_size,
                 sigma=blur_factor,
                 data_format=self.data_format,
             )
 
-            images = self.backend.numpy.where(
+            images = self.backend.ops.numpy.where(
                 should_apply_blur[:, None, None, None],
                 blur_images,
                 images,
             )
 
-            images = self.backend.numpy.clip(
+            images = self.backend.ops.numpy.clip(
                 images, self.value_range[0], self.value_range[1]
             )
 
-            images = self.backend.cast(images, dtype=self.compute_dtype)
+            images = self.backend.ops.cast(images, dtype=self.compute_dtype)
 
         return images
 
