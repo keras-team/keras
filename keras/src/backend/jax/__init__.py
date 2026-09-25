@@ -11,4 +11,5 @@ from keras.src.backend.jax.ops.core import name_scope
 SUPPORTS_SPARSE_TENSORS = True
 SUPPORTS_RAGGED_TENSORS = False
 SUPPORTS_COMPLEX_DTYPES = True
+SUPPORTS_GRADIENT = True
 IS_THREAD_SAFE = True
