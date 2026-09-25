@@ -2043,7 +2043,7 @@ def binary_crossentropy(target, output, from_logits=False):
             Defaults to `False`.
 
     Returns:
-        Integer tensor: The computed binary cross-entropy loss between
+        Floating-point tensor: The computed binary cross-entropy loss between
         `target` and `output`.
 
     Example:
