@@ -7766,7 +7766,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
         x = backend.KerasTensor((2, 4, 3, 3))
         out = knp.slogdet(x)
-        self.assertEqual(out[0].shape, ())
+        self.assertEqual(out[0].shape, (2, 4))
         self.assertEqual(out[1].shape, (2, 4))
 
     def test_nanargmax(self):
