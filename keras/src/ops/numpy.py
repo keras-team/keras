@@ -10480,11 +10480,14 @@ def _cov(x):
         x = backend.ops.numpy.reshape(x, (1, -1))
     mean = backend.ops.numpy.mean(x, axis=-1, keepdims=True)
     x_centered = backend.ops.numpy.subtract(x, mean)
+    x_centered_t = backend.ops.numpy.transpose(x_centered)
+    # Complex covariance uses the conjugate transpose, as in `np.cov`, so the
+    # result is Hermitian with real variances on the diagonal.
+    if "complex" in dtype:
+        x_centered_t = backend.ops.numpy.conj(x_centered_t)
     num_samples = backend.ops.cast(backend.ops.shape(x)[-1], dtype)
     result = backend.ops.numpy.divide(
-        backend.ops.numpy.matmul(
-            x_centered, backend.ops.numpy.transpose(x_centered)
-        ),
+        backend.ops.numpy.matmul(x_centered, x_centered_t),
         backend.ops.numpy.subtract(num_samples, 1),
     )
     return backend.ops.numpy.reshape(result, ()) if is_scalar else result
