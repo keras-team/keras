@@ -247,6 +247,7 @@ class SimpleRNN(RNN):
         recurrent_dropout: Float between 0 and 1.
             Fraction of the units to drop for the linear transformation of the
             recurrent state. Default: 0.
+        seed: Random seed for dropout.
         return_sequences: Boolean. Whether to return the last output
             in the output sequence, or the full sequence. Default: `False`.
         return_state: Boolean. Whether to return the last state
@@ -439,6 +440,7 @@ class SimpleRNN(RNN):
             "bias_constraint": constraints.serialize(self.bias_constraint),
             "dropout": self.dropout,
             "recurrent_dropout": self.recurrent_dropout,
+            "seed": self.cell.seed,
         }
         base_config = super().get_config()
         del base_config["cell"]
