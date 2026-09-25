@@ -74,7 +74,7 @@ class RandomColorDegeneration(BaseImagePreprocessingLayer):
             images = data["images"]
         else:
             images = data
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         rank = len(images_shape)
         if rank == 3:
             batch_size = 1
@@ -100,18 +100,18 @@ class RandomColorDegeneration(BaseImagePreprocessingLayer):
 
     def transform_images(self, images, transformation=None, training=True):
         if training:
-            images = self.backend.cast(images, self.compute_dtype)
-            factor = self.backend.cast(
+            images = self.backend.ops.cast(images, self.compute_dtype)
+            factor = self.backend.ops.cast(
                 transformation["factor"], self.compute_dtype
             )
-            degenerates = self.backend.image.rgb_to_grayscale(
+            degenerates = self.backend.ops.image.rgb_to_grayscale(
                 images, data_format=self.data_format
             )
             images = images + factor * (degenerates - images)
-            images = self.backend.numpy.clip(
+            images = self.backend.ops.numpy.clip(
                 images, self.value_range[0], self.value_range[1]
             )
-            images = self.backend.cast(images, self.compute_dtype)
+            images = self.backend.ops.cast(images, self.compute_dtype)
         return images
 
     def transform_labels(self, labels, transformation, training=True):

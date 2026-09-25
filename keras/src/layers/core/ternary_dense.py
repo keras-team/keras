@@ -2,11 +2,12 @@ from keras.src import activations
 from keras.src import constraints
 from keras.src import initializers
 from keras.src import ops
-from keras.src import quantizers
 from keras.src import regularizers
 from keras.src.api_export import keras_export
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
+from keras.src.quantizers.geometry import ProjectionGeometry
+from keras.src.quantizers.packing import unpack_ternary
 
 
 @keras_export("keras.layers.TernaryDense")
@@ -44,7 +45,7 @@ class TernaryDense(Layer):
     **Checkpoint size.** `quantize("ternary")` stores weights at ~1.58
     bits/value (~5× smaller than float32, ~2.5× smaller than int4).
 
-    **Inference note.** The current inference path (`_ternary_call`) unpacks
+    **Inference note.** The current inference path unpacks
     the packed kernel to a full `{-1, 0, +1}` matrix on every forward pass
     and feeds it to a standard matmul. Standard BLAS does not skip zero
     multiplications, so there is no compute speedup in this path and
@@ -159,7 +160,7 @@ class TernaryDense(Layer):
             # Packed kernel + scale are created here; the float `kernel` is not.
             self.quantized_build(kernel_shape, mode=self.quantization_mode)
         else:
-            self.kernel = self.add_weight(
+            self._kernel = self.add_weight(
                 name="kernel",
                 shape=kernel_shape,
                 initializer=self.kernel_initializer,
@@ -179,20 +180,33 @@ class TernaryDense(Layer):
         self.input_spec = InputSpec(min_ndim=2, axes={-1: input_dim})
         self.built = True
 
+    @property
+    def kernel(self):
+        if not self.built:
+            raise AttributeError(
+                "You must build the layer before accessing `kernel`."
+            )
+        if self.quantization_mode == "ternary":
+            # Frozen: the packed codes, unpacked to `{-1, 0, +1}`.
+            return unpack_ternary(
+                self._packed_kernel, self._orig_input_dim, axis=0
+            )
+        return self._kernel
+
     def _ternary_kernel(self):
         """Forward value is in {-1, 0, +1}; gradients flow via STE."""
-        abs_k = ops.abs(self.kernel)
+        abs_k = ops.abs(self._kernel)
         t = 0.5 * ops.mean(abs_k) if self.threshold is None else self.threshold
-        k_ternary = ops.sign(self.kernel) * ops.cast(
-            abs_k > t, dtype=self.kernel.dtype
+        k_ternary = ops.sign(self._kernel) * ops.cast(
+            abs_k > t, dtype=self._kernel.dtype
         )
-        return self.kernel + ops.stop_gradient(k_ternary - self.kernel)
+        return self._kernel + ops.stop_gradient(k_ternary - self._kernel)
 
     def call(self, inputs):
         k = self._ternary_kernel()
         x = ops.matmul(inputs, k)
         if self.threshold is None:
-            beta = ops.mean(ops.abs(self.kernel))
+            beta = ops.mean(ops.abs(self._kernel))
             x = ops.multiply(x, beta)
         if self.bias is not None:
             x = ops.add(x, self.bias)
@@ -207,90 +221,16 @@ class TernaryDense(Layer):
     # packed representation: the `{-1, 0, +1}` kernel is stored at the
     # information-theoretic floor of ~1.6 bits/value (five trits per byte,
     # `3 ** 5 == 243 <= 256`), denser than int4 or int8 can express. Inference
-    # then runs from the packed kernel via `_ternary_call`.
-
-    def quantized_build(self, kernel_shape, mode):
-        if mode == "ternary":
-            self._ternary_build(kernel_shape)
-        else:
-            raise self._quantization_mode_error(mode)
-        self._is_quantized = True
-
-    def _ternary_build(self, kernel_shape):
-        input_dim, units = kernel_shape
-        # Five trits per byte -> ceil(input_dim / 5) packed rows.
-        packed_rows = (input_dim + 4) // 5
-        self._packed_kernel = self.add_weight(
-            name="kernel",
-            shape=(packed_rows, units),
-            # 121 = 1+3+9+27+81 is the byte whose five base-3 trits all decode
-            # to digit 0, i.e. trit 0. "zeros" would give byte 0, whose digits
-            # are all 0 as well, but digit 0 maps to trit 0-1 = -1, so a
-            # zero-initialized kernel would decode to all -1, not all 0.
-            initializer=initializers.Constant(121),
-            dtype="uint8",
-            trainable=False,
-        )
-        # Scalar BitNet b1.58 scale (beta); 1.0 in fixed-threshold mode.
-        self.kernel_scale = self.add_weight(
-            name="kernel_scale",
-            shape=(),
-            initializer="ones",
-            trainable=False,
-        )
-        self._orig_input_dim = input_dim
-
-    def _ternary_call(self, inputs):
-        # Sparseskip inference: split into pos (+1) and neg (-1) boolean masks.
-        # Zero weights are skipped; ±1 weights become additions/subtractions
-        # with no float multiplies on kernel values.
-        k = quantizers.unpack_ternary(
-            self._packed_kernel, self._orig_input_dim, axis=0
-        )
-        pos = ops.cast(ops.equal(k, 1), self.compute_dtype)
-        neg = ops.cast(ops.equal(k, -1), self.compute_dtype)
-        x = ops.subtract(
-            ops.matmul(inputs, pos),
-            ops.matmul(inputs, neg),
-        )
-        x = ops.multiply(x, ops.cast(self.kernel_scale, self.compute_dtype))
-        if self.bias is not None:
-            x = ops.add(x, self.bias)
-        if self.activation is not None:
-            x = self.activation(x)
-        return x
+    # then runs from the packed kernel via the ternary mode's forward pass.
 
     def quantize(self, mode="ternary", type_check=True, config=None):
         # Prevent quantization of subclasses with a different kernel layout.
         if type_check and type(self) is not TernaryDense:
             raise self._not_implemented_error(self.quantize)
-        if mode != "ternary":
-            raise self._quantization_mode_error(mode)
+        self._registry_quantize(mode, config)
 
-        kernel_shape = self.kernel.shape
-        # Hard ternary values in {-1, 0, +1}. This is exactly the forward value
-        # of the straight-through kernel used in training, so freezing it does
-        # not change the layer's outputs.
-        kernel_ternary = ops.convert_to_numpy(self._ternary_kernel())
-        if self.threshold is None:
-            beta = float(ops.convert_to_numpy(ops.mean(ops.abs(self.kernel))))
-        else:
-            beta = 1.0
-        packed_kernel, _, _ = quantizers.pack_ternary(kernel_ternary, axis=0)
-
-        del self.kernel
-        self.quantized_build(kernel_shape, mode=mode)
-        self._packed_kernel.assign(packed_kernel)
-        self.kernel_scale.assign(beta)
-
-        # Switch to a ternary dtype policy so future calls take the packed path.
-        if self.dtype_policy.quantization_mode is None:
-            from keras.src import dtype_policies
-
-            policy = dtype_policies.get(
-                f"ternary_from_{self.dtype_policy.name}"
-            )
-            self.dtype_policy = policy
+    def _quantization_geometry(self):
+        return _TernaryDenseGeometry(self)
 
     @property
     def variable_serialization_spec(self):
@@ -303,7 +243,7 @@ class TernaryDense(Layer):
     def _serialization_targets(self, mode):
         return {
             "kernel": (
-                self._packed_kernel if mode == "ternary" else self.kernel
+                self._packed_kernel if mode == "ternary" else self._kernel
             ),
             "bias": self.bias,
             "kernel_scale": getattr(self, "kernel_scale", None),
@@ -365,3 +305,23 @@ class TernaryDense(Layer):
             "bias_constraint": constraints.serialize(self.bias_constraint),
         }
         return {**base_config, **config}
+
+
+class _TernaryDenseGeometry(ProjectionGeometry):
+    """TernaryDense's quantization geometry.
+
+    The ternarization rule is the layer's own: the straight-through-estimator
+    kernel with its optional fixed threshold, so freezing it does not change
+    the layer's outputs.
+    """
+
+    def ternary_values(self):
+        layer = self.layer
+        # Hard ternary values in {-1, 0, +1}. This is exactly the forward
+        # value of the straight-through kernel used in training.
+        kernel_ternary = ops.convert_to_numpy(layer._ternary_kernel())
+        if layer.threshold is None:
+            beta = float(ops.convert_to_numpy(ops.mean(ops.abs(layer._kernel))))
+        else:
+            beta = 1.0
+        return kernel_ternary, beta

@@ -5,10 +5,10 @@ import torch
 import torch.distributed
 from torch.distributed import tensor as torch_distributed_tensor
 
-from keras.src.backend.torch import core as torch_core
-from keras.src.backend.torch.core import _parse_device_input
-from keras.src.backend.torch.core import convert_to_tensor
-from keras.src.backend.torch.core import get_device
+from keras.src.backend.torch.ops import core as torch_core
+from keras.src.backend.torch.ops.core import _parse_device_input
+from keras.src.backend.torch.ops.core import convert_to_tensor
+from keras.src.backend.torch.ops.core import get_device
 
 
 def list_devices(device_type=None):
