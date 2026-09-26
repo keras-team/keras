@@ -78,6 +78,13 @@ class GroupNormalizationTest(testing.TestCase):
         # `-1` is the documented sentinel for instance normalization.
         layers.GroupNormalization(groups=-1)
 
+    def test_epsilon_rejects_non_positive_values(self):
+        for bad in (0, -1e-3):
+            with self.assertRaisesRegex(ValueError, "must be positive"):
+                layers.GroupNormalization(epsilon=bad)
+        # Boundary: a small positive epsilon is accepted.
+        layers.GroupNormalization(epsilon=1e-12)
+
     def test_groups_instance_norm(self):
         # GroupNormalization with groups=-1 will become InstanceNormalization
         instance_norm_layer_1 = layers.GroupNormalization(
