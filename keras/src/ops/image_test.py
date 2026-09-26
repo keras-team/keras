@@ -1236,9 +1236,9 @@ def gaussian_blur_np(
             return kernel1d / np.sum(kernel1d)
 
         def _get_gaussian_kernel2d(size, sigma):
-            kernel1d_x = _get_gaussian_kernel1d(size[0], sigma[0])
-            kernel1d_y = _get_gaussian_kernel1d(size[1], sigma[1])
-            return np.outer(kernel1d_y, kernel1d_x)
+            kernel1d_height = _get_gaussian_kernel1d(size[0], sigma[0])
+            kernel1d_width = _get_gaussian_kernel1d(size[1], sigma[1])
+            return np.outer(kernel1d_height, kernel1d_width)
 
         kernel = _get_gaussian_kernel2d(kernel_size, sigma)
         kernel = kernel[:, :, np.newaxis]
@@ -2508,6 +2508,53 @@ class ImageOpsCorrectnessTest(testing.TestCase):
 
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(out, ref_out, atol=1e-2, rtol=1e-2)
+
+    def test_gaussian_blur_asymmetric_kernel(self):
+        image = np.zeros((9, 11, 1), dtype="float32")
+        image[4, 5, 0] = 1.0
+        kernel_size = (3, 5)
+        sigma = (0.5, 2.0)
+
+        def normalized_kernel(size, standard_deviation):
+            positions = np.arange(size) - (size - 1) / 2
+            values = np.exp(-0.5 * (positions / standard_deviation) ** 2)
+            return values / np.sum(values)
+
+        expected = np.zeros_like(image)
+        expected[3:6, 3:8, 0] = np.outer(
+            normalized_kernel(kernel_size[0], sigma[0]),
+            normalized_kernel(kernel_size[1], sigma[1]),
+        )
+
+        for data_format in ("channels_last", "channels_first"):
+            input_image = (
+                image
+                if data_format == "channels_last"
+                else np.transpose(image, (2, 0, 1))
+            )
+            expected_image = (
+                expected
+                if data_format == "channels_last"
+                else np.transpose(expected, (2, 0, 1))
+            )
+            out = kimage.gaussian_blur(
+                input_image,
+                kernel_size=kernel_size,
+                sigma=sigma,
+                data_format=data_format,
+            )
+            self.assertEqual(tuple(out.shape), tuple(input_image.shape))
+            self.assertAllClose(out, expected_image, atol=1e-6, rtol=1e-6)
+
+    def test_gaussian_blur_even_rectangular_kernel(self):
+        image = (np.arange(9 * 11, dtype="float32").reshape(9, 11, 1) / 13) ** 2
+        kernel_size = (4, 2)
+        sigma = (1.0, 0.7)
+        out = kimage.gaussian_blur(image, kernel_size, sigma)
+        expected = gaussian_blur_np(image, kernel_size, sigma)
+
+        self.assertEqual(tuple(out.shape), tuple(image.shape))
+        self.assertAllClose(out, expected, atol=5e-5, rtol=1e-5)
 
     def test_gaussian_blur_even_kernel_size(self):
         """Test gaussian_blur with even kernel sizes"""
