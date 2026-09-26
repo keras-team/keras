@@ -1,4 +1,4 @@
-from keras.src import ops
+from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.layers.attention.attention import Attention
 
@@ -90,11 +90,13 @@ class AdditiveAttention(Attention):
         """
         # Reshape tensors to enable broadcasting.
         # Reshape into [batch_size, Tq, 1, dim].
-        q_reshaped = ops.expand_dims(query, axis=-2)
+        q_reshaped = backend.ops.numpy.expand_dims(query, axis=-2)
         # Reshape into [batch_size, 1, Tv, dim].
-        k_reshaped = ops.expand_dims(key, axis=-3)
+        k_reshaped = backend.ops.numpy.expand_dims(key, axis=-3)
         scale = self.scale if self.use_scale else 1.0
-        return ops.sum(scale * ops.tanh(q_reshaped + k_reshaped), axis=-1)
+        return backend.ops.numpy.sum(
+            scale * backend.ops.numpy.tanh(q_reshaped + k_reshaped), axis=-1
+        )
 
     def get_config(self):
         base_config = super().get_config()
