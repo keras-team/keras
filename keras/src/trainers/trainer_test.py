@@ -659,6 +659,17 @@ class TestTrainer(testing.TestCase):
         ]
     )
     @pytest.mark.requires_trainable_backend
+    def test_fit_raises_error_when_data_has_no_labels(self):
+        model = ExampleModel(units=3)
+        model.compile(
+            optimizer=optimizers.Adagrad(),
+            loss=losses.MeanSquaredError(),
+        )
+        x = np.ones((20, 4))
+        with self.assertRaisesRegex(ValueError, "did not include labels"):
+            model.fit(x, epochs=1)
+
+    @pytest.mark.requires_trainable_backend
     def test_fit_with_data_adapter(
         self, dataset_type, dataset_kwargs={}, fit_kwargs={}
     ):
