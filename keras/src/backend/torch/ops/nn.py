@@ -949,6 +949,48 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     return -torch.sum(target * log_prob, dim=axis)
 
 
+def _mask_invalid_class_indices(target, num_classes):
+    """Replaces out-of-range class indices with 0 and returns their mask.
+
+    `torch.nn.functional.cross_entropy` and `torch.nn.functional.nll_loss`
+    only validate class indices on CPU, where they raise
+    `IndexError: Target {index} is out of bounds.`. The MPS kernels perform
+    no bounds checking at all and silently read out-of-range memory,
+    returning a garbage loss, while the CUDA kernels fail with a device-side
+    assert that poisons the context.
+
+    Reading the indices back to the host to raise the same error would add a
+    synchronization to every training step, so instead the offending indices
+    are replaced with 0, which keeps the gather in bounds, and the caller
+    marks the corresponding losses NaN. An invalid label then makes the loss
+    loudly invalid instead of silently wrong, at no synchronization cost, and
+    without a data-dependent branch that `torch.compile` cannot trace.
+
+    This reproduces the contract the TensorFlow backend already exposes via
+    `tf.nn.sparse_softmax_cross_entropy_with_logits`, which is documented to
+    "raise an exception when this op is run on CPU, and return NaN for
+    corresponding loss and gradient rows on GPU".
+
+    It deviates from that contract in one deliberate way: `masked_fill`
+    passes no gradient through the poisoned entries, so the gradient rows are
+    zero rather than NaN. An invalid label therefore cannot pull the weights
+    toward the substituted class nor turn them into NaN; only the reported
+    loss goes NaN.
+
+    Returns `(target, invalid)`, where `invalid` is `None` on CPU, whose
+    kernels already raise and report the offending index.
+    """
+    if target.device.type == "cpu":
+        return target, None
+    # `-100` is the default `ignore_index` of `nll_loss` / `cross_entropy`,
+    # so the CPU kernels skip those entries rather than reporting them as out
+    # of bounds. It is exempted here only to keep the accelerators consistent
+    # with CPU; Keras itself expresses this through `losses(ignore_class=...)`,
+    # which substitutes ignored labels before reaching this function.
+    invalid = ~((target == -100) | ((target >= 0) & (target < num_classes)))
+    return target.masked_fill(invalid, 0), invalid
+
+
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = convert_to_tensor(target, dtype=torch.long)
     output = convert_to_tensor(output)
@@ -985,6 +1027,9 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         if class_axis != 1:
             output = output.movedim(class_axis, 1)
 
+    # The kernels below only validate class indices on CPU.
+    target, invalid = _mask_invalid_class_indices(target, output.shape[1])
+
     if from_logits:
         result = tnn.cross_entropy(output, target, reduction="none")
     else:
@@ -992,6 +1037,9 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
         log_prob = torch.log(output)
         result = tnn.nll_loss(log_prob, target, reduction="none")
+
+    if invalid is not None:
+        result = result.masked_fill(invalid, float("nan"))
 
     if squeeze:
         result = result.squeeze(0)
