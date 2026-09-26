@@ -1017,15 +1017,19 @@ def binary_crossentropy(target, output, from_logits=False):
         )
 
     output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+    # PyTorch's BCE rejects NaNs on CPU and returns a finite loss on MPS.
+    # Replace them for the native call, then restore them in the result.
+    nan_mask = torch.isnan(output)
+    valid_output = torch.where(nan_mask, 0.5, output)
     # Before torch 2.10, the MPS `binary_cross_entropy` kernel squeezes every
     # size-1 dimension of its inputs but not of `grad_output`, so the backward
     # pass aborts or returns wrong gradients. Computing the loss on 1-D
     # tensors avoids this on every device.
     # See https://github.com/pytorch/pytorch/issues/166746.
     loss = tnn.binary_cross_entropy(
-        output.reshape(-1), target.reshape(-1), reduction="none"
+        valid_output.reshape(-1), target.reshape(-1), reduction="none"
     )
-    return loss.reshape(output.shape)
+    return torch.where(nan_mask, output, loss.reshape(output.shape))
 
 
 def moments(x, axes, keepdims=False, synchronized=False):
