@@ -573,7 +573,7 @@ class GRU(RNN):
                     # implementation of the inner GRU loop. In the case of
                     # TF for instance, it will leverage cuDNN when feasible, and
                     # it will raise NotImplementedError otherwise.
-                    out = backend.gru(
+                    out = backend.rnn.gru(
                         dp_sequences,
                         initial_state,
                         mask,
