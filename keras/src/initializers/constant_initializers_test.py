@@ -71,6 +71,15 @@ class ConstantInitializersTest(testing.TestCase):
 
         self.run_class_serialization_test(initializer)
 
+        # `run_class_serialization_test` compares config to config, so a
+        # `gain` missing from `get_config` matches on both sides. Check that
+        # the restored initializer produces the same matrix.
+        self.assertEqual(initializer.get_config()["gain"], gain)
+        revived = initializers.Identity.from_config(initializer.get_config())
+        self.assertAllClose(
+            backend.ops.convert_to_numpy(revived(shape=shape)), np_values
+        )
+
         # Test compatible class_name
         initializer = initializers.get("IdentityInitializer")
         self.assertIsInstance(initializer, initializers.Identity)
