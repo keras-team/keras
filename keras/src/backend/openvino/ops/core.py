@@ -20,12 +20,6 @@ from keras.src.backend.common.dtypes import result_type
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.stateless_scope import StatelessScope
 
-SUPPORTS_SPARSE_TENSORS = False
-SUPPORTS_RAGGED_TENSORS = False
-SUPPORTS_COMPLEX_DTYPES = False
-SUPPORTS_GRADIENT = False
-IS_THREAD_SAFE = True
-
 OPENVINO_DTYPES = {
     "float16": ov.Type.f16,
     "float32": ov.Type.f32,

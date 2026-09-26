@@ -23,12 +23,6 @@ from keras.src.backend.common.stateless_scope import in_stateless_scope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.jax import distribution_lib
 
-SUPPORTS_SPARSE_TENSORS = True
-SUPPORTS_RAGGED_TENSORS = False
-SUPPORTS_COMPLEX_DTYPES = True
-SUPPORTS_GRADIENT = True
-IS_THREAD_SAFE = True
-
 
 class JaxVariable(KerasVariable):
     def _initialize_layout(self):
