@@ -7,11 +7,22 @@ class TFExportArchive(SavedModelExportArchive):
     """TensorFlow backend implementation of SavedModel export archive."""
 
     def _backend_track_layer(self, layer):
-        # Variables in the lists below are actually part of the trackables
-        # that get saved, because the lists are created in __init__.
-        variables = layer.variables
-        trainable_variables = layer.trainable_variables
-        non_trainable_variables = layer.non_trainable_variables
+        # Unwrap Keras `Variable` wrappers to the underlying `tf.Variable`
+        # at tracking time. Endpoint functions (traced as `tf.function`s)
+        # capture these same underlying `tf.Variable` objects, so once both
+        # paths reference the identical Python object, TensorFlow's own
+        # Trackable object-graph machinery dedupes them automatically when
+        # the SavedModel is written. No post-hoc filtering needed.
+        #
+        # Use `._value`, not the public `.value` property: `.value` runs
+        # through `_maybe_autocast()` and can return a cast tensor rather
+        # than the actual `tf.Variable`, which would break the identity
+        # match this dedup relies on.
+        variables = [v._value for v in layer.variables]
+        trainable_variables = [v._value for v in layer.trainable_variables]
+        non_trainable_variables = [
+            v._value for v in layer.non_trainable_variables
+        ]
         self._tf_trackable.variables += variables
         self._tf_trackable.trainable_variables += trainable_variables
         self._tf_trackable.non_trainable_variables += non_trainable_variables
@@ -21,3 +32,10 @@ class TFExportArchive(SavedModelExportArchive):
             fn, input_signature=input_signature, autograph=False
         )
         return decorated_fn
+
+    def _convert_to_tf_variable(self, backend_variable):
+        # Used by `add_variable_collection()`. Input may already be a plain
+        # `tf.Variable`, or a Keras `Variable` wrapper to unwrap.
+        if isinstance(backend_variable, tf.Variable):
+            return backend_variable
+        return backend_variable._value
