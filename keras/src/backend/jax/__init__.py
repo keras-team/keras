@@ -1,20 +1,15 @@
-from keras.src.backend.config import is_nnx_enabled
 from keras.src.backend.jax import distribution_lib
 from keras.src.backend.jax import ops
 from keras.src.backend.jax import random
+from keras.src.backend.jax import rnn
 from keras.src.backend.jax import tensorboard
-from keras.src.backend.jax.ops.core import IS_THREAD_SAFE
-from keras.src.backend.jax.ops.core import SUPPORTS_COMPLEX_DTYPES
-from keras.src.backend.jax.ops.core import SUPPORTS_GRADIENT
-from keras.src.backend.jax.ops.core import SUPPORTS_RAGGED_TENSORS
-from keras.src.backend.jax.ops.core import SUPPORTS_SPARSE_TENSORS
 from keras.src.backend.jax.ops.core import Variable
 from keras.src.backend.jax.ops.core import compute_output_spec
 from keras.src.backend.jax.ops.core import device_scope
 from keras.src.backend.jax.ops.core import name_scope
-from keras.src.backend.jax.rnn import bidirectional_gru
-from keras.src.backend.jax.rnn import bidirectional_lstm
-from keras.src.backend.jax.rnn import cudnn_ok
-from keras.src.backend.jax.rnn import gru
-from keras.src.backend.jax.rnn import lstm
-from keras.src.backend.jax.rnn import rnn
+
+IS_THREAD_SAFE = True
+SUPPORTS_COMPLEX_DTYPES = True
+SUPPORTS_GRADIENT = True
+SUPPORTS_RAGGED_TENSORS = False
+SUPPORTS_SPARSE_TENSORS = True

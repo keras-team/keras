@@ -14,12 +14,6 @@ from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 
-SUPPORTS_SPARSE_TENSORS = False
-SUPPORTS_RAGGED_TENSORS = False
-SUPPORTS_COMPLEX_DTYPES = True
-SUPPORTS_GRADIENT = False
-IS_THREAD_SAFE = True
-
 
 class Variable(KerasVariable):
     def _initialize(self, value):
