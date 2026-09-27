@@ -489,6 +489,59 @@ class GetFileTest(test_case.TestCase):
             ):
                 _ = file_utils.get_file(origin=origin, cache_dir=cache_dir)
 
+    def test_get_file_restricts_world_writable_tmp_fallback(self):
+        """Fallback cache dir in a shared tmp location must be owner-only."""
+        # Simulate a non-writable `cache_dir` so `get_file` falls back to the
+        # shared, world-writable tmp location, and redirect that fallback into
+        # a temp dir we control.
+        read_only_cache = os.path.join(self.get_temp_dir(), "cache")
+        os.makedirs(read_only_cache)
+        fake_tmp = os.path.join(self.get_temp_dir(), "tmp")
+        os.makedirs(fake_tmp)
+
+        src_path = os.path.join(self.get_temp_dir(), "src.txt")
+        with open(src_path, "w") as f:
+            f.write("data")
+        origin = urllib.parse.urljoin(
+            "file://", urllib.request.pathname2url(os.path.abspath(src_path))
+        )
+
+        real_access = os.access
+
+        def fake_access(path, mode):
+            if os.path.abspath(path) == os.path.abspath(read_only_cache):
+                return False
+            return real_access(path, mode)
+
+        real_isdir = os.path.isdir
+
+        def fake_isdir(path):
+            if path == "/tmp":
+                return False
+            return real_isdir(path)
+
+        # Force a permissive umask so that, without the explicit `chmod`, the
+        # fallback directory would be world/group-accessible.
+        old_umask = os.umask(0o022)
+        try:
+            with (
+                patch("os.access", side_effect=fake_access),
+                patch("os.path.isdir", side_effect=fake_isdir),
+                patch("tempfile.gettempdir", return_value=fake_tmp),
+            ):
+                file_utils.get_file("f.txt", origin, cache_dir=read_only_cache)
+        finally:
+            os.umask(old_umask)
+
+        fallback_base = os.path.join(fake_tmp, ".keras")
+        self.assertTrue(os.path.isdir(fallback_base))
+        mode = os.stat(fallback_base).st_mode & 0o777
+        self.assertEqual(
+            mode & 0o077,
+            0,
+            f"fallback cache dir is group/world-accessible: {oct(mode)}",
+        )
+
     def _create_tar_file(self, directory):
         """Helper function to create a tar file."""
         text_file_path = os.path.join(directory, "test.txt")

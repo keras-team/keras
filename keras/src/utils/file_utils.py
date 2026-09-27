@@ -306,6 +306,17 @@ def get_file(
         datadir_base = os.path.join(
             "/tmp" if os.path.isdir("/tmp") else tempfile.gettempdir(), ".keras"
         )
+        # This fallback lives in a world-writable location. Restrict it to the
+        # current user, otherwise other local users could read the cached files
+        # or pre-create this predictable path and plant a file that `get_file`
+        # would then trust and return without re-downloading (when no
+        # `file_hash` is passed). `os.makedirs`' `mode` is masked by the umask,
+        # so set the permissions explicitly.
+        os.makedirs(datadir_base, exist_ok=True)
+        try:
+            os.chmod(datadir_base, 0o700)
+        except OSError:
+            pass
     datadir = os.path.join(datadir_base, cache_subdir)
     os.makedirs(datadir, exist_ok=True)
 
