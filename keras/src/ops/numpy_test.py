@@ -4632,16 +4632,28 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Mod()(x, 1), np.mod(x, 1))
         self.assertAllClose(knp.Mod()(1, x), np.mod(1, x))
 
-    def test_fmod(self):
-        x = np.array([[-3, 7], [5, -2]])
-        y = np.array([[2, -3], [3, 4]])
-        self.assertAllClose(knp.fmod(x, y), np.fmod(x, y))
-        self.assertAllClose(knp.fmod(x, 2), np.fmod(x, 2))
-        self.assertAllClose(knp.fmod(1, x), np.fmod(1, x))
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_fmod(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = np.array([[-3, 7], [5, -2]])
+            y = np.array([[2, -3], [3, 4]])
+            self.assertAllClose(knp.fmod(x, y), np.fmod(x, y))
+            self.assertAllClose(knp.fmod(x, 2), np.fmod(x, 2))
+            self.assertAllClose(knp.fmod(1, x), np.fmod(1, x))
 
-        self.assertAllClose(knp.Fmod()(x, y), np.fmod(x, y))
-        self.assertAllClose(knp.Fmod()(x, 2), np.fmod(x, 2))
-        self.assertAllClose(knp.Fmod()(1, x), np.fmod(1, x))
+            self.assertAllClose(knp.Fmod()(x, y), np.fmod(x, y))
+            self.assertAllClose(knp.Fmod()(x, 2), np.fmod(x, 2))
+            self.assertAllClose(knp.Fmod()(1, x), np.fmod(1, x))
+
+            xf = np.array([[-3.5, 7.25], [5.0, -2.0]], dtype="float32")
+            yf = np.array([[2.0, -3.0], [-3.0, 4.0]], dtype="float32")
+            self.assertAllClose(knp.fmod(xf, yf), np.fmod(xf, yf))
+            self.assertAllClose(knp.fmod(xf, 1.5), np.fmod(xf, 1.5))
+            self.assertAllClose(knp.Fmod()(xf, yf), np.fmod(xf, yf))
+            self.assertAllClose(knp.Fmod()(xf, 1.5), np.fmod(xf, 1.5))
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     def test_nanpercentile(self):
         x = np.array(
@@ -11779,25 +11791,32 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(BINARY_DTYPES, 2))
+        named_product(
+            BACKEND_AGNOSTIC_OPS,
+            dtypes=itertools.combinations(BINARY_DTYPES, 2),
+        )
     )
-    def test_fmod(self, dtypes):
+    def test_fmod(self, backend_agnostic_ops, dtypes):
         import jax.numpy as jnp
 
-        dtype1, dtype2 = dtypes
-        x1 = knp.ones((), dtype=dtype1)
-        x2 = knp.ones((), dtype=dtype2)
-        x1_jax = jnp.ones((), dtype=dtype1)
-        x2_jax = jnp.ones((), dtype=dtype2)
-        expected_dtype = standardize_dtype(jnp.fmod(x1_jax, x2_jax).dtype)
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            dtype1, dtype2 = dtypes
+            x1 = knp.ones((), dtype=dtype1)
+            x2 = knp.ones((), dtype=dtype2)
+            x1_jax = jnp.ones((), dtype=dtype1)
+            x2_jax = jnp.ones((), dtype=dtype2)
+            expected_dtype = standardize_dtype(jnp.fmod(x1_jax, x2_jax).dtype)
 
-        self.assertEqual(
-            standardize_dtype(knp.fmod(x1, x2).dtype), expected_dtype
-        )
-        self.assertEqual(
-            standardize_dtype(knp.Fmod().symbolic_call(x1, x2).dtype),
-            expected_dtype,
-        )
+            self.assertEqual(
+                standardize_dtype(knp.fmod(x1, x2).dtype), expected_dtype
+            )
+            self.assertEqual(
+                standardize_dtype(knp.Fmod().symbolic_call(x1, x2).dtype),
+                expected_dtype,
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_moveaxis(self, dtype):

@@ -5734,7 +5734,7 @@ def mod(x1, x2):
 
 class Fmod(Operation):
     def call(self, x1, x2):
-        return backend.ops.numpy.fmod(x1, x2)
+        return _fmod(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -5754,9 +5754,9 @@ def fmod(x1, x2):
     """Returns the element-wise remainder of division with truncation.
 
     Computes the remainder complementary to the `floor_divide` function,
-    equivalent to the C library function ``fmod``. The result has the same
-    sign as the dividend ``x1``. This is different from `keras.ops.mod`
-    which has the same sign as the divisor ``x2``.
+    equivalent to the C library function `fmod`. The result has the same
+    sign as the dividend `x1`. This is different from `keras.ops.mod`
+    which has the same sign as the divisor `x2`.
 
     Args:
         x1: First tensor, the dividend.
@@ -5764,10 +5764,38 @@ def fmod(x1, x2):
 
     Returns:
         Output tensor, element-wise remainder with truncation.
+
+    Examples:
+    >>> x1 = keras.ops.convert_to_tensor([-5.5, 5.5])
+    >>> x2 = keras.ops.convert_to_tensor([2.0, -2.0])
+    >>> keras.ops.fmod(x1, x2)
+    array([-1.5,  1.5], dtype=float32)
+    >>> keras.ops.mod(x1, x2)
+    array([ 0.5, -0.5], dtype=float32)
     """
     if any_symbolic_tensors((x1, x2)):
         return Fmod().symbolic_call(x1, x2)
-    return backend.ops.numpy.fmod(x1, x2)
+    return _fmod(x1, x2)
+
+
+def _fmod(x1, x2):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "fmod"
+    ):
+        return backend.ops.numpy.fmod(x1, x2)
+    if not isinstance(x1, (int, float)):
+        x1 = backend.ops.convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = backend.ops.convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    if dtype == "bool":
+        dtype = "int32"
+    x1 = backend.ops.convert_to_tensor(x1, dtype)
+    x2 = backend.ops.convert_to_tensor(x2, dtype)
+    return ops.multiply(ops.sign(x1), ops.mod(ops.abs(x1), ops.abs(x2)))
 
 
 class Moveaxis(Operation):
