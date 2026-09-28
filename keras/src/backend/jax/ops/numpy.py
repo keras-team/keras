@@ -45,7 +45,7 @@ def rot90(array, k=1, axes=(0, 1)):
 
 
 @sparse.elementwise_binary_union(linear=True, use_sparsify=True)
-def add(x1, x2):
+def add(x1, x2, expect_fused=False):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     return jnp.add(x1, x2)

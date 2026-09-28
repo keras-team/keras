@@ -332,7 +332,7 @@ class ToyHalfStrategy(strategy_registry.QuantizationStrategy):
     def call(self, layer, inputs, training=None):
         x = ops.matmul(inputs, ops.cast(layer._kernel, layer.compute_dtype))
         if layer.bias is not None:
-            x = ops.add(x, layer.bias)
+            x = ops.add(x, layer.bias, expect_fused=True)
         if layer.activation is not None:
             x = layer.activation(x)
         return x

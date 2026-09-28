@@ -269,7 +269,7 @@ class Add(Operation):
 
 
 @keras_export(["keras.ops.add", "keras.ops.numpy.add"])
-def add(x1, x2):
+def add(x1, x2, expect_fused=False):
     """Add arguments element-wise.
 
     Args:
@@ -297,7 +297,7 @@ def add(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Add().symbolic_call(x1, x2)
-    return backend.ops.numpy.add(x1, x2)
+    return backend.ops.numpy.add(x1, x2, expect_fused=expect_fused)
 
 
 class All(Operation):

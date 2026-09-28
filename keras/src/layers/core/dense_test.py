@@ -213,6 +213,7 @@ class DenseTest(testing.TestCase):
                 layer.kernel,
             ),
             layer.bias,
+            expect_fused=True,
         )
         self.assertAllClose(
             outputs, expected_outputs, tpu_atol=1e-2, tpu_rtol=1e-2

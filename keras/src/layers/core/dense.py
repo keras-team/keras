@@ -223,7 +223,7 @@ class Dense(Layer):
     def call(self, inputs, training=None):
         x = ops.matmul(inputs, self.kernel)
         if self.bias is not None:
-            x = ops.add(x, self.bias)
+            x = ops.add(x, self.bias, expect_fused=True)
         if self.activation is not None:
             x = self.activation(x)
         return x

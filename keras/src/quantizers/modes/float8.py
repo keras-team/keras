@@ -165,7 +165,7 @@ class Float8Strategy(QuantizationStrategy):
             if layer.dtype_policy.compute_dtype == "float32":
                 bias_bf16 = ops.cast(bias, "bfloat16")
                 bias = ops.cast(bias_bf16, bias.dtype)
-            x = ops.add(x, bias)
+            x = ops.add(x, bias, expect_fused=True)
         if layer.activation is not None:
             x = layer.activation(x)
         return x

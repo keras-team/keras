@@ -80,7 +80,7 @@ def rot90(array, k=1, axes=(0, 1)):
 
 
 @sparse.elementwise_binary_union(tf.sparse.add)
-def add(x1, x2):
+def add(x1, x2, expect_fused=False):
     if not isinstance(x1, (int, float)):
         x1 = convert_to_tensor(x1)
     if not isinstance(x2, (int, float)):
@@ -91,30 +91,72 @@ def add(x1, x2):
     )
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
+    if x1.shape.rank is None or x2.shape.rank is None:
+        if expect_fused:
+            raise ValueError("Expected fused")
+        return tf.add(x1, x2)
+
+    x1_shape = x1.shape.as_list()
+    x1_rank = len(x1_shape)
+    x2_shape = x2.shape.as_list()
+    x2_rank = len(x2_shape)
 
     # Special case of `tf.add`: `tf.nn.bias_add`
     # `BiasAdd` can be fused with `MatMul` and `Conv*` kernels
     # Expecting `x1` to be `inputs` and `x2` to be `bias` (no swapping)
-    x2_squeeze_shape = [d for d in x2.shape.as_list() if d is None or d > 1]
-    if (
-        # `x2` looks like bias (can be squeezed to vector)
-        1 == len(x2_squeeze_shape)
-        # `x1` looks like input tensor (rank >= 2)
-        and len(x1.shape) > 1
-        # `x2` non-squeezable dimension defined
-        and x2_squeeze_shape[0] is not None
-        # `x2` non-squeezable dimension match `x1` channel dimension
-        and x2_squeeze_shape[0]
-        in {x1.shape.as_list()[1], x1.shape.as_list()[-1]}
-    ):
-        if x1.shape[-1] == x2_squeeze_shape[0]:
-            data_format = "NHWC"
-        else:
-            data_format = "NCHW"
-        if len(x2.shape) > 1:
-            x2 = tf.squeeze(x2)
-        return tf.nn.bias_add(x1, x2, data_format=data_format)
+    if x1_rank > 1 and x2_rank == 1:
+        # Detect the dense layer case (`MatMul` + `BiasAdd` fusion)
+        if x2_shape[0] is not None and x2_shape[0] == x1_shape[-1]:
+            if not expect_fused:
+                raise ValueError(f"Expected not fused {x1_shape} {x2_shape}")
+            return tf.nn.bias_add(x1, x2)
+    elif x1_rank >= 3 and x1_rank == x2_rank:
+        # Detect the conv layer case (`Conv` + `BiasAdd` fusion)
+        channels_idx = None
+        dim_one_count = 0
+        for i, d in enumerate(x2_shape):
+            if d == 1:
+                dim_one_count += 1
+            else:
+                channels_idx = i
 
+        if dim_one_count == x2_rank - 1:
+            # channels_idx points to the one dimension that is not 1.
+            channels_dim = x2_shape[channels_idx]
+        elif dim_one_count == x2_rank:
+            # All dimensions are 1, solve the ambiguity by checking x1 shape.
+            channels_dim = 1
+            if x1_shape[-1] == 1:
+                channels_idx = x1_rank - 1
+            elif x1_shape[1] == 1:
+                channels_idx = 1
+        else:
+            # Note: channels_idx is bogus and unused.
+            channels_dim = None
+
+        if (
+            channels_dim is not None
+            and channels_idx in (1, x2_rank - 1)
+            and x1_shape[channels_idx] == channels_dim
+        ):
+            x2 = tf.squeeze(
+                x2, axis=[i for i in range(x2_rank) if i != channels_idx]
+            )
+            if channels_idx == 1:
+                if not expect_fused:
+                    raise ValueError(
+                        f"Expected not fused {x1_shape} {x2_shape}"
+                    )
+                return tf.nn.bias_add(x1, x2, data_format="NCHW")
+            elif channels_idx == x2_rank - 1:
+                if not expect_fused:
+                    raise ValueError(
+                        f"Expected not fused {x1_shape} {x2_shape}"
+                    )
+                return tf.nn.bias_add(x1, x2, data_format="NHWC")
+
+    if expect_fused:
+        raise ValueError(f"Expected fused {x1_shape} {x2_shape}")
     return tf.add(x1, x2)
 
 

@@ -427,7 +427,7 @@ def elementwise_binary_union(sparse_op, densify_mixed=False):
 
     def wrap_elementwise_binary_union(func):
         @functools.wraps(func)
-        def sparse_wrapper(x1, x2):
+        def sparse_wrapper(x1, x2, **kwargs):
             if isinstance(x1, tf.SparseTensor):
                 if isinstance(x2, tf.SparseTensor):
                     # x1 is a SparseTensor and x2 is a SparseTensor.
@@ -490,7 +490,7 @@ def elementwise_binary_union(sparse_op, densify_mixed=False):
             elif isinstance(x2, tf.IndexedSlices):
                 # x2 is an IndexedSlices, densify.
                 x2 = tf.convert_to_tensor(x2)
-            return func(x1, x2)
+            return func(x1, x2, **kwargs)
 
         return sparse_wrapper
 

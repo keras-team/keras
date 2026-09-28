@@ -212,7 +212,7 @@ class BaseDepthwiseConv(Layer):
                     1,
                 ) * self.rank
             bias = ops.reshape(self.bias, bias_shape)
-            outputs = ops.add(outputs, bias)
+            outputs = ops.add(outputs, bias, expect_fused=True)
 
         if self.activation is not None:
             return self.activation(outputs)

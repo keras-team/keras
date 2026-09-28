@@ -82,7 +82,7 @@ def rot90(array, k=1, axes=(0, 1)):
     return rotated
 
 
-def add(x1, x2):
+def add(x1, x2, expect_fused=False):
     x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2)
     return torch.add(x1, x2)
 

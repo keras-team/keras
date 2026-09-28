@@ -62,7 +62,7 @@ class TernaryStrategy(QuantizationStrategy):
         )
         x = ops.multiply(x, ops.cast(layer.kernel_scale, layer.compute_dtype))
         if layer.bias is not None:
-            x = ops.add(x, layer.bias)
+            x = ops.add(x, layer.bias, expect_fused=True)
         if layer.activation is not None:
             x = layer.activation(x)
         return x

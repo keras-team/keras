@@ -42,7 +42,7 @@ def _promote_binary_op_types(x1, x2):
     return x1, x2
 
 
-def add(x1, x2):
+def add(x1, x2, expect_fused=False):
     x1, x2 = _promote_binary_op_types(x1, x2)
     x1, x2 = _align_operand_types(x1, x2, "add()")
     if x1.get_element_type() == Type.boolean:

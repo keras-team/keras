@@ -56,7 +56,7 @@ def cast_lookup_inputs(inputs):
 def apply_bias_activation(layer, x):
     """Adds the layer's bias and applies its activation, when present."""
     if layer.bias is not None:
-        x = ops.add(x, layer.bias)
+        x = ops.add(x, layer.bias, expect_fused=True)
     if layer.activation is not None:
         x = layer.activation(x)
     return x

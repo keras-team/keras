@@ -25,7 +25,7 @@ def rot90(array, k=1, axes=(0, 1)):
     return np.rot90(array, k=k, axes=axes)
 
 
-def add(x1, x2):
+def add(x1, x2, expect_fused=False):
     if not isinstance(x1, (int, float)):
         x1 = convert_to_tensor(x1)
     if not isinstance(x2, (int, float)):
