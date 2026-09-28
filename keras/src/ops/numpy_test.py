@@ -3547,6 +3547,53 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Add()(x, y), np.add(x, y))
         self.assertAllClose(knp.Add()(x, z), np.add(x, z))
 
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_RAGGED_TENSORS,
+        reason="Backend does not support ragged tensors.",
+    )
+    def test_add_ragged(self):
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            x = tf.ragged.constant(
+                [[[1, 2], [3, 4]], [[5, 6]]], ragged_rank=1, dtype="float32"
+            )
+            x_mask = x.with_values(tf.ones_like(x.flat_values))
+
+        x_np = backend.ops.convert_to_numpy(x)
+        x_mask_np = backend.ops.convert_to_numpy(x_mask)
+        y = np.ones((2, 1, 1), dtype="float32")
+        z = np.ones((2,), dtype="float32")
+
+        # ragged + ragged
+        self.assertAllClose(knp.add(x, x), np.add(x_np, x_np))
+        # ragged + dense
+        self.assertAllClose(knp.add(x, y), np.add(x_np, y) * x_mask_np)
+        # ragged + dense with broadcast
+        self.assertAllClose(knp.add(x, z), np.add(x_np, z) * x_mask_np)
+        # dense + ragged
+        self.assertAllClose(knp.add(y, x), np.add(y, x_np) * x_mask_np)
+        # dense + ragged with broadcast
+        self.assertAllClose(knp.add(z, x), np.add(z, x_np) * x_mask_np)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Backend does not support strings.",
+    )
+    def test_add_strings(self):
+        import tensorflow as tf
+
+        x1 = tf.constant(["hello", "world"])
+        x2 = tf.constant(["foo", "bar"])
+
+        self.assertAllEqual(
+            knp.add(x1, x2),
+            np.add(
+                backend.ops.convert_to_numpy(x1),
+                backend.ops.convert_to_numpy(x2),
+            ),
+        )
+
     def test_heaviside(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [6, 5, 4]])
