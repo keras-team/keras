@@ -35,10 +35,12 @@ def _check_same_shape(shape, reference_shape, description):
 class RandomApply(DataLayer):
     """Apply a wrapped layer to the input with a given probability.
 
-    During training, on each call this layer flips a single Bernoulli coin:
-    with probability `rate` it applies the wrapped `layer`, otherwise it passes
-    the input through unchanged. The decision is batch-wide — the same coin
-    flip is used for every sample in the batch.
+    During training, this layer flips a Bernoulli coin with probability `rate`.
+    On heads it applies the wrapped `layer`, on tails it passes the input
+    through unchanged. By default (`batchwise=False`) the coin is flipped
+    independently for each sample, so a batch can contain a mix of augmented and
+    untouched samples. Set `batchwise=True` for a single batch-wide decision
+    (required by layers that mix samples together, such as `MixUp` or `CutMix`).
 
     During inference (`training=False`) the layer is always a no-op.
 
@@ -52,6 +54,8 @@ class RandomApply(DataLayer):
             shape and emits a same-shape output will work.
         rate: Float in `[0, 1]`. Probability of applying the wrapped layer.
             Defaults to `0.5`.
+        batchwise: Boolean. If `True`, a single decision is made for the whole
+            batch. If `False` (default), the decision is made per sample.
         seed: Optional integer. Random seed used for the Bernoulli draw.
 
     Example:
@@ -63,7 +67,7 @@ class RandomApply(DataLayer):
     ```
     """
 
-    def __init__(self, layer, rate=0.5, seed=None, **kwargs):
+    def __init__(self, layer, rate=0.5, batchwise=False, seed=None, **kwargs):
         super().__init__(**kwargs)
         if not isinstance(layer, Layer):
             raise TypeError(
@@ -76,6 +80,7 @@ class RandomApply(DataLayer):
             )
         self.layer = layer
         self.rate = float(rate)
+        self.batchwise = batchwise
         self.seed = seed
         self.generator = SeedGenerator(seed)
 
@@ -95,12 +100,14 @@ class RandomApply(DataLayer):
         )
 
         seed = self._get_seed_generator(self.backend._backend)
-        u = self.backend.random.uniform(
-            shape=(1,), minval=0.0, maxval=1.0, seed=seed
-        )
-        # 0 -> apply transformed, 1 -> skip (return inputs).
-        idx = self.backend.cast(
-            self.backend.numpy.greater_equal(u, self.rate), "int32"
+        # One coin flip per sample (`batchwise=False`) or a single flip shared
+        # by the whole batch (`batchwise=True`).
+        num_draws = 1 if self.batchwise else self._sample_count(original)
+        apply = self.backend.numpy.less(
+            self.backend.random.uniform(
+                shape=(num_draws,), minval=0.0, maxval=1.0, seed=seed
+            ),
+            self.rate,
         )
 
         def _select(transformed_leaf, original_leaf):
@@ -109,16 +116,28 @@ class RandomApply(DataLayer):
                 getattr(original_leaf, "shape", None),
                 f"The wrapped layer `{self.layer.__class__.__name__}`",
             )
-            # Stack [transformed, original] along a new leading axis and
-            # gather the one selected by the Bernoulli draw. The same `idx` is
-            # used for every leaf, so a structured input is either fully
-            # augmented or fully passed through.
-            stacked = self.backend.numpy.stack(
-                [transformed_leaf, original_leaf], axis=0
+            # Broadcast the coin over the leaf's trailing axes. The same draw
+            # is used for every leaf, so a structured input's image and its
+            # bounding boxes stay aligned per sample.
+            rank = len(self.backend.shape(original_leaf))
+            mask = self.backend.numpy.reshape(apply, [-1] + [1] * (rank - 1))
+            return self.backend.numpy.where(
+                mask, transformed_leaf, original_leaf
             )
-            return self.backend.numpy.take(stacked, idx, axis=0)[0]
 
         return tree.map_structure(_select, transformed, original)
+
+    def _sample_count(self, inputs):
+        """Per-sample draw count, or 1 for unbatched input.
+
+        Follows the image convention: a rank-4 tensor `(batch, ...)` is
+        batched; lower ranks are treated as a single unbatched sample.
+        """
+        sample = tree.flatten(inputs)[0]
+        shape = self.backend.shape(sample)
+        if len(shape) >= 4:
+            return shape[0]
+        return 1
 
     def compute_output_shape(self, input_shape):
         return input_shape
@@ -129,6 +148,7 @@ class RandomApply(DataLayer):
             {
                 "layer": serialization_lib.serialize_keras_object(self.layer),
                 "rate": self.rate,
+                "batchwise": self.batchwise,
                 "seed": self.seed,
             }
         )

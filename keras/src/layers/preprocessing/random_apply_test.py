@@ -240,3 +240,34 @@ class RandomApplyTest(testing.TestCase):
             backend.standardize_dtype(out.dtype),
             backend.standardize_dtype(layers.Rescaling(1.0)(x).dtype),
         )
+
+    def test_per_sample_produces_mixed_batches(self):
+        # Default `batchwise=False`: each sample gets its own coin flip, so a
+        # single batch can contain both augmented and untouched samples.
+        x = np.zeros((16, 2, 2, 1), dtype="float32")
+        seen_mixed = False
+        for seed in range(20):
+            layer = RandomApply(_AddOne(), rate=0.5, seed=seed)
+            out = backend.convert_to_numpy(layer(x, training=True))
+            per_sample = out.reshape((16, -1))[:, 0]
+            if len(set(per_sample.tolist())) > 1:
+                seen_mixed = True
+                break
+        self.assertTrue(seen_mixed, "per-sample rate=0.5 should mix a batch")
+
+    def test_batchwise_is_all_or_nothing(self):
+        # `batchwise=True`: one decision for the whole batch.
+        x = np.zeros((16, 2, 2, 1), dtype="float32")
+        for seed in range(10):
+            layer = RandomApply(_AddOne(), rate=0.5, batchwise=True, seed=seed)
+            out = backend.convert_to_numpy(layer(x, training=True))
+            per_sample = set(out.reshape((16, -1))[:, 0].tolist())
+            self.assertEqual(len(per_sample), 1)
+
+    def test_batchwise_is_serialized(self):
+        layer = RandomApply(_AddOne(), rate=0.4, batchwise=True, seed=1)
+        config = serialization_lib.serialize_keras_object(layer)
+        revived = serialization_lib.deserialize_keras_object(
+            config, custom_objects={"_AddOne": _AddOne}
+        )
+        self.assertTrue(revived.batchwise)

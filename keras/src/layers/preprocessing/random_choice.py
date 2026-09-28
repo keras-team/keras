@@ -11,9 +11,11 @@ from keras.src.saving import serialization_lib
 class RandomChoice(DataLayer):
     """Apply one randomly-picked layer from a list to the input.
 
-    During training, on each call this layer picks one of the wrapped layers
-    uniformly at random and applies it. The choice is batch-wide — the same
-    layer is applied to every sample in the batch.
+    During training, this layer picks one of the wrapped layers uniformly at
+    random and applies it. By default (`batchwise=False`) the choice is made
+    independently for each sample, so different samples in a batch can be
+    transformed by different layers. Set `batchwise=True` for a single
+    batch-wide choice.
 
     During inference (`training=False`) the layer is always a no-op.
 
@@ -24,6 +26,8 @@ class RandomChoice(DataLayer):
     Args:
         layers: List of Keras `Layer` instances. Each must accept the same
             input shape and emit a same-shape output.
+        batchwise: Boolean. If `True`, a single layer is chosen for the whole
+            batch. If `False` (default), the choice is made per sample.
         seed: Optional integer. Random seed used to pick a layer.
 
     Example:
@@ -37,7 +41,7 @@ class RandomChoice(DataLayer):
     ```
     """
 
-    def __init__(self, layers, seed=None, **kwargs):
+    def __init__(self, layers, batchwise=False, seed=None, **kwargs):
         super().__init__(**kwargs)
         if not isinstance(layers, (list, tuple)) or len(layers) == 0:
             raise ValueError(
@@ -52,6 +56,7 @@ class RandomChoice(DataLayer):
                     f"{type(layer)}"
                 )
         self._wrapped_layers = list(layers)
+        self.batchwise = batchwise
         self.seed = seed
         self.generator = SeedGenerator(seed)
 
@@ -75,8 +80,11 @@ class RandomChoice(DataLayer):
             for layer in self._wrapped_layers
         ]
         seed = self._get_seed_generator(self.backend._backend)
+        # One index per sample (`batchwise=False`) or a single index shared by
+        # the whole batch (`batchwise=True`).
+        num_draws = 1 if self.batchwise else self._sample_count(original)
         choice = self.backend.random.randint(
-            shape=(1,), minval=0, maxval=n, seed=seed
+            shape=(num_draws,), minval=0, maxval=n, seed=seed
         )
 
         def _select(original_leaf, *candidate_leaves):
@@ -88,14 +96,33 @@ class RandomChoice(DataLayer):
                     f"`layers[{i}]`, a "
                     f"`{self._wrapped_layers[i].__class__.__name__}`,",
                 )
-            # Stack the candidates for this leaf along a new leading axis and
-            # gather the one selected by `choice`. The same `choice` is used
-            # for every leaf, so a structured input is transformed by exactly
-            # one of the wrapped layers.
-            stacked = self.backend.numpy.stack(candidate_leaves, axis=0)
-            return self.backend.numpy.take(stacked, choice, axis=0)[0]
+            # Select each candidate where `choice` equals its index. The same
+            # `choice` is used for every leaf, so a structured input is
+            # transformed by exactly one of the wrapped layers per sample.
+            rank = len(self.backend.shape(original_leaf))
+            result = candidate_leaves[0]
+            for i in range(1, len(candidate_leaves)):
+                mask = self.backend.numpy.reshape(
+                    self.backend.numpy.equal(choice, i), [-1] + [1] * (rank - 1)
+                )
+                result = self.backend.numpy.where(
+                    mask, candidate_leaves[i], result
+                )
+            return result
 
         return tree.map_structure(_select, original, *candidates)
+
+    def _sample_count(self, inputs):
+        """Per-sample draw count, or 1 for unbatched input.
+
+        Follows the image convention: a rank-4 tensor `(batch, ...)` is
+        batched; lower ranks are treated as a single unbatched sample.
+        """
+        sample = tree.flatten(inputs)[0]
+        shape = self.backend.shape(sample)
+        if len(shape) >= 4:
+            return shape[0]
+        return 1
 
     def compute_output_shape(self, input_shape):
         return input_shape
@@ -108,6 +135,7 @@ class RandomChoice(DataLayer):
                     serialization_lib.serialize_keras_object(layer)
                     for layer in self._wrapped_layers
                 ],
+                "batchwise": self.batchwise,
                 "seed": self.seed,
             }
         )

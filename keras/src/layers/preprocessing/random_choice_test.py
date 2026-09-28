@@ -238,3 +238,37 @@ class RandomChoiceTest(testing.TestCase):
         self.assertEqual(
             backend.standardize_dtype(out.dtype), layer.compute_dtype
         )
+
+    def test_per_sample_produces_mixed_batches(self):
+        # Default `batchwise=False`: different samples can be transformed by
+        # different layers within one batch.
+        x = np.zeros((16, 2, 2, 1), dtype="float32")
+        seen_mixed = False
+        for seed in range(20):
+            layer = RandomChoice([_AddConst(1.0), _AddConst(2.0)], seed=seed)
+            out = backend.convert_to_numpy(layer(x, training=True))
+            per_sample = out.reshape((16, -1))[:, 0]
+            if len(set(per_sample.tolist())) > 1:
+                seen_mixed = True
+                break
+        self.assertTrue(seen_mixed, "per-sample choice should mix a batch")
+
+    def test_batchwise_is_single_choice(self):
+        x = np.zeros((16, 2, 2, 1), dtype="float32")
+        for seed in range(10):
+            layer = RandomChoice(
+                [_AddConst(1.0), _AddConst(2.0)], batchwise=True, seed=seed
+            )
+            out = backend.convert_to_numpy(layer(x, training=True))
+            per_sample = set(out.reshape((16, -1))[:, 0].tolist())
+            self.assertEqual(len(per_sample), 1)
+
+    def test_batchwise_is_serialized(self):
+        layer = RandomChoice(
+            [_AddConst(1.0), _AddConst(2.0)], batchwise=True, seed=1
+        )
+        config = serialization_lib.serialize_keras_object(layer)
+        revived = serialization_lib.deserialize_keras_object(
+            config, custom_objects={"_AddConst": _AddConst}
+        )
+        self.assertTrue(revived.batchwise)
