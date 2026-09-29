@@ -7922,43 +7922,56 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.nancumprod(x_with_inf), np.nancumprod(x_with_inf)
         )
 
-    def test_nanmax(self):
-        x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, -np.inf]])
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_nanmax(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, -np.inf]])
 
-        self.assertAllClose(knp.nanmax(x), np.nanmax(x))
-        self.assertAllClose(knp.nanmax(x, axis=()), np.nanmax(x, axis=()))
-        self.assertAllClose(knp.nanmax(x, axis=1), np.nanmax(x, axis=1))
-        self.assertAllClose(knp.nanmax(x, axis=(1,)), np.nanmax(x, axis=(1,)))
-        self.assertAllClose(
-            knp.nanmax(x, axis=1, keepdims=True),
-            np.nanmax(x, axis=1, keepdims=True),
-        )
+            self.assertAllClose(knp.nanmax(x), np.nanmax(x))
+            self.assertAllClose(knp.nanmax(x, axis=()), np.nanmax(x, axis=()))
+            self.assertAllClose(knp.nanmax(x, axis=1), np.nanmax(x, axis=1))
+            self.assertAllClose(
+                knp.nanmax(x, axis=(1,)), np.nanmax(x, axis=(1,))
+            )
+            self.assertAllClose(
+                knp.nanmax(x, axis=1, keepdims=True),
+                np.nanmax(x, axis=1, keepdims=True),
+            )
 
-        self.assertAllClose(knp.Nanmax()(x), np.nanmax(x))
-        self.assertAllClose(knp.Nanmax(axis=1)(x), np.nanmax(x, axis=1))
-        self.assertAllClose(
-            knp.Nanmax(axis=1, keepdims=True)(x),
-            np.nanmax(x, axis=1, keepdims=True),
-        )
+            self.assertAllClose(knp.Nanmax()(x), np.nanmax(x))
+            self.assertAllClose(knp.Nanmax(axis=1)(x), np.nanmax(x, axis=1))
+            self.assertAllClose(
+                knp.Nanmax(axis=1, keepdims=True)(x),
+                np.nanmax(x, axis=1, keepdims=True),
+            )
 
-        x_all_nan = np.array([[np.nan, np.nan], [np.nan, np.nan]])
-        self.assertAllClose(knp.nanmax(x_all_nan), np.nanmax(x_all_nan))
-        self.assertAllClose(
-            knp.nanmax(x_all_nan, axis=1),
-            np.nanmax(x_all_nan, axis=1),
-        )
+            x_all_nan = np.array([[np.nan, np.nan], [np.nan, np.nan]])
+            self.assertAllClose(knp.nanmax(x_all_nan), np.nanmax(x_all_nan))
+            self.assertAllClose(
+                knp.nanmax(x_all_nan, axis=1),
+                np.nanmax(x_all_nan, axis=1),
+            )
 
-        x_3d = np.array(
-            [
-                [[1.0, np.nan], [2.0, 3.0]],
-                [[np.nan, 4.0], [5.0, np.nan]],
-            ]
-        )
-        self.assertAllClose(knp.nanmax(x_3d), np.nanmax(x_3d))
-        self.assertAllClose(
-            knp.nanmax(x_3d, axis=(1, 2)),
-            np.nanmax(x_3d, axis=(1, 2)),
-        )
+            x_3d = np.array(
+                [
+                    [[1.0, np.nan], [2.0, 3.0]],
+                    [[np.nan, 4.0], [5.0, np.nan]],
+                ]
+            )
+            self.assertAllClose(knp.nanmax(x_3d), np.nanmax(x_3d))
+            self.assertAllClose(
+                knp.nanmax(x_3d, axis=(1, 2)),
+                np.nanmax(x_3d, axis=(1, 2)),
+            )
+
+            x_int = np.array([[3, 1, 2], [5, 4, 6]], dtype="int32")
+            self.assertAllClose(knp.nanmax(x_int), np.nanmax(x_int))
+            self.assertAllClose(
+                knp.nanmax(x_int, axis=1), np.nanmax(x_int, axis=1)
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     def test_nanmean(self):
         x = np.array([[1.0, np.nan, 3.0, 4.0], [np.nan, 2.0, np.inf, -np.inf]])
@@ -8040,43 +8053,56 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.nanmedian(x_3d, axis=(1, 2)),
         )
 
-    def test_nanmin(self):
-        x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, np.inf]])
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_nanmin(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, np.inf]])
 
-        self.assertAllClose(knp.nanmin(x), np.nanmin(x))
-        self.assertAllClose(knp.nanmin(x, axis=()), np.nanmin(x, axis=()))
-        self.assertAllClose(knp.nanmin(x, axis=1), np.nanmin(x, axis=1))
-        self.assertAllClose(knp.nanmin(x, axis=(1,)), np.nanmin(x, axis=(1,)))
-        self.assertAllClose(
-            knp.nanmin(x, axis=1, keepdims=True),
-            np.nanmin(x, axis=1, keepdims=True),
-        )
+            self.assertAllClose(knp.nanmin(x), np.nanmin(x))
+            self.assertAllClose(knp.nanmin(x, axis=()), np.nanmin(x, axis=()))
+            self.assertAllClose(knp.nanmin(x, axis=1), np.nanmin(x, axis=1))
+            self.assertAllClose(
+                knp.nanmin(x, axis=(1,)), np.nanmin(x, axis=(1,))
+            )
+            self.assertAllClose(
+                knp.nanmin(x, axis=1, keepdims=True),
+                np.nanmin(x, axis=1, keepdims=True),
+            )
 
-        self.assertAllClose(knp.Nanmin()(x), np.nanmin(x))
-        self.assertAllClose(knp.Nanmin(axis=1)(x), np.nanmin(x, axis=1))
-        self.assertAllClose(
-            knp.Nanmin(axis=1, keepdims=True)(x),
-            np.nanmin(x, axis=1, keepdims=True),
-        )
+            self.assertAllClose(knp.Nanmin()(x), np.nanmin(x))
+            self.assertAllClose(knp.Nanmin(axis=1)(x), np.nanmin(x, axis=1))
+            self.assertAllClose(
+                knp.Nanmin(axis=1, keepdims=True)(x),
+                np.nanmin(x, axis=1, keepdims=True),
+            )
 
-        x_all_nan = np.array([[np.nan, np.nan], [np.nan, np.nan]])
-        self.assertAllClose(knp.nanmin(x_all_nan), np.nanmin(x_all_nan))
-        self.assertAllClose(
-            knp.nanmin(x_all_nan, axis=1),
-            np.nanmin(x_all_nan, axis=1),
-        )
+            x_all_nan = np.array([[np.nan, np.nan], [np.nan, np.nan]])
+            self.assertAllClose(knp.nanmin(x_all_nan), np.nanmin(x_all_nan))
+            self.assertAllClose(
+                knp.nanmin(x_all_nan, axis=1),
+                np.nanmin(x_all_nan, axis=1),
+            )
 
-        x_3d = np.array(
-            [
-                [[1.0, np.nan], [2.0, 3.0]],
-                [[np.nan, 4.0], [5.0, np.nan]],
-            ]
-        )
-        self.assertAllClose(knp.nanmin(x_3d), np.nanmin(x_3d))
-        self.assertAllClose(
-            knp.nanmin(x_3d, axis=(1, 2)),
-            np.nanmin(x_3d, axis=(1, 2)),
-        )
+            x_3d = np.array(
+                [
+                    [[1.0, np.nan], [2.0, 3.0]],
+                    [[np.nan, 4.0], [5.0, np.nan]],
+                ]
+            )
+            self.assertAllClose(knp.nanmin(x_3d), np.nanmin(x_3d))
+            self.assertAllClose(
+                knp.nanmin(x_3d, axis=(1, 2)),
+                np.nanmin(x_3d, axis=(1, 2)),
+            )
+
+            x_int = np.array([[3, 1, 2], [5, 4, 6]], dtype="int32")
+            self.assertAllClose(knp.nanmin(x_int), np.nanmin(x_int))
+            self.assertAllClose(
+                knp.nanmin(x_int, axis=1), np.nanmin(x_int, axis=1)
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     def test_nanprod(self):
         x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, 1.0]])
@@ -11909,22 +11935,30 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_nanmax(self, dtype):
+    @parameterized.named_parameters(
+        named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
+    )
+    def test_nanmax(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        x = knp.ones((1,), dtype=dtype)
-        x_jax = jnp.ones((1,), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.nanmax(x_jax).dtype)
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = knp.ones((1,), dtype=dtype)
+            x_jax = jnp.ones((1,), dtype=dtype)
+            expected_dtype = standardize_dtype(jnp.nanmax(x_jax).dtype)
 
-        if backend.backend() == "torch" and expected_dtype == "uint32":
-            expected_dtype = "int32"
+            if backend.backend() == "torch" and expected_dtype == "uint32":
+                expected_dtype = "int32"
 
-        self.assertEqual(standardize_dtype(knp.nanmax(x).dtype), expected_dtype)
-        self.assertEqual(
-            standardize_dtype(knp.Nanmax().symbolic_call(x).dtype),
-            expected_dtype,
-        )
+            self.assertEqual(
+                standardize_dtype(knp.nanmax(x).dtype), expected_dtype
+            )
+            self.assertEqual(
+                standardize_dtype(knp.Nanmax().symbolic_call(x).dtype),
+                expected_dtype,
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_nanmean(self, dtype):
@@ -11964,22 +11998,30 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_nanmin(self, dtype):
+    @parameterized.named_parameters(
+        named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
+    )
+    def test_nanmin(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        x = knp.ones((1,), dtype=dtype)
-        x_jax = jnp.ones((1,), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.nanmin(x_jax).dtype)
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = knp.ones((1,), dtype=dtype)
+            x_jax = jnp.ones((1,), dtype=dtype)
+            expected_dtype = standardize_dtype(jnp.nanmin(x_jax).dtype)
 
-        if backend.backend() == "torch" and expected_dtype == "uint32":
-            expected_dtype = "int32"
+            if backend.backend() == "torch" and expected_dtype == "uint32":
+                expected_dtype = "int32"
 
-        self.assertEqual(standardize_dtype(knp.nanmin(x).dtype), expected_dtype)
-        self.assertEqual(
-            standardize_dtype(knp.Nanmin().symbolic_call(x).dtype),
-            expected_dtype,
-        )
+            self.assertEqual(
+                standardize_dtype(knp.nanmin(x).dtype), expected_dtype
+            )
+            self.assertEqual(
+                standardize_dtype(knp.Nanmin().symbolic_call(x).dtype),
+                expected_dtype,
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_nanpercentile(self, dtype):
