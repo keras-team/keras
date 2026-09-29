@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+import numpy as np
 import pytest
 from absl.testing import parameterized
 
@@ -120,6 +121,52 @@ class DtypesTest(test_case.TestCase):
 
     def test_result_type_empty_list(self):
         self.assertEqual(backend.result_type(), "float32")
+
+    def test_result_type_respects_floatx(self):
+        original_floatx = backend.floatx()
+        try:
+            backend.set_floatx("float32")
+            self.assertEqual(backend.result_type(float), "float32")
+            backend.set_floatx("float16")
+            self.assertEqual(backend.result_type(float), "float16")
+        finally:
+            backend.set_floatx(original_floatx)
+
+    def test_result_type_cache_does_not_collide_with_tf_dtype(self):
+        # `tf.float32` hashes and compares equal to `1`, so a cached entry for
+        # it must not make the invalid `1` resolve.
+        import tensorflow as tf
+
+        with self.assertRaises(ValueError):
+            backend.result_type(1)
+
+        self.assertEqual(backend.result_type(tf.float32), "float32")
+
+        with self.assertRaises(ValueError):
+            backend.result_type(1)
+
+    def test_result_type_unhashable_argument(self):
+        # None of these are valid dtypes; the point is that each is rejected
+        # rather than surfacing `unhashable type` from the cache lookup.
+        with self.assertRaises(ValueError):
+            backend.result_type(np.array([1, 2]))
+        with self.assertRaises(TypeError):
+            backend.result_type([1, 2])
+        with self.assertRaises(TypeError):
+            backend.result_type({"a": 1})
+        # A valid dtype alongside an unhashable one still reports the
+        # unhashable one rather than silently promoting.
+        with self.assertRaises(TypeError):
+            backend.result_type("float32", [1])
+
+    def test_result_type_float8_rejected_outside_the_cache(self):
+        # Repeated: the rejection has to raise on every call, not just the
+        # first one to reach the cache.
+        for _ in range(3):
+            with self.assertRaisesRegex(
+                ValueError, "no implicit conversions from float8"
+            ):
+                backend.result_type("float8_e4m3fn", "float32")
 
     def test_respect_weak_type_for_bool(self):
         self.assertEqual(dtypes._respect_weak_type("bool", True), "bool")
