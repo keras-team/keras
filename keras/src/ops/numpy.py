@@ -6084,9 +6084,7 @@ class Nanmax(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.ops.numpy.nanmax(
-            x, axis=self.axis, keepdims=self.keepdims
-        )
+        return _nanmax(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
         dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
@@ -6133,7 +6131,26 @@ def nanmax(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Nanmax(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.ops.numpy.nanmax(x, axis=axis, keepdims=keepdims)
+    return _nanmax(x, axis=axis, keepdims=keepdims)
+
+
+def _nanmax(x, axis=None, keepdims=False):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "nanmax"
+    ):
+        return backend.ops.numpy.nanmax(x, axis=axis, keepdims=keepdims)
+    x = backend.ops.convert_to_tensor(x)
+    if not backend.is_float_dtype(x.dtype):
+        return ops.max(x, axis=axis, keepdims=keepdims)
+    nan_mask = ops.isnan(x)
+    neg_inf = ops.cast(float("-inf"), x.dtype)
+    nan = ops.cast(float("nan"), x.dtype)
+    result = ops.max(
+        ops.where(nan_mask, neg_inf, x), axis=axis, keepdims=keepdims
+    )
+    return ops.where(
+        ops.all(nan_mask, axis=axis, keepdims=keepdims), nan, result
+    )
 
 
 class Nanmean(Operation):
@@ -6257,9 +6274,7 @@ class Nanmin(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.ops.numpy.nanmin(
-            x, axis=self.axis, keepdims=self.keepdims
-        )
+        return _nanmin(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
         dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
@@ -6305,7 +6320,26 @@ def nanmin(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Nanmin(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.ops.numpy.nanmin(x, axis=axis, keepdims=keepdims)
+    return _nanmin(x, axis=axis, keepdims=keepdims)
+
+
+def _nanmin(x, axis=None, keepdims=False):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "nanmin"
+    ):
+        return backend.ops.numpy.nanmin(x, axis=axis, keepdims=keepdims)
+    x = backend.ops.convert_to_tensor(x)
+    if not backend.is_float_dtype(x.dtype):
+        return ops.min(x, axis=axis, keepdims=keepdims)
+    nan_mask = ops.isnan(x)
+    pos_inf = ops.cast(float("inf"), x.dtype)
+    nan = ops.cast(float("nan"), x.dtype)
+    result = ops.min(
+        ops.where(nan_mask, pos_inf, x), axis=axis, keepdims=keepdims
+    )
+    return ops.where(
+        ops.all(nan_mask, axis=axis, keepdims=keepdims), nan, result
+    )
 
 
 class Nanpercentile(Operation):
