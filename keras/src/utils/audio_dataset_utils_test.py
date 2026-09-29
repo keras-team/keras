@@ -642,3 +642,27 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
         )
         sample = next(iter(dataset))
         self.assertEqual(len(sample.shape), 2)
+
+    def test_read_and_decode_audio_grain_rejects_resample_bomb(self):
+        try:
+            from scipy.io import wavfile
+        except ImportError:
+            self.skipTest("scipy is required for the grain audio reader")
+
+        directory = self.get_temp_dir()
+        # A small file that declares a 1 Hz sample rate; resampling its 1M
+        # samples up to 16 kHz would ask for ~1.6e10 samples (~128 GB).
+        bomb = os.path.join(directory, "bomb.wav")
+        wavfile.write(bomb, 1, np.zeros(1_000_000, dtype=np.int16))
+        with self.assertRaisesRegex(ValueError, "decompression bomb"):
+            audio_dataset_utils._read_and_decode_audio_grain(
+                bomb, sampling_rate=16000
+            )
+
+        # A plausible file at the same rate still decodes normally.
+        ok = os.path.join(directory, "ok.wav")
+        wavfile.write(ok, 1000, np.zeros(1000, dtype=np.int16))
+        out = audio_dataset_utils._read_and_decode_audio_grain(
+            ok, sampling_rate=16000, output_sequence_length=30
+        )
+        self.assertEqual(tuple(out.shape), (30, 1))
