@@ -901,7 +901,8 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     output = where(expand_dims(x, axis=-1) >= 0, output, zero)
     output = convert_to_tensor(output, dtype=dtype)
     dims = output.dim()
-    if axis != -1 and axis != dims:
+    axis = canonicalize_axis(axis, dims)
+    if axis != dims - 1:
         new_axes_order = list(range(dims))
         new_axes_order[axis] = -1  # Shifts output to axis position
         # Shift remaining axes with offset by 1 since output moved to `axis`.

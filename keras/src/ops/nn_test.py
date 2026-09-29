@@ -789,6 +789,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knn.one_hot(x, 5).shape, (None, 3, 1, 5))
         self.assertEqual(knn.one_hot(x, 5, 1).shape, (None, 5, 3, 1))
         self.assertEqual(knn.one_hot(x, 5, 2).shape, (None, 3, 5, 1))
+        self.assertEqual(knn.one_hot(x, 5, -2).shape, (None, 3, 5, 1))
         self.assertSparse(knn.one_hot(x, 5, sparse=True))
 
     @parameterized.named_parameters(
@@ -1408,6 +1409,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knn.one_hot(x, 5).shape, (2, 3, 1, 5))
         self.assertEqual(knn.one_hot(x, 5, 1).shape, (2, 5, 3, 1))
         self.assertEqual(knn.one_hot(x, 5, 2).shape, (2, 3, 5, 1))
+        self.assertEqual(knn.one_hot(x, 5, -2).shape, (2, 3, 5, 1))
         self.assertSparse(knn.one_hot(x, 5, sparse=True))
 
     def test_binary_crossentropy(self):
@@ -2400,6 +2402,11 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(output_2d, np.eye(4)[indices_2d])
         self.assertSparse(output_2d, sparse)
         output_2d = knn.one_hot(indices_2d, 4, axis=1, sparse=sparse)
+        self.assertAllClose(
+            output_2d, np.transpose(np.eye(4)[indices_2d], (0, 2, 1))
+        )
+        self.assertSparse(output_2d, sparse)
+        output_2d = knn.one_hot(indices_2d, 4, axis=-2, sparse=sparse)
         self.assertAllClose(
             output_2d, np.transpose(np.eye(4)[indices_2d], (0, 2, 1))
         )
