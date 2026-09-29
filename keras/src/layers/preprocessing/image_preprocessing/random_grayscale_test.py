@@ -15,6 +15,7 @@ class RandomGrayscaleTest(testing.TestCase):
             init_kwargs={
                 "factor": 0.5,
                 "data_format": "channels_last",
+                "seed": 1337,
             },
             input_shape=(1, 2, 2, 3),
             supports_masking=False,

@@ -9,7 +9,12 @@ class SimpleRNNTest(testing.TestCase):
     def test_basics(self):
         self.run_layer_test(
             layers.SimpleRNN,
-            init_kwargs={"units": 3, "dropout": 0.5, "recurrent_dropout": 0.5},
+            init_kwargs={
+                "units": 3,
+                "dropout": 0.5,
+                "recurrent_dropout": 0.5,
+                "seed": 1337,
+            },
             input_shape=(3, 2, 4),
             call_kwargs={"training": True},
             expected_output_shape=(3, 3),
