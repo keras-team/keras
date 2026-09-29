@@ -1832,10 +1832,13 @@ def layer_normalization(x, gamma=None, beta=None, axis=-1, epsilon=None):
         inv = torch.rsqrt(variance + epsilon)
         if gamma is not None:
             inv = inv * gamma
-        res = -mean * inv
+        # Center before scaling; see the note in keras/src/ops/nn.py.
+        # Folding the mean and beta into one offset loses beta when
+        # `mean * inv` is large enough that adding beta to it rounds away.
+        outputs = (x - mean) * inv
         if beta is not None:
-            res = res + beta
-        return x * inv + res
+            outputs = outputs + beta
+        return outputs
     x, normalized_shape, (gamma, beta), perm = operands
     outputs = tnn.layer_norm(x, normalized_shape, gamma, beta, epsilon)
     return outputs.permute(_inverse_permutation(perm))
