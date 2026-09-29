@@ -6199,9 +6199,7 @@ class Nanmedian(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.ops.numpy.nanmedian(
-            x, axis=self.axis, keepdims=self.keepdims
-        )
+        return _nanmedian(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
         dtype = dtypes.result_type(x.dtype, float)
@@ -6247,7 +6245,18 @@ def nanmedian(x, axis=None, keepdims=False):
     if any_symbolic_tensors((x,)):
         return Nanmedian(axis=axis, keepdims=keepdims).symbolic_call(x)
 
-    return backend.ops.numpy.nanmedian(x, axis=axis, keepdims=keepdims)
+    return _nanmedian(x, axis=axis, keepdims=keepdims)
+
+
+def _nanmedian(x, axis=None, keepdims=False):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "nanmedian"
+    ):
+        return backend.ops.numpy.nanmedian(x, axis=axis, keepdims=keepdims)
+    x = backend.ops.convert_to_tensor(x)
+    if axis == () or axis == []:
+        return ops.cast(x, dtypes.result_type(x.dtype, float))
+    return ops.nanquantile(x, 0.5, axis=axis, keepdims=keepdims)
 
 
 class Nanmin(Operation):

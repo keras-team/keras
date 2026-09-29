@@ -7986,47 +7986,67 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.nanmean(x_3d, axis=(1, 2)),
         )
 
-    def test_nanmedian(self):
-        x = np.array(
-            [[1.0, np.nan, 3.0, 4.0, 5.0], [np.nan, 2.0, 3.0, np.inf, -np.inf]]
-        )
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_nanmedian(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = np.array(
+                [
+                    [1.0, np.nan, 3.0, 4.0, 5.0],
+                    [np.nan, 2.0, 3.0, np.inf, -np.inf],
+                ]
+            )
 
-        self.assertAllClose(knp.nanmedian(x), np.nanmedian(x))
-        self.assertAllClose(knp.nanmedian(x, axis=()), np.nanmedian(x, axis=()))
-        self.assertAllClose(knp.nanmedian(x, axis=1), np.nanmedian(x, axis=1))
-        self.assertAllClose(
-            knp.nanmedian(x, axis=(1,)), np.nanmedian(x, axis=(1,))
-        )
-        self.assertAllClose(
-            knp.nanmedian(x, axis=1, keepdims=True),
-            np.nanmedian(x, axis=1, keepdims=True),
-        )
+            self.assertAllClose(knp.nanmedian(x), np.nanmedian(x))
+            self.assertAllClose(
+                knp.nanmedian(x, axis=()), np.nanmedian(x, axis=())
+            )
+            self.assertAllClose(
+                knp.nanmedian(x, axis=1), np.nanmedian(x, axis=1)
+            )
+            self.assertAllClose(
+                knp.nanmedian(x, axis=(1,)), np.nanmedian(x, axis=(1,))
+            )
+            self.assertAllClose(
+                knp.nanmedian(x, axis=1, keepdims=True),
+                np.nanmedian(x, axis=1, keepdims=True),
+            )
 
-        self.assertAllClose(knp.Nanmedian()(x), np.nanmedian(x))
-        self.assertAllClose(knp.Nanmedian(axis=1)(x), np.nanmedian(x, axis=1))
-        self.assertAllClose(
-            knp.Nanmedian(axis=1, keepdims=True)(x),
-            np.nanmedian(x, axis=1, keepdims=True),
-        )
+            self.assertAllClose(knp.Nanmedian()(x), np.nanmedian(x))
+            self.assertAllClose(
+                knp.Nanmedian(axis=1)(x), np.nanmedian(x, axis=1)
+            )
+            self.assertAllClose(
+                knp.Nanmedian(axis=1, keepdims=True)(x),
+                np.nanmedian(x, axis=1, keepdims=True),
+            )
 
-        x_all_nan = np.array([[np.nan, np.nan], [np.nan, np.nan]])
-        self.assertAllClose(knp.nanmedian(x_all_nan), np.nanmedian(x_all_nan))
-        self.assertAllClose(
-            knp.nanmedian(x_all_nan, axis=1),
-            np.nanmedian(x_all_nan, axis=1),
-        )
+            x_all_nan = np.array([[np.nan, np.nan], [np.nan, np.nan]])
+            self.assertAllClose(
+                knp.nanmedian(x_all_nan), np.nanmedian(x_all_nan)
+            )
+            self.assertAllClose(
+                knp.nanmedian(x_all_nan, axis=1),
+                np.nanmedian(x_all_nan, axis=1),
+            )
 
-        x_3d = np.array(
-            [
-                [[1.0, np.nan], [2.0, 3.0]],
-                [[np.nan, 4.0], [5.0, np.nan]],
-            ]
-        )
-        self.assertAllClose(knp.nanmedian(x_3d), np.nanmedian(x_3d))
-        self.assertAllClose(
-            knp.nanmedian(x_3d, axis=(1, 2)),
-            np.nanmedian(x_3d, axis=(1, 2)),
-        )
+            x_3d = np.array(
+                [
+                    [[1.0, np.nan], [2.0, 3.0]],
+                    [[np.nan, 4.0], [5.0, np.nan]],
+                ]
+            )
+            self.assertAllClose(knp.nanmedian(x_3d), np.nanmedian(x_3d))
+            self.assertAllClose(
+                knp.nanmedian(x_3d, axis=(1, 2)),
+                np.nanmedian(x_3d, axis=(1, 2)),
+            )
+            self.assertAllClose(
+                knp.nanmedian(x_3d, axis=(0, 2), keepdims=True),
+                np.nanmedian(x_3d, axis=(0, 2), keepdims=True),
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     def test_nanmin(self):
         x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, np.inf]])
@@ -11926,24 +11946,30 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_nanmedian(self, dtype):
+    @parameterized.named_parameters(
+        named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
+    )
+    def test_nanmedian(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        x = knp.ones((1,), dtype=dtype)
-        x_jax = jnp.ones((1,), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.nanmedian(x_jax).dtype)
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = knp.ones((1,), dtype=dtype)
+            x_jax = jnp.ones((1,), dtype=dtype)
+            expected_dtype = standardize_dtype(jnp.nanmedian(x_jax).dtype)
 
-        if backend.backend() == "torch" and expected_dtype == "uint32":
-            expected_dtype = "int32"
+            if backend.backend() == "torch" and expected_dtype == "uint32":
+                expected_dtype = "int32"
 
-        self.assertEqual(
-            standardize_dtype(knp.nanmedian(x).dtype), expected_dtype
-        )
-        self.assertEqual(
-            standardize_dtype(knp.Nanmedian().symbolic_call(x).dtype),
-            expected_dtype,
-        )
+            self.assertEqual(
+                standardize_dtype(knp.nanmedian(x).dtype), expected_dtype
+            )
+            self.assertEqual(
+                standardize_dtype(knp.Nanmedian().symbolic_call(x).dtype),
+                expected_dtype,
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_nanmin(self, dtype):
