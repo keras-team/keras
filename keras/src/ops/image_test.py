@@ -1683,12 +1683,6 @@ class ImageOpsCorrectnessTest(testing.TestCase):
     )
     def test_resize(self, interpolation, antialias):
         if backend.backend() == "torch":
-            if "lanczos" in interpolation:
-                self.skipTest(
-                    "Resizing with Lanczos interpolation is "
-                    "not supported by the PyTorch backend. "
-                    f"Received: interpolation={interpolation}."
-                )
             if interpolation == "bicubic" and antialias is False:
                 self.skipTest(
                     "Resizing with Bicubic interpolation in "
@@ -1781,6 +1775,123 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             antialias=antialias,
         )(x)
         self.assertAllClose(out, ref_out, atol=1e-4)
+
+    @parameterized.named_parameters(
+        named_product(
+            interpolation=["lanczos3", "lanczos5"],
+        )
+    )
+    def test_resize_lanczos_crop_and_pad(self, interpolation):
+        x = np.random.random((60, 50, 3)).astype("float32") * 255
+        out_crop = kimage.resize(
+            x,
+            size=(25, 25),
+            crop_to_aspect_ratio=True,
+            interpolation=interpolation,
+        )
+        self.assertEqual(out_crop.shape, (25, 25, 3))
+
+        manual_crop = x[5:55, 0:50, :]
+        ref_crop = kimage.resize(
+            manual_crop, size=(25, 25), interpolation=interpolation
+        )
+        self.assertAllClose(out_crop, ref_crop, atol=1e-4)
+
+        out_pad = kimage.resize(
+            x,
+            size=(25, 25),
+            pad_to_aspect_ratio=True,
+            interpolation=interpolation,
+        )
+        self.assertEqual(out_pad.shape, (25, 25, 3))
+
+        manual_pad = np.pad(
+            x, ((0, 0), (5, 5), (0, 0)), mode="constant", constant_values=0.0
+        )
+        ref_pad = kimage.resize(
+            manual_pad, size=(25, 25), interpolation=interpolation
+        )
+        self.assertAllClose(out_pad, ref_pad, atol=1e-4)
+
+    @parameterized.named_parameters(
+        named_product(
+            interpolation=["lanczos3", "lanczos5"],
+        )
+    )
+    def test_resize_lanczos_float64(self, interpolation):
+        x = np.random.random((2, 30, 30, 3)).astype("float64") * 255
+        out = kimage.resize(x, size=(15, 15), interpolation=interpolation)
+
+        expected = "float64"
+        if backend.backend() == "jax" and not jax.config.jax_enable_x64:
+            expected = "float32"  # JAX downcasts float64 without x64
+        self.assertEqual(backend.standardize_dtype(out.dtype), expected)
+
+        ref_out = tf.image.resize(
+            x,
+            size=(15, 15),
+            method=interpolation,
+            antialias=False,
+        )
+        self.assertAllClose(out, ref_out, atol=1e-4)
+
+    @parameterized.named_parameters(
+        named_product(
+            interpolation=["lanczos3", "lanczos5"],
+            antialias=[True, False],
+            data_format=["channels_last", "channels_first"],
+        )
+    )
+    def test_resize_lanczos_asymmetric_ratios(
+        self, interpolation, antialias, data_format
+    ):
+        x = np.random.random((2, 40, 30, 3)).astype("float32") * 255
+        ref_out = tf.image.resize(
+            x,
+            size=(17, 23),
+            method=interpolation,
+            antialias=antialias,
+        )
+        if data_format == "channels_first":
+            x = np.transpose(x, (0, 3, 1, 2))
+            ref_out = tf.transpose(ref_out, (0, 3, 1, 2))
+
+        out = kimage.resize(
+            x,
+            size=(17, 23),
+            interpolation=interpolation,
+            antialias=antialias,
+            data_format=data_format,
+        )
+        # JAX and NumPy differ from TF by up to ~1.3e-3 at non-integer
+        # per-axis ratios; swapped height/width scales differ by far more.
+        self.assertAllClose(out, ref_out, atol=2e-3)
+
+    @parameterized.named_parameters(
+        named_product(
+            interpolation=["lanczos3", "lanczos5"],
+            dtype=["uint8", "int8", "int16"],
+        )
+    )
+    def test_resize_lanczos_integer_clamping(self, interpolation, dtype):
+        dtype_info = np.iinfo(dtype)
+        # Provide a sharp step edge to induce Lanczos undershoot/overshoot
+        x = np.full((1, 30, 30, 3), dtype_info.min, dtype=dtype)
+        x[:, 15:, 15:, :] = dtype_info.max
+        out = kimage.resize(x, size=(45, 45), interpolation=interpolation)
+        self.assertEqual(backend.standardize_dtype(out.dtype), dtype)
+
+        ref_x = x.astype("float32")
+        ref_out = tf.image.resize(
+            ref_x,
+            size=(45, 45),
+            method=interpolation,
+            antialias=False,
+        )
+        ref_out = np.clip(
+            np.round(ref_out), dtype_info.min, dtype_info.max
+        ).astype(dtype)
+        self.assertAllClose(out, ref_out, atol=2)
 
     def test_resize_uint8_round(self):
         x = np.array([0, 1, 254, 255], dtype="uint8").reshape(1, 2, 2, 1)
