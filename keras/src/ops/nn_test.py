@@ -2342,6 +2342,47 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(tuple(result.shape), shape)
         self.assertAllClose(result, expected)
 
+    @parameterized.product(
+        target_dtype=["int32", "bool", "float32"],
+        output_dtype=["float32", "float16", "bfloat16"],
+        from_logits=[True, False],
+    )
+    def test_binary_crossentropy_target_dtype(
+        self, target_dtype, output_dtype, from_logits
+    ):
+        target = np.array([0, 1, 1, 0]).astype(target_dtype)
+        output = np.array([0.1, 0.9, 0.8, 0.2]).astype(output_dtype)
+        result = knn.binary_crossentropy(
+            target, output, from_logits=from_logits
+        )
+        t = target.astype("float64")
+        o = output.astype("float64")
+        probs = 1.0 / (1.0 + np.exp(-o)) if from_logits else o
+        expected = -(t * np.log(probs) + (1 - t) * np.log(1 - probs))
+        tol = {"float32": 1e-6, "float16": 1e-3, "bfloat16": 1e-2}[output_dtype]
+        self.assertAllClose(result, expected, atol=tol, rtol=tol)
+
+    @parameterized.parameters(
+        ("int32", True), ("int32", False), ("uint8", False), ("bool", False)
+    )
+    def test_binary_crossentropy_non_float_output(
+        self, output_dtype, from_logits
+    ):
+        target = np.array([0.0, 1.0, 1.0, 0.0], "float32")
+        output = np.array([0, 1, 1, 0]).astype(output_dtype)
+        result = knn.binary_crossentropy(
+            target, output, from_logits=from_logits
+        )
+        o = output.astype("float64")
+        probs = 1.0 / (1.0 + np.exp(-o)) if from_logits else o
+        probs = np.clip(probs, 1e-7, 1 - 1e-7)
+        expected = -(target * np.log(probs) + (1 - target) * np.log(1 - probs))
+        self.assertAllClose(result, expected, atol=1e-6, rtol=1e-6)
+        symbolic = knn.binary_crossentropy(
+            KerasTensor((4,), "float32"), KerasTensor((4,), output_dtype)
+        )
+        self.assertEqual(symbolic.dtype, backend.floatx())
+
     def test_categorical_crossentropy(self):
         target = np.array(
             [
