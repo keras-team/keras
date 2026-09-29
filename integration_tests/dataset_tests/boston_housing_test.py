@@ -16,7 +16,7 @@ class BostonHousingTest(testing.TestCase):
         self.assertAllClose(first_load[1][0], second_load[1][0])
 
     def test_invalid_test_split(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             boston_housing.load_data(test_split=-0.1)
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             boston_housing.load_data(test_split=1.0)
