@@ -8,7 +8,7 @@ Takes care of:
 - masking
 - autocasting
 
-And some more magic:
+And some more magic for fun:
 
 - add_loss
 - metric tracking
