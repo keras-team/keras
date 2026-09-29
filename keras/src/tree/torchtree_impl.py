@@ -62,10 +62,9 @@ def traverse(func, structure, top_down=True):
 
 def _traverse(func, structure, top_down=True):
     def traverse_children():
-        structure_id = id(structure)
         children, treedef = torch_tree.tree_flatten(
             structure,
-            is_leaf=lambda x: id(x) != structure_id,
+            is_leaf=lambda x: x is not structure,
         )
         if treedef.num_nodes == 1 and treedef.num_leaves == 1:
             return structure
