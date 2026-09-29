@@ -6,6 +6,7 @@ from torch.distributed.tensor import DTensor
 from torch.distributed.tensor import Replicate
 
 from keras.src import backend
+from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
@@ -106,27 +107,20 @@ def leaky_relu(x, negative_slope=0.2):
     return tnn.leaky_relu(x, negative_slope=negative_slope)
 
 
-def _promote_to_float(x):
-    """Cast integer and bool input to `floatx`, leaving float dtypes alone.
-
-    `result_type(dtype, float)` is not usable here: it demotes `float64` to
-    `float32` on every backend but TensorFlow, and it derives the float width
-    from `floatx()[-2:]`, which turns `bfloat16` into `float16`.
-    """
-    dtype = backend.standardize_dtype(x.dtype)
-    if "int" in dtype or dtype == "bool":
-        return cast(x, backend.floatx())
-    return x
-
-
 def hard_sigmoid(x):
     # `tnn.hardsigmoid` is not implemented for integer or bool dtypes.
-    x = _promote_to_float(convert_to_tensor(x))
+    x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tnn.hardsigmoid(x)
 
 
 def hard_silu(x):
-    x = _promote_to_float(convert_to_tensor(x))
+    x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tnn.hardswish(x)
 
 

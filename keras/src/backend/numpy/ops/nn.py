@@ -5,6 +5,7 @@ import numpy as np
 from jax import lax
 
 from keras.src import backend
+from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
@@ -116,7 +117,9 @@ def leaky_relu(x, negative_slope=0.2):
 def hard_sigmoid(x):
     # `0.5` below truncates to 0 under an integer dtype, which drops the
     # offset and turns this into `clip(x / 6, 0, 1)`.
-    x = _promote_to_float(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     # python numbers will be promoted to float64 by np, so it's necessary to
     # first convert the python numbers to np scalars
     x = x / np.array(6.0, x.dtype) + np.array(0.5, x.dtype)
@@ -128,7 +131,9 @@ def hard_sigmoid(x):
 
 
 def hard_silu(x):
-    x = _promote_to_float(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return x * hard_sigmoid(x)
 
 
@@ -146,22 +151,11 @@ def selu(x):
     return np.array(scale, x.dtype) * elu(x, alpha)
 
 
-def _promote_to_float(x):
-    """Cast integer and bool input to `floatx`, leaving float dtypes alone.
-
-    `result_type(dtype, float)` is not usable here: it demotes `float64` to
-    `float32` on every backend but TensorFlow, and it derives the float width
-    from `floatx()[-2:]`, which turns `bfloat16` into `float16`.
-    """
-    dtype = backend.standardize_dtype(x.dtype)
-    if "int" in dtype or dtype == "bool":
-        return cast(x, backend.floatx())
-    return x
-
-
 def gelu(x, approximate=True):
     x = convert_to_tensor(x)
-    x = _promote_to_float(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     # followed by JAX's implementation
     if approximate:
         sqrt_2_over_pi = np.sqrt(2 / np.pi).astype(x.dtype)

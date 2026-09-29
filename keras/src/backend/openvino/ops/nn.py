@@ -4,6 +4,7 @@ from openvino import Type
 
 import keras.src.backend.openvino.ops.numpy as onp
 from keras.src import backend
+from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import (
     _get_output_shape_given_tf_padding,
 )
@@ -129,28 +130,25 @@ def sparse_sigmoid(x):
     return OpenVINOKerasTensor(out.output(0))
 
 
-def _promote_to_float(x):
-    """Promote integer and bool input to `floatx`; real types are left alone.
-
-    `Type.boolean.is_integral()` is `True`, so bool is promoted as well, and
-    `f64` and the `f8` types keep their element type.
-    """
-    if x.get_element_type().is_real():
-        return x
-    return ov_opset.convert(x, OPENVINO_DTYPES[backend.floatx()]).output(0)
-
-
 def hard_sigmoid(x):
     # `alpha` and `beta` below truncate to 0 under an integer element type,
     # which makes this return all zeros instead of raising.
-    x = _promote_to_float(get_ov_output(x))
+    x = get_ov_output(x)
+    keras_dtype = ov_to_keras_type(x.get_element_type())
+    float_dtype = dtypes.promote_to_float_dtype(keras_dtype)
+    if float_dtype != keras_dtype:
+        x = ov_opset.convert(x, OPENVINO_DTYPES[float_dtype]).output(0)
     alpha = get_ov_output(1.0 / 6.0, x.get_element_type())
     beta = get_ov_output(0.5, x.get_element_type())
     return OpenVINOKerasTensor(ov_opset.hard_sigmoid(x, alpha, beta).output(0))
 
 
 def hard_silu(x):
-    x = _promote_to_float(get_ov_output(x))
+    x = get_ov_output(x)
+    keras_dtype = ov_to_keras_type(x.get_element_type())
+    float_dtype = dtypes.promote_to_float_dtype(keras_dtype)
+    if float_dtype != keras_dtype:
+        x = ov_opset.convert(x, OPENVINO_DTYPES[float_dtype]).output(0)
     return OpenVINOKerasTensor(ov_opset.hswish(x).output(0))
 
 
