@@ -1814,6 +1814,14 @@ class Layer(BackendLayer, Operation):
 
         super().__setattr__(name, value)
 
+    def _untrack_layer(self, layer):
+        if hasattr(self, "_tracker"):
+            previous_lock_state = self._tracker.locked
+            self._tracker.unlock()
+            self._tracker.untrack(layer)
+            if previous_lock_state is True:
+                self._tracker.lock()
+
     def __delattr__(self, name):
         obj = getattr(self, name)
         if isinstance(obj, backend.Variable):
@@ -1825,6 +1833,9 @@ class Layer(BackendLayer, Operation):
             self._untrack_variable(obj)
             super().__delattr__(name)
             gc.collect()
+        elif isinstance(obj, Layer):
+            self._untrack_layer(obj)
+            super().__delattr__(name)
         else:
             super().__delattr__(name)
 
