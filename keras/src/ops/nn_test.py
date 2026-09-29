@@ -318,6 +318,43 @@ class NNOpsDynamicShapeTest(testing.TestCase):
             ),
         )
 
+    def test_adaptive_max_pool(self):
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            x = KerasTensor((None, 64, 64, 3))
+            expected_32 = (None, 32, 32, 3)
+            expected_7 = (None, 7, 7, 3)
+            expected_16 = (None, 16, 16, 3)
+        else:
+            x = KerasTensor((None, 3, 64, 64))
+            expected_32 = (None, 3, 32, 32)
+            expected_7 = (None, 3, 7, 7)
+            expected_16 = (None, 3, 16, 16)
+        self.assertEqual(knn.adaptive_max_pool(x, (32, 32)).shape, expected_32)
+        # int and list output_size normalize to a tuple
+        self.assertEqual(knn.adaptive_max_pool(x, 7).shape, expected_7)
+        self.assertEqual(knn.adaptive_max_pool(x, [16, 16]).shape, expected_16)
+
+    def test_adaptive_average_pool(self):
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            x = KerasTensor((None, 64, 64, 3))
+            expected_32 = (None, 32, 32, 3)
+            expected_7 = (None, 7, 7, 3)
+            expected_16 = (None, 16, 16, 3)
+        else:
+            x = KerasTensor((None, 3, 64, 64))
+            expected_32 = (None, 3, 32, 32)
+            expected_7 = (None, 3, 7, 7)
+            expected_16 = (None, 3, 16, 16)
+        self.assertEqual(
+            knn.adaptive_average_pool(x, (32, 32)).shape, expected_32
+        )
+        self.assertEqual(knn.adaptive_average_pool(x, 7).shape, expected_7)
+        self.assertEqual(
+            knn.adaptive_average_pool(x, [16, 16]).shape, expected_16
+        )
+
     def test_multi_hot(self):
         x = KerasTensor([None, 3, 1])
         self.assertEqual(knn.multi_hot(x, 5).shape, (None, 1, 5))
