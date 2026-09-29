@@ -523,12 +523,6 @@ class Dense(Layer):
             ],
         }
 
-    def quantize(self, mode=None, type_check=True, config=None):
-        # Prevent quantization of the subclasses.
-        if type_check and type(self) is not Dense:
-            raise self._not_implemented_error(self.quantize)
-        self._registry_quantize(mode, config)
-
     def _quantization_geometry(self):
         return ProjectionGeometry(self)
 

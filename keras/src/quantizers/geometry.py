@@ -62,6 +62,13 @@ The rest comes from `Layer` itself: strategies read `compute_dtype`,
 straight back to the strategy. A layer never needs to know which mode is
 running, and implements none of these itself.
 
+Defining `_quantization_geometry()` on a subclass also makes that subclass
+the owner of its quantization support: `Layer.quantize`'s type check
+accepts instances of the exact class that defines the method. A `Dense`
+subclass therefore opts in by defining it; without it the subclass is
+skipped by `Model.quantize` and remains reachable through
+`quantize(..., type_check=False)`.
+
 Customizing what a strategy does to a layer
 -------------------------------------------
 
