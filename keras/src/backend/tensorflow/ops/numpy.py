@@ -1816,10 +1816,17 @@ def hypot(x1, x2):
     x1_abs = tf.abs(x1)
     x2_abs = tf.abs(x2)
     max_val = tf.maximum(x1_abs, x2_abs)
-    min_val = tf.minimum(x1_abs, x2_abs)
-
-    ratio = tf.math.divide_no_nan(min_val, max_val)
-    result = max_val * tf.sqrt(1.0 + tf.square(ratio))
+    both_zero = tf.equal(max_val, 0)
+    scale = tf.stop_gradient(
+        tf.where(both_zero, tf.ones_like(max_val), max_val)
+    )
+    sum_sq = tf.square(x1 / scale) + tf.square(x2 / scale)
+    safe_sum_sq = tf.where(both_zero, tf.ones_like(sum_sq), sum_sq)
+    result = tf.where(
+        both_zero,
+        tf.zeros_like(max_val),
+        scale * tf.sqrt(safe_sum_sq),
+    )
     return tf.where(
         tf.math.is_inf(x1_abs) | tf.math.is_inf(x2_abs),
         tf.constant(float("inf"), dtype=result.dtype),
