@@ -5929,15 +5929,17 @@ def _nanargmax(x, axis=None, keepdims=False):
         return backend.ops.numpy.nanargmax(x, axis=axis, keepdims=keepdims)
     x = backend.ops.convert_to_tensor(x)
     if not backend.is_float_dtype(x.dtype):
-        return ops.argmax(x, axis=axis, keepdims=keepdims)
-    nan_mask = ops.isnan(x)
-    neg_inf = ops.cast(float("-inf"), x.dtype)
-    result = ops.argmax(
-        ops.where(nan_mask, neg_inf, x), axis=axis, keepdims=keepdims
+        return backend.ops.numpy.argmax(x, axis=axis, keepdims=keepdims)
+    nan_mask = backend.ops.numpy.isnan(x)
+    neg_inf = backend.ops.cast(float("-inf"), x.dtype)
+    result = backend.ops.numpy.argmax(
+        backend.ops.numpy.where(nan_mask, neg_inf, x),
+        axis=axis,
+        keepdims=keepdims,
     )
-    return ops.where(
-        ops.all(nan_mask, axis=axis, keepdims=keepdims),
-        ops.cast(-1, result.dtype),
+    return backend.ops.numpy.where(
+        backend.ops.numpy.all(nan_mask, axis=axis, keepdims=keepdims),
+        backend.ops.cast(-1, result.dtype),
         result,
     )
 
@@ -6006,15 +6008,17 @@ def _nanargmin(x, axis=None, keepdims=False):
         return backend.ops.numpy.nanargmin(x, axis=axis, keepdims=keepdims)
     x = backend.ops.convert_to_tensor(x)
     if not backend.is_float_dtype(x.dtype):
-        return ops.argmin(x, axis=axis, keepdims=keepdims)
-    nan_mask = ops.isnan(x)
-    pos_inf = ops.cast(float("inf"), x.dtype)
-    result = ops.argmin(
-        ops.where(nan_mask, pos_inf, x), axis=axis, keepdims=keepdims
+        return backend.ops.numpy.argmin(x, axis=axis, keepdims=keepdims)
+    nan_mask = backend.ops.numpy.isnan(x)
+    pos_inf = backend.ops.cast(float("inf"), x.dtype)
+    result = backend.ops.numpy.argmin(
+        backend.ops.numpy.where(nan_mask, pos_inf, x),
+        axis=axis,
+        keepdims=keepdims,
     )
-    return ops.where(
-        ops.all(nan_mask, axis=axis, keepdims=keepdims),
-        ops.cast(-1, result.dtype),
+    return backend.ops.numpy.where(
+        backend.ops.numpy.all(nan_mask, axis=axis, keepdims=keepdims),
+        backend.ops.cast(-1, result.dtype),
         result,
     )
 
