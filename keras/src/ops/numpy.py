@@ -5,7 +5,6 @@ import re
 import numpy as np
 
 from keras.src import backend
-from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
@@ -419,8 +418,10 @@ def _allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
         return backend.ops.numpy.allclose(
             x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan
         )
-    return ops.all(
-        ops.isclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
+    return backend.ops.numpy.all(
+        backend.ops.numpy.isclose(
+            x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan
+        )
     )
 
 
@@ -467,16 +468,16 @@ def _angle(x):
     x = backend.ops.convert_to_tensor(x)
     dtype = backend.standardize_dtype(x.dtype)
     if dtype in dtypes.COMPLEX_TYPES:
-        x_imag = ops.imag(x)
-        x_real = ops.real(x)
+        x_imag = backend.ops.numpy.imag(x)
+        x_real = backend.ops.numpy.real(x)
     else:
         if dtype == "int64":
             dtype = backend.floatx()
         else:
             dtype = dtypes.result_type(dtype, float)
-        x_real = ops.cast(x, dtype)
-        x_imag = ops.zeros_like(x_real)
-    return ops.arctan2(x_imag, x_real)
+        x_real = backend.ops.cast(x, dtype)
+        x_imag = backend.ops.numpy.zeros_like(x_real)
+    return backend.ops.numpy.arctan2(x_imag, x_real)
 
 
 class Any(Operation):
@@ -2663,8 +2664,8 @@ def _deg2rad(x):
         dtype = config.floatx()
     else:
         dtype = dtypes.result_type(x.dtype, float)
-    x = ops.cast(x, dtype)
-    return ops.multiply(x, python_math.pi / 180.0)
+    x = backend.ops.cast(x, dtype)
+    return backend.ops.numpy.multiply(x, python_math.pi / 180.0)
 
 
 class Rad2deg(Operation):
@@ -2714,8 +2715,8 @@ def _rad2deg(x):
         dtype = config.floatx()
     else:
         dtype = dtypes.result_type(x.dtype, float)
-    x = ops.cast(x, dtype)
-    return ops.multiply(x, 180.0 / python_math.pi)
+    x = backend.ops.cast(x, dtype)
+    return backend.ops.numpy.multiply(x, 180.0 / python_math.pi)
 
 
 class Diag(Operation):
@@ -4232,7 +4233,7 @@ def _hsplit(x, indices_or_sections):
     # 1D inputs are split along axis=0. Inputs with 2 or more dimensions are
     # split along axis=1.
     axis = 0 if len(x.shape) == 1 else 1
-    return ops.split(x, indices_or_sections, axis=axis)
+    return backend.ops.numpy.split(x, indices_or_sections, axis=axis)
 
 
 class Hypot(Operation):
@@ -5425,12 +5426,12 @@ def _fmax(x1, x2):
     )
     x1 = backend.ops.convert_to_tensor(x1, dtype)
     x2 = backend.ops.convert_to_tensor(x2, dtype)
-    res = ops.maximum(x1, x2)
+    res = backend.ops.numpy.maximum(x1, x2)
     if "float" not in dtype:
         return res
 
-    res = ops.where(ops.isnan(x2), x1, res)
-    return ops.where(ops.isnan(x1), x2, res)
+    res = backend.ops.numpy.where(backend.ops.numpy.isnan(x2), x1, res)
+    return backend.ops.numpy.where(backend.ops.numpy.isnan(x1), x2, res)
 
 
 class Median(Operation):
@@ -5691,12 +5692,12 @@ def _fmin(x1, x2):
     )
     x1 = backend.ops.convert_to_tensor(x1, dtype)
     x2 = backend.ops.convert_to_tensor(x2, dtype)
-    res = ops.minimum(x1, x2)
+    res = backend.ops.numpy.minimum(x1, x2)
     if "float" not in dtype:
         return res
 
-    res = ops.where(ops.isnan(x2), x1, res)
-    return ops.where(ops.isnan(x1), x2, res)
+    res = backend.ops.numpy.where(backend.ops.numpy.isnan(x2), x1, res)
+    return backend.ops.numpy.where(backend.ops.numpy.isnan(x1), x2, res)
 
 
 class Mod(Operation):
@@ -5795,7 +5796,12 @@ def _fmod(x1, x2):
         dtype = "int32"
     x1 = backend.ops.convert_to_tensor(x1, dtype)
     x2 = backend.ops.convert_to_tensor(x2, dtype)
-    return ops.multiply(ops.sign(x1), ops.mod(ops.abs(x1), ops.abs(x2)))
+    return backend.ops.numpy.multiply(
+        backend.ops.numpy.sign(x1),
+        backend.ops.numpy.mod(
+            backend.ops.numpy.abs(x1), backend.ops.numpy.abs(x2)
+        ),
+    )
 
 
 class Moveaxis(Operation):
@@ -6169,15 +6175,19 @@ def _nanmax(x, axis=None, keepdims=False):
         return backend.ops.numpy.nanmax(x, axis=axis, keepdims=keepdims)
     x = backend.ops.convert_to_tensor(x)
     if not backend.is_float_dtype(x.dtype):
-        return ops.max(x, axis=axis, keepdims=keepdims)
-    nan_mask = ops.isnan(x)
-    neg_inf = ops.cast(float("-inf"), x.dtype)
-    nan = ops.cast(float("nan"), x.dtype)
-    result = ops.max(
-        ops.where(nan_mask, neg_inf, x), axis=axis, keepdims=keepdims
+        return backend.ops.numpy.max(x, axis=axis, keepdims=keepdims)
+    nan_mask = backend.ops.numpy.isnan(x)
+    neg_inf = backend.ops.cast(float("-inf"), x.dtype)
+    nan = backend.ops.cast(float("nan"), x.dtype)
+    result = backend.ops.numpy.max(
+        backend.ops.numpy.where(nan_mask, neg_inf, x),
+        axis=axis,
+        keepdims=keepdims,
     )
-    return ops.where(
-        ops.all(nan_mask, axis=axis, keepdims=keepdims), nan, result
+    return backend.ops.numpy.where(
+        backend.ops.numpy.all(nan_mask, axis=axis, keepdims=keepdims),
+        nan,
+        result,
     )
 
 
@@ -6358,15 +6368,19 @@ def _nanmin(x, axis=None, keepdims=False):
         return backend.ops.numpy.nanmin(x, axis=axis, keepdims=keepdims)
     x = backend.ops.convert_to_tensor(x)
     if not backend.is_float_dtype(x.dtype):
-        return ops.min(x, axis=axis, keepdims=keepdims)
-    nan_mask = ops.isnan(x)
-    pos_inf = ops.cast(float("inf"), x.dtype)
-    nan = ops.cast(float("nan"), x.dtype)
-    result = ops.min(
-        ops.where(nan_mask, pos_inf, x), axis=axis, keepdims=keepdims
+        return backend.ops.numpy.min(x, axis=axis, keepdims=keepdims)
+    nan_mask = backend.ops.numpy.isnan(x)
+    pos_inf = backend.ops.cast(float("inf"), x.dtype)
+    nan = backend.ops.cast(float("nan"), x.dtype)
+    result = backend.ops.numpy.min(
+        backend.ops.numpy.where(nan_mask, pos_inf, x),
+        axis=axis,
+        keepdims=keepdims,
     )
-    return ops.where(
-        ops.all(nan_mask, axis=axis, keepdims=keepdims), nan, result
+    return backend.ops.numpy.where(
+        backend.ops.numpy.all(nan_mask, axis=axis, keepdims=keepdims),
+        nan,
+        result,
     )
 
 
@@ -8855,7 +8869,7 @@ def _vsplit(x, indices_or_sections):
     ):
         return backend.ops.numpy.vsplit(x, indices_or_sections)
     x = backend.ops.convert_to_tensor(x)
-    return ops.split(x, indices_or_sections, axis=0)
+    return backend.ops.numpy.split(x, indices_or_sections, axis=0)
 
 
 class Where(Operation):
@@ -10421,7 +10435,7 @@ def _dsplit(x, indices_or_sections):
     ):
         return backend.ops.numpy.dsplit(x, indices_or_sections)
     x = backend.ops.convert_to_tensor(x)
-    return ops.split(x, indices_or_sections, axis=2)
+    return backend.ops.numpy.split(x, indices_or_sections, axis=2)
 
 
 class ColumnStack(Operation):
