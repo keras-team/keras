@@ -6255,8 +6255,8 @@ def _nanmedian(x, axis=None, keepdims=False):
         return backend.ops.numpy.nanmedian(x, axis=axis, keepdims=keepdims)
     x = backend.ops.convert_to_tensor(x)
     if axis == () or axis == []:
-        return ops.cast(x, dtypes.result_type(x.dtype, float))
-    return ops.nanquantile(x, 0.5, axis=axis, keepdims=keepdims)
+        return backend.ops.cast(x, dtypes.result_type(x.dtype, float))
+    return backend.ops.numpy.nanquantile(x, 0.5, axis=axis, keepdims=keepdims)
 
 
 class Nanmin(Operation):
