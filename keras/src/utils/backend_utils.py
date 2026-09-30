@@ -15,11 +15,8 @@ def in_tf_graph():
         return True
 
     tf_mod = sys.modules.get("tensorflow")
-    if tf_mod is not None:
-        from keras.src.utils.module_utils import _is_namespace_package
-
-        if not _is_namespace_package(tf_mod):
-            return not tf_mod.executing_eagerly()
+    if tf_mod is not None and hasattr(tf_mod, "executing_eagerly"):
+        return not tf_mod.executing_eagerly()
     return False
 
 
