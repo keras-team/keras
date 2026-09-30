@@ -13,6 +13,7 @@ from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
 from keras.src.quantizers.quantizers import quantize_with_sz_map
 from keras.src.quantizers.quantizers import quantize_with_zero_point
+from keras.src.quantizers.quantizers import ternarize
 from keras.src.testing.test_utils import named_product
 
 
@@ -1085,3 +1086,31 @@ class GroupedQuantizationParametersTest(testing.TestCase):
                 (out_features, n_groups),
                 f"Failed for group_size={group_size}",
             )
+
+
+class TernarizeTest(testing.TestCase):
+    def test_default_threshold_returns_mean(self):
+        kernel = ops.array([[0.5, -0.5], [0.1, -1.5]], "float32")
+        codes, scale = ternarize(kernel)
+        # threshold = 0.5 * mean(|W|) = 0.325, so 0.1 maps to 0.
+        self.assertAllClose(codes, [[1.0, -1.0], [0.0, -1.0]])
+        self.assertAllClose(scale, 0.65)
+
+    def test_fixed_threshold_returns_unit_scale(self):
+        kernel = ops.array([[0.5, -0.5], [0.1, -1.5]], "float32")
+        codes, scale = ternarize(kernel, threshold=0.2)
+        self.assertAllClose(codes, [[1.0, -1.0], [0.0, -1.0]])
+        self.assertEqual(scale, 1.0)
+
+    def test_bfloat16_kernel_takes_mean_in_float32(self):
+        # A bfloat16 mean over many weights saturates when it accumulates
+        # in bfloat16 (as NumPy does), and a 0-d bfloat16 tensor does not
+        # convert to NumPy on TensorFlow.
+        values = np.random.RandomState(0).randn(512, 512)
+        kernel = ops.cast(values, "bfloat16")
+        codes, scale = ternarize(kernel)
+        exact = ops.convert_to_numpy(ops.cast(kernel, "float32"))
+        beta = np.mean(np.abs(exact), dtype="float64")
+        self.assertAllClose(scale, beta, rtol=1e-5)
+        expected = np.sign(exact) * (np.abs(exact) > 0.5 * beta)
+        self.assertAllClose(np.asarray(codes, "float32"), expected)

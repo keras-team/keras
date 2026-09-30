@@ -493,16 +493,23 @@ class GPTQ:
             quantized, self.original_layer.quantized_kernel.dtype
         )
 
+        # The algorithm works on `[out, in]`; the layer stores the kernel's
+        # own `[in, out]` orientation with the group parameters as
+        # `[n_groups, out]`, so the forward pass never transposes.
+        quantized = ops.transpose(quantized)
+        scale = ops.transpose(scale)
+        zero = ops.transpose(zero)
+
         if self.config.weight_bits == 4:
             # For 4-bit weights, we pack two values per byte.
             quantized, _, _ = quantizers.pack_int4(
-                quantized, axis=0, dtype="uint8"
+                quantized, axis=-1, dtype="uint8"
             )
         elif self.config.weight_bits == 2:
             # For 2-bit weights, we pack four values per byte (4x storage
             # reduction over the one-value-per-byte representation).
             quantized, _, _ = quantizers.pack_int2(
-                quantized, axis=0, dtype="uint8"
+                quantized, axis=-1, dtype="uint8"
             )
         # 3-bit weights are intentionally left unpacked: packing them densely
         # requires an irregular bitstream (3 does not divide 8), which would

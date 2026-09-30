@@ -90,9 +90,8 @@ change at all: declare its `family` and implement the strategy's
 
 import string
 
-import numpy as np
-
 from keras.src import ops
+from keras.src.quantizers.quantizers import ternarize
 
 
 class QuantizationGeometry:
@@ -212,20 +211,13 @@ class ProjectionGeometry(QuantizationGeometry):
     def ternary_values(self):
         """Returns `(ternary_kernel, scale)` for ternary quantization.
 
-        The default applies the BitNet b1.58 rule to the float kernel:
-        `threshold = 0.5 * mean(|W|)` and `scale = mean(|W|)`. A layer that
-        owns its own ternarization rule (`TernaryDense` and its straight-
-        through estimator) overrides this in its geometry.
+        The default applies the BitNet b1.58 rule to the float kernel
+        (`quantizers.ternarize`): `threshold = 0.5 * mean(|W|)` and
+        `scale = mean(|W|)`. A layer that owns its own ternarization rule
+        (`TernaryDense` and its straight-through estimator) overrides this
+        in its geometry.
         """
-        kernel = self.layer._kernel
-        kernel_np = ops.convert_to_numpy(kernel)
-        abs_k = ops.convert_to_numpy(ops.abs(kernel))
-        t = float(ops.convert_to_numpy(ops.mean(abs_k))) * 0.5
-        kernel_ternary = np.sign(kernel_np) * (abs_k > t).astype(
-            kernel_np.dtype
-        )
-        beta = float(np.mean(abs_k))
-        return kernel_ternary, beta
+        return ternarize(self.layer._kernel)
 
 
 def _lora_equations(equation):
