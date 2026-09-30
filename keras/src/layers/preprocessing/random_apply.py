@@ -103,7 +103,7 @@ class RandomApply(DataLayer):
         # One coin flip per sample (`batchwise=False`) or a single flip shared
         # by the whole batch (`batchwise=True`).
         num_draws = 1 if self.batchwise else self._sample_count(original)
-        apply = self.backend.numpy.less(
+        apply = self.backend.ops.numpy.less(
             self.backend.random.uniform(
                 shape=(num_draws,), minval=0.0, maxval=1.0, seed=seed
             ),
@@ -119,9 +119,11 @@ class RandomApply(DataLayer):
             # Broadcast the coin over the leaf's trailing axes. The same draw
             # is used for every leaf, so a structured input's image and its
             # bounding boxes stay aligned per sample.
-            rank = len(self.backend.shape(original_leaf))
-            mask = self.backend.numpy.reshape(apply, [-1] + [1] * (rank - 1))
-            return self.backend.numpy.where(
+            rank = len(self.backend.ops.shape(original_leaf))
+            mask = self.backend.ops.numpy.reshape(
+                apply, [-1] + [1] * (rank - 1)
+            )
+            return self.backend.ops.numpy.where(
                 mask, transformed_leaf, original_leaf
             )
 
@@ -134,7 +136,7 @@ class RandomApply(DataLayer):
         batched; lower ranks are treated as a single unbatched sample.
         """
         sample = tree.flatten(inputs)[0]
-        shape = self.backend.shape(sample)
+        shape = self.backend.ops.shape(sample)
         if len(shape) >= 4:
             return shape[0]
         return 1

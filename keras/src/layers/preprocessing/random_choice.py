@@ -99,13 +99,14 @@ class RandomChoice(DataLayer):
             # Select each candidate where `choice` equals its index. The same
             # `choice` is used for every leaf, so a structured input is
             # transformed by exactly one of the wrapped layers per sample.
-            rank = len(self.backend.shape(original_leaf))
+            rank = len(self.backend.ops.shape(original_leaf))
             result = candidate_leaves[0]
             for i in range(1, len(candidate_leaves)):
-                mask = self.backend.numpy.reshape(
-                    self.backend.numpy.equal(choice, i), [-1] + [1] * (rank - 1)
+                mask = self.backend.ops.numpy.reshape(
+                    self.backend.ops.numpy.equal(choice, i),
+                    [-1] + [1] * (rank - 1),
                 )
-                result = self.backend.numpy.where(
+                result = self.backend.ops.numpy.where(
                     mask, candidate_leaves[i], result
                 )
             return result
@@ -119,7 +120,7 @@ class RandomChoice(DataLayer):
         batched; lower ranks are treated as a single unbatched sample.
         """
         sample = tree.flatten(inputs)[0]
-        shape = self.backend.shape(sample)
+        shape = self.backend.ops.shape(sample)
         if len(shape) >= 4:
             return shape[0]
         return 1

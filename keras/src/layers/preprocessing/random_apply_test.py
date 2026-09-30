@@ -39,19 +39,19 @@ class RandomApplyTest(testing.TestCase):
         # training=False should always pass through regardless of `rate`.
         layer = RandomApply(_AddOne(), rate=1.0, seed=0)
         x = np.ones((4, 3, 3, 1), dtype="float32")
-        out = backend.convert_to_numpy(layer(x, training=False))
+        out = backend.ops.convert_to_numpy(layer(x, training=False))
         self.assertAllClose(out, x)
 
     def test_rate_one_always_applies(self):
         layer = RandomApply(_AddOne(), rate=1.0, seed=42)
         x = np.zeros((4, 3, 3, 1), dtype="float32")
-        out = backend.convert_to_numpy(layer(x, training=True))
+        out = backend.ops.convert_to_numpy(layer(x, training=True))
         self.assertAllClose(out, np.ones_like(x))
 
     def test_rate_zero_never_applies(self):
         layer = RandomApply(_AddOne(), rate=0.0, seed=42)
         x = np.zeros((4, 3, 3, 1), dtype="float32")
-        out = backend.convert_to_numpy(layer(x, training=True))
+        out = backend.ops.convert_to_numpy(layer(x, training=True))
         self.assertAllClose(out, x)
 
     def test_rate_half_mixes(self):
@@ -59,7 +59,7 @@ class RandomApplyTest(testing.TestCase):
         layer = RandomApply(_AddOne(), rate=0.5, seed=0)
         x = np.zeros((1, 1, 1, 1), dtype="float32")
         outs = [
-            backend.convert_to_numpy(layer(x, training=True)).item()
+            backend.ops.convert_to_numpy(layer(x, training=True)).item()
             for _ in range(100)
         ]
         seen_apply = any(v == 1.0 for v in outs)
@@ -82,7 +82,7 @@ class RandomApplyTest(testing.TestCase):
         # preserving outputs.
         layer = RandomApply(layers.RandomFlip("horizontal"), rate=0.5, seed=0)
         x = np.random.uniform(size=(2, 4, 4, 3)).astype("float32")
-        out = backend.convert_to_numpy(layer(x, training=True))
+        out = backend.ops.convert_to_numpy(layer(x, training=True))
         self.assertEqual(out.shape, x.shape)
 
     def _bbox_data(self):
@@ -110,10 +110,10 @@ class RandomApplyTest(testing.TestCase):
         self.assertIsInstance(out, dict)
         self.assertEqual(sorted(out.keys()), ["bounding_boxes", "images"])
         self.assertEqual(
-            backend.convert_to_numpy(out["images"]).shape, (2, 8, 8, 3)
+            backend.ops.convert_to_numpy(out["images"]).shape, (2, 8, 8, 3)
         )
         self.assertEqual(
-            backend.convert_to_numpy(out["bounding_boxes"]["boxes"]).shape,
+            backend.ops.convert_to_numpy(out["bounding_boxes"]["boxes"]).shape,
             (2, 1, 4),
         )
 
@@ -132,7 +132,7 @@ class RandomApplyTest(testing.TestCase):
             )
             out = layer(data, training=True)
             self.assertAllClose(
-                backend.convert_to_numpy(out["images"]), expected
+                backend.ops.convert_to_numpy(out["images"]), expected
             )
 
     def test_does_not_mutate_caller_structure(self):
@@ -248,7 +248,7 @@ class RandomApplyTest(testing.TestCase):
         seen_mixed = False
         for seed in range(20):
             layer = RandomApply(_AddOne(), rate=0.5, seed=seed)
-            out = backend.convert_to_numpy(layer(x, training=True))
+            out = backend.ops.convert_to_numpy(layer(x, training=True))
             per_sample = out.reshape((16, -1))[:, 0]
             if len(set(per_sample.tolist())) > 1:
                 seen_mixed = True
@@ -260,7 +260,7 @@ class RandomApplyTest(testing.TestCase):
         x = np.zeros((16, 2, 2, 1), dtype="float32")
         for seed in range(10):
             layer = RandomApply(_AddOne(), rate=0.5, batchwise=True, seed=seed)
-            out = backend.convert_to_numpy(layer(x, training=True))
+            out = backend.ops.convert_to_numpy(layer(x, training=True))
             per_sample = set(out.reshape((16, -1))[:, 0].tolist())
             self.assertEqual(len(per_sample), 1)
 

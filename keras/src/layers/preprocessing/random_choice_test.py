@@ -54,13 +54,13 @@ class RandomChoiceTest(testing.TestCase):
     def test_inference_is_noop(self):
         layer = RandomChoice([_AddConst(1.0), _AddConst(2.0)], seed=0)
         x = np.zeros((4, 3, 3, 1), dtype="float32")
-        out = backend.convert_to_numpy(layer(x, training=False))
+        out = backend.ops.convert_to_numpy(layer(x, training=False))
         self.assertAllClose(out, x)
 
     def test_single_layer_always_chosen(self):
         layer = RandomChoice([_AddConst(5.0)], seed=0)
         x = np.zeros((4, 3, 3, 1), dtype="float32")
-        out = backend.convert_to_numpy(layer(x, training=True))
+        out = backend.ops.convert_to_numpy(layer(x, training=True))
         self.assertAllClose(out, np.full_like(x, 5.0))
 
     def test_choice_covers_all_layers(self):
@@ -71,7 +71,7 @@ class RandomChoiceTest(testing.TestCase):
         )
         x = np.zeros((1, 1, 1, 1), dtype="float32")
         outs = {
-            backend.convert_to_numpy(layer(x, training=True)).item()
+            backend.ops.convert_to_numpy(layer(x, training=True)).item()
             for _ in range(200)
         }
         self.assertEqual(outs, {1.0, 2.0, 3.0})
@@ -98,7 +98,7 @@ class RandomChoiceTest(testing.TestCase):
             seed=0,
         )
         x = np.random.uniform(size=(2, 8, 8, 3)).astype("float32")
-        out = backend.convert_to_numpy(layer(x, training=True))
+        out = backend.ops.convert_to_numpy(layer(x, training=True))
         self.assertEqual(out.shape, x.shape)
 
     def test_dict_input_with_bounding_boxes(self):
@@ -123,7 +123,7 @@ class RandomChoiceTest(testing.TestCase):
         self.assertIsInstance(out, dict)
         self.assertEqual(sorted(out.keys()), ["bounding_boxes", "images"])
         self.assertEqual(
-            backend.convert_to_numpy(out["images"]).shape, (2, 8, 8, 3)
+            backend.ops.convert_to_numpy(out["images"]).shape, (2, 8, 8, 3)
         )
 
     def test_candidates_are_independent(self):
@@ -139,7 +139,9 @@ class RandomChoiceTest(testing.TestCase):
                 [_AddConstInPlace(1.0), _AddConstInPlace(10.0)], seed=seed
             )
             out = layer({"images": x}, training=True)
-            value = float(backend.convert_to_numpy(out["images"]).ravel()[0])
+            value = float(
+                backend.ops.convert_to_numpy(out["images"]).ravel()[0]
+            )
             seen.add(value)
         self.assertTrue(
             seen.issubset({1.0, 10.0}),
@@ -246,7 +248,7 @@ class RandomChoiceTest(testing.TestCase):
         seen_mixed = False
         for seed in range(20):
             layer = RandomChoice([_AddConst(1.0), _AddConst(2.0)], seed=seed)
-            out = backend.convert_to_numpy(layer(x, training=True))
+            out = backend.ops.convert_to_numpy(layer(x, training=True))
             per_sample = out.reshape((16, -1))[:, 0]
             if len(set(per_sample.tolist())) > 1:
                 seen_mixed = True
@@ -259,7 +261,7 @@ class RandomChoiceTest(testing.TestCase):
             layer = RandomChoice(
                 [_AddConst(1.0), _AddConst(2.0)], batchwise=True, seed=seed
             )
-            out = backend.convert_to_numpy(layer(x, training=True))
+            out = backend.ops.convert_to_numpy(layer(x, training=True))
             per_sample = set(out.reshape((16, -1))[:, 0].tolist())
             self.assertEqual(len(per_sample), 1)
 
