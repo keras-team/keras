@@ -3,7 +3,11 @@ import importlib
 
 class LazyModule:
     def __init__(
-        self, name, pip_name=None, import_error_msg=None, required_attr=None
+        self,
+        name,
+        pip_name=None,
+        import_error_msg=None,
+        required_attr="__version__",
     ):
         self.name = name
         self.pip_name = pip_name or name
@@ -37,8 +41,7 @@ class LazyModule:
 
     def initialize(self):
         module = self._import(self.name)
-        if self.required_attr is not None:
-            self._require(module, self.required_attr)
+        self._require(module, self.required_attr)
         self.module = module
 
     def __getattr__(self, name):
@@ -57,9 +60,7 @@ class OrbaxLazyModule(LazyModule):
         parent_module = self._import("orbax.checkpoint")
         self._require(parent_module, "v1")
         v1_module = parent_module.v1
-
-        if self.required_attr is not None:
-            self._require(v1_module, self.required_attr)
+        self._require(v1_module, self.required_attr)
 
         self.module = v1_module
         self.parent_module = parent_module
@@ -74,14 +75,14 @@ class OrbaxLazyModule(LazyModule):
         return getattr(self.module, name)
 
 
-tensorflow = LazyModule("tensorflow", required_attr="__version__")
+tensorflow = LazyModule("tensorflow")
 gfile = LazyModule(
     "tensorflow.io.gfile", pip_name="tensorflow", required_attr="GFile"
 )
-tensorflow_io = LazyModule("tensorflow_io", required_attr="__version__")
-scipy = LazyModule("scipy", required_attr="__version__")
-jax = LazyModule("jax", required_attr="__version__")
-h5py = LazyModule("h5py", required_attr="__version__")
+tensorflow_io = LazyModule("tensorflow_io")
+scipy = LazyModule("scipy")
+jax = LazyModule("jax")
+h5py = LazyModule("h5py")
 torch_xla = LazyModule(
     "torch_xla",
     import_error_msg=(
@@ -92,14 +93,13 @@ torch_xla = LazyModule(
         "with. Use the following command to update LD_LIBRARY_PATH: "
         "`export LD_LIBRARY_PATH=<path to Python>/lib:$LD_LIBRARY_PATH`"
     ),
-    required_attr="__version__",
 )
-optree = LazyModule("optree", required_attr="__version__")
-dmtree = LazyModule("tree", required_attr="__version__")
-tf2onnx = LazyModule("tf2onnx", required_attr="__version__")
+optree = LazyModule("optree")
+dmtree = LazyModule("tree")
+tf2onnx = LazyModule("tf2onnx")
 jax2onnx = LazyModule("jax2onnx", required_attr="to_onnx")
-grain = LazyModule("grain", required_attr="__version__")
-litert = LazyModule("ai_edge_litert", required_attr="__version__")
+grain = LazyModule("grain")
+litert = LazyModule("ai_edge_litert")
 ocp = OrbaxLazyModule(
     "orbax.checkpoint.v1",
     pip_name="orbax-checkpoint",
