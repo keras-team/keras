@@ -23,6 +23,11 @@ def pearson_correlation(y_true, y_pred, axis=-1):
     Returns:
         Pearson Correlation Coefficient tensor.
 
+    Note:
+        Rows with zero variance along `axis` are mapped to `0` instead of
+        `NaN`, so that a single degenerate batch does not poison the running
+        metric state.
+
     Example:
 
     >>> y_true = [[0, 1, 0.5], [1, 1, 0.2]]
@@ -39,8 +44,14 @@ def pearson_correlation(y_true, y_pred, axis=-1):
     y_true_norm = y_true - ops.mean(y_true, axis=axis, keepdims=True)
     y_pred_norm = y_pred - ops.mean(y_pred, axis=axis, keepdims=True)
 
-    y_true_norm = y_true_norm / ops.std(y_true_norm, axis=axis, keepdims=True)
-    y_pred_norm = y_pred_norm / ops.std(y_pred_norm, axis=axis, keepdims=True)
+    # A zero-variance row has numerator 0 and std 0; divide_no_nan maps that
+    # 0/0 to 0 instead of NaN (sklearn's force_finite=True behavior).
+    y_true_norm = ops.divide_no_nan(
+        y_true_norm, ops.std(y_true_norm, axis=axis, keepdims=True)
+    )
+    y_pred_norm = ops.divide_no_nan(
+        y_pred_norm, ops.std(y_pred_norm, axis=axis, keepdims=True)
+    )
 
     return ops.mean(y_true_norm * y_pred_norm, axis=axis)
 
