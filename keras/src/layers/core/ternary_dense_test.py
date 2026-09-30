@@ -144,8 +144,10 @@ class TernaryDenseTest(testing.TestCase):
 
         layer.quantize("ternary")
         self.assertEqual(layer.quantization_mode, "ternary")
-        # The float kernel is gone; only the packed kernel + scale remain.
-        self.assertFalse(hasattr(layer, "kernel"))
+        # `kernel` is now the unpacked `{-1, 0, +1}` view of the packed codes.
+        k = ops.convert_to_numpy(layer.kernel)
+        self.assertEqual(k.shape, (11, 16))
+        self.assertTrue(set(np.unique(k).tolist()) <= {-1, 0, 1})
         self.assertEqual(
             backend.standardize_dtype(layer._packed_kernel.dtype), "uint8"
         )

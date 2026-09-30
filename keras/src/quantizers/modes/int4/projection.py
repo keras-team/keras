@@ -1,14 +1,13 @@
+"""int4 handlers for the projection family (`Dense`, `EinsumDense`)."""
+
 import math
 
 from keras.src import ops
-from keras.src.dtype_policies.dtype_policy import Int4DTypePolicy
-from keras.src.dtype_policies.dtype_policy import QuantizedDTypePolicy
-from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
-from keras.src.quantizers.modes.common import GeometryDispatchStrategy
 from keras.src.quantizers.modes.common import apply_bias_activation
+from keras.src.quantizers.modes.int4.block_size import is_grouped
+from keras.src.quantizers.modes.int4.block_size import is_per_channel
 from keras.src.quantizers.packing import pack_int4
 from keras.src.quantizers.packing import unpack_int4
-from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
 from keras.src.quantizers.quantizers import (
@@ -17,85 +16,8 @@ from keras.src.quantizers.quantizers import (
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 
 
-def _is_per_channel(block_size):
-    """Whether `block_size` selects per-channel (ungrouped) quantization.
-
-    `block_size` is validated to be `None`, `-1`, or a positive integer by
-    both `Int4QuantizationConfig` and the policy-string codec, so `None`
-    and `-1` are the two spellings of per-channel.
-    """
-    return block_size is None or block_size == -1
-
-
-def _is_grouped(block_size):
-    """Whether `block_size` selects sub-channel (grouped) quantization."""
-    return not _is_per_channel(block_size)
-
-
-class Int4Strategy(GeometryDispatchStrategy):
-    """W4A16 weight-only quantization (packed int4 weights)."""
-
-    name = "int4"
-    config_cls = Int4QuantizationConfig
-    # Packed sub-byte storage: two int4 values per byte.
-    summary_byte_multiplier = 2
-
-    def resolve_block_size(self, layer, config):
-        """Determine the block size for int4 quantization.
-
-        The block size can be specified either through the `config` argument
-        or through the `dtype_policy` if it is of type `Int4DTypePolicy`.
-
-        The config argument is usually available when quantizing the layer
-        via the `quantize` method. If the layer was deserialized from a
-        saved model, the block size should be specified in the
-        `dtype_policy`.
-
-        Args:
-            layer: The layer being quantized.
-            config: An optional configuration object that may contain the
-                `block_size` attribute.
-        Returns:
-            int or None. The determined block size for int4 quantization.
-            Returns `None` or `-1` for per-channel quantization.
-        """
-        if isinstance(config, Int4QuantizationConfig):
-            return config.block_size
-        elif isinstance(layer.dtype_policy, Int4DTypePolicy):
-            block_size = layer.dtype_policy.block_size
-            # Convert -1 to None for consistency
-            return None if block_size == -1 else block_size
-        elif isinstance(layer.dtype_policy, DTypePolicyMap):
-            policy = layer.dtype_policy[layer.path]
-            if isinstance(policy, Int4DTypePolicy):
-                block_size = policy.block_size
-                return None if block_size == -1 else block_size
-            # Fall back to None for legacy QuantizedDTypePolicy
-            return None
-        else:
-            # For backwards compatibility with models that don't have
-            # Int4DTypePolicy (legacy per-channel mode)
-            return None
-
-    def policy_from_string(self, mode_str, source_name):
-        # Legacy bare "int4" policies carry no block size and stay generic
-        # (they resolve to per-channel quantization on reload).
-        if "/" in mode_str:
-            return Int4DTypePolicy(mode_str, source_name)
-        else:
-            return QuantizedDTypePolicy(mode_str, source_name)
-
-    def config_from_policy(self, policy):
-        if isinstance(policy, Int4DTypePolicy):
-            return Int4QuantizationConfig(block_size=policy.block_size)
-        return Int4QuantizationConfig()
-
-    def policy_suffix(self, layer, config):
-        # Include block_size in policy name for sub-channel quantization.
-        block_size = self.resolve_block_size(layer, config)
-        # Use -1 for per-channel, otherwise use block_size
-        block_size_value = -1 if block_size is None else block_size
-        return f"int4/{block_size_value}"
+class Int4ProjectionHandlers:
+    """`_build_projection` / `_call_projection` / `_quantize_projection`."""
 
     # --- Projection (Dense, EinsumDense) ----------------------------------
     #
@@ -124,7 +46,7 @@ class Int4Strategy(GeometryDispatchStrategy):
             dtype="int8",
             trainable=False,
         )
-        if _is_per_channel(block_size):
+        if is_per_channel(block_size):
             scale_shape = (columns,)
         else:
             scale_shape = (math.ceil(rows / block_size), columns)
@@ -134,7 +56,7 @@ class Int4Strategy(GeometryDispatchStrategy):
             initializer="ones",
             trainable=False,
         )
-        if _is_grouped(block_size):
+        if is_grouped(block_size):
             # Grouped quantization is asymmetric: a zero point per group and
             # the row-to-group index.
             def idx_initializer(shape, dtype):
@@ -167,7 +89,7 @@ class Int4Strategy(GeometryDispatchStrategy):
 
     def _call_projection(self, layer, inputs, training=None):
         geometry = layer._quantization_geometry()
-        grouped = _is_grouped(layer._int4_block_size)
+        grouped = is_grouped(layer._int4_block_size)
 
         @ops.custom_gradient
         def contract_with_inputs_gradient(
@@ -244,7 +166,7 @@ class Int4Strategy(GeometryDispatchStrategy):
         rows, columns = geometry.rows_columns(kernel_shape)
         flat_kernel = ops.reshape(layer._kernel, (rows, columns))
 
-        if _is_per_channel(block_size):
+        if is_per_channel(block_size):
             # Symmetric codes with one scale per column.
             weight_quantizer = QuantizationConfig.weight_quantizer_or_default(
                 config,

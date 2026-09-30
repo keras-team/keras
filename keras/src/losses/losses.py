@@ -1,4 +1,7 @@
+import numbers
 import warnings
+
+import numpy as np
 
 from keras.src import backend
 from keras.src import ops
@@ -10,6 +13,27 @@ from keras.src.losses.loss import squeeze_or_expand_to_same_rank
 from keras.src.saving import serialization_lib
 from keras.src.utils.numerical_utils import build_pos_neg_masks
 from keras.src.utils.numerical_utils import normalize
+
+
+def _validate_label_smoothing(label_smoothing):
+    """Validate a static `label_smoothing` argument.
+
+    Tensor values are skipped (validated at runtime by the ops themselves).
+    """
+    if not ops.is_tensor(label_smoothing) or np.isscalar(label_smoothing):
+        if isinstance(label_smoothing, (bool, np.bool_)) or not isinstance(
+            label_smoothing, numbers.Real
+        ):
+            raise ValueError(
+                "`label_smoothing` must be a float or int. "
+                f"Received: label_smoothing={label_smoothing}"
+            )
+        value = float(label_smoothing)
+        if not 0 <= value <= 1:
+            raise ValueError(
+                "`label_smoothing` must be in the range [0, 1]. "
+                f"Received: label_smoothing={label_smoothing}"
+            )
 
 
 class LossFunctionWrapper(Loss):
@@ -2195,6 +2219,8 @@ def categorical_crossentropy(
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
 
+    _validate_label_smoothing(label_smoothing)
+
     if y_pred.shape is not None:
         axis = canonicalize_axis(axis, len(y_pred.shape))
         if y_pred.shape[axis] == 1:
@@ -2452,6 +2478,8 @@ def binary_crossentropy(
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
+
+    _validate_label_smoothing(label_smoothing)
 
     if label_smoothing:
         y_true = y_true * (1.0 - label_smoothing) + 0.5 * label_smoothing

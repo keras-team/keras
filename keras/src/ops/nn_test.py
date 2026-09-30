@@ -318,6 +318,113 @@ class NNOpsDynamicShapeTest(testing.TestCase):
             ),
         )
 
+    def test_adaptive_max_pool(self):
+        # 1D, 2D, and 3D symbolic inputs with channels_last and channels_first
+        x_1d = KerasTensor((None, 16, 3))
+        self.assertEqual(
+            knn.adaptive_max_pool(x_1d, 8, data_format="channels_last").shape,
+            (None, 8, 3),
+        )
+        self.assertEqual(
+            knn.adaptive_max_pool(
+                x_1d, (8,), data_format="channels_last"
+            ).shape,
+            (None, 8, 3),
+        )
+
+        x_2d_cl = KerasTensor((2, 64, 64, 3))
+        self.assertEqual(
+            knn.adaptive_max_pool(
+                x_2d_cl, (32, 16), data_format="channels_last"
+            ).shape,
+            (2, 32, 16, 3),
+        )
+        self.assertEqual(
+            knn.adaptive_max_pool(
+                x_2d_cl, [32, 16], data_format="channels_last"
+            ).shape,
+            (2, 32, 16, 3),
+        )
+        self.assertEqual(
+            knn.adaptive_max_pool(
+                x_2d_cl, 7, data_format="channels_last"
+            ).shape,
+            (2, 7, 7, 3),
+        )
+
+        x_2d_cf = KerasTensor((2, 3, 64, 64))
+        self.assertEqual(
+            knn.adaptive_max_pool(
+                x_2d_cf, (32, 16), data_format="channels_first"
+            ).shape,
+            (2, 3, 32, 16),
+        )
+        self.assertEqual(
+            knn.adaptive_max_pool(
+                x_2d_cf, 7, data_format="channels_first"
+            ).shape,
+            (2, 3, 7, 7),
+        )
+
+        x_3d_cl = KerasTensor((2, 16, 16, 16, 3))
+        self.assertEqual(
+            knn.adaptive_max_pool(
+                x_3d_cl, 4, data_format="channels_last"
+            ).shape,
+            (2, 4, 4, 4, 3),
+        )
+
+    def test_adaptive_average_pool(self):
+        x_1d = KerasTensor((None, 16, 3))
+        self.assertEqual(
+            knn.adaptive_average_pool(
+                x_1d, 8, data_format="channels_last"
+            ).shape,
+            (None, 8, 3),
+        )
+
+        x_2d_cl = KerasTensor((2, 64, 64, 3))
+        self.assertEqual(
+            knn.adaptive_average_pool(
+                x_2d_cl, (32, 16), data_format="channels_last"
+            ).shape,
+            (2, 32, 16, 3),
+        )
+        self.assertEqual(
+            knn.adaptive_average_pool(
+                x_2d_cl, [32, 16], data_format="channels_last"
+            ).shape,
+            (2, 32, 16, 3),
+        )
+        self.assertEqual(
+            knn.adaptive_average_pool(
+                x_2d_cl, 7, data_format="channels_last"
+            ).shape,
+            (2, 7, 7, 3),
+        )
+
+        x_2d_cf = KerasTensor((2, 3, 64, 64))
+        self.assertEqual(
+            knn.adaptive_average_pool(
+                x_2d_cf, (32, 16), data_format="channels_first"
+            ).shape,
+            (2, 3, 32, 16),
+        )
+        self.assertEqual(
+            knn.adaptive_average_pool(
+                x_2d_cf, 7, data_format="channels_first"
+            ).shape,
+            (2, 3, 7, 7),
+        )
+
+        x_3d_cl = KerasTensor((2, 16, 16, 16, 3))
+        self.assertEqual(
+            knn.adaptive_average_pool(
+                x_3d_cl, 4, data_format="channels_last"
+            ).shape,
+            (2, 4, 4, 4, 3),
+        )
+
     def test_multi_hot(self):
         x = KerasTensor([None, 3, 1])
         self.assertEqual(knn.multi_hot(x, 5).shape, (None, 1, 5))
@@ -682,6 +789,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knn.one_hot(x, 5).shape, (None, 3, 1, 5))
         self.assertEqual(knn.one_hot(x, 5, 1).shape, (None, 5, 3, 1))
         self.assertEqual(knn.one_hot(x, 5, 2).shape, (None, 3, 5, 1))
+        self.assertEqual(knn.one_hot(x, 5, -2).shape, (None, 3, 5, 1))
         self.assertSparse(knn.one_hot(x, 5, sparse=True))
 
     @parameterized.named_parameters(
@@ -1301,6 +1409,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knn.one_hot(x, 5).shape, (2, 3, 1, 5))
         self.assertEqual(knn.one_hot(x, 5, 1).shape, (2, 5, 3, 1))
         self.assertEqual(knn.one_hot(x, 5, 2).shape, (2, 3, 5, 1))
+        self.assertEqual(knn.one_hot(x, 5, -2).shape, (2, 3, 5, 1))
         self.assertSparse(knn.one_hot(x, 5, sparse=True))
 
     def test_binary_crossentropy(self):
@@ -1742,6 +1851,32 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.max_pool(x, 2, (2, 1), padding="same"),
             np_maxpool2d(x, 2, (2, 1), padding="same", data_format=data_format),
         )
+
+    def test_adaptive_max_pool(self):
+        x = np.ones((2, 64, 64, 3), dtype="float32")
+        y = knn.adaptive_max_pool(
+            x, output_size=(32, 32), data_format="channels_last"
+        )
+        self.assertEqual(y.shape, (2, 32, 32, 3))
+
+        x_cf = np.ones((2, 3, 64, 64), dtype="float32")
+        y_cf = knn.adaptive_max_pool(
+            x_cf, output_size=(32, 32), data_format="channels_first"
+        )
+        self.assertEqual(y_cf.shape, (2, 3, 32, 32))
+
+    def test_adaptive_average_pool(self):
+        x = np.ones((2, 64, 64, 3), dtype="float32")
+        y = knn.adaptive_average_pool(
+            x, output_size=(32, 32), data_format="channels_last"
+        )
+        self.assertEqual(y.shape, (2, 32, 32, 3))
+
+        x_cf = np.ones((2, 3, 64, 64), dtype="float32")
+        y_cf = knn.adaptive_average_pool(
+            x_cf, output_size=(32, 32), data_format="channels_first"
+        )
+        self.assertEqual(y_cf.shape, (2, 3, 32, 32))
 
     def test_average_pool_valid_padding(self):
         data_format = backend.config.image_data_format()
@@ -2271,6 +2406,11 @@ class NNOpsCorrectnessTest(testing.TestCase):
             output_2d, np.transpose(np.eye(4)[indices_2d], (0, 2, 1))
         )
         self.assertSparse(output_2d, sparse)
+        output_2d = knn.one_hot(indices_2d, 4, axis=-2, sparse=sparse)
+        self.assertAllClose(
+            output_2d, np.transpose(np.eye(4)[indices_2d], (0, 2, 1))
+        )
+        self.assertSparse(output_2d, sparse)
 
         # Test 1D one-hot with 1 extra dimension.
         indices_1d = np.array([[0], [1], [2], [3]])
@@ -2341,6 +2481,47 @@ class NNOpsCorrectnessTest(testing.TestCase):
         expected = -(target * np.log(probs) + (1 - target) * np.log(1 - probs))
         self.assertEqual(tuple(result.shape), shape)
         self.assertAllClose(result, expected)
+
+    @parameterized.product(
+        target_dtype=["int32", "bool", "float32"],
+        output_dtype=["float32", "float16", "bfloat16"],
+        from_logits=[True, False],
+    )
+    def test_binary_crossentropy_target_dtype(
+        self, target_dtype, output_dtype, from_logits
+    ):
+        target = np.array([0, 1, 1, 0]).astype(target_dtype)
+        output = np.array([0.1, 0.9, 0.8, 0.2]).astype(output_dtype)
+        result = knn.binary_crossentropy(
+            target, output, from_logits=from_logits
+        )
+        t = target.astype("float64")
+        o = output.astype("float64")
+        probs = 1.0 / (1.0 + np.exp(-o)) if from_logits else o
+        expected = -(t * np.log(probs) + (1 - t) * np.log(1 - probs))
+        tol = {"float32": 1e-6, "float16": 1e-3, "bfloat16": 1e-2}[output_dtype]
+        self.assertAllClose(result, expected, atol=tol, rtol=tol)
+
+    @parameterized.parameters(
+        ("int32", True), ("int32", False), ("uint8", False), ("bool", False)
+    )
+    def test_binary_crossentropy_non_float_output(
+        self, output_dtype, from_logits
+    ):
+        target = np.array([0.0, 1.0, 1.0, 0.0], "float32")
+        output = np.array([0, 1, 1, 0]).astype(output_dtype)
+        result = knn.binary_crossentropy(
+            target, output, from_logits=from_logits
+        )
+        o = output.astype("float64")
+        probs = 1.0 / (1.0 + np.exp(-o)) if from_logits else o
+        probs = np.clip(probs, 1e-7, 1 - 1e-7)
+        expected = -(target * np.log(probs) + (1 - target) * np.log(1 - probs))
+        self.assertAllClose(result, expected, atol=1e-6, rtol=1e-6)
+        symbolic = knn.binary_crossentropy(
+            KerasTensor((4,), "float32"), KerasTensor((4,), output_dtype)
+        )
+        self.assertEqual(symbolic.dtype, backend.floatx())
 
     def test_categorical_crossentropy(self):
         target = np.array(
@@ -2716,6 +2897,10 @@ class NNOpsCorrectnessTest(testing.TestCase):
             [[1e-1, 1e-3]],
         )
 
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_GRADIENT,
+        reason="Backend does not support gradients.",
+    )
     def test_normalize_l2_zero_vector_gradients(self):
         # The L2 (order=2) fast path must not produce NaN gradients for a zero
         # vector: rsqrt(0) is inf and its derivative is 0 * inf = NaN, which a
@@ -2724,33 +2909,10 @@ class NNOpsCorrectnessTest(testing.TestCase):
         epsilon = 1e-3
         expected_grad = np.full((3,), 1.0 / epsilon, dtype="float32")
 
-        if backend.backend() == "tensorflow":
-            import tensorflow as tf
+        def f(x):
+            return knn.normalize(x, axis=-1, order=2, epsilon=epsilon)
 
-            x = tf.Variable([0.0, 0.0, 0.0])
-            with tf.GradientTape() as tape:
-                y = knn.normalize(x, axis=-1, order=2, epsilon=epsilon)
-                loss = tf.reduce_sum(y)
-            x_grad = tape.gradient(loss, x)
-        elif backend.backend() == "jax":
-            import jax
-            import jax.numpy as jnp
-
-            def f(x):
-                return jnp.sum(
-                    knn.normalize(x, axis=-1, order=2, epsilon=epsilon)
-                )
-
-            x_grad = jax.grad(f)(jnp.array([0.0, 0.0, 0.0]))
-        elif backend.backend() == "torch":
-            import torch
-
-            x = torch.zeros(3, requires_grad=True)
-            y = knn.normalize(x, axis=-1, order=2, epsilon=epsilon)
-            y.sum().backward()
-            x_grad = x.grad
-        else:
-            self.skipTest("Gradient test requires tensorflow, jax or torch.")
+        x_grad = ops.grad(f)(ops.zeros((3,)))
 
         x_grad = ops.convert_to_numpy(x_grad)
         self.assertFalse(np.isnan(x_grad).any())

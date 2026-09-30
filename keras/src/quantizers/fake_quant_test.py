@@ -263,8 +263,8 @@ class FakeQuantTest(testing.TestCase):
         ]
     )
     @pytest.mark.skipif(
-        backend.backend() not in ("tensorflow", "jax", "torch"),
-        reason=f"{backend.backend()} doesn't support `custom_gradient`.",
+        not backend.SUPPORTS_GRADIENT,
+        reason="Backend does not support gradients.",
     )
     def test_fake_quant_with_min_max_vars(
         self,
@@ -335,71 +335,12 @@ class FakeQuantTest(testing.TestCase):
         )
 
         # Test gradients.
-        if backend.backend() == "tensorflow":
-            import tensorflow as tf
+        def quantize_fn(x):
+            return quantizers.fake_quant_with_min_max_vars(
+                x, input_min, input_max, num_bits, narrow_range, axis
+            )
 
-            @tf.function(jit_compile=True)
-            def test_op(
-                inputs, input_mins, input_maxs, num_bits, narrow_range, axis
-            ):
-                with tf.GradientTape() as tape:
-                    tape.watch(inputs)
-                    result = quantizers.fake_quant_with_min_max_vars(
-                        inputs,
-                        input_mins,
-                        input_maxs,
-                        num_bits,
-                        narrow_range,
-                        axis,
-                    )
-                return initial_gradients * tape.gradient(result, inputs)
-
-        if backend.backend() == "torch":
-            import torch
-
-            def test_op(
-                inputs, input_mins, input_maxs, num_bits, narrow_range, axis
-            ):
-                # Create tensor and enable gradient tracking
-                inputs = torch.tensor(
-                    inputs, dtype=torch.float32, requires_grad=True
-                )
-
-                # Apply the quantization operation
-                result = quantizers.fake_quant_with_min_max_vars(
-                    inputs, input_mins, input_maxs, num_bits, narrow_range, axis
-                )
-
-                # Compute gradients
-                result.backward(torch.ones_like(result))
-
-                return initial_gradients * inputs.grad
-
-        if backend.backend() == "jax":
-            import jax
-
-            def test_op(
-                inputs, input_mins, input_maxs, num_bits, narrow_range, axis
-            ):
-                # Define the function to compute gradients for
-                def quantize_fn(x):
-                    return ops.sum(
-                        quantizers.fake_quant_with_min_max_vars(
-                            x,
-                            input_mins,
-                            input_maxs,
-                            num_bits,
-                            narrow_range,
-                            axis,
-                        )
-                    )
-
-                input_gradients = jax.grad(quantize_fn)(inputs)
-                return ops.multiply(initial_gradients, input_gradients)
-
-        gradients = test_op(
-            inputs, input_min, input_max, num_bits, narrow_range, axis
-        )
+        gradients = initial_gradients * ops.grad(quantize_fn)(inputs)
         if not testing.jax_uses_gpu():
             # JAX GPU produces less precise numbers, causing the CI to fail.
             # For example, 127.5 / 255.0 results in 0.49999997 instead of 0.5.

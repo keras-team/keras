@@ -741,6 +741,7 @@ def _adaptive_max_pool3d(inputs, output_size, data_format="channels_first"):
 
 
 def adaptive_average_pool(inputs, output_size, data_format=None):
+    inputs = convert_to_tensor(inputs)
     data_format = backend.standardize_data_format(data_format)
     ndims = len(inputs.shape) - 2
     if ndims == 1:
@@ -756,6 +757,7 @@ def adaptive_average_pool(inputs, output_size, data_format=None):
 
 
 def adaptive_max_pool(inputs, output_size, data_format=None):
+    inputs = convert_to_tensor(inputs)
     data_format = backend.standardize_data_format(data_format)
     ndims = len(inputs.shape) - 2
     if ndims == 1:
@@ -1270,11 +1272,10 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
         dtype = "float32"
     else:
         dtype = backend.standardize_dtype(dtype)
+    axis = canonicalize_axis(axis, len(x.shape) + 1)
     if sparse:
         # We don't use `tf.sparse.bincount`, it doesn't handle negative indices
         # and only support rank 1 and 2 tensors (`one_hot` adds a dimension).
-        if axis < 0:
-            axis = axis + len(x.shape) + 1
         values_count = math.prod(x.shape)
         values = tf.reshape(x, (values_count,))
         # We deal with negative inputs by having zeros in the output although
@@ -1531,6 +1532,9 @@ def binary_crossentropy(target, output, from_logits=False):
     """
     target = tf.convert_to_tensor(target)
     output = tf.convert_to_tensor(output)
+    if not backend.is_float_dtype(output.dtype):
+        output = tf.cast(output, backend.floatx())
+    target = tf.cast(target, output.dtype)
 
     if len(target.shape) != len(output.shape):
         raise ValueError(

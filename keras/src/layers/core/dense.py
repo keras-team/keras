@@ -7,7 +7,6 @@ from keras.src import regularizers
 from keras.src.api_export import keras_export
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
-from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.geometry import ProjectionGeometry
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.saving import serialization_lib
@@ -125,10 +124,7 @@ class Dense(Layer):
                 mode=self.quantization_mode,
                 config=self.quantization_config,
             )
-        strategy = strategy_registry.get_strategy(self.quantization_mode)
-        if strategy is None or not strategy.owns_weight_storage:
-            # Modes that own their weight storage created the kernel in
-            # quantized_build.
+        if not self._strategy_owns_weight_storage():
             self._kernel = self.add_weight(
                 name="kernel",
                 shape=kernel_shape,
@@ -526,12 +522,6 @@ class Dense(Layer):
                 "g_idx",
             ],
         }
-
-    def quantize(self, mode=None, type_check=True, config=None):
-        # Prevent quantization of the subclasses.
-        if type_check and type(self) is not Dense:
-            raise self._not_implemented_error(self.quantize)
-        self._registry_quantize(mode, config)
 
     def _quantization_geometry(self):
         return ProjectionGeometry(self)

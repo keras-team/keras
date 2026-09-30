@@ -21,6 +21,7 @@ from keras.src.backend.common.backend_utils import (
 from keras.src.ops import operation_utils
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import reduce_shape
+from keras.src.utils.argument_validation import standardize_tuple
 
 
 class Relu(Operation):
@@ -1206,7 +1207,7 @@ class AdaptiveMaxPool(Operation):
     def __init__(self, output_size, data_format=None, *, name=None):
         super().__init__(name=name)
         self.output_size = output_size
-        self.data_format = data_format
+        self.data_format = standardize_data_format(data_format)
 
     def call(self, inputs):
         return backend.ops.nn.adaptive_max_pool(
@@ -1214,15 +1215,15 @@ class AdaptiveMaxPool(Operation):
         )
 
     def compute_output_spec(self, inputs):
+        num_spatial_dims = len(inputs.shape) - 2
+        spatial_dims = standardize_tuple(
+            self.output_size, num_spatial_dims, "output_size"
+        )
         if self.data_format == "channels_last":
-            spatial_dims = self.output_size
             output_shape = (
-                inputs.shape[: -len(self.output_size)]
-                + spatial_dims
-                + (inputs.shape[-1],)
+                (inputs.shape[0],) + spatial_dims + (inputs.shape[-1],)
             )
         else:
-            spatial_dims = self.output_size
             output_shape = (inputs.shape[0], inputs.shape[1]) + spatial_dims
         return backend.KerasTensor(output_shape, dtype=inputs.dtype)
 
@@ -1270,8 +1271,7 @@ def adaptive_max_pool(
     >>> y.shape
     (2, 7, 7, 3)
     """
-    if data_format is None:
-        data_format = config.image_data_format()
+    data_format = standardize_data_format(data_format)
 
     if any_symbolic_tensors((inputs,)):
         return AdaptiveMaxPool(output_size, data_format).symbolic_call(inputs)
@@ -1382,7 +1382,7 @@ class AdaptiveAveragePool(Operation):
     def __init__(self, output_size, data_format=None, *, name=None):
         super().__init__(name=name)
         self.output_size = output_size
-        self.data_format = data_format
+        self.data_format = standardize_data_format(data_format)
 
     def call(self, inputs):
         return backend.ops.nn.adaptive_average_pool(
@@ -1390,15 +1390,15 @@ class AdaptiveAveragePool(Operation):
         )
 
     def compute_output_spec(self, inputs):
+        num_spatial_dims = len(inputs.shape) - 2
+        spatial_dims = standardize_tuple(
+            self.output_size, num_spatial_dims, "output_size"
+        )
         if self.data_format == "channels_last":
-            spatial_dims = self.output_size
             output_shape = (
-                inputs.shape[: -len(self.output_size)]
-                + spatial_dims
-                + (inputs.shape[-1],)
+                (inputs.shape[0],) + spatial_dims + (inputs.shape[-1],)
             )
         else:
-            spatial_dims = self.output_size
             output_shape = (inputs.shape[0], inputs.shape[1]) + spatial_dims
         return backend.KerasTensor(output_shape, dtype=inputs.dtype)
 
@@ -1449,8 +1449,7 @@ def adaptive_average_pool(
     >>> y.shape
     (2, 7, 7, 3)
     """
-    if data_format is None:
-        data_format = config.image_data_format()
+    data_format = standardize_data_format(data_format)
 
     if any_symbolic_tensors((inputs,)):
         return AdaptiveAveragePool(output_size, data_format).symbolic_call(
@@ -1935,15 +1934,8 @@ class OneHot(Operation):
 
     def compute_output_spec(self, x):
         x_shape = list(getattr(x, "shape", []))
-        if self.axis == -1:
-            x_shape.append(self.num_classes)
-        elif self.axis >= 0 and self.axis < len(x_shape):
-            x_shape.insert(self.axis, self.num_classes)
-        else:
-            raise ValueError(
-                f"axis must be -1 or between [0, {len(x.shape)}), but "
-                f"received {self.axis}."
-            )
+        axis = canonicalize_axis(self.axis, len(x_shape) + 1)
+        x_shape.insert(axis, self.num_classes)
         return KerasTensor(x_shape, dtype=self.dtype, sparse=self.sparse)
 
 
@@ -2013,7 +2005,10 @@ class BinaryCrossentropy(Operation):
                 "Received: "
                 f"target.shape={target.shape}, output.shape={output.shape}"
             )
-        return KerasTensor(output.shape, dtype=output.dtype)
+        dtype = backend.standardize_dtype(output.dtype)
+        if not backend.is_float_dtype(dtype):
+            dtype = backend.floatx()
+        return KerasTensor(output.shape, dtype=dtype)
 
 
 @keras_export(

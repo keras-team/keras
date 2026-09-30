@@ -7,6 +7,7 @@ from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import constraints
+from keras.src import dtype_policies
 from keras.src import export
 from keras.src import layers
 from keras.src import models
@@ -550,6 +551,40 @@ class DenseTest(testing.TestCase):
         layer.dtype_policy = policy
         self.assertLen(layer.variables, expected_num_variables)
 
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
+    def test_quantize_by_setting_dtype_policy_forwards_block_size(self):
+        # Regression test: assigning a parameterized int4 policy to a built
+        # layer must quantize with the policy's block size. Previously the
+        # setter forwarded only the bare mode string, so "int4/32" quantized
+        # with the default block size (128) while keeping a name that said
+        # 32 -- the checkpoint's policy string contradicted its stored
+        # weights.
+        layer = layers.Dense(units=2)
+        layer.build((None, 64))
+        layer.dtype_policy = "int4/32_from_float32"
+        self.assertEqual(layer._int4_block_size, 32)
+        # ceil(64 / 32) = 2 groups, one scale row per group.
+        self.assertEqual(tuple(layer.kernel_scale.shape), (2, 2))
+        self.assertEqual(layer.dtype_policy.name, "int4/32_from_float32")
+
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
+    def test_quantize_by_setting_dtype_policy_per_channel(self):
+        # The per-channel escape hatch ("int4/-1") must also be honored by
+        # the dtype-policy setter instead of falling back to the grouped
+        # default.
+        layer = layers.Dense(units=2)
+        layer.build((None, 64))
+        layer.dtype_policy = "int4/-1_from_float32"
+        self.assertIn(layer._int4_block_size, (None, -1))
+        # Per-channel: one scale per output unit, no zero point, no g_idx.
+        self.assertEqual(tuple(layer.kernel_scale.shape), (2,))
+        self.assertFalse(hasattr(layer, "kernel_zero"))
+        self.assertEqual(layer.dtype_policy.name, "int4/-1_from_float32")
+
     @parameterized.named_parameters(
         ("int7", "int7"),
         ("float7", "float7"),
@@ -714,61 +749,18 @@ class DenseTest(testing.TestCase):
         optimizer = optimizers.AdamW(learning_rate=0.1)
         optimizer.build(layer.trainable_variables)
 
-        def loss_fn(x, dy):
-            y = layer(x, training=True)
-            loss = y * ops.cast(dy, y.dtype)
-            return ops.sum(loss)
+        def stateless_loss_fn(trainable_variables, x, dy):
+            y = layer.stateless_call(trainable_variables, [], x, training=True)[
+                0
+            ]
+            return y * ops.cast(dy, y.dtype)
 
-        if backend.backend() == "tensorflow":
-            import tensorflow as tf
+        grad_fn = ops.grad(stateless_loss_fn)
 
-            @tf.function(jit_compile=True)
-            def train_one_step(x, dy):
-                with tf.GradientTape() as tape:
-                    loss = loss_fn(x, dy)
-                grads = tape.gradient(loss, layer.trainable_variables)
-                optimizer.apply(grads, layer.trainable_variables)
-
-        elif backend.backend() == "jax":
-            import jax
-
-            def stateless_loss_fn(trainable_variables, x, dy):
-                y = layer.stateless_call(
-                    trainable_variables, [], x, training=True
-                )[0]
-                loss = y * ops.cast(dy, y.dtype)
-                return ops.sum(loss)
-
-            grad_fn = jax.jit(jax.grad(stateless_loss_fn))
-
-            def train_one_step(x, dy):
-                trainable_variables = [
-                    v.value for v in layer.trainable_variables
-                ]
-                optimizer_variables = [v.value for v in optimizer.variables]
-                grads = grad_fn(trainable_variables, x, dy)
-                trainable_variables, optimizer_variables = (
-                    optimizer.stateless_apply(
-                        optimizer_variables, grads, trainable_variables
-                    )
-                )
-                for variable, value in zip(
-                    layer.trainable_variables, trainable_variables
-                ):
-                    variable.assign(value)
-                for variable, value in zip(
-                    optimizer.variables, optimizer_variables
-                ):
-                    variable.assign(value)
-
-        elif backend.backend() == "torch":
-
-            def train_one_step(x, dy):
-                layer.zero_grad()
-                loss = loss_fn(x, dy)
-                loss.backward()
-                grads = [v.value.grad for v in layer.trainable_variables]
-                optimizer.apply(grads, layer.trainable_variables)
+        def train_one_step(x, dy):
+            trainable_variables = [v.value for v in layer.trainable_variables]
+            grads = grad_fn(trainable_variables, x, dy)
+            optimizer.apply(grads, layer.trainable_variables)
 
         scale_x, amax_history_x = ops.ones(()), ops.zeros((1024,))
         scale_k, amax_history_k = ops.ones(()), ops.zeros((1024,))
@@ -1577,6 +1569,42 @@ class DenseTest(testing.TestCase):
         y_after = loaded_model(x)
         self.assertAllClose(y_before, y_after)
 
+    def test_quantize_by_setting_dtype_policy_map_uses_layer_entry(self):
+        # A map answers `quantization_mode` for its default policy, which is
+        # not quantized here; the layer's own entry decides, with its
+        # parameters.
+        layer = layers.Dense(units=8, name="target")
+        layer.build((None, 8))
+        policy_map = dtype_policies.DTypePolicyMap()
+        policy_map["target"] = dtype_policies.get("int4/4_from_float32")
+        layer.dtype_policy = policy_map
+        self.assertEqual(layer.quantization_mode, "int4")
+        self.assertEqual(tuple(layer.kernel_scale.shape), (2, 8))
+
+    def test_stateless_call_uses_dtype_policy_map_entry(self):
+        # A layer quantized through its `DTypePolicyMap` entry (the map's
+        # default policy is not quantized) must dispatch `stateless_call` to
+        # the quantized forward exactly as `__call__` does.
+        policy_map = dtype_policies.DTypePolicyMap()
+        policy_map["dense"] = dtype_policies.get("int8_from_float32")
+        layer = layers.Dense(units=4, name="dense", dtype=policy_map)
+        layer.build((None, 6))
+        self.assertEqual(layer.quantization_mode, "int8")
+        # A freshly built layer holds zero codes and unit scales, for which
+        # the float and quantized forwards coincide; make them distinct.
+        layer._kernel.assign(
+            np.random.randint(-127, 128, size=(6, 4)).astype("int8")
+        )
+        layer.kernel_scale.assign(
+            np.full(tuple(layer.kernel_scale.shape), 0.37, dtype="float32")
+        )
+        x = np.random.rand(2, 6).astype("float32")
+        y = layer(x)
+        y_stateless, _ = layer.stateless_call(
+            layer.trainable_variables, layer.non_trainable_variables, x
+        )
+        self.assertAllClose(y, y_stateless)
+
     # Ternary quantization tests for Dense.quantize("ternary").
 
     def test_dense_quantize_ternary_matches_float(self):
@@ -1659,7 +1687,7 @@ class DenseTest(testing.TestCase):
 
     def test_dense_quantize_ternary_beta_scale(self):
         # With default threshold (None), beta = mean(|W|) is stored in
-        # kernel_scale and applied in _ternary_call.
+        # kernel_scale and applied by the ternary forward pass.
         layer = layers.Dense(units=4, use_bias=False)
         layer.build((None, 4))
         kernel = np.array(
@@ -1693,8 +1721,8 @@ class DenseTest(testing.TestCase):
         self.assertEqual(tuple(y_quantized.shape), tuple(y_float.shape))
 
     def test_dense_prebuilt_ternary_mode(self):
-        # Dense built with dtype="ternary_from_float32" routes to _ternary_build
-        # during build — the float kernel never exists.
+        # Dense built with dtype="ternary_from_float32" routes to the
+        # ternary build during build — the float kernel never exists.
         layer = layers.Dense(units=8, dtype="ternary_from_float32")
         layer.build((None, 10))
         self.assertTrue(layer.built)
