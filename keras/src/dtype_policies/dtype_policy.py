@@ -500,11 +500,6 @@ class GPTQDTypePolicy(QuantizedDTypePolicy):
             source_name=source_name,
         )
 
-        # Use the resolved source (`self._source_name`) rather than the raw
-        # argument: with `source_name=None` the raw argument would bake the
-        # literal string "None" into the policy name (e.g. a name ending in
-        # "_from_None"), corrupting checkpoints on the DTypePolicyMap
-        # reload path.
         self._name = f"{mode}_from_{self._source_name}"
         self.mode = base_mode
         self.weight_bits = params["weight_bits"]
@@ -559,11 +554,6 @@ class AWQDTypePolicy(QuantizedDTypePolicy):
             source_name=source_name,
         )
 
-        # Use the resolved source (`self._source_name`) rather than the raw
-        # argument: with `source_name=None` the raw argument would bake the
-        # literal string "None" into the policy name (e.g. a name ending in
-        # "_from_None"), corrupting checkpoints on the DTypePolicyMap
-        # reload path.
         self._name = f"{mode}_from_{self._source_name}"
         self.mode = base_mode
         self.weight_bits = params["weight_bits"]
@@ -681,9 +671,6 @@ def _get_quantized_dtype_policy_by_str(policy):
         )
     mode, source_name = split_name
     if source_name == "None":
-        # Policies written by versions that formatted the unresolved source
-        # argument into the name (e.g. "gptq/4/128_from_None") carry the
-        # literal string "None". Normalize it so those checkpoints load,
-        # resolving the source from the current global dtype policy.
+        # Older checkpoints carry a literal "None" source; use the default.
         source_name = None
     return registry.get_strategy(name).policy_from_string(mode, source_name)

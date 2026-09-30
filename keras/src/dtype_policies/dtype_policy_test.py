@@ -784,13 +784,10 @@ class GPTQConfigErrorHandlingTest(test_case.TestCase):
 
 
 class QuantizedPolicySourceNameTest(test_case.TestCase):
-    """Regression tests for the `_from_None` policy-name corruption."""
+    """Source-name resolution of the GPTQ and AWQ policy names."""
 
     def test_default_source_name_is_resolved(self):
-        # Constructing a GPTQ/AWQ policy without a source must resolve the
-        # source from the global dtype policy instead of baking the literal
-        # string "None" into the name (which corrupted checkpoints on the
-        # DTypePolicyMap reload path).
+        # Without a source, the name takes the global dtype policy's.
         self.assertEqual(
             GPTQDTypePolicy("gptq/4/128").name, "gptq/4/128_from_float32"
         )
@@ -799,9 +796,7 @@ class QuantizedPolicySourceNameTest(test_case.TestCase):
         )
 
     def test_legacy_from_none_names_load(self):
-        # Checkpoints written by versions with the corruption carry policy
-        # strings like "gptq/4/128_from_None"; they must still parse, with
-        # the source resolved from the global dtype policy.
+        # A literal "None" source resolves to the global dtype policy.
         policy = dtype_policies.get("gptq/4/128_from_None")
         self.assertEqual(policy.name, "gptq/4/128_from_float32")
         self.assertEqual(policy.weight_bits, 4)
@@ -810,9 +805,7 @@ class QuantizedPolicySourceNameTest(test_case.TestCase):
         self.assertEqual(policy.name, "awq/4/64_from_float32")
 
     def test_map_roundtrip_keeps_resolved_source(self):
-        # A deferred-default DTypePolicyMap serializes its policies with
-        # source_name=None; reloading must resolve the source, not corrupt
-        # the name.
+        # A map serializes its policies without a source; a reload resolves it.
         policy_map = DTypePolicyMap()
         policy_map["dense/kernel"] = GPTQDTypePolicy(
             "gptq/4/128", source_name="float32"
