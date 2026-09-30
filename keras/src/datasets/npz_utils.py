@@ -40,20 +40,30 @@ def _validate_shape(shape):
 
     `numpy.core.multiarray._reconstruct` and `ndarray.__setstate__` both take a
     shape; validating it here keeps anything that is not a plain, non-negative
-    tuple of integers out of numpy's C allocation code.
+    tuple of integers out of numpy's C allocation code. Dimensions have to
+    already *be* integers rather than something coercible to one: `int()` would
+    silently truncate a float (`1.9` -> `1`) and raises `OverflowError` for
+    `inf`, which would escape as something other than an unpickling error.
     """
     if not isinstance(shape, tuple):
         raise pickle.UnpicklingError(
             "Refusing to deserialize an array whose shape is not a tuple "
             f"({type(shape).__name__}) while loading a Keras dataset."
         )
-    try:
-        shape = tuple(int(dimension) for dimension in shape)
-    except (TypeError, ValueError) as e:
-        raise pickle.UnpicklingError(
-            "Refusing to deserialize an array whose shape contains a "
-            "non-integer dimension while loading a Keras dataset."
-        ) from e
+    for dimension in shape:
+        # `bool` is a subclass of `int`, but a `True`/`False` dimension is not
+        # something numpy ever writes; strings and floats are not integers at
+        # all. Only the type name is reported, never `repr()`, so that a
+        # crafted object cannot run code through its own `__repr__`.
+        if isinstance(dimension, bool) or not isinstance(
+            dimension, (int, np.integer)
+        ):
+            raise pickle.UnpicklingError(
+                "Refusing to deserialize an array whose shape contains a "
+                f"non-integer dimension ({type(dimension).__name__}) while "
+                "loading a Keras dataset."
+            )
+    shape = tuple(int(dimension) for dimension in shape)
     if any(dimension < 0 for dimension in shape):
         raise pickle.UnpicklingError(
             f"Refusing to deserialize an array with a negative shape ({shape}) "
@@ -68,8 +78,8 @@ def _validate_dtype(dtype):
         return np.dtype(dtype)
     except TypeError as e:
         raise pickle.UnpicklingError(
-            f"Refusing to deserialize an array with an invalid dtype ({dtype!r}) "
-            "while loading a Keras dataset."
+            "Refusing to deserialize an array with an invalid dtype "
+            f"({dtype!r}) while loading a Keras dataset."
         ) from e
 
 
@@ -125,38 +135,62 @@ class _RestrictedArray(np.ndarray):
         declared = _nbytes(shape, dtype)
         if not placeholder and dtype != self.dtype:
             raise pickle.UnpicklingError(
-                "Refusing to deserialize an array whose pickle state changes its "
-                f"dtype from {self.dtype!r} to {dtype!r} while loading a Keras "
-                "dataset."
+                "Refusing to deserialize an array whose pickle state changes "
+                f"its dtype from {self.dtype!r} to {dtype!r} while loading a "
+                "Keras dataset."
             )
         if not placeholder and declared > self.nbytes:
             raise pickle.UnpicklingError(
                 "Refusing to deserialize an array whose pickle state declares "
-                f"{declared} bytes over a {self.nbytes}-byte buffer; applying it "
-                "would write out of bounds while loading a Keras dataset."
+                f"{declared} bytes over a {self.nbytes}-byte buffer; applying "
+                "it would write out of bounds while loading a Keras dataset."
             )
 
         # `raw_data` is `None`, the list of objects of an object array, or the
-        # raw bytes of a numeric one.
-        if raw_data is not None and not isinstance(raw_data, (bytes, list)):
+        # raw bytes of a numeric one. numpy's `__reduce__` only ever writes a
+        # list when `dtype.hasobject` is set, so a list on a numeric array (or
+        # bytes on an object array) means a hand-crafted state and is refused
+        # rather than passed on for numpy to reinterpret.
+        if dtype.hasobject:
+            if raw_data is not None and not isinstance(raw_data, list):
+                raise pickle.UnpicklingError(
+                    "Refusing to deserialize an object array whose pickle "
+                    "state carries unexpected data "
+                    f"({type(raw_data).__name__}) instead of a list of "
+                    "objects while loading a Keras dataset."
+                )
+            if isinstance(raw_data, list):
+                # `array_setstate()` walks the array's slots and the list in
+                # lockstep without bounds-checking the list, so a state holding
+                # fewer objects than `shape` has elements makes numpy copy
+                # objects from past the end of the list's internal array (a
+                # segfault or, when the read lands on mapped memory, a dangling
+                # pointer left in the array), and a longer list is silently
+                # truncated. The count must match the declared shape exactly.
+                num_elements = 1
+                for dimension in shape:
+                    num_elements *= dimension
+                if len(raw_data) != num_elements:
+                    raise pickle.UnpicklingError(
+                        "Refusing to deserialize an object array whose pickle "
+                        f"state carries {len(raw_data)} objects for a {shape} "
+                        f"shape of {num_elements} elements while loading a "
+                        "Keras dataset."
+                    )
+        elif raw_data is not None and not isinstance(raw_data, bytes):
+            # A numeric array's contents are raw bytes; a list here would be
+            # reread as object pointers.
             raise pickle.UnpicklingError(
-                "Refusing to deserialize an array whose pickle state carries "
-                f"unexpected data ({type(raw_data).__name__}) while loading a "
-                "Keras dataset."
+                "Refusing to deserialize a numeric array whose pickle state "
+                "carries unexpected data "
+                f"({type(raw_data).__name__}) instead of raw bytes while "
+                "loading a Keras dataset."
             )
-        if dtype.hasobject and isinstance(raw_data, bytes):
-            # An object array must carry its contents as a list of objects;
-            # raw bytes would be reinterpreted as object pointers.
+        elif isinstance(raw_data, bytes) and len(raw_data) != declared:
             raise pickle.UnpicklingError(
-                "Refusing to deserialize an object array whose pickle state "
-                "carries raw bytes instead of objects while loading a Keras "
-                "dataset."
-            )
-        if isinstance(raw_data, bytes) and len(raw_data) != declared:
-            raise pickle.UnpicklingError(
-                "Refusing to deserialize an array whose pickle state carries an "
-                f"unexpected number of bytes ({len(raw_data)} != {declared}) "
-                "while loading a Keras dataset."
+                "Refusing to deserialize an array whose pickle state holds "
+                f"{len(raw_data)} bytes for a {declared}-byte array while "
+                "loading a Keras dataset."
             )
         super().__setstate__(state)
 
@@ -167,8 +201,8 @@ class RestrictedUnpickler(pickle.Unpickler):
     def find_class(self, module, name):
         if (module, name) not in _ALLOWED_PICKLE_GLOBALS:
             raise pickle.UnpicklingError(
-                f"Refusing to deserialize `{module}.{name}` while loading a Keras "
-                "dataset. The file may be corrupted or malicious."
+                f"Refusing to deserialize `{module}.{name}` while loading a "
+                "Keras dataset. The file may be corrupted or malicious."
             )
         obj = super().find_class(module, name)
         if (module, name) in _RECONSTRUCT_GLOBALS:
