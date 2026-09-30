@@ -500,7 +500,7 @@ class GPTQDTypePolicy(QuantizedDTypePolicy):
             source_name=source_name,
         )
 
-        self._name = f"{mode}_from_{source_name}"
+        self._name = f"{mode}_from_{self._source_name}"
         self.mode = base_mode
         self.weight_bits = params["weight_bits"]
         self.group_size = params["group_size"]
@@ -554,7 +554,7 @@ class AWQDTypePolicy(QuantizedDTypePolicy):
             source_name=source_name,
         )
 
-        self._name = f"{mode}_from_{source_name}"
+        self._name = f"{mode}_from_{self._source_name}"
         self.mode = base_mode
         self.weight_bits = params["weight_bits"]
         self.group_size = params["group_size"]
@@ -670,4 +670,7 @@ def _get_quantized_dtype_policy_by_str(policy):
             f"Received: policy={policy}"
         )
     mode, source_name = split_name
+    if source_name == "None":
+        # Older checkpoints carry a literal "None" source; use the default.
+        source_name = None
     return registry.get_strategy(name).policy_from_string(mode, source_name)
