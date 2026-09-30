@@ -23,11 +23,6 @@ from keras.src.backend.common.stateless_scope import in_stateless_scope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.config import floatx
 
-SUPPORTS_SPARSE_TENSORS = False
-SUPPORTS_RAGGED_TENSORS = False
-SUPPORTS_COMPLEX_DTYPES = True
-SUPPORTS_GRADIENT = True
-IS_THREAD_SAFE = True
 _GLOBAL_DTENSOR_PROMOTION_MODE = None
 _DTENSOR_PROMOTION_ACTIVE = False
 
