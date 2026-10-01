@@ -101,9 +101,9 @@ def fake_quant_with_min_max_vars(
         Tensor: A Keras tensor with fake quantization applied.
     """
     if any_symbolic_tensors((inputs,)):
-        return FakeQuantWithMinMaxVars().symbolic_call(
-            inputs, min_vals, max_vals
-        )
+        return FakeQuantWithMinMaxVars(
+            num_bits=num_bits, narrow_range=narrow_range, axis=axis
+        ).symbolic_call(inputs, min_vals, max_vals)
 
     inputs = ops.convert_to_tensor(inputs)
     min_vals = ops.convert_to_tensor(min_vals)
