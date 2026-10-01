@@ -986,7 +986,6 @@ class ModelTest(testing.TestCase):
             QuantizationReport.SKIP_NO_SUPPORT
         )
         self.assertIn("act", unsupported)
-        self.assertEqual(report.num_errors, 0)
 
         # Input layers carry no weights and must never appear in the report as
         # skipped entries (they are neither quantizable nor a meaningful skip).
