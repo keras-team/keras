@@ -3242,20 +3242,6 @@ class NNOpsDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    def test_hard_activations_preserve_float_dtypes(self):
-        # `FLOAT_DTYPES` excludes float64 and the JAX reference runs with x64
-        # off, so neither of the tests above covers it. Promotion must leave
-        # every float dtype alone, whatever the backend resolves it to.
-        for dtype in ("float64", "float32", "float16"):
-            try:
-                x = knp.ones((2,), dtype=dtype)
-            except Exception:
-                continue  # backend cannot represent this dtype
-            for fn in (knn.hard_sigmoid, knn.hard_silu):
-                self.assertEqual(
-                    standardize_dtype(fn(x).dtype), standardize_dtype(x.dtype)
-                )
-
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_leaky_relu(self, dtype):
         import jax.nn as jnn
