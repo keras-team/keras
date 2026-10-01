@@ -328,6 +328,30 @@ class EmbeddingTest(test_case.TestCase):
             supports_masking=False,
         )
 
+    def test_lora_alpha_argument(self):
+        layer = layers.Embedding(
+            input_dim=5, output_dim=4, lora_rank=2, lora_alpha=16
+        )
+        layer.build()
+        self.assertEqual(layer.lora_alpha, 16)
+        self.assertEqual(layer.get_config()["lora_alpha"], 16)
+
+        # The forward pass scales the update by `lora_alpha / lora_rank`.
+        lora_b = np.ones((2, 4), dtype="float32")
+        layer.lora_embeddings_b.assign(lora_b)
+        x = np.array([[0, 1, 4], [2, 3, 0]], dtype="int32")
+        embeddings = ops.convert_to_numpy(layer._embeddings)
+        lora_a = ops.convert_to_numpy(layer.lora_embeddings_a)
+        expected = (embeddings + (16 / 2) * lora_a @ lora_b)[x]
+        self.assertAllClose(layer(x), expected)
+
+        # A layer built from the config keeps `lora_alpha`.
+        restored = layers.Embedding.from_config(layer.get_config())
+        restored.build()
+        self.assertEqual(restored.lora_alpha, 16)
+        restored.set_weights(layer.get_weights())
+        self.assertAllClose(restored(x), expected)
+
     def test_enable_lora_with_embeddings_constraint(self):
         layer = layers.Embedding(
             input_dim=10, output_dim=16, embeddings_constraint="max_norm"

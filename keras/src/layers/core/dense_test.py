@@ -414,6 +414,29 @@ class DenseTest(testing.TestCase):
             supports_masking=True,
         )
 
+    def test_lora_alpha_argument(self):
+        layer = layers.Dense(units=4, lora_rank=2, lora_alpha=16)
+        layer.build((None, 3))
+        self.assertEqual(layer.lora_alpha, 16)
+        self.assertEqual(layer.get_config()["lora_alpha"], 16)
+
+        # The forward pass scales the update by `lora_alpha / lora_rank`.
+        lora_b = np.ones((2, 4), dtype="float32")
+        layer.lora_kernel_b.assign(lora_b)
+        x = np.random.rand(2, 3).astype("float32")
+        kernel = ops.convert_to_numpy(layer._kernel)
+        lora_a = ops.convert_to_numpy(layer.lora_kernel_a)
+        bias = ops.convert_to_numpy(layer.bias)
+        expected = x @ (kernel + (16 / 2) * lora_a @ lora_b) + bias
+        self.assertAllClose(layer(x), expected)
+
+        # A layer built from the config keeps `lora_alpha`.
+        restored = layers.Dense.from_config(layer.get_config())
+        restored.build((None, 3))
+        self.assertEqual(restored.lora_alpha, 16)
+        restored.set_weights(layer.get_weights())
+        self.assertAllClose(restored(x), expected)
+
     def test_enable_lora_with_kernel_constraint(self):
         layer = layers.Dense(units=2, kernel_constraint="max_norm")
         with self.assertRaisesRegex(
