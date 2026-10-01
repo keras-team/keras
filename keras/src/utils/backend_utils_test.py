@@ -82,6 +82,12 @@ class BackendUtilsTest(testing.TestCase):
             self.assertTrue(backend_utils.in_tf_graph())
         self.assertFalse(backend_utils.in_tf_graph())
 
+        # The scope is restored even when the block raises.
+        with self.assertRaises(ValueError):
+            with backend_utils.TFGraphScope():
+                raise ValueError
+        self.assertFalse(backend_utils.in_tf_graph())
+
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
         reason="Requires the TensorFlow backend.",
