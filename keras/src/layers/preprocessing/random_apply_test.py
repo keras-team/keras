@@ -271,3 +271,42 @@ class RandomApplyTest(testing.TestCase):
             config, custom_objects={"_AddOne": _AddOne}
         )
         self.assertTrue(revived.batchwise)
+
+    def test_per_sample_mixes_dict_input(self):
+        # Regression: `_sample_count` must read the batch from `images`, not the
+        # alphabetically-first dict leaf (`bounding_boxes`, which is rank 3).
+        # Otherwise the per-sample default silently degrades to batch-wide for
+        # dict inputs. The wrapped layer adds 1.0 to `images` deterministically,
+        # so a mixed batch proves per-sample selection fired.
+        class _AddOneToImages(layers.Layer):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self._convert_input_args = False
+                self._allow_non_tensor_positional_args = True
+
+            def call(self, inputs, training=True):
+                inputs["images"] = inputs["images"] + 1.0
+                return inputs
+
+        def _data():
+            return {
+                "images": np.zeros((16, 8, 8, 3), dtype="float32"),
+                "bounding_boxes": {
+                    "boxes": np.zeros((16, 2, 4), dtype="float32"),
+                    "labels": np.zeros((16, 2), dtype="float32"),
+                },
+            }
+
+        seen_mixed = False
+        for seed in range(20):
+            layer = RandomApply(_AddOneToImages(), rate=0.5, seed=seed)
+            out = layer(_data(), training=True)
+            per_sample = backend.ops.convert_to_numpy(out["images"]).reshape(
+                (16, -1)
+            )[:, 0]
+            if len(set(per_sample.tolist())) > 1:
+                seen_mixed = True
+                break
+        self.assertTrue(
+            seen_mixed, "per-sample selection should mix a dict batch"
+        )

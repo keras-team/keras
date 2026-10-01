@@ -42,6 +42,11 @@ class RandomApply(DataLayer):
     untouched samples. Set `batchwise=True` for a single batch-wide decision
     (required by layers that mix samples together, such as `MixUp` or `CutMix`).
 
+    Per-sample decisions require a batched input, detected with the image
+    convention: a rank-4 tensor `(batch, ...)`, or a dict input whose
+    `"images"` entry is rank-4. Any other input (e.g. a single unbatched image)
+    receives one shared decision regardless of `batchwise`.
+
     During inference (`training=False`) the layer is always a no-op.
 
     Note that the wrapped layer is evaluated on every training call, including
@@ -83,6 +88,12 @@ class RandomApply(DataLayer):
         self.batchwise = batchwise
         self.seed = seed
         self.generator = SeedGenerator(seed)
+
+    def build(self, input_shape):
+        # Build the wrapped layer so the whole stack reports as built. Without
+        # this, a functional model emits an "unbuilt state" warning on the
+        # openvino backend. Mirrors `RandAugment.build`.
+        self.layer.build(input_shape)
 
     def call(self, inputs, training=True):
         if not training:
@@ -130,14 +141,19 @@ class RandomApply(DataLayer):
         return tree.map_structure(_select, transformed, original)
 
     def _sample_count(self, inputs):
-        """Per-sample draw count, or 1 for unbatched input.
+        """Per-sample draw count, or 1 when the input is not a batch.
 
-        Follows the image convention: a rank-4 tensor `(batch, ...)` is
-        batched; lower ranks are treated as a single unbatched sample.
+        Follows the image convention used by the preprocessing layers: the
+        batch is read from the `"images"` entry of a dict input (otherwise the
+        first leaf), and a rank-4 tensor `(batch, ...)` is a batch while lower
+        ranks are a single unbatched sample.
         """
-        sample = tree.flatten(inputs)[0]
+        if isinstance(inputs, dict) and "images" in inputs:
+            sample = inputs["images"]
+        else:
+            sample = tree.flatten(inputs)[0]
         shape = self.backend.ops.shape(sample)
-        if len(shape) >= 4:
+        if len(shape) == 4:
             return shape[0]
         return 1
 

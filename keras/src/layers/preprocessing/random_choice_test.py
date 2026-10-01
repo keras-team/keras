@@ -274,3 +274,32 @@ class RandomChoiceTest(testing.TestCase):
             config, custom_objects={"_AddConst": _AddConst}
         )
         self.assertTrue(revived.batchwise)
+
+    def test_per_sample_mixes_dict_input(self):
+        # Regression: `_sample_count` must read the batch from `images`, not the
+        # alphabetically-first dict leaf (`bounding_boxes`, which is rank 3),
+        # otherwise the per-sample choice silently degrades to batch-wide for
+        # dict inputs. `_AddConstInPlace` rebinds `images`, so a mixed batch
+        # proves the per-sample choice fired.
+        def _data():
+            return {
+                "images": np.zeros((16, 8, 8, 3), dtype="float32"),
+                "bounding_boxes": {
+                    "boxes": np.zeros((16, 2, 4), dtype="float32"),
+                    "labels": np.zeros((16, 2), dtype="float32"),
+                },
+            }
+
+        seen_mixed = False
+        for seed in range(20):
+            layer = RandomChoice(
+                [_AddConstInPlace(1.0), _AddConstInPlace(2.0)], seed=seed
+            )
+            out = layer(_data(), training=True)
+            per_sample = backend.ops.convert_to_numpy(out["images"]).reshape(
+                (16, -1)
+            )[:, 0]
+            if len(set(per_sample.tolist())) > 1:
+                seen_mixed = True
+                break
+        self.assertTrue(seen_mixed, "per-sample choice should mix a dict batch")

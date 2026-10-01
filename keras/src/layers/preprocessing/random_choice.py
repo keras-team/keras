@@ -17,6 +17,11 @@ class RandomChoice(DataLayer):
     transformed by different layers. Set `batchwise=True` for a single
     batch-wide choice.
 
+    Per-sample choices require a batched input, detected with the image
+    convention: a rank-4 tensor `(batch, ...)`, or a dict input whose
+    `"images"` entry is rank-4. Any other input (e.g. a single unbatched image)
+    receives one shared choice regardless of `batchwise`.
+
     During inference (`training=False`) the layer is always a no-op.
 
     Note that every wrapped layer is evaluated on each training call and all
@@ -63,6 +68,13 @@ class RandomChoice(DataLayer):
     @property
     def wrapped_layers(self):
         return self._wrapped_layers
+
+    def build(self, input_shape):
+        # Build the wrapped layers so the whole stack reports as built. Without
+        # this, a functional model emits an "unbuilt state" warning on the
+        # openvino backend. Mirrors `RandAugment.build`.
+        for layer in self._wrapped_layers:
+            layer.build(input_shape)
 
     def call(self, inputs, training=True):
         if not training:
@@ -114,14 +126,19 @@ class RandomChoice(DataLayer):
         return tree.map_structure(_select, original, *candidates)
 
     def _sample_count(self, inputs):
-        """Per-sample draw count, or 1 for unbatched input.
+        """Per-sample draw count, or 1 when the input is not a batch.
 
-        Follows the image convention: a rank-4 tensor `(batch, ...)` is
-        batched; lower ranks are treated as a single unbatched sample.
+        Follows the image convention used by the preprocessing layers: the
+        batch is read from the `"images"` entry of a dict input (otherwise the
+        first leaf), and a rank-4 tensor `(batch, ...)` is a batch while lower
+        ranks are a single unbatched sample.
         """
-        sample = tree.flatten(inputs)[0]
+        if isinstance(inputs, dict) and "images" in inputs:
+            sample = inputs["images"]
+        else:
+            sample = tree.flatten(inputs)[0]
         shape = self.backend.ops.shape(sample)
-        if len(shape) >= 4:
+        if len(shape) == 4:
             return shape[0]
         return 1
 
