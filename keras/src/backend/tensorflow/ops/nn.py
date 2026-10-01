@@ -1445,7 +1445,10 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     # each class for every sample adds up to 1
     # This is needed to ensure that the cross entropy is
     # computed correctly.
-    output = output / tf.reduce_sum(output, axis, keepdims=True)
+    epsilon_ = tf.constant(backend.epsilon(), dtype=output.dtype)
+    output = output / tf.maximum(
+        tf.reduce_sum(output, axis, keepdims=True), epsilon_
+    )
 
     # Compute cross entropy from probabilities.
     output = tf.clip_by_value(
@@ -1532,6 +1535,9 @@ def binary_crossentropy(target, output, from_logits=False):
     """
     target = tf.convert_to_tensor(target)
     output = tf.convert_to_tensor(output)
+    if not backend.is_float_dtype(output.dtype):
+        output = tf.cast(output, backend.floatx())
+    target = tf.cast(target, output.dtype)
 
     if len(target.shape) != len(output.shape):
         raise ValueError(

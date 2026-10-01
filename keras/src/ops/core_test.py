@@ -1342,7 +1342,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         d = ops.stop_gradient(b) + c
         model = models.Model(inputs=a, outputs=d)
         output = model(ops.convert_to_tensor([[1.0, 2.0]]))
-        self.assertAllClose(output, 15.0)
+        self.assertAllClose(output, np.full((1, 4), 15.0))
 
         # Test Operation call.
         variable = ops.convert_to_tensor(
@@ -1962,6 +1962,37 @@ class CoreOpsBehaviorTests(testing.TestCase):
         x = KerasTensor((3, 4))
         with self.assertRaisesRegex(ValueError, r"axis 10 is out of bounds"):
             core.unstack(x, axis=10)
+
+
+class WhileLoopCaptureTest(testing.TestCase):
+    def test_while_loop_body_closes_over_outer_tensor(self):
+        # The body reads `captured` from the enclosing scope instead of
+        # receiving it as a loop variable. Backends that lower the loop into a
+        # separate subgraph still have to resolve it; it is constant across
+        # iterations. Run through `predict` so the batch dim is dynamic.
+        class LoopWithCapture(layers.Layer):
+            def call(self, x):
+                captured = x * 2.0
+
+                def cond(i, acc):
+                    return i < 3
+
+                def body(i, acc):
+                    return i + 1, acc + captured
+
+                _, acc = core.while_loop(cond, body, (0, ops.zeros_like(x)))
+                return acc
+
+        x = np.ones((2, 4), dtype="float32")
+        # three iterations, each adding 2 * ones
+        expected = np.full((2, 4), 6.0, dtype="float32")
+
+        self.assertAllClose(LoopWithCapture()(x), expected)
+
+        inputs = input_layer.Input(shape=(4,))
+        model = models.Functional(inputs, LoopWithCapture()(inputs))
+
+        self.assertAllClose(model.predict(x), expected)
 
 
 @pytest.mark.skipif(

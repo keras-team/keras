@@ -13260,3 +13260,52 @@ class TileTest(testing.TestCase):
         output = TileLayer()(inputs)
 
         self.assertEqual(output.shape, (None, 6, 2, 2))
+
+    def test_tile_with_symbolic_repeats(self):
+        # `repeats` mixes Python ints with a symbolic batch dim
+        # used to broadcast a class token across a dynamic batch.
+        class TileClsToken(keras.layers.Layer):
+            def build(self, input_shape):
+                self.token = self.add_weight(
+                    shape=(1, 1, 8), initializer="ones"
+                )
+
+            def call(self, x):
+                batch_size = ops.shape(x)[0]
+                token = knp.tile(self.token, (batch_size, 1, 1))
+                return knp.concatenate([token, x], axis=1)
+
+        x = np.zeros((2, 4, 8), dtype="float32")
+        expected = np.concatenate([np.ones((2, 1, 8), "float32"), x], axis=1)
+
+        self.assertAllClose(TileClsToken()(x), expected)
+
+        inputs = keras.Input(shape=(4, 8))
+        model = keras.Model(inputs, TileClsToken()(inputs))
+
+        self.assertAllClose(model.predict(x), expected)
+
+
+class RepeatTest(testing.TestCase):
+    def test_repeat_with_symbolic_scalar_repeats(self):
+        # numpy accepts `repeats` either as one count per element or as a
+        # single scalar meaning "repeat every element this many times". Here
+        # the scalar comes from a dynamic batch dim, so it is symbolic rather
+        # than a Python int.
+        class RepeatRows(keras.layers.Layer):
+            def call(self, x):
+                n = ops.shape(x)[0]
+                rows = knp.reshape(knp.arange(6, dtype="float32"), (2, 3))
+                return knp.repeat(rows, n, axis=0)
+
+        x = np.zeros((3, 4), dtype="float32")
+        rows = np.arange(6, dtype="float32").reshape(2, 3)
+        # each row repeated 3 times, in order: r0 r0 r0 r1 r1 r1
+        expected = np.repeat(rows, 3, axis=0)
+
+        self.assertAllClose(RepeatRows()(x), expected)
+
+        inputs = keras.Input(shape=(4,))
+        model = keras.Model(inputs, RepeatRows()(inputs))
+
+        self.assertAllClose(model.predict(x), expected)

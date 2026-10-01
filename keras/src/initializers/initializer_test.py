@@ -1,4 +1,5 @@
 import jax
+import numpy as np
 import pytest
 
 from keras.src import backend
@@ -28,7 +29,7 @@ class InitializersLayoutTest(testing.TestCase):
         with distribution.scope():
             var = backend.Variable(InitializerWithLayout(), shape, "float32")
 
-        self.assertAllClose(var.value, 1)
+        self.assertAllClose(var.value, np.ones(shape))
         self.assertTrue(
             var.value.sharding.is_equivalent_to(expected_sharding, len(shape)),
             msg=f"Actual: {var.value.sharding}, Expected: {expected_sharding}",
@@ -66,7 +67,7 @@ class InitializersLayoutTest(testing.TestCase):
                 InitializerWithLayout(), shape, "float32", name="bias"
             )
 
-        self.assertAllClose(kernel.value, 1)
+        self.assertAllClose(kernel.value, np.ones(shape))
         self.assertTrue(
             kernel.value.sharding.is_equivalent_to(
                 expected_kernel_sharding, len(shape)
@@ -77,7 +78,7 @@ class InitializersLayoutTest(testing.TestCase):
             ),
         )
 
-        self.assertAllClose(bias.value, 1)
+        self.assertAllClose(bias.value, np.ones(shape))
         self.assertTrue(
             bias.value.sharding.is_equivalent_to(
                 expected_bias_sharding, len(shape)
