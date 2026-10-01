@@ -5083,7 +5083,13 @@ def nextafter(x1, x2):
     going_towards_zero = ov_opset.less(
         ov_opset.multiply(x1, direction), zero
     ).output(0)
-    halve_mask = ov_opset.logical_and(is_pow2, going_towards_zero).output(0)
+    # Below the smallest normal the spacing stays 2^(minexp - nmant), so
+    # there is no finer binade to step into and the ULP must not be halved.
+    above_min_exp = ov_opset.greater(log2_abs, min_exp).output(0)
+    halve_mask = ov_opset.logical_and(
+        ov_opset.logical_and(is_pow2, going_towards_zero).output(0),
+        above_min_exp,
+    ).output(0)
     ulp = ov_opset.select(halve_mask, ov_opset.multiply(ulp, half), ulp).output(
         0
     )
