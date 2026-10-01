@@ -733,18 +733,18 @@ def mean(x, axis=None, keepdims=False):
                 tf.gather(x.dense_shape, gather_indices, axis=0),
             )
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    compute_dtype = dtypes.result_type(x.dtype, "float32")
-    # `tf.reduce_mean` does not handle low precision (e.g., float16) overflow
-    # correctly, so we compute with float32 and cast back to the original type.
-    if "int" in ori_dtype or ori_dtype == "bool":
-        result_dtype = compute_dtype
-    else:
-        result_dtype = ori_dtype
-    output = tf.reduce_mean(
-        tf.cast(x, compute_dtype), axis=axis, keepdims=keepdims
-    )
-    return tf.cast(output, result_dtype)
+    dtype = standardize_dtype(x.dtype)
+    if dtype == "float16":
+        # The CPU implementation of reduce_mean for float16 is broken, but the
+        # XLA implementation is correct.
+        @tf.function(jit_compile=True)
+        def xla_reduce_mean(t):
+            return tf.reduce_mean(t, axis=axis, keepdims=keepdims)
+
+        return xla_reduce_mean(x)
+    if "int" in dtype or dtype == "bool":
+        x = tf.cast(x, config.floatx())
+    return tf.reduce_mean(x, axis=axis, keepdims=keepdims)
 
 
 def max(x, axis=None, keepdims=False, initial=None):

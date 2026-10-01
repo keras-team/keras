@@ -5425,8 +5425,15 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.mean(x, axis=1, keepdims=True),
         )
 
-        # test overflow
+        # Test overflow.
+        # 65504 is 0b1111111111100000.
+        # Fills all of the 10 fraction bits + 1 implicit bit of float16.
         x = np.array([65504, 65504, 65504], dtype="float16")
+        self.assertAllClose(knp.mean(x), np.mean(x))
+
+        # 65280 is 0b1111111100000000.
+        # Fills all of the 7 fraction bits + 1 implicit bit of bfloat16.
+        x = np.array([65280, 65280, 65280], dtype="bfloat16")
         self.assertAllClose(knp.mean(x), np.mean(x))
 
     def test_array_split(self):
