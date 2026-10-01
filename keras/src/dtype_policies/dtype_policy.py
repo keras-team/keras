@@ -4,8 +4,6 @@ from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
 from keras.src.backend.common import standardize_dtype
 
-QUANTIZATION_MODES = ("int8", "float8", "int4", "ternary", "gptq", "awq")
-
 
 def _strategy_registry():
     """Returns the quantization mode registry, imported on first use.
@@ -635,43 +633,29 @@ def dtype_policy():
     return policy
 
 
-def _matches_quantized_mode(policy, name):
-    """Whether a policy string belongs to quantization mode `name`.
+def _quantized_mode_of(policy):
+    """Returns the quantization mode a policy string names, or `None`.
 
-    The built-in modes keep their historical loose matching (any string
-    that starts with the mode name routes to the quantized parser, with
-    its pinned error messages for malformed strings). An externally
-    registered mode matches only its actual policy grammar (the bare name,
-    `name` + "/params", or `name` + "_from_source"), so registering a mode
-    cannot capture ordinary dtype or mixed-precision policy strings that
-    merely share a prefix with its name (e.g. a mode named "mixed" must
-    not swallow "mixed_bfloat16").
+    A quantized policy string is `<mode>[/<params>]_from_<source>`, where
+    `<mode>` is a registered mode. Every other string is a plain dtype
+    policy name, including a bare mode name such as `"int8"`.
     """
-    if name in QUANTIZATION_MODES:
-        return policy.startswith(name)
-    return (
-        policy == name
-        or policy.startswith(name + "/")
-        or policy.startswith(name + "_from_")
-    )
+    if "_from_" not in policy:
+        return None
+    mode = policy.split("_from_")[0].split("/")[0]
+    return mode if _strategy_registry().is_registered(mode) else None
 
 
 def _is_quantized_policy_string(policy):
-    """Whether a policy string belongs to a registered quantization mode."""
-    return any(
-        _matches_quantized_mode(policy, name)
-        for name in _strategy_registry().registered_modes()
-    )
+    """Whether a policy string names a registered quantization mode."""
+    return _quantized_mode_of(policy) is not None
 
 
 def _get_quantized_dtype_policy_by_str(policy):
     if not isinstance(policy, str):
         raise TypeError(f"`policy` must be a string. Received: policy={policy}")
-    registry = _strategy_registry()
-    for name in registry.registered_modes():
-        if _matches_quantized_mode(policy, name):
-            break
-    else:
+    name = _quantized_mode_of(policy)
+    if name is None:
         raise ValueError(
             "`policy` is incompatible with the current supported quantization."
         )
@@ -686,4 +670,5 @@ def _get_quantized_dtype_policy_by_str(policy):
     if source_name == "None":
         # Older checkpoints carry a literal "None" source; use the default.
         source_name = None
-    return registry.get_strategy(name).policy_from_string(mode, source_name)
+    strategy = _strategy_registry().get_strategy(name)
+    return strategy.policy_from_string(mode, source_name)

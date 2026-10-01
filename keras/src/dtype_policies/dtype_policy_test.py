@@ -627,7 +627,37 @@ class DTypePolicyGlobalFunctionsTest(test_case.TestCase):
         with self.assertRaisesRegex(
             ValueError, "Cannot convert `policy` into a valid pair"
         ):
+            get("int8_from_float32_from_float32")
+        # Without `_from_`, the string is a plain dtype policy name.
+        with self.assertRaisesRegex(ValueError, "Cannot convert 'int8_abc_'"):
             get("int8_abc_")
+        # A mode token that is not registered is not a quantized policy.
+        with self.assertRaisesRegex(
+            ValueError, "Cannot convert 'int8x_from_float32'"
+        ):
+            get("int8x_from_float32")
+
+    @parameterized.named_parameters(
+        ("int8", "int8"),
+        ("float8_e4m3fn", "float8_e4m3fn"),
+        ("float8_e5m2", "float8_e5m2"),
+    )
+    def test_dtype_name_starting_with_a_mode_is_a_plain_policy(self, name):
+        # Only `<mode>[/<params>]_from_<source>` names a quantized policy,
+        # so a dtype name that equals or starts with a mode name stays a
+        # plain policy.
+        policy = get(name)
+        self.assertIs(type(policy), DTypePolicy)
+        self.assertEqual(policy.name, name)
+        self.assertEqual(policy.compute_dtype, name)
+        self.assertIsNone(policy.quantization_mode)
+
+        policy_map = DTypePolicyMap()
+        policy_map["layer"] = name
+        self.assertEqual(policy_map["layer"], policy)
+
+        set_dtype_policy(name)
+        self.assertEqual(dtype_policy(), policy)
 
 
 class DTypePolicyEdgeCasesTest(test_case.TestCase):
