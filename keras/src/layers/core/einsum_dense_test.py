@@ -1100,6 +1100,42 @@ class EinsumDenseTest(testing.TestCase):
         y_training = layer(x, training=True)
         self.assertAllClose(y_inference, y_training)
 
+    @parameterized.named_parameters(
+        ("ab_bc_ac", "ab,bc->ac", (16,), "c", (None, 8)),
+        ("btd_dnh_btnh", "btd,dnh->btnh", (5, 2, 4), "nh", (None, 5, 8)),
+        (
+            "btd_dnh_btnh_no_bias",
+            "btd,dnh->btnh",
+            (5, 2, 4),
+            None,
+            (None, 5, 8),
+        ),
+    )
+    def test_quantize_float8_weights_order(
+        self, equation, output_shape, bias_axes, input_shape
+    ):
+        # A layer quantized in place and a layer built from its policy hold
+        # the same variables in the same order.
+        config = dict(
+            equation=equation, output_shape=output_shape, bias_axes=bias_axes
+        )
+        layer = layers.EinsumDense(**config)
+        layer.build(input_shape)
+        layer.quantize("float8")
+        for v in layer.weights:
+            v.assign(np.random.uniform(0.5, 1.5, v.shape))
+        new_layer = layers.EinsumDense(**config, dtype=layer.dtype_policy)
+        new_layer.build(input_shape)
+        self.assertEqual(
+            [(v.name, v.shape) for v in new_layer.weights],
+            [(v.name, v.shape) for v in layer.weights],
+        )
+        new_layer.set_weights(layer.get_weights())
+        x = np.random.random((2,) + input_shape[1:])
+        self.assertAllClose(
+            new_layer(x, training=False), layer(x, training=False)
+        )
+
     def test_gptq_serialization(self):
         """Test that a GPTQ-quantized layer can be serialized and deserialized
         correctly."""
