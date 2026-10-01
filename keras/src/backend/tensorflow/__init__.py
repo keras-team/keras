@@ -11,5 +11,6 @@ from keras.src.backend.tensorflow.ops.core import name_scope
 SUPPORTS_SPARSE_TENSORS = True
 SUPPORTS_RAGGED_TENSORS = True
 SUPPORTS_COMPLEX_DTYPES = True
+SUPPORTS_GRADIENT = True
 # https://github.com/tensorflow/tensorflow/issues/78338
 IS_THREAD_SAFE = False

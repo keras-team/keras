@@ -9,6 +9,7 @@ from keras.src.backend.numpy.ops.core import device_scope
 SUPPORTS_SPARSE_TENSORS = False
 SUPPORTS_RAGGED_TENSORS = False
 SUPPORTS_COMPLEX_DTYPES = True
+SUPPORTS_GRADIENT = False
 IS_THREAD_SAFE = True
 
 distribution_lib = None

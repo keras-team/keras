@@ -468,3 +468,7 @@ def remat(f):
         "utilize this feature."
     )
     return f
+
+
+def grad(f, argnums=0):
+    raise NotImplementedError("`grad` is not supported with the numpy backend.")
