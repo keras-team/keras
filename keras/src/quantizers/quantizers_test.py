@@ -1,3 +1,4 @@
+import inspect
 import itertools
 import math
 
@@ -8,6 +9,7 @@ from keras.src import ops
 from keras.src import quantizers
 from keras.src import random
 from keras.src import testing
+from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.quantizers import compute_quantization_parameters
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
@@ -65,6 +67,24 @@ class QuantizersTest(testing.TestCase):
         self.assertIsInstance(quantizer, quantizers.AbsMaxQuantizer)
         self.assertEqual(quantizer.value_range, (-8, 7))
         self.assertIsNone(quantizer.axis)
+
+    @parameterized.named_parameters(
+        (mode, mode) for mode in strategy_registry.registered_modes()
+    )
+    def test_mode_config_round_trips(self, mode):
+        # `deserialize` resolves the config class of every registered mode.
+        config_cls = strategy_registry.get_strategy(mode).config_cls
+        # Calibration configs take `dataset` and `tokenizer` with no default.
+        # Neither is serialized, so `None` is enough here.
+        required = {
+            name: None
+            for name, param in inspect.signature(config_cls).parameters.items()
+            if param.default is param.empty
+        }
+        serialized = quantizers.serialize(config_cls(**required))
+        reloaded = quantizers.deserialize(serialized)
+        self.assertIsInstance(reloaded, config_cls)
+        self.assertEqual(quantizers.serialize(reloaded), serialized)
 
     def test_abs_max_quantizer(self):
         values = random.uniform([3, 4, 5], minval=-1, maxval=1, dtype="float32")
