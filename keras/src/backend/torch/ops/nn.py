@@ -928,7 +928,12 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     if from_logits:
         log_prob = tnn.log_softmax(output, dim=axis)
     else:
-        output = output / torch.sum(output, dim=axis, keepdim=True)
+        epsilon_ = torch.tensor(
+            backend.epsilon(), dtype=output.dtype, device=output.device
+        )
+        output = output / torch.maximum(
+            torch.sum(output, dim=axis, keepdim=True), epsilon_
+        )
         output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
         log_prob = torch.log(output)
     return -torch.sum(target * log_prob, dim=axis)
@@ -973,7 +978,12 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     if from_logits:
         result = tnn.cross_entropy(output, target, reduction="none")
     else:
-        output = output / torch.sum(output, dim=1, keepdim=True)
+        epsilon_ = torch.tensor(
+            backend.epsilon(), dtype=output.dtype, device=output.device
+        )
+        output = output / torch.maximum(
+            torch.sum(output, dim=1, keepdim=True), epsilon_
+        )
         output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
         log_prob = torch.log(output)
         result = tnn.nll_loss(log_prob, target, reduction="none")
@@ -986,6 +996,9 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
 def binary_crossentropy(target, output, from_logits=False):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
+    if not backend.is_float_dtype(output.dtype):
+        output = cast(output, backend.floatx())
+    target = cast(target, output.dtype)
 
     # We only apply the squeeze fix if we are on an MPS device,
     # as this change breaks tests on other platforms that

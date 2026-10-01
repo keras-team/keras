@@ -2002,7 +2002,10 @@ class BinaryCrossentropy(Operation):
                 "Received: "
                 f"target.shape={target.shape}, output.shape={output.shape}"
             )
-        return KerasTensor(output.shape, dtype=output.dtype)
+        dtype = backend.standardize_dtype(output.dtype)
+        if not backend.is_float_dtype(dtype):
+            dtype = backend.floatx()
+        return KerasTensor(output.shape, dtype=dtype)
 
 
 @keras_export(

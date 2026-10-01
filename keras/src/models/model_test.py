@@ -810,9 +810,13 @@ class ModelTest(testing.TestCase):
                 return self.layer(inputs)
 
         model = CustomModel()
-        self.assertAllClose(model(np.ones((4, 20))), 1.0)
-        self.assertAllClose(model(np.ones((4, 20)), training=False), 1.0)
-        self.assertAllClose(model(np.ones((4, 20)), training=True), 0.0)
+        self.assertAllClose(model(np.ones((4, 20))), np.ones((4, 20)))
+        self.assertAllClose(
+            model(np.ones((4, 20)), training=False), np.ones((4, 20))
+        )
+        self.assertAllClose(
+            model(np.ones((4, 20)), training=True), np.zeros((4, 20))
+        )
 
     @parameterized.named_parameters(
         ("int8", "int8"),
