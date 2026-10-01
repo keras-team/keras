@@ -802,8 +802,12 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     if from_logits:
         log_prob = ov_opset.log_softmax(output, axis).output(0)
     else:
+        epsilon_ = ov_opset.constant(
+            backend.epsilon(), output.get_element_type()
+        ).output(0)
         sum_result = ov_opset.reduce_sum(output, axis, keep_dims=True).output(0)
-        output = ov_opset.divide(output, sum_result).output(0)
+        denom = ov_opset.maximum(sum_result, epsilon_).output(0)
+        output = ov_opset.divide(output, denom).output(0)
         output = ov_opset.clamp(
             output, min_value=backend.epsilon(), max_value=1 - backend.epsilon()
         ).output(0)
@@ -844,8 +848,12 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     if from_logits:
         log_prob = ov_opset.log_softmax(output, axis).output(0)
     else:
+        epsilon_ = ov_opset.constant(
+            backend.epsilon(), output.get_element_type()
+        ).output(0)
         sum = ov_opset.reduce_sum(output, axis, keep_dims=True).output(0)
-        output = ov_opset.divide(output, sum).output(0)
+        denom = ov_opset.maximum(sum, epsilon_).output(0)
+        output = ov_opset.divide(output, denom).output(0)
         output = ov_opset.clamp(
             output, min_value=backend.epsilon(), max_value=1 - backend.epsilon()
         ).output(0)
