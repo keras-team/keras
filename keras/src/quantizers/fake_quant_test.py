@@ -59,8 +59,28 @@ class FakeQuantTest(testing.TestCase):
             ]
             self.assertEqual(op.num_bits, kwargs.get("num_bits", 8))
             self.assertEqual(op.narrow_range, kwargs.get("narrow_range", False))
-            self.assertEqual(op.axis, kwargs.get("axis"))
+            # The symbolic call stores the axis canonicalized.
+            axis = kwargs.get("axis")
+            self.assertEqual(op.axis, None if axis is None else axis % x.ndim)
             self.assertAllClose(m(x), expected)
+
+    def test_fake_quant_with_min_max_vars_symbolic_invalid_axis(self):
+        # An invalid axis is refused while the graph is built.
+        x = backend.KerasTensor((2, 3, 4))
+        with self.assertRaisesRegex(ValueError, "axis"):
+            quantizers.fake_quant_with_min_max_vars(x, -3.0, 3.0, axis=3)
+
+    def test_fake_quant_with_min_max_vars_symbolic_range(self):
+        # A symbolic range makes the call symbolic too.
+        x = np.zeros((2, 3, 4), dtype="float32")
+        min_vals = backend.KerasTensor((4,))
+        max_vals = backend.KerasTensor((4,))
+        y = quantizers.fake_quant_with_min_max_vars(
+            x, min_vals, max_vals, axis=-1
+        )
+
+        self.assertIsInstance(y, backend.KerasTensor)
+        self.assertEqual(y.shape, (2, 3, 4))
 
     @parameterized.named_parameters(
         [
