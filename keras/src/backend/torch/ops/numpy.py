@@ -1922,6 +1922,7 @@ def sinh(x):
 
 
 def size(x):
+    x = convert_to_tensor(x)
     return math.prod(x.shape)
 
 

@@ -7235,6 +7235,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertEqual(knp.size(x).__class__, int)
         self.assertEqual(knp.size(x), 6)
+        self.assertEqual(knp.size([[1, 2, 3], [3, 2, 1]]), 6)
 
         self.assertEqual(knp.size(np.ones(())), 1)
         self.assertEqual(knp.size(np.ones((0, 3))), 0)
