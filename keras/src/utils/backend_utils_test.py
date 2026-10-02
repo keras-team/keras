@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from absl.testing import parameterized
 
 from keras.src import backend
@@ -72,3 +73,43 @@ class BackendUtilsTest(testing.TestCase):
         dynamic_backend = backend_utils.DynamicBackend()
         with self.assertRaisesRegex(ValueError, "Available backends are"):
             dynamic_backend.set_backend("abc")
+
+    def test_in_tf_graph_inside_tf_graph_scope(self):
+        self.assertFalse(backend_utils.in_tf_graph())
+        with backend_utils.TFGraphScope():
+            with backend_utils.TFGraphScope():
+                self.assertTrue(backend_utils.in_tf_graph())
+            self.assertTrue(backend_utils.in_tf_graph())
+        self.assertFalse(backend_utils.in_tf_graph())
+
+        # The scope is restored even when the block raises.
+        with self.assertRaises(ValueError):
+            with backend_utils.TFGraphScope():
+                raise ValueError
+        self.assertFalse(backend_utils.in_tf_graph())
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Requires the TensorFlow backend.",
+    )
+    def test_in_tf_graph_false_when_executing_eagerly(self):
+        self.assertFalse(backend_utils.in_tf_graph())
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Requires the TensorFlow backend.",
+    )
+    def test_in_tf_graph_true_inside_tf_function(self):
+        import tensorflow as tf
+
+        traced = []
+
+        @tf.function
+        def fn(x):
+            # Python side effects only run while tracing, so this records
+            # what `in_tf_graph()` returns inside the graph.
+            traced.append(backend_utils.in_tf_graph())
+            return x
+
+        fn(tf.constant(1.0))
+        self.assertEqual(traced, [True])
