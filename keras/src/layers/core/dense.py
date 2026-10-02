@@ -119,11 +119,15 @@ class Dense(Layer):
     def build(self, input_shape):
         kernel_shape = (input_shape[-1], self.units)
         if self.quantization_mode:
-            self.quantized_build(
-                kernel_shape,
-                mode=self.quantization_mode,
-                config=self.quantization_config,
-            )
+            # A strategy that owns the weight storage creates the kernel. A
+            # strategy that keeps the float kernel (float8) adds its
+            # variables after the float weights, as `quantize` does.
+            if self._strategy_owns_weight_storage():
+                self.quantized_build(
+                    kernel_shape,
+                    mode=self.quantization_mode,
+                    config=self.quantization_config,
+                )
         if not self._strategy_owns_weight_storage():
             self._kernel = self.add_weight(
                 name="kernel",
@@ -142,6 +146,12 @@ class Dense(Layer):
             )
         else:
             self.bias = None
+        if self.quantization_mode and not self._strategy_owns_weight_storage():
+            self.quantized_build(
+                kernel_shape,
+                mode=self.quantization_mode,
+                config=self.quantization_config,
+            )
         self.input_spec = InputSpec(min_ndim=2, axes={-1: input_shape[-1]})
         self.built = True
         if self.lora_rank:
