@@ -6732,9 +6732,7 @@ class Nansum(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.ops.numpy.nansum(
-            x, axis=self.axis, keepdims=self.keepdims
-        )
+        return _nansum(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
         dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
@@ -6785,7 +6783,24 @@ def nansum(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Nansum(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.ops.numpy.nansum(x, axis=axis, keepdims=keepdims)
+    return _nansum(x, axis=axis, keepdims=keepdims)
+
+
+def _nansum(x, axis=None, keepdims=False):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "nansum"
+    ):
+        return backend.ops.numpy.nansum(x, axis=axis, keepdims=keepdims)
+    x = backend.ops.convert_to_tensor(x)
+    if not backend.is_float_dtype(x.dtype):
+        return backend.ops.numpy.sum(x, axis=axis, keepdims=keepdims)
+    nan_mask = backend.ops.numpy.isnan(x)
+    zero = backend.ops.cast(0, x.dtype)
+    return backend.ops.numpy.sum(
+        backend.ops.numpy.where(nan_mask, zero, x),
+        axis=axis,
+        keepdims=keepdims,
+    )
 
 
 class Nanvar(Operation):
