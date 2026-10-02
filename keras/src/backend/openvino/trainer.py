@@ -15,7 +15,7 @@ from keras.src.utils import traceback_utils
 from keras.src.utils.python_utils import pythonify_logs
 
 
-class OpenVINOTrainer(base_trainer.Trainer):
+class OpenVINOTrainer(base_trainer.BaseTrainer):
     def __init__(self):
         super().__init__()
         self.test_function = None
