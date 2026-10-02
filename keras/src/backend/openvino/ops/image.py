@@ -795,6 +795,11 @@ def affine_transform(
             "or rank 2 (batch of transforms). Received input with shape: "
             f"transform.shape={transform.shape}"
         )
+    if isinstance(transform.shape[-1], int) and transform.shape[-1] != 8:
+        raise ValueError(
+            "Invalid transform shape: expected the last dimension to be 8. "
+            f"Received: transform.shape={transform.shape}"
+        )
 
     ov_type = images_ov.get_element_type()
     compute_type = Type.f32
