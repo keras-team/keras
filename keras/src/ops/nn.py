@@ -2124,7 +2124,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
             the tensors.
 
     Returns:
-        Integer tensor: The computed categorical cross-entropy loss between
+        The computed categorical cross-entropy loss between
         `target` and `output`.
 
     Example:
@@ -2216,7 +2216,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
             of the tensors.
 
     Returns:
-        Integer tensor: The computed sparse categorical cross-entropy
+        The computed sparse categorical cross-entropy
         loss between `target` and `output`.
 
     Example:
