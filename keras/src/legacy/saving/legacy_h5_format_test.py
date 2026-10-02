@@ -1,5 +1,6 @@
 import os
 
+import h5py
 import numpy as np
 import pytest
 
@@ -110,6 +111,44 @@ class LegacyH5WeightsTest(testing.TestCase):
         tf_keras_model = get_subclassed_model(tf_keras)
         ref_input = np.random.random((2, 3))
         self._check_reloading_weights(ref_input, model, tf_keras_model)
+
+
+@pytest.mark.requires_trainable_backend
+class LegacyH5ByNameSlashInNameTest(testing.TestCase):
+    def test_load_by_name_with_leading_slash_in_legacy_layer_name(self):
+        # Pre-Keras-3 layer names were never validated against containing
+        # "/" (current `Operation.__init__` rejects it), so a real legacy
+        # whole-model `.h5` file (`model.save(path)`, where weights are
+        # nested under a top-level "model_weights" group, unlike a
+        # weights-only save) can legitimately contain a layer group named
+        # e.g. "/dense_1" that old h5py wrote at the *file root*, not under
+        # "model_weights". `by_name=True` loading must still resolve that
+        # entry (from the true file root) instead of raising.
+        source_model = keras.Sequential(
+            [keras.Input(shape=(3,)), keras.layers.Dense(4, name="placeholder")]
+        )
+        source_model.layers[0].name = "/dense_1"
+        self.assertEqual(source_model.layers[0].name, "/dense_1")
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "legacy_weights.h5")
+        with h5py.File(temp_filepath, "w") as f:
+            model_weights_group = f.create_group("model_weights")
+            legacy_h5_format.save_weights_to_hdf5_group(
+                model_weights_group, source_model
+            )
+
+        # `Operation.__init__` rejects "/" in `name`, so build with a
+        # placeholder name and set the real (legacy-legal) name directly,
+        # matching the source model above.
+        dest_model = keras.Sequential(
+            [keras.Input(shape=(3,)), keras.layers.Dense(4, name="placeholder")]
+        )
+        dest_model.layers[0].name = "/dense_1"
+        dest_model.load_weights(temp_filepath, by_name=True)
+        self.assertAllClose(
+            source_model.layers[0].get_weights()[0],
+            dest_model.layers[0].get_weights()[0],
+        )
 
 
 @pytest.mark.requires_trainable_backend

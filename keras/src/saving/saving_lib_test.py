@@ -1764,6 +1764,57 @@ class SafeZipReadTest(testing.TestCase):
                 saving_lib.load_model(evil)
 
 
+class SafeGetH5GroupTest(testing.TestCase):
+    def _nested_group_file(self):
+        path = os.path.join(self.get_temp_dir(), "nested.h5")
+        with h5py.File(path, "w") as f:
+            f.create_group("root").create_group("a").create_group("b")
+        return path
+
+    def test_leading_slash_is_absolute_from_file_root(self):
+        # A leading "/" must be resolved from the true file root, like
+        # native h5py, not relative to `parent` — even when `parent` itself
+        # has a same-named child, that child must NOT be matched instead.
+        path = os.path.join(self.get_temp_dir(), "absolute.h5")
+        with h5py.File(path, "w") as f:
+            f.create_group("a").create_group("b")  # true root: /a/b
+            other = f.create_group("other")
+            other.create_group("a").create_group("b")  # decoy: /other/a/b
+        with h5py.File(path, "r") as f:
+            other = f["other"]
+            group = saving_lib.safe_get_h5_group(other, "/a/b")
+            self.assertEqual(group.name, "/a/b")
+
+    def test_leading_slash_missing_at_root_raises(self):
+        path = self._nested_group_file()
+        with h5py.File(path, "r") as f:
+            root = f["root"]
+            # "/a/b" only exists under "root", not at the true file root.
+            with self.assertRaises(KeyError):
+                saving_lib.safe_get_h5_group(root, "/a/b")
+
+    def test_skips_trailing_slash(self):
+        path = self._nested_group_file()
+        with h5py.File(path, "r") as f:
+            root = f["root"]
+            group = saving_lib.safe_get_h5_group(root, "a/b/")
+            self.assertEqual(group.name, "/root/a/b")
+
+    def test_skips_consecutive_slashes(self):
+        path = self._nested_group_file()
+        with h5py.File(path, "r") as f:
+            root = f["root"]
+            group = saving_lib.safe_get_h5_group(root, "a//b")
+            self.assertEqual(group.name, "/root/a/b")
+
+    def test_raises_keyerror_for_missing_group(self):
+        path = self._nested_group_file()
+        with h5py.File(path, "r") as f:
+            root = f["root"]
+            with self.assertRaises(KeyError):
+                saving_lib.safe_get_h5_group(root, "a/missing")
+
+
 class SafeGetH5DatasetTest(testing.TestCase):
     def _shape_bomb_file(self):
         """An HDF5 file with a dataset declaring ~8 PiB but storing ~nothing."""
