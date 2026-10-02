@@ -3203,11 +3203,13 @@ def _layer_normalization(
     if gamma is not None:
         inv = inv * gamma
 
-    res = -mean * inv
+    # Center before scaling. Folding the mean and beta into a single offset,
+    # as `x * inv + (beta - mean * inv)`, loses beta whenever `mean * inv` is
+    # large enough that adding beta to it rounds away: for a constant row the
+    # two large terms then cancel exactly and the result is 0 instead of beta.
+    outputs = (x - mean) * inv
     if beta is not None:
-        res = res + beta
-
-    outputs = x * inv + res
+        outputs = outputs + beta
     return backend.ops.cast(outputs, original_dtype)
 
 
