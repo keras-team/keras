@@ -13,6 +13,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import saving
 from keras.src import testing
+from keras.src.saving import serialization_lib
 from keras.src.trainers.data_adapters import py_dataset_adapter
 
 
@@ -531,6 +532,22 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         )
         output = layer(["foo bar baz unknown"])
         self.assertAllClose(output, np.array([[2, 3, 4, 1]]))
+
+    def test_from_config_rejects_vocabulary_file_path(self):
+        vocab_file = os.path.join(self.get_temp_dir(), "secret.txt")
+        with open(vocab_file, "w") as f:
+            f.write("secret_a\nsecret_b\n")
+
+        config = layers.TextVectorization(
+            vocabulary=["foo", "bar"]
+        ).get_config()
+        config["vocabulary"] = vocab_file
+        with self.assertRaisesRegex(ValueError, "loading of a vocabulary file"):
+            layers.TextVectorization.from_config(dict(config))
+
+        with serialization_lib.SafeModeScope(False):
+            layer = layers.TextVectorization.from_config(dict(config))
+        self.assertIn("secret_a", [str(v) for v in layer.get_vocabulary()])
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
