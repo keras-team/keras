@@ -11,6 +11,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import testing
 from keras.src.saving import saving_api
+from keras.src.saving import serialization_lib
 from keras.src.trainers.data_adapters import py_dataset_adapter
 
 
@@ -642,6 +643,31 @@ class IndexLookupLayerTest(testing.TestCase):
                 # Nonexistent file path
                 vocabulary="path/to/missing_vocab.txt",
             )
+
+    def test_from_config_rejects_vocabulary_file_path(self):
+        vocab_file = os.path.join(self.get_temp_dir(), "secret.txt")
+        with open(vocab_file, "w") as f:
+            f.write("secret_a\nsecret_b\n")
+
+        config = layers.StringLookup(vocabulary=["a", "b"]).get_config()
+        config["vocabulary"] = vocab_file
+        with self.assertRaisesRegex(ValueError, "loading of a vocabulary file"):
+            layers.StringLookup.from_config(dict(config))
+
+        with serialization_lib.SafeModeScope(False):
+            layer = layers.StringLookup.from_config(dict(config))
+        vocab = layer.get_vocabulary(include_special_tokens=False)
+        self.assertEqual([str(v) for v in vocab], ["secret_a", "secret_b"])
+
+    def test_from_config_rejects_integer_vocabulary_file_path(self):
+        vocab_file = os.path.join(self.get_temp_dir(), "secret_ints.txt")
+        with open(vocab_file, "w") as f:
+            f.write("11\n22\n")
+
+        config = layers.IntegerLookup(vocabulary=[1, 2]).get_config()
+        config["vocabulary"] = vocab_file
+        with self.assertRaisesRegex(ValueError, "loading of a vocabulary file"):
+            layers.IntegerLookup.from_config(dict(config))
 
     def test_repeated_tokens_in_vocabulary(self):
         with self.assertRaisesRegex(

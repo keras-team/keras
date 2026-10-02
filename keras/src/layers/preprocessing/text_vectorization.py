@@ -4,6 +4,9 @@ from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 from keras.src.layers.preprocessing.index_lookup import listify_tensors
+from keras.src.layers.preprocessing.index_lookup import (
+    raise_for_vocabulary_path_deserialization,
+)
 from keras.src.layers.preprocessing.string_lookup import StringLookup
 from keras.src.saving import serialization_lib
 from keras.src.utils import argument_validation
@@ -518,6 +521,7 @@ class TextVectorization(Layer):
 
     @classmethod
     def from_config(cls, config):
+        raise_for_vocabulary_path_deserialization(config.get("vocabulary"))
         if not isinstance(config["standardize"], str):
             config["standardize"] = serialization_lib.deserialize_keras_object(
                 config["standardize"]

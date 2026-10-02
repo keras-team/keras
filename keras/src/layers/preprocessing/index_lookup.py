@@ -19,6 +19,30 @@ def _extract_batch(batch):
     return batch
 
 
+def raise_for_vocabulary_path_deserialization(vocabulary):
+    """Refuse a vocabulary file path that came from a layer config.
+
+    `get_config` never emits a path: a file-based vocabulary is stored as an
+    asset and the config entry is set to `None`. A path therefore only reaches
+    `from_config` from a hand-written or tampered config, where reading it
+    discloses an arbitrary local file. `in_safe_mode()` is `None` when no
+    deserialization scope is active (e.g. a direct `from_config` call), so the
+    read requires an explicit opt-out rather than merely an absent scope.
+    """
+    if not isinstance(vocabulary, str):
+        return
+    if serialization_lib.in_safe_mode() is not False:
+        raise ValueError(
+            "Requested the loading of a vocabulary file outside of the model "
+            "archive. This carries a potential risk of loading arbitrary and "
+            "sensitive files and thus it is disallowed by default. If you "
+            "trust the source of the artifact, you can override this error by "
+            "passing `safe_mode=False` to the loading function, or calling "
+            "`keras.config.enable_unsafe_deserialization(). "
+            f"Vocabulary file: '{vocabulary}'"
+        )
+
+
 class IndexLookup(Layer):
     """Maps values from a vocabulary to integer indices.
 
@@ -410,6 +434,11 @@ class IndexLookup(Layer):
         }
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    @classmethod
+    def from_config(cls, config):
+        raise_for_vocabulary_path_deserialization(config.get("vocabulary"))
+        return super().from_config(config)
 
     def _record_vocabulary_size(self):
         self._ensure_vocab_size_unchanged()
