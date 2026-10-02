@@ -3621,6 +3621,58 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.hypot(x, y), np.hypot(x, y))
         self.assertAllClose(knp.Hypot()(x, y), np.hypot(x, y))
 
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_GRADIENT,
+        reason="Backend does not support gradients.",
+    )
+    def test_hypot_gradients(self):
+        # Covers |x| == |y|, a zero component, and sign combinations.
+        # Exact values: d/dx = x / h, d/dy = y / h,
+        # d2/dx2 = y**2 / h**3, d2/dy2 = x**2 / h**3, with h = hypot(x, y).
+        x_np = np.array([1.0, -2.0, 0.0, 3.0, 3.0, -0.5], dtype="float32")
+        y_np = np.array([1.0, 2.0, 3.0, 0.0, -4.0, -0.5], dtype="float32")
+        h_np = np.hypot(x_np, y_np)
+
+        x = knp.array(x_np)
+        y = knp.array(y_np)
+        dx, dy = ops.grad(knp.hypot, argnums=(0, 1))(x, y)
+        self.assertAllClose(ops.convert_to_numpy(dx), x_np / h_np)
+        self.assertAllClose(ops.convert_to_numpy(dy), y_np / h_np)
+
+        if backend.backend() in ("tensorflow", "jax"):
+            # Second-order gradients including when one component is zero.
+            x2_np = np.array([0.0, 3.0, 3.0], dtype="float32")
+            y2_np = np.array([3.0, 0.0, -4.0], dtype="float32")
+            h2_np = np.hypot(x2_np, y2_np)
+            x2 = knp.array(x2_np)
+            y2 = knp.array(y2_np)
+            dxx = ops.grad(ops.grad(knp.hypot, argnums=0), argnums=0)(x2, y2)
+            dyy = ops.grad(ops.grad(knp.hypot, argnums=1), argnums=1)(x2, y2)
+            self.assertAllClose(
+                ops.convert_to_numpy(dxx), y2_np**2 / h2_np**3
+            )
+            self.assertAllClose(
+                ops.convert_to_numpy(dyy), x2_np**2 / h2_np**3
+            )
+
+            # Broadcast second-order gradient when one component is zero.
+            xb = knp.array([[3.0], [4.0]], dtype="float32")
+            yb = knp.array([0.0, 0.0, 0.0], dtype="float32")
+            dyy_b = ops.grad(ops.grad(knp.hypot, argnums=1), argnums=1)(xb, yb)
+            self.assertAllClose(
+                ops.convert_to_numpy(dyy_b), [1.0 / 3.0 + 1.0 / 4.0] * 3
+            )
+
+        if backend.backend() == "tensorflow":
+            dxx_all = ops.grad(ops.grad(knp.hypot, argnums=0), argnums=0)(x, y)
+            dyy_all = ops.grad(ops.grad(knp.hypot, argnums=1), argnums=1)(x, y)
+            self.assertAllClose(
+                ops.convert_to_numpy(dxx_all), y_np**2 / h_np**3
+            )
+            self.assertAllClose(
+                ops.convert_to_numpy(dyy_all), x_np**2 / h_np**3
+            )
+
     def test_subtract(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
