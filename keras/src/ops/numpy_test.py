@@ -4922,17 +4922,6 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             knp.nextafter(x, y), np.nextafter(x, y), atol=0, rtol=0
         )
 
-        # Steps near zero are smaller than one ulp of 1.0, so they are lost
-        # if the computation happens in a wider dtype and is cast back.
-        # Both results are subnormal. The openvino CPU plugin flushes float32
-        # subnormals to zero in the constant-only graphs eager ops run as.
-        if not (backend.backend() == "openvino" and dtype == "float32"):
-            x = np.array([0.0, np.finfo(dtype).tiny], dtype=dtype)
-            y = np.array([1.0, 0.0], dtype=dtype)
-            self.assertAllClose(
-                knp.nextafter(x, y), np.nextafter(x, y), atol=0, rtol=0
-            )
-
         # A NaN in either argument propagates, including from an
         # infinity, where it has to win over the step to the largest
         # finite value.
@@ -4945,6 +4934,19 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         # A step between ordinary values must move by exactly one ulp.
         x = np.array([1.0, -1.0], dtype=dtype)
         y = np.array([2.0, -2.0], dtype=dtype)
+        self.assertAllClose(
+            knp.nextafter(x, y), np.nextafter(x, y), atol=0, rtol=0
+        )
+
+    @parameterized.named_parameters(
+        ("float32", "float32"),
+        ("float16", "float16"),
+    )
+    def test_nextafter_tiny(self, dtype):
+        # Steps near zero are smaller than one ulp of 1.0, so they are lost
+        # if the computation happens in a wider dtype and is cast back.
+        x = np.array([0.0, np.finfo(dtype).tiny], dtype=dtype)
+        y = np.array([1.0, 0.0], dtype=dtype)
         self.assertAllClose(
             knp.nextafter(x, y), np.nextafter(x, y), atol=0, rtol=0
         )
