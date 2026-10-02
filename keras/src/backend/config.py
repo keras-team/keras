@@ -280,9 +280,13 @@ def standardize_data_format(data_format):
 # Otherwise either ~/.keras or /tmp.
 if "KERAS_HOME" in os.environ:
     _KERAS_DIR = os.environ.get("KERAS_HOME")
+    _keras_dir_is_tmp_fallback = False
 else:
     _keras_base_dir = os.path.expanduser("~")
-    if not os.access(_keras_base_dir, os.W_OK):
+    # When the home directory is not writable, the base dir falls back to a
+    # world-writable location (`/tmp`).
+    _keras_dir_is_tmp_fallback = not os.access(_keras_base_dir, os.W_OK)
+    if _keras_dir_is_tmp_fallback:
         _keras_base_dir = "/tmp"
     _KERAS_DIR = os.path.join(_keras_base_dir, ".keras")
 
@@ -335,6 +339,12 @@ if os.path.exists(_config_path):
 if not os.path.exists(_KERAS_DIR):
     try:
         os.makedirs(_KERAS_DIR)
+        if _keras_dir_is_tmp_fallback:
+            # The fallback lives in a world-writable location. Keep it private
+            # to the current user, otherwise other local users could read it or
+            # pre-create this predictable path and plant a `keras.json` that
+            # this process would read on startup.
+            os.chmod(_KERAS_DIR, 0o700)
     except OSError:
         # Except permission denied and potential race conditions
         # in multi-threaded environments.
