@@ -397,7 +397,9 @@ class DTypePolicyMapTest(testing.TestCase):
         other_map["dense"] = other
         other_map.get_config()
         self.assertNotEqual(policies["int8"], other)
-        # The serialized output is byte-identical to the reference.
+        # The serialized output is byte-identical to the reference. The test
+        # compares the JSON text, not the dicts, because the key order is
+        # part of the bytes.
         expected = _serialize_by_blanking_policies(reference)
         self.assertEqual(json.dumps(config), json.dumps(expected))
         self.assertEqual(
