@@ -34,6 +34,20 @@ def _crafted_npz(path, construct_args, state):
     return path
 
 
+def _raw_npy_member(path, header, payload=b""):
+    """Writes a `.npz` whose `.npy` member has a raw header and payload.
+
+    Used to craft members whose *header* (rather than pickle state) describes a
+    huge or truncated numeric array, which never reaches the unpickler.
+    """
+    header += b" " * ((64 - (len(header) + 10) % 64) % 64)
+    npy = b"\x93NUMPY\x01\x00" + len(header).to_bytes(2, "little") + header
+    npy += payload
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("x.npy", npy)
+    return path
+
+
 class LoadNpzTest(testing.TestCase):
     def test_loads_ragged_object_arrays(self):
         # IMDB/Reuters store ragged sequences as `dtype=object` arrays.
@@ -49,6 +63,43 @@ class LoadNpzTest(testing.TestCase):
             [[1, 14, 22], [1, 194], [1, 14, 47, 8]],
         )
         self.assertAllEqual(loaded["y"], ys)
+
+    def test_object_array_elements_are_plain_ndarrays(self):
+        # The validating subclass is an implementation detail: it must not leak
+        # into the arrays nested inside an object array. IMDB/Reuters hand back
+        # `x_train[i]` as a plain `np.ndarray`, so `type(seq) is np.ndarray`
+        # has to hold for every element, not only for the outer array.
+        xs = np.empty(3, dtype=object)
+        sequences = ([1, 14, 22], [1, 194], [1, 14, 47, 8])
+        for index, sequence in enumerate(sequences):
+            xs[index] = np.array(sequence)
+        path = os.path.join(self.get_temp_dir(), "objects.npz")
+        np.savez(path, x=xs)
+
+        loaded = npz_utils.load_npz(path)
+
+        self.assertIs(type(loaded["x"]), np.ndarray)
+        for element in loaded["x"]:
+            self.assertIs(type(element), np.ndarray)
+            self.assertEqual(element.dtype, np.dtype("int64"))
+
+    def test_loads_nested_object_array_with_plain_elements(self):
+        # An object array can nest another object array; every level has to be
+        # unwrapped, not just the outermost one.
+        inner = np.empty(2, dtype=object)
+        inner[0] = np.arange(3)
+        inner[1] = np.arange(5)
+        outer = np.empty(1, dtype=object)
+        outer[0] = inner
+        path = os.path.join(self.get_temp_dir(), "nested.npz")
+        np.savez(path, x=outer)
+
+        loaded = npz_utils.load_npz(path)
+
+        self.assertIs(type(loaded["x"]), np.ndarray)
+        self.assertIs(type(loaded["x"][0]), np.ndarray)
+        for element in loaded["x"][0]:
+            self.assertIs(type(element), np.ndarray)
 
     def test_loads_numeric_arrays(self):
         path = os.path.join(self.get_temp_dir(), "numeric.npz")
@@ -194,6 +245,95 @@ class LoadNpzTest(testing.TestCase):
 
             with self.assertRaisesRegex(pickle.UnpicklingError, "Refusing"):
                 npz_utils.load_npz(path)
+
+    def test_rejects_non_tuple_shape(self):
+        # A shape that is not a tuple (here a list) must be refused rather than
+        # handed to numpy.
+        path = _crafted_npz(
+            os.path.join(self.get_temp_dir(), "shape_list.npz"),
+            (np.ndarray, [1], np.dtype("i8")),
+            lambda: (1, [1], np.dtype("i8"), False, b"\x00" * 8),
+        )
+
+        with self.assertRaisesRegex(pickle.UnpicklingError, "Refusing"):
+            npz_utils.load_npz(path)
+
+    def test_rejects_negative_shape(self):
+        path = _crafted_npz(
+            os.path.join(self.get_temp_dir(), "shape_negative.npz"),
+            (np.ndarray, (-1,), np.dtype("i8")),
+            lambda: (1, (-1,), np.dtype("i8"), False, b""),
+        )
+
+        with self.assertRaisesRegex(pickle.UnpicklingError, "Refusing"):
+            npz_utils.load_npz(path)
+
+    def test_rejects_object_state_carrying_no_data(self):
+        # An object array must carry a list of objects; `None` used to slip
+        # past the validator and reach numpy, which raised a bare `TypeError`.
+        path = _crafted_npz(
+            os.path.join(self.get_temp_dir(), "objects_none.npz"),
+            (np.ndarray, (1,), np.dtype("O")),
+            lambda: (1, (1,), np.dtype("O"), False, None),
+        )
+
+        with self.assertRaisesRegex(pickle.UnpicklingError, "Refusing"):
+            npz_utils.load_npz(path)
+
+    def test_rejects_dtype_that_raises_value_error(self):
+        # A crafted state whose dtype spec is well-typed but malformed (here a
+        # duplicated field name) made `numpy.dtype` raise `ValueError`, which
+        # escaped as a plain `ValueError` instead of an unpickling error.
+        path = _crafted_npz(
+            os.path.join(self.get_temp_dir(), "dtype_value_error.npz"),
+            (np.ndarray, (1,), np.dtype("i8")),
+            lambda: (1, (1,), {"names": ["a", "a"]}, False, b"\x00" * 8),
+        )
+
+        with self.assertRaisesRegex(pickle.UnpicklingError, "Refusing"):
+            npz_utils.load_npz(path)
+
+    def test_rejects_huge_numeric_shape_without_allocating(self):
+        # A tiny member whose header claims `shape=(2**40,)` of `int8` used to
+        # make numpy request 1 TiB and raise a `MemoryError` that escaped
+        # `load_npz`. The header is now validated before anything is allocated.
+        header = (
+            b"{'descr': '|i1', 'fortran_order': False, "
+            b"'shape': (1099511627776,), }"
+        )
+        path = _raw_npy_member(
+            os.path.join(self.get_temp_dir(), "huge_numeric.npz"), header
+        )
+
+        with self.assertRaisesRegex(ValueError, "Refusing"):
+            npz_utils.load_npz(path)
+
+    def test_rejects_huge_object_shape_without_allocating(self):
+        # Same for the pickle path: the `_reconstruct` arguments are bounded
+        # before numpy allocates the object-pointer buffer.
+        path = _crafted_npz(
+            os.path.join(self.get_temp_dir(), "huge_object.npz"),
+            (np.ndarray, (2**40,), np.dtype("O")),
+            lambda: (1, (2**40,), np.dtype("O"), False, []),
+        )
+
+        with self.assertRaisesRegex(pickle.UnpicklingError, "Refusing"):
+            npz_utils.load_npz(path)
+
+    def test_corrupt_numeric_member_is_not_reinterpreted_as_objects(self):
+        # A truncated *numeric* member must fail as a format error. It used to
+        # be rewound and re-fed to the pickle unpickler by a blanket
+        # `except ValueError`, surfacing a misleading pickle-domain error.
+        header = b"{'descr': '|i8', 'fortran_order': False, 'shape': (4,), }"
+        path = _raw_npy_member(
+            os.path.join(self.get_temp_dir(), "truncated.npz"),
+            header,
+            b"\x00" * 8,
+        )
+
+        with self.assertRaises(ValueError) as ctx:
+            npz_utils.load_npz(path)
+        self.assertNotIsInstance(ctx.exception, pickle.UnpicklingError)
 
     def test_loads_empty_object_array(self):
         # A zero-element object array legitimately carries an empty list, which
