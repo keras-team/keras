@@ -720,11 +720,22 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
     def _post_quantize(self, mode, **kwargs):
         if backend.backend() == "torch":
+            # Local import: `sequential` imports this module.
+            from keras.src.models.sequential import Sequential
+
             # We need to manually retrack `torch_params`.
             # The reason is that after quantization, the removed variables are
             # still referenced by `torch_params` and cannot be gc.
             for layer in self._flatten_layers():
                 layer._track_variables()
+                # A `Sequential` runs its layers through the `Functional` in
+                # `_functional`, which `_flatten_layers` does not visit. Its
+                # `torch_params` also reference the removed variables.
+                if (
+                    isinstance(layer, Sequential)
+                    and layer._functional is not None
+                ):
+                    layer._functional._track_variables()
 
     def build_from_config(self, config):
         if not config:
