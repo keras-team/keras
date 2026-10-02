@@ -103,7 +103,11 @@ def log_sigmoid(x):
 
 
 def leaky_relu(x, negative_slope=0.2):
+    # `tnn.leaky_relu` is not implemented for integer or bool dtypes.
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tnn.leaky_relu(x, negative_slope=negative_slope)
 
 

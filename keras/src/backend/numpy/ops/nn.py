@@ -111,6 +111,11 @@ def log_sigmoid(x):
 
 def leaky_relu(x, negative_slope=0.2):
     x = convert_to_tensor(x)
+    # `negative_slope` truncates to 0 under an integer dtype, which leaves
+    # `maximum(x, 0)`, i.e. `relu`.
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return np.maximum(x, np.array(negative_slope, x.dtype) * x)
 
 

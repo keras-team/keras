@@ -102,7 +102,12 @@ def log_sigmoid(x):
 
 
 def leaky_relu(x, negative_slope=0.2):
+    # JAX promotes integers on its own, but to `float32` rather than to
+    # `floatx`, which would disagree with `compute_output_spec`.
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return jnn.leaky_relu(x, negative_slope=negative_slope)
 
 

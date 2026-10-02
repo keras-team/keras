@@ -1630,6 +1630,11 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.leaky_relu(x),
             [-0.2, 0, 1, 2, 3],
         )
+        # Integer input is promoted to float. The numpy and openvino backends
+        # previously truncated `negative_slope` to 0 under an integer dtype,
+        # which turned this into `relu`.
+        x_int = np.array([-1, 0, 1, 2, 3], dtype="int32")
+        self.assertAllClose(knn.leaky_relu(x_int), [-0.2, 0, 1, 2, 3])
 
     def test_hard_sigmoid(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
@@ -3404,7 +3409,9 @@ class NNOpsDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @parameterized.named_parameters(
+        named_product(dtype=FLOAT_DTYPES + INT_DTYPES + ["bool"])
+    )
     def test_leaky_relu(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
