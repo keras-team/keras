@@ -5878,9 +5878,7 @@ class Nanargmax(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.ops.numpy.nanargmax(
-            x, axis=self.axis, keepdims=self.keepdims
-        )
+        return _nanargmax(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
         axis = [self.axis] if self.axis is not None else None
@@ -5927,7 +5925,29 @@ def nanargmax(x, axis=None, keepdims=False):
 
     if any_symbolic_tensors((x,)):
         return Nanargmax(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.ops.numpy.nanargmax(x, axis=axis, keepdims=keepdims)
+    return _nanargmax(x, axis=axis, keepdims=keepdims)
+
+
+def _nanargmax(x, axis=None, keepdims=False):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "nanargmax"
+    ):
+        return backend.ops.numpy.nanargmax(x, axis=axis, keepdims=keepdims)
+    x = backend.ops.convert_to_tensor(x)
+    if not backend.is_float_dtype(x.dtype):
+        return backend.ops.numpy.argmax(x, axis=axis, keepdims=keepdims)
+    nan_mask = backend.ops.numpy.isnan(x)
+    neg_inf = backend.ops.cast(float("-inf"), x.dtype)
+    result = backend.ops.numpy.argmax(
+        backend.ops.numpy.where(nan_mask, neg_inf, x),
+        axis=axis,
+        keepdims=keepdims,
+    )
+    return backend.ops.numpy.where(
+        backend.ops.numpy.all(nan_mask, axis=axis, keepdims=keepdims),
+        backend.ops.cast(-1, result.dtype),
+        result,
+    )
 
 
 class Nanargmin(Operation):
@@ -5937,9 +5957,7 @@ class Nanargmin(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.ops.numpy.nanargmin(
-            x, axis=self.axis, keepdims=self.keepdims
-        )
+        return _nanargmin(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
         axis = [self.axis] if self.axis is not None else None
@@ -5986,7 +6004,29 @@ def nanargmin(x, axis=None, keepdims=False):
 
     if any_symbolic_tensors((x,)):
         return Nanargmin(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.ops.numpy.nanargmin(x, axis=axis, keepdims=keepdims)
+    return _nanargmin(x, axis=axis, keepdims=keepdims)
+
+
+def _nanargmin(x, axis=None, keepdims=False):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "nanargmin"
+    ):
+        return backend.ops.numpy.nanargmin(x, axis=axis, keepdims=keepdims)
+    x = backend.ops.convert_to_tensor(x)
+    if not backend.is_float_dtype(x.dtype):
+        return backend.ops.numpy.argmin(x, axis=axis, keepdims=keepdims)
+    nan_mask = backend.ops.numpy.isnan(x)
+    pos_inf = backend.ops.cast(float("inf"), x.dtype)
+    result = backend.ops.numpy.argmin(
+        backend.ops.numpy.where(nan_mask, pos_inf, x),
+        axis=axis,
+        keepdims=keepdims,
+    )
+    return backend.ops.numpy.where(
+        backend.ops.numpy.all(nan_mask, axis=axis, keepdims=keepdims),
+        backend.ops.cast(-1, result.dtype),
+        result,
+    )
 
 
 class Nancumsum(Operation):
