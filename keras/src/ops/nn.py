@@ -440,10 +440,9 @@ class LeakyRelu(Operation):
     def compute_output_spec(self, x):
         # Integer and bool input is promoted to `floatx`, matching what the
         # backends return. Same rule as `Exp.compute_output_spec`.
-        dtype = backend.standardize_dtype(x.dtype)
-        if "int" in dtype or dtype == "bool":
-            dtype = backend.floatx()
-        return KerasTensor(x.shape, dtype=dtype)
+        return KerasTensor(
+            x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
+        )
 
 
 @keras_export(["keras.ops.leaky_relu", "keras.ops.nn.leaky_relu"])

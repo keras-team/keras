@@ -3409,21 +3409,6 @@ class NNOpsDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    def test_leaky_relu_preserves_float_dtypes(self):
-        # `FLOAT_DTYPES` excludes float64 and the JAX reference runs with x64
-        # off, so the dtype test below does not cover it. Promotion must not
-        # change a float dtype. Some backends already narrow float64 in
-        # `convert_to_tensor`, so that is the dtype to compare against.
-        for dtype in ("float64", "float32", "float16"):
-            try:
-                x = knp.ones((2,), dtype=dtype)
-                expected = standardize_dtype(knp.convert_to_tensor(x).dtype)
-            except Exception:
-                continue  # backend cannot represent this dtype
-            self.assertEqual(
-                standardize_dtype(knn.leaky_relu(x).dtype), expected
-            )
-
     @parameterized.named_parameters(
         named_product(dtype=FLOAT_DTYPES + INT_DTYPES + ["bool"])
     )

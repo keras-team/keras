@@ -102,22 +102,12 @@ def log_sigmoid(x):
     return tnn.logsigmoid(x)
 
 
-def _promote_to_float(x):
-    """Cast integer and bool input to `floatx`, leaving float dtypes alone.
-
-    `result_type(dtype, float)` is not usable here: it demotes `float64` to
-    `float32` on every backend but TensorFlow, and it derives the float width
-    from `floatx()[-2:]`, which turns `bfloat16` into `float16`.
-    """
-    dtype = backend.standardize_dtype(x.dtype)
-    if "int" in dtype or dtype == "bool":
-        return cast(x, backend.floatx())
-    return x
-
-
 def leaky_relu(x, negative_slope=0.2):
     # `tnn.leaky_relu` is not implemented for integer or bool dtypes.
-    x = _promote_to_float(convert_to_tensor(x))
+    x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tnn.leaky_relu(x, negative_slope=negative_slope)
 
 
