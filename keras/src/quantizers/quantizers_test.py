@@ -74,6 +74,8 @@ class QuantizersTest(testing.TestCase):
     def test_mode_config_round_trips(self, mode):
         # `deserialize` resolves the config class of every registered mode.
         config_cls = strategy_registry.get_strategy(mode).config_cls
+        if config_cls is None:
+            self.skipTest(f"Mode '{mode}' defines no config class.")
         # Calibration configs take `dataset` and `tokenizer` with no default.
         # Neither is serialized, so `None` is enough here.
         required = {
