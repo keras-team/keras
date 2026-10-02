@@ -884,6 +884,41 @@ class EmbeddingTest(test_case.TestCase):
         y = layer(x)
         self.assertEqual(y.shape, (4, 8, output_dim))
 
+    def test_int4_grouped_merged_save_keeps_lora_update(self):
+        # See `DenseTest.test_int4_grouped_merged_save_keeps_lora_update`.
+        input_dim, output_dim, block_size = 12, 16, 4
+        inputs = layers.Input((1,), dtype="int32")
+        layer = layers.Embedding(input_dim, output_dim, name="target")
+        model = models.Model(inputs, layer(inputs))
+        layer.quantize(
+            "int4", config=Int4QuantizationConfig(block_size=block_size)
+        )
+        ids = np.arange(input_dim)
+        quantized = ops.convert_to_numpy(layer(ids))
+        layer.enable_lora(2)
+        rng = np.random.RandomState(0)
+        layer.lora_embeddings_a.assign(
+            rng.randn(input_dim, 2).astype("float32") * 0.5
+        )
+        layer.lora_embeddings_b.assign(
+            rng.randn(2, output_dim).astype("float32") * 0.5
+        )
+        with_update = ops.convert_to_numpy(layer(ids))
+        path = os.path.join(self.get_temp_dir(), "merged.keras")
+        model.save(path)
+        merged_layer = saving.load_model(path).get_layer("target")
+        merged = ops.convert_to_numpy(merged_layer(ids))
+        # Half a step of the re-quantized grid: groups run along the
+        # output axis, one row of scales per token.
+        scale = ops.convert_to_numpy(merged_layer.embeddings_scale)
+        half_step = 0.5 * scale[:, np.arange(output_dim) // block_size]
+        self.assertGreater(
+            np.abs(with_update - quantized).max(), 4 * half_step.max()
+        )
+        self.assertTrue(
+            np.all(np.abs(merged - with_update) <= half_step * 1.001 + 1e-6)
+        )
+
     def test_int4_grouped_vs_perchannel_scale_shapes(self):
         """Test that grouped and per-channel have different scale shapes."""
 

@@ -9,7 +9,6 @@ fragments. Those differences are the hooks below.
 
 import math
 
-from keras.src import ops
 from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
 from keras.src.quantizers.modes.common import apply_bias_activation
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
@@ -103,22 +102,25 @@ class CalibrationStrategy(QuantizationStrategy):
         geometry.store_unpacked_columns(self.name, columns)
         geometry.prepare()
 
+        # Stored in the kernel's own `[in, out]` orientation and packed
+        # along the output axis, like the int4 layout, so the forward pass
+        # unpacks and dequantizes without a transpose.
         layer.quantized_kernel = layer.add_weight(
             name="kernel",
-            shape=(kernel_columns, rows),
+            shape=(rows, kernel_columns),
             initializer="zeros",
             dtype="uint8",
             trainable=False,
         )
         layer.kernel_scale = layer.add_weight(
             name="kernel_scale",
-            shape=(columns, n_groups),
+            shape=(n_groups, columns),
             initializer="ones",
             trainable=False,
         )
         layer.kernel_zero = layer.add_weight(
             name="zero_point",
-            shape=(columns, n_groups),
+            shape=(n_groups, columns),
             initializer="zeros",
             dtype="uint8",
             trainable=False,
@@ -155,8 +157,8 @@ class CalibrationStrategy(QuantizationStrategy):
                 layer.kernel_scale,
                 layer.kernel_zero,
                 layer.g_idx,
+                group_axis=0,
             )
-            W = ops.transpose(W)
             W = self._postprocess_kernel(layer, W)
             W = geometry.reshape_kernel(W)
 
@@ -168,5 +170,5 @@ class CalibrationStrategy(QuantizationStrategy):
         raise NotImplementedError
 
     def _postprocess_kernel(self, layer, W):
-        """Hook applied to the dequantized, transposed kernel."""
+        """Hook applied to the dequantized kernel."""
         return W

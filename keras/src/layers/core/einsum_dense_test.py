@@ -1234,11 +1234,11 @@ class EinsumDenseTest(testing.TestCase):
             # bias
             "0": np.random.random((32,)).astype("float32"),
             # quantized_kernel
-            "1": np.random.randint(0, 16, size=(16, 24), dtype="uint8"),
+            "1": np.random.randint(0, 16, size=(24, 16), dtype="uint8"),
             # kernel_scale.
-            "2": np.random.random((32, 3)).astype("float32"),
+            "2": np.random.random((3, 32)).astype("float32"),
             # kernel_zero
-            "3": np.random.random((32, 3)).astype("uint8"),
+            "3": np.random.random((3, 32)).astype("uint8"),
             # g_idx: legacy checkpoints stored the integer group indices as
             # float32; they load into the float32 g_idx variable unchanged.
             "4": (np.arange(24) // 8).astype("float32"),
@@ -1246,9 +1246,9 @@ class EinsumDenseTest(testing.TestCase):
         # kernel shape (3, 8, 32), packed: (16, 24) for 4-bit
         awq_store = {
             "0": np.random.random((32,)).astype("float32"),  # bias
-            "1": np.random.randint(0, 16, size=(16, 24), dtype="uint8"),
-            "2": np.random.random((32, 3)).astype("float32"),  # scale
-            "3": np.random.random((32, 3)).astype("uint8"),  # zero
+            "1": np.random.randint(0, 16, size=(24, 16), dtype="uint8"),
+            "2": np.random.random((3, 32)).astype("float32"),  # scale
+            "3": np.random.random((3, 32)).astype("uint8"),  # zero
             "4": np.random.random((24,)).astype("float32"),  # awq_scales
             # g_idx saved as int32 by a newer checkpoint; the cast on load
             # brings it into the float32 storage variable (see above).
@@ -1440,7 +1440,8 @@ class EinsumDenseTest(testing.TestCase):
         layer.is_gptq_calibrated = True  # Bypass calibration check
         packed_kernel = layer.quantized_kernel
         self.assertAllClose(
-            layer.kernel, quantizers.unpack_int4(packed_kernel, 2)
+            layer.kernel,
+            quantizers.unpack_int4(packed_kernel, 2, axis=-1, dtype="uint8"),
         )
 
     def test_gptq_kernel_packing(self):
@@ -1485,7 +1486,8 @@ class EinsumDenseTest(testing.TestCase):
         layer.is_awq_calibrated = True  # Bypass calibration check
         packed_kernel = layer.quantized_kernel
         self.assertAllClose(
-            layer.kernel, quantizers.unpack_int4(packed_kernel, 2)
+            layer.kernel,
+            quantizers.unpack_int4(packed_kernel, 2, axis=-1, dtype="uint8"),
         )
 
     def test_awq_kernel_packing(self):
@@ -1664,6 +1666,44 @@ class EinsumDenseTest(testing.TestCase):
         # Should run without error
         y = layer(x)
         self.assertEqual(y.shape, (2, 64))
+
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
+    def test_int4_grouped_merged_save_keeps_lora_update(self):
+        # See `DenseTest.test_int4_grouped_merged_save_keeps_lora_update`.
+        input_dim, units, block_size = 12, 16, 4
+        inputs = layers.Input((input_dim,))
+        layer = layers.EinsumDense(
+            "ab,bc->ac", output_shape=units, bias_axes=None, name="target"
+        )
+        model = models.Model(inputs, layer(inputs))
+        layer.quantize(
+            "int4", config=Int4QuantizationConfig(block_size=block_size)
+        )
+        eye = np.eye(input_dim, dtype="float32")
+        quantized = ops.convert_to_numpy(layer(eye))
+        layer.enable_lora(2)
+        rng = np.random.RandomState(0)
+        layer.lora_kernel_a.assign(
+            rng.randn(input_dim, 2).astype("float32") * 0.5
+        )
+        layer.lora_kernel_b.assign(rng.randn(2, units).astype("float32") * 0.5)
+        with_update = ops.convert_to_numpy(layer(eye))
+        path = os.path.join(self.get_temp_dir(), "merged.keras")
+        model.save(path)
+        merged_layer = saving.load_model(path).get_layer("target")
+        merged = ops.convert_to_numpy(merged_layer(eye))
+        scale = ops.convert_to_numpy(merged_layer.kernel_scale)
+        half_step = 0.5 * scale[np.arange(input_dim) // block_size]
+        self.assertGreater(
+            np.abs(with_update - quantized).max(), 4 * half_step.max()
+        )
+        # A float32 matmul runs at bfloat16 precision on TPU.
+        atol = 1e-2 if testing.uses_tpu() else 1e-6
+        self.assertTrue(
+            np.all(np.abs(merged - with_update) <= half_step * 1.001 + atol)
+        )
 
     @pytest.mark.skipif(
         testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"

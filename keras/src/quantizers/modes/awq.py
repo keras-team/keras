@@ -42,7 +42,7 @@ class AWQStrategy(CalibrationStrategy):
         return unpack_int4(
             layer.quantized_kernel,
             orig_len=geometry.unpacked_columns(self.name),
-            axis=0,
+            axis=-1,
             dtype="uint8",
         )
 
