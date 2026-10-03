@@ -1877,6 +1877,10 @@ def cov(x):
         dtype = "float64"
     elif x.dtype in ["bfloat16", "float16"]:
         dtype = x.dtype
+    elif np.issubdtype(x.dtype, np.complexfloating):
+        # `np.cov` of a complex input is complex; casting it to `floatx`
+        # would drop the imaginary part.
+        dtype = x.dtype
     else:
         dtype = config.floatx()
 
