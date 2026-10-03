@@ -5,7 +5,6 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from conftest import skip_if_backend
 from keras.src import backend
 from keras.src import initializers
 from keras.src import ops
@@ -146,9 +145,6 @@ class VariableInitializationTest(test_case.TestCase):
 class VariablePropertiesTest(test_case.TestCase):
     """Tests for Variable._deferred_initialize Variable._maybe_autocast"""
 
-    @skip_if_backend(
-        "openvino", "Can not constant fold eltwise node by CPU plugin"
-    )
     def test_deferred_assignment(self):
         """Tests deferred assignment to variables."""
         with StatelessScope() as scope:
@@ -766,18 +762,12 @@ class VariableOpsCorrectnessTest(test_case.TestCase):
         v2 = backend.Variable(initializer=np.array([1.0, 2.0, 3.0]))
         self.assertAllClose(v1.__rtruediv__(v2), np.array([0.25, 0.4, 0.5]))
 
-    @skip_if_backend(
-        "openvino", "`floor_divide` is not supported with openvino backend"
-    )
     def test__floordiv__(self):
         """Test floordiv operation on a variable."""
         v1 = backend.Variable(initializer=np.array([1.0, 2.0, 3.0]))
         v2 = backend.Variable(initializer=np.array([-4.0, 5.0, 6.0]))
         self.assertAllClose(v1.__floordiv__(v2), np.array([-1.0, 0.0, 0.0]))
 
-    @skip_if_backend(
-        "openvino", "`floor_divide` is not supported with openvino backend"
-    )
     def test__rfloordiv__(self):
         """Test reverse floordiv operation on a variable."""
         v1 = backend.Variable(initializer=np.array([-4.0, 5.0, 6.0]))
@@ -1131,9 +1121,6 @@ class VariableOpsDTypeTest(test_case.TestCase):
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(NON_COMPLEX_DTYPES, 2))
-    )
-    @skip_if_backend(
-        "openvino", "`floor_divide` is not supported with openvino backend"
     )
     def test_floordiv(self, dtypes):
         import jax.numpy as jnp
