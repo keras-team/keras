@@ -23,12 +23,6 @@ from keras.src.backend.common.stateless_scope import in_stateless_scope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.jax import distribution_lib
 
-SUPPORTS_SPARSE_TENSORS = True
-SUPPORTS_RAGGED_TENSORS = False
-SUPPORTS_COMPLEX_DTYPES = True
-SUPPORTS_GRADIENT = True
-IS_THREAD_SAFE = True
-
 
 class JaxVariable(KerasVariable):
     def _initialize_layout(self):
@@ -396,7 +390,8 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         else:
             return x
 
-    if not is_tensor(x) and standardize_dtype(dtype) == "bfloat16":
+    # The branch must run only for an explicit bfloat16 request:
+    if not is_tensor(x) and dtype is not None and dtype == "bfloat16":
         # Can't create bfloat16 arrays on the fly (e.g. from a h5 Dataset).
         # Instead we convert "as is" (to stored dtype) and cast.
         return jnp.asarray(x).astype(dtype)

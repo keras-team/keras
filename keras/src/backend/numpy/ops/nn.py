@@ -5,6 +5,7 @@ import numpy as np
 from jax import lax
 
 from keras.src import backend
+from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
@@ -114,6 +115,11 @@ def leaky_relu(x, negative_slope=0.2):
 
 
 def hard_sigmoid(x):
+    # `0.5` below truncates to 0 under an integer dtype, which drops the
+    # offset and turns this into `clip(x / 6, 0, 1)`.
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     # python numbers will be promoted to float64 by np, so it's necessary to
     # first convert the python numbers to np scalars
     x = x / np.array(6.0, x.dtype) + np.array(0.5, x.dtype)
@@ -125,6 +131,9 @@ def hard_sigmoid(x):
 
 
 def hard_silu(x):
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return x * hard_sigmoid(x)
 
 
@@ -144,9 +153,9 @@ def selu(x):
 
 def gelu(x, approximate=True):
     x = convert_to_tensor(x)
-    # Cast integer inputs to float for consistent behavior across backends
-    if np.issubdtype(x.dtype, np.integer):
-        x = x.astype("float32")
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     # followed by JAX's implementation
     if approximate:
         sqrt_2_over_pi = np.sqrt(2 / np.pi).astype(x.dtype)
@@ -885,8 +894,11 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     if from_logits:
         log_prob = log_softmax(output, axis=axis)
     else:
-        output = output / np.sum(output, axis, keepdims=True)
-        output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        epsilon_ = convert_to_tensor(backend.epsilon(), dtype=output.dtype)
+        output = output / np.maximum(
+            np.sum(output, axis, keepdims=True), epsilon_
+        )
+        output = np.clip(output, epsilon_, 1.0 - epsilon_)
         log_prob = np.log(output)
     return -np.sum(target * log_prob, axis=axis)
 
@@ -912,8 +924,11 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     if from_logits:
         log_prob = log_softmax(output, axis=axis)
     else:
-        output = output / np.sum(output, axis, keepdims=True)
-        output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        epsilon_ = convert_to_tensor(backend.epsilon(), dtype=output.dtype)
+        output = output / np.maximum(
+            np.sum(output, axis, keepdims=True), epsilon_
+        )
+        output = np.clip(output, epsilon_, 1.0 - epsilon_)
         log_prob = np.log(output)
     target = one_hot(target, output.shape[axis], axis=axis)
     return -np.sum(target * log_prob, axis=axis)

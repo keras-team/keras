@@ -63,14 +63,14 @@ class GPTQStrategy(CalibrationStrategy):
             return unpack_int4(
                 layer.quantized_kernel,
                 orig_len=orig_len,
-                axis=0,
+                axis=-1,
                 dtype="uint8",
             )
         elif weight_bits == 2:
             return unpack_int2(
                 layer.quantized_kernel,
                 orig_len=orig_len,
-                axis=0,
+                axis=-1,
                 dtype="uint8",
             )
         return layer.quantized_kernel

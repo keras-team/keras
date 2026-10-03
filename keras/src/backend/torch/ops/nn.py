@@ -6,6 +6,7 @@ from torch.distributed.tensor import DTensor
 from torch.distributed.tensor import Replicate
 
 from keras.src import backend
+from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
@@ -107,12 +108,19 @@ def leaky_relu(x, negative_slope=0.2):
 
 
 def hard_sigmoid(x):
+    # `tnn.hardsigmoid` is not implemented for integer or bool dtypes.
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tnn.hardsigmoid(x)
 
 
 def hard_silu(x):
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tnn.hardswish(x)
 
 
@@ -901,7 +909,8 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     output = where(expand_dims(x, axis=-1) >= 0, output, zero)
     output = convert_to_tensor(output, dtype=dtype)
     dims = output.dim()
-    if axis != -1 and axis != dims:
+    axis = canonicalize_axis(axis, dims)
+    if axis != dims - 1:
         new_axes_order = list(range(dims))
         new_axes_order[axis] = -1  # Shifts output to axis position
         # Shift remaining axes with offset by 1 since output moved to `axis`.
@@ -943,7 +952,12 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     if from_logits:
         log_prob = tnn.log_softmax(output, dim=axis)
     else:
-        output = output / torch.sum(output, dim=axis, keepdim=True)
+        epsilon_ = torch.tensor(
+            backend.epsilon(), dtype=output.dtype, device=output.device
+        )
+        output = output / torch.maximum(
+            torch.sum(output, dim=axis, keepdim=True), epsilon_
+        )
         output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
         log_prob = torch.log(output)
     return -torch.sum(target * log_prob, dim=axis)
@@ -988,7 +1002,12 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     if from_logits:
         result = tnn.cross_entropy(output, target, reduction="none")
     else:
-        output = output / torch.sum(output, dim=1, keepdim=True)
+        epsilon_ = torch.tensor(
+            backend.epsilon(), dtype=output.dtype, device=output.device
+        )
+        output = output / torch.maximum(
+            torch.sum(output, dim=1, keepdim=True), epsilon_
+        )
         output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
         log_prob = torch.log(output)
         result = tnn.nll_loss(log_prob, target, reduction="none")
@@ -1001,6 +1020,9 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
 def binary_crossentropy(target, output, from_logits=False):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
+    if not backend.is_float_dtype(output.dtype):
+        output = cast(output, backend.floatx())
+    target = cast(target, output.dtype)
 
     if target.shape != output.shape:
         raise ValueError(

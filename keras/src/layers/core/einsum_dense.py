@@ -263,14 +263,14 @@ class EinsumDense(Layer):
                 kernel = quantizers.unpack_int4(
                     self.quantized_kernel,
                     orig_len=self.gptq_unpacked_column_size,
-                    axis=0,
+                    axis=-1,
                     dtype="uint8",
                 )
             elif is_gptq and gptq_calibrated and gptq_bits == 2:
                 kernel = quantizers.unpack_int2(
                     self.quantized_kernel,
                     orig_len=self.gptq_unpacked_column_size,
-                    axis=0,
+                    axis=-1,
                     dtype="uint8",
                 )
             elif is_awq and awq_calibrated:
@@ -278,7 +278,7 @@ class EinsumDense(Layer):
                 kernel = quantizers.unpack_int4(
                     self.quantized_kernel,
                     orig_len=self.awq_unpacked_column_size,
-                    axis=0,
+                    axis=-1,
                     dtype="uint8",
                 )
 
@@ -473,11 +473,6 @@ class EinsumDense(Layer):
                 self.g_idx.assign(ops.cast(store[key], self.g_idx.dtype))
                 idx += 1
                 continue
-            elif name == "quantized_kernel" and mode == "gptq":
-                # Handles legacy unpacked 2-bit layouts.
-                self._assign_gptq_quantized_kernel(store[key])
-                idx += 1
-                continue
             else:
                 target = getattr(self, name)
             target.assign(store[key])
@@ -485,22 +480,6 @@ class EinsumDense(Layer):
         if self.lora_enabled:
             self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))
             self.lora_kernel_b.assign(ops.zeros(self.lora_kernel_b.shape))
-
-    def _assign_gptq_quantized_kernel(self, value):
-        """Assigns a stored GPTQ quantized kernel, handling legacy layouts.
-
-        Older checkpoints stored 2-bit GPTQ kernels unpacked (one value per
-        uint8 byte). Current checkpoints pack four 2-bit values per byte. When
-        a legacy unpacked 2-bit store is detected by shape, it is packed on load
-        so the inference path can always unpack a packed kernel.
-        """
-        if self._gptq_weight_bits == 2 and tuple(value.shape) != tuple(
-            self.quantized_kernel.shape
-        ):
-            value, _, _ = quantizers.pack_int2(
-                ops.cast(value, "uint8"), axis=0, dtype="uint8"
-            )
-        self.quantized_kernel.assign(value)
 
     def get_config(self):
         base_config = super().get_config()
@@ -594,12 +573,6 @@ class EinsumDense(Layer):
                 "g_idx",
             ],
         }
-
-    def quantize(self, mode=None, type_check=True, config=None):
-        # Prevent quantization of the subclasses.
-        if type_check and type(self) is not EinsumDense:
-            raise self._not_implemented_error(self.quantize)
-        self._registry_quantize(mode, config)
 
     def _quantization_geometry(self):
         return EinsumProjectionGeometry(self)
