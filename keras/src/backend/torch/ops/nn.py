@@ -458,8 +458,10 @@ def average_pool(
     orig_format = data_format
 
     if data_format == "channels_last":
+        # 2D only: `avg_pool3d` has no `channels_last_3d` kernel, so 3D gains
+        # nothing and its uneven `same` padding path gets slower.
         inputs = _transpose_spatial_inputs(
-            inputs, channels_last_memory_format=True
+            inputs, channels_last_memory_format=num_spatial_dims == 2
         )
 
     orig_inputs = inputs
@@ -604,9 +606,7 @@ def adaptive_max_pool(inputs, output_size, data_format=None):
     data_format = backend.standardize_data_format(data_format)
     orig_format = data_format
     if data_format == "channels_last":
-        inputs = _transpose_spatial_inputs(
-            inputs, channels_last_memory_format=True
-        )
+        inputs = _transpose_spatial_inputs(inputs)
 
     if isinstance(output_size, int):
         torch_output_size = (
