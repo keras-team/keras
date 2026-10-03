@@ -2105,3 +2105,20 @@ class LayerTest(testing.TestCase):
             # `training=False`/`None` never update the running stats, so
             # they are still mean 0 / variance 1.
             self.assertAllClose(y, x / np.sqrt(1.0 + 1e-3), atol=1e-3)
+
+    def test_delattr_untrack_layer(self):
+        inputs = Input((4,))
+        model = Model(inputs, layers.Dense(4)(inputs))
+        initial_num_weights = len(model.weights)
+        initial_params = model.count_params()
+
+        helper = layers.Dense(3)
+        helper.build((None, 4))
+        model.helper = helper
+        self.assertGreater(len(model.weights), initial_num_weights)
+        self.assertGreater(model.count_params(), initial_params)
+
+        del model.helper
+        self.assertEqual(len(model.weights), initial_num_weights)
+        self.assertEqual(model.count_params(), initial_params)
+        self.assertNotIn(helper, model.layers)
