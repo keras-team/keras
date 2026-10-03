@@ -1,5 +1,5 @@
+from keras.src import backend
 from keras.src import initializers
-from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.optimizers import optimizer
 
@@ -77,17 +77,19 @@ class Adagrad(optimizer.Optimizer):
 
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
-        lr = ops.cast(learning_rate, variable.dtype)
-        gradient = ops.cast(gradient, variable.dtype)
+        lr = backend.ops.cast(learning_rate, variable.dtype)
+        gradient = backend.ops.cast(gradient, variable.dtype)
 
         accumulator = self._accumulators[self._get_variable_index(variable)]
 
-        self.assign_add(accumulator, ops.square(gradient))
+        self.assign_add(accumulator, backend.ops.numpy.square(gradient))
         self.assign_sub(
             variable,
-            ops.divide(
-                ops.multiply(lr, gradient),
-                ops.sqrt(ops.add(accumulator, self.epsilon)),
+            backend.ops.numpy.divide(
+                backend.ops.numpy.multiply(lr, gradient),
+                backend.ops.numpy.sqrt(
+                    backend.ops.numpy.add(accumulator, self.epsilon)
+                ),
             ),
         )
 
