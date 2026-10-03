@@ -43,11 +43,11 @@ jobs:
       - name: Test integrations
         if: ${{ matrix.backend != 'numpy'}}
         run: |
-          python integration_tests/import_test.py
+          python -m integration_tests.import_test
       - name: Test TF-specific integrations
         if: ${{ matrix.backend == 'tensorflow'}}
         run: |
-          python integration_tests/tf_distribute_training_test.py
+          python -m integration_tests.tf_distribute_training_test
       - name: Test Torch-specific integrations
         if: ${{ matrix.backend == 'torch'}}
         run: |
