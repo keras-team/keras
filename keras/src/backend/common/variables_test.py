@@ -348,11 +348,11 @@ class VariablePropertiesTest(test_case.TestCase):
                     f"jax backend does not support {dtype} without x64 enabled"
                 )
 
-        if backend.backend() == "openvino" and dtype in (
+        if not backend.SUPPORTS_COMPLEX_DTYPES and dtype in (
             "complex64",
             "complex128",
         ):
-            self.skipTest(f"openvino backend does not support dtype {dtype}")
+            self.skipTest(f"backend does not support dtype {dtype}")
 
         x = backend.ops.convert_to_tensor(np.zeros(()), dtype)
         actual = standardize_dtype(x.dtype)
@@ -955,7 +955,7 @@ class VariableOpsDTypeTest(test_case.TestCase):
         # natively support int64, which prevents us from comparing the dtypes.
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint32",)]
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint32",)]
-    elif backend.backend() == "openvino":
+    elif not backend.SUPPORTS_COMPLEX_DTYPES:
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("complex64",)]
     NON_COMPLEX_DTYPES = [
         x for x in ALL_DTYPES if x and x not in ["complex32", "complex64"]
