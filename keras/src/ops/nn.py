@@ -2984,7 +2984,9 @@ class RMSNorm(Operation):
         self.epsilon = epsilon
 
     def compute_output_spec(self, x, scale):
-        return KerasTensor(shape=x.shape, dtype=x.dtype)
+        return KerasTensor(
+            shape=x.shape, dtype=_normalization_output_dtype(x.dtype)
+        )
 
     def call(self, x, scale=None):
         return _rms_normalization(
@@ -3032,10 +3034,17 @@ def rms_normalization(x, scale=None, axis=-1, epsilon=None):
     return _rms_normalization(x, scale=scale, axis=axis, epsilon=epsilon)
 
 
+def _normalization_output_dtype(dtype):
+    dtype = backend.standardize_dtype(dtype)
+    if backend.is_float_dtype(dtype):
+        return dtype
+    return backend.result_type(dtype, backend.floatx())
+
+
 def _rms_normalization(x, scale=None, axis=-1, epsilon=None):
     if epsilon is None:
         epsilon = backend.epsilon()
-    original_dtype = backend.standardize_dtype(x.dtype)
+    output_dtype = _normalization_output_dtype(x.dtype)
     # Computes in at least float32 precision for stability in half precision
     # training.
     compute_dtype = backend.result_type(x.dtype, "float32")
@@ -3052,7 +3061,7 @@ def _rms_normalization(x, scale=None, axis=-1, epsilon=None):
         outputs = backend.ops.nn.rms_normalization(
             x, scale=scale, axis=axis, epsilon=epsilon
         )
-        return backend.ops.cast(outputs, original_dtype)
+        return backend.ops.cast(outputs, output_dtype)
     if len(x.shape) == 0:
         x = backend.ops.numpy.expand_dims(x, axis=0)
     rrms = backend.ops.math.rsqrt(
@@ -3064,7 +3073,7 @@ def _rms_normalization(x, scale=None, axis=-1, epsilon=None):
     outputs = backend.ops.numpy.multiply(x, rrms)
     if scale is not None:
         outputs = backend.ops.numpy.multiply(outputs, scale)
-    return backend.ops.cast(outputs, original_dtype)
+    return backend.ops.cast(outputs, output_dtype)
 
 
 class LayerNorm(Operation):
@@ -3075,7 +3084,9 @@ class LayerNorm(Operation):
         self.rms_scaling = rms_scaling
 
     def compute_output_spec(self, x, gamma, beta):
-        return KerasTensor(shape=x.shape, dtype=x.dtype)
+        return KerasTensor(
+            shape=x.shape, dtype=_normalization_output_dtype(x.dtype)
+        )
 
     def call(self, x, gamma=None, beta=None):
         return _layer_normalization(
@@ -3151,7 +3162,7 @@ def _layer_normalization(
 ):
     if epsilon is None:
         epsilon = backend.epsilon()
-    original_dtype = backend.standardize_dtype(x.dtype)
+    output_dtype = _normalization_output_dtype(x.dtype)
     # Computes in at least float32 precision for stability in half precision
     # training.
     compute_dtype = backend.result_type(x.dtype, "float32")
@@ -3186,7 +3197,7 @@ def _layer_normalization(
         outputs = x * inv
         if gamma is not None:
             outputs = outputs * backend.ops.cast(_broadcast(gamma), x.dtype)
-        return backend.ops.cast(outputs, original_dtype)
+        return backend.ops.cast(outputs, output_dtype)
 
     if not config._use_backend_agnostic_ops() and hasattr(
         backend.ops.nn, "layer_normalization"
@@ -3194,7 +3205,7 @@ def _layer_normalization(
         outputs = backend.ops.nn.layer_normalization(
             x, gamma=gamma, beta=beta, axis=axis, epsilon=epsilon
         )
-        return backend.ops.cast(outputs, original_dtype)
+        return backend.ops.cast(outputs, output_dtype)
 
     # Calculate the mean & variance along self.axis (layer activations).
     mean, variance = moments(x, axes=axis, keepdims=True)
@@ -3208,7 +3219,7 @@ def _layer_normalization(
         res = res + beta
 
     outputs = x * inv + res
-    return backend.ops.cast(outputs, original_dtype)
+    return backend.ops.cast(outputs, output_dtype)
 
 
 class Polar(Operation):
