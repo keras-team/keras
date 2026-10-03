@@ -2,7 +2,6 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from conftest import skip_if_backend
 from keras.src import backend
 from keras.src import layers
 from keras.src import models
@@ -122,7 +121,6 @@ class FlattenTest(testing.TestCase):
         flattened = layers.Flatten()(input_layer)
         self.assertEqual(flattened.shape, (5, None))
 
-    @skip_if_backend("openvino", "Dynamic dimensions not supported by OpenVino")
     def test_flatten_with_dynamic_batch_size_and_dynamic_dimenstions(self):
         def generator():
             yield (np.ones((3, 5, 7), dtype="float32"),)

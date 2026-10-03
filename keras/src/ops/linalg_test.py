@@ -413,15 +413,9 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
 
 class LinalgOpsCorrectnessTest(testing.TestCase):
     def test_cholesky(self):
-        if backend.backend() != "openvino":
-            # OpenVINO builds a lazy graph and cannot raise on non-PSD inputs
-            # at graph-construction time; sqrt of a negative produces
-            # NaN silently at inference. There is no check_numerics equivalent
-            # in opset15 that can interrupt execution and surface a Python
-            # exception.
-            x_non_psd = np.random.rand(4, 3, 3).astype("float32")
-            with self.assertRaises(ValueError):
-                linalg.cholesky(x_non_psd)
+        x_non_psd = np.random.rand(4, 3, 3).astype("float32")
+        with self.assertRaises(ValueError):
+            linalg.cholesky(x_non_psd)
 
         x = np.random.rand(4, 3, 3).astype("float32")
         x_psd = np.matmul(x, x.transpose((0, 2, 1))) + 1e-5 * np.eye(
@@ -861,7 +855,7 @@ class QrOpTest(testing.TestCase):
         self.assertEqual(r.shape, (10, 10))
 
     def test_jvp(self):
-        if backend.backend() in ["openvino", "numpy"]:
+        if not backend.SUPPORTS_GRADIENT:
             pytest.skip("Backend does not support jvp operation")
         a1, a2 = ops.convert_to_tensor(0.1), ops.convert_to_tensor(0.2)
         primals, tangents = linalg.jvp(backend.ops.numpy.sin, (a1,), (a2,))
