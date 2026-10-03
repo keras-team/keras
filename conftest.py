@@ -10,6 +10,7 @@ import os  # noqa: E402
 
 import pytest  # noqa: E402
 
+from keras.src.backend import SUPPORTS_GRADIENT  # noqa: E402
 from keras.src.backend import backend  # noqa: E402
 
 
@@ -69,8 +70,8 @@ def pytest_collection_modifyitems(config, items):
         has_multiple_devices = distribution_lib.get_device_count() > 1
 
     requires_trainable_backend = pytest.mark.skipif(
-        backend() in ["numpy", "openvino"],
-        reason="Trainer not implemented for NumPy and OpenVINO backend.",
+        not SUPPORTS_GRADIENT,
+        reason="Trainer not implemented for this backend.",
     )
     requires_multiple_devices = (
         None

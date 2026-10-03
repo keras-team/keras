@@ -1679,14 +1679,6 @@ class ImageOpsCorrectnessTest(testing.TestCase):
                     f"Received: interpolation={interpolation}, "
                     f"antialias={antialias}."
                 )
-        elif backend.backend() == "openvino":
-            if interpolation == "bicubic":
-                self.skipTest(
-                    "Resizing with Bicubic interpolation does not match "
-                    "TensorFlow strict numeric parity in the OpenVINO "
-                    "backend, so this parity test is skipped. "
-                    f"Received: interpolation={interpolation}."
-                )
 
     @parameterized.named_parameters(
         named_product(
@@ -3921,12 +3913,6 @@ class ExtractPatches3DTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_extract_patches_3d_value_check(self, dtype):
-        if dtype == "bfloat16" and backend.backend() == "openvino":
-            self.skipTest(
-                "OpenVINO's bfloat16 fails this test, "
-                "possibly due to precision. "
-                "Should be revisited."
-            )
         volume = np.arange(8 * 8 * 8).reshape(1, 8, 8, 8, 1)
         volume = volume.astype(dtype)
         patches = kimage.extract_patches_3d(

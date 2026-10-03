@@ -245,8 +245,8 @@ class LayerTest(testing.TestCase):
             layer.dtype_policy = "gptq/4/-1_from_float32"
 
     @pytest.mark.skipif(
-        backend.backend() in ("openvino", "numpy"),
-        reason="remat not supported on OpenVino and Numpy",
+        not backend.SUPPORTS_GRADIENT,
+        reason="remat requires gradient support",
     )
     def test_functional_model_with_remat(self):
         mock_remat = MockRemat()

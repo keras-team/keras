@@ -1,6 +1,5 @@
 import numpy as np
 
-from conftest import skip_if_backend
 from keras.src import backend
 from keras.src import testing
 from keras.src.backend.common import keras_tensor
@@ -364,9 +363,6 @@ class OperationTest(testing.TestCase):
         self.assertEqual(revived.get_config(), config)
         self.assertEqual(revived.name, op.name)
 
-    @skip_if_backend(
-        "openvino", "Can not constant fold eltwise node by CPU plugin"
-    )
     def test_input_conversion(self):
         x = np.ones((2,))
         y = np.ones((2,))
