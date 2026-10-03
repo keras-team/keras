@@ -5,8 +5,6 @@ import sys
 import numpy as np
 import tf_keras
 
-from keras.src.backend import SUPPORTS_GRADIENT
-
 keras.backend.set_image_data_format("channels_last")
 tf_keras.backend.set_image_data_format("channels_last")
 
@@ -141,7 +139,7 @@ def numerical_test():
 
 
 if __name__ == "__main__":
-    if not SUPPORTS_GRADIENT:
+    if keras.backend.backend() == "openvino":
         # this test requires trainable backend
         sys.exit(0)
     keras.utils.set_random_seed(1337)
