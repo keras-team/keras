@@ -1,4 +1,5 @@
 import collections
+import contextlib
 import json
 import math
 import os.path
@@ -75,38 +76,41 @@ class KerasFileEditor:
         self.model = None
         self.console = rich.console.Console(highlight=False)
 
-        if filepath.endswith(".keras"):
-            zf = zipfile.ZipFile(filepath, "r")
-            # Reject a decompression-bomb weights member up front, mirroring
-            # `saving_lib._load_model_from_fileobj`.
-            saving_lib._reject_zip_bomb(zf, f"{saving_lib._VARS_FNAME}.h5")
-            weights_store = H5IOStore(
-                f"{saving_lib._VARS_FNAME}.h5",
-                archive=zf,
-                mode="r",
-            )
-            config_json = saving_lib._safe_zip_read(
-                zf, saving_lib._CONFIG_FILENAME
-            )
-            metadata_json = saving_lib._safe_zip_read(
-                zf, saving_lib._METADATA_FILENAME
-            )
-            self.config = json.loads(config_json)
-            self.metadata = json.loads(metadata_json)
+        with contextlib.ExitStack() as stack:
+            if filepath.endswith(".keras"):
+                zf = stack.enter_context(zipfile.ZipFile(filepath, "r"))
+                saving_lib._reject_zip_archive_bomb(zf)
+                saving_lib._reject_zip_bomb(zf, saving_lib._VARS_FNAME_H5)
+                weights_store = H5IOStore(
+                    saving_lib._VARS_FNAME_H5, archive=zf, mode="r"
+                )
+                stack.callback(weights_store.close)
+                file_size = zf.getinfo(saving_lib._VARS_FNAME_H5).file_size
+                config_json = saving_lib._safe_zip_read(
+                    zf, saving_lib._CONFIG_FILENAME
+                )
+                metadata_json = saving_lib._safe_zip_read(
+                    zf, saving_lib._METADATA_FILENAME
+                )
+                self.config = json.loads(config_json)
+                self.metadata = json.loads(metadata_json)
+            elif filepath.endswith(".weights.h5"):
+                weights_store = H5IOStore(filepath, mode="r")
+                stack.callback(weights_store.close)
+                file_size = os.path.getsize(filepath)
+            else:
+                raise ValueError(
+                    "Invalid filename: "
+                    "expected a `.keras` `.weights.h5` extension. "
+                    f"Received: filepath={filepath}"
+                )
 
-        elif filepath.endswith(".weights.h5"):
-            weights_store = H5IOStore(filepath, mode="r")
-        else:
-            raise ValueError(
-                "Invalid filename: "
-                "expected a `.keras` `.weights.h5` extension. "
-                f"Received: filepath={filepath}"
+            saving_lib._reject_h5_shape_bomb(
+                weights_store.h5_file, file_size=file_size
             )
-
-        weights_dict, object_metadata = self._extract_weights_from_store(
-            weights_store.h5_file
-        )
-        weights_store.close()
+            weights_dict, object_metadata = self._extract_weights_from_store(
+                weights_store.h5_file
+            )
         self.weights_dict = weights_dict
         self.object_metadata = object_metadata  # {path: object_name}
         self.console.print(self._generate_filepath_info(rich_style=True))
@@ -528,17 +532,7 @@ class KerasFileEditor:
             if not isinstance(value, h5py.Dataset):
                 continue
 
-            if value.external:
-                raise ValueError(
-                    "Not allowed: H5 file Dataset with external links: "
-                    f"{value.external}"
-                )
-
-            if value.is_virtual:
-                raise ValueError(
-                    "Not allowed: H5 file with virtual Dataset at "
-                    f"{current_inner_path}"
-                )
+            value = saving_lib.safe_get_h5_dataset(data, key)
 
             shape = value.shape
             dtype = value.dtype
