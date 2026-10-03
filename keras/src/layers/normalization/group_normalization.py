@@ -85,7 +85,7 @@ class GroupNormalization(Layer):
                 "a positive integer (or `-1` for instance normalization). "
                 f"Received: groups={groups}"
             )
-        if epsilon <= 0:
+        if epsilon is None or epsilon <= 0:
             raise ValueError(
                 "Argument `epsilon` must be positive. "
                 f"Received: epsilon={epsilon}"

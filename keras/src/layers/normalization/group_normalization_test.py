@@ -79,7 +79,7 @@ class GroupNormalizationTest(testing.TestCase):
         layers.GroupNormalization(groups=-1)
 
     def test_epsilon_rejects_non_positive_values(self):
-        for bad in (0, -1e-3):
+        for bad in (None, 0, -1e-3):
             with self.assertRaisesRegex(ValueError, "must be positive"):
                 layers.GroupNormalization(epsilon=bad)
         # Boundary: a small positive epsilon is accepted.
