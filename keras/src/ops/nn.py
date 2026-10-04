@@ -1817,11 +1817,11 @@ class ConvTranspose(Operation):
         return backend.ops.nn.conv_transpose(
             inputs,
             kernel,
-            self.strides,
-            self.output_padding,
-            self.padding,
-            self.data_format,
-            self.dilation_rate,
+            strides=self.strides,
+            padding=self.padding,
+            output_padding=self.output_padding,
+            data_format=self.data_format,
+            dilation_rate=self.dilation_rate,
         )
 
     def compute_output_spec(self, inputs, kernel):
