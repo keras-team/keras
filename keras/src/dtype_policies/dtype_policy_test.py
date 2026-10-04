@@ -638,6 +638,28 @@ class DTypePolicyGlobalFunctionsTest(test_case.TestCase):
             get("int8x_from_float32")
 
     @parameterized.named_parameters(
+        ("bare_mode", "gptq"),
+        ("mode_without_source", "gptq/4/128"),
+        ("unregistered_mode", "int8x_from_float32"),
+    )
+    def test_quantized_looking_name_error_shows_the_grammar(self, name):
+        with self.assertRaisesRegex(
+            ValueError,
+            r"`<mode>\[/<params>\]_from_<source>`, where `<mode>` is one "
+            r"of \('int8'.*call its `quantize\(\)` method",
+        ):
+            get(name)
+
+    @parameterized.named_parameters(
+        ("plain", "mixed_bfloat15"),
+        ("mode_prefix_only", "int8_abc_"),
+    )
+    def test_plain_name_error_has_no_quantization_hint(self, name):
+        with self.assertRaisesRegex(ValueError, "Cannot convert") as cm:
+            get(name)
+        self.assertNotIn("quantize", str(cm.exception))
+
+    @parameterized.named_parameters(
         ("int8", "int8"),
         ("float8_e4m3fn", "float8_e4m3fn"),
         ("float8_e5m2", "float8_e5m2"),

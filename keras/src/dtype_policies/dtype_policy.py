@@ -217,7 +217,7 @@ class DTypePolicy:
                 f"Cannot convert '{name}' to a mixed precision "
                 "DTypePolicy. Valid policies include 'mixed_float16', "
                 "'mixed_bfloat16', and the name of any float dtype such as "
-                "'float32'."
+                f"'float32'.{_quantized_policy_hint(name)}"
             )
 
     @property
@@ -644,6 +644,25 @@ def _quantized_mode_of(policy):
         return None
     mode = policy.split("_from_")[0].split("/")[0]
     return mode if _strategy_registry().is_registered(mode) else None
+
+
+def _quantized_policy_hint(name):
+    """Returns an error hint for a name that resembles a quantized policy.
+
+    The hint applies when `name` contains `_from_`, or when the token before
+    the first "/" is a mode name (`"gptq"`, `"gptq/4/128"`). Otherwise it is
+    empty.
+    """
+    registry = _strategy_registry()
+    mode = name.split("_from_")[0].split("/")[0]
+    if "_from_" not in name and not registry.is_registered(mode):
+        return ""
+    return (
+        " A quantized dtype policy name has the form "
+        "`<mode>[/<params>]_from_<source>`, where `<mode>` is one of "
+        f"{registry.registered_modes()}. To quantize a layer or a model, "
+        "call its `quantize()` method."
+    )
 
 
 def _is_quantized_policy_string(policy):
