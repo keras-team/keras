@@ -337,11 +337,17 @@ class EmbeddingTest(test_case.TestCase):
         self.assertEqual(layer.get_config()["lora_alpha"], 16)
 
         # The forward pass scales the update by `lora_alpha / lora_rank`.
+        # Every value, product and sum is exact in bfloat16, so the check
+        # also holds where matmuls round their inputs to bfloat16 (TPU).
+        embeddings = np.arange(20, dtype="float32").reshape((5, 4)) / 4 - 2
+        lora_a = (
+            np.array([[1, 0], [0, 1], [1, 1], [0, 0], [1, -1]], "float32") / 2
+        )
         lora_b = np.ones((2, 4), dtype="float32")
+        layer._embeddings.assign(embeddings)
+        layer.lora_embeddings_a.assign(lora_a)
         layer.lora_embeddings_b.assign(lora_b)
         x = np.array([[0, 1, 4], [2, 3, 0]], dtype="int32")
-        embeddings = ops.convert_to_numpy(layer._embeddings)
-        lora_a = ops.convert_to_numpy(layer.lora_embeddings_a)
         expected = (embeddings + (16 / 2) * lora_a @ lora_b)[x]
         self.assertAllClose(layer(x), expected)
 
