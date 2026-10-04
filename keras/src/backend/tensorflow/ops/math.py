@@ -1,4 +1,3 @@
-import numpy as np
 import tensorflow as tf
 
 from keras.src.backend import standardize_dtype
@@ -73,11 +72,13 @@ def top_k(x, k, sorted=True, is_stable=True):
 
 
 def in_top_k(targets, predictions, k):
-    # Use `np.ndim` (rather than `predictions.shape`) so this also works for
-    # plain lists/tuples, which don't have a `.shape` attribute.
-    if np.ndim(predictions) > 2:
-        targets = convert_to_tensor(targets)
-        predictions = convert_to_tensor(predictions)
+    targets = convert_to_tensor(targets)
+    predictions = convert_to_tensor(predictions)
+    if targets.dtype not in (tf.int32, tf.int64):
+        targets = tf.cast(targets, tf.int32)
+    if predictions.dtype not in (tf.float32, tf.float16, tf.bfloat16):
+        predictions = tf.cast(predictions, tf.float32)
+    if len(predictions.shape) > 2:
         original_shape = tf.shape(targets)
         predictions = tf.reshape(predictions, [-1, tf.shape(predictions)[-1]])
         targets = tf.reshape(targets, [-1])

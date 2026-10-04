@@ -76,18 +76,18 @@ class Sum(Metric):
         self.total = self.add_variable(
             shape=(),
             initializer=initializers.Zeros(),
-            dtype=self.dtype,
+            dtype=self._state_dtype,
             name="total",
         )
 
     def update_state(self, values, sample_weight=None):
         values, _ = reduce_to_samplewise_values(
-            values, sample_weight, reduce_fn=ops.sum, dtype=self.dtype
+            values, sample_weight, reduce_fn=ops.sum, dtype=self._state_dtype
         )
-        self.total.assign_add(ops.sum(values))
+        self.total.assign_add(ops.cast(ops.sum(values), self._state_dtype))
 
     def reset_state(self):
-        self.total.assign(0)
+        self.total.assign(ops.cast(0, self._state_dtype))
 
     def result(self):
         return ops.cast(self.total, self.dtype)
@@ -125,36 +125,39 @@ class Mean(Metric):
         self.total = self.add_variable(
             shape=(),
             initializer=initializers.Zeros(),
-            dtype=self.dtype,
+            dtype=self._state_dtype,
             name="total",
         )
         self.count = self.add_variable(
             shape=(),
             initializer=initializers.Zeros(),
-            dtype=self.dtype,
+            dtype=self._state_dtype,
             name="count",
         )
 
     def update_state(self, values, sample_weight=None):
         values, sample_weight = reduce_to_samplewise_values(
-            values, sample_weight, reduce_fn=ops.mean, dtype=self.dtype
+            values, sample_weight, reduce_fn=ops.mean, dtype=self._state_dtype
         )
-        self.total.assign_add(ops.sum(values))
+        self.total.assign_add(ops.cast(ops.sum(values), self._state_dtype))
         if sample_weight is not None:
             num_samples = ops.sum(sample_weight)
         elif len(values.shape) >= 1:
             num_samples = ops.shape(values)[0]
         else:
             num_samples = 1
-        self.count.assign_add(ops.cast(num_samples, dtype=self.dtype))
+        self.count.assign_add(ops.cast(num_samples, dtype=self._state_dtype))
 
     def reset_state(self):
-        self.total.assign(0)
-        self.count.assign(0)
+        self.total.assign(ops.cast(0, self._state_dtype))
+        self.count.assign(ops.cast(0, self._state_dtype))
 
     def result(self):
-        return ops.divide_no_nan(
-            self.total, ops.cast(self.count, dtype=self.dtype)
+        return ops.cast(
+            ops.divide_no_nan(
+                self.total, ops.cast(self.count, dtype=self._state_dtype)
+            ),
+            self.dtype,
         )
 
 
@@ -202,7 +205,7 @@ class MeanMetricWrapper(Mean):
         mask = backend.get_keras_mask(y_pred)
         values = self._fn(y_true, y_pred, **self._fn_kwargs)
         sample_weight = losses.loss.apply_mask(
-            sample_weight, mask, dtype=self.dtype, reduction="sum"
+            sample_weight, mask, dtype=self._state_dtype, reduction="sum"
         )
         return super().update_state(values, sample_weight=sample_weight)
 

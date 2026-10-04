@@ -3028,3 +3028,26 @@ class CategoricalGeneralizedCrossEntropyTest(testing.TestCase):
             y_true, y_pred
         )
         self.assertDType(output, "bfloat16")
+
+
+class LossDtypeHandlingTest(testing.TestCase):
+    def test_non_float_y_pred_converted_to_floatx(self):
+        y_true = np.array([1, 0], dtype="int32")
+        y_pred_int = np.array([1, 0], dtype="int32")
+        loss = losses.BinaryCrossentropy()(y_true, y_pred_int)
+        self.assertEqual(
+            backend.standardize_dtype(loss.dtype), backend.floatx()
+        )
+
+        y_pred_bool = np.array([True, False])
+        loss = losses.MeanSquaredError()(y_true, y_pred_bool)
+        self.assertEqual(
+            backend.standardize_dtype(loss.dtype), backend.floatx()
+        )
+
+    def test_sparse_categorical_crossentropy_preserves_integer_y_true(self):
+        y_true = np.array([2049], dtype="int32")
+        y_pred = np.zeros((1, 2050), dtype="float16")
+        y_pred[0, 2049] = 1.0
+        loss = losses.SparseCategoricalCrossentropy()(y_true, y_pred)
+        self.assertAllClose(loss, 0.0, atol=1e-3)

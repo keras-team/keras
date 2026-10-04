@@ -37,6 +37,13 @@ def _validate_label_smoothing(label_smoothing):
             )
 
 
+def _convert_y_pred(y_pred):
+    y_pred = ops.convert_to_tensor(y_pred)
+    if not backend.is_float_dtype(y_pred.dtype):
+        y_pred = ops.cast(y_pred, backend.floatx())
+    return y_pred
+
+
 class LossFunctionWrapper(Loss):
     def __init__(
         self,
@@ -49,6 +56,17 @@ class LossFunctionWrapper(Loss):
         super().__init__(name=name, reduction=reduction, dtype=dtype)
         self.fn = fn
         self._fn_kwargs = kwargs
+
+    def _convert_y_true(self, x):
+        # These functions take class ids and cast them to int.
+        if self.fn in (
+            sparse_categorical_crossentropy,
+            sparse_categorical_focal_crossentropy,
+            categorical_generalized_cross_entropy,
+            circle,
+        ):
+            return ops.convert_to_tensor(x)
+        return super()._convert_y_true(x)
 
     def call(self, y_true, y_pred):
         y_true_y_pred = tree.map_structure(
@@ -1807,19 +1825,11 @@ def convert_binary_labels_to_hinge(y_true):
     are_zeros = ops.equal(y_true, 0)
     are_ones = ops.equal(y_true, 1)
     is_binary = ops.all((ops.logical_or(are_zeros, are_ones)))
-
-    def _convert_binary_labels():
-        # Convert the binary labels to -1 or 1.
-        return 2.0 * y_true - 1.0
-
-    def _return_labels_unconverted():
-        # Returns the labels unchanged if they are non-binary
-        return y_true
-
-    updated_y_true = ops.cond(
-        is_binary, _convert_binary_labels, _return_labels_unconverted
+    return ops.where(
+        is_binary,
+        ops.subtract(ops.multiply(2.0, y_true), 1.0),
+        y_true,
     )
-    return updated_y_true
 
 
 @keras_export(
@@ -1852,11 +1862,15 @@ def hinge(y_true, y_pred):
     >>> y_pred = np.random.random(size=(2, 3))
     >>> loss = keras.losses.hinge(y_true, y_pred)
     """
-    y_pred = ops.convert_to_tensor(y_pred)
+    y_pred = _convert_y_pred(y_pred)
     y_true = ops.cast(y_true, dtype=y_pred.dtype)
-    y_true = ops.convert_to_tensor(y_true)
     y_true = convert_binary_labels_to_hinge(y_true)
-    return ops.mean(ops.maximum(1.0 - y_true * y_pred, 0.0), axis=-1)
+    one = ops.cast(1.0, y_pred.dtype)
+    zero = ops.cast(0.0, y_pred.dtype)
+    return ops.mean(
+        ops.maximum(ops.subtract(one, ops.multiply(y_true, y_pred)), zero),
+        axis=-1,
+    )
 
 
 @keras_export(
@@ -1889,11 +1903,16 @@ def squared_hinge(y_true, y_pred):
     >>> y_pred = np.random.random(size=(2, 3))
     >>> loss = keras.losses.squared_hinge(y_true, y_pred)
     """
-    y_pred = ops.convert_to_tensor(y_pred)
+    y_pred = _convert_y_pred(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
     y_true = convert_binary_labels_to_hinge(y_true)
+    one = ops.cast(1.0, y_pred.dtype)
+    zero = ops.cast(0.0, y_pred.dtype)
     return ops.mean(
-        ops.square(ops.maximum(1.0 - y_true * y_pred, 0.0)), axis=-1
+        ops.square(
+            ops.maximum(ops.subtract(one, ops.multiply(y_true, y_pred)), zero)
+        ),
+        axis=-1,
     )
 
 
@@ -1930,12 +1949,13 @@ def categorical_hinge(y_true, y_pred):
     >>> y_pred = np.random.random(size=(2, 3))
     >>> loss = keras.losses.categorical_hinge(y_true, y_pred)
     """
-    y_pred = ops.convert_to_tensor(y_pred)
+    y_pred = _convert_y_pred(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
-    pos = ops.sum(y_true * y_pred, axis=-1)
-    neg = ops.max((1.0 - y_true) * y_pred, axis=-1)
+    one = ops.cast(1.0, y_pred.dtype)
     zero = ops.cast(0.0, y_pred.dtype)
-    return ops.maximum(neg - pos + 1.0, zero)
+    pos = ops.sum(ops.multiply(y_true, y_pred), axis=-1)
+    neg = ops.max(ops.multiply(ops.subtract(one, y_true), y_pred), axis=-1)
+    return ops.maximum(ops.add(ops.subtract(neg, pos), one), zero)
 
 
 @keras_export(
@@ -1971,10 +1991,10 @@ def mean_squared_error(y_true, y_pred):
     Returns:
         Mean squared error values with shape = `[batch_size, d0, .. dN-1]`.
     """
-    y_pred = ops.convert_to_tensor(y_pred)
+    y_pred = _convert_y_pred(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
-    return ops.mean(ops.square(y_true - y_pred), axis=-1)
+    return ops.mean(ops.square(ops.subtract(y_true, y_pred)), axis=-1)
 
 
 @keras_export(
@@ -2008,10 +2028,10 @@ def mean_absolute_error(y_true, y_pred):
     >>> y_pred = np.random.random(size=(2, 3))
     >>> loss = keras.losses.mean_absolute_error(y_true, y_pred)
     """
-    y_pred = ops.convert_to_tensor(y_pred)
+    y_pred = _convert_y_pred(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
-    return ops.mean(ops.abs(y_true - y_pred), axis=-1)
+    return ops.mean(ops.abs(ops.subtract(y_true, y_pred)), axis=-1)
 
 
 @keras_export(
@@ -2052,12 +2072,17 @@ def mean_absolute_percentage_error(y_true, y_pred):
     >>> y_pred = np.random.random(size=(2, 3))
     >>> loss = keras.losses.mean_absolute_percentage_error(y_true, y_pred)
     """
-    y_pred = ops.convert_to_tensor(y_pred)
+    y_pred = _convert_y_pred(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     epsilon = ops.convert_to_tensor(backend.epsilon(), dtype=y_pred.dtype)
     y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
-    diff = ops.abs((y_true - y_pred) / ops.maximum(ops.abs(y_true), epsilon))
-    return 100.0 * ops.mean(diff, axis=-1)
+    diff = ops.abs(
+        ops.divide(
+            ops.subtract(y_true, y_pred),
+            ops.maximum(ops.abs(y_true), epsilon),
+        )
+    )
+    return ops.multiply(ops.cast(100.0, y_pred.dtype), ops.mean(diff, axis=-1))
 
 
 @keras_export(
@@ -2098,13 +2123,14 @@ def mean_squared_logarithmic_error(y_true, y_pred):
     >>> y_pred = np.random.random(size=(2, 3))
     >>> loss = keras.losses.mean_squared_logarithmic_error(y_true, y_pred)
     """
-    epsilon = ops.convert_to_tensor(backend.epsilon())
-    y_pred = ops.convert_to_tensor(y_pred)
+    y_pred = _convert_y_pred(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
+    epsilon = ops.convert_to_tensor(backend.epsilon(), dtype=y_pred.dtype)
     y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
-    first_log = ops.log(ops.maximum(y_pred, epsilon) + 1.0)
-    second_log = ops.log(ops.maximum(y_true, epsilon) + 1.0)
-    return ops.mean(ops.square(first_log - second_log), axis=-1)
+    one = ops.cast(1.0, y_pred.dtype)
+    first_log = ops.log(ops.add(ops.maximum(y_pred, epsilon), one))
+    second_log = ops.log(ops.add(ops.maximum(y_true, epsilon), one))
+    return ops.mean(ops.square(ops.subtract(first_log, second_log)), axis=-1)
 
 
 @keras_export("keras.losses.cosine_similarity")
@@ -2139,12 +2165,12 @@ def cosine_similarity(y_true, y_pred, axis=-1):
     >>> loss = keras.losses.cosine_similarity(y_true, y_pred, axis=-1)
     [-0., -0.99999994, 0.99999994]
     """
-    y_pred = ops.convert_to_tensor(y_pred)
+    y_pred = _convert_y_pred(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     y_pred = normalize(y_pred, axis=axis)
     y_true = normalize(y_true, axis=axis)
-    return -ops.sum(y_true * y_pred, axis=axis)
+    return ops.negative(ops.sum(ops.multiply(y_true, y_pred), axis=axis))
 
 
 @keras_export(["keras.losses.huber", "keras.metrics.huber"])
@@ -2180,7 +2206,7 @@ def huber(y_true, y_pred, delta=1.0):
     Returns:
         Tensor with one scalar loss entry per sample.
     """
-    y_pred = ops.convert_to_tensor(y_pred)
+    y_pred = _convert_y_pred(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     delta = ops.convert_to_tensor(delta, dtype=y_pred.dtype)
@@ -2190,8 +2216,11 @@ def huber(y_true, y_pred, delta=1.0):
     return ops.mean(
         ops.where(
             abs_error <= delta,
-            half * ops.square(error),
-            delta * abs_error - half * ops.square(delta),
+            ops.multiply(half, ops.square(error)),
+            ops.subtract(
+                ops.multiply(delta, abs_error),
+                ops.multiply(half, ops.square(delta)),
+            ),
         ),
         axis=-1,
     )
@@ -2233,15 +2262,19 @@ def log_cosh(y_true, y_pred):
     Returns:
         Logcosh error values with shape = `[batch_size, d0, .. dN-1]`.
     """
-    y_pred = ops.convert_to_tensor(y_pred)
+    y_pred = _convert_y_pred(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     log2 = ops.convert_to_tensor(ops.log(2.0), dtype=y_pred.dtype)
+    neg_two = ops.cast(-2.0, y_pred.dtype)
 
     def _logcosh(x):
-        return x + ops.softplus(x * -2.0) - log2
+        return ops.subtract(
+            ops.add(x, ops.softplus(ops.multiply(x, neg_two))),
+            log2,
+        )
 
-    return ops.mean(_logcosh(y_pred - y_true), axis=-1)
+    return ops.mean(_logcosh(ops.subtract(y_pred, y_true)), axis=-1)
 
 
 @keras_export(
@@ -2288,11 +2321,15 @@ def kl_divergence(y_true, y_pred):
     >>> assert np.array_equal(
     ...     loss, np.sum(y_true * np.log(y_true / y_pred), axis=-1))
     """
-    y_pred = ops.convert_to_tensor(y_pred)
+    y_pred = _convert_y_pred(y_pred)
     y_true = ops.convert_to_tensor(y_true, y_pred.dtype)
-    y_true = ops.clip(y_true, backend.epsilon(), 1)
-    y_pred = ops.clip(y_pred, backend.epsilon(), 1)
-    return ops.sum(y_true * ops.log(y_true / y_pred), axis=-1)
+    one = ops.cast(1.0, y_pred.dtype)
+    eps = ops.cast(backend.epsilon(), y_pred.dtype)
+    y_true = ops.clip(y_true, eps, one)
+    y_pred = ops.clip(y_pred, eps, one)
+    return ops.sum(
+        ops.multiply(y_true, ops.log(ops.divide(y_true, y_pred))), axis=-1
+    )
 
 
 @keras_export(
@@ -2328,10 +2365,16 @@ def poisson(y_true, y_pred):
     ...     loss, np.mean(y_pred - y_true * np.log(y_pred), axis=-1),
     ...     atol=1e-5)
     """
-    y_pred = ops.convert_to_tensor(y_pred)
+    y_pred = _convert_y_pred(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     epsilon = ops.convert_to_tensor(backend.epsilon(), dtype=y_pred.dtype)
-    return ops.mean(y_pred - y_true * ops.log(y_pred + epsilon), axis=-1)
+    return ops.mean(
+        ops.subtract(
+            y_pred,
+            ops.multiply(y_true, ops.log(ops.add(y_pred, epsilon))),
+        ),
+        axis=-1,
+    )
 
 
 @keras_export(
@@ -2373,7 +2416,7 @@ def categorical_crossentropy(
             "`axis` must be of type `int`. "
             f"Received: axis={axis} of type {type(axis)}"
         )
-    y_pred = ops.convert_to_tensor(y_pred)
+    y_pred = _convert_y_pred(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
 
     _validate_label_smoothing(label_smoothing)
@@ -2393,8 +2436,9 @@ def categorical_crossentropy(
 
     if label_smoothing:
         num_classes = ops.cast(ops.shape(y_pred)[axis], y_pred.dtype)
-        y_true = y_true * (1.0 - label_smoothing) + (
-            label_smoothing / num_classes
+        y_true = ops.add(
+            ops.multiply(y_true, 1.0 - label_smoothing),
+            ops.divide(label_smoothing, num_classes),
         )
 
     return ops.categorical_crossentropy(
@@ -2456,7 +2500,7 @@ def categorical_focal_crossentropy(
             "`axis` must be of type `int`. "
             f"Received: axis={axis} of type {type(axis)}"
         )
-    y_pred = ops.convert_to_tensor(y_pred)
+    y_pred = _convert_y_pred(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
 
     if y_pred.shape is not None:
@@ -2492,7 +2536,7 @@ def categorical_focal_crossentropy(
     cce = -y_true * ops.log(output)
 
     # Calculate factors
-    modulating_factor = ops.power(1.0 - output, gamma)
+    modulating_factor = ops.power(ops.subtract(1.0, output), gamma)
     weighting_factor = ops.multiply(modulating_factor, alpha)
 
     # Apply weighting factor
@@ -2558,7 +2602,7 @@ def sparse_categorical_focal_crossentropy(
             f"Received: axis={axis} of type {type(axis)}"
         )
 
-    y_pred = ops.convert_to_tensor(y_pred)
+    y_pred = _convert_y_pred(y_pred)
     y_true = ops.convert_to_tensor(y_true)
     if len(y_pred.shape) < 1:
         raise ValueError(
@@ -2667,7 +2711,7 @@ def sparse_categorical_focal_crossentropy(
         ops.multiply(
             alpha_t,
             ops.multiply(
-                ops.power(1.0 - true_class_prob, gamma),
+                ops.power(ops.subtract(1.0, true_class_prob), gamma),
                 ops.log(true_class_prob),
             ),
         )
@@ -2730,6 +2774,9 @@ def sparse_categorical_crossentropy(
     array([0.0513, 2.303], dtype=float32)
     """
 
+    y_pred = _convert_y_pred(y_pred)
+    y_true = ops.convert_to_tensor(y_true)
+
     if len(y_true.shape) == len(y_pred.shape) and y_true.shape[axis] == 1:
         y_true = ops.squeeze(y_true, axis=axis)
 
@@ -2741,7 +2788,7 @@ def sparse_categorical_crossentropy(
         res_shape = tuple(
             d for i, d in enumerate(y_pred_shape) if i != class_axis
         )
-        valid_mask = ops.not_equal(y_true, ops.cast(ignore_class, y_pred.dtype))
+        valid_mask = ops.not_equal(y_true, ops.cast(ignore_class, y_true.dtype))
         y_true = ops.where(valid_mask, y_true, 0)
         y_pred = ops.where(ops.expand_dims(valid_mask, axis), y_pred, 0)
 
@@ -2816,13 +2863,15 @@ def binary_crossentropy(
     >>> loss
     array([0.916 , 0.714], dtype=float32)
     """
-    y_pred = ops.convert_to_tensor(y_pred)
+    y_pred = _convert_y_pred(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
 
     _validate_label_smoothing(label_smoothing)
 
     if label_smoothing:
-        y_true = y_true * (1.0 - label_smoothing) + 0.5 * label_smoothing
+        num = ops.cast(0.5 * label_smoothing, y_pred.dtype)
+        scale = ops.cast(1.0 - label_smoothing, y_pred.dtype)
+        y_true = ops.add(ops.multiply(y_true, scale), num)
 
     return ops.mean(
         ops.binary_crossentropy(y_true, y_pred, from_logits=from_logits),
@@ -2907,11 +2956,16 @@ def binary_focal_crossentropy(
     >>> focal_loss/bce_loss
     array([0.360, 0.289]
     """
-    y_pred = ops.convert_to_tensor(y_pred)
+    y_pred = _convert_y_pred(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
+    one = ops.cast(1.0, y_pred.dtype)
+    alpha = ops.cast(alpha, y_pred.dtype)
+    gamma = ops.cast(gamma, y_pred.dtype)
 
     if label_smoothing:
-        y_true = y_true * (1.0 - label_smoothing) + 0.5 * label_smoothing
+        num = ops.cast(0.5 * label_smoothing, y_pred.dtype)
+        scale = ops.cast(1.0 - label_smoothing, y_pred.dtype)
+        y_true = ops.add(ops.multiply(y_true, scale), num)
 
     if from_logits:
         y_pred = ops.sigmoid(y_pred)
@@ -2923,14 +2977,20 @@ def binary_focal_crossentropy(
     )
 
     # Calculate focal factor
-    p_t = y_true * y_pred + (1 - y_true) * (1 - y_pred)
-    focal_factor = ops.power(1.0 - p_t, gamma)
+    p_t = ops.add(
+        ops.multiply(y_true, y_pred),
+        ops.multiply(ops.subtract(one, y_true), ops.subtract(one, y_pred)),
+    )
+    focal_factor = ops.power(ops.subtract(one, p_t), gamma)
 
-    focal_bce = focal_factor * bce
+    focal_bce = ops.multiply(focal_factor, bce)
 
     if apply_class_balancing:
-        weight = y_true * alpha + (1 - y_true) * (1 - alpha)
-        focal_bce = weight * focal_bce
+        weight = ops.add(
+            ops.multiply(y_true, alpha),
+            ops.multiply(ops.subtract(one, y_true), ops.subtract(one, alpha)),
+        )
+        focal_bce = ops.multiply(weight, focal_bce)
 
     return ops.mean(focal_bce, axis=axis)
 
@@ -2947,6 +3007,8 @@ def ctc(y_true, y_pred):
             containing logits (the output of your model).
             They should *not* be normalized via softmax.
     """
+    y_pred = _convert_y_pred(y_pred)
+    y_true = ops.convert_to_tensor(y_true)
     if len(ops.shape(y_true)) != 2:
         raise ValueError(
             "Targets `y_true` are expected to be a tensor of shape "
@@ -3008,21 +3070,25 @@ def dice(y_true, y_pred, axis=None):
     array(0.6164384, shape=(), dtype=float32)
 
     """
-    y_pred = ops.convert_to_tensor(y_pred)
+    y_pred = _convert_y_pred(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
 
     inputs = y_true
     targets = y_pred
 
-    intersection = ops.sum(inputs * targets, axis=axis)
+    intersection = ops.sum(ops.multiply(inputs, targets), axis=axis)
+    two = ops.cast(2.0, y_pred.dtype)
+    one = ops.cast(1.0, y_pred.dtype)
+    eps = ops.cast(backend.epsilon(), y_pred.dtype)
     dice = ops.divide(
-        2.0 * intersection,
-        ops.sum(y_true, axis=axis)
-        + ops.sum(y_pred, axis=axis)
-        + backend.epsilon(),
+        ops.multiply(two, intersection),
+        ops.add(
+            ops.add(ops.sum(y_true, axis=axis), ops.sum(y_pred, axis=axis)),
+            eps,
+        ),
     )
 
-    return 1 - dice
+    return ops.subtract(one, dice)
 
 
 @keras_export("keras.losses.tversky")
@@ -3049,22 +3115,33 @@ def tversky(y_true, y_pred, alpha=0.5, beta=0.5, axis=None):
 
     - [Salehi et al., 2017](https://arxiv.org/abs/1706.05721)
     """
-    y_pred = ops.convert_to_tensor(y_pred)
+    y_pred = _convert_y_pred(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
 
     inputs = y_pred
     targets = y_true
 
-    intersection = ops.sum(inputs * targets, axis=axis)
-    fp = ops.sum((1 - targets) * inputs, axis=axis)
-    fn = ops.sum(targets * (1 - inputs), axis=axis)
+    one = ops.cast(1.0, y_pred.dtype)
+    alpha = ops.cast(alpha, y_pred.dtype)
+    beta = ops.cast(beta, y_pred.dtype)
+    eps = ops.cast(backend.epsilon(), y_pred.dtype)
+
+    intersection = ops.sum(ops.multiply(inputs, targets), axis=axis)
+    fp = ops.sum(ops.multiply(ops.subtract(one, targets), inputs), axis=axis)
+    fn = ops.sum(ops.multiply(targets, ops.subtract(one, inputs)), axis=axis)
 
     tversky = ops.divide(
         intersection,
-        intersection + fp * alpha + fn * beta + backend.epsilon(),
+        ops.add(
+            ops.add(
+                ops.add(intersection, ops.multiply(fp, alpha)),
+                ops.multiply(fn, beta),
+            ),
+            eps,
+        ),
     )
 
-    return 1 - tversky
+    return ops.subtract(one, tversky)
 
 
 @keras_export("keras.losses.circle")
@@ -3097,25 +3174,28 @@ def circle(
     Returns:
         Circle loss value.
     """
-    y_pred = ops.convert_to_tensor(y_pred)
+    y_pred = _convert_y_pred(y_pred)
     y_true = ops.cast(y_true, "int32")
     ref_embeddings = (
-        y_pred
-        if ref_embeddings is None
-        else ops.convert_to_tensor(ref_embeddings)
+        y_pred if ref_embeddings is None else _convert_y_pred(ref_embeddings)
     )
     ref_labels = y_true if ref_labels is None else ops.cast(ref_labels, "int32")
 
-    optim_pos = margin
-    optim_neg = 1 + margin
-    delta_pos = margin
-    delta_neg = 1 - margin
+    one = ops.cast(1.0, y_pred.dtype)
+    zero = ops.cast(0.0, y_pred.dtype)
+    margin = ops.cast(margin, y_pred.dtype)
+    gamma = ops.cast(gamma, y_pred.dtype)
 
-    pairwise_cosine_distances = 1 - ops.matmul(
-        y_pred, ops.transpose(ref_embeddings)
+    optim_pos = margin
+    optim_neg = ops.add(one, margin)
+    delta_pos = margin
+    delta_neg = ops.subtract(one, margin)
+
+    pairwise_cosine_distances = ops.subtract(
+        one, ops.matmul(y_pred, ops.transpose(ref_embeddings))
     )
 
-    pairwise_cosine_distances = ops.maximum(pairwise_cosine_distances, 0.0)
+    pairwise_cosine_distances = ops.maximum(pairwise_cosine_distances, zero)
     positive_mask, negative_mask = build_pos_neg_masks(
         y_true,
         ref_labels,
@@ -3128,30 +3208,33 @@ def circle(
         negative_mask, dtype=pairwise_cosine_distances.dtype
     )
 
-    pos_weights = optim_pos + pairwise_cosine_distances
-    pos_weights = pos_weights * positive_mask
-    pos_weights = ops.maximum(pos_weights, 0.0)
-    neg_weights = optim_neg - pairwise_cosine_distances
-    neg_weights = neg_weights * negative_mask
-    neg_weights = ops.maximum(neg_weights, 0.0)
+    pos_weights = ops.add(optim_pos, pairwise_cosine_distances)
+    pos_weights = ops.multiply(pos_weights, positive_mask)
+    pos_weights = ops.maximum(pos_weights, zero)
+    neg_weights = ops.subtract(optim_neg, pairwise_cosine_distances)
+    neg_weights = ops.multiply(neg_weights, negative_mask)
+    neg_weights = ops.maximum(neg_weights, zero)
 
-    pos_dists = delta_pos - pairwise_cosine_distances
-    neg_dists = delta_neg - pairwise_cosine_distances
+    pos_dists = ops.subtract(delta_pos, pairwise_cosine_distances)
+    neg_dists = ops.subtract(delta_neg, pairwise_cosine_distances)
 
-    pos_wdists = -1 * gamma * pos_weights * pos_dists
-    neg_wdists = gamma * neg_weights * neg_dists
+    pos_wdists = ops.multiply(
+        ops.multiply(ops.negative(gamma), pos_weights), pos_dists
+    )
+    neg_wdists = ops.multiply(ops.multiply(gamma, neg_weights), neg_dists)
 
+    neg_inf = ops.cast(float("-inf"), y_pred.dtype)
     p_loss = ops.logsumexp(
-        ops.where(positive_mask, pos_wdists, float("-inf")),
+        ops.where(ops.cast(positive_mask, "bool"), pos_wdists, neg_inf),
         axis=1,
     )
     n_loss = ops.logsumexp(
-        ops.where(negative_mask, neg_wdists, float("-inf")),
+        ops.where(ops.cast(negative_mask, "bool"), neg_wdists, neg_inf),
         axis=1,
     )
 
-    circle_loss = ops.softplus(p_loss + n_loss)
-    backend.set_keras_mask(circle_loss, circle_loss > 0)
+    circle_loss = ops.softplus(ops.add(p_loss, n_loss))
+    backend.set_keras_mask(circle_loss, circle_loss > zero)
     return circle_loss
 
 
@@ -3192,15 +3275,18 @@ def categorical_generalized_cross_entropy(y_true, y_pred, q):
             Deep Neural Networks with Noisy Labels")
     """
 
+    y_pred = _convert_y_pred(y_pred)
+    q = ops.cast(q, y_pred.dtype)
+    one = ops.cast(1.0, y_pred.dtype)
     # Convert y_true to integer type and one-hot encode
     y_true_one_hot = ops.one_hot(
-        ops.cast(y_true, "int"), num_classes=ops.shape(y_pred)[-1]
+        ops.cast(y_true, "int32"), num_classes=ops.shape(y_pred)[-1]
     )
     y_true_one_hot = ops.cast(y_true_one_hot, y_pred.dtype)
     # Calculate the probability of the true class
-    p = ops.sum(y_pred * y_true_one_hot, axis=-1)
+    p = ops.sum(ops.multiply(y_pred, y_true_one_hot), axis=-1)
 
     # Compute the GCE loss for q in (0,1)
-    gce_loss = (1 - ops.power(p, q)) / q
+    gce_loss = ops.divide(ops.subtract(one, ops.power(p, q)), q)
 
     return gce_loss

@@ -53,6 +53,9 @@ class Loss(KerasSaveable):
     def dtype(self):
         return self._dtype
 
+    def _convert_y_true(self, x):
+        return ops.convert_to_tensor(x, dtype=self.dtype)
+
     def __call__(self, y_true, y_pred, sample_weight=None):
         in_mask = backend.get_keras_mask(y_pred)
 
@@ -60,9 +63,7 @@ class Loss(KerasSaveable):
             y_pred = tree.map_structure(
                 lambda x: ops.convert_to_tensor(x, dtype=self.dtype), y_pred
             )
-            y_true = tree.map_structure(
-                lambda x: ops.convert_to_tensor(x, dtype=self.dtype), y_true
-            )
+            y_true = tree.map_structure(self._convert_y_true, y_true)
 
             losses = self.call(y_true, y_pred)
             out_mask = backend.get_keras_mask(losses)

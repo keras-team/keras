@@ -67,7 +67,7 @@ class _ConfusionMatrixConditionCount(Metric):
             result = self.accumulator[0]
         else:
             result = self.accumulator
-        return backend.ops.convert_to_tensor(result)
+        return ops.cast(result, self.dtype)
 
     def get_config(self):
         config = {"thresholds": self.init_thresholds}
@@ -394,7 +394,8 @@ class Precision(Metric):
             self.true_positives,
             ops.add(self.true_positives, self.false_positives),
         )
-        return result[0] if len(self.thresholds) == 1 else result
+        result = result[0] if len(self.thresholds) == 1 else result
+        return ops.cast(result, self.dtype)
 
     def reset_state(self):
         num_thresholds = len(to_list(self.thresholds))
@@ -538,7 +539,8 @@ class Recall(Metric):
             self.true_positives,
             ops.add(self.true_positives, self.false_negatives),
         )
-        return result[0] if len(self.thresholds) == 1 else result
+        result = result[0] if len(self.thresholds) == 1 else result
+        return ops.cast(result, self.dtype)
 
     def reset_state(self):
         num_thresholds = len(to_list(self.thresholds))
@@ -665,10 +667,12 @@ class SensitivitySpecificityBase(Metric):
             maximal dependent value, if no value satisfies the constraint 0.0.
         """
         feasible = predicate(constrained, self.value)
-        # Mask values based on whether they satisfy the constraint and take max.
-        return ops.max(
-            ops.where(feasible, dependent, 0),
-            initial=0,
+        return ops.cast(
+            ops.max(
+                ops.where(feasible, dependent, 0),
+                initial=0,
+            ),
+            self.dtype,
         )
 
 
@@ -1451,15 +1455,16 @@ class AUC(Metric):
             by_label_auc = ops.sum(pr_auc_increment, axis=0)
             if self.label_weights is None:
                 # Evenly weighted average of the label AUCs.
-                return ops.mean(by_label_auc)
+                result = ops.mean(by_label_auc)
             else:
                 # Weighted average of the label AUCs.
-                return ops.divide_no_nan(
+                result = ops.divide_no_nan(
                     ops.sum(ops.multiply(by_label_auc, self.label_weights)),
                     ops.sum(self.label_weights),
                 )
         else:
-            return ops.sum(pr_auc_increment)
+            result = ops.sum(pr_auc_increment)
+        return ops.cast(result, self.dtype)
 
     def result(self):
         if (
@@ -1554,15 +1559,16 @@ class AUC(Metric):
 
             if self.label_weights is None:
                 # Unweighted average of the label AUCs.
-                return ops.mean(by_label_auc)
+                result = ops.mean(by_label_auc)
             else:
                 # Weighted average of the label AUCs.
-                return ops.divide_no_nan(
+                result = ops.divide_no_nan(
                     ops.sum(ops.multiply(by_label_auc, self.label_weights)),
                     ops.sum(self.label_weights),
                 )
         else:
-            return ops.sum(riemann_terms)
+            result = ops.sum(riemann_terms)
+        return ops.cast(result, self.dtype)
 
     def reset_state(self):
         if self._built:
