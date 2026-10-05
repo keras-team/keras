@@ -903,6 +903,75 @@ class DenseTest(testing.TestCase):
         y_training = layer(x, training=True)
         self.assertAllClose(y_inference, y_training)
 
+    @parameterized.named_parameters(("bias", True), ("no_bias", False))
+    def test_quantize_float8_weights_order(self, use_bias):
+        # A layer quantized in place and a layer built from its policy hold
+        # the same variables in the same order.
+        layer = layers.Dense(units=16, use_bias=use_bias)
+        layer.build((None, 8))
+        layer.quantize("float8")
+        for v in layer.weights:
+            v.assign(np.random.uniform(0.5, 1.5, v.shape))
+        new_layer = layers.Dense(
+            units=16, use_bias=use_bias, dtype=layer.dtype_policy
+        )
+        new_layer.build((None, 8))
+        self.assertEqual(
+            [(v.name, v.shape) for v in new_layer.weights],
+            [(v.name, v.shape) for v in layer.weights],
+        )
+        new_layer.set_weights(layer.get_weights())
+        x = np.random.random((2, 8))
+        self.assertAllClose(
+            new_layer(x, training=False), layer(x, training=False)
+        )
+
+    def test_quantize_float8_rebuilt_model_takes_weights(self):
+        inputs = layers.Input((8,))
+        model = models.Model(inputs, layers.Dense(16)(inputs))
+        model.layers[1].quantize("float8")
+        for v in model.weights:
+            v.assign(np.random.uniform(0.5, 1.5, v.shape))
+        x = np.random.random((2, 8))
+        y = model(x, training=False)
+
+        # `from_config` builds the layer from its policy.
+        revived = models.Model.from_config(model.get_config())
+        revived.set_weights(model.get_weights())
+        self.assertAllClose(revived(x, training=False), y)
+
+        # The legacy `.h5` format stores the weights in `weights` order.
+        temp_filepath = os.path.join(self.get_temp_dir(), "float8_model.h5")
+        model.save(temp_filepath)
+        reloaded = saving.load_model(temp_filepath)
+        self.assertAllClose(reloaded(x, training=False), y)
+
+    @pytest.mark.requires_trainable_backend
+    def test_quantize_float8_trained_model_reloads_optimizer_state(self):
+        # Gradient accumulators are stored by position, one per trainable
+        # variable, in the order of `trainable_variables`.
+        inputs = layers.Input((8,))
+        model = models.Model(inputs, layers.Dense(16)(inputs))
+        model.layers[1].quantize("float8")
+        model.compile(
+            optimizer=optimizers.SGD(gradient_accumulation_steps=2),
+            loss="mse",
+        )
+        x = np.random.random((4, 8))
+        model.fit(x, np.random.random((4, 16)), batch_size=4, verbose=0)
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "float8_model.keras")
+        model.save(temp_filepath)
+        reloaded = saving.load_model(temp_filepath)
+        self.assertEqual(
+            [v.shape for v in reloaded.optimizer.variables],
+            [v.shape for v in model.optimizer.variables],
+        )
+        for v, ref in zip(
+            reloaded.optimizer.variables, model.optimizer.variables
+        ):
+            self.assertAllClose(v, ref)
+
     def test_gptq_serialization(self):
         """Test that a GPTQ-quantized layer can be serialized and deserialized
         correctly."""
