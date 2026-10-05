@@ -129,12 +129,14 @@ class CalibrationStrategy(QuantizationStrategy):
         # `g_idx` is stored as `float32` because TF has no GPU kernel for
         # int32 resource variables (would pin the variable to CPU and break
         # jit_compile on GPU); consumers cast to int32 on-device.
+        # Not autocast: bfloat16 holds integers exactly only up to 256.
         layer.g_idx = layer.add_weight(
             name="g_idx",
             shape=(rows,),
             initializer="zeros",
             dtype="float32",
             trainable=False,
+            autocast=False,
         )
 
     def _packed_columns(self, layer, columns, config):

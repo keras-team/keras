@@ -1611,6 +1611,29 @@ class DenseTest(testing.TestCase):
         y_after = loaded_model(x)
         self.assertAllClose(y_before, y_after)
 
+    @parameterized.named_parameters(("int4", "int4/2"), ("gptq", "gptq/4/2"))
+    def test_more_than_256_groups_under_mixed_bfloat16(self, policy):
+        # 300 groups of two rows. bfloat16 holds integers exactly only up
+        # to 256, so an autocast `g_idx` would send later rows to another
+        # group's scale and zero point.
+        input_dim = 600
+        source = layers.Dense(4, dtype=f"{policy}_from_float32")
+        source.build((None, input_dim))
+        test_utils.randomize_serialized_variables(source)
+        source.g_idx.assign(np.arange(input_dim) // 2)
+        store = test_utils.positional_store(source)
+        x = np.random.default_rng(0).standard_normal((2, input_dim))
+        outputs = []
+        for dtype in ("float32", "mixed_bfloat16"):
+            layer = layers.Dense(4, dtype=f"{policy}_from_{dtype}")
+            layer.build((None, input_dim))
+            layer.load_own_variables(store)
+            y = layer(x.astype("float32"))
+            outputs.append(ops.convert_to_numpy(ops.cast(y, "float32")))
+        expected, y = outputs
+        atol = 0.02 * np.abs(expected).max()
+        self.assertAllClose(y, expected, rtol=0.02, atol=atol)
+
     def test_quantize_by_setting_dtype_policy_map_uses_layer_entry(self):
         # A map answers `quantization_mode` for its default policy, which is
         # not quantized here; the layer's own entry decides, with its
