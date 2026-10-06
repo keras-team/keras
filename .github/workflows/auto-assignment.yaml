@@ -1,4 +1,5 @@
 name: auto-assignment
+
 on:
   issues:
     types:
@@ -10,14 +11,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  welcome:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          script: |
-            const script = require('./\.github/workflows/scripts/auto-assignment.js')
-            script({github, context})
+  auto_assign:
+    uses: keras-team/shared-workflows/.github/workflows/auto-assignment.yml@1ff60fd615b03a85abdffac6d7cbe390988bb305 # v1
+    with:
+      issue_assignees: 'maitry63,mrinalghoshh,dhantule'

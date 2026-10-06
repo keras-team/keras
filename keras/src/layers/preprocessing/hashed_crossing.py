@@ -147,9 +147,13 @@ class HashedCrossing(Layer):
             first_shape = tuple(inputs[0].shape)
             rank = len(first_shape)
             if rank < 2:
-                inputs = [tf_backend.numpy.expand_dims(x, -1) for x in inputs]
+                inputs = [
+                    tf_backend.ops.numpy.expand_dims(x, -1) for x in inputs
+                ]
             if rank < 1:
-                inputs = [tf_backend.numpy.expand_dims(x, -1) for x in inputs]
+                inputs = [
+                    tf_backend.ops.numpy.expand_dims(x, -1) for x in inputs
+                ]
 
             # Perform the cross and convert to dense
             outputs = tf.sparse.cross_hashed(inputs, self.num_bins)

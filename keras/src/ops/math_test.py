@@ -5,6 +5,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 import scipy.signal
+import scipy.special
 from absl.testing import parameterized
 
 from keras.src import backend
@@ -180,6 +181,11 @@ class MathOpsDynamicShapeTest(testing.TestCase):
 
         z = kmath.gammainc(x1, x2)
         self.assertEqual(z.shape, (None, 2, 3))
+
+    def test_lgamma(self):
+        x = KerasTensor((None, 2, 3))
+        y = kmath.lgamma(x)
+        self.assertEqual(y.shape, (None, 2, 3))
 
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     def test_segment_reduce(self, segment_reduce_op):
@@ -403,6 +409,11 @@ class MathOpsStaticShapeTest(testing.TestCase):
         z = kmath.gammainc(x1, x2)
         self.assertEqual(z.shape, (1, 2, 3))
 
+    def test_lgamma(self):
+        x = KerasTensor((1, 2, 3))
+        y = kmath.lgamma(x)
+        self.assertEqual(y.shape, (1, 2, 3))
+
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     @pytest.mark.skipif(
         backend.backend() == "jax",
@@ -544,6 +555,12 @@ class MathOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 4, 3, 3))
         out = kmath.logdet(x)
         self.assertEqual(out.shape, (2, 4))
+
+
+BACKEND_AGNOSTIC_OPS = [
+    {"testcase_name": "backend_specific", "backend_agnostic_ops": False},
+    {"testcase_name": "backend_agnostic", "backend_agnostic_ops": True},
+]
 
 
 class MathOpsCorrectnessTest(testing.TestCase):
@@ -719,8 +736,10 @@ class MathOpsCorrectnessTest(testing.TestCase):
         x = np.array([0, 4, 2, 1, 3, -1], dtype=np.float32)
         values, indices = kmath.top_k(x, k=2, sorted=False)
         # Any order ok when `sorted=False`.
-        self.assertEqual(set(backend.convert_to_numpy(values)), set([4, 3]))
-        self.assertEqual(set(backend.convert_to_numpy(indices)), set([1, 4]))
+        self.assertEqual(set(backend.ops.convert_to_numpy(values)), set([4, 3]))
+        self.assertEqual(
+            set(backend.ops.convert_to_numpy(indices)), set([1, 4])
+        )
 
         x = np.random.rand(5, 5)
         outputs = kmath.top_k(x, k=2)
@@ -738,8 +757,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
 
     def check_stability(self, values, indices):
         """Helper function to check stability of top_k."""
-        values_np = backend.convert_to_numpy(values)
-        indices_np = backend.convert_to_numpy(indices)
+        values_np = backend.ops.convert_to_numpy(values)
+        indices_np = backend.ops.convert_to_numpy(indices)
         is_equal = values_np[..., :-1] == values_np[..., 1:]
         index_increasing = indices_np[..., :-1] < indices_np[..., 1:]
         self.assertTrue(np.all(np.logical_or(~is_equal, index_increasing)))
@@ -831,6 +850,17 @@ class MathOpsCorrectnessTest(testing.TestCase):
         predictions = np.array([[0.1, np.nan, 0.5], [0.3, 0.2, 0.5]])
         self.assertAllEqual(
             kmath.in_top_k(targets, predictions, k=2), [False, True]
+        )
+
+        # Test multi-dimensional list (not array/tensor) inputs.
+        targets = [[1, 2], [0, 3]]
+        predictions = [
+            [[0.1, 0.9, 0.8, 0.8], [0.05, 0.95, 0, 1]],
+            [[0.9, 0.1, 0.8, 0.8], [0.1, 0.8, 0.3, 1]],
+        ]
+        self.assertAllEqual(
+            kmath.in_top_k(targets, predictions, k=2),
+            [[True, False], [True, True]],
         )
 
     def test_logsumexp(self):
@@ -1028,7 +1058,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
             output = output[..., truncated_len:-truncated_len]
             ref = ref[..., truncated_len:-truncated_len]
         # Nans are handled differently in different backends, so zero them out.
-        output = np.nan_to_num(backend.convert_to_numpy(output), nan=0.0)
+        output = np.nan_to_num(backend.ops.convert_to_numpy(output), nan=0.0)
         ref = np.nan_to_num(ref, nan=0.0)
         self.assertAllClose(output, ref, atol=1e-5, rtol=1e-5)
 
@@ -1060,7 +1090,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
             output = output[..., truncated_len:-truncated_len]
             ref = ref[..., truncated_len:-truncated_len]
         # Nans are handled differently in different backends, so zero them out.
-        output = np.nan_to_num(backend.convert_to_numpy(output), nan=0.0)
+        output = np.nan_to_num(backend.ops.convert_to_numpy(output), nan=0.0)
         ref = np.nan_to_num(ref, nan=0.0)
         self.assertAllClose(output, ref, atol=1e-5, rtol=1e-5)
 
@@ -1149,6 +1179,21 @@ class MathOpsCorrectnessTest(testing.TestCase):
             output_from_edge_erfinv_op, expected_output, atol=1e-4
         )
 
+        # Inputs extremely close to (but not equal to) `1.0` and `-1.0` must
+        # produce a finite value (see keras-team/keras#23133).
+        near_ones = np.array(
+            [
+                np.nextafter(np.float32(1.0), np.float32(0.0)),
+                np.nextafter(np.float32(-1.0), np.float32(0.0)),
+            ],
+            dtype="float32",
+        )
+        expected_output = scipy.special.erfinv(near_ones.astype("float64"))
+        output_from_edge_erfinv_op = kmath.erfinv(near_ones)
+        self.assertAllClose(
+            output_from_edge_erfinv_op, expected_output, atol=0.1
+        )
+
     def test_logdet(self):
         x = np.array(
             [
@@ -1193,6 +1238,54 @@ class MathOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(out, expected)
         self.assertEqual(out.shape, (2, 2))
+
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_lgamma_operation_dtype(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            for dtype in ("float32", "float64"):
+                sample_values = np.array(
+                    [1.0, 2.0, 3.0, 4.0, 5.0, 0.5, 1.5, 2.5, 3.5, 10.0],
+                    dtype=dtype,
+                )
+                expected_output = scipy.special.gammaln(sample_values)
+                output_from_lgamma_op = kmath.lgamma(sample_values)
+                self.assertAllClose(
+                    output_from_lgamma_op, expected_output, atol=1e-4
+                )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
+
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_lgamma_operation_edge_cases(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            edge_values = np.array(
+                [-0.5, -1.5, -2.5, 1e-5, 50.0, 100.0, float("inf")],
+                dtype=np.float64,
+            )
+            expected_output = scipy.special.gammaln(edge_values)
+            output_from_edge_lgamma_op = kmath.lgamma(edge_values)
+            self.assertAllClose(
+                output_from_edge_lgamma_op, expected_output, atol=1e-4
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
+
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_lgamma_operation_basic(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            sample_values = np.array(
+                [1.0, 2.0, 3.0, 4.0, 5.0, 0.5, 1.5, 2.5, 3.5, 10.0]
+            )
+            expected_output = scipy.special.gammaln(sample_values)
+            output_from_lgamma_op = kmath.lgamma(sample_values)
+            self.assertAllClose(
+                output_from_lgamma_op, expected_output, atol=1e-4
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
 
 class MathDtypeTest(testing.TestCase):
@@ -1335,6 +1428,30 @@ class MathDtypeTest(testing.TestCase):
             standardize_dtype(kmath.Gammainc().symbolic_call(x1, x2).dtype),
             expected_dtype,
         )
+
+    @parameterized.named_parameters(
+        named_product(BACKEND_AGNOSTIC_OPS, dtype=FLOAT_DTYPES)
+    )
+    def test_lgamma(self, backend_agnostic_ops, dtype):
+        import jax.lax as lax
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+
+        expected_dtype = standardize_dtype(lax.lgamma(x_jax).dtype)
+
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            self.assertEqual(
+                standardize_dtype(kmath.lgamma(x).dtype), expected_dtype
+            )
+            self.assertEqual(
+                standardize_dtype(kmath.Lgamma().symbolic_call(x).dtype),
+                expected_dtype,
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_logsumexp(self, dtype):

@@ -1,7 +1,10 @@
+from unittest import mock
+
 import numpy as np
 import pytest
 from absl.testing import parameterized
 
+from keras.src import backend
 from keras.src import initializers
 from keras.src import layers
 from keras.src import testing
@@ -369,4 +372,38 @@ class LSTMTest(testing.TestCase):
             rtol=1e-5,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
+        )
+
+    @pytest.mark.skipif(
+        backend.backend() != "torch",
+        reason="Reproduces torch stateful LSTM backward (#23462).",
+    )
+    def test_stateful_backward(self):
+        # Same in-place state issue as stateful cuDNN GRU: the optimized
+        # kernel retains initial states for backward, then Keras copy_s
+        # into the stateful Variables.
+
+        import torch
+
+        if not torch.cuda.is_available():
+            self.skipTest("Requires a CUDA device.")
+
+        inputs = torch.randn(2, 3, 4, device="cuda")
+        layer = layers.LSTM(5, stateful=True)
+        real_vf_lstm = torch._VF.lstm
+        calls = []
+
+        def spy(*args, **kwargs):
+            calls.append(True)
+            return real_vf_lstm(*args, **kwargs)
+
+        with mock.patch.object(torch._VF, "lstm", side_effect=spy):
+            layer(inputs).sum().backward()
+        self.assertGreaterEqual(
+            len(calls),
+            1,
+            msg=(
+                "torch._VF.lstm was never invoked; the test did not "
+                "exercise the cuDNN path from #23462."
+            ),
         )

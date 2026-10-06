@@ -632,7 +632,7 @@ class MultiHeadAttentionTest(testing.TestCase):
                 return_attention_scores=True,
                 training=False,
             )
-            leak = backend.convert_to_numpy(scores)[..., future].sum()
+            leak = backend.ops.convert_to_numpy(scores)[..., future].sum()
             self.assertLess(leak, 1e-6)
         else:
             # use_causal_mask should match passing the same mask explicitly.
@@ -653,7 +653,7 @@ class MultiHeadAttentionTest(testing.TestCase):
         _, scores = layer(
             x, x, use_causal_mask=True, return_attention_scores=True
         )
-        scores = backend.convert_to_numpy(scores)
+        scores = backend.ops.convert_to_numpy(scores)
         self.assertLess(scores[..., future].sum(), 1e-6)
 
     @parameterized.named_parameters(

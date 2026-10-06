@@ -1,4 +1,5 @@
 import math
+import numbers
 
 from keras.src import ops
 from keras.src.api_export import keras_export
@@ -339,14 +340,16 @@ class OrthogonalRegularizer(Regularizer):
 
 
 def validate_float_arg(value, name):
-    """check penalty number availability, raise ValueError if failed."""
-    if (
-        not isinstance(value, (float, int))
-        or (math.isinf(value) or math.isnan(value))
-        or value < 0
-    ):
+    """Check penalty number availability, raise ValueError if failed."""
+    if isinstance(value, bool) or not isinstance(value, numbers.Real):
         raise ValueError(
             f"Invalid value for argument {name}: expected a non-negative float."
             f"Received: {name}={value}"
         )
-    return float(value)
+    value = float(value)
+    if not math.isfinite(value) or value < 0:
+        raise ValueError(
+            f"Invalid value for argument {name}: expected a non-negative float."
+            f"Received: {name}={value}"
+        )
+    return value

@@ -186,9 +186,9 @@ def compute_ciou(boxes1, boxes2, bounding_box_format, image_shape=None):
     represent the bounding boxes.
 
     Args:
-        box1 (tensor): tensor representing the first bounding box with
+        boxes1 (tensor): tensor representing the first bounding box with
             shape (..., 4).
-        box2 (tensor): tensor representing the second bounding box with
+        boxes2 (tensor): tensor representing the second bounding box with
             shape (..., 4).
         bounding_box_format: a case-insensitive string (for example, "xyxy").
             Each bounding box is defined by these 4 values. For detailed

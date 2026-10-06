@@ -30,7 +30,7 @@ jobs:
         backend: [jax, tensorflow, torch]
 
     name: Run tests on GPU
-    runs-on: linux-x86-g2-16-l4-1gpu
+    runs-on: linux-x86-g2-32-l4-1gpu
     timeout-minutes: 180
 
     container:

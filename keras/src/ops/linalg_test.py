@@ -85,6 +85,8 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         lu, p = linalg.lu_factor(x)
         self.assertEqual(lu.shape, (None, 2, 3))
         self.assertEqual(p.shape, (None, 2))
+        # The pivots are indices, so they are integers, not floats.
+        self.assertEqual(p.dtype, "int32")
 
     def test_matrix_rank(self):
         x = KerasTensor([None, 4, 5])
@@ -305,6 +307,8 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
         lu, p = linalg.lu_factor(x)
         self.assertEqual(lu.shape, (10, 2, 3))
         self.assertEqual(p.shape, (10, 2))
+        # The pivots are indices, so they are integers, not floats.
+        self.assertEqual(p.dtype, "int32")
 
     def test_matrix_rank(self):
         x = KerasTensor([4, 3, 5])
@@ -536,6 +540,14 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         lu, pivots = map(ops.convert_to_numpy, linalg.lu_factor(x))
         x_reconstructed = _reconstruct(lu, pivots, m, n)
         self.assertAllClose(x_reconstructed, x, atol=1e-5)
+
+        # The symbolic pivots dtype must match the eager one.
+        _, symbolic_pivots = linalg.LuFactor().symbolic_call(
+            KerasTensor((m, n), dtype="float32")
+        )
+        self.assertEqual(
+            backend.standardize_dtype(pivots.dtype), symbolic_pivots.dtype
+        )
 
         m, n = 4, 3
         x = np.random.rand(m, n)
@@ -864,12 +876,12 @@ class QrOpTest(testing.TestCase):
         if backend.backend() in ["openvino", "numpy"]:
             pytest.skip("Backend does not support jvp operation")
         a1, a2 = ops.convert_to_tensor(0.1), ops.convert_to_tensor(0.2)
-        primals, tangents = linalg.jvp(backend.numpy.sin, (a1,), (a2,))
+        primals, tangents = linalg.jvp(backend.ops.numpy.sin, (a1,), (a2,))
         self.assertAllClose(primals, 0.0998, atol=1e-4)
         self.assertAllClose(tangents, 0.1990, atol=1e-4)
 
         def f(x):
-            return backend.numpy.sin(x), x**2
+            return backend.ops.numpy.sin(x), x**2
 
         primals_out, tangents_out, aux = linalg.jvp(
             f, (a1,), (a2,), has_aux=True

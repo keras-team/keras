@@ -462,7 +462,7 @@ class TestTensorBoardV2(testing.TestCase):
             with summary.experimental.summary_scope(
                 name, "scalar_summary", values=[data, step]
             ) as (tag, _):
-                tensor = backend.convert_to_tensor(data, dtype="float32")
+                tensor = backend.ops.convert_to_tensor(data, dtype="float32")
                 if backend.backend() == "torch":
                     # TODO: Use device scope after the API is added.
                     if tensor.is_cuda:

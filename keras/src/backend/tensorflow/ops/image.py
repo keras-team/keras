@@ -6,7 +6,6 @@ import numpy as np
 import tensorflow as tf
 
 from keras.src import backend
-from keras.src.backend.config import standardize_data_format
 from keras.src.backend.tensorflow.ops.core import convert_to_tensor
 from keras.src.backend.tensorflow.ops.numpy import moveaxis
 from keras.src.random.seed_generator import draw_seed
@@ -51,7 +50,7 @@ SCALE_AND_TRANSLATE_METHODS = {
 
 def rgb_to_grayscale(images, data_format=None):
     images = convert_to_tensor(images)
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     channels_axis = -1 if data_format == "channels_last" else -3
     if len(images.shape) not in (3, 4):
         raise ValueError(
@@ -83,7 +82,7 @@ def rgb_to_grayscale(images, data_format=None):
 def rgb_to_hsv(images, data_format=None):
     images = convert_to_tensor(images)
     dtype = images.dtype
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     if len(images.shape) not in (3, 4):
         raise ValueError(
             "Invalid images rank: expected rank 3 (single image) "
@@ -112,7 +111,7 @@ def rgb_to_hsv(images, data_format=None):
 def hsv_to_rgb(images, data_format=None):
     images = convert_to_tensor(images)
     dtype = images.dtype
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     if len(images.shape) not in (3, 4):
         raise ValueError(
             "Invalid images rank: expected rank 3 (single image) "
@@ -149,7 +148,7 @@ def resize(
     fill_value=0.0,
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     if interpolation not in RESIZE_INTERPOLATIONS:
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
@@ -348,7 +347,7 @@ def affine_transform(
     fill_value=0,
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS:
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
@@ -408,7 +407,7 @@ def perspective_transform(
     fill_value=0,
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     start_points = convert_to_tensor(start_points, dtype=tf.float32)
     end_points = convert_to_tensor(end_points, dtype=tf.float32)
 
@@ -768,6 +767,7 @@ def gaussian_blur(
         kernel = tf.cast(kernel, dtype)
         return kernel
 
+    data_format = backend.standardize_data_format(data_format)
     images = convert_to_tensor(images)
     dtype = backend.standardize_dtype(images.dtype)
     kernel_size = convert_to_tensor(kernel_size, dtype=dtype)
@@ -813,7 +813,7 @@ def elastic_transform(
     seed=None,
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS:
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "

@@ -58,8 +58,8 @@ def export_openvino(
     import openvino as ov
     import openvino.opset16 as ov_opset
 
-    from keras.src.backend.openvino.core import OPENVINO_DTYPES
-    from keras.src.backend.openvino.core import OpenVINOKerasTensor
+    from keras.src.backend.openvino.ops.core import OPENVINO_DTYPES
+    from keras.src.backend.openvino.ops.core import OpenVINOKerasTensor
 
     actual_verbose = verbose if verbose is not None else True
 

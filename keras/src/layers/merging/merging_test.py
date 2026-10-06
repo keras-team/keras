@@ -132,7 +132,7 @@ class MergingLayersTest(testing.TestCase):
             mask2 = np.ones(input_shape[:-1], dtype=np.bool_)
             self.assertTrue(
                 np.all(
-                    backend.convert_to_numpy(
+                    backend.ops.convert_to_numpy(
                         layer.compute_mask([x1, x2], [mask1, mask2])
                     )
                 )
@@ -166,7 +166,7 @@ class MergingLayersTest(testing.TestCase):
         if not skip_mask_test:
             self.assertTrue(
                 np.all(
-                    backend.convert_to_numpy(
+                    backend.ops.convert_to_numpy(
                         layer.compute_mask(
                             [input_1, input_2],
                             [backend.Variable(x1), backend.Variable(x2)],
@@ -237,8 +237,10 @@ class MergingLayersTest(testing.TestCase):
 
     def test_add_with_mask(self):
         mask = layers.Masking()
-        x1 = mask(backend.convert_to_tensor([[[0, 0], [1, 2], [0, 0], [3, 4]]]))
-        x2 = backend.convert_to_tensor([[[0, 0], [0, 0], [1, 2], [3, 4]]])
+        x1 = mask(
+            backend.ops.convert_to_tensor([[[0, 0], [1, 2], [0, 0], [3, 4]]])
+        )
+        x2 = backend.ops.convert_to_tensor([[[0, 0], [0, 0], [1, 2], [3, 4]]])
 
         output = layers.Add()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [1, 2], [1, 2], [6, 8]]])
@@ -251,8 +253,10 @@ class MergingLayersTest(testing.TestCase):
 
     def test_subtract_with_mask(self):
         mask = layers.Masking()
-        x1 = mask(backend.convert_to_tensor([[[0, 0], [1, 2], [0, 0], [3, 4]]]))
-        x2 = backend.convert_to_tensor([[[0, 0], [0, 0], [1, 2], [3, 4]]])
+        x1 = mask(
+            backend.ops.convert_to_tensor([[[0, 0], [1, 2], [0, 0], [3, 4]]])
+        )
+        x2 = backend.ops.convert_to_tensor([[[0, 0], [0, 0], [1, 2], [3, 4]]])
 
         output = layers.Subtract()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [1, 2], [-1, -2], [0, 0]]])
@@ -265,8 +269,10 @@ class MergingLayersTest(testing.TestCase):
 
     def test_average_with_mask(self):
         mask = layers.Masking()
-        x1 = mask(backend.convert_to_tensor([[[0, 0], [1, 2], [0, 0], [3, 4]]]))
-        x2 = backend.convert_to_tensor([[[0, 0], [0, 0], [1, 2], [3, 4]]])
+        x1 = mask(
+            backend.ops.convert_to_tensor([[[0, 0], [1, 2], [0, 0], [3, 4]]])
+        )
+        x2 = backend.ops.convert_to_tensor([[[0, 0], [0, 0], [1, 2], [3, 4]]])
 
         output = layers.Average()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [0.5, 1], [0.5, 1], [3, 4]]])
@@ -279,8 +285,10 @@ class MergingLayersTest(testing.TestCase):
 
     def test_multiply_with_mask(self):
         mask = layers.Masking()
-        x1 = mask(backend.convert_to_tensor([[[0, 0], [1, 2], [0, 0], [3, 4]]]))
-        x2 = backend.convert_to_tensor([[[0, 0], [0, 0], [1, 2], [3, 4]]])
+        x1 = mask(
+            backend.ops.convert_to_tensor([[[0, 0], [1, 2], [0, 0], [3, 4]]])
+        )
+        x2 = backend.ops.convert_to_tensor([[[0, 0], [0, 0], [1, 2], [3, 4]]])
 
         output = layers.Multiply()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [0, 0], [1, 2], [9, 16]]])
@@ -294,9 +302,13 @@ class MergingLayersTest(testing.TestCase):
     def test_maximum_with_mask(self):
         mask = layers.Masking()
         x1 = mask(
-            backend.convert_to_tensor([[[0, 0], [-1, -2], [0, 0], [-3, -4]]])
+            backend.ops.convert_to_tensor(
+                [[[0, 0], [-1, -2], [0, 0], [-3, -4]]]
+            )
         )
-        x2 = backend.convert_to_tensor([[[0, 0], [0, 0], [-1, -2], [-3, -4]]])
+        x2 = backend.ops.convert_to_tensor(
+            [[[0, 0], [0, 0], [-1, -2], [-3, -4]]]
+        )
 
         output = layers.Maximum()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [0, 0], [-1, -2], [-3, -4]]])
@@ -309,8 +321,10 @@ class MergingLayersTest(testing.TestCase):
 
     def test_minimum_with_mask(self):
         mask = layers.Masking()
-        x1 = mask(backend.convert_to_tensor([[[0, 0], [1, 2], [0, 0], [3, 4]]]))
-        x2 = backend.convert_to_tensor([[[0, 0], [0, 0], [1, 2], [3, 4]]])
+        x1 = mask(
+            backend.ops.convert_to_tensor([[[0, 0], [1, 2], [0, 0], [3, 4]]])
+        )
+        x2 = backend.ops.convert_to_tensor([[[0, 0], [0, 0], [1, 2], [3, 4]]])
 
         output = layers.Minimum()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [0, 0], [1, 2], [3, 4]]])
@@ -323,8 +337,10 @@ class MergingLayersTest(testing.TestCase):
 
     def test_concatenate_with_mask(self):
         mask = layers.Masking()
-        x1 = mask(backend.convert_to_tensor([[[0, 0], [1, 2], [0, 0], [3, 4]]]))
-        x2 = backend.convert_to_tensor([[[0, 0], [0, 0], [1, 2], [3, 4]]])
+        x1 = mask(
+            backend.ops.convert_to_tensor([[[0, 0], [1, 2], [0, 0], [3, 4]]])
+        )
+        x2 = backend.ops.convert_to_tensor([[[0, 0], [0, 0], [1, 2], [3, 4]]])
 
         output = layers.Concatenate(axis=1)([x1, x2])
         self.assertAllClose(
@@ -350,8 +366,8 @@ class MergingLayersTest(testing.TestCase):
         model = models.Model(
             inputs=[input1, input2], outputs=backend.get_keras_mask(output)
         )
-        x1 = backend.convert_to_tensor([[[0, 0], [1, 2], [0, 0], [3, 4]]])
-        x2 = backend.convert_to_tensor([[[0, 0], [0, 0], [1, 2], [3, 4]]])
+        x1 = backend.ops.convert_to_tensor([[[0, 0], [1, 2], [0, 0], [3, 4]]])
+        x2 = backend.ops.convert_to_tensor([[[0, 0], [0, 0], [1, 2], [3, 4]]])
         self.assertAllClose(model([x1, x2]), [[0, 1, 0, 1, 1, 1, 1, 1]])
 
     def test_concatenate_errors(self):
@@ -431,13 +447,13 @@ class MergingLayersTest(testing.TestCase):
         else:
             self.fail(f"Sparse is unsupported with backend {backend.backend()}")
 
-        x1_np = backend.convert_to_numpy(x1)
+        x1_np = backend.ops.convert_to_numpy(x1)
         x2 = np.random.rand(2, 3)
         self.assertAllClose(layer([x1, x2]), np_op(x1_np, x2, **init_kwargs))
         self.assertAllClose(layer([x2, x1]), np_op(x2, x1_np, **init_kwargs))
 
         # Merging a sparse tensor with a sparse tensor produces a sparse tensor
-        x3_np = backend.convert_to_numpy(x3)
+        x3_np = backend.ops.convert_to_numpy(x3)
 
         self.assertSparse(layer([x1, x3]))
         self.assertAllClose(layer([x1, x3]), np_op(x1_np, x3_np, **init_kwargs))

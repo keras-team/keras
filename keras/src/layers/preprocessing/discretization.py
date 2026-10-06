@@ -9,6 +9,13 @@ from keras.src.utils.module_utils import tensorflow as tf
 from keras.src.utils.progbar import Progbar
 
 
+def _extract_batch(batch):
+    """Return input from batch; handle (x, y) or (x, y, sample_weight)."""
+    if isinstance(batch, (tuple, list)):
+        return batch[0]
+    return batch
+
+
 @keras_export("keras.layers.Discretization")
 class Discretization(DataLayer):
     """A preprocessing layer which buckets continuous features by ranges.
@@ -207,7 +214,7 @@ class Discretization(DataLayer):
             progbar.update(steps if steps is not None else i + 1, finalize=True)
         elif hasattr(data, "__iter__") and not (
             isinstance(data, np.ndarray)
-            or backend.is_tensor(data)
+            or backend.ops.is_tensor(data)
             or tf.is_tensor(data)
         ):
             progbar = Progbar(target=steps, unit_name="step")
@@ -222,6 +229,7 @@ class Discretization(DataLayer):
         self.finalize_state()
 
     def update_state(self, data):
+        data = _extract_batch(data)
         data = np.array(data).astype("float32")
         summary = summarize(data, self.epsilon)
         self.summary = merge_summaries(summary, self.summary, self.epsilon)
@@ -284,7 +292,7 @@ class Discretization(DataLayer):
                 "start using the `Discretization` layer."
             )
 
-        indices = self.backend.numpy.digitize(inputs, self.bin_boundaries)
+        indices = self.backend.ops.numpy.digitize(inputs, self.bin_boundaries)
         return numerical_utils.encode_categorical_inputs(
             indices,
             output_mode=self.output_mode,

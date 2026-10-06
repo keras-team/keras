@@ -6,10 +6,10 @@ from openvino import Model
 from openvino import Type
 
 from keras.src import tree
-from keras.src.backend.openvino.core import OPENVINO_DTYPES
-from keras.src.backend.openvino.core import OpenVINOKerasTensor
-from keras.src.backend.openvino.core import convert_to_numpy
-from keras.src.backend.openvino.core import get_ov_output
+from keras.src.backend.openvino.ops.core import OPENVINO_DTYPES
+from keras.src.backend.openvino.ops.core import OpenVINOKerasTensor
+from keras.src.backend.openvino.ops.core import convert_to_numpy
+from keras.src.backend.openvino.ops.core import get_ov_output
 
 
 def _try_eval_constant(ov_output):

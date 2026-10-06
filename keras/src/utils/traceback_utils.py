@@ -269,7 +269,7 @@ def inject_argument_info_in_error(e, fn, args, kwargs, object_name=None):
 
 
 def format_argument_value(value):
-    if backend.is_tensor(value):
+    if backend.ops.is_tensor(value):
         # Simplified representation for eager / graph tensors
         # to keep messages readable
         if backend.backend() == "tensorflow":

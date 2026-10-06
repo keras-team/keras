@@ -302,7 +302,7 @@ class SparseCategoricalAccuracyTest(testing.TestCase):
         )
         sp_cat_acc_obj.update_state(y_true, y_pred)
         result = sp_cat_acc_obj.result()
-        self.assertAllClose(result, np.array([1.0, 1.0]))
+        self.assertAllClose(result, 1.0)
 
     def test_squeeze_y_true_shape(self):
         sp_cat_acc_obj = accuracy_metrics.SparseCategoricalAccuracy(

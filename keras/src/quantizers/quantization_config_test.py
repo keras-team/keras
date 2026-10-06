@@ -145,7 +145,7 @@ class QuantizationConfigTest(testing.TestCase):
             validate_and_resolve_config("invalid_mode", None)
 
         # 6. GPTQ without config
-        with self.assertRaisesRegex(ValueError, "must pass a `GPTQConfig`"):
+        with self.assertRaisesRegex(ValueError, "must be of type `GPTQConfig`"):
             validate_and_resolve_config("gptq", None)
 
         # 7. Contradictory config

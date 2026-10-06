@@ -533,6 +533,16 @@ class LSTM(RNN):
         if self.use_cudnn in ("auto", True):
             if not self.recurrent_dropout:
                 try:
+                    # Clone hidden/cell state for PyTorch + stateful. The
+                    # optimized kernel retains the initial states for
+                    # backward, while Keras then assign()s the new states
+                    # in-place (copy_), which would mutate storage autograd
+                    # still needs. The generic RNN loop already clones
+                    # inside step(); this path bypasses that copy.
+                    if self.stateful and backend.backend() == "torch":
+                        initial_state = tree.map_structure(
+                            ops.copy, initial_state
+                        )
                     if training and self.dropout:
                         dp_mask = self.cell.get_dropout_mask(sequences[:, 0, :])
                         dp_mask = ops.expand_dims(dp_mask, axis=1)

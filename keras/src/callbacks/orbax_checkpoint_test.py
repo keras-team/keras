@@ -718,3 +718,35 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
             len(checkpoint_files_1),
             "Should have more checkpoint files",
         )
+
+    @pytest.mark.requires_trainable_backend
+    def test_warns_when_finalizing_checkpoints_fails(self):
+        """A failed finalize must not look like a successful save."""
+        checkpoint_dir = os.path.join(
+            self.get_temp_dir(), f"test_finalize_failure_{id(self)}"
+        )
+        model = models.Sequential(
+            [layers.Input((4,)), layers.Dense(3, name="dense")]
+        )
+        model.compile(optimizer="adam", loss="mse")
+        x = np.random.rand(8, 4)
+        y = np.random.rand(8, 3)
+
+        callback = OrbaxCheckpoint(directory=checkpoint_dir, save_freq="epoch")
+        model.fit(x, y, epochs=1, verbose=0, callbacks=[callback])
+
+        # `close()` is what raises when a pending save never lands, which is
+        # how a timed out async write reports itself.
+        class FailingCheckpointer:
+            def __init__(self, inner):
+                self._inner = inner
+
+            def __getattr__(self, name):
+                return getattr(self._inner, name)
+
+            def close(self):
+                raise TimeoutError("pending save did not complete")
+
+        callback.checkpointer = FailingCheckpointer(callback.checkpointer)
+        with self.assertWarnsRegex(UserWarning, "Failed to finalize"):
+            callback.on_train_end()

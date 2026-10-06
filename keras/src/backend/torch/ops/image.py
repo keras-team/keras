@@ -8,7 +8,6 @@ import torch._dynamo as dynamo
 import torch.nn.functional as F
 
 from keras.src import backend
-from keras.src.backend.config import standardize_data_format
 from keras.src.backend.torch.ops.core import cast
 from keras.src.backend.torch.ops.core import convert_to_tensor
 from keras.src.backend.torch.ops.core import get_device
@@ -49,7 +48,7 @@ SCALE_AND_TRANSLATE_METHODS = {
 
 def rgb_to_grayscale(images, data_format=None):
     images = convert_to_tensor(images)
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     if images.ndim not in (3, 4):
         raise ValueError(
             "Invalid images rank: expected rank 3 (single image) "
@@ -78,7 +77,7 @@ def rgb_to_hsv(images, data_format=None):
     # Ref: dm_pix
     images = convert_to_tensor(images)
     dtype = images.dtype
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     channels_axis = -1 if data_format == "channels_last" else -3
     if len(images.shape) not in (3, 4):
         raise ValueError(
@@ -128,7 +127,7 @@ def hsv_to_rgb(images, data_format=None):
     # Ref: dm_pix
     images = convert_to_tensor(images)
     dtype = images.dtype
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     channels_axis = -1 if data_format == "channels_last" else -3
     if len(images.shape) not in (3, 4):
         raise ValueError(
@@ -209,7 +208,7 @@ def resize(
     fill_value=0.0,
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     if interpolation in UNSUPPORTED_INTERPOLATIONS:
         raise ValueError(
             "Resizing with Lanczos interpolation is "
@@ -359,7 +358,7 @@ def affine_transform(
     fill_value=0,
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
@@ -467,7 +466,7 @@ def perspective_transform(
     fill_value=0,
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
 
     images = convert_to_tensor(images)
     dtype = backend.standardize_dtype(images.dtype)
@@ -867,6 +866,7 @@ def gaussian_blur(
         kernel = kernel.view(1, 1, kernel_size[0], kernel_size[1])
         return kernel
 
+    data_format = backend.standardize_data_format(data_format)
     images = convert_to_tensor(images)
     kernel_size = convert_to_tensor(kernel_size)
     sigma = convert_to_tensor(sigma)
@@ -930,7 +930,7 @@ def elastic_transform(
     seed=None,
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "

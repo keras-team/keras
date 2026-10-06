@@ -238,7 +238,7 @@ class OperationTest(testing.TestCase):
     @parameterized.named_parameters(named_product(module_name=OPS_MODULES))
     def test_backend_consistency(self, module_name):
         ops_module = getattr(ops, module_name)
-        backend_ops_module = getattr(backend, module_name)
+        backend_ops_module = getattr(backend.ops, module_name)
 
         for op_function, _ in op_functions_and_classes(ops_module):
             name = op_function.__name__

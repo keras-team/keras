@@ -70,7 +70,7 @@ class RandomPosterization(BaseImagePreprocessingLayer):
             images = data["images"]
         else:
             images = data
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         rank = len(images_shape)
         if rank == 3:
             batch_size = 1
@@ -95,7 +95,7 @@ class RandomPosterization(BaseImagePreprocessingLayer):
             )
         else:
             factor = (
-                self.backend.numpy.ones((batch_size,), dtype="uint8")
+                self.backend.ops.numpy.ones((batch_size,), dtype="uint8")
                 * self.factor[0]
             )
 
@@ -106,8 +106,8 @@ class RandomPosterization(BaseImagePreprocessingLayer):
         if training:
             shift_factor = transformation["shift_factor"]
 
-            shift_factor = self.backend.numpy.reshape(
-                shift_factor, self.backend.shape(shift_factor) + (1, 1, 1)
+            shift_factor = self.backend.ops.numpy.reshape(
+                shift_factor, self.backend.ops.shape(shift_factor) + (1, 1, 1)
             )
 
             images = self._transform_value_range(
@@ -117,12 +117,14 @@ class RandomPosterization(BaseImagePreprocessingLayer):
                 dtype=self.compute_dtype,
             )
 
-            images = self.backend.cast(images, "uint8")
-            images = self.backend.numpy.bitwise_left_shift(
-                self.backend.numpy.bitwise_right_shift(images, shift_factor),
+            images = self.backend.ops.cast(images, "uint8")
+            images = self.backend.ops.numpy.bitwise_left_shift(
+                self.backend.ops.numpy.bitwise_right_shift(
+                    images, shift_factor
+                ),
                 shift_factor,
             )
-            images = self.backend.cast(images, self.compute_dtype)
+            images = self.backend.ops.cast(images, self.compute_dtype)
 
             images = self._transform_value_range(
                 images,

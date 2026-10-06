@@ -281,7 +281,8 @@ class ModelCheckpoint(MonitorCallback):
                 )
                 return True
             elif (
-                isinstance(current, np.ndarray) or backend.is_tensor(current)
+                isinstance(current, np.ndarray)
+                or backend.ops.is_tensor(current)
             ) and len(current.shape) > 0:
                 warnings.warn(
                     "Can save best model only when `monitor` is "

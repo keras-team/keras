@@ -16,7 +16,6 @@ from keras.src.backend.common.backend_utils import (
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
-from keras.src.backend.config import standardize_data_format
 from keras.src.backend.tensorflow.ops.core import cast
 from keras.src.backend.tensorflow.ops.core import convert_to_tensor
 
@@ -198,9 +197,9 @@ def sparsemax(x, axis=-1):
     r = tf.reshape(r, r_shape)  # Reshape for broadcasting
     support = logits_sorted - (logits_cumsum - 1) / r > 0
     # Find the threshold
-    logits_cumsum_safe = tf.where(support, logits_cumsum, 0.0)
+    logits_sorted_safe = tf.where(support, logits_sorted, 0.0)
     k = tf.reduce_sum(tf.cast(support, logits.dtype), axis=axis, keepdims=True)
-    tau = (tf.reduce_sum(logits_cumsum_safe, axis=axis, keepdims=True) - 1) / k
+    tau = (tf.reduce_sum(logits_sorted_safe, axis=axis, keepdims=True) - 1) / k
     output = tf.maximum(logits - tau, 0.0)
     return output
 
@@ -242,7 +241,7 @@ def max_pool(
     padding="valid",
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     strides = pool_size if strides is None else strides
     padding = padding.upper()
     tf_data_format = _convert_data_format("channels_last", len(inputs.shape))
@@ -270,7 +269,7 @@ def average_pool(
     padding="valid",
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     strides = pool_size if strides is None else strides
     padding = padding.upper()
     tf_data_format = _convert_data_format("channels_last", len(inputs.shape))
@@ -742,7 +741,7 @@ def _adaptive_max_pool3d(inputs, output_size, data_format="channels_first"):
 
 
 def adaptive_average_pool(inputs, output_size, data_format=None):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     ndims = len(inputs.shape) - 2
     if ndims == 1:
         return _adaptive_average_pool1d(inputs, output_size, data_format)
@@ -757,7 +756,7 @@ def adaptive_average_pool(inputs, output_size, data_format=None):
 
 
 def adaptive_max_pool(inputs, output_size, data_format=None):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     ndims = len(inputs.shape) - 2
     if ndims == 1:
         return _adaptive_max_pool1d(inputs, output_size, data_format)
@@ -811,7 +810,7 @@ def conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     num_spatial_dims = len(inputs.shape) - 2
@@ -1040,7 +1039,7 @@ def depthwise_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     num_spatial_dims = len(inputs.shape) - 2
@@ -1133,7 +1132,7 @@ def separable_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     depthwise_kernel = convert_to_tensor(depthwise_kernel)
     pointwise_kernel = convert_to_tensor(pointwise_kernel)
@@ -1231,7 +1230,7 @@ def conv_transpose(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     check_conv_transpose_input_channels(inputs, kernel, data_format)

@@ -922,12 +922,12 @@ class LayerTest(testing.TestCase):
                 return x
 
         layer = BasicMaskedLayer()
-        x = backend.numpy.ones((4, 4))
-        mask = backend.numpy.ones((4,))
+        x = backend.ops.numpy.ones((4, 4))
+        mask = backend.ops.numpy.ones((4,))
         backend.set_keras_mask(x, mask)
         layer(x)
 
-        layer(backend.numpy.ones((4, 4)), mask=backend.numpy.ones((4,)))
+        layer(backend.ops.numpy.ones((4, 4)), mask=backend.ops.numpy.ones((4,)))
 
         class NestedInputMaskedLayer(layers.Layer):
             def __init__(self):
@@ -942,17 +942,17 @@ class LayerTest(testing.TestCase):
                 return x
 
         layer = NestedInputMaskedLayer()
-        x1 = backend.numpy.ones((4, 4))
-        mask1 = backend.numpy.ones((4,))
+        x1 = backend.ops.numpy.ones((4, 4))
+        mask1 = backend.ops.numpy.ones((4,))
         backend.set_keras_mask(x1, mask1)
-        x2 = backend.numpy.ones((4, 4))
-        mask2 = backend.numpy.ones((4,))
+        x2 = backend.ops.numpy.ones((4, 4))
+        mask2 = backend.ops.numpy.ones((4,))
         backend.set_keras_mask(x2, mask2)
         layer([x1, x2])
 
         layer(
-            [backend.numpy.ones((4, 4)), backend.numpy.ones((4, 4))],
-            mask=[backend.numpy.ones((4,)), backend.numpy.ones((4,))],
+            [backend.ops.numpy.ones((4, 4)), backend.ops.numpy.ones((4, 4))],
+            mask=[backend.ops.numpy.ones((4,)), backend.ops.numpy.ones((4,))],
         )
 
         class PositionalInputsMaskedLayer(layers.Layer):
@@ -982,14 +982,14 @@ class LayerTest(testing.TestCase):
                 return x1[0] + x1[1] + x2
 
         layer = PositionalNestedInputsMaskedLayer()
-        x1_1 = backend.numpy.ones((4, 4))
-        mask1 = backend.numpy.ones((4,))
+        x1_1 = backend.ops.numpy.ones((4, 4))
+        mask1 = backend.ops.numpy.ones((4,))
         backend.set_keras_mask(x1_1, mask1)
-        x1_2 = backend.numpy.ones((4, 4))
-        mask2 = backend.numpy.ones((4,))
+        x1_2 = backend.ops.numpy.ones((4, 4))
+        mask2 = backend.ops.numpy.ones((4,))
         backend.set_keras_mask(x1_2, mask2)
-        x2 = backend.numpy.ones((4, 4))
-        mask2 = backend.numpy.ones((4,))
+        x2 = backend.ops.numpy.ones((4, 4))
+        mask2 = backend.ops.numpy.ones((4,))
         backend.set_keras_mask(x2, mask2)
         layer((x1_1, x1_2), x2)
         layer(x1=(x1_1, x1_2), x2=x2)
@@ -1005,8 +1005,8 @@ class LayerTest(testing.TestCase):
                 return x
 
         layer = MaskUnsetDuringCallLayer()
-        x = backend.numpy.ones((4, 4))
-        mask = backend.numpy.ones((4,))
+        x = backend.ops.numpy.ones((4, 4))
+        mask = backend.ops.numpy.ones((4,))
         backend.set_keras_mask(x, mask)
         y = layer(x)
         self.assertAllClose(backend.get_keras_mask(y), mask)
@@ -1028,11 +1028,11 @@ class LayerTest(testing.TestCase):
 
         layer = PassthroughMaskLayer()
         # Create an input tensor WITHOUT an attached mask.
-        x = backend.numpy.ones((4, 4))
+        x = backend.ops.numpy.ones((4, 4))
         self.assertIsNone(backend.get_keras_mask(x))
 
         # Create a mask to be passed explicitly.
-        explicit_mask = backend.numpy.array([True, True, False, False])
+        explicit_mask = backend.ops.numpy.array([True, True, False, False])
 
         # Call the layer, passing the mask as a keyword argument.
         y = layer(x, mask=explicit_mask)
@@ -1063,7 +1063,7 @@ class LayerTest(testing.TestCase):
                 self._build_at_init()
 
             def call(self, x):
-                x = backend.convert_to_tensor(x, dtype="float32")
+                x = backend.ops.convert_to_tensor(x, dtype="float32")
                 self.add_loss(ops.sum(x))
                 self.ntw.assign(ops.sum(x))
                 x = x + backend.random.normal(
@@ -1224,9 +1224,9 @@ class LayerTest(testing.TestCase):
             def call(self, foo, bar):
                 return foo[:, 0] + bar[:, 0]
 
-        foo = backend.numpy.ones((4, 1))
-        bar = backend.numpy.ones((4, 2))
-        baz = backend.numpy.ones((4, 3))
+        foo = backend.ops.numpy.ones((4, 1))
+        bar = backend.ops.numpy.ones((4, 2))
+        baz = backend.ops.numpy.ones((4, 3))
         with self.assertRaisesRegex(
             ValueError,
             r"argument `bar`, which does not end in `_shape`",
@@ -1314,21 +1314,23 @@ class LayerTest(testing.TestCase):
 
         self.assertEqual(layer.w2.shape, ())
         self.assertEqual(layer.w2.dtype, "int32")
-        self.assertAllClose(backend.convert_to_numpy(layer.w2), 0)
+        self.assertAllClose(backend.ops.convert_to_numpy(layer.w2), 0)
 
         self.assertEqual(layer.w3.shape, ())
         self.assertEqual(layer.w3.dtype, "bool")
-        self.assertAllClose(backend.convert_to_numpy(layer.w3), False)
+        self.assertAllClose(backend.ops.convert_to_numpy(layer.w3), False)
 
         self.assertEqual(layer.w4.shape, (2, 2))
         self.assertEqual(layer.w4.dtype, "int32")
         self.assertAllClose(
-            backend.convert_to_numpy(layer.w4), np.zeros((2, 2))
+            backend.ops.convert_to_numpy(layer.w4), np.zeros((2, 2))
         )
 
         self.assertEqual(layer.w5.shape, (2, 2))
         self.assertEqual(layer.w5.dtype, "float32")
-        self.assertAllClose(backend.convert_to_numpy(layer.w5), np.ones((2, 2)))
+        self.assertAllClose(
+            backend.ops.convert_to_numpy(layer.w5), np.ones((2, 2))
+        )
 
     def test_add_weight_string_as_first_positional_arg(self):
         """Test that passing a string as first positional arg to add_weight
@@ -1383,7 +1385,9 @@ class LayerTest(testing.TestCase):
         layer = MyLayer4()
         self.assertEqual(layer.w.shape, (3, 4))
         self.assertEqual(layer.w.dtype, "float32")
-        self.assertAllClose(backend.convert_to_numpy(layer.w), np.zeros((3, 4)))
+        self.assertAllClose(
+            backend.ops.convert_to_numpy(layer.w), np.zeros((3, 4))
+        )
 
         # Case 5: too many positional arguments
         class MyLayer5(layers.Layer):
@@ -1990,3 +1994,116 @@ class LayerTest(testing.TestCase):
         mask = np.ones((2, 1), dtype="float32")
         y = layer(x, attention_mask=mask)
         self.assertEqual(y.shape, (2, 3))
+
+    def test_name_scope_opened_once_per_call_when_built(self):
+        # `_maybe_build` opens the name scope itself, after its `built` check,
+        # so a layer that is already built opens it once per call (for the
+        # call itself) rather than twice.
+        opens = []
+
+        class CountingLayer(layers.Layer):
+            def _open_name_scope(self):
+                opens.append(1)
+                return super()._open_name_scope()
+
+            def call(self, x):
+                return x
+
+        layer = CountingLayer()
+        x = np.ones((2, 4), dtype="float32")
+        layer(x)
+
+        opens.clear()
+        layer(x)
+        layer(x)
+        self.assertEqual(len(opens), 2)
+
+    def test_called_and_built_flags_set_once(self):
+        # Verify that built and _called are True after the first call and
+        # remain True on repeated calls, that build() is invoked exactly
+        # once regardless of how many times the layer is called, and that
+        # `built`/`_called` are not reassigned once already True (the
+        # optimization this test guards against regressing).
+        build_count = []
+
+        class CountingLayer(layers.Layer):
+            def __init__(self, *args, **kwargs):
+                # Set up before calling `super().__init__()` since that
+                # call already triggers `__setattr__` for `built` and
+                # `_called`.
+                object.__setattr__(self, "setattr_calls", [])
+                super().__init__(*args, **kwargs)
+
+            def __setattr__(self, name, value):
+                if name in ("built", "_called"):
+                    self.setattr_calls.append((name, value))
+                super().__setattr__(name, value)
+
+            def build(self, input_shape):
+                build_count.append(1)
+                self.built = True
+
+            def call(self, x):
+                return x
+
+        layer = CountingLayer()
+        x = np.ones((2, 4), dtype="float32")
+        layer(x)
+
+        self.assertTrue(layer.built)
+        self.assertTrue(layer._called)
+        self.assertEqual(len(build_count), 1)
+
+        # Reset the recorded setattr traffic and call the already
+        # built/called layer a couple more times: `built` and `_called`
+        # must not be reassigned since they are already True.
+        layer.setattr_calls.clear()
+        layer(x)
+        layer(x)
+
+        self.assertTrue(layer.built)
+        self.assertTrue(layer._called)
+        self.assertEqual(len(build_count), 1)
+        self.assertEqual(len(layer.setattr_calls), 0)
+
+    @parameterized.named_parameters(
+        ("true", True), ("false", False), ("none", None)
+    )
+    def test_symbolic_call_records_training_kwarg_not_taken_by_call(
+        self, training
+    ):
+        # `CallSpec` pops call-context args that `call()` does not accept out
+        # of the `kwargs` dict it is handed. That dict must not be the one
+        # `Node` records, or the recorded call loses `training` and replaying
+        # the model runs the wrapped layer in the wrong mode.
+        class Wrapper(layers.Layer):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.bn = layers.BatchNormalization(momentum=0.0)
+
+            def call(self, x):  # Deliberately does not accept `training`.
+                return self.bn(x)
+
+        inputs = Input(shape=(4,), batch_size=4)
+        layer = Wrapper()
+        model = Model(inputs, layer(inputs, training=training))
+
+        self.assertEqual(
+            dict(model.layers[1]._inbound_nodes[0].arguments.kwargs),
+            {"training": training},
+        )
+
+        x = np.arange(16, dtype="float32").reshape(4, 4)
+        y = ops.convert_to_numpy(model(x))
+        if training is True:
+            # `momentum=0.0` snaps the running stats to the batch seen in
+            # training mode, so replaying normalizes with them: column `j`
+            # of `x` is `[0, 4, 8, 12] + j`, i.e. mean `6 + j`, variance 20.
+            column_means = 6.0 + np.arange(4, dtype="float32")
+            self.assertAllClose(
+                y, (x - column_means) / np.sqrt(20.0 + 1e-3), atol=1e-3
+            )
+        else:
+            # `training=False`/`None` never update the running stats, so
+            # they are still mean 0 / variance 1.
+            self.assertAllClose(y, x / np.sqrt(1.0 + 1e-3), atol=1e-3)

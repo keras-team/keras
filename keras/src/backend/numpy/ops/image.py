@@ -2,7 +2,6 @@ import ml_dtypes
 import numpy as np
 
 from keras.src import backend
-from keras.src.backend.config import standardize_data_format
 from keras.src.backend.numpy.ops.core import convert_to_tensor
 from keras.src.random.seed_generator import draw_seed
 from keras.src.utils.module_utils import scipy
@@ -46,7 +45,7 @@ SCALE_AND_TRANSLATE_METHODS = {
 
 def rgb_to_grayscale(images, data_format=None):
     images = convert_to_tensor(images)
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     channels_axis = -1 if data_format == "channels_last" else -3
     if len(images.shape) not in (3, 4):
         raise ValueError(
@@ -77,7 +76,7 @@ def rgb_to_hsv(images, data_format=None):
     # Ref: dm_pix
     images = convert_to_tensor(images)
     dtype = backend.standardize_dtype(images.dtype)
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     channels_axis = -1 if data_format == "channels_last" else -3
     if len(images.shape) not in (3, 4):
         raise ValueError(
@@ -127,7 +126,7 @@ def hsv_to_rgb(images, data_format=None):
     # Ref: dm_pix
     images = convert_to_tensor(images)
     dtype = images.dtype
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     channels_axis = -1 if data_format == "channels_last" else -3
     if len(images.shape) not in (3, 4):
         raise ValueError(
@@ -174,7 +173,7 @@ def resize(
     fill_value=0.0,
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     if interpolation not in RESIZE_INTERPOLATIONS:
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
@@ -555,7 +554,7 @@ def affine_transform(
     fill_value=0,
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
@@ -664,7 +663,7 @@ def perspective_transform(
     fill_value=0,
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     start_points = convert_to_tensor(start_points)
     end_points = convert_to_tensor(end_points)
 
@@ -996,6 +995,7 @@ def gaussian_blur(
         kernel = np.tile(kernel, (1, 1, num_channels))
         return kernel.astype(dtype)
 
+    data_format = backend.standardize_data_format(data_format)
     images = convert_to_tensor(images)
     kernel_size = convert_to_tensor(kernel_size)
     sigma = convert_to_tensor(sigma)
@@ -1062,7 +1062,7 @@ def elastic_transform(
     seed=None,
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "

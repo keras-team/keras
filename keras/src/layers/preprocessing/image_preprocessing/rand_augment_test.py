@@ -53,7 +53,7 @@ class RandAugmentTest(testing.TestCase):
 
         augmented_image = layer(input_data)
         self.assertAllClose(
-            backend.convert_to_numpy(augmented_image), input_data
+            backend.ops.convert_to_numpy(augmented_image), input_data
         )
 
     def test_random_augment_randomness(self):
@@ -67,7 +67,7 @@ class RandAugmentTest(testing.TestCase):
         augmented_image = layer(input_data)
 
         self.assertNotAllClose(
-            backend.convert_to_numpy(augmented_image), input_data
+            backend.ops.convert_to_numpy(augmented_image), input_data
         )
 
     def test_tf_data_compatibility(self):

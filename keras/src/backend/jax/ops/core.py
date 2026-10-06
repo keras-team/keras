@@ -1,5 +1,6 @@
 import contextlib
 import inspect
+import math as python_math
 
 import jax
 import jax.experimental.sparse as jax_sparse
@@ -20,6 +21,11 @@ from keras.src.backend.common.stateless_scope import get_stateless_scope
 from keras.src.backend.common.stateless_scope import in_stateless_scope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.jax import distribution_lib
+
+SUPPORTS_SPARSE_TENSORS = True
+SUPPORTS_RAGGED_TENSORS = False
+SUPPORTS_COMPLEX_DTYPES = True
+IS_THREAD_SAFE = True
 
 
 class JaxVariable(KerasVariable):
@@ -354,13 +360,11 @@ if config.is_nnx_enabled():
 
 
 def should_shard_at_init(init_layout, shape):
-    import math
-
     size_threshold = 250 * 1024 * 1024
     # We multiply by the mesh size here to take into account the worst case
     # scenario of the array being first duplicated in the memory of one device
     # before being transferred to the other devices.
-    size = math.prod(shape) * 4 * init_layout.mesh.devices.size
+    size = python_math.prod(shape) * 4 * init_layout.mesh.devices.size
     return size >= size_threshold
 
 

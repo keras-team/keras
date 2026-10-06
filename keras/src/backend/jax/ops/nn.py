@@ -27,7 +27,6 @@ from keras.src.backend.common.backend_utils import (
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_padding_args_for_jax,
 )
-from keras.src.backend.config import standardize_data_format
 from keras.src.backend.jax.ops.core import cast
 from keras.src.backend.jax.ops.core import convert_to_tensor
 
@@ -179,8 +178,8 @@ def sparsemax(x, axis=-1):
     support = logits_sorted - (logits_cumsum - 1) / r > 0
     # Find the threshold
     k = jnp.sum(support, axis=axis, keepdims=True)
-    logits_cumsum_safe = jnp.where(support, logits_cumsum, 0.0)
-    tau = (jnp.sum(logits_cumsum_safe, axis=axis, keepdims=True) - 1) / k
+    logits_sorted_safe = jnp.where(support, logits_sorted, 0.0)
+    tau = (jnp.sum(logits_sorted_safe, axis=axis, keepdims=True) - 1) / k
     output = jnp.maximum(logits - tau, 0.0)
     return output
 
@@ -247,7 +246,7 @@ def max_pool(
     padding="valid",
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     pool_size = _convert_to_spatial_operand(
         pool_size, num_spatial_dims, data_format
@@ -266,7 +265,7 @@ def average_pool(
     padding="valid",
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     pool_size = _convert_to_spatial_operand(
         pool_size, num_spatial_dims, data_format
@@ -673,7 +672,7 @@ def _adaptive_max_pool3d(inputs, output_size, data_format="channels_first"):
 
 
 def adaptive_average_pool(inputs, output_size, data_format=None):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     dims = inputs.ndim - 2
     if dims == 1:
         return _adaptive_average_pool1d(inputs, output_size, data_format)
@@ -685,7 +684,7 @@ def adaptive_average_pool(inputs, output_size, data_format=None):
 
 
 def adaptive_max_pool(inputs, output_size, data_format=None):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     dims = inputs.ndim - 2
     if dims == 1:
         return _adaptive_max_pool1d(inputs, output_size, data_format)
@@ -729,7 +728,7 @@ def conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     dimension_numbers = _convert_to_lax_conv_dimension_numbers(
         num_spatial_dims,
@@ -789,7 +788,7 @@ def depthwise_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     check_conv_input_channels(inputs, kernel, data_format)
@@ -838,7 +837,7 @@ def separable_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     depthwise_kernel = convert_to_tensor(depthwise_kernel)
     pointwise_kernel = convert_to_tensor(pointwise_kernel)
@@ -870,7 +869,7 @@ def conv_transpose(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     check_conv_transpose_input_channels(inputs, kernel, data_format)

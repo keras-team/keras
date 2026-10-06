@@ -5,9 +5,9 @@ import openvino.opset16 as ov_opset
 from keras.src import backend
 from keras.src import callbacks as callbacks_module
 from keras.src import tree
-from keras.src.backend.openvino.core import OPENVINO_DTYPES
-from keras.src.backend.openvino.core import OpenVINOKerasTensor
-from keras.src.backend.openvino.core import get_device
+from keras.src.backend.openvino.ops.core import OPENVINO_DTYPES
+from keras.src.backend.openvino.ops.core import OpenVINOKerasTensor
+from keras.src.backend.openvino.ops.core import get_device
 from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
@@ -51,7 +51,7 @@ class OpenVINOTrainer(base_trainer.Trainer):
                 y_pred = self(x, training=False)
             else:
                 y_pred = self(x)
-            y_pred = tree.map_structure(backend.convert_to_numpy, y_pred)
+            y_pred = tree.map_structure(backend.ops.convert_to_numpy, y_pred)
         else:
             ov_compiled_model = self._get_compiled_model(x)
             flatten_x = tree.flatten(x)
@@ -60,7 +60,7 @@ class OpenVINOTrainer(base_trainer.Trainer):
         loss = self._compute_loss(
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=False
         )
-        loss = backend.convert_to_numpy(loss)
+        loss = backend.ops.convert_to_numpy(loss)
         self._loss_tracker.update_state(
             loss, sample_weight=tree.flatten(x)[0].shape[0]
         )
@@ -73,7 +73,7 @@ class OpenVINOTrainer(base_trainer.Trainer):
                 y_pred = self(x, training=False)
             else:
                 y_pred = self(x)
-            return tree.map_structure(backend.convert_to_numpy, y_pred)
+            return tree.map_structure(backend.ops.convert_to_numpy, y_pred)
         ov_compiled_model = self._get_compiled_model(x)
         flatten_x = tree.flatten(x)
         ov_result = ov_compiled_model(flatten_x)
@@ -375,6 +375,6 @@ class OpenVINOTrainer(base_trainer.Trainer):
         self.make_predict_function()
         batch_outputs = self.predict_function([(x,)])
         batch_outputs = tree.map_structure(
-            backend.convert_to_numpy, batch_outputs
+            backend.ops.convert_to_numpy, batch_outputs
         )
         return batch_outputs

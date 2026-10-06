@@ -831,3 +831,9 @@ def set_distribution(value):
         value: a `Distribution` instance.
     """
     global_state.set_global_attribute(GLOBAL_ATTRIBUTE_NAME, value)
+    if value is not None:
+        if hasattr(distribution_lib, "activate_dtensor_promotion"):
+            distribution_lib.activate_dtensor_promotion()
+    else:
+        if hasattr(distribution_lib, "deactivate_dtensor_promotion"):
+            distribution_lib.deactivate_dtensor_promotion()

@@ -78,7 +78,7 @@ class RandomSaturation(BaseImagePreprocessingLayer):
             images = data["images"]
         else:
             images = data
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         rank = len(images_shape)
         if rank == 3:
             batch_size = 1
@@ -105,36 +105,36 @@ class RandomSaturation(BaseImagePreprocessingLayer):
     def transform_images(self, images, transformation=None, training=True):
         if training:
             adjust_factors = transformation["factor"]
-            adjust_factors = self.backend.cast(
+            adjust_factors = self.backend.ops.cast(
                 adjust_factors, self.compute_dtype
             )
-            adjust_factors = self.backend.numpy.reshape(
-                adjust_factors, self.backend.shape(adjust_factors) + (1, 1)
+            adjust_factors = self.backend.ops.numpy.reshape(
+                adjust_factors, self.backend.ops.shape(adjust_factors) + (1, 1)
             )
-            images = self.backend.image.rgb_to_hsv(
+            images = self.backend.ops.image.rgb_to_hsv(
                 images, data_format=self.data_format
             )
             if self.data_format == "channels_first":
-                s_channel = self.backend.numpy.multiply(
+                s_channel = self.backend.ops.numpy.multiply(
                     images[:, 1, :, :], adjust_factors
                 )
-                s_channel = self.backend.numpy.clip(
+                s_channel = self.backend.ops.numpy.clip(
                     s_channel, self.value_range[0], self.value_range[1]
                 )
-                images = self.backend.numpy.stack(
+                images = self.backend.ops.numpy.stack(
                     [images[:, 0, :, :], s_channel, images[:, 2, :, :]], axis=1
                 )
             else:
-                s_channel = self.backend.numpy.multiply(
+                s_channel = self.backend.ops.numpy.multiply(
                     images[..., 1], adjust_factors
                 )
-                s_channel = self.backend.numpy.clip(
+                s_channel = self.backend.ops.numpy.clip(
                     s_channel, self.value_range[0], self.value_range[1]
                 )
-                images = self.backend.numpy.stack(
+                images = self.backend.ops.numpy.stack(
                     [images[..., 0], s_channel, images[..., 2]], axis=-1
                 )
-            images = self.backend.image.hsv_to_rgb(
+            images = self.backend.ops.image.hsv_to_rgb(
                 images, data_format=self.data_format
             )
         return images

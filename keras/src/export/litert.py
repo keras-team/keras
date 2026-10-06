@@ -193,8 +193,8 @@ def export_litert_via_torch(
     model, filepath, input_signature=None, verbose=None, **kwargs
 ):
     """Export Keras model to LiteRT via PyTorch backend."""
-    from keras.src.backend.torch.core import device_scope
-    from keras.src.backend.torch.core import get_device
+    from keras.src.backend.torch.ops.core import device_scope
+    from keras.src.backend.torch.ops.core import get_device
 
     device = get_device()
 

@@ -13,7 +13,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import testing
 from keras.src import tree
-from keras.src.backend.torch.core import get_device
+from keras.src.backend.torch.ops.core import get_device
 from keras.src.testing.test_utils import named_product
 
 
@@ -103,7 +103,7 @@ class ExportTorchTest(testing.TestCase):
             filepath = os.path.join(self.get_temp_dir(), "model.pt2")
 
         ref_output = tree.map_structure(
-            backend.convert_to_numpy, model(ref_input)
+            backend.ops.convert_to_numpy, model(ref_input)
         )
 
         model.export(filepath, format="torch", **export_kwargs)
@@ -112,9 +112,11 @@ class ExportTorchTest(testing.TestCase):
         loaded_program = torch.export.load(filepath)
         loaded_model = loaded_program.module()
 
-        torch_input = tree.map_structure(backend.convert_to_tensor, ref_input)
+        torch_input = tree.map_structure(
+            backend.ops.convert_to_tensor, ref_input
+        )
         loaded_output = tree.map_structure(
-            backend.convert_to_numpy, loaded_model(torch_input)
+            backend.ops.convert_to_numpy, loaded_model(torch_input)
         )
 
         self.assertAllClose(
@@ -147,7 +149,7 @@ class ExportTorchTest(testing.TestCase):
         model = get_model("multi_output")
         ref_input = np.random.normal(size=(1, 10)).astype("float32")
         ref_output = tree.map_structure(
-            backend.convert_to_numpy, model(ref_input)
+            backend.ops.convert_to_numpy, model(ref_input)
         )
 
         temp_filepath = os.path.join(self.get_temp_dir(), "multi_out.pt2")
@@ -157,8 +159,8 @@ class ExportTorchTest(testing.TestCase):
         loaded_program = torch.export.load(temp_filepath)
         loaded_model = loaded_program.module()
         loaded_output = tree.map_structure(
-            backend.convert_to_numpy,
-            loaded_model(backend.convert_to_tensor(ref_input)),
+            backend.ops.convert_to_numpy,
+            loaded_model(backend.ops.convert_to_tensor(ref_input)),
         )
 
         # Handle both tuple/list and single output cases
@@ -191,15 +193,15 @@ class ExportTorchTest(testing.TestCase):
         loaded_model = loaded_program.module()
         test_input = torch.randn(1, 10).to(get_device())
         output = loaded_model(test_input)
-        self.assertEqual(backend.convert_to_numpy(output).shape[-1], 1)
+        self.assertEqual(backend.ops.convert_to_numpy(output).shape[-1], 1)
 
         ref_output = tree.map_structure(
-            backend.convert_to_numpy,
-            model(backend.convert_to_numpy(test_input)),
+            backend.ops.convert_to_numpy,
+            model(backend.ops.convert_to_numpy(test_input)),
         )
         self.assertAllClose(
             ref_output,
-            backend.convert_to_numpy(output),
+            backend.ops.convert_to_numpy(output),
             atol=self.ATOL,
             rtol=self.RTOL,
         )
@@ -275,7 +277,7 @@ class ExportTorchTest(testing.TestCase):
         ref_input_dict = {"x": ref_input_arr, "y": ref_input_arr * 2}
         temp_filepath = os.path.join(self.get_temp_dir(), "dict_input.pt2")
         ref_output = tree.map_structure(
-            backend.convert_to_numpy, model_dict(ref_input_dict)
+            backend.ops.convert_to_numpy, model_dict(ref_input_dict)
         )
 
         model_dict.export(temp_filepath, format="torch")
@@ -284,11 +286,11 @@ class ExportTorchTest(testing.TestCase):
         loaded_program = torch.export.load(temp_filepath)
         loaded_model = loaded_program.module()
         loaded_output = tree.map_structure(
-            backend.convert_to_numpy,
+            backend.ops.convert_to_numpy,
             loaded_model(
                 {
-                    "x": backend.convert_to_tensor(ref_input_dict["x"]),
-                    "y": backend.convert_to_tensor(ref_input_dict["y"]),
+                    "x": backend.ops.convert_to_tensor(ref_input_dict["x"]),
+                    "y": backend.ops.convert_to_tensor(ref_input_dict["y"]),
                 }
             ),
         )

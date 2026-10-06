@@ -274,7 +274,7 @@ class MultiHeadAttention(Layer):
         Args:
             query_shape: Shape of the `query` tensor.
             value_shape: Shape of the `value` tensor.
-            key: Optional shape of the `key` tensor.
+            key_shape: Optional shape of the `key` tensor.
         """
         key_shape = value_shape if key_shape is None else key_shape
 

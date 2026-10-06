@@ -26,6 +26,11 @@ class TestRematScope(testing.TestCase):
             get_current_remat_mode()
         )  # Mode is restored to None after scope ends
 
+        with RematScope(mode=None):
+            self.assertIsNone(
+                get_current_remat_mode()
+            )  # Mode is None when explicitly disabled
+
     def test_remat_scope_nested(self):
         """Test nested scopes with different rematerialization modes."""
         with RematScope(mode="full"):
@@ -92,11 +97,11 @@ class RematTest(testing.TestCase):
         epochs = 5
         batch_size = 512
         # test applying remat
-        output_with_remat = backend.core.remat(activations.ReLU())(x_train)
+        output_with_remat = backend.ops.remat(activations.ReLU())(x_train)
         output_without_remat = activations.ReLU()(x_train)
         self.assertAllClose(output_with_remat, output_without_remat)
         # test remat in a model
-        intermediate_function = backend.core.remat(activations.ReLU())
+        intermediate_function = backend.ops.remat(activations.ReLU())
         inputs = layers.Input(shape=(4,))
         x = layers.Dense(4)(inputs)
         x = layers.Lambda(intermediate_function)(x)
@@ -122,7 +127,7 @@ class RematTest(testing.TestCase):
         x = np.array([1.0, 2.0, 3.0], dtype=np.float32)
 
         # Test with keyword arguments
-        remat_fn = backend.core.remat(fn_with_kwargs)
+        remat_fn = backend.ops.remat(fn_with_kwargs)
         result_with_kwargs = remat_fn(x, scale=2.0, offset=1.0)
         expected = fn_with_kwargs(x, scale=2.0, offset=1.0)
         self.assertAllClose(result_with_kwargs, expected)

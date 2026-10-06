@@ -16,7 +16,7 @@ class RandomRGBToHSVLayer(DataLayer):
         self.generator = SeedGenerator(seed)
 
     def call(self, inputs):
-        images_shape = self.backend.shape(inputs)
+        images_shape = self.backend.ops.shape(inputs)
         batch_size = 1 if len(images_shape) == 3 else images_shape[0]
         seed = self._get_seed_generator(self.backend._backend)
 
@@ -26,10 +26,10 @@ class RandomRGBToHSVLayer(DataLayer):
             maxval=1.0,
             seed=seed,
         )
-        hsv_images = self.backend.image.rgb_to_hsv(
+        hsv_images = self.backend.ops.image.rgb_to_hsv(
             inputs, data_format=self.data_format
         )
-        return self.backend.numpy.where(
+        return self.backend.ops.numpy.where(
             probability[:, None, None, None] > 0.5, hsv_images, inputs
         )
 

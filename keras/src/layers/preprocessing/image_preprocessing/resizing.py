@@ -112,7 +112,7 @@ class Resizing(BaseImagePreprocessingLayer):
 
     def _transform_images(self, images, transformation, interpolation):
         size = (self.height, self.width)
-        resized = self.backend.image.resize(
+        resized = self.backend.ops.image.resize(
             images,
             size=size,
             interpolation=interpolation,
@@ -126,7 +126,7 @@ class Resizing(BaseImagePreprocessingLayer):
         if resized.dtype == images.dtype:
             return resized
         if backend.is_int_dtype(images.dtype):
-            resized = self.backend.numpy.round(resized)
+            resized = self.backend.ops.numpy.round(resized)
         return _saturate_cast(resized, images.dtype, self.backend)
 
     def transform_images(self, images, transformation=None, training=True):
@@ -146,9 +146,9 @@ class Resizing(BaseImagePreprocessingLayer):
 
     def get_random_transformation(self, data, training=True, seed=None):
         if isinstance(data, dict):
-            input_shape = self.backend.shape(data["images"])
+            input_shape = self.backend.ops.shape(data["images"])
         else:
-            input_shape = self.backend.shape(data)
+            input_shape = self.backend.ops.shape(data)
 
         input_height, input_width = (
             input_shape[self.height_axis],
@@ -163,7 +163,7 @@ class Resizing(BaseImagePreprocessingLayer):
         transformation,
         training=True,
     ):
-        ops = self.backend
+        ops = self.backend.ops
         input_height, input_width = transformation
         mask_negative_1s = ops.numpy.all(bounding_boxes["boxes"] == -1, axis=-1)
         mask_zeros = ops.numpy.all(bounding_boxes["boxes"] == 0, axis=-1)
@@ -208,7 +208,7 @@ class Resizing(BaseImagePreprocessingLayer):
         return bounding_boxes
 
     def _transform_xyxy(self, boxes, input_height, input_width):
-        ops = self.backend
+        ops = self.backend.ops
         input_height = ops.cast(input_height, dtype=boxes.dtype)
         input_width = ops.cast(input_width, dtype=boxes.dtype)
 
@@ -229,7 +229,7 @@ class Resizing(BaseImagePreprocessingLayer):
         self, boxes, input_height, input_width
     ):
         """Transforms bounding boxes for padding to aspect ratio."""
-        ops = self.backend
+        ops = self.backend.ops
         height_ratio = ops.cast(self.height / input_height, dtype=boxes.dtype)
         width_ratio = ops.cast(self.width / input_width, dtype=boxes.dtype)
         min_aspect_ratio = ops.numpy.minimum(height_ratio, width_ratio)
@@ -249,7 +249,7 @@ class Resizing(BaseImagePreprocessingLayer):
         self, boxes, input_height, input_width
     ):
         """Transforms bounding boxes for cropping to aspect ratio."""
-        ops = self.backend
+        ops = self.backend.ops
         source_aspect_ratio = input_width / input_height
         target_aspect_ratio = self.width / self.height
         new_width = ops.numpy.where(
@@ -278,7 +278,7 @@ class Resizing(BaseImagePreprocessingLayer):
 
     def _transform_boxes_stretch(self, boxes, input_height, input_width):
         """Transforms bounding boxes by simple stretching."""
-        ops = self.backend
+        ops = self.backend.ops
         height_ratio = ops.cast(self.height / input_height, dtype=boxes.dtype)
         width_ratio = ops.cast(self.width / input_width, dtype=boxes.dtype)
         return ops.numpy.stack(

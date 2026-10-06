@@ -581,6 +581,17 @@ class CompileLoss(losses_module.Loss):
                 current_path + (key,),
             )
 
+    def _call_loss(self, loss_fn, y_t, y_p, sample_weight, loss_name):
+        try:
+            return loss_fn(y_t, y_p, sample_weight)
+        except ValueError as e:
+            raise ValueError(
+                f"Error when computing loss for output '{loss_name}'. "
+                f"Received target shape {tuple(y_t.shape)} and "
+                f"prediction shape {tuple(y_p.shape)}.\n"
+                f"{str(e).strip()}"
+            ) from e
+
     def build(self, y_true, y_pred):
         loss = self._user_loss
         loss_weights = self._user_loss_weights
@@ -719,7 +730,7 @@ class CompileLoss(losses_module.Loss):
             # Although we are in the fast path, we still need to iterate
             # through the losses to prevent the torch compiler from failing.
             loss_values = []
-            for path, loss_fn, loss_weight, _ in self._flat_losses:
+            for path, loss_fn, loss_weight, loss_name in self._flat_losses:
                 y_t, y_p = (
                     resolve_path(path, y_true),
                     resolve_path(path, y_pred),
@@ -729,7 +740,10 @@ class CompileLoss(losses_module.Loss):
                 else:
                     _sample_weight = sample_weight
                 value = ops.cast(
-                    loss_fn(y_t, y_p, _sample_weight), dtype=self.dtype
+                    self._call_loss(
+                        loss_fn, y_t, y_p, _sample_weight, loss_name
+                    ),
+                    dtype=self.dtype,
                 )
                 if loss_weight is not None:
                     value = ops.multiply(value, loss_weight)
@@ -819,7 +833,7 @@ class CompileLoss(losses_module.Loss):
         # Iterate all losses in flat form.
         loss_values = []
 
-        for (path, loss_fn, loss_weight, _), metric in zip(
+        for (path, loss_fn, loss_weight, loss_name), metric in zip(
             self._flat_losses, metrics
         ):
             y_t, y_p = resolve_path(path, y_true), resolve_path(path, y_pred)
@@ -829,7 +843,8 @@ class CompileLoss(losses_module.Loss):
                 _sample_weight = sample_weight
 
             value = ops.cast(
-                loss_fn(y_t, y_p, _sample_weight), dtype=self.dtype
+                self._call_loss(loss_fn, y_t, y_p, _sample_weight, loss_name),
+                dtype=self.dtype,
             )
             # Record *unweighted* individual losses.
             if metric:

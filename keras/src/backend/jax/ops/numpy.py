@@ -595,6 +595,12 @@ def copy(x):
     return jnp.copy(x)
 
 
+def copysign(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.copysign(x1, x2)
+
+
 @sparse.densifying_unary
 def cos(x):
     x = convert_to_tensor(x)
@@ -1522,6 +1528,12 @@ def power(x1, x2):
     return jnp.power(x1, x2)
 
 
+def float_power(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.float_power(x1, x2)
+
+
 @sparse.elementwise_unary(linear=True)
 def negative(x):
     x = convert_to_tensor(x)
@@ -1703,3 +1715,8 @@ def dsplit(x, indices_or_sections):
 def column_stack(xs):
     xs = [convert_to_tensor(x) for x in xs]
     return jnp.column_stack(xs)
+
+
+def cov(x):
+    x = convert_to_tensor(x)
+    return jnp.cov(x)

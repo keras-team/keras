@@ -8,7 +8,25 @@ from keras.src.quantizers import deserialize as deserialize
 from keras.src.quantizers import get as get
 from keras.src.quantizers import serialize as serialize
 from keras.src.quantizers.awq_config import AWQConfig as AWQConfig
+from keras.src.quantizers.fake_quant import (
+    fake_quant_with_min_max_vars as fake_quant_with_min_max_vars,
+)
+from keras.src.quantizers.float8_scaling import (
+    compute_float8_amax_history as compute_float8_amax_history,
+)
+from keras.src.quantizers.float8_scaling import (
+    compute_float8_scale as compute_float8_scale,
+)
+from keras.src.quantizers.float8_scaling import (
+    quantize_and_dequantize as quantize_and_dequantize,
+)
 from keras.src.quantizers.gptq_config import GPTQConfig as GPTQConfig
+from keras.src.quantizers.packing import pack_int2 as pack_int2
+from keras.src.quantizers.packing import pack_int4 as pack_int4
+from keras.src.quantizers.packing import pack_ternary as pack_ternary
+from keras.src.quantizers.packing import unpack_int2 as unpack_int2
+from keras.src.quantizers.packing import unpack_int4 as unpack_int4
+from keras.src.quantizers.packing import unpack_ternary as unpack_ternary
 from keras.src.quantizers.quantization_config import (
     Float8QuantizationConfig as Float8QuantizationConfig,
 )
@@ -30,22 +48,4 @@ from keras.src.quantizers.quantizers import abs_max_quantize as abs_max_quantize
 from keras.src.quantizers.quantizers import (
     abs_max_quantize_grouped_with_zero_point as abs_max_quantize_grouped_with_zero_point,
 )
-from keras.src.quantizers.quantizers import (
-    compute_float8_amax_history as compute_float8_amax_history,
-)
-from keras.src.quantizers.quantizers import (
-    compute_float8_scale as compute_float8_scale,
-)
-from keras.src.quantizers.quantizers import (
-    fake_quant_with_min_max_vars as fake_quant_with_min_max_vars,
-)
-from keras.src.quantizers.quantizers import pack_int2 as pack_int2
-from keras.src.quantizers.quantizers import pack_int4 as pack_int4
-from keras.src.quantizers.quantizers import pack_ternary as pack_ternary
-from keras.src.quantizers.quantizers import (
-    quantize_and_dequantize as quantize_and_dequantize,
-)
-from keras.src.quantizers.quantizers import unpack_int2 as unpack_int2
-from keras.src.quantizers.quantizers import unpack_int4 as unpack_int4
-from keras.src.quantizers.quantizers import unpack_ternary as unpack_ternary
 from keras.src.quantizers.report import QuantizationReport as QuantizationReport

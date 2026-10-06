@@ -107,11 +107,13 @@ class OptimizerDistributeTest(testing.TestCase):
             x = backend.Variable(np.ones([10]))
 
             def update_grads():
-                grads = backend.convert_to_tensor(np.arange(0.1, 1.1, 0.1))
+                grads = backend.ops.convert_to_tensor(np.arange(0.1, 1.1, 0.1))
                 optimizer.apply_gradients(zip([grads], [x]))
 
             def update_first_grads():
-                first_grads = backend.convert_to_tensor(np.full((10,), 0.01))
+                first_grads = backend.ops.convert_to_tensor(
+                    np.full((10,), 0.01)
+                )
                 optimizer.apply_gradients(zip([first_grads], [x]))
 
         # fmt: off
@@ -156,7 +158,7 @@ class OptimizerDistributeTest(testing.TestCase):
     def test_ema(self):
         with self.strategy.scope():
             v = backend.Variable([[3.0, 4.0], [5.0, 6.0]])
-            grads = backend.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+            grads = backend.ops.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
             optimizer = SGD(
                 learning_rate=1.0,
                 use_ema=True,
@@ -186,7 +188,7 @@ class OptimizerDistributeTest(testing.TestCase):
     def test_gradient_accumulation(self):
         with self.strategy.scope():
             v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
-            grads = backend.convert_to_tensor([[1.0, 1.0], [2.0, 2.0]])
+            grads = backend.ops.convert_to_tensor([[1.0, 1.0], [2.0, 2.0]])
             optimizer = SGD(learning_rate=1.0, gradient_accumulation_steps=3)
             self.assertEqual(optimizer.gradient_accumulation_steps, 3)
             self.strategy.run(lambda: optimizer.apply_gradients([(grads, v)]))

@@ -89,26 +89,39 @@ class TFDatasetAdapter(DataAdapter):
         return dataset.prefetch(tf.data.AUTOTUNE)
 
     def get_numpy_iterator(self):
-        from keras.src.backend.tensorflow.core import convert_to_numpy
+        from keras.src.backend.tensorflow.ops.core import convert_to_numpy
 
         for batch in self._dataset:
             yield tree.map_structure(
                 convert_to_numpy, batch, none_is_leaf=False
             )
 
-    def get_jax_iterator(self):
-        from keras.src.backend.tensorflow.core import convert_to_numpy
+    def get_jax_iterator(self, super_batch=None):
+        from keras.src.backend.tensorflow.ops.core import convert_to_numpy
         from keras.src.utils.module_utils import tensorflow as tf
 
         def convert_to_jax(x):
             if isinstance(x, tf.SparseTensor):
                 return data_adapter_utils.tf_sparse_to_jax_sparse(x)
-            else:
-                # We use numpy as an intermediary because it is faster.
-                return convert_to_numpy(x)
+            # We use numpy as an intermediary because it is faster.
+            return convert_to_numpy(x)
 
-        for batch in self._dataset:
-            yield tree.map_structure(convert_to_jax, batch, none_is_leaf=False)
+        if super_batch and self.batch_size is not None:
+            ds = self._dataset.batch(super_batch).prefetch(tf.data.AUTOTUNE)
+        else:
+            ds = self._dataset
+        iterator = (
+            tree.map_structure(convert_to_jax, b, none_is_leaf=False)
+            for b in ds
+        )
+        if super_batch and self.batch_size is None:
+            import jax.numpy as jnp
+
+            iterator = data_adapter_utils.super_batch_iterator(
+                iterator, super_batch, stack_fn=jnp.stack
+            )
+        for batch in iterator:
+            yield batch
 
     def get_tf_dataset(self):
         return self._dataset

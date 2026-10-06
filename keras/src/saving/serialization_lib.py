@@ -216,11 +216,11 @@ def serialize_keras_object(obj):
         }
     if tf.available and isinstance(obj, tf.TensorShape):
         return obj.as_list() if obj._dims is not None else None
-    if backend.is_tensor(obj):
+    if backend.ops.is_tensor(obj):
         return {
             "class_name": "__tensor__",
             "config": {
-                "value": backend.convert_to_numpy(obj).tolist(),
+                "value": backend.ops.convert_to_numpy(obj).tolist(),
                 "dtype": backend.standardize_dtype(obj.dtype),
             },
         }
@@ -520,7 +520,7 @@ def deserialize_keras_object(
         config: Python dict describing the object.
         custom_objects: Python dict containing a mapping between custom
             object names the corresponding classes or functions.
-        safe_mode: Boolean, defaults to False. If True, disables unsafe
+        safe_mode: Boolean, defaults to `True`. If `True`, disables unsafe
             lambda deserialization.
 
             Note that safe_mode is designed to protect against code
@@ -649,7 +649,7 @@ def deserialize_keras_object(
         return obj
 
     if class_name == "__tensor__":
-        return backend.convert_to_tensor(
+        return backend.ops.convert_to_tensor(
             inner_config["value"], dtype=inner_config["dtype"]
         )
     if class_name == "__numpy__":

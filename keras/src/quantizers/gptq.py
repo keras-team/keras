@@ -1,3 +1,4 @@
+import functools
 import types
 
 from keras.src import ops
@@ -6,7 +7,6 @@ from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
 from keras.src.ops import linalg
 from keras.src.quantizers.gptq_config import GPTQConfig
-from keras.src.quantizers.quantizers import GPTQQuantizer
 from keras.src.quantizers.quantizers import compute_quantization_parameters
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
 from keras.src.quantizers.quantizers import quantize_with_zero_point
@@ -125,6 +125,17 @@ def gptq_quantize_matrix(
     # Compute effective group size
     effective_group = in_features if group_size == -1 else group_size
 
+    # Per-group cached params, reused until the column index crosses into
+    # the next group. The cache must live across processing blocks: a group
+    # can span several blocks (`group_size == -1` covers the whole matrix,
+    # and `group_size > blocksize` covers more than one block). Resetting it
+    # per block would recompute and re-append the same group's params once
+    # per block, corrupting the [out_features, n_groups] scale/zero layout.
+    cached_scale = None
+    cached_zero = None
+    cached_maxq = None
+    cached_group_start = -1
+
     # Process features in blocks
     for block_start in range(0, in_features, blocksize):
         block_end = min(block_start + blocksize, in_features)
@@ -139,12 +150,6 @@ def gptq_quantize_matrix(
         block_inv_hessian = inv_hessian[
             block_start:block_end, block_start:block_end
         ]
-
-        # Per-group cached params for reuse within the group
-        cached_scale = None
-        cached_zero = None
-        cached_maxq = None
-        cached_group_start = -1
 
         for block_idx in range(block_size):
             # Current global column index, represents the original column
@@ -201,8 +206,8 @@ def gptq_quantize_matrix(
             # block_inv_hessian_diag: scalar
             current_block_influence = block_inv_hessian[block_idx, block_idx]
             # We divide by current_block_influence to get the
-            # correct scaling of the error term.
-            err = ops.divide(
+            # correct scaling of the error term. Prevent division by zero.
+            err = ops.divide_no_nan(
                 ops.subtract(weight_column, dequantized_col),
                 current_block_influence,
             )
@@ -286,8 +291,13 @@ class GPTQ:
         self.original_layer = layer
         self.num_samples = 0
         self.config = config
-        self.quantizer = GPTQQuantizer(
-            config, compute_dtype=layer.variable_dtype
+        self.compute_scale_zero = functools.partial(
+            compute_quantization_parameters,
+            bits=config.weight_bits,
+            symmetric=config.symmetric,
+            per_channel=config.per_channel,
+            group_size=config.group_size,
+            compute_dtype=layer.variable_dtype,
         )
 
         # Explicitly handle each supported layer type
@@ -477,7 +487,7 @@ class GPTQ:
             group_size=self.config.group_size,
             activation_order=self.config.activation_order,
             order_metric=ops.diagonal(hessian_matrix),
-            compute_scale_zero=self.quantizer.find_params,
+            compute_scale_zero=self.compute_scale_zero,
         )
         quantized = ops.cast(
             quantized, self.original_layer.quantized_kernel.dtype

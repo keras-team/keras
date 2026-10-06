@@ -11,8 +11,8 @@ from keras.src import callbacks as callbacks_module
 from keras.src import optimizers as optimizers_module
 from keras.src import tree
 from keras.src.backend import config
-from keras.src.backend.torch.core import get_device
 from keras.src.backend.torch.distribution_lib import _to_backend_mesh
+from keras.src.backend.torch.ops.core import get_device
 from keras.src.distribution.distribution_lib import DataParallel
 from keras.src.distribution.distribution_lib import distribution
 from keras.src.trainers import trainer as base_trainer
@@ -110,9 +110,11 @@ class TorchTrainer(base_trainer.Trainer):
         )
         self._loss_tracker.update_state(
             loss,
-            sample_weight=next(
-                i for i in tree.flatten(x) if i is not None
-            ).shape[0],
+            sample_weight=(
+                x.shape[0]
+                if isinstance(x, torch.Tensor)
+                else next(i for i in tree.flatten(x) if i is not None).shape[0]
+            ),
         )
         if self.optimizer is not None:
             loss = self.optimizer.scale_loss(loss)
@@ -150,9 +152,11 @@ class TorchTrainer(base_trainer.Trainer):
         )
         self._loss_tracker.update_state(
             loss,
-            sample_weight=next(
-                i for i in tree.flatten(x) if i is not None
-            ).shape[0],
+            sample_weight=(
+                x.shape[0]
+                if isinstance(x, torch.Tensor)
+                else next(i for i in tree.flatten(x) if i is not None).shape[0]
+            ),
         )
         return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 
@@ -548,7 +552,7 @@ class TorchTrainer(base_trainer.Trainer):
             if self.stop_predicting:
                 break
         callbacks.on_predict_end()
-        outputs = tree.map_structure(backend.convert_to_numpy, outputs)
+        outputs = tree.map_structure(backend.ops.convert_to_numpy, outputs)
         return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
 
     def train_on_batch(
@@ -611,7 +615,7 @@ class TorchTrainer(base_trainer.Trainer):
         self.make_predict_function()
         batch_outputs = self.predict_function([(x,)])
         batch_outputs = tree.map_structure(
-            backend.convert_to_numpy, batch_outputs
+            backend.ops.convert_to_numpy, batch_outputs
         )
         return batch_outputs
 

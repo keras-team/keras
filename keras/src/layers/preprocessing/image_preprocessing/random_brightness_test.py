@@ -35,9 +35,9 @@ class RandomBrightnessTest(testing.TestCase):
         layer = layers.RandomBrightness([0.1, 1.0])
         np.random.seed(seed)
         inputs = np.random.randint(0, 255, size=(224, 224, 3))
-        output = backend.convert_to_numpy(layer(inputs))
+        output = backend.ops.convert_to_numpy(layer(inputs))
         diff = output - inputs
-        diff = backend.convert_to_numpy(diff)
+        diff = backend.ops.convert_to_numpy(diff)
         self.assertTrue(np.amin(diff) >= 0)
         self.assertTrue(np.mean(diff) > 0)
 
@@ -45,7 +45,7 @@ class RandomBrightnessTest(testing.TestCase):
         layer = layers.RandomBrightness([-1.0, -0.1])
         np.random.seed(seed)
         inputs = np.random.randint(0, 255, size=(224, 224, 3))
-        output = backend.convert_to_numpy(layer(inputs))
+        output = backend.ops.convert_to_numpy(layer(inputs))
         diff = output - inputs
         self.assertTrue(np.amax(diff) <= 0)
         self.assertTrue(np.mean(diff) < 0)

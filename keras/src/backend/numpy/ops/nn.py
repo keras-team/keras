@@ -16,7 +16,6 @@ from keras.src.backend.common.backend_utils import (
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_padding_args_for_jax,
 )
-from keras.src.backend.config import standardize_data_format
 from keras.src.backend.numpy.ops.core import cast
 from keras.src.backend.numpy.ops.core import convert_to_tensor
 from keras.src.backend.numpy.ops.core import is_tensor
@@ -145,6 +144,9 @@ def selu(x):
 
 def gelu(x, approximate=True):
     x = convert_to_tensor(x)
+    # Cast integer inputs to float for consistent behavior across backends
+    if np.issubdtype(x.dtype, np.integer):
+        x = x.astype("float32")
     # followed by JAX's implementation
     if approximate:
         sqrt_2_over_pi = np.sqrt(2 / np.pi).astype(x.dtype)
@@ -221,18 +223,23 @@ def log_softmax(x, axis=-1):
 def sparsemax(x, axis=-1):
     # Sort logits along the specified axis in descending order
     logits = convert_to_tensor(x)
-    logits_sorted = -1.0 * np.sort(-1.0 * logits, axis=axis)
+    # The ranks in `r` and the counts in `k` are integers, and dividing by them
+    # promotes the result to `float64`. The Python float constants promote
+    # `bfloat16` as well. Both are materialized in the dtype of `logits` so the
+    # computation stays in it.
+    zero = np.array(0.0, logits.dtype)
+    logits_sorted = -np.sort(-logits, axis=axis)
     logits_cumsum = np.cumsum(logits_sorted, axis=axis)
     r = np.arange(1, logits.shape[axis] + 1)
     r_shape = [1] * logits.ndim
     r_shape[axis] = -1  # Broadcast to match the target axis
-    r = r.reshape(r_shape)
-    support = logits_sorted - (logits_cumsum - 1) / r > 0
+    r = r.reshape(r_shape).astype(logits.dtype)
+    support = logits_sorted - (logits_cumsum - 1) / r > zero
     # Find the threshold
-    k = np.sum(support, axis=axis, keepdims=True)
-    logits_cumsum_safe = np.where(support, logits_cumsum, 0.0)
-    tau = (np.sum(logits_cumsum_safe, axis=axis, keepdims=True) - 1) / k
-    output = np.maximum(logits - tau, 0.0)
+    k = np.sum(support, axis=axis, keepdims=True).astype(logits.dtype)
+    logits_sorted_safe = np.where(support, logits_sorted, zero)
+    tau = (np.sum(logits_sorted_safe, axis=axis, keepdims=True) - 1) / k
+    output = np.maximum(logits - tau, zero)
     return output
 
 
@@ -300,7 +307,7 @@ def max_pool(
     padding="valid",
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     pool_size = _convert_to_spatial_operand(
         pool_size, num_spatial_dims, data_format
@@ -319,7 +326,7 @@ def average_pool(
     padding="valid",
     data_format=None,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     pool_size = _convert_to_spatial_operand(
         pool_size, num_spatial_dims, data_format
@@ -569,7 +576,7 @@ def _adaptive_pool3d_impl(inputs, output_size, mode, data_format):
 
 
 def adaptive_average_pool(inputs, output_size, data_format=None):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     dims = inputs.ndim - 2
     if dims == 1:
         return _adaptive_pool1d_impl(
@@ -587,7 +594,7 @@ def adaptive_average_pool(inputs, output_size, data_format=None):
 
 
 def adaptive_max_pool(inputs, output_size, data_format=None):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     dims = inputs.ndim - 2
     if dims == 1:
         return _adaptive_pool1d_impl(inputs, output_size, "max", data_format)
@@ -631,7 +638,7 @@ def conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     dimension_numbers = _convert_to_lax_conv_dimension_numbers(
         num_spatial_dims,
@@ -691,7 +698,7 @@ def depthwise_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     check_conv_input_channels(inputs, kernel, data_format)
@@ -742,7 +749,7 @@ def separable_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     depthwise_kernel = convert_to_tensor(depthwise_kernel)
     pointwise_kernel = convert_to_tensor(pointwise_kernel)
@@ -774,7 +781,7 @@ def conv_transpose(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = standardize_data_format(data_format)
+    data_format = backend.standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     check_conv_transpose_input_channels(inputs, kernel, data_format)

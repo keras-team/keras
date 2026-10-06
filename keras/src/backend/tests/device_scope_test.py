@@ -10,19 +10,19 @@ class DeviceTest(testing.TestCase):
     )
     def test_tf_device_scope(self):
         with backend.device("cpu:0"):
-            t = backend.numpy.ones((2, 1))
+            t = backend.ops.numpy.ones((2, 1))
             self.assertIn("CPU:0", t.device)
         with backend.device("CPU:0"):
-            t = backend.numpy.ones((2, 1))
+            t = backend.ops.numpy.ones((2, 1))
             self.assertIn("CPU:0", t.device)
 
         # When leaving the scope, the device should be back with gpu:0
-        t = backend.numpy.ones((2, 1))
+        t = backend.ops.numpy.ones((2, 1))
         self.assertIn("GPU:0", t.device)
 
         # Also verify the explicit gpu device
         with backend.device("gpu:0"):
-            t = backend.numpy.ones((2, 1))
+            t = backend.ops.numpy.ones((2, 1))
             self.assertIn("GPU:0", t.device)
 
     @pytest.mark.skipif(not testing.jax_uses_gpu(), reason="jax on GPU only")
@@ -30,19 +30,19 @@ class DeviceTest(testing.TestCase):
         import jax
 
         with backend.device("cpu:0"):
-            t = backend.numpy.ones((2, 1))
+            t = backend.ops.numpy.ones((2, 1))
             self.assertEqual(t.device, jax.devices("cpu")[0])
         with backend.device("CPU:0"):
-            t = backend.numpy.ones((2, 1))
+            t = backend.ops.numpy.ones((2, 1))
             self.assertEqual(t.device, jax.devices("cpu")[0])
 
         # When leaving the scope, the device should be back with gpu:0
-        t = backend.numpy.ones((2, 1))
+        t = backend.ops.numpy.ones((2, 1))
         self.assertEqual(t.device, jax.devices("gpu")[0])
 
         # Also verify the explicit gpu device
         with backend.device("gpu:0"):
-            t = backend.numpy.ones((2, 1))
+            t = backend.ops.numpy.ones((2, 1))
             self.assertEqual(t.device, jax.devices("gpu")[0])
 
     @pytest.mark.skipif(backend.backend() != "jax", reason="jax only")
@@ -57,19 +57,19 @@ class DeviceTest(testing.TestCase):
         import torch
 
         with backend.device("cpu:0"):
-            t = backend.numpy.ones((2, 1))
+            t = backend.ops.numpy.ones((2, 1))
             self.assertEqual(t.device, torch.device("cpu"))
         with backend.device("CPU:0"):
-            t = backend.numpy.ones((2, 1))
+            t = backend.ops.numpy.ones((2, 1))
             self.assertEqual(t.device, torch.device("cpu"))
 
         # When leaving the scope, the device should be back with gpu:0
-        t = backend.numpy.ones((2, 1))
+        t = backend.ops.numpy.ones((2, 1))
         self.assertEqual(t.device, torch.device("cuda", 0))
 
         # Also verify the explicit gpu -> cuda conversion
         with backend.device("gpu:0"):
-            t = backend.numpy.ones((2, 1))
+            t = backend.ops.numpy.ones((2, 1))
             self.assertEqual(t.device, torch.device("cuda", 0))
 
     @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
@@ -84,7 +84,7 @@ class DeviceTest(testing.TestCase):
         with torch.device("meta"):
             x = torch.ones(5)
 
-        t = backend.convert_to_tensor(x)
+        t = backend.ops.convert_to_tensor(x)
 
         if not torch.cuda.is_available():
             self.assertEqual(t.device, torch.device("cpu"))
