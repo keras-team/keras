@@ -818,8 +818,8 @@ class BaseOptimizer(KerasSaveable):
                     acc_g = self._accumulated_gradients[
                         self._get_variable_index(v)
                     ]
-                    # `ops.maximum` is utilized for gradient accumulation for
-                    # `overwrite_with_gradient=True` variables
+                    # `backend.ops.numpy.maximum` is utilized for gradient
+                    # accumulation for `overwrite_with_gradient=True` variables
                     new_g_acc = backend.ops.cond(
                         is_update_step,
                         lambda: backend.ops.numpy.zeros(g.shape, dtype=g.dtype),

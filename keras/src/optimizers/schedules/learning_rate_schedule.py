@@ -870,8 +870,8 @@ class CosineDecayRestarts(LearningRateSchedule):
             def compute_step(completed_fraction, geometric=False):
                 """Helper for `cond` operation."""
                 if geometric:
-                    # ops.log is sensitive to the precision of dtype, so we need
-                    # the additional casting
+                    # `backend.ops.numpy.log` is sensitive to the precision of
+                    # dtype, so we need the additional casting
                     i_restart = backend.ops.numpy.floor(
                         backend.ops.numpy.log(
                             backend.ops.cast(
