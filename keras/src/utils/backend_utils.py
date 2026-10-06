@@ -14,10 +14,9 @@ def in_tf_graph():
     if global_state.get_global_attribute("in_tf_graph_scope", False):
         return True
 
-    if "tensorflow" in sys.modules:
-        from keras.src.utils.module_utils import tensorflow as tf
-
-        return not tf.executing_eagerly()
+    tf_mod = sys.modules.get("tensorflow")
+    if tf_mod is not None and hasattr(tf_mod, "executing_eagerly"):
+        return not tf_mod.executing_eagerly()
     return False
 
 
@@ -107,7 +106,16 @@ class DynamicBackend:
             module = importlib.import_module("keras.src.backend.numpy")
         if self._backend == "openvino":
             module = importlib.import_module("keras.src.backend.openvino")
-        return getattr(module, name)
+        if hasattr(module, name):
+            return getattr(module, name)
+        # Op implementations live in `keras.src.backend.<backend>.ops` and are
+        # no longer re-exported on the backend package itself.
+        module_ops = getattr(module, "ops", None)
+        if module_ops is not None and hasattr(module_ops, name):
+            return getattr(module_ops, name)
+        raise AttributeError(
+            f"Backend '{self._backend}' has no attribute '{name}'."
+        )
 
 
 @keras_export("keras.config.set_backend")

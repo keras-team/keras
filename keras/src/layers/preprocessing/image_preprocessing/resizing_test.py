@@ -28,8 +28,6 @@ class ResizingTest(testing.TestCase):
         data_format,
     ):
         if interpolation == "lanczos5":
-            if backend.backend() == "torch":
-                self.skipTest("Torch does not support lanczos.")
             if backend.backend() == "openvino":
                 self.skipTest("OpenVINO does not support lanczos.")
 

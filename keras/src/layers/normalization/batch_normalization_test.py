@@ -309,6 +309,14 @@ class BatchNormalizationTest(testing.TestCase):
                 renorm=True, renorm_clipping={"rmax": 1.0, "dmax": -1.0}
             )
 
+    def test_invalid_momentum(self):
+        for momentum in (-0.1, 1.5):
+            with self.assertRaisesRegex(ValueError, "`momentum` must be"):
+                layers.BatchNormalization(momentum=momentum)
+        # Boundary values are accepted.
+        layers.BatchNormalization(momentum=0.0)
+        layers.BatchNormalization(momentum=1.0)
+
     def test_renorm_stddev_initializer(self):
         # `moving_stddev` and `renorm_stddev` should be initialized as
         # `sqrt` of `moving_variance_initializer`.

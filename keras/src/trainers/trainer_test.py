@@ -162,13 +162,7 @@ class TestPyDataset(py_dataset_adapter.PyDataset):
         return None if self.infinite else 20
 
     def __getitem__(self, idx):
-        CPU_DEVICES = {
-            "tensorflow": "CPU:0",
-            "jax": "cpu:0",
-            "torch": "cpu",
-        }
-        with backend.device(CPU_DEVICES[backend.backend()]):
-            return ops.ones((5, 4)), ops.zeros((5, 3))
+        return np.ones((5, 4)), np.zeros((5, 3))
 
 
 def create_dataset(dataset_type, dataset_kwargs):

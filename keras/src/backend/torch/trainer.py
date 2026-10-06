@@ -4,6 +4,8 @@ import numpy as np
 import torch
 import torch.distributed as dist
 from packaging.version import parse
+from torch.distributed.tensor import DTensor
+from torch.distributed.tensor import Replicate
 from torch.nn.parallel import DistributedDataParallel
 
 from keras.src import backend
@@ -12,8 +14,11 @@ from keras.src import optimizers as optimizers_module
 from keras.src import tree
 from keras.src.backend import config
 from keras.src.backend.torch.distribution_lib import _to_backend_mesh
+from keras.src.backend.torch.distribution_lib import distribute_data_input
+from keras.src.backend.torch.ops.core import convert_to_tensor
 from keras.src.backend.torch.ops.core import get_device
 from keras.src.distribution.distribution_lib import DataParallel
+from keras.src.distribution.distribution_lib import ModelParallel
 from keras.src.distribution.distribution_lib import distribution
 from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import array_slicing
@@ -226,6 +231,12 @@ class TorchTrainer(base_trainer.Trainer):
                     # Use a copy for reduction to avoid modifying
                     # the original variable.
                     val = v.value.clone()
+                    if isinstance(val, DTensor):
+                        # DTensor indicates we're using ModelParallel.
+                        placements = [Replicate()] * len(val.placements)
+                        val = val.redistribute(
+                            val.device_mesh, placements
+                        ).to_local()
                     dist.all_reduce(
                         val,
                         op=dist.ReduceOp.SUM,
@@ -577,6 +588,7 @@ class TorchTrainer(base_trainer.Trainer):
             )
 
         data = (x, y, sample_weight)
+        data = _distribute_data(data)
 
         # Maybe build model
         self._symbolic_build(data_batch=data)
@@ -599,6 +611,7 @@ class TorchTrainer(base_trainer.Trainer):
         self._assert_compile_called("test_on_batch")
 
         data = (x, y, sample_weight)
+        data = _distribute_data(data)
 
         # Maybe build model
         self._symbolic_build(data_batch=data)
@@ -613,6 +626,7 @@ class TorchTrainer(base_trainer.Trainer):
 
     def predict_on_batch(self, x):
         self.make_predict_function()
+        x = _distribute_data(x)
         batch_outputs = self.predict_function([(x,)])
         batch_outputs = tree.map_structure(
             backend.ops.convert_to_numpy, batch_outputs
@@ -620,6 +634,47 @@ class TorchTrainer(base_trainer.Trainer):
         return batch_outputs
 
 
+def _distribute_data(data, layouts=None):
+    active_distribution = distribution()
+    if active_distribution is not None and isinstance(
+        active_distribution, ModelParallel
+    ):
+        if layouts is None:
+
+            def get_layout(d):
+                if d is None:
+                    return None
+                return active_distribution.get_data_layout(d.shape)
+
+            layouts = tree.map_structure(get_layout, data)
+        return tree.map_structure(
+            lambda d, l: distribute_data_input(d, l),
+            data,
+            layouts,
+        )
+    return tree.map_structure(
+        lambda x: convert_to_tensor(x) if x is not None else None, data
+    )
+
+
 class TorchEpochIterator(EpochIterator):
     def _get_iterator(self):
+        active_distribution = distribution()
+        if active_distribution is not None and isinstance(
+            active_distribution, ModelParallel
+        ):
+            return self._get_distributed_iterator(active_distribution)
         return self.data_adapter.get_torch_dataloader()
+
+    def _get_distributed_iterator(self, active_distribution):
+        layouts = None
+        for data in self.data_adapter.get_numpy_iterator():
+            if layouts is None:
+
+                def get_layout(d):
+                    if d is None:
+                        return None
+                    return active_distribution.get_data_layout(d.shape)
+
+                layouts = tree.map_structure(get_layout, data)
+            yield _distribute_data(data, layouts)

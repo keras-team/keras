@@ -14,7 +14,6 @@ from keras.src.api_export import keras_export
 from keras.src.initializers.random_initializers import VarianceScaling
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
-from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.geometry import EinsumProjectionGeometry
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.saving import serialization_lib
@@ -194,16 +193,16 @@ class EinsumDense(Layer):
             )
 
         if self.quantization_mode is not None:
-            self.quantized_build(
-                kernel_shape,
-                mode=self.quantization_mode,
-                config=self.quantization_config,
-            )
-        # Skip creating a duplicate kernel variable when the quantized build
-        # has already created the kernel storage. For other modes (e.g.,
-        # float8 or no quantization), we still need the floating-point kernel.
-        strategy = strategy_registry.get_strategy(self.quantization_mode)
-        if strategy is None or not strategy.owns_weight_storage:
+            # A strategy that owns the weight storage creates the kernel. A
+            # strategy that keeps the float kernel (float8) adds its
+            # variables after the float weights, as `quantize` does.
+            if self._strategy_owns_weight_storage():
+                self.quantized_build(
+                    kernel_shape,
+                    mode=self.quantization_mode,
+                    config=self.quantization_config,
+                )
+        if not self._strategy_owns_weight_storage():
             self._kernel = self.add_weight(
                 name="kernel",
                 shape=tuple(kernel_shape),
@@ -225,6 +224,12 @@ class EinsumDense(Layer):
             )
         else:
             self.bias = None
+        if self.quantization_mode and not self._strategy_owns_weight_storage():
+            self.quantized_build(
+                kernel_shape,
+                mode=self.quantization_mode,
+                config=self.quantization_config,
+            )
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank, lora_alpha=self.lora_alpha)
@@ -268,14 +273,14 @@ class EinsumDense(Layer):
                 kernel = quantizers.unpack_int4(
                     self.quantized_kernel,
                     orig_len=self.gptq_unpacked_column_size,
-                    axis=0,
+                    axis=-1,
                     dtype="uint8",
                 )
             elif is_gptq and gptq_calibrated and gptq_bits == 2:
                 kernel = quantizers.unpack_int2(
                     self.quantized_kernel,
                     orig_len=self.gptq_unpacked_column_size,
-                    axis=0,
+                    axis=-1,
                     dtype="uint8",
                 )
             elif is_awq and awq_calibrated:
@@ -283,7 +288,7 @@ class EinsumDense(Layer):
                 kernel = quantizers.unpack_int4(
                     self.quantized_kernel,
                     orig_len=self.awq_unpacked_column_size,
-                    axis=0,
+                    axis=-1,
                     dtype="uint8",
                 )
 
@@ -478,11 +483,6 @@ class EinsumDense(Layer):
                 self.g_idx.assign(ops.cast(store[key], self.g_idx.dtype))
                 idx += 1
                 continue
-            elif name == "quantized_kernel" and mode == "gptq":
-                # Handles legacy unpacked 2-bit layouts.
-                self._assign_gptq_quantized_kernel(store[key])
-                idx += 1
-                continue
             else:
                 target = getattr(self, name)
             target.assign(store[key])
@@ -490,22 +490,6 @@ class EinsumDense(Layer):
         if self.lora_enabled:
             self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))
             self.lora_kernel_b.assign(ops.zeros(self.lora_kernel_b.shape))
-
-    def _assign_gptq_quantized_kernel(self, value):
-        """Assigns a stored GPTQ quantized kernel, handling legacy layouts.
-
-        Older checkpoints stored 2-bit GPTQ kernels unpacked (one value per
-        uint8 byte). Current checkpoints pack four 2-bit values per byte. When
-        a legacy unpacked 2-bit store is detected by shape, it is packed on load
-        so the inference path can always unpack a packed kernel.
-        """
-        if self._gptq_weight_bits == 2 and tuple(value.shape) != tuple(
-            self.quantized_kernel.shape
-        ):
-            value, _, _ = quantizers.pack_int2(
-                ops.cast(value, "uint8"), axis=0, dtype="uint8"
-            )
-        self.quantized_kernel.assign(value)
 
     def get_config(self):
         base_config = super().get_config()
@@ -599,12 +583,6 @@ class EinsumDense(Layer):
                 "g_idx",
             ],
         }
-
-    def quantize(self, mode=None, type_check=True, config=None):
-        # Prevent quantization of the subclasses.
-        if type_check and type(self) is not EinsumDense:
-            raise self._not_implemented_error(self.quantize)
-        self._registry_quantize(mode, config)
 
     def _quantization_geometry(self):
         return EinsumProjectionGeometry(self)
@@ -1190,7 +1168,8 @@ def _analyze_quantization_info(equation, input_shape):
             weight_transpose_axes.append(index_weight)
     # Postprocess the information:
     # 1. Add dummy axes (1) to transpose_axes
-    # 2. Add axis to squeeze_axes if 1. failed
+    # 2. Add axis to squeeze_axes if 1. failed. The axis then stays at its
+    #    own position, so the squeeze removes that size-1 axis.
     input_squeeze_axes = []
     weight_squeeze_axes = []
     for ori_index in input_reduced_axes:
@@ -1198,12 +1177,14 @@ def _analyze_quantization_info(equation, input_shape):
             index = input_expand_axes.pop(0)
         except IndexError:
             input_squeeze_axes.append(ori_index)
+            index = ori_index
         input_transpose_axes.insert(index, ori_index)
     for ori_index in weight_reduced_axes:
         try:
             index = weight_expand_axes.pop(0)
         except IndexError:
             weight_squeeze_axes.append(ori_index)
+            index = ori_index
         weight_transpose_axes.insert(index, ori_index)
     # Prepare equation for `einsum_with_inputs_gradient`
     custom_gradient_equation = f"{output_spec},{weight_spec}->{input_spec}"
