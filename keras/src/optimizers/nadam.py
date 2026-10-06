@@ -1,5 +1,4 @@
 from keras.src import backend
-from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.optimizers import optimizer
 
@@ -100,7 +99,10 @@ class Nadam(optimizer.Optimizer):
             * self.beta_1
             * (
                 1.0
-                - 0.5 * ops.power(0.96, ops.cast(self.iterations + 1, dtype))
+                - 0.5
+                * backend.ops.numpy.power(
+                    0.96, backend.ops.cast(self.iterations + 1, dtype)
+                )
             ),
         )
         super()._backend_update_step(grads, trainable_variables, learning_rate)
@@ -108,40 +110,61 @@ class Nadam(optimizer.Optimizer):
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
         var_dtype = variable.dtype
-        lr = ops.cast(learning_rate, var_dtype)
-        gradient = ops.cast(gradient, var_dtype)
+        lr = backend.ops.cast(learning_rate, var_dtype)
+        gradient = backend.ops.cast(gradient, var_dtype)
 
-        local_step = ops.cast(self.iterations + 1, var_dtype)
-        next_step = ops.cast(self.iterations + 2, var_dtype)
-        decay = ops.cast(0.96, var_dtype)
-        beta_1 = ops.cast(self.beta_1, var_dtype)
-        beta_2 = ops.cast(self.beta_2, var_dtype)
-        u_t = beta_1 * (1.0 - 0.5 * (ops.power(decay, local_step)))
-        u_t_1 = beta_1 * (1.0 - 0.5 * (ops.power(decay, next_step)))
-        u_product_t = ops.cast(self._u_product, var_dtype)
+        local_step = backend.ops.cast(self.iterations + 1, var_dtype)
+        next_step = backend.ops.cast(self.iterations + 2, var_dtype)
+        decay = backend.ops.cast(0.96, var_dtype)
+        beta_1 = backend.ops.cast(self.beta_1, var_dtype)
+        beta_2 = backend.ops.cast(self.beta_2, var_dtype)
+        u_t = beta_1 * (
+            1.0 - 0.5 * (backend.ops.numpy.power(decay, local_step))
+        )
+        u_t_1 = beta_1 * (
+            1.0 - 0.5 * (backend.ops.numpy.power(decay, next_step))
+        )
+        u_product_t = backend.ops.cast(self._u_product, var_dtype)
 
         u_product_t_1 = u_product_t * u_t_1
-        beta_2_power = ops.power(beta_2, local_step)
+        beta_2_power = backend.ops.numpy.power(beta_2, local_step)
 
         m = self._momentums[self._get_variable_index(variable)]
         v = self._velocities[self._get_variable_index(variable)]
 
         self.assign_add(
-            m, ops.multiply(ops.subtract(gradient, m), (1 - beta_1))
+            m,
+            backend.ops.numpy.multiply(
+                backend.ops.numpy.subtract(gradient, m), (1 - beta_1)
+            ),
         )
         self.assign_add(
-            v, ops.multiply(ops.subtract(ops.square(gradient), v), (1 - beta_2))
+            v,
+            backend.ops.numpy.multiply(
+                backend.ops.numpy.subtract(
+                    backend.ops.numpy.square(gradient), v
+                ),
+                (1 - beta_2),
+            ),
         )
-        m_hat = ops.add(
-            ops.divide(ops.multiply(u_t_1, m), 1 - u_product_t_1),
-            ops.divide(ops.multiply(1 - u_t, gradient), 1 - u_product_t),
+        m_hat = backend.ops.numpy.add(
+            backend.ops.numpy.divide(
+                backend.ops.numpy.multiply(u_t_1, m), 1 - u_product_t_1
+            ),
+            backend.ops.numpy.divide(
+                backend.ops.numpy.multiply(1 - u_t, gradient),
+                1 - u_product_t,
+            ),
         )
-        v_hat = ops.divide(v, (1 - beta_2_power))
+        v_hat = backend.ops.numpy.divide(v, (1 - beta_2_power))
 
         self.assign_sub(
             variable,
-            ops.divide(
-                ops.multiply(m_hat, lr), ops.add(ops.sqrt(v_hat), self.epsilon)
+            backend.ops.numpy.divide(
+                backend.ops.numpy.multiply(m_hat, lr),
+                backend.ops.numpy.add(
+                    backend.ops.numpy.sqrt(v_hat), self.epsilon
+                ),
             ),
         )
 
