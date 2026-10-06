@@ -4,8 +4,18 @@ keras/src/backend/common/variables_test.py::VariableOpsDTypeTest::test_floordiv_
 keras/src/backend/common/variables_test.py::VariableOpsDTypeTest::test_floordiv_('uint32', 'bool')
 keras/src/backend/common/variables_test.py::VariableOpsDTypeTest::test_floordiv_('uint8', 'bool')
 keras/src/callbacks/remote_monitor_test.py::TerminateOnNaNTest::test_RemoteMonitorWithJsonPayload
-keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bicubic_false
-keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bicubic_true
+keras/src/layers/preprocessing/stft_spectrogram_test.py::TestSpectrogram::test_spectrogram_error
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bicubic_false_crop
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bicubic_false_none
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bicubic_true_crop
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bicubic_true_none
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bicubic_true_pad
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bicubic_false_float64
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bicubic_false_int16
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bicubic_false_int8
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bicubic_true_float64
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bicubic_true_int16
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bicubic_true_int8
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_cholesky
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_eig
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_eigh
