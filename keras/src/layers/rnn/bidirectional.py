@@ -177,6 +177,25 @@ class Bidirectional(Layer):
                     f'"{backward_value}" for backward layer'
                 )
 
+    def _check_merge_widths(self, forward_units, backward_units):
+        # "sum", "mul" and "ave" combine the two directions elementwise, so
+        # both directions must produce the same width.
+        if self.merge_mode not in ("sum", "mul", "ave"):
+            return
+        if None in (forward_units, backward_units):
+            return
+        if forward_units != backward_units:
+            raise ValueError(
+                "The forward and backward layers must produce the same "
+                "number of units when `merge_mode` combines them "
+                "elementwise. Received: "
+                f"merge_mode={self.merge_mode}, "
+                f"forward units={forward_units}, "
+                f"backward units={backward_units}. Use "
+                'merge_mode="concat" or merge_mode=None to combine '
+                "layers of different sizes."
+            )
+
     def compute_output_shape(self, sequences_shape, initial_state_shape=None):
         # An explicit `backward_layer` may have a different number of units
         # from the forward layer, so the result cannot be derived from the
@@ -205,21 +224,9 @@ class Bidirectional(Layer):
         elif self.merge_mode is None:
             output_shape = [forward_output_shape, backward_output_shape]
         else:
-            # "sum", "mul" and "ave" combine the two directions elementwise,
-            # so they only make sense when both produce the same width.
-            # Without this check the mismatch surfaces much later as a raw
-            # backend error about an add or multiply node.
-            if forward_output_shape[-1] != backward_output_shape[-1]:
-                raise ValueError(
-                    "The forward and backward layers must produce the same "
-                    "number of units when `merge_mode` combines them "
-                    "elementwise. Received: "
-                    f"merge_mode={self.merge_mode}, "
-                    f"forward units={forward_output_shape[-1]}, "
-                    f"backward units={backward_output_shape[-1]}. Use "
-                    'merge_mode="concat" or merge_mode=None to combine '
-                    "layers of different sizes."
-                )
+            self._check_merge_widths(
+                forward_output_shape[-1], backward_output_shape[-1]
+            )
             output_shape = forward_output_shape
 
         if self.return_state:
@@ -285,6 +292,7 @@ class Bidirectional(Layer):
             y = y[0]
             y_rev = y_rev[0]
 
+        self._check_merge_widths(y.shape[-1], y_rev.shape[-1])
         y = ops.cast(y, self.compute_dtype)
         y_rev = ops.cast(y_rev, self.compute_dtype)
 
