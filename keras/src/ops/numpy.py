@@ -6793,8 +6793,7 @@ def _nansum(x, axis=None, keepdims=False):
         return backend.ops.numpy.nansum(x, axis=axis, keepdims=keepdims)
     x = backend.ops.convert_to_tensor(x)
     if backend.is_float_dtype(x.dtype):
-        zero = backend.ops.cast(0, x.dtype)
-        x = backend.ops.numpy.where(backend.ops.numpy.isnan(x), zero, x)
+        x = backend.ops.numpy.where(backend.ops.numpy.isnan(x), 0, x)
     return backend.ops.numpy.sum(x, axis=axis, keepdims=keepdims)
 
 
