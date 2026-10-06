@@ -236,10 +236,9 @@ class SavedModelExportArchive:
                 "`tf.Variable` instances. Found instead the following types: "
                 f"{list(set(type(v) for v in variables))}"
             )
-        if backend.backend() == "jax":
-            variables = tree.flatten(
-                tree.map_structure(self._convert_to_tf_variable, variables)
-            )
+        variables = tree.flatten(
+            tree.map_structure(self._convert_to_tf_variable, variables)
+        )
         setattr(self._tf_trackable, name, list(variables))
 
     def write_out(self, filepath, options=None, verbose=True):
@@ -299,6 +298,10 @@ class SavedModelExportArchive:
             )
 
     def _convert_to_tf_variable(self, backend_variable):
+        # `add_variable_collection()` accepts plain `tf.Variable`s, which
+        # require no conversion.
+        if isinstance(backend_variable, tf.Variable):
+            return backend_variable
         if not isinstance(backend_variable, backend.Variable):
             raise TypeError(
                 "`backend_variable` must be a `backend.Variable`. "

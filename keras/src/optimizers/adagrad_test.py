@@ -18,6 +18,12 @@ class AdagradTest(testing.TestCase):
         )
         self.run_class_serialization_test(optimizer)
 
+    def test_negative_initial_accumulator_value(self):
+        with self.assertRaisesRegex(ValueError, "non-negative"):
+            Adagrad(initial_accumulator_value=-0.1)
+        # Non-negative values are accepted.
+        Adagrad(initial_accumulator_value=0.0)
+
     def test_single_step(self):
         optimizer = Adagrad(learning_rate=0.5)
         grads = ops.array([1.0, 6.0, 7.0, 2.0])

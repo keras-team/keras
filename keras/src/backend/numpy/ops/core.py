@@ -14,11 +14,6 @@ from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 
-SUPPORTS_SPARSE_TENSORS = False
-SUPPORTS_RAGGED_TENSORS = False
-SUPPORTS_COMPLEX_DTYPES = True
-IS_THREAD_SAFE = True
-
 
 class Variable(KerasVariable):
     def _initialize(self, value):
@@ -46,7 +41,9 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         if dtype and dtype != x.dtype:
             return x.value.astype(dtype)
         return x.value
-    if not is_tensor(x) and standardize_dtype(dtype) == "bfloat16":
+
+    # The branch must run only for an explicit bfloat16 request:
+    if not is_tensor(x) and dtype is not None and dtype == "bfloat16":
         # Can't create bfloat16 arrays on the fly (e.g. from a h5 Dataset).
         # Instead we convert "as is" (to stored dtype) and cast.
         return np.asarray(x).astype(dtype)
@@ -480,3 +477,7 @@ def remat(f):
         "utilize this feature."
     )
     return f
+
+
+def grad(f, argnums=0):
+    raise NotImplementedError("`grad` is not supported with the numpy backend.")

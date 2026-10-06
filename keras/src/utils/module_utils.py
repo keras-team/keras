@@ -2,13 +2,20 @@ import importlib
 
 
 class LazyModule:
-    def __init__(self, name, pip_name=None, import_error_msg=None):
+    def __init__(
+        self,
+        name,
+        pip_name=None,
+        import_error_msg=None,
+        required_attr="__version__",
+    ):
         self.name = name
         self.pip_name = pip_name or name
         self.import_error_msg = import_error_msg or (
             f"This requires the {self.name} module. "
             f"You can install it via `pip install {self.pip_name}`"
         )
+        self.required_attr = required_attr
         self.module = None
         self._available = None
 
@@ -22,11 +29,20 @@ class LazyModule:
                 self._available = False
         return self._available
 
-    def initialize(self):
+    def _import(self, name):
         try:
-            self.module = importlib.import_module(self.name)
+            return importlib.import_module(name)
         except ImportError:
             raise ImportError(self.import_error_msg)
+
+    def _require(self, module, attr):
+        if not hasattr(module, attr):
+            raise ImportError(self.import_error_msg)
+
+    def initialize(self):
+        module = self._import(self.name)
+        self._require(module, self.required_attr)
+        self.module = module
 
     def __getattr__(self, name):
         if name == "_api_export_path":
@@ -41,12 +57,13 @@ class LazyModule:
 
 class OrbaxLazyModule(LazyModule):
     def initialize(self):
-        try:
-            parent_module = importlib.import_module("orbax.checkpoint")
-            self.module = parent_module.v1
-            self.parent_module = parent_module
-        except ImportError:
-            raise ImportError(self.import_error_msg)
+        parent_module = self._import("orbax.checkpoint")
+        self._require(parent_module, "v1")
+        v1_module = parent_module.v1
+        self._require(v1_module, self.required_attr)
+
+        self.module = v1_module
+        self.parent_module = parent_module
 
     def __getattr__(self, name):
         if name == "_api_export_path":
@@ -59,7 +76,9 @@ class OrbaxLazyModule(LazyModule):
 
 
 tensorflow = LazyModule("tensorflow")
-gfile = LazyModule("tensorflow.io.gfile", pip_name="tensorflow")
+gfile = LazyModule(
+    "tensorflow.io.gfile", pip_name="tensorflow", required_attr="GFile"
+)
 tensorflow_io = LazyModule("tensorflow_io")
 scipy = LazyModule("scipy")
 jax = LazyModule("jax")
@@ -78,7 +97,7 @@ torch_xla = LazyModule(
 optree = LazyModule("optree")
 dmtree = LazyModule("tree")
 tf2onnx = LazyModule("tf2onnx")
-jax2onnx = LazyModule("jax2onnx")
+jax2onnx = LazyModule("jax2onnx", required_attr="to_onnx")
 grain = LazyModule("grain")
 litert = LazyModule("ai_edge_litert")
 ocp = OrbaxLazyModule(
@@ -88,4 +107,5 @@ ocp = OrbaxLazyModule(
         "OrbaxCheckpoint requires the 'orbax-checkpoint' package. "
         "You can install it via pip install orbax-checkpoint"
     ),
+    required_attr="training",
 )

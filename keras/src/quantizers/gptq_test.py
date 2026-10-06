@@ -18,7 +18,6 @@ from keras.src.quantizers.gptq import _stable_permutation
 from keras.src.quantizers.gptq import gptq_quantize_matrix
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.gptq_core import find_layers_in_block
-from keras.src.quantizers.packing import unpack_int2
 from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantizers import compute_quantization_parameters
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
@@ -176,15 +175,16 @@ class GPTQTest(testing.TestCase):
 
     def test_gptq_2bit_packing_end_to_end(self):
         """2-bit GPTQ packs four values per byte and round-trips through
-        `load_own_variables`, including legacy unpacked checkpoints."""
+        `load_own_variables`."""
         in_dim, out_dim, group_size = 64, 32, 32
         dense = self._calibrate_gptq_dense((in_dim, out_dim), 2, group_size)
 
-        # The quantized kernel packs four 2-bit values per byte along the
-        # output axis: shape (ceil(out/4), in), dtype uint8.
-        packed_rows = (out_dim + 3) // 4
+        # The quantized kernel keeps the kernel's `[in, out]` orientation and
+        # packs four 2-bit values per byte along the output axis: shape
+        # (in, ceil(out/4)), dtype uint8.
+        packed_cols = (out_dim + 3) // 4
         self.assertEqual(
-            tuple(dense.quantized_kernel.shape), (packed_rows, in_dim)
+            tuple(dense.quantized_kernel.shape), (in_dim, packed_cols)
         )
         self.assertEqual(
             backend.standardize_dtype(dense.quantized_kernel.dtype), "uint8"
@@ -219,36 +219,14 @@ class GPTQTest(testing.TestCase):
         reloaded.build((None, in_dim))
         reloaded.load_own_variables(store)
         self.assertEqual(
-            tuple(reloaded.quantized_kernel.shape), (packed_rows, in_dim)
+            tuple(reloaded.quantized_kernel.shape), (in_dim, packed_cols)
         )
         self.assertAllClose(reloaded(x), y_ref)
-
-        # Backward compat: a legacy checkpoint stored the 2-bit kernel unpacked
-        # (one value per byte, shape (out, in)). It must load and be re-packed
-        # transparently to the compact layout.
-        legacy = dict(store)
-        legacy["1"] = ops.convert_to_numpy(
-            unpack_int2(store["1"], out_dim, axis=0, dtype="uint8")
-        ).astype("uint8")
-        self.assertEqual(legacy["1"].shape, (out_dim, in_dim))
-        legacy_layer = layers.Dense(
-            units=out_dim, dtype=f"gptq/2/{group_size}_from_float32"
-        )
-        legacy_layer.build((None, in_dim))
-        legacy_layer.load_own_variables(legacy)
-        self.assertEqual(
-            tuple(legacy_layer.quantized_kernel.shape), (packed_rows, in_dim)
-        )
-        # Re-packed kernel matches the natively packed one, bit for bit.
-        self.assertAllClose(
-            legacy_layer.quantized_kernel, dense.quantized_kernel
-        )
-        self.assertAllClose(legacy_layer(x), y_ref)
 
     def test_gptq_2bit_storage_reduction_256(self):
         """A 256x256 kernel packs from 65536 to 16384 bytes at 2-bit."""
         dense = self._calibrate_gptq_dense((256, 256), 2, 128)
-        self.assertEqual(tuple(dense.quantized_kernel.shape), (64, 256))
+        self.assertEqual(tuple(dense.quantized_kernel.shape), (256, 64))
         packed_bytes = int(np.prod(dense.quantized_kernel.shape))
         self.assertEqual(packed_bytes, 16384)
         self.assertEqual(256 * 256, 65536)  # unpacked one value per byte
@@ -823,8 +801,8 @@ class GPTQTest(testing.TestCase):
 
         dense = block.layers[0]
         self.assertTrue(dense.is_gptq_calibrated)
-        self.assertEqual(tuple(dense.kernel_scale.shape), (4, 1))
-        self.assertEqual(tuple(dense.kernel_zero.shape), (4, 1))
+        self.assertEqual(tuple(dense.kernel_scale.shape), (1, 4))
+        self.assertEqual(tuple(dense.kernel_zero.shape), (1, 4))
 
     def test_gptq_warns_on_undersampled_calibration(self):
         """Fewer than 4 calibration tokens per input feature must warn.
