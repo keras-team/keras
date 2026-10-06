@@ -691,6 +691,58 @@ class EinsumDenseTest(testing.TestCase):
         self.assertLess(mse, error_threshold)  # A weak correctness test
 
     @parameterized.named_parameters(
+        ("abc,bdc->ad", "abc,bdc->ad", (3, 4), (5,)),
+        ("ab,b->a", "ab,b->a", (3,), ()),
+        ("abc,c->ab", "abc,c->ab", (3, 4), (3,)),
+        ("abc,cb->ab", "abc,cb->ab", (3, 4), (3,)),
+        ("abc,bc->a", "abc,bc->a", (3, 4), ()),
+        ("abcd,cd->ab", "abcd,cd->ab", (3, 4, 5), (3,)),
+        ("size_one_free_axis", "acd,gecd->aeg", (4, 5), (6, 1)),
+        ("size_one_inputs_axis", "acdb,bc->acd", (4, 1, 3), (4, 1)),
+    )
+    def test_quantize_int8_scale_alignment(
+        self, equation, input_shape, output_shape
+    ):
+        # These equations reduce more axes than the output adds, so the
+        # scales need a squeeze to line up with the outputs. In the size-one
+        # cases, the squeeze must not remove another axis of size 1. The
+        # int8 output must equal an einsum of the dequantized inputs and the
+        # dequantized kernel.
+        layer = layers.EinsumDense(equation, output_shape=output_shape)
+        layer.build((None,) + input_shape)
+        rng = np.random.default_rng(0)
+        kernel = rng.standard_normal(layer.kernel.shape).astype("float32")
+        layer.kernel.assign(kernel)
+        x = rng.standard_normal((2,) + input_shape).astype("float32")
+        y_float = layer(x)
+
+        layer.quantize("int8")
+        y_quantized = ops.convert_to_numpy(layer(x))
+
+        inputs_spec, rest = equation.split(",")
+        kernel_spec, output_spec = rest.split("->")
+        inputs_axes = [
+            i for i, c in enumerate(inputs_spec) if c not in output_spec
+        ]
+        kernel_axes = [
+            i for i, c in enumerate(kernel_spec) if c not in output_spec
+        ]
+        x_q, x_scale = quantizers.abs_max_quantize(
+            x, axis=inputs_axes, to_numpy=True
+        )
+        kernel_q, kernel_scale = quantizers.abs_max_quantize(
+            kernel, axis=kernel_axes, to_numpy=True
+        )
+        self.assertAllEqual(layer._kernel, kernel_q)
+        expected = np.einsum(
+            equation,
+            ops.convert_to_numpy(x_q) / ops.convert_to_numpy(x_scale),
+            ops.convert_to_numpy(kernel_q) / ops.convert_to_numpy(kernel_scale),
+        )
+        self.assertEqual(y_quantized.shape, tuple(y_float.shape))
+        self.assertAllClose(y_quantized, expected, atol=1e-5, rtol=1e-5)
+
+    @parameterized.named_parameters(
         ("int8", "int8"),
         ("float8", "float8"),
         ("int4", "int4"),
