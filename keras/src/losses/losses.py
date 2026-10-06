@@ -2593,19 +2593,13 @@ def sparse_categorical_focal_crossentropy(
     if ignore_class is not None:
         valid_mask = ops.not_equal(y_true, ignore_class)
 
-    static_num_classes = y_pred.shape[axis]
-    if static_num_classes is None:
-        # `ops.shape()` returns the static shape for a KerasTensor, including
-        # `None` dimensions. Derive the runtime class count from tensor sizes
-        # instead so symbolic inputs with an unknown class dimension work.
-        target_size = ops.maximum(ops.size(y_true), 1)
-        num_classes = ops.floor_divide(ops.size(y_pred), target_size)
-    else:
-        num_classes = static_num_classes
-    num_classes = ops.cast(num_classes, dtype=y_true.dtype)
-    in_range = ops.logical_and(
-        ops.greater_equal(y_true, 0), ops.less(y_true, num_classes)
-    )
+    num_classes = ops.shape(y_pred)[axis]
+    in_range = ops.greater_equal(y_true, 0)
+    if num_classes is not None:
+        in_range = ops.logical_and(
+            in_range,
+            ops.less(y_true, ops.cast(num_classes, dtype=y_true.dtype)),
+        )
     if valid_mask is None:
         labels_valid = in_range
     else:
@@ -2636,25 +2630,27 @@ def sparse_categorical_focal_crossentropy(
         )
 
     alpha_length_valid = None
-    if alpha_rank == 1:
-        alpha_length = alpha.shape[0]
-        if alpha_length is not None and static_num_classes is not None:
-            if alpha_length != static_num_classes:
-                raise ValueError(
-                    "When `alpha` is a list or rank-1 tensor, it must contain "
-                    "one value per class. "
-                    f"Received: alpha.shape={alpha.shape} and "
-                    f"y_pred.shape={y_pred.shape}"
-                )
-        else:
-            alpha_length_valid = ops.equal(ops.size(alpha), num_classes)
-
     if alpha_rank == 0:
         alpha_t = alpha
     else:
+        alpha_length = ops.shape(alpha)[0]
+        if (
+            isinstance(alpha_length, int)
+            and isinstance(num_classes, int)
+            and alpha_length != num_classes
+        ):
+            raise ValueError(
+                "When `alpha` is a list or rank-1 tensor, it must contain one "
+                "value per class. "
+                f"Received: alpha.shape={alpha.shape} and "
+                f"y_pred.shape={y_pred.shape}"
+            )
+        elif alpha_length is not None and num_classes is not None:
+            # Dynamic dimension(s).
+            alpha_length_valid = ops.equal(alpha_length, num_classes)
+
         alpha_indices = safe_y_true
-        if alpha_length_valid is not None:
-            alpha_length = ops.size(alpha)
+        if alpha_length is not None:
             alpha = ops.concatenate(
                 [alpha, ops.zeros((1,), dtype=alpha.dtype)], axis=0
             )
