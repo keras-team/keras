@@ -1,17 +1,18 @@
 import importlib
 
 from keras.src.backend.config import PLUGGABLE_BACKENDS
-from keras.src.backend.config import backend
 
 
-def get_pluggable_backend_module(module_name=None, allow_missing=False):
-    if backend() not in PLUGGABLE_BACKENDS:
-        raise ValueError(f"Unsupported backend : {backend()}")
+def get_pluggable_backend_module(
+    module_name=None, allow_missing=False, backend=None
+):
+    if not backend:
+        backend = backend()
+    if backend not in PLUGGABLE_BACKENDS:
+        raise ValueError(f"Unsupported backend : {backend}")
 
     backend_module_name = (
-        f"keras_{backend()}.{module_name}"
-        if module_name
-        else f"keras_{backend()}"
+        f"keras_{backend}.{module_name}" if module_name else f"keras_{backend}"
     )
     try:
         return importlib.import_module(backend_module_name)
@@ -19,8 +20,8 @@ def get_pluggable_backend_module(module_name=None, allow_missing=False):
         if allow_missing:
             return None
         raise ImportError(
-            f"The {backend()} is not installed. "
-            f"You can install it via `pip install keras-{backend()}`"
+            f"The {backend} backend is not installed. "
+            f"You can install it via `pip install keras-{backend}`"
         ) from e
 
 
