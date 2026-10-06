@@ -311,7 +311,8 @@ def resize(
         images: Input image or batch of images. Must be 3D or 4D.
         size: Size of output image in `(height, width)` format.
         interpolation: Interpolation method. Available methods are `"nearest"`,
-            `"bilinear"`, and `"bicubic"`. Defaults to `"bilinear"`.
+            `"bilinear"`, `"bicubic"`, `"lanczos3"`, and `"lanczos5"`.
+            Defaults to `"bilinear"`.
         antialias: Whether to use an antialiasing filter when downsampling an
             image. Defaults to `False`.
         crop_to_aspect_ratio: If `True`, resize the images without aspect
