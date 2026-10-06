@@ -258,10 +258,6 @@ class OperationTest(testing.TestCase):
 
             backend_op_function = getattr(backend_ops_module, name, None)
 
-            if backend.backend() == "openvino" and backend_op_function is None:
-                # Openvino is still missing a number of ops.
-                continue
-
             self.assertIsNotNone(backend_op_function, f"Missing op `{name}`")
 
             if name == "multi_hot":
