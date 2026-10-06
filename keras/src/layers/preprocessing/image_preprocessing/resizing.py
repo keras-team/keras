@@ -238,15 +238,13 @@ class Resizing(BaseImagePreprocessingLayer):
         input_height = ops.cast(input_height, "int32")
         input_width = ops.cast(input_width, "int32")
         pad_height = ops.numpy.maximum(
-            input_height,
-            ops.numpy.floor_divide(input_width * self.height, self.width),
+            input_height, input_width * self.height // self.width
         )
         pad_width = ops.numpy.maximum(
-            input_width,
-            ops.numpy.floor_divide(input_height * self.width, self.height),
+            input_width, input_height * self.width // self.height
         )
-        img_box_hstart = ops.numpy.floor_divide(pad_height - input_height, 2)
-        img_box_wstart = ops.numpy.floor_divide(pad_width - input_width, 2)
+        img_box_hstart = (pad_height - input_height) // 2
+        img_box_wstart = (pad_width - input_width) // 2
         y_offset = ops.cast(img_box_hstart, boxes.dtype)
         x_offset = ops.cast(img_box_wstart, boxes.dtype)
         y_scale = self.height / ops.cast(
@@ -277,20 +275,20 @@ class Resizing(BaseImagePreprocessingLayer):
         ops = self.backend.ops
         input_height = ops.cast(input_height, "int32")
         input_width = ops.cast(input_width, "int32")
-        crop_height = ops.numpy.floor_divide(
-            input_width * self.height, self.width
-        )
         crop_height = ops.numpy.maximum(
-            ops.numpy.minimum(input_height, crop_height), 1
-        )
-        crop_width = ops.numpy.floor_divide(
-            input_height * self.width, self.height
+            ops.numpy.minimum(
+                input_height, input_width * self.height // self.width
+            ),
+            1,
         )
         crop_width = ops.numpy.maximum(
-            ops.numpy.minimum(input_width, crop_width), 1
+            ops.numpy.minimum(
+                input_width, input_height * self.width // self.height
+            ),
+            1,
         )
-        crop_box_hstart = ops.numpy.floor_divide(input_height - crop_height, 2)
-        crop_box_wstart = ops.numpy.floor_divide(input_width - crop_width, 2)
+        crop_box_hstart = (input_height - crop_height) // 2
+        crop_box_wstart = (input_width - crop_width) // 2
         y_offset = ops.cast(crop_box_hstart, boxes.dtype)
         x_offset = ops.cast(crop_box_wstart, boxes.dtype)
         y_scale = self.height / ops.cast(crop_height, boxes.dtype)
