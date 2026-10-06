@@ -73,7 +73,8 @@ def MobileNetV2(
         alpha: Controls the width of the network. This is known as the width
             multiplier in the MobileNet paper.
             When `weights` is `"imagenet"`, `alpha` can be one of `0.35`,
-            `0.50`, `0.75`, `1.0`, `1.3` or `1.4` only.
+            `0.50`, `0.75`, `1.0`, `1.3` or `1.4` only. `1.3` and `1.4`
+            have weights for 224x224 inputs only.
             - If `alpha < 1.0`, proportionally decreases the number
                 of filters in each layer.
             - If `alpha > 1.0`, proportionally increases the number
