@@ -63,6 +63,10 @@ def pytest_collection_modifyitems(config, items):
         import jax
 
         has_multiple_devices = jax.device_count() > 1
+    elif backend() == "torch":
+        from keras.src.backend.torch import distribution_lib
+
+        has_multiple_devices = distribution_lib.get_device_count() > 1
 
     requires_trainable_backend = pytest.mark.skipif(
         backend() in ["numpy", "openvino"],
