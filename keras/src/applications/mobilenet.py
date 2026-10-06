@@ -169,7 +169,7 @@ def MobileNet(
         if alpha not in [0.25, 0.50, 0.75, 1.0]:
             raise ValueError(
                 "If imagenet weights are being loaded, "
-                "alpha can be one of"
+                "alpha can be one of "
                 "`0.25`, `0.50`, `0.75` or `1.0` only.  "
                 f"Received alpha={alpha}"
             )
