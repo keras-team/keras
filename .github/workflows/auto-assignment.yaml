@@ -12,6 +12,6 @@ permissions:
 
 jobs:
   auto_assign:
-    uses: keras-team/shared-workflows/.github/workflows/auto-assignment.yml@1ff60fd615b03a85abdffac6d7cbe390988bb305 # v1
+    uses: keras-team/shared-workflows/.github/workflows/auto-assignment.yml@5ee0604fc2fb4bf0ff6032083a20d1da69e8b923 # v2
     with:
       issue_assignees: 'maitry63,mrinalghoshh,dhantule'
