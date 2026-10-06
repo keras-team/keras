@@ -63,6 +63,12 @@ class Adagrad(optimizer.Optimizer):
             name=name,
             **kwargs,
         )
+        if initial_accumulator_value < 0.0:
+            raise ValueError(
+                "Argument `initial_accumulator_value` must be a "
+                "non-negative float. Received: "
+                f"initial_accumulator_value={initial_accumulator_value}"
+            )
         self.initial_accumulator_value = initial_accumulator_value
         self.epsilon = epsilon
 
