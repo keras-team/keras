@@ -15,4 +15,4 @@ permissions:
 jobs:
   verify:
     if: github.repository == 'keras-team/keras'
-    uses: keras-team/shared-workflows/.github/workflows/pr-contributor-terms.yml@1ff60fd615b03a85abdffac6d7cbe390988bb305 # v1
+    uses: keras-team/shared-workflows/.github/workflows/pr-contributor-terms.yml@5ee0604fc2fb4bf0ff6032083a20d1da69e8b923 # v2
