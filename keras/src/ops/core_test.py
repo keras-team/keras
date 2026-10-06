@@ -674,13 +674,11 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertIsInstance(x_numpy, np.ndarray)
         self.assertAllClose(x_numpy, x_dense)
 
-    @pytest.mark.skipif(
-        backend.backend() not in ("tensorflow", "jax", "torch"),
-        reason=(
-            f"{backend.backend()} backend doesn't support `custom_gradient`."
-        ),
-    )
     @parameterized.named_parameters(named_product(use_variable=(False, True)))
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_GRADIENT,
+        reason="Backend does not support gradients.",
+    )
     def test_custom_gradient(self, use_variable):
         # function to test custom_gradient on
         @ops.custom_gradient
@@ -715,32 +713,12 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         else:
             to_derive = log1pexp
 
-        if backend.backend() == "tensorflow":
-            import tensorflow as tf
-
-            with tf.GradientTape() as tape1:
-                tape1.watch(x)
-                y = to_derive(x)
-            with tf.GradientTape() as tape2:
-                tape2.watch(x)
-                z = log1pexp_nan(x)
-            dy_dx = tape1.gradient(y, x)
-            dz_dx = tape2.gradient(z, x)
-            self.assertEqual(ops.convert_to_numpy(dy_dx), 1.0)
-        elif backend.backend() == "jax":
-            import jax
-
-            dy_dx = jax.grad(to_derive)(x)
-            dz_dx = jax.grad(log1pexp_nan)(x)
-            self.assertEqual(ops.convert_to_numpy(dy_dx), 1.0)
+        dy_dx = ops.grad(to_derive)(x)
+        self.assertEqual(ops.convert_to_numpy(dy_dx), 1.0)
+        if backend.backend() != "tensorflow":
+            # TensorFlow's `log` and `exp` gradients are defined at 100.0.
+            dz_dx = ops.grad(log1pexp_nan)(x)
             self.assertTrue(ops.isnan(dz_dx))
-        elif backend.backend() == "torch":
-            import torch
-
-            x = torch.tensor(100.0, requires_grad=True)
-            z = to_derive(x)
-            z.sum().backward()
-            self.assertEqual(ops.convert_to_numpy(x.grad), 1.0)
 
     def test_dynamic_slice(self):
         def cond(index, inputs, sum):
@@ -1682,6 +1660,16 @@ class CoreOpsDtypeTest(testing.TestCase):
     def test_convert_to_tensor(self, x, dtype, expected_dtype):
         self.assertDType(ops.convert_to_tensor(x, dtype=dtype), expected_dtype)
 
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_convert_to_numpy(self, dtype):
+        expected_dtype = backend.floatx() if dtype is None else dtype
+
+        x = ops.array([1.0, 2.0, 3.0], dtype=dtype)
+        self.assertDType(ops.convert_to_numpy(x), expected_dtype)
+
+        x = ops.array(4.0, dtype=dtype)
+        self.assertDType(ops.convert_to_numpy(x), expected_dtype)
+
     @parameterized.named_parameters(
         named_product(
             dtype=[dtype for dtype in ALL_DTYPES if dtype is not None]
@@ -1708,6 +1696,97 @@ class CoreOpsDtypeTest(testing.TestCase):
 
         self.assertDType(core.saturate_cast(x, dtype), dtype)
         self.assertDType(core.SaturateCast(dtype).symbolic_call(x), dtype)
+
+
+class ConvertToTensorFloatxTest(testing.TestCase):
+    """`convert_to_tensor` must not let `floatx` override an input's dtype.
+
+    The jax and numpy backends gated their bfloat16 fast path on
+    `standardize_dtype(dtype) == "bfloat16"`. Because
+    `standardize_dtype(None)` returns `floatx()`, that branch fired for
+    *every* call without an explicit `dtype` once `floatx` was
+    `"bfloat16"`, and the subsequent `astype(None)` silently produced
+    float32 on jax and float64 on numpy.
+    """
+
+    # 64-bit dtypes are excluded: jax truncates them to 32-bit unless
+    # x64 is enabled, which is unrelated to this behavior.
+    PRESERVED_DTYPES = ["bool", "uint8", "int32", "float16", "float32"]
+
+    def setUp(self):
+        super().setUp()
+        self._floatx = backend.floatx()
+
+    def tearDown(self):
+        super().tearDown()
+        backend.set_floatx(self._floatx)
+
+    @parameterized.named_parameters(
+        named_product(floatx=["float32", "bfloat16"])
+    )
+    def test_preserves_input_dtype(self, floatx):
+        """An input that already carries a dtype keeps it."""
+        backend.set_floatx(floatx)
+        for dtype in self.PRESERVED_DTYPES:
+            x = np.ones((2,), dtype=dtype)
+            self.assertDType(
+                ops.convert_to_tensor(x),
+                dtype,
+                msg=f"floatx={floatx}, input dtype={dtype}",
+            )
+
+    @parameterized.named_parameters(
+        named_product(floatx=["float32", "bfloat16"])
+    )
+    def test_explicit_bfloat16_is_honored(self, floatx):
+        """An explicit `dtype="bfloat16"` still works, for any input type."""
+        backend.set_floatx(floatx)
+        for x in (
+            np.ones((2,), dtype="int32"),
+            np.ones((2,), dtype="float32"),
+            [1, 2, 3],
+            (1.0, 2.0),
+            1.0,
+        ):
+            self.assertDType(
+                ops.convert_to_tensor(x, dtype="bfloat16"),
+                "bfloat16",
+                msg=f"floatx={floatx}, input={x}",
+            )
+
+    @parameterized.named_parameters(
+        named_product(floatx=["float32", "bfloat16"])
+    )
+    def test_python_ints_do_not_become_floats(self, floatx):
+        """Python ints and int sequences must not turn into floats.
+
+        Unlike a numpy array, a Python list or scalar is not a backend
+        tensor, so it takes the `bfloat16` branch. The numpy backend
+        returned float64 for these until the same guard was applied
+        there. The exact integer width is backend dependent (it follows
+        `floatx` precision via `_lattice_result_type`), so only the kind
+        of the dtype is asserted.
+        """
+        backend.set_floatx(floatx)
+        for x in ([1, 2, 3], 3, (1, 2)):
+            dtype = backend.standardize_dtype(ops.convert_to_tensor(x).dtype)
+            self.assertIn(
+                dtype,
+                dtypes.INT_TYPES,
+                msg=f"floatx={floatx}, input={x}, got {dtype}",
+            )
+        self.assertDType(ops.convert_to_tensor(True), "bool")
+
+    def test_integer_indices_survive_bfloat16_floatx(self):
+        """Downstream ops that require integer inputs keep working."""
+        backend.set_floatx("bfloat16")
+        table = np.arange(12, dtype="float32").reshape(4, 3)
+        indices = np.array([1, 2], dtype="int32")
+
+        self.assertDType(ops.convert_to_tensor(indices), "int32")
+        self.assertAllClose(
+            ops.take(table, indices, axis=0), table[[1, 2]], atol=1e-2
+        )
 
 
 class CoreOpsBehaviorTests(testing.TestCase):
@@ -1845,8 +1924,18 @@ class CoreOpsBehaviorTests(testing.TestCase):
         x = ops.array([1, 2, 3], dtype="float32")
         y = ops.convert_to_numpy(x)
         self.assertIsInstance(y, np.ndarray)
+        self.assertEqual(y.dtype, "float32")
+        self.assertEqual(y.shape, (3,))
         # Test assignment -- should not fail.
         y[0] = 1.0
+
+        x = ops.array(4, dtype="float32")
+        y = ops.convert_to_numpy(x)
+        self.assertIsInstance(y, np.ndarray)
+        self.assertEqual(y.dtype, "float32")
+        self.assertEqual(y.shape, ())
+        # Test assignment -- should not fail.
+        y = 1.0
 
         with self.assertRaises(ValueError):
             ops.convert_to_numpy(KerasTensor((2,)))
@@ -1984,3 +2073,151 @@ class CoreOpsBehaviorTests(testing.TestCase):
         x = KerasTensor((3, 4))
         with self.assertRaisesRegex(ValueError, r"axis 10 is out of bounds"):
             core.unstack(x, axis=10)
+
+
+class WhileLoopCaptureTest(testing.TestCase):
+    def test_while_loop_body_closes_over_outer_tensor(self):
+        # The body reads `captured` from the enclosing scope instead of
+        # receiving it as a loop variable. Backends that lower the loop into a
+        # separate subgraph still have to resolve it; it is constant across
+        # iterations. Run through `predict` so the batch dim is dynamic.
+        class LoopWithCapture(layers.Layer):
+            def call(self, x):
+                captured = x * 2.0
+
+                def cond(i, acc):
+                    return i < 3
+
+                def body(i, acc):
+                    return i + 1, acc + captured
+
+                _, acc = core.while_loop(cond, body, (0, ops.zeros_like(x)))
+                return acc
+
+        x = np.ones((2, 4), dtype="float32")
+        # three iterations, each adding 2 * ones
+        expected = np.full((2, 4), 6.0, dtype="float32")
+
+        self.assertAllClose(LoopWithCapture()(x), expected)
+
+        inputs = input_layer.Input(shape=(4,))
+        model = models.Functional(inputs, LoopWithCapture()(inputs))
+
+        self.assertAllClose(model.predict(x), expected)
+
+
+@pytest.mark.skipif(
+    not backend.SUPPORTS_GRADIENT,
+    reason="Backend does not support gradients.",
+)
+class CoreOpsGradTest(testing.TestCase):
+    def test_grad_single_argument(self):
+        def f(x):
+            return x**2
+
+        x = ops.array([1.0, 2.0, 3.0])
+        self.assertAllClose(ops.grad(f)(x), [2.0, 4.0, 6.0])
+
+    def test_grad_argnums(self):
+        def f(x, y):
+            return x * y
+
+        x = ops.array([1.0, 2.0])
+        y = ops.array([3.0, 4.0])
+        self.assertAllClose(ops.grad(f, argnums=1)(x, y), [1.0, 2.0])
+        dx, dy = ops.grad(f, argnums=(0, 1))(x, y)
+        self.assertAllClose(dx, [3.0, 4.0])
+        self.assertAllClose(dy, [1.0, 2.0])
+        (dy,) = ops.grad(f, argnums=(1,))(x, y)
+        self.assertAllClose(dy, [1.0, 2.0])
+        self.assertAllClose(ops.grad(f, argnums=-1)(x, y), [1.0, 2.0])
+        dx, dy = ops.grad(f, argnums=(-2, -1))(x, y)
+        self.assertAllClose(dx, [3.0, 4.0])
+        self.assertAllClose(dy, [1.0, 2.0])
+
+    def test_grad_keyword_arguments_pass_through(self):
+        def f(x, scale=1.0):
+            return x * scale
+
+        x = ops.array([1.0, 2.0])
+        self.assertAllClose(ops.grad(f)(x, scale=3.0), [3.0, 3.0])
+
+    def test_grad_nested_structure(self):
+        def f(params):
+            return params["a"] ** 2 + params["b"]
+
+        params = {"a": ops.array([1.0, 2.0]), "b": ops.array([3.0])}
+        grads = ops.grad(f)(params)
+        self.assertEqual(set(grads.keys()), {"a", "b"})
+        self.assertAllClose(grads["a"], [2.0, 4.0])
+        self.assertAllClose(grads["b"], [2.0])
+
+    def test_grad_variable_argument(self):
+        def f(x):
+            return x**2
+
+        v = backend.Variable([1.0, 2.0])
+        self.assertAllClose(ops.grad(f)(v), [2.0, 4.0])
+
+    def test_grad_unused_argument_is_zeros(self):
+        def f(x, y):
+            return y
+
+        x = ops.array([1.0, 2.0, 3.0])
+        y = ops.array([1.0])
+        dx, dy = ops.grad(f, argnums=(0, 1))(x, y)
+        self.assertAllClose(dx, [0.0, 0.0, 0.0])
+        self.assertAllClose(dy, [1.0])
+
+    def test_grad_through_layer(self):
+        layer = layers.Dense(2, kernel_initializer="ones", use_bias=False)
+        layer.build((None, 3))
+
+        def f(x):
+            return layer(x)
+
+        x = ops.ones((1, 3))
+        self.assertAllClose(ops.grad(f)(x), [[2.0, 2.0, 2.0]])
+
+    def test_grad_stateless_call(self):
+        layer = layers.Dense(1, kernel_initializer="ones", use_bias=False)
+        layer.build((None, 2))
+
+        def f(trainable_variables, x):
+            return layer.stateless_call(trainable_variables, [], x)[0]
+
+        x = ops.array([[1.0, 2.0]])
+        (dkernel,) = ops.grad(f)(
+            [v.value for v in layer.trainable_variables], x
+        )
+        self.assertAllClose(dkernel, [[1.0], [2.0]])
+
+    def test_grad_non_scalar_output_is_summed(self):
+        x = ops.array([0.0, 1.0])
+        expected = 1.0 - np.tanh(ops.convert_to_numpy(x)) ** 2
+        self.assertAllClose(ops.grad(ops.tanh)(x), expected)
+
+    def test_grad_invalid_argnums(self):
+        def f(x, y):
+            return ops.sum(x * y)
+
+        x = ops.array([1.0])
+        with self.assertRaisesRegex(ValueError, "positional argument 2"):
+            ops.grad(f, argnums=2)(x, x)
+        with self.assertRaisesRegex(ValueError, "positional argument -3"):
+            ops.grad(f, argnums=-3)(x, x)
+        with self.assertRaisesRegex(ValueError, "must not repeat"):
+            ops.grad(f, argnums=(0, 0))(x, x)
+        with self.assertRaisesRegex(ValueError, "must not repeat"):
+            ops.grad(f, argnums=(1, -1))(x, x)
+        with self.assertRaisesRegex(TypeError, "int or a tuple of ints"):
+            ops.grad(f, argnums="0")(x, x)
+
+
+@pytest.mark.skipif(
+    backend.SUPPORTS_GRADIENT, reason="Backend supports gradients."
+)
+class CoreOpsGradUnsupportedTest(testing.TestCase):
+    def test_grad_raises(self):
+        with self.assertRaisesRegex(NotImplementedError, "not supported"):
+            ops.grad(lambda x: x)(ops.array([1.0]))

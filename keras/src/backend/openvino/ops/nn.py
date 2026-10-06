@@ -4,6 +4,7 @@ from openvino import Type
 
 import keras.src.backend.openvino.ops.numpy as onp
 from keras.src import backend
+from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import (
     _get_output_shape_given_tf_padding,
 )
@@ -110,7 +111,13 @@ def log_sigmoid(x):
 
 
 def leaky_relu(x, negative_slope=0.2):
+    # `slope_const` truncates to 0 under an integer element type, which makes
+    # `prelu` below compute `relu`.
     x = get_ov_output(x)
+    keras_dtype = ov_to_keras_type(x.get_element_type())
+    float_dtype = dtypes.promote_to_float_dtype(keras_dtype)
+    if float_dtype != keras_dtype:
+        x = ov_opset.convert(x, OPENVINO_DTYPES[float_dtype]).output(0)
     slope_const = ov_opset.constant(
         negative_slope, x.get_element_type()
     ).output(0)
@@ -130,7 +137,13 @@ def sparse_sigmoid(x):
 
 
 def hard_sigmoid(x):
+    # `alpha` and `beta` below truncate to 0 under an integer element type,
+    # which makes this return all zeros instead of raising.
     x = get_ov_output(x)
+    keras_dtype = ov_to_keras_type(x.get_element_type())
+    float_dtype = dtypes.promote_to_float_dtype(keras_dtype)
+    if float_dtype != keras_dtype:
+        x = ov_opset.convert(x, OPENVINO_DTYPES[float_dtype]).output(0)
     alpha = get_ov_output(1.0 / 6.0, x.get_element_type())
     beta = get_ov_output(0.5, x.get_element_type())
     return OpenVINOKerasTensor(ov_opset.hard_sigmoid(x, alpha, beta).output(0))
@@ -138,6 +151,10 @@ def hard_sigmoid(x):
 
 def hard_silu(x):
     x = get_ov_output(x)
+    keras_dtype = ov_to_keras_type(x.get_element_type())
+    float_dtype = dtypes.promote_to_float_dtype(keras_dtype)
+    if float_dtype != keras_dtype:
+        x = ov_opset.convert(x, OPENVINO_DTYPES[float_dtype]).output(0)
     return OpenVINOKerasTensor(ov_opset.hswish(x).output(0))
 
 
@@ -870,8 +887,12 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
 def binary_crossentropy(target, output, from_logits=False):
     target = get_ov_output(target)
     output = get_ov_output(output)
+    if not output.get_element_type().is_real():
+        output = ov_opset.convert(
+            output, OPENVINO_DTYPES[backend.floatx()]
+        ).output(0)
     if target.get_element_type() != output.get_element_type():
-        output = ov_opset.convert(output, target.get_element_type()).output(0)
+        target = ov_opset.convert(target, output.get_element_type()).output(0)
 
     if target.shape != output.shape:
         raise ValueError(

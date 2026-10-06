@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import layers
@@ -21,7 +22,8 @@ class TernaryDenseTest(testing.TestCase):
         layer = layers.TernaryDense(16)
         x = np.ones((1, 8), dtype="float32")
         layer(x)
-        k = ops.convert_to_numpy(layer._ternary_kernel())
+        k, _ = layer._ternary_kernel()
+        k = ops.convert_to_numpy(k)
         # STE: round to nearest int for fp tolerance
         rounded = set(np.round(k).astype(np.int32).flat)
         self.assertTrue(
@@ -34,7 +36,8 @@ class TernaryDenseTest(testing.TestCase):
         layer = layers.TernaryDense(16, threshold=0.0)
         x = np.ones((1, 8), dtype="float32")
         layer(x)
-        k = ops.convert_to_numpy(layer._ternary_kernel())
+        k, _ = layer._ternary_kernel()
+        k = ops.convert_to_numpy(k)
         self.assertNotIn(0.0, np.unique(k).tolist())
 
     def test_threshold_large_all_zeros(self):
@@ -165,6 +168,53 @@ class TernaryDenseTest(testing.TestCase):
         layer.quantize("ternary")
         self.assertAllClose(ops.convert_to_numpy(layer.kernel_scale), 1.0)
         self.assertAllClose(y_float, layer(x))
+
+    @parameterized.named_parameters(
+        ("mixed_bfloat16", "mixed_bfloat16"), ("bfloat16", "bfloat16")
+    )
+    def test_quantize_bfloat16(self, dtype):
+        # The threshold and the scale come from a float32 mean of the
+        # kernel on every backend, however many weights it has. Every
+        # fourth weight lies just above the float32 threshold, which
+        # rounds up onto it in bfloat16.
+        layer = layers.TernaryDense(64, dtype=dtype)
+        layer.build((None, 256))
+        pattern = np.array([[0.5625], [-0.5625], [0.5625], [0.2412109375]])
+        layer._kernel.assign(np.tile(pattern, (64, 64)))
+        kernel = ops.cast(layer._kernel, "float32")
+        beta = float(ops.convert_to_numpy(ops.mean(ops.abs(kernel))))
+        kernel = ops.convert_to_numpy(kernel)
+        forward = ops.convert_to_numpy(
+            ops.cast(layer._ternary_kernel()[0], "float32")
+        )
+
+        layer.quantize("ternary")
+        scale = ops.convert_to_numpy(ops.cast(layer.kernel_scale, "float32"))
+        self.assertAllClose(scale, beta, rtol=1e-2)
+        expected = np.sign(kernel) * (np.abs(kernel) > 0.5 * beta)
+        codes = ops.convert_to_numpy(ops.cast(layer.kernel, "float32"))
+        self.assertAllClose(codes, expected)
+        # The frozen codes are the forward value of the training kernel.
+        self.assertAllEqual(codes, forward)
+
+    @parameterized.named_parameters(
+        ("float16", "float16"), ("mixed_float16", "mixed_float16")
+    )
+    def test_quantize_small_kernel_float16(self, dtype):
+        # `mean(|W|)` is about 1e-5, so `1 / mean(|W|)` would overflow
+        # float16. The multiplier scale keeps the outputs' magnitude.
+        rng = np.random.RandomState(0)
+        layer = layers.TernaryDense(32, use_bias=False, dtype=dtype)
+        layer.build((None, 64))
+        layer._kernel.assign(rng.randn(64, 32) * 1e-5)
+        kernel = ops.convert_to_numpy(ops.cast(layer._kernel, "float32"))
+        beta = np.mean(np.abs(kernel))
+        codes = np.sign(kernel) * (np.abs(kernel) > 0.5 * beta)
+        x = rng.randn(4, 64).astype("float32")
+        layer.quantize("ternary")
+
+        y = ops.convert_to_numpy(ops.cast(layer(x), "float32"))
+        self.assertAllClose(y, np.matmul(x, codes) * beta, rtol=1e-2, atol=1e-6)
 
     def test_quantized_kernel_is_packed_at_floor(self):
         # input_dim=40 -> ceil(40/5)=8 packed rows; 8 bytes encode 40 trits.

@@ -91,29 +91,63 @@ def add(x1, x2):
     )
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
+    if (
+        x1.shape.rank is None
+        or x2.shape.rank is None
+        or dtype == "string"
+        or isinstance(x1, tf.RaggedTensor)
+        or isinstance(x2, tf.RaggedTensor)
+    ):
+        return tf.add(x1, x2)
+
+    x1_shape = x1.shape.as_list()
+    x1_rank = len(x1_shape)
+    x2_shape = x2.shape.as_list()
+    x2_rank = len(x2_shape)
 
     # Special case of `tf.add`: `tf.nn.bias_add`
     # `BiasAdd` can be fused with `MatMul` and `Conv*` kernels
     # Expecting `x1` to be `inputs` and `x2` to be `bias` (no swapping)
-    x2_squeeze_shape = [d for d in x2.shape.as_list() if d is None or d > 1]
-    if (
-        # `x2` looks like bias (can be squeezed to vector)
-        1 == len(x2_squeeze_shape)
-        # `x1` looks like input tensor (rank >= 2)
-        and len(x1.shape) > 1
-        # `x2` non-squeezable dimension defined
-        and x2_squeeze_shape[0] is not None
-        # `x2` non-squeezable dimension match `x1` channel dimension
-        and x2_squeeze_shape[0]
-        in {x1.shape.as_list()[1], x1.shape.as_list()[-1]}
-    ):
-        if x1.shape[-1] == x2_squeeze_shape[0]:
-            data_format = "NHWC"
+    if x1_rank > 1 and x2_rank == 1:
+        # Detect the dense layer case (`MatMul` + `BiasAdd` fusion)
+        if x2_shape[0] is not None and x2_shape[0] == x1_shape[-1]:
+            return tf.nn.bias_add(x1, x2)
+    elif x1_rank >= 3 and x1_rank == x2_rank:
+        # Detect the conv layer case (`Conv` + `BiasAdd` fusion)
+        channels_idx = None
+        dim_one_count = 0
+        for i, d in enumerate(x2_shape):
+            if d == 1:
+                dim_one_count += 1
+            else:
+                channels_idx = i
+
+        if dim_one_count == x2_rank - 1:
+            # channels_idx points to the one dimension that is not 1.
+            channels_dim = x2_shape[channels_idx]
+        elif dim_one_count == x2_rank:
+            # All dimensions are 1, solve the ambiguity by checking x1 shape.
+            channels_dim = 1
+            if x1_shape[-1] == 1:
+                channels_idx = x1_rank - 1
+            elif x1_shape[1] == 1:
+                channels_idx = 1
         else:
-            data_format = "NCHW"
-        if len(x2.shape) > 1:
-            x2 = tf.squeeze(x2)
-        return tf.nn.bias_add(x1, x2, data_format=data_format)
+            # Note: channels_idx is bogus and unused.
+            channels_dim = None
+
+        if (
+            channels_dim is not None
+            and channels_idx in (1, x2_rank - 1)
+            and x1_shape[channels_idx] == channels_dim
+        ):
+            x2 = tf.squeeze(
+                x2, axis=[i for i in range(x2_rank) if i != channels_idx]
+            )
+            if channels_idx == 1:
+                return tf.nn.bias_add(x1, x2, data_format="NCHW")
+            elif channels_idx == x2_rank - 1:
+                return tf.nn.bias_add(x1, x2, data_format="NHWC")
 
     return tf.add(x1, x2)
 
@@ -699,18 +733,18 @@ def mean(x, axis=None, keepdims=False):
                 tf.gather(x.dense_shape, gather_indices, axis=0),
             )
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    compute_dtype = dtypes.result_type(x.dtype, "float32")
-    # `tf.reduce_mean` does not handle low precision (e.g., float16) overflow
-    # correctly, so we compute with float32 and cast back to the original type.
-    if "int" in ori_dtype or ori_dtype == "bool":
-        result_dtype = compute_dtype
-    else:
-        result_dtype = ori_dtype
-    output = tf.reduce_mean(
-        tf.cast(x, compute_dtype), axis=axis, keepdims=keepdims
-    )
-    return tf.cast(output, result_dtype)
+    dtype = standardize_dtype(x.dtype)
+    if dtype == "float16":
+        # The CPU implementation of reduce_mean for float16 is broken, but the
+        # XLA implementation is correct.
+        @tf.function(jit_compile=True)
+        def xla_reduce_mean(t):
+            return tf.reduce_mean(t, axis=axis, keepdims=keepdims)
+
+        return xla_reduce_mean(x)
+    if "int" in dtype or dtype == "bool":
+        x = tf.cast(x, config.floatx())
+    return tf.reduce_mean(x, axis=axis, keepdims=keepdims)
 
 
 def max(x, axis=None, keepdims=False, initial=None):
@@ -730,7 +764,7 @@ def max(x, axis=None, keepdims=False, initial=None):
     # TensorFlow returns -inf by default for an empty list, but for consistency
     # with other backends and the numpy API we want to throw in this case.
     if tf.executing_eagerly():
-        size_x = size(x)
+        size_x = tf.size(x)
         tf.assert_greater(
             size_x,
             tf.constant(0, dtype=size_x.dtype),
@@ -2251,7 +2285,7 @@ def min(x, axis=None, keepdims=False, initial=None):
     # TensorFlow returns inf by default for an empty list, but for consistency
     # with other backends and the numpy API we want to throw in this case.
     if tf.executing_eagerly():
-        size_x = size(x)
+        size_x = tf.size(x)
         tf.assert_greater(
             size_x,
             tf.constant(0, dtype=size_x.dtype),
@@ -2990,6 +3024,9 @@ def sinh(x):
 
 def size(x):
     x = convert_to_tensor(x)
+    # A dynamic shape has no static size, so return a tensor instead.
+    if x.shape.is_fully_defined():
+        return x.shape.num_elements()
     return tf.size(x)
 
 
