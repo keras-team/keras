@@ -107,7 +107,6 @@ def np_avgpool3d(x, pool_size, strides, padding, data_format):
         npad[1] = (0, h_padding)
         npad[2] = (0, w_padding)
         npad[3] = (0, d_padding)
-        # Use "edge" padding to match np_avgpool1d and np_avgpool2d.
         x = np.pad(x, pad_width=npad, mode="edge")
 
     n_batch, h_x, w_x, d_x, ch_x = x.shape
