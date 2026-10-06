@@ -111,6 +111,11 @@ def log_sigmoid(x):
 
 def leaky_relu(x, negative_slope=0.2):
     x = convert_to_tensor(x)
+    # `negative_slope` truncates to 0 under an integer dtype, which leaves
+    # `maximum(x, 0)`, i.e. `relu`.
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return np.maximum(x, np.array(negative_slope, x.dtype) * x)
 
 
@@ -894,11 +899,8 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     if from_logits:
         log_prob = log_softmax(output, axis=axis)
     else:
-        epsilon_ = convert_to_tensor(backend.epsilon(), dtype=output.dtype)
-        output = output / np.maximum(
-            np.sum(output, axis, keepdims=True), epsilon_
-        )
-        output = np.clip(output, epsilon_, 1.0 - epsilon_)
+        output = output / np.sum(output, axis, keepdims=True)
+        output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
         log_prob = np.log(output)
     return -np.sum(target * log_prob, axis=axis)
 
@@ -924,11 +926,8 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     if from_logits:
         log_prob = log_softmax(output, axis=axis)
     else:
-        epsilon_ = convert_to_tensor(backend.epsilon(), dtype=output.dtype)
-        output = output / np.maximum(
-            np.sum(output, axis, keepdims=True), epsilon_
-        )
-        output = np.clip(output, epsilon_, 1.0 - epsilon_)
+        output = output / np.sum(output, axis, keepdims=True)
+        output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
         log_prob = np.log(output)
     target = one_hot(target, output.shape[axis], axis=axis)
     return -np.sum(target * log_prob, axis=axis)

@@ -78,12 +78,14 @@ class Int4LookupHandlers:
             # `g_idx` is stored as `float32` because TF has no GPU kernel for
             # int32 resource variables (would pin the variable to CPU and
             # break jit_compile on GPU); consumers cast to int32 on-device.
+            # Not autocast: bfloat16 holds integers exactly only up to 256.
             layer.g_idx = layer.add_weight(
                 name="g_idx",
                 shape=(output_dim,),
                 initializer=idx_initializer,
                 dtype="float32",
                 trainable=False,
+                autocast=False,
             )
 
         layer._orig_output_dim = output_dim

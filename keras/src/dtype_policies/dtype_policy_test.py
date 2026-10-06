@@ -552,11 +552,21 @@ class DTypePolicyGlobalFunctionsTest(test_case.TestCase):
         policy = dtype_policy()
         self.assertEqual(policy.name, "mixed_float16")
 
-    def test_set_dtype_policy_valid_string_quantized(self):
-        """Test set_dtype_policy with a valid string."""
-        set_dtype_policy("int8_from_mixed_bfloat16")
-        policy = dtype_policy()
-        self.assertEqual(policy.name, "int8_from_mixed_bfloat16")
+    @parameterized.named_parameters(
+        ("int8", "int8_from_mixed_bfloat16"),
+        ("int4", "int4/32_from_float32"),
+        ("float8", "float8_from_float32"),
+        ("gptq", "gptq/4/128_from_float32"),
+        ("object", QuantizedDTypePolicy("int8", "mixed_bfloat16")),
+    )
+    def test_set_dtype_policy_rejects_quantized_policy(self, policy):
+        set_dtype_policy("mixed_float16")
+        with self.assertRaisesRegex(
+            ValueError, "The global dtype policy cannot be quantized"
+        ):
+            set_dtype_policy(policy)
+        # The global policy is unchanged.
+        self.assertEqual(dtype_policy().name, "mixed_float16")
 
     def test_set_dtype_policy_valid_policy(self):
         """Test set_dtype_policy with a valid DTypePolicy object."""
@@ -564,15 +574,6 @@ class DTypePolicyGlobalFunctionsTest(test_case.TestCase):
         set_dtype_policy(policy_obj)
         policy = dtype_policy()
         self.assertEqual(policy.name, "mixed_float16")
-
-    def test_set_dtype_policy_valid_policy_quantized(self):
-        """Test set_dtype_policy with a valid QuantizedDTypePolicy object."""
-        policy_obj = QuantizedDTypePolicy(
-            mode="int8", source_name="mixed_bfloat16"
-        )
-        set_dtype_policy(policy_obj)
-        policy = dtype_policy()
-        self.assertEqual(policy.name, "int8_from_mixed_bfloat16")
 
     def test_set_dtype_policy_invalid(self):
         """Test set_dtype_policy with an invalid input."""

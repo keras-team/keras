@@ -102,7 +102,12 @@ def log_sigmoid(x):
 
 
 def leaky_relu(x, negative_slope=0.2):
+    # JAX promotes integers on its own, but to `float32` rather than to
+    # `floatx`, which would disagree with `compute_output_spec`.
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return jnn.leaky_relu(x, negative_slope=negative_slope)
 
 
@@ -991,11 +996,8 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     if from_logits:
         log_prob = jax.nn.log_softmax(output, axis=axis)
     else:
-        epsilon_ = convert_to_tensor(backend.epsilon(), dtype=output.dtype)
-        output = output / jnp.maximum(
-            jnp.sum(output, axis, keepdims=True), epsilon_
-        )
-        output = jnp.clip(output, epsilon_, 1.0 - epsilon_)
+        output = output / jnp.sum(output, axis, keepdims=True)
+        output = jnp.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
         log_prob = jnp.log(output)
     return -jnp.sum(target * log_prob, axis=axis)
 
@@ -1021,11 +1023,8 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     if from_logits:
         log_prob = jax.nn.log_softmax(output, axis=axis)
     else:
-        epsilon_ = convert_to_tensor(backend.epsilon(), dtype=output.dtype)
-        output = output / jnp.maximum(
-            jnp.sum(output, axis, keepdims=True), epsilon_
-        )
-        output = jnp.clip(output, epsilon_, 1.0 - epsilon_)
+        output = output / jnp.sum(output, axis, keepdims=True)
+        output = jnp.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
         log_prob = jnp.log(output)
     target = jnn.one_hot(target, output.shape[axis], axis=axis)
     return -jnp.sum(target * log_prob, axis=axis)

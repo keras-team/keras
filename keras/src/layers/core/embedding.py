@@ -160,7 +160,7 @@ class Embedding(Layer):
             )
         self.built = True
         if self.lora_rank:
-            self.enable_lora(self.lora_rank)
+            self.enable_lora(self.lora_rank, lora_alpha=self.lora_alpha)
 
     @property
     def embeddings(self):

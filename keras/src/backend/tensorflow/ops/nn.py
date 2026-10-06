@@ -104,6 +104,10 @@ def log_sigmoid(x):
 
 
 def leaky_relu(x, negative_slope=0.2):
+    x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tf.nn.leaky_relu(x, alpha=negative_slope)
 
 
@@ -1453,10 +1457,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     # each class for every sample adds up to 1
     # This is needed to ensure that the cross entropy is
     # computed correctly.
-    epsilon_ = tf.constant(backend.epsilon(), dtype=output.dtype)
-    output = output / tf.maximum(
-        tf.reduce_sum(output, axis, keepdims=True), epsilon_
-    )
+    output = output / tf.reduce_sum(output, axis, keepdims=True)
 
     # Compute cross entropy from probabilities.
     output = tf.clip_by_value(

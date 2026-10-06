@@ -1669,26 +1669,8 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         out = kimage.HSVToRGB()(x)
         self.assertAllClose(out, ref_out.numpy())
 
-    @parameterized.named_parameters(
-        named_product(
-            interpolation=[
-                "bilinear",
-                "nearest",
-                "lanczos3",
-                "lanczos5",
-                "bicubic",
-            ],
-            antialias=[True, False],
-        )
-    )
-    def test_resize(self, interpolation, antialias):
+    def _skip_resize_if_unsupported(self, interpolation, antialias):
         if backend.backend() == "torch":
-            if "lanczos" in interpolation:
-                self.skipTest(
-                    "Resizing with Lanczos interpolation is "
-                    "not supported by the PyTorch backend. "
-                    f"Received: interpolation={interpolation}."
-                )
             if interpolation == "bicubic" and antialias is False:
                 self.skipTest(
                     "Resizing with Bicubic interpolation in "
@@ -1705,16 +1687,52 @@ class ImageOpsCorrectnessTest(testing.TestCase):
                     "backend, so this parity test is skipped. "
                     f"Received: interpolation={interpolation}."
                 )
-        # Test channels_last
-        x = np.random.random((30, 30, 3)).astype("float32") * 255
-        out = kimage.resize(
-            x,
-            size=(15, 15),
-            interpolation=interpolation,
-            antialias=antialias,
+
+    @parameterized.named_parameters(
+        named_product(
+            interpolation=[
+                "bilinear",
+                "nearest",
+                "lanczos3",
+                "lanczos5",
+                "bicubic",
+            ],
+            antialias=[True, False],
+            crop_pad_mode=["none", "crop", "pad"],
         )
+    )
+    def test_resize(self, interpolation, antialias, crop_pad_mode):
+        self._skip_resize_if_unsupported(interpolation, antialias)
+
+        crop_to_aspect_ratio = crop_pad_mode == "crop"
+        pad_to_aspect_ratio = crop_pad_mode == "pad"
+        kwargs = {
+            "size": (15, 15),
+            "interpolation": interpolation,
+            "antialias": antialias,
+            "crop_to_aspect_ratio": crop_to_aspect_ratio,
+            "pad_to_aspect_ratio": pad_to_aspect_ratio,
+        }
+
+        def get_ref_x(x):
+            # Assumes channels_last
+            if crop_pad_mode == "crop":
+                if x.ndim == 3:
+                    return x[15:45, :, :]
+                return x[:, 15:45, :, :]
+            elif crop_pad_mode == "pad":
+                pad_width = ((0, 0), (15, 15), (0, 0))
+                if x.ndim == 4:
+                    pad_width = ((0, 0),) + pad_width
+                return np.pad(x, pad_width, mode="constant")
+            return x
+
+        # Test channels_last
+        x = np.random.random((60, 30, 3)).astype("float32") * 255
+        out = kimage.resize(x, **kwargs)
+        ref_x = get_ref_x(x)
         ref_out = tf.image.resize(
-            x,
+            ref_x,
             size=(15, 15),
             method=interpolation,
             antialias=antialias,
@@ -1722,15 +1740,11 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(out, ref_out, atol=1e-4)
 
-        x = np.random.random((2, 30, 30, 3)).astype("float32") * 255
-        out = kimage.resize(
-            x,
-            size=(15, 15),
-            interpolation=interpolation,
-            antialias=antialias,
-        )
+        x = np.random.random((2, 60, 30, 3)).astype("float32") * 255
+        out = kimage.resize(x, **kwargs)
+        ref_x = get_ref_x(x)
         ref_out = tf.image.resize(
-            x,
+            ref_x,
             size=(15, 15),
             method=interpolation,
             antialias=antialias,
@@ -1740,15 +1754,12 @@ class ImageOpsCorrectnessTest(testing.TestCase):
 
         # Test channels_first
         backend.set_image_data_format("channels_first")
-        x = np.random.random((3, 30, 30)).astype("float32") * 255
-        out = kimage.resize(
-            x,
-            size=(15, 15),
-            interpolation=interpolation,
-            antialias=antialias,
-        )
+        x = np.random.random((3, 60, 30)).astype("float32") * 255
+        out = kimage.resize(x, **kwargs)
+        x_cl = np.transpose(x, [1, 2, 0])
+        ref_x = get_ref_x(x_cl)
         ref_out = tf.image.resize(
-            np.transpose(x, [1, 2, 0]),
+            ref_x,
             size=(15, 15),
             method=interpolation,
             antialias=antialias,
@@ -1757,15 +1768,12 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(out, ref_out, atol=1e-4)
 
-        x = np.random.random((2, 3, 30, 30)).astype("float32") * 255
-        out = kimage.resize(
-            x,
-            size=(15, 15),
-            interpolation=interpolation,
-            antialias=antialias,
-        )
+        x = np.random.random((2, 3, 60, 30)).astype("float32") * 255
+        out = kimage.resize(x, **kwargs)
+        x_cl = np.transpose(x, [0, 2, 3, 1])
+        ref_x = get_ref_x(x_cl)
         ref_out = tf.image.resize(
-            np.transpose(x, [0, 2, 3, 1]),
+            ref_x,
             size=(15, 15),
             method=interpolation,
             antialias=antialias,
@@ -1775,12 +1783,68 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(out, ref_out, atol=1e-4)
 
         # Test class
-        out = kimage.Resize(
-            size=(15, 15),
-            interpolation=interpolation,
-            antialias=antialias,
-        )(x)
+        out = kimage.Resize(**kwargs)(x)
         self.assertAllClose(out, ref_out, atol=1e-4)
+
+    @parameterized.named_parameters(
+        named_product(
+            interpolation=[
+                "bilinear",
+                "nearest",
+                "lanczos3",
+                "lanczos5",
+                "bicubic",
+            ],
+            antialias=[True, False],
+            dtype=["float64", "uint8", "int8", "int16"],
+        )
+    )
+    def test_resize_dtype(self, interpolation, antialias, dtype):
+        self._skip_resize_if_unsupported(interpolation, antialias)
+
+        if dtype == "float64":
+            x = np.random.random((2, 30, 30, 3)).astype("float64") * 255
+            out = kimage.resize(
+                x,
+                size=(15, 15),
+                interpolation=interpolation,
+                antialias=antialias,
+            )
+            expected = "float64"
+            if backend.backend() == "jax" and not jax.config.jax_enable_x64:
+                expected = "float32"
+            self.assertEqual(backend.standardize_dtype(out.dtype), expected)
+
+            ref_out = tf.image.resize(
+                x,
+                size=(15, 15),
+                method=interpolation,
+                antialias=antialias,
+            )
+            self.assertAllClose(out, ref_out, atol=1e-4)
+        else:
+            dtype_info = np.iinfo(dtype)
+            x = np.full((1, 30, 30, 3), dtype_info.min, dtype=dtype)
+            x[:, 15:, 15:, :] = dtype_info.max
+            out = kimage.resize(
+                x,
+                size=(45, 45),
+                interpolation=interpolation,
+                antialias=antialias,
+            )
+            self.assertEqual(backend.standardize_dtype(out.dtype), dtype)
+
+            ref_x = x.astype("float32")
+            ref_out = tf.image.resize(
+                ref_x,
+                size=(45, 45),
+                method=interpolation,
+                antialias=antialias,
+            )
+            ref_out = np.clip(
+                np.round(ref_out), dtype_info.min, dtype_info.max
+            ).astype(dtype)
+            self.assertAllClose(out, ref_out, atol=2)
 
     def test_resize_uint8_round(self):
         x = np.array([0, 1, 254, 255], dtype="uint8").reshape(1, 2, 2, 1)

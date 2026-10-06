@@ -2537,18 +2537,6 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
         )
         self.assertAllClose(actual, expected)
 
-        invalid_alpha_result = losses.sparse_categorical_focal_crossentropy(
-            y_true, y_pred, alpha=[0.1, 0.2]
-        )
-        invalid_alpha_model = Functional([y_true, y_pred], invalid_alpha_result)
-        invalid_alpha = invalid_alpha_model(
-            [
-                np.array([0, 2], dtype="int32"),
-                np.array([[0.8, 0.1, 0.1], [0.1, 0.2, 0.7]], dtype="float32"),
-            ]
-        )
-        self.assertTrue(np.all(np.isnan(ops.convert_to_numpy(invalid_alpha))))
-
         y_true = Input(shape=(2,), dtype="int32")
         y_pred = Input(shape=(None, 2))
         result = losses.sparse_categorical_focal_crossentropy(

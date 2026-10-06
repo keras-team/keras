@@ -193,11 +193,15 @@ class EinsumDense(Layer):
             )
 
         if self.quantization_mode is not None:
-            self.quantized_build(
-                kernel_shape,
-                mode=self.quantization_mode,
-                config=self.quantization_config,
-            )
+            # A strategy that owns the weight storage creates the kernel. A
+            # strategy that keeps the float kernel (float8) adds its
+            # variables after the float weights, as `quantize` does.
+            if self._strategy_owns_weight_storage():
+                self.quantized_build(
+                    kernel_shape,
+                    mode=self.quantization_mode,
+                    config=self.quantization_config,
+                )
         if not self._strategy_owns_weight_storage():
             self._kernel = self.add_weight(
                 name="kernel",
@@ -220,6 +224,12 @@ class EinsumDense(Layer):
             )
         else:
             self.bias = None
+        if self.quantization_mode and not self._strategy_owns_weight_storage():
+            self.quantized_build(
+                kernel_shape,
+                mode=self.quantization_mode,
+                config=self.quantization_config,
+            )
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank, lora_alpha=self.lora_alpha)
@@ -1158,7 +1168,8 @@ def _analyze_quantization_info(equation, input_shape):
             weight_transpose_axes.append(index_weight)
     # Postprocess the information:
     # 1. Add dummy axes (1) to transpose_axes
-    # 2. Add axis to squeeze_axes if 1. failed
+    # 2. Add axis to squeeze_axes if 1. failed. The axis then stays at its
+    #    own position, so the squeeze removes that size-1 axis.
     input_squeeze_axes = []
     weight_squeeze_axes = []
     for ori_index in input_reduced_axes:
@@ -1166,12 +1177,14 @@ def _analyze_quantization_info(equation, input_shape):
             index = input_expand_axes.pop(0)
         except IndexError:
             input_squeeze_axes.append(ori_index)
+            index = ori_index
         input_transpose_axes.insert(index, ori_index)
     for ori_index in weight_reduced_axes:
         try:
             index = weight_expand_axes.pop(0)
         except IndexError:
             weight_squeeze_axes.append(ori_index)
+            index = ori_index
         weight_transpose_axes.insert(index, ori_index)
     # Prepare equation for `einsum_with_inputs_gradient`
     custom_gradient_equation = f"{output_spec},{weight_spec}->{input_spec}"
