@@ -44,6 +44,11 @@ def sigmoid(x):
 
 def sparse_sigmoid(x):
     x = convert_to_tensor(x)
+    # `0.5` below truncates to 0 under an integer dtype, which drops the
+    # midpoint so every input in (-1, 1) maps to 0.
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return np.where(
         x <= -1,
         np.array(0.0, x.dtype),

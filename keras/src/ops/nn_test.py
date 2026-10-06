@@ -1598,6 +1598,12 @@ class NNOpsCorrectnessTest(testing.TestCase):
     def test_sparse_sigmoid(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(knn.sparse_sigmoid(x), [0.0, 0.5, 1.0, 1.0, 1.0])
+        # Integer input is promoted to float. The numpy backend previously
+        # truncated the `0.5` midpoint to 0 under an integer dtype.
+        x_int = np.array([-1, 0, 1, 2, 3], dtype="int32")
+        self.assertAllClose(
+            knn.sparse_sigmoid(x_int), [0.0, 0.5, 1.0, 1.0, 1.0]
+        )
 
     def test_softplus(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
@@ -3565,7 +3571,9 @@ class NNOpsDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @parameterized.named_parameters(
+        named_product(dtype=FLOAT_DTYPES + INT_DTYPES + ["bool"])
+    )
     def test_sparse_sigmoid(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
