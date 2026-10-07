@@ -6097,7 +6097,9 @@ def _nancumsum(x, axis=None, dtype=None):
         return backend.ops.numpy.nancumsum(x, axis=axis, dtype=dtype)
     x = backend.ops.convert_to_tensor(x)
     if backend.is_float_dtype(x.dtype):
-        x = backend.ops.numpy.where(backend.ops.numpy.isnan(x), 0, x)
+        x = backend.ops.numpy.where(
+            backend.ops.numpy.isnan(x), backend.ops.cast(0, x.dtype), x
+        )
     return backend.ops.numpy.cumsum(x, axis=axis, dtype=dtype)
 
 
