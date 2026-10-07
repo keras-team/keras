@@ -2311,7 +2311,7 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
 
     def test_ndim(self):
         x = KerasTensor((None, 3))
-        self.assertEqual(knp.ndim(x).shape, (2,))
+        self.assertEqual(knp.ndim(x), 2)
 
     def test_nonzero(self):
         x = KerasTensor((None, 5, 6))
@@ -3167,7 +3167,7 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
 
     def test_ndim(self):
         x = KerasTensor((2, 3))
-        self.assertEqual(knp.ndim(x).shape, (2,))
+        self.assertEqual(knp.ndim(x), 2)
 
     def test_ones_like(self):
         x = KerasTensor((2, 3))
@@ -6869,7 +6869,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_ndim(self):
         x = np.array([1, 2, 3])
         self.assertEqual(knp.ndim(x), np.ndim(x))
-        self.assertEqual(knp.Ndim()(x), np.ndim(x))
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
@@ -6881,11 +6880,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         # Rank 2
         ragged_2d = tf.ragged.constant([[1, 2, 3], [4]])
         self.assertEqual(knp.ndim(ragged_2d), 2)
-        self.assertEqual(knp.Ndim()(ragged_2d), 2)
         # Rank 0
         ragged_scalar = tf.ragged.constant(1)
         self.assertEqual(knp.ndim(ragged_scalar), 0)
-        self.assertEqual(knp.Ndim()(ragged_scalar), 0)
         # Rank 3
         ragged_3d = tf.ragged.constant([[[1], [2, 3]], [[4, 5, 6]]])
         self.assertEqual(knp.ndim(ragged_3d), 3)
