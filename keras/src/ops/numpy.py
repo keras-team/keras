@@ -6238,9 +6238,7 @@ class Nanmean(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.ops.numpy.nanmean(
-            x, axis=self.axis, keepdims=self.keepdims
-        )
+        return _nanmean(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
         dtype = dtypes.result_type(x.dtype, float)
@@ -6283,8 +6281,28 @@ def nanmean(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Nanmean(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return _nanmean(x, axis=axis, keepdims=keepdims)
 
-    return backend.ops.numpy.nanmean(x, axis=axis, keepdims=keepdims)
+
+def _nanmean(x, axis=None, keepdims=False):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "nanmean"
+    ):
+        return backend.ops.numpy.nanmean(x, axis=axis, keepdims=keepdims)
+    x = backend.ops.convert_to_tensor(x)
+    dtype = dtypes.result_type(x.dtype, float)
+    x = backend.ops.cast(x, dtype)
+    if axis == () or axis == []:
+        return x
+    total = _nansum(x, axis=axis, keepdims=keepdims)
+    count = backend.ops.numpy.sum(
+        backend.ops.cast(
+            backend.ops.numpy.logical_not(backend.ops.numpy.isnan(x)), dtype
+        ),
+        axis=axis,
+        keepdims=keepdims,
+    )
+    return backend.ops.numpy.divide(total, count)
 
 
 class Nanmedian(Operation):
