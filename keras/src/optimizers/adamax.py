@@ -1,4 +1,4 @@
-from keras.src import ops
+from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.optimizers import optimizer
 
@@ -104,27 +104,37 @@ class Adamax(optimizer.Optimizer):
 
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
-        lr = ops.cast(learning_rate, variable.dtype)
-        gradient = ops.cast(gradient, variable.dtype)
-        local_step = ops.cast(self.iterations + 1, variable.dtype)
-        beta_1_power = ops.power(
-            ops.cast(self.beta_1, variable.dtype), local_step
+        lr = backend.ops.cast(learning_rate, variable.dtype)
+        gradient = backend.ops.cast(gradient, variable.dtype)
+        local_step = backend.ops.cast(self.iterations + 1, variable.dtype)
+        beta_1_power = backend.ops.numpy.power(
+            backend.ops.cast(self.beta_1, variable.dtype), local_step
         )
 
         m = self._m[self._get_variable_index(variable)]
         u = self._u[self._get_variable_index(variable)]
 
         self.assign_add(
-            m, ops.multiply(ops.subtract(gradient, m), (1 - self.beta_1))
+            m,
+            backend.ops.numpy.multiply(
+                backend.ops.numpy.subtract(gradient, m), (1 - self.beta_1)
+            ),
         )
         self.assign(
-            u, ops.maximum(ops.multiply(self.beta_2, u), ops.abs(gradient))
+            u,
+            backend.ops.numpy.maximum(
+                backend.ops.numpy.multiply(self.beta_2, u),
+                backend.ops.numpy.abs(gradient),
+            ),
         )
         self.assign_sub(
             variable,
-            ops.divide(
-                ops.multiply(lr, m),
-                ops.multiply((1 - beta_1_power), ops.add(u, self.epsilon)),
+            backend.ops.numpy.divide(
+                backend.ops.numpy.multiply(lr, m),
+                backend.ops.numpy.multiply(
+                    (1 - beta_1_power),
+                    backend.ops.numpy.add(u, self.epsilon),
+                ),
             ),
         )
 

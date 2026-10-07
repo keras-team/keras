@@ -169,8 +169,6 @@ class LayerTest(testing.TestCase):
             {"input_shape": None, "mode": None},
         ),
         ("quantize", "quantize", {"mode": "int8"}),
-        ("_int8_call", "_int8_call", None),
-        ("_float8_call", "_float8_call", None),
     )
     def test_not_implemented_error(self, method, args):
         layer = layers.Layer()
@@ -248,8 +246,8 @@ class LayerTest(testing.TestCase):
             layer.dtype_policy = "gptq/4/-1_from_float32"
 
     @pytest.mark.skipif(
-        backend.backend() in ("openvino", "numpy"),
-        reason="remat not supported on OpenVino and Numpy",
+        not backend.SUPPORTS_GRADIENT,
+        reason="remat requires gradient support",
     )
     def test_functional_model_with_remat(self):
         mock_remat = MockRemat()

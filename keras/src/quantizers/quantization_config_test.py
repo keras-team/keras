@@ -1,4 +1,7 @@
+import json
 import os
+
+import numpy as np
 
 from keras.src import layers
 from keras.src import models
@@ -225,3 +228,44 @@ class QuantizationConfigTest(testing.TestCase):
         # a contradictory arguments error
         with self.assertRaisesRegex(ValueError, "Contradictory arguments"):
             validate_and_resolve_config("awq", Int8QuantizationConfig())
+
+
+class Int4ConfigListValueRangeTest(testing.TestCase):
+    """JSON stores the `value_range` tuple of a weight quantizer as a list."""
+
+    def test_list_value_range(self):
+        q = AbsMaxQuantizer(axis=0, value_range=[-8, 7])
+        config = Int4QuantizationConfig(weight_quantizer=q, block_size=None)
+        self.assertIs(config.weight_quantizer, q)
+
+    def test_config_json_round_trip(self):
+        config = Int4QuantizationConfig(
+            weight_quantizer=AbsMaxQuantizer(axis=0, value_range=(-8, 7)),
+            block_size=None,
+        )
+        restored = Int4QuantizationConfig.from_config(
+            json.loads(json.dumps(config.get_config()))
+        )
+        self.assertIsNone(restored.block_size)
+        self.assertAllEqual(restored.weight_quantizer.value_range, (-8, 7))
+
+    def test_per_channel_custom_quantizer_save_and_load(self):
+        config = Int4QuantizationConfig(
+            weight_quantizer=AbsMaxQuantizer(axis=0, value_range=(-8, 7)),
+            block_size=-1,
+        )
+        inputs = layers.Input((8,))
+        model = models.Model(inputs, layers.Dense(6)(inputs))
+        model.quantize(config=config)
+        x = np.random.default_rng(0).normal(size=(2, 8)).astype("float32")
+        y = model(x)
+
+        filepath = os.path.join(self.get_temp_dir(), "int4_model.keras")
+        model.save(filepath)
+        loaded_model = saving.load_model(filepath)
+
+        loaded_config = loaded_model.layers[1].quantization_config
+        self.assertIsInstance(loaded_config, Int4QuantizationConfig)
+        self.assertEqual(loaded_config.block_size, -1)
+        self.assertAllEqual(loaded_config.weight_quantizer.value_range, (-8, 7))
+        self.assertAllEqual(loaded_model(x), y)

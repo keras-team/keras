@@ -2,6 +2,7 @@ name: Close inactive issues
 on:
   schedule:
     - cron: "30 1 * * *"
+permissions: {}
 jobs:
   close-issues:
     # Don't do this in forks
@@ -10,7 +11,7 @@ jobs:
     permissions:
       issues: write
       pull-requests: write
-      actions: write
+      actions: write # actions/stale persists its state in the Actions cache.
     steps:
       - name: Awaiting response issues
         uses: actions/stale@4391f3da665fdf50b6810c1a66712fb9ba21aa93 # v11.0.0

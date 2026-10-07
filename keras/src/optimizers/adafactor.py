@@ -1,5 +1,4 @@
 from keras.src import backend
-from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.optimizers import optimizer
 
@@ -138,38 +137,50 @@ class Adafactor(optimizer.Optimizer):
                 )
 
     def _rms(self, x):
-        return ops.sqrt(ops.mean(ops.square(x)))
+        return backend.ops.numpy.sqrt(
+            backend.ops.numpy.mean(backend.ops.numpy.square(x))
+        )
 
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
 
-        lr = ops.cast(learning_rate, variable.dtype)
-        gradient = ops.cast(gradient, variable.dtype)
-        epsilon_2 = ops.cast(self.epsilon_2, variable.dtype)
-        one = ops.cast(1.0, variable.dtype)
-        local_step = ops.cast(self.iterations + 1, variable.dtype)
+        lr = backend.ops.cast(learning_rate, variable.dtype)
+        gradient = backend.ops.cast(gradient, variable.dtype)
+        epsilon_2 = backend.ops.cast(self.epsilon_2, variable.dtype)
+        one = backend.ops.cast(1.0, variable.dtype)
+        local_step = backend.ops.cast(self.iterations + 1, variable.dtype)
         if not callable(self._learning_rate) and self.relative_step:
-            lr = ops.minimum(lr, 1 / ops.sqrt(local_step))
+            lr = backend.ops.numpy.minimum(
+                lr, 1 / backend.ops.numpy.sqrt(local_step)
+            )
 
         r = self._r[self._get_variable_index(variable)]
         c = self._c[self._get_variable_index(variable)]
         v = self._v[self._get_variable_index(variable)]
 
-        rho_t = ops.minimum(lr, 1 / ops.sqrt(local_step))
-        alpha_t = ops.maximum(epsilon_2, self._rms(variable)) * rho_t
-        regulated_grad_square = ops.add(ops.square(gradient), self.epsilon_1)
-        beta_2_t = ops.subtract(1, ops.power(local_step, self.beta_2_decay))
+        rho_t = backend.ops.numpy.minimum(
+            lr, 1 / backend.ops.numpy.sqrt(local_step)
+        )
+        alpha_t = (
+            backend.ops.numpy.maximum(epsilon_2, self._rms(variable)) * rho_t
+        )
+        regulated_grad_square = backend.ops.numpy.add(
+            backend.ops.numpy.square(gradient), self.epsilon_1
+        )
+        beta_2_t = backend.ops.numpy.subtract(
+            1, backend.ops.numpy.power(local_step, self.beta_2_decay)
+        )
 
         if len(variable.shape) >= 2:
             # `r` deletes the last dimension of gradient, so it is of shape
             # `gradient.shape[:-1]`.
             self.assign(
                 r,
-                ops.add(
-                    ops.multiply(beta_2_t, r),
-                    ops.multiply(
-                        ops.subtract(1, beta_2_t),
-                        ops.mean(regulated_grad_square, axis=-1),
+                backend.ops.numpy.add(
+                    backend.ops.numpy.multiply(beta_2_t, r),
+                    backend.ops.numpy.multiply(
+                        backend.ops.numpy.subtract(1, beta_2_t),
+                        backend.ops.numpy.mean(regulated_grad_square, axis=-1),
                     ),
                 ),
             )
@@ -177,41 +188,47 @@ class Adafactor(optimizer.Optimizer):
             # shape `gradient.shape[:-2] + gradient.shape[-1]`.
             self.assign(
                 c,
-                ops.add(
-                    ops.multiply(beta_2_t, c),
-                    ops.multiply(
-                        ops.subtract(1, beta_2_t),
-                        ops.mean(regulated_grad_square, axis=-2),
+                backend.ops.numpy.add(
+                    backend.ops.numpy.multiply(beta_2_t, c),
+                    backend.ops.numpy.multiply(
+                        backend.ops.numpy.subtract(1, beta_2_t),
+                        backend.ops.numpy.mean(regulated_grad_square, axis=-2),
                     ),
                 ),
             )
             self.assign(
                 v,
-                ops.multiply(
-                    ops.expand_dims(
-                        ops.divide(r, ops.mean(r, axis=-1, keepdims=True)),
+                backend.ops.numpy.multiply(
+                    backend.ops.numpy.expand_dims(
+                        backend.ops.numpy.divide(
+                            r, backend.ops.numpy.mean(r, axis=-1, keepdims=True)
+                        ),
                         axis=-1,
                     ),
-                    ops.expand_dims(c, -2),
+                    backend.ops.numpy.expand_dims(c, -2),
                 ),
             )
         else:
             self.assign(
                 v,
-                ops.add(
-                    ops.multiply(beta_2_t, v),
-                    ops.multiply(
-                        ops.subtract(1, beta_2_t), regulated_grad_square
+                backend.ops.numpy.add(
+                    backend.ops.numpy.multiply(beta_2_t, v),
+                    backend.ops.numpy.multiply(
+                        backend.ops.numpy.subtract(1, beta_2_t),
+                        regulated_grad_square,
                     ),
                 ),
             )
 
-        u_t = ops.divide(gradient, ops.sqrt(v))
-        u_t_hat = ops.divide(
+        u_t = backend.ops.numpy.divide(gradient, backend.ops.numpy.sqrt(v))
+        u_t_hat = backend.ops.numpy.divide(
             u_t,
-            ops.maximum(one, ops.divide(self._rms(u_t), self.clip_threshold)),
+            backend.ops.numpy.maximum(
+                one,
+                backend.ops.numpy.divide(self._rms(u_t), self.clip_threshold),
+            ),
         )
-        self.assign_sub(variable, ops.multiply(alpha_t, u_t_hat))
+        self.assign_sub(variable, backend.ops.numpy.multiply(alpha_t, u_t_hat))
 
     def get_config(self):
         config = super().get_config()

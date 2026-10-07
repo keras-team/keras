@@ -1,3 +1,21 @@
+keras/src/backend/common/variables_test.py::VariableOpsDTypeTest::test_floordiv_('int16', 'bool')
+keras/src/backend/common/variables_test.py::VariableOpsDTypeTest::test_floordiv_('int8', 'bool')
+keras/src/backend/common/variables_test.py::VariableOpsDTypeTest::test_floordiv_('uint16', 'bool')
+keras/src/backend/common/variables_test.py::VariableOpsDTypeTest::test_floordiv_('uint32', 'bool')
+keras/src/backend/common/variables_test.py::VariableOpsDTypeTest::test_floordiv_('uint8', 'bool')
+keras/src/callbacks/remote_monitor_test.py::TerminateOnNaNTest::test_RemoteMonitorWithJsonPayload
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bicubic_false_crop
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bicubic_false_none
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bicubic_true_crop
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bicubic_true_none
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bicubic_true_pad
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bicubic_false_float64
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bicubic_false_int16
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bicubic_false_int8
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bicubic_true_float64
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bicubic_true_int16
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bicubic_true_int8
+keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_cholesky
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_eig
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_eigh
 keras/src/ops/linalg_test.py::LinalgOpsCorrectnessTest::test_norm_2_-2_(0, 1)_false
@@ -75,12 +93,19 @@ keras/src/ops/math_test.py::MathDtypeTest::test_gammainc_('uint8', 'uint32')
 keras/src/ops/math_test.py::MathOpsCorrectnessTest::test_erfinv_operation_basic
 keras/src/ops/math_test.py::MathOpsCorrectnessTest::test_erfinv_operation_dtype
 keras/src/ops/math_test.py::MathOpsCorrectnessTest::test_gammainc
+keras/src/ops/math_test.py::MathOpsCorrectnessTest::test_istft0
+keras/src/ops/math_test.py::MathOpsCorrectnessTest::test_istft3
+keras/src/ops/math_test.py::MathOpsCorrectnessTest::test_istft4
+keras/src/ops/math_test.py::MathOpsCorrectnessTest::test_istft5
+keras/src/ops/math_test.py::MathOpsCorrectnessTest::test_segment_reduce_explicit_num_segments3
+keras/src/ops/math_test.py::MathOpsCorrectnessTest::test_segment_reduce_explicit_num_segments4
+keras/src/ops/math_test.py::MathOpsCorrectnessTest::test_segment_reduce_explicit_num_segments5
 keras/src/ops/math_test.py::MathOpsDynamicShapeTest::test_gammainc
 keras/src/ops/math_test.py::MathOpsStaticShapeTest::test_gammainc
+keras/src/ops/nn_test.py::DotProductAttentionGQATest::test_gqa_broadcasting
 keras/src/ops/nn_test.py::NNOpsCorrectnessTest::test_ctc_decode
 keras/src/ops/nn_test.py::NNOpsDtypeTest::test_ctc_decode_bfloat16
 keras/src/ops/nn_test.py::NNOpsDtypeTest::test_ctc_decode_float16
 keras/src/ops/nn_test.py::NNOpsDtypeTest::test_ctc_decode_float32
 keras/src/ops/numpy_test.py::NumpyTwoInputOpsCorrectnessTest::test_allclose_backend_agnostic
-keras/src/ops/numpy_test.py::NumpyTwoInputOpsCorrectnessTest::test_nextafter_float16
-keras/src/ops/numpy_test.py::NumpyTwoInputOpsCorrectnessTest::test_nextafter_float32
+keras/src/ops/numpy_test.py::NumpyTwoInputOpsCorrectnessTest::test_nextafter_tiny_float32

@@ -153,6 +153,9 @@ class Identity(Initializer):
         dtype = standardize_dtype(dtype)
         return self.gain * ops.eye(*shape, dtype=dtype)
 
+    def get_config(self):
+        return {"gain": self.gain}
+
 
 @keras_export(
     [

@@ -9,7 +9,7 @@ from keras.src.export.export_utils import make_tf_tensor_spec
 from keras.src.utils.module_utils import tensorflow as tf
 
 
-class SavedModelExportArchive:
+class BaseSavedModelExportArchive:
     """Base class for SavedModel export archive.
 
     This class contains all the common SavedModel export logic that is shared
@@ -94,7 +94,7 @@ class SavedModelExportArchive:
 
     def _backend_track_layer(self, layer):
         raise NotImplementedError(
-            "_backend_track_layer() must be implemented in backend subclasses."
+            f"`ExportArchive` is not supported by backend {backend.backend()}."
         )
 
     def add_endpoint(self, name, fn, input_signature=None, **kwargs):
@@ -156,7 +156,7 @@ class SavedModelExportArchive:
 
     def _backend_add_endpoint(self, name, fn, input_signature, **kwargs):
         raise NotImplementedError(
-            "_backend_add_endpoint() must be implemented in backend subclasses."
+            f"`ExportArchive` is not supported by backend {backend.backend()}."
         )
 
     def track_and_add_endpoint(self, name, resource, input_signature, **kwargs):
@@ -236,10 +236,9 @@ class SavedModelExportArchive:
                 "`tf.Variable` instances. Found instead the following types: "
                 f"{list(set(type(v) for v in variables))}"
             )
-        if backend.backend() == "jax":
-            variables = tree.flatten(
-                tree.map_structure(self._convert_to_tf_variable, variables)
-            )
+        variables = tree.flatten(
+            tree.map_structure(self._convert_to_tf_variable, variables)
+        )
         setattr(self._tf_trackable, name, list(variables))
 
     def write_out(self, filepath, options=None, verbose=True):
@@ -299,6 +298,10 @@ class SavedModelExportArchive:
             )
 
     def _convert_to_tf_variable(self, backend_variable):
+        # `add_variable_collection()` accepts plain `tf.Variable`s, which
+        # require no conversion.
+        if isinstance(backend_variable, tf.Variable):
+            return backend_variable
         if not isinstance(backend_variable, backend.Variable):
             raise TypeError(
                 "`backend_variable` must be a `backend.Variable`. "
