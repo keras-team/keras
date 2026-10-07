@@ -214,11 +214,23 @@ def build_pos_neg_masks(
     negative_mask = ops.logical_not(positive_mask)
 
     if remove_diagonal:
+        query_size = ops.size(query_labels)
+        key_size = ops.size(key_labels)
+        if query_size is None or key_size is None:
+            raise ValueError(
+                "`remove_diagonal=True` requires `query_labels` and "
+                "`key_labels` to have a statically known number of "
+                "elements, since building the diagonal mask needs a "
+                "concrete size. Received symbolic inputs with an unknown "
+                "dimension (e.g. a dynamic batch size). Pass concrete "
+                "tensors, or a model input with a fixed `batch_size`, or "
+                "set `remove_diagonal=False`."
+            )
         positive_mask = ops.logical_and(
             positive_mask,
             ~ops.eye(
-                ops.size(query_labels),
-                ops.size(key_labels),
+                query_size,
+                key_size,
                 k=0,
                 dtype="bool",
             ),
