@@ -436,18 +436,52 @@ class SerializationLibTest(testing.TestCase):
     def test_layer_string_as_activation(self):
         """Tests serialization when activation is a string."""
 
-        layer_dense_relu_string = keras.layers.Dense(units=4, activation="relu")
-        layer_dense_relu_string.build(input_shape=(None, 8))
-        _, restored_dense_relu_string, _ = self.roundtrip(
-            layer_dense_relu_string
-        )
+        layer = keras.layers.Dense(units=4, activation="gelu")
+        layer.build(input_shape=(None, 8))
+        _, restored_layer, _ = self.roundtrip(layer)
+        self.assertIs(restored_layer.activation, keras.activations.gelu)
 
-        # Verify the activation is correctly deserialized to the relu function
-        self.assertTrue(callable(restored_dense_relu_string.activation))
-        # Check if it resolves to the canonical keras activation function
-        self.assertEqual(
-            restored_dense_relu_string.activation, keras.activations.relu
+    def test_layer_function_as_activation(self):
+        """Tests serialization when activation is an activation function."""
+
+        layer = keras.layers.Dense(units=4, activation=keras.activations.gelu)
+        layer.build(input_shape=(None, 8))
+        _, restored_layer, _ = self.roundtrip(layer)
+        self.assertIs(restored_layer.activation, keras.activations.gelu)
+
+    def test_layer_op_as_activation(self):
+        """Tests serialization when activation is an op."""
+
+        layer = keras.layers.Dense(units=4, activation=keras.ops.gelu)
+        layer.build(input_shape=(None, 8))
+        _, restored_layer, _ = self.roundtrip(layer)
+        self.assertIs(restored_layer.activation, keras.ops.gelu)
+        self.assertIsNot(restored_layer.activation, keras.activations.gelu)
+
+    def test_layer_registered_function_as_activation(self):
+        """Tests serialization when activation is a registered function."""
+
+        @keras.saving.register_keras_serializable(package="serial_test")
+        def gelu(x):
+            return x
+
+        layer = keras.layers.Dense(units=4, activation=gelu)
+        layer.build(input_shape=(None, 8))
+        _, restored_layer, _ = self.roundtrip(layer)
+        self.assertIs(restored_layer.activation, gelu)
+
+    def test_layer_unregistered_function_as_activation(self):
+        """Tests serialization when activation is an unregistered function."""
+
+        def gelu(x):
+            return x
+
+        layer = keras.layers.Dense(units=4, activation=gelu)
+        layer.build(input_shape=(None, 8))
+        _, restored_layer, _ = self.roundtrip(
+            layer, custom_objects={"gelu": gelu}
         )
+        self.assertIs(restored_layer.activation, gelu)
 
     def test_missing_name_for_sequential_model(self):
         """Tests serialization when sequential model has no name."""
