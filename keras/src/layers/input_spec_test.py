@@ -1,7 +1,7 @@
 import numpy as np
 
-from keras.src import backend
 from keras.src import layers
+from keras.src import ops
 from keras.src import testing
 from keras.src.layers.core.input_layer import Input
 from keras.src.layers.input_spec import InputSpec
@@ -12,23 +12,23 @@ from keras.src.models import Model
 class AssertInputCompatibilityTest(testing.TestCase):
     def test_single_spec_2d_tensor_passes(self):
         spec = InputSpec(min_ndim=2)
-        x = backend.convert_to_tensor(np.array([[1.0, 2.0, 3.0]]))
+        x = ops.convert_to_tensor(np.array([[1.0, 2.0, 3.0]]))
         assert_input_compatibility(spec, x, "dense")
 
     def test_single_spec_list_of_one_2d_tensor_passes(self):
         # The general path (list of one spec) must also accept a 2D tensor.
         spec = [InputSpec(min_ndim=2)]
-        x = backend.convert_to_tensor(np.array([[1.0, 2.0, 3.0]]))
+        x = ops.convert_to_tensor(np.array([[1.0, 2.0, 3.0]]))
         assert_input_compatibility(spec, x, "dense")
 
     def test_single_spec_axes_check_passes(self):
         spec = InputSpec(min_ndim=2, axes={-1: 3})
-        x = backend.convert_to_tensor(np.array([[1.0, 2.0, 3.0]]))
+        x = ops.convert_to_tensor(np.array([[1.0, 2.0, 3.0]]))
         assert_input_compatibility(spec, x, "dense")
 
     def test_single_spec_shape_check_passes(self):
         spec = InputSpec(shape=(None, 3))
-        x = backend.convert_to_tensor(np.array([[1.0, 2.0, 3.0]]))
+        x = ops.convert_to_tensor(np.array([[1.0, 2.0, 3.0]]))
         assert_input_compatibility(spec, x, "dense")
 
     def test_none_input_spec_returns_immediately(self):
@@ -43,13 +43,13 @@ class AssertInputCompatibilityTest(testing.TestCase):
 
     def test_single_spec_1d_tensor_raises_min_ndim(self):
         spec = InputSpec(min_ndim=2)
-        x = backend.convert_to_tensor(np.array([1.0, 2.0, 3.0]))
+        x = ops.convert_to_tensor(np.array([1.0, 2.0, 3.0]))
         with self.assertRaisesRegex(ValueError, "min_ndim=2"):
             assert_input_compatibility(spec, x, "dense")
 
     def test_single_spec_ndim2_1d_tensor_raises_ndim(self):
         spec = InputSpec(ndim=2)
-        x = backend.convert_to_tensor(np.array([1.0, 2.0]))
+        x = ops.convert_to_tensor(np.array([1.0, 2.0]))
         with self.assertRaisesRegex(ValueError, "ndim=2"):
             assert_input_compatibility(spec, x, "dense")
 
@@ -57,23 +57,23 @@ class AssertInputCompatibilityTest(testing.TestCase):
         # Functional models set `allow_last_axis_squeeze=True`: a model
         # built with `Input(shape=[1])` accepts inputs of shape `(1,)`.
         spec = InputSpec(shape=(None, 1), allow_last_axis_squeeze=True)
-        x = backend.convert_to_tensor(np.array([5.0]))
+        x = ops.convert_to_tensor(np.array([5.0]))
         assert_input_compatibility(spec, x, "functional")
 
     def test_allow_last_axis_squeeze_list_spec_1d_passes(self):
         spec = [InputSpec(shape=(None, 1), allow_last_axis_squeeze=True)]
-        x = backend.convert_to_tensor(np.array([5.0]))
+        x = ops.convert_to_tensor(np.array([5.0]))
         assert_input_compatibility(spec, x, "functional")
 
     def test_allow_last_axis_squeeze_rank_n_plus_1_passes(self):
         # A rank N+1 input with a last axis of size 1 is compatible with a
         # rank N spec.
         spec = InputSpec(shape=(None, 3), allow_last_axis_squeeze=True)
-        x = backend.convert_to_tensor(np.array([[[1.0], [2.0], [3.0]]]))
+        x = ops.convert_to_tensor(np.array([[[1.0], [2.0], [3.0]]]))
         assert_input_compatibility(spec, x, "squeeze")
         # Also when the spec itself ends with an axis of size 1.
         spec = InputSpec(shape=(None, 3, 1), allow_last_axis_squeeze=True)
-        x = backend.convert_to_tensor(np.zeros((1, 3, 1, 1)))
+        x = ops.convert_to_tensor(np.zeros((1, 3, 1, 1)))
         assert_input_compatibility(spec, x, "squeeze")
 
     def test_allow_last_axis_squeeze_same_rank_mismatch_raises(self):
@@ -81,11 +81,11 @@ class AssertInputCompatibilityTest(testing.TestCase):
         # of the same rank as the spec are compared as-is, including their
         # last axis.
         spec = InputSpec(shape=(None, 3), allow_last_axis_squeeze=True)
-        x = backend.convert_to_tensor(np.zeros((2, 1)))
+        x = ops.convert_to_tensor(np.zeros((2, 1)))
         with self.assertRaisesRegex(ValueError, "expected shape"):
             assert_input_compatibility(spec, x, "squeeze")
         spec = InputSpec(shape=(None, 1), allow_last_axis_squeeze=True)
-        x = backend.convert_to_tensor(np.zeros((2, 5)))
+        x = ops.convert_to_tensor(np.zeros((2, 5)))
         with self.assertRaisesRegex(ValueError, "expected shape"):
             assert_input_compatibility(spec, x, "squeeze")
 
@@ -93,7 +93,7 @@ class AssertInputCompatibilityTest(testing.TestCase):
         # The squeeze rebinds the local shape; the message must still name the
         # shape the caller passed, not the squeezed one.
         spec = InputSpec(shape=(None, 3, 1), allow_last_axis_squeeze=True)
-        x = backend.convert_to_tensor(np.zeros((2, 3, 99, 1)))
+        x = ops.convert_to_tensor(np.zeros((2, 3, 99, 1)))
         with self.assertRaisesRegex(ValueError, r"found shape=\(2, 3, 99, 1\)"):
             assert_input_compatibility(spec, x, "squeeze")
 
@@ -101,25 +101,25 @@ class AssertInputCompatibilityTest(testing.TestCase):
         # A rank N+1 input squeezed to rank N must match all N spec
         # dimensions, including a spec last axis of size 1.
         spec = InputSpec(shape=(None, 3, 1), allow_last_axis_squeeze=True)
-        x = backend.convert_to_tensor(np.zeros((2, 3, 99, 1)))
+        x = ops.convert_to_tensor(np.zeros((2, 3, 99, 1)))
         with self.assertRaisesRegex(ValueError, "expected shape"):
             assert_input_compatibility(spec, x, "squeeze")
         # A rank N+1 input whose last axis is not 1 is not squeezed and is
         # checked against the full spec.
-        x = backend.convert_to_tensor(np.zeros((2, 3, 7, 9)))
+        x = ops.convert_to_tensor(np.zeros((2, 3, 7, 9)))
         with self.assertRaisesRegex(ValueError, "expected shape"):
             assert_input_compatibility(spec, x, "squeeze")
 
     def test_wrong_axes_raises(self):
         spec = InputSpec(min_ndim=2, axes={-1: 3})
-        x = backend.convert_to_tensor(np.array([[1.0, 2.0]]))
+        x = ops.convert_to_tensor(np.array([[1.0, 2.0]]))
         with self.assertRaisesRegex(ValueError, "axis"):
             assert_input_compatibility(spec, x, "dense")
 
     def test_axes_out_of_bounds_raises(self):
         # An axis in `spec.axes` that does not exist on the input must raise
         # a `ValueError`, not an `IndexError`.
-        x = backend.convert_to_tensor(np.zeros((2, 2)))
+        x = ops.convert_to_tensor(np.zeros((2, 2)))
         with self.assertRaisesRegex(ValueError, "out of bounds"):
             assert_input_compatibility(InputSpec(axes={3: 5}), x, "axes")
         with self.assertRaisesRegex(ValueError, "out of bounds"):
@@ -127,19 +127,19 @@ class AssertInputCompatibilityTest(testing.TestCase):
 
     def test_wrong_shape_raises(self):
         spec = InputSpec(shape=(None, 3))
-        x = backend.convert_to_tensor(np.array([[1.0, 2.0]]))
+        x = ops.convert_to_tensor(np.array([[1.0, 2.0]]))
         with self.assertRaisesRegex(ValueError, "shape"):
             assert_input_compatibility(spec, x, "dense")
 
     def test_wrong_dtype_raises(self):
         spec = InputSpec(dtype="float32")
-        x = backend.convert_to_tensor(np.array([[1, 2, 3]], dtype=np.int32))
+        x = ops.convert_to_tensor(np.array([[1, 2, 3]], dtype=np.int32))
         with self.assertRaisesRegex(ValueError, "dtype"):
             assert_input_compatibility(spec, x, "dense")
 
     def test_max_ndim_exceeded_raises(self):
         spec = InputSpec(max_ndim=2)
-        x = backend.convert_to_tensor(np.array([[[1.0, 2.0]]]))
+        x = ops.convert_to_tensor(np.array([[[1.0, 2.0]]]))
         with self.assertRaisesRegex(ValueError, "max_ndim"):
             assert_input_compatibility(spec, x, "dense")
 
@@ -152,7 +152,7 @@ class AssertInputCompatibilityTest(testing.TestCase):
 
     def test_two_specs_one_input_raises(self):
         specs = [InputSpec(min_ndim=2), InputSpec(min_ndim=2)]
-        x = backend.convert_to_tensor(np.array([[1.0, 2.0]]))
+        x = ops.convert_to_tensor(np.array([[1.0, 2.0]]))
         with self.assertRaisesRegex(ValueError, "2 input"):
             assert_input_compatibility(specs, x, "multi")
 
@@ -171,7 +171,7 @@ class AssertInputCompatibilityTest(testing.TestCase):
             ),
         ]
         for spec, arr, expect_raise in cases:
-            x = backend.convert_to_tensor(arr)
+            x = ops.convert_to_tensor(arr)
             bare_error = None
             list_error = None
             try:
