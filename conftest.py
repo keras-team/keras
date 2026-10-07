@@ -11,7 +11,9 @@ import os  # noqa: E402
 import pytest  # noqa: E402
 
 from keras.src.backend import SUPPORTS_GRADIENT  # noqa: E402
-from keras.src.backend import backend  # noqa: E402
+from keras.src.backend.config import PLUGGABLE_BACKENDS
+from keras.src.backend.config import backend  # noqa: E402
+from keras.src.utils.module_utils import get_pluggable_backend_module
 
 
 def pytest_configure(config):
@@ -48,17 +50,34 @@ def pytest_configure(config):
 def pytest_collection_modifyitems(config, items):
     has_multiple_devices = False
 
-    openvino_skipped_tests = set()
+    backend_skipped_tests = set()
     if backend() == "openvino":
         with open(
             "keras/src/backend/openvino/excluded_concrete_tests.txt", "r"
         ) as file:
             # Exclude empty lines and comments.
-            openvino_skipped_tests = {
+            backend_skipped_tests = {
                 stripped
                 for line in file.readlines()
                 if (stripped := line.strip()) and not stripped.startswith("#")
             }
+    if backend() in PLUGGABLE_BACKENDS:
+        backend_module_file = get_pluggable_backend_module().__file__
+        exclusions_path = os.path.join(
+            # Remove `src/__init__.py`.
+            os.path.dirname(os.path.dirname(backend_module_file)),
+            "excluded_tests.txt",
+        )
+        # An installed backend package has no exclusion list.
+        if os.path.exists(exclusions_path):
+            with open(exclusions_path, "r") as file:
+                # Exclude empty lines and comments.
+                backend_skipped_tests = {
+                    stripped
+                    for line in file.readlines()
+                    if (stripped := line.strip())
+                    and not stripped.startswith("#")
+                }
 
     if backend() == "jax":
         import jax
@@ -95,14 +114,12 @@ def pytest_collection_modifyitems(config, items):
                 )
             )
 
-        # also, skip concrete tests for openvino, listed in the special file
-        # this is more granular mechanism to exclude tests rather
-        # than using --ignore option
-        if item.nodeid in openvino_skipped_tests:
+        # Skip concrete tests listed in the backend specific file.
+        if item.nodeid in backend_skipped_tests:
             item.add_marker(
                 skip_if_backend(
-                    "openvino",
-                    "Not supported operation by openvino backend",
+                    backend(),
+                    f"Not supported operation by {backend()} backend",
                 )
             )
 

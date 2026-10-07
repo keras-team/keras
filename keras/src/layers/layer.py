@@ -51,6 +51,7 @@ from keras.src.utils import python_utils
 from keras.src.utils import summary_utils
 from keras.src.utils import traceback_utils
 from keras.src.utils import tracking
+from keras.src.utils.module_utils import get_pluggable_backend_module
 
 if backend.backend() == "tensorflow":
     from keras.src.backend.tensorflow.layer import TFLayer as BackendLayer
@@ -63,9 +64,15 @@ elif backend.backend() == "numpy":
 elif backend.backend() == "openvino":
     from keras.src.backend.openvino.layer import OpenvinoLayer as BackendLayer
 else:
-    raise RuntimeError(
-        f"Backend '{backend.backend()}' must implement a layer mixin class."
+    backend_layer_module = get_pluggable_backend_module(
+        "src.layer", allow_missing=True
     )
+    if backend_layer_module is not None:
+        BackendLayer = getattr(backend_layer_module, "BackendLayer")
+    else:
+
+        class BackendLayer:
+            pass
 
 
 @keras_export(["keras.Layer", "keras.layers.Layer"])
