@@ -83,6 +83,21 @@ class RMSprop(optimizer.Optimizer):
             name=name,
             **kwargs,
         )
+        if not 0 <= rho <= 1:
+            raise ValueError(
+                "Argument `rho` must be in the range [0, 1]. "
+                f"Received: rho={rho}"
+            )
+        if not 0 <= momentum <= 1:
+            raise ValueError(
+                "Argument `momentum` must be in the range [0, 1]. "
+                f"Received: momentum={momentum}"
+            )
+        if epsilon <= 0:
+            raise ValueError(
+                "Argument `epsilon` must be positive. "
+                f"Received: epsilon={epsilon}"
+            )
         self.rho = rho
         self.momentum = momentum
         self.epsilon = epsilon
