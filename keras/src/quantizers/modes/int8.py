@@ -10,7 +10,13 @@ from keras.src.quantizers.modes.common import reverse_lookup_dtype
 from keras.src.quantizers.modes.common import reverse_lookup_params
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
 from keras.src.quantizers.quantization_config import QuantizationConfig
+from keras.src.quantizers.quantized_weight import NoPack
+from keras.src.quantizers.quantized_weight import QuantizedWeight
+from keras.src.quantizers.quantized_weight import WeightScheme
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
+
+# Symmetric int8 codes with a per-channel divisor scale.
+_INT8_SCHEME = WeightScheme(code_range=(-127, 127), scale_form="divisor")
 
 
 class Int8Strategy(GeometryDispatchStrategy):
@@ -24,6 +30,8 @@ class Int8Strategy(GeometryDispatchStrategy):
 
     name = "int8"
     config_cls = Int8QuantizationConfig
+
+    # --- Projection (Dense, EinsumDense) ----------------------------------
 
     def _build_projection(self, layer, geometry, kernel_shape, config):
         geometry.prepare()
@@ -48,63 +56,84 @@ class Int8Strategy(GeometryDispatchStrategy):
 
     def _call_projection(self, layer, inputs, training=None):
         geometry = layer._quantization_geometry()
+        view = self._get_projection_quantized_weight(layer, geometry)
 
         @ops.custom_gradient
-        def contract_with_inputs_gradient(inputs, kernel, kernel_scale):
+        def contract_with_inputs_gradient(inputs, *tensors):
             """Contracts against the int8 kernel with a custom gradient.
 
-            Autodiff cannot differentiate through the int8 kernel, so the
-            gradient with respect to the inputs is taken through the
-            dequantized kernel.
+            `tensors` are the view's stored tensors. Autodiff cannot
+            differentiate through the int8 kernel, so the gradient with
+            respect to the inputs is taken through the dequantized kernel.
             """
+            quantized_weight = view.with_tensors(tensors)
 
             def grad_fn(*args, upstream=None):
                 if upstream is None:
                     (upstream,) = args
-                float_kernel = ops.divide(
-                    ops.cast(kernel, dtype=layer.compute_dtype),
-                    geometry.kernel_scale_for_dequant(kernel_scale),
-                )
-                return (
-                    geometry.contract_grad(upstream, float_kernel),
-                    None,
-                    None,
-                )
+                float_kernel = quantized_weight.dequantize(layer.compute_dtype)
+                inputs_grad = geometry.contract_grad(upstream, float_kernel)
+                return (inputs_grad,) + (None,) * len(tensors)
 
+            # The int8 scale is stored in the outputs' layout, so it de-scales
+            # the integer contraction directly.
             if layer.inputs_quantizer:
                 inputs, inputs_scale = layer.inputs_quantizer(
                     inputs, axis=geometry.inputs_quantization_axis
                 )
                 output_scale = ops.multiply(
-                    geometry.align_inputs_scale(inputs_scale), kernel_scale
+                    geometry.align_inputs_scale(inputs_scale),
+                    quantized_weight.scale,
                 )
             else:
                 # Weight-only: contract against the int8 kernel and de-scale
                 # the outputs.
-                output_scale = kernel_scale
-            x = geometry.contract(inputs, kernel)
+                output_scale = quantized_weight.scale
+            x = geometry.contract(inputs, quantized_weight.codes)
             x = ops.cast(x, layer.compute_dtype)
             x = ops.divide(x, output_scale)
             return x, grad_fn
 
-        x = contract_with_inputs_gradient(
-            inputs,
-            ops.convert_to_tensor(layer._kernel),
-            ops.convert_to_tensor(layer.kernel_scale),
-        )
+        # Read inside the autocast scope: on TensorFlow eager the gradient
+        # runs after it, and the scale variable would then read float32.
+        x = contract_with_inputs_gradient(inputs, *view.read_tensors())
         x = geometry.add_lora_delta(inputs, x)
         return apply_bias_activation(layer, x)
 
-    def _quantize_projection(self, layer, geometry, config):
-        kernel_shape = layer._kernel.shape
+    def _encode_projection(self, layer, geometry, weight, config):
         geometry.prepare()
         weight_quantizer = QuantizationConfig.weight_quantizer_or_default(
             config, AbsMaxQuantizer(axis=geometry.kernel_reduced_axes)
         )
-        kernel_value, kernel_scale = weight_quantizer(
-            layer._kernel, to_numpy=True
+        kernel_value, kernel_scale = weight_quantizer(weight, to_numpy=True)
+        return (
+            kernel_value,
+            geometry.kernel_scale_for_storage(kernel_scale),
+            None,
         )
-        kernel_scale = geometry.kernel_scale_for_storage(kernel_scale)
+
+    def _get_projection_quantized_weight(self, layer, geometry):
+        # A matmul kernel's scale is shared along its input axis. An einsum
+        # kernel's is stored in the outputs' layout, and the geometry lays
+        # it back out against the kernel.
+        axis = geometry.kernel_scale_axis
+        return QuantizedWeight(
+            codes=layer._kernel,
+            scale=layer.kernel_scale,
+            layout=NoPack(),
+            scheme=_INT8_SCHEME,
+            shape=geometry.weight_shape,
+            axis=axis,
+            align_scale=(
+                None if axis is not None else geometry.kernel_scale_for_dequant
+            ),
+        )
+
+    def _quantize_projection(self, layer, geometry, config):
+        kernel_shape = layer._kernel.shape
+        kernel_value, kernel_scale, _ = self._encode_projection(
+            layer, geometry, layer._kernel, config
+        )
         del layer._kernel
         layer.quantized_build(kernel_shape, "int8", config)
         layer._kernel.assign(kernel_value)
@@ -192,6 +221,28 @@ class Int8Strategy(GeometryDispatchStrategy):
             weight, to_numpy=True
         )
         return embeddings_value, ops.squeeze(embeddings_scale, axis=-1), None
+
+    def _get_lookup_quantized_weight(self, layer, geometry):
+        return QuantizedWeight(
+            codes=layer._embeddings,
+            scale=layer.embeddings_scale,
+            layout=NoPack(),
+            scheme=_INT8_SCHEME,
+            shape=(layer.input_dim, layer.output_dim),
+            axis=-1,
+        )
+
+    def _get_reverse_lookup_quantized_weight(self, layer, geometry):
+        # A tied layer's reverse table is its forward table transposed.
+        codes, scale, _ = reverse_lookup_params(layer)
+        return QuantizedWeight(
+            codes=codes,
+            scale=scale,
+            layout=NoPack(),
+            scheme=_INT8_SCHEME,
+            shape=(layer.output_dim, layer.input_dim),
+            axis=0,
+        )
 
     def _quantize_lookup(self, layer, geometry, config):
         embeddings_shape = geometry.weight_shape
