@@ -60,10 +60,11 @@ class TextVectorization(Layer):
        by the callable depends on the active Keras backend. With the
        TensorFlow backend, the callable receives a `tf.Tensor` of dtype
        `string`, so it should use `tf.strings` operations. With any other
-       backend the callable receives a NumPy array of unicode strings, so
-       it should use `np.char` / `np.strings` operations (or any vectorized
-       string logic of your choice). The callable should return data of the
-       same shape as the input.
+       backend (JAX, NumPy, PyTorch) the callable receives a
+       NumPy array of unicode strings, so it should use `np.char` /
+       `np.strings` operations (or any vectorized string logic of your
+       choice). The callable should return data of the same shape as the
+       input.
     3. When using a custom callable for `split`, the data received by the
        callable will have the 1st dimension squeezed out - instead of
        `[["string to split"], ["another string to split"]]`, the Callable will
