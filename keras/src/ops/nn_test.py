@@ -1630,8 +1630,8 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.leaky_relu(x),
             [-0.2, 0, 1, 2, 3],
         )
-        # Integer input is promoted to float. The numpy and openvino backends
-        # previously truncated `negative_slope` to 0 under an integer dtype,
+        # Integer input is promoted to float. The numpy backend previously
+        # truncated `negative_slope` to 0 under an integer dtype,
         # which turned this into `relu`.
         x_int = np.array([-1, 0, 1, 2, 3], dtype="int32")
         self.assertAllClose(knn.leaky_relu(x_int), [-0.2, 0, 1, 2, 3])
@@ -1642,8 +1642,8 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.hard_sigmoid(x),
             [0.33333334, 0.5, 0.6666667, 0.8333334, 1.0],
         )
-        # Integer input is promoted to float. The numpy and openvino backends
-        # previously truncated the `0.5` offset to 0 under an integer dtype,
+        # Integer input is promoted to float. The numpy backend previously
+        # truncated the `0.5` offset to 0 under an integer dtype,
         # leaving `clip(x / 6, 0, 1)` rather than `clip(x / 6 + 0.5, 0, 1)`.
         x_int = np.array([-1, 0, 1, 2, 3], dtype="int32")
         self.assertAllClose(
