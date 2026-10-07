@@ -12,6 +12,7 @@ from keras.src import layers
 from keras.src import metrics
 from keras.src import models
 from keras.src import ops
+from keras.src import random
 from keras.src import testing
 from keras.src.backend.common import global_state
 from keras.src.backend.common.remat import RematScope
@@ -1268,7 +1269,7 @@ class LayerTest(testing.TestCase):
                 return self.activation(inputs)
 
         layer = NoTrainingSpecified()
-        inputs = ops.random.uniform(shape=(1, 100, 100, 3))
+        inputs = random.uniform(shape=(1, 100, 100, 3))
         layer(inputs, training=True)
 
     def test_tracker_locking(self):
