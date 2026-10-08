@@ -219,6 +219,8 @@ def build_pos_neg_masks(
         # have an unknown dimension (e.g. a dynamic batch size), for which
         # ops.size() returns None and ops.eye() has no symbolic dispatch.
         diagonal = ops.tril(ops.triu(ops.ones_like(positive_mask)))
-        positive_mask = ops.logical_and(positive_mask, ops.logical_not(diagonal))
+        positive_mask = ops.logical_and(
+            positive_mask, ops.logical_not(diagonal)
+        )
 
     return positive_mask, negative_mask
