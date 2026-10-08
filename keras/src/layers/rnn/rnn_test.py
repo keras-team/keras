@@ -2,6 +2,7 @@ import numpy as np
 
 from keras.src import layers
 from keras.src import ops
+from keras.src import random
 from keras.src import testing
 
 
@@ -406,12 +407,12 @@ class RNNTest(testing.TestCase):
         model = Functional(inputs, layer(inputs))
 
         # Call once with correct batch size
-        x = ops.random.uniform(shape=(batch_size, timesteps, features))
+        x = random.uniform(shape=(batch_size, timesteps, features))
         _ = model(x)
 
         # Expect ValueError when called with incorrect batch size
         with self.assertRaisesRegex(ValueError, "batch size"):
-            x_bad = ops.random.uniform(shape=(1, timesteps, features))
+            x_bad = random.uniform(shape=(1, timesteps, features))
             model(x_bad)
 
     def test_masking(self):

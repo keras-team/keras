@@ -51,16 +51,6 @@ def pytest_collection_modifyitems(config, items):
     has_multiple_devices = False
 
     backend_skipped_tests = set()
-    if backend() == "openvino":
-        with open(
-            "keras/src/backend/openvino/excluded_concrete_tests.txt", "r"
-        ) as file:
-            # Exclude empty lines and comments.
-            backend_skipped_tests = {
-                stripped
-                for line in file.readlines()
-                if (stripped := line.strip()) and not stripped.startswith("#")
-            }
     if backend() in PLUGGABLE_BACKENDS:
         backend_module_file = get_pluggable_backend_module().__file__
         exclusions_path = os.path.join(

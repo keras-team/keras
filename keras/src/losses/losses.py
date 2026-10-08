@@ -1314,7 +1314,7 @@ class SparseCategoricalFocalCrossentropy(LossFunctionWrapper):
         # out-of-range ignore sentinel.
         in_mask = backend.get_keras_mask(y_pred)
 
-        with ops.name_scope(self.name):
+        with backend.name_scope(self.name):
             y_pred = tree.map_structure(
                 lambda x: ops.convert_to_tensor(x, dtype=self.dtype), y_pred
             )

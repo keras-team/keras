@@ -1,4 +1,6 @@
-"""The two spellings of an int4 block size: per-channel or grouped."""
+"""What an int4 block size implies: per-channel or grouped, and the scheme."""
+
+from keras.src.quantizers.quantized_weight import WeightScheme
 
 
 def is_per_channel(block_size):
@@ -14,3 +16,17 @@ def is_per_channel(block_size):
 def is_grouped(block_size):
     """Whether `block_size` selects sub-channel (grouped) quantization."""
     return not is_per_channel(block_size)
+
+
+def int4_scheme(block_size):
+    """The int4 scheme for a block size: per-channel or grouped."""
+    if is_per_channel(block_size):
+        # Symmetric codes with a per-channel divisor scale.
+        return WeightScheme(code_range=(-8, 7), scale_form="divisor")
+    # Asymmetric codes with a multiplier scale and a zero point per group.
+    return WeightScheme(
+        code_range=(-8, 7),
+        scale_form="multiplier",
+        has_zero_point=True,
+        group_size=block_size,
+    )

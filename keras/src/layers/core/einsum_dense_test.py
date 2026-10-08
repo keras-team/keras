@@ -682,7 +682,7 @@ class EinsumDenseTest(testing.TestCase):
         set_random_seed(1337)
         layer = layers.EinsumDense(equation=equation, output_shape=output_shape)
         layer.build(input_shape)
-        x = ops.random.uniform(input_shape)
+        x = random.uniform(input_shape)
         y_float = layer(x)
 
         layer.quantize(quantization_mode)
@@ -1278,7 +1278,7 @@ class EinsumDenseTest(testing.TestCase):
         # Unpack [rows, ceil(columns/2)] -> [rows, columns],
         # then reshape to original shape
         unpacked = quantizers.unpack_int4(
-            packed_kernel, layer._orig_output_dim, axis=-1
+            packed_kernel, layer.kernel_scale.shape[-1], axis=-1
         )
         expected = ops.reshape(unpacked, layer.original_kernel_shape)
         self.assertAllClose(layer.kernel, expected)
@@ -1491,6 +1491,8 @@ class EinsumDenseTest(testing.TestCase):
                 test_utils.assert_serialized_variables_equal(
                     self, source, target
                 )
+                # The codes come back in the kernel's own 3-D shape.
+                self.assertEqual(tuple(target.kernel.shape), (256, 8, 32))
 
     def test_load_own_variables_reports_clear_errors(self):
         # int8 spec order: kernel ("0"), bias ("1"), kernel_scale ("2").
@@ -1556,6 +1558,21 @@ class EinsumDenseTest(testing.TestCase):
             quantized_kernel_params,
             original_kernel_params // 2,
         )
+
+    def test_from_config_ignores_legacy_gptq_unpacked_column_size(self):
+        # Configs written by earlier releases carried the unpacked column
+        # count of a GPTQ kernel; it is read from the stored group
+        # parameters now, so the key is accepted and dropped.
+        layer = layers.EinsumDense(
+            "ab,bc->ac", output_shape=(4,), dtype="gptq/4/8_from_float32"
+        )
+        config = layer.get_config()
+        self.assertNotIn("gptq_unpacked_column_size", config)
+        config["gptq_unpacked_column_size"] = 4
+        restored = layers.EinsumDense.from_config(config)
+        restored.build((None, 8))
+        self.assertEqual(restored.quantization_mode, "gptq")
+        self.assertEqual(tuple(restored.kernel_scale.shape), (1, 4))
 
     def test_int4_awq_kernel_returns_unpacked_form(self):
         """Test that the `kernel` property returns the unpacked int4 AWQ

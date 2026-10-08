@@ -52,11 +52,6 @@ elif backend() == "numpy":
     from keras.src.backend.numpy.ops.core import Variable as BackendVariable
 
     distribution_lib = None
-elif backend() == "openvino":
-    from keras.src.backend.openvino import *  # noqa: F403
-    from keras.src.backend.openvino.ops.core import Variable as BackendVariable
-
-    distribution_lib = None
 else:
     backend_module = get_pluggable_backend_module("src")
     if hasattr(backend_module, "__all__"):

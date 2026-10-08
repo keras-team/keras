@@ -84,8 +84,9 @@ on the strategy; a layer that contracts its kernel differently overrides
 the geometry hooks, and anything beyond that means replacing the strategy (by
 subclassing it, overriding the one handler, and registering it under a
 new mode name). A new geometry family, on the other hand, needs no dispatcher
-change at all: declare its `family` and implement the strategy's
-`_build_<family>`, `_call_<family>` and `_quantize_<family>` methods.
+change at all: declare its `family` and implement the strategy's handlers
+for it, which `GeometryDispatchStrategy` lists
+(`keras.src.quantizers.modes.common`).
 """
 
 import string
@@ -97,14 +98,14 @@ from keras.src.quantizers.quantizers import ternarize
 class QuantizationGeometry:
     """Base class for a layer's quantization geometry.
 
-    A geometry names the *family* it belongs to. Strategies
-    implement one `_build_<family>`, `_call_<family>` and
-    `_quantize_<family>` method per family they support, so introducing a
-    family is a declaration plus those methods, with no dispatch chain to
-    edit anywhere.
+    A geometry names the *family* it belongs to. A strategy built on
+    `GeometryDispatchStrategy` implements one handler per verb for each
+    family it supports, so introducing a family is a declaration plus
+    those handlers, with no dispatch chain to edit anywhere.
     """
 
-    # Dispatch key: every strategy verb resolves to `_<verb>_<family>`.
+    # Dispatch key: each `GeometryDispatchStrategy` verb resolves to the
+    # mode's handler for this family.
     family = None
     # Whether the layer also projects back through its weight. Not a
     # dispatch key: strategies branch on it where the reverse table
@@ -143,15 +144,6 @@ class ProjectionGeometry(QuantizationGeometry):
         """
         return kernel_shape[0], kernel_shape[1]
 
-    def store_unpacked_columns(self, mode, columns):
-        """Records the unpacked column count for the calibration call path."""
-        del mode, columns  # The matmul case reads `layer.units` instead.
-
-    def unpacked_columns(self, mode):
-        """The unpacked column count recorded at calibration build time."""
-        del mode
-        return self.layer.units
-
     def contract(self, inputs, kernel):
         """Contracts `inputs` against a kernel in the contraction shape."""
         return ops.matmul(inputs, kernel)
@@ -160,16 +152,21 @@ class ProjectionGeometry(QuantizationGeometry):
         """Gradient of `contract` with respect to its inputs."""
         return ops.matmul(upstream, ops.transpose(float_kernel))
 
-    def reshape_kernel(self, kernel):
-        """Restores a 2D dequantized kernel to the contraction shape."""
-        return kernel
-
     def record_kernel_shape(self, kernel_shape):
-        """Records the float kernel shape for a later reshape or write-back."""
+        """Records the float kernel shape the codes stand for."""
         self.layer.kernel_shape = kernel_shape
 
+    def recorded_kernel_shape(self):
+        """The float kernel shape recorded when the codes were built."""
+        return self.layer.kernel_shape
+
     def rows_columns(self, kernel_shape):
-        """2D `(rows, columns)` view: contracted axes times the rest."""
+        """2D `(rows, columns)` shape a plain reshape of the kernel takes.
+
+        `rows` is the product of the contracted axes and `columns` that of
+        the rest, so the reshape is `(contracted, rest)` only when the
+        contracted axes lead the kernel.
+        """
         return kernel_shape[0], kernel_shape[1]
 
     @property
@@ -189,6 +186,15 @@ class ProjectionGeometry(QuantizationGeometry):
     def kernel_scale_shape(self, kernel_shape):
         """Shape of a per-channel scale stored alongside the kernel."""
         return (kernel_shape[1],)
+
+    @property
+    def kernel_scale_axis(self):
+        """Kernel axis a per-channel scale is shared along.
+
+        `None` when the stored scale is laid out for the outputs and
+        `kernel_scale_for_dequant` lays it out against the kernel instead.
+        """
+        return 0
 
     def kernel_scale_for_storage(self, scale):
         """Aligns a freshly computed kernel scale with its stored layout."""
@@ -284,12 +290,6 @@ class EinsumProjectionGeometry(ProjectionGeometry):
             return heads * head_dim, out_features
         raise ValueError("Could not determine row/column split.")
 
-    def store_unpacked_columns(self, mode, columns):
-        setattr(self.layer, f"{mode}_unpacked_column_size", columns)
-
-    def unpacked_columns(self, mode):
-        return getattr(self.layer, f"{mode}_unpacked_column_size")
-
     def contract(self, inputs, kernel):
         return ops.einsum(self.layer.equation, inputs, kernel)
 
@@ -299,11 +299,11 @@ class EinsumProjectionGeometry(ProjectionGeometry):
             self.layer._custom_gradient_equation, upstream, float_kernel
         )
 
-    def reshape_kernel(self, kernel):
-        return ops.reshape(kernel, self.layer.original_kernel_shape)
-
     def record_kernel_shape(self, kernel_shape):
         self.layer.original_kernel_shape = kernel_shape
+
+    def recorded_kernel_shape(self):
+        return self.layer.original_kernel_shape
 
     def rows_columns(self, kernel_shape):
         rows = 1
@@ -328,6 +328,12 @@ class EinsumProjectionGeometry(ProjectionGeometry):
 
     def kernel_scale_shape(self, kernel_shape):
         return self.layer._get_kernel_scale_shape(kernel_shape)
+
+    @property
+    def kernel_scale_axis(self):
+        # The equation analysis may transpose or expand the stored scale
+        # even for a 2-D kernel; `kernel_scale_for_dequant` lays it out.
+        return None
 
     def kernel_scale_for_storage(self, scale):
         return self.layer._adjust_scale_for_quant(scale, "kernel")

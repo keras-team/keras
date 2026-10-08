@@ -7955,43 +7955,63 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         finally:
             backend.config._set_use_backend_agnostic_ops(False)
 
-    def test_nancumsum(self):
-        x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, -1.0]])
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_nancumsum(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, -1.0]])
 
-        self.assertAllClose(knp.nancumsum(x), np.nancumsum(x))
-        self.assertAllClose(knp.nancumsum(x, axis=0), np.nancumsum(x, axis=0))
-        self.assertAllClose(knp.nancumsum(x, axis=1), np.nancumsum(x, axis=1))
-        self.assertAllClose(knp.Nancumsum()(x), np.nancumsum(x))
-        self.assertAllClose(knp.Nancumsum(axis=1)(x), np.nancumsum(x, axis=1))
+            self.assertAllClose(knp.nancumsum(x), np.nancumsum(x))
+            self.assertAllClose(
+                knp.nancumsum(x, axis=0), np.nancumsum(x, axis=0)
+            )
+            self.assertAllClose(
+                knp.nancumsum(x, axis=1), np.nancumsum(x, axis=1)
+            )
+            self.assertAllClose(knp.Nancumsum()(x), np.nancumsum(x))
+            self.assertAllClose(
+                knp.Nancumsum(axis=1)(x), np.nancumsum(x, axis=1)
+            )
 
-        x_3d = np.array(
-            [
-                [[1.0, np.nan], [2.0, 3.0]],
-                [[np.nan, 4.0], [5.0, np.nan]],
-            ]
-        )
+            x_3d = np.array(
+                [
+                    [[1.0, np.nan], [2.0, 3.0]],
+                    [[np.nan, 4.0], [5.0, np.nan]],
+                ]
+            )
 
-        self.assertAllClose(knp.nancumsum(x_3d), np.nancumsum(x_3d))
-        self.assertAllClose(
-            knp.nancumsum(x_3d, axis=0), np.nancumsum(x_3d, axis=0)
-        )
-        self.assertAllClose(
-            knp.nancumsum(x_3d, axis=1), np.nancumsum(x_3d, axis=1)
-        )
+            self.assertAllClose(knp.nancumsum(x_3d), np.nancumsum(x_3d))
+            self.assertAllClose(
+                knp.nancumsum(x_3d, axis=0), np.nancumsum(x_3d, axis=0)
+            )
+            self.assertAllClose(
+                knp.nancumsum(x_3d, axis=1), np.nancumsum(x_3d, axis=1)
+            )
 
-        x_all_nan = np.array([[np.nan, np.nan], [np.nan, np.nan]])
-        self.assertAllClose(knp.nancumsum(x_all_nan), np.nancumsum(x_all_nan))
-        self.assertAllClose(
-            knp.nancumsum(x_all_nan, axis=1), np.nancumsum(x_all_nan, axis=1)
-        )
+            x_all_nan = np.array([[np.nan, np.nan], [np.nan, np.nan]])
+            self.assertAllClose(
+                knp.nancumsum(x_all_nan), np.nancumsum(x_all_nan)
+            )
+            self.assertAllClose(
+                knp.nancumsum(x_all_nan, axis=1),
+                np.nancumsum(x_all_nan, axis=1),
+            )
 
-        x_with_inf = np.array(
-            [[np.nan, np.inf, 1.0], [np.nan, -np.inf, -1.0]], dtype=np.float32
-        )
-        self.assertAllClose(
-            knp.nancumsum(x_with_inf, axis=1),
-            np.nancumsum(x_with_inf, axis=1),
-        )
+            x_with_inf = np.array(
+                [[np.nan, np.inf, 1.0], [np.nan, -np.inf, -1.0]],
+                dtype=np.float32,
+            )
+            self.assertAllClose(
+                knp.nancumsum(x_with_inf, axis=1),
+                np.nancumsum(x_with_inf, axis=1),
+            )
+
+            x_int = np.array([[1, 2, 3], [4, 5, 6]], dtype="int32")
+            self.assertAllClose(
+                knp.nancumsum(x_int, axis=1), np.nancumsum(x_int, axis=1)
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     def test_nancumprod(self):
         x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, -1.0]])
@@ -8082,43 +8102,58 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         finally:
             backend.config._set_use_backend_agnostic_ops(False)
 
-    def test_nanmean(self):
-        x = np.array([[1.0, np.nan, 3.0, 4.0], [np.nan, 2.0, np.inf, -np.inf]])
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_nanmean(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = np.array(
+                [[1.0, np.nan, 3.0, 4.0], [np.nan, 2.0, np.inf, -np.inf]]
+            )
 
-        self.assertAllClose(knp.nanmean(x), np.nanmean(x))
-        self.assertAllClose(knp.nanmean(x, axis=()), np.nanmean(x, axis=()))
-        self.assertAllClose(knp.nanmean(x, axis=1), np.nanmean(x, axis=1))
-        self.assertAllClose(knp.nanmean(x, axis=(1,)), np.nanmean(x, axis=(1,)))
-        self.assertAllClose(
-            knp.nanmean(x, axis=1, keepdims=True),
-            np.nanmean(x, axis=1, keepdims=True),
-        )
+            self.assertAllClose(knp.nanmean(x), np.nanmean(x))
+            self.assertAllClose(knp.nanmean(x, axis=()), np.nanmean(x, axis=()))
+            self.assertAllClose(knp.nanmean(x, axis=1), np.nanmean(x, axis=1))
+            self.assertAllClose(
+                knp.nanmean(x, axis=(1,)), np.nanmean(x, axis=(1,))
+            )
+            self.assertAllClose(
+                knp.nanmean(x, axis=1, keepdims=True),
+                np.nanmean(x, axis=1, keepdims=True),
+            )
 
-        self.assertAllClose(knp.Nanmean()(x), np.nanmean(x))
-        self.assertAllClose(knp.Nanmean(axis=1)(x), np.nanmean(x, axis=1))
-        self.assertAllClose(
-            knp.Nanmean(axis=1, keepdims=True)(x),
-            np.nanmean(x, axis=1, keepdims=True),
-        )
+            self.assertAllClose(knp.Nanmean()(x), np.nanmean(x))
+            self.assertAllClose(knp.Nanmean(axis=1)(x), np.nanmean(x, axis=1))
+            self.assertAllClose(
+                knp.Nanmean(axis=1, keepdims=True)(x),
+                np.nanmean(x, axis=1, keepdims=True),
+            )
 
-        x_all_nan = np.array([[np.nan, np.nan], [np.nan, np.nan]])
-        self.assertAllClose(knp.nanmean(x_all_nan), np.nanmean(x_all_nan))
-        self.assertAllClose(
-            knp.nanmean(x_all_nan, axis=1),
-            np.nanmean(x_all_nan, axis=1),
-        )
+            x_all_nan = np.array([[np.nan, np.nan], [np.nan, np.nan]])
+            self.assertAllClose(knp.nanmean(x_all_nan), np.nanmean(x_all_nan))
+            self.assertAllClose(
+                knp.nanmean(x_all_nan, axis=1),
+                np.nanmean(x_all_nan, axis=1),
+            )
 
-        x_3d = np.array(
-            [
-                [[1.0, np.nan], [2.0, 3.0]],
-                [[np.nan, 4.0], [5.0, np.nan]],
-            ]
-        )
-        self.assertAllClose(knp.nanmean(x_3d), np.nanmean(x_3d))
-        self.assertAllClose(
-            knp.nanmean(x_3d, axis=(1, 2)),
-            np.nanmean(x_3d, axis=(1, 2)),
-        )
+            x_3d = np.array(
+                [
+                    [[1.0, np.nan], [2.0, 3.0]],
+                    [[np.nan, 4.0], [5.0, np.nan]],
+                ]
+            )
+            self.assertAllClose(knp.nanmean(x_3d), np.nanmean(x_3d))
+            self.assertAllClose(
+                knp.nanmean(x_3d, axis=(1, 2)),
+                np.nanmean(x_3d, axis=(1, 2)),
+            )
+
+            x_int = np.array([[3, 1, 2], [5, 4, 6]], dtype="int32")
+            self.assertAllClose(knp.nanmean(x_int), np.nanmean(x_int))
+            self.assertAllClose(
+                knp.nanmean(x_int, axis=1), np.nanmean(x_int, axis=1)
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_nanmedian(self, backend_agnostic_ops):
@@ -12045,24 +12080,30 @@ class NumpyDtypeTest(testing.TestCase):
         finally:
             backend.config._set_use_backend_agnostic_ops(False)
 
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_nancumsum(self, dtype):
+    @parameterized.named_parameters(
+        named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
+    )
+    def test_nancumsum(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        x = knp.ones((1,), dtype=dtype)
-        x_jax = jnp.ones((1,), dtype=dtype)
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = knp.ones((1,), dtype=dtype)
+            x_jax = jnp.ones((1,), dtype=dtype)
 
-        expected_dtype = standardize_dtype(jnp.nancumsum(x_jax).dtype)
+            expected_dtype = standardize_dtype(jnp.nancumsum(x_jax).dtype)
 
-        self.assertEqual(
-            standardize_dtype(knp.nancumsum(x).dtype),
-            expected_dtype,
-        )
+            self.assertEqual(
+                standardize_dtype(knp.nancumsum(x).dtype),
+                expected_dtype,
+            )
 
-        self.assertEqual(
-            standardize_dtype(knp.Nancumsum().symbolic_call(x).dtype),
-            expected_dtype,
-        )
+            self.assertEqual(
+                standardize_dtype(knp.Nancumsum().symbolic_call(x).dtype),
+                expected_dtype,
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_nancumprod(self, dtype):
@@ -12108,24 +12149,30 @@ class NumpyDtypeTest(testing.TestCase):
         finally:
             backend.config._set_use_backend_agnostic_ops(False)
 
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_nanmean(self, dtype):
+    @parameterized.named_parameters(
+        named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
+    )
+    def test_nanmean(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        x = knp.ones((1,), dtype=dtype)
-        x_jax = jnp.ones((1,), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.nanmean(x_jax).dtype)
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = knp.ones((1,), dtype=dtype)
+            x_jax = jnp.ones((1,), dtype=dtype)
+            expected_dtype = standardize_dtype(jnp.nanmean(x_jax).dtype)
 
-        if backend.backend() == "torch" and expected_dtype == "uint32":
-            expected_dtype = "int32"
+            if backend.backend() == "torch" and expected_dtype == "uint32":
+                expected_dtype = "int32"
 
-        self.assertEqual(
-            standardize_dtype(knp.nanmean(x).dtype), expected_dtype
-        )
-        self.assertEqual(
-            standardize_dtype(knp.Nanmean().symbolic_call(x).dtype),
-            expected_dtype,
-        )
+            self.assertEqual(
+                standardize_dtype(knp.nanmean(x).dtype), expected_dtype
+            )
+            self.assertEqual(
+                standardize_dtype(knp.Nanmean().symbolic_call(x).dtype),
+                expected_dtype,
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     @parameterized.named_parameters(
         named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
@@ -13049,6 +13096,27 @@ class NumpyDtypeTest(testing.TestCase):
             standardize_dtype(knp.Std().symbolic_call(x).dtype),
             expected_dtype,
         )
+
+    @parameterized.named_parameters(
+        ("complex64", "complex64", "float32"),
+        ("complex128", "complex128", "float64"),
+    )
+    def test_std_complex_symbolic_dtype(self, input_dtype, expected_dtype):
+        x = KerasTensor((None, 2), dtype=input_dtype)
+        self.assertEqual(knp.std(x, axis=-1).dtype, expected_dtype)
+
+    def test_std_complex_functional_output_dtype(self):
+        if backend.backend() == "openvino":
+            self.skipTest("OpenVINO does not support complex tensors")
+        inputs = keras.Input(shape=(2,), dtype="complex64")
+        model = keras.Model(inputs, knp.std(inputs, axis=-1))
+        values = np.array([[1 + 2j, 3 + 4j]], dtype="complex64")
+        actual = model(values)
+        expected = np.std(values, axis=-1)
+
+        self.assertEqual(model.output.dtype, str(expected.dtype))
+        self.assertEqual(standardize_dtype(actual.dtype), str(expected.dtype))
+        self.assertAllClose(actual, expected)
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_sum(self, dtype):
