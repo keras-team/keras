@@ -6925,16 +6925,6 @@ def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     )
 
 
-class Ndim(Operation):
-    def call(self, x):
-        return backend.ops.numpy.ndim(
-            x,
-        )
-
-    def compute_output_spec(self, x):
-        return KerasTensor([len(x.shape)])
-
-
 @keras_export(["keras.ops.ndim", "keras.ops.numpy.ndim"])
 def ndim(x):
     """Return the number of dimensions of a tensor.
@@ -6946,7 +6936,9 @@ def ndim(x):
         The number of dimensions in `x`.
     """
     if any_symbolic_tensors((x,)):
-        return Ndim().symbolic_call(x)
+        # Unlike individual dimension sizes, the rank of a symbolic tensor
+        # is always statically known, so this never needs a backend op.
+        return len(x.shape)
     return backend.ops.numpy.ndim(x)
 
 
