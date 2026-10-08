@@ -6110,7 +6110,7 @@ class Nancumprod(Operation):
         self.dtype = dtype
 
     def call(self, x):
-        return backend.ops.numpy.nancumprod(x, axis=self.axis, dtype=self.dtype)
+        return _nancumprod(x, axis=self.axis, dtype=self.dtype)
 
     def compute_output_spec(self, x):
         if self.axis is None:
@@ -6161,7 +6161,18 @@ def nancumprod(x, axis=None, dtype=None):
     """
     if any_symbolic_tensors((x,)):
         return Nancumprod(axis=axis, dtype=dtype).symbolic_call(x)
-    return backend.ops.numpy.nancumprod(x, axis=axis, dtype=dtype)
+    return _nancumprod(x, axis=axis, dtype=dtype)
+
+
+def _nancumprod(x, axis=None, dtype=None):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "nancumprod"
+    ):
+        return backend.ops.numpy.nancumprod(x, axis=axis, dtype=dtype)
+    x = backend.ops.convert_to_tensor(x)
+    if backend.is_float_dtype(x.dtype):
+        x = backend.ops.numpy.where(backend.ops.numpy.isnan(x), 1, x)
+    return backend.ops.numpy.cumprod(x, axis=axis, dtype=dtype)
 
 
 class Nanmax(Operation):
@@ -6556,11 +6567,7 @@ class Nanprod(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.ops.numpy.nanprod(
-            x,
-            axis=self.axis,
-            keepdims=self.keepdims,
-        )
+        return _nanprod(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
         dtype = backend.standardize_dtype(x.dtype)
@@ -6612,7 +6619,18 @@ def nanprod(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Nanprod(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.ops.numpy.nanprod(x, axis=axis, keepdims=keepdims)
+    return _nanprod(x, axis=axis, keepdims=keepdims)
+
+
+def _nanprod(x, axis=None, keepdims=False):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "nanprod"
+    ):
+        return backend.ops.numpy.nanprod(x, axis=axis, keepdims=keepdims)
+    x = backend.ops.convert_to_tensor(x)
+    if backend.is_float_dtype(x.dtype):
+        x = backend.ops.numpy.where(backend.ops.numpy.isnan(x), 1, x)
+    return backend.ops.numpy.prod(x, axis=axis, keepdims=keepdims)
 
 
 class Nanquantile(Operation):
