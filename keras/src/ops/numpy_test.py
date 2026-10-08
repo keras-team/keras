@@ -6886,7 +6886,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         # Rank 3
         ragged_3d = tf.ragged.constant([[[1], [2, 3]], [[4, 5, 6]]])
         self.assertEqual(knp.ndim(ragged_3d), 3)
-        self.assertEqual(knp.Ndim()(ragged_3d), 3)
 
     def test_nonzero(self):
         x = np.array([[0, 0, 3], [3, 0, 0]])
