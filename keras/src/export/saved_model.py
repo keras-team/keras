@@ -29,10 +29,6 @@ elif backend.backend() == "numpy":
     from keras.src.backend.numpy.export import (
         NumpyExportArchive as BackendSavedModelExportArchive,
     )
-elif backend.backend() == "openvino":
-    from keras.src.backend.openvino.export import (
-        OpenvinoExportArchive as BackendSavedModelExportArchive,
-    )
 else:
     backend_export_module = get_pluggable_backend_module(
         "src.export", allow_missing=True

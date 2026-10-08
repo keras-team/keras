@@ -31,8 +31,6 @@ elif backend.backend() == "torch":
     from keras.src.backend.torch.trainer import TorchTrainer as Trainer
 elif backend.backend() == "numpy":
     from keras.src.backend.numpy.trainer import NumpyTrainer as Trainer
-elif backend.backend() == "openvino":
-    from keras.src.backend.openvino.trainer import OpenVINOTrainer as Trainer
 else:
     backend_trainer_module = get_pluggable_backend_module("src.trainer")
     Trainer = getattr(backend_trainer_module, "Trainer")

@@ -15,11 +15,9 @@ _IMAGE_DATA_FORMAT = "channels_last"
 # Default backend: TensorFlow.
 _BACKEND = "tensorflow"
 
-BUILT_IN_BACKENDS = frozenset(
-    ["jax", "numpy", "openvino", "tensorflow", "torch"]
-)
+BUILT_IN_BACKENDS = frozenset(["jax", "numpy", "tensorflow", "torch"])
 
-PLUGGABLE_BACKENDS = frozenset(["mlx", "paddle"])
+PLUGGABLE_BACKENDS = frozenset(["mlx", "openvino", "paddle"])
 
 # Whether NNX is enabled.
 _NNX_ENABLED = False
