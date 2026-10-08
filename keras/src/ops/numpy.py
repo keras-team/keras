@@ -6171,7 +6171,9 @@ def _nancumprod(x, axis=None, dtype=None):
         return backend.ops.numpy.nancumprod(x, axis=axis, dtype=dtype)
     x = backend.ops.convert_to_tensor(x)
     if backend.is_float_dtype(x.dtype):
-        x = backend.ops.numpy.where(backend.ops.numpy.isnan(x), 1, x)
+        x = backend.ops.numpy.where(
+            backend.ops.numpy.isnan(x), backend.ops.cast(1, x.dtype), x
+        )
     return backend.ops.numpy.cumprod(x, axis=axis, dtype=dtype)
 
 
@@ -6629,7 +6631,9 @@ def _nanprod(x, axis=None, keepdims=False):
         return backend.ops.numpy.nanprod(x, axis=axis, keepdims=keepdims)
     x = backend.ops.convert_to_tensor(x)
     if backend.is_float_dtype(x.dtype):
-        x = backend.ops.numpy.where(backend.ops.numpy.isnan(x), 1, x)
+        x = backend.ops.numpy.where(
+            backend.ops.numpy.isnan(x), backend.ops.cast(1, x.dtype), x
+        )
     return backend.ops.numpy.prod(x, axis=axis, keepdims=keepdims)
 
 
