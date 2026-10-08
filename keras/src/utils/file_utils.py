@@ -303,20 +303,14 @@ def get_file(
         hash_algorithm = "md5"
     datadir_base = os.path.expanduser(cache_dir)
     if not os.access(datadir_base, os.W_OK):
-        datadir_base = os.path.join(
-            "/tmp" if os.path.isdir("/tmp") else tempfile.gettempdir(), ".keras"
+        # The cache dir is not writable, so fall back to a world-writable tmp
+        # location, kept private to the current user so that the cached files
+        # cannot be read by other local users, and so that none of them can
+        # pre-create this path and plant a file that `get_file` would trust
+        # and return without re-downloading (when no `file_hash` is passed).
+        datadir_base = config.private_tmp_keras_dir(
+            "/tmp" if os.path.isdir("/tmp") else tempfile.gettempdir()
         )
-        # This fallback lives in a world-writable location. Restrict it to the
-        # current user, otherwise other local users could read the cached files
-        # or pre-create this predictable path and plant a file that `get_file`
-        # would then trust and return without re-downloading (when no
-        # `file_hash` is passed). `os.makedirs`' `mode` is masked by the umask,
-        # so set the permissions explicitly.
-        os.makedirs(datadir_base, exist_ok=True)
-        try:
-            os.chmod(datadir_base, 0o700)
-        except OSError:
-            pass
     datadir = os.path.join(datadir_base, cache_subdir)
     os.makedirs(datadir, exist_ok=True)
 
