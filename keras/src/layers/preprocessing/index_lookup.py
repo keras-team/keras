@@ -38,7 +38,7 @@ def raise_for_vocabulary_path_deserialization(vocabulary):
             "sensitive files and thus it is disallowed by default. If you "
             "trust the source of the artifact, you can override this error by "
             "passing `safe_mode=False` to the loading function, or calling "
-            "`keras.config.enable_unsafe_deserialization(). "
+            "`keras.config.enable_unsafe_deserialization()`. "
             f"Vocabulary file: '{vocabulary}'"
         )
 
