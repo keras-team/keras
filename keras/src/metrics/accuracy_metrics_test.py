@@ -1,5 +1,6 @@
 import numpy as np
 
+from keras.src import backend
 from keras.src import testing
 from keras.src.metrics import accuracy_metrics
 
@@ -216,6 +217,20 @@ class CategoricalAccuracyTest(testing.TestCase):
         result = cat_acc_obj.result()
         self.assertAllClose(result, 0.3, atol=1e-3)
 
+    def test_float16_large_class_indices(self):
+        cat_acc = accuracy_metrics.CategoricalAccuracy(dtype="float16")
+        self.assertEqual(cat_acc.dtype, "float16")
+        self.assertEqual(cat_acc.total.dtype, "float32")
+        self.assertEqual(cat_acc.count.dtype, "float32")
+        y_true = np.zeros((1, 2050), dtype="float16")
+        y_true[0, 2049] = 1.0
+        y_pred = np.zeros((1, 2050), dtype="float16")
+        y_pred[0, 2049] = 1.0
+        cat_acc.update_state(y_true, y_pred)
+        res = cat_acc.result()
+        self.assertEqual(backend.standardize_dtype(res.dtype), "float16")
+        self.assertAllClose(res, 1.0)
+
 
 class SparseCategoricalAccuracyTest(testing.TestCase):
     def test_config(self):
@@ -354,6 +369,19 @@ class SparseCategoricalAccuracyTest(testing.TestCase):
         sp_cat_acc_obj.update_state(y_true, y_pred)
         result = sp_cat_acc_obj.result()
         self.assertAllClose(result, 1.0, atol=1e-4)
+
+    def test_float16_large_class_indices(self):
+        sp_cat_acc = accuracy_metrics.SparseCategoricalAccuracy(dtype="float16")
+        self.assertEqual(sp_cat_acc.dtype, "float16")
+        self.assertEqual(sp_cat_acc.total.dtype, "float32")
+        self.assertEqual(sp_cat_acc.count.dtype, "float32")
+        y_true = np.array([2049], dtype="int32")
+        y_pred = np.zeros((1, 2050), dtype="float16")
+        y_pred[0, 2049] = 1.0
+        sp_cat_acc.update_state(y_true, y_pred)
+        res = sp_cat_acc.result()
+        self.assertEqual(backend.standardize_dtype(res.dtype), "float16")
+        self.assertAllClose(res, 1.0)
 
 
 class TopKCategoricalAccuracyTest(testing.TestCase):

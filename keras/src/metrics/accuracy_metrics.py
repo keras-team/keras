@@ -9,6 +9,11 @@ def accuracy(y_true, y_pred):
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
+    if backend.is_float_dtype(y_pred.dtype) and backend.standardize_dtype(
+        y_pred.dtype
+    ) in ("float16", "bfloat16"):
+        y_true = ops.cast(y_true, "float32")
+        y_pred = ops.cast(y_pred, "float32")
     return ops.cast(ops.equal(y_true, y_pred), dtype=backend.floatx())
 
 
@@ -63,7 +68,10 @@ class Accuracy(reduction_metrics.MeanMetricWrapper):
 def binary_accuracy(y_true, y_pred, threshold=0.5):
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true)
-    threshold = ops.convert_to_tensor(threshold)
+    threshold_dtype = (
+        y_pred.dtype if backend.is_float_dtype(y_pred.dtype) else None
+    )
+    threshold = ops.convert_to_tensor(threshold, dtype=threshold_dtype)
     y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     y_pred = ops.cast(ops.greater(y_pred, threshold), y_true.dtype)
     return ops.cast(ops.equal(y_true, y_pred), dtype=backend.floatx())
@@ -127,12 +135,11 @@ class BinaryAccuracy(reduction_metrics.MeanMetricWrapper):
 
 @keras_export("keras.metrics.categorical_accuracy")
 def categorical_accuracy(y_true, y_pred):
+    y_pred = ops.convert_to_tensor(y_pred)
+    y_true = ops.convert_to_tensor(y_true)
     y_true = ops.argmax(y_true, axis=-1)
 
     reshape_matches = False
-    y_pred = ops.convert_to_tensor(y_pred)
-    y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
-
     y_true_org_shape = ops.shape(y_true)
     y_pred_rank = len(y_pred.shape)
     y_true_rank = len(y_true.shape)
@@ -147,10 +154,8 @@ def categorical_accuracy(y_true, y_pred):
         reshape_matches = True
     y_pred = ops.argmax(y_pred, axis=-1)
 
-    # If the predicted output and actual output types don't match, force cast
-    # them to match.
-    if y_pred.dtype is not y_true.dtype:
-        y_pred = ops.cast(y_pred, dtype=y_true.dtype)
+    y_true = ops.cast(y_true, "int32")
+    y_pred = ops.cast(y_pred, "int32")
     matches = ops.cast(ops.equal(y_true, y_pred), backend.floatx())
     if reshape_matches:
         matches = ops.reshape(matches, y_true_org_shape)
@@ -217,7 +222,7 @@ class CategoricalAccuracy(reduction_metrics.MeanMetricWrapper):
 def sparse_categorical_accuracy(y_true, y_pred):
     reshape_matches = False
     y_pred = ops.convert_to_tensor(y_pred)
-    y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
+    y_true = ops.convert_to_tensor(y_true)
     y_true_org_shape = ops.shape(y_true)
     y_pred_rank = len(y_pred.shape)
     y_true_rank = len(y_true.shape)
@@ -233,10 +238,8 @@ def sparse_categorical_accuracy(y_true, y_pred):
         reshape_matches = True
     y_pred = ops.argmax(y_pred, axis=-1)
 
-    # If the predicted output and actual output types don't match, force cast
-    # them to match.
-    if y_pred.dtype is not y_true.dtype:
-        y_pred = ops.cast(y_pred, y_true.dtype)
+    y_true = ops.cast(y_true, "int32")
+    y_pred = ops.cast(y_pred, "int32")
     matches = ops.cast(ops.equal(y_true, y_pred), backend.floatx())
     if reshape_matches:
         matches = ops.reshape(matches, y_true_org_shape)
@@ -304,7 +307,7 @@ class SparseCategoricalAccuracy(reduction_metrics.MeanMetricWrapper):
 def top_k_categorical_accuracy(y_true, y_pred, k=5):
     reshape_matches = False
     y_pred = ops.convert_to_tensor(y_pred)
-    y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
+    y_true = ops.convert_to_tensor(y_true)
     y_true = ops.argmax(y_true, axis=-1)
     y_true_rank = len(y_true.shape)
     y_pred_rank = len(y_pred.shape)
@@ -404,8 +407,7 @@ def sparse_top_k_categorical_accuracy(
     """
     reshape_matches = False
     y_pred = ops.convert_to_tensor(y_pred)
-    y_true_dtype = y_pred.dtype if from_sorted_ids else "int32"
-    y_true = ops.convert_to_tensor(y_true, dtype=y_true_dtype)
+    y_true = ops.convert_to_tensor(y_true)
     y_true_rank = len(y_true.shape)
     y_pred_rank = len(y_pred.shape)
     y_true_org_shape = ops.shape(y_true)
@@ -419,13 +421,15 @@ def sparse_top_k_categorical_accuracy(
             y_true = ops.reshape(y_true, [-1])
 
     if from_sorted_ids:
+        y_true = ops.cast(y_true, "int32")
+        y_pred = ops.cast(y_pred, "int32")
         # By slicing the first k items, we assume they are sorted by score.
         # Reduce with `any` to count multiple matches only once.
         matches = ops.any(
             ops.equal(ops.expand_dims(y_true, axis=1), y_pred[:, :k]), axis=1
         )
     else:
-        matches = ops.in_top_k(y_true, y_pred, k=k)
+        matches = ops.in_top_k(ops.cast(y_true, "int32"), y_pred, k=k)
 
     matches = ops.cast(matches, dtype=backend.floatx())
 

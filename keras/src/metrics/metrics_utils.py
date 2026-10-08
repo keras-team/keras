@@ -619,9 +619,10 @@ def _filter_top_k(x, k):
     """
     _, top_k_idx = ops.top_k(x, k)
     top_k_mask = ops.sum(
-        ops.one_hot(top_k_idx, ops.shape(x)[-1], axis=-1), axis=-2
+        ops.one_hot(top_k_idx, ops.shape(x)[-1], axis=-1, dtype="int32"),
+        axis=-2,
     )
-    return x * top_k_mask + NEG_INF * (1 - top_k_mask)
+    return ops.where(top_k_mask > 0, x, ops.cast(NEG_INF, x.dtype))
 
 
 def confusion_matrix(

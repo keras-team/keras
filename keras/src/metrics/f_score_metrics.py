@@ -146,7 +146,7 @@ class FBetaScore(Metric):
                 name=name,
                 shape=init_shape,
                 initializer=initializers.Zeros(),
-                dtype=self.dtype,
+                dtype=self._state_dtype,
             )
 
         self.true_positives = _add_zeros_variable("true_positives")
@@ -156,8 +156,8 @@ class FBetaScore(Metric):
         self._built = True
 
     def update_state(self, y_true, y_pred, sample_weight=None):
-        y_true = ops.convert_to_tensor(y_true, dtype=self.dtype)
-        y_pred = ops.convert_to_tensor(y_pred, dtype=self.dtype)
+        y_true = ops.convert_to_tensor(y_true, dtype=self._state_dtype)
+        y_pred = ops.convert_to_tensor(y_pred, dtype=self._state_dtype)
         if not self._built:
             self._build(y_true.shape, y_pred.shape)
 
@@ -171,11 +171,11 @@ class FBetaScore(Metric):
         else:
             y_pred = y_pred > self.threshold
 
-        y_pred = ops.cast(y_pred, dtype=self.dtype)
-        y_true = ops.cast(y_true, dtype=self.dtype)
+        y_pred = ops.cast(y_pred, dtype=self._state_dtype)
+        y_true = ops.cast(y_true, dtype=self._state_dtype)
         if sample_weight is not None:
             sample_weight = ops.convert_to_tensor(
-                sample_weight, dtype=self.dtype
+                sample_weight, dtype=self._state_dtype
             )
             if len(sample_weight.shape) < len(y_true.shape):
                 sample_weight = ops.expand_dims(
@@ -190,16 +190,22 @@ class FBetaScore(Metric):
                 val = ops.multiply(val, sample_weight)
             return ops.sum(val, axis=self.axis)
 
+        one = ops.cast(1.0, self._state_dtype)
         self.true_positives.assign(
-            self.true_positives + _weighted_sum(y_pred * y_true, sample_weight)
+            self.true_positives
+            + _weighted_sum(ops.multiply(y_pred, y_true), sample_weight)
         )
         self.false_positives.assign(
             self.false_positives
-            + _weighted_sum(y_pred * (1 - y_true), sample_weight)
+            + _weighted_sum(
+                ops.multiply(y_pred, ops.subtract(one, y_true)), sample_weight
+            )
         )
         self.false_negatives.assign(
             self.false_negatives
-            + _weighted_sum((1 - y_pred) * y_true, sample_weight)
+            + _weighted_sum(
+                ops.multiply(ops.subtract(one, y_pred), y_true), sample_weight
+            )
         )
         self.intermediate_weights.assign(
             self.intermediate_weights + _weighted_sum(y_true, sample_weight)
@@ -208,32 +214,38 @@ class FBetaScore(Metric):
     def result(self):
         precision = ops.divide(
             self.true_positives,
-            self.true_positives + self.false_positives + backend.epsilon(),
+            ops.add(
+                ops.add(self.true_positives, self.false_positives),
+                backend.epsilon(),
+            ),
         )
         recall = ops.divide(
             self.true_positives,
-            self.true_positives + self.false_negatives + backend.epsilon(),
+            ops.add(
+                ops.add(self.true_positives, self.false_negatives),
+                backend.epsilon(),
+            ),
         )
 
-        precision = ops.convert_to_tensor(precision, dtype=self.dtype)
-        recall = ops.convert_to_tensor(recall, dtype=self.dtype)
+        beta_sq = ops.cast(self.beta**2, self._state_dtype)
+        one_plus_beta_sq = ops.cast(1.0 + self.beta**2, self._state_dtype)
 
-        mul_value = precision * recall
-        add_value = ((self.beta**2) * precision) + recall
-        mean = ops.divide(mul_value, add_value + backend.epsilon())
-        f1_score = mean * (1 + (self.beta**2))
+        mul_value = ops.multiply(precision, recall)
+        add_value = ops.add(ops.multiply(beta_sq, precision), recall)
+        mean = ops.divide(mul_value, ops.add(add_value, backend.epsilon()))
+        f1_score = ops.multiply(mean, one_plus_beta_sq)
 
         if self.average == "weighted":
             weights = ops.divide(
                 self.intermediate_weights,
-                ops.sum(self.intermediate_weights) + backend.epsilon(),
+                ops.add(ops.sum(self.intermediate_weights), backend.epsilon()),
             )
-            f1_score = ops.sum(f1_score * weights)
+            f1_score = ops.sum(ops.multiply(f1_score, weights))
 
         elif self.average is not None:  # [micro, macro]
             f1_score = ops.mean(f1_score)
 
-        return f1_score
+        return ops.cast(f1_score, self.dtype)
 
     def get_config(self):
         """Returns the serializable config of the metric."""

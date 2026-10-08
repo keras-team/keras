@@ -22,7 +22,7 @@ def normalize(x, axis=-1, order=2):
     """
     from keras.src import ops
 
-    if isinstance(x, np.ndarray):
+    if isinstance(x, np.ndarray) and backend.backend() != "numpy":
         # NumPy input
         norm = np.linalg.norm(x, order, axis)
         norm = np.where(norm == 0, 1, norm)
@@ -216,11 +216,9 @@ def build_pos_neg_masks(
     if remove_diagonal:
         positive_mask = ops.logical_and(
             positive_mask,
-            ~ops.eye(
-                ops.size(query_labels),
-                ops.size(key_labels),
-                k=0,
-                dtype="bool",
+            ops.not_equal(
+                ops.reshape(ops.arange(ops.size(query_labels)), (-1, 1)),
+                ops.reshape(ops.arange(ops.size(key_labels)), (1, -1)),
             ),
         )
 

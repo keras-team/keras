@@ -71,7 +71,7 @@ class _IoUBase(Metric):
             name="total_confusion_matrix",
             shape=(num_classes, num_classes),
             initializer=initializers.Zeros(),
-            dtype=self.dtype,
+            dtype=self._state_dtype,
         )
 
     def update_state(self, y_true, y_pred, sample_weight=None):
@@ -163,7 +163,7 @@ class _IoUBase(Metric):
             y_pred,
             self.num_classes,
             weights=sample_weight,
-            dtype=self.dtype,
+            dtype=self._state_dtype,
         )
 
         return self.total_cm.assign(self.total_cm + current_cm)
@@ -321,12 +321,17 @@ class IoU(_IoUBase):
         # contribute 0.0, not ~1.0.
         iou = ops.where(valid_entries, iou, 0.0)
 
-        # `iou` holds one value per target class, so it is reduced over its
-        # only dimension. `self.axis` refers to the class dimension of the
-        # inputs and is only meaningful in `update_state`.
-        return ops.divide(
-            ops.sum(iou),
-            num_valid_entries + backend.epsilon(),
+        out_dtype = (
+            self.dtype
+            if backend.is_float_dtype(self.dtype)
+            else backend.floatx()
+        )
+        return ops.cast(
+            ops.divide(
+                ops.sum(iou),
+                num_valid_entries + backend.epsilon(),
+            ),
+            out_dtype,
         )
 
     def get_config(self):

@@ -186,6 +186,17 @@ class Metric(KerasSaveable):
     def dtype(self):
         return self._dtype
 
+    @property
+    def _state_dtype(self):
+        dtype = self.dtype
+        if backend.is_float_dtype(dtype):
+            return (
+                "float32"
+                if backend.standardize_dtype(dtype) in ("float16", "bfloat16")
+                else dtype
+            )
+        return dtype
+
     def _obj_type(self):
         return "Metric"
 
@@ -193,6 +204,7 @@ class Metric(KerasSaveable):
         self, shape, initializer, dtype=None, aggregation="sum", name=None
     ):
         self._check_super_called()
+        dtype = dtype or self._state_dtype
         with backend.name_scope(self.name.replace("/", ">"), caller=self):
             initializer = initializers.get(initializer)
             variable = backend.Variable(

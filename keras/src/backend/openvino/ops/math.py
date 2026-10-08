@@ -188,7 +188,7 @@ def in_top_k(targets, predictions, k):
     predictions = get_ov_output(predictions)
 
     # top_k returns (..., k) sorted descending; last col is the k-th largest
-    topk_values = top_k(predictions, k)[0]
+    topk_values = get_ov_output(top_k(predictions, k)[0])
     # Grab only the last column (index k-1): threshold value, shape (...,)
     k_minus_1_idx = ov_opset.constant([k - 1], dtype=Type.i32).output(0)
     topk_values_axis = ov_opset.constant(-1, dtype=Type.i32).output(0)
@@ -199,7 +199,9 @@ def in_top_k(targets, predictions, k):
     topk_min = ov_opset.squeeze(topk_min, axis_constant).output(0)
 
     # Gather the prediction score at each true class index → shape (..., 1)
-    targets_values = take_along_axis(predictions, targets, axis=-1)
+    targets_values = get_ov_output(
+        take_along_axis(predictions, targets, axis=-1)
+    )
     # Squeeze back (..., 1) → (...,)
     targets_values = ov_opset.squeeze(targets_values, axis_constant).output(0)
     # target score >= k-th largest score means it belongs in the top-k

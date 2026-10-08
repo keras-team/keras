@@ -236,14 +236,16 @@ class RootMeanSquaredError(reduction_metrics.Mean):
         Returns:
             Update op.
         """
-        y_true = ops.convert_to_tensor(y_true, self._dtype)
-        y_pred = ops.convert_to_tensor(y_pred, self._dtype)
+        y_true = ops.convert_to_tensor(y_true, self._state_dtype)
+        y_pred = ops.convert_to_tensor(y_pred, self._state_dtype)
         y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
-        error_sq = ops.square(y_pred - y_true)
+        error_sq = ops.square(ops.subtract(y_pred, y_true))
         return super().update_state(error_sq, sample_weight=sample_weight)
 
     def result(self):
-        return ops.sqrt(super().result())
+        return ops.cast(
+            ops.sqrt(ops.cast(super().result(), self._state_dtype)), self.dtype
+        )
 
 
 @keras_export("keras.metrics.CosineSimilarity")
@@ -436,6 +438,7 @@ class R2Score(reduction_metrics.Metric):
             shape=(),
             initializer=initializers.Zeros(),
             name="num_samples",
+            dtype=self._state_dtype,
         )
         self._built = False
 
@@ -460,21 +463,25 @@ class R2Score(reduction_metrics.Metric):
             name="squared_sum",
             shape=[num_classes],
             initializer=initializers.Zeros(),
+            dtype=self._state_dtype,
         )
         self.sum = self.add_variable(
             name="sum",
             shape=[num_classes],
             initializer=initializers.Zeros(),
+            dtype=self._state_dtype,
         )
         self.total_mse = self.add_variable(
             name="residual",
             shape=[num_classes],
             initializer=initializers.Zeros(),
+            dtype=self._state_dtype,
         )
         self.count = self.add_variable(
             name="count",
             shape=[num_classes],
             initializer=initializers.Zeros(),
+            dtype=self._state_dtype,
         )
         self._built = True
 
@@ -492,8 +499,8 @@ class R2Score(reduction_metrics.Metric):
         Returns:
             Update op.
         """
-        y_true = ops.convert_to_tensor(y_true, dtype=self._dtype)
-        y_pred = ops.convert_to_tensor(y_pred, dtype=self._dtype)
+        y_true = ops.convert_to_tensor(y_true, dtype=self._state_dtype)
+        y_pred = ops.convert_to_tensor(y_pred, dtype=self._state_dtype)
         y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
         if not self._built:
             self._build(y_true.shape, y_pred.shape)
@@ -501,7 +508,9 @@ class R2Score(reduction_metrics.Metric):
         if sample_weight is None:
             sample_weight = 1
 
-        sample_weight = ops.convert_to_tensor(sample_weight, dtype=self.dtype)
+        sample_weight = ops.convert_to_tensor(
+            sample_weight, dtype=self._state_dtype
+        )
 
         if len(sample_weight.shape) == 1:
             # Make sure there's a features dimension
@@ -510,15 +519,18 @@ class R2Score(reduction_metrics.Metric):
         sample_weight = ops.broadcast_to(sample_weight, ops.shape(y_true))
 
         sample_weight = ops.cast(sample_weight, y_true.dtype)
-        weighted_y_true = y_true * sample_weight
+        weighted_y_true = ops.multiply(y_true, sample_weight)
         self.sum.assign(self.sum + ops.sum(weighted_y_true, axis=0))
         self.squared_sum.assign(
-            self.squared_sum + ops.sum(y_true * weighted_y_true, axis=0)
+            self.squared_sum
+            + ops.sum(ops.multiply(y_true, weighted_y_true), axis=0)
         )
         self.total_mse.assign(
             self.total_mse
             + ops.sum(
-                (y_true - y_pred) ** 2 * sample_weight,
+                ops.multiply(
+                    ops.square(ops.subtract(y_true, y_pred)), sample_weight
+                ),
                 axis=0,
             )
         )
@@ -528,32 +540,39 @@ class R2Score(reduction_metrics.Metric):
         # for multi-output regression and ensures num_samples is an integer.
         is_nonzero = ops.not_equal(sample_weight, 0.0)
         nonzero_per_sample = ops.any(is_nonzero, axis=-1)
-        num_samples_update = ops.sum(ops.cast(nonzero_per_sample, self.dtype))
+        num_samples_update = ops.sum(
+            ops.cast(nonzero_per_sample, self._state_dtype)
+        )
         self.num_samples.assign_add(num_samples_update)
 
     def result(self):
-        mean = self.sum / self.count
-        total = self.squared_sum - self.sum * mean
-        # Branch on the state variables themselves (matching sklearn's
-        # `force_finite` check on its raw numerator/denominator) rather than
-        # on properties of the computed ratio: a NaN in total_mse can also
-        # come from unrelated numerical instability (e.g. exploding
-        # gradients), and checking isnan(raw_scores) can't tell that case
-        # apart from the deliberate 0/0 of a zero-variance perfect
-        # prediction. It would silently report a perfect score instead of
-        # surfacing the NaN.
-        safe_total = ops.where(ops.equal(total, 0.0), 1.0, total)
-        raw_scores = 1.0 - (self.total_mse / safe_total)
-        raw_scores = ops.where(ops.equal(total, 0.0), 0.0, raw_scores)
-        raw_scores = ops.where(ops.equal(self.total_mse, 0.0), 1.0, raw_scores)
-        raw_scores = ops.where(ops.isinf(raw_scores), 0.0, raw_scores)
+        mean = ops.divide(self.sum, self.count)
+        total = ops.subtract(self.squared_sum, ops.multiply(self.sum, mean))
+        safe_total = ops.where(
+            ops.equal(total, 0.0), ops.cast(1.0, self._state_dtype), total
+        )
+        raw_scores = ops.subtract(
+            ops.cast(1.0, self._state_dtype),
+            ops.divide(self.total_mse, safe_total),
+        )
+        raw_scores = ops.where(
+            ops.equal(total, 0.0), ops.cast(0.0, self._state_dtype), raw_scores
+        )
+        raw_scores = ops.where(
+            ops.equal(self.total_mse, 0.0),
+            ops.cast(1.0, self._state_dtype),
+            raw_scores,
+        )
+        raw_scores = ops.where(
+            ops.isinf(raw_scores), ops.cast(0.0, self._state_dtype), raw_scores
+        )
 
         if self.class_aggregation == "uniform_average":
             r2_score = ops.mean(raw_scores)
         elif self.class_aggregation == "variance_weighted_average":
-            weighted_sum = ops.sum(total * raw_scores)
+            weighted_sum = ops.sum(ops.multiply(total, raw_scores))
             sum_of_weights = ops.sum(total)
-            r2_score = weighted_sum / sum_of_weights
+            r2_score = ops.divide(weighted_sum, sum_of_weights)
         else:
             r2_score = raw_scores
 
@@ -578,7 +597,7 @@ class R2Score(reduction_metrics.Metric):
                 )
                 den = ops.subtract(ops.subtract(n, p), 1.0)
                 r2_score = ops.subtract(1.0, ops.divide(num, den))
-        return r2_score
+        return ops.cast(r2_score, self.dtype)
 
     def reset_state(self):
         for v in self.variables:

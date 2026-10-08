@@ -47,6 +47,15 @@ class SumTest(testing.TestCase):
         result = sum_obj.result()
         self.assertAllClose(result, 6.0, atol=1e-3)
 
+    def test_float16_dtype_uses_float32_state(self):
+        sum_obj = reduction_metrics.Sum(dtype="float16")
+        self.assertEqual(sum_obj.dtype, "float16")
+        self.assertEqual(sum_obj.total.dtype, "float32")
+        sum_obj.update_state([1.0, 2.0, 3.0])
+        res = sum_obj.result()
+        self.assertEqual(backend.standardize_dtype(res.dtype), "float16")
+        self.assertAllClose(res, 6.0)
+
 
 class MeanTest(testing.TestCase):
     def test_config(self):
@@ -97,6 +106,16 @@ class MeanTest(testing.TestCase):
             mean_obj, KerasTensor((None, 2)), KerasTensor((None, 2))
         )
         self.assertEqual(result.shape, ())
+
+    def test_float16_dtype_uses_float32_state(self):
+        mean_obj = reduction_metrics.Mean(dtype="float16")
+        self.assertEqual(mean_obj.dtype, "float16")
+        self.assertEqual(mean_obj.total.dtype, "float32")
+        self.assertEqual(mean_obj.count.dtype, "float32")
+        mean_obj.update_state([1.0, 2.0, 3.0])
+        res = mean_obj.result()
+        self.assertEqual(backend.standardize_dtype(res.dtype), "float16")
+        self.assertAllClose(res, 2.0)
 
 
 # How users would register a custom function or class to use with
