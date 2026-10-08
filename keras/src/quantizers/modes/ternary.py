@@ -1,8 +1,10 @@
 from keras.src import initializers
 from keras.src import ops
 from keras.src.quantizers.packing import pack_ternary
-from keras.src.quantizers.packing import unpack_ternary
 from keras.src.quantizers.quantization_config import TernaryQuantizationConfig
+from keras.src.quantizers.quantized_weight import QuantizedWeight
+from keras.src.quantizers.quantized_weight import TernaryTrits
+from keras.src.quantizers.quantized_weight import WeightScheme
 from keras.src.quantizers.strategy_registry import QuantizationStrategy
 
 
@@ -22,11 +24,10 @@ class TernaryStrategy(QuantizationStrategy):
         del config
         self.require_geometry(layer)
         input_dim, units = input_shape
-        # Five trits per byte (3^5 == 243 <= 256): ceil(input_dim / 5) rows.
-        packed_rows = (input_dim + 4) // 5
+        # Five trits per byte (3^5 == 243 <= 256) along the input axis.
         layer._packed_kernel = layer.add_weight(
             name="kernel",
-            shape=(packed_rows, units),
+            shape=(TernaryTrits.packed_length(input_dim), units),
             # 121 = 1+3+9+27+81: byte whose five base-3 digits are all 0,
             # decoding to trit 0 (neutral). "zeros" (byte 0) has the same
             # digits but maps to trit -1, giving an all-minus-one kernel.
@@ -43,6 +44,17 @@ class TernaryStrategy(QuantizationStrategy):
         )
         layer._orig_input_dim = input_dim
 
+    def quantized_weight(self, layer):
+        # The scale is the scalar multiplier `beta`. The forward pass
+        # applies it to the matmul output rather than to the codes.
+        return QuantizedWeight(
+            codes=layer._packed_kernel,
+            scale=layer.kernel_scale,
+            layout=TernaryTrits(axis=0, orig_len=layer._orig_input_dim),
+            scheme=WeightScheme(code_range=(-1, 1), scale_form="multiplier"),
+            shape=(layer._orig_input_dim, layer.units),
+        )
+
     def call(self, layer, inputs, **kwargs):
         # Sparseskip inference path. Weights split into pos (+1) and neg (-1)
         # boolean masks so the matmul is structurally multiply-free — only
@@ -53,7 +65,7 @@ class TernaryStrategy(QuantizationStrategy):
         # call in this path; inference is slightly slower due to the unpack.
         # Realizing the full sparseskip speedup requires a native ternary
         # kernel that reads the packed format directly.
-        k = unpack_ternary(layer._packed_kernel, layer._orig_input_dim, axis=0)
+        k = self.quantized_weight(layer).unpack()
         pos = ops.cast(ops.equal(k, 1), layer.compute_dtype)
         neg = ops.cast(ops.equal(k, -1), layer.compute_dtype)
         x = ops.subtract(
