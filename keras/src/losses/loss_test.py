@@ -1,3 +1,4 @@
+import os
 import pickle
 
 import numpy as np
@@ -5,8 +6,11 @@ from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import dtype_policies
+from keras.src import layers
 from keras.src import losses as losses_module
+from keras.src import models
 from keras.src import ops
+from keras.src import saving
 from keras.src import testing
 from keras.src.losses.loss import Loss
 from keras.src.losses.loss import squeeze_or_expand_to_same_rank
@@ -270,3 +274,71 @@ class LossTest(testing.TestCase):
         loss_fn = ExampleLoss()
         loss = loss_fn(y_true, y_pred)
         self.assertDType(loss, backend.floatx())
+
+    def test_get_config_and_from_config_dtype(self):
+        # Default dtype should not add dtype to config if it equals floatx()
+        loss_default = ExampleLoss()
+        config_default = loss_default.get_config()
+        self.assertNotIn("dtype", config_default)
+        restored_default = ExampleLoss.from_config(config_default)
+        self.assertEqual(restored_default.dtype, backend.floatx())
+
+        # Explicit string dtype should be saved in config and restored
+        loss_f16 = ExampleLoss(dtype="float16")
+        config_f16 = loss_f16.get_config()
+        self.assertEqual(config_f16.get("dtype"), "float16")
+        restored_f16 = ExampleLoss.from_config(config_f16)
+        self.assertEqual(restored_f16.dtype, "float16")
+
+        loss_bf16 = ExampleLoss(dtype="bfloat16")
+        config_bf16 = loss_bf16.get_config()
+        self.assertEqual(config_bf16.get("dtype"), "bfloat16")
+        restored_bf16 = ExampleLoss.from_config(config_bf16)
+        self.assertEqual(restored_bf16.dtype, "bfloat16")
+
+        # Explicit DTypePolicy should save compute_dtype in config
+        loss_policy = ExampleLoss(
+            dtype=dtype_policies.DTypePolicy("mixed_float16")
+        )
+        config_policy = loss_policy.get_config()
+        self.assertEqual(config_policy.get("dtype"), "float16")
+        restored_policy = ExampleLoss.from_config(config_policy)
+        self.assertEqual(restored_policy.dtype, "float16")
+
+        # Backwards compatibility: custom loss without dtype in __init__
+        class CustomLegacyLoss(Loss):
+            def __init__(self, name=None, reduction="sum_over_batch_size"):
+                super().__init__(name=name, reduction=reduction)
+
+            def call(self, y_true, y_pred):
+                return ops.square(y_true - y_pred)
+
+        legacy_loss = CustomLegacyLoss()
+        legacy_config = legacy_loss.get_config()
+        self.assertNotIn("dtype", legacy_config)
+        restored_legacy = CustomLegacyLoss.from_config(legacy_config)
+        self.assertIsInstance(restored_legacy, CustomLegacyLoss)
+
+        # Even if a config with dtype is passed to legacy loss,
+        # it shouldn't raise
+        config_with_dtype = {
+            "name": "custom",
+            "reduction": "sum_over_batch_size",
+            "dtype": "float16",
+        }
+        restored_legacy_with_dtype = CustomLegacyLoss.from_config(
+            config_with_dtype
+        )
+        self.assertIsInstance(restored_legacy_with_dtype, CustomLegacyLoss)
+
+    def test_model_save_and_load_preserves_loss_dtype(self):
+        model = models.Sequential([layers.Dense(1, input_shape=(2,))])
+        loss = losses_module.MeanSquaredError(dtype="bfloat16")
+        model.compile(optimizer="sgd", loss=loss)
+
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "loss_dtype_model.keras"
+        )
+        model.save(temp_filepath)
+        loaded_model = saving.load_model(temp_filepath)
+        self.assertEqual(loaded_model.loss.dtype, "bfloat16")
