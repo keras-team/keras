@@ -7958,43 +7958,63 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         finally:
             backend.config._set_use_backend_agnostic_ops(False)
 
-    def test_nancumsum(self):
-        x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, -1.0]])
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_nancumsum(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, -1.0]])
 
-        self.assertAllClose(knp.nancumsum(x), np.nancumsum(x))
-        self.assertAllClose(knp.nancumsum(x, axis=0), np.nancumsum(x, axis=0))
-        self.assertAllClose(knp.nancumsum(x, axis=1), np.nancumsum(x, axis=1))
-        self.assertAllClose(knp.Nancumsum()(x), np.nancumsum(x))
-        self.assertAllClose(knp.Nancumsum(axis=1)(x), np.nancumsum(x, axis=1))
+            self.assertAllClose(knp.nancumsum(x), np.nancumsum(x))
+            self.assertAllClose(
+                knp.nancumsum(x, axis=0), np.nancumsum(x, axis=0)
+            )
+            self.assertAllClose(
+                knp.nancumsum(x, axis=1), np.nancumsum(x, axis=1)
+            )
+            self.assertAllClose(knp.Nancumsum()(x), np.nancumsum(x))
+            self.assertAllClose(
+                knp.Nancumsum(axis=1)(x), np.nancumsum(x, axis=1)
+            )
 
-        x_3d = np.array(
-            [
-                [[1.0, np.nan], [2.0, 3.0]],
-                [[np.nan, 4.0], [5.0, np.nan]],
-            ]
-        )
+            x_3d = np.array(
+                [
+                    [[1.0, np.nan], [2.0, 3.0]],
+                    [[np.nan, 4.0], [5.0, np.nan]],
+                ]
+            )
 
-        self.assertAllClose(knp.nancumsum(x_3d), np.nancumsum(x_3d))
-        self.assertAllClose(
-            knp.nancumsum(x_3d, axis=0), np.nancumsum(x_3d, axis=0)
-        )
-        self.assertAllClose(
-            knp.nancumsum(x_3d, axis=1), np.nancumsum(x_3d, axis=1)
-        )
+            self.assertAllClose(knp.nancumsum(x_3d), np.nancumsum(x_3d))
+            self.assertAllClose(
+                knp.nancumsum(x_3d, axis=0), np.nancumsum(x_3d, axis=0)
+            )
+            self.assertAllClose(
+                knp.nancumsum(x_3d, axis=1), np.nancumsum(x_3d, axis=1)
+            )
 
-        x_all_nan = np.array([[np.nan, np.nan], [np.nan, np.nan]])
-        self.assertAllClose(knp.nancumsum(x_all_nan), np.nancumsum(x_all_nan))
-        self.assertAllClose(
-            knp.nancumsum(x_all_nan, axis=1), np.nancumsum(x_all_nan, axis=1)
-        )
+            x_all_nan = np.array([[np.nan, np.nan], [np.nan, np.nan]])
+            self.assertAllClose(
+                knp.nancumsum(x_all_nan), np.nancumsum(x_all_nan)
+            )
+            self.assertAllClose(
+                knp.nancumsum(x_all_nan, axis=1),
+                np.nancumsum(x_all_nan, axis=1),
+            )
 
-        x_with_inf = np.array(
-            [[np.nan, np.inf, 1.0], [np.nan, -np.inf, -1.0]], dtype=np.float32
-        )
-        self.assertAllClose(
-            knp.nancumsum(x_with_inf, axis=1),
-            np.nancumsum(x_with_inf, axis=1),
-        )
+            x_with_inf = np.array(
+                [[np.nan, np.inf, 1.0], [np.nan, -np.inf, -1.0]],
+                dtype=np.float32,
+            )
+            self.assertAllClose(
+                knp.nancumsum(x_with_inf, axis=1),
+                np.nancumsum(x_with_inf, axis=1),
+            )
+
+            x_int = np.array([[1, 2, 3], [4, 5, 6]], dtype="int32")
+            self.assertAllClose(
+                knp.nancumsum(x_int, axis=1), np.nancumsum(x_int, axis=1)
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     def test_nancumprod(self):
         x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, -1.0]])
@@ -12063,24 +12083,30 @@ class NumpyDtypeTest(testing.TestCase):
         finally:
             backend.config._set_use_backend_agnostic_ops(False)
 
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_nancumsum(self, dtype):
+    @parameterized.named_parameters(
+        named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
+    )
+    def test_nancumsum(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        x = knp.ones((1,), dtype=dtype)
-        x_jax = jnp.ones((1,), dtype=dtype)
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        try:
+            x = knp.ones((1,), dtype=dtype)
+            x_jax = jnp.ones((1,), dtype=dtype)
 
-        expected_dtype = standardize_dtype(jnp.nancumsum(x_jax).dtype)
+            expected_dtype = standardize_dtype(jnp.nancumsum(x_jax).dtype)
 
-        self.assertEqual(
-            standardize_dtype(knp.nancumsum(x).dtype),
-            expected_dtype,
-        )
+            self.assertEqual(
+                standardize_dtype(knp.nancumsum(x).dtype),
+                expected_dtype,
+            )
 
-        self.assertEqual(
-            standardize_dtype(knp.Nancumsum().symbolic_call(x).dtype),
-            expected_dtype,
-        )
+            self.assertEqual(
+                standardize_dtype(knp.Nancumsum().symbolic_call(x).dtype),
+                expected_dtype,
+            )
+        finally:
+            backend.config._set_use_backend_agnostic_ops(False)
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_nancumprod(self, dtype):
