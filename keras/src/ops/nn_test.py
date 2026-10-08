@@ -2401,6 +2401,34 @@ class NNOpsCorrectnessTest(testing.TestCase):
         )
         self.assertAllClose(outputs, expected)
 
+    def test_conv_transpose_functional_model(self):
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            input_shape = (4, 4, 3)
+            kernel_shape = (2, 2, 5, 3)
+            inputs_data = np.arange(96, dtype="float32").reshape((2, 4, 4, 3))
+        else:
+            input_shape = (3, 4, 4)
+            kernel_shape = (2, 2, 5, 3)
+            inputs_data = np.arange(96, dtype="float32").reshape((2, 3, 4, 4))
+        kernel_data = np.arange(60, dtype="float32").reshape(kernel_shape)
+
+        x = keras.layers.Input(shape=input_shape)
+        kernel = keras.ops.convert_to_tensor(kernel_data)
+        out = knn.conv_transpose(
+            x, kernel, strides=2, padding="valid", output_padding=1
+        )
+        model = keras.Model(inputs=x, outputs=out)
+        model_output = model(inputs_data)
+        eager_output = knn.conv_transpose(
+            inputs_data,
+            kernel_data,
+            strides=2,
+            padding="valid",
+            output_padding=1,
+        )
+        self.assertAllClose(model_output, eager_output)
+
     @parameterized.named_parameters(
         [
             {"testcase_name": "dense", "sparse": False},
