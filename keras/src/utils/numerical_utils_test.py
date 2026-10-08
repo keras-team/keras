@@ -166,16 +166,15 @@ class TestNumericalUtils(testing.TestCase):
             np.all(positive_mask == expected_positive_mask_with_remove_diag)
         )
 
-        # A symbolic input with a statically unknown dimension cannot build
-        # the diagonal mask (no concrete size to pass to `ops.eye`) and must
-        # raise a clear error rather than crash inside the backend.
+        # A symbolic input with an unknown dimension (e.g. a dynamic batch
+        # size) must still build correctly, since the diagonal mask is now
+        # derived from positive_mask's own shape rather than `ops.eye`.
         unknown_dim_labels = KerasTensor(shape=(None,), dtype="int32")
-        with self.assertRaisesRegex(
-            ValueError, "statically known number of elements"
-        ):
-            numerical_utils.build_pos_neg_masks(
-                unknown_dim_labels, unknown_dim_labels, remove_diagonal=True
-            )
+        positive_mask, negative_mask = numerical_utils.build_pos_neg_masks(
+            unknown_dim_labels, unknown_dim_labels, remove_diagonal=True
+        )
+        self.assertEqual(positive_mask.shape, (None, None))
+        self.assertEqual(negative_mask.shape, (None, None))
 
         # A symbolic input with a statically known dimension still works.
         known_dim_labels = KerasTensor(shape=(4,), dtype="int32")
