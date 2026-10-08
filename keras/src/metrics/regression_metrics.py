@@ -295,11 +295,12 @@ class CosineSimilarity(reduction_metrics.MeanMetricWrapper):
 
     def __init__(self, name="cosine_similarity", dtype=None, axis=-1):
         super().__init__(cosine_similarity, name, dtype=dtype, axis=axis)
+        self.axis = axis
         # Metric should be maximized during optimization.
         self._direction = "up"
 
     def get_config(self):
-        return {"name": self.name, "dtype": self.dtype}
+        return {"name": self.name, "dtype": self.dtype, "axis": self.axis}
 
 
 @keras_export("keras.metrics.LogCoshError")

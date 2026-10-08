@@ -2,17 +2,20 @@
 
 GPTQ and AWQ allocate the same family of variables, run the same
 dequantize-and-contract forward pass, and speak the same three-part policy
-grammar; they differ only in how the quantized kernel is packed, in one
-extra AWQ variable and its inverse scaling, and in a handful of message
-fragments. Those differences are the hooks below.
+grammar; they differ only in the code bit-width (which fixes how the
+kernel is packed), in one extra AWQ variable and its inverse scaling, and
+in a handful of message fragments. Those differences are the hooks below.
 """
 
 import math
 
-from keras.src import ops
 from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
 from keras.src.quantizers.modes.common import apply_bias_activation
-from keras.src.quantizers.quantizers import dequantize_with_sz_map
+from keras.src.quantizers.quantized_weight import Int2Quads
+from keras.src.quantizers.quantized_weight import Int4Pairs
+from keras.src.quantizers.quantized_weight import NoPack
+from keras.src.quantizers.quantized_weight import QuantizedWeight
+from keras.src.quantizers.quantized_weight import WeightScheme
 from keras.src.quantizers.strategy_registry import QuantizationStrategy
 
 
@@ -21,8 +24,6 @@ class CalibrationStrategy(QuantizationStrategy):
 
     requires_config = True
     requires_layer_structure = True
-    # Packed sub-byte storage (4-bit packs two values per byte).
-    summary_byte_multiplier = 2
 
     def quantize(self, layer, config):
         # The quantized values arrive later, so this only allocates the
@@ -45,6 +46,10 @@ class CalibrationStrategy(QuantizationStrategy):
     def resolve_group_size(self, layer, config):
         """Determine the group size from the config or the dtype policy."""
         return self._resolve_from_config_or_policy(layer, config, "group_size")
+
+    def resolve_weight_bits(self, layer, config):
+        """Determine the weight bits from the config or the dtype policy."""
+        return self._resolve_from_config_or_policy(layer, config, "weight_bits")
 
     def _resolve_from_config_or_policy(self, layer, config, attr):
         """Resolves a hyperparameter with config-over-policy precedence.
@@ -96,29 +101,34 @@ class CalibrationStrategy(QuantizationStrategy):
             )
         rows, columns = geometry.calibration_rows_columns(input_shape)
 
-        kernel_columns = self._packed_columns(layer, columns, config)
+        bits = self.resolve_weight_bits(layer, config)
+        kernel_columns = self._get_pack_layout(bits, columns).packed_length(
+            columns
+        )
         group_size = self.resolve_group_size(layer, config)
         n_groups = 1 if group_size == -1 else math.ceil(rows / group_size)
 
-        geometry.store_unpacked_columns(self.name, columns)
         geometry.prepare()
 
+        # Stored in the kernel's own `[in, out]` orientation and packed
+        # along the output axis, like the int4 layout, so the forward pass
+        # unpacks and dequantizes without a transpose.
         layer.quantized_kernel = layer.add_weight(
             name="kernel",
-            shape=(kernel_columns, rows),
+            shape=(rows, kernel_columns),
             initializer="zeros",
             dtype="uint8",
             trainable=False,
         )
         layer.kernel_scale = layer.add_weight(
             name="kernel_scale",
-            shape=(columns, n_groups),
+            shape=(n_groups, columns),
             initializer="ones",
             trainable=False,
         )
         layer.kernel_zero = layer.add_weight(
             name="zero_point",
-            shape=(columns, n_groups),
+            shape=(n_groups, columns),
             initializer="zeros",
             dtype="uint8",
             trainable=False,
@@ -127,46 +137,78 @@ class CalibrationStrategy(QuantizationStrategy):
         # `g_idx` is stored as `float32` because TF has no GPU kernel for
         # int32 resource variables (would pin the variable to CPU and break
         # jit_compile on GPU); consumers cast to int32 on-device.
+        # Not autocast: bfloat16 holds integers exactly only up to 256.
         layer.g_idx = layer.add_weight(
             name="g_idx",
             shape=(rows,),
             initializer="zeros",
             dtype="float32",
             trainable=False,
+            autocast=False,
         )
-
-    def _packed_columns(self, layer, columns, config):
-        """Column count of the packed kernel for this mode's bit-width."""
-        raise NotImplementedError
 
     def _build_extra_variables(self, layer, rows):
         """Creates any mode-specific variables, after the zero point."""
+
+    def _input_scales(self, layer):
+        """Per-input-row scales divided out of the dequantized kernel."""
+        del layer
+        return None
+
+    @staticmethod
+    def _get_pack_layout(bits, columns):
+        """How `columns` codes of `bits` bits pack along the output axis."""
+        if bits == 4:
+            return Int4Pairs(axis=-1, orig_len=columns)
+        if bits == 2:
+            return Int2Quads(axis=-1, orig_len=columns)
+        # 3-bit codes are not packed densely (3 does not divide 8) and
+        # 8-bit codes need no packing: one code per byte.
+        return NoPack()
+
+    # --- Quantized weight view --------------------------------------------
+
+    def quantized_weight(self, layer):
+        if not getattr(layer, f"is_{self.name}_calibrated", False):
+            # Before calibration the codes are uninitialized and the float
+            # kernel is still the layer's weight.
+            return None
+        geometry = self.require_geometry(layer)
+        config = layer.quantization_config
+        bits = self.resolve_weight_bits(layer, config)
+        group_size = self.resolve_group_size(layer, config)
+        # The group parameters are stored as `[n_groups, out]`, so their
+        # axes give the unpacked column count the packed codes stand for
+        # and, with the group index, the row count.
+        columns = int(layer.kernel_scale.shape[1])
+        rows = int(layer.g_idx.shape[0])
+        return QuantizedWeight(
+            codes=layer.quantized_kernel,
+            scale=layer.kernel_scale,
+            zero_point=layer.kernel_zero,
+            g_idx=layer.g_idx,
+            layout=self._get_pack_layout(bits, columns),
+            scheme=WeightScheme(
+                code_range=(0, 2**bits - 1),
+                scale_form="multiplier",
+                has_zero_point=True,
+                # `-1` means one group spanning every input row.
+                group_size=rows if group_size == -1 else group_size,
+            ),
+            shape=geometry.recorded_kernel_shape(),
+            axis=0,
+            input_scales=self._input_scales(layer),
+        )
 
     # --- Forward pass -----------------------------------------------------
 
     def call(self, layer, inputs, training=False):
         geometry = self.require_geometry(layer)
-        if not getattr(layer, f"is_{self.name}_calibrated"):
-            W = layer._kernel
-        else:
-            W = self._unpack_kernel(layer, geometry)
-            W = dequantize_with_sz_map(
-                W,
-                layer.kernel_scale,
-                layer.kernel_zero,
-                layer.g_idx,
-            )
-            W = ops.transpose(W)
-            W = self._postprocess_kernel(layer, W)
-            W = geometry.reshape_kernel(W)
-
+        quantized_weight = self.quantized_weight(layer)
+        W = (
+            layer._kernel
+            if quantized_weight is None
+            else quantized_weight.dequantize(layer.compute_dtype)
+        )
         y = geometry.contract(inputs, W)
         return apply_bias_activation(layer, y)
-
-    def _unpack_kernel(self, layer, geometry):
-        """Unpacks the stored kernel to one code per byte."""
-        raise NotImplementedError
-
-    def _postprocess_kernel(self, layer, W):
-        """Hook applied to the dequantized, transposed kernel."""
-        return W

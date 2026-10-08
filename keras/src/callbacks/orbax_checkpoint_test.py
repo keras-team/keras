@@ -570,7 +570,7 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
                 super().build(input_shape)
 
             def call(self, inputs):
-                return inputs @ self.kernel
+                return backend.ops.numpy.matmul(inputs, self.kernel)
 
         # Build model with both trainable and non-trainable variables
         inputs = layers.Input(shape=(10,), name="input_layer")

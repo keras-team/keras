@@ -51,6 +51,7 @@ from keras.src.utils import python_utils
 from keras.src.utils import summary_utils
 from keras.src.utils import traceback_utils
 from keras.src.utils import tracking
+from keras.src.utils.module_utils import get_pluggable_backend_module
 
 if backend.backend() == "tensorflow":
     from keras.src.backend.tensorflow.layer import TFLayer as BackendLayer
@@ -60,12 +61,16 @@ elif backend.backend() == "torch":
     from keras.src.backend.torch.layer import TorchLayer as BackendLayer
 elif backend.backend() == "numpy":
     from keras.src.backend.numpy.layer import NumpyLayer as BackendLayer
-elif backend.backend() == "openvino":
-    from keras.src.backend.openvino.layer import OpenvinoLayer as BackendLayer
 else:
-    raise RuntimeError(
-        f"Backend '{backend.backend()}' must implement a layer mixin class."
+    backend_layer_module = get_pluggable_backend_module(
+        "src.layer", allow_missing=True
     )
+    if backend_layer_module is not None:
+        BackendLayer = getattr(backend_layer_module, "BackendLayer")
+    else:
+
+        class BackendLayer:
+            pass
 
 
 @keras_export(["keras.Layer", "keras.layers.Layer"])
@@ -241,26 +246,6 @@ class Layer(BackendLayer, Operation):
 
         obj.build = build_wrapper
 
-        # Wrap the user-provided `quantize` method in the `quantize_wrapper`
-        # to add tracker support.
-        original_quantize_method = obj.quantize
-
-        @wraps(original_quantize_method)
-        def quantize_wrapper(mode=None, config=None, **kwargs):
-            config = validate_and_resolve_config(mode, config)
-            mode = config.mode
-            obj._check_quantize_args(mode, obj.compute_dtype)
-            obj._tracker.unlock()
-            try:
-                result = original_quantize_method(
-                    mode=mode, config=config, **kwargs
-                )
-            finally:
-                obj._tracker.lock()
-            return result
-
-        obj.quantize = quantize_wrapper
-
         return obj
 
     def __init__(
@@ -277,6 +262,13 @@ class Layer(BackendLayer, Operation):
         self._lock = False
         Operation.__init__(self, name=name)
         self._dtype_policy = dtype_policies.get(dtype)
+        # Quantization bookkeeping, always initialized so the quantization
+        # paths read it directly: whether `quantized_build` has created the
+        # mode's variables, and the `QuantizationConfig` recorded by
+        # `quantize()` (subclasses with a `quantization_config` constructor
+        # argument overwrite the latter).
+        self._is_quantized = False
+        self.quantization_config = None
         self.activity_regularizer = regularizers.get(activity_regularizer)
         input_dim_arg = kwargs.pop("input_dim", None)
         if input_dim_arg is not None:
@@ -804,18 +796,28 @@ class Layer(BackendLayer, Operation):
             self._dtype_policy[self.path] = policy
         else:
             self._dtype_policy = policy
+        # A map answers `quantization_mode` for its default policy; the
+        # layer's own entry decides whether, and how, it quantizes.
+        if isinstance(policy, DTypePolicyMap) and self.path:
+            policy = policy[self.path]
         if policy.quantization_mode is not None:
-            if self.built and not getattr(self, "_is_quantized", False):
-                if policy.quantization_mode == "gptq":
-                    raise ValueError(
-                        "Implicitly enabling GPTQ quantization by setting "
-                        f"`dtype_policy` to '{value}' is not supported. "
-                        "GPTQ requires a calibration dataset and a "
-                        "`GPTQConfig` object.\n\n"
-                        "Please use the `.quantize('gptq', config=...)` method "
-                        "on the layer or model instead."
-                    )
-                self.quantize(policy.quantization_mode)
+            if self.built and not self._is_quantized:
+                # Forward the policy's full parameters into `quantize` so the
+                # built variables agree with the policy name: assigning
+                # "int4/32_from_float32" quantizes with block_size=32 instead
+                # of silently falling back to the default block size while
+                # keeping a name that says 32. A mode may refuse
+                # policy-triggered quantization by raising here (GPTQ needs
+                # a calibration dataset that a bare policy cannot carry).
+                strategy = strategy_registry.get_strategy(
+                    policy.quantization_mode
+                )
+                config = (
+                    strategy.config_from_policy(policy)
+                    if strategy is not None
+                    else None
+                )
+                self.quantize(policy.quantization_mode, config=config)
 
     @property
     def dtype(self):
@@ -1222,7 +1224,7 @@ class Layer(BackendLayer, Operation):
             with backend.StatelessScope(
                 state_mapping=mapping, collect_losses=return_losses
             ) as scope:
-                if self.dtype_policy.quantization_mode is not None:
+                if self.quantization_mode is not None:
                     if self._remat_mode is not None:
                         outputs = self.rematerialized_call(
                             self.quantized_call, *args, **kwargs
@@ -1414,6 +1416,20 @@ class Layer(BackendLayer, Operation):
             return True
         return strategy.supports_layer(self)
 
+    def _strategy_owns_weight_storage(self):
+        """Whether the quantization strategy creates the weight storage.
+
+        A strategy that owns its weight storage (int8, int4) creates the
+        quantized variables in `quantized_build`, so `build` must not add
+        the floating-point weight. Float8 and the unquantized layer keep
+        the floating-point weight.
+
+        Returns:
+            A boolean.
+        """
+        strategy = strategy_registry.get_strategy(self.quantization_mode)
+        return strategy is not None and strategy.owns_weight_storage
+
     def quantized_build(self, input_shape, mode, config=None):
         strategy = strategy_registry.get_strategy(mode)
         if strategy is None or not self._supports_quantization_mode(strategy):
@@ -1421,36 +1437,54 @@ class Layer(BackendLayer, Operation):
                 # The layer has no quantization support at all.
                 raise self._not_implemented_error(self.quantized_build)
             raise self._quantization_mode_error(mode)
+        if config is not None:
+            # The config the variables are built from is the one the layer
+            # reports afterwards, whichever path called this.
+            self.quantization_config = config
         strategy.build(self, input_shape, config)
         self._is_quantized = True
 
     def quantize(self, mode=None, type_check=True, config=None):
-        raise self._not_implemented_error(self.quantize)
+        """Quantizes this layer in place.
 
-    def _registry_quantize(self, mode, config):
-        """Quantizes this layer through the mode registry.
+        Resolves `mode`/`config` into a `QuantizationConfig`, validates that
+        the layer supports the mode *before* mutating any state, then lets
+        the mode's strategy compute and swap the variables and updates the
+        dtype policy.
 
-        The shared `quantize()` body for layers that have moved onto the
-        quantization geometry protocol: validate that the mode is supported
-        by this layer *before* mutating any state, let the mode's strategy
-        compute and swap the variables, then update the dtype policy.
-
-        This is a seam for the migration: each migrated layer's `quantize()`
-        calls it, and once every layer has moved this body becomes
-        `Layer.quantize` itself.
+        A layer supports quantization by defining
+        `_quantization_geometry()`; only instances of the exact class that
+        defines it can be quantized (pass `type_check=False` to quantize an
+        instance of a subclass that inherits the geometry).
 
         Args:
-            mode: The quantization mode name, e.g. `"int8"`.
-            config: The resolved `QuantizationConfig`.
+            mode: The quantization mode, e.g. `"int8"`. Optional if `config`
+                is provided.
+            type_check: Whether to reject subclasses of the class that owns
+                the quantization support. Defaults to `True`.
+            config: Optional `QuantizationConfig` carrying the mode and its
+                parameters.
         """
+        config = validate_and_resolve_config(mode, config)
+        mode = config.mode
+        self._check_quantize_args(mode, self.compute_dtype)
+        if self._quantization_geometry() is None or (
+            type_check and type(self) is not self._quantization_type_owner()
+        ):
+            raise self._not_implemented_error(self.quantize)
         strategy = strategy_registry.get_strategy(mode)
         if strategy is None or not self._supports_quantization_mode(strategy):
             raise self._quantization_mode_error(mode)
-        # Record the config only after the mode is validated, so a rejected
-        # mode leaves the layer untouched.
-        self.quantization_config = config
-        strategy.quantize(self, config)
-        self._finalize_quantization_policy(strategy, config)
+        strategy.check_quantizable(self)
+        self._tracker.unlock()
+        try:
+            # Record the config only after the mode is validated, so a
+            # rejected mode leaves the layer untouched.
+            self.quantization_config = config
+            strategy.quantize(self, config)
+            self._finalize_quantization_policy(strategy, config)
+        finally:
+            self._tracker.lock()
 
     def _quantization_geometry(self):
         """Returns this layer's quantization geometry, or `None`.
@@ -1459,7 +1493,9 @@ class Layer(BackendLayer, Operation):
         quantizable structure; the strategies consume it to build
         variables, compute quantized values, and run quantized forward
         passes. The base implementation returns `None`, meaning the layer
-        has no generic quantization support.
+        has no generic quantization support. Defining this method on a
+        subclass also marks that subclass as the owner of its quantization
+        support for `quantize()`'s type check.
 
         Returns:
             A `keras.src.quantizers.geometry.QuantizationGeometry` (for
@@ -1467,14 +1503,62 @@ class Layer(BackendLayer, Operation):
         """
         return None
 
+    def _quantized_weight(self):
+        """Returns the `QuantizedWeight` view of the layer's weight.
+
+        `None` when the layer is not quantized, or when its mode holds no
+        integer codes for it (see `QuantizationStrategy.quantized_weight`).
+        """
+        strategy = strategy_registry.get_strategy(self.quantization_mode)
+        if strategy is None:
+            return None
+        return strategy.quantized_weight(self)
+
+    def _get_weight_with_merged_lora(self, name):
+        """Returns `(value, scale, zero_point)` to save for weight `name`.
+
+        Without a `QuantizedWeight` view this is the float property `name`
+        (which merges any LoRA update itself) with no scale or zero point.
+        Otherwise it is the stored codes, scale and zero point, or, with
+        LoRA enabled, the mode's `encode` of the dequantized weight plus
+        the LoRA update `lora_{name}_a @ lora_{name}_b`.
+        """
+        quantized_weight = self._quantized_weight()
+        if quantized_weight is None:
+            return getattr(self, name), None, None
+        if not self.lora_enabled:
+            return (
+                quantized_weight.codes,
+                quantized_weight.scale,
+                quantized_weight.zero_point,
+            )
+        lora_delta = (self.lora_alpha / self.lora_rank) * ops.matmul(
+            getattr(self, f"lora_{name}_a"), getattr(self, f"lora_{name}_b")
+        )
+        merged = ops.add(
+            quantized_weight.dequantize(self.variable_dtype), lora_delta
+        )
+        strategy = strategy_registry.get_strategy(self.quantization_mode)
+        return strategy.encode(self, merged, self.quantization_config)
+
+    def _quantization_type_owner(self):
+        """The class whose `_quantization_geometry` definition applies."""
+        for cls in type(self).__mro__:
+            if "_quantization_geometry" in cls.__dict__:
+                return cls
+
     def _finalize_quantization_policy(self, strategy, config):
         # Set new dtype policy only for modes that don't already have one.
-        if self.dtype_policy.quantization_mode is None:
+        # A map's `quantization_mode` and `name` are its default policy's;
+        # the layer's own entry is what applies to it.
+        policy = self.dtype_policy
+        if isinstance(policy, DTypePolicyMap) and self.path:
+            policy = policy[self.path]
+        if policy.quantization_mode is None:
             policy_name = strategy.policy_suffix(self, config)
-            policy = dtype_policies.get(
-                f"{policy_name}_from_{self.dtype_policy.name}"
+            self.dtype_policy = dtype_policies.get(
+                f"{policy_name}_from_{policy.name}"
             )
-            self.dtype_policy = policy
 
     def _check_quantize_args(self, mode, compute_dtype):
         if not self.built:
@@ -1483,16 +1567,10 @@ class Layer(BackendLayer, Operation):
                 f"Layer '{self.name}' (of type '{self.__class__.__name__}') "
                 "is not built yet."
             )
-        if getattr(self, "_is_quantized", False):
+        if self._is_quantized:
             raise ValueError(
                 f"Layer '{self.name}' is already quantized with "
                 f"dtype_policy='{self.dtype_policy.name}'. "
-                f"Received: mode={mode}"
-            )
-        if not strategy_registry.is_registered(mode):
-            raise ValueError(
-                "Invalid quantization mode. "
-                f"Expected one of {strategy_registry.registered_modes()}. "
                 f"Received: mode={mode}"
             )
         if mode == "int8" and compute_dtype == "float16":
@@ -1517,46 +1595,11 @@ class Layer(BackendLayer, Operation):
                 f"Restoring the correct rematerialization mode "
                 f"{self._remat_mode} for this layer."
             )
-        if self._quantization_geometry() is not None:
-            # Layers on the geometry protocol dispatch through the
-            # strategy; the chain below serves the rest.
-            mode = self.quantization_mode
-            strategy = strategy_registry.get_strategy(mode)
-            if strategy is None:
-                raise self._quantization_mode_error(mode)
-            return strategy.call(self, *args, **kwargs)
-        if self.quantization_mode == "int8":
-            return self._int8_call(*args, **kwargs)
-        elif self.quantization_mode == "float8":
-            return self._float8_call(*args, **kwargs)
-        elif self.quantization_mode == "int4":
-            return self._int4_call(*args, **kwargs)
-        elif self.quantization_mode == "ternary":
-            return self._ternary_call(*args, **kwargs)
-        elif self.quantization_mode == "gptq":
-            return self._gptq_call(*args, **kwargs)
-        elif self.quantization_mode == "awq":
-            return self._awq_call(*args, **kwargs)
-        else:
-            raise self._quantization_mode_error(self.quantization_mode)
-
-    def _int4_call(self, *args, **kwargs):
-        raise self._not_implemented_error(self._int4_call)
-
-    def _ternary_call(self, *args, **kwargs):
-        raise self._not_implemented_error(self._ternary_call)
-
-    def _int8_call(self, *args, **kwargs):
-        raise self._not_implemented_error(self._int8_call)
-
-    def _float8_call(self, *args, **kwargs):
-        raise self._not_implemented_error(self._float8_call)
-
-    def _gptq_call(self, *args, **kwargs):
-        raise self._not_implemented_error(self._gptq_call)
-
-    def _awq_call(self, *args, **kwargs):
-        raise self._not_implemented_error(self._awq_call)
+        mode = self.quantization_mode
+        strategy = strategy_registry.get_strategy(mode)
+        if strategy is None:
+            raise self._quantization_mode_error(mode)
+        return strategy.call(self, *args, **kwargs)
 
     def _not_implemented_error(self, attr, msg=None):
         if callable(attr):

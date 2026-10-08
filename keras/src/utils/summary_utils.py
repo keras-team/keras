@@ -478,24 +478,36 @@ def print_quantization_summary(model, verbose=True):
         if not weights:
             continue
 
-        # The primary quantized weight is the largest one (the kernel).
-        primary = max(weights, key=lambda w: math.prod(w.shape))
-        storage_dtype = backend.standardize_dtype(primary.dtype)
-        storage_bytes = _weight_bytes(primary)
-
-        # Packed sub-byte modes store two values per byte, so the logical
-        # (unpacked) element count is a multiple of the stored count. The
-        # multiplier is owned by the mode's strategy.
         # Imported here, not at module scope: this module is pulled in
         # while `keras.src.ops` is still initializing, and the quantizers
         # package imports back into `keras.src.ops`.
         from keras.src.quantizers import strategy_registry
 
         strategy = strategy_registry.get_strategy(mode)
-        multiplier = (
-            strategy.summary_byte_multiplier if strategy is not None else 1
+        # A layer that defines no quantization geometry (a custom layer
+        # that stores its own weights) has no view.
+        quantized_weights = (
+            strategy.quantized_weights(layer)
+            if strategy is not None
+            and layer._quantization_geometry() is not None
+            else ()
         )
-        logical_params = math.prod(primary.shape) * multiplier
+        if quantized_weights:
+            # The mode stores integer codes: count the weights they stand
+            # for, which a packed layout stores several to a byte. A layer
+            # may hold more than one table (an untied reversible lookup).
+            primary = quantized_weights[0].codes
+            logical_params = sum(math.prod(q.shape) for q in quantized_weights)
+            storage_bytes = sum(
+                _weight_bytes(q.codes) for q in quantized_weights
+            )
+        else:
+            # No view: the primary weight is the largest one, stored one
+            # value per element.
+            primary = max(weights, key=lambda w: math.prod(w.shape))
+            logical_params = math.prod(primary.shape)
+            storage_bytes = _weight_bytes(primary)
+        storage_dtype = backend.standardize_dtype(primary.dtype)
         float_bytes = logical_params * 4  # float32 baseline.
 
         rows.append(

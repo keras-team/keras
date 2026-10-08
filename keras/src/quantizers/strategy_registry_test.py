@@ -234,6 +234,13 @@ class PolicyCodecCorpusTest(testing.TestCase):
             "awq",
             {"weight_bits": 4, "group_size": -1},
         ),
+        (
+            "gptq_corrupted_source",
+            "gptq/4/128_from_None",
+            "gptq/4/128_from_float32",
+            "gptq",
+            {"weight_bits": 4, "group_size": 128},
+        ),
     )
     def test_policy_string_corpus(
         self, policy_str, expected_name, expected_mode, expected_params

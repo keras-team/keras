@@ -1,8 +1,6 @@
-from keras.src import ops
 from keras.src.dtype_policies.dtype_policy import AWQDTypePolicy
 from keras.src.quantizers.awq_config import AWQConfig
 from keras.src.quantizers.modes.calibration import CalibrationStrategy
-from keras.src.quantizers.packing import unpack_int4
 
 
 class AWQStrategy(CalibrationStrategy):
@@ -25,12 +23,10 @@ class AWQStrategy(CalibrationStrategy):
             "through AWQConfig or AWQDTypePolicy."
         )
 
-    def _packed_columns(self, layer, columns, config):
-        # For 4-bit weights, we pack two values per byte.
-        return (columns + 1) // 2
-
     def _build_extra_variables(self, layer, rows):
-        # Per-channel AWQ scales from activation magnitudes
+        # Per-channel AWQ scales from activation magnitudes. The weights
+        # were multiplied by them before quantization, so the quantized
+        # weight view divides them back out (`QuantizedWeight.input_scales`).
         layer.awq_scales = layer.add_weight(
             name="awq_scales",
             shape=(rows,),
@@ -38,20 +34,8 @@ class AWQStrategy(CalibrationStrategy):
             trainable=False,
         )
 
-    def _unpack_kernel(self, layer, geometry):
-        return unpack_int4(
-            layer.quantized_kernel,
-            orig_len=geometry.unpacked_columns(self.name),
-            axis=0,
-            dtype="uint8",
-        )
-
-    def _postprocess_kernel(self, layer, W):
-        # Apply AWQ scales by dividing to restore original magnitude
-        # (We multiplied by scales before quantization, so divide to undo)
-        # awq_scales has shape [input_dim], W has shape [input_dim, units]
-        # Expand dims for proper broadcasting.
-        return ops.divide(W, ops.expand_dims(layer.awq_scales, -1))
+    def _input_scales(self, layer):
+        return layer.awq_scales
 
     def finalize_model_quantization(self, model, config, structure, filters):
         from keras.src.quantizers.awq_core import awq_quantize

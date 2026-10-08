@@ -1,5 +1,5 @@
+from keras.src import backend
 from keras.src import initializers
-from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.optimizers import optimizer
 
@@ -171,8 +171,8 @@ class Ftrl(optimizer.Optimizer):
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
 
-        lr = ops.cast(learning_rate, variable.dtype)
-        gradient = ops.cast(gradient, variable.dtype)
+        lr = backend.ops.cast(learning_rate, variable.dtype)
+        gradient = backend.ops.cast(gradient, variable.dtype)
 
         accum = self._accumulators[self._get_variable_index(variable)]
         linear = self._linears[self._get_variable_index(variable)]
@@ -181,22 +181,24 @@ class Ftrl(optimizer.Optimizer):
         l2_reg = self.l2_regularization_strength
         l2_reg = l2_reg + self.beta / (2.0 * lr)
 
-        grad_to_use = ops.add(
+        grad_to_use = backend.ops.numpy.add(
             gradient,
-            ops.multiply(
+            backend.ops.numpy.multiply(
                 2 * self.l2_shrinkage_regularization_strength, variable
             ),
         )
-        new_accum = ops.add(accum, ops.square(gradient))
+        new_accum = backend.ops.numpy.add(
+            accum, backend.ops.numpy.square(gradient)
+        )
         self.assign_add(
             linear,
-            ops.subtract(
+            backend.ops.numpy.subtract(
                 grad_to_use,
-                ops.multiply(
-                    ops.divide(
-                        ops.subtract(
-                            ops.power(new_accum, -lr_power),
-                            ops.power(accum, -lr_power),
+                backend.ops.numpy.multiply(
+                    backend.ops.numpy.divide(
+                        backend.ops.numpy.subtract(
+                            backend.ops.numpy.power(new_accum, -lr_power),
+                            backend.ops.numpy.power(accum, -lr_power),
                         ),
                         lr,
                     ),
@@ -204,17 +206,22 @@ class Ftrl(optimizer.Optimizer):
                 ),
             ),
         )
-        quadratic = ops.add(
-            ops.divide(ops.power(new_accum, (-lr_power)), lr), 2 * l2_reg
+        quadratic = backend.ops.numpy.add(
+            backend.ops.numpy.divide(
+                backend.ops.numpy.power(new_accum, (-lr_power)), lr
+            ),
+            2 * l2_reg,
         )
-        linear_clipped = ops.clip(
+        linear_clipped = backend.ops.numpy.clip(
             linear,
             -self.l1_regularization_strength,
             self.l1_regularization_strength,
         )
         self.assign(
             variable,
-            ops.divide(ops.subtract(linear_clipped, linear), quadratic),
+            backend.ops.numpy.divide(
+                backend.ops.numpy.subtract(linear_clipped, linear), quadratic
+            ),
         )
         self.assign(accum, new_accum)
 

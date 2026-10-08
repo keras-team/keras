@@ -14,6 +14,7 @@ from keras.src.backend import config
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import global_state
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.backend_utils import standardize_argnums
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.name_scope import name_scope as base_name_scope
 from keras.src.backend.common.stateless_scope import StatelessScope
@@ -21,11 +22,6 @@ from keras.src.backend.common.stateless_scope import get_stateless_scope
 from keras.src.backend.common.stateless_scope import in_stateless_scope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.jax import distribution_lib
-
-SUPPORTS_SPARSE_TENSORS = True
-SUPPORTS_RAGGED_TENSORS = False
-SUPPORTS_COMPLEX_DTYPES = True
-IS_THREAD_SAFE = True
 
 
 class JaxVariable(KerasVariable):
@@ -394,7 +390,8 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         else:
             return x
 
-    if not is_tensor(x) and standardize_dtype(dtype) == "bfloat16":
+    # The branch must run only for an explicit bfloat16 request:
+    if not is_tensor(x) and dtype is not None and dtype == "bfloat16":
         # Can't create bfloat16 arrays on the fly (e.g. from a h5 Dataset).
         # Instead we convert "as is" (to stored dtype) and cast.
         return jnp.asarray(x).astype(dtype)
@@ -738,3 +735,19 @@ def device_scope(device_name):
     else:
         jax_device = device_name
     return jax.default_device(jax_device)
+
+
+def grad(f, argnums=0):
+    def scalar_f(*args, **kwargs):
+        # A gradient tape sums a non scalar output, so do the same here.
+        return jnp.sum(f(*args, **kwargs))
+
+    def grad_fn(*args, **kwargs):
+        positions = standardize_argnums(argnums, len(args))
+        args = list(args)
+        for i in positions:
+            args[i] = tree.map_structure(convert_to_tensor, args[i])
+        jax_argnums = positions[0] if isinstance(argnums, int) else positions
+        return jax.grad(scalar_f, argnums=jax_argnums)(*args, **kwargs)
+
+    return grad_fn
