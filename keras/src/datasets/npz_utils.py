@@ -143,6 +143,15 @@ class _RestrictedArray(np.ndarray):
         # past its end.
         placeholder = self.size == 0 and self.nbytes == 0
         declared = _nbytes(shape, dtype)
+        # Bound the array here as well as in `_reconstruct_array`: numpy's own
+        # `__reduce__` allocates `(0,)` and defers the real shape and dtype to
+        # this state, so a crafted stream can keep the constructor request tiny
+        # while asking `array_setstate()` for a huge buffer.
+        if declared > _MAX_NPY_BYTES:
+            raise pickle.UnpicklingError(
+                "Refusing to deserialize an array declaring more than "
+                f"{_MAX_NPY_BYTES} bytes while loading a Keras dataset."
+            )
         if not placeholder and dtype != self.dtype:
             raise pickle.UnpicklingError(
                 "Refusing to deserialize an array whose pickle state changes "
@@ -212,6 +221,13 @@ class _RestrictedArray(np.ndarray):
 
 class RestrictedUnpickler(pickle.Unpickler):
     """An unpickler that only allows numpy array reconstruction globals."""
+
+    def load(self):
+        # Unwrap the validating subclass from every array in the result, not
+        # only the ones `load_npy_member` consumes: `cifar.py` calls `load()`
+        # directly and gets back a dict of arrays, so normalization has to
+        # happen here to cover both callers.
+        return _normalize_array(super().load())
 
     def find_class(self, module, name):
         if (module, name) not in _ALLOWED_PICKLE_GLOBALS:
@@ -301,7 +317,14 @@ def _read_npy_header(fp):
             "Refusing to load a `.npy` member with a malformed header "
             "while loading a Keras dataset."
         ) from e
-    return _validate_shape(shape), _validate_dtype(dtype)
+    # A malformed shape or dtype is a header-format error, not a pickle one:
+    # keep it in the `ValueError` domain so a corrupt `.npy` header is not
+    # reported as an unpickling error (a valid dtype spec only reaches here
+    # through the header, never through a pickle state).
+    try:
+        return _validate_shape(shape), _validate_dtype(dtype)
+    except pickle.UnpicklingError as e:
+        raise ValueError(str(e)) from e
 
 
 def _normalize_array(obj):
@@ -309,11 +332,12 @@ def _normalize_array(obj):
 
     `_reconstruct_array` returns `_RestrictedArray` so that numpy's own
     `__setstate__` receives every array and can validate it. Object arrays nest
-    arrays *inside* themselves, so unwrapping only the top-level view leaves the
-    elements of an IMDB/Reuters sequence as `_RestrictedArray`. Downstream code
-    that expects a plain array (a `type(sequence) is np.ndarray` check,
-    `np.concatenate`, `np.asarray`, ...) would then see the validating subclass.
-    Walk the result and unwrap every nested array before handing it back.
+    arrays *inside* themselves and CIFAR stores each batch as a pickled dict of
+    arrays, so unwrapping only the top-level view leaves nested arrays as
+    `_RestrictedArray`. Downstream code that expects a plain array (a
+    `type(sequence) is np.ndarray` check, `np.concatenate`, `np.asarray`, ...)
+    would then see the validating subclass. Walk the result and unwrap every
+    nested array before handing it back.
     """
     if isinstance(obj, _RestrictedArray):
         obj = obj.view(np.ndarray)
@@ -324,6 +348,10 @@ def _normalize_array(obj):
             for index in range(obj.size):
                 obj.flat[index] = _normalize_array(obj.flat[index])
         return obj
+    if isinstance(obj, dict):
+        # Only the values can hold arrays (an `ndarray` is unhashable, so it can
+        # never be a key); recurse into them.
+        return {key: _normalize_array(value) for key, value in obj.items()}
     if isinstance(obj, list):
         return [_normalize_array(item) for item in obj]
     if isinstance(obj, tuple):
@@ -371,7 +399,8 @@ def load_npy_member(fp):
         return np.lib.format.read_array(fp, allow_pickle=False)
     # Object array: its payload really is a pickle stream, so read it through
     # the allow-listing unpickler. `_read_npy_header` left `fp` at the payload.
-    return _normalize_array(RestrictedUnpickler(fp).load())
+    # `RestrictedUnpickler.load` already unwraps the validating subclass.
+    return RestrictedUnpickler(fp).load()
 
 
 def load_npz(path):

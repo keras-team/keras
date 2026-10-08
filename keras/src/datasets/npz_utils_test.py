@@ -1,3 +1,4 @@
+import io
 import os
 import pickle
 import zipfile
@@ -345,3 +346,64 @@ class LoadNpzTest(testing.TestCase):
 
         self.assertEqual(loaded["x"].shape, (0,))
         self.assertEqual(loaded["x"].dtype, np.dtype(object))
+
+    def test_load_unwraps_arrays_inside_a_dict_payload(self):
+        # `cifar.py` calls `RestrictedUnpickler(...).load()` directly on a
+        # pickle stream whose top-level object is a dict of arrays, so every
+        # array in the result has to come back as a plain `np.ndarray`,
+        # including an object array nested inside the dict.
+        ragged = np.empty(2, dtype=object)
+        ragged[0] = np.arange(3)
+        ragged[1] = np.arange(4)
+        payload = {
+            b"data": np.arange(6).reshape(2, 3),
+            b"labels": np.array([0, 1]),
+            b"ragged": ragged,
+        }
+        stream = io.BytesIO(pickle.dumps(payload, protocol=3))
+
+        loaded = npz_utils.RestrictedUnpickler(stream, encoding="bytes").load()
+
+        self.assertIs(type(loaded), dict)
+        self.assertIs(type(loaded[b"data"]), np.ndarray)
+        self.assertIs(type(loaded[b"labels"]), np.ndarray)
+        self.assertIs(type(loaded[b"ragged"]), np.ndarray)
+        self.assertEqual(loaded[b"data"].tolist(), [[0, 1, 2], [3, 4, 5]])
+        for element in loaded[b"ragged"]:
+            self.assertIs(type(element), np.ndarray)
+            self.assertEqual(element.dtype, np.dtype("int64"))
+
+    def test_rejects_huge_shape_deferred_to_the_pickle_state(self):
+        # numpy's own `__reduce__` allocates `(0,)` and puts the real shape and
+        # dtype in the state, so a crafted stream can keep the constructor
+        # request tiny while asking `__setstate__` for a huge buffer. The byte
+        # bound has to hold there too, not only in `_reconstruct_array`.
+        path = _crafted_npz(
+            os.path.join(self.get_temp_dir(), "huge_state.npz"),
+            (np.ndarray, (0,), np.dtype("O")),
+            lambda: (1, (2**40,), np.dtype("O"), False, []),
+        )
+
+        with self.assertRaisesRegex(
+            pickle.UnpicklingError, "declaring more than"
+        ):
+            npz_utils.load_npz(path)
+
+    def test_rejects_malformed_header_shape_as_value_error(self):
+        # A malformed shape in the `.npy` *header* is a format error, so it has
+        # to fail as `ValueError`; the same validation reports an
+        # `UnpicklingError` only when the malformed shape arrives through a
+        # pickle state.
+        for name, shape in (("negative", "(-1,)"), ("float", "(1.5,)")):
+            header = (
+                b"{'descr': '|i8', 'fortran_order': False, "
+                b"'shape': " + shape.encode() + b", }"
+            )
+            path = _raw_npy_member(
+                os.path.join(self.get_temp_dir(), f"bad_header_{name}.npz"),
+                header,
+            )
+
+            with self.assertRaises(ValueError) as ctx:
+                npz_utils.load_npz(path)
+            self.assertNotIsInstance(ctx.exception, pickle.UnpicklingError)
