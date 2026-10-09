@@ -25,7 +25,7 @@ class LambTest(testing.TestCase):
         serialized = optimizers.serialize(optimizer)
         restored = optimizers.deserialize(serialized)
         self.assertIsInstance(restored, Lamb)
-        self.assertEqual(restored.learning_rate, 0.01)
+        self.assertAllClose(restored.learning_rate, 0.01)
 
     def test_single_step(self):
         optimizer = Lamb(learning_rate=0.5)
