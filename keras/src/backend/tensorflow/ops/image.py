@@ -219,6 +219,7 @@ def resize(
                 :,
             ]
     elif pad_to_aspect_ratio:
+        fill_value = tf.cast(fill_value, images.dtype)
         shape = tf.shape(images)
         height, width = shape[-3], shape[-2]
         target_height, target_width = size
