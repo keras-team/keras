@@ -45,16 +45,19 @@ class NumPyTestRot90(testing.TestCase):
         ("4d_axes_1_3", (2, 3, 4, 5), (1, 3)),
     )
     def test_batched_non_square_rotation(self, shape, axes):
-        # A rotation with `k > 1` of a non-square plane in an array with more
-        # than two dimensions used to mix elements across the leading (batch)
-        # axes, because the TensorFlow backend flattened the batch into the
-        # reshaped `(-1, h, w)` tensor. Only `k == 1` and rank-2 inputs were
-        # covered, which is why the regression went unnoticed.
+        # Before #23435, the TensorFlow backend reshaped the plane after each
+        # 90-degree rotation, which reordered elements within each plane for
+        # `k % 4 == 2` (rank-2 inputs were affected the same way, since no
+        # element crossed into a different batch entry). The cases here add
+        # coverage for rank > 2 inputs and rotation axes that are not the last
+        # two, exercised with `k > 1`, including negative and out-of-range k.
         array = np.arange(np.prod(shape)).reshape(shape)
         for k in (0, 1, 2, 3, 4, -1, -2, -3):
-            self.assertAllClose(
-                knp.rot90(array, k=k, axes=axes),
-                np.rot90(array, k=k, axes=axes),
+            expected = np.rot90(array, k=k, axes=axes)
+            self.assertAllClose(knp.rot90(array, k=k, axes=axes), expected)
+            self.assertEqual(
+                knp.rot90(KerasTensor(shape), k=k, axes=axes).shape,
+                expected.shape,
             )
 
     @parameterized.named_parameters(
