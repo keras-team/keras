@@ -216,6 +216,74 @@ class LayerTest(testing.TestCase):
         layer = layers.Dense(4)
         layer.rematerialized_call(layer.call, ops.ones((2, 3)))
 
+    @parameterized.product(
+        mode=("full", "list_of_layers", "larger_than"),
+        rate_and_training=((0.0, False), (0.0, True), (0.5, False)),
+    )
+    def test_remat_dropout_training(self, mode, rate_and_training):
+        if not backend.SUPPORTS_GRADIENT:
+            self.skipTest("remat requires gradient support")
+        rate, training = rate_and_training
+        with RematScope(
+            mode=mode, layer_names=["dropout"], output_size_threshold=0
+        ):
+            layer = layers.Dropout(rate, name="dropout")
+        inputs = ops.ones((2, 3))
+        self.assertAllClose(layer(inputs, training=training), inputs)
+
+    @parameterized.parameters("full", "list_of_layers", "larger_than")
+    def test_remat_nested_training_gradients(self, mode):
+        if backend.backend() != "jax":
+            self.skipTest("JAX-specific test")
+        import jax
+
+        class TrainingLayer(layers.Layer):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.dropout = layers.Dropout(0.0)
+
+            def build(self, input_shape):
+                self.scale = self.add_weight(
+                    shape=(input_shape[-1],), initializer="ones"
+                )
+
+            def call(self, inputs, mask=None, training=False):
+                outputs = self.dropout(inputs, training=training) * self.scale
+                outputs = outputs * mask
+                return outputs * 2 if training else outputs
+
+        plain = TrainingLayer()
+        with RematScope(
+            mode=mode, layer_names=["block"], output_size_threshold=0
+        ):
+            rematerialized = TrainingLayer(name="block")
+        inputs = ops.ones((2, 3))
+        mask = ops.convert_to_tensor([[1.0, 0.0, 1.0], [0.0, 1.0, 1.0]])
+        plain.build(inputs.shape)
+        rematerialized.build(inputs.shape)
+        weights = [variable.value for variable in plain.trainable_variables]
+
+        # Reuse the layers across modes to ensure the flag is captured per call.
+        for training in (False, True, False):
+
+            def value_and_grad(layer):
+                def loss(weights, inputs, mask):
+                    outputs, _ = layer.stateless_call(
+                        weights, [], inputs, mask=mask, training=training
+                    )
+                    return ops.sum(outputs)
+
+                return jax.jit(jax.value_and_grad(loss, argnums=(0, 1, 2)))(
+                    weights, inputs, mask
+                )
+
+            expected_value, expected_grads = value_and_grad(plain)
+            actual_value, actual_grads = value_and_grad(rematerialized)
+            self.assertAllClose(actual_value, expected_value)
+            self.assertAllClose(actual_grads[0][0], expected_grads[0][0])
+            self.assertAllClose(actual_grads[1], expected_grads[1])
+            self.assertAllClose(actual_grads[2], expected_grads[2])
+
     def test_quantized_layer_with_remat(self):
         """Test rematerialization on a quantized layer."""
         mock_remat = MockRemat()

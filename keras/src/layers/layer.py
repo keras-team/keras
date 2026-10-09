@@ -1971,6 +1971,17 @@ class Layer(BackendLayer, Operation):
         """
         if not self._remat_mode:
             return layer_call
+        if isinstance(kwargs.get("training"), bool):
+            # Keep the training mode static when rematerialization traces the
+            # call arguments. Layers such as Dropout use Python control flow.
+            training = kwargs["training"]
+            original_call = layer_call
+
+            @functools.wraps(original_call)
+            def layer_call(*args, **kwargs):
+                kwargs["training"] = training
+                return original_call(*args, **kwargs)
+
         if self._remat_mode.mode == "activations":
             has_activation = (
                 hasattr(self, "activation") and self.activation is not None
