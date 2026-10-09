@@ -123,7 +123,9 @@ class SparseSigmoid(Operation):
         return backend.ops.nn.sparse_sigmoid(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return KerasTensor(
+            x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
+        )
 
 
 @keras_export(["keras.ops.sparse_sigmoid", "keras.ops.nn.sparse_sigmoid"])
