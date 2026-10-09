@@ -1,5 +1,7 @@
+import importlib
 import os
 import pickle
+import pkgutil
 
 import numpy as np
 import pytest
@@ -11,6 +13,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import optimizers
 from keras.src import testing
+from keras.src.api_export import REGISTERED_NAMES_TO_OBJS
 
 
 class OptimizerTest(testing.TestCase):
@@ -163,6 +166,23 @@ class OptimizerTest(testing.TestCase):
 
         with self.assertRaises(ValueError):
             optimizers.get("typo")
+
+    def test_all_public_optimizers_are_registered(self):
+        # `get` and `deserialize` resolve names only through `ALL_OBJECTS`.
+        for module in pkgutil.iter_modules(optimizers.__path__):
+            if not module.name.endswith("_test"):
+                importlib.import_module(f"{optimizers.__name__}.{module.name}")
+        not_objects = {"get", "serialize", "deserialize"}
+        missing = [
+            name
+            for name, obj in REGISTERED_NAMES_TO_OBJS.items()
+            if name.startswith("keras.optimizers.")
+            and name.count(".") == 2
+            and name.rsplit(".", 1)[1] not in not_objects
+            and obj not in optimizers.ALL_OBJECTS
+        ]
+        self.assertEqual(missing, [])
+        self.assertIsInstance(optimizers.get("lamb"), optimizers.Lamb)
 
     def test_static_loss_scaling(self):
         v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])

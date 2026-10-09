@@ -1,3 +1,5 @@
+import importlib
+import pkgutil
 import re
 import warnings
 
@@ -6,8 +8,10 @@ import pytest
 from absl.testing import parameterized
 
 from keras.src import backend
+from keras.src import losses as losses_module
 from keras.src import ops
 from keras.src import testing
+from keras.src.api_export import REGISTERED_NAMES_TO_OBJS
 from keras.src.layers import Input
 from keras.src.losses import losses
 from keras.src.models import Functional
@@ -3016,3 +3020,31 @@ class CategoricalGeneralizedCrossEntropyTest(testing.TestCase):
             y_true, y_pred
         )
         self.assertDType(output, "bfloat16")
+
+
+class LossRegistryTest(testing.TestCase):
+    def test_all_public_losses_are_registered(self):
+        # `get` and `deserialize` resolve names only through `ALL_OBJECTS`.
+        for module in pkgutil.iter_modules(losses_module.__path__):
+            if not module.name.endswith("_test"):
+                importlib.import_module(
+                    f"{losses_module.__name__}.{module.name}"
+                )
+        not_objects = {"get", "serialize", "deserialize"}
+        missing = [
+            name
+            for name, obj in REGISTERED_NAMES_TO_OBJS.items()
+            if name.startswith("keras.losses.")
+            and name.count(".") == 2
+            and name.rsplit(".", 1)[1] not in not_objects
+            and obj not in losses_module.ALL_OBJECTS
+        ]
+        self.assertEqual(missing, [])
+        self.assertIsInstance(
+            losses_module.get("CategoricalGeneralizedCrossEntropy"),
+            losses.CategoricalGeneralizedCrossEntropy,
+        )
+        self.assertIs(
+            losses_module.get("categorical_generalized_cross_entropy"),
+            losses.categorical_generalized_cross_entropy,
+        )
