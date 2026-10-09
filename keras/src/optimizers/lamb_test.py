@@ -2,6 +2,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src import ops
+from keras.src import optimizers
 from keras.src import testing
 from keras.src.optimizers.lamb import Lamb
 
@@ -15,6 +16,16 @@ class LambTest(testing.TestCase):
             epsilon=1e-5,
         )
         self.run_class_serialization_test(optimizer)
+
+    def test_get_and_deserialize(self):
+        opt = optimizers.get("lamb")
+        self.assertIsInstance(opt, Lamb)
+
+        optimizer = Lamb(learning_rate=0.01)
+        serialized = optimizers.serialize(optimizer)
+        restored = optimizers.deserialize(serialized)
+        self.assertIsInstance(restored, Lamb)
+        self.assertEqual(restored.learning_rate, 0.01)
 
     def test_single_step(self):
         optimizer = Lamb(learning_rate=0.5)

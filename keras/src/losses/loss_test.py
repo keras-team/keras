@@ -237,6 +237,25 @@ class LossTest(testing.TestCase):
         with self.assertRaises(ValueError):
             losses_module.get("typo")
 
+        loss_fn = losses_module.get("categorical_generalized_cross_entropy")
+        self.assertEqual(
+            loss_fn, losses_module.categorical_generalized_cross_entropy
+        )
+
+        loss = losses_module.get("CategoricalGeneralizedCrossEntropy")
+        self.assertIsInstance(
+            loss, losses_module.CategoricalGeneralizedCrossEntropy
+        )
+
+    def test_deserialize_categorical_generalized_cross_entropy(self):
+        loss = losses_module.CategoricalGeneralizedCrossEntropy(q=0.7)
+        serialized = losses_module.serialize(loss)
+        restored = losses_module.deserialize(serialized)
+        self.assertIsInstance(
+            restored, losses_module.CategoricalGeneralizedCrossEntropy
+        )
+        self.assertEqual(restored.q, 0.7)
+
     def test_dtype_arg(self):
         y_true = np.array([1.0, 0.0, 1.0, 0.0], dtype="float32")
         y_pred = np.array([0.1, 0.2, 0.3, 0.4], dtype="float32")
