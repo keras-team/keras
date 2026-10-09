@@ -274,6 +274,8 @@ def _lattice_result_type(*args):
     precision = config.floatx()[-2:]
     if out_weak_type:
         out_dtype = _resolve_weak_type(out_dtype, precision=precision)
+        if out_dtype == "float16" and config.floatx() == "bfloat16":
+            out_dtype = "bfloat16"
 
     # Force to be 32-bit dtype when encountering 64-bit dtype. This is to
     # be aligned with JAX's default behavior.
