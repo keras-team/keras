@@ -240,6 +240,12 @@ Flag the following in the diff:
   without restoring it with `_set_use_backend_agnostic_ops(False)` in a
   `finally` block. A failing assertion then silently changes the behavior of
   every subsequent test in the process.
+- **Public `ops` API in the fallback**: inside `keras/src/ops/`, the fallback
+  must call backend ops directly — `backend.ops.<op>` for core ops (e.g.
+  `backend.ops.cast`) and `backend.ops.<module>.<op>` otherwise (e.g.
+  `backend.ops.numpy.sqrt`), or the dependency's `_<dep>()` helper if it has
+  one. Flag calls to the public `ops.<op>` / `keras.ops` API. Never suggest
+  replacing `backend.ops.*` with `ops.*`.
 
 When flagging, cite "Backend-agnostic implementation for new ops" in
 `CONTRIBUTING.md` and point to `vsplit`/`_vsplit` in `keras/src/ops/numpy.py`
