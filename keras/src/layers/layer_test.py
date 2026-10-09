@@ -220,9 +220,11 @@ class LayerTest(testing.TestCase):
         mode=("full", "list_of_layers", "larger_than"),
         rate_and_training=((0.0, False), (0.0, True), (0.5, False)),
     )
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_GRADIENT,
+        reason="remat requires gradient support",
+    )
     def test_remat_dropout_training(self, mode, rate_and_training):
-        if not backend.SUPPORTS_GRADIENT:
-            self.skipTest("remat requires gradient support")
         rate, training = rate_and_training
         with RematScope(
             mode=mode, layer_names=["dropout"], output_size_threshold=0
@@ -232,9 +234,8 @@ class LayerTest(testing.TestCase):
         self.assertAllClose(layer(inputs, training=training), inputs)
 
     @parameterized.parameters("full", "list_of_layers", "larger_than")
+    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX-specific test")
     def test_remat_nested_training_gradients(self, mode):
-        if backend.backend() != "jax":
-            self.skipTest("JAX-specific test")
         import jax
 
         class TrainingLayer(layers.Layer):

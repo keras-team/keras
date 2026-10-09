@@ -1979,7 +1979,7 @@ class Layer(BackendLayer, Operation):
 
             @functools.wraps(original_call)
             def layer_call(*args, **kwargs):
-                kwargs["training"] = training
+                kwargs = {**kwargs, "training": training}
                 return original_call(*args, **kwargs)
 
         if self._remat_mode.mode == "activations":
