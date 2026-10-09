@@ -214,14 +214,13 @@ def build_pos_neg_masks(
     negative_mask = ops.logical_not(positive_mask)
 
     if remove_diagonal:
+        # Build the diagonal mask from positive_mask's own shape instead of
+        # ops.eye(size(...)), so this works even when query_labels/key_labels
+        # have an unknown dimension (e.g. a dynamic batch size), for which
+        # ops.size() returns None and ops.eye() has no symbolic dispatch.
+        diagonal = ops.tril(ops.triu(ops.ones_like(positive_mask)))
         positive_mask = ops.logical_and(
-            positive_mask,
-            ~ops.eye(
-                ops.size(query_labels),
-                ops.size(key_labels),
-                k=0,
-                dtype="bool",
-            ),
+            positive_mask, ops.logical_not(diagonal)
         )
 
     return positive_mask, negative_mask

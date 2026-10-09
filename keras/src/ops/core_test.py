@@ -11,6 +11,7 @@ from keras.src import losses
 from keras.src import models
 from keras.src import ops
 from keras.src import optimizers
+from keras.src import random
 from keras.src import testing
 from keras.src import tree
 from keras.src.backend.common import dtypes
@@ -1331,7 +1332,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertNotEqual(model.layers[0].b.numpy(), 0.0)
 
     def test_stop_gradient_no_fit(self):
-        x = ops.random.uniform(shape=(2, 4), dtype="float32")
+        x = random.uniform(shape=(2, 4), dtype="float32")
         y = ops.stop_gradient(x)
         self.assertAllClose(x, y)
 
@@ -1660,6 +1661,16 @@ class CoreOpsDtypeTest(testing.TestCase):
     def test_convert_to_tensor(self, x, dtype, expected_dtype):
         self.assertDType(ops.convert_to_tensor(x, dtype=dtype), expected_dtype)
 
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_convert_to_numpy(self, dtype):
+        expected_dtype = backend.floatx() if dtype is None else dtype
+
+        x = ops.array([1.0, 2.0, 3.0], dtype=dtype)
+        self.assertDType(ops.convert_to_numpy(x), expected_dtype)
+
+        x = ops.array(4.0, dtype=dtype)
+        self.assertDType(ops.convert_to_numpy(x), expected_dtype)
+
     @parameterized.named_parameters(
         named_product(
             dtype=[dtype for dtype in ALL_DTYPES if dtype is not None]
@@ -1914,8 +1925,18 @@ class CoreOpsBehaviorTests(testing.TestCase):
         x = ops.array([1, 2, 3], dtype="float32")
         y = ops.convert_to_numpy(x)
         self.assertIsInstance(y, np.ndarray)
+        self.assertEqual(y.dtype, "float32")
+        self.assertEqual(y.shape, (3,))
         # Test assignment -- should not fail.
         y[0] = 1.0
+
+        x = ops.array(4, dtype="float32")
+        y = ops.convert_to_numpy(x)
+        self.assertIsInstance(y, np.ndarray)
+        self.assertEqual(y.dtype, "float32")
+        self.assertEqual(y.shape, ())
+        # Test assignment -- should not fail.
+        y = 1.0
 
         with self.assertRaises(ValueError):
             ops.convert_to_numpy(KerasTensor((2,)))

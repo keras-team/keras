@@ -567,3 +567,30 @@ def dequantize_with_sz_map(weights_matrix, scale, zero, g_idx, group_axis=-1):
     """
     scales, zeros = _take_group_params(scale, zero, g_idx, group_axis)
     return dequantize_with_zero_point(weights_matrix, scales, zeros)
+
+
+def ternarize(kernel, threshold=None):
+    """Ternarizes `kernel` to `{-1, 0, +1}` codes with their scale.
+
+    The BitNet b1.58 rule: a weight becomes `sign(w)` when `|w|` exceeds
+    the threshold and 0 otherwise. With `threshold=None` the threshold is
+    `0.5 * mean(|W|)` and the scale is `mean(|W|)`, so `codes * scale`
+    carries the kernel's magnitude. The mean is taken in float32 whatever
+    the kernel's dtype. With a fixed threshold the scale is 1.0.
+
+    Args:
+        kernel: The float weight to ternarize.
+        threshold: Optional fixed, non-negative threshold on `|w|`.
+
+    Returns:
+        `(codes, scale)`: the codes as a NumPy array in the kernel's dtype
+        and the scale as a Python float.
+    """
+    abs_kernel = ops.abs(ops.cast(kernel, "float32"))
+    beta = ops.mean(abs_kernel)
+    t = ops.multiply(beta, 0.5) if threshold is None else threshold
+    codes = ops.multiply(
+        ops.sign(kernel), ops.cast(ops.greater(abs_kernel, t), kernel.dtype)
+    )
+    scale = 1.0 if threshold is not None else ops.convert_to_numpy(beta)
+    return ops.convert_to_numpy(codes), float(scale)

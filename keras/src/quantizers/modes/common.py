@@ -13,11 +13,38 @@ from keras.src.quantizers.strategy_registry import QuantizationStrategy
 class GeometryDispatchStrategy(QuantizationStrategy):
     """A mode whose math is written once per geometry family.
 
-    `build`, `call` and `quantize` resolve the layer's geometry and hand
-    off to the matching `_<verb>_<family>` method. Subclasses implement
-    only the families they support; anything else reports the mode as
-    unsupported for that layer.
+    Each verb resolves the layer's geometry and calls the mode's handler
+    for that verb and the geometry's family. For each family it
+    supports, a mode implements:
+
+    - `_build_<family>`, `_call_<family>` and `_quantize_<family>`: the
+      variables, the forward pass and the conversion.
+    - `_get_<family>_quantized_weight`: the `QuantizedWeight` view, or
+      `None` when the mode holds no integer codes. The weight property,
+      saving, `enable_lora` and `Model.quantization_summary` read it.
+    - `_encode_<family>`, when the view is not `None`: the LoRA-merged
+      save re-quantizes the merged weight with it.
+    - `_get_reverse_<family>_quantized_weight`, for a reversible family
+      whose layer is untied and has a view: the reverse table's view.
+
+    A mode implements every handler of a family it supports.
+    `check_quantizable` resolves the quantize, build, call and view
+    handlers before `Layer.quantize` changes the layer, so a mode missing
+    one of them is refused with `NotImplementedError` and the layer stays
+    as it was. A missing encode or reverse view handler raises only when
+    its verb runs. A subclass that overrides a verb itself needs no
+    handlers for it.
     """
+
+    # The handler that each verb calls, by geometry family.
+    _handler_names = {
+        "build": "_build_{family}",
+        "call": "_call_{family}",
+        "quantize": "_quantize_{family}",
+        "encode": "_encode_{family}",
+        "quantized_weight": "_get_{family}_quantized_weight",
+        "reverse_quantized_weight": "_get_reverse_{family}_quantized_weight",
+    }
 
     def build(self, layer, input_shape, config):
         geometry = self.require_geometry(layer)
@@ -34,14 +61,45 @@ class GeometryDispatchStrategy(QuantizationStrategy):
         handler = self._handler("quantize", geometry.family, layer)
         handler(layer, geometry, config)
 
+    def check_quantizable(self, layer):
+        geometry = self.require_geometry(layer)
+        for verb in ("quantize", "build", "call", "quantized_weight"):
+            # A subclass that overrides the verb itself needs no handler.
+            if getattr(type(self), verb) is getattr(
+                GeometryDispatchStrategy, verb
+            ):
+                self._handler(verb, geometry.family, layer)
+
+    def encode(self, layer, weight, config=None):
+        geometry = self.require_geometry(layer)
+        handler = self._handler("encode", geometry.family, layer)
+        return handler(layer, geometry, weight, config)
+
+    def quantized_weight(self, layer):
+        geometry = self.require_geometry(layer)
+        handler = self._handler("quantized_weight", geometry.family, layer)
+        return handler(layer, geometry)
+
+    def quantized_weights(self, layer):
+        views = super().quantized_weights(layer)
+        geometry = self.require_geometry(layer)
+        if views and geometry.reversible and not layer.tie_weights:
+            # An untied reversible lookup holds a second table.
+            handler = self._handler(
+                "reverse_quantized_weight", geometry.family, layer
+            )
+            views += (handler(layer, geometry),)
+        return views
+
     def _handler(self, verb, family, layer):
-        """Returns this mode's implementation for one geometry family."""
-        handler = getattr(self, f"_{verb}_{family}", None)
+        """Returns this mode's implementation of `verb` for one family."""
+        name = self._handler_names[verb].format(family=family)
+        handler = getattr(self, name, None)
         if handler is None:
             raise NotImplementedError(
-                f"Quantization mode '{self.name}' does not support the "
-                f"'{family}' quantization geometry of layer "
-                f"{layer.__class__.__name__}."
+                f"Quantization mode '{self.name}' does not implement "
+                f"`{name}` for the '{family}' quantization geometry of "
+                f"layer {layer.__class__.__name__}."
             )
         return handler
 

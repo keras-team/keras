@@ -1,3 +1,4 @@
+import inspect
 import itertools
 import math
 
@@ -8,11 +9,13 @@ from keras.src import ops
 from keras.src import quantizers
 from keras.src import random
 from keras.src import testing
+from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.quantizers import compute_quantization_parameters
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
 from keras.src.quantizers.quantizers import quantize_with_sz_map
 from keras.src.quantizers.quantizers import quantize_with_zero_point
+from keras.src.quantizers.quantizers import ternarize
 from keras.src.testing.test_utils import named_product
 
 
@@ -65,6 +68,26 @@ class QuantizersTest(testing.TestCase):
         self.assertIsInstance(quantizer, quantizers.AbsMaxQuantizer)
         self.assertEqual(quantizer.value_range, (-8, 7))
         self.assertIsNone(quantizer.axis)
+
+    @parameterized.named_parameters(
+        (mode, mode) for mode in strategy_registry.registered_modes()
+    )
+    def test_mode_config_round_trips(self, mode):
+        # `deserialize` resolves the config class of every registered mode.
+        config_cls = strategy_registry.get_strategy(mode).config_cls
+        if config_cls is None:
+            self.skipTest(f"Mode '{mode}' defines no config class.")
+        # Calibration configs take `dataset` and `tokenizer` with no default.
+        # Neither is serialized, so `None` is enough here.
+        required = {
+            name: None
+            for name, param in inspect.signature(config_cls).parameters.items()
+            if param.default is param.empty
+        }
+        serialized = quantizers.serialize(config_cls(**required))
+        reloaded = quantizers.deserialize(serialized)
+        self.assertIsInstance(reloaded, config_cls)
+        self.assertEqual(quantizers.serialize(reloaded), serialized)
 
     def test_abs_max_quantizer(self):
         values = random.uniform([3, 4, 5], minval=-1, maxval=1, dtype="float32")
@@ -1085,3 +1108,31 @@ class GroupedQuantizationParametersTest(testing.TestCase):
                 (out_features, n_groups),
                 f"Failed for group_size={group_size}",
             )
+
+
+class TernarizeTest(testing.TestCase):
+    def test_default_threshold_returns_mean(self):
+        kernel = ops.array([[0.5, -0.5], [0.1, -1.5]], "float32")
+        codes, scale = ternarize(kernel)
+        # threshold = 0.5 * mean(|W|) = 0.325, so 0.1 maps to 0.
+        self.assertAllClose(codes, [[1.0, -1.0], [0.0, -1.0]])
+        self.assertAllClose(scale, 0.65)
+
+    def test_fixed_threshold_returns_unit_scale(self):
+        kernel = ops.array([[0.5, -0.5], [0.1, -1.5]], "float32")
+        codes, scale = ternarize(kernel, threshold=0.2)
+        self.assertAllClose(codes, [[1.0, -1.0], [0.0, -1.0]])
+        self.assertEqual(scale, 1.0)
+
+    def test_bfloat16_kernel_takes_mean_in_float32(self):
+        # A bfloat16 mean over many weights saturates when it accumulates
+        # in bfloat16 (as NumPy does), and a 0-d bfloat16 tensor does not
+        # convert to NumPy on TensorFlow.
+        values = np.random.RandomState(0).randn(512, 512)
+        kernel = ops.cast(values, "bfloat16")
+        codes, scale = ternarize(kernel)
+        exact = ops.convert_to_numpy(ops.cast(kernel, "float32"))
+        beta = np.mean(np.abs(exact), dtype="float64")
+        self.assertAllClose(scale, beta, rtol=1e-5)
+        expected = np.sign(exact) * (np.abs(exact) > 0.5 * beta)
+        self.assertAllClose(np.asarray(codes, "float32"), expected)

@@ -51,6 +51,7 @@ from keras.src.utils import python_utils
 from keras.src.utils import summary_utils
 from keras.src.utils import traceback_utils
 from keras.src.utils import tracking
+from keras.src.utils.module_utils import get_pluggable_backend_module
 
 if backend.backend() == "tensorflow":
     from keras.src.backend.tensorflow.layer import TFLayer as BackendLayer
@@ -60,12 +61,16 @@ elif backend.backend() == "torch":
     from keras.src.backend.torch.layer import TorchLayer as BackendLayer
 elif backend.backend() == "numpy":
     from keras.src.backend.numpy.layer import NumpyLayer as BackendLayer
-elif backend.backend() == "openvino":
-    from keras.src.backend.openvino.layer import OpenvinoLayer as BackendLayer
 else:
-    raise RuntimeError(
-        f"Backend '{backend.backend()}' must implement a layer mixin class."
+    backend_layer_module = get_pluggable_backend_module(
+        "src.layer", allow_missing=True
     )
+    if backend_layer_module is not None:
+        BackendLayer = getattr(backend_layer_module, "BackendLayer")
+    else:
+
+        class BackendLayer:
+            pass
 
 
 @keras_export(["keras.Layer", "keras.layers.Layer"])
@@ -257,6 +262,13 @@ class Layer(BackendLayer, Operation):
         self._lock = False
         Operation.__init__(self, name=name)
         self._dtype_policy = dtype_policies.get(dtype)
+        # Quantization bookkeeping, always initialized so the quantization
+        # paths read it directly: whether `quantized_build` has created the
+        # mode's variables, and the `QuantizationConfig` recorded by
+        # `quantize()` (subclasses with a `quantization_config` constructor
+        # argument overwrite the latter).
+        self._is_quantized = False
+        self.quantization_config = None
         self.activity_regularizer = regularizers.get(activity_regularizer)
         input_dim_arg = kwargs.pop("input_dim", None)
         if input_dim_arg is not None:
@@ -789,7 +801,7 @@ class Layer(BackendLayer, Operation):
         if isinstance(policy, DTypePolicyMap) and self.path:
             policy = policy[self.path]
         if policy.quantization_mode is not None:
-            if self.built and not getattr(self, "_is_quantized", False):
+            if self.built and not self._is_quantized:
                 # Forward the policy's full parameters into `quantize` so the
                 # built variables agree with the policy name: assigning
                 # "int4/32_from_float32" quantizes with block_size=32 instead
@@ -1425,6 +1437,10 @@ class Layer(BackendLayer, Operation):
                 # The layer has no quantization support at all.
                 raise self._not_implemented_error(self.quantized_build)
             raise self._quantization_mode_error(mode)
+        if config is not None:
+            # The config the variables are built from is the one the layer
+            # reports afterwards, whichever path called this.
+            self.quantization_config = config
         strategy.build(self, input_shape, config)
         self._is_quantized = True
 
@@ -1459,6 +1475,7 @@ class Layer(BackendLayer, Operation):
         strategy = strategy_registry.get_strategy(mode)
         if strategy is None or not self._supports_quantization_mode(strategy):
             raise self._quantization_mode_error(mode)
+        strategy.check_quantizable(self)
         self._tracker.unlock()
         try:
             # Record the config only after the mode is validated, so a
@@ -1486,6 +1503,44 @@ class Layer(BackendLayer, Operation):
         """
         return None
 
+    def _quantized_weight(self):
+        """Returns the `QuantizedWeight` view of the layer's weight.
+
+        `None` when the layer is not quantized, or when its mode holds no
+        integer codes for it (see `QuantizationStrategy.quantized_weight`).
+        """
+        strategy = strategy_registry.get_strategy(self.quantization_mode)
+        if strategy is None:
+            return None
+        return strategy.quantized_weight(self)
+
+    def _get_weight_with_merged_lora(self, name):
+        """Returns `(value, scale, zero_point)` to save for weight `name`.
+
+        Without a `QuantizedWeight` view this is the float property `name`
+        (which merges any LoRA update itself) with no scale or zero point.
+        Otherwise it is the stored codes, scale and zero point, or, with
+        LoRA enabled, the mode's `encode` of the dequantized weight plus
+        the LoRA update `lora_{name}_a @ lora_{name}_b`.
+        """
+        quantized_weight = self._quantized_weight()
+        if quantized_weight is None:
+            return getattr(self, name), None, None
+        if not self.lora_enabled:
+            return (
+                quantized_weight.codes,
+                quantized_weight.scale,
+                quantized_weight.zero_point,
+            )
+        lora_delta = (self.lora_alpha / self.lora_rank) * ops.matmul(
+            getattr(self, f"lora_{name}_a"), getattr(self, f"lora_{name}_b")
+        )
+        merged = ops.add(
+            quantized_weight.dequantize(self.variable_dtype), lora_delta
+        )
+        strategy = strategy_registry.get_strategy(self.quantization_mode)
+        return strategy.encode(self, merged, self.quantization_config)
+
     def _quantization_type_owner(self):
         """The class whose `_quantization_geometry` definition applies."""
         for cls in type(self).__mro__:
@@ -1512,7 +1567,7 @@ class Layer(BackendLayer, Operation):
                 f"Layer '{self.name}' (of type '{self.__class__.__name__}') "
                 "is not built yet."
             )
-        if getattr(self, "_is_quantized", False):
+        if self._is_quantized:
             raise ValueError(
                 f"Layer '{self.name}' is already quantized with "
                 f"dtype_policy='{self.dtype_policy.name}'. "

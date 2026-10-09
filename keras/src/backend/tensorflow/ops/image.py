@@ -219,6 +219,7 @@ def resize(
                 :,
             ]
     elif pad_to_aspect_ratio:
+        fill_value = tf.cast(fill_value, images.dtype)
         shape = tf.shape(images)
         height, width = shape[-3], shape[-2]
         target_height, target_width = size
@@ -370,6 +371,11 @@ def affine_transform(
             "Invalid transform rank: expected rank 1 (single transform) "
             "or rank 2 (batch of transforms). Received input with shape: "
             f"transform.shape={transform.shape}"
+        )
+    if isinstance(transform.shape[-1], int) and transform.shape[-1] != 8:
+        raise ValueError(
+            "Invalid transform shape: expected the last dimension to be 8. "
+            f"Received: transform.shape={transform.shape}"
         )
     # unbatched case
     need_squeeze = False

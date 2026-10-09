@@ -414,6 +414,33 @@ class DenseTest(testing.TestCase):
             supports_masking=True,
         )
 
+    def test_lora_alpha_argument(self):
+        layer = layers.Dense(units=4, lora_rank=2, lora_alpha=16)
+        layer.build((None, 3))
+        self.assertEqual(layer.lora_alpha, 16)
+        self.assertEqual(layer.get_config()["lora_alpha"], 16)
+
+        # The forward pass scales the update by `lora_alpha / lora_rank`.
+        # Every value, product and sum is exact in bfloat16, so the check
+        # also holds where matmuls round their inputs to bfloat16 (TPU).
+        kernel = np.arange(12, dtype="float32").reshape((3, 4)) / 4 - 1
+        lora_a = np.array([[1, 0], [0, 1], [1, 1]], dtype="float32") / 2
+        lora_b = np.ones((2, 4), dtype="float32")
+        layer._kernel.assign(kernel)
+        layer.lora_kernel_a.assign(lora_a)
+        layer.lora_kernel_b.assign(lora_b)
+        x = np.array([[1, 2, 3], [0.5, -1, 2]], dtype="float32")
+        bias = ops.convert_to_numpy(layer.bias)
+        expected = x @ (kernel + (16 / 2) * lora_a @ lora_b) + bias
+        self.assertAllClose(layer(x), expected)
+
+        # A layer built from the config keeps `lora_alpha`.
+        restored = layers.Dense.from_config(layer.get_config())
+        restored.build((None, 3))
+        self.assertEqual(restored.lora_alpha, 16)
+        restored.set_weights(layer.get_weights())
+        self.assertAllClose(restored(x), expected)
+
     def test_enable_lora_with_kernel_constraint(self):
         layer = layers.Dense(units=2, kernel_constraint="max_norm")
         with self.assertRaisesRegex(
@@ -876,6 +903,75 @@ class DenseTest(testing.TestCase):
         y_training = layer(x, training=True)
         self.assertAllClose(y_inference, y_training)
 
+    @parameterized.named_parameters(("bias", True), ("no_bias", False))
+    def test_quantize_float8_weights_order(self, use_bias):
+        # A layer quantized in place and a layer built from its policy hold
+        # the same variables in the same order.
+        layer = layers.Dense(units=16, use_bias=use_bias)
+        layer.build((None, 8))
+        layer.quantize("float8")
+        for v in layer.weights:
+            v.assign(np.random.uniform(0.5, 1.5, v.shape))
+        new_layer = layers.Dense(
+            units=16, use_bias=use_bias, dtype=layer.dtype_policy
+        )
+        new_layer.build((None, 8))
+        self.assertEqual(
+            [(v.name, v.shape) for v in new_layer.weights],
+            [(v.name, v.shape) for v in layer.weights],
+        )
+        new_layer.set_weights(layer.get_weights())
+        x = np.random.random((2, 8))
+        self.assertAllClose(
+            new_layer(x, training=False), layer(x, training=False)
+        )
+
+    def test_quantize_float8_rebuilt_model_takes_weights(self):
+        inputs = layers.Input((8,))
+        model = models.Model(inputs, layers.Dense(16)(inputs))
+        model.layers[1].quantize("float8")
+        for v in model.weights:
+            v.assign(np.random.uniform(0.5, 1.5, v.shape))
+        x = np.random.random((2, 8))
+        y = model(x, training=False)
+
+        # `from_config` builds the layer from its policy.
+        revived = models.Model.from_config(model.get_config())
+        revived.set_weights(model.get_weights())
+        self.assertAllClose(revived(x, training=False), y)
+
+        # The legacy `.h5` format stores the weights in `weights` order.
+        temp_filepath = os.path.join(self.get_temp_dir(), "float8_model.h5")
+        model.save(temp_filepath)
+        reloaded = saving.load_model(temp_filepath)
+        self.assertAllClose(reloaded(x, training=False), y)
+
+    @pytest.mark.requires_trainable_backend
+    def test_quantize_float8_trained_model_reloads_optimizer_state(self):
+        # Gradient accumulators are stored by position, one per trainable
+        # variable, in the order of `trainable_variables`.
+        inputs = layers.Input((8,))
+        model = models.Model(inputs, layers.Dense(16)(inputs))
+        model.layers[1].quantize("float8")
+        model.compile(
+            optimizer=optimizers.SGD(gradient_accumulation_steps=2),
+            loss="mse",
+        )
+        x = np.random.random((4, 8))
+        model.fit(x, np.random.random((4, 16)), batch_size=4, verbose=0)
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "float8_model.keras")
+        model.save(temp_filepath)
+        reloaded = saving.load_model(temp_filepath)
+        self.assertEqual(
+            [v.shape for v in reloaded.optimizer.variables],
+            [v.shape for v in model.optimizer.variables],
+        )
+        for v, ref in zip(
+            reloaded.optimizer.variables, model.optimizer.variables
+        ):
+            self.assertAllClose(v, ref)
+
     def test_gptq_serialization(self):
         """Test that a GPTQ-quantized layer can be serialized and deserialized
         correctly."""
@@ -985,10 +1081,10 @@ class DenseTest(testing.TestCase):
             "0": np.random.random((16,)).astype("float32"),
             # quantized_kernel
             "1": np.random.randint(0, 16, size=(8, 8), dtype="uint8"),
-            # kernel_scale.
-            "2": np.random.random((16, 1)).astype("float32"),
-            # kernel_zero
-            "3": np.random.random((16, 1)).astype("uint8"),
+            # kernel_scale: [n_groups, out].
+            "2": np.random.random((1, 16)).astype("float32"),
+            # kernel_zero: [n_groups, out].
+            "3": np.random.random((1, 16)).astype("uint8"),
             # g_idx: legacy checkpoints stored the integer group indices as
             # float32; they load into the float32 g_idx variable unchanged.
             "4": np.array([0, 0, 0, 0, 1, 1, 1, 1], dtype="float32"),
@@ -996,8 +1092,8 @@ class DenseTest(testing.TestCase):
         awq_store = {
             "0": np.random.random((16,)).astype("float32"),  # bias
             "1": np.random.randint(0, 16, size=(8, 8), dtype="uint8"),  # kernel
-            "2": np.random.random((16, 1)).astype("float32"),  # scale
-            "3": np.random.random((16, 1)).astype("uint8"),  # zero
+            "2": np.random.random((1, 16)).astype("float32"),  # scale
+            "3": np.random.random((1, 16)).astype("uint8"),  # zero
             "4": np.random.random((8,)).astype("float32"),  # awq_scales
             # g_idx saved as int32 by a newer checkpoint; the cast on load
             # brings it into the float32 storage variable (see above).
@@ -1186,7 +1282,8 @@ class DenseTest(testing.TestCase):
         layer.is_gptq_calibrated = True  # Bypass calibration check
         packed_kernel = layer.quantized_kernel
         self.assertAllClose(
-            layer.kernel, quantizers.unpack_int4(packed_kernel, 2)
+            layer.kernel,
+            quantizers.unpack_int4(packed_kernel, 2, axis=-1, dtype="uint8"),
         )
 
     def test_gptq_kernel_packing(self):
@@ -1220,7 +1317,8 @@ class DenseTest(testing.TestCase):
         layer.is_awq_calibrated = True  # Bypass calibration check
         packed_kernel = layer.quantized_kernel
         self.assertAllClose(
-            layer.kernel, quantizers.unpack_int4(packed_kernel, 2)
+            layer.kernel,
+            quantizers.unpack_int4(packed_kernel, 2, axis=-1, dtype="uint8"),
         )
 
     def test_awq_kernel_packing(self):
@@ -1469,6 +1567,46 @@ class DenseTest(testing.TestCase):
     @pytest.mark.skipif(
         testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
     )
+    def test_int4_grouped_merged_save_keeps_lora_update(self):
+        # A merged save re-quantizes the dequantized kernel plus the LoRA
+        # update, so every stored weight must land within half a code step
+        # of that sum. A zero update cannot tell this from a merge that
+        # drops the update, so the update here is as large as the kernel.
+        input_dim, units, block_size = 12, 16, 4
+        inputs = layers.Input((input_dim,))
+        layer = layers.Dense(units, use_bias=False, name="target")
+        model = models.Model(inputs, layer(inputs))
+        layer.quantize(
+            "int4", config=Int4QuantizationConfig(block_size=block_size)
+        )
+        eye = np.eye(input_dim, dtype="float32")
+        quantized = ops.convert_to_numpy(layer(eye))
+        layer.enable_lora(2)
+        rng = np.random.RandomState(0)
+        layer.lora_kernel_a.assign(
+            rng.randn(input_dim, 2).astype("float32") * 0.5
+        )
+        layer.lora_kernel_b.assign(rng.randn(2, units).astype("float32") * 0.5)
+        with_update = ops.convert_to_numpy(layer(eye))
+        path = os.path.join(self.get_temp_dir(), "merged.keras")
+        model.save(path)
+        merged_layer = saving.load_model(path).get_layer("target")
+        merged = ops.convert_to_numpy(merged_layer(eye))
+        # Half a step of the re-quantized grid, per group and column.
+        scale = ops.convert_to_numpy(merged_layer.kernel_scale)
+        half_step = 0.5 * scale[np.arange(input_dim) // block_size]
+        self.assertGreater(
+            np.abs(with_update - quantized).max(), 4 * half_step.max()
+        )
+        # A float32 matmul runs at bfloat16 precision on TPU.
+        atol = 1e-2 if testing.uses_tpu() else 1e-6
+        self.assertTrue(
+            np.all(np.abs(merged - with_update) <= half_step * 1.001 + atol)
+        )
+
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
     def test_int4_grouped_vs_perchannel_scale_shapes(self):
         """Test that grouped and per-channel have different scale shapes."""
         input_dim, output_dim = 256, 64
@@ -1568,6 +1706,29 @@ class DenseTest(testing.TestCase):
         # Verify outputs match
         y_after = loaded_model(x)
         self.assertAllClose(y_before, y_after)
+
+    @parameterized.named_parameters(("int4", "int4/2"), ("gptq", "gptq/4/2"))
+    def test_more_than_256_groups_under_mixed_bfloat16(self, policy):
+        # 300 groups of two rows. bfloat16 holds integers exactly only up
+        # to 256, so an autocast `g_idx` would send later rows to another
+        # group's scale and zero point.
+        input_dim = 600
+        source = layers.Dense(4, dtype=f"{policy}_from_float32")
+        source.build((None, input_dim))
+        test_utils.randomize_serialized_variables(source)
+        source.g_idx.assign(np.arange(input_dim) // 2)
+        store = test_utils.positional_store(source)
+        x = np.random.default_rng(0).standard_normal((2, input_dim))
+        outputs = []
+        for dtype in ("float32", "mixed_bfloat16"):
+            layer = layers.Dense(4, dtype=f"{policy}_from_{dtype}")
+            layer.build((None, input_dim))
+            layer.load_own_variables(store)
+            y = layer(x.astype("float32"))
+            outputs.append(ops.convert_to_numpy(ops.cast(y, "float32")))
+        expected, y = outputs
+        atol = 0.02 * np.abs(expected).max()
+        self.assertAllClose(y, expected, rtol=0.02, atol=atol)
 
     def test_quantize_by_setting_dtype_policy_map_uses_layer_entry(self):
         # A map answers `quantization_mode` for its default policy, which is
@@ -1708,6 +1869,25 @@ class DenseTest(testing.TestCase):
             beta_expected,
             atol=1e-5,
         )
+
+    @parameterized.named_parameters(
+        ("float16", "float16"), ("mixed_float16", "mixed_float16")
+    )
+    def test_dense_quantize_ternary_small_kernel_float16(self, dtype):
+        # `mean(|W|)` is about 1e-5, so `1 / mean(|W|)` would overflow
+        # float16. The multiplier scale keeps the outputs' magnitude.
+        rng = np.random.RandomState(0)
+        layer = layers.Dense(units=32, use_bias=False, dtype=dtype)
+        layer.build((None, 64))
+        layer._kernel.assign(rng.randn(64, 32) * 1e-5)
+        kernel = ops.convert_to_numpy(ops.cast(layer._kernel, "float32"))
+        beta = np.mean(np.abs(kernel))
+        codes = np.sign(kernel) * (np.abs(kernel) > 0.5 * beta)
+        x = rng.randn(4, 64).astype("float32")
+        layer.quantize("ternary")
+
+        y = ops.convert_to_numpy(ops.cast(layer(x), "float32"))
+        self.assertAllClose(y, np.matmul(x, codes) * beta, rtol=1e-2, atol=1e-6)
 
     def test_dense_quantize_ternary_no_bias(self):
         layer = layers.Dense(units=8, use_bias=False)

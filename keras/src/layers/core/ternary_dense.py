@@ -7,7 +7,7 @@ from keras.src.api_export import keras_export
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.geometry import ProjectionGeometry
-from keras.src.quantizers.packing import unpack_ternary
+from keras.src.quantizers.quantizers import ternarize
 
 
 @keras_export("keras.layers.TernaryDense")
@@ -186,28 +186,34 @@ class TernaryDense(Layer):
             raise AttributeError(
                 "You must build the layer before accessing `kernel`."
             )
-        if self.quantization_mode == "ternary":
-            # Frozen: the packed codes, unpacked to `{-1, 0, +1}`.
-            return unpack_ternary(
-                self._packed_kernel, self._orig_input_dim, axis=0
-            )
-        return self._kernel
+        # Frozen: the codes `{-1, 0, +1}`; otherwise the float kernel.
+        quantized_weight = self._quantized_weight()
+        return (
+            self._kernel
+            if quantized_weight is None
+            else quantized_weight.unpack()
+        )
 
     def _ternary_kernel(self):
-        """Forward value is in {-1, 0, +1}; gradients flow via STE."""
-        abs_k = ops.abs(self._kernel)
-        t = 0.5 * ops.mean(abs_k) if self.threshold is None else self.threshold
+        """The straight-through kernel and `beta = mean(|kernel|)`.
+
+        The kernel's forward value is in {-1, 0, +1} and gradients flow via
+        STE. The threshold and `beta` are taken in float32, like
+        `quantizers.ternarize`.
+        """
+        abs_k = ops.abs(ops.cast(self._kernel, "float32"))
+        beta = ops.mean(abs_k)
+        t = 0.5 * beta if self.threshold is None else self.threshold
         k_ternary = ops.sign(self._kernel) * ops.cast(
-            abs_k > t, dtype=self._kernel.dtype
+            ops.greater(abs_k, t), dtype=self._kernel.dtype
         )
-        return self._kernel + ops.stop_gradient(k_ternary - self._kernel)
+        return self._kernel + ops.stop_gradient(k_ternary - self._kernel), beta
 
     def call(self, inputs):
-        k = self._ternary_kernel()
+        k, beta = self._ternary_kernel()
         x = ops.matmul(inputs, k)
         if self.threshold is None:
-            beta = ops.mean(ops.abs(self._kernel))
-            x = ops.multiply(x, beta)
+            x = ops.multiply(x, ops.cast(beta, x.dtype))
         if self.bias is not None:
             x = ops.add(x, self.bias)
         if self.activation is not None:
@@ -313,11 +319,7 @@ class _TernaryDenseGeometry(ProjectionGeometry):
 
     def ternary_values(self):
         layer = self.layer
-        # Hard ternary values in {-1, 0, +1}. This is exactly the forward
-        # value of the straight-through kernel used in training.
-        kernel_ternary = ops.convert_to_numpy(layer._ternary_kernel())
-        if layer.threshold is None:
-            beta = float(ops.convert_to_numpy(ops.mean(ops.abs(layer._kernel))))
-        else:
-            beta = 1.0
-        return kernel_ternary, beta
+        # The rule of the straight-through kernel used in training, so the
+        # frozen codes are exactly its forward value; the scale is `beta`,
+        # or 1.0 with a fixed threshold.
+        return ternarize(layer._kernel, layer.threshold)

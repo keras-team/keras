@@ -5,7 +5,6 @@ import re
 import numpy as np
 
 from keras.src import backend
-from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
@@ -419,8 +418,10 @@ def _allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
         return backend.ops.numpy.allclose(
             x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan
         )
-    return ops.all(
-        ops.isclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
+    return backend.ops.numpy.all(
+        backend.ops.numpy.isclose(
+            x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan
+        )
     )
 
 
@@ -467,16 +468,16 @@ def _angle(x):
     x = backend.ops.convert_to_tensor(x)
     dtype = backend.standardize_dtype(x.dtype)
     if dtype in dtypes.COMPLEX_TYPES:
-        x_imag = ops.imag(x)
-        x_real = ops.real(x)
+        x_imag = backend.ops.numpy.imag(x)
+        x_real = backend.ops.numpy.real(x)
     else:
         if dtype == "int64":
             dtype = backend.floatx()
         else:
             dtype = dtypes.result_type(dtype, float)
-        x_real = ops.cast(x, dtype)
-        x_imag = ops.zeros_like(x_real)
-    return ops.arctan2(x_imag, x_real)
+        x_real = backend.ops.cast(x, dtype)
+        x_imag = backend.ops.numpy.zeros_like(x_real)
+    return backend.ops.numpy.arctan2(x_imag, x_real)
 
 
 class Any(Operation):
@@ -2663,8 +2664,8 @@ def _deg2rad(x):
         dtype = config.floatx()
     else:
         dtype = dtypes.result_type(x.dtype, float)
-    x = ops.cast(x, dtype)
-    return ops.multiply(x, python_math.pi / 180.0)
+    x = backend.ops.cast(x, dtype)
+    return backend.ops.numpy.multiply(x, python_math.pi / 180.0)
 
 
 class Rad2deg(Operation):
@@ -2714,8 +2715,8 @@ def _rad2deg(x):
         dtype = config.floatx()
     else:
         dtype = dtypes.result_type(x.dtype, float)
-    x = ops.cast(x, dtype)
-    return ops.multiply(x, 180.0 / python_math.pi)
+    x = backend.ops.cast(x, dtype)
+    return backend.ops.numpy.multiply(x, 180.0 / python_math.pi)
 
 
 class Diag(Operation):
@@ -4232,7 +4233,7 @@ def _hsplit(x, indices_or_sections):
     # 1D inputs are split along axis=0. Inputs with 2 or more dimensions are
     # split along axis=1.
     axis = 0 if len(x.shape) == 1 else 1
-    return ops.split(x, indices_or_sections, axis=axis)
+    return backend.ops.numpy.split(x, indices_or_sections, axis=axis)
 
 
 class Hypot(Operation):
@@ -5425,12 +5426,12 @@ def _fmax(x1, x2):
     )
     x1 = backend.ops.convert_to_tensor(x1, dtype)
     x2 = backend.ops.convert_to_tensor(x2, dtype)
-    res = ops.maximum(x1, x2)
+    res = backend.ops.numpy.maximum(x1, x2)
     if "float" not in dtype:
         return res
 
-    res = ops.where(ops.isnan(x2), x1, res)
-    return ops.where(ops.isnan(x1), x2, res)
+    res = backend.ops.numpy.where(backend.ops.numpy.isnan(x2), x1, res)
+    return backend.ops.numpy.where(backend.ops.numpy.isnan(x1), x2, res)
 
 
 class Median(Operation):
@@ -5691,12 +5692,12 @@ def _fmin(x1, x2):
     )
     x1 = backend.ops.convert_to_tensor(x1, dtype)
     x2 = backend.ops.convert_to_tensor(x2, dtype)
-    res = ops.minimum(x1, x2)
+    res = backend.ops.numpy.minimum(x1, x2)
     if "float" not in dtype:
         return res
 
-    res = ops.where(ops.isnan(x2), x1, res)
-    return ops.where(ops.isnan(x1), x2, res)
+    res = backend.ops.numpy.where(backend.ops.numpy.isnan(x2), x1, res)
+    return backend.ops.numpy.where(backend.ops.numpy.isnan(x1), x2, res)
 
 
 class Mod(Operation):
@@ -5795,7 +5796,12 @@ def _fmod(x1, x2):
         dtype = "int32"
     x1 = backend.ops.convert_to_tensor(x1, dtype)
     x2 = backend.ops.convert_to_tensor(x2, dtype)
-    return ops.multiply(ops.sign(x1), ops.mod(ops.abs(x1), ops.abs(x2)))
+    return backend.ops.numpy.multiply(
+        backend.ops.numpy.sign(x1),
+        backend.ops.numpy.mod(
+            backend.ops.numpy.abs(x1), backend.ops.numpy.abs(x2)
+        ),
+    )
 
 
 class Moveaxis(Operation):
@@ -5872,9 +5878,7 @@ class Nanargmax(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.ops.numpy.nanargmax(
-            x, axis=self.axis, keepdims=self.keepdims
-        )
+        return _nanargmax(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
         axis = [self.axis] if self.axis is not None else None
@@ -5921,7 +5925,29 @@ def nanargmax(x, axis=None, keepdims=False):
 
     if any_symbolic_tensors((x,)):
         return Nanargmax(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.ops.numpy.nanargmax(x, axis=axis, keepdims=keepdims)
+    return _nanargmax(x, axis=axis, keepdims=keepdims)
+
+
+def _nanargmax(x, axis=None, keepdims=False):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "nanargmax"
+    ):
+        return backend.ops.numpy.nanargmax(x, axis=axis, keepdims=keepdims)
+    x = backend.ops.convert_to_tensor(x)
+    if not backend.is_float_dtype(x.dtype):
+        return backend.ops.numpy.argmax(x, axis=axis, keepdims=keepdims)
+    nan_mask = backend.ops.numpy.isnan(x)
+    neg_inf = backend.ops.cast(float("-inf"), x.dtype)
+    result = backend.ops.numpy.argmax(
+        backend.ops.numpy.where(nan_mask, neg_inf, x),
+        axis=axis,
+        keepdims=keepdims,
+    )
+    return backend.ops.numpy.where(
+        backend.ops.numpy.all(nan_mask, axis=axis, keepdims=keepdims),
+        backend.ops.cast(-1, result.dtype),
+        result,
+    )
 
 
 class Nanargmin(Operation):
@@ -5931,9 +5957,7 @@ class Nanargmin(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.ops.numpy.nanargmin(
-            x, axis=self.axis, keepdims=self.keepdims
-        )
+        return _nanargmin(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
         axis = [self.axis] if self.axis is not None else None
@@ -5980,7 +6004,29 @@ def nanargmin(x, axis=None, keepdims=False):
 
     if any_symbolic_tensors((x,)):
         return Nanargmin(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.ops.numpy.nanargmin(x, axis=axis, keepdims=keepdims)
+    return _nanargmin(x, axis=axis, keepdims=keepdims)
+
+
+def _nanargmin(x, axis=None, keepdims=False):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "nanargmin"
+    ):
+        return backend.ops.numpy.nanargmin(x, axis=axis, keepdims=keepdims)
+    x = backend.ops.convert_to_tensor(x)
+    if not backend.is_float_dtype(x.dtype):
+        return backend.ops.numpy.argmin(x, axis=axis, keepdims=keepdims)
+    nan_mask = backend.ops.numpy.isnan(x)
+    pos_inf = backend.ops.cast(float("inf"), x.dtype)
+    result = backend.ops.numpy.argmin(
+        backend.ops.numpy.where(nan_mask, pos_inf, x),
+        axis=axis,
+        keepdims=keepdims,
+    )
+    return backend.ops.numpy.where(
+        backend.ops.numpy.all(nan_mask, axis=axis, keepdims=keepdims),
+        backend.ops.cast(-1, result.dtype),
+        result,
+    )
 
 
 class Nancumsum(Operation):
@@ -5990,7 +6036,7 @@ class Nancumsum(Operation):
         self.dtype = dtype
 
     def call(self, x):
-        return backend.ops.numpy.nancumsum(x, axis=self.axis, dtype=self.dtype)
+        return _nancumsum(x, axis=self.axis, dtype=self.dtype)
 
     def compute_output_spec(self, x):
         if self.axis is None:
@@ -6041,7 +6087,20 @@ def nancumsum(x, axis=None, dtype=None):
     """
     if any_symbolic_tensors((x,)):
         return Nancumsum(axis=axis, dtype=dtype).symbolic_call(x)
-    return backend.ops.numpy.nancumsum(x, axis=axis, dtype=dtype)
+    return _nancumsum(x, axis=axis, dtype=dtype)
+
+
+def _nancumsum(x, axis=None, dtype=None):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "nancumsum"
+    ):
+        return backend.ops.numpy.nancumsum(x, axis=axis, dtype=dtype)
+    x = backend.ops.convert_to_tensor(x)
+    if backend.is_float_dtype(x.dtype):
+        x = backend.ops.numpy.where(
+            backend.ops.numpy.isnan(x), backend.ops.cast(0, x.dtype), x
+        )
+    return backend.ops.numpy.cumsum(x, axis=axis, dtype=dtype)
 
 
 class Nancumprod(Operation):
@@ -6169,15 +6228,19 @@ def _nanmax(x, axis=None, keepdims=False):
         return backend.ops.numpy.nanmax(x, axis=axis, keepdims=keepdims)
     x = backend.ops.convert_to_tensor(x)
     if not backend.is_float_dtype(x.dtype):
-        return ops.max(x, axis=axis, keepdims=keepdims)
-    nan_mask = ops.isnan(x)
-    neg_inf = ops.cast(float("-inf"), x.dtype)
-    nan = ops.cast(float("nan"), x.dtype)
-    result = ops.max(
-        ops.where(nan_mask, neg_inf, x), axis=axis, keepdims=keepdims
+        return backend.ops.numpy.max(x, axis=axis, keepdims=keepdims)
+    nan_mask = backend.ops.numpy.isnan(x)
+    neg_inf = backend.ops.cast(float("-inf"), x.dtype)
+    nan = backend.ops.cast(float("nan"), x.dtype)
+    result = backend.ops.numpy.max(
+        backend.ops.numpy.where(nan_mask, neg_inf, x),
+        axis=axis,
+        keepdims=keepdims,
     )
-    return ops.where(
-        ops.all(nan_mask, axis=axis, keepdims=keepdims), nan, result
+    return backend.ops.numpy.where(
+        backend.ops.numpy.all(nan_mask, axis=axis, keepdims=keepdims),
+        nan,
+        result,
     )
 
 
@@ -6188,9 +6251,7 @@ class Nanmean(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.ops.numpy.nanmean(
-            x, axis=self.axis, keepdims=self.keepdims
-        )
+        return _nanmean(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
         dtype = dtypes.result_type(x.dtype, float)
@@ -6233,8 +6294,28 @@ def nanmean(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Nanmean(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return _nanmean(x, axis=axis, keepdims=keepdims)
 
-    return backend.ops.numpy.nanmean(x, axis=axis, keepdims=keepdims)
+
+def _nanmean(x, axis=None, keepdims=False):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "nanmean"
+    ):
+        return backend.ops.numpy.nanmean(x, axis=axis, keepdims=keepdims)
+    x = backend.ops.convert_to_tensor(x)
+    dtype = dtypes.result_type(x.dtype, float)
+    x = backend.ops.cast(x, dtype)
+    if axis == () or axis == []:
+        return x
+    total = _nansum(x, axis=axis, keepdims=keepdims)
+    count = backend.ops.numpy.sum(
+        backend.ops.cast(
+            backend.ops.numpy.logical_not(backend.ops.numpy.isnan(x)), dtype
+        ),
+        axis=axis,
+        keepdims=keepdims,
+    )
+    return backend.ops.numpy.divide(total, count)
 
 
 class Nanmedian(Operation):
@@ -6244,9 +6325,7 @@ class Nanmedian(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.ops.numpy.nanmedian(
-            x, axis=self.axis, keepdims=self.keepdims
-        )
+        return _nanmedian(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
         dtype = dtypes.result_type(x.dtype, float)
@@ -6292,7 +6371,18 @@ def nanmedian(x, axis=None, keepdims=False):
     if any_symbolic_tensors((x,)):
         return Nanmedian(axis=axis, keepdims=keepdims).symbolic_call(x)
 
-    return backend.ops.numpy.nanmedian(x, axis=axis, keepdims=keepdims)
+    return _nanmedian(x, axis=axis, keepdims=keepdims)
+
+
+def _nanmedian(x, axis=None, keepdims=False):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "nanmedian"
+    ):
+        return backend.ops.numpy.nanmedian(x, axis=axis, keepdims=keepdims)
+    x = backend.ops.convert_to_tensor(x)
+    if axis == () or axis == []:
+        return backend.ops.cast(x, dtypes.result_type(x.dtype, float))
+    return backend.ops.numpy.nanquantile(x, 0.5, axis=axis, keepdims=keepdims)
 
 
 class Nanmin(Operation):
@@ -6358,15 +6448,19 @@ def _nanmin(x, axis=None, keepdims=False):
         return backend.ops.numpy.nanmin(x, axis=axis, keepdims=keepdims)
     x = backend.ops.convert_to_tensor(x)
     if not backend.is_float_dtype(x.dtype):
-        return ops.min(x, axis=axis, keepdims=keepdims)
-    nan_mask = ops.isnan(x)
-    pos_inf = ops.cast(float("inf"), x.dtype)
-    nan = ops.cast(float("nan"), x.dtype)
-    result = ops.min(
-        ops.where(nan_mask, pos_inf, x), axis=axis, keepdims=keepdims
+        return backend.ops.numpy.min(x, axis=axis, keepdims=keepdims)
+    nan_mask = backend.ops.numpy.isnan(x)
+    pos_inf = backend.ops.cast(float("inf"), x.dtype)
+    nan = backend.ops.cast(float("nan"), x.dtype)
+    result = backend.ops.numpy.min(
+        backend.ops.numpy.where(nan_mask, pos_inf, x),
+        axis=axis,
+        keepdims=keepdims,
     )
-    return ops.where(
-        ops.all(nan_mask, axis=axis, keepdims=keepdims), nan, result
+    return backend.ops.numpy.where(
+        backend.ops.numpy.all(nan_mask, axis=axis, keepdims=keepdims),
+        nan,
+        result,
     )
 
 
@@ -6669,9 +6763,7 @@ class Nansum(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.ops.numpy.nansum(
-            x, axis=self.axis, keepdims=self.keepdims
-        )
+        return _nansum(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
         dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
@@ -6722,7 +6814,18 @@ def nansum(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Nansum(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.ops.numpy.nansum(x, axis=axis, keepdims=keepdims)
+    return _nansum(x, axis=axis, keepdims=keepdims)
+
+
+def _nansum(x, axis=None, keepdims=False):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "nansum"
+    ):
+        return backend.ops.numpy.nansum(x, axis=axis, keepdims=keepdims)
+    x = backend.ops.convert_to_tensor(x)
+    if backend.is_float_dtype(x.dtype):
+        x = backend.ops.numpy.where(backend.ops.numpy.isnan(x), 0, x)
+    return backend.ops.numpy.sum(x, axis=axis, keepdims=keepdims)
 
 
 class Nanvar(Operation):
@@ -6822,16 +6925,6 @@ def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     )
 
 
-class Ndim(Operation):
-    def call(self, x):
-        return backend.ops.numpy.ndim(
-            x,
-        )
-
-    def compute_output_spec(self, x):
-        return KerasTensor([len(x.shape)])
-
-
 @keras_export(["keras.ops.ndim", "keras.ops.numpy.ndim"])
 def ndim(x):
     """Return the number of dimensions of a tensor.
@@ -6843,7 +6936,9 @@ def ndim(x):
         The number of dimensions in `x`.
     """
     if any_symbolic_tensors((x,)):
-        return Ndim().symbolic_call(x)
+        # Unlike individual dimension sizes, the rank of a symbolic tensor
+        # is always statically known, so this never needs a backend op.
+        return len(x.shape)
     return backend.ops.numpy.ndim(x)
 
 
@@ -7904,26 +7999,25 @@ def sinh(x):
     return backend.ops.numpy.sinh(x)
 
 
-class Size(Operation):
-    def call(self, x):
-        return backend.ops.numpy.size(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor([], dtype="int32")
-
-
 @keras_export(["keras.ops.size", "keras.ops.numpy.size"])
 def size(x):
     """Return the number of elements in a tensor.
+
+    Note: On the TensorFlow backend, when `x` is a `tf.Tensor` with dynamic
+    shape, the size in the context of a compiled function will be a
+    `tf.Tensor` instead of a static integer value.
 
     Args:
         x: Input tensor.
 
     Returns:
-        Number of elements in `x`.
+        An integer, the number of elements in `x`. When `x` is a symbolic
+        tensor with an unknown dimension, returns `None`.
     """
     if any_symbolic_tensors((x,)):
-        return Size().symbolic_call(x)
+        if None in x.shape:
+            return None
+        return python_math.prod(x.shape)
     return backend.ops.numpy.size(x)
 
 
@@ -8115,6 +8209,10 @@ class Std(Operation):
         output_dtype = backend.standardize_dtype(x.dtype)
         if "int" in output_dtype or output_dtype == "bool":
             output_dtype = backend.floatx()
+        elif output_dtype == "complex64":
+            output_dtype = "float32"
+        elif output_dtype == "complex128":
+            output_dtype = "float64"
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
             dtype=output_dtype,
@@ -8855,7 +8953,7 @@ def _vsplit(x, indices_or_sections):
     ):
         return backend.ops.numpy.vsplit(x, indices_or_sections)
     x = backend.ops.convert_to_tensor(x)
-    return ops.split(x, indices_or_sections, axis=0)
+    return backend.ops.numpy.split(x, indices_or_sections, axis=0)
 
 
 class Where(Operation):
@@ -9419,12 +9517,9 @@ class Mean(Operation):
         return backend.ops.numpy.mean(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        ori_dtype = backend.standardize_dtype(x.dtype)
-        compute_dtype = dtypes.result_type(x.dtype, "float32")
-        if "int" in ori_dtype or ori_dtype == "bool":
-            result_dtype = compute_dtype
-        else:
-            result_dtype = ori_dtype
+        result_dtype = backend.standardize_dtype(x.dtype)
+        if "int" in result_dtype or result_dtype == "bool":
+            result_dtype = config.floatx()
         sparse = getattr(x, "sparse", False)
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
@@ -10421,7 +10516,7 @@ def _dsplit(x, indices_or_sections):
     ):
         return backend.ops.numpy.dsplit(x, indices_or_sections)
     x = backend.ops.convert_to_tensor(x)
-    return ops.split(x, indices_or_sections, axis=2)
+    return backend.ops.numpy.split(x, indices_or_sections, axis=2)
 
 
 class ColumnStack(Operation):

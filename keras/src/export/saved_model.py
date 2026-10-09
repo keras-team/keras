@@ -11,6 +11,7 @@ from keras.src.export.neptune_model_export_archive import (
 from keras.src.export.saved_model_export_archive import (  # noqa: F401
     _list_variables_used_by_fns,
 )
+from keras.src.utils.module_utils import get_pluggable_backend_module
 
 if backend.backend() == "tensorflow":
     from keras.src.backend.tensorflow.export import (
@@ -28,14 +29,19 @@ elif backend.backend() == "numpy":
     from keras.src.backend.numpy.export import (
         NumpyExportArchive as BackendSavedModelExportArchive,
     )
-elif backend.backend() == "openvino":
-    from keras.src.backend.openvino.export import (
-        OpenvinoExportArchive as BackendSavedModelExportArchive,
-    )
 else:
-    raise RuntimeError(
-        f"Backend '{backend.backend()}' must implement ExportArchive."
+    backend_export_module = get_pluggable_backend_module(
+        "src.export", allow_missing=True
     )
+    if backend_export_module is not None:
+        BackendSavedModelExportArchive = getattr(
+            backend_export_module, "SavedModelExportArchive"
+        )
+    else:
+        from keras.src.export.saved_model_export_archive import (
+            BaseSavedModelExportArchive as BackendSavedModelExportArchive,
+        )
+
 
 DEFAULT_ENDPOINT_NAME = "serve"
 

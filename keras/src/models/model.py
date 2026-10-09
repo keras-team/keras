@@ -16,10 +16,10 @@ from keras.src.quantizers.quantization_config import validate_and_resolve_config
 from keras.src.quantizers.report import QuantizationReport
 from keras.src.quantizers.utils import should_quantize_layer
 from keras.src.saving import saving_api
-from keras.src.trainers import trainer as base_trainer
 from keras.src.utils import io_utils
 from keras.src.utils import summary_utils
 from keras.src.utils import traceback_utils
+from keras.src.utils.module_utils import get_pluggable_backend_module
 
 if backend.backend() == "tensorflow":
     from keras.src.backend.tensorflow.trainer import (
@@ -31,16 +31,13 @@ elif backend.backend() == "torch":
     from keras.src.backend.torch.trainer import TorchTrainer as Trainer
 elif backend.backend() == "numpy":
     from keras.src.backend.numpy.trainer import NumpyTrainer as Trainer
-elif backend.backend() == "openvino":
-    from keras.src.backend.openvino.trainer import OpenVINOTrainer as Trainer
 else:
-    raise RuntimeError(
-        f"Backend '{backend.backend()}' must implement the Trainer class."
-    )
+    backend_trainer_module = get_pluggable_backend_module("src.trainer")
+    Trainer = getattr(backend_trainer_module, "Trainer")
 
 
 @keras_export(["keras.Model", "keras.models.Model"])
-class Model(Trainer, base_trainer.Trainer, Layer):
+class Model(Trainer, Layer):
     """A model grouping layers into an object with training/inference features.
 
     There are three ways to instantiate a `Model`:
@@ -481,11 +478,11 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
         Args:
             mode: The mode of the quantization. Supported modes are:
-                `"int8"`, `"int4"`, `"float8"`, `"gptq"`, `"awq"`. This is
-                optional if `config` is provided. Passing a bare string uses
-                the default configuration for that mode, which is identical to
-                passing the corresponding config object with default arguments
-                (e.g. `quantize("int4")` matches
+                `"int8"`, `"int4"`, `"float8"`, `"ternary"`, `"gptq"` and
+                `"awq"`. This is optional if `config` is provided. Passing a
+                bare string uses the default configuration for that mode,
+                which is identical to passing the corresponding config object
+                with default arguments (e.g. `quantize("int4")` matches
                 `quantize(config=Int4QuantizationConfig())`). The activation
                 (A) times weight (W) semantics of each mode are:
 
@@ -501,12 +498,19 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 -   `"float8"`: **float8 QDQ** mixed-precision training scheme
                     (not post-training compression); weights and activations
                     are dynamically cast to `float8` during training.
-                -   `"gptq"` / `"awq"`: 4-bit weight-only post-training
-                    quantization; requires a `GPTQConfig` / `AWQConfig` passed
-                    via `config`.
+                -   `"ternary"`: **weight-only** BitNet b1.58 quantization of
+                    `Dense` layers. Weights are quantized to `{-1, 0, +1}`
+                    with one scalar scale and packed five per byte; this is
+                    storage-only today (weights are unpacked to float before
+                    each matmul).
+                -   `"gptq"`: **weight-only** post-training quantization to
+                    2, 3, 4 or 8 bits (`GPTQConfig.weight_bits`, 4 by
+                    default); requires a `GPTQConfig` passed via `config`.
+                -   `"awq"`: **W4A16 weight-only** post-training quantization;
+                    requires an `AWQConfig` passed via `config`.
             config: The configuration object specifying additional
                 quantization options. This argument allows to configure
-                the weight and activation quantizers. be an instance of
+                the weight and activation quantizers. It must be an instance of
                 `keras.quantizers.QuantizationConfig`.
             filters: Optional filters to apply to the quantization. Can be a
                 regex string, a list of regex strings, or a callable. Only the
@@ -659,7 +663,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 report.add_skipped(path, QuantizationReport.SKIP_FILTERED)
                 continue
             # 3. Already quantized (e.g. a previously quantized layer).
-            if getattr(layer, "_is_quantized", False):
+            if layer._is_quantized:
                 report.add_skipped(
                     path, QuantizationReport.SKIP_ALREADY_QUANTIZED
                 )
@@ -720,11 +724,22 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
     def _post_quantize(self, mode, **kwargs):
         if backend.backend() == "torch":
+            # Local import: `sequential` imports this module.
+            from keras.src.models.sequential import Sequential
+
             # We need to manually retrack `torch_params`.
             # The reason is that after quantization, the removed variables are
             # still referenced by `torch_params` and cannot be gc.
             for layer in self._flatten_layers():
                 layer._track_variables()
+                # A `Sequential` runs its layers through the `Functional` in
+                # `_functional`, which `_flatten_layers` does not visit. Its
+                # `torch_params` also reference the removed variables.
+                if (
+                    isinstance(layer, Sequential)
+                    and layer._functional is not None
+                ):
+                    layer._functional._track_variables()
 
     def build_from_config(self, config):
         if not config:

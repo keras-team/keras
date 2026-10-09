@@ -733,18 +733,18 @@ def mean(x, axis=None, keepdims=False):
                 tf.gather(x.dense_shape, gather_indices, axis=0),
             )
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    compute_dtype = dtypes.result_type(x.dtype, "float32")
-    # `tf.reduce_mean` does not handle low precision (e.g., float16) overflow
-    # correctly, so we compute with float32 and cast back to the original type.
-    if "int" in ori_dtype or ori_dtype == "bool":
-        result_dtype = compute_dtype
-    else:
-        result_dtype = ori_dtype
-    output = tf.reduce_mean(
-        tf.cast(x, compute_dtype), axis=axis, keepdims=keepdims
-    )
-    return tf.cast(output, result_dtype)
+    dtype = standardize_dtype(x.dtype)
+    if dtype == "float16":
+        # The CPU implementation of reduce_mean for float16 is broken, but the
+        # XLA implementation is correct.
+        @tf.function(jit_compile=True)
+        def xla_reduce_mean(t):
+            return tf.reduce_mean(t, axis=axis, keepdims=keepdims)
+
+        return xla_reduce_mean(x)
+    if "int" in dtype or dtype == "bool":
+        x = tf.cast(x, config.floatx())
+    return tf.reduce_mean(x, axis=axis, keepdims=keepdims)
 
 
 def max(x, axis=None, keepdims=False, initial=None):
@@ -764,7 +764,7 @@ def max(x, axis=None, keepdims=False, initial=None):
     # TensorFlow returns -inf by default for an empty list, but for consistency
     # with other backends and the numpy API we want to throw in this case.
     if tf.executing_eagerly():
-        size_x = size(x)
+        size_x = tf.size(x)
         tf.assert_greater(
             size_x,
             tf.constant(0, dtype=size_x.dtype),
@@ -1816,10 +1816,17 @@ def hypot(x1, x2):
     x1_abs = tf.abs(x1)
     x2_abs = tf.abs(x2)
     max_val = tf.maximum(x1_abs, x2_abs)
-    min_val = tf.minimum(x1_abs, x2_abs)
-
-    ratio = tf.math.divide_no_nan(min_val, max_val)
-    result = max_val * tf.sqrt(1.0 + tf.square(ratio))
+    both_zero = tf.equal(max_val, 0)
+    scale = tf.stop_gradient(
+        tf.where(both_zero, tf.ones_like(max_val), max_val)
+    )
+    sum_sq = tf.square(x1 / scale) + tf.square(x2 / scale)
+    safe_sum_sq = tf.where(both_zero, tf.ones_like(sum_sq), sum_sq)
+    result = tf.where(
+        both_zero,
+        tf.zeros_like(max_val),
+        scale * tf.sqrt(safe_sum_sq),
+    )
     return tf.where(
         tf.math.is_inf(x1_abs) | tf.math.is_inf(x2_abs),
         tf.constant(float("inf"), dtype=result.dtype),
@@ -2285,7 +2292,7 @@ def min(x, axis=None, keepdims=False, initial=None):
     # TensorFlow returns inf by default for an empty list, but for consistency
     # with other backends and the numpy API we want to throw in this case.
     if tf.executing_eagerly():
-        size_x = size(x)
+        size_x = tf.size(x)
         tf.assert_greater(
             size_x,
             tf.constant(0, dtype=size_x.dtype),
@@ -3024,6 +3031,9 @@ def sinh(x):
 
 def size(x):
     x = convert_to_tensor(x)
+    # A dynamic shape has no static size, so return a tensor instead.
+    if x.shape.is_fully_defined():
+        return x.shape.num_elements()
     return tf.size(x)
 
 

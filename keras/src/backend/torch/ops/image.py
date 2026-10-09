@@ -19,7 +19,7 @@ RESIZE_INTERPOLATIONS = {
     "nearest": "nearest-exact",
     "bicubic": "bicubic",
 }
-UNSUPPORTED_INTERPOLATIONS = (
+LANCZOS_INTERPOLATIONS = (
     "lanczos3",
     "lanczos5",
 )
@@ -209,16 +209,14 @@ def resize(
     data_format=None,
 ):
     data_format = backend.standardize_data_format(data_format)
-    if interpolation in UNSUPPORTED_INTERPOLATIONS:
-        raise ValueError(
-            "Resizing with Lanczos interpolation is "
-            "not supported by the PyTorch backend. "
-            f"Received: interpolation={interpolation}."
-        )
-    if interpolation not in RESIZE_INTERPOLATIONS:
+    if (
+        interpolation not in RESIZE_INTERPOLATIONS
+        and interpolation not in LANCZOS_INTERPOLATIONS
+    ):
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
-            f"{RESIZE_INTERPOLATIONS}. Received: interpolation={interpolation}"
+            f"{tuple(RESIZE_INTERPOLATIONS.keys()) + LANCZOS_INTERPOLATIONS}. "
+            f"Received: interpolation={interpolation}"
         )
     if fill_mode != "constant":
         raise ValueError(
@@ -320,25 +318,58 @@ def resize(
             )
         images = padded_img
 
-    # This implementation is based on
-    # https://github.com/pytorch/vision/blob/main/torchvision/transforms/_functional_tensor.py
-    if antialias and interpolation not in ("bilinear", "bicubic"):
+    if antialias and interpolation not in (
+        ("bilinear", "bicubic") + LANCZOS_INTERPOLATIONS
+    ):
         # We manually set it to False to avoid an error downstream in
-        # interpolate(). This behaviour is documented: the parameter is
-        # irrelevant for modes that are not bilinear or bicubic. We used to
-        # raise an error here, but now we don't use True as the default.
+        # interpolate(). The parameter is irrelevant for other modes.
         antialias = False
-    # Define align_corners to avoid warnings
-    align_corners = False if interpolation in ("bilinear", "bicubic") else None
-    resized = F.interpolate(
-        images,
-        size=size,
-        mode=RESIZE_INTERPOLATIONS[interpolation],
-        align_corners=align_corners,
-        antialias=antialias,
-    )
-    if interpolation == "bicubic" and out_dtype == torch.uint8:
-        resized = resized.clamp(min=0, max=255)
+
+    if interpolation in LANCZOS_INTERPOLATIONS:
+        shape = images.shape
+        height, width = shape[-2], shape[-1]
+        target_height, target_width = size
+        output_shape = (shape[0], shape[1], target_height, target_width)
+        scale = torch.tensor(
+            [target_height / height, target_width / width],
+            dtype=torch.float32,
+            device=images.device,
+        )
+        translation = torch.zeros(
+            (2,), dtype=torch.float32, device=images.device
+        )
+        resized = scale_and_translate(
+            images,
+            output_shape=output_shape,
+            scale=scale,
+            translation=translation,
+            spatial_dims=(2, 3),
+            method=interpolation,
+            antialias=antialias,
+        )
+    else:
+        # This implementation is based on
+        # https://github.com/pytorch/vision/blob/main/torchvision/transforms/_functional_tensor.py
+        # Define align_corners to avoid warnings
+        align_corners = (
+            False if interpolation in ("bilinear", "bicubic") else None
+        )
+        resized = F.interpolate(
+            images,
+            size=size,
+            mode=RESIZE_INTERPOLATIONS[interpolation],
+            align_corners=align_corners,
+            antialias=antialias,
+        )
+    if interpolation in ("bicubic",) + LANCZOS_INTERPOLATIONS and out_dtype in (
+        torch.uint8,
+        torch.int8,
+        torch.int16,
+        torch.int32,
+        torch.int64,
+    ):
+        iinfo = torch.iinfo(out_dtype)
+        resized = resized.clamp(min=iinfo.min, max=iinfo.max)
     if data_format == "channels_last":
         resized = resized.permute((0, 2, 3, 1))
     resized = _cast_squeeze_out(
@@ -385,6 +416,11 @@ def affine_transform(
             "Invalid transform rank: expected rank 1 (single transform) "
             "or rank 2 (batch of transforms). Received input with shape: "
             f"transform.shape={transform.shape}"
+        )
+    if isinstance(transform.shape[-1], int) and transform.shape[-1] != 8:
+        raise ValueError(
+            "Invalid transform shape: expected the last dimension to be 8. "
+            f"Received: transform.shape={transform.shape}"
         )
 
     # unbatched case
