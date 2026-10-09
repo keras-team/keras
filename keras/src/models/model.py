@@ -22,15 +22,13 @@ from keras.src.utils import traceback_utils
 from keras.src.utils.module_utils import get_pluggable_backend_module
 
 if backend.backend() == "tensorflow":
-    from keras.src.backend.tensorflow.trainer import (
-        TensorFlowTrainer as Trainer,
-    )
+    from keras.src.backend.tensorflow.trainer import Trainer
 elif backend.backend() == "jax":
-    from keras.src.backend.jax.trainer import JAXTrainer as Trainer
+    from keras.src.backend.jax.trainer import Trainer
 elif backend.backend() == "torch":
-    from keras.src.backend.torch.trainer import TorchTrainer as Trainer
+    from keras.src.backend.torch.trainer import Trainer
 elif backend.backend() == "numpy":
-    from keras.src.backend.numpy.trainer import NumpyTrainer as Trainer
+    from keras.src.backend.numpy.trainer import Trainer
 else:
     backend_trainer_module = get_pluggable_backend_module("src.trainer")
     Trainer = getattr(backend_trainer_module, "Trainer")
