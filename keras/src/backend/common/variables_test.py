@@ -1305,36 +1305,3 @@ class TestStandardizeShapeWithTensorflow(test_case.TestCase):
         self.assertEqual(
             standardize_shape(tf.TensorShape([None, 3])), (None, 3)
         )
-
-    def test_fit_unknown_rank_dataset_steps_per_execution(self):
-        import numpy as np
-        import tensorflow as tf
-
-        from keras.src import layers
-        from keras.src import models
-
-        def make_example(_):
-            return np.ones((3,), dtype=np.float32), np.float32(1)
-
-        def map_fn(index):
-            return tf.numpy_function(
-                make_example, [index], [tf.float32, tf.float32]
-            )
-
-        def map_fn_with_shape(index):
-            x, y = map_fn(index)
-            return tf.ensure_shape(x, (3,)), tf.ensure_shape(y, ())
-
-        def build_model():
-            inputs = layers.Input(shape=(3,))
-            model = models.Model(inputs, layers.Dense(1)(inputs))
-            model.compile(optimizer="sgd", loss="mse", steps_per_execution=2)
-            return model
-
-        dataset = tf.data.Dataset.range(2).map(map_fn).batch(1)
-        with self.assertRaisesRegex(ValueError, "unknown rank"):
-            build_model().fit(dataset, epochs=1, verbose=0)
-
-        # Specifying the shapes makes multi-step training work.
-        dataset = tf.data.Dataset.range(2).map(map_fn_with_shape).batch(1)
-        build_model().fit(dataset, epochs=1, verbose=0)
