@@ -122,8 +122,6 @@ def get_shared_object(obj_id):
 
 def record_object_after_serialization(obj, config):
     """Call after serializing an object, to keep track of its config."""
-    if config["module"] == "__main__":
-        config["module"] = None  # Ensures module is None when no module found
     id_to_config_map = global_state.get_global_attribute(
         "shared_objects/id_to_config_map"
     )
@@ -146,6 +144,11 @@ def record_object_after_deserialization(obj, obj_id):
     if id_to_obj_map is None:
         return  # Not in a sharing scope
     id_to_obj_map[obj_id] = obj
+
+
+def clean_main_module(config):
+    if config["module"] == "__main__":
+        config["module"] = None  # Ensures module is None when no module found
 
 
 @keras_export(
@@ -275,42 +278,33 @@ def serialize_keras_object(obj):
             "registered_name": None,
         }
 
-    inner_config = _get_class_or_fn_config(obj)
+    if isinstance(obj, types.FunctionType):
+        # Functions
+        config_with_public_fn = serialize_with_public_fn(obj)
+        clean_main_module(config_with_public_fn)
+        return config_with_public_fn
+
+    # Classes
+    if not hasattr(obj, "get_config"):
+        raise TypeError(
+            f"Cannot serialize object {obj} of type {type(obj)}. "
+            "To be serializable, "
+            "a class must implement the `get_config()` method."
+        )
+    inner_config = obj.get_config()
+    if not isinstance(inner_config, dict):
+        raise TypeError(
+            f"The `get_config()` method of {obj} should return "
+            f"a dict. It returned: {inner_config}"
+        )
+    inner_config = serialize_dict(inner_config)
     config_with_public_class = serialize_with_public_class(
         obj.__class__, inner_config
     )
-
-    if config_with_public_class is not None:
-        get_build_and_compile_config(obj, config_with_public_class)
-        record_object_after_serialization(obj, config_with_public_class)
-        return config_with_public_class
-
-    # Any custom object or otherwise non-exported object
-    if isinstance(obj, types.FunctionType):
-        module = obj.__module__
-    else:
-        module = obj.__class__.__module__
-    class_name = obj.__class__.__name__
-
-    if module == "builtins":
-        registered_name = None
-    else:
-        if isinstance(obj, types.FunctionType):
-            registered_name = object_registration.get_registered_name(obj)
-        else:
-            registered_name = object_registration.get_registered_name(
-                obj.__class__
-            )
-
-    config = {
-        "module": module,
-        "class_name": class_name,
-        "config": inner_config,
-        "registered_name": registered_name,
-    }
-    get_build_and_compile_config(obj, config)
-    record_object_after_serialization(obj, config)
-    return config
+    get_build_and_compile_config(obj, config_with_public_class)
+    clean_main_module(config_with_public_class)
+    record_object_after_serialization(obj, config_with_public_class)
+    return config_with_public_class
 
 
 def get_build_and_compile_config(obj, config):
@@ -339,9 +333,6 @@ def serialize_with_public_class(cls, inner_config=None):
     # Case of custom or unknown class object
     if keras_api_name is None:
         registered_name = object_registration.get_registered_name(cls)
-        if registered_name is None:
-            return None
-
         # Return custom object config with corresponding registration name
         return {
             "module": cls.__module__,
@@ -360,7 +351,7 @@ def serialize_with_public_class(cls, inner_config=None):
     }
 
 
-def serialize_with_public_fn(fn, config, fn_module_name=None):
+def serialize_with_public_fn(fn, config=None, fn_module_name=None):
     """Serializes functions from public Keras API or object registration.
 
     Called to check and retrieve the config of any function that has a public
@@ -378,46 +369,21 @@ def serialize_with_public_fn(fn, config, fn_module_name=None):
     keras_api_name = api_export.get_name_from_symbol(fn)
     if keras_api_name:
         parts = keras_api_name.split(".")
+        name = parts[-1]
         return {
             "module": ".".join(parts[:-1]),
             "class_name": "function",
-            "config": config,
-            "registered_name": config,
+            "config": name,
+            "registered_name": name,
         }
     else:
         registered_name = object_registration.get_registered_name(fn)
-        if not registered_name and not fn.__module__ == "builtins":
-            return None
         return {
             "module": fn.__module__,
             "class_name": "function",
-            "config": config,
+            "config": registered_name,
             "registered_name": registered_name,
         }
-
-
-def _get_class_or_fn_config(obj):
-    """Return the object's config depending on its type."""
-    # Functions / lambdas:
-    if isinstance(obj, types.FunctionType):
-        return object_registration.get_registered_name(obj)
-    # All classes:
-    if hasattr(obj, "get_config"):
-        config = obj.get_config()
-        if not isinstance(config, dict):
-            raise TypeError(
-                f"The `get_config()` method of {obj} should return "
-                f"a dict. It returned: {config}"
-            )
-        return serialize_dict(config)
-    elif hasattr(obj, "__name__"):
-        return object_registration.get_registered_name(obj)
-    else:
-        raise TypeError(
-            f"Cannot serialize object {obj} of type {type(obj)}. "
-            "To be serializable, "
-            "a class must implement the `get_config()` method."
-        )
 
 
 def serialize_dict(obj):
@@ -544,14 +510,13 @@ def deserialize_keras_object(
     if config is None:
         return None
 
-    if (
-        isinstance(config, str)
-        and custom_objects
-        and custom_objects.get(config) is not None
-    ):
+    if isinstance(config, str) and custom_objects and config in custom_objects:
         # This is to deserialize plain functions which are serialized as
         # string names by legacy saving formats.
         return custom_objects[config]
+
+    if isinstance(config, str) and module_objects and config in module_objects:
+        return module_objects[config]
 
     if isinstance(config, (list, tuple)):
         return [
@@ -587,9 +552,9 @@ def deserialize_keras_object(
             elif config["class_name"] == "function":
                 fn_module_name = config["module"]
                 if fn_module_name == "builtins":
-                    config = config["config"]
+                    symbol_name = config["config"]
                 else:
-                    config = config["registered_name"]
+                    symbol_name = config["registered_name"]
 
             # Case where config is class but not in custom objects
             else:
@@ -602,23 +567,38 @@ def deserialize_keras_object(
                         "`@keras.saving.register_keras_serializable()` "
                         "decorator."
                     )
-                config = config["class_name"]
+                symbol_name = config["class_name"]
 
-        if not has_custom_object:
-            # Return if not found in either module objects or custom objects
-            if config not in module_objects:
-                # Object has already been deserialized
-                return config
-            if isinstance(module_objects[config], types.FunctionType):
+        # config["module"] can be:
+        # - missing: legacy format
+        #    -> assume it's a symbol from `module_objects`
+        # - "builtins": due to a bug in functions serialization up to Keras 3.15
+        #    -> allow lookup in `module_objects` for backwards compatibility
+        # - None: for "__main__" symbols
+        #    -> don't allow, symbol should come from `custom_objects` or
+        #       registered objects
+        # - A valid keras module
+        #    -> fall through here, the code below will use the module value
+        # - A non-keras module
+        #    -> fall through here, the module value should not be used
+        module_valid_for_module_objects = (
+            "module" not in config or config["module"] == "builtins"
+        )
+        if (
+            not has_custom_object
+            and symbol_name in module_objects
+            and module_valid_for_module_objects
+        ):
+            if isinstance(module_objects[symbol_name], types.FunctionType):
                 return deserialize_keras_object(
                     serialize_with_public_fn(
-                        module_objects[config], config, fn_module_name
+                        module_objects[symbol_name], symbol_name, fn_module_name
                     ),
                     custom_objects=custom_objects,
                 )
             return deserialize_keras_object(
                 serialize_with_public_class(
-                    module_objects[config], inner_config=inner_config
+                    module_objects[symbol_name], inner_config=inner_config
                 ),
                 custom_objects=custom_objects,
             )
@@ -722,8 +702,8 @@ def deserialize_keras_object(
         fn_name = inner_config
         if not isinstance(fn_name, str):
             raise TypeError(
-                "Expected 'config' to be a non-null str for"
-                "a function classname,\n"
+                "Expected 'config' to be a non-null str for a function "
+                "classname,\n"
                 f"instead got {type(fn_name)}\n"
                 f"Full config: {config}"
             )
