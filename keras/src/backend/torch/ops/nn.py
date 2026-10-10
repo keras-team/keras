@@ -947,6 +947,9 @@ def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
+    if not backend.is_float_dtype(output.dtype):
+        output = cast(output, backend.floatx())
+    target = cast(target, output.dtype)
 
     if target.shape != output.shape:
         raise ValueError(
@@ -973,6 +976,8 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = convert_to_tensor(target, dtype=torch.long)
     output = convert_to_tensor(output)
+    if not backend.is_float_dtype(output.dtype):
+        output = cast(output, backend.floatx())
 
     if len(target.shape) == len(output.shape) and target.shape[axis] == 1:
         target = torch.squeeze(target, dim=axis)
