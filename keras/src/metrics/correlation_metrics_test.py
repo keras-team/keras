@@ -70,6 +70,38 @@ class CorrelationsTest(testing.TestCase):
         self.assertEqual(config["dtype"], "float16")
         self.assertEqual(config["name"], "pearson_correlation")
 
+    def test_pearson_function_zero_variance(self):
+        """Zero-variance rows map to 0 instead of NaN."""
+        y_true = np.array([[0.1, 0.5, 0.9], [2.0, 2.0, 2.0]], dtype="float32")
+        y_pred = np.array([[0.2, 0.4, 0.6], [0.1, 0.5, 0.9]], dtype="float32")
+        result = correlation_metrics.pearson_correlation(y_true, y_pred)
+        expected = np.array(
+            [pearsonr(y_true[0], y_pred[0]).statistic, 0.0],
+            dtype="float32",
+        )
+        self.assertAllClose(result, expected)
+
+    def test_pearson_class_degenerate_batch(self):
+        """A degenerate batch must not poison the running mean."""
+        y_true, y_pred, _, _ = self._get_data()
+        degenerate_true = np.array(
+            [[0.1, 0.5, 0.9], [2.0, 2.0, 2.0]], dtype="float32"
+        )
+        degenerate_pred = np.array(
+            [[0.2, 0.4, 0.6], [0.1, 0.5, 0.9]], dtype="float32"
+        )
+        m = PearsonCorrelation(axis=-1, dtype="float32")
+        m.update_state(y_true, y_pred)
+        m.update_state(degenerate_true, degenerate_pred)
+        m.update_state(y_true, y_pred)
+        clean = [pearsonr(a, b).statistic for a, b in zip(y_true, y_pred)]
+        degenerate = [
+            pearsonr(degenerate_true[0], degenerate_pred[0]).statistic,
+            0.0,
+        ]
+        expected = np.mean(clean + clean + degenerate)
+        self.assertAllClose(m.result(), expected)
+
     def test_concordance_config(self):
         """Test the get_config method for ConcordanceCorrelation."""
         m = ConcordanceCorrelation(axis=-1, dtype="float32")
