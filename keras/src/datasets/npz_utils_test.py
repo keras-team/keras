@@ -407,3 +407,121 @@ class LoadNpzTest(testing.TestCase):
             with self.assertRaises(ValueError) as ctx:
                 npz_utils.load_npz(path)
             self.assertNotIsInstance(ctx.exception, pickle.UnpicklingError)
+
+    def test_rejects_state_that_is_not_a_five_tuple(self):
+        # numpy always writes a 5-tuple state; anything else is hand-crafted.
+        path = _crafted_npz(
+            os.path.join(self.get_temp_dir(), "state_short.npz"),
+            (np.ndarray, (1,), np.dtype("O")),
+            lambda: (1, (1,), np.dtype("O")),
+        )
+
+        with self.assertRaisesRegex(
+            pickle.UnpicklingError, "5-element tuple"
+        ):
+            npz_utils.load_npz(path)
+
+    def test_rejects_unknown_state_version(self):
+        path = _crafted_npz(
+            os.path.join(self.get_temp_dir(), "state_version.npz"),
+            (np.ndarray, (1,), np.dtype("O")),
+            lambda: (2, (1,), np.dtype("O"), False, []),
+        )
+
+        with self.assertRaisesRegex(
+            pickle.UnpicklingError, "unknown state version"
+        ):
+            npz_utils.load_npz(path)
+
+    def test_rejects_numeric_state_with_the_wrong_byte_count(self):
+        # A numeric array's state must carry exactly `declared` raw bytes.
+        path = _crafted_npz(
+            os.path.join(self.get_temp_dir(), "numeric_short.npz"),
+            (np.ndarray, (1,), np.dtype("i8")),
+            lambda: (1, (1,), np.dtype("i8"), False, b""),
+        )
+
+        with self.assertRaisesRegex(pickle.UnpicklingError, "bytes for a"):
+            npz_utils.load_npz(path)
+
+    def test_rejects_non_array_subtype(self):
+        # `_reconstruct` is only meaningful for an `ndarray` subtype.
+        path = _crafted_npz(
+            os.path.join(self.get_temp_dir(), "bad_subtype.npz"),
+            (np.dtype("i8"), (1,), np.dtype("i8")),
+            lambda: (1, (1,), np.dtype("i8"), False, b"\x00" * 8),
+        )
+
+        with self.assertRaisesRegex(
+            pickle.UnpicklingError, "non-array subtype"
+        ):
+            npz_utils.load_npz(path)
+
+    def test_loads_version_2_and_3_npy_members(self):
+        # `_read_npy_header` accepts the 1.0, 2.0 and 3.0 formats; 2.0's reader
+        # also covers 3.0, which only differs by header encoding.
+        for version in ((2, 0), (3, 0)):
+            array = np.arange(4, dtype="int64")
+            buffer = io.BytesIO()
+            np.lib.format.write_array(buffer, array, version=version)
+            path = os.path.join(
+                self.get_temp_dir(), f"version_{version[0]}.npz"
+            )
+            with zipfile.ZipFile(path, "w") as archive:
+                archive.writestr("x.npy", buffer.getvalue())
+
+            loaded = npz_utils.load_npz(path)
+
+            self.assertAllEqual(loaded["x"], array)
+
+    def test_rejects_unsupported_npy_version(self):
+        header = b"{'descr': '|i8', 'fortran_order': False, 'shape': (1,), }"
+        header += b" " * ((64 - (len(header) + 10) % 64) % 64)
+        member = b"\x93NUMPY\x04\x00" + len(header).to_bytes(2, "little")
+        member += header
+        path = os.path.join(self.get_temp_dir(), "bad_version.npz")
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr("x.npy", member)
+
+        with self.assertRaisesRegex(ValueError, "Unsupported"):
+            npz_utils.load_npz(path)
+
+    def test_rejects_member_without_the_npy_magic(self):
+        path = os.path.join(self.get_temp_dir(), "bad_magic.npz")
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr("x.npy", b"NOT-A-NPY-FILE")
+
+        with self.assertRaisesRegex(ValueError, "unreadable header"):
+            npz_utils.load_npz(path)
+
+    def test_skips_members_that_are_not_npy(self):
+        path = os.path.join(self.get_temp_dir(), "extra_member.npz")
+        np.savez(path, a=np.arange(3))
+        with zipfile.ZipFile(path, "a") as archive:
+            archive.writestr("readme.txt", b"not an array")
+
+        loaded = npz_utils.load_npz(path)
+
+        self.assertEqual(set(loaded), {"a"})
+
+    def test_load_unwraps_arrays_inside_containers(self):
+        # A pickle stream can build a tuple/list alongside dicts and arrays.
+        payload = (np.arange(2), [np.arange(3)], {b"a": np.arange(4)})
+        stream = io.BytesIO(pickle.dumps(payload, protocol=3))
+
+        loaded = npz_utils.RestrictedUnpickler(stream).load()
+
+        self.assertIs(type(loaded), tuple)
+        self.assertIs(type(loaded[0]), np.ndarray)
+        self.assertIs(type(loaded[1]), list)
+        self.assertIs(type(loaded[1][0]), np.ndarray)
+        self.assertIs(type(loaded[2]), dict)
+
+    def test_stream_remaining_returns_none_when_unseekable(self):
+        # A stream without `tell`/`seek` cannot be bounded: the size check is
+        # skipped rather than raising.
+        class Unseekable:
+            def tell(self):
+                raise OSError("cannot tell")
+
+        self.assertIsNone(npz_utils._stream_remaining(Unseekable()))
