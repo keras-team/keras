@@ -6,9 +6,14 @@ from keras.src import dtype_policies
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
+from keras.src import saving
 from keras.src import testing
 from keras.src.dtype_policies.dtype_policy import QUANTIZATION_MODES
 from keras.src.quantizers import strategy_registry
+from keras.src.quantizers.awq_config import AWQConfig
+from keras.src.quantizers.geometry import LookupGeometry
+from keras.src.quantizers.geometry import ProjectionGeometry
+from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.quantization_config import QuantizationConfig
 
 
@@ -286,6 +291,7 @@ class PolicyCodecCorpusTest(testing.TestCase):
         )
 
 
+@saving.register_keras_serializable(package="strategy_registry_test")
 class ToyModeConfig(QuantizationConfig):
     """Config for the toy float16-storage mode used in the test below."""
 
@@ -307,17 +313,14 @@ class ToyModeConfig(QuantizationConfig):
 class ToyHalfStrategy(strategy_registry.QuantizationStrategy):
     """A toy quantization mode: store the kernel in float16.
 
-    This is the "add a mode is a registration, not a treasure hunt"
-    demonstration: the strategy implements build/call/quantize directly
-    against the layer's geometry (`_quantization_geometry()`), so no
-    layer class needs editing and no dispatch chain exists to extend.
+    The strategy implements build/call/quantize directly against the
+    layer's geometry (`_quantization_geometry()`); `ToyDense` declares the
+    mode in its `variable_serialization_spec`.
     """
 
     name = "demo_half"
     config_cls = ToyModeConfig
-
-    def supports_layer(self, layer):
-        return isinstance(layer, layers.Dense)
+    geometry_families = ("projection",)
 
     def build(self, layer, input_shape, config):
         del config
@@ -345,8 +348,22 @@ class ToyHalfStrategy(strategy_registry.QuantizationStrategy):
         return x
 
 
+@saving.register_keras_serializable(package="strategy_registry_test")
+class ToyDense(layers.Dense):
+    """A `Dense` that lists the toy mode among the modes it supports."""
+
+    @property
+    def variable_serialization_spec(self):
+        spec = super().variable_serialization_spec
+        spec["demo_half"] = ["kernel", "bias"]
+        return spec
+
+    def _quantization_geometry(self):
+        return ProjectionGeometry(self)
+
+
 class ToyModeRegistrationTest(testing.TestCase):
-    """End-to-end test that a new mode is just a registry entry."""
+    """End-to-end test of a new mode: a strategy and a spec entry."""
 
     def setUp(self):
         super().setUp()
@@ -357,7 +374,7 @@ class ToyModeRegistrationTest(testing.TestCase):
         super().tearDown()
 
     def test_toy_mode_end_to_end(self):
-        layer = layers.Dense(units=3)
+        layer = ToyDense(units=3)
         layer.build((None, 4))
         reference_kernel = ops.convert_to_numpy(layer._kernel)
 
@@ -384,7 +401,7 @@ class ToyModeRegistrationTest(testing.TestCase):
 
     def test_toy_mode_through_model_quantize(self):
         model = models.Sequential(
-            [layers.Input((4,)), layers.Dense(3, name="target")]
+            [layers.Input((4,)), ToyDense(3, name="target")]
         )
         report = model.quantize("demo_half", verbose=False)
         self.assertEqual(
@@ -395,13 +412,27 @@ class ToyModeRegistrationTest(testing.TestCase):
             "target", "".join(path for path, _, _ in report.quantized)
         )
 
-    def test_toy_mode_rejects_unsupported_layer(self):
-        # `supports_layer` only claims Dense; an Embedding must be skipped
-        # with NotImplementedError, like any unsupported (layer, mode) pair.
-        layer = layers.Embedding(5, 3)
-        layer.build()
-        with self.assertRaises(NotImplementedError):
-            layer.quantize("demo_half")
+    def test_toy_mode_saves_and_loads(self):
+        model = models.Sequential(
+            [layers.Input((4,)), ToyDense(3, name="target")]
+        )
+        model.quantize("demo_half", verbose=False)
+        x = np.random.uniform(-1, 1, size=(2, 4)).astype("float32")
+        path = self.get_temp_dir() + "/toy.keras"
+        model.save(path)
+        revived = saving.load_model(path)
+        self.assertEqual(
+            revived.get_layer("target").dtype_policy.name,
+            "demo_half_from_float32",
+        )
+        self.assertAllClose(revived(x), model(x))
+
+    def test_toy_mode_rejects_a_layer_that_does_not_list_it(self):
+        for layer in (layers.Dense(3), layers.Embedding(5, 3)):
+            layer.build((None, 4))
+            with self.assertRaises(NotImplementedError):
+                layer.quantize("demo_half")
+            self.assertIsNone(layer.quantization_mode)
 
 
 class ToyNoneConfig(ToyModeConfig):
@@ -411,13 +442,10 @@ class ToyNoneConfig(ToyModeConfig):
 
 
 class ToyUnsupportedStrategy(ToyHalfStrategy):
-    """A registered mode that claims no layer at all."""
+    """A registered mode that no layer lists."""
 
     name = "demo_none"
     config_cls = ToyNoneConfig
-
-    def supports_layer(self, layer):
-        return False
 
 
 class QuantizeTransactionTest(testing.TestCase):
@@ -443,3 +471,88 @@ class QuantizeTransactionTest(testing.TestCase):
         # The layer is still float and still quantizable.
         layer.quantize("int8")
         self.assertEqual(layer.quantization_mode, "int8")
+
+
+class ListsEveryModeEmbedding(layers.Embedding):
+    """An `Embedding` that lists modes a lookup geometry cannot carry."""
+
+    @property
+    def variable_serialization_spec(self):
+        spec = super().variable_serialization_spec
+        for mode in ("float8", "ternary", "gptq", "awq"):
+            spec[mode] = ["embeddings"]
+        return spec
+
+    def _quantization_geometry(self):
+        return LookupGeometry(self)
+
+
+class ListsTernaryEinsumDense(layers.EinsumDense):
+    """An `EinsumDense` that lists the ternary mode."""
+
+    @property
+    def variable_serialization_spec(self):
+        spec = super().variable_serialization_spec
+        spec["ternary"] = ["kernel", "bias", "kernel_scale"]
+        return spec
+
+    def _quantization_geometry(self):
+        return super()._quantization_geometry()
+
+
+class ProjectionOnlyModeTest(testing.TestCase):
+    """A mode written for projections refuses a lookup layer that lists it."""
+
+    @parameterized.named_parameters(
+        ("float8", "float8"),
+        ("ternary", "ternary"),
+        ("gptq", "gptq"),
+        ("awq", "awq"),
+    )
+    def test_listing_lookup_layer_is_refused(self, mode):
+        config = None
+        if mode == "gptq":
+            config = GPTQConfig(dataset=None, tokenizer=None)
+        elif mode == "awq":
+            config = AWQConfig(dataset=None, tokenizer=None)
+        layer = ListsEveryModeEmbedding(10, 8)
+        layer.build()
+        with self.assertRaisesRegex(
+            NotImplementedError, "'lookup' quantization geometry"
+        ):
+            layer.quantize(mode, config=config)
+        # Refused before the layer changes.
+        self.assertIsNone(layer.quantization_mode)
+        self.assertIsNone(layer.quantization_config)
+        self.assertFalse(layer._is_quantized)
+
+    def test_ternary_refuses_a_listing_einsum_layer(self):
+        layer = ListsTernaryEinsumDense("ab,bc->ac", output_shape=4)
+        layer.build((None, 3))
+        with self.assertRaisesRegex(
+            NotImplementedError, "only a `Dense` kernel"
+        ):
+            layer.quantize("ternary")
+        self.assertIsNone(layer.quantization_mode)
+        self.assertIsNone(layer.quantization_config)
+
+    def test_float8_build_refuses_a_listing_lookup_layer(self):
+        # A layer built from a float8 policy, as on load.
+        layer = ListsEveryModeEmbedding(10, 8, dtype="float8_from_float32")
+        with self.assertRaisesRegex(
+            NotImplementedError, "'lookup' quantization geometry"
+        ):
+            layer.build()
+
+    def test_model_quantize_skips_listing_lookup_layer(self):
+        model = models.Sequential(
+            [
+                layers.Input((3,), dtype="int32"),
+                ListsEveryModeEmbedding(10, 8, name="emb"),
+                layers.Dense(4, name="proj"),
+            ]
+        )
+        model.quantize("float8")
+        self.assertIsNone(model.get_layer("emb").quantization_mode)
+        self.assertEqual(model.get_layer("proj").quantization_mode, "float8")
+        model(np.array([[1, 2, 3]]))

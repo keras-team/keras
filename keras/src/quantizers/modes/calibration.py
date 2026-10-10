@@ -22,6 +22,7 @@ from keras.src.quantizers.strategy_registry import QuantizationStrategy
 class CalibrationStrategy(QuantizationStrategy):
     """A post-training strategy whose values arrive from a calibration pass."""
 
+    geometry_families = ("projection",)
     requires_config = True
     requires_layer_structure = True
 

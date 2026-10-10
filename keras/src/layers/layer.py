@@ -225,6 +225,10 @@ class Layer(BackendLayer, Operation):
     ```
     """
 
+    # Whether this layer's own weights carry a LoRA update. A layer that
+    # supports LoRA sets it in `enable_lora()`.
+    lora_enabled = False
+
     def __new__(cls, *args, **kwargs):
         obj = super().__new__(cls, *args, **kwargs)
         # Wrap the user-provided `build` method in the `build_wrapper`
@@ -1402,8 +1406,7 @@ class Layer(BackendLayer, Operation):
         """Whether this layer declares support for `strategy`'s mode.
 
         A layer declares support by listing the mode name in its
-        `variable_serialization_spec`; an externally registered mode can
-        also claim a layer through its `supports_layer` hook.
+        `variable_serialization_spec`.
 
         Args:
             strategy: The `QuantizationStrategy` registered for the mode.
@@ -1412,9 +1415,7 @@ class Layer(BackendLayer, Operation):
             A boolean.
         """
         spec = self.variable_serialization_spec
-        if spec is not None and strategy.name in spec:
-            return True
-        return strategy.supports_layer(self)
+        return spec is not None and strategy.name in spec
 
     def _strategy_owns_weight_storage(self):
         """Whether the quantization strategy creates the weight storage.
@@ -1429,6 +1430,15 @@ class Layer(BackendLayer, Operation):
         """
         strategy = strategy_registry.get_strategy(self.quantization_mode)
         return strategy is not None and strategy.owns_weight_storage
+
+    def _check_lora_supported(self, mode):
+        """Raises if the quantization `mode` does not support LoRA."""
+        strategy = strategy_registry.get_strategy(mode)
+        if strategy is not None and not strategy.supports_lora:
+            raise NotImplementedError(
+                f"lora is not currently supported with {mode.upper()} "
+                "quantization."
+            )
 
     def quantized_build(self, input_shape, mode, config=None):
         strategy = strategy_registry.get_strategy(mode)
@@ -1476,6 +1486,8 @@ class Layer(BackendLayer, Operation):
         if strategy is None or not self._supports_quantization_mode(strategy):
             raise self._quantization_mode_error(mode)
         strategy.check_quantizable(self)
+        if self.lora_enabled:
+            self._check_lora_supported(mode)
         self._tracker.unlock()
         try:
             # Record the config only after the mode is validated, so a

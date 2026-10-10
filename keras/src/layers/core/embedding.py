@@ -229,6 +229,7 @@ class Embedding(Layer):
             raise ValueError(
                 "lora is already enabled. This can only be done once per layer."
             )
+        self._check_lora_supported(self.quantization_mode)
         self._tracker.unlock()
 
         # LoRA weights should be float32 to avoid the risk of underflow or

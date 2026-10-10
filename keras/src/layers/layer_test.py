@@ -2175,3 +2175,8 @@ class LayerTest(testing.TestCase):
             # `training=False`/`None` never update the running stats, so
             # they are still mean 0 / variance 1.
             self.assertAllClose(y, x / np.sqrt(1.0 + 1e-3), atol=1e-3)
+
+
+class LoraLessQuantizationTest(testing.TestCase):
+    def test_layer_does_not_enable_lora_by_default(self):
+        self.assertFalse(layers.Layer().lora_enabled)
