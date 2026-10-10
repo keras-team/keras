@@ -20,6 +20,9 @@ class Float8Strategy(QuantizationStrategy):
     config_cls = Float8QuantizationConfig
     # The float kernel is kept; only auxiliary variables are added.
     owns_weight_storage = False
+    geometry_families = ("projection",)
+    # The fp8 forward has no term for a LoRA update.
+    supports_lora = False
 
     def policy_from_string(self, mode_str, source_name):
         return QuantizedFloat8DTypePolicy(mode_str, source_name)
@@ -34,6 +37,7 @@ class Float8Strategy(QuantizationStrategy):
         # The scale/amax variables are shape-independent and the float
         # kernel is left in place.
         del input_shape, config
+        self.require_geometry(layer)
         # If `layer.dtype_policy` is not QuantizedFloat8DTypePolicy, then set
         # `amax_history_length` to its default value.
         amax_history_length = getattr(

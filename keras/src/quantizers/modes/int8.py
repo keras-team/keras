@@ -30,6 +30,7 @@ class Int8Strategy(GeometryDispatchStrategy):
 
     name = "int8"
     config_cls = Int8QuantizationConfig
+    geometry_families = ("projection", "lookup")
 
     # --- Projection (Dense, EinsumDense) ----------------------------------
 

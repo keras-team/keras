@@ -22,6 +22,7 @@ class Int4Strategy(
 
     name = "int4"
     config_cls = Int4QuantizationConfig
+    geometry_families = ("projection", "lookup")
 
     def resolve_block_size(self, layer, config):
         """Determine the block size for int4 quantization.
