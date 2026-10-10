@@ -70,6 +70,31 @@ class CorrelationsTest(testing.TestCase):
         self.assertEqual(config["dtype"], "float16")
         self.assertEqual(config["name"], "pearson_correlation")
 
+    def test_pearson_zero_variance(self):
+        """Degenerate (constant) rows must not poison the metric with NaN."""
+        y_true = np.array(
+            [[0.1, 0.5, 0.9], [2.0, 2.0, 2.0]], dtype="float32"
+        )
+        y_pred = np.array(
+            [[0.2, 0.6, 0.8], [1.0, 1.5, 2.0]], dtype="float32"
+        )
+        result = np.asarray(
+            correlation_metrics.pearson_correlation(
+                y_true, y_pred, axis=-1
+            )
+        )
+        self.assertFalse(np.isnan(result).any())
+        # A constant row carries no correlation signal: it maps to 0.0,
+        # mirroring concordance_correlation's epsilon-guarded behavior.
+        self.assertAllClose(result[1], 0.0, atol=1e-6)
+
+        m = PearsonCorrelation(axis=-1, dtype="float32")
+        m.update_state(y_true, y_pred)
+        self.assertFalse(np.isnan(float(m.result())))
+        # The metric must recover once clean batches arrive again.
+        m.update_state(y_true[:1], y_pred[:1])
+        self.assertFalse(np.isnan(float(m.result())))
+
     def test_concordance_config(self):
         """Test the get_config method for ConcordanceCorrelation."""
         m = ConcordanceCorrelation(axis=-1, dtype="float32")
