@@ -1,6 +1,7 @@
 import numpy as np
 
 from keras.src import backend
+from keras.src import initializers
 from keras.src import layers
 from keras.src import ops
 from keras.src import regularizers
@@ -163,6 +164,32 @@ class LayerNormalizationTest(testing.TestCase):
         with backend.AutocastScope("float16"):
             layer.gamma.assign(large_value)
             self.assertAllClose(layer.gamma.value, large_value)
+
+    def test_beta_preserved_for_large_constant_inputs(self):
+        # Regression test for tensorflow/tensorflow#128253. Every row here is
+        # constant, so the normalized term is 0 and the output is beta. The
+        # normalization used to fold the mean and beta into a single offset,
+        # as `x * inv + (beta - mean * inv)`. With a large mean, `mean * inv`
+        # is far enough from 0 that adding beta to it rounds the beta away,
+        # and the two large terms then cancel exactly, giving 0 instead.
+        x = ops.full((2, 1), 1e10)
+        layer = layers.LayerNormalization(
+            axis=-1,
+            epsilon=1e-3,
+            gamma_initializer="ones",
+            beta_initializer=initializers.Constant(7.0),
+        )
+        self.assertAllClose(layer(x), ops.full((2, 1), 7.0))
+
+        # Same with a scaling gamma, which makes `inv` and therefore the lost
+        # offset larger still.
+        layer = layers.LayerNormalization(
+            axis=-1,
+            epsilon=1e-3,
+            gamma_initializer=initializers.Constant(3.0),
+            beta_initializer=initializers.Constant(7.0),
+        )
+        self.assertAllClose(layer(x), ops.full((2, 1), 7.0))
 
     def test_unsorted_axis(self):
         x = np.random.randn(2, 3, 4).astype("float32")
