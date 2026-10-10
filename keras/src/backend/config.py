@@ -1,5 +1,7 @@
 import json
 import os
+import stat
+import tempfile
 
 from keras.src.api_export import keras_export
 
@@ -280,15 +282,52 @@ def standardize_data_format(data_format):
     return data_format
 
 
+def private_tmp_keras_dir(tmp_dir):
+    # Private helper returning a `.keras` directory inside the world-writable
+    # `tmp_dir`, owned by the current user and accessible to nobody else.
+    #
+    # The name is user specific because a single shared `/tmp/.keras` collides
+    # with the other local users' fallback directories, and its path is
+    # predictable enough for another user to pre-create it and plant files that
+    # Keras trusts: the `keras.json` read on startup, or a cached download that
+    # `get_file` returns as is when no `file_hash` is given. A directory that
+    # is already in place and is not a plain directory owned by this user is
+    # not reused; a fresh private one is created instead.
+    uid = getattr(os, "getuid", None)
+    name = ".keras" if uid is None else f".keras-{uid()}"
+    path = os.path.join(tmp_dir, name)
+    try:
+        os.makedirs(path, mode=0o700, exist_ok=True)
+        # `mode` above only applies when the directory is created, and a
+        # directory already in place keeps its own owner and permissions, so
+        # check the owner and set the permissions explicitly.
+        st = os.lstat(path)
+        if stat.S_ISDIR(st.st_mode) and (uid is None or st.st_uid == uid()):
+            os.chmod(path, 0o700)
+            return path
+    except OSError:
+        pass
+    # Already taken by another user or by a symlink, or it cannot be locked
+    # down: use a fresh, randomly named directory instead of trusting it.
+    return tempfile.mkdtemp(prefix="keras-", dir=tmp_dir)
+
+
 # Set Keras base dir path given KERAS_HOME env variable, if applicable.
 # Otherwise either ~/.keras or /tmp.
 if "KERAS_HOME" in os.environ:
     _KERAS_DIR = os.environ.get("KERAS_HOME")
 else:
     _keras_base_dir = os.path.expanduser("~")
-    if not os.access(_keras_base_dir, os.W_OK):
-        _keras_base_dir = "/tmp"
     _KERAS_DIR = os.path.join(_keras_base_dir, ".keras")
+    if not os.access(_keras_base_dir, os.W_OK):
+        # The home directory is not writable, so fall back to `/tmp`, kept
+        # private to the current user.
+        try:
+            _KERAS_DIR = private_tmp_keras_dir("/tmp")
+        except OSError:
+            # Nothing usable in `/tmp` either. Keep the (unwritable) home
+            # path rather than reading `keras.json` from a shared directory.
+            pass
 
 
 def keras_home():
