@@ -76,6 +76,26 @@ class AdditiveAttentionTest(testing.TestCase):
         self.assertAllClose(output, [[[1.0, 1.0], [0.0, 0.0]]])
         self.assertAllClose(scores, [[[1.0, 0.0], [1.0, 0.0]]])
 
+    def test_attention_with_fully_masked_row(self):
+        # Batch element 0 masks every value position, element 1 masks one. A
+        # fully masked row attends to nothing, so its output and scores are 0.
+        query = np.array([[[1.0, 0.0], [0.0, 1.0]]] * 2)
+        value = np.array([[[1.0, 2.0], [3.0, 4.0]]] * 2)
+        value_mask = np.array([[False, False], [True, False]])
+        for dtype in ["float32", "float16"]:
+            layer = layers.AdditiveAttention(dtype=dtype)
+            output, scores = layer(
+                [query.astype(dtype), value.astype(dtype)],
+                mask=[None, value_mask],
+                return_attention_scores=True,
+            )
+            self.assertAllClose(
+                output, [[[0.0, 0.0], [0.0, 0.0]], [[1.0, 2.0], [1.0, 2.0]]]
+            )
+            self.assertAllClose(
+                scores, [[[0.0, 0.0], [0.0, 0.0]], [[1.0, 0.0], [1.0, 0.0]]]
+            )
+
     def test_attention_errors(self):
         layer = layers.AdditiveAttention()
         tensor = np.array([[[1.0, 1.0], [1.0, 1.0]]])
