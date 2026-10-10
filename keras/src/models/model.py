@@ -677,7 +677,7 @@ class Model(Trainer, Layer):
                 report.add_skipped(path, QuantizationReport.SKIP_NO_SUPPORT)
                 continue
             report.add_quantized(
-                path, layer.quantization_mode, layer.dtype_policy.name
+                path, layer.quantization_mode, layer._own_dtype_policy.name
             )
             graph_modified = True
 
@@ -708,10 +708,13 @@ class Model(Trainer, Layer):
     def quantization_summary(self, verbose=True):
         """Print a per-quantized-layer summary of the model.
 
-        For every quantized layer this reports the layer path, its dtype
-        policy, and the storage dtype and byte size of its primary quantized
-        weight. It also prints totals comparing the quantized weight storage
-        against a float32 baseline.
+        For every quantized layer this reports the layer path, its own dtype
+        policy (its entry, for a layer that holds a `DTypePolicyMap`), the
+        storage dtype of its quantized weight, and the bytes the weight
+        stores: codes, scale, zero point, group index and input scales. A
+        mode that keeps the float weight (float8) reports that weight and
+        says so. It also prints totals comparing the quantized weight
+        storage against a float32 baseline.
 
         Args:
             verbose: Whether to print the summary. Defaults to `True`. The
