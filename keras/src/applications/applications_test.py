@@ -1,4 +1,5 @@
 import os
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -267,3 +268,89 @@ class ApplicationsTest(testing.TestCase):
         )
         last_layer_act = model.layers[-1].activation.__name__
         self.assertEqual(last_layer_act, "softmax")
+
+
+class _WeightsFetched(Exception):
+    """Raised by the fake `get_file` once the request has been recorded."""
+
+
+@pytest.mark.requires_trainable_backend
+class ApplicationsWeightsHashTest(testing.TestCase):
+    """ImageNet checkpoints must be fetched with an integrity hash.
+
+    `get_file` only verifies a download, and reuses an existing cache entry,
+    when it is given a `file_hash`. Without one, anything already sitting at
+    the predictable cache path is loaded as if it came from the origin.
+    """
+
+    def _weights_request(self, build_model):
+        """Return the `get_file` arguments used to fetch the checkpoint."""
+        request = {}
+
+        def fake_get_file(fname, origin, **kwargs):
+            request["fname"] = fname
+            request["origin"] = origin
+            request.update(kwargs)
+            raise _WeightsFetched()
+
+        with mock.patch.object(file_utils, "get_file", fake_get_file):
+            with self.assertRaises(_WeightsFetched):
+                build_model()
+        return request
+
+    def test_mobilenet_weights_are_hash_verified(self):
+        for include_top in (True, False):
+            request = self._weights_request(
+                lambda: mobilenet.MobileNet(
+                    weights="imagenet", include_top=include_top
+                )
+            )
+            expected = mobilenet.WEIGHTS_HASHES["1_0_224"][
+                0 if include_top else 1
+            ]
+            self.assertEqual(request["file_hash"], expected)
+            self.assertEndsWith(request["origin"], request["fname"])
+
+    def test_mobilenet_v2_weights_are_hash_verified(self):
+        for include_top in (True, False):
+            request = self._weights_request(
+                lambda: mobilenet_v2.MobileNetV2(
+                    weights="imagenet", include_top=include_top
+                )
+            )
+            expected = mobilenet_v2.WEIGHTS_HASHES["1.0_224"][
+                0 if include_top else 1
+            ]
+            self.assertEqual(request["file_hash"], expected)
+            self.assertEndsWith(request["origin"], request["fname"])
+
+    def test_mobilenet_hashes_cover_every_imagenet_variant(self):
+        for alpha_text in ("1_0", "7_5", "5_0", "2_5"):
+            for rows in (128, 160, 192, 224):
+                hashes = mobilenet.WEIGHTS_HASHES[f"{alpha_text}_{rows}"]
+                self.assertLen(hashes, 2)
+                for file_hash in hashes:
+                    self.assertRegex(file_hash, r"^[0-9a-f]{64}$")
+
+    def test_mobilenet_v2_hashes_cover_every_published_variant(self):
+        for alpha in (0.35, 0.50, 0.75, 1.0):
+            for rows in (96, 128, 160, 192, 224):
+                hashes = mobilenet_v2.WEIGHTS_HASHES[f"{float(alpha)}_{rows}"]
+                self.assertLen(hashes, 2)
+                for file_hash in hashes:
+                    self.assertRegex(file_hash, r"^[0-9a-f]{64}$")
+        for alpha in (1.3, 1.4):
+            hashes = mobilenet_v2.WEIGHTS_HASHES[f"{float(alpha)}_224"]
+            self.assertLen(hashes, 2)
+
+    def test_mobilenet_v2_rejects_unpublished_variant(self):
+        # No checkpoint is published for alpha=1.4 below 224x224, so the
+        # request must be refused rather than resolved from the cache.
+        if backend.image_data_format() == "channels_first":
+            input_shape = (3, 96, 96)
+        else:
+            input_shape = (96, 96, 3)
+        with self.assertRaisesRegex(ValueError, "No imagenet weights"):
+            mobilenet_v2.MobileNetV2(
+                weights="imagenet", alpha=1.4, input_shape=input_shape
+            )
