@@ -61,13 +61,11 @@ class CalibrationStrategy(QuantizationStrategy):
         """
         if isinstance(config, self.config_cls):
             return getattr(config, attr)
-        policy = layer.dtype_policy
-        if isinstance(policy, DTypePolicyMap):
-            policy = policy[layer.path]
-            if policy.quantization_mode != self.name:
-                self._on_policy_map_mismatch(policy)
+        policy = layer._own_dtype_policy
         if policy.quantization_mode == self.name:
             return getattr(policy, attr)
+        if isinstance(layer.dtype_policy, DTypePolicyMap):
+            self._on_policy_map_mismatch(policy)
         raise ValueError(self._resolution_error(attr))
 
     def _on_policy_map_mismatch(self, policy):

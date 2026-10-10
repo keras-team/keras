@@ -800,10 +800,7 @@ class Layer(BackendLayer, Operation):
             self._dtype_policy[self.path] = policy
         else:
             self._dtype_policy = policy
-        # A map answers `quantization_mode` for its default policy; the
-        # layer's own entry decides whether, and how, it quantizes.
-        if isinstance(policy, DTypePolicyMap) and self.path:
-            policy = policy[self.path]
+        policy = self._own_dtype_policy
         if policy.quantization_mode is not None:
             if self.built and not self._is_quantized:
                 # Forward the policy's full parameters into `quantize` so the
@@ -824,6 +821,20 @@ class Layer(BackendLayer, Operation):
                 self.quantize(policy.quantization_mode, config=config)
 
     @property
+    def _own_dtype_policy(self):
+        """The dtype policy that applies to this layer.
+
+        A layer that holds a `DTypePolicyMap` reads the map's entry for its
+        `path`; `dtype_policy` returns the map itself. A map answers
+        `quantization_mode` and `name` for its default policy, so every
+        reader of the layer's own policy reads this property.
+        """
+        policy = self._dtype_policy
+        if isinstance(policy, DTypePolicyMap) and self.path:
+            policy = policy[self.path]
+        return policy
+
+    @property
     def dtype(self):
         """Alias of `layer.variable_dtype`."""
         return self.variable_dtype
@@ -831,29 +842,17 @@ class Layer(BackendLayer, Operation):
     @property
     def compute_dtype(self):
         """The dtype of the computations performed by the layer."""
-        if isinstance(self._dtype_policy, DTypePolicyMap) and self.path:
-            policy = self._dtype_policy[self.path]
-        else:
-            policy = self._dtype_policy
-        return policy.compute_dtype
+        return self._own_dtype_policy.compute_dtype
 
     @property
     def variable_dtype(self):
         """The dtype of the state (weights) of the layer."""
-        if isinstance(self._dtype_policy, DTypePolicyMap) and self.path:
-            policy = self._dtype_policy[self.path]
-        else:
-            policy = self._dtype_policy
-        return policy.variable_dtype
+        return self._own_dtype_policy.variable_dtype
 
     @property
     def quantization_mode(self):
         """The quantization mode of this layer, `None` if not quantized."""
-        if isinstance(self._dtype_policy, DTypePolicyMap) and self.path:
-            policy = self._dtype_policy[self.path]
-        else:
-            policy = self._dtype_policy
-        return policy.quantization_mode
+        return self._own_dtype_policy.quantization_mode
 
     @property
     def variable_serialization_spec(self):
@@ -1561,11 +1560,7 @@ class Layer(BackendLayer, Operation):
 
     def _finalize_quantization_policy(self, strategy, config):
         # Set new dtype policy only for modes that don't already have one.
-        # A map's `quantization_mode` and `name` are its default policy's;
-        # the layer's own entry is what applies to it.
-        policy = self.dtype_policy
-        if isinstance(policy, DTypePolicyMap) and self.path:
-            policy = policy[self.path]
+        policy = self._own_dtype_policy
         if policy.quantization_mode is None:
             policy_name = strategy.policy_suffix(self, config)
             self.dtype_policy = dtype_policies.get(
@@ -1582,7 +1577,7 @@ class Layer(BackendLayer, Operation):
         if self._is_quantized:
             raise ValueError(
                 f"Layer '{self.name}' is already quantized with "
-                f"dtype_policy='{self.dtype_policy.name}'. "
+                f"dtype_policy='{self._own_dtype_policy.name}'. "
                 f"Received: mode={mode}"
             )
         if mode == "int8" and compute_dtype == "float16":
