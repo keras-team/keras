@@ -29,7 +29,7 @@ from keras.src.utils import tracking
 from keras.src.utils.python_utils import pythonify_logs
 
 
-class TorchTrainer(BaseTrainer):
+class Trainer(BaseTrainer):
     def __init__(self):
         super().__init__()
         self.train_function = None
