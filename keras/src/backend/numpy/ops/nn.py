@@ -964,25 +964,25 @@ def moments(x, axes, keepdims=False, synchronized=False):
     # to float16
     need_cast = False
     ori_dtype = backend.standardize_dtype(x.dtype)
-    if ori_dtype == "float16":
+    if ori_dtype in ("float16", "bfloat16"):
         need_cast = True
         x = cast(x, "float32")
 
     mean = np.mean(x, axes, keepdims=True)
-
-    # The variance is computed using $Var = E[|x|^2] - |E[x]|^2$, It is faster
-    # but less numerically stable.
-    variance = np.mean(np.square(x), axis=axes, keepdims=True) - np.square(mean)
+    variance = np.var(x, axis=axes, keepdims=True)
 
     if not keepdims:
         mean = np.squeeze(mean, axes)
         variance = np.squeeze(variance, axes)
     if need_cast:
         # avoid overflow and underflow when casting from float16 to float32
-        mean = np.clip(mean, np.finfo(np.float16).min, np.finfo(np.float16).max)
-        variance = np.clip(
-            variance, np.finfo(np.float16).min, np.finfo(np.float16).max
-        )
+        if ori_dtype == "float16":
+            mean = np.clip(
+                mean, np.finfo(np.float16).min, np.finfo(np.float16).max
+            )
+            variance = np.clip(
+                variance, np.finfo(np.float16).min, np.finfo(np.float16).max
+            )
         mean = cast(mean, ori_dtype)
         variance = cast(variance, ori_dtype)
     return mean, variance

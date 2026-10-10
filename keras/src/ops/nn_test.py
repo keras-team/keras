@@ -2719,6 +2719,23 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(mean, expected_mean, atol=1e-5, rtol=1e-5)
         self.assertAllClose(variance, expected_variance, atol=1e-5, rtol=1e-5)
 
+        # Test large-value float32 moments (Issue #23891: avoiding cancellation)
+        x = np.array(
+            [[10000.0], [10001.0], [10002.0], [10003.0]], dtype=np.float32
+        )
+        mean, variance = knn.moments(x, axes=[0])
+        self.assertAllClose(mean, [10001.5], atol=1e-4, rtol=1e-4)
+        self.assertAllClose(variance, [1.25], atol=1e-4, rtol=1e-4)
+
+        # Test bfloat16 moments
+        x = np.array([0.0, 1.0, 2.0, 3.0, 4.0], dtype=np.float32)
+        x_bf16 = ops.cast(x, "bfloat16")
+        mean, variance = knn.moments(x_bf16, axes=[0])
+        self.assertEqual(backend.standardize_dtype(mean.dtype), "bfloat16")
+        self.assertEqual(backend.standardize_dtype(variance.dtype), "bfloat16")
+        self.assertAllClose(mean, np.mean(x), atol=1e-2, rtol=1e-2)
+        self.assertAllClose(variance, np.var(x), atol=1e-2, rtol=1e-2)
+
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
         reason="synchronized=True only implemented for TF backend",

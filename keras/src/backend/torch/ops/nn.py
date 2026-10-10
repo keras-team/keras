@@ -1063,34 +1063,28 @@ def moments(x, axes, keepdims=False, synchronized=False):
     # to float16
     need_cast = False
     ori_dtype = backend.standardize_dtype(x.dtype)
-    if ori_dtype == "float16":
+    if ori_dtype in ("float16", "bfloat16"):
         need_cast = True
         x = cast(x, "float32")
 
     mean = torch.mean(x, dim=axes, keepdim=True)
-
-    # The variance is computed using $Var = E[|x|^2] - |E[x]|^2$, It is faster
-    # but less numerically stable.
-    # Note: stop_gradient does not change the gradient to the mean, because that
-    # gradient is zero.
-    variance = torch.mean(
-        torch.square(x), dim=axes, keepdim=True
-    ) - torch.square(mean)
+    variance = torch.var(x, dim=axes, keepdim=True, correction=0)
 
     if not keepdims:
         mean = torch.squeeze(mean, axes)
         variance = torch.squeeze(variance, axes)
     if need_cast:
         # avoid overflow and underflow when casting from float16 to float32
+        dtype_info = torch.finfo(getattr(torch, ori_dtype))
         mean = torch.clip(
             mean,
-            torch.finfo(torch.float16).min,
-            torch.finfo(torch.float16).max,
+            dtype_info.min,
+            dtype_info.max,
         )
         variance = torch.clip(
             variance,
-            torch.finfo(torch.float16).min,
-            torch.finfo(torch.float16).max,
+            dtype_info.min,
+            dtype_info.max,
         )
         mean = cast(mean, ori_dtype)
         variance = cast(variance, ori_dtype)
