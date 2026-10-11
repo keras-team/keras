@@ -545,13 +545,17 @@ class AWQ:
             activation_sample=activation_sample,
         )
 
-        # Cast to uint8 for storage
-        # quantized is already [out_features, in_features]
-        quantized = ops.cast(quantized, "uint8")
+        # Cast to uint8 for storage. The algorithm works on `[out, in]`; the
+        # layer stores the kernel's own `[in, out]` orientation with the
+        # group parameters as `[n_groups, out]`, so the forward pass never
+        # transposes.
+        quantized = ops.transpose(ops.cast(quantized, "uint8"))
+        scale = ops.transpose(scale)
+        zero = ops.transpose(zero)
 
-        # Pack to 4-bit along axis 0 (output features)
+        # Pack to 4-bit along the output axis.
         quantized_packed, _, _ = quantizers.pack_int4(
-            quantized, axis=0, dtype="uint8"
+            quantized, axis=-1, dtype="uint8"
         )
 
         # Assign to layer variables

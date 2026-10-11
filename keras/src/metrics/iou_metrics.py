@@ -321,8 +321,11 @@ class IoU(_IoUBase):
         # contribute 0.0, not ~1.0.
         iou = ops.where(valid_entries, iou, 0.0)
 
+        # `iou` holds one value per target class, so it is reduced over its
+        # only dimension. `self.axis` refers to the class dimension of the
+        # inputs and is only meaningful in `update_state`.
         return ops.divide(
-            ops.sum(iou, axis=self.axis),
+            ops.sum(iou),
             num_valid_entries + backend.epsilon(),
         )
 

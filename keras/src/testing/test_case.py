@@ -611,10 +611,7 @@ class TestCase(parameterized.TestCase):
                 tpu_rtol=tpu_rtol,
             )
 
-            if run_training_check and backend.backend() not in (
-                "numpy",
-                "openvino",
-            ):
+            if run_training_check and backend.SUPPORTS_GRADIENT:
                 run_training_step(layer, input_data, output_data)
 
             # Never test mixed precision on torch CPU. Torch lacks support.

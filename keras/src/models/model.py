@@ -10,16 +10,16 @@ from keras.src.api_export import keras_export
 from keras.src.layers.core.input_layer import InputLayer
 from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
-from keras.src.quantizers.awq_core import awq_quantize
+from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.gptq_core import find_layers_in_block
-from keras.src.quantizers.gptq_core import gptq_quantize
+from keras.src.quantizers.quantization_config import validate_and_resolve_config
 from keras.src.quantizers.report import QuantizationReport
 from keras.src.quantizers.utils import should_quantize_layer
 from keras.src.saving import saving_api
-from keras.src.trainers import trainer as base_trainer
 from keras.src.utils import io_utils
 from keras.src.utils import summary_utils
 from keras.src.utils import traceback_utils
+from keras.src.utils.module_utils import get_pluggable_backend_module
 
 if backend.backend() == "tensorflow":
     from keras.src.backend.tensorflow.trainer import (
@@ -31,16 +31,13 @@ elif backend.backend() == "torch":
     from keras.src.backend.torch.trainer import TorchTrainer as Trainer
 elif backend.backend() == "numpy":
     from keras.src.backend.numpy.trainer import NumpyTrainer as Trainer
-elif backend.backend() == "openvino":
-    from keras.src.backend.openvino.trainer import OpenVINOTrainer as Trainer
 else:
-    raise RuntimeError(
-        f"Backend '{backend.backend()}' must implement the Trainer class."
-    )
+    backend_trainer_module = get_pluggable_backend_module("src.trainer")
+    Trainer = getattr(backend_trainer_module, "Trainer")
 
 
 @keras_export(["keras.Model", "keras.models.Model"])
-class Model(Trainer, base_trainer.Trainer, Layer):
+class Model(Trainer, Layer):
     """A model grouping layers into an object with training/inference features.
 
     There are three ways to instantiate a `Model`:
@@ -481,11 +478,11 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
         Args:
             mode: The mode of the quantization. Supported modes are:
-                `"int8"`, `"int4"`, `"float8"`, `"gptq"`, `"awq"`. This is
-                optional if `config` is provided. Passing a bare string uses
-                the default configuration for that mode, which is identical to
-                passing the corresponding config object with default arguments
-                (e.g. `quantize("int4")` matches
+                `"int8"`, `"int4"`, `"float8"`, `"ternary"`, `"gptq"` and
+                `"awq"`. This is optional if `config` is provided. Passing a
+                bare string uses the default configuration for that mode,
+                which is identical to passing the corresponding config object
+                with default arguments (e.g. `quantize("int4")` matches
                 `quantize(config=Int4QuantizationConfig())`). The activation
                 (A) times weight (W) semantics of each mode are:
 
@@ -501,12 +498,19 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 -   `"float8"`: **float8 QDQ** mixed-precision training scheme
                     (not post-training compression); weights and activations
                     are dynamically cast to `float8` during training.
-                -   `"gptq"` / `"awq"`: 4-bit weight-only post-training
-                    quantization; requires a `GPTQConfig` / `AWQConfig` passed
-                    via `config`.
+                -   `"ternary"`: **weight-only** BitNet b1.58 quantization of
+                    `Dense` layers. Weights are quantized to `{-1, 0, +1}`
+                    with one scalar scale and packed five per byte; this is
+                    storage-only today (weights are unpacked to float before
+                    each matmul).
+                -   `"gptq"`: **weight-only** post-training quantization to
+                    2, 3, 4 or 8 bits (`GPTQConfig.weight_bits`, 4 by
+                    default); requires a `GPTQConfig` passed via `config`.
+                -   `"awq"`: **W4A16 weight-only** post-training quantization;
+                    requires an `AWQConfig` passed via `config`.
             config: The configuration object specifying additional
                 quantization options. This argument allows to configure
-                the weight and activation quantizers. be an instance of
+                the weight and activation quantizers. It must be an instance of
                 `keras.quantizers.QuantizationConfig`.
             filters: Optional filters to apply to the quantization. Can be a
                 regex string, a list of regex strings, or a callable. Only the
@@ -563,6 +567,14 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         model.quantize(config=config)
         ```
         """
+        # Resolve `mode`/`config` into a concrete mode string and
+        # `QuantizationConfig`, and validate that the model can be quantized,
+        # before validating the remaining arguments (mirroring
+        # `Layer.quantize`'s validation order).
+        config = validate_and_resolve_config(mode, config)
+        mode = config.mode
+        self._check_quantize_args(mode, self.compute_dtype)
+
         # Validate inputs.
         type_check = kwargs.pop("type_check", True)
         if kwargs:
@@ -579,11 +591,6 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     f"{type(filters)}"
                 )
 
-        # `mode` and `config` arrive here already resolved to a concrete mode
-        # string and `QuantizationConfig`, because `Layer.__new__` wraps
-        # `quantize` with `quantize_wrapper`, which calls
-        # `validate_and_resolve_config`.
-
         # For structure-aware modes (`gptq`/`awq`), resolve and validate the
         # layer structure *before* mutating any layer, and restrict
         # quantization to the layers covered by the structure. Resolving it
@@ -594,9 +601,10 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         # quantizing any other layer would leave it uncalibrated, and its
         # uninitialized quantized weights would silently replace the real
         # ones when the model is saved and reloaded.
+        strategy = strategy_registry.get_strategy(mode)
         structure = None
         structure_layer_ids = None
-        if mode in ("gptq", "awq"):
+        if strategy.requires_layer_structure:
             # 1. If quantization_layer_structure is provided inside the
             # config, use that.
             structure = config.quantization_layer_structure
@@ -655,7 +663,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 report.add_skipped(path, QuantizationReport.SKIP_FILTERED)
                 continue
             # 3. Already quantized (e.g. a previously quantized layer).
-            if getattr(layer, "_is_quantized", False):
+            if layer._is_quantized:
                 report.add_skipped(
                     path, QuantizationReport.SKIP_ALREADY_QUANTIZED
                 )
@@ -673,10 +681,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             )
             graph_modified = True
 
-        if mode == "gptq":
-            gptq_quantize(config, structure, filters=filters)
-        elif mode == "awq":
-            awq_quantize(config, structure, filters=filters)
+        # Structure-aware modes run their calibration pass here (a no-op
+        # for the other modes).
+        strategy.finalize_model_quantization(self, config, structure, filters)
 
         # Emit a single summary warning in place of the previous per-layer
         # warning storm (one `UserWarning` per non-quantizable leaf).
@@ -717,11 +724,22 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
     def _post_quantize(self, mode, **kwargs):
         if backend.backend() == "torch":
+            # Local import: `sequential` imports this module.
+            from keras.src.models.sequential import Sequential
+
             # We need to manually retrack `torch_params`.
             # The reason is that after quantization, the removed variables are
             # still referenced by `torch_params` and cannot be gc.
             for layer in self._flatten_layers():
                 layer._track_variables()
+                # A `Sequential` runs its layers through the `Functional` in
+                # `_functional`, which `_flatten_layers` does not visit. Its
+                # `torch_params` also reference the removed variables.
+                if (
+                    isinstance(layer, Sequential)
+                    and layer._functional is not None
+                ):
+                    layer._functional._track_variables()
 
     def build_from_config(self, config):
         if not config:

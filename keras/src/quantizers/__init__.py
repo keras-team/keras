@@ -8,6 +8,7 @@ from keras.src.quantizers.fake_quant import fake_quant_with_min_max_vars
 from keras.src.quantizers.float8_scaling import compute_float8_amax_history
 from keras.src.quantizers.float8_scaling import compute_float8_scale
 from keras.src.quantizers.float8_scaling import quantize_and_dequantize
+from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.packing import pack_int2
 from keras.src.quantizers.packing import pack_int4
 from keras.src.quantizers.packing import pack_ternary
@@ -40,6 +41,7 @@ ALL_OBJECTS = {
     Float8QuantizationConfig,
     TernaryQuantizationConfig,
     AWQConfig,
+    GPTQConfig,
 }
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
 ALL_OBJECTS_DICT.update(

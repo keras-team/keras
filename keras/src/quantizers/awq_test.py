@@ -843,12 +843,12 @@ class AWQAccuracyTest(testing.TestCase):
             n_groups = in_features // group_size
             self.assertEqual(
                 layer.kernel_scale.shape,
-                (out_features, n_groups),
+                (n_groups, out_features),
                 f"kernel_scale shape mismatch for group_size={group_size}",
             )
             self.assertEqual(
                 layer.kernel_zero.shape,
-                (out_features, n_groups),
+                (n_groups, out_features),
                 f"kernel_zero shape mismatch for group_size={group_size}",
             )
 

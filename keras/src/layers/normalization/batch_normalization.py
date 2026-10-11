@@ -189,6 +189,11 @@ class BatchNormalization(Layer):
         self.synchronized = synchronized
 
         self.momentum = float(momentum)
+        if not 0 <= self.momentum <= 1:
+            raise ValueError(
+                "Argument `momentum` must be a float in the range "
+                f"[0, 1]. Received: momentum={momentum}"
+            )
         self.epsilon = float(epsilon)
         self.center = center
         self.scale = scale

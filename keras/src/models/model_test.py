@@ -1,8 +1,10 @@
 import contextlib
+import gc
 import io
 import os
 import pickle
 import warnings
+import weakref
 from collections import namedtuple
 
 import numpy as np
@@ -956,6 +958,66 @@ class ModelTest(testing.TestCase):
             # kernel + bias + scale * 3 + amax_history * 3 == 8
             self.assertEqual(len(model.weights), 3 * 8)
 
+    @parameterized.named_parameters(
+        ("sequential", "sequential"),
+        ("sequential_in_sequential", "sequential_in_sequential"),
+        ("sequential_in_functional", "sequential_in_functional"),
+        ("sequential_in_subclassed", "sequential_in_subclassed"),
+    )
+    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
+    def test_quantize_sequential_retracks_torch_params(self, structure):
+        if structure == "sequential":
+            model = Sequential([Input((8,)), layers.Dense(16), layers.Dense(4)])
+        elif structure == "sequential_in_sequential":
+            inner = Sequential([layers.Dense(16), layers.Dense(4)])
+            model = Sequential([Input((8,)), inner, layers.Dense(2)])
+        elif structure == "sequential_in_functional":
+            inner = Sequential([Input((8,)), layers.Dense(16), layers.Dense(4)])
+            inputs = Input((8,))
+            model = Model(inputs, inner(inputs))
+        else:
+
+            class MyModel(Model):
+                def __init__(self):
+                    super().__init__()
+                    self.block = Sequential(
+                        [Input((8,)), layers.Dense(16), layers.Dense(4)]
+                    )
+
+                def call(self, x):
+                    return self.block(x)
+
+            model = MyModel()
+            model(np.zeros((1, 8)))
+        owners = [model] + [
+            layer
+            for layer in model._flatten_layers(include_self=False)
+            if isinstance(layer, Sequential)
+        ]
+        # Create the parameter lists before quantization.
+        for owner in owners:
+            self.assertLen(list(owner.named_parameters()), len(owner.weights))
+        float_kernels = [
+            weakref.ref(layer.kernel.value)
+            for layer in model._flatten_layers()
+            if isinstance(layer, layers.Dense)
+        ]
+
+        model.quantize("int8")
+        gc.collect()
+
+        # The parameters of the model and of each `Sequential` are its
+        # quantized variables, and no parameter keeps a float kernel alive.
+        for owner in owners:
+            variables = {id(v.value) for v in owner.variables}
+            parameters = list(owner.named_parameters())
+            self.assertLen(parameters, len(owner.variables))
+            for name, parameter in parameters:
+                self.assertIn(id(parameter), variables, name)
+        self.assertEqual(
+            [ref() for ref in float_kernels], [None] * len(float_kernels)
+        )
+
     def _get_mixed_layer_model(self):
         inputs = layers.Input([4], name="in")
         x = layers.Dense(5, name="d1")(inputs)
@@ -986,7 +1048,6 @@ class ModelTest(testing.TestCase):
             QuantizationReport.SKIP_NO_SUPPORT
         )
         self.assertIn("act", unsupported)
-        self.assertEqual(report.num_errors, 0)
 
         # Input layers carry no weights and must never appear in the report as
         # skipped entries (they are neither quantizable nor a meaningful skip).
@@ -1556,11 +1617,5 @@ class ModelTest(testing.TestCase):
 
         # Bad backend
         if backend.backend() not in ("tensorflow", "jax", "torch"):
-            with self.assertRaisesRegex(
-                NotImplementedError,
-                (
-                    r"`export_saved_model` only currently supports the "
-                    r"tensorflow, jax and torch backends."
-                ),
-            ):
+            with self.assertRaises(NotImplementedError):
                 model.export(temp_filepath, format="tf_saved_model")

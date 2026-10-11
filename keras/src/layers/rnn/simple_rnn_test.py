@@ -35,6 +35,19 @@ class SimpleRNNTest(testing.TestCase):
             supports_masking=False,
         )
 
+    def test_seed_is_serialized(self):
+        layer = layers.SimpleRNN(3, dropout=0.5, seed=1337)
+        self.assertEqual(layer.get_config()["seed"], 1337)
+
+        # Without the seed in the config the restored layer draws a different
+        # dropout mask, so an identically configured model stops reproducing.
+        x = np.random.random((2, 4, 3))
+        restored = layers.SimpleRNN.from_config(layer.get_config())
+        layer.build(x.shape)
+        restored.build(x.shape)
+        restored.set_weights(layer.get_weights())
+        self.assertAllClose(layer(x, training=True), restored(x, training=True))
+
     def test_correctness(self):
         sequence = np.arange(24).reshape((2, 3, 4)).astype("float32")
         layer = layers.SimpleRNN(

@@ -91,7 +91,7 @@ Args:
     alpha: controls the width of the network. This is known as the
         depth multiplier in the MobileNetV3 paper, but the name is kept for
         consistency with MobileNetV1 in Keras.
-        When `weights` is `imagenet`, `alpha` can be one of `0.75` or `1.0`
+        When `weights` is `"imagenet"`, `alpha` can be one of `0.75` or `1.0`
         for non-minimalistic models, and `1.0` for minimalistic models.
         - If `alpha < 1.0`, proportionally decreases the number
             of filters in each layer.
@@ -128,7 +128,7 @@ Args:
             be applied.
     classes: Integer, optional number of classes to classify images
         into, only to be specified if `include_top` is `True`, and
-        if no `weights` argument is specified.
+        if no `weights` argument is specified. Defaults to `1000`.
     dropout_rate: fraction of the input units to drop on the last layer.
     classifier_activation: A `str` or callable. The activation function to use
         on the "top" layer. Ignored unless `include_top=True`. Set

@@ -189,11 +189,5 @@ class ReversibleEmbedding(layers.Embedding):
                     variable_spec.append("reverse_embeddings_zero")
         return _spec
 
-    def quantize(self, mode=None, type_check=True, config=None):
-        # Prevent quantization of the subclasses.
-        if type_check and type(self) is not ReversibleEmbedding:
-            raise self._not_implemented_error(self.quantize)
-        self._registry_quantize(mode, config)
-
     def _quantization_geometry(self):
         return ReversibleLookupGeometry(self)

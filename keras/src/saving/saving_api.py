@@ -1,3 +1,4 @@
+import io
 import os
 import shutil
 import zipfile
@@ -127,8 +128,9 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
     """Loads a model saved via `model.save()` or from an Orbax checkpoint.
 
     Args:
-        filepath: `str` or `pathlib.Path` object, path to the saved model file
-            or Orbax checkpoint directory.
+        filepath: `str`, `pathlib.Path`, or `io.IOBase` object, path to the
+            saved model file or Orbax checkpoint directory, or a file-like
+            object (e.g. `io.BytesIO`) from which to load the `.keras` model.
         custom_objects: Optional dictionary mapping names
             (strings) to custom classes or functions to be
             considered during deserialization.
@@ -158,6 +160,13 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
     It is recommended that you use layer attributes to
     access specific variables, e.g. `model.get_layer("dense_1").kernel`.
     """
+    if isinstance(filepath, io.IOBase):
+        return saving_lib.load_model(
+            filepath,
+            custom_objects=custom_objects,
+            compile=compile,
+            safe_mode=safe_mode,
+        )
     is_keras_zip = str(filepath).endswith(".keras") and zipfile.is_zipfile(
         filepath
     )
