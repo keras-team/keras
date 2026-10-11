@@ -1675,6 +1675,13 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.selu(x),
             [-1.1113307, 0.0, 1.050701, 2.101402, 3.152103],
         )
+        # Integer input is promoted to float; `scale` and `alpha` previously
+        # truncated to 1 under an integer dtype.
+        x_int = np.array([-2, -1, 0, 1, 2], dtype="int32")
+        self.assertAllClose(
+            knn.selu(x_int),
+            [-1.5201665, -1.1113307, 0.0, 1.050701, 2.101402],
+        )
 
     def test_gelu(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
@@ -1738,12 +1745,26 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.soft_shrink(x),
             [0.0, 0.0, 0.5, 1.5, 2.5],
         )
+        # Integer input is promoted to float; `threshold` previously truncated
+        # to 0 under an integer dtype.
+        x_int = np.array([-2, -1, 0, 1, 2], dtype="int32")
+        self.assertAllClose(
+            knn.soft_shrink(x_int),
+            [-1.5, -0.5, 0.0, 0.5, 1.5],
+        )
 
     def test_sparse_plus(self):
         x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(
             knn.sparse_plus(x),
             [0.0625, 0.25, 1.0, 2.0, 3.0],
+        )
+        # Integer input is promoted to float; `(1 / 4)` previously truncated
+        # to 0 under an integer dtype.
+        x_int = np.array([-2, -1, 0, 1, 2], dtype="int32")
+        self.assertAllClose(
+            knn.sparse_plus(x_int),
+            [0.0, 0.0, 0.25, 1.0, 2.0],
         )
 
     def test_softmax(self):
@@ -3325,14 +3346,12 @@ class NNOpsDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @parameterized.named_parameters(
+        named_product(dtype=FLOAT_DTYPES + INT_DTYPES + ["bool"])
+    )
     def test_soft_shrink(self, dtype):
-        import torch
-        import torch.nn.functional as tnn
-
         x = knp.ones((1), dtype=dtype)
-        x_torch = torch.ones(1, dtype=getattr(torch, dtype))
-        expected_dtype = standardize_dtype(tnn.softshrink(x_torch).dtype)
+        expected_dtype = standardize_dtype(dtypes.promote_to_float_dtype(dtype))
 
         self.assertEqual(
             standardize_dtype(knn.soft_shrink(x).dtype),
@@ -3343,14 +3362,12 @@ class NNOpsDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @parameterized.named_parameters(
+        named_product(dtype=FLOAT_DTYPES + INT_DTYPES + ["bool"])
+    )
     def test_sparse_plus(self, dtype):
-        import jax.nn as jnn
-        import jax.numpy as jnp
-
         x = knp.ones((), dtype=dtype)
-        x_jax = jnp.ones((), dtype=dtype)
-        expected_dtype = standardize_dtype(jnn.sparse_plus(x_jax).dtype)
+        expected_dtype = standardize_dtype(dtypes.promote_to_float_dtype(dtype))
 
         self.assertEqual(
             standardize_dtype(knn.sparse_plus(x).dtype),
@@ -3529,14 +3546,12 @@ class NNOpsDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @parameterized.named_parameters(
+        named_product(dtype=FLOAT_DTYPES + INT_DTYPES + ["bool"])
+    )
     def test_selu(self, dtype):
-        import jax.nn as jnn
-        import jax.numpy as jnp
-
         x = knp.ones((), dtype=dtype)
-        x_jax = jnp.ones((), dtype=dtype)
-        expected_dtype = standardize_dtype(jnn.selu(x_jax).dtype)
+        expected_dtype = standardize_dtype(dtypes.promote_to_float_dtype(dtype))
 
         self.assertEqual(
             standardize_dtype(knn.selu(x).dtype),

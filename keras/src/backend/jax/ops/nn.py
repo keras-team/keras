@@ -73,7 +73,12 @@ def softsign(x):
 
 
 def soft_shrink(x, threshold=0.5):
+    # JAX promotes integers on its own, but to `float32` rather than to
+    # `floatx`, which would disagree with `compute_output_spec`.
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return jnp.where(
         x > threshold,
         x - threshold,
@@ -82,7 +87,12 @@ def soft_shrink(x, threshold=0.5):
 
 
 def sparse_plus(x):
+    # JAX promotes integers on its own, but to `float32` rather than to
+    # `floatx`, which would disagree with `compute_output_spec`.
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return jnn.sparse_plus(x)
 
 
@@ -135,7 +145,12 @@ def elu(x, alpha=1.0):
 
 
 def selu(x):
+    # JAX promotes integers on its own, but to `float32` rather than to
+    # `floatx`, which would disagree with `compute_output_spec`.
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return jnn.selu(x)
 
 
