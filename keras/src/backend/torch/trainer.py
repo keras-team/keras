@@ -36,17 +36,6 @@ class TorchTrainer(BaseTrainer):
         self.predict_function = None
         self.ddp_model = None
 
-    def _dynamo_trace_autograd_ops(self):
-        try:
-            import torch._dynamo as dynamo
-
-            # Setting `trace_autograd_ops = True` gives Dynamo permission
-            # to trace into the functional autograd engine and capture the
-            # backward operations directly into the single fused graph.
-            dynamo.config.trace_autograd_ops = True
-        except (ImportError, AttributeError):
-            pass
-
     @tracking.no_automatic_dependency_tracking
     def _initialize_ddp(self):
         if torch.distributed.is_initialized() and self.ddp_model is None:
@@ -203,8 +192,18 @@ class TorchTrainer(BaseTrainer):
 
         train_step = self.train_step
         if not self.run_eagerly and self.jit_compile:
-            self._dynamo_trace_autograd_ops()
             train_step = torch.compile(train_step)
+            if (
+                type(self).train_step is TorchTrainer.train_step
+                and self.ddp_model is None
+                and hasattr(torch._dynamo.config, "trace_autograd_ops")
+            ):
+                # Let Dynamo trace `torch.autograd.grad` into the graph. Scope
+                # the flag to this step: with the flag on, Dynamo also traces
+                # `Tensor.backward()`, which breaks `train_step` overrides.
+                train_step = torch._dynamo.config.patch(
+                    trace_autograd_ops=True
+                )(train_step)
 
         def train_function(data):
             """Runs training steps on a list of batches of data."""
