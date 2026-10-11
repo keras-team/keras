@@ -14,6 +14,23 @@ class PythonUtilsTest(testing.TestCase):
         deserialized = python_utils.func_load(serialized)
         self.assertEqual(deserialized(2, y=3), 5)
 
+    def test_func_dump_preserves_bytes(self):
+        # Regression test for #23632: the serialized payload must be the exact
+        # `marshal` output. A Windows-only `\\` -> `/` replacement used to
+        # corrupt arbitrary binary bytes, e.g. the integer constant 92 (0x5C)
+        # became 47 (0x2F).
+        def my_function():
+            return 92
+
+        serialized = python_utils.func_dump(my_function)
+        code, _, _ = serialized
+        self.assertEqual(
+            base64.b64decode(code.encode("ascii")),
+            marshal.dumps(my_function.__code__),
+        )
+        deserialized = python_utils.func_load(serialized)
+        self.assertEqual(deserialized(), 92)
+
     def test_removesuffix(self):
         x = "model.keras"
         self.assertEqual(python_utils.removesuffix(x, ".keras"), "model")

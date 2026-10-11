@@ -80,6 +80,16 @@ class LambdaTest(testing.TestCase):
         output = layer(2 * np.ones((2, 3)))
         self.assertAllClose(4 * np.ones((2, 3)), output)
 
+    def test_numeric_constants_preserved(self):
+        # Regression test for #23632: numeric constants must survive
+        # serialization. The value 92 (0x5C) used to be corrupted to 47
+        # (0x2F) on Windows by a byte-level replacement in `func_dump`.
+        layer = layers.Lambda(lambda x: x + 92)
+        config = layer.get_config()
+        layer = layers.Lambda.from_config(config, safe_mode=False)
+        output = layer(np.zeros((2, 3)))
+        self.assertAllClose(92 * np.ones((2, 3)), output)
+
     def test_from_config_fails_closed_without_safe_mode_scope(self):
         # Without an ambient `SafeModeScope` and without an explicit
         # `safe_mode`, deserializing a lambda `function` must be refused by
