@@ -73,6 +73,20 @@ class CosineSimilarityTest(testing.TestCase):
         )
         self.assertEqual(cosine_obj2.name, "my_cos")
         self.assertEqual(cosine_obj2._dtype, "int32")
+        # `axis` has to survive too, otherwise the restored metric reduces
+        # over a different dimension.
+        self.assertEqual(cosine_obj.get_config()["axis"], 2)
+        self.assertEqual(cosine_obj2._fn_kwargs["axis"], 2)
+
+    def test_axis_survives_serialization(self):
+        y_true = np.array([[1.0, 0.0, 2.0], [3.0, 1.0, 0.0]])
+        y_pred = np.array([[0.0, 2.0, 1.0], [1.0, 0.0, 4.0]])
+
+        cosine_obj = metrics.CosineSimilarity(axis=0)
+        cosine_obj.update_state(y_true, y_pred)
+        revived = metrics.CosineSimilarity.from_config(cosine_obj.get_config())
+        revived.update_state(y_true, y_pred)
+        self.assertAllClose(cosine_obj.result(), revived.result())
 
     def test_unweighted(self):
         self.setup()

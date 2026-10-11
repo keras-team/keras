@@ -8,7 +8,6 @@ class QuantizationReportTest(testing.TestCase):
         self.assertEqual(report.mode, "int8")
         self.assertEqual(report.num_quantized, 0)
         self.assertEqual(report.num_skipped, 0)
-        self.assertEqual(report.num_errors, 0)
         self.assertIsNone(report.summary_warning())
 
     def test_add_and_query(self):
@@ -84,8 +83,10 @@ class QuantizationReportTest(testing.TestCase):
     def test_repr(self):
         report = QuantizationReport(mode="int4")
         report.add_quantized("dense", "int4", "int4/-1_from_float32")
-        self.assertIn("mode='int4'", repr(report))
-        self.assertIn("quantized=1", repr(report))
+        self.assertEqual(
+            repr(report),
+            "QuantizationReport(mode='int4', quantized=1, skipped=0)",
+        )
 
     def test_skip_reasons_exposed_as_class_attributes(self):
         # The skip reasons are available as class attributes on

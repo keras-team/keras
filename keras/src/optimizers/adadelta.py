@@ -1,4 +1,4 @@
-from keras.src import ops
+from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.optimizers import optimizer
 
@@ -68,6 +68,11 @@ class Adadelta(optimizer.Optimizer):
             name=name,
             **kwargs,
         )
+        if not 0 <= rho <= 1:
+            raise ValueError(
+                "Argument `rho` must be in the range [0, 1]. "
+                f"Received: rho={rho}"
+            )
         self.rho = rho
         self.epsilon = epsilon
 
@@ -83,8 +88,8 @@ class Adadelta(optimizer.Optimizer):
 
     def update_step(self, grad, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
-        lr = ops.cast(learning_rate, variable.dtype)
-        grad = ops.cast(grad, variable.dtype)
+        lr = backend.ops.cast(learning_rate, variable.dtype)
+        grad = backend.ops.cast(grad, variable.dtype)
 
         rho = self.rho
         accumulated_grad = self._accumulated_grads[
@@ -95,28 +100,35 @@ class Adadelta(optimizer.Optimizer):
         ]
 
         def rms(x):
-            return ops.sqrt(ops.add(x, self.epsilon))
+            return backend.ops.numpy.sqrt(
+                backend.ops.numpy.add(x, self.epsilon)
+            )
 
         self.assign(
             accumulated_grad,
-            ops.add(
-                rho * accumulated_grad, ops.multiply(1 - rho, ops.square(grad))
+            backend.ops.numpy.add(
+                rho * accumulated_grad,
+                backend.ops.numpy.multiply(
+                    1 - rho, backend.ops.numpy.square(grad)
+                ),
             ),
         )
-        delta_var = ops.negative(
-            ops.divide(
-                ops.multiply(rms(accumulated_delta_var), grad),
+        delta_var = backend.ops.numpy.negative(
+            backend.ops.numpy.divide(
+                backend.ops.numpy.multiply(rms(accumulated_delta_var), grad),
                 rms(accumulated_grad),
             )
         )
         self.assign(
             accumulated_delta_var,
-            ops.add(
-                ops.multiply(rho, accumulated_delta_var),
-                ops.multiply(1 - rho, ops.square(delta_var)),
+            backend.ops.numpy.add(
+                backend.ops.numpy.multiply(rho, accumulated_delta_var),
+                backend.ops.numpy.multiply(
+                    1 - rho, backend.ops.numpy.square(delta_var)
+                ),
             ),
         )
-        self.assign_add(variable, ops.multiply(lr, delta_var))
+        self.assign_add(variable, backend.ops.numpy.multiply(lr, delta_var))
 
     def get_config(self):
         config = super().get_config()

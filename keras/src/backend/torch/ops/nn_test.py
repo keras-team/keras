@@ -54,3 +54,31 @@ class DotProductAttentionCompileTest(testing.TestCase):
             compiled(query, key, value, **kwargs),
             ops.dot_product_attention(query, key, value, **kwargs),
         )
+
+
+@pytest.mark.skipif(
+    backend.backend() != "torch",
+    reason="This test is only applicable to the PyTorch backend.",
+)
+class PoolingChannelsLastContiguityTest(testing.TestCase):
+    def test_pooling_2d_channels_last_output_is_contiguous(self):
+        x = torch.randn((2, 8, 8, 4))
+        # 7x7 makes `same` padding uneven, so the input goes through `F.pad`.
+        # `max_pool` is left out there: it pads in `replicate` mode, which
+        # returns the default memory format on CUDA.
+        x_odd = torch.randn((2, 7, 7, 4))
+        for out in (
+            ops.max_pool(x, (2, 2), data_format="channels_last"),
+            ops.average_pool(x, (2, 2), data_format="channels_last"),
+            ops.average_pool(
+                x_odd, (2, 2), padding="same", data_format="channels_last"
+            ),
+            ops.adaptive_average_pool(x, (4, 4), data_format="channels_last"),
+        ):
+            self.assertTrue(out.is_contiguous())
+
+    def test_max_pool_3d_channels_last_output_is_contiguous(self):
+        # Of the 3D pooling kernels, only `max_pool3d` keeps `channels_last_3d`.
+        x = torch.randn((2, 6, 6, 6, 4))
+        out = ops.max_pool(x, (2, 2, 2), data_format="channels_last")
+        self.assertTrue(out.is_contiguous())

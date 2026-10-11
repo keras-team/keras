@@ -16,6 +16,7 @@ from jax.experimental.pallas.ops.tpu.splash_attention import (
 )
 
 from keras.src import backend
+from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
@@ -101,17 +102,30 @@ def log_sigmoid(x):
 
 
 def leaky_relu(x, negative_slope=0.2):
+    # JAX promotes integers on its own, but to `float32` rather than to
+    # `floatx`, which would disagree with `compute_output_spec`.
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return jnn.leaky_relu(x, negative_slope=negative_slope)
 
 
 def hard_sigmoid(x):
+    # JAX promotes integers on its own, but to `float32` rather than to
+    # `floatx`, which would disagree with `compute_output_spec`.
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return jnn.hard_sigmoid(x)
 
 
 def hard_silu(x):
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return jnn.hard_silu(x)
 
 

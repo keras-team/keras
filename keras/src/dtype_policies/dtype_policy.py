@@ -500,7 +500,7 @@ class GPTQDTypePolicy(QuantizedDTypePolicy):
             source_name=source_name,
         )
 
-        self._name = f"{mode}_from_{source_name}"
+        self._name = f"{mode}_from_{self._source_name}"
         self.mode = base_mode
         self.weight_bits = params["weight_bits"]
         self.group_size = params["group_size"]
@@ -554,7 +554,7 @@ class AWQDTypePolicy(QuantizedDTypePolicy):
             source_name=source_name,
         )
 
-        self._name = f"{mode}_from_{source_name}"
+        self._name = f"{mode}_from_{self._source_name}"
         self.mode = base_mode
         self.weight_bits = params["weight_bits"]
         self.group_size = params["group_size"]
@@ -585,6 +585,11 @@ class AWQDTypePolicy(QuantizedDTypePolicy):
 def set_dtype_policy(policy):
     """Sets the default dtype policy globally.
 
+    The policy must not be quantized. Every layer and model created
+    afterwards takes the global policy, including the layers that cannot be
+    quantized, so a quantized global policy would fail their calls. To
+    quantize a layer or a model, call its `quantize()` method.
+
     Example:
 
     >>> keras.config.set_dtype_policy("mixed_float16")
@@ -603,6 +608,13 @@ def set_dtype_policy(policy):
                 f"instance. Received: policy={policy} "
                 f"(of type {type(policy)})"
             )
+    if policy.quantization_mode is not None:
+        raise ValueError(
+            "The global dtype policy cannot be quantized: every layer and "
+            "model created afterwards takes it, including the layers that "
+            "cannot be quantized. To quantize a layer or a model, call its "
+            f"`quantize()` method. Received: policy='{policy.name}'"
+        )
     global_state.set_global_attribute("dtype_policy", policy)
 
 
@@ -670,4 +682,7 @@ def _get_quantized_dtype_policy_by_str(policy):
             f"Received: policy={policy}"
         )
     mode, source_name = split_name
+    if source_name == "None":
+        # Older checkpoints carry a literal "None" source; use the default.
+        source_name = None
     return registry.get_strategy(name).policy_from_string(mode, source_name)

@@ -1,6 +1,5 @@
 import numpy as np
 
-from conftest import skip_if_backend
 from keras.src import backend
 from keras.src import initializers
 from keras.src import random
@@ -127,7 +126,6 @@ class RandomInitializersTest(testing.TestCase):
         )
         self.run_class_serialization_test(initializer)
 
-    @skip_if_backend("openvino", "openvino backend does not support `qr`")
     def test_orthogonal(self):
         shape = (5, 5)
         gain = 2.0
@@ -166,9 +164,6 @@ class RandomInitializersTest(testing.TestCase):
         with self.assertRaises(ValueError):
             initializers.get("typo")
 
-    @skip_if_backend(
-        "openvino", "openvino backend does not support `uniform` with None seed"
-    )
     def test_get_method_with_tensor(self):
         shape = (5, 5)
 

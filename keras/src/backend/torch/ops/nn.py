@@ -6,6 +6,7 @@ from torch.distributed.tensor import DTensor
 from torch.distributed.tensor import Replicate
 
 from keras.src import backend
+from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
@@ -102,17 +103,28 @@ def log_sigmoid(x):
 
 
 def leaky_relu(x, negative_slope=0.2):
+    # `tnn.leaky_relu` is not implemented for integer or bool dtypes.
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tnn.leaky_relu(x, negative_slope=negative_slope)
 
 
 def hard_sigmoid(x):
+    # `tnn.hardsigmoid` is not implemented for integer or bool dtypes.
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tnn.hardsigmoid(x)
 
 
 def hard_silu(x):
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tnn.hardswish(x)
 
 
@@ -391,7 +403,9 @@ def max_pool(
 
     data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_last":
-        inputs = _transpose_spatial_inputs(inputs)
+        inputs = _transpose_spatial_inputs(
+            inputs, channels_last_memory_format=True
+        )
 
     if padding == "same":
         # Torch does not natively support `"same"` padding, we need to manually
@@ -456,7 +470,11 @@ def average_pool(
     orig_format = data_format
 
     if data_format == "channels_last":
-        inputs = _transpose_spatial_inputs(inputs)
+        # 2D only: `avg_pool3d` has no `channels_last_3d` kernel, so 3D gains
+        # nothing and its uneven `same` padding path gets slower.
+        inputs = _transpose_spatial_inputs(
+            inputs, channels_last_memory_format=num_spatial_dims == 2
+        )
 
     orig_inputs = inputs
     manual_padded = False
@@ -555,7 +573,9 @@ def adaptive_average_pool(inputs, output_size, data_format=None):
     data_format = backend.standardize_data_format(data_format)
     orig_format = data_format
     if data_format == "channels_last":
-        inputs = _transpose_spatial_inputs(inputs)
+        inputs = _transpose_spatial_inputs(
+            inputs, channels_last_memory_format=True
+        )
 
     if isinstance(output_size, int):
         torch_output_size = (
@@ -901,7 +921,8 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     output = where(expand_dims(x, axis=-1) >= 0, output, zero)
     output = convert_to_tensor(output, dtype=dtype)
     dims = output.dim()
-    if axis != -1 and axis != dims:
+    axis = canonicalize_axis(axis, dims)
+    if axis != dims - 1:
         new_axes_order = list(range(dims))
         new_axes_order[axis] = -1  # Shifts output to axis position
         # Shift remaining axes with offset by 1 since output moved to `axis`.
@@ -1001,6 +1022,9 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
 def binary_crossentropy(target, output, from_logits=False):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
+    if not backend.is_float_dtype(output.dtype):
+        output = cast(output, backend.floatx())
+    target = cast(target, output.dtype)
 
     if target.shape != output.shape:
         raise ValueError(

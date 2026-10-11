@@ -253,13 +253,19 @@ def my_op(x):
 
 def _my_op(x):
     if not config._use_backend_agnostic_ops() and hasattr(
-        backend.numpy, "my_op"
+        backend.ops.numpy, "my_op"
     ):
-        return backend.numpy.my_op(x)
-    x = backend.convert_to_tensor(x)
+        return backend.ops.numpy.my_op(x)
+    x = backend.ops.convert_to_tensor(x)
     ...
     return res
 ```
+
+Inside `keras/src/ops/`, the fallback should call backend ops directly:
+`backend.ops.<op>` for core ops (e.g. `backend.ops.cast`) and
+`backend.ops.<module>.<op>` for everything else (e.g.
+`backend.ops.numpy.where`). Don't call the public `keras.ops` API. If a
+dependency has its own `_<dep>()` helper, call that instead.
 
 [Here](https://github.com/keras-team/keras/blob/5edcf00a9e818838988c8c0cf45a79e279851803/keras/src/ops/numpy.py#L8606-L8664)
 is a minimal version of `vsplit` from `keras/src/ops/numpy.py`.
