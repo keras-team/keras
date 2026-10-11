@@ -24,7 +24,7 @@ from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.jax import distribution_lib
 
 
-class JaxVariable(KerasVariable):
+class Variable(KerasVariable):
     def _initialize_layout(self):
         # We can't import the keras/distribution/distribution_lib
         # due to circular dependency.
@@ -89,7 +89,6 @@ class JaxVariable(KerasVariable):
         return self.value
 
 
-Variable = JaxVariable
 if config.is_nnx_enabled():
     from flax import nnx
 
@@ -125,7 +124,9 @@ if config.is_nnx_enabled():
         if trace_state is not None:
             object.__setattr__(trace_state, "_jax_trace", _enclosing_traces[0])
 
-    class NnxVariable(JaxVariable, nnx.Variable):
+    JaxVariable = Variable
+
+    class Variable(JaxVariable, nnx.Variable):
         def __init__(
             self,
             initializer,
@@ -299,8 +300,6 @@ if config.is_nnx_enabled():
                 )
             return self._maybe_autocast(current_value)
 
-    Variable = NnxVariable
-
     def _flatten_nnx_variable(variable):
         children = (_get_raw_value(variable),)
         # We copy __dict__ to avoid side effects
@@ -320,7 +319,7 @@ if config.is_nnx_enabled():
         raw_value = children[0]
 
         # Create uninitialized instance
-        variable = NnxVariable.__new__(NnxVariable)
+        variable = Variable.__new__(Variable)
 
         # Restore state
         variable._var_metadata = var_metadata
@@ -333,7 +332,7 @@ if config.is_nnx_enabled():
 
     try:
         jax.tree_util.register_pytree_node(
-            NnxVariable,
+            Variable,
             _flatten_nnx_variable,
             _unflatten_nnx_variable,
         )
@@ -352,7 +351,7 @@ if config.is_nnx_enabled():
 
         object.__setattr__(self, name, value)
 
-    NnxVariable.__setattr__ = __setattr__
+    Variable.__setattr__ = __setattr__
 
 
 def should_shard_at_init(init_layout, shape):
