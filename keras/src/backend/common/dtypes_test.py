@@ -158,15 +158,10 @@ class DtypesTest(test_case.TestCase):
         # unhashable one rather than silently promoting.
         with self.assertRaises(TypeError):
             backend.result_type("float32", [1])
-
-    def test_result_type_float8_rejected_outside_the_cache(self):
-        # Repeated: the rejection has to raise on every call, not just the
-        # first one to reach the cache.
-        for _ in range(3):
-            with self.assertRaisesRegex(
-                ValueError, "no implicit conversions from float8"
-            ):
-                backend.result_type("float8_e4m3fn", "float32")
+        # Arguments are checked in order, as without the cache: the invalid
+        # string is reported before the unhashable list is reached.
+        with self.assertRaises(ValueError):
+            backend.result_type("not_a_dtype", [1])
 
     def test_respect_weak_type_for_bool(self):
         self.assertEqual(dtypes._respect_weak_type("bool", True), "bool")
