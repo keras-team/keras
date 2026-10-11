@@ -1046,10 +1046,18 @@ def binary_crossentropy(target, output, from_logits=False):
     # pass aborts or returns wrong gradients. Computing the loss on 1-D
     # tensors avoids this on every device.
     # See https://github.com/pytorch/pytorch/issues/166746.
-    loss = tnn.binary_cross_entropy(
-        output.reshape(-1), target.reshape(-1), reduction="none"
+    # The MPS kernel also transforms `NaN` probabilities into finite terms
+    # (`max(log(x), -100)`), hiding `NaN`s. Mask them out before calling the
+    # kernel and restore them afterwards so `NaN`s keep propagating (#23661).
+    nan_mask = torch.isnan(output)
+    safe_output = torch.where(
+        nan_mask, torch.full_like(output, 0.5), output
     )
-    return loss.reshape(output.shape)
+    loss = tnn.binary_cross_entropy(
+        safe_output.reshape(-1), target.reshape(-1), reduction="none"
+    )
+    loss = loss.reshape(output.shape)
+    return torch.where(nan_mask, float("nan"), loss)
 
 
 def moments(x, axes, keepdims=False, synchronized=False):
