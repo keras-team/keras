@@ -127,8 +127,10 @@ class DtypesTest(test_case.TestCase):
         try:
             backend.set_floatx("float32")
             self.assertEqual(backend.result_type(float), "float32")
+            self.assertEqual(backend.result_type(None), "float32")
             backend.set_floatx("float16")
             self.assertEqual(backend.result_type(float), "float16")
+            self.assertEqual(backend.result_type(None), "float16")
         finally:
             backend.set_floatx(original_floatx)
 
