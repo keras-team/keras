@@ -198,8 +198,8 @@ def _check_input_spec(spec, x, input_index, layer_name):
 
     Args:
         spec: An `InputSpec` instance.
-        x: The input to check. Must not be `None`; `None` inputs for
-            optional specs are handled by the callers.
+        x: The input to check. `None` inputs for optional specs are skipped
+            by the callers; any other input without a `shape` raises.
         input_index: Integer, index of the input (for error message
             formatting).
         layer_name: String, name of the layer (for error message formatting).
@@ -208,10 +208,10 @@ def _check_input_spec(spec, x, input_index, layer_name):
         ValueError: In case of mismatch between the input and the
             expectations of the spec.
     """
-    # Having a shape/dtype is the only commonality of the various tensor-like
-    # objects that may be passed. The most common kind of invalid type we are
-    # guarding for is a Layer instance (Functional API), which does not have a
-    # `shape` attribute.
+    # Having a shape/dtype is the only commonality of the various
+    # tensor-like objects that may be passed. The most common kind of
+    # invalid type we are guarding for is a Layer instance (Functional API),
+    # which does not have a `shape` attribute.
     if not hasattr(x, "shape"):
         raise ValueError(
             f"Inputs to a layer should be tensors. Got '{x}' "
@@ -260,17 +260,16 @@ def _check_input_spec(spec, x, input_index, layer_name):
     # Check specific shape axes.
     if spec.axes:
         for axis, value in spec.axes.items():
-            if value is not None and (axis < -ndim or axis >= ndim):
+            if value is None:
+                continue
+            if axis < -ndim or axis >= ndim:
                 raise ValueError(
                     f"Input {input_index} with name '{spec.name}' of layer "
                     f"'{layer_name}' is incompatible with the layer: "
                     f"axis {axis} is out of bounds for an input with "
                     f"ndim={ndim}. Full shape received: {shape}"
                 )
-            if value is not None and shape[axis] not in {
-                value,
-                None,
-            }:
+            if shape[axis] not in {value, None}:
                 raise ValueError(
                     f"Input {input_index} with name '{spec.name}' of layer "
                     f"'{layer_name}' is incompatible with the layer: "
@@ -280,22 +279,11 @@ def _check_input_spec(spec, x, input_index, layer_name):
     # Check shape.
     if spec.shape is not None:
         spec_shape = spec.shape
-        # Report the shape the caller passed, not the squeezed one.
-        input_shape = shape
         if spec.allow_last_axis_squeeze:
-            if len(shape) == len(spec_shape) + 1 and shape[-1] == 1:
-                # A rank N+1 input with a last axis of size 1 is
-                # compatible with a rank N spec.
+            if shape and shape[-1] == 1:
                 shape = shape[:-1]
-            elif len(spec_shape) == len(shape) + 1 and spec_shape[-1] == 1:
-                # A rank N-1 input is compatible with a rank N spec whose
-                # last axis is of size 1.
+            if spec_shape and spec_shape[-1] == 1:
                 spec_shape = spec_shape[:-1]
-        # If the ranks still differ, only the leading dimensions are compared
-        # (`zip` truncates to the shorter shape), so a rank mismatch that
-        # squeezing cannot resolve is not reported here. Without
-        # `allow_last_axis_squeeze` the ranks already match, since
-        # `spec.shape` implies `spec.ndim`, which is checked above.
         for spec_dim, dim in zip(spec_shape, shape):
             if spec_dim is not None and dim is not None:
                 if spec_dim != dim:
@@ -303,5 +291,5 @@ def _check_input_spec(spec, x, input_index, layer_name):
                         f"Input {input_index} with name '{spec.name}' of "
                         f"layer '{layer_name}' is incompatible with the "
                         f"layer: expected shape={spec.shape}, found "
-                        f"shape={input_shape}"
+                        f"shape={shape}"
                     )

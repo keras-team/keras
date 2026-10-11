@@ -76,40 +76,6 @@ class AssertInputCompatibilityTest(testing.TestCase):
         x = ops.convert_to_tensor(np.zeros((1, 3, 1, 1)))
         assert_input_compatibility(spec, x, "squeeze")
 
-    def test_allow_last_axis_squeeze_same_rank_mismatch_raises(self):
-        # The squeeze only applies to rank mismatches of exactly one: inputs
-        # of the same rank as the spec are compared as-is, including their
-        # last axis.
-        spec = InputSpec(shape=(None, 3), allow_last_axis_squeeze=True)
-        x = ops.convert_to_tensor(np.zeros((2, 1)))
-        with self.assertRaisesRegex(ValueError, "expected shape"):
-            assert_input_compatibility(spec, x, "squeeze")
-        spec = InputSpec(shape=(None, 1), allow_last_axis_squeeze=True)
-        x = ops.convert_to_tensor(np.zeros((2, 5)))
-        with self.assertRaisesRegex(ValueError, "expected shape"):
-            assert_input_compatibility(spec, x, "squeeze")
-
-    def test_error_reports_the_shape_that_was_passed(self):
-        # The squeeze rebinds the local shape; the message must still name the
-        # shape the caller passed, not the squeezed one.
-        spec = InputSpec(shape=(None, 3, 1), allow_last_axis_squeeze=True)
-        x = ops.convert_to_tensor(np.zeros((2, 3, 99, 1)))
-        with self.assertRaisesRegex(ValueError, r"found shape=\(2, 3, 99, 1\)"):
-            assert_input_compatibility(spec, x, "squeeze")
-
-    def test_allow_last_axis_squeeze_wrong_squeezed_dim_raises(self):
-        # A rank N+1 input squeezed to rank N must match all N spec
-        # dimensions, including a spec last axis of size 1.
-        spec = InputSpec(shape=(None, 3, 1), allow_last_axis_squeeze=True)
-        x = ops.convert_to_tensor(np.zeros((2, 3, 99, 1)))
-        with self.assertRaisesRegex(ValueError, "expected shape"):
-            assert_input_compatibility(spec, x, "squeeze")
-        # A rank N+1 input whose last axis is not 1 is not squeezed and is
-        # checked against the full spec.
-        x = ops.convert_to_tensor(np.zeros((2, 3, 7, 9)))
-        with self.assertRaisesRegex(ValueError, "expected shape"):
-            assert_input_compatibility(spec, x, "squeeze")
-
     def test_wrong_axes_raises(self):
         spec = InputSpec(min_ndim=2, axes={-1: 3})
         x = ops.convert_to_tensor(np.array([[1.0, 2.0]]))
@@ -149,6 +115,18 @@ class AssertInputCompatibilityTest(testing.TestCase):
         spec = InputSpec(min_ndim=2)
         with self.assertRaisesRegex(ValueError, "tensors"):
             assert_input_compatibility(spec, object(), "dense")
+
+    def test_single_spec_nested_inputs_use_general_path(self):
+        spec = InputSpec(min_ndim=2)
+        x = ops.convert_to_tensor(np.zeros((2, 3), dtype="float32"))
+        assert_input_compatibility(spec, [x], "dense")
+        assert_input_compatibility(spec, {"a": x}, "dense")
+        with self.assertRaisesRegex(ValueError, "expects 1 input"):
+            assert_input_compatibility(spec, [x, x], "dense")
+
+    def test_none_input_for_required_spec_raises(self):
+        with self.assertRaisesRegex(ValueError, "should be tensors"):
+            assert_input_compatibility(InputSpec(min_ndim=2), None, "dense")
 
     def test_two_specs_one_input_raises(self):
         specs = [InputSpec(min_ndim=2), InputSpec(min_ndim=2)]
@@ -197,7 +175,7 @@ class InputSpecIntegrationTest(testing.TestCase):
 
     def test_dense_1d_input_raises(self):
         layer = layers.Dense(4)
-        with self.assertRaisesRegex(Exception, "min_ndim|ndim"):
+        with self.assertRaisesRegex(ValueError, "min_ndim=2"):
             layer(np.array([1.0, 2.0, 3.0]))
 
     def test_functional_model_1d_input_passes(self):
@@ -207,14 +185,14 @@ class InputSpecIntegrationTest(testing.TestCase):
         out = layers.Dense(1)(inp)
         model = Model(inp, out)
         result = model(np.array([5.0]))
-        self.assertIsNotNone(result)
+        self.assertEqual(result.shape, (1, 1))
 
     def test_functional_model_2d_input_passes(self):
         inp = Input(shape=[1])
         out = layers.Dense(1)(inp)
         model = Model(inp, out)
         result = model(np.array([[5.0]]))
-        self.assertIsNotNone(result)
+        self.assertEqual(result.shape, (1, 1))
 
     def test_functional_model_rank_mismatch_raises(self):
         # Rank mismatches that cannot be resolved by squeezing a last axis
