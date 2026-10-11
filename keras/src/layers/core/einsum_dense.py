@@ -667,7 +667,9 @@ def _analyze_einsum_string(equation, bias_axes, input_shape, output_shape):
             `output_axes`: The axes representing output units.
 
     Raises:
-        ValueError: If the einsum `equation` is not in a supported format.
+        ValueError: If the einsum `equation` is not in a supported format, or
+            if the `ndim` of `input_shape` does not fit the input labels of
+            the `equation`.
     """
 
     dot_replaced_string = re.sub(r"\.\.\.", "0", equation)
@@ -677,6 +679,9 @@ def _analyze_einsum_string(equation, bias_axes, input_shape, output_shape):
         "([a-zA-Z]+),([a-zA-Z]+)->([a-zA-Z]+)", dot_replaced_string
     )
     if split_string:
+        _check_input_ndim(
+            equation, input_shape, split_string.group(1), exact=True
+        )
         return _analyze_split_string(
             split_string, bias_axes, input_shape, output_shape
         )
@@ -686,6 +691,7 @@ def _analyze_einsum_string(equation, bias_axes, input_shape, output_shape):
         "0([a-zA-Z]+),([a-zA-Z]+)->0([a-zA-Z]+)", dot_replaced_string
     )
     if split_string:
+        _check_input_ndim(equation, input_shape, split_string.group(1))
         return _analyze_split_string(
             split_string, bias_axes, input_shape, output_shape, left_elided=True
         )
@@ -695,6 +701,7 @@ def _analyze_einsum_string(equation, bias_axes, input_shape, output_shape):
         "([a-zA-Z]{2,})0,([a-zA-Z]+)->([a-zA-Z]+)0", dot_replaced_string
     )
     if split_string:
+        _check_input_ndim(equation, input_shape, split_string.group(1))
         return _analyze_split_string(
             split_string, bias_axes, input_shape, output_shape
         )
@@ -729,6 +736,34 @@ def _split_equation(equation):
     raise ValueError(
         f"Invalid einsum equation '{equation}'. Equations must be in the form "
         "[X],[Y]->[Z], ...[X],[Y]->...[Z], or [X]...,[Y]->[Z]...."
+    )
+
+
+def _check_input_ndim(equation, input_shape, input_spec, exact=False):
+    """Checks that the input `ndim` can hold the labels of the input spec.
+
+    An equation without an ellipsis labels every input axis, so `ndim` must
+    match the number of labels. An equation with an ellipsis labels only some
+    of the axes, so `ndim` must be at least the number of labels.
+
+    Args:
+        equation: The einsum equation string, used in the error message.
+        input_shape: The shape of the input tensor.
+        input_spec: The input labels of the equation, without the ellipsis.
+        exact: A boolean indicating if `ndim` must equal the number of
+            labels instead of being at least that number.
+
+    Raises:
+        ValueError: If the `ndim` of `input_shape` does not fit `input_spec`.
+    """
+    ndim = len(input_shape)
+    num_labels = len(input_spec)
+    if ndim == num_labels or (ndim > num_labels and not exact):
+        return
+    expected = f"ndim={num_labels}" if exact else f"min_ndim={num_labels}"
+    raise ValueError(
+        f"The einsum equation '{equation}' expects an input with {expected}, "
+        f"but received input shape {tuple(input_shape)} with ndim={ndim}."
     )
 
 
