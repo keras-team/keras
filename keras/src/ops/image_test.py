@@ -8,12 +8,12 @@ import tensorflow as tf
 from absl.testing import parameterized
 
 from keras.src import backend
+from keras.src import random as krandom
 from keras.src import testing
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import image as kimage
 from keras.src.ops import numpy as knp
-from keras.src.ops import random as krandom
 from keras.src.testing.test_utils import named_product
 
 
@@ -2026,6 +2026,34 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             out_np[0, 15:, :, :], np.ones((5, 10, 3)) * fill_value
         )
+
+    @parameterized.named_parameters(
+        named_product(
+            dtype=["uint8", "int32"],
+            fill_value=[0.0, 10.0],
+        )
+    )
+    def test_resize_pad_to_aspect_ratio_integer_dtype(self, dtype, fill_value):
+        x = np.random.randint(0, 255, size=(2, 60, 30, 3), dtype=dtype)
+        out = kimage.resize(
+            x,
+            size=(15, 15),
+            pad_to_aspect_ratio=True,
+            fill_value=fill_value,
+        )
+        self.assertEqual(out.shape, (2, 15, 15, 3))
+        self.assertEqual(backend.standardize_dtype(out.dtype), dtype)
+
+        # 3D unbatched input
+        x_3d = np.random.randint(0, 255, size=(60, 30, 3), dtype=dtype)
+        out_3d = kimage.resize(
+            x_3d,
+            size=(15, 15),
+            pad_to_aspect_ratio=True,
+            fill_value=fill_value,
+        )
+        self.assertEqual(out_3d.shape, (15, 15, 3))
+        self.assertEqual(backend.standardize_dtype(out_3d.dtype), dtype)
 
     @parameterized.named_parameters(
         ("zero_height", (0, 10)),

@@ -11,6 +11,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
+from keras.src import random
 from keras.src import saving
 from keras.src import testing
 from keras.src.quantizers.gptq import GPTQ
@@ -438,7 +439,7 @@ class GPTQTest(testing.TestCase):
         )
 
         # Generate a Hessian that creates a non-trivial permutation.
-        hessian_diag = ops.random.shuffle(
+        hessian_diag = random.shuffle(
             ops.linspace(10.0, 1.0, in_features, dtype="float32")
         )
         hessian_matrix = ops.diag(hessian_diag)

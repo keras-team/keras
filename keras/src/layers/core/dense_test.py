@@ -1042,6 +1042,35 @@ class DenseTest(testing.TestCase):
         )
         self.assertAllClose(layer.kernel, expected)
 
+    @parameterized.named_parameters(
+        ("float8", "float8"), ("ternary", "ternary")
+    )
+    def test_modes_without_lora_support_refuse_lora(self, mode):
+        # The float8 forward pass has no term for a LoRA update, and
+        # re-ternarizing a merged save is not idempotent. LoRA is refused
+        # in either order, before the layer changes.
+        message = f"lora is not currently supported with {mode.upper()}"
+        layer = layers.Dense(4)
+        layer.build((None, 3))
+        layer.quantize(mode)
+        with self.assertRaisesRegex(NotImplementedError, message):
+            layer.enable_lora(2)
+        self.assertFalse(layer.lora_enabled)
+
+        layer = layers.Dense(4)
+        layer.build((None, 3))
+        layer.enable_lora(2)
+        with self.assertRaisesRegex(NotImplementedError, message):
+            layer.quantize(mode)
+        self.assertIsNone(layer.quantization_mode)
+        self.assertIsNone(layer.quantization_config)
+
+        # `model.quantize` skips such a layer as unsupported.
+        model = models.Sequential([layers.Input((3,)), layer])
+        report = model.quantize(mode, verbose=False)
+        self.assertIsNone(layer.quantization_mode)
+        self.assertEqual(report.skipped, [(layer.path, report.SKIP_NO_SUPPORT)])
+
     def test_legacy_load_own_variables(self):
         # In previous versions, `load_own_variables` accepted a store with
         # numeric keys.

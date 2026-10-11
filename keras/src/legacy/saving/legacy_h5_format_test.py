@@ -7,6 +7,7 @@ import keras
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
+from keras.src import random
 from keras.src import testing
 from keras.src.legacy.saving import legacy_h5_format
 from keras.src.saving import object_registration
@@ -154,8 +155,8 @@ class LegacyH5WholeModelTest(testing.TestCase):
         self.assertEqual(model.get_compile_config(), compile_config)
 
     def test_saving_lambda(self):
-        mean = ops.random.uniform((4, 2, 3))
-        std = ops.abs(ops.random.uniform((4, 2, 3))) + 1e-5
+        mean = random.uniform((4, 2, 3))
+        std = ops.abs(random.uniform((4, 2, 3))) + 1e-5
         inputs = layers.Input(shape=(4, 2, 3))
         output = layers.Lambda(
             lambda image, mu, std: (image - mu) / std,

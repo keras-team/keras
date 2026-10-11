@@ -113,8 +113,6 @@ class DynamicBackend:
             module = importlib.import_module("keras.src.backend.torch")
         elif self._backend == "numpy":
             module = importlib.import_module("keras.src.backend.numpy")
-        elif self._backend == "openvino":
-            module = importlib.import_module("keras.src.backend.openvino")
         else:
             module = get_pluggable_backend_module("src", backend=self._backend)
 
