@@ -2062,6 +2062,67 @@ class NNOpsCorrectnessTest(testing.TestCase):
         )
         self.assertAllClose(outputs, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
 
+    def test_conv_channels_first_cpu(self):
+        # Regression test for #23650: channels_first 1D and 2D convolutions
+        # previously failed on TensorFlow CPU because the NHWC-only CPU
+        # kernel was used.
+        inputs_1d = np.arange(48, dtype=float).reshape((2, 3, 8))
+        kernel_1d = np.arange(24, dtype=float).reshape([4, 3, 2])
+        outputs_1d = knn.conv(
+            inputs_1d,
+            kernel_1d,
+            strides=1,
+            padding="valid",
+            data_format="channels_first",
+        )
+        expected_1d = np_conv1d(
+            inputs_1d,
+            kernel_1d,
+            bias_weights=np.zeros((2,)),
+            strides=1,
+            padding="valid",
+            data_format="channels_first",
+            dilation_rate=1,
+            groups=1,
+        )
+        self.assertAllClose(outputs_1d, expected_1d)
+
+        inputs_2d = np.arange(150, dtype=float).reshape((2, 3, 5, 5))
+        kernel_2d = np.arange(24, dtype=float).reshape([2, 2, 3, 2])
+        outputs_2d = knn.conv(
+            inputs_2d,
+            kernel_2d,
+            strides=1,
+            padding="same",
+            data_format="channels_first",
+        )
+        expected_2d = np_conv2d(
+            inputs_2d,
+            kernel_2d,
+            bias_weights=np.zeros((2,)),
+            strides=1,
+            padding="same",
+            data_format="channels_first",
+            dilation_rate=1,
+            groups=1,
+        )
+        self.assertAllClose(outputs_2d, expected_2d)
+
+        inputs_3d = np.arange(2 * 3 * 4 * 4 * 4, dtype=float).reshape(
+            (2, 3, 4, 4, 4)
+        )
+        kernel_3d = np.arange(3 * 3 * 3 * 3 * 2, dtype=float).reshape(
+            [3, 3, 3, 3, 2]
+        )
+        outputs_3d = knn.conv(
+            inputs_3d,
+            kernel_3d,
+            strides=1,
+            padding="valid",
+            data_format="channels_first",
+        )
+        self.assertEqual(outputs_3d.shape, (2, 2, 2, 2, 2))
+
     @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only")
     def test_torch_channels_last_pointwise_conv_direct_path(self):
         from keras.src.backend.torch.ops import nn as torch_nn
