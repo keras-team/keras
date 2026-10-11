@@ -8,12 +8,12 @@ import tensorflow as tf
 from absl.testing import parameterized
 
 from keras.src import backend
+from keras.src import random as krandom
 from keras.src import testing
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import image as kimage
 from keras.src.ops import numpy as knp
-from keras.src.ops import random as krandom
 from keras.src.testing.test_utils import named_product
 
 
@@ -1679,14 +1679,6 @@ class ImageOpsCorrectnessTest(testing.TestCase):
                     f"Received: interpolation={interpolation}, "
                     f"antialias={antialias}."
                 )
-        elif backend.backend() == "openvino":
-            if interpolation == "bicubic":
-                self.skipTest(
-                    "Resizing with Bicubic interpolation does not match "
-                    "TensorFlow strict numeric parity in the OpenVINO "
-                    "backend, so this parity test is skipped. "
-                    f"Received: interpolation={interpolation}."
-                )
 
     @parameterized.named_parameters(
         named_product(
@@ -2034,6 +2026,34 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             out_np[0, 15:, :, :], np.ones((5, 10, 3)) * fill_value
         )
+
+    @parameterized.named_parameters(
+        named_product(
+            dtype=["uint8", "int32"],
+            fill_value=[0.0, 10.0],
+        )
+    )
+    def test_resize_pad_to_aspect_ratio_integer_dtype(self, dtype, fill_value):
+        x = np.random.randint(0, 255, size=(2, 60, 30, 3), dtype=dtype)
+        out = kimage.resize(
+            x,
+            size=(15, 15),
+            pad_to_aspect_ratio=True,
+            fill_value=fill_value,
+        )
+        self.assertEqual(out.shape, (2, 15, 15, 3))
+        self.assertEqual(backend.standardize_dtype(out.dtype), dtype)
+
+        # 3D unbatched input
+        x_3d = np.random.randint(0, 255, size=(60, 30, 3), dtype=dtype)
+        out_3d = kimage.resize(
+            x_3d,
+            size=(15, 15),
+            pad_to_aspect_ratio=True,
+            fill_value=fill_value,
+        )
+        self.assertEqual(out_3d.shape, (15, 15, 3))
+        self.assertEqual(backend.standardize_dtype(out_3d.dtype), dtype)
 
     @parameterized.named_parameters(
         ("zero_height", (0, 10)),
@@ -3383,6 +3403,44 @@ class ImageOpsBehaviorTests(testing.TestCase):
         ):
             kimage.affine_transform(images, invalid_transform)
 
+    def test_affine_transform_invalid_transform_shape(self):
+        # Test last dimension 6, rank 1
+        images = np.random.uniform(size=(10, 10, 3))
+        invalid_transform = np.random.uniform(size=(6,))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid transform shape: expected the last dimension"
+        ):
+            kimage.affine_transform(images, invalid_transform)
+        with self.assertRaisesRegex(
+            ValueError, "Invalid transform shape: expected the last dimension"
+        ):
+            kimage.AffineTransform()(images, invalid_transform)
+
+        # Test last dimension 9, rank 2
+        images = np.random.uniform(size=(2, 10, 10, 3))
+        invalid_transform = np.random.uniform(size=(2, 9))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid transform shape: expected the last dimension"
+        ):
+            kimage.affine_transform(images, invalid_transform)
+        with self.assertRaisesRegex(
+            ValueError, "Invalid transform shape: expected the last dimension"
+        ):
+            kimage.AffineTransform()(images, invalid_transform)
+
+        # Test last dimension 6, symbolic tensor
+        images = KerasTensor(shape=(None, 10, 10, 3))
+        invalid_transform = KerasTensor(shape=(None, 6))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid transform shape: expected the last dimension"
+        ):
+            kimage.affine_transform(images, invalid_transform)
+
+        # Test unknown last dimension, symbolic tensor
+        transform = KerasTensor(shape=(None, None))
+        out = kimage.affine_transform(images, transform)
+        self.assertEqual(out.shape, (None, 10, 10, 3))
+
     def test_extract_patches_invalid_size(self):
         size = "5"  # Invalid size type
         image = np.random.uniform(size=(2, 20, 20, 3))
@@ -3883,12 +3941,6 @@ class ExtractPatches3DTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_extract_patches_3d_value_check(self, dtype):
-        if dtype == "bfloat16" and backend.backend() == "openvino":
-            self.skipTest(
-                "OpenVINO's bfloat16 fails this test, "
-                "possibly due to precision. "
-                "Should be revisited."
-            )
         volume = np.arange(8 * 8 * 8).reshape(1, 8, 8, 8, 1)
         volume = volume.astype(dtype)
         patches = kimage.extract_patches_3d(

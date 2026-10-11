@@ -4,7 +4,7 @@ on:
   push:
     branches: [master]
   pull_request:
-    types: [unlabeled]
+    types: [labeled, synchronize]
   release:
     types: [created]
 
@@ -12,17 +12,35 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  # One group per PR for the run-gpu-tpu-tests label and for pushes, so a push
+  # cancels a stale in-progress run. Any other label gets its own group and
+  # can never cancel a live run. On push/release head_ref is empty, so the
+  # key falls back to run_id and master runs are never cancelled.
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}-${{ github.event.action == 'labeled' && github.event.label.name || 'run-gpu-tpu-tests' }}
   cancel-in-progress: true
 
 jobs:
 
+  cancel_stale:
+    # A push to a PR claims this PR's concurrency group, which cancels a run
+    # still going for the previous commit. It deliberately does not re-run
+    # the tests: add the run-gpu-tpu-tests label again to test the new commit.
+    # A real job is needed here; a run whose jobs are all skipped is not
+    # guaranteed to cancel anything.
+    name: Cancel stale run
+    if: github.event.action == 'synchronize'
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: echo "Superseded by ${HEAD_SHA}"
+
   test-in-container:
-    # Only run on pushes to master, releases or "kokoro:force-run" unlabel
+    # Only run on pushes to master, releases or when "run-gpu-tpu-tests" is added
     if: |
       github.event_name == 'push' ||
       github.event_name == 'release' ||
-      (github.event.action == 'unlabeled' && github.event.label.name == 'kokoro:force-run')
+      (github.event.action == 'labeled' && github.event.label.name == 'run-gpu-tpu-tests')
 
     strategy:
       fail-fast: false

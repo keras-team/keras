@@ -1,4 +1,4 @@
-from keras.src import ops
+from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.optimizers import optimizer
 
@@ -83,6 +83,21 @@ class RMSprop(optimizer.Optimizer):
             name=name,
             **kwargs,
         )
+        if not 0 <= rho <= 1:
+            raise ValueError(
+                "Argument `rho` must be in the range [0, 1]. "
+                f"Received: rho={rho}"
+            )
+        if not 0 <= momentum <= 1:
+            raise ValueError(
+                "Argument `momentum` must be in the range [0, 1]. "
+                f"Received: momentum={momentum}"
+            )
+        if epsilon <= 0:
+            raise ValueError(
+                "Argument `epsilon` must be positive. "
+                f"Received: epsilon={epsilon}"
+            )
         self.rho = rho
         self.momentum = momentum
         self.epsilon = epsilon
@@ -108,8 +123,8 @@ class RMSprop(optimizer.Optimizer):
 
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
-        lr = ops.cast(learning_rate, variable.dtype)
-        gradient = ops.cast(gradient, variable.dtype)
+        lr = backend.ops.cast(learning_rate, variable.dtype)
+        gradient = backend.ops.cast(gradient, variable.dtype)
 
         velocity = self._velocities[self._get_variable_index(variable)]
         momentum = None
@@ -125,29 +140,37 @@ class RMSprop(optimizer.Optimizer):
 
         self.assign(
             velocity,
-            ops.add(
-                ops.multiply(rho, velocity),
-                ops.multiply(1 - rho, ops.square(gradient)),
+            backend.ops.numpy.add(
+                backend.ops.numpy.multiply(rho, velocity),
+                backend.ops.numpy.multiply(
+                    1 - rho, backend.ops.numpy.square(gradient)
+                ),
             ),
         )
         if self.centered:
             self.assign(
                 average_grad,
-                ops.add(
-                    ops.multiply(rho, average_grad),
-                    ops.multiply(1 - rho, gradient),
+                backend.ops.numpy.add(
+                    backend.ops.numpy.multiply(rho, average_grad),
+                    backend.ops.numpy.multiply(1 - rho, gradient),
                 ),
             )
-            denominator = velocity - ops.square(average_grad) + self.epsilon
+            denominator = (
+                velocity - backend.ops.numpy.square(average_grad) + self.epsilon
+            )
         else:
-            denominator = ops.add(velocity, self.epsilon)
-        increment = ops.divide(
-            ops.multiply(lr, gradient), ops.sqrt(denominator)
+            denominator = backend.ops.numpy.add(velocity, self.epsilon)
+        increment = backend.ops.numpy.divide(
+            backend.ops.numpy.multiply(lr, gradient),
+            backend.ops.numpy.sqrt(denominator),
         )
         if self.momentum > 0:
             self.assign(
                 momentum,
-                ops.add(ops.multiply(self.momentum, momentum), increment),
+                backend.ops.numpy.add(
+                    backend.ops.numpy.multiply(self.momentum, momentum),
+                    increment,
+                ),
             )
             self.assign_sub(variable, momentum)
         else:

@@ -11,6 +11,7 @@ from keras.src import losses
 from keras.src import models
 from keras.src import ops
 from keras.src import optimizers
+from keras.src import random
 from keras.src import testing
 from keras.src import tree
 from keras.src.backend.common import dtypes
@@ -1331,7 +1332,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertNotEqual(model.layers[0].b.numpy(), 0.0)
 
     def test_stop_gradient_no_fit(self):
-        x = ops.random.uniform(shape=(2, 4), dtype="float32")
+        x = random.uniform(shape=(2, 4), dtype="float32")
         y = ops.stop_gradient(x)
         self.assertAllClose(x, y)
 

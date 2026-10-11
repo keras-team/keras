@@ -1,7 +1,6 @@
 import numpy as np
 import scipy.signal
 
-from conftest import skip_if_backend
 from keras.src import backend
 from keras.src import initializers
 from keras.src import testing
@@ -58,7 +57,6 @@ class ConstantInitializersTest(testing.TestCase):
 
         self.run_class_serialization_test(initializer)
 
-    @skip_if_backend("openvino", "openvino backend does not support `eye`")
     def test_identity_initializer(self):
         shape = (3, 3)
         gain = 2
@@ -71,11 +69,19 @@ class ConstantInitializersTest(testing.TestCase):
 
         self.run_class_serialization_test(initializer)
 
+        # `run_class_serialization_test` compares config to config, so a
+        # `gain` missing from `get_config` matches on both sides. Check that
+        # the restored initializer produces the same matrix.
+        self.assertEqual(initializer.get_config()["gain"], gain)
+        revived = initializers.Identity.from_config(initializer.get_config())
+        self.assertAllClose(
+            backend.ops.convert_to_numpy(revived(shape=shape)), np_values
+        )
+
         # Test compatible class_name
         initializer = initializers.get("IdentityInitializer")
         self.assertIsInstance(initializer, initializers.Identity)
 
-    @skip_if_backend("openvino", "openvino backend does not support `arange`")
     def test_stft_initializer(self):
         shape = (256, 1, 513)
         time_range = np.arange(256).reshape((-1, 1, 1))
