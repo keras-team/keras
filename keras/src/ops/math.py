@@ -3,7 +3,6 @@
 import math as python_math
 
 from keras.src import backend
-from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
@@ -51,7 +50,7 @@ class SegmentReduction(Operation):
 class SegmentSum(SegmentReduction):
     def call(self, data, segment_ids):
         _segment_reduce_validation(data, segment_ids)
-        return backend.math.segment_sum(
+        return backend.ops.math.segment_sum(
             data,
             segment_ids,
             num_segments=self.num_segments,
@@ -89,7 +88,7 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
     _segment_reduce_validation(data, segment_ids)
     if any_symbolic_tensors((data,)):
         return SegmentSum(num_segments, sorted).symbolic_call(data, segment_ids)
-    return backend.math.segment_sum(
+    return backend.ops.math.segment_sum(
         data, segment_ids, num_segments=num_segments, sorted=sorted
     )
 
@@ -97,7 +96,7 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
 class SegmentMax(SegmentReduction):
     def call(self, data, segment_ids):
         _segment_reduce_validation(data, segment_ids)
-        return backend.math.segment_max(
+        return backend.ops.math.segment_max(
             data,
             segment_ids,
             num_segments=self.num_segments,
@@ -134,7 +133,7 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
     _segment_reduce_validation(data, segment_ids)
     if any_symbolic_tensors((data,)):
         return SegmentMax(num_segments, sorted).symbolic_call(data, segment_ids)
-    return backend.math.segment_max(
+    return backend.ops.math.segment_max(
         data, segment_ids, num_segments=num_segments, sorted=sorted
     )
 
@@ -142,7 +141,7 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
 class SegmentMin(SegmentReduction):
     def call(self, data, segment_ids):
         _segment_reduce_validation(data, segment_ids)
-        return backend.math.segment_min(
+        return backend.ops.math.segment_min(
             data,
             segment_ids,
             num_segments=self.num_segments,
@@ -179,7 +178,7 @@ def segment_min(data, segment_ids, num_segments=None, sorted=False):
     _segment_reduce_validation(data, segment_ids)
     if any_symbolic_tensors((data,)):
         return SegmentMin(num_segments, sorted).symbolic_call(data, segment_ids)
-    return backend.math.segment_min(
+    return backend.ops.math.segment_min(
         data, segment_ids, num_segments=num_segments, sorted=sorted
     )
 
@@ -187,7 +186,7 @@ def segment_min(data, segment_ids, num_segments=None, sorted=False):
 class SegmentProd(SegmentReduction):
     def call(self, data, segment_ids):
         _segment_reduce_validation(data, segment_ids)
-        return backend.math.segment_prod(
+        return backend.ops.math.segment_prod(
             data,
             segment_ids,
             num_segments=self.num_segments,
@@ -228,7 +227,7 @@ def segment_prod(data, segment_ids, num_segments=None, sorted=False):
             num_segments,
             sorted,
         ).symbolic_call(data, segment_ids)
-    return backend.math.segment_prod(
+    return backend.ops.math.segment_prod(
         data, segment_ids, num_segments=num_segments, sorted=sorted
     )
 
@@ -250,7 +249,7 @@ class TopK(Operation):
         )
 
     def call(self, x):
-        return backend.math.top_k(
+        return backend.ops.math.top_k(
             x, self.k, sorted=self.sorted, is_stable=self.is_stable
         )
 
@@ -284,7 +283,7 @@ def top_k(x, k, sorted=True, is_stable=True):
     """
     if any_symbolic_tensors((x,)):
         return TopK(k, sorted=sorted, is_stable=is_stable).symbolic_call(x)
-    return backend.math.top_k(x, k, sorted=sorted, is_stable=is_stable)
+    return backend.ops.math.top_k(x, k, sorted=sorted, is_stable=is_stable)
 
 
 class InTopK(Operation):
@@ -296,7 +295,7 @@ class InTopK(Operation):
         return KerasTensor(shape=targets.shape, dtype="bool")
 
     def call(self, targets, predictions):
-        return backend.math.in_top_k(targets, predictions, self.k)
+        return backend.ops.math.in_top_k(targets, predictions, self.k)
 
 
 @keras_export("keras.ops.in_top_k")
@@ -324,7 +323,7 @@ def in_top_k(targets, predictions, k):
     """
     if any_symbolic_tensors((targets, predictions)):
         return InTopK(k).symbolic_call(targets, predictions)
-    return backend.math.in_top_k(targets, predictions, k)
+    return backend.ops.math.in_top_k(targets, predictions, k)
 
 
 class Logsumexp(Operation):
@@ -340,7 +339,9 @@ class Logsumexp(Operation):
         )
 
     def call(self, x):
-        return backend.math.logsumexp(x, axis=self.axis, keepdims=self.keepdims)
+        return backend.ops.math.logsumexp(
+            x, axis=self.axis, keepdims=self.keepdims
+        )
 
 
 @keras_export("keras.ops.logsumexp")
@@ -367,16 +368,16 @@ def logsumexp(x, axis=None, keepdims=False):
     """
     if any_symbolic_tensors((x,)):
         return Logsumexp(axis, keepdims).symbolic_call(x)
-    return backend.math.logsumexp(x, axis=axis, keepdims=keepdims)
+    return backend.ops.math.logsumexp(x, axis=axis, keepdims=keepdims)
 
 
 class CDist(Operation):
     def call(self, x, y):
-        diff = backend.numpy.expand_dims(x, -2) - backend.numpy.expand_dims(
-            y, -3
-        )
-        return backend.numpy.sqrt(
-            backend.numpy.sum(backend.numpy.square(diff), axis=-1)
+        diff = backend.ops.numpy.expand_dims(
+            x, -2
+        ) - backend.ops.numpy.expand_dims(y, -3)
+        return backend.ops.numpy.sqrt(
+            backend.ops.numpy.sum(backend.ops.numpy.square(diff), axis=-1)
         )
 
     def compute_output_spec(self, x, y):
@@ -432,7 +433,7 @@ def cdist(x, y):
     """
     if any_symbolic_tensors((x, y)):
         return CDist().symbolic_call(x, y)
-    return backend.math.cdist(x, y)
+    return backend.ops.math.cdist(x, y)
 
 
 class ExtractSequences(Operation):
@@ -457,7 +458,7 @@ class ExtractSequences(Operation):
         return KerasTensor(shape=new_shape, dtype=x.dtype)
 
     def call(self, x):
-        return backend.math.extract_sequences(
+        return backend.ops.math.extract_sequences(
             x,
             sequence_length=self.sequence_length,
             sequence_stride=self.sequence_stride,
@@ -496,7 +497,9 @@ def extract_sequences(x, sequence_length, sequence_stride):
         return ExtractSequences(sequence_length, sequence_stride).symbolic_call(
             x
         )
-    return backend.math.extract_sequences(x, sequence_length, sequence_stride)
+    return backend.ops.math.extract_sequences(
+        x, sequence_length, sequence_stride
+    )
 
 
 class FFT(Operation):
@@ -538,7 +541,7 @@ class FFT(Operation):
         )
 
     def call(self, x):
-        return backend.math.fft(x)
+        return backend.ops.math.fft(x)
 
 
 @keras_export("keras.ops.fft")
@@ -564,7 +567,7 @@ def fft(x):
     """
     if any_symbolic_tensors(x):
         return FFT().symbolic_call(x)
-    return backend.math.fft(x)
+    return backend.ops.math.fft(x)
 
 
 class FFT2(Operation):
@@ -607,7 +610,7 @@ class FFT2(Operation):
         )
 
     def call(self, x):
-        return backend.math.fft2(x)
+        return backend.ops.math.fft2(x)
 
 
 @keras_export("keras.ops.fft2")
@@ -635,7 +638,7 @@ def fft2(x):
     """
     if any_symbolic_tensors(x):
         return FFT2().symbolic_call(x)
-    return backend.math.fft2(x)
+    return backend.ops.math.fft2(x)
 
 
 class Gammainc(Operation):
@@ -647,7 +650,7 @@ class Gammainc(Operation):
         )
 
     def call(self, x1, x2):
-        return backend.math.gammainc(x1, x2)
+        return backend.ops.math.gammainc(x1, x2)
 
 
 @keras_export("keras.ops.gammainc")
@@ -675,7 +678,7 @@ def gammainc(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Gammainc().symbolic_call(x1, x2)
-    return backend.math.gammainc(x1, x2)
+    return backend.ops.math.gammainc(x1, x2)
 
 
 class IFFT2(Operation):
@@ -718,7 +721,7 @@ class IFFT2(Operation):
         )
 
     def call(self, x):
-        return backend.math.ifft2(x)
+        return backend.ops.math.ifft2(x)
 
 
 @keras_export("keras.ops.ifft2")
@@ -747,7 +750,7 @@ def ifft2(x):
     """
     if any_symbolic_tensors(x):
         return IFFT2().symbolic_call(x)
-    return backend.math.ifft2(x)
+    return backend.ops.math.ifft2(x)
 
 
 class RFFT(Operation):
@@ -778,7 +781,7 @@ class RFFT(Operation):
         )
 
     def call(self, x):
-        return backend.math.rfft(x, fft_length=self.fft_length)
+        return backend.ops.math.rfft(x, fft_length=self.fft_length)
 
 
 @keras_export("keras.ops.rfft")
@@ -818,7 +821,7 @@ def rfft(x, fft_length=None):
     """
     if any_symbolic_tensors((x,)):
         return RFFT(fft_length).symbolic_call(x)
-    return backend.math.rfft(x, fft_length)
+    return backend.ops.math.rfft(x, fft_length)
 
 
 class IRFFT(Operation):
@@ -859,7 +862,7 @@ class IRFFT(Operation):
         return KerasTensor(shape=new_shape, dtype=real.dtype)
 
     def call(self, x):
-        return backend.math.irfft(x, fft_length=self.fft_length)
+        return backend.ops.math.irfft(x, fft_length=self.fft_length)
 
 
 @keras_export("keras.ops.irfft")
@@ -903,7 +906,7 @@ def irfft(x, fft_length=None):
     """
     if any_symbolic_tensors(x):
         return IRFFT(fft_length).symbolic_call(x)
-    return backend.math.irfft(x, fft_length)
+    return backend.ops.math.irfft(x, fft_length)
 
 
 class STFT(Operation):
@@ -941,7 +944,7 @@ class STFT(Operation):
         )
 
     def call(self, x):
-        return backend.math.stft(
+        return backend.ops.math.stft(
             x,
             sequence_length=self.sequence_length,
             sequence_stride=self.sequence_stride,
@@ -1003,7 +1006,7 @@ def stft(
             window=window,
             center=center,
         ).symbolic_call(x)
-    return backend.math.stft(
+    return backend.ops.math.stft(
         x,
         sequence_length=sequence_length,
         sequence_stride=sequence_stride,
@@ -1069,7 +1072,7 @@ class ISTFT(Operation):
         return KerasTensor(shape=new_shape, dtype=real.dtype)
 
     def call(self, x):
-        return backend.math.istft(
+        return backend.ops.math.istft(
             x,
             sequence_length=self.sequence_length,
             sequence_stride=self.sequence_stride,
@@ -1137,7 +1140,7 @@ def istft(
             window=window,
             center=center,
         ).symbolic_call(x)
-    return backend.math.istft(
+    return backend.ops.math.istft(
         x,
         sequence_length=sequence_length,
         sequence_stride=sequence_stride,
@@ -1150,8 +1153,8 @@ def istft(
 
 class Rsqrt(Operation):
     def call(self, x):
-        x = backend.convert_to_tensor(x)
-        return backend.math.rsqrt(x)
+        x = backend.ops.convert_to_tensor(x)
+        return backend.ops.math.rsqrt(x)
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype=x.dtype)
@@ -1175,7 +1178,7 @@ def rsqrt(x):
     """
     if any_symbolic_tensors((x,)):
         return Rsqrt().symbolic_call(x)
-    return backend.math.rsqrt(x)
+    return backend.ops.math.rsqrt(x)
 
 
 class Erf(Operation):
@@ -1183,7 +1186,7 @@ class Erf(Operation):
         return KerasTensor(shape=x.shape, dtype=x.dtype)
 
     def call(self, x):
-        return backend.math.erf(x)
+        return backend.ops.math.erf(x)
 
 
 @keras_export("keras.ops.erf")
@@ -1204,8 +1207,8 @@ def erf(x):
     """
     if any_symbolic_tensors((x,)):
         return Erf().symbolic_call(x)
-    x = backend.convert_to_tensor(x)
-    return backend.math.erf(x)
+    x = backend.ops.convert_to_tensor(x)
+    return backend.ops.math.erf(x)
 
 
 class Erfc(Operation):
@@ -1213,7 +1216,7 @@ class Erfc(Operation):
         return KerasTensor(shape=x.shape, dtype=result_type(x.dtype, float))
 
     def call(self, x):
-        return backend.math.erfc(x)
+        return backend.ops.math.erfc(x)
 
 
 @keras_export("keras.ops.erfc")
@@ -1234,7 +1237,7 @@ def erfc(x):
     """
     if any_symbolic_tensors((x,)):
         return Erfc().symbolic_call(x)
-    return backend.math.erfc(x)
+    return backend.ops.math.erfc(x)
 
 
 class Erfinv(Operation):
@@ -1242,7 +1245,7 @@ class Erfinv(Operation):
         return KerasTensor(shape=x.shape, dtype=x.dtype)
 
     def call(self, x):
-        return backend.math.erfinv(x)
+        return backend.ops.math.erfinv(x)
 
 
 @keras_export("keras.ops.erfinv")
@@ -1263,12 +1266,12 @@ def erfinv(x):
     """
     if any_symbolic_tensors((x,)):
         return Erfinv().symbolic_call(x)
-    return backend.math.erfinv(x)
+    return backend.ops.math.erfinv(x)
 
 
 class Logdet(Operation):
     def call(self, x):
-        return backend.math.logdet(x)
+        return backend.ops.math.logdet(x)
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape[:-2], dtype=x.dtype)
@@ -1286,12 +1289,12 @@ def logdet(x):
     """
     if any_symbolic_tensors((x,)):
         return Logdet().symbolic_call(x)
-    return backend.math.logdet(x)
+    return backend.ops.math.logdet(x)
 
 
 class ViewAsComplex(Operation):
     def call(self, x):
-        x = backend.convert_to_tensor(x)
+        x = backend.ops.convert_to_tensor(x)
         if len(x.shape) < 1 or x.shape[-1] != 2:
             raise ValueError(
                 "Input tensor's last dimension must be 2 (real and imaginary)."
@@ -1304,10 +1307,10 @@ class ViewAsComplex(Operation):
 
 class ViewAsReal(Operation):
     def call(self, x):
-        x = backend.convert_to_tensor(x)
-        real_part = backend.numpy.real(x)
-        imag_part = backend.numpy.imag(x)
-        return backend.numpy.stack((real_part, imag_part), axis=-1)
+        x = backend.ops.convert_to_tensor(x)
+        real_part = backend.ops.numpy.real(x)
+        imag_part = backend.ops.numpy.imag(x)
+        return backend.ops.numpy.stack((real_part, imag_part), axis=-1)
 
     def compute_output_spec(self, x):
         return KerasTensor(shape=x.shape + (2,), dtype="float32")
@@ -1340,7 +1343,7 @@ def view_as_complex(x):
     if any_symbolic_tensors((x,)):
         return ViewAsComplex().symbolic_call(x)
 
-    x = backend.convert_to_tensor(x)
+    x = backend.ops.convert_to_tensor(x)
     if len(x.shape) < 1 or x.shape[-1] != 2:
         raise ValueError(
             "Last dimension of input must be size 2 (real and imaginary). "
@@ -1349,9 +1352,9 @@ def view_as_complex(x):
     real_part = x[..., 0]
     imag_part = x[..., 1]
 
-    return backend.cast(real_part, dtype="complex64") + 1j * backend.cast(
-        imag_part, dtype="complex64"
-    )
+    return backend.ops.cast(
+        real_part, dtype="complex64"
+    ) + 1j * backend.ops.cast(imag_part, dtype="complex64")
 
 
 @keras_export("keras.ops.view_as_real")
@@ -1381,10 +1384,10 @@ def view_as_real(x):
     if any_symbolic_tensors((x,)):
         return ViewAsReal().symbolic_call(x)
 
-    x = backend.convert_to_tensor(x)
-    real_part = backend.numpy.real(x)
-    imag_part = backend.numpy.imag(x)
-    return backend.numpy.stack((real_part, imag_part), axis=-1)
+    x = backend.ops.convert_to_tensor(x)
+    real_part = backend.ops.numpy.real(x)
+    imag_part = backend.ops.numpy.imag(x)
+    return backend.ops.numpy.stack((real_part, imag_part), axis=-1)
 
 
 class Lgamma(Operation):
@@ -1439,56 +1442,72 @@ _LOG_LANCZOS_GAMMA_PLUS_HALF = python_math.log(_LANCZOS_GAMMA_PLUS_HALF)
 
 def _lgamma(x):
     if not config._use_backend_agnostic_ops() and hasattr(
-        backend.math, "lgamma"
+        backend.ops.math, "lgamma"
     ):
-        return backend.math.lgamma(x)
+        return backend.ops.math.lgamma(x)
 
-    x = backend.convert_to_tensor(x)
+    x = backend.ops.convert_to_tensor(x)
     orig_dtype = x.dtype
     target_dtype = result_type(orig_dtype, float)
     compute_dtype = (
         "float32" if target_dtype in ("float16", "bfloat16") else target_dtype
     )
-    x = backend.cast(x, compute_dtype)
+    x = backend.ops.cast(x, compute_dtype)
 
     # If the input is less than 0.5 use Euler's reflection formula:
     # gamma(x) = pi / (sin(pi * x) * gamma(1 - x))
-    need_to_reflect = ops.less(x, 0.5)
-    z = ops.where(need_to_reflect, -x, x - 1.0)
+    need_to_reflect = backend.ops.numpy.less(x, 0.5)
+    z = backend.ops.numpy.where(need_to_reflect, -x, x - 1.0)
 
-    series = ops.cast(_BASE_LANCZOS_COEFF, compute_dtype)
+    series = backend.ops.cast(_BASE_LANCZOS_COEFF, compute_dtype)
     for i, coeff in enumerate(_LANCZOS_COEFFICIENTS):
-        series = series + ops.cast(coeff, compute_dtype) / (z + float(i + 1))
+        series = series + backend.ops.cast(coeff, compute_dtype) / (
+            z + float(i + 1)
+        )
 
-    lanczos_gamma_plus_half = ops.cast(_LANCZOS_GAMMA_PLUS_HALF, compute_dtype)
-    log_lanczos_gamma_plus_half = ops.cast(
+    lanczos_gamma_plus_half = backend.ops.cast(
+        _LANCZOS_GAMMA_PLUS_HALF, compute_dtype
+    )
+    log_lanczos_gamma_plus_half = backend.ops.cast(
         _LOG_LANCZOS_GAMMA_PLUS_HALF, compute_dtype
     )
-    pi = ops.cast(_PI, compute_dtype)
+    pi = backend.ops.cast(_PI, compute_dtype)
     t = z + lanczos_gamma_plus_half
-    log_t = log_lanczos_gamma_plus_half + ops.log1p(z / lanczos_gamma_plus_half)
-
-    log_sqrt_two_pi = ops.cast(_LOG_SQRT_TWO_PI, compute_dtype)
-    log_y = log_sqrt_two_pi + (z + 0.5 - t / log_t) * log_t + ops.log(series)
-
-    abs_x = ops.abs(x)
-    abs_frac_x = abs_x - ops.floor(abs_x)
-    reduced_frac_x = ops.where(
-        ops.greater(abs_frac_x, 0.5), 1.0 - abs_frac_x, abs_frac_x
+    log_t = log_lanczos_gamma_plus_half + backend.ops.numpy.log1p(
+        z / lanczos_gamma_plus_half
     )
-    reflection_denom = ops.log(ops.sin(pi * reduced_frac_x))
 
-    reflection = ops.where(
-        ops.isfinite(reflection_denom),
-        ops.cast(ops.log(pi), compute_dtype) - reflection_denom - log_y,
+    log_sqrt_two_pi = backend.ops.cast(_LOG_SQRT_TWO_PI, compute_dtype)
+    log_y = (
+        log_sqrt_two_pi
+        + (z + 0.5 - t / log_t) * log_t
+        + backend.ops.numpy.log(series)
+    )
+
+    abs_x = backend.ops.numpy.abs(x)
+    abs_frac_x = abs_x - backend.ops.numpy.floor(abs_x)
+    reduced_frac_x = backend.ops.numpy.where(
+        backend.ops.numpy.greater(abs_frac_x, 0.5), 1.0 - abs_frac_x, abs_frac_x
+    )
+    reflection_denom = backend.ops.numpy.log(
+        backend.ops.numpy.sin(pi * reduced_frac_x)
+    )
+
+    reflection = backend.ops.numpy.where(
+        backend.ops.numpy.isfinite(reflection_denom),
+        backend.ops.cast(backend.ops.numpy.log(pi), compute_dtype)
+        - reflection_denom
+        - log_y,
         -reflection_denom,
     )
-    result = ops.where(need_to_reflect, reflection, log_y)
+    result = backend.ops.numpy.where(need_to_reflect, reflection, log_y)
 
     # Handle +/-inf edge cases: lgamma(+/-inf) = +inf
-    inf_val = ops.cast(float("inf"), compute_dtype)
-    result = ops.where(ops.isinf(x), inf_val, result)
+    inf_val = backend.ops.cast(float("inf"), compute_dtype)
+    result = backend.ops.numpy.where(
+        backend.ops.numpy.isinf(x), inf_val, result
+    )
 
     if compute_dtype != target_dtype:
-        result = backend.cast(result, target_dtype)
+        result = backend.ops.cast(result, target_dtype)
     return result

@@ -6,7 +6,6 @@ import numpy as np
 from keras.src import backend
 from keras.src import constraints
 from keras.src import initializers
-from keras.src import ops
 from keras.src import regularizers
 from keras.src.api_export import keras_export
 from keras.src.backend.config import is_flash_attention_enabled
@@ -468,7 +467,7 @@ class MultiHeadAttention(Layer):
             for _ in range(
                 len(attention_scores.shape) - len(attention_mask.shape)
             ):
-                attention_mask = ops.expand_dims(
+                attention_mask = backend.ops.numpy.expand_dims(
                     attention_mask, axis=mask_expansion_axis
                 )
         return self._softmax(attention_scores, mask=attention_mask)
@@ -528,7 +527,7 @@ class MultiHeadAttention(Layer):
             if use_causal_mask and attention_mask is None:
                 # Skip materializing the [T, S] mask and let the backend
                 # use its native causal kernel.
-                attention_output = ops.dot_product_attention(
+                attention_output = backend.ops.nn.dot_product_attention(
                     query=query,
                     key=key,
                     value=value,
@@ -548,12 +547,12 @@ class MultiHeadAttention(Layer):
                 for _ in range(
                     len_attention_scores_shape - len(attention_mask.shape)
                 ):
-                    attention_mask = ops.expand_dims(
+                    attention_mask = backend.ops.numpy.expand_dims(
                         attention_mask, axis=mask_expansion_axis
                     )
-                attention_mask = ops.cast(attention_mask, dtype="bool")
+                attention_mask = backend.ops.cast(attention_mask, dtype="bool")
             # Directly compute the attention output using dot-product attention
-            attention_output = ops.dot_product_attention(
+            attention_output = backend.ops.nn.dot_product_attention(
                 query=query,
                 key=key,
                 value=value,
@@ -576,17 +575,19 @@ class MultiHeadAttention(Layer):
             attention_mask = (
                 causal_mask
                 if attention_mask is None
-                else ops.logical_and(
-                    ops.cast(attention_mask, "bool"), causal_mask
+                else backend.ops.numpy.logical_and(
+                    backend.ops.cast(attention_mask, "bool"), causal_mask
                 )
             )
-        query = ops.multiply(
-            query, ops.cast(self._inverse_sqrt_key_dim, query.dtype)
+        query = backend.ops.numpy.multiply(
+            query, backend.ops.cast(self._inverse_sqrt_key_dim, query.dtype)
         )
 
         # Take the dot product between "query" and "key" to get the raw
         # attention scores.
-        attention_scores = ops.einsum(self._dot_product_equation, key, query)
+        attention_scores = backend.ops.numpy.einsum(
+            self._dot_product_equation, key, query
+        )
 
         # Apply the mask using the custom masked softmax
         attention_scores = self._masked_softmax(
@@ -602,7 +603,7 @@ class MultiHeadAttention(Layer):
             final_attn_scores = attention_scores
 
         # `context_layer` = [B, T, N, H]
-        attention_output = ops.einsum(
+        attention_output = backend.ops.numpy.einsum(
             self._combine_equation, final_attn_scores, value
         )
         return attention_output, attention_scores
@@ -688,7 +689,7 @@ class MultiHeadAttention(Layer):
         )
         if self._use_gate:
             attention_output = self._output_dense(
-                ops.multiply(attention_output, gate)
+                backend.ops.numpy.multiply(attention_output, gate)
             )
         else:
             attention_output = self._output_dense(attention_output)
@@ -743,18 +744,24 @@ class MultiHeadAttention(Layer):
         """
         auto_mask = None
         if query_mask is not None:
-            query_mask = ops.cast(query_mask, "bool")  # defensive casting
+            # defensive casting
+            query_mask = backend.ops.cast(query_mask, "bool")
             # B = batch size, T = max query length
-            auto_mask = ops.expand_dims(query_mask, -1)  # shape is [B, T, 1]
+            # shape is [B, T, 1]
+            auto_mask = backend.ops.numpy.expand_dims(query_mask, -1)
         if value_mask is not None:
-            value_mask = ops.cast(value_mask, "bool")  # defensive casting
+            # defensive casting
+            value_mask = backend.ops.cast(value_mask, "bool")
             # B = batch size, S == max value length
-            mask = ops.expand_dims(value_mask, -2)  # shape is [B, 1, S]
+            # shape is [B, 1, S]
+            mask = backend.ops.numpy.expand_dims(value_mask, -2)
             auto_mask = mask if auto_mask is None else auto_mask & mask
         if key_mask is not None:
-            key_mask = ops.cast(key_mask, "bool")  # defensive casting
+            # defensive casting
+            key_mask = backend.ops.cast(key_mask, "bool")
             # B == batch size, S == max key length == max value length
-            mask = ops.expand_dims(key_mask, -2)  # shape is [B, 1, S]
+            # shape is [B, 1, S]
+            mask = backend.ops.numpy.expand_dims(key_mask, -2)
             auto_mask = mask if auto_mask is None else auto_mask & mask
         if use_causal_mask:
             # the shape of the causal mask is [1, T, S]
@@ -766,7 +773,7 @@ class MultiHeadAttention(Layer):
             auto_mask = mask if auto_mask is None else auto_mask & mask
 
         if attention_mask is not None:
-            attention_mask = ops.cast(attention_mask, "bool")
+            attention_mask = backend.ops.cast(attention_mask, "bool")
         if auto_mask is not None:
             # merge attention_mask & automatic mask, to shape [B, T, S]
             attention_mask = (
@@ -798,12 +805,16 @@ class MultiHeadAttention(Layer):
             mask: a boolean tensor of shape `(1, T, S)` containing a lower
                 triangular matrix of shape `(T, S)`.
         """
-        q_seq_length = ops.shape(query)[1]
-        v_seq_length = q_seq_length if value is None else ops.shape(value)[1]
-        ones_mask = ops.ones((1, q_seq_length, v_seq_length), dtype="int32")
-        row_index = ops.cumsum(ones_mask, axis=-2)
-        col_index = ops.cumsum(ones_mask, axis=-1)
-        return ops.greater_equal(row_index, col_index)
+        q_seq_length = backend.ops.shape(query)[1]
+        v_seq_length = (
+            q_seq_length if value is None else backend.ops.shape(value)[1]
+        )
+        ones_mask = backend.ops.numpy.ones(
+            (1, q_seq_length, v_seq_length), dtype="int32"
+        )
+        row_index = backend.ops.numpy.cumsum(ones_mask, axis=-2)
+        col_index = backend.ops.numpy.cumsum(ones_mask, axis=-1)
+        return backend.ops.numpy.greater_equal(row_index, col_index)
 
     def _compute_sliding_window_mask(self, query, value=None):
         """Computes a banded sliding-window mask of shape `(1, T, S)`.
@@ -814,15 +825,21 @@ class MultiHeadAttention(Layer):
         sliding-window pattern used by Mistral, Llama-3 long-context, and
         Phi-3.
         """
-        q_seq_length = ops.shape(query)[1]
-        v_seq_length = q_seq_length if value is None else ops.shape(value)[1]
-        row_index = ops.reshape(
-            ops.arange(q_seq_length, dtype="int32"), (1, q_seq_length, 1)
+        q_seq_length = backend.ops.shape(query)[1]
+        v_seq_length = (
+            q_seq_length if value is None else backend.ops.shape(value)[1]
         )
-        col_index = ops.reshape(
-            ops.arange(v_seq_length, dtype="int32"), (1, 1, v_seq_length)
+        row_index = backend.ops.numpy.reshape(
+            backend.ops.numpy.arange(q_seq_length, dtype="int32"),
+            (1, q_seq_length, 1),
         )
-        return ops.less(ops.abs(row_index - col_index), self._sliding_window)
+        col_index = backend.ops.numpy.reshape(
+            backend.ops.numpy.arange(v_seq_length, dtype="int32"),
+            (1, 1, v_seq_length),
+        )
+        return backend.ops.numpy.less(
+            backend.ops.numpy.abs(row_index - col_index), self._sliding_window
+        )
 
     def compute_output_shape(
         self,

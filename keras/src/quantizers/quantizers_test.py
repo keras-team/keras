@@ -1,3 +1,4 @@
+import inspect
 import itertools
 import math
 
@@ -8,11 +9,13 @@ from keras.src import ops
 from keras.src import quantizers
 from keras.src import random
 from keras.src import testing
+from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.quantizers import compute_quantization_parameters
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
 from keras.src.quantizers.quantizers import quantize_with_sz_map
 from keras.src.quantizers.quantizers import quantize_with_zero_point
+from keras.src.quantizers.quantizers import ternarize
 from keras.src.testing.test_utils import named_product
 
 
@@ -66,6 +69,26 @@ class QuantizersTest(testing.TestCase):
         self.assertEqual(quantizer.value_range, (-8, 7))
         self.assertIsNone(quantizer.axis)
 
+    @parameterized.named_parameters(
+        (mode, mode) for mode in strategy_registry.registered_modes()
+    )
+    def test_mode_config_round_trips(self, mode):
+        # `deserialize` resolves the config class of every registered mode.
+        config_cls = strategy_registry.get_strategy(mode).config_cls
+        if config_cls is None:
+            self.skipTest(f"Mode '{mode}' defines no config class.")
+        # Calibration configs take `dataset` and `tokenizer` with no default.
+        # Neither is serialized, so `None` is enough here.
+        required = {
+            name: None
+            for name, param in inspect.signature(config_cls).parameters.items()
+            if param.default is param.empty
+        }
+        serialized = quantizers.serialize(config_cls(**required))
+        reloaded = quantizers.deserialize(serialized)
+        self.assertIsInstance(reloaded, config_cls)
+        self.assertEqual(quantizers.serialize(reloaded), serialized)
+
     def test_abs_max_quantizer(self):
         values = random.uniform([3, 4, 5], minval=-1, maxval=1, dtype="float32")
         quantizer = quantizers.AbsMaxQuantizer()
@@ -112,12 +135,44 @@ class QuantizersTest(testing.TestCase):
         self.assertAllClose(quantized_values, ref_quantized_values)
         self.assertAllClose(scale, ref_scale)
 
+    def test_pack_int4_layout_is_pinned(self):
+        # The packed bytes are a checkpoint format: value `2i` sits in the
+        # low nibble of byte `i` and value `2i + 1` in the high nibble, and
+        # an odd length is padded with a zero nibble.
+        codes = np.array([[-3, 7], [2, -8], [1, 0]], "int8")
+        packed, _, orig_len = quantizers.pack_int4(codes, axis=0)
+        self.assertEqual(orig_len, 3)
+        self.assertAllEqual(packed, [[45, -121], [1, 0]])
+        codes = np.array([[-3, 7, 2], [-8, 1, 0]], "int8")
+        packed, _, _ = quantizers.pack_int4(codes, axis=1)
+        self.assertAllEqual(packed, [[125, 2], [24, 0]])
+
+    @parameterized.named_parameters(
+        ("int4_int8", 4, "int8"),
+        ("int4_uint8", 4, "uint8"),
+        ("int2_int8", 2, "int8"),
+        ("int2_uint8", 2, "uint8"),
+    )
+    def test_unpack_every_byte(self, bits, dtype):
+        # Every byte value unpacks to its fields, lowest bits first,
+        # sign-extended for `int8`.
+        every_byte = np.arange(256, dtype="uint8").astype(dtype).reshape(256, 1)
+        unpack = quantizers.unpack_int4 if bits == 4 else quantizers.unpack_int2
+        fields = 8 // bits
+        unpacked = unpack(every_byte, fields, axis=1, dtype=dtype)
+        values = np.arange(256)[:, None] >> (bits * np.arange(fields))
+        values = values & ((1 << bits) - 1)
+        if dtype == "int8":
+            half = 1 << (bits - 1)
+            values = (values ^ half) - half
+        self.assertAllEqual(unpacked, values)
+
     SHAPE_AXIS_SCENARIOS = [
         # 1. 2D Tensors
-        # Covers the unpack fast path (rank=2, axis=0) for both parities
+        # Axis 0, both parities
         {"testcase_name": "2d_axis0_odd", "shape": (5, 8), "axis": 0},
         {"testcase_name": "2d_axis0_even", "shape": (4, 8), "axis": 0},
-        # Covers the general path and a negative axis for 2D tensors
+        # A middle axis and a negative axis of a 2D tensor
         {"testcase_name": "2d_axis1_odd", "shape": (8, 7), "axis": 1},
         {"testcase_name": "2d_axis_neg1_even", "shape": (8, 6), "axis": -1},
         # 2. Higher-Rank Tensors
@@ -211,29 +266,13 @@ class QuantizersTest(testing.TestCase):
     # int2 packs four values per byte, so the packing axis must exercise every
     # padding remainder (0, 1, 2, 3) along both the fast path (axis=0, rank 2)
     # and the general transpose path.
-    SHAPE_AXIS_SCENARIOS_INT2 = [
-        {"testcase_name": "2d_axis0_pad0", "shape": (8, 5), "axis": 0},
-        {"testcase_name": "2d_axis0_pad1", "shape": (7, 5), "axis": 0},
-        {"testcase_name": "2d_axis0_pad2", "shape": (6, 5), "axis": 0},
-        {"testcase_name": "2d_axis0_pad3", "shape": (5, 5), "axis": 0},
-        {"testcase_name": "2d_axis1_pad3", "shape": (5, 5), "axis": 1},
-        {"testcase_name": "2d_axis_neg1_pad0", "shape": (5, 8), "axis": -1},
-        {"testcase_name": "4d_axis1_pad3", "shape": (2, 5, 4, 6), "axis": 1},
-        {"testcase_name": "4d_axis2_pad0", "shape": (2, 4, 8, 6), "axis": 2},
-        {
-            "testcase_name": "4d_axis_neg1_pad2",
-            "shape": (2, 4, 6, 6),
-            "axis": -1,
-        },
-    ]
-
     DTYPE_PARAMS_INT2 = [
         {"testcase_name": "int8", "dtype": "int8", "minval": -2, "maxval": 2},
         {"testcase_name": "uint8", "dtype": "uint8", "minval": 0, "maxval": 4},
     ]
 
     @parameterized.named_parameters(
-        named_product(SHAPE_AXIS_SCENARIOS_INT2, DTYPE_PARAMS_INT2)
+        named_product(SHAPE_AXIS_SCENARIOS, DTYPE_PARAMS_INT2)
     )
     def test_pack_unpack_int2(self, shape, axis, dtype, minval, maxval):
         arr = ops.cast(
@@ -1069,3 +1108,31 @@ class GroupedQuantizationParametersTest(testing.TestCase):
                 (out_features, n_groups),
                 f"Failed for group_size={group_size}",
             )
+
+
+class TernarizeTest(testing.TestCase):
+    def test_default_threshold_returns_mean(self):
+        kernel = ops.array([[0.5, -0.5], [0.1, -1.5]], "float32")
+        codes, scale = ternarize(kernel)
+        # threshold = 0.5 * mean(|W|) = 0.325, so 0.1 maps to 0.
+        self.assertAllClose(codes, [[1.0, -1.0], [0.0, -1.0]])
+        self.assertAllClose(scale, 0.65)
+
+    def test_fixed_threshold_returns_unit_scale(self):
+        kernel = ops.array([[0.5, -0.5], [0.1, -1.5]], "float32")
+        codes, scale = ternarize(kernel, threshold=0.2)
+        self.assertAllClose(codes, [[1.0, -1.0], [0.0, -1.0]])
+        self.assertEqual(scale, 1.0)
+
+    def test_bfloat16_kernel_takes_mean_in_float32(self):
+        # A bfloat16 mean over many weights saturates when it accumulates
+        # in bfloat16 (as NumPy does), and a 0-d bfloat16 tensor does not
+        # convert to NumPy on TensorFlow.
+        values = np.random.RandomState(0).randn(512, 512)
+        kernel = ops.cast(values, "bfloat16")
+        codes, scale = ternarize(kernel)
+        exact = ops.convert_to_numpy(ops.cast(kernel, "float32"))
+        beta = np.mean(np.abs(exact), dtype="float64")
+        self.assertAllClose(scale, beta, rtol=1e-5)
+        expected = np.sign(exact) * (np.abs(exact) > 0.5 * beta)
+        self.assertAllClose(np.asarray(codes, "float32"), expected)

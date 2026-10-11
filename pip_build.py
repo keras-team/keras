@@ -63,7 +63,11 @@ def export_version_string(version, is_nightly=False, rc_index=None):
 
 
 def ignore_files(_, filenames):
-    return [f for f in filenames if f.endswith("_test.py")]
+    return [
+        f
+        for f in filenames
+        if f.endswith(("_test.py", "_test_utils.py", "_test_base.py"))
+    ]
 
 
 def copy_source_to_build_directory(root_path):

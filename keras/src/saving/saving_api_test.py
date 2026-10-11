@@ -1,3 +1,4 @@
+import io
 import os
 import pathlib
 import unittest.mock as mock
@@ -183,6 +184,18 @@ class LoadModelTests(test_case.TestCase):
         loaded_model = saving_api.load_model(filepath)
         x = np.random.uniform(size=(10, 3))
         self.assertEqual(loaded_model.weights[0].dtype, dtype)
+        self.assertTrue(np.allclose(model.predict(x), loaded_model.predict(x)))
+
+    def test_load_from_fileobj(self):
+        """Test loading model from an io.BytesIO file object."""
+        model = self.get_model()
+        filepath = os.path.join(self.get_temp_dir(), "test_model.keras")
+        saving_api.save_model(model, filepath)
+        with open(filepath, "rb") as f:
+            model_bytes = io.BytesIO(f.read())
+
+        loaded_model = saving_api.load_model(model_bytes)
+        x = np.random.uniform(size=(10, 3))
         self.assertTrue(np.allclose(model.predict(x), loaded_model.predict(x)))
 
     def test_load_unsupported_format(self):

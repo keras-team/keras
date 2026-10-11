@@ -1,4 +1,5 @@
 import keras
+from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.saving import serialization_lib
@@ -230,7 +231,9 @@ class FeatureDistillation(DistillationLoss):
             if loss_fn is None:
                 return 0.0
 
-            loss = keras.ops.mean(loss_fn(teacher_features, student_features))
+            loss = backend.ops.numpy.mean(
+                loss_fn(teacher_features, student_features)
+            )
 
             return loss
 
@@ -239,7 +242,7 @@ class FeatureDistillation(DistillationLoss):
         )
 
         flat_losses = tree.flatten(loss_values)
-        return keras.ops.sum(keras.ops.stack(flat_losses))
+        return backend.ops.numpy.sum(backend.ops.numpy.stack(flat_losses))
 
     def get_config(self):
         """Get configuration for serialization."""
@@ -344,10 +347,12 @@ class LogitsDistillation(DistillationLoss):
         """
         # Apply temperature scaling using tree.map_structure
         teacher_scaled = tree.map_structure(
-            lambda x: keras.ops.divide(x, self.temperature), teacher_outputs
+            lambda x: backend.ops.numpy.divide(x, self.temperature),
+            teacher_outputs,
         )
         student_scaled = tree.map_structure(
-            lambda x: keras.ops.divide(x, self.temperature), student_outputs
+            lambda x: backend.ops.numpy.divide(x, self.temperature),
+            student_outputs,
         )
 
         # Apply loss function(s) to corresponding outputs
@@ -357,14 +362,18 @@ class LogitsDistillation(DistillationLoss):
 
             # Special handling for KL divergence (needs probabilities)
             if isinstance(loss_fn, keras.losses.KLDivergence):
-                teacher_probs = keras.ops.softmax(teacher_logits, axis=-1)
-                student_probs = keras.ops.softmax(student_logits, axis=-1)
-                loss = keras.ops.mean(loss_fn(teacher_probs, student_probs))
+                teacher_probs = backend.ops.nn.softmax(teacher_logits, axis=-1)
+                student_probs = backend.ops.nn.softmax(student_logits, axis=-1)
+                loss = backend.ops.numpy.mean(
+                    loss_fn(teacher_probs, student_probs)
+                )
                 # Scale by temperature^2 for KL (per literature)
                 return loss * (self.temperature**2)
             else:
                 # For other losses, use logits directly
-                return keras.ops.mean(loss_fn(teacher_logits, student_logits))
+                return backend.ops.numpy.mean(
+                    loss_fn(teacher_logits, student_logits)
+                )
 
         # Apply losses using tree.map_structure
         loss_values = tree.map_structure(
@@ -373,7 +382,7 @@ class LogitsDistillation(DistillationLoss):
 
         # Sum all losses and return scalar
         flat_losses = tree.flatten(loss_values)
-        return keras.ops.sum(keras.ops.stack(flat_losses))
+        return backend.ops.numpy.sum(backend.ops.numpy.stack(flat_losses))
 
     def get_config(self):
         """Get configuration for serialization."""

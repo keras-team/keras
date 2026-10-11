@@ -73,7 +73,7 @@ def categorical(logits, num_samples, dtype="int32", seed=None):
     Returns:
         A 2-D tensor with (batch_size, num_samples).
     """
-    logits_shape = list(backend.convert_to_tensor(logits).shape)
+    logits_shape = list(backend.ops.convert_to_tensor(logits).shape)
     if len(logits_shape) != 2:
         raise ValueError(
             "`logits` should be a 2-D tensor with shape "

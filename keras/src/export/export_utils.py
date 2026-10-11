@@ -90,7 +90,7 @@ def make_input_spec(x):
         shape = (None,) + backend.standardize_shape(x.shape)[1:]
         dtype = backend.standardize_dtype(x.dtype)
         input_spec = layers.InputSpec(dtype=dtype, shape=shape, name=x.name)
-    elif backend.is_tensor(x):
+    elif backend.ops.is_tensor(x):
         shape = (None,) + backend.standardize_shape(x.shape)[1:]
         dtype = backend.standardize_dtype(x.dtype)
         input_spec = layers.InputSpec(dtype=dtype, shape=shape, name=None)

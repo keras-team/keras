@@ -3,6 +3,7 @@ from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import testing
+from keras.src.backend import KerasTensor
 from keras.src.utils import numerical_utils
 
 NUM_CLASSES = 5
@@ -37,8 +38,8 @@ class TestNumericalUtils(testing.TestCase):
         self.assertEqual(one_hot.shape, (3, 5 + 1))
 
     def test_to_categorical_with_backend_tensor(self):
-        label = backend.convert_to_tensor(np.array([0, 2, 1, 3, 4]))
-        expected = backend.convert_to_tensor(
+        label = backend.ops.convert_to_tensor(np.array([0, 2, 1, 3, 4]))
+        expected = backend.ops.convert_to_tensor(
             np.array(
                 [
                     [1, 0, 0, 0, 0],
@@ -50,13 +51,13 @@ class TestNumericalUtils(testing.TestCase):
             )
         )
         one_hot = numerical_utils.to_categorical(label, NUM_CLASSES)
-        self.assertTrue(backend.is_tensor(one_hot))
+        self.assertTrue(backend.ops.is_tensor(one_hot))
         self.assertAllClose(one_hot, expected)
 
     @parameterized.parameters([1, 2, 3])
     def test_normalize(self, order):
         xb = backend.random.uniform((3, 3), seed=1337)
-        xnp = backend.convert_to_numpy(xb)
+        xnp = backend.ops.convert_to_numpy(xb)
 
         # Expected result
         l2 = np.atleast_1d(np.linalg.norm(xnp, order, axis=-1))
@@ -70,8 +71,8 @@ class TestNumericalUtils(testing.TestCase):
 
         # Test backend
         out = numerical_utils.normalize(xb, axis=-1, order=order)
-        self.assertTrue(backend.is_tensor(out))
-        self.assertAllClose(backend.convert_to_numpy(out), expected)
+        self.assertTrue(backend.ops.is_tensor(out))
+        self.assertAllClose(backend.ops.convert_to_numpy(out), expected)
 
     def test_normalize_numpy_axis_zero(self):
         x = np.array(
@@ -112,8 +113,8 @@ class TestNumericalUtils(testing.TestCase):
             query_labels, key_labels, remove_diagonal=False
         )
 
-        positive_mask = backend.convert_to_numpy(positive_mask)
-        negative_mask = backend.convert_to_numpy(negative_mask)
+        positive_mask = backend.ops.convert_to_numpy(positive_mask)
+        negative_mask = backend.ops.convert_to_numpy(negative_mask)
         self.assertEqual(positive_mask.shape, expected_shape)
         self.assertEqual(negative_mask.shape, expected_shape)
         self.assertTrue(
@@ -143,8 +144,8 @@ class TestNumericalUtils(testing.TestCase):
         positive_mask, negative_mask = numerical_utils.build_pos_neg_masks(
             query_labels, key_labels, remove_diagonal=True
         )
-        positive_mask = backend.convert_to_numpy(positive_mask)
-        negative_mask = backend.convert_to_numpy(negative_mask)
+        positive_mask = backend.ops.convert_to_numpy(positive_mask)
+        negative_mask = backend.ops.convert_to_numpy(negative_mask)
         self.assertEqual(positive_mask.shape, expected_shape)
         self.assertEqual(negative_mask.shape, expected_shape)
         self.assertTrue(
@@ -165,14 +166,32 @@ class TestNumericalUtils(testing.TestCase):
             np.all(positive_mask == expected_positive_mask_with_remove_diag)
         )
 
+        # A symbolic input with an unknown dimension (e.g. a dynamic batch
+        # size) must still build correctly, since the diagonal mask is now
+        # derived from positive_mask's own shape rather than `ops.eye`.
+        unknown_dim_labels = KerasTensor(shape=(None,), dtype="int32")
+        positive_mask, negative_mask = numerical_utils.build_pos_neg_masks(
+            unknown_dim_labels, unknown_dim_labels, remove_diagonal=True
+        )
+        self.assertEqual(positive_mask.shape, (None, None))
+        self.assertEqual(negative_mask.shape, (None, None))
+
+        # A symbolic input with a statically known dimension still works.
+        known_dim_labels = KerasTensor(shape=(4,), dtype="int32")
+        positive_mask, negative_mask = numerical_utils.build_pos_neg_masks(
+            known_dim_labels, known_dim_labels, remove_diagonal=True
+        )
+        self.assertEqual(positive_mask.shape, (4, 4))
+        self.assertEqual(negative_mask.shape, (4, 4))
+
         query_labels = np.array([1, 2, 3])
         key_labels = np.array([1, 2, 3, 1])
 
         positive_mask, negative_mask = numerical_utils.build_pos_neg_masks(
             query_labels, key_labels, remove_diagonal=True
         )
-        positive_mask = backend.convert_to_numpy(positive_mask)
-        negative_mask = backend.convert_to_numpy(negative_mask)
+        positive_mask = backend.ops.convert_to_numpy(positive_mask)
+        negative_mask = backend.ops.convert_to_numpy(negative_mask)
         expected_shape_diff_sizes = (len(query_labels), len(key_labels))
         self.assertEqual(positive_mask.shape, expected_shape_diff_sizes)
         self.assertEqual(negative_mask.shape, expected_shape_diff_sizes)

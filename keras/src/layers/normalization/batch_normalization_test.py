@@ -94,12 +94,12 @@ class BatchNormalizationTest(testing.TestCase):
         # Assert the normalization is correct.
         broadcast_shape = [1] * len(input_shape)
         broadcast_shape[axis] = input_shape[axis]
-        out = backend.convert_to_numpy(out)
+        out = backend.ops.convert_to_numpy(out)
         out = out - np.reshape(
-            backend.convert_to_numpy(layer.beta), broadcast_shape
+            backend.ops.convert_to_numpy(layer.beta), broadcast_shape
         )
         out = out / np.reshape(
-            backend.convert_to_numpy(layer.gamma), broadcast_shape
+            backend.ops.convert_to_numpy(layer.gamma), broadcast_shape
         )
 
         reduction_axes = list(range(len(input_shape)))
@@ -214,12 +214,12 @@ class BatchNormalizationTest(testing.TestCase):
         for _ in range(10):
             out = layer(x, training=True)
 
-        out = backend.convert_to_numpy(out)
+        out = backend.ops.convert_to_numpy(out)
         out = out - np.reshape(
-            backend.convert_to_numpy(layer.beta), (1, 1, 1, 3)
+            backend.ops.convert_to_numpy(layer.beta), (1, 1, 1, 3)
         )
         out = out / np.reshape(
-            backend.convert_to_numpy(layer.gamma), (1, 1, 1, 3)
+            backend.ops.convert_to_numpy(layer.gamma), (1, 1, 1, 3)
         )
 
         self.assertAllClose(
@@ -308,6 +308,14 @@ class BatchNormalizationTest(testing.TestCase):
             layers.BatchNormalization(
                 renorm=True, renorm_clipping={"rmax": 1.0, "dmax": -1.0}
             )
+
+    def test_invalid_momentum(self):
+        for momentum in (-0.1, 1.5):
+            with self.assertRaisesRegex(ValueError, "`momentum` must be"):
+                layers.BatchNormalization(momentum=momentum)
+        # Boundary values are accepted.
+        layers.BatchNormalization(momentum=0.0)
+        layers.BatchNormalization(momentum=1.0)
 
     def test_renorm_stddev_initializer(self):
         # `moving_stddev` and `renorm_stddev` should be initialized as

@@ -8,22 +8,24 @@ import warnings
 from keras.src import backend as backend_module
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
+from keras.src.backend.config import BUILT_IN_BACKENDS
+from keras.src.backend.config import PLUGGABLE_BACKENDS
+from keras.src.utils.module_utils import get_pluggable_backend_module
 
 
 def in_tf_graph():
     if global_state.get_global_attribute("in_tf_graph_scope", False):
         return True
 
-    if "tensorflow" in sys.modules:
-        from keras.src.utils.module_utils import tensorflow as tf
-
-        return not tf.executing_eagerly()
+    tf_mod = sys.modules.get("tensorflow")
+    if tf_mod is not None and hasattr(tf_mod, "executing_eagerly"):
+        return not tf_mod.executing_eagerly()
     return False
 
 
 def convert_tf_tensor(outputs, dtype=None):
     if backend_module.backend() != "tensorflow" and not in_tf_graph():
-        outputs = backend_module.convert_to_tensor(outputs, dtype=dtype)
+        outputs = backend_module.ops.convert_to_tensor(outputs, dtype=dtype)
     return outputs
 
 
@@ -82,10 +84,16 @@ class DynamicBackend:
         self._backend = backend or backend_module.backend()
 
     def set_backend(self, backend):
-        if backend not in ("tensorflow", "jax", "torch", "numpy", "openvino"):
+        if (
+            backend not in BUILT_IN_BACKENDS
+            and backend not in PLUGGABLE_BACKENDS
+        ):
+            all_backends = sorted(
+                list(BUILT_IN_BACKENDS) + list(PLUGGABLE_BACKENDS)
+            )
             raise ValueError(
-                "Available backends are ('tensorflow', 'jax', 'torch', "
-                f"'numpy' and 'openvino'). Received: backend={backend}"
+                f"Available backends are ({all_backends}). "
+                f"Received: backend={backend}"
             )
         self._backend = backend
 
@@ -99,24 +107,25 @@ class DynamicBackend:
     def __getattr__(self, name):
         if self._backend == "tensorflow":
             module = importlib.import_module("keras.src.backend.tensorflow")
-            return getattr(module, name)
-        if self._backend == "jax":
+        elif self._backend == "jax":
             module = importlib.import_module("keras.src.backend.jax")
-            return getattr(module, name)
-        if self._backend == "torch":
+        elif self._backend == "torch":
             module = importlib.import_module("keras.src.backend.torch")
+        elif self._backend == "numpy":
+            module = importlib.import_module("keras.src.backend.numpy")
+        else:
+            module = get_pluggable_backend_module("src", backend=self._backend)
+
+        if hasattr(module, name):
             return getattr(module, name)
-        if self._backend == "numpy":
-            if backend_module.backend() == "numpy":
-                return getattr(backend_module, name)
-            else:
-                raise NotImplementedError(
-                    "Currently, we cannot dynamically import the numpy backend "
-                    "because it would disrupt the namespace of the import."
-                )
-        if self._backend == "openvino":
-            module = importlib.import_module("keras.src.backend.openvino")
-            return getattr(module, name)
+        # Op implementations live in `keras.src.backend.<backend>.ops` and are
+        # no longer re-exported on the backend package itself.
+        module_ops = getattr(module, "ops", None)
+        if module_ops is not None and hasattr(module_ops, name):
+            return getattr(module_ops, name)
+        raise AttributeError(
+            f"Backend '{self._backend}' has no attribute '{name}'."
+        )
 
 
 @keras_export("keras.config.set_backend")

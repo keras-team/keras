@@ -15,6 +15,9 @@ class DataAdapter:
         """
         raise NotImplementedError
 
+    def get_native_iterator(self):
+        return self.get_numpy_iterator()
+
     def get_tf_dataset(self):
         """Get a `tf.data.Dataset` instance for the DataAdapter.
 

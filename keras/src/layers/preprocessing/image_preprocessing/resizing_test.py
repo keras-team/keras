@@ -27,12 +27,6 @@ class ResizingTest(testing.TestCase):
         antialias,
         data_format,
     ):
-        if interpolation == "lanczos5":
-            if backend.backend() == "torch":
-                self.skipTest("Torch does not support lanczos.")
-            if backend.backend() == "openvino":
-                self.skipTest("OpenVINO does not support lanczos.")
-
         crop_to_aspect_ratio, pad_to_aspect_ratio = crop_pad
         if data_format == "channels_last":
             input_shape = (2, 12, 12, 3)
@@ -178,10 +172,10 @@ class ResizingTest(testing.TestCase):
             .map(layer)
         )
         output = next(iter(ds))
-        output_np = backend.convert_to_numpy(output)
+        output_np = backend.ops.convert_to_numpy(output)
 
         self.assertEqual(tuple(output_np.shape), output_shape)
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(backend.ops.is_tensor(output))
         # Ensure the device of the data is on CPU.
         if backend.backend() == "tensorflow":
             self.assertIn("CPU", str(output.device).upper())

@@ -12,6 +12,7 @@ from keras.src import layers
 from keras.src import metrics
 from keras.src import models
 from keras.src import ops
+from keras.src import random
 from keras.src import testing
 from keras.src.backend.common import global_state
 from keras.src.backend.common.remat import RematScope
@@ -168,8 +169,6 @@ class LayerTest(testing.TestCase):
             {"input_shape": None, "mode": None},
         ),
         ("quantize", "quantize", {"mode": "int8"}),
-        ("_int8_call", "_int8_call", None),
-        ("_float8_call", "_float8_call", None),
     )
     def test_not_implemented_error(self, method, args):
         layer = layers.Layer()
@@ -217,6 +216,75 @@ class LayerTest(testing.TestCase):
         layer = layers.Dense(4)
         layer.rematerialized_call(layer.call, ops.ones((2, 3)))
 
+    @parameterized.product(
+        mode=("full", "list_of_layers", "larger_than"),
+        rate_and_training=((0.0, False), (0.0, True), (0.5, False)),
+    )
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_GRADIENT,
+        reason="remat requires gradient support",
+    )
+    def test_remat_dropout_training(self, mode, rate_and_training):
+        rate, training = rate_and_training
+        with RematScope(
+            mode=mode, layer_names=["dropout"], output_size_threshold=0
+        ):
+            layer = layers.Dropout(rate, name="dropout")
+        inputs = ops.ones((2, 3))
+        self.assertAllClose(layer(inputs, training=training), inputs)
+
+    @parameterized.parameters("full", "list_of_layers", "larger_than")
+    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX-specific test")
+    def test_remat_nested_training_gradients(self, mode):
+        import jax
+
+        class TrainingLayer(layers.Layer):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.dropout = layers.Dropout(0.0)
+
+            def build(self, input_shape):
+                self.scale = self.add_weight(
+                    shape=(input_shape[-1],), initializer="ones"
+                )
+
+            def call(self, inputs, mask=None, training=False):
+                outputs = self.dropout(inputs, training=training) * self.scale
+                outputs = outputs * mask
+                return outputs * 2 if training else outputs
+
+        plain = TrainingLayer()
+        with RematScope(
+            mode=mode, layer_names=["block"], output_size_threshold=0
+        ):
+            rematerialized = TrainingLayer(name="block")
+        inputs = ops.ones((2, 3))
+        mask = ops.convert_to_tensor([[1.0, 0.0, 1.0], [0.0, 1.0, 1.0]])
+        plain.build(inputs.shape)
+        rematerialized.build(inputs.shape)
+        weights = [variable.value for variable in plain.trainable_variables]
+
+        # Reuse the layers across modes to ensure the flag is captured per call.
+        for training in (False, True, False):
+
+            def value_and_grad(layer):
+                def loss(weights, inputs, mask):
+                    outputs, _ = layer.stateless_call(
+                        weights, [], inputs, mask=mask, training=training
+                    )
+                    return ops.sum(outputs)
+
+                return jax.jit(jax.value_and_grad(loss, argnums=(0, 1, 2)))(
+                    weights, inputs, mask
+                )
+
+            expected_value, expected_grads = value_and_grad(plain)
+            actual_value, actual_grads = value_and_grad(rematerialized)
+            self.assertAllClose(actual_value, expected_value)
+            self.assertAllClose(actual_grads[0][0], expected_grads[0][0])
+            self.assertAllClose(actual_grads[1], expected_grads[1])
+            self.assertAllClose(actual_grads[2], expected_grads[2])
+
     def test_quantized_layer_with_remat(self):
         """Test rematerialization on a quantized layer."""
         mock_remat = MockRemat()
@@ -247,8 +315,8 @@ class LayerTest(testing.TestCase):
             layer.dtype_policy = "gptq/4/-1_from_float32"
 
     @pytest.mark.skipif(
-        backend.backend() in ("openvino", "numpy"),
-        reason="remat not supported on OpenVino and Numpy",
+        not backend.SUPPORTS_GRADIENT,
+        reason="remat requires gradient support",
     )
     def test_functional_model_with_remat(self):
         mock_remat = MockRemat()
@@ -922,12 +990,12 @@ class LayerTest(testing.TestCase):
                 return x
 
         layer = BasicMaskedLayer()
-        x = backend.numpy.ones((4, 4))
-        mask = backend.numpy.ones((4,))
+        x = backend.ops.numpy.ones((4, 4))
+        mask = backend.ops.numpy.ones((4,))
         backend.set_keras_mask(x, mask)
         layer(x)
 
-        layer(backend.numpy.ones((4, 4)), mask=backend.numpy.ones((4,)))
+        layer(backend.ops.numpy.ones((4, 4)), mask=backend.ops.numpy.ones((4,)))
 
         class NestedInputMaskedLayer(layers.Layer):
             def __init__(self):
@@ -942,17 +1010,17 @@ class LayerTest(testing.TestCase):
                 return x
 
         layer = NestedInputMaskedLayer()
-        x1 = backend.numpy.ones((4, 4))
-        mask1 = backend.numpy.ones((4,))
+        x1 = backend.ops.numpy.ones((4, 4))
+        mask1 = backend.ops.numpy.ones((4,))
         backend.set_keras_mask(x1, mask1)
-        x2 = backend.numpy.ones((4, 4))
-        mask2 = backend.numpy.ones((4,))
+        x2 = backend.ops.numpy.ones((4, 4))
+        mask2 = backend.ops.numpy.ones((4,))
         backend.set_keras_mask(x2, mask2)
         layer([x1, x2])
 
         layer(
-            [backend.numpy.ones((4, 4)), backend.numpy.ones((4, 4))],
-            mask=[backend.numpy.ones((4,)), backend.numpy.ones((4,))],
+            [backend.ops.numpy.ones((4, 4)), backend.ops.numpy.ones((4, 4))],
+            mask=[backend.ops.numpy.ones((4,)), backend.ops.numpy.ones((4,))],
         )
 
         class PositionalInputsMaskedLayer(layers.Layer):
@@ -982,14 +1050,14 @@ class LayerTest(testing.TestCase):
                 return x1[0] + x1[1] + x2
 
         layer = PositionalNestedInputsMaskedLayer()
-        x1_1 = backend.numpy.ones((4, 4))
-        mask1 = backend.numpy.ones((4,))
+        x1_1 = backend.ops.numpy.ones((4, 4))
+        mask1 = backend.ops.numpy.ones((4,))
         backend.set_keras_mask(x1_1, mask1)
-        x1_2 = backend.numpy.ones((4, 4))
-        mask2 = backend.numpy.ones((4,))
+        x1_2 = backend.ops.numpy.ones((4, 4))
+        mask2 = backend.ops.numpy.ones((4,))
         backend.set_keras_mask(x1_2, mask2)
-        x2 = backend.numpy.ones((4, 4))
-        mask2 = backend.numpy.ones((4,))
+        x2 = backend.ops.numpy.ones((4, 4))
+        mask2 = backend.ops.numpy.ones((4,))
         backend.set_keras_mask(x2, mask2)
         layer((x1_1, x1_2), x2)
         layer(x1=(x1_1, x1_2), x2=x2)
@@ -1005,8 +1073,8 @@ class LayerTest(testing.TestCase):
                 return x
 
         layer = MaskUnsetDuringCallLayer()
-        x = backend.numpy.ones((4, 4))
-        mask = backend.numpy.ones((4,))
+        x = backend.ops.numpy.ones((4, 4))
+        mask = backend.ops.numpy.ones((4,))
         backend.set_keras_mask(x, mask)
         y = layer(x)
         self.assertAllClose(backend.get_keras_mask(y), mask)
@@ -1028,11 +1096,11 @@ class LayerTest(testing.TestCase):
 
         layer = PassthroughMaskLayer()
         # Create an input tensor WITHOUT an attached mask.
-        x = backend.numpy.ones((4, 4))
+        x = backend.ops.numpy.ones((4, 4))
         self.assertIsNone(backend.get_keras_mask(x))
 
         # Create a mask to be passed explicitly.
-        explicit_mask = backend.numpy.array([True, True, False, False])
+        explicit_mask = backend.ops.numpy.array([True, True, False, False])
 
         # Call the layer, passing the mask as a keyword argument.
         y = layer(x, mask=explicit_mask)
@@ -1063,7 +1131,7 @@ class LayerTest(testing.TestCase):
                 self._build_at_init()
 
             def call(self, x):
-                x = backend.convert_to_tensor(x, dtype="float32")
+                x = backend.ops.convert_to_tensor(x, dtype="float32")
                 self.add_loss(ops.sum(x))
                 self.ntw.assign(ops.sum(x))
                 x = x + backend.random.normal(
@@ -1224,9 +1292,9 @@ class LayerTest(testing.TestCase):
             def call(self, foo, bar):
                 return foo[:, 0] + bar[:, 0]
 
-        foo = backend.numpy.ones((4, 1))
-        bar = backend.numpy.ones((4, 2))
-        baz = backend.numpy.ones((4, 3))
+        foo = backend.ops.numpy.ones((4, 1))
+        bar = backend.ops.numpy.ones((4, 2))
+        baz = backend.ops.numpy.ones((4, 3))
         with self.assertRaisesRegex(
             ValueError,
             r"argument `bar`, which does not end in `_shape`",
@@ -1270,7 +1338,7 @@ class LayerTest(testing.TestCase):
                 return self.activation(inputs)
 
         layer = NoTrainingSpecified()
-        inputs = ops.random.uniform(shape=(1, 100, 100, 3))
+        inputs = random.uniform(shape=(1, 100, 100, 3))
         layer(inputs, training=True)
 
     def test_tracker_locking(self):
@@ -1314,21 +1382,23 @@ class LayerTest(testing.TestCase):
 
         self.assertEqual(layer.w2.shape, ())
         self.assertEqual(layer.w2.dtype, "int32")
-        self.assertAllClose(backend.convert_to_numpy(layer.w2), 0)
+        self.assertAllClose(backend.ops.convert_to_numpy(layer.w2), 0)
 
         self.assertEqual(layer.w3.shape, ())
         self.assertEqual(layer.w3.dtype, "bool")
-        self.assertAllClose(backend.convert_to_numpy(layer.w3), False)
+        self.assertAllClose(backend.ops.convert_to_numpy(layer.w3), False)
 
         self.assertEqual(layer.w4.shape, (2, 2))
         self.assertEqual(layer.w4.dtype, "int32")
         self.assertAllClose(
-            backend.convert_to_numpy(layer.w4), np.zeros((2, 2))
+            backend.ops.convert_to_numpy(layer.w4), np.zeros((2, 2))
         )
 
         self.assertEqual(layer.w5.shape, (2, 2))
         self.assertEqual(layer.w5.dtype, "float32")
-        self.assertAllClose(backend.convert_to_numpy(layer.w5), np.ones((2, 2)))
+        self.assertAllClose(
+            backend.ops.convert_to_numpy(layer.w5), np.ones((2, 2))
+        )
 
     def test_add_weight_string_as_first_positional_arg(self):
         """Test that passing a string as first positional arg to add_weight
@@ -1383,7 +1453,9 @@ class LayerTest(testing.TestCase):
         layer = MyLayer4()
         self.assertEqual(layer.w.shape, (3, 4))
         self.assertEqual(layer.w.dtype, "float32")
-        self.assertAllClose(backend.convert_to_numpy(layer.w), np.zeros((3, 4)))
+        self.assertAllClose(
+            backend.ops.convert_to_numpy(layer.w), np.zeros((3, 4))
+        )
 
         # Case 5: too many positional arguments
         class MyLayer5(layers.Layer):
@@ -2103,3 +2175,8 @@ class LayerTest(testing.TestCase):
             # `training=False`/`None` never update the running stats, so
             # they are still mean 0 / variance 1.
             self.assertAllClose(y, x / np.sqrt(1.0 + 1e-3), atol=1e-3)
+
+
+class LoraLessQuantizationTest(testing.TestCase):
+    def test_layer_does_not_enable_lora_by_default(self):
+        self.assertFalse(layers.Layer().lora_enabled)

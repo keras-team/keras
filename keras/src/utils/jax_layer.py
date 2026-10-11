@@ -419,7 +419,7 @@ class JaxLayer(Layer):
         """
 
         def create_variable(value):
-            if backend.is_tensor(value) or isinstance(
+            if backend.ops.is_tensor(value) or isinstance(
                 value, (np.ndarray, np.generic, jax.Array)
             ):
                 dtype = value.dtype
@@ -427,7 +427,7 @@ class JaxLayer(Layer):
                     dtype = None  # Use the layer dtype policy
                 return self.add_weight(
                     value.shape,
-                    initializer=backend.convert_to_tensor(value),
+                    initializer=backend.ops.convert_to_tensor(value),
                     dtype=dtype,
                     trainable=trainable,
                 )
@@ -437,7 +437,7 @@ class JaxLayer(Layer):
                     dtype = None  # Use the layer dtype policy
                 return self.add_weight(
                     (),
-                    initializer=backend.convert_to_tensor(value),
+                    initializer=backend.ops.convert_to_tensor(value),
                     dtype=dtype,
                     trainable=trainable,
                 )

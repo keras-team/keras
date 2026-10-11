@@ -12,6 +12,13 @@ from keras.src.utils.module_utils import tensorflow as tf
 from keras.src.utils.progbar import Progbar
 
 
+def _extract_batch(batch):
+    """Return input from batch; handle (x, y) or (x, y, sample_weight)."""
+    if isinstance(batch, tuple):
+        return batch[0]
+    return batch
+
+
 class IndexLookup(Layer):
     """Maps values from a vocabulary to integer indices.
 
@@ -658,19 +665,19 @@ class IndexLookup(Layer):
             if steps is not None:
                 data = data.take(steps)
             for i, batch in enumerate(data):
-                self.update_state(batch)
+                self.update_state(_extract_batch(batch))
                 progbar.update(i + 1)
             progbar.update(steps if steps is not None else i + 1, finalize=True)
         elif hasattr(data, "__iter__") and not (
             isinstance(data, (list, tuple, np.ndarray))
-            or backend.is_tensor(data)
+            or backend.ops.is_tensor(data)
             or tf.is_tensor(data)
         ):
             progbar = Progbar(target=steps, unit_name="step")
             for i, batch in enumerate(data):
                 if steps is not None and i >= steps:
                     break
-                self.update_state(batch)
+                self.update_state(_extract_batch(batch))
                 progbar.update(i + 1)
             progbar.update(steps if steps is not None else i + 1, finalize=True)
         else:
@@ -851,8 +858,8 @@ class IndexLookup(Layer):
                         "When `output_mode` is `'tf_idf'`, "
                         "`idf_weights` must be provided."
                     )
-                output = tf_backend.numpy.multiply(
-                    tf_backend.core.cast(output, idf_weights.dtype), idf_weights
+                output = tf_backend.ops.numpy.multiply(
+                    tf_backend.ops.cast(output, idf_weights.dtype), idf_weights
                 )
             return output
 

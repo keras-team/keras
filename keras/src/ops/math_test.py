@@ -601,7 +601,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
             num_segments = np.max(segment_ids).item() + 1
         expected_shape = (num_segments,) + data_dims
         if segment_reduce_op == kmath.segment_max:
-            if backend.backend() in ("tensorflow", "openvino"):
+            if backend.backend() == "tensorflow":
                 empty_fill_value = -np.finfo(np.float32).max
             else:
                 empty_fill_value = -np.inf
@@ -736,8 +736,10 @@ class MathOpsCorrectnessTest(testing.TestCase):
         x = np.array([0, 4, 2, 1, 3, -1], dtype=np.float32)
         values, indices = kmath.top_k(x, k=2, sorted=False)
         # Any order ok when `sorted=False`.
-        self.assertEqual(set(backend.convert_to_numpy(values)), set([4, 3]))
-        self.assertEqual(set(backend.convert_to_numpy(indices)), set([1, 4]))
+        self.assertEqual(set(backend.ops.convert_to_numpy(values)), set([4, 3]))
+        self.assertEqual(
+            set(backend.ops.convert_to_numpy(indices)), set([1, 4])
+        )
 
         x = np.random.rand(5, 5)
         outputs = kmath.top_k(x, k=2)
@@ -755,8 +757,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
 
     def check_stability(self, values, indices):
         """Helper function to check stability of top_k."""
-        values_np = backend.convert_to_numpy(values)
-        indices_np = backend.convert_to_numpy(indices)
+        values_np = backend.ops.convert_to_numpy(values)
+        indices_np = backend.ops.convert_to_numpy(indices)
         is_equal = values_np[..., :-1] == values_np[..., 1:]
         index_increasing = indices_np[..., :-1] < indices_np[..., 1:]
         self.assertTrue(np.all(np.logical_or(~is_equal, index_increasing)))
@@ -1049,14 +1051,14 @@ class MathOpsCorrectnessTest(testing.TestCase):
             window=window,
             center=center,
         )
-        if backend.backend() in ("numpy", "jax", "torch", "openvino"):
+        if backend.backend() in ("numpy", "jax", "torch"):
             # these backends have different implementation for the boundary of
             # the output, so we need to truncate 5% before assertAllClose
             truncated_len = int(output.shape[-1] * 0.05)
             output = output[..., truncated_len:-truncated_len]
             ref = ref[..., truncated_len:-truncated_len]
         # Nans are handled differently in different backends, so zero them out.
-        output = np.nan_to_num(backend.convert_to_numpy(output), nan=0.0)
+        output = np.nan_to_num(backend.ops.convert_to_numpy(output), nan=0.0)
         ref = np.nan_to_num(ref, nan=0.0)
         self.assertAllClose(output, ref, atol=1e-5, rtol=1e-5)
 
@@ -1081,14 +1083,14 @@ class MathOpsCorrectnessTest(testing.TestCase):
             window=window,
             center=center,
         )
-        if backend.backend() in ("numpy", "jax", "torch", "openvino"):
+        if backend.backend() in ("numpy", "jax", "torch"):
             # these backends have different implementation for the boundary of
             # the output, so we need to truncate 5% before assertAllClose
             truncated_len = int(output.shape[-1] * 0.05)
             output = output[..., truncated_len:-truncated_len]
             ref = ref[..., truncated_len:-truncated_len]
         # Nans are handled differently in different backends, so zero them out.
-        output = np.nan_to_num(backend.convert_to_numpy(output), nan=0.0)
+        output = np.nan_to_num(backend.ops.convert_to_numpy(output), nan=0.0)
         ref = np.nan_to_num(ref, nan=0.0)
         self.assertAllClose(output, ref, atol=1e-5, rtol=1e-5)
 
@@ -2076,8 +2078,8 @@ class TestMathErrors(testing.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() == "openvino",
-    reason="Complex dtype is not supported on OpenVINO backend.",
+    not backend.SUPPORTS_COMPLEX_DTYPES,
+    reason="Complex dtype is not supported on this backend.",
 )
 class ViewAsComplexRealTest(testing.TestCase):
     def test_view_as_complex_basic(self):

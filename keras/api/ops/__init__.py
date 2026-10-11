@@ -16,6 +16,7 @@ from keras.src.ops.core import convert_to_tensor as convert_to_tensor
 from keras.src.ops.core import custom_gradient as custom_gradient
 from keras.src.ops.core import dtype as dtype
 from keras.src.ops.core import fori_loop as fori_loop
+from keras.src.ops.core import grad as grad
 from keras.src.ops.core import is_tensor as is_tensor
 from keras.src.ops.core import map as map
 from keras.src.ops.core import saturate_cast as saturate_cast
