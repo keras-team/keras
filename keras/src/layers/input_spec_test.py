@@ -91,6 +91,12 @@ class AssertInputCompatibilityTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "out of bounds"):
             assert_input_compatibility(InputSpec(axes={-3: 5}), x, "axes")
 
+    def test_axes_none_value_is_not_checked(self):
+        # A `None` value accepts any size, and an axis the input lacks.
+        x = ops.convert_to_tensor(np.zeros((2, 3)))
+        assert_input_compatibility(InputSpec(axes={-1: None}), x, "axes")
+        assert_input_compatibility(InputSpec(axes={5: None}), x, "axes")
+
     def test_wrong_shape_raises(self):
         spec = InputSpec(shape=(None, 3))
         x = ops.convert_to_tensor(np.array([[1.0, 2.0]]))
