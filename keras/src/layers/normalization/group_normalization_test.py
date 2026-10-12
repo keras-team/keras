@@ -2,6 +2,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src import constraints
+from keras.src import initializers
 from keras.src import layers
 from keras.src import ops
 from keras.src import regularizers
@@ -208,3 +209,27 @@ class GroupNormalizationTest(testing.TestCase):
         layer = layers.GroupNormalization(groups=2, dtype="mixed_float16")
         out = ops.convert_to_numpy(layer(x))
         self.assertFalse(np.any(np.isnan(out)))
+
+    def test_beta_preserved_for_large_constant_inputs(self):
+        # Regression test for tensorflow/tensorflow#128754. Every group here is
+        # constant, so the normalized term is 0 and the output is beta. The
+        # normalization used to fold the mean and beta into a single offset,
+        # as `x * inv + (beta - mean * inv)`. With a large mean, `mean * inv`
+        # is far enough from 0 that adding beta to it rounds the beta away,
+        # and the two large terms then cancel exactly, giving 0 instead.
+        x = ops.full((2, 1, 4), 1e10)
+        layer = layers.GroupNormalization(
+            groups=2,
+            scale=False,
+            beta_initializer=initializers.Constant(5.0),
+        )
+        self.assertAllClose(layer(x), ops.full((2, 1, 4), 5.0))
+
+        # Same with a scaling gamma, which makes `inv` and therefore the lost
+        # offset larger still.
+        layer = layers.GroupNormalization(
+            groups=2,
+            gamma_initializer=initializers.Constant(3.0),
+            beta_initializer=initializers.Constant(5.0),
+        )
+        self.assertAllClose(layer(x), ops.full((2, 1, 4), 5.0))
