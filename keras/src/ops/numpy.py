@@ -6741,15 +6741,18 @@ def _nanquantile(x, q, axis=None, method="linear", keepdims=False):
         dtype = dtypes.result_type(x.dtype, float)
     x = backend.ops.cast(x, dtype)
     q = backend.ops.convert_to_tensor(q, dtype=dtype)
-    ndim = len(x.shape)
+    # Use the dynamic shape so that unknown (e.g. batch) dimensions are
+    # supported when tracing with dynamic shapes.
+    x_shape = backend.ops.core.shape(x)
+    ndim = len(x_shape)
     output_shape = tuple(q.shape) + tuple(
-        reduce_shape(x.shape, axis=axis, keepdims=keepdims)
+        reduce_shape(x_shape, axis=axis, keepdims=keepdims)
     )
 
     # Move the reduced axes to the end and flatten them into one axis.
     axes = tuple(range(ndim)) if axis is None else canonicalize_axes(axis, ndim)
     y = backend.ops.numpy.moveaxis(x, axes, tuple(range(-len(axes), 0)))
-    y = backend.ops.numpy.reshape(y, reduce_shape(x.shape, axis=axes) + (-1,))
+    y = backend.ops.numpy.reshape(y, reduce_shape(x_shape, axis=axes) + (-1,))
 
     # Replace NaNs with +inf so they sort to the end of each slice, then
     # count the valid (non-NaN) entries at the front of each slice.
