@@ -6741,7 +6741,7 @@ def _nanquantile(x, q, axis=None, method="linear", keepdims=False):
         dtype = dtypes.result_type(x.dtype, float)
     x = backend.ops.cast(x, dtype)
     q = backend.ops.convert_to_tensor(q, dtype=dtype)
-    x_shape = backend.ops.core.shape(x)
+    x_shape = backend.ops.shape(x)
     ndim = len(x_shape)
     output_shape = tuple(q.shape) + tuple(
         reduce_shape(x_shape, axis=axis, keepdims=keepdims)
