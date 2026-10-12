@@ -73,18 +73,17 @@ def softsign(x):
 
 def soft_shrink(x, threshold=0.5):
     x = convert_to_tensor(x)
-    # `tnn.softshrink` is not implemented for integer or bool dtypes. Promote
-    # the way the JAX backend already does.
-    x = cast(x, backend.result_type(x.dtype, float))
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tnn.softshrink(x, lambd=threshold)
 
 
 def sparse_plus(x):
     x = convert_to_tensor(x)
-    # `sparse_plus` is a float op. Promote integer/bool inputs the way the JAX
-    # backend already does; otherwise the float quadratic branch and the
-    # integer identity branch of `torch.where` have mismatched dtypes.
-    x = cast(x, backend.result_type(x.dtype, float))
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return torch.where(
         x <= -1,
         torch.zeros_like(x),
@@ -142,9 +141,9 @@ def elu(x, alpha=1.0):
 
 def selu(x):
     x = convert_to_tensor(x)
-    # `tnn.selu` is not implemented for integer or bool dtypes. Promote the way
-    # the JAX backend already does.
-    x = cast(x, backend.result_type(x.dtype, float))
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tnn.selu(x)
 
 
