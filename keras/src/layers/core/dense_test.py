@@ -1771,6 +1771,48 @@ class DenseTest(testing.TestCase):
         self.assertEqual(layer.quantization_mode, "int4")
         self.assertEqual(tuple(layer.kernel_scale.shape), (2, 8))
 
+    def test_float8_reads_its_dtype_policy_map_entry(self):
+        # The amax history length comes from the layer's own entry, as it
+        # does from a policy passed directly, so the two stores agree.
+        policy = dtype_policies.QuantizedFloat8DTypePolicy(
+            "float8", "float32", amax_history_length=16
+        )
+        policy_map = dtype_policies.DTypePolicyMap()
+        policy_map["dense"] = policy
+        direct = layers.Dense(units=4, name="dense", dtype=policy)
+        direct.build((None, 6))
+        layer = layers.Dense(units=4, name="dense", dtype=policy_map)
+        layer.build((None, 6))
+        self.assertEqual(tuple(layer.inputs_amax_history.shape), (16,))
+        history = np.random.rand(16).astype("float32")
+        direct.inputs_amax_history.assign(history)
+        store = {}
+        direct.save_own_variables(store)
+        layer.load_own_variables(store)
+        self.assertAllClose(layer.inputs_amax_history, history)
+
+        # A model whose layer holds the map saves and loads the same length.
+        inputs = layers.Input((6,))
+        outputs = layers.Dense(4, name="dense", dtype=policy_map)(inputs)
+        model = models.Model(inputs, outputs)
+        path = os.path.join(self.get_temp_dir(), "float8_map.keras")
+        model.save(path)
+        reloaded = saving.load_model(path)
+        reloaded_layer = reloaded.get_layer("dense")
+        self.assertEqual(tuple(reloaded_layer.inputs_amax_history.shape), (16,))
+        x = np.random.rand(2, 6).astype("float32")
+        self.assertAllClose(reloaded(x), model(x))
+
+    def test_already_quantized_error_names_the_dtype_policy_map_entry(self):
+        policy_map = dtype_policies.DTypePolicyMap()
+        policy_map["dense"] = dtype_policies.get("int8_from_float32")
+        layer = layers.Dense(units=4, name="dense", dtype=policy_map)
+        layer.build((None, 6))
+        with self.assertRaisesRegex(
+            ValueError, "already quantized with dtype_policy='int8_from_"
+        ):
+            layer.quantize("int8")
+
     def test_stateless_call_uses_dtype_policy_map_entry(self):
         # A layer quantized through its `DTypePolicyMap` entry (the map's
         # default policy is not quantized) must dispatch `stateless_call` to
