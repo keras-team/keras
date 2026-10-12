@@ -194,7 +194,7 @@ class Trainer(BaseTrainer):
         if not self.run_eagerly and self.jit_compile:
             train_step = torch.compile(train_step)
             if (
-                type(self).train_step is TorchTrainer.train_step
+                type(self).train_step is Trainer.train_step
                 and self.ddp_model is None
                 and hasattr(torch._dynamo.config, "trace_autograd_ops")
             ):
