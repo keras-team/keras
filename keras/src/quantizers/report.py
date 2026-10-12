@@ -2,7 +2,7 @@
 
 This module defines :class:`QuantizationReport`, a small structured record of
 what happened during a `model.quantize()` call (which layers were quantized,
-which were skipped and why, and any recorded errors).
+and which were skipped and why).
 """
 
 from keras.src.api_export import keras_export
@@ -14,7 +14,7 @@ class QuantizationReport:
 
     A report is returned by `model.quantize()` and also stored on the model as
     `model._quantization_report`. It records, per leaf layer, whether the layer
-    was quantized, skipped (with the reason), or hit a recorded error.
+    was quantized or skipped (with the reason).
 
     The possible skip reasons are available as class attributes on
     `QuantizationReport` (`SKIP_NO_SUPPORT`, `SKIP_FILTERED`,
@@ -35,10 +35,6 @@ class QuantizationReport:
             `SKIP_ALREADY_QUANTIZED` (the layer was already quantized), or
             `SKIP_OUTSIDE_STRUCTURE` (a GPTQ/AWQ call whose quantization
             layer structure does not cover the layer).
-        errors: A list of `(path, message)` tuples for any non-fatal errors
-            recorded during the call. In the default flow real errors are
-            allowed to propagate, so this list is normally empty; it exists so
-            callers can attach recoverable diagnostics.
     """
 
     # Reasons a leaf layer can be skipped during quantization.
@@ -51,16 +47,12 @@ class QuantizationReport:
         self.mode = mode
         self.quantized = []
         self.skipped = []
-        self.errors = []
 
     def add_quantized(self, path, mode, scheme):
         self.quantized.append((path, mode, scheme))
 
     def add_skipped(self, path, reason):
         self.skipped.append((path, reason))
-
-    def add_error(self, path, error):
-        self.errors.append((path, str(error)))
 
     @property
     def num_quantized(self):
@@ -69,10 +61,6 @@ class QuantizationReport:
     @property
     def num_skipped(self):
         return len(self.skipped)
-
-    @property
-    def num_errors(self):
-        return len(self.errors)
 
     def skipped_by_reason(self, reason):
         """Return the list of layer paths that were skipped for `reason`."""
@@ -86,34 +74,19 @@ class QuantizationReport:
         and up to `max_examples` example layer names.
         """
         unsupported = self.skipped_by_reason(self.SKIP_NO_SUPPORT)
-        if not unsupported and not self.errors:
+        if not unsupported:
             return None
 
-        parts = []
-        if unsupported:
-            examples = ", ".join(repr(p) for p in unsupported[:max_examples])
-            if len(unsupported) > max_examples:
-                examples += ", ..."
-            parts.append(
-                f"{len(unsupported)} layer(s) were skipped because they do "
-                f"not support quantization (e.g. {examples})."
-            )
-        if self.errors:
-            error_examples = ", ".join(
-                repr(p) for p, _ in self.errors[:max_examples]
-            )
-            if len(self.errors) > max_examples:
-                error_examples += ", ..."
-            parts.append(
-                f"{len(self.errors)} layer(s) reported errors "
-                f"(e.g. {error_examples})."
-            )
-        parts.append(
+        examples = ", ".join(repr(p) for p in unsupported[:max_examples])
+        if len(unsupported) > max_examples:
+            examples += ", ..."
+        return (
+            f"`model.quantize()`: {len(unsupported)} layer(s) were skipped "
+            f"because they do not support quantization (e.g. {examples}). "
             f"Quantized {self.num_quantized} layer(s) in mode "
             f"'{self.mode}'. Call `model.quantization_summary()` or inspect "
             "the returned `QuantizationReport` for details."
         )
-        return "`model.quantize()`: " + " ".join(parts)
 
     def render(self):
         """Return the full report as a multi-line string."""
@@ -132,16 +105,10 @@ class QuantizationReport:
                 lines.append(f"  - {path}: {reason}")
         else:
             lines.append("  (none)")
-
-        if self.errors:
-            lines.append(f"Errors on {self.num_errors} layer(s):")
-            for path, message in self.errors:
-                lines.append(f"  - {path}: {message}")
         return "\n".join(lines)
 
     def __repr__(self):
         return (
             f"QuantizationReport(mode={self.mode!r}, "
-            f"quantized={self.num_quantized}, skipped={self.num_skipped}, "
-            f"errors={self.num_errors})"
+            f"quantized={self.num_quantized}, skipped={self.num_skipped})"
         )

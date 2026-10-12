@@ -3,6 +3,7 @@ import scipy.linalg as sl
 
 from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
+from keras.src.backend.common.backend_utils import standardize_axis_for_numpy
 from keras.src.backend.numpy.ops.core import convert_to_tensor
 
 
@@ -52,6 +53,7 @@ def lu_factor(a):
 
 def norm(x, ord=None, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+    axis = standardize_axis_for_numpy(axis)
     dtype = standardize_dtype(x.dtype)
     if "int" in dtype or dtype == "bool":
         dtype = dtypes.result_type(x.dtype, "float32")

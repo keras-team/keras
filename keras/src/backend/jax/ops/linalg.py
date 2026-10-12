@@ -63,6 +63,8 @@ def lu_factor(x):
 
 def norm(x, ord=None, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+    if isinstance(axis, list):
+        axis = tuple(axis)
     if standardize_dtype(x.dtype) == "int64":
         dtype = config.floatx()
     else:

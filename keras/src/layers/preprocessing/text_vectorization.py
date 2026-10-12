@@ -13,6 +13,13 @@ from keras.src.utils.module_utils import tensorflow as tf
 from keras.src.utils.progbar import Progbar
 
 
+def _extract_batch(batch):
+    """Return input from batch; handle (x, y) or (x, y, sample_weight)."""
+    if isinstance(batch, tuple):
+        return batch[0]
+    return batch
+
+
 @keras_export("keras.layers.TextVectorization")
 class TextVectorization(Layer):
     """A preprocessing layer which maps text features to integer sequences.
@@ -53,7 +60,7 @@ class TextVectorization(Layer):
        by the callable depends on the active Keras backend. With the
        TensorFlow backend, the callable receives a `tf.Tensor` of dtype
        `string`, so it should use `tf.strings` operations. With any other
-       backend (JAX, NumPy, PyTorch, OpenVINO) the callable receives a
+       backend (JAX, NumPy, PyTorch) the callable receives a
        NumPy array of unicode strings, so it should use `np.char` /
        `np.strings` operations (or any vectorized string logic of your
        choice). The callable should return data of the same shape as the
@@ -435,7 +442,7 @@ class TextVectorization(Layer):
             if steps is not None:
                 data = data.take(steps)
             for i, batch in enumerate(data):
-                self.update_state(batch)
+                self.update_state(_extract_batch(batch))
                 progbar.update(i + 1)
             progbar.update(steps if steps is not None else i + 1, finalize=True)
         elif hasattr(data, "__iter__") and not (
@@ -447,7 +454,7 @@ class TextVectorization(Layer):
             for i, batch in enumerate(data):
                 if steps is not None and i >= steps:
                     break
-                self.update_state(batch)
+                self.update_state(_extract_batch(batch))
                 progbar.update(i + 1)
             progbar.update(steps if steps is not None else i + 1, finalize=True)
         else:

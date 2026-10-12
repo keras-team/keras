@@ -157,7 +157,8 @@ class Int4QuantizationConfig(QuantizationConfig):
             )
 
         if self.weight_quantizer is not None:
-            if self.weight_quantizer.value_range != (-8, 7):
+            # A quantizer restored from JSON can hold a list.
+            if tuple(self.weight_quantizer.value_range) != (-8, 7):
                 raise ValueError(
                     "Int4QuantizationConfig requires a weight_quantizer "
                     "with value_range=(-8, 7). Received: "
@@ -317,15 +318,3 @@ def _validate_mode(mode):
             f"Expected one of {strategy_registry.registered_modes()}. "
             f"Received: mode={mode}"
         )
-
-
-def get_block_size_for_layer(layer, config):
-    """Determine the block size for int4 quantization.
-
-    The resolution logic lives on the int4 strategy
-    (`Int4Strategy.resolve_block_size`); this wrapper remains until the layer
-    call sites dispatch through the registry.
-    """
-    return strategy_registry.get_strategy("int4").resolve_block_size(
-        layer, config
-    )

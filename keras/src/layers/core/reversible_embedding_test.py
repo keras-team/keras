@@ -626,3 +626,119 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         # Verify outputs match
         y_after = loaded_model(x)
         self.assertAllClose(y_before, y_after)
+
+
+class ReversibleEmbeddingConsistencyTest(test_case.TestCase):
+    """The reverse projection follows the forward table in every mode."""
+
+    def _config(self, mode, **kwargs):
+        if mode == "int8":
+            return Int8QuantizationConfig(**kwargs)
+        return Int4QuantizationConfig(block_size=-1, **kwargs)
+
+    def _layers(self, mode, tie_weights, config=None, **kwargs):
+        # A float reference and a quantized copy with identical weights.
+        reference = layers.ReversibleEmbedding(
+            12, 6, tie_weights=tie_weights, **kwargs
+        )
+        reference.build((None,))
+        quantized = layers.ReversibleEmbedding(
+            12, 6, tie_weights=tie_weights, **kwargs
+        )
+        quantized.build((None,))
+        for name in ("_embeddings", "reverse_embeddings"):
+            if hasattr(reference, name):
+                getattr(quantized, name).assign(getattr(reference, name))
+        quantized.quantize(mode, config=config)
+        return reference, quantized
+
+    @parameterized.named_parameters(
+        named_product(mode=["int8", "int4"], tie_weights=[True, False])
+    )
+    def test_custom_weight_quantizer_applies_to_both_tables(
+        self, mode, tie_weights
+    ):
+        # A user quantizer used to crash the untied reverse table, which
+        # was quantized with the forward axis.
+        if mode == "int8":
+            quantizer = AbsMaxQuantizer(axis=-1)
+        else:
+            quantizer = AbsMaxQuantizer(
+                axis=-1, value_range=(-8, 7), output_dtype="int8"
+            )
+        reference, quantized = self._layers(
+            mode,
+            tie_weights,
+            config=self._config(mode, weight_quantizer=quantizer),
+        )
+        x = np.random.random((3, 6)).astype("float32")
+        self.assertAllClose(
+            quantized(x, reverse=True),
+            reference(x, reverse=True),
+            atol=0.2,
+            rtol=0.2,
+        )
+
+    @parameterized.named_parameters(("int8", "int8"), ("int4", "int4"))
+    def test_tied_reverse_includes_lora_delta(self, mode):
+        # The LoRA update reaches the reverse projection of a tied layer, as
+        # it does in float mode and in the forward lookup.
+        _, layer = self._layers(mode, tie_weights=True)
+        x = np.random.random((3, 6)).astype("float32")
+        before = ops.convert_to_numpy(layer(x, reverse=True))
+        layer.enable_lora(2)
+        rng = np.random.default_rng(0)
+        layer.lora_embeddings_a.assign(rng.random((12, 2)) - 0.5)
+        layer.lora_embeddings_b.assign(rng.random((2, 6)) - 0.5)
+        after = ops.convert_to_numpy(layer(x, reverse=True))
+        a = ops.convert_to_numpy(layer.lora_embeddings_a)
+        b = ops.convert_to_numpy(layer.lora_embeddings_b)
+        expected = (layer.lora_alpha / layer.lora_rank) * (x @ b.T @ a.T)
+        self.assertAllClose(
+            after - before,
+            expected,
+            atol=1e-5,
+            rtol=1e-5,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
+        )
+
+    @parameterized.named_parameters(("int8", "int8"), ("int4", "int4"))
+    def test_mask_survives_quantization(self, mode):
+        _, layer = self._layers(mode, tie_weights=True, mask_zero=True)
+        outputs = layer(np.array([[0, 3, 5]]))
+        mask = backend.get_keras_mask(outputs)
+        self.assertIsNotNone(mask)
+        self.assertAllClose(mask, [[False, True, True]])
+
+    @parameterized.named_parameters(("int8", "int8"), ("int4", "int4"))
+    def test_reverse_dtype_is_honored(self, mode):
+        reference, quantized = self._layers(
+            mode, tie_weights=True, reverse_dtype="bfloat16"
+        )
+        x = np.random.random((3, 6)).astype("float32")
+        logits = quantized(x, reverse=True)
+        self.assertEqual(backend.standardize_dtype(logits.dtype), "bfloat16")
+        self.assertAllClose(
+            logits, reference(x, reverse=True), atol=0.2, rtol=0.2
+        )
+
+    @parameterized.named_parameters(
+        named_product(mode=["int8", "int4"], tie_weights=[True, False])
+    )
+    def test_reverse_outputs_survive_save_load(self, mode, tie_weights):
+        _, layer = self._layers(mode, tie_weights)
+        model = models.Sequential([layers.Input((6,)), layer])
+        x = np.random.random((3, 6)).astype("float32")
+        expected = model.layers[-1](x, reverse=True)
+        path = os.path.join(self.get_temp_dir(), "model.keras")
+        model.save(path)
+        restored = saving.load_model(path)
+        self.assertAllClose(restored.layers[-1](x, reverse=True), expected)
+
+    def test_int4_policy_build_is_weight_only(self):
+        # An int4 layer built from a dtype policy is weight-only on the
+        # reverse projection, like every other int4 path.
+        layer = layers.ReversibleEmbedding(12, 6, dtype="int4_from_float32")
+        layer.build((None,))
+        self.assertIsNone(layer.inputs_quantizer)

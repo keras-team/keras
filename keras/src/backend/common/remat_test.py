@@ -84,8 +84,8 @@ class TestRematScope(testing.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() in ("openvino", "numpy"),
-    reason="remat not supported on OpenVino and Numpy",
+    not backend.SUPPORTS_GRADIENT,
+    reason="remat requires gradient support",
 )
 class RematTest(testing.TestCase):
     def test_remat_basic_call(self):

@@ -16,7 +16,7 @@ from keras.src.utils import traceback_utils
 from keras.src.utils import tracking
 
 
-class Trainer:
+class BaseTrainer:
     def __init__(self):
         self._lock = False
         self._run_eagerly = False
@@ -296,7 +296,7 @@ class Trainer:
                 metrics.extend(self._compile_loss.metrics)
         metrics.extend(self._metrics)
         for layer in self._flatten_layers(include_self=False):
-            if isinstance(layer, Trainer):
+            if isinstance(layer, BaseTrainer):
                 # All Trainer-related metrics in sublayers should be ignored
                 # because a new Trainer has been instantiated.
                 continue
@@ -1000,7 +1000,7 @@ class Trainer:
         Args:
             config: Dict containing information for compiling the model.
         """
-        has_overridden_compile = self.__class__.compile != Trainer.compile
+        has_overridden_compile = self.__class__.compile != BaseTrainer.compile
         if has_overridden_compile:
             warnings.warn(
                 "`compile()` was not called as part of model loading "
