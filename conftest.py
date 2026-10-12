@@ -15,6 +15,10 @@ from keras.src.backend.config import PLUGGABLE_BACKENDS
 from keras.src.backend.config import backend  # noqa: E402
 from keras.src.utils.module_utils import get_pluggable_backend_module
 
+# One console line per test with its `subTest` check count, plus a summary
+# of failed and skipped checks. See `keras/src/testing/check_console.py`.
+pytest_plugins = ["keras.src.testing.check_console"]
+
 
 def pytest_configure(config):
     config.addinivalue_line(
