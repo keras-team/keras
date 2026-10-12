@@ -8,6 +8,9 @@ import warnings
 from keras.src import backend as backend_module
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
+from keras.src.backend.config import BUILT_IN_BACKENDS
+from keras.src.backend.config import PLUGGABLE_BACKENDS
+from keras.src.utils.module_utils import get_pluggable_backend_module
 
 
 def in_tf_graph():
@@ -79,33 +82,51 @@ class DynamicBackend:
 
     def __init__(self, backend=None):
         self._backend = backend or backend_module.backend()
+        self._cached_modules = {}
+        self._get_module()
 
     def set_backend(self, backend):
-        if backend not in ("tensorflow", "jax", "torch", "numpy", "openvino"):
+        if (
+            backend not in BUILT_IN_BACKENDS
+            and backend not in PLUGGABLE_BACKENDS
+        ):
+            all_backends = sorted(
+                list(BUILT_IN_BACKENDS) + list(PLUGGABLE_BACKENDS)
+            )
             raise ValueError(
-                "Available backends are ('tensorflow', 'jax', 'torch', "
-                f"'numpy' and 'openvino'). Received: backend={backend}"
+                f"Available backends are ({all_backends}). "
+                f"Received: backend={backend}"
             )
         self._backend = backend
+        self._get_module()
 
     def reset(self):
         self._backend = backend_module.backend()
+        self._get_module()
 
     @property
     def name(self):
         return self._backend
 
+    def _get_module(self):
+        if self._backend not in self._cached_modules:
+            if self._backend == "tensorflow":
+                module = importlib.import_module("keras.src.backend.tensorflow")
+            elif self._backend == "jax":
+                module = importlib.import_module("keras.src.backend.jax")
+            elif self._backend == "torch":
+                module = importlib.import_module("keras.src.backend.torch")
+            elif self._backend == "numpy":
+                module = importlib.import_module("keras.src.backend.numpy")
+            else:
+                module = get_pluggable_backend_module(
+                    "src", backend=self._backend
+                )
+            self._cached_modules[self._backend] = module
+        return self._cached_modules[self._backend]
+
     def __getattr__(self, name):
-        if self._backend == "tensorflow":
-            module = importlib.import_module("keras.src.backend.tensorflow")
-        if self._backend == "jax":
-            module = importlib.import_module("keras.src.backend.jax")
-        if self._backend == "torch":
-            module = importlib.import_module("keras.src.backend.torch")
-        if self._backend == "numpy":
-            module = importlib.import_module("keras.src.backend.numpy")
-        if self._backend == "openvino":
-            module = importlib.import_module("keras.src.backend.openvino")
+        module = self._get_module()
         if hasattr(module, name):
             return getattr(module, name)
         # Op implementations live in `keras.src.backend.<backend>.ops` and are

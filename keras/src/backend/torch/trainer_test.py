@@ -177,3 +177,118 @@ def _distributed_metrics_worker(rank):
         raise RuntimeError(f"Metrics missing from results: {results}")
 
     torch.distributed.destroy_process_group()
+
+
+@pytest.mark.skipif(
+    backend.backend() != "torch", reason="Requires torch backend"
+)
+class TorchTrainerJitCompileTest(testing.TestCase):
+    def test_jit_compile_with_frozen_weights(self):
+        model = SimpleModel()
+        x = np.ones((8, 10), dtype="float32")
+        y = np.ones((8, 1), dtype="float32")
+        model(x)
+        # Manually set requires_grad = False on one of the trainable weight
+        # tensors (kernel is frozen, but bias is still trainable)
+        model.dense.kernel.value.requires_grad = False
+
+        model.compile(
+            optimizer=optimizers.Adam(),
+            loss="mse",
+            jit_compile=True,
+        )
+        history = model.fit(x, y, epochs=1, batch_size=4, verbose=0)
+        self.assertIn("loss", history.history)
+
+    def test_jit_compile_with_all_weights_frozen(self):
+        model = SimpleModel()
+        x = np.ones((8, 10), dtype="float32")
+        y = np.ones((8, 1), dtype="float32")
+        model(x)
+        model.dense.kernel.value.requires_grad = False
+        model.dense.bias.value.requires_grad = False
+
+        model.compile(
+            optimizer=optimizers.Adam(),
+            loss="mse",
+            jit_compile=True,
+        )
+        with self.assertRaises(ValueError):
+            model.fit(x, y, epochs=1, batch_size=4, verbose=0)
+
+    def test_jit_compile_with_detached_loss(self):
+        class DetachedLossModel(models.Model):
+            def __init__(self):
+                super().__init__()
+                self.dense = layers.Dense(1)
+
+            def call(self, x):
+                return self.dense(x)
+
+            def compute_loss(
+                self,
+                x=None,
+                y=None,
+                y_pred=None,
+                sample_weight=None,
+                training=True,
+            ):
+                return torch.tensor(1.0)
+
+        model = DetachedLossModel()
+        x = np.ones((8, 10), dtype="float32")
+        y = np.ones((8, 1), dtype="float32")
+        model.compile(
+            optimizer=optimizers.Adam(),
+            jit_compile=True,
+        )
+        with self.assertRaises(ValueError):
+            model.fit(x, y, epochs=1, batch_size=4, verbose=0)
+
+    def test_jit_compile_with_train_step_calling_backward(self):
+        class BackwardModel(SimpleModel):
+            def train_step(self, data):
+                x, y = data
+                self.zero_grad()
+                y_pred = self(x, training=True)
+                loss = self.compute_loss(x=x, y=y, y_pred=y_pred)
+                loss.backward()
+                trainable_weights = self.trainable_weights[:]
+                gradients = [v.value.grad for v in trainable_weights]
+                with torch.no_grad():
+                    self.optimizer.apply(gradients, trainable_weights)
+                return {"loss": loss.detach()}
+
+        model = BackwardModel()
+        x = np.ones((8, 10), dtype="float32")
+        y = np.ones((8, 1), dtype="float32")
+        model.compile(
+            optimizer=optimizers.Adam(),
+            loss="mse",
+            jit_compile=True,
+        )
+        history = model.fit(x, y, epochs=2, batch_size=4, verbose=0)
+        self.assertLen(history.history["loss"], 2)
+
+    def test_jit_compile_matches_eager_training(self):
+        x = np.random.rand(16, 10).astype("float32")
+        y = np.random.rand(16, 1).astype("float32")
+        reference = SimpleModel()
+        reference(x)
+        initial_weights = reference.get_weights()
+
+        trained_weights = []
+        for jit_compile in (False, True):
+            model = SimpleModel()
+            model(x)
+            model.set_weights(initial_weights)
+            model.compile(
+                optimizer=optimizers.SGD(0.1),
+                loss="mse",
+                jit_compile=jit_compile,
+            )
+            model.fit(x, y, epochs=2, batch_size=4, shuffle=False, verbose=0)
+            trained_weights.append(model.get_weights())
+
+        for eager_weight, jit_weight in zip(*trained_weights):
+            self.assertAllClose(eager_weight, jit_weight, atol=1e-6)

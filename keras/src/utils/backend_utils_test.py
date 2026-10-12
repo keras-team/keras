@@ -59,8 +59,14 @@ class BackendUtilsTest(testing.TestCase):
 
         y = dynamic_backend.cast(x, "float16")
         self.assertEqual(backend.standardize_dtype(y.dtype), "float16")
-        self.assertAllClose(dynamic_backend.numpy.log10(x), np.log10(x))
-        self.assertAllClose(dynamic_backend.nn.relu(-x), np.zeros_like(x))
+        self.assertAllClose(
+            dynamic_backend.convert_to_numpy(dynamic_backend.numpy.log10(x)),
+            np.log10(x),
+        )
+        self.assertAllClose(
+            dynamic_backend.convert_to_numpy(dynamic_backend.nn.relu(-x)),
+            np.zeros_like(x),
+        )
 
         # `numerical_utils.encode_categorical_inputs` branches on
         # `backend_module.__name__`, so dunders have to resolve too.

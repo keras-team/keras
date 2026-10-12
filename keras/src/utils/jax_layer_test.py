@@ -217,7 +217,7 @@ class TestJaxLayer(testing.TestCase):
         # Fake MNIST data
         x_train = random.uniform(shape=(320, 28, 28, 1))
         y_train_indices = ops.cast(
-            ops.random.uniform(shape=(320,), minval=0, maxval=num_classes),
+            random.uniform(shape=(320,), minval=0, maxval=num_classes),
             dtype="int32",
         )
         y_train = ops.one_hot(y_train_indices, num_classes, dtype="int32")

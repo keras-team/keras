@@ -10,11 +10,14 @@ from keras.src.quantizers.modes.common import cast_lookup_inputs
 from keras.src.quantizers.modes.common import encode_reverse_lookup
 from keras.src.quantizers.modes.common import reverse_lookup_dtype
 from keras.src.quantizers.modes.common import reverse_lookup_params
+from keras.src.quantizers.modes.int4.block_size import int4_scheme
 from keras.src.quantizers.modes.int4.block_size import is_grouped
 from keras.src.quantizers.modes.int4.block_size import is_per_channel
 from keras.src.quantizers.packing import pack_int4
 from keras.src.quantizers.packing import unpack_int4
 from keras.src.quantizers.quantization_config import QuantizationConfig
+from keras.src.quantizers.quantized_weight import Int4Pairs
+from keras.src.quantizers.quantized_weight import QuantizedWeight
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
 from keras.src.quantizers.quantizers import (
     abs_max_quantize_grouped_with_zero_point,
@@ -23,10 +26,12 @@ from keras.src.quantizers.quantizers import dequantize_with_sz_map
 
 
 class Int4LookupHandlers:
-    """`_build_lookup` / `_call_lookup` / `_reverse_lookup` /
-    `_encode_lookup` / `_quantize_lookup`."""
+    """The int4 build, forward, encode and views of an embeddings table.
 
-    # --- Embeddings lookup (Embedding, ReversibleEmbedding) ---------------
+    The table is packed two codes per byte along `output_dim`. The scale
+    runs per row (per-channel) or per row and group of columns (grouped,
+    with a zero point and a group index).
+    """
 
     def _build_lookup(self, layer, geometry, embeddings_shape, config):
         """Build variables for int4 quantization of an embeddings table.
@@ -43,9 +48,10 @@ class Int4LookupHandlers:
 
         # The table is packed two int4 values per byte along `output_dim`;
         # the scale runs per row (per channel) or per row and group.
+        packed_output_dim = Int4Pairs.packed_length(output_dim)
         layer._embeddings = layer.add_weight(
             name="embeddings",
-            shape=(input_dim, (output_dim + 1) // 2),
+            shape=(input_dim, packed_output_dim),
             initializer="zeros",
             dtype="int8",
             trainable=False,
@@ -103,7 +109,7 @@ class Int4LookupHandlers:
                 reverse_scale_shape = tuple(reversed(scale_shape))
                 layer.reverse_embeddings = layer.add_weight(
                     name="reverse_embeddings",
-                    shape=((output_dim + 1) // 2, input_dim),
+                    shape=(packed_output_dim, input_dim),
                     initializer="zeros",
                     dtype="int8",
                     trainable=False,
@@ -163,10 +169,10 @@ class Int4LookupHandlers:
         per_channel = is_per_channel(getattr(layer, "_int4_block_size", None))
         dtype = reverse_lookup_dtype(layer)
         inputs = ops.cast(inputs, dtype)
-        embeddings, scale, zero = reverse_lookup_params(
-            layer, with_zero_point=not per_channel
+        table = self._get_reverse_lookup_quantized_weight(
+            layer, layer._quantization_geometry()
         )
-        unpacked_embeddings = unpack_int4(embeddings, layer.output_dim, axis=0)
+        unpacked_embeddings = table.unpack()
 
         if layer.inputs_quantizer:
             inputs_q, inputs_scale = layer.inputs_quantizer(inputs)
@@ -178,15 +184,15 @@ class Int4LookupHandlers:
             # into the logits.
             logits = ops.matmul(inputs_q, unpacked_embeddings)
             logits = ops.cast(logits, dtype)
-            logits = ops.divide(logits, ops.multiply(inputs_scale, scale))
+            logits = ops.divide(logits, ops.multiply(inputs_scale, table.scale))
         else:
             # Asymmetric sub-channel: the zero point cannot be pulled out of
             # the matmul, so dequantize the embeddings first.
             float_embeddings = dequantize_with_sz_map(
                 ops.cast(unpacked_embeddings, dtype),
-                scale,
-                zero,
-                layer.g_idx,
+                table.scale,
+                table.zero_point,
+                table.g_idx,
                 group_axis=0,
             )
             logits = ops.matmul(inputs_q, float_embeddings)
@@ -240,6 +246,36 @@ class Int4LookupHandlers:
 
         packed_embeddings_value, _, _ = pack_int4(embeddings_value, axis=-1)
         return packed_embeddings_value, embeddings_scale, embeddings_zero
+
+    def _get_lookup_quantized_weight(self, layer, geometry):
+        grouped = is_grouped(layer._int4_block_size)
+        return QuantizedWeight(
+            codes=layer._embeddings,
+            scale=layer.embeddings_scale,
+            layout=Int4Pairs(axis=-1, orig_len=layer._orig_output_dim),
+            scheme=int4_scheme(layer._int4_block_size),
+            shape=(layer.input_dim, layer.output_dim),
+            axis=-1,
+            zero_point=layer.embeddings_zero if grouped else None,
+            g_idx=layer.g_idx if grouped else None,
+        )
+
+    def _get_reverse_lookup_quantized_weight(self, layer, geometry):
+        # A tied layer's reverse table is its forward table transposed.
+        grouped = is_grouped(layer._int4_block_size)
+        codes, scale, zero_point = reverse_lookup_params(
+            layer, with_zero_point=grouped
+        )
+        return QuantizedWeight(
+            codes=codes,
+            scale=scale,
+            layout=Int4Pairs(axis=0, orig_len=layer.output_dim),
+            scheme=int4_scheme(layer._int4_block_size),
+            shape=(layer.output_dim, layer.input_dim),
+            axis=0,
+            zero_point=zero_point,
+            g_idx=layer.g_idx if grouped else None,
+        )
 
     def _quantize_lookup(self, layer, geometry, config):
         embeddings_shape = geometry.weight_shape

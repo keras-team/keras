@@ -599,15 +599,8 @@ class BaseOptimizer(KerasSaveable):
             if self.ema_overwrite_frequency:
                 # Only when self.ema_overwrite_frequency is not None, we
                 # overwrite the model variables.
-                should_overwrite_model_vars = (
-                    self.iterations + 1
-                ) % self.ema_overwrite_frequency == 0
-                backend.ops.cond(
-                    should_overwrite_model_vars,
-                    lambda: self._overwrite_model_variables_with_average_value(
-                        self._trainable_variables
-                    ),
-                    lambda: None,
+                self._backend_maybe_overwrite_model_variables(
+                    self._trainable_variables
                 )
 
     def _backend_update_step(self, grads, trainable_variables, learning_rate):
@@ -993,6 +986,23 @@ class BaseOptimizer(KerasSaveable):
                             ),
                         )
                     )
+
+    def _backend_maybe_overwrite_model_variables(self, trainable_variables):
+        """Overwrite model variables with their moving average values on every
+        `ema_overwrite_frequency`-th iteration.
+
+        It is overridden by TF to support tf.distribute.
+        """
+        should_overwrite_model_vars = (
+            self.iterations + 1
+        ) % self.ema_overwrite_frequency == 0
+        backend.ops.cond(
+            should_overwrite_model_vars,
+            lambda: self._overwrite_model_variables_with_average_value(
+                trainable_variables
+            ),
+            lambda: None,
+        )
 
     def _overwrite_model_variables_with_average_value(
         self, trainable_variables

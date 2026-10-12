@@ -1630,8 +1630,8 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.leaky_relu(x),
             [-0.2, 0, 1, 2, 3],
         )
-        # Integer input is promoted to float. The numpy and openvino backends
-        # previously truncated `negative_slope` to 0 under an integer dtype,
+        # Integer input is promoted to float. The numpy backend previously
+        # truncated `negative_slope` to 0 under an integer dtype,
         # which turned this into `relu`.
         x_int = np.array([-1, 0, 1, 2, 3], dtype="int32")
         self.assertAllClose(knn.leaky_relu(x_int), [-0.2, 0, 1, 2, 3])
@@ -1642,8 +1642,8 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.hard_sigmoid(x),
             [0.33333334, 0.5, 0.6666667, 0.8333334, 1.0],
         )
-        # Integer input is promoted to float. The numpy and openvino backends
-        # previously truncated the `0.5` offset to 0 under an integer dtype,
+        # Integer input is promoted to float. The numpy backend previously
+        # truncated the `0.5` offset to 0 under an integer dtype,
         # leaving `clip(x / 6, 0, 1)` rather than `clip(x / 6 + 0.5, 0, 1)`.
         x_int = np.array([-1, 0, 1, 2, 3], dtype="int32")
         self.assertAllClose(
@@ -2400,6 +2400,34 @@ class NNOpsCorrectnessTest(testing.TestCase):
             dilation_rate=1,
         )
         self.assertAllClose(outputs, expected)
+
+    def test_conv_transpose_functional_model(self):
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            input_shape = (4, 4, 3)
+            kernel_shape = (2, 2, 5, 3)
+            inputs_data = np.arange(96, dtype="float32").reshape((2, 4, 4, 3))
+        else:
+            input_shape = (3, 4, 4)
+            kernel_shape = (2, 2, 5, 3)
+            inputs_data = np.arange(96, dtype="float32").reshape((2, 3, 4, 4))
+        kernel_data = np.arange(60, dtype="float32").reshape(kernel_shape)
+
+        x = keras.layers.Input(shape=input_shape)
+        kernel = keras.ops.convert_to_tensor(kernel_data)
+        out = knn.conv_transpose(
+            x, kernel, strides=2, padding="valid", output_padding=1
+        )
+        model = keras.Model(inputs=x, outputs=out)
+        model_output = model(inputs_data)
+        eager_output = knn.conv_transpose(
+            inputs_data,
+            kernel_data,
+            strides=2,
+            padding="valid",
+            output_padding=1,
+        )
+        self.assertAllClose(model_output, eager_output)
 
     @parameterized.named_parameters(
         [

@@ -579,11 +579,13 @@ def standardize_dtype(dtype):
         return config.floatx()
     dtype = dtypes.PYTHON_DTYPES_MAP.get(dtype, dtype)
     if hasattr(dtype, "name"):
-        dtype = dtype.name
+        dtype = dtype.name.lower()
     elif hasattr(dtype, "__name__"):
         dtype = dtype.__name__
     elif hasattr(dtype, "__str__") and (
-        "torch" in str(dtype) or "jax.numpy" in str(dtype)
+        "torch" in str(dtype)
+        or "jax.numpy" in str(dtype)
+        or "mlx" in str(dtype)
     ):
         dtype = str(dtype).split(".")[-1]
 
@@ -600,6 +602,16 @@ def standardize_shape(shape):
             raise ValueError(f"Cannot convert '{shape}' to a shape.")
         if config.backend() == "tensorflow":
             if isinstance(shape, tf.TensorShape):
+                if shape.rank is None:
+                    raise ValueError(
+                        "Tensors with unknown rank are not supported. "
+                        f"Received a tensor with shape: {shape}. This "
+                        "commonly happens with `tf.numpy_function` or "
+                        "`tf.py_function` in a `tf.data` pipeline, which "
+                        "discard static shape information. Specify the "
+                        "shape explicitly, e.g. with `tensor.set_shape(...)` "
+                        "or `tf.ensure_shape(tensor, shape)`."
+                    )
                 # `tf.TensorShape` may contain `Dimension` objects.
                 # We need to convert the items in it to either int or `None`
                 shape = shape.as_list()

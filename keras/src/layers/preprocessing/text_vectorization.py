@@ -60,7 +60,7 @@ class TextVectorization(Layer):
        by the callable depends on the active Keras backend. With the
        TensorFlow backend, the callable receives a `tf.Tensor` of dtype
        `string`, so it should use `tf.strings` operations. With any other
-       backend (JAX, NumPy, PyTorch, OpenVINO) the callable receives a
+       backend (JAX, NumPy, PyTorch) the callable receives a
        NumPy array of unicode strings, so it should use `np.char` /
        `np.strings` operations (or any vectorized string logic of your
        choice). The callable should return data of the same shape as the

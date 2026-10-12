@@ -3,6 +3,7 @@ from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import testing
+from keras.src.backend import KerasTensor
 from keras.src.utils import numerical_utils
 
 NUM_CLASSES = 5
@@ -164,6 +165,24 @@ class TestNumericalUtils(testing.TestCase):
         self.assertTrue(
             np.all(positive_mask == expected_positive_mask_with_remove_diag)
         )
+
+        # A symbolic input with an unknown dimension (e.g. a dynamic batch
+        # size) must still build correctly, since the diagonal mask is now
+        # derived from positive_mask's own shape rather than `ops.eye`.
+        unknown_dim_labels = KerasTensor(shape=(None,), dtype="int32")
+        positive_mask, negative_mask = numerical_utils.build_pos_neg_masks(
+            unknown_dim_labels, unknown_dim_labels, remove_diagonal=True
+        )
+        self.assertEqual(positive_mask.shape, (None, None))
+        self.assertEqual(negative_mask.shape, (None, None))
+
+        # A symbolic input with a statically known dimension still works.
+        known_dim_labels = KerasTensor(shape=(4,), dtype="int32")
+        positive_mask, negative_mask = numerical_utils.build_pos_neg_masks(
+            known_dim_labels, known_dim_labels, remove_diagonal=True
+        )
+        self.assertEqual(positive_mask.shape, (4, 4))
+        self.assertEqual(negative_mask.shape, (4, 4))
 
         query_labels = np.array([1, 2, 3])
         key_labels = np.array([1, 2, 3, 1])

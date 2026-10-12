@@ -11,7 +11,10 @@ owns:
   class parses its own grammar),
 - the mode's math: the `build`/`call`/`quantize` methods create the mode's
   variables, run its forward pass, and compute its quantized values against
-  the layer's quantization geometry (`keras.src.quantizers.geometry`),
+  the layer's quantization geometry (`keras.src.quantizers.geometry`);
+  `encode` turns a float weight into the stored form, and
+  `quantized_weight` reads the stored variables back through a
+  `QuantizedWeight` (`keras.src.quantizers.quantized_weight`),
 - per-layer hyperparameter resolution (block size, weight bits, group size),
 - model-level orchestration hooks (calibration for structure-aware modes).
 
@@ -33,6 +36,9 @@ class MyStrategy(QuantizationStrategy):
 register_quantization_strategy(MyStrategy())
 ```
 
+The mode reaches a layer that lists it in its `variable_serialization_spec` and
+whose geometry family the mode lists in `geometry_families`.
+
 This module must stay import-light: it is consulted lazily from
 `keras.src.dtype_policies` and `keras.src.layers.layer`, so importing it must
 not pull in layers or policies at module level.
@@ -44,10 +50,13 @@ _MODE_TO_STRATEGY = {}  # mode -> QuantizationStrategy, in registration order.
 class QuantizationStrategy:
     """Implementation of one quantization mode.
 
-    Subclasses set `name` and `config_cls` and implement the
-    `build`/`call`/`quantize` adapters against the layer's quantization
-    geometry (`Layer._quantization_geometry()`), which describes the layer's
-    quantizable structure without the layer knowing about any mode.
+    Subclasses set `name`, `config_cls` and `geometry_families` and
+    implement `build`, `call` and `quantize` against the layer's
+    quantization geometry (`Layer._quantization_geometry()`), which
+    describes the layer's quantizable structure without the layer knowing
+    about any mode. A mode that stores integer codes also implements
+    `quantized_weight`; a mode that supports a LoRA-merged save also
+    implements `encode`.
     """
 
     # The mode identifier, e.g. `"int8"`. Also the root of the policy-string
@@ -72,9 +81,14 @@ class QuantizationStrategy:
     # (pre-block layers + sequential blocks) before mutating any layer.
     requires_layer_structure = False
 
-    # Storage byte multiplier used by `Model.quantization_summary` (packed
-    # sub-byte formats store two values per byte).
-    summary_byte_multiplier = 1
+    # Whether a layer quantized with this mode can use LoRA. `enable_lora`
+    # and `Layer.quantize` check it, so a mode that sets it to False refuses
+    # LoRA in either order, before the layer changes.
+    supports_lora = True
+
+    # The geometry families (`QuantizationGeometry.family`) this mode's math
+    # handles. A layer of another family is refused before it changes.
+    geometry_families = ()
 
     # --- Config resolution ------------------------------------------------
 
@@ -152,10 +166,9 @@ class QuantizationStrategy:
         """Returns `layer`'s quantization geometry, raising if it has none.
 
         The built-in strategies read the layer through its geometry, so a layer
-        that does not define one (a layer still on its own per-mode
-        methods, or a custom layer that a registered mode claims through
-        `supports_layer`) is refused here with a clear error rather than
-        failing deeper inside the mode.
+        that does not define one, or whose geometry family the mode does
+        not handle (`geometry_families`), is refused here with a clear
+        error rather than failing deeper inside the mode.
 
         Args:
             layer: The layer being quantized.
@@ -170,18 +183,25 @@ class QuantizationStrategy:
                 f"quantization geometry, so mode '{self.name}' cannot be "
                 "applied to it."
             )
+        if geometry.family not in self.geometry_families:
+            raise NotImplementedError(
+                f"Quantization mode '{self.name}' does not support the "
+                f"'{geometry.family}' quantization geometry of layer "
+                f"{layer.__class__.__name__}."
+            )
         return geometry
 
-    def supports_layer(self, layer):
-        """Whether this mode claims support for `layer`.
+    def check_quantizable(self, layer):
+        """Raises `NotImplementedError` if this mode cannot quantize `layer`.
 
-        Layers primarily declare support by listing the mode in their
-        `variable_serialization_spec`; this hook lets an externally
-        registered mode claim layers it can quantize generically without
-        the layer having to know about it.
+        `Layer.quantize` calls it before the layer changes, so a refused
+        layer stays as it was. The default requires a quantization
+        geometry.
+
+        Args:
+            layer: The layer about to be quantized.
         """
-        del layer
-        return False
+        self.require_geometry(layer)
 
     # --- Mode math --------------------------------------------------------
 
@@ -206,6 +226,39 @@ class QuantizationStrategy:
         raise NotImplementedError(
             f"Quantization mode '{self.name}' does not implement `quantize`."
         )
+
+    def encode(self, layer, weight, config=None):
+        """Quantizes a float `weight` into this mode's stored form.
+
+        Returns `(codes, scale, zero_point)` exactly as the mode's variables
+        hold them (packed and oriented for storage), ready to assign.
+        The LoRA-merged save path uses it to re-quantize a merged weight.
+        `zero_point` is `None` for a symmetric scheme.
+        """
+        raise NotImplementedError(
+            f"Quantization mode '{self.name}' does not implement `encode`."
+        )
+
+    # --- Quantized weight view --------------------------------------------
+
+    def quantized_weight(self, layer):
+        """Returns the `QuantizedWeight` view of `layer`'s weight, or `None`.
+
+        `None` means the mode holds no integer codes for the layer: it keeps
+        the float weight (float8), or the codes are not available yet (a
+        calibration mode before its calibration pass).
+        """
+        del layer
+        return None
+
+    def quantized_weights(self, layer):
+        """All `QuantizedWeight` views of `layer`'s quantized weights.
+
+        Most layers hold one; an untied `ReversibleEmbedding` also holds its
+        reverse table. Empty when the mode holds no integer codes.
+        """
+        quantized_weight = self.quantized_weight(layer)
+        return () if quantized_weight is None else (quantized_weight,)
 
     # --- Model-level orchestration ----------------------------------------
 
