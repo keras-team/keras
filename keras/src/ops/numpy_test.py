@@ -6331,8 +6331,16 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
                     ],
                     dtype="complex64",
                 )
-                self.assertAllClose(knp.cov(x), np.cov(x))
-                self.assertAllClose(knp.Cov()(x), np.cov(x))
+                for dtype in ("complex64", "complex128"):
+                    for values in (x, x[0], x[:1]):
+                        values = values.astype(dtype)
+                        expected = np.cov(values)
+                        for actual in (knp.cov(values), knp.Cov()(values)):
+                            self.assertAllClose(actual, expected)
+                            self.assertIn(
+                                standardize_dtype(actual.dtype),
+                                ("complex64", "complex128"),
+                            )
 
             # A 1D input, or a single variable, reduces to the sample
             # variance.

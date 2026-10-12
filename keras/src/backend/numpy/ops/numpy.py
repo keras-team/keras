@@ -1875,7 +1875,7 @@ def cov(x):
 
     if x.dtype in ["int64", "float64"]:
         dtype = "float64"
-    elif x.dtype in ["bfloat16", "float16"]:
+    elif x.dtype in ["bfloat16", "float16", "complex64", "complex128"]:
         dtype = x.dtype
     else:
         dtype = config.floatx()
