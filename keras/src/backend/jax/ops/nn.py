@@ -49,6 +49,9 @@ def sigmoid(x):
 
 def sparse_sigmoid(x):
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return jnn.sparse_sigmoid(x)
 
 
