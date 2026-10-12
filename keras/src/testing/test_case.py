@@ -1,3 +1,4 @@
+import functools
 import json
 import shutil
 import tempfile
@@ -16,7 +17,25 @@ from keras.src.backend.common.global_state import clear_session
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.losses.loss import Loss
 from keras.src.models import Model
+from keras.src.ops.operation import Operation
 from keras.src.utils import traceback_utils
+
+# Input dtypes `run_op_input_dtypes_check` skips per backend, with the reason
+# shown in the test report.
+_SKIPPED_DTYPES = {
+    "torch": {
+        "uint16": "Not supported by the torch backend",
+        "uint32": "Not supported by the torch backend",
+    },
+    # TODO(hongyu): Re-enable uint32 once we determine how to handle
+    # dtypes.result_type(uint32, int*) -> int64 promotion. TF variables need
+    # int64 to be placed on the GPU, so int64 is enabled for TF only, but JAX
+    # can't represent it without x64, which prevents comparing the dtypes.
+    "tensorflow": {
+        "uint32": "TensorFlow promotes uint32 + int* to int64, which JAX "
+        "gives as int32"
+    },
+}
 
 
 class TestCase(parameterized.TestCase):
@@ -653,6 +672,364 @@ class TestCase(parameterized.TestCase):
                     dtype = standardize_dtype(weight.dtype)
                     if is_float_dtype(dtype):
                         self.assertEqual(dtype, "float32")
+
+    def run_op_test(
+        self,
+        op,
+        reference_fn,
+        inputs,
+        kwargs=None,
+        run_dynamic_shape_checks=True,
+        atol=1e-6,
+        rtol=1e-6,
+    ):
+        """Runs the standard checks on an op.
+
+        The checks are `eager` (values vs `reference_fn`), `symbolic_static`,
+        `symbolic_dynamic` (every input dimension unknown) and
+        `symbolic_partial` (one input dimension unknown at a time, plus the
+        first dimension of every input for 2+ inputs), see
+        `run_op_symbolic_check`. Each check runs in its own `subTest`, so one
+        failing check doesn't hide the others; a check that refines a failed
+        one is skipped instead, so one bug is one failure.
+
+        The symbolic checks need a function with array inputs: an `Operation`
+        instance (`knp.Square()`) is already covered through its function, so
+        it only runs `eager` (its `call`), and an op without array inputs
+        (`knp.ones`, `knp.blackman(5)`) has nothing symbolic to test.
+        `run_op_input_dtypes_check` is not included: call it from a
+        parameterized test, one dtype combination per test case.
+
+        Args:
+            op: The op to test, e.g. `knp.square` or `knp.Square()`.
+            reference_fn: Reference implementation, e.g. `np.square`.
+            inputs: Tuple of inputs passed to the op positionally: NumPy
+                arrays (may be nested) and Python scalars, which are passed
+                through as-is.
+            kwargs: Static arguments, passed to the op by keyword.
+            run_dynamic_shape_checks: Whether to run `symbolic_dynamic` and
+                `symbolic_partial`. Disable for ops that need static sizes,
+                e.g. `squeeze`. Disabled checks are reported as skipped,
+                unlike the inapplicable ones above, which aren't run at all.
+            atol: Absolute tolerance.
+            rtol: Relative tolerance.
+        """
+        kwargs = kwargs or {}
+        arrays = [x for x in tree.flatten(inputs) if not _is_scalar(x)]
+        dims = [(i, d) for i, x in enumerate(arrays) for d in range(x.ndim)]
+        # One unknown dim at a time, plus a shared batch dim for 2+ inputs.
+        masks = [{p} for p in dims]
+        batch = {(i, 0) for i, x in enumerate(arrays) if x.ndim}
+        if len(batch) > 1:
+            masks.append(batch)
+        # Computed once and shared by every check. An op that doesn't run
+        # eagerly fails here, before any check.
+        outputs = op(*_map_arrays(ops.convert_to_tensor, inputs), **kwargs)
+
+        def shapes(mask):
+            """The symbolic input shapes, e.g. `(None, 3) x (2, 3)`."""
+            return " x ".join(
+                str(
+                    tuple(
+                        None if (i, d) in mask else s
+                        for d, s in enumerate(x.shape)
+                    )
+                )
+                for i, x in enumerate(arrays)
+            )
+
+        def symbolic_partial():
+            for mask in masks:
+                with self.subTest(shapes=shapes(mask)):
+                    self.run_op_symbolic_check(
+                        op, inputs, kwargs, mask, outputs
+                    )
+
+        # Check name -> (reason to skip it or None, callable). Checks that
+        # don't apply (class form, no array inputs) are left out entirely.
+        checks = {
+            "eager": (
+                None,
+                functools.partial(
+                    self.run_op_eager_check,
+                    op,
+                    reference_fn,
+                    inputs,
+                    kwargs,
+                    atol,
+                    rtol,
+                    outputs,
+                ),
+            ),
+        }
+        if arrays and not isinstance(op, Operation):
+            dynamic = (
+                None if run_dynamic_shape_checks else "Disabled by the test"
+            )
+            checks["symbolic_static"] = (
+                None,
+                functools.partial(
+                    self.run_op_symbolic_check, op, inputs, kwargs, (), outputs
+                ),
+            )
+            checks["symbolic_dynamic"] = (
+                dynamic,
+                functools.partial(
+                    self.run_op_symbolic_check,
+                    op,
+                    inputs,
+                    kwargs,
+                    dims,
+                    outputs,
+                ),
+            )
+            checks["symbolic_partial"] = (dynamic, symbolic_partial)
+        # Checks that refine another check, skipped when that one failed.
+        depends_on = {
+            "symbolic_dynamic": "symbolic_static",
+            "symbolic_partial": "symbolic_static",
+        }
+        failed = set()
+        for name, (skip_reason, run_check) in checks.items():
+            with self.subTest(check=name):
+                if skip_reason:
+                    self.skipTest(skip_reason)
+                if depends_on.get(name) in failed:
+                    self.skipTest(f"{depends_on[name]} failed")
+                try:
+                    run_check()
+                except Exception:
+                    failed.add(name)
+                    raise
+
+    def run_op_eager_check(
+        self,
+        op,
+        reference_fn,
+        inputs,
+        kwargs,
+        atol=1e-6,
+        rtol=1e-6,
+        eager_outputs=None,
+    ):
+        """Checks the eager output count and values against `reference_fn`.
+
+        Args:
+            op: The op to test.
+            reference_fn: Reference implementation.
+            inputs: Tuple of inputs, as in `run_op_test`.
+            kwargs: Static arguments, passed to both functions by keyword.
+            atol: Absolute tolerance.
+            rtol: Relative tolerance.
+            eager_outputs: The op's outputs for `inputs`, if already computed.
+
+        Returns:
+            The eager outputs, so callers can run further checks on them.
+        """
+        if eager_outputs is None:
+            eager_inputs = _map_arrays(ops.convert_to_tensor, inputs)
+            eager_outputs = op(*eager_inputs, **kwargs)
+        _assert_outputs_close(
+            self,
+            eager_outputs,
+            reference_fn(*inputs, **kwargs),
+            atol,
+            rtol,
+            f"Unexpected eager output for inputs {_signature(inputs)}",
+        )
+        return eager_outputs
+
+    def run_op_symbolic_check(
+        self, op, inputs, kwargs, none_dims=(), eager_outputs=None
+    ):
+        """Checks the symbolic output against the eager output.
+
+        Compares output count, rank, known dimensions and dtype. Symbolic
+        inputs mirror the converted eager tensors, so both paths see the
+        same input dtypes.
+
+        Args:
+            op: The op to test.
+            inputs: Tuple of inputs, as in `run_op_test`.
+            kwargs: Static arguments, passed to the op by keyword.
+            none_dims: `(input_index, dim)` pairs, indexing the array inputs
+                in flattening order, whose dimensions are unknown (`None`) in
+                the symbolic inputs. An output dimension may then be `None`
+                only if it depends on one of them: a dimension that doesn't
+                change when the unknown input dimensions are resized must be
+                known.
+            eager_outputs: The op's outputs for `inputs`, if already computed.
+
+        Returns:
+            The eager outputs, so callers can run further checks on them.
+        """
+        eager_inputs = _map_arrays(ops.convert_to_tensor, inputs)
+        if eager_outputs is None:
+            eager_outputs = op(*eager_inputs, **kwargs)
+        eager = tree.flatten(eager_outputs)
+        where = f"for inputs {_signature(inputs)}"
+
+        def symbolic_call(resize=False):
+            """Calls `op` with the `none_dims` dimensions `None` or resized."""
+
+            def to_keras_tensor(i, x):
+                shape = [
+                    ((2 if s == 1 else 1) if resize else None)
+                    if (i, d) in none_dims
+                    else s
+                    for d, s in enumerate(x.shape)
+                ]
+                return KerasTensor(shape, dtype=standardize_dtype(x.dtype))
+
+            arrays = [
+                x for x in tree.flatten(eager_inputs) if not _is_scalar(x)
+            ]
+            tensors = iter(
+                [to_keras_tensor(i, x) for i, x in enumerate(arrays)]
+            )
+            symbolic_inputs = _map_arrays(lambda x: next(tensors), eager_inputs)
+            return tree.flatten(op(*symbolic_inputs, **kwargs))
+
+        symbolic = symbolic_call()
+        if len(symbolic) != len(eager):
+            raise AssertionError(
+                f"Output count differs: symbolic={len(symbolic)}, "
+                f"eager={len(eager)} {where}"
+            )
+        for i, (sym, eag) in enumerate(zip(symbolic, eager)):
+            out = f"Output {i}" if len(eager) > 1 else "Output"
+            if not isinstance(sym, KerasTensor):
+                raise AssertionError(
+                    f"{out} is a {type(sym).__name__}, not a KerasTensor "
+                    f"{where}"
+                )
+            eag_shape, eag_dtype = (
+                tuple(eag.shape),
+                standardize_dtype(eag.dtype),
+            )
+            if len(sym.shape) != len(eag_shape):
+                raise AssertionError(
+                    f"{out} rank differs: symbolic={sym.shape}, "
+                    f"eager={eag_shape} {where}"
+                )
+            if any(s not in (None, e) for s, e in zip(sym.shape, eag_shape)):
+                raise AssertionError(
+                    f"{out} shape differs: symbolic={sym.shape}, "
+                    f"eager={eag_shape} {where}"
+                )
+            if standardize_dtype(sym.dtype) != eag_dtype:
+                raise AssertionError(
+                    f"{out} dtype differs: symbolic={sym.dtype}, "
+                    f"eager={eag_dtype} {where}"
+                )
+        if not none_dims:
+            return eager_outputs
+        # Precision: an output dim that doesn't change when the unknown input
+        # dims are resized can't depend on them, so it must be known.
+        try:
+            probe = symbolic_call(resize=True)
+        except Exception:  # The resized shapes may be invalid for the op.
+            return eager_outputs
+        if [len(p.shape) for p in probe] != [len(e.shape) for e in eager]:
+            return eager_outputs
+        for sym, eag, prb in zip(symbolic, eager, probe):
+            for d, (s, e, p) in enumerate(zip(sym.shape, eag.shape, prb.shape)):
+                if s is None and p == e:
+                    raise AssertionError(
+                        f"Output dim {d} is None but does not depend on the "
+                        f"unknown input dims {sorted(none_dims)} {where}"
+                    )
+        return eager_outputs
+
+    def run_op_input_dtypes_check(
+        self, op, reference_fn, jax_fn, inputs, kwargs, dtypes
+    ):
+        """Checks the output dtypes for one input dtype combination.
+
+        Casts the array inputs to `dtypes` and checks, in two `subTest`s,
+        that the symbolic output dtypes match the eager ones (`symbolic`) and
+        that the eager output dtypes match `jax_fn` on the same inputs
+        (`jax_dtype`; default JAX mode, so no 64-bit dtypes). If JAX rejects
+        the combination, the check fails.
+
+        Skipped if the backend doesn't support one of `dtypes` (see
+        `_SKIPPED_DTYPES`).
+
+        Args:
+            op: The op to test, e.g. `knp.add`.
+            reference_fn: Reference implementation, e.g. `np.add`. Unused,
+                kept so the signature mirrors `run_op_test`.
+            jax_fn: JAX reference for the output dtypes, e.g. `jnp.add`.
+            inputs: Tuple of inputs, as in `run_op_test`. Array values
+                should be small non-negative integers (e.g. `0` to `5`), so
+                they fit every dtype.
+            kwargs: Static arguments, passed to all three functions.
+            dtypes: One dtype per array input, in flattening order, e.g.
+                `("int8", "uint32")`.
+        """
+        skipped = _SKIPPED_DTYPES.get(backend.backend(), {})
+        for dtype in dtypes:
+            if dtype in skipped:
+                self.skipTest(f"{dtype}: {skipped[dtype]}")
+        arrays = [x for x in tree.flatten(inputs) if not _is_scalar(x)]
+        cast = iter([x.astype(d) for x, d in zip(arrays, dtypes, strict=True)])
+        inputs = _map_arrays(lambda x: next(cast), inputs)
+        outputs = op(*_map_arrays(ops.convert_to_tensor, inputs), **kwargs)
+        with self.subTest(check="symbolic"):
+            self.run_op_symbolic_check(op, inputs, kwargs, (), outputs)
+        with self.subTest(check="jax_dtype"):
+            keras_dtypes = [
+                standardize_dtype(x.dtype) for x in tree.flatten(outputs)
+            ]
+            jax_dtypes = _jax_output_dtypes(jax_fn, inputs, kwargs)
+            if keras_dtypes != jax_dtypes:
+                raise AssertionError(
+                    "Output dtype differs from JAX: "
+                    f"keras={', '.join(keras_dtypes)}, "
+                    f"jax={', '.join(jax_dtypes)} "
+                    f"for inputs {_signature(inputs)}"
+                )
+
+
+def _is_scalar(x):
+    return isinstance(x, (int, float))
+
+
+def _map_arrays(fn, inputs):
+    """Applies `fn` to the array inputs, passing Python scalars through."""
+    return tree.map_structure(lambda x: x if _is_scalar(x) else fn(x), inputs)
+
+
+def _signature(inputs):
+    """Describes the inputs for messages, e.g. `int64[2, 3], float32[2]`."""
+    return ", ".join(
+        repr(x)
+        if _is_scalar(x)
+        else f"{standardize_dtype(x.dtype)}{list(x.shape)}"
+        for x in tree.flatten(inputs)
+    )
+
+
+def _assert_outputs_close(test_case, actual, expected, atol, rtol, msg):
+    """Asserts the output count and values match, after flattening both."""
+    actual, expected = tree.flatten(actual), tree.flatten(expected)
+    test_case.assertLen(actual, len(expected), f"{msg}: output count differs")
+    for a, e in zip(actual, expected):
+        a, e = test_case.convert_to_numpy(a), test_case.convert_to_numpy(e)
+        # Compare as complex128 when needed, so the imaginary part counts.
+        is_complex = np.iscomplexobj(a) or np.iscomplexobj(e)
+        dtype = "complex128" if is_complex else "float64"
+        test_case.assertAllClose(
+            a.astype(dtype), e.astype(dtype), atol=atol, rtol=rtol, msg=msg
+        )
+
+
+def _jax_output_dtypes(jax_fn, inputs, kwargs):
+    """Returns the output dtypes of `jax_fn` on `inputs` (NumPy arrays)."""
+    import jax.numpy as jnp
+
+    outputs = jax_fn(*_map_arrays(jnp.asarray, inputs), **kwargs)
+    return [standardize_dtype(x.dtype) for x in tree.flatten(outputs)]
 
 
 def _jax_uses(device_type):

@@ -1,4 +1,8 @@
+import itertools
+
 import numpy as np
+
+from keras.src import backend
 
 
 def get_test_data(
@@ -161,6 +165,76 @@ def named_product(*args, **kwargs):
         tests = new_tests
 
     return tests
+
+
+# Input dtype pools for `named_dtype_combinations`. No 64-bit dtypes yet.
+DEFAULT_INPUT_DTYPES = (
+    "bool",
+    "int8",
+    "int16",
+    "int32",
+    "uint8",
+    "uint16",
+    "uint32",
+    "bfloat16",
+    "float16",
+    "float32",
+)
+INT_DTYPES = ("int8", "int16", "int32", "uint8", "uint16", "uint32")
+FLOAT_DTYPES = ("bfloat16", "float16", "float32")
+# Parity with the old `NumpyDtypeTest.BINARY_DTYPES`: torch also tests
+# float64 for multi-input ops.
+BINARY_INPUT_DTYPES = DEFAULT_INPUT_DTYPES + (
+    ("float64",) if backend.backend() == "torch" else ()
+)
+
+
+def named_dtype_combinations(num_inputs, ordered=False, dtypes=None):
+    """Returns `named_parameters` entries of input dtype combinations.
+
+    `dtypes` is one pool shared by all inputs, or a list with one pool per
+    input. Defaults to `DEFAULT_INPUT_DTYPES` for one input and
+    `BINARY_INPUT_DTYPES` for more. A shared pool gives unordered
+    combinations with same-dtype pairs (all orders if `ordered`); per-input
+    pools always give the full product.
+
+    For example, this code:
+    ```
+    class PowerTest(testing.TestCase):
+        @parameterized.named_parameters(named_dtype_combinations(2))
+        def test_input_dtypes(self, dtypes):
+            ...
+    ```
+    produces one test per dtype pair, e.g.
+    `PowerTest::test_input_dtypes_int8_uint32`.
+
+    Args:
+        num_inputs: Number of array inputs.
+        ordered: If `True`, a shared pool gives every ordered combination,
+            for ops whose inputs play different roles (e.g. `power`).
+        dtypes: A shared pool of dtype names, or a list of `num_inputs`
+            pools.
+
+    Returns:
+        A list of dicts with `"testcase_name"` and `"dtypes"` keys.
+    """
+    if dtypes is None:
+        dtypes = (
+            DEFAULT_INPUT_DTYPES if num_inputs == 1 else BINARY_INPUT_DTYPES
+        )
+    if isinstance(dtypes[0], str):
+        if ordered:
+            combos = itertools.product(dtypes, repeat=num_inputs)
+        else:
+            combos = itertools.combinations_with_replacement(dtypes, num_inputs)
+    elif len(dtypes) != num_inputs:
+        raise ValueError(
+            f"Expected {num_inputs} dtype pools, one per input. "
+            f"Received: {len(dtypes)}."
+        )
+    else:
+        combos = itertools.product(*dtypes)
+    return [{"testcase_name": "_".join(c), "dtypes": c} for c in combos]
 
 
 def serialized_variable(layer, name):
