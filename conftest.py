@@ -13,6 +13,10 @@ import pytest  # noqa: E402
 from keras.src.backend import SUPPORTS_GRADIENT  # noqa: E402
 from keras.src.backend import backend  # noqa: E402
 
+# One console line per test with its `subTest` check count, plus a summary
+# of failed and skipped checks. See `keras/src/testing/check_console.py`.
+pytest_plugins = ["keras.src.testing.check_console"]
+
 
 def pytest_configure(config):
     config.addinivalue_line(
