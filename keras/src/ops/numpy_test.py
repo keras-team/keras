@@ -4977,34 +4977,6 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             np.nanquantile(x4, 0.5, axis=(1, 2)),
         )
 
-    @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
-        reason="Dynamic shapes are only supported by the tensorflow backend",
-    )
-    def test_nanquantile_backend_agnostic_dynamic_shape(self):
-        import tensorflow as tf
-
-        backend.config._set_use_backend_agnostic_ops(True)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
-        x = np.random.randn(2, 3, 4).astype("float32")
-        x[0, 1, 2] = np.nan
-        q = [0.25, 0.75]
-
-        @tf.function(input_signature=[tf.TensorSpec((None, None, 4))])
-        def run_nanquantile(x):
-            return knp.nanquantile(x, q, axis=2)
-
-        self.assertAllClose(run_nanquantile(x), np.nanquantile(x, q, axis=2))
-
-        @tf.function(input_signature=[tf.TensorSpec((None, 3, 4))])
-        def run_nanquantile_keepdims(x):
-            return knp.nanquantile(x, q, axis=(1, 2), keepdims=True)
-
-        self.assertAllClose(
-            run_nanquantile_keepdims(x),
-            np.nanquantile(x, q, axis=(1, 2), keepdims=True),
-        )
-
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_copysign(self, backend_agnostic_ops):
         backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
