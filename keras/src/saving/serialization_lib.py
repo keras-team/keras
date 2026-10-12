@@ -861,7 +861,13 @@ def _retrieve_class_or_fn(
         if package in {"keras", "keras_hub", "keras_cv", "keras_nlp"}:
             try:
                 mod = importlib.import_module(module)
-                obj = vars(mod).get(name, None)
+                obj = getattr(mod, name, None)
+                if obj is None:
+                    raise ValueError(
+                        f"Could not deserialize {obj_type} '{name}' because "
+                        f"module '{module}' has no attribute '{name}'. "
+                        f"Full object config: {full_config}"
+                    )
                 if isinstance(obj, type) and issubclass(obj, KerasSaveable):
                     return obj
                 else:
@@ -872,7 +878,7 @@ def _retrieve_class_or_fn(
             except ModuleNotFoundError:
                 raise TypeError(
                     f"Could not deserialize {obj_type} '{name}' because "
-                    f"its parent module {module} cannot be imported. "
+                    f"its parent module '{module}' cannot be imported. "
                     f"Full object config: {full_config}"
                 )
 
