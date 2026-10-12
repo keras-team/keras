@@ -244,13 +244,10 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
                     )
         # Check shape.
         if spec.shape is not None:
-            # With `allow_last_axis_squeeze`, the ranks may differ by one when
-            # the longer shape ends with an axis of size 1. `zip` stops at the
-            # shorter shape and leaves that axis out, so nothing is squeezed.
-            # Any other rank mismatch is reported here only if a leading
-            # dimension differs; `Functional._adjust_input_rank` reports the
-            # rest. Without `allow_last_axis_squeeze` the ranks already match,
-            # since `spec.shape` implies `spec.ndim`, which is checked above.
+            # `zip` stops at the shorter shape. With `allow_last_axis_squeeze`
+            # the ranks may differ, and only the leading dimensions are
+            # compared: `Functional._adjust_input_rank` checks the rank.
+            # Otherwise the ranks match, since `spec.ndim` is checked above.
             for spec_dim, dim in zip(spec.shape, shape):
                 if spec_dim is not None and dim is not None:
                     if spec_dim != dim:

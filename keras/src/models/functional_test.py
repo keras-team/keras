@@ -414,8 +414,8 @@ class FunctionalTest(testing.TestCase):
             model(np.zeros((2, 1)))
 
     def test_rank_standardization_checks_the_other_axes(self):
-        # When a last axis of size 1 bridges a rank difference of one, the
-        # remaining axes must still match.
+        # A last axis of size 1 bridges a rank difference of one only when
+        # the other axes match.
         inputs = Input(shape=(3, 1))
         model = Functional(inputs, layers.Identity()(inputs))
         # Downranking
