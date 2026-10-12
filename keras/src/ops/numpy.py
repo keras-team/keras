@@ -6395,7 +6395,7 @@ def _nanmedian(x, axis=None, keepdims=False):
     x = backend.ops.convert_to_tensor(x)
     if axis == () or axis == []:
         return backend.ops.cast(x, dtypes.result_type(x.dtype, float))
-    return backend.ops.numpy.nanquantile(x, 0.5, axis=axis, keepdims=keepdims)
+    return _nanquantile(x, 0.5, axis=axis, keepdims=keepdims)
 
 
 class Nanmin(Operation):
@@ -6647,7 +6647,7 @@ class Nanquantile(Operation):
         self.keepdims = keepdims
 
     def call(self, x, q):
-        return backend.ops.numpy.nanquantile(
+        return _nanquantile(
             x, q, axis=self.axis, method=self.method, keepdims=self.keepdims
         )
 
@@ -6719,9 +6719,96 @@ def nanquantile(x, q, axis=None, method="linear", keepdims=False):
             axis=axis, method=method, keepdims=keepdims
         ).symbolic_call(x, q)
 
-    return backend.ops.numpy.nanquantile(
-        x, q, axis=axis, method=method, keepdims=keepdims
+    return _nanquantile(x, q, axis=axis, method=method, keepdims=keepdims)
+
+
+def _nanquantile(x, q, axis=None, method="linear", keepdims=False):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "nanquantile"
+    ):
+        return backend.ops.numpy.nanquantile(
+            x, q, axis=axis, method=method, keepdims=keepdims
+        )
+    if method not in ("linear", "lower", "higher", "midpoint", "nearest"):
+        raise ValueError(
+            "`method` must be one of 'linear', 'lower', 'higher', "
+            f"'midpoint', or 'nearest'. Received: method={method}"
+        )
+    x = backend.ops.convert_to_tensor(x)
+    if backend.standardize_dtype(x.dtype) == "int64":
+        dtype = backend.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = backend.ops.cast(x, dtype)
+    q = backend.ops.convert_to_tensor(q, dtype=dtype)
+    ndim = len(x.shape)
+    output_shape = tuple(q.shape) + tuple(
+        reduce_shape(x.shape, axis=axis, keepdims=keepdims)
     )
+
+    # Move the reduced axes to the end and flatten them into one axis.
+    axes = tuple(range(ndim)) if axis is None else canonicalize_axes(axis, ndim)
+    y = backend.ops.numpy.moveaxis(x, axes, tuple(range(-len(axes), 0)))
+    y = backend.ops.numpy.reshape(y, reduce_shape(x.shape, axis=axes) + (-1,))
+
+    # Replace NaNs with +inf so they sort to the end of each slice, then
+    # count the valid (non-NaN) entries at the front of each slice.
+    nan_mask = backend.ops.numpy.isnan(y)
+    inf = backend.ops.cast(float("inf"), dtype)
+    sorted_y = backend.ops.numpy.sort(
+        backend.ops.numpy.where(nan_mask, inf, y), axis=-1
+    )
+    valid_count = backend.ops.numpy.sum(
+        backend.ops.cast(backend.ops.numpy.logical_not(nan_mask), dtype),
+        axis=-1,
+        keepdims=True,
+    )
+
+    last_valid_index = backend.ops.numpy.maximum(
+        backend.ops.numpy.subtract(valid_count, 1), 0
+    )
+    position = backend.ops.numpy.multiply(
+        last_valid_index, backend.ops.numpy.reshape(q, (-1,))
+    )
+
+    def take(indices):
+        indices = backend.ops.cast(indices, "int32")
+        return backend.ops.numpy.take_along_axis(sorted_y, indices, axis=-1)
+
+    if method == "lower":
+        result = take(backend.ops.numpy.floor(position))
+    elif method == "higher":
+        result = take(backend.ops.numpy.ceil(position))
+    elif method == "nearest":
+        result = take(backend.ops.numpy.round(position))
+    else:
+        lower_index = backend.ops.numpy.floor(position)
+        lower = take(lower_index)
+        upper = take(backend.ops.numpy.ceil(position))
+        if method == "midpoint":
+            result = backend.ops.numpy.multiply(
+                backend.ops.numpy.add(lower, upper), 0.5
+            )
+        else:  # linear
+            fraction = backend.ops.numpy.subtract(position, lower_index)
+            interpolated = backend.ops.numpy.add(
+                lower,
+                backend.ops.numpy.multiply(
+                    backend.ops.numpy.subtract(upper, lower), fraction
+                ),
+            )
+            result = backend.ops.numpy.where(
+                backend.ops.numpy.equal(lower, upper), lower, interpolated
+            )
+
+    # Slices with no valid entries yield NaN.
+    nan = backend.ops.cast(float("nan"), dtype)
+    result = backend.ops.numpy.where(
+        backend.ops.numpy.equal(valid_count, 0), nan, result
+    )
+
+    result = backend.ops.numpy.moveaxis(result, -1, 0)
+    return backend.ops.numpy.reshape(result, output_shape)
 
 
 class Nanstd(Operation):
