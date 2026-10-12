@@ -51,11 +51,12 @@ class Rot90(Operation):
                 f"Invalid axes: {self.axes}. "
                 "Axes must be a tuple of two different dimensions."
             )
-        axis1, axis2 = self.axes
-        array_shape[axis1], array_shape[axis2] = (
-            array_shape[axis2],
-            array_shape[axis1],
-        )
+        if self.k % 2 == 1:
+            axis1, axis2 = self.axes
+            array_shape[axis1], array_shape[axis2] = (
+                array_shape[axis2],
+                array_shape[axis1],
+            )
         return KerasTensor(shape=array_shape, dtype=array.dtype)
 
 
