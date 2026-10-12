@@ -207,7 +207,10 @@ class TernaryDense(Layer):
         k_ternary = ops.sign(self._kernel) * ops.cast(
             ops.greater(abs_k, t), dtype=self._kernel.dtype
         )
-        return self._kernel + ops.stop_gradient(k_ternary - self._kernel), beta
+        # On torch, `convert_to_tensor` moves the variable to the active
+        # device; the raw `+` and `-` below do not, and would mix devices.
+        kernel = ops.convert_to_tensor(self._kernel)
+        return kernel + ops.stop_gradient(k_ternary - kernel), beta
 
     def call(self, inputs):
         k, beta = self._ternary_kernel()
