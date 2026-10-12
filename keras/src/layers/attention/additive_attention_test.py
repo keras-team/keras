@@ -1,7 +1,10 @@
 import numpy as np
+import pytest
 
+from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.layers.attention.attention_test import grads_of_sum
 
 
 class AdditiveAttentionTest(testing.TestCase):
@@ -95,6 +98,28 @@ class AdditiveAttentionTest(testing.TestCase):
             self.assertAllClose(
                 scores, [[[0.0, 0.0], [0.0, 0.0]], [[1.0, 0.0], [1.0, 0.0]]]
             )
+
+    @pytest.mark.skipif(
+        backend.backend() not in ("tensorflow", "jax", "torch"),
+        reason="Requires a backend with automatic differentiation.",
+    )
+    def test_attention_fully_masked_row_has_zero_gradients(self):
+        # Every value position is masked, so the gradients are 0. Without a
+        # scale, each of the 20 dimensions adds about -1 to every score, which
+        # overflows to -inf in float16 if the masked scores are offset rather
+        # than replaced, and gives NaN gradients.
+        query = np.full((1, 2, 20), -10.0)
+        value = np.array([[[1.0] * 20, [2.0] * 20]])
+        mask = [None, np.array([[False, False]])]
+        for dtype in ["float32", "float16"]:
+            layer = layers.AdditiveAttention(use_scale=False, dtype=dtype)
+            grads = grads_of_sum(
+                lambda q, v: layer([q, v], mask=mask),
+                query.astype(dtype),
+                value.astype(dtype),
+            )
+            for grad in grads:
+                self.assertAllClose(grad, np.zeros_like(grad))
 
     def test_attention_errors(self):
         layer = layers.AdditiveAttention()

@@ -7,7 +7,7 @@ from keras.src import ops
 from keras.src import testing
 
 
-def _grads_of_sum(fn, *args):
+def grads_of_sum(fn, *args):
     """Returns the gradients of `sum(fn(*args))` with respect to `args`."""
     if backend.backend() == "tensorflow":
         import tensorflow as tf
@@ -169,7 +169,7 @@ class AttentionTest(testing.TestCase):
         mask = [None, np.array([[False, False]])]
         for dtype in ["float32", "float16"]:
             layer = layers.Attention(dtype=dtype)
-            grads = _grads_of_sum(
+            grads = grads_of_sum(
                 lambda q, v: layer([q, v], mask=mask),
                 query.astype(dtype),
                 value.astype(dtype),
