@@ -14,32 +14,24 @@ from keras.src.export.saved_model_export_archive import (  # noqa: F401
 from keras.src.utils.module_utils import get_pluggable_backend_module
 
 if backend.backend() == "tensorflow":
-    from keras.src.backend.tensorflow.export import (
-        TFExportArchive as BackendSavedModelExportArchive,
-    )
+    from keras.src.backend.tensorflow.export import SavedModelExportArchive
 elif backend.backend() == "jax":
-    from keras.src.backend.jax.export import (
-        JaxExportArchive as BackendSavedModelExportArchive,
-    )
+    from keras.src.backend.jax.export import SavedModelExportArchive
 elif backend.backend() == "torch":
-    from keras.src.backend.torch.export import (
-        TorchExportArchive as BackendSavedModelExportArchive,
-    )
+    from keras.src.backend.torch.export import SavedModelExportArchive
 elif backend.backend() == "numpy":
-    from keras.src.backend.numpy.export import (
-        NumpyExportArchive as BackendSavedModelExportArchive,
+    from keras.src.export.saved_model_export_archive import (
+        BaseSavedModelExportArchive as SavedModelExportArchive,
     )
 else:
     backend_export_module = get_pluggable_backend_module(
         "src.export", allow_missing=True
     )
     if backend_export_module is not None:
-        BackendSavedModelExportArchive = getattr(
-            backend_export_module, "SavedModelExportArchive"
-        )
+        SavedModelExportArchive = backend_export_module.SavedModelExportArchive
     else:
         from keras.src.export.saved_model_export_archive import (
-            BaseSavedModelExportArchive as BackendSavedModelExportArchive,
+            BaseSavedModelExportArchive as SavedModelExportArchive,
         )
 
 
@@ -184,7 +176,7 @@ class ExportArchive:
 
     def __new__(cls, format="saved_model", **kwargs):
         if format == "saved_model":
-            return BackendSavedModelExportArchive()
+            return SavedModelExportArchive()
         elif format == "neptune_model":
             return NeptuneModelExportArchive()
         else:

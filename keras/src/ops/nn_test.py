@@ -1598,6 +1598,12 @@ class NNOpsCorrectnessTest(testing.TestCase):
     def test_sparse_sigmoid(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(knn.sparse_sigmoid(x), [0.0, 0.5, 1.0, 1.0, 1.0])
+        # Integer input is promoted to float. The numpy backend previously
+        # truncated the `0.5` midpoint to 0 under an integer dtype.
+        x_int = np.array([-1, 0, 1, 2, 3], dtype="int32")
+        self.assertAllClose(
+            knn.sparse_sigmoid(x_int), [0.0, 0.5, 1.0, 1.0, 1.0]
+        )
 
     def test_softplus(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
@@ -1675,6 +1681,17 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.selu(x),
             [-1.1113307, 0.0, 1.050701, 2.101402, 3.152103],
         )
+        # Integer input is promoted to float. Previously the numpy, tensorflow
+        # and openvino backends cast `scale` to the input's integer dtype where
+        # it truncated to 1 (turning this into a bare `elu`), and torch raised.
+        x_int = np.array([-2, -1, 0, 1, 2], dtype="int32")
+        self.assertAllClose(knn.selu(x_int), knn.selu(x_int.astype("float32")))
+        self.assertEqual(
+            standardize_dtype(
+                knn.Selu().symbolic_call(KerasTensor((5,), "int32")).dtype
+            ),
+            standardize_dtype(knn.selu(x_int).dtype),
+        )
 
     def test_gelu(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
@@ -1738,12 +1755,34 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.soft_shrink(x),
             [0.0, 0.0, 0.5, 1.5, 2.5],
         )
+        # Integer input is promoted to float. Previously the numpy, tensorflow
+        # and openvino backends cast the fractional `threshold` shift back to
+        # the input's integer dtype where it truncated, and torch raised.
+        x_int = np.array([-2, -1, 0, 1, 2], dtype="int32")
+        self.assertAllClose(knn.soft_shrink(x_int), [-1.5, -0.5, 0.0, 0.5, 1.5])
+        self.assertEqual(
+            standardize_dtype(
+                knn.SoftShrink().symbolic_call(KerasTensor((5,), "int32")).dtype
+            ),
+            standardize_dtype(knn.soft_shrink(x_int).dtype),
+        )
 
     def test_sparse_plus(self):
         x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(
             knn.sparse_plus(x),
             [0.0625, 0.25, 1.0, 2.0, 3.0],
+        )
+        # Integer input is promoted to float. Previously the numpy, tensorflow
+        # and openvino backends cast the quadratic branch back to the input's
+        # integer dtype where it truncated, and torch raised.
+        x_int = np.array([-2, -1, 0, 1, 2], dtype="int32")
+        self.assertAllClose(knn.sparse_plus(x_int), [0.0, 0.0, 0.25, 1.0, 2.0])
+        self.assertEqual(
+            standardize_dtype(
+                knn.SparsePlus().symbolic_call(KerasTensor((5,), "int32")).dtype
+            ),
+            standardize_dtype(knn.sparse_plus(x_int).dtype),
         )
 
     def test_softmax(self):
@@ -2564,6 +2603,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         expected = -(t * np.log(probs) + (1 - t) * np.log(1 - probs))
         tol = {"float32": 1e-6, "float16": 1e-3, "bfloat16": 1e-2}[output_dtype]
         self.assertAllClose(result, expected, atol=tol, rtol=tol)
+        self.assertEqual(backend.standardize_dtype(result.dtype), output_dtype)
 
     @parameterized.parameters(
         ("int32", True), ("int32", False), ("uint8", False), ("bool", False)
@@ -2585,6 +2625,21 @@ class NNOpsCorrectnessTest(testing.TestCase):
             KerasTensor((4,), "float32"), KerasTensor((4,), output_dtype)
         )
         self.assertEqual(symbolic.dtype, backend.floatx())
+
+    @parameterized.product(
+        target_dtype=["int32", "bool", "float32"],
+        output_dtype=["float16", "bfloat16", "float32"],
+        from_logits=[True, False],
+    )
+    def test_binary_crossentropy_dtype(
+        self, target_dtype, output_dtype, from_logits
+    ):
+        target = np.ones((2,), dtype=target_dtype)
+        output = np.full((2,), 0.5, dtype=output_dtype)
+        result = knn.binary_crossentropy(
+            target, output, from_logits=from_logits
+        )
+        self.assertEqual(backend.standardize_dtype(result.dtype), output_dtype)
 
     def test_categorical_crossentropy(self):
         target = np.array(
@@ -3565,7 +3620,9 @@ class NNOpsDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @parameterized.named_parameters(
+        named_product(dtype=FLOAT_DTYPES + INT_DTYPES + ["bool"])
+    )
     def test_sparse_sigmoid(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp

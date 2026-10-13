@@ -225,6 +225,10 @@ class Layer(BackendLayer, Operation):
     ```
     """
 
+    # Whether this layer's own weights carry a LoRA update. A layer that
+    # supports LoRA sets it in `enable_lora()`.
+    lora_enabled = False
+
     def __new__(cls, *args, **kwargs):
         obj = super().__new__(cls, *args, **kwargs)
         # Wrap the user-provided `build` method in the `build_wrapper`
@@ -796,10 +800,7 @@ class Layer(BackendLayer, Operation):
             self._dtype_policy[self.path] = policy
         else:
             self._dtype_policy = policy
-        # A map answers `quantization_mode` for its default policy; the
-        # layer's own entry decides whether, and how, it quantizes.
-        if isinstance(policy, DTypePolicyMap) and self.path:
-            policy = policy[self.path]
+        policy = self._own_dtype_policy
         if policy.quantization_mode is not None:
             if self.built and not self._is_quantized:
                 # Forward the policy's full parameters into `quantize` so the
@@ -820,6 +821,20 @@ class Layer(BackendLayer, Operation):
                 self.quantize(policy.quantization_mode, config=config)
 
     @property
+    def _own_dtype_policy(self):
+        """The dtype policy that applies to this layer.
+
+        A layer that holds a `DTypePolicyMap` reads the map's entry for its
+        `path`; `dtype_policy` returns the map itself. A map answers
+        `quantization_mode` and `name` for its default policy, so every
+        reader of the layer's own policy reads this property.
+        """
+        policy = self._dtype_policy
+        if isinstance(policy, DTypePolicyMap) and self.path:
+            policy = policy[self.path]
+        return policy
+
+    @property
     def dtype(self):
         """Alias of `layer.variable_dtype`."""
         return self.variable_dtype
@@ -827,29 +842,17 @@ class Layer(BackendLayer, Operation):
     @property
     def compute_dtype(self):
         """The dtype of the computations performed by the layer."""
-        if isinstance(self._dtype_policy, DTypePolicyMap) and self.path:
-            policy = self._dtype_policy[self.path]
-        else:
-            policy = self._dtype_policy
-        return policy.compute_dtype
+        return self._own_dtype_policy.compute_dtype
 
     @property
     def variable_dtype(self):
         """The dtype of the state (weights) of the layer."""
-        if isinstance(self._dtype_policy, DTypePolicyMap) and self.path:
-            policy = self._dtype_policy[self.path]
-        else:
-            policy = self._dtype_policy
-        return policy.variable_dtype
+        return self._own_dtype_policy.variable_dtype
 
     @property
     def quantization_mode(self):
         """The quantization mode of this layer, `None` if not quantized."""
-        if isinstance(self._dtype_policy, DTypePolicyMap) and self.path:
-            policy = self._dtype_policy[self.path]
-        else:
-            policy = self._dtype_policy
-        return policy.quantization_mode
+        return self._own_dtype_policy.quantization_mode
 
     @property
     def variable_serialization_spec(self):
@@ -1402,8 +1405,7 @@ class Layer(BackendLayer, Operation):
         """Whether this layer declares support for `strategy`'s mode.
 
         A layer declares support by listing the mode name in its
-        `variable_serialization_spec`; an externally registered mode can
-        also claim a layer through its `supports_layer` hook.
+        `variable_serialization_spec`.
 
         Args:
             strategy: The `QuantizationStrategy` registered for the mode.
@@ -1412,9 +1414,7 @@ class Layer(BackendLayer, Operation):
             A boolean.
         """
         spec = self.variable_serialization_spec
-        if spec is not None and strategy.name in spec:
-            return True
-        return strategy.supports_layer(self)
+        return spec is not None and strategy.name in spec
 
     def _strategy_owns_weight_storage(self):
         """Whether the quantization strategy creates the weight storage.
@@ -1429,6 +1429,15 @@ class Layer(BackendLayer, Operation):
         """
         strategy = strategy_registry.get_strategy(self.quantization_mode)
         return strategy is not None and strategy.owns_weight_storage
+
+    def _check_lora_supported(self, mode):
+        """Raises if the quantization `mode` does not support LoRA."""
+        strategy = strategy_registry.get_strategy(mode)
+        if strategy is not None and not strategy.supports_lora:
+            raise NotImplementedError(
+                f"lora is not currently supported with {mode.upper()} "
+                "quantization."
+            )
 
     def quantized_build(self, input_shape, mode, config=None):
         strategy = strategy_registry.get_strategy(mode)
@@ -1476,6 +1485,8 @@ class Layer(BackendLayer, Operation):
         if strategy is None or not self._supports_quantization_mode(strategy):
             raise self._quantization_mode_error(mode)
         strategy.check_quantizable(self)
+        if self.lora_enabled:
+            self._check_lora_supported(mode)
         self._tracker.unlock()
         try:
             # Record the config only after the mode is validated, so a
@@ -1549,11 +1560,7 @@ class Layer(BackendLayer, Operation):
 
     def _finalize_quantization_policy(self, strategy, config):
         # Set new dtype policy only for modes that don't already have one.
-        # A map's `quantization_mode` and `name` are its default policy's;
-        # the layer's own entry is what applies to it.
-        policy = self.dtype_policy
-        if isinstance(policy, DTypePolicyMap) and self.path:
-            policy = policy[self.path]
+        policy = self._own_dtype_policy
         if policy.quantization_mode is None:
             policy_name = strategy.policy_suffix(self, config)
             self.dtype_policy = dtype_policies.get(
@@ -1570,7 +1577,7 @@ class Layer(BackendLayer, Operation):
         if self._is_quantized:
             raise ValueError(
                 f"Layer '{self.name}' is already quantized with "
-                f"dtype_policy='{self.dtype_policy.name}'. "
+                f"dtype_policy='{self._own_dtype_policy.name}'. "
                 f"Received: mode={mode}"
             )
         if mode == "int8" and compute_dtype == "float16":
@@ -1971,6 +1978,17 @@ class Layer(BackendLayer, Operation):
         """
         if not self._remat_mode:
             return layer_call
+        if isinstance(kwargs.get("training"), bool):
+            # Keep the training mode static when rematerialization traces the
+            # call arguments. Layers such as Dropout use Python control flow.
+            training = kwargs["training"]
+            original_call = layer_call
+
+            @functools.wraps(original_call)
+            def layer_call(*args, **kwargs):
+                kwargs = {**kwargs, "training": training}
+                return original_call(*args, **kwargs)
+
         if self._remat_mode.mode == "activations":
             has_activation = (
                 hasattr(self, "activation") and self.activation is not None

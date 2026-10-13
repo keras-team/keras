@@ -1290,3 +1290,18 @@ class TestStandardizeShapeWithTensorflow(test_case.TestCase):
         self.assertIs(type(standardized_shape), tuple)
         for d in standardized_shape:
             self.assertIsInstance(d, int)
+
+    def test_standardize_shape_with_unknown_rank(self):
+        import tensorflow as tf
+
+        with self.assertRaisesRegex(
+            ValueError, "unknown rank.*tf.ensure_shape"
+        ):
+            standardize_shape(tf.TensorShape(None))
+
+    def test_standardize_shape_with_partially_known_shape(self):
+        import tensorflow as tf
+
+        self.assertEqual(
+            standardize_shape(tf.TensorShape([None, 3])), (None, 3)
+        )

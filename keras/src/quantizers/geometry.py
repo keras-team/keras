@@ -84,9 +84,9 @@ on the strategy; a layer that contracts its kernel differently overrides
 the geometry hooks, and anything beyond that means replacing the strategy (by
 subclassing it, overriding the one handler, and registering it under a
 new mode name). A new geometry family, on the other hand, needs no dispatcher
-change at all: declare its `family` and implement the strategy's handlers
-for it, which `GeometryDispatchStrategy` lists
-(`keras.src.quantizers.modes.common`).
+change at all: declare its `family`, list it in the mode's
+`geometry_families` and implement the strategy's handlers for it, which
+`GeometryDispatchStrategy` lists (`keras.src.quantizers.modes.common`).
 """
 
 import string
@@ -100,8 +100,9 @@ class QuantizationGeometry:
 
     A geometry names the *family* it belongs to. A strategy built on
     `GeometryDispatchStrategy` implements one handler per verb for each
-    family it supports, so introducing a family is a declaration plus
-    those handlers, with no dispatch chain to edit anywhere.
+    family it lists in `geometry_families`, so introducing a family is a
+    declaration plus those handlers, with no dispatch chain to edit
+    anywhere.
     """
 
     # Dispatch key: each `GeometryDispatchStrategy` verb resolves to the

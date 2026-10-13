@@ -1,5 +1,6 @@
 from keras.src import initializers
 from keras.src import ops
+from keras.src.quantizers.geometry import EinsumProjectionGeometry
 from keras.src.quantizers.packing import pack_ternary
 from keras.src.quantizers.quantization_config import TernaryQuantizationConfig
 from keras.src.quantizers.quantized_weight import QuantizedWeight
@@ -19,10 +20,25 @@ class TernaryStrategy(QuantizationStrategy):
 
     name = "ternary"
     config_cls = TernaryQuantizationConfig
+    # A LoRA update cannot survive a merged save: re-ternarizing the merged
+    # weight shrinks the scale on every save, and rounding it onto the
+    # stored three-level grid drops all but the largest updates.
+    supports_lora = False
+    geometry_families = ("projection",)
+
+    def check_quantizable(self, layer):
+        geometry = self.require_geometry(layer)
+        # The ternary math is written for the 2-D kernel of a `Dense`.
+        if isinstance(geometry, EinsumProjectionGeometry):
+            raise NotImplementedError(
+                "Quantization mode 'ternary' supports only a `Dense` kernel, "
+                "not the einsum kernel of layer "
+                f"{layer.__class__.__name__}."
+            )
 
     def build(self, layer, input_shape, config):
         del config
-        self.require_geometry(layer)
+        self.check_quantizable(layer)
         input_dim, units = input_shape
         # Five trits per byte (3^5 == 243 <= 256) along the input axis.
         layer._packed_kernel = layer.add_weight(

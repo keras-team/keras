@@ -1042,6 +1042,35 @@ class DenseTest(testing.TestCase):
         )
         self.assertAllClose(layer.kernel, expected)
 
+    @parameterized.named_parameters(
+        ("float8", "float8"), ("ternary", "ternary")
+    )
+    def test_modes_without_lora_support_refuse_lora(self, mode):
+        # The float8 forward pass has no term for a LoRA update, and
+        # re-ternarizing a merged save is not idempotent. LoRA is refused
+        # in either order, before the layer changes.
+        message = f"lora is not currently supported with {mode.upper()}"
+        layer = layers.Dense(4)
+        layer.build((None, 3))
+        layer.quantize(mode)
+        with self.assertRaisesRegex(NotImplementedError, message):
+            layer.enable_lora(2)
+        self.assertFalse(layer.lora_enabled)
+
+        layer = layers.Dense(4)
+        layer.build((None, 3))
+        layer.enable_lora(2)
+        with self.assertRaisesRegex(NotImplementedError, message):
+            layer.quantize(mode)
+        self.assertIsNone(layer.quantization_mode)
+        self.assertIsNone(layer.quantization_config)
+
+        # `model.quantize` skips such a layer as unsupported.
+        model = models.Sequential([layers.Input((3,)), layer])
+        report = model.quantize(mode, verbose=False)
+        self.assertIsNone(layer.quantization_mode)
+        self.assertEqual(report.skipped, [(layer.path, report.SKIP_NO_SUPPORT)])
+
     def test_legacy_load_own_variables(self):
         # In previous versions, `load_own_variables` accepted a store with
         # numeric keys.
@@ -1741,6 +1770,48 @@ class DenseTest(testing.TestCase):
         layer.dtype_policy = policy_map
         self.assertEqual(layer.quantization_mode, "int4")
         self.assertEqual(tuple(layer.kernel_scale.shape), (2, 8))
+
+    def test_float8_reads_its_dtype_policy_map_entry(self):
+        # The amax history length comes from the layer's own entry, as it
+        # does from a policy passed directly, so the two stores agree.
+        policy = dtype_policies.QuantizedFloat8DTypePolicy(
+            "float8", "float32", amax_history_length=16
+        )
+        policy_map = dtype_policies.DTypePolicyMap()
+        policy_map["dense"] = policy
+        direct = layers.Dense(units=4, name="dense", dtype=policy)
+        direct.build((None, 6))
+        layer = layers.Dense(units=4, name="dense", dtype=policy_map)
+        layer.build((None, 6))
+        self.assertEqual(tuple(layer.inputs_amax_history.shape), (16,))
+        history = np.random.rand(16).astype("float32")
+        direct.inputs_amax_history.assign(history)
+        store = {}
+        direct.save_own_variables(store)
+        layer.load_own_variables(store)
+        self.assertAllClose(layer.inputs_amax_history, history)
+
+        # A model whose layer holds the map saves and loads the same length.
+        inputs = layers.Input((6,))
+        outputs = layers.Dense(4, name="dense", dtype=policy_map)(inputs)
+        model = models.Model(inputs, outputs)
+        path = os.path.join(self.get_temp_dir(), "float8_map.keras")
+        model.save(path)
+        reloaded = saving.load_model(path)
+        reloaded_layer = reloaded.get_layer("dense")
+        self.assertEqual(tuple(reloaded_layer.inputs_amax_history.shape), (16,))
+        x = np.random.rand(2, 6).astype("float32")
+        self.assertAllClose(reloaded(x), model(x))
+
+    def test_already_quantized_error_names_the_dtype_policy_map_entry(self):
+        policy_map = dtype_policies.DTypePolicyMap()
+        policy_map["dense"] = dtype_policies.get("int8_from_float32")
+        layer = layers.Dense(units=4, name="dense", dtype=policy_map)
+        layer.build((None, 6))
+        with self.assertRaisesRegex(
+            ValueError, "already quantized with dtype_policy='int8_from_"
+        ):
+            layer.quantize("int8")
 
     def test_stateless_call_uses_dtype_policy_map_entry(self):
         # A layer quantized through its `DTypePolicyMap` entry (the map's

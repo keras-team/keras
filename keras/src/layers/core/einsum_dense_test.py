@@ -2267,6 +2267,25 @@ class EinsumDenseTest(testing.TestCase):
         )
 
 
+class EinsumDenseLoRATest(testing.TestCase):
+    def test_float8_refuses_lora(self):
+        # Refused in either order, before the layer changes.
+        message = "lora is not currently supported with FLOAT8"
+        layer = layers.EinsumDense("ab,bc->ac", output_shape=(4,))
+        layer.build((None, 3))
+        layer.quantize("float8")
+        with self.assertRaisesRegex(NotImplementedError, message):
+            layer.enable_lora(2)
+        self.assertFalse(layer.lora_enabled)
+
+        layer = layers.EinsumDense("ab,bc->ac", output_shape=(4,))
+        layer.build((None, 3))
+        layer.enable_lora(2)
+        with self.assertRaisesRegex(NotImplementedError, message):
+            layer.quantize("float8")
+        self.assertIsNone(layer.quantization_mode)
+
+
 class EinsumDenseLoRAEquationsTest(testing.TestCase):
     @parameterized.named_parameters(
         ("precast_int8", "...b,bc->...c", (4, 3, 8), (8,), "int8"),

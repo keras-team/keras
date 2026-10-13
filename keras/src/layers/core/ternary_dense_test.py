@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+import pytest
 from absl.testing import parameterized
 
 from keras.src import backend
@@ -134,6 +135,27 @@ class TernaryDenseTest(testing.TestCase):
         layer = layers.TernaryDense(10)
         self.assertEqual(layer.compute_output_shape((None, 5)), (None, 10))
         self.assertEqual(layer.compute_output_shape((2, 3, 5)), (2, 3, 10))
+
+    @pytest.mark.skipif(
+        not testing.torch_uses_gpu(), reason="torch on GPU only"
+    )
+    def test_call_on_a_different_device_than_build(self):
+        # The kernel lives on the device the layer was built on. A call
+        # under another device runs there, and the gradient still reaches
+        # the kernel.
+        layer = layers.TernaryDense(8)
+        layer.build((None, 16))
+        build_device = layer._kernel.value.device
+        x = np.random.rand(4, 16).astype("float32")
+
+        with backend.device("cpu"):
+            y = layer(x)
+        self.assertEqual(y.device.type, "cpu")
+
+        ops.sum(y).backward()
+        grad = layer._kernel.value.grad
+        self.assertEqual(grad.device, build_device)
+        self.assertGreater(ops.convert_to_numpy(ops.sum(ops.abs(grad))), 0)
 
     # Quantization: real ternary export + inference.
 

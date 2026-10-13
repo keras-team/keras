@@ -5,6 +5,7 @@ import pytest
 from absl.testing import parameterized
 
 from keras.src import backend
+from keras.src import dtype_policies
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
@@ -477,12 +478,18 @@ class QuantizationSummaryTest(testing.TestCase):
         )
         summary = model.quantization_summary(verbose=False)
         self.assertIn("Quantized params : 40", summary)
-        self.assertIn("weight store : int8 (24 bytes)", summary)
+        # Codes 8 x 3 (24), a 2 x 5 float32 scale (40), a 2 x 5 int8 zero
+        # point (10) and an 8-entry float32 `g_idx` (32).
+        self.assertIn("weight store : int8 (106 bytes)", summary)
         self.assertIn("160 bytes float32", summary)
 
     @parameterized.named_parameters(
-        ("int8", "int8", None, 120),
-        ("int4", "int4", Int4QuantizationConfig(block_size=2), 60),
+        # Two 60-byte tables, each with a 10-entry float32 scale (40).
+        ("int8", "int8", None, 200),
+        # Two packed 30-byte tables, each with a 3 x 10 float32 scale (120)
+        # and int8 zero point (30), and one shared 6-entry float32 `g_idx`
+        # (24).
+        ("int4", "int4", Int4QuantizationConfig(block_size=2), 384),
     )
     def test_summary_counts_both_tables_of_an_untied_lookup(
         self, mode, config, stored_bytes
@@ -495,6 +502,63 @@ class QuantizationSummaryTest(testing.TestCase):
         # Two 10 x 6 tables.
         self.assertIn("Quantized params : 120", summary)
         self.assertIn(f"({stored_bytes} bytes)", summary)
+
+    @parameterized.named_parameters(
+        # Codes 16 x 4 (64) and an 8-entry float32 scale (32).
+        ("int4_per_channel", "int4/-1_from_float32", "int8 (96 bytes)"),
+        # Codes (64), a 2 x 8 float32 scale (64), a 2 x 8 zero point (16)
+        # and a 16-entry float32 `g_idx` (64).
+        ("int4_grouped", "int4/8_from_float32", "int8 (208 bytes)"),
+        ("gptq", "gptq/4/8_from_float32", "uint8 (208 bytes)"),
+        # The GPTQ store and 16 float32 input scales (64).
+        ("awq", "awq/4/8_from_float32", "uint8 (272 bytes)"),
+        # The 16 x 8 float32 kernel; not its 1024-entry amax histories.
+        (
+            "float8",
+            "float8_from_float32",
+            "float32 (512 bytes, float weight kept)",
+        ),
+    )
+    def test_summary_counts_every_stored_tensor(self, policy, store):
+        inputs = layers.Input([16])
+        layer = layers.Dense(8, use_bias=False, dtype=policy)
+        outputs = layer(inputs)
+        model = models.Model(inputs, outputs)
+        # A calibration mode holds no view until its calibration pass has
+        # run; the policy only allocates the variables.
+        mode = layer.quantization_mode
+        if mode in ("gptq", "awq"):
+            setattr(layer, f"is_{mode}_calibrated", True)
+        summary = model.quantization_summary(verbose=False)
+        self.assertIn(f"weight store : {store}", summary)
+        self.assertIn("Quantized params : 128", summary)
+
+    def test_summary_lists_a_layer_that_owns_a_sublayer(self):
+        # A `Dense` with a layer activation owns a sub-layer; its own
+        # variables still make it a quantized layer.
+        model = models.Sequential(
+            [
+                layers.Input([16]),
+                layers.Dense(8, activation=layers.ReLU(), name="d1"),
+                layers.Dense(4, name="d2"),
+            ]
+        )
+        model.quantize("int8", verbose=False)
+        summary = model.quantization_summary(verbose=False)
+        self.assertRegex(summary, r"Layer: \S*d1\n")
+        self.assertIn("Quantized layers : 2", summary)
+        self.assertIn("Quantized params : 160", summary)
+
+    def test_summary_names_the_policy_of_a_dtype_policy_map_entry(self):
+        inputs = layers.Input([6])
+        outputs = layers.Dense(
+            4, name="d", dtype=dtype_policies.DTypePolicyMap()
+        )(inputs)
+        model = models.Model(inputs, outputs)
+        model.quantize("int8", verbose=False)
+        summary = model.quantization_summary(verbose=False)
+        self.assertIn("dtype policy : int8_from_float32", summary)
+        self.assertNotIn("map_", summary)
 
     def test_summary_counts_largest_weight_of_a_layer_without_geometry(self):
         class OwnInt8Kernel(layers.Layer):
