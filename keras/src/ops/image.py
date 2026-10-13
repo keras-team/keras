@@ -1588,7 +1588,7 @@ def _reconstruct_patches_3d(
                 pad_total_w // 2,
                 0,
             ]
-            x = ops.slice(x, begin, [B, D, H, W, C])
+            x = backend.ops.slice(x, begin, [B, D, H, W, C])
 
     if _unbatched:
         x = backend.ops.numpy.squeeze(x, axis=0)
