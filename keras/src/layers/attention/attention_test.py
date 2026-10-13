@@ -1,35 +1,12 @@
 import numpy as np
 import pytest
+from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
-
-
-def grads_of_sum(fn, *args):
-    """Returns the gradients of `sum(fn(*args))` with respect to `args`."""
-    if backend.backend() == "tensorflow":
-        import tensorflow as tf
-
-        args = [tf.constant(a) for a in args]
-        with tf.GradientTape() as tape:
-            tape.watch(args)
-            loss = tf.reduce_sum(tf.cast(fn(*args), "float32"))
-        return [g.numpy() for g in tape.gradient(loss, args)]
-    if backend.backend() == "jax":
-        import jax
-
-        def loss(*a):
-            return jax.numpy.sum(fn(*a).astype("float32"))
-
-        argnums = tuple(range(len(args)))
-        return [np.asarray(g) for g in jax.grad(loss, argnums)(*args)]
-    import torch
-
-    args = [torch.tensor(a, requires_grad=True) for a in args]
-    fn(*args).float().sum().backward()
-    return [a.grad.cpu().numpy() for a in args]
+from keras.src.testing.test_utils import grads_of_sum
 
 
 class AttentionTest(testing.TestCase):
@@ -136,46 +113,47 @@ class AttentionTest(testing.TestCase):
         self.assertAllClose(output, [[[1.0, 1.0], [0.0, 0.0]]])
         self.assertAllClose(scores, [[[1.0, 0.0], [1.0, 0.0]]])
 
-    def test_attention_with_fully_masked_row(self):
+    @parameterized.named_parameters(
+        ("float32", "float32"), ("float16", "float16")
+    )
+    def test_attention_with_fully_masked_row(self, dtype):
         # Batch element 0 masks every value position, element 1 masks one. A
         # fully masked row attends to nothing, so its output and scores are 0.
         query = np.array([[[1.0, 0.0], [0.0, 1.0]]] * 2)
         value = np.array([[[1.0, 2.0], [3.0, 4.0]]] * 2)
         value_mask = np.array([[False, False], [True, False]])
-        for dtype in ["float32", "float16"]:
-            layer = layers.Attention(dtype=dtype)
-            output, scores = layer(
-                [query.astype(dtype), value.astype(dtype)],
-                mask=[None, value_mask],
-                return_attention_scores=True,
-            )
-            self.assertAllClose(
-                output, [[[0.0, 0.0], [0.0, 0.0]], [[1.0, 2.0], [1.0, 2.0]]]
-            )
-            self.assertAllClose(
-                scores, [[[0.0, 0.0], [0.0, 0.0]], [[1.0, 0.0], [1.0, 0.0]]]
-            )
+        layer = layers.Attention(dtype=dtype)
+        output, scores = layer(
+            [query.astype(dtype), value.astype(dtype)],
+            mask=[None, value_mask],
+            return_attention_scores=True,
+        )
+        self.assertAllClose(
+            output, [[[0.0, 0.0], [0.0, 0.0]], [[1.0, 2.0], [1.0, 2.0]]]
+        )
+        self.assertAllClose(
+            scores, [[[0.0, 0.0], [0.0, 0.0]], [[1.0, 0.0], [1.0, 0.0]]]
+        )
 
-    @pytest.mark.skipif(
-        backend.backend() not in ("tensorflow", "jax", "torch"),
-        reason="Requires a backend with automatic differentiation.",
+    @parameterized.named_parameters(
+        ("float32", "float32"), ("float16", "float16")
     )
-    def test_attention_fully_masked_row_has_zero_gradients(self):
+    @pytest.mark.requires_trainable_backend
+    def test_attention_fully_masked_row_has_zero_gradients(self, dtype):
         # Every value position is masked, so the gradients are 0. Every score
         # is below -16, which overflows to -inf in float16 if the masked
         # scores are offset rather than replaced, and gives NaN gradients.
         query = np.array([[[-10.0, -10.0], [-20.0, 0.0]]])
         value = np.array([[[1.0, 2.0], [3.0, 4.0]]])
         mask = [None, np.array([[False, False]])]
-        for dtype in ["float32", "float16"]:
-            layer = layers.Attention(dtype=dtype)
-            grads = grads_of_sum(
-                lambda q, v: layer([q, v], mask=mask),
-                query.astype(dtype),
-                value.astype(dtype),
-            )
-            for grad in grads:
-                self.assertAllClose(grad, np.zeros_like(grad))
+        layer = layers.Attention(dtype=dtype)
+        grads = grads_of_sum(
+            lambda q, v: layer([q, v], mask=mask),
+            query.astype(dtype),
+            value.astype(dtype),
+        )
+        for grad in grads:
+            self.assertAllClose(grad, np.zeros_like(grad))
 
     @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
     def test_attention_fully_masked_row_float16_backward_has_no_nan(self):
