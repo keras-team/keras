@@ -1304,7 +1304,7 @@ def _reconstruct_overlapping_patches(
     # Integer inputs are computed in float and cast back at the end.
     dtype = backend.standardize_dtype(patches.dtype)
     compute_dtype = dtype if "float" in dtype else "float32"
-    x = ops.cast(patches, compute_dtype)
+    x = backend.ops.cast(patches, compute_dtype)
 
     # Fold channels into the batch axis so the identity kernel only spans
     # one channel: (B, *grid, P * C) -> (B * C, *grid, P).
