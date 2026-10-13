@@ -1297,7 +1297,7 @@ def _reconstruct_overlapping_patches(
     patch_volume = 1
     for k in size:
         patch_volume *= k
-    shp = ops.shape(patches)
+    shp = backend.ops.shape(patches)
     batch = shp[0]
     grid = tuple(shp[1 : n + 1])
 
