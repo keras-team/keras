@@ -583,9 +583,8 @@ class AWQIntegrationTest(testing.TestCase):
             getattr(restored_dense, "quantization_mode", None), "awq"
         )
         self.assertTrue(hasattr(restored_dense, "quantized_kernel"))
-        self.assertIsNone(
-            restored_dense.quantization_config.quantization_layer_structure
-        )
+        # A calibrated layer stores no config, so no structure either.
+        self.assertIsNone(restored_dense.quantization_config)
 
 
 # Constants for end-to-end tests

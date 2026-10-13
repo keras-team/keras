@@ -1010,6 +1010,7 @@ class DenseTest(testing.TestCase):
             ),
         )
         config = layer.get_config()
+        self.assertIsNone(config["quantization_config"])
         new_layer = layers.Dense.from_config(config)
         new_layer.build((None, 8))
         self.assertEqual(new_layer.quantization_mode, "gptq")
@@ -1026,6 +1027,7 @@ class DenseTest(testing.TestCase):
             ),
         )
         config = layer.get_config()
+        self.assertIsNone(config["quantization_config"])
         new_layer = layers.Dense.from_config(config)
         new_layer.build((None, 8))
         self.assertEqual(new_layer.quantization_mode, "awq")

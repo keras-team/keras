@@ -122,10 +122,11 @@ class QuantizationStrategy:
 
     # --- Per-layer hyperparameter resolution ------------------------------
 
-    # Mode-specific `resolve_*` helpers live on the concrete strategies
-    # (e.g. `Int4Strategy.resolve_block_size`). They all share the precedence:
-    # explicit config > layer's quantized dtype policy > DTypePolicyMap
-    # entry > mode-specific fallback.
+    # Mode-specific `resolve_*` helpers live on the concrete strategies.
+    # `Int4Strategy.resolve_block_size` reads the config, then the policy,
+    # then falls back to per-channel. The calibration modes read the
+    # policy, then the config of the run (`resolve_weight_bits`,
+    # `resolve_group_size`).
 
     # --- Policy-string codec ----------------------------------------------
 
