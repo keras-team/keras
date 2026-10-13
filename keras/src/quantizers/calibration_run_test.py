@@ -6,13 +6,13 @@ from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.quantizers.calibration_run import _stack_calibration_batch
+from keras.src.quantizers.calibration_run import find_layers_in_block
+from keras.src.quantizers.calibration_run import get_dataloader
+from keras.src.quantizers.calibration_run import gptq_quantize
+from keras.src.quantizers.calibration_run import stream_hessians
 from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.gptq_config import GPTQConfig
-from keras.src.quantizers.gptq_core import _stack_calibration_batch
-from keras.src.quantizers.gptq_core import find_layers_in_block
-from keras.src.quantizers.gptq_core import get_dataloader
-from keras.src.quantizers.gptq_core import gptq_quantize
-from keras.src.quantizers.gptq_core import stream_hessians
 
 VOCAB_SIZE = 100
 
@@ -373,7 +373,7 @@ class TestGPTQCore(testing.TestCase):
 
 class TestExecutionStages(testing.TestCase):
     def test_stages_group_by_shared_input_and_order(self):
-        from keras.src.quantizers.gptq_core import _execution_stages
+        from keras.src.quantizers.calibration_run import _execution_stages
 
         x_attn, x_out, x_mlp, x_down = (
             object(),
@@ -402,7 +402,7 @@ class TestExecutionStages(testing.TestCase):
         )
 
     def test_untraced_layers_join_first_stage(self):
-        from keras.src.quantizers.gptq_core import _execution_stages
+        from keras.src.quantizers.calibration_run import _execution_stages
 
         x = object()
         trace = {"a": (0, x)}
@@ -410,7 +410,7 @@ class TestExecutionStages(testing.TestCase):
         self.assertEqual(stages, [["ghost", "a"]])
 
     def test_no_trace_single_stage(self):
-        from keras.src.quantizers.gptq_core import _execution_stages
+        from keras.src.quantizers.calibration_run import _execution_stages
 
         stages = _execution_stages(["a", "b"], {})
         self.assertEqual(stages, [["a", "b"]])
