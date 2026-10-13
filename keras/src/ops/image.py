@@ -1331,7 +1331,7 @@ def _reconstruct_overlapping_patches(
         )
 
     # (B * C, *canvas, 1) -> (B, *canvas, C)
-    canvas = tuple(ops.shape(summed)[1 : n + 1])
+    canvas = tuple(backend.ops.shape(summed)[1 : n + 1])
     x = backend.ops.numpy.reshape(summed, (batch, channels, *canvas))
     x = backend.ops.numpy.transpose(x, (0, *range(2, n + 2), 1))
 
