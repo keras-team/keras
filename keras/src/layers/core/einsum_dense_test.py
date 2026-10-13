@@ -1345,29 +1345,32 @@ class EinsumDenseTest(testing.TestCase):
             # outputs_grad_amax_history.
             "7": np.random.random((1024,)).astype("float32"),
         }
+        # The calibration modes store the kernel `[b, c, d]` of
+        # `ab,bcd->acd` as its `(rows, columns)` view: the contracted axis
+        # `b` (3 rows) against `c * d` (256 columns), packed to 128 bytes
+        # per row at 4-bit, with one group of 8 rows covering every row.
         gptq_store = {
             # bias
             "0": np.random.random((32,)).astype("float32"),
             # quantized_kernel
-            "1": np.random.randint(0, 16, size=(24, 16), dtype="uint8"),
+            "1": np.random.randint(0, 16, size=(3, 128), dtype="uint8"),
             # kernel_scale.
-            "2": np.random.random((3, 32)).astype("float32"),
+            "2": np.random.random((1, 256)).astype("float32"),
             # kernel_zero
-            "3": np.random.random((3, 32)).astype("uint8"),
+            "3": np.random.random((1, 256)).astype("uint8"),
             # g_idx: legacy checkpoints stored the integer group indices as
             # float32; they load into the float32 g_idx variable unchanged.
-            "4": (np.arange(24) // 8).astype("float32"),
+            "4": (np.arange(3) // 8).astype("float32"),
         }
-        # kernel shape (3, 8, 32), packed: (16, 24) for 4-bit
         awq_store = {
             "0": np.random.random((32,)).astype("float32"),  # bias
-            "1": np.random.randint(0, 16, size=(24, 16), dtype="uint8"),
-            "2": np.random.random((3, 32)).astype("float32"),  # scale
-            "3": np.random.random((3, 32)).astype("uint8"),  # zero
-            "4": np.random.random((24,)).astype("float32"),  # awq_scales
+            "1": np.random.randint(0, 16, size=(3, 128), dtype="uint8"),
+            "2": np.random.random((1, 256)).astype("float32"),  # scale
+            "3": np.random.random((1, 256)).astype("uint8"),  # zero
+            "4": np.random.random((3,)).astype("float32"),  # awq_scales
             # g_idx saved as int32 by a newer checkpoint; the cast on load
             # brings it into the float32 storage variable (see above).
-            "5": (np.arange(24) // 8).astype("int32"),
+            "5": (np.arange(3) // 8).astype("int32"),
         }
         config = dict(
             equation="ab,bcd->acd",

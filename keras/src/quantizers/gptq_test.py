@@ -108,14 +108,14 @@ class GPTQTest(testing.TestCase):
 
         calibrator = _hessian_calibrator(mock_layer)
         self.assertEqual(calibrator.rows, 64)
-        self.assertEqual(calibrator.columns, 128)
+        self.assertEqual(calibrator.view.columns, 128)
         self.assertEqual(calibrator.hessian.shape, (64, 64))
 
     def test_initialization_with_einsumdense_3d(self):
         mock_layer = _get_test_layer("EinsumDense", kernel_shape=(64, 4, 32))
         calibrator = _hessian_calibrator(mock_layer)
         self.assertEqual(calibrator.rows, 64)
-        self.assertEqual(calibrator.columns, 4 * 32)
+        self.assertEqual(calibrator.view.columns, 4 * 32)
         self.assertEqual(calibrator.hessian.shape, (64, 64))
 
     def test_update_hessian(self):
@@ -257,13 +257,6 @@ class GPTQTest(testing.TestCase):
         self.assertAllEqual(layer.quantized_kernel, ops.cast(expected, "uint8"))
 
     def test_initialization_errors(self):
-        # A 4-D einsum kernel has no 2-D calibration view.
-        four_d = layers.EinsumDense(
-            "abc,cdef->abdef", output_shape=(3, 2, 3, 2)
-        )
-        four_d.build((None, 3, 4))
-        with self.assertRaisesRegex(ValueError, "only supports 2D or 3D"):
-            _hessian_calibrator(four_d)
         # An unbuilt layer is refused by the check `Layer.quantize` runs.
         with self.assertRaisesRegex(ValueError, "did not set kernel_shape"):
             _hessian_calibrator(layers.Dense(4))
@@ -1215,6 +1208,12 @@ class TestModelQuantization(testing.TestCase):
         model, structure = tiny_calibration_model(
             [
                 layers.Dense(embed_dim, activation="relu"),
+                # Gemma's `[heads, d_model, head_dim]` query projection,
+                # whose contracted axis does not lead the kernel.
+                layers.EinsumDense(
+                    "btd,ndh->btnh", output_shape=(seq_len, 2, 2)
+                ),
+                layers.Reshape((seq_len, embed_dim)),
                 layers.EinsumDense(
                     "abc,cd->abd", output_shape=(seq_len, embed_dim)
                 ),
@@ -1269,3 +1268,7 @@ class TestModelQuantization(testing.TestCase):
         self.assertTrue(hasattr(restored_dense, "quantized_kernel"))
         # A calibrated layer stores no config, so no structure either.
         self.assertIsNone(restored_dense.quantization_config)
+        # Stored by the model width: 4 rows of 4 columns packed to 2 bytes.
+        self.assertEqual(
+            tuple(restored_block.layers[1].quantized_kernel.shape), (4, 2)
+        )
