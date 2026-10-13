@@ -193,6 +193,14 @@ class TorchCoreMpsTest(testing.TestCase):
             out = convert_to_tensor(x)
         self.assertEqual(standardize_dtype(out.dtype), "float32")
 
+    def test_convert_to_tensor_meta_tensor_on_mps(self):
+        x = torch.empty(3, dtype=torch.float64, device="meta")
+        with backend.device_scope("mps"):
+            out = convert_to_tensor(x)
+            self.assertEqual(standardize_dtype(out.dtype), "float32")
+            out = convert_to_tensor(x, dtype="float32")
+            self.assertEqual(standardize_dtype(out.dtype), "float32")
+
     def test_convert_to_tensor_explicit_float64_raises_on_mps(self):
         x = np.ones(3, dtype=np.float64)
         with backend.device_scope("mps"):
