@@ -369,9 +369,13 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
             x = x.value
         device = get_device()
         if x.is_meta:
-            x = torch.empty_like(x, device=device)
-            if dtype is not None:
-                x = x.to(to_torch_dtype(dtype))
+            if dtype is None and "mps" in str(device):
+                dtype = MPS_UNSUPPORTED_DTYPES.get(standardize_dtype(x.dtype))
+            x = torch.empty_like(
+                x,
+                dtype=None if dtype is None else to_torch_dtype(dtype),
+                device=device,
+            )
         elif dtype is None and "mps" in str(device):
             x_dtype = standardize_dtype(x.dtype)
             fallback_dtype = MPS_UNSUPPORTED_DTYPES.get(x_dtype)
