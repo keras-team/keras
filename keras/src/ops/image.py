@@ -1481,7 +1481,7 @@ def _reconstruct_patches_2d(
             pad_total_h = gH * pH - H
             pad_total_w = gW * pW - W
             begin = [0, pad_total_h // 2, pad_total_w // 2, 0]
-            x = ops.slice(x, begin, [B, H, W, C])
+            x = backend.ops.slice(x, begin, [B, H, W, C])
 
     if _unbatched:
         x = backend.ops.numpy.squeeze(x, axis=0)
