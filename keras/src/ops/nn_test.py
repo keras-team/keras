@@ -3205,30 +3205,28 @@ class NNOpsCorrectnessTest(testing.TestCase):
         # A backend kernel normalizes over trailing axes, so any other set of
         # axes exercises the backend moving them into place.
         backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        try:
-            x = np.arange(120, dtype="float32").reshape((2, 3, 4, 5)) / 120.0
-            axes = tuple(axis)
-            epsilon = 1e-5
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        x = np.arange(120, dtype="float32").reshape((2, 3, 4, 5)) / 120.0
+        axes = tuple(axis)
+        epsilon = 1e-5
 
-            expected = x / np.sqrt(
-                np.mean(np.square(x), axis=axes, keepdims=True) + epsilon
-            )
-            self.assertAllClose(
-                knn.rms_normalization(x, axis=axis, epsilon=epsilon),
-                expected,
-                atol=1e-5,
-            )
+        expected = x / np.sqrt(
+            np.mean(np.square(x), axis=axes, keepdims=True) + epsilon
+        )
+        self.assertAllClose(
+            knn.rms_normalization(x, axis=axis, epsilon=epsilon),
+            expected,
+            atol=1e-5,
+        )
 
-            mean = np.mean(x, axis=axes, keepdims=True)
-            variance = np.var(x, axis=axes, keepdims=True)
-            expected = (x - mean) / np.sqrt(variance + epsilon)
-            self.assertAllClose(
-                knn.layer_normalization(x, axis=axis, epsilon=epsilon),
-                expected,
-                atol=1e-5,
-            )
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
+        mean = np.mean(x, axis=axes, keepdims=True)
+        variance = np.var(x, axis=axes, keepdims=True)
+        expected = (x - mean) / np.sqrt(variance + epsilon)
+        self.assertAllClose(
+            knn.layer_normalization(x, axis=axis, epsilon=epsilon),
+            expected,
+            atol=1e-5,
+        )
 
 
 class NNOpsDtypeTest(testing.TestCase):
