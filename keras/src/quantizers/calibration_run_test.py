@@ -1,4 +1,5 @@
 import math
+import os
 import warnings
 from unittest import mock
 
@@ -10,12 +11,16 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
+from keras.src import saving
 from keras.src import testing
 from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.calibration_run import CalibrationRun
 from keras.src.quantizers.calibration_run import _execution_stages
 from keras.src.quantizers.calibration_run import get_dataloader
 from keras.src.quantizers.capture import calibration_scope
+from keras.src.quantizers.gptq_config import GPTQConfig
+from keras.src.quantizers.quantization_test_utils import assert_calibrated
+from keras.src.quantizers.quantization_test_utils import assert_float
 from keras.src.quantizers.quantization_test_utils import calibrate_layer
 from keras.src.quantizers.quantization_test_utils import calibration_config
 from keras.src.quantizers.quantization_test_utils import calibration_statistic
@@ -166,14 +171,17 @@ class TestCalibrationCore(testing.TestCase):
 class TrainingOnlyBlock(layers.Layer):
     """A block whose second layer runs only in training."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, training_only=None, **kwargs):
         super().__init__(**kwargs)
         self.observed = layers.Dense(8, name="observed")
-        self.training_only = layers.Dense(8, name="training_only")
+        if training_only is None:
+            training_only = layers.Dense(8, name="training_only")
+        self.training_only = training_only
 
     def build(self, input_shape):
         self.observed.build(input_shape)
-        self.training_only.build(input_shape[:-1] + (8,))
+        if not self.training_only.built:
+            self.training_only.build(input_shape[:-1] + (8,))
 
     def call(self, inputs, training=False):
         hidden = self.observed(inputs)
@@ -196,6 +204,46 @@ class LateLayerBlock(layers.Layer):
         if ops.convert_to_numpy(tokens)[0, 0] >= 100:
             hidden = self.late(hidden)
         return hidden
+
+
+class PathlessDense(layers.Dense):
+    """A `Dense` that creates its variables in `__init__`.
+
+    The layer is built without a `build` call, so its `path` stays `None`.
+    """
+
+    def __init__(self, units, input_dim, **kwargs):
+        super().__init__(units, **kwargs)
+        # The function of the class, not the wrapper that sets the path.
+        layers.Dense.build(self, (None, input_dim))
+        self.built = True
+
+    def _quantization_geometry(self):
+        # A subclass is quantizable only by its own declaration.
+        return super()._quantization_geometry()
+
+
+class SamePathBlock(layers.Layer):
+    """A block whose two `Dense` layers share the name, and so the path."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.first = layers.Dense(8, name="proj")
+        self.second = layers.Dense(8, name="proj")
+
+    def call(self, inputs):
+        return self.second(self.first(inputs))
+
+
+class RaisesWhileArmed(layers.Layer):
+    """An identity layer whose `call` raises while `armed` is set."""
+
+    armed = False
+
+    def call(self, inputs):
+        if RaisesWhileArmed.armed:
+            raise RuntimeError("The layer is armed.")
+        return inputs
 
 
 class AttentionLikeBlock(layers.Layer):
@@ -372,6 +420,26 @@ def _blocks_config(mode, blocks, num_samples, embed_dim=4, **kwargs):
     return embedding, config
 
 
+def _two_block_model(mode):
+    """Embedding -> `[Dense, Dense]` -> `[Dense, RaisesWhileArmed, Dense]`.
+
+    Returns:
+        `(model, config)`.
+    """
+    blocks = [
+        models.Sequential([layers.Dense(8), layers.Dense(8)]),
+        models.Sequential(
+            [layers.Dense(8), RaisesWhileArmed(), layers.Dense(8)]
+        ),
+    ]
+    embedding, config = _blocks_config(mode, blocks, num_samples=4, embed_dim=8)
+    inputs = layers.Input((config.sequence_length,), dtype="int32")
+    x = embedding(inputs)
+    for block in blocks:
+        x = block(x)
+    return models.Model(inputs, x), config
+
+
 class CalibrationRunTest(testing.TestCase):
     """The driver the calibration modes share, once per mode."""
 
@@ -470,6 +538,7 @@ class CalibrationRunTest(testing.TestCase):
             ValueError, r"unknown keys \['pre_block_layer'\]"
         ):
             model.quantize(mode, config=config)
+        assert_float(self, block.dense)
 
     @parameterized.named_parameters(("gptq", "gptq"), ("awq", "awq"))
     def test_run_requires_a_dataset(self, mode):
@@ -507,21 +576,25 @@ class CalibrationRunTest(testing.TestCase):
         for block in blocks:
             x = block(x)
         model = models.Model(inputs, x)
-        for block in blocks:
-            for dense in block.layers:
-                dense.quantize(mode, config=config)
-                self.assertTrue(dense.calibration_pending)
 
         strategy = strategy_registry.get_strategy(mode)
         structure = config.quantization_layer_structure
         run = CalibrationRun(strategy, config, structure)
         self.assertEqual(run.batch_size, 2)
+        denses = [dense for block in blocks for dense in block.layers]
+        for dense in denses:
+            self.assertTrue(run.covers(dense))
+            run.add(dense)
+        self.assertFalse(run.covers(embedding))
+        # Handing a layer over changes nothing on it.
+        for dense in denses:
+            self.assertIsNone(dense.quantization_mode)
         self.assertEqual(len(run.dataloader), 3)
         with _spy_on_observe(mode) as observe:
             run.run()
-        for block in blocks:
-            for dense in block.layers:
-                self.assertFalse(dense.calibration_pending)
+        self.assertEqual(run.quantized, denses)
+        for dense in denses:
+            assert_calibrated(self, dense, mode)
         # Each block is observed after the blocks before it.
         block_of = {
             id(dense): index
@@ -544,12 +617,14 @@ class CalibrationRunTest(testing.TestCase):
         x = embedding(np.zeros((1, config.sequence_length), "int32"))
         for block in blocks:
             block(x)
-            block.dense.quantize(mode, config=config)
         strategy = strategy_registry.get_strategy(mode)
         structure = config.quantization_layer_structure
-        CalibrationRun(strategy, config, structure).run()
+        run = CalibrationRun(strategy, config, structure)
         for block in blocks:
-            self.assertFalse(block.dense.calibration_pending)
+            run.add(block.dense)
+        run.run()
+        for block in blocks:
+            assert_calibrated(self, block.dense, mode)
 
     @parameterized.named_parameters(("gptq", "gptq"), ("awq", "awq"))
     def test_run_skips_blocks_without_quantizable_layers(self, mode):
@@ -558,11 +633,42 @@ class CalibrationRunTest(testing.TestCase):
         embedding, config = _blocks_config(mode, [empty, block], num_samples=2)
         x = embedding(np.zeros((1, config.sequence_length), "int32"))
         block(empty(x))
-        block.layers[0].quantize(mode, config=config)
         strategy = strategy_registry.get_strategy(mode)
         structure = config.quantization_layer_structure
-        CalibrationRun(strategy, config, structure).run()
-        self.assertFalse(block.layers[0].calibration_pending)
+        run = CalibrationRun(strategy, config, structure)
+        self.assertFalse(run.covers(empty.ln))
+        run.add(block.layers[0])
+        run.run()
+        assert_calibrated(self, block.layers[0], mode)
+
+    @parameterized.named_parameters(("gptq", "gptq"), ("awq", "awq"))
+    def test_run_stops_after_the_last_block_with_a_layer(self, mode):
+        # The blocks behind the last one with a layer to calibrate are not
+        # run, not even to produce inputs for the block after them. The
+        # `Dense` layers of those blocks are covered but not handed over,
+        # as `filters` leaves them out.
+        blocks = [models.Sequential([layers.Dense(4)])] + [
+            models.Sequential([layers.Dense(4), CountingLayer()])
+            for _ in range(2)
+        ]
+        embedding, config = _blocks_config(mode, blocks, num_samples=2)
+        x = embedding(np.zeros((1, config.sequence_length), "int32"))
+        for block in blocks:
+            x = block(x)
+        counters = [block.layers[1] for block in blocks[1:]]
+        for counter in counters:
+            # Building the blocks called them.
+            counter.calls = 0
+        strategy = strategy_registry.get_strategy(mode)
+        structure = config.quantization_layer_structure
+        run = CalibrationRun(strategy, config, structure)
+        run.add(blocks[0].layers[0])
+        run.run()
+        assert_calibrated(self, blocks[0].layers[0], mode)
+        for block, counter in zip(blocks[1:], counters):
+            self.assertTrue(run.covers(block.layers[0]))
+            assert_float(self, block.layers[0])
+            self.assertEqual(counter.calls, 0)
 
     @parameterized.named_parameters(("gptq", "gptq"), ("awq", "awq"))
     def test_a_layer_the_traced_batch_skips_is_calibrated_last(self, mode):
@@ -579,10 +685,10 @@ class CalibrationRunTest(testing.TestCase):
             sequence_length=8,
             group_size=-1,
         )
-        for layer in (block.dense, block.late):
-            layer.quantize(mode, config=config)
         strategy = strategy_registry.get_strategy(mode)
         run = CalibrationRun(strategy, config, {"sequential_blocks": [block]})
+        for layer in (block.dense, block.late):
+            run.add(layer)
         with _spy_on_observe(mode) as observe:
             run.run()
         observed = [call.args[0].layer for call in observe.call_args_list]
@@ -590,7 +696,7 @@ class CalibrationRunTest(testing.TestCase):
         self.assertEqual(
             observed, [block.dense] * batches + [block.late] * (batches - 1)
         )
-        self.assertFalse(block.late.calibration_pending)
+        assert_calibrated(self, block.late, mode)
 
 
 @pytest.mark.requires_trainable_backend
@@ -650,7 +756,20 @@ class CalibrationRunModelTest(testing.TestCase):
         # A layer that observed nothing is not also undersampled.
         self.assertFalse([m for m in messages if "undersampled" in m])
         for layer in (block.observed, block.training_only):
-            self.assertFalse(layer.calibration_pending)
+            assert_calibrated(self, layer, mode)
+
+    @parameterized.named_parameters(("gptq", "gptq"), ("awq", "awq"))
+    def test_a_layer_without_a_path_is_named_in_the_warning(self, mode):
+        # A layer that is built without a `build` call has no path. The
+        # warning and the report use its name.
+        pathless = PathlessDense(8, 8, name="pathless")
+        block = TrainingOnlyBlock(training_only=pathless)
+        model, config = _tiny_model(mode, block_layers=[block])
+        self.assertIsNone(pathless.path)
+        with self.assertWarnsRegex(UserWarning, "observed no input.*pathless"):
+            report = model.quantize(mode, config=config)
+        assert_calibrated(self, pathless, mode)
+        self.assertIn("pathless", [path for path, *_ in report.quantized])
 
     @parameterized.named_parameters(("gptq", "gptq"), ("awq", "awq"))
     def test_calibration_runs_without_grad_tracking(self, mode):
@@ -688,13 +807,13 @@ class CalibrationRunModelTest(testing.TestCase):
         inputs = layers.Input((seq_len,), dtype="int32")
         model = models.Model(inputs, second(first(embedding(inputs))))
         model.quantize(mode, config=config)
-        self.assertFalse(first.layers[0].calibration_pending)
-        self.assertFalse(second.layers[1].calibration_pending)
+        assert_calibrated(self, first.layers[0], mode)
+        assert_calibrated(self, second.layers[1], mode)
         outputs = ops.convert_to_numpy(model(config.dataset[0]))
         self.assertTrue(np.isfinite(outputs).all())
 
     @parameterized.named_parameters(("gptq", "gptq"), ("awq", "awq"))
-    def test_run_calibrates_only_layers_left_pending(self, mode):
+    def test_run_calibrates_only_float_layers(self, mode):
         # A layer quantized in another mode, or already calibrated, is
         # left as it is instead of failing inside the solve.
         model, config = _tiny_model(mode)
@@ -702,19 +821,118 @@ class CalibrationRunModelTest(testing.TestCase):
         int8_layer, calibrated_layer = block.layers
         int8_layer.quantize("int8")
         int8_codes = ops.convert_to_numpy(int8_layer._kernel)
-        model.quantize(mode, config=config)
+        report = model.quantize(mode, config=config)
         self.assertEqual(int8_layer.quantization_mode, "int8")
         self.assertAllEqual(int8_layer._kernel, int8_codes)
-        self.assertEqual(calibrated_layer.quantization_mode, mode)
-        self.assertFalse(calibrated_layer.calibration_pending)
+        assert_calibrated(self, calibrated_layer, mode)
+        self.assertEqual(
+            [path for path, *_ in report.quantized], [calibrated_layer.path]
+        )
 
-        # A second call finds nothing pending and runs no forward pass.
+        # A second call finds no float layer and runs no forward pass.
         codes = ops.convert_to_numpy(calibrated_layer.quantized_kernel)
         counter = CountingLayer()
         config.quantization_layer_structure["pre_block_layers"].append(counter)
-        model.quantize(mode, config=config)
+        report = model.quantize(mode, config=config)
         self.assertEqual(counter.calls, 0)
+        self.assertEqual(report.quantized, [])
         self.assertAllEqual(calibrated_layer.quantized_kernel, codes)
+
+    @parameterized.named_parameters(("gptq", "gptq"), ("awq", "awq"))
+    def test_refused_call_leaves_the_model_untouched(self, mode):
+        # The run refuses a missing dataset or structure before the walk,
+        # so no layer changes and the model still saves.
+        for missing in ("dataset", "tokenizer", "quantization_layer_structure"):
+            model, config = _tiny_model(mode)
+            block = config.quantization_layer_structure["sequential_blocks"][0]
+            setattr(config, missing, None)
+            with self.assertRaises(ValueError):
+                model.quantize(mode, config=config)
+            for layer in block.layers:
+                assert_float(self, layer)
+            model.save_weights(
+                os.path.join(self.get_temp_dir(), "untouched.weights.h5")
+            )
+
+    def test_a_layer_refused_on_its_own_is_calibrated_by_the_run(self):
+        # `layer.quantize("gptq")` raises and leaves the layer float; the
+        # run then solves it with the run's config, like its neighbours.
+        model, config = _tiny_model("gptq", weight_bits=8)
+        layer = config.quantization_layer_structure["sequential_blocks"][0]
+        layer = layer.layers[0]
+        kernel = ops.convert_to_numpy(layer.kernel)
+        layer_config = GPTQConfig(
+            dataset=None, tokenizer=None, weight_bits=4, group_size=8
+        )
+        with self.assertRaisesRegex(ValueError, "model.quantize"):
+            layer.quantize("gptq", config=layer_config)
+        assert_float(self, layer)
+        model.quantize("gptq", config=config)
+        assert_calibrated(self, layer, "gptq")
+        self.assertEqual(layer.dtype_policy.name, "gptq/8/8_from_float32")
+        weight = ops.convert_to_numpy(
+            layer._quantized_weight().dequantize("float32")
+        )
+        error = np.linalg.norm(weight - kernel) / np.linalg.norm(kernel)
+        self.assertLess(error, 0.05)
+
+    @parameterized.named_parameters(("gptq", "gptq"), ("awq", "awq"))
+    def test_a_run_that_raises_keeps_a_valid_model(self, mode):
+        # The second block raises on the calibration batch after the
+        # first is swapped. The call stops with the first block quantized
+        # and the second float, reports the first block's layers and
+        # resets the compiled functions. The model saves, and a second
+        # call completes the run.
+        model, config = _two_block_model(mode)
+        first, second = config.quantization_layer_structure["sequential_blocks"]
+        reference, reference_config = _two_block_model(mode)
+        reference.set_weights(model.get_weights())
+        reference.quantize(mode, config=reference_config)
+        x = config.dataset[0]
+        model.predict(x, verbose=0)
+        self.assertIsNotNone(model.predict_function)
+
+        RaisesWhileArmed.armed = True
+        self.addCleanup(setattr, RaisesWhileArmed, "armed", False)
+        with self.assertRaisesRegex(RuntimeError, "armed"):
+            model.quantize(mode, config=config)
+        RaisesWhileArmed.armed = False
+        for layer in first.layers:
+            assert_calibrated(self, layer, mode)
+        float_layers = [second.layers[0], second.layers[2]]
+        for layer in float_layers:
+            assert_float(self, layer)
+        self.assertEqual(
+            [path for path, *_ in model._quantization_report.quantized],
+            [layer.path for layer in first.layers],
+        )
+        self.assertIsNone(model.predict_function)
+
+        filepath = os.path.join(self.get_temp_dir(), "partial.keras")
+        model.save(filepath)
+        loaded = saving.load_model(
+            filepath, custom_objects={"RaisesWhileArmed": RaisesWhileArmed}
+        )
+        self.assertAllClose(loaded(x), model(x))
+
+        report = model.quantize(mode, config=config)
+        self.assertEqual(
+            [path for path, *_ in report.quantized],
+            [layer.path for layer in float_layers],
+        )
+        self.assertAllClose(model(x), reference(x))
+
+    @parameterized.named_parameters(("gptq", "gptq"), ("awq", "awq"))
+    def test_layers_that_share_a_path_are_both_calibrated(self, mode):
+        block = SamePathBlock()
+        model, config = _tiny_model(mode, block_layers=[block])
+        self.assertEqual(block.first.path, block.second.path)
+        report = model.quantize(mode, config=config)
+        assert_calibrated(self, block.first, mode)
+        assert_calibrated(self, block.second, mode)
+        self.assertEqual(
+            [path for path, *_ in report.quantized], [block.first.path] * 2
+        )
 
     @parameterized.named_parameters(("gptq", "gptq"), ("awq", "awq"))
     def test_run_under_a_bfloat16_policy(self, mode):
@@ -728,7 +946,7 @@ class CalibrationRunModelTest(testing.TestCase):
         reference.quantize(mode, config=reference_config)
         block = config.quantization_layer_structure["sequential_blocks"][0]
         for layer in block.layers:
-            self.assertFalse(layer.calibration_pending)
+            assert_calibrated(self, layer, mode)
         outputs = ops.convert_to_numpy(
             ops.cast(model(config.dataset[0]), "float32")
         )

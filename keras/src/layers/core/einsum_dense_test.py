@@ -23,6 +23,9 @@ from keras.src.quantizers.awq_config import AWQConfig
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
+from keras.src.quantizers.quantization_test_utils import (
+    calibrate_on_random_rows,
+)
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
 from keras.src.saving.saving_api import load_model
 from keras.src.testing import test_utils
@@ -1256,9 +1259,9 @@ class EinsumDenseTest(testing.TestCase):
         )
         layer = layers.EinsumDense(**config)
         layer.build((None, 3))
-        layer.quantize(
-            "gptq",
-            config=GPTQConfig(
+        calibrate_on_random_rows(
+            layer,
+            GPTQConfig(
                 dataset=None, tokenizer=None, weight_bits=4, group_size=8
             ),
         )
@@ -1277,9 +1280,9 @@ class EinsumDenseTest(testing.TestCase):
         )
         layer = layers.EinsumDense(**config)
         layer.build((None, 3))
-        layer.quantize(
-            "awq",
-            config=AWQConfig(
+        calibrate_on_random_rows(
+            layer,
+            AWQConfig(
                 dataset=None, tokenizer=None, group_size=8, num_grid_points=10
             ),
         )
@@ -1287,42 +1290,6 @@ class EinsumDenseTest(testing.TestCase):
         new_layer = layers.EinsumDense.from_config(layer_config)
         new_layer.build((None, 3))
         self.assertEqual(new_layer.quantization_mode, "awq")
-
-    def test_gptq_uncalibrated_save_raises(self):
-        """Saving a GPTQ layer that was never calibrated must raise."""
-        config = dict(
-            equation="ab,bcd->acd",
-            output_shape=(8, 32),
-            bias_axes="d",
-        )
-        layer = layers.EinsumDense(**config)
-        layer.build((None, 3))
-        layer.quantize(
-            "gptq",
-            config=GPTQConfig(
-                dataset=None, tokenizer=None, weight_bits=4, group_size=8
-            ),
-        )
-        with self.assertRaisesRegex(ValueError, "never been calibrated"):
-            layer.save_own_variables({})
-
-    def test_awq_uncalibrated_save_raises(self):
-        """Saving an AWQ layer that was never calibrated must raise."""
-        config = dict(
-            equation="ab,bcd->acd",
-            output_shape=(8, 32),
-            bias_axes="d",
-        )
-        layer = layers.EinsumDense(**config)
-        layer.build((None, 3))
-        layer.quantize(
-            "awq",
-            config=AWQConfig(
-                dataset=None, tokenizer=None, group_size=8, num_grid_points=10
-            ),
-        )
-        with self.assertRaisesRegex(ValueError, "never been calibrated"):
-            layer.save_own_variables({})
 
     def test_int4_kernel_returns_unpacked_form(self):
         """Test that the `kernel` property returns the unpacked int4 kernel."""
@@ -1446,7 +1413,6 @@ class EinsumDenseTest(testing.TestCase):
         layer = layers.EinsumDense(**config, dtype="gptq/4/8_from_float32")
         layer.build((None, 3))
         layer.load_own_variables(gptq_store)
-        self.assertFalse(layer.calibration_pending)
         self.assertAllClose(layer.bias, gptq_store["0"])
         self.assertAllClose(layer.quantized_kernel, gptq_store["1"])
         self.assertAllClose(layer.kernel_scale, gptq_store["2"])
@@ -1459,7 +1425,6 @@ class EinsumDenseTest(testing.TestCase):
         layer = layers.EinsumDense(**config, dtype="awq/4/8_from_float32")
         layer.build((None, 3))
         layer.load_own_variables(awq_store)
-        self.assertFalse(layer.calibration_pending)
         self.assertAllClose(layer.bias, awq_store["0"])
         self.assertAllClose(layer.quantized_kernel, awq_store["1"])
         self.assertAllClose(layer.kernel_scale, awq_store["2"])
@@ -1544,7 +1509,6 @@ class EinsumDenseTest(testing.TestCase):
 
                 target = self._build_einsum_for_mode(mode)
                 target.load_own_variables(test_utils.positional_store(source))
-                self.assertFalse(target.calibration_pending)
                 test_utils.assert_serialized_variables_equal(
                     self, source, target
                 )
@@ -1578,13 +1542,12 @@ class EinsumDenseTest(testing.TestCase):
             output_shape=(2,),
         )
         layer.build((None, 2))
-        layer.quantize(
-            "gptq",
-            config=GPTQConfig(
+        calibrate_on_random_rows(
+            layer,
+            GPTQConfig(
                 dataset=None, tokenizer=None, weight_bits=4, group_size=8
             ),
         )
-        layer.calibration_pending = False  # Bypass calibration check
         packed_kernel = layer.quantized_kernel
         self.assertAllClose(
             layer.kernel,
@@ -1603,9 +1566,9 @@ class EinsumDenseTest(testing.TestCase):
 
         original_kernel_params = ops.prod(layer._kernel.shape)
 
-        layer.quantize(
-            "gptq",
-            config=GPTQConfig(
+        calibrate_on_random_rows(
+            layer,
+            GPTQConfig(
                 dataset=None, tokenizer=None, weight_bits=4, group_size=8
             ),
         )
@@ -1639,13 +1602,12 @@ class EinsumDenseTest(testing.TestCase):
             output_shape=(2,),
         )
         layer.build((None, 2))
-        layer.quantize(
-            "awq",
-            config=AWQConfig(
+        calibrate_on_random_rows(
+            layer,
+            AWQConfig(
                 dataset=None, tokenizer=None, group_size=8, num_grid_points=10
             ),
         )
-        layer.calibration_pending = False  # Bypass calibration check
         packed_kernel = layer.quantized_kernel
         self.assertAllClose(
             layer.kernel,
@@ -1664,9 +1626,9 @@ class EinsumDenseTest(testing.TestCase):
 
         original_kernel_params = ops.prod(layer._kernel.shape)
 
-        layer.quantize(
-            "awq",
-            config=AWQConfig(
+        calibrate_on_random_rows(
+            layer,
+            AWQConfig(
                 dataset=None, tokenizer=None, group_size=8, num_grid_points=10
             ),
         )

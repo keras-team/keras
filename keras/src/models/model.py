@@ -11,7 +11,6 @@ from keras.src.layers.core.input_layer import InputLayer
 from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
 from keras.src.quantizers import strategy_registry
-from keras.src.quantizers.calibration_run import find_layers_in_block
 from keras.src.quantizers.quantization_config import validate_and_resolve_config
 from keras.src.quantizers.report import QuantizationReport
 from keras.src.quantizers.utils import should_quantize_layer
@@ -467,7 +466,9 @@ class Model(Trainer, Layer):
         `"sequential_blocks"` (provided via
         `config.quantization_layer_structure` or the model's
         `get_quantization_layer_structure(mode)` hook). All other layers
-        are left in their original precision.
+        are left in their original precision. These modes are run only
+        here: each layer stays float until the calibration has its
+        statistics, and is then quantized in one step.
 
         The call collects a `QuantizationReport` describing which layers were
         quantized and which were skipped (and why). The report is returned and
@@ -475,6 +476,12 @@ class Model(Trainer, Layer):
         summary warning is emitted if any layers could not be quantized because
         they do not support quantization. For a per-layer view of storage sizes,
         call `model.quantization_summary()`.
+
+        An error other than `NotImplementedError` from `layer.quantize`,
+        `run.add` or the calibration stops the call. The layers quantized
+        before it stay quantized, `model._quantization_report` lists them,
+        and the compiled functions are reset when at least one layer
+        changed.
 
         Args:
             mode: The mode of the quantization. Supported modes are:
@@ -591,99 +598,85 @@ class Model(Trainer, Layer):
                     f"{type(filters)}"
                 )
 
-        # For structure-aware modes (`gptq`/`awq`), resolve and validate the
-        # layer structure *before* mutating any layer, and restrict
-        # quantization to the layers covered by the structure. Resolving it
-        # here (rather than after the mutation loop) guarantees that a
-        # missing/invalid structure leaves the model completely untouched
-        # instead of half-quantized (buffers allocated, dtype policies
-        # swapped). Only structure-covered layers are calibrated afterwards;
-        # quantizing any other layer would leave it uncalibrated, and its
-        # uninitialized quantized weights would silently replace the real
-        # ones when the model is saved and reloaded.
+        # A mode that calibrates (`gptq`/`awq`) creates its run before any
+        # layer changes, so a missing structure, dataset or tokenizer
+        # leaves the model untouched. The walk hands the run the float
+        # layers its blocks cover, and the run quantizes each one in one
+        # step once it has the layer's statistics.
         strategy = strategy_registry.get_strategy(mode)
-        structure = None
-        structure_layer_ids = None
-        if strategy.requires_layer_structure:
-            # 1. If quantization_layer_structure is provided inside the
-            # config, use that.
-            structure = config.quantization_layer_structure
-            # 2. If no layer structure is provided in the config, try to
-            # fetch it using the `get_quantization_layer_structure` hook.
-            if structure is None:
-                structure = self.get_quantization_layer_structure(mode)
-
-            if structure is None:
-                raise ValueError(
-                    f"For {mode=}, a valid quantization structure must be "
-                    "provided either via `config.quantization_layer_structure` "
-                    "or by overriding "
-                    "`model.get_quantization_layer_structure(mode)`. The "
-                    "structure should be a dictionary with keys "
-                    "'pre_block_layers' and 'sequential_blocks'."
-                )
-            structure_layer_ids = set()
-            for block in structure.get("sequential_blocks", []):
-                for sub_layer in find_layers_in_block(block).values():
-                    structure_layer_ids.add(id(sub_layer))
+        run = strategy.model_run(self, config)
 
         report = QuantizationReport(mode=mode)
-        graph_modified = False
-        for layer in self._flatten_layers():
-            # Skip nested models: this walk already visits their layers
-            # directly (`_flatten_layers` is recursive), and calling
-            # `quantize` on a sub-model would recurse into a second full
-            # walk. Owning sub-layers does NOT make a layer unquantizable
-            # (e.g. `Dense` with a `Layer` activation), so this is an
-            # isinstance test, not a topology test; any other layer that
-            # cannot be quantized reports itself by raising
-            # `NotImplementedError` below.
-            if isinstance(layer, Model):
-                continue
+        quantized = [] if run is None else run.quantized
+        try:
+            for layer in self._flatten_layers():
+                # Skip nested models: this walk already visits their layers
+                # directly (`_flatten_layers` is recursive), and calling
+                # `quantize` on a sub-model would recurse into a second full
+                # walk. Owning sub-layers does NOT make a layer
+                # unquantizable (e.g. `Dense` with a `Layer` activation), so
+                # this is an isinstance test, not a topology test; any other
+                # layer that cannot be quantized reports itself by raising
+                # `NotImplementedError` below.
+                if isinstance(layer, Model):
+                    continue
 
-            # Input layers carry no weights; they are not a meaningful skip.
-            if isinstance(layer, InputLayer):
-                continue
+                # Input layers carry no weights; they are not a meaningful
+                # skip.
+                if isinstance(layer, InputLayer):
+                    continue
 
-            path = layer.path or layer.name
+                path = layer.path or layer.name
 
-            # 1. For GPTQ/AWQ, layers outside the structure's sequential
-            # blocks are never calibrated, so they must not be quantized at
-            # all.
-            if (
-                structure_layer_ids is not None
-                and id(layer) not in structure_layer_ids
-            ):
-                report.add_skipped(
-                    path, QuantizationReport.SKIP_OUTSIDE_STRUCTURE
+                # 1. For GPTQ/AWQ, layers outside the structure's sequential
+                # blocks are never calibrated, so they must not be quantized
+                # at all.
+                if run is not None and not run.covers(layer):
+                    report.add_skipped(
+                        path, QuantizationReport.SKIP_OUTSIDE_STRUCTURE
+                    )
+                    continue
+                # 2. Excluded by `filters`.
+                if not should_quantize_layer(layer, filters):
+                    report.add_skipped(path, QuantizationReport.SKIP_FILTERED)
+                    continue
+                # 3. Already quantized (e.g. a previously quantized layer).
+                if layer._is_quantized:
+                    report.add_skipped(
+                        path, QuantizationReport.SKIP_ALREADY_QUANTIZED
+                    )
+                    continue
+                # 4. Attempt to quantize, or hand the layer to the run. Only
+                # `NotImplementedError` means the layer does not support
+                # quantization; any other exception is a real bug and is
+                # allowed to propagate.
+                try:
+                    if run is None:
+                        layer.quantize(
+                            mode, type_check=type_check, config=config
+                        )
+                        quantized.append(layer)
+                    else:
+                        run.add(layer, type_check)
+                except NotImplementedError:
+                    report.add_skipped(path, QuantizationReport.SKIP_NO_SUPPORT)
+            if run is not None:
+                run.run()
+        finally:
+            for layer in quantized:
+                report.add_quantized(
+                    layer.path or layer.name,
+                    layer.quantization_mode,
+                    layer._own_dtype_policy.name,
                 )
-                continue
-            # 2. Excluded by `filters`.
-            if not should_quantize_layer(layer, filters):
-                report.add_skipped(path, QuantizationReport.SKIP_FILTERED)
-                continue
-            # 3. Already quantized (e.g. a previously quantized layer).
-            if layer._is_quantized:
-                report.add_skipped(
-                    path, QuantizationReport.SKIP_ALREADY_QUANTIZED
-                )
-                continue
-            # 4. Attempt to quantize. Only `NotImplementedError` means the
-            # layer does not support quantization; any other exception is a
-            # real bug and is allowed to propagate.
-            try:
-                layer.quantize(mode, type_check=type_check, config=config)
-            except NotImplementedError:
-                report.add_skipped(path, QuantizationReport.SKIP_NO_SUPPORT)
-                continue
-            report.add_quantized(
-                path, layer.quantization_mode, layer._own_dtype_policy.name
-            )
-            graph_modified = True
-
-        # Structure-aware modes run their calibration pass here (a no-op
-        # for the other modes).
-        strategy.finalize_model_quantization(self, config, structure, filters)
+            self._quantization_report = report
+            # If any layer was changed, also by a walk or a run that
+            # raised, we must rebuild the execution functions.
+            if quantized:
+                self.train_function = None
+                self.test_function = None
+                self.predict_function = None
+                self._post_quantize(mode, **kwargs)
 
         # Emit a single summary warning in place of the previous per-layer
         # warning storm (one `UserWarning` per non-quantizable leaf).
@@ -693,15 +686,6 @@ class Model(Trainer, Layer):
 
         if verbose:
             io_utils.print_msg(report.render())
-
-        self._quantization_report = report
-
-        # If any layer was changed, we must rebuild the execution functions.
-        if graph_modified:
-            self.train_function = None
-            self.test_function = None
-            self.predict_function = None
-            self._post_quantize(mode, **kwargs)
 
         return report
 

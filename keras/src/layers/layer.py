@@ -1524,6 +1524,10 @@ class Layer(BackendLayer, Operation):
         defines it can be quantized (pass `type_check=False` to quantize an
         instance of a subclass that inherits the geometry).
 
+        The calibration modes (`"gptq"`, `"awq"`) compute a layer's values
+        from calibration data, so they raise here; `Model.quantize` runs
+        them.
+
         Args:
             mode: The quantization mode, e.g. `"int8"`. Optional if `config`
                 is provided.
@@ -1533,6 +1537,14 @@ class Layer(BackendLayer, Operation):
                 parameters.
         """
         config = validate_and_resolve_config(mode, config)
+        strategy = self._check_quantizable(config, type_check)
+        self._swap_quantized(strategy, config, strategy.quantize)
+
+    def _check_quantizable(self, config, type_check=True):
+        """Raises unless `config`'s mode can quantize this layer as it is.
+
+        Nothing on the layer changes. Returns the mode's strategy.
+        """
         mode = config.mode
         self._check_quantize_args(mode, self.compute_dtype)
         geometry = self._quantization_geometry()
@@ -1547,13 +1559,28 @@ class Layer(BackendLayer, Operation):
         strategy.check_quantizable(self)
         if self.lora_enabled:
             self._check_lora_supported(mode)
+        return strategy
+
+    def _swap_quantized(self, strategy, config, swap):
+        """Runs `swap(self, config)` and names the policy after the mode.
+
+        `swap` replaces the float weight with the mode's variables:
+        `strategy.quantize`, or the write-back of a calibration. A swap
+        that raises before the layer is quantized leaves its config as it
+        was.
+        """
+        previous_config = self.quantization_config
         self._tracker.unlock()
         try:
             # Record the config only after the mode is validated, so a
             # rejected mode leaves the layer untouched.
             self.quantization_config = config
-            strategy.quantize(self, config)
+            swap(self, config)
             self._finalize_quantization_policy(strategy, config)
+        except Exception:
+            if not self._is_quantized:
+                self.quantization_config = previous_config
+            raise
         finally:
             self._tracker.lock()
 
@@ -1644,9 +1671,6 @@ class Layer(BackendLayer, Operation):
         mode = self.quantization_mode
         if mode not in self.variable_serialization_spec:
             raise self._quantization_mode_error(mode)
-        strategy = strategy_registry.get_strategy(mode)
-        if strategy is not None:
-            strategy.check_saveable(self)
         value, scale, zero_point = self._get_weight_with_merged_lora(name)
         merged = {name: value}
         if scale is not None:
@@ -1692,9 +1716,6 @@ class Layer(BackendLayer, Operation):
             for factor in ("a", "b"):
                 lora = getattr(self, f"lora_{name}_{factor}")
                 lora.assign(ops.zeros(lora.shape))
-        strategy = strategy_registry.get_strategy(mode)
-        if strategy is not None:
-            strategy.variables_loaded(self)
 
     def _quantization_type_owner(self):
         """The class whose `_quantization_geometry` definition applies."""
