@@ -168,16 +168,12 @@ def serialized_variable(layer, name):
 
     `save_own_variables`/`load_own_variables` serialize the raw
     `_kernel`/`_embeddings` variables for the `"kernel"`/`"embeddings"` spec
-    entries. In `ternary` mode there is no float `_kernel` at all -- the layer
-    stores `_packed_kernel` instead, and that is what gets serialized for
-    `"kernel"`. All other spec names map directly to the attribute of the same
-    name. Returns `None` if the attribute does not exist on the layer.
+    entries (a quantized layer's `_kernel` holds its codes). All other spec
+    names map directly to the attribute of the same name. Returns `None` if
+    the attribute does not exist on the layer.
     """
     if name == "kernel":
-        kernel = getattr(layer, "_kernel", None)
-        if kernel is None:
-            kernel = getattr(layer, "_packed_kernel", None)
-        return kernel
+        return getattr(layer, "_kernel", None)
     if name == "embeddings":
         return getattr(layer, "_embeddings", None)
     return getattr(layer, name, None)
