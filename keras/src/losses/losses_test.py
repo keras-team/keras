@@ -1,5 +1,4 @@
-import importlib
-import pkgutil
+import inspect
 import re
 import warnings
 
@@ -3023,28 +3022,16 @@ class CategoricalGeneralizedCrossEntropyTest(testing.TestCase):
 
 
 class LossRegistryTest(testing.TestCase):
-    def test_all_public_losses_are_registered(self):
-        # `get` and `deserialize` resolve names only through `ALL_OBJECTS`.
-        for module in pkgutil.iter_modules(losses_module.__path__):
-            if not module.name.endswith("_test"):
-                importlib.import_module(
-                    f"{losses_module.__name__}.{module.name}"
-                )
+    def test_get_all_public_losses(self):
         not_objects = {"get", "serialize", "deserialize"}
-        missing = [
-            name
-            for name, obj in REGISTERED_NAMES_TO_OBJS.items()
-            if name.startswith("keras.losses.")
-            and name.count(".") == 2
-            and name.rsplit(".", 1)[1] not in not_objects
-            and obj not in losses_module.ALL_OBJECTS
-        ]
-        self.assertEqual(missing, [])
-        self.assertIsInstance(
-            losses_module.get("CategoricalGeneralizedCrossEntropy"),
-            losses.CategoricalGeneralizedCrossEntropy,
-        )
-        self.assertIs(
-            losses_module.get("categorical_generalized_cross_entropy"),
-            losses.categorical_generalized_cross_entropy,
-        )
+        for name, obj in REGISTERED_NAMES_TO_OBJS.items():
+            if (
+                name.startswith("keras.losses.")
+                and name.count(".") == 2
+                and name.rsplit(".", 1)[1] not in not_objects
+            ):
+                get_result = losses_module.get(name.rsplit(".", 1)[1])
+                if inspect.isclass(obj):
+                    self.assertIsInstance(get_result, obj)
+                else:
+                    self.assertIs(get_result, obj)

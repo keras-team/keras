@@ -1,7 +1,6 @@
-import importlib
+import inspect
 import os
 import pickle
-import pkgutil
 
 import numpy as np
 import pytest
@@ -167,22 +166,21 @@ class OptimizerTest(testing.TestCase):
         with self.assertRaises(ValueError):
             optimizers.get("typo")
 
-    def test_all_public_optimizers_are_registered(self):
-        # `get` and `deserialize` resolve names only through `ALL_OBJECTS`.
-        for module in pkgutil.iter_modules(optimizers.__path__):
-            if not module.name.endswith("_test"):
-                importlib.import_module(f"{optimizers.__name__}.{module.name}")
+    def test_get_all_public_optimizers(self):
         not_objects = {"get", "serialize", "deserialize"}
-        missing = [
-            name
-            for name, obj in REGISTERED_NAMES_TO_OBJS.items()
-            if name.startswith("keras.optimizers.")
-            and name.count(".") == 2
-            and name.rsplit(".", 1)[1] not in not_objects
-            and obj not in optimizers.ALL_OBJECTS
-        ]
-        self.assertEqual(missing, [])
-        self.assertIsInstance(optimizers.get("lamb"), optimizers.Lamb)
+        # Wrappers need an inner optimizer, so `get` can't build them by name.
+        wrappers = {"LossScaleOptimizer", "MultiOptimizer", "OptimizerMap"}
+        for name, obj in REGISTERED_NAMES_TO_OBJS.items():
+            if (
+                name.startswith("keras.optimizers.")
+                and name.count(".") == 2
+                and name.rsplit(".", 1)[1] not in not_objects | wrappers
+            ):
+                get_result = optimizers.get(name.rsplit(".", 1)[1])
+                if inspect.isclass(obj):
+                    self.assertIsInstance(get_result, obj)
+                else:
+                    self.assertIs(get_result, obj)
 
     def test_static_loss_scaling(self):
         v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
