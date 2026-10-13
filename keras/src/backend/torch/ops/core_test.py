@@ -10,6 +10,7 @@ from torch.distributed.tensor import Replicate
 
 from keras.src import backend
 from keras.src import testing
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.torch import distribution_lib
 from keras.src.backend.torch.distributed_test_utils import (
     TorchDistributedTestMixin,
@@ -160,6 +161,55 @@ class TorchCoreTest(testing.TestCase):
         # would have failed export above or fixed the first output dim to 2.
         out = ep.module()(torch.arange(12).reshape(3, 4))
         self.assertEqual(tuple(out.shape), (3, 2))
+
+
+@pytest.mark.skipif(
+    backend.backend() != "torch", reason="Requires torch backend"
+)
+@pytest.mark.skipif(
+    not torch.backends.mps.is_available(), reason="MPS device not available"
+)
+class TorchCoreMpsTest(testing.TestCase):
+    def test_convert_to_tensor_downcasts_ndarray_on_mps(self):
+        x = np.ones(3, dtype=np.float64)
+        with backend.device_scope("mps"):
+            out = convert_to_tensor(x)
+        self.assertEqual(standardize_dtype(out.dtype), "float32")
+
+        x = np.ones(3, dtype=np.complex128)
+        with backend.device_scope("mps"):
+            out = convert_to_tensor(x)
+        self.assertEqual(standardize_dtype(out.dtype), "complex64")
+
+    def test_convert_to_tensor_downcasts_sequence_on_mps(self):
+        x = [np.float64(1.0), np.float64(2.0)]
+        with backend.device_scope("mps"):
+            out = convert_to_tensor(x)
+        self.assertEqual(standardize_dtype(out.dtype), "float32")
+
+    def test_convert_to_tensor_downcasts_torch_tensor_on_mps(self):
+        x = torch.ones(3, dtype=torch.float64)
+        with backend.device_scope("mps"):
+            out = convert_to_tensor(x)
+        self.assertEqual(standardize_dtype(out.dtype), "float32")
+
+    def test_convert_to_tensor_explicit_float64_raises_on_mps(self):
+        x = np.ones(3, dtype=np.float64)
+        with backend.device_scope("mps"):
+            with self.assertRaises((RuntimeError, TypeError)):
+                convert_to_tensor(x, dtype="float64")
+
+    def test_convert_to_tensor_explicit_float32_no_downcast(self):
+        x = np.ones(3, dtype=np.float64)
+        with backend.device_scope("mps"):
+            out = convert_to_tensor(x, dtype="float32")
+        self.assertEqual(standardize_dtype(out.dtype), "float32")
+
+    def test_convert_to_tensor_no_downcast_on_cpu(self):
+        x = np.ones(3, dtype=np.float64)
+        with backend.device_scope("cpu"):
+            out = convert_to_tensor(x)
+        self.assertEqual(standardize_dtype(out.dtype), "float64")
 
 
 @pytest.mark.skipif(
