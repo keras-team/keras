@@ -416,9 +416,7 @@ class LoadNpzTest(testing.TestCase):
             lambda: (1, (1,), np.dtype("O")),
         )
 
-        with self.assertRaisesRegex(
-            pickle.UnpicklingError, "5-element tuple"
-        ):
+        with self.assertRaisesRegex(pickle.UnpicklingError, "5-element tuple"):
             npz_utils.load_npz(path)
 
     def test_rejects_unknown_state_version(self):
