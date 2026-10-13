@@ -1349,7 +1349,7 @@ def _reconstruct_overlapping_patches(
         else:
             begin.append(backend.ops.numpy.maximum(pad_total, 0) // 2)
     begin.append(0)
-    x = ops.slice(x, begin, [batch, *output_size, channels])
+    x = backend.ops.slice(x, begin, [batch, *output_size, channels])
 
     if compute_dtype != dtype:
         if reduction == "mean":
