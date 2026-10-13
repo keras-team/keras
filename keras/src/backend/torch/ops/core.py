@@ -2,7 +2,6 @@ import builtins
 import contextlib
 import functools
 import os
-import warnings
 
 import ml_dtypes
 import numpy as np
@@ -364,6 +363,7 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         raise ValueError("`sparse=True` is not supported with torch backend")
     if ragged:
         raise ValueError("`ragged=True` is not supported with torch backend")
+    inferred_dtype = dtype is None
     if isinstance(x, Variable) or is_tensor(x):
         if isinstance(x, Variable):
             x = x.value
@@ -372,17 +372,15 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
             x = torch.empty_like(x, device=device)
             if dtype is not None:
                 x = x.to(to_torch_dtype(dtype))
-        elif dtype is None:
+        elif dtype is None and "mps" in str(device):
             x_dtype = standardize_dtype(x.dtype)
             fallback_dtype = MPS_UNSUPPORTED_DTYPES.get(x_dtype)
-            if fallback_dtype is not None and "mps" in str(device):
-                warnings.warn(
-                    f"`{x_dtype}` is not supported on MPS; "
-                    f"downcasting to `{fallback_dtype}`."
-                )
+            if fallback_dtype is not None:
                 x = x.to(device=device, dtype=to_torch_dtype(fallback_dtype))
             else:
                 x = x.to(device)
+        elif dtype is None:
+            x = x.to(device)
         else:
             x = x.to(device=device, dtype=to_torch_dtype(dtype))
         return x
@@ -429,19 +427,13 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
             # Torch backend does not support converting bfloat16 ndarray.
             x = x.astype(np.float32)
             dtype = "bfloat16"
-        if dtype is None:
-            x_dtype = standardize_dtype(x.dtype)
-            if x_dtype in MPS_UNSUPPORTED_DTYPES and "mps" in str(get_device()):
-                warnings.warn(
-                    f"`{x_dtype}` is not supported on MPS; "
-                    f"downcasting to `{MPS_UNSUPPORTED_DTYPES[x_dtype]}`."
-                )
-                x = x.astype(MPS_UNSUPPORTED_DTYPES[x_dtype])
         dtype = dtype or x.dtype
     if dtype is None:
         dtype = result_type(
             *[getattr(item, "dtype", type(item)) for item in tree.flatten(x)]
         )
+    if inferred_dtype and "mps" in str(get_device()):
+        dtype = MPS_UNSUPPORTED_DTYPES.get(standardize_dtype(dtype), dtype)
     dtype = to_torch_dtype(dtype)
     return torch.as_tensor(x, dtype=dtype, device=get_device())
 
