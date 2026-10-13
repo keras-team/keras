@@ -39,6 +39,28 @@ class NumPyTestRot90(testing.TestCase):
             self.assertAllClose(rotated, expected)
 
     @parameterized.named_parameters(
+        ("3d_axes_1_2", (2, 2, 3), (1, 2)),
+        ("3d_axes_0_2", (2, 2, 3), (0, 2)),
+        ("4d_axes_2_3", (2, 3, 2, 5), (2, 3)),
+        ("4d_axes_1_3", (2, 3, 4, 5), (1, 3)),
+    )
+    def test_batched_non_square_rotation(self, shape, axes):
+        # Before #23435, the TensorFlow backend reshaped the plane after each
+        # 90-degree rotation, which reordered elements within each plane for
+        # `k % 4 == 2` (rank-2 inputs were affected the same way, since no
+        # element crossed into a different batch entry). The cases here add
+        # coverage for rank > 2 inputs and rotation axes that are not the last
+        # two, exercised with `k > 1`, including negative and out-of-range k.
+        array = np.arange(np.prod(shape)).reshape(shape)
+        for k in (0, 1, 2, 3, 4, -1, -2, -3):
+            expected = np.rot90(array, k=k, axes=axes)
+            self.assertAllClose(knp.rot90(array, k=k, axes=axes), expected)
+            self.assertEqual(
+                knp.rot90(KerasTensor(shape), k=k, axes=axes).shape,
+                expected.shape,
+            )
+
+    @parameterized.named_parameters(
         ("k_0", 0, [[1, 2], [3, 4]]),
         ("k_1", 1, [[2, 4], [1, 3]]),
         ("k_2", 2, [[4, 3], [2, 1]]),

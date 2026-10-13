@@ -44,6 +44,11 @@ def sigmoid(x):
 
 def sparse_sigmoid(x):
     x = convert_to_tensor(x)
+    # `0.5` below truncates to 0 under an integer dtype, which drops the
+    # midpoint so every input in (-1, 1) maps to 0.
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return np.where(
         x <= -1,
         np.array(0.0, x.dtype),
@@ -73,6 +78,10 @@ def softsign(x):
 
 
 def soft_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return np.where(
         x > threshold,
         np.array(x - threshold, dtype=x.dtype),
@@ -85,6 +94,10 @@ def soft_shrink(x, threshold=0.5):
 
 
 def sparse_plus(x):
+    x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return np.where(
         x <= -1,
         np.zeros_like(x, dtype=x.dtype),
@@ -153,6 +166,9 @@ def selu(x):
     alpha = 1.6732632423543772848170429916717
     scale = 1.0507009873554804934193349852946
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return np.array(scale, x.dtype) * elu(x, alpha)
 
 
@@ -936,6 +952,10 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
 def binary_crossentropy(target, output, from_logits=False):
     target = np.array(target)
     output = np.array(output)
+    if not backend.is_float_dtype(output.dtype):
+        output = cast(output, backend.floatx())
+    target = cast(target, output.dtype)
+    dtype = output.dtype
 
     if target.shape != output.shape:
         raise ValueError(
@@ -950,7 +970,7 @@ def binary_crossentropy(target, output, from_logits=False):
     output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
     bce = target * np.log(output)
     bce += (1.0 - target) * np.log(1.0 - output)
-    return -bce
+    return (-bce).astype(dtype)
 
 
 def moments(x, axes, keepdims=False, synchronized=False):
