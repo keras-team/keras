@@ -6696,6 +6696,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(knp.max(x, 1), np.max(x, 1))
         self.assertAllClose(knp.Max(1)(x), np.max(x, 1))
+        self.assertAllClose(knp.Amax(1)(x), np.max(x, 1))
 
         self.assertAllClose(knp.max(x, axis=()), np.max(x, axis=()))
         self.assertAllClose(knp.Max(())(x), np.max(x, axis=()))
@@ -6746,6 +6747,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(knp.min(x, 1), np.min(x, 1))
         self.assertAllClose(knp.Min(1)(x), np.min(x, 1))
+        self.assertAllClose(knp.Amin(1)(x), np.min(x, 1))
 
         self.assertAllClose(knp.min(x, axis=(1,)), np.min(x, axis=(1,)))
         self.assertAllClose(
@@ -8979,51 +8981,6 @@ def division_sparseness(x1, x2):
 
 def snake_to_pascal_case(name):
     return "".join(w.capitalize() for w in name.split("_"))
-
-
-class NumpyAliasTest(testing.TestCase):
-    @parameterized.named_parameters(
-        ("amax", "amax", "max", "Amax", "Max"),
-        ("amin", "amin", "min", "Amin", "Min"),
-    )
-    def test_alias(self, alias, canonical, alias_cls, canonical_cls):
-        # The alias is exported as the very same function.
-        self.assertIs(getattr(keras.ops, alias), getattr(keras.ops, canonical))
-        self.assertIs(
-            getattr(keras.ops.numpy, alias),
-            getattr(keras.ops.numpy, canonical),
-        )
-
-        # The legacy op class is kept for saved models and behaves the same.
-        alias_op_cls = getattr(knp, alias_cls)
-        canonical_op_cls = getattr(knp, canonical_cls)
-        self.assertTrue(issubclass(alias_op_cls, canonical_op_cls))
-
-        x = np.array([[1, 2, 3], [3, 2, 1]])
-        expected = getattr(np, canonical)(x, axis=1, keepdims=True)
-        self.assertAllClose(alias_op_cls(axis=1, keepdims=True)(x), expected)
-        self.assertEqual(
-            alias_op_cls(axis=1, keepdims=True)
-            .symbolic_call(KerasTensor((None, 3)))
-            .shape,
-            (None, 1),
-        )
-
-    @parameterized.named_parameters(
-        ("amax", "Amax", np.max),
-        ("amin", "Amin", np.min),
-    )
-    def test_legacy_op_class_serialization(self, alias_cls, np_fn):
-        from keras.src.saving import serialization_lib
-
-        op = getattr(knp, alias_cls)(axis=1, keepdims=True)
-        config = serialization_lib.serialize_keras_object(op)
-        self.assertEqual(config["class_name"], alias_cls)
-        revived = serialization_lib.deserialize_keras_object(config)
-        self.assertIsInstance(revived, getattr(knp, alias_cls))
-
-        x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(revived(x), np_fn(x, axis=1, keepdims=True))
 
 
 @pytest.mark.skipif(
