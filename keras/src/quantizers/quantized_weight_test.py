@@ -394,7 +394,7 @@ class LayerViewTest(testing.TestCase):
         self.assertAllClose(codes, layer._kernel)
         self.assertAllClose(scale, layer.kernel_scale)
         if zero is None:
-            self.assertFalse(hasattr(layer, "kernel_zero"))
+            self.assertIsNone(layer._quantized_weight().zero_point)
         else:
             self.assertAllClose(zero, layer.kernel_zero)
 

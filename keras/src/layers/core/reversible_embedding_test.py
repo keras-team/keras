@@ -488,7 +488,7 @@ class ReversibleEmbeddingTest(test_case.TestCase):
 
         # Verify reverse_embeddings_zero is preserved for untied grouped
         if not tie_weights and block_size is not None:
-            self.assertTrue(hasattr(loaded_layer, "reverse_embeddings_zero"))
+            self.assertIsNotNone(loaded_layer.reverse_embeddings_zero)
             self.assertAllClose(
                 loaded_layer.reverse_embeddings_zero,
                 layer.reverse_embeddings_zero,
@@ -537,13 +537,13 @@ class ReversibleEmbeddingTest(test_case.TestCase):
             )
             # Check reverse_embeddings_zero shape for grouped quantization
             if block_size is not None and block_size != -1:
-                self.assertTrue(hasattr(layer, "reverse_embeddings_zero"))
+                self.assertIsNotNone(layer.reverse_embeddings_zero)
                 self.assertEqual(
                     layer.reverse_embeddings_zero.shape,
                     expected_reverse_scale_shape,
                 )
             else:
-                self.assertFalse(hasattr(layer, "reverse_embeddings_zero"))
+                self.assertIsNone(layer.reverse_embeddings_zero)
 
     @parameterized.named_parameters(
         ("grouped_block_4", 4),
@@ -564,7 +564,7 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         layer.quantize("int4", config=config)
 
         # Verify g_idx is created
-        self.assertTrue(hasattr(layer, "g_idx"))
+        self.assertIsNotNone(layer.g_idx)
 
         # Verify g_idx shape (output_dim for embedding)
         self.assertEqual(layer.g_idx.shape, (output_dim,))
@@ -588,7 +588,7 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         layer.quantize("int4", config=config)
 
         # Verify g_idx is NOT created for per-channel
-        self.assertFalse(hasattr(layer, "g_idx"))
+        self.assertIsNone(layer.g_idx)
 
     @pytest.mark.skipif(
         testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
@@ -620,7 +620,7 @@ class ReversibleEmbeddingTest(test_case.TestCase):
 
         # Verify g_idx is preserved
         loaded_layer = loaded_model.layers[0]
-        self.assertTrue(hasattr(loaded_layer, "g_idx"))
+        self.assertIsNotNone(loaded_layer.g_idx)
         self.assertAllClose(loaded_layer.g_idx, g_idx_before)
 
         # Verify outputs match

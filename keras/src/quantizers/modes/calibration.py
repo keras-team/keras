@@ -151,6 +151,24 @@ class CalibrationStrategy(QuantizationStrategy):
         del layer
         return None
 
+    # --- Calibration state ------------------------------------------------
+
+    def check_saveable(self, layer):
+        if not getattr(layer, f"is_{self.name}_calibrated", False):
+            raise ValueError(
+                f"Cannot save layer '{layer.name}' because it is quantized "
+                f"with mode '{self.name}' but has never been calibrated. Its "
+                "quantized weights are uninitialized, so saving would "
+                "produce a corrupted model. Run calibration first, e.g. via "
+                "`model.quantize(...)` with a quantization layer structure "
+                "that covers this layer, or exclude the layer from "
+                "quantization with `filters`."
+            )
+
+    def variables_loaded(self, layer):
+        layer.is_gptq_calibrated = self.name == "gptq"
+        layer.is_awq_calibrated = self.name == "awq"
+
     @staticmethod
     def _get_pack_layout(bits, columns):
         """How `columns` codes of `bits` bits pack along the output axis."""

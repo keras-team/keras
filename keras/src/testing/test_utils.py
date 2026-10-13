@@ -183,13 +183,10 @@ def is_serialized_variable(layer, name):
     """Mirrors the skip conditions used by `save_own_variables`.
 
     Optional variables (`bias`, `kernel_zero`, `g_idx`, `embeddings_zero` and
-    the `reverse_*` variables of `ReversibleEmbedding`) are only serialized when
-    they actually exist on the layer for its current configuration.
+    the `reverse_*` variables of `ReversibleEmbedding`) are attributes that
+    hold `None` when the layer's configuration omits them, and are only
+    serialized when they hold a variable.
     """
-    if name == "bias":
-        return getattr(layer, "bias", None) is not None
-    if name in ("kernel_zero", "g_idx", "embeddings_zero"):
-        return hasattr(layer, name)
     return serialized_variable(layer, name) is not None
 
 

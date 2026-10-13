@@ -2046,7 +2046,7 @@ class EinsumDenseTest(testing.TestCase):
         layer.quantize("int4", config=config)
 
         # Verify g_idx is created
-        self.assertTrue(hasattr(layer, "g_idx"))
+        self.assertIsNotNone(layer.g_idx)
 
         # Verify g_idx shape (128 = input_dim = reduced dimension)
         self.assertEqual(layer.g_idx.shape, (128,))
@@ -2071,7 +2071,7 @@ class EinsumDenseTest(testing.TestCase):
         layer.quantize("int4", config=config)
 
         # Verify g_idx is NOT created for per-channel
-        self.assertFalse(hasattr(layer, "g_idx"))
+        self.assertIsNone(layer.g_idx)
 
     @pytest.mark.skipif(
         testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
@@ -2103,7 +2103,7 @@ class EinsumDenseTest(testing.TestCase):
 
         # Verify g_idx is preserved
         loaded_layer = loaded_model.layers[0]
-        self.assertTrue(hasattr(loaded_layer, "g_idx"))
+        self.assertIsNotNone(loaded_layer.g_idx)
         self.assertAllClose(loaded_layer.g_idx, g_idx_before)
 
         # Verify outputs match
@@ -2170,8 +2170,8 @@ class EinsumDenseTest(testing.TestCase):
         layer.quantize(
             "int4", config=Int4QuantizationConfig(block_size=block_size)
         )
-        self.assertFalse(hasattr(layer, "kernel_zero"))
-        self.assertFalse(hasattr(layer, "g_idx"))
+        self.assertIsNone(layer.kernel_zero)
+        self.assertIsNone(layer.g_idx)
         self.assertEqual(layer.dtype_policy.name, "int4/-1_from_float32")
 
     @parameterized.named_parameters(
@@ -2200,9 +2200,9 @@ class EinsumDenseTest(testing.TestCase):
 
         self.assertEqual(layer.quantization_mode, "int4")
         if per_channel:
-            self.assertFalse(hasattr(layer, "g_idx"))
+            self.assertIsNone(layer.g_idx)
         else:
-            self.assertTrue(hasattr(layer, "g_idx"))
+            self.assertIsNotNone(layer.g_idx)
             self.assertEqual(tuple(layer.g_idx.shape), (input_dim,))
         self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
 
