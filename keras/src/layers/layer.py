@@ -1477,13 +1477,23 @@ class Layer(BackendLayer, Operation):
         config = validate_and_resolve_config(mode, config)
         mode = config.mode
         self._check_quantize_args(mode, self.compute_dtype)
-        if self._quantization_geometry() is None or (
+        geometry = self._quantization_geometry()
+        if geometry is None or (
             type_check and type(self) is not self._quantization_type_owner()
         ):
             raise self._not_implemented_error(self.quantize)
         strategy = strategy_registry.get_strategy(mode)
         if strategy is None or not self._supports_quantization_mode(strategy):
             raise self._quantization_mode_error(mode)
+        missing = [a for a in geometry.build_attributes if not hasattr(self, a)]
+        if missing:
+            raise ValueError(
+                f"Layer '{self.name}' (of type '{type(self).__name__}') "
+                f"cannot be quantized: its `build()` did not set "
+                f"{', '.join(missing)}. "
+                "A subclass that overrides `build()` must call "
+                "`super().build()`."
+            )
         strategy.check_quantizable(self)
         if self.lora_enabled:
             self._check_lora_supported(mode)

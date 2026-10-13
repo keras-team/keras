@@ -543,6 +543,30 @@ class DenseTest(testing.TestCase):
         ("int8", "int8"),
         ("int4", "int4"),
         ("float8", "float8"),
+        ("ternary", "ternary"),
+    )
+    def test_quantize_subclass_skipping_super_build_raises(self, mode):
+        # Without `super().build()` the layer records no `kernel_shape`;
+        # `quantize` refuses before it changes anything.
+        class MyDense(layers.Dense):
+            def build(self, input_shape):
+                self._kernel = self.add_weight(
+                    name="kernel", shape=(input_shape[-1], self.units)
+                )
+                self.bias = None
+
+        layer = MyDense(units=4)
+        layer.build((None, 8))
+        with self.assertRaisesRegex(ValueError, "kernel_shape"):
+            layer.quantize(mode, type_check=False)
+        self.assertIsNone(layer.quantization_mode)
+        self.assertIsNone(layer.quantization_config)
+        self.assertEqual(tuple(layer._kernel.shape), (8, 4))
+
+    @parameterized.named_parameters(
+        ("int8", "int8"),
+        ("int4", "int4"),
+        ("float8", "float8"),
     )
     def test_quantize_when_already_quantized(self, mode):
         layer = layers.Dense(units=2)
@@ -1037,9 +1061,7 @@ class DenseTest(testing.TestCase):
         layer.quantize("int4")
         packed_kernel = layer._kernel
         # unpack [in, ceil(out/2)] -> [in, out]
-        expected = quantizers.unpack_int4(
-            packed_kernel, layer._orig_output_dim, axis=-1
-        )
+        expected = quantizers.unpack_int4(packed_kernel, layer.units, axis=-1)
         self.assertAllClose(layer.kernel, expected)
 
     @parameterized.named_parameters(
@@ -1214,8 +1236,6 @@ class DenseTest(testing.TestCase):
             layer = layers.Dense(units=units, dtype="float8_from_float32")
             layer.build((None, input_dim))
         elif mode == "ternary":
-            # Ternary has no float `_kernel`; the packed kernel is serialized
-            # under the `"kernel"` spec name.
             layer = layers.Dense(units=units, dtype="ternary_from_float32")
             layer.build((None, input_dim))
         elif mode == "gptq":
@@ -1848,14 +1868,12 @@ class DenseTest(testing.TestCase):
         layer.quantize("ternary")
 
         self.assertEqual(layer.quantization_mode, "ternary")
-        self.assertFalse(hasattr(layer, "_kernel"))
-        from keras.src import backend as _backend
-
+        # The float kernel is replaced by the packed codes.
         self.assertEqual(
-            _backend.standardize_dtype(layer._packed_kernel.dtype), "uint8"
+            backend.standardize_dtype(layer._kernel.dtype), "uint8"
         )
-        # packed shape: ceil(11 / 5) = 3 rows
-        self.assertEqual(tuple(layer._packed_kernel.shape), (3, 16))
+        # Packed along the output axis: ceil(16 / 5) = 4 bytes per row.
+        self.assertEqual(tuple(layer._kernel.shape), (11, 4))
 
         y_quantized = layer(x)
         # Dense.quantize("ternary") is lossy: float kernel → {-1,0,+1}×beta.
@@ -1863,13 +1881,14 @@ class DenseTest(testing.TestCase):
         self.assertEqual(tuple(y_quantized.shape), tuple(y_float.shape))
 
     def test_dense_quantize_ternary_packed_density(self):
-        # input_dim=40 → ceil(40/5)=8 packed rows; 8 bytes encode 40 trits.
-        layer = layers.Dense(units=32)
-        layer.build((None, 40))
+        # units=40 → ceil(40/5)=8 bytes per row; each byte holds 5 trits.
+        layer = layers.Dense(units=40)
+        layer.build((None, 32))
         layer.quantize("ternary")
 
-        n_bytes = 8 * 32
-        n_weights = 40 * 32
+        self.assertEqual(tuple(layer._kernel.shape), (32, 8))
+        n_bytes = int(np.prod(layer._kernel.shape))
+        n_weights = 32 * 40
         bits_per_weight = 8 * n_bytes / n_weights
         self.assertEqual(bits_per_weight, 1.6)
         self.assertLess(n_bytes, n_weights // 2)
@@ -1978,9 +1997,11 @@ class DenseTest(testing.TestCase):
         layer.build((None, 10))
         self.assertTrue(layer.built)
         self.assertEqual(layer.quantization_mode, "ternary")
-        self.assertTrue(hasattr(layer, "_packed_kernel"))
-        # ceil(10 / 5) = 2 packed rows
-        self.assertEqual(tuple(layer._packed_kernel.shape), (2, 8))
+        self.assertEqual(
+            backend.standardize_dtype(layer._kernel.dtype), "uint8"
+        )
+        # ceil(8 / 5) = 2 bytes per row
+        self.assertEqual(tuple(layer._kernel.shape), (10, 2))
         x = np.random.rand(3, 10).astype("float32")
         y = layer(x)
         self.assertEqual(tuple(y.shape), (3, 8))

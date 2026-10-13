@@ -91,7 +91,6 @@ class CalibrationStrategy(QuantizationStrategy):
         # Ensures the forward pass uses the original high-precision kernel
         # until calibration has been performed.
         setattr(layer, f"is_{self.name}_calibrated", False)
-        geometry.record_kernel_shape(input_shape)
 
         if len(input_shape) not in (2, 3):
             raise ValueError(
@@ -106,8 +105,6 @@ class CalibrationStrategy(QuantizationStrategy):
         )
         group_size = self.resolve_group_size(layer, config)
         n_groups = 1 if group_size == -1 else math.ceil(rows / group_size)
-
-        geometry.prepare()
 
         # Stored in the kernel's own `[in, out]` orientation and packed
         # along the output axis, like the int4 layout, so the forward pass
@@ -194,7 +191,7 @@ class CalibrationStrategy(QuantizationStrategy):
                 # `-1` means one group spanning every input row.
                 group_size=rows if group_size == -1 else group_size,
             ),
-            shape=geometry.recorded_kernel_shape(),
+            shape=geometry.weight_shape,
             axis=0,
             input_scales=self._input_scales(layer),
         )

@@ -94,8 +94,6 @@ class Int4LookupHandlers:
                 autocast=False,
             )
 
-        layer._orig_output_dim = output_dim
-
         if geometry.reversible:
             # Weight-only by default, like an int4 projection; a config may
             # add an activation quantizer for the reverse projection.
@@ -137,7 +135,7 @@ class Int4LookupHandlers:
 
         # Gather the packed rows first, then unpack only those.
         rows = ops.take(layer._embeddings, inputs, axis=0)
-        outputs = unpack_int4(rows, layer._orig_output_dim, axis=-1)
+        outputs = unpack_int4(rows, layer.output_dim, axis=-1)
 
         block_size = getattr(layer, "_int4_block_size", None)
 
@@ -252,7 +250,7 @@ class Int4LookupHandlers:
         return QuantizedWeight(
             codes=layer._embeddings,
             scale=layer.embeddings_scale,
-            layout=Int4Pairs(axis=-1, orig_len=layer._orig_output_dim),
+            layout=Int4Pairs(axis=-1, orig_len=layer.output_dim),
             scheme=int4_scheme(layer._int4_block_size),
             shape=(layer.input_dim, layer.output_dim),
             axis=-1,
