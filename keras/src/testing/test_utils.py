@@ -1,7 +1,5 @@
 import numpy as np
 
-from keras.src import backend
-
 
 def get_test_data(
     train_samples, test_samples, input_shape, num_classes, random_seed=None
@@ -252,28 +250,3 @@ def assert_serialized_variables_equal(test_case, expected_layer, actual_layer):
             np.asarray(serialized_variable(actual_layer, name)),
             msg=f"Mismatch for serialized variable '{name}'.",
         )
-
-
-def grads_of_sum(fn, *args):
-    """Returns the gradients of `sum(fn(*args))` with respect to `args`."""
-    if backend.backend() == "tensorflow":
-        import tensorflow as tf
-
-        args = [tf.constant(a) for a in args]
-        with tf.GradientTape() as tape:
-            tape.watch(args)
-            loss = tf.reduce_sum(tf.cast(fn(*args), "float32"))
-        return [g.numpy() for g in tape.gradient(loss, args)]
-    if backend.backend() == "jax":
-        import jax
-
-        def loss(*a):
-            return jax.numpy.sum(fn(*a).astype("float32"))
-
-        argnums = tuple(range(len(args)))
-        return [np.asarray(g) for g in jax.grad(loss, argnums)(*args)]
-    import torch
-
-    args = [torch.tensor(a, requires_grad=True) for a in args]
-    fn(*args).float().sum().backward()
-    return [a.grad.cpu().numpy() for a in args]

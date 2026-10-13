@@ -6,7 +6,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
-from keras.src.testing.test_utils import grads_of_sum
+from keras.src.testing import test_utils
 
 
 class AttentionTest(testing.TestCase):
@@ -114,7 +114,7 @@ class AttentionTest(testing.TestCase):
         self.assertAllClose(scores, [[[1.0, 0.0], [1.0, 0.0]]])
 
     @parameterized.named_parameters(
-        ("float32", "float32"), ("float16", "float16")
+        test_utils.named_product(dtype=["float32", "float16"])
     )
     def test_attention_with_fully_masked_row(self, dtype):
         # Batch element 0 masks every value position, element 1 masks one. A
@@ -136,7 +136,7 @@ class AttentionTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        ("float32", "float32"), ("float16", "float16")
+        test_utils.named_product(dtype=["float32", "float16"])
     )
     @pytest.mark.requires_trainable_backend
     def test_attention_fully_masked_row_has_zero_gradients(self, dtype):
@@ -147,13 +147,11 @@ class AttentionTest(testing.TestCase):
         value = np.array([[[1.0, 2.0], [3.0, 4.0]]])
         mask = [None, np.array([[False, False]])]
         layer = layers.Attention(dtype=dtype)
-        grads = grads_of_sum(
-            lambda q, v: layer([q, v], mask=mask),
-            query.astype(dtype),
-            value.astype(dtype),
+        grads = ops.grad(lambda q, v: layer([q, v], mask=mask), argnums=(0, 1))(
+            query.astype(dtype), value.astype(dtype)
         )
         for grad in grads:
-            self.assertAllClose(grad, np.zeros_like(grad))
+            self.assertAllClose(grad, ops.zeros_like(grad))
 
     @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
     def test_attention_fully_masked_row_float16_backward_has_no_nan(self):

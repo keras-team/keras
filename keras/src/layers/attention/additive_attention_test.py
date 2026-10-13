@@ -3,8 +3,9 @@ import pytest
 from absl.testing import parameterized
 
 from keras.src import layers
+from keras.src import ops
 from keras.src import testing
-from keras.src.testing.test_utils import grads_of_sum
+from keras.src.testing import test_utils
 
 
 class AdditiveAttentionTest(testing.TestCase):
@@ -80,7 +81,7 @@ class AdditiveAttentionTest(testing.TestCase):
         self.assertAllClose(scores, [[[1.0, 0.0], [1.0, 0.0]]])
 
     @parameterized.named_parameters(
-        ("float32", "float32"), ("float16", "float16")
+        test_utils.named_product(dtype=["float32", "float16"])
     )
     def test_attention_with_fully_masked_row(self, dtype):
         # Batch element 0 masks every value position, element 1 masks one. A
@@ -102,7 +103,7 @@ class AdditiveAttentionTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        ("float32", "float32"), ("float16", "float16")
+        test_utils.named_product(dtype=["float32", "float16"])
     )
     @pytest.mark.requires_trainable_backend
     def test_attention_fully_masked_row_has_zero_gradients(self, dtype):
@@ -114,13 +115,11 @@ class AdditiveAttentionTest(testing.TestCase):
         value = np.array([[[1.0] * 20, [2.0] * 20]])
         mask = [None, np.array([[False, False]])]
         layer = layers.AdditiveAttention(use_scale=False, dtype=dtype)
-        grads = grads_of_sum(
-            lambda q, v: layer([q, v], mask=mask),
-            query.astype(dtype),
-            value.astype(dtype),
+        grads = ops.grad(lambda q, v: layer([q, v], mask=mask), argnums=(0, 1))(
+            query.astype(dtype), value.astype(dtype)
         )
         for grad in grads:
-            self.assertAllClose(grad, np.zeros_like(grad))
+            self.assertAllClose(grad, ops.zeros_like(grad))
 
     def test_attention_errors(self):
         layer = layers.AdditiveAttention()
