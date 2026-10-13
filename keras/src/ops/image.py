@@ -1354,7 +1354,7 @@ def _reconstruct_overlapping_patches(
     if compute_dtype != dtype:
         if reduction == "mean":
             x = backend.ops.numpy.round(x)
-        x = ops.cast(x, dtype)
+        x = backend.ops.cast(x, dtype)
     return x
 
 
