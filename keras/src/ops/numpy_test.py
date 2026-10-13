@@ -4860,7 +4860,10 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             np.nanpercentile(x4, 50.0, axis=(1, 2)),
         )
 
-    def test_nanquantile(self):
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_nanquantile(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         x = np.array(
             [
                 [[np.nan, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]],
@@ -12171,8 +12174,12 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_nanquantile(self, dtype):
+    @parameterized.named_parameters(
+        named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
+    )
+    def test_nanquantile(self, backend_agnostic_ops, dtype):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         import jax.numpy as jnp
 
         x = knp.ones((3,), dtype=dtype)
