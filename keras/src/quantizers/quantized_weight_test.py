@@ -521,14 +521,8 @@ class QuantizationSummaryTest(testing.TestCase):
     )
     def test_summary_counts_every_stored_tensor(self, policy, store):
         inputs = layers.Input([16])
-        layer = layers.Dense(8, use_bias=False, dtype=policy)
-        outputs = layer(inputs)
+        outputs = layers.Dense(8, use_bias=False, dtype=policy)(inputs)
         model = models.Model(inputs, outputs)
-        # A calibration mode holds no view until its calibration pass has
-        # run; the policy only allocates the variables.
-        mode = layer.quantization_mode
-        if mode in ("gptq", "awq"):
-            setattr(layer, f"is_{mode}_calibrated", True)
         summary = model.quantization_summary(verbose=False)
         self.assertIn(f"weight store : {store}", summary)
         self.assertIn("Quantized params : 128", summary)

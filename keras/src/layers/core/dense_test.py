@@ -615,7 +615,7 @@ class DenseTest(testing.TestCase):
         layer = layers.Dense(units=2)
         layer.build((None, 64))
         layer.dtype_policy = "int4/32_from_float32"
-        self.assertEqual(layer._int4_block_size, 32)
+        self.assertEqual(layer._quantized_weight().scheme.group_size, 32)
         # ceil(64 / 32) = 2 groups, one scale row per group.
         self.assertEqual(tuple(layer.kernel_scale.shape), (2, 2))
         self.assertEqual(layer.dtype_policy.name, "int4/32_from_float32")
@@ -630,7 +630,7 @@ class DenseTest(testing.TestCase):
         layer = layers.Dense(units=2)
         layer.build((None, 64))
         layer.dtype_policy = "int4/-1_from_float32"
-        self.assertIn(layer._int4_block_size, (None, -1))
+        self.assertIsNone(layer._quantized_weight().scheme.group_size)
         # Per-channel: one scale per output unit, no zero point, no g_idx.
         self.assertEqual(tuple(layer.kernel_scale.shape), (2,))
         self.assertIsNone(layer.kernel_zero)
@@ -1191,7 +1191,7 @@ class DenseTest(testing.TestCase):
         layer = layers.Dense(units=16, dtype="gptq/4/8_from_float32")
         layer.build((None, 8))
         layer.load_own_variables(gptq_store)
-        self.assertTrue(layer.is_gptq_calibrated)
+        self.assertFalse(layer.calibration_pending)
         self.assertAllClose(layer.bias, gptq_store["0"])
         self.assertAllClose(layer.quantized_kernel, gptq_store["1"])
         self.assertAllClose(layer.kernel_scale, gptq_store["2"])
@@ -1204,7 +1204,7 @@ class DenseTest(testing.TestCase):
         layer = layers.Dense(units=16, dtype="awq/4/8_from_float32")
         layer.build((None, 8))
         layer.load_own_variables(awq_store)
-        self.assertTrue(layer.is_awq_calibrated)
+        self.assertFalse(layer.calibration_pending)
         self.assertAllClose(layer.bias, awq_store["0"])
         self.assertAllClose(layer.quantized_kernel, awq_store["1"])
         self.assertAllClose(layer.kernel_scale, awq_store["2"])
@@ -1280,23 +1280,33 @@ class DenseTest(testing.TestCase):
                     self, source, target
                 )
 
-    def test_gptq_awq_load_from_store(self):
+    @parameterized.parameters("gptq", "awq")
+    def test_gptq_awq_load_from_store(self, mode):
         # GPTQ/AWQ checkpoints carry variables (e.g. `kernel_zero`) that
         # `save_own_variables` does not emit for a freshly built layer, so
         # they are validated through the load path with a fully-populated
         # store.
-        for mode in ("gptq", "awq"):
-            with self.subTest(mode=mode):
-                source = self._build_dense_for_mode(mode)
-                test_utils.randomize_serialized_variables(source)
+        source = self._build_dense_for_mode(mode)
+        test_utils.randomize_serialized_variables(source)
 
-                target = self._build_dense_for_mode(mode)
-                target.load_own_variables(test_utils.positional_store(source))
-                self.assertEqual(target.is_gptq_calibrated, mode == "gptq")
-                self.assertEqual(target.is_awq_calibrated, mode == "awq")
-                test_utils.assert_serialized_variables_equal(
-                    self, source, target
-                )
+        target = self._build_dense_for_mode(mode)
+        target.load_own_variables(test_utils.positional_store(source))
+        self.assertFalse(target.calibration_pending)
+        test_utils.assert_serialized_variables_equal(self, source, target)
+        # A layer built from its policy runs from its variables.
+        x = np.random.rand(2, target.kernel_shape[0]).astype("float32")
+        weight = target._quantized_weight().dequantize("float32")
+        self.assertAllClose(target(x), ops.matmul(x, weight) + target.bias)
+
+    @parameterized.parameters("gptq", "awq")
+    def test_gptq_awq_unbuilt_layer_reports_no_variables(self, mode):
+        source = self._build_dense_for_mode(mode)
+        test_utils.randomize_serialized_variables(source)
+
+        # An unbuilt layer reports that it has no variables.
+        unbuilt = layers.Dense(units=64, dtype=source.dtype_policy)
+        with self.assertRaisesRegex(ValueError, "was never built"):
+            unbuilt.load_own_variables(test_utils.positional_store(source))
 
     def test_load_own_variables_reports_clear_errors(self):
         # int8 spec order: kernel ("0"), bias ("1"), kernel_scale ("2").
@@ -1328,7 +1338,7 @@ class DenseTest(testing.TestCase):
                 dataset=None, tokenizer=None, weight_bits=4, group_size=8
             ),
         )
-        layer.is_gptq_calibrated = True  # Bypass calibration check
+        layer.calibration_pending = False  # Bypass calibration check
         packed_kernel = layer.quantized_kernel
         self.assertAllClose(
             layer.kernel,
@@ -1363,7 +1373,7 @@ class DenseTest(testing.TestCase):
                 dataset=None, tokenizer=None, group_size=8, num_grid_points=10
             ),
         )
-        layer.is_awq_calibrated = True  # Bypass calibration check
+        layer.calibration_pending = False  # Bypass calibration check
         packed_kernel = layer.quantized_kernel
         self.assertAllClose(
             layer.kernel,
@@ -1531,7 +1541,10 @@ class DenseTest(testing.TestCase):
         layer.quantize("int4", config=config)
 
         # Verify block_size is stored
-        self.assertEqual(layer._int4_block_size, block_size)
+        self.assertEqual(
+            layer._quantized_weight().scheme.group_size,
+            None if block_size in (None, -1) else block_size,
+        )
 
         # Verify kernel_scale shape
         if block_size is None or block_size == -1:
@@ -2032,7 +2045,7 @@ class DenseTest(testing.TestCase):
         self.assertEqual(
             layer_str.dtype_policy.name, layer_cfg.dtype_policy.name
         )
-        self.assertEqual(layer_str._int4_block_size, 128)
+        self.assertEqual(layer_str._quantized_weight().scheme.group_size, 128)
 
         # Same variables: names, shapes, dtypes, and values.
         vars_str = {v.name: v for v in layer_str.weights}
