@@ -10,7 +10,7 @@ from absl import logging
 
 from keras.src import ops
 from keras.src import utils as keras_utils
-from keras.src.quantizers.awq import AWQ
+from keras.src.quantizers.awq import AWQCalibrator
 from keras.src.quantizers.calibration_run import _execution_stages
 from keras.src.quantizers.calibration_run import calibration_no_grad_scope
 from keras.src.quantizers.calibration_run import find_layers_in_block
@@ -31,7 +31,8 @@ def stream_activations(layers_map, awq_objects, execution_trace=None):
 
     Args:
         layers_map: Dict[str, Layer]. Mapping from layer names to layers.
-        awq_objects: Dict[str, AWQ]. Mapping from names to AWQ instances.
+        awq_objects: Dict[str, AWQCalibrator]. Mapping from names to AWQ
+            calibrators.
         execution_trace: Optional dict. When provided, each layer's FIRST
             hook invocation records `{name: (call_index, input_tensor)}`
             into it - the block-level execution order and the identity of
@@ -53,9 +54,7 @@ def stream_activations(layers_map, awq_objects, execution_trace=None):
                 # the id cannot be recycled while tracing).
                 execution_trace[name] = (call_counter[0], inp)
                 call_counter[0] += 1
-            num_features = awq_objects[name].rows
-            input_2d = ops.reshape(inp, (-1, num_features))
-            awq_objects[name].update_activation_magnitudes(input_2d)
+            awq_objects[name].observe(inp)
 
         return capture
 
@@ -122,9 +121,9 @@ def apply_awq_layerwise(dataloader, config, structure, filters=None):
         else:
             logging.info(f"Found layers: {list(sub_layers_map.keys())}")
 
-            # Create AWQ objects for each layer
+            # Create an AWQ calibrator for each layer
             awq_objects = {
-                name: AWQ(layer, config)
+                name: AWQCalibrator(layer, config)
                 for name, layer in sub_layers_map.items()
             }
 
@@ -159,15 +158,17 @@ def apply_awq_layerwise(dataloader, config, structure, filters=None):
                     }
                     stage_objects = {}
                     for name in stage_names:
-                        awq_objects[name].free()
-                        awq_objects[name] = AWQ(sub_layers_map[name], config)
+                        # Drop the stale statistics before allocating new ones.
+                        del awq_objects[name]
+                        awq_objects[name] = AWQCalibrator(
+                            sub_layers_map[name], config
+                        )
                         stage_objects[name] = awq_objects[name]
                     run_calibration_sweep(stage_map, stage_objects)
 
                 for name in stage_names:
                     logging.info(f"Quantizing {name}...")
-                    awq_objects[name].quantize_layer()
-                    awq_objects[name].free()
+                    awq_objects.pop(name).quantize()
 
             del awq_objects
 

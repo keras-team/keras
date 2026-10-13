@@ -1431,6 +1431,18 @@ class Layer(BackendLayer, Operation):
                 "quantization."
             )
 
+    def _check_quantized_build_attributes(self, geometry):
+        """Raises if `build()` did not set an attribute `geometry` reads."""
+        missing = [a for a in geometry.build_attributes if not hasattr(self, a)]
+        if missing:
+            raise ValueError(
+                f"Layer '{self.name}' (of type '{type(self).__name__}') "
+                f"cannot be quantized: its `build()` did not set "
+                f"{', '.join(missing)}. "
+                "A subclass that overrides `build()` must call "
+                "`super().build()`."
+            )
+
     def quantized_build(self, input_shape, mode, config=None):
         strategy = strategy_registry.get_strategy(mode)
         if strategy is None or not self._supports_quantization_mode(strategy):
@@ -1477,15 +1489,7 @@ class Layer(BackendLayer, Operation):
         strategy = strategy_registry.get_strategy(mode)
         if strategy is None or not self._supports_quantization_mode(strategy):
             raise self._quantization_mode_error(mode)
-        missing = [a for a in geometry.build_attributes if not hasattr(self, a)]
-        if missing:
-            raise ValueError(
-                f"Layer '{self.name}' (of type '{type(self).__name__}') "
-                f"cannot be quantized: its `build()` did not set "
-                f"{', '.join(missing)}. "
-                "A subclass that overrides `build()` must call "
-                "`super().build()`."
-            )
+        self._check_quantized_build_attributes(geometry)
         strategy.check_quantizable(self)
         if self.lora_enabled:
             self._check_lora_supported(mode)

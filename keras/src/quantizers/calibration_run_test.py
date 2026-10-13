@@ -12,8 +12,12 @@ from keras.src.quantizers.calibration_run import find_layers_in_block
 from keras.src.quantizers.calibration_run import get_dataloader
 from keras.src.quantizers.calibration_run import gptq_quantize
 from keras.src.quantizers.calibration_run import stream_hessians
-from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.gptq_config import GPTQConfig
+from keras.src.quantizers.quantization_test_utils import calibrate_layer
+from keras.src.quantizers.quantization_test_utils import calibration_config
+from keras.src.quantizers.quantization_test_utils import tiny_calibration_model
+from keras.src.quantizers.quantization_test_utils import token_dataset
+from keras.src.utils.rng_utils import set_random_seed
 
 VOCAB_SIZE = 100
 
@@ -268,7 +272,7 @@ class TestGPTQCore(testing.TestCase):
     def test_calibration_batching_produces_identical_hessian(self):
         """The Hessian accumulated during calibration must be identical
         whether calibration samples are streamed one at a time or in
-        batches. `update_hessian_with_batch` flattens activations to
+        batches. `GPTQCalibrator.observe` flattens activations to
         `[-1, features]`, so batching only changes the number of forward
         passes, not the math."""
         d_model = 16
@@ -290,7 +294,10 @@ class TestGPTQCore(testing.TestCase):
         def accumulate(batch_size):
             layers_map = find_layers_in_block(block)
             gptq_objects = {
-                name: GPTQ(layer) for name, layer in layers_map.items()
+                name: calibrate_layer(
+                    layer, calibration_config("gptq"), solve=False
+                )
+                for name, layer in layers_map.items()
             }
             with stream_hessians(layers_map, gptq_objects):
                 for start in range(0, num_samples, batch_size):
@@ -445,6 +452,40 @@ class TestDataloaderReproducibility(testing.TestCase):
         self.assertAllClose(out[0, 0], np.arange(88, 96))
 
 
+def _tiny_model(mode, num_samples=4, dtype=None, **kwargs):
+    """Embedding -> block -> pooled head.
+
+    The block is `[Dense(16, relu), Dense(8)]`.
+    """
+    set_random_seed(123)
+    seq_len, vocab_size, embed_dim = 16, 48, 8
+    block_layers = [
+        layers.Dense(16, activation="relu", dtype=dtype),
+        layers.Dense(embed_dim, dtype=dtype),
+    ]
+    model, structure = tiny_calibration_model(
+        block_layers,
+        vocab_size=vocab_size,
+        sequence_length=seq_len,
+        embed_dim=embed_dim,
+        dtype=dtype,
+    )
+    if mode == "awq":
+        kwargs["num_grid_points"] = 5
+    rng = np.random.default_rng(7)
+    config = calibration_config(
+        mode,
+        dataset=token_dataset(num_samples, seq_len, vocab_size, rng),
+        tokenizer=lambda text: text,
+        num_samples=num_samples,
+        sequence_length=seq_len,
+        group_size=8,
+        quantization_layer_structure=structure,
+        **kwargs,
+    )
+    return model, config
+
+
 class CalibrationRunTest(testing.TestCase):
     """The pieces the calibration drivers share, once per mode."""
 
@@ -458,3 +499,28 @@ class CalibrationRunTest(testing.TestCase):
             f"{mode.upper()} quantization.*Received: dtype_policy=<.*float32",
         ):
             strategy.resolve_group_size(layer, None)
+
+
+@pytest.mark.requires_trainable_backend
+class CalibrationRunModelTest(testing.TestCase):
+    """The drivers as `model.quantize` runs them."""
+
+    @parameterized.named_parameters(("gptq", "gptq"), ("awq", "awq"))
+    def test_run_under_a_bfloat16_policy(self, mode):
+        # The solve runs in float32 when the variables are `bfloat16`. On
+        # the same weights and data, the result matches a float32 run up to
+        # bfloat16 rounding and the codes that rounding flips.
+        model, config = _tiny_model(mode, dtype="bfloat16")
+        reference, reference_config = _tiny_model(mode)
+        reference.set_weights(model.get_weights())
+        model.quantize(mode, config=config)
+        reference.quantize(mode, config=reference_config)
+        block = config.quantization_layer_structure["sequential_blocks"][0]
+        for layer in block.layers:
+            self.assertFalse(layer.calibration_pending)
+        outputs = ops.convert_to_numpy(
+            ops.cast(model(config.dataset[0]), "float32")
+        )
+        expected = ops.convert_to_numpy(reference(config.dataset[0]))
+        error = np.linalg.norm(outputs - expected) / np.linalg.norm(expected)
+        self.assertLess(error, 0.2)
