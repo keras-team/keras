@@ -38,7 +38,7 @@ class GPTQStrategy(CalibrationStrategy):
         )
 
     def finalize_model_quantization(self, model, config, structure, filters):
-        from keras.src.quantizers.gptq_core import gptq_quantize
+        from keras.src.quantizers.calibration_run import gptq_quantize
 
         del model
         gptq_quantize(config, structure, filters=filters)
