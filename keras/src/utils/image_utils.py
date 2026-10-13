@@ -8,6 +8,8 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend import config
+from keras.src.backend.config import standardize_data_format
 
 try:
     from PIL import Image as pil_image
@@ -65,9 +67,9 @@ def array_to_img(x, data_format=None, scale=True, dtype=None):
         A PIL Image instance.
     """
 
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if dtype is None:
-        dtype = backend.floatx()
+        dtype = config.floatx()
     if pil_image is None:
         raise ImportError(
             "Could not import PIL.Image. "
@@ -139,9 +141,9 @@ def img_to_array(img, data_format=None, dtype=None):
         A 3D NumPy array.
     """
 
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if dtype is None:
-        dtype = backend.floatx()
+        dtype = config.floatx()
     # NumPy array x has format (height, width, channel)
     # or (channel, height, width)
     # but original PIL image has format (width, height, channel)
@@ -174,7 +176,7 @@ def save_img(path, x, data_format=None, file_format=None, scale=True, **kwargs):
         scale: Whether to rescale image values to be within `[0, 255]`.
         **kwargs: Additional keyword arguments passed to `PIL.Image.save()`.
     """
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
 
     # Infer format from path if not explicitly provided
     if file_format is None and isinstance(path, (str, pathlib.Path)):

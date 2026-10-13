@@ -4,9 +4,9 @@ import warnings
 import numpy as np
 
 from keras.src import activations
-from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.utils import file_utils
 
 CLASS_INDEX = None
@@ -93,7 +93,7 @@ def preprocess_input(x, data_format=None, mode="caffe"):
         )
 
     if data_format is None:
-        data_format = backend.image_data_format()
+        data_format = config.image_data_format()
     elif data_format not in {"channels_first", "channels_last"}:
         raise ValueError(
             "Expected data_format to be one of `channels_first` or "
@@ -179,7 +179,7 @@ def _preprocess_numpy_input(x, data_format, mode):
         Preprocessed Numpy array.
     """
     if not issubclass(x.dtype.type, np.floating):
-        x = x.astype(backend.floatx(), copy=False)
+        x = x.astype(config.floatx(), copy=False)
 
     if mode == "tf":
         x /= 127.5
@@ -423,7 +423,7 @@ def correct_pad(inputs, kernel_size):
     Returns:
       A tuple.
     """
-    img_dim = 2 if backend.image_data_format() == "channels_first" else 1
+    img_dim = 2 if config.image_data_format() == "channels_first" else 1
     input_size = inputs.shape[img_dim : (img_dim + 2)]
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)

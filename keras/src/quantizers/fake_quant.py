@@ -3,8 +3,10 @@
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
-from keras.src.backend import KerasTensor
-from keras.src.backend import any_symbolic_tensors
+from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import any_symbolic_tensors
+from keras.src.backend.common import result_type
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.ops.operation import Operation
 
@@ -12,7 +14,7 @@ from keras.src.ops.operation import Operation
 def adjust_and_nudge(min_range, max_range, num_bits, narrow_range):
     """Adjusts and nudges the quantization range for better accuracy."""
     # Use higher precision for the computation.
-    compute_dtype = backend.result_type(min_range.dtype, "float32")
+    compute_dtype = result_type(min_range.dtype, "float32")
     min_range = ops.cast(min_range, compute_dtype)
     max_range = ops.cast(max_range, compute_dtype)
 
@@ -122,7 +124,7 @@ def fake_quant_with_min_max_vars(
         import tensorflow as tf
 
         # `tf.quantization.fake_quant_*` only supports float32.
-        dtype = backend.standardize_dtype(inputs.dtype)
+        dtype = standardize_dtype(inputs.dtype)
         if axis is None:
             outputs = tf.quantization.fake_quant_with_min_max_vars(
                 ops.cast(inputs, "float32"),
@@ -150,7 +152,7 @@ def fake_quant_with_min_max_vars(
 
     @ops.custom_gradient
     def _fake_quant_with_min_max_vars_per_channel(x, min_val, max_val):
-        dtype = backend.standardize_dtype(x.dtype)
+        dtype = standardize_dtype(x.dtype)
 
         # Calculate quantization parameters for all channels at once
         nudged_min, nudged_max, scale, inv_scale = adjust_and_nudge(

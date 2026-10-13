@@ -4,8 +4,11 @@ import warnings
 
 import tensorflow as tf
 
-from keras.src import backend
+from keras.src.backend import config
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import result_type
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
@@ -17,6 +20,7 @@ from keras.src.backend.common.backend_utils import (
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
+from keras.src.backend.config import standardize_data_format
 from keras.src.backend.tensorflow.ops.core import cast
 from keras.src.backend.tensorflow.ops.core import convert_to_tensor
 
@@ -50,7 +54,7 @@ def sigmoid(x):
 def sparse_sigmoid(x):
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return tf.where(
         x <= -1,
@@ -78,7 +82,7 @@ def softsign(x):
 def soft_shrink(x, threshold=0.5):
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return tf.where(
         x > threshold,
@@ -90,7 +94,7 @@ def soft_shrink(x, threshold=0.5):
 def sparse_plus(x):
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return tf.where(
         x <= -1,
@@ -117,7 +121,7 @@ def log_sigmoid(x):
 def leaky_relu(x, negative_slope=0.2):
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return tf.nn.leaky_relu(x, alpha=negative_slope)
 
@@ -125,7 +129,7 @@ def leaky_relu(x, negative_slope=0.2):
 def hard_sigmoid(x):
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return relu6(x + tf.constant(3.0, x.dtype)) / tf.constant(6.0, x.dtype)
 
@@ -133,7 +137,7 @@ def hard_sigmoid(x):
 def hard_silu(x):
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return x * hard_sigmoid(x)
 
@@ -149,7 +153,7 @@ def elu(x, alpha=1.0):
 def selu(x):
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return tf.nn.selu(x)
 
@@ -268,7 +272,7 @@ def max_pool(
     padding="valid",
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     strides = pool_size if strides is None else strides
     padding = padding.upper()
     tf_data_format = _convert_data_format("channels_last", len(inputs.shape))
@@ -296,7 +300,7 @@ def average_pool(
     padding="valid",
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     strides = pool_size if strides is None else strides
     padding = padding.upper()
     tf_data_format = _convert_data_format("channels_last", len(inputs.shape))
@@ -769,7 +773,7 @@ def _adaptive_max_pool3d(inputs, output_size, data_format="channels_first"):
 
 def adaptive_average_pool(inputs, output_size, data_format=None):
     inputs = convert_to_tensor(inputs)
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     ndims = len(inputs.shape) - 2
     if ndims == 1:
         return _adaptive_average_pool1d(inputs, output_size, data_format)
@@ -785,7 +789,7 @@ def adaptive_average_pool(inputs, output_size, data_format=None):
 
 def adaptive_max_pool(inputs, output_size, data_format=None):
     inputs = convert_to_tensor(inputs)
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     ndims = len(inputs.shape) - 2
     if ndims == 1:
         return _adaptive_max_pool1d(inputs, output_size, data_format)
@@ -839,7 +843,7 @@ def conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     num_spatial_dims = len(inputs.shape) - 2
@@ -1073,7 +1077,7 @@ def depthwise_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     num_spatial_dims = len(inputs.shape) - 2
@@ -1166,7 +1170,7 @@ def separable_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     depthwise_kernel = convert_to_tensor(depthwise_kernel)
     pointwise_kernel = convert_to_tensor(pointwise_kernel)
@@ -1264,7 +1268,7 @@ def conv_transpose(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     check_conv_transpose_input_channels(inputs, kernel, data_format)
@@ -1303,7 +1307,7 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     if dtype is None:
         dtype = "float32"
     else:
-        dtype = backend.standardize_dtype(dtype)
+        dtype = standardize_dtype(dtype)
     axis = canonicalize_axis(axis, len(x.shape) + 1)
     if sparse:
         # We don't use `tf.sparse.bincount`, it doesn't handle negative indices
@@ -1335,7 +1339,7 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
 
 def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     reduction_axis = 1 if len(x.shape) > 1 else 0
-    if backend.standardize_dtype(dtype) == "bool":
+    if standardize_dtype(dtype) == "bool":
         if sparse:
             # `tf.sparse.reduce_max` doesn't work on bool and there is no
             # `tf.sparse.reduce_any`.
@@ -1480,9 +1484,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     output = output / tf.reduce_sum(output, axis, keepdims=True)
 
     # Compute cross entropy from probabilities.
-    output = tf.clip_by_value(
-        output, backend.epsilon(), 1.0 - backend.epsilon()
-    )
+    output = tf.clip_by_value(output, config.epsilon(), 1.0 - config.epsilon())
     return -tf.reduce_sum(target * tf.math.log(output), axis)
 
 
@@ -1539,7 +1541,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
 
     if not from_logits:
         output = tf.clip_by_value(
-            output, backend.epsilon(), 1 - backend.epsilon()
+            output, config.epsilon(), 1 - config.epsilon()
         )
         output = tf.math.log(output)
 
@@ -1564,8 +1566,8 @@ def binary_crossentropy(target, output, from_logits=False):
     """
     target = tf.convert_to_tensor(target)
     output = tf.convert_to_tensor(output)
-    if not backend.is_float_dtype(output.dtype):
-        output = tf.cast(output, backend.floatx())
+    if not is_float_dtype(output.dtype):
+        output = tf.cast(output, config.floatx())
     target = tf.cast(target, output.dtype)
 
     if len(target.shape) != len(output.shape):
@@ -1592,9 +1594,7 @@ def binary_crossentropy(target, output, from_logits=False):
         )
 
     # Compute cross entropy from probabilities.
-    output = tf.clip_by_value(
-        output, backend.epsilon(), 1.0 - backend.epsilon()
-    )
+    output = tf.clip_by_value(output, config.epsilon(), 1.0 - config.epsilon())
     bce = target * tf.math.log(output)
     bce += (1 - target) * tf.math.log(1 - output)
     return -bce
@@ -1605,7 +1605,7 @@ def moments(x, axes, keepdims=False, synchronized=False):
     # workaround, we simply perform the operations on float32 and convert back
     # to float16
     need_cast = False
-    ori_dtype = backend.standardize_dtype(x.dtype)
+    ori_dtype = standardize_dtype(x.dtype)
     if ori_dtype in ("float16", "bfloat16"):
         need_cast = True
         x = cast(x, "float32")
@@ -1691,7 +1691,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     # or bfloat16. Additionally, it will raise an error when the input is
     # float64. As a result, we perform the casting externally and add support
     # for float64.
-    result_dtype = backend.result_type(output.dtype, "float32")
+    result_dtype = result_type(output.dtype, "float32")
     compute_dtype = "float32" if result_dtype == "float64" else result_dtype
     output = tf.cast(output, compute_dtype)
     loss = tf.nn.ctc_loss(
@@ -1719,7 +1719,7 @@ def ctc_decode(
     num_samples, num_steps = input_shape[0], input_shape[1]
     inputs = tf.transpose(inputs, (1, 0, 2))
 
-    dtype = backend.result_type(inputs.dtype, "float32")
+    dtype = result_type(inputs.dtype, "float32")
     inputs = tf.cast(inputs, dtype)
 
     sequence_lengths = convert_to_tensor(sequence_lengths, dtype="int32")
@@ -1786,7 +1786,7 @@ def psnr(x1, x2, max_val):
 
 
 def _get_large_negative(dtype):
-    dtype = backend.standardize_dtype(dtype)
+    dtype = standardize_dtype(dtype)
     val = 65500.0 if dtype == "float16" else 3.38953e38
     return tf.constant(val * -0.7, dtype=dtype)
 
@@ -1813,7 +1813,7 @@ def _apply_masks(logits, mask, is_causal):
 
 
 def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
-    logits_dtype = backend.result_type(query.dtype, "float32")
+    logits_dtype = result_type(query.dtype, "float32")
     logits = tf.einsum("BTNH,BSNH->BNTS", query, key, optimize="optimal")
     logits = tf.cast(logits, logits_dtype)
     logits = tf.multiply(logits, tf.cast(scale, logits.dtype))
@@ -1824,7 +1824,7 @@ def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
     padded_logits = _apply_masks(logits, mask, is_causal)
 
     # Softmax is always carried out in high precision.
-    probs_dtype = backend.result_type(padded_logits.dtype, "float32")
+    probs_dtype = result_type(padded_logits.dtype, "float32")
     probs = tf.cast(
         tf.nn.softmax(tf.cast(padded_logits, probs_dtype), axis=-1), key.dtype
     )
@@ -1861,7 +1861,7 @@ def dot_product_attention(
             f"Received: query.shape={query.shape}, key.shape={key.shape}, "
             f"value.shape={value.shape}."
         )
-    compute_dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
+    compute_dtype = result_type(query.dtype, key.dtype, value.dtype)
     query = cast(query, compute_dtype)
     key = cast(key, compute_dtype)
     value = cast(value, compute_dtype)

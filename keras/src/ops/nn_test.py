@@ -15,7 +15,9 @@ from keras.src import losses
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.torch.distributed_test_utils import (
@@ -54,7 +56,7 @@ def _dot_product_attention(
 
     def _apply_masks(logits, mask, is_causal):
         def _get_large_negative(dtype):
-            dtype = backend.standardize_dtype(dtype)
+            dtype = standardize_dtype(dtype)
             if dtype == "float16":
                 val = 65500.0
             else:
@@ -441,7 +443,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
 
         x = np.arange(5)
         out = knn.multi_hot(x, 5, axis=0, dtype=dtype, sparse=sparse)
-        self.assertEqual(backend.standardize_dtype(out.dtype), dtype)
+        self.assertEqual(standardize_dtype(out.dtype), dtype)
         self.assertSparse(out, sparse)
 
     def test_conv(self):
@@ -801,7 +803,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
 
         x = np.arange(5)
         out = knn.one_hot(x, 5, axis=0, dtype=dtype, sparse=sparse)
-        self.assertEqual(backend.standardize_dtype(out.dtype), dtype)
+        self.assertEqual(standardize_dtype(out.dtype), dtype)
         self.assertSparse(out, sparse)
 
     def test_moments(self):
@@ -1402,7 +1404,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         )
         out = knn.multi_hot(unbatched_input, 5, -1)
         self.assertEqual(out.shape, (5,))
-        self.assertEqual(out.dtype, backend.floatx())
+        self.assertEqual(out.dtype, config.floatx())
         self.assertEqual(knn.multi_hot(unbatched_input, 5, 0).shape, (5,))
         self.assertEqual(knn.multi_hot(x, 5).shape, (2, 1, 5))
         self.assertEqual(knn.multi_hot(x, 5, 1).shape, (2, 3, 1))
@@ -1877,9 +1879,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             KerasTensor((2,), dtype="float32"),
             KerasTensor((2,), dtype="float32"),
         )
-        self.assertEqual(
-            backend.standardize_dtype(out.dtype), symbolic_out.dtype
-        )
+        self.assertEqual(standardize_dtype(out.dtype), symbolic_out.dtype)
 
     def test_sparsemax(self):
         x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
@@ -2611,7 +2611,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         expected = -(t * np.log(probs) + (1 - t) * np.log(1 - probs))
         tol = {"float32": 1e-6, "float16": 1e-3, "bfloat16": 1e-2}[output_dtype]
         self.assertAllClose(result, expected, atol=tol, rtol=tol)
-        self.assertEqual(backend.standardize_dtype(result.dtype), output_dtype)
+        self.assertEqual(standardize_dtype(result.dtype), output_dtype)
 
     @parameterized.parameters(
         ("int32", True), ("int32", False), ("uint8", False), ("bool", False)
@@ -2632,7 +2632,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         symbolic = knn.binary_crossentropy(
             KerasTensor((4,), "float32"), KerasTensor((4,), output_dtype)
         )
-        self.assertEqual(symbolic.dtype, backend.floatx())
+        self.assertEqual(symbolic.dtype, config.floatx())
 
     @parameterized.product(
         target_dtype=["int32", "bool", "float32"],
@@ -2647,7 +2647,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         result = knn.binary_crossentropy(
             target, output, from_logits=from_logits
         )
-        self.assertEqual(backend.standardize_dtype(result.dtype), output_dtype)
+        self.assertEqual(standardize_dtype(result.dtype), output_dtype)
 
     def test_categorical_crossentropy(self):
         target = np.array(
@@ -3792,7 +3792,7 @@ class NNOpsDtypeTest(testing.TestCase):
             [[[0.4, 0.8, 0.4], [0.2, 0.8, 0.3], [0.9, 0.4, 0.5]]], dtype=dtype
         )
         sequence_length = knp.array([3])
-        expected_dtype = backend.result_type(dtype, "float32")
+        expected_dtype = result_type(dtype, "float32")
 
         # Test strategy="greedy"
         decoded, scores = knn.ctc_decode(
@@ -3831,7 +3831,7 @@ class NNOpsDtypeTest(testing.TestCase):
         query = knp.ones((2, 3, 3, 8), dtype=query_dtype)
         key = knp.ones((2, 3, 3, 8), dtype=key_value_dtype)
         value = knp.ones((2, 3, 3, 8), dtype=key_value_dtype)
-        expected_dtype = backend.result_type(*dtypes)
+        expected_dtype = result_type(*dtypes)
 
         self.assertDType(
             knn.dot_product_attention(query, key, value), expected_dtype

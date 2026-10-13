@@ -4,8 +4,11 @@ import jax
 import numpy as np
 from jax import lax
 
-from keras.src import backend
+from keras.src.backend import config
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import result_type
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
@@ -17,6 +20,7 @@ from keras.src.backend.common.backend_utils import (
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_padding_args_for_jax,
 )
+from keras.src.backend.config import standardize_data_format
 from keras.src.backend.numpy.ops.core import cast
 from keras.src.backend.numpy.ops.core import convert_to_tensor
 from keras.src.backend.numpy.ops.core import is_tensor
@@ -47,7 +51,7 @@ def sparse_sigmoid(x):
     # `0.5` below truncates to 0 under an integer dtype, which drops the
     # midpoint so every input in (-1, 1) maps to 0.
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return np.where(
         x <= -1,
@@ -80,7 +84,7 @@ def softsign(x):
 def soft_shrink(x, threshold=0.5):
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return np.where(
         x > threshold,
@@ -96,7 +100,7 @@ def soft_shrink(x, threshold=0.5):
 def sparse_plus(x):
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return np.where(
         x <= -1,
@@ -127,7 +131,7 @@ def leaky_relu(x, negative_slope=0.2):
     # `negative_slope` truncates to 0 under an integer dtype, which leaves
     # `maximum(x, 0)`, i.e. `relu`.
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return np.maximum(x, np.array(negative_slope, x.dtype) * x)
 
@@ -136,7 +140,7 @@ def hard_sigmoid(x):
     # `0.5` below truncates to 0 under an integer dtype, which drops the
     # offset and turns this into `clip(x / 6, 0, 1)`.
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     # python numbers will be promoted to float64 by np, so it's necessary to
     # first convert the python numbers to np scalars
@@ -150,7 +154,7 @@ def hard_sigmoid(x):
 
 def hard_silu(x):
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return x * hard_sigmoid(x)
 
@@ -167,7 +171,7 @@ def selu(x):
     scale = 1.0507009873554804934193349852946
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return np.array(scale, x.dtype) * elu(x, alpha)
 
@@ -175,7 +179,7 @@ def selu(x):
 def gelu(x, approximate=True):
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     # followed by JAX's implementation
     if approximate:
@@ -337,7 +341,7 @@ def max_pool(
     padding="valid",
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     pool_size = _convert_to_spatial_operand(
         pool_size, num_spatial_dims, data_format
@@ -356,7 +360,7 @@ def average_pool(
     padding="valid",
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     pool_size = _convert_to_spatial_operand(
         pool_size, num_spatial_dims, data_format
@@ -606,7 +610,7 @@ def _adaptive_pool3d_impl(inputs, output_size, mode, data_format):
 
 
 def adaptive_average_pool(inputs, output_size, data_format=None):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     dims = inputs.ndim - 2
     if dims == 1:
         return _adaptive_pool1d_impl(
@@ -624,7 +628,7 @@ def adaptive_average_pool(inputs, output_size, data_format=None):
 
 
 def adaptive_max_pool(inputs, output_size, data_format=None):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     dims = inputs.ndim - 2
     if dims == 1:
         return _adaptive_pool1d_impl(inputs, output_size, "max", data_format)
@@ -668,7 +672,7 @@ def conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     dimension_numbers = _convert_to_lax_conv_dimension_numbers(
         num_spatial_dims,
@@ -728,7 +732,7 @@ def depthwise_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     check_conv_input_channels(inputs, kernel, data_format)
@@ -779,7 +783,7 @@ def separable_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     depthwise_kernel = convert_to_tensor(depthwise_kernel)
     pointwise_kernel = convert_to_tensor(pointwise_kernel)
@@ -811,7 +815,7 @@ def conv_transpose(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     check_conv_transpose_input_channels(inputs, kernel, data_format)
@@ -916,7 +920,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = log_softmax(output, axis=axis)
     else:
         output = output / np.sum(output, axis, keepdims=True)
-        output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        output = np.clip(output, config.epsilon(), 1.0 - config.epsilon())
         log_prob = np.log(output)
     return -np.sum(target * log_prob, axis=axis)
 
@@ -943,7 +947,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = log_softmax(output, axis=axis)
     else:
         output = output / np.sum(output, axis, keepdims=True)
-        output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        output = np.clip(output, config.epsilon(), 1.0 - config.epsilon())
         log_prob = np.log(output)
     target = one_hot(target, output.shape[axis], axis=axis)
     return -np.sum(target * log_prob, axis=axis)
@@ -952,8 +956,8 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
 def binary_crossentropy(target, output, from_logits=False):
     target = np.array(target)
     output = np.array(output)
-    if not backend.is_float_dtype(output.dtype):
-        output = cast(output, backend.floatx())
+    if not is_float_dtype(output.dtype):
+        output = cast(output, config.floatx())
     target = cast(target, output.dtype)
     dtype = output.dtype
 
@@ -967,7 +971,7 @@ def binary_crossentropy(target, output, from_logits=False):
     if from_logits:
         output = sigmoid(output)
 
-    output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+    output = np.clip(output, config.epsilon(), 1.0 - config.epsilon())
     bce = target * np.log(output)
     bce += (1.0 - target) * np.log(1.0 - output)
     return (-bce).astype(dtype)
@@ -983,7 +987,7 @@ def moments(x, axes, keepdims=False, synchronized=False):
     # workaround, we simply perform the operations on float32 and convert back
     # to float16
     need_cast = False
-    ori_dtype = backend.standardize_dtype(x.dtype)
+    ori_dtype = standardize_dtype(x.dtype)
     if ori_dtype == "float16":
         need_cast = True
         x = cast(x, "float32")
@@ -1041,7 +1045,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     log_epsilon = -1e5
 
     # Ensure that the dtype promotion behavior matches that of `tf.nn.ctc_loss`
-    dtype = backend.result_type(output.dtype, "float32")
+    dtype = result_type(output.dtype, "float32")
     output = output.astype(dtype)
 
     def _lengths_to_paddings(lengths, max_length):
@@ -1358,7 +1362,7 @@ def ctc_decode(
     mask_index=0,
 ):
     inputs = convert_to_tensor(inputs)
-    dtype = backend.result_type(inputs.dtype, "float32")
+    dtype = result_type(inputs.dtype, "float32")
     inputs = cast(inputs, dtype)
 
     if strategy == "greedy":
@@ -1397,7 +1401,7 @@ def psnr(x1, x2, max_val):
 
 
 def _get_large_negative(dtype):
-    dtype = backend.standardize_dtype(dtype)
+    dtype = standardize_dtype(dtype)
     val = 65500.0 if dtype == "float16" else 3.38953e38
     return np.asarray(val * -0.7, dtype=dtype)
 
@@ -1425,7 +1429,7 @@ def _apply_masks(logits, mask, is_causal):
 def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
     original_dtype = key.dtype
     logits_dtype = np.promote_types(query.dtype, np.float32)
-    if backend.standardize_dtype(key.dtype) == "bfloat16":
+    if standardize_dtype(key.dtype) == "bfloat16":
         # `np.einsum` doesn't support bfloat16
         key = key.astype("float32")
         value = value.astype("float32")
@@ -1442,7 +1446,7 @@ def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
     padded_logits = padded_logits.astype(np.float32)
     probs = softmax(padded_logits, axis=-1).astype(original_dtype)
     encoded_dtype = probs.dtype
-    if backend.standardize_dtype(probs.dtype) == "bfloat16":
+    if standardize_dtype(probs.dtype) == "bfloat16":
         # `np.einsum` doesn't support bfloat16
         probs = probs.astype("float32")
         value = value.astype("float32")
@@ -1479,7 +1483,7 @@ def dot_product_attention(
             f"Received: query.shape={query.shape}, key.shape={key.shape}, "
             f"value.shape={value.shape}."
         )
-    compute_dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
+    compute_dtype = result_type(query.dtype, key.dtype, value.dtype)
     query = cast(query, compute_dtype)
     key = cast(key, compute_dtype)
     value = cast(value, compute_dtype)

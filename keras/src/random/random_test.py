@@ -6,6 +6,7 @@ import keras
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend.common import StatelessScope
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
 from keras.src.random import random
@@ -82,7 +83,7 @@ class RandomCorrectnessTest(testing.TestCase):
         self.assertGreaterEqual(ops.max(res), min)
         # Torch has incomplete dtype support for uints; will remap some dtypes.
         if keras.backend.backend() != "torch":
-            self.assertEqual(backend.standardize_dtype(res.dtype), dtype)
+            self.assertEqual(standardize_dtype(res.dtype), dtype)
 
     @parameterized.parameters(
         {"seed": 10, "shape": (5,), "mean": 0, "stddev": 1},
@@ -200,7 +201,7 @@ class RandomCorrectnessTest(testing.TestCase):
     def test_gamma(self, seed, shape, alpha, dtype):
         values = random.gamma(shape, alpha=alpha, seed=seed, dtype=dtype)
         self.assertEqual(ops.shape(values), shape)
-        self.assertEqual(backend.standardize_dtype(values.dtype), dtype)
+        self.assertEqual(standardize_dtype(values.dtype), dtype)
         self.assertGreater(np.min(ops.convert_to_numpy(values)), 0.0)
 
     @parameterized.parameters(
@@ -236,7 +237,7 @@ class RandomCorrectnessTest(testing.TestCase):
             dtype=dtype,
         )
         self.assertEqual(ops.shape(values), shape)
-        self.assertEqual(backend.standardize_dtype(values.dtype), dtype)
+        self.assertEqual(standardize_dtype(values.dtype), dtype)
 
         # The following test that ensures that the number of time
         # each event occurs doesn't exceed the total input count specified
@@ -286,7 +287,7 @@ class RandomCorrectnessTest(testing.TestCase):
             shape=shape, alpha=alpha, beta=beta, seed=seed, dtype=dtype
         )
         self.assertEqual(ops.shape(values), shape)
-        self.assertEqual(backend.standardize_dtype(values.dtype), dtype)
+        self.assertEqual(standardize_dtype(values.dtype), dtype)
         values_np = ops.convert_to_numpy(values)
         self.assertGreaterEqual(np.min(values_np), b=0.0)
         self.assertLessEqual(np.max(values_np), b=1.0)
@@ -396,7 +397,7 @@ class RandomBehaviorTest(testing.TestCase):
 
         @jax.jit
         def train_step(x):
-            with keras.src.backend.StatelessScope():
+            with StatelessScope():
                 x = keras.layers.Dropout(rate=0.1)(x, training=True)
             return x
 

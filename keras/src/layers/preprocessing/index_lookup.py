@@ -3,6 +3,9 @@ import collections
 import numpy as np
 
 from keras.src import backend
+from keras.src.backend import config
+from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import is_keras_tensor
 from keras.src.layers.layer import Layer
 from keras.src.saving import serialization_lib
 from keras.src.utils import argument_validation
@@ -304,7 +307,7 @@ class IndexLookup(Layer):
             if idf_weights is not None:
                 self.idf_weights = tf.Variable(
                     idf_weights,
-                    dtype=backend.floatx(),
+                    dtype=config.floatx(),
                     trainable=False,
                 )
                 self.idf_weights_const = self.idf_weights.value()
@@ -602,7 +605,7 @@ class IndexLookup(Layer):
                 "constant",
                 constant_values=(front_padding_value, back_padding_value),
             )
-            weights = tf.convert_to_tensor(weights, dtype=backend.floatx())
+            weights = tf.convert_to_tensor(weights, dtype=config.floatx())
             self.idf_weights = tf.Variable(
                 weights,
                 trainable=False,
@@ -646,9 +649,9 @@ class IndexLookup(Layer):
         if self.output_mode == "int":
             output_dtype = "int64"
         else:
-            output_dtype = backend.floatx()
+            output_dtype = config.floatx()
         output_shape = self.compute_output_shape(inputs.shape)
-        return backend.KerasTensor(output_shape, dtype=output_dtype)
+        return KerasTensor(output_shape, dtype=output_dtype)
 
     def adapt(self, data, steps=None):
         self.reset_state()
@@ -764,7 +767,7 @@ class IndexLookup(Layer):
             idf_weights = self._inverse_document_frequency(
                 token_document_counts, self.num_documents
             )
-            idf_weights = tf.cast(idf_weights, backend.floatx())
+            idf_weights = tf.cast(idf_weights, config.floatx())
             # Pad the front of idf_weights with the average idf weight for OOV
             # tokens.  We cannot compute the real idf weight of OOV in a single
             # pass.
@@ -782,7 +785,7 @@ class IndexLookup(Layer):
                 )
             self.idf_weights = tf.Variable(
                 idf_weights,
-                dtype=backend.floatx(),
+                dtype=config.floatx(),
                 trainable=False,
             )
             self.idf_weights_const = self.idf_weights.value()
@@ -871,7 +874,7 @@ class IndexLookup(Layer):
         # layer.call and then attempt to restore the table. We need the table to
         # be uninitialized for the restore to work, but calling the table
         # uninitialized would error.
-        if tf.executing_eagerly() and backend.is_keras_tensor(inputs):
+        if tf.executing_eagerly() and is_keras_tensor(inputs):
             lookups = tf.zeros_like(inputs, dtype=self._value_dtype)
         else:
             lookups = self.lookup_table.lookup(inputs)

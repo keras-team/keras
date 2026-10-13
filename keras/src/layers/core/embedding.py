@@ -5,7 +5,7 @@ from keras.src import initializers
 from keras.src import ops
 from keras.src import regularizers
 from keras.src.api_export import keras_export
-from keras.src.backend import KerasTensor
+from keras.src.backend.common import KerasTensor
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.geometry import LookupGeometry
 from keras.src.saving import serialization_lib

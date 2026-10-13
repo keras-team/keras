@@ -2,7 +2,7 @@ import collections
 import collections.abc
 import itertools
 
-from keras.src.backend.config import backend
+from keras.src.backend import config
 from keras.src.utils.module_utils import dmtree
 
 # NOTE: There are two known discrepancies between this `dmtree` implementation
@@ -63,7 +63,7 @@ register_tree_node(
     lambda metadata, children: collections.OrderedDict(zip(metadata, children)),
 )
 
-if backend() == "tensorflow":
+if config.backend() == "tensorflow":
     from tensorflow.python.trackable.data_structures import ListWrapper
     from tensorflow.python.trackable.data_structures import _DictWrapper
 

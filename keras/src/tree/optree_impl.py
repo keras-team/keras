@@ -1,7 +1,7 @@
 import optree
 import optree.utils
 
-from keras.src.backend.config import backend
+from keras.src.backend import config
 
 
 def register_tree_node_class(cls):
@@ -9,7 +9,7 @@ def register_tree_node_class(cls):
 
 
 # Register backend-specific node classes
-if backend() == "tensorflow":
+if config.backend() == "tensorflow":
     from tensorflow.python.trackable.data_structures import ListWrapper
     from tensorflow.python.trackable.data_structures import _DictWrapper
 

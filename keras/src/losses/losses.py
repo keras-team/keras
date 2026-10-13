@@ -7,6 +7,10 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend import config
+from keras.src.backend.common import get_keras_mask
+from keras.src.backend.common import set_keras_mask
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.losses.loss import Loss
 from keras.src.losses.loss import reduce_weighted_values
@@ -1312,7 +1316,7 @@ class SparseCategoricalFocalCrossentropy(LossFunctionWrapper):
         # integer above 256. The generic Loss.__call__ casts both arguments to
         # the compute dtype, which can silently change a valid class ID or an
         # out-of-range ignore sentinel.
-        in_mask = backend.get_keras_mask(y_pred)
+        in_mask = get_keras_mask(y_pred)
 
         with backend.name_scope(self.name):
             y_pred = tree.map_structure(
@@ -1321,7 +1325,7 @@ class SparseCategoricalFocalCrossentropy(LossFunctionWrapper):
             y_true = tree.map_structure(ops.convert_to_tensor, y_true)
 
             loss_values = self.call(y_true, y_pred)
-            out_mask = backend.get_keras_mask(loss_values)
+            out_mask = get_keras_mask(loss_values)
 
             if in_mask is not None and out_mask is not None:
                 mask = in_mask & out_mask
@@ -2054,7 +2058,7 @@ def mean_absolute_percentage_error(y_true, y_pred):
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
-    epsilon = ops.convert_to_tensor(backend.epsilon(), dtype=y_pred.dtype)
+    epsilon = ops.convert_to_tensor(config.epsilon(), dtype=y_pred.dtype)
     y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     diff = ops.abs((y_true - y_pred) / ops.maximum(ops.abs(y_true), epsilon))
     return 100.0 * ops.mean(diff, axis=-1)
@@ -2098,7 +2102,7 @@ def mean_squared_logarithmic_error(y_true, y_pred):
     >>> y_pred = np.random.random(size=(2, 3))
     >>> loss = keras.losses.mean_squared_logarithmic_error(y_true, y_pred)
     """
-    epsilon = ops.convert_to_tensor(backend.epsilon())
+    epsilon = ops.convert_to_tensor(config.epsilon())
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
@@ -2290,8 +2294,8 @@ def kl_divergence(y_true, y_pred):
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, y_pred.dtype)
-    y_true = ops.clip(y_true, backend.epsilon(), 1)
-    y_pred = ops.clip(y_pred, backend.epsilon(), 1)
+    y_true = ops.clip(y_true, config.epsilon(), 1)
+    y_pred = ops.clip(y_pred, config.epsilon(), 1)
     return ops.sum(y_true * ops.log(y_true / y_pred), axis=-1)
 
 
@@ -2330,7 +2334,7 @@ def poisson(y_true, y_pred):
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
-    epsilon = ops.convert_to_tensor(backend.epsilon(), dtype=y_pred.dtype)
+    epsilon = ops.convert_to_tensor(config.epsilon(), dtype=y_pred.dtype)
     return ops.mean(y_pred - y_true * ops.log(y_pred + epsilon), axis=-1)
 
 
@@ -2486,7 +2490,7 @@ def categorical_focal_crossentropy(
     # This is needed to ensure that the cross entropy is
     # computed correctly.
     output = y_pred / ops.sum(y_pred, axis=axis, keepdims=True)
-    output = ops.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+    output = ops.clip(output, config.epsilon(), 1.0 - config.epsilon())
 
     # Calculate cross entropy
     cce = -y_true * ops.log(output)
@@ -2586,7 +2590,7 @@ def sparse_categorical_focal_crossentropy(
     # boundaries such as 256 classes with uint8 labels. Preserve int64 inputs
     # so very large invalid labels are identified before the gather, while using
     # int32 otherwise to remain compatible with JAX's default dtype mode.
-    if backend.standardize_dtype(y_true.dtype) != "int64":
+    if standardize_dtype(y_true.dtype) != "int64":
         y_true = ops.cast(y_true, "int32")
 
     valid_mask = None
@@ -2615,7 +2619,7 @@ def sparse_categorical_focal_crossentropy(
         y_pred = ops.softmax(y_pred, axis=axis)
 
     output = y_pred / ops.sum(y_pred, axis=axis, keepdims=True)
-    output = ops.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+    output = ops.clip(output, config.epsilon(), 1.0 - config.epsilon())
     true_class_prob = ops.take_along_axis(
         output, ops.expand_dims(safe_y_true, axis=axis), axis=axis
     )
@@ -2675,7 +2679,7 @@ def sparse_categorical_focal_crossentropy(
 
     if valid_mask is not None:
         loss = ops.where(valid_mask, loss, 0.0)
-        backend.set_keras_mask(loss, mask=valid_mask)
+        set_keras_mask(loss, mask=valid_mask)
 
     return loss
 
@@ -2763,7 +2767,7 @@ def sparse_categorical_crossentropy(
             probs = ops.divide(
                 y_pred, ops.sum(y_pred, axis=axis, keepdims=True)
             )
-            probs = ops.clip(probs, backend.epsilon(), 1.0 - backend.epsilon())
+            probs = ops.clip(probs, config.epsilon(), 1.0 - config.epsilon())
             uniform_res = ops.negative(ops.mean(ops.log(probs), axis=axis))
         res = ops.add(
             ops.multiply(1.0 - label_smoothing, res),
@@ -2773,7 +2777,7 @@ def sparse_categorical_crossentropy(
     if ignore_class is not None:
         valid_mask = ops.reshape(valid_mask, res_shape)
         res = ops.where(valid_mask, res, 0.0)
-        backend.set_keras_mask(res, mask=valid_mask)
+        set_keras_mask(res, mask=valid_mask)
 
     return res
 
@@ -3015,7 +3019,7 @@ def dice(y_true, y_pred, axis=None):
         2.0 * intersection,
         ops.sum(y_true, axis=axis)
         + ops.sum(y_pred, axis=axis)
-        + backend.epsilon(),
+        + config.epsilon(),
     )
 
     return 1 - dice
@@ -3057,7 +3061,7 @@ def tversky(y_true, y_pred, alpha=0.5, beta=0.5, axis=None):
 
     tversky = ops.divide(
         intersection,
-        intersection + fp * alpha + fn * beta + backend.epsilon(),
+        intersection + fp * alpha + fn * beta + config.epsilon(),
     )
 
     return 1 - tversky
@@ -3147,7 +3151,7 @@ def circle(
     )
 
     circle_loss = ops.softplus(p_loss + n_loss)
-    backend.set_keras_mask(circle_loss, circle_loss > 0)
+    set_keras_mask(circle_loss, circle_loss > 0)
     return circle_loss
 
 

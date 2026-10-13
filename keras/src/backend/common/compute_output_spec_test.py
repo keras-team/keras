@@ -2,6 +2,7 @@ import pytest
 
 from keras.src import backend
 from keras.src import testing
+from keras.src.backend.common.keras_tensor import KerasTensor
 
 
 def example_fn(x):
@@ -12,22 +13,16 @@ def example_fn(x):
 
 class ComputeOutputSpecTest(testing.TestCase):
     def test_basics(self):
-        out = backend.compute_output_spec(
-            example_fn, backend.KerasTensor((2, 3))
-        )
-        self.assertIsInstance(out, backend.KerasTensor)
+        out = backend.compute_output_spec(example_fn, KerasTensor((2, 3)))
+        self.assertIsInstance(out, KerasTensor)
         self.assertEqual(out.shape, (2, 3, 2))
 
-        out = backend.compute_output_spec(
-            example_fn, backend.KerasTensor((None, 3))
-        )
-        self.assertIsInstance(out, backend.KerasTensor)
+        out = backend.compute_output_spec(example_fn, KerasTensor((None, 3)))
+        self.assertIsInstance(out, KerasTensor)
         self.assertEqual(out.shape, (None, 3, 2))
 
-        out = backend.compute_output_spec(
-            example_fn, backend.KerasTensor((2, None))
-        )
-        self.assertIsInstance(out, backend.KerasTensor)
+        out = backend.compute_output_spec(example_fn, KerasTensor((2, None)))
+        self.assertIsInstance(out, KerasTensor)
         self.assertEqual(out.shape, (2, None, 2))
 
     @pytest.mark.skipif(
@@ -49,16 +44,16 @@ class ComputeOutputSpecTest(testing.TestCase):
 
         instance = Container()
         out = backend.compute_output_spec(
-            instance.example_meta_fn, backend.KerasTensor((2, 3))
+            instance.example_meta_fn, KerasTensor((2, 3))
         )
-        self.assertIsInstance(out, backend.KerasTensor)
+        self.assertIsInstance(out, KerasTensor)
         self.assertTrue(instance.canary)
         self.assertEqual(out.shape, (2, 3, 2))
 
         instance = Container()
         out = backend.compute_output_spec(
-            instance.example_meta_fn, backend.KerasTensor((2, None))
+            instance.example_meta_fn, KerasTensor((2, None))
         )
-        self.assertIsInstance(out, backend.KerasTensor)
+        self.assertIsInstance(out, KerasTensor)
         self.assertTrue(instance.canary)
         self.assertEqual(out.shape, (2, None, 2))

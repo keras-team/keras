@@ -1,7 +1,7 @@
-from keras.src import backend
 from keras.src import tree
 from keras.src import utils
 from keras.src.api_export import keras_export
+from keras.src.backend.common import KerasTensor
 from keras.src.layers import Input
 from keras.src.layers import InputLayer
 from keras.src.models.functional import Functional
@@ -309,7 +309,7 @@ def _clone_sequential_model(model, clone_function, input_tensors=None):
                     "Argument `input_tensors` must contain a single tensor."
                 )
             input_tensors = input_tensors[0]
-        if not isinstance(input_tensors, backend.KerasTensor):
+        if not isinstance(input_tensors, KerasTensor):
             raise ValueError(
                 "Argument `input_tensors` must be a KerasTensor. "
                 f"Received invalid value: input_tensors={input_tensors}"
@@ -379,8 +379,7 @@ def _clone_functional_model(
 
     if input_tensors is not None:
         if not all(
-            isinstance(x, backend.KerasTensor)
-            for x in tree.flatten(input_tensors)
+            isinstance(x, KerasTensor) for x in tree.flatten(input_tensors)
         ):
             raise ValueError(
                 "All entries in `input_tensors` must be KerasTensors. "

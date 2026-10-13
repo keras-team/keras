@@ -8,6 +8,7 @@ from keras import Sequential
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 
 
 class TestSpectrogram(testing.TestCase):
@@ -17,7 +18,7 @@ class TestSpectrogram(testing.TestCase):
     def _calc_spectrograms(
         x, mode, scaling, window, periodic, frame_length, frame_step, fft_length
     ):
-        data_format = backend.image_data_format()
+        data_format = config.image_data_format()
         input_shape = (None, 1) if data_format == "channels_last" else (1, None)
 
         layer = Sequential(

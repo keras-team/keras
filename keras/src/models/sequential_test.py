@@ -3,10 +3,10 @@ import pickle
 import numpy as np
 import pytest
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend.common import KerasTensor
 from keras.src.layers.core.input_layer import Input
 from keras.src.models.functional import Functional
 from keras.src.models.model import Model
@@ -34,7 +34,7 @@ class SequentialTest(testing.TestCase):
         self.assertEqual(y.shape, (3, 5))
 
         # Test symbolic call
-        x = backend.KerasTensor((3, 2))
+        x = KerasTensor((3, 2))
         y = model(x)
         self.assertEqual(y.shape, (3, 5))
 
@@ -112,7 +112,7 @@ class SequentialTest(testing.TestCase):
         self.assertEqual(y.shape, (3, 5))
 
         # Test symbolic call
-        x = backend.KerasTensor((3, 2))
+        x = KerasTensor((3, 2))
         y = model(x)
         self.assertEqual(y.shape, (3, 5))
 
@@ -173,7 +173,7 @@ class SequentialTest(testing.TestCase):
         self.assertEqual(tuple(y.shape), (1, 1))
 
         # Test symbolic call
-        x = backend.KerasTensor((1, 16, 16, 3))
+        x = KerasTensor((1, 16, 16, 3))
         y = model(x)
         self.assertEqual(y.shape, (1, 1))
 
@@ -199,7 +199,7 @@ class SequentialTest(testing.TestCase):
         self.assertEqual(tuple(y.shape), (1, 1))
 
         # Test symbolic call
-        x = backend.KerasTensor((1, 16, 16, 3))
+        x = KerasTensor((1, 16, 16, 3))
         y = model(x)
         self.assertEqual(y.shape, (1, 1))
 

@@ -1,6 +1,6 @@
 import jax
 
-from keras.src.backend.config import floatx
+from keras.src.backend import config
 from keras.src.random.seed_generator import SeedGenerator
 from keras.src.random.seed_generator import draw_seed
 from keras.src.random.seed_generator import make_default_seed
@@ -14,14 +14,14 @@ def jax_draw_seed(seed):
 
 
 def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
-    dtype = dtype or floatx()
+    dtype = dtype or config.floatx()
     seed = jax_draw_seed(seed)
     sample = jax.random.normal(seed, shape=shape, dtype=dtype)
     return sample * stddev + mean
 
 
 def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
-    dtype = dtype or floatx()
+    dtype = dtype or config.floatx()
     seed = jax_draw_seed(seed)
     return jax.random.uniform(
         seed, shape=shape, dtype=dtype, minval=minval, maxval=maxval
@@ -47,7 +47,7 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
 
 
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
-    dtype = dtype or floatx()
+    dtype = dtype or config.floatx()
     seed = jax_draw_seed(seed)
     sample = jax.random.truncated_normal(
         seed, shape=shape, lower=-2.0, upper=2.0, dtype=dtype
@@ -92,12 +92,12 @@ def shuffle(x, axis=0, seed=None):
 
 def gamma(shape, alpha, dtype=None, seed=None):
     seed = jax_draw_seed(seed)
-    dtype = dtype or floatx()
+    dtype = dtype or config.floatx()
     return jax.random.gamma(seed, alpha, shape=shape, dtype=dtype)
 
 
 def binomial(shape, counts, probabilities, dtype=None, seed=None):
-    dtype = dtype or floatx()
+    dtype = dtype or config.floatx()
     seed = jax_draw_seed(seed)
     # jax doesn't accept python lists as arguments
     counts = jax.numpy.array(counts)
@@ -109,7 +109,7 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
 
 
 def beta(shape, alpha, beta, dtype=None, seed=None):
-    dtype = dtype or floatx()
+    dtype = dtype or config.floatx()
     seed = jax_draw_seed(seed)
     # jax doesn't accept python lists as arguments
     alpha = jax.numpy.array(alpha)

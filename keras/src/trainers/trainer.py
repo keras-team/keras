@@ -7,6 +7,11 @@ from keras.src import metrics as metrics_module
 from keras.src import ops
 from keras.src import optimizers
 from keras.src import tree
+from keras.src.backend import config
+from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import StatelessScope
+from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import standardize_dtype
 from keras.src.optimizers.loss_scale_optimizer import LossScaleOptimizer
 from keras.src.saving import serialization_lib
 from keras.src.trainers.compile_utils import CompileLoss
@@ -432,8 +437,8 @@ class BaseTrainer:
             A tensor representing the summed loss, cast to the `floatx()` if
             necessary.
         """
-        if not backend.is_float_dtype(loss.dtype):
-            loss = ops.cast(loss, dtype=backend.floatx())
+        if not is_float_dtype(loss.dtype):
+            loss = ops.cast(loss, dtype=config.floatx())
         return ops.sum(loss)
 
     def stateless_compute_loss(
@@ -452,7 +457,7 @@ class BaseTrainer:
             zip(self.non_trainable_variables, non_trainable_variables)
         )
         var_mapping.extend(zip(self.metrics_variables, metrics_variables))
-        with backend.StatelessScope(state_mapping=var_mapping) as scope:
+        with StatelessScope(state_mapping=var_mapping) as scope:
             # Note that this is needed for the regularization loss, which need
             # the latest value of train/non-trainable variables.
             loss = self._compute_loss(
@@ -1162,9 +1167,7 @@ class BaseTrainer:
             def to_symbolic_input(v):
                 if v is None:
                     return None
-                return backend.KerasTensor(
-                    v.shape, backend.standardize_dtype(v.dtype)
-                )
+                return KerasTensor(v.shape, standardize_dtype(v.dtype))
 
             if data_batch is None:
                 for _, _, data_or_iterator in iterator:

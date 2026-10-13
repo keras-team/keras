@@ -5,6 +5,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src import ops
+from keras.src.backend import config
 from keras.src.losses.loss import squeeze_or_expand_to_same_rank
 from keras.src.utils.python_utils import to_list
 
@@ -336,7 +337,7 @@ def is_evenly_distributed_thresholds(thresholds):
     even_thresholds = np.arange(num_thresholds, dtype=np.float32) / (
         num_thresholds - 1
     )
-    return np.allclose(thresholds, even_thresholds, atol=backend.epsilon())
+    return np.allclose(thresholds, even_thresholds, atol=config.epsilon())
 
 
 def update_confusion_matrix_variables(

@@ -5,6 +5,7 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import linalg
 from keras.src.testing.test_utils import named_product
@@ -547,9 +548,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         _, symbolic_pivots = linalg.LuFactor().symbolic_call(
             KerasTensor((m, n), dtype="float32")
         )
-        self.assertEqual(
-            backend.standardize_dtype(pivots.dtype), symbolic_pivots.dtype
-        )
+        self.assertEqual(standardize_dtype(pivots.dtype), symbolic_pivots.dtype)
 
         m, n = 4, 3
         x = np.random.rand(m, n)
@@ -693,13 +692,13 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         # was the source of historical flakiness on the torch backend.
         rng = np.random.default_rng(0)
         a = rng.random((5, 7)).astype("float32")
-        a_symb = backend.KerasTensor((5, 7))
+        a_symb = KerasTensor((5, 7))
         if b_rank == 1:
             b = rng.random((5,)).astype("float32")
-            b_symb = backend.KerasTensor((5,))
+            b_symb = KerasTensor((5,))
         else:
             b = rng.random((5, 4)).astype("float32")
-            b_symb = backend.KerasTensor((5, 4))
+            b_symb = KerasTensor((5, 4))
         out = linalg.lstsq(a, b, rcond=rcond)
         ref_out = np.linalg.lstsq(a, b, rcond=rcond)[0]
         self.assertAllClose(
@@ -740,7 +739,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(rank_loose, 1)
 
         # Symbolic shape propagation.
-        a_symb = backend.KerasTensor((4, 3, 5), dtype="float32")
+        a_symb = KerasTensor((4, 3, 5), dtype="float32")
         self.assertEqual(linalg.matrix_rank(a_symb).shape, (4,))
 
     def test_matrix_power(self):
@@ -813,7 +812,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         a_out = ops.matmul(ops.matmul(a, out), a)
         self.assertAllClose(a_out, a, atol=1e-4, tpu_atol=1e-2, tpu_rtol=1e-2)
 
-        a_symb = backend.KerasTensor(shape, dtype="float32")
+        a_symb = KerasTensor(shape, dtype="float32")
         out_symb = linalg.pinv(a_symb)
         self.assertEqual(out_symb.shape, (shape[1], shape[0]))
 

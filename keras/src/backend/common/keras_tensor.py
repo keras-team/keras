@@ -1,5 +1,7 @@
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend.common.variables import standardize_dtype
+from keras.src.backend.common.variables import standardize_shape
 from keras.src.utils.naming import auto_name
 
 
@@ -37,8 +39,6 @@ class KerasTensor:
         name=None,
         **kwargs,
     ):
-        from keras.src import backend
-
         ragged_rank = kwargs.pop("ragged_rank", None)
         row_splits_dtype = kwargs.pop("row_splits_dtype", None)
         if kwargs:
@@ -46,8 +46,8 @@ class KerasTensor:
                 f"Unexpected keyword arguments: {', '.join(kwargs.keys())}"
             )
 
-        self._shape = backend.standardize_shape(shape)
-        self._dtype = backend.standardize_dtype(dtype)
+        self._shape = standardize_shape(shape)
+        self._dtype = standardize_dtype(dtype)
         self._sparse = bool(sparse)
         self._ragged = bool(ragged)
         if self._sparse and self._ragged:
@@ -59,7 +59,7 @@ class KerasTensor:
             int(ragged_rank) if ragged_rank is not None else None
         )
         self._row_splits_dtype = (
-            backend.standardize_dtype(row_splits_dtype)
+            standardize_dtype(row_splits_dtype)
             if row_splits_dtype is not None
             else None
         )

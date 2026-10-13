@@ -12,8 +12,8 @@ from tensorflow.python.ops.math_ops import is_nan
 
 from keras.src import tree
 from keras.src.backend import config
-from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import normalize_shift_and_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
@@ -1026,13 +1026,9 @@ def array(x, dtype=None):
 
 
 def view(x, dtype=None):
-    from keras.src import backend
-
     x = convert_to_tensor(x)
-    old_dtype = tf.as_dtype(backend.standardize_dtype(x.dtype))
-    new_dtype = tf.as_dtype(
-        backend.standardize_dtype(dtype if dtype else x.dtype)
-    )
+    old_dtype = tf.as_dtype(standardize_dtype(x.dtype))
+    new_dtype = tf.as_dtype(standardize_dtype(dtype if dtype else x.dtype))
 
     old_itemsize = old_dtype.size
     new_itemsize = new_dtype.size

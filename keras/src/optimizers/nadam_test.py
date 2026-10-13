@@ -1,6 +1,7 @@
 # flake8: noqa
 
 
+from keras.src.backend import config
 import numpy as np
 
 from keras.src import backend
@@ -22,7 +23,7 @@ class NadamTest(testing.TestCase):
     def test_build_with_empty_var_list(self):
         optimizer = Nadam()
         optimizer.build([])
-        self.assertEqual(optimizer._u_product.dtype, backend.floatx())
+        self.assertEqual(optimizer._u_product.dtype, config.floatx())
 
     def test_single_step(self):
         optimizer = Nadam(learning_rate=0.5)

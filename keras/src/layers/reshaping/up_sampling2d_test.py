@@ -1,4 +1,5 @@
 # flake8: noqa
+from keras.src.backend import config
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -12,11 +13,11 @@ from keras.backend import set_image_data_format
 class UpSampling2dTest(testing.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.original_image_data_format = backend.image_data_format()
+        cls.original_image_data_format = config.image_data_format()
 
     @classmethod
     def tearDownClass(cls):
-        backend.set_image_data_format(cls.original_image_data_format)
+        set_image_data_format(cls.original_image_data_format)
 
     @parameterized.product(
         data_format=["channels_first", "channels_last"],

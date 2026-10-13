@@ -4,6 +4,9 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend import config
+from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import standardize_dtype
 
 NUM_BATCHES_FOR_TENSOR_SPEC = 2
 
@@ -145,7 +148,7 @@ def class_weight_to_sample_weights(y, class_weight):
     # (e.g., np.round()) across frameworks like TensorFlow, JAX, and PyTorch
 
     y_numpy = ops.convert_to_numpy(y)
-    sample_weight = np.ones(shape=(y_numpy.shape[0],), dtype=backend.floatx())
+    sample_weight = np.ones(shape=(y_numpy.shape[0],), dtype=config.floatx())
     if len(y_numpy.shape) > 1:
         if y_numpy.shape[-1] != 1:
             y_numpy = np.argmax(y_numpy, axis=-1)
@@ -197,9 +200,9 @@ def get_keras_tensor_spec(batches):
             dims_set = set(dims)
             shape.append(dims_set.pop() if len(dims_set) == 1 else None)
 
-        dtype = backend.standardize_dtype(x.dtype)
+        dtype = standardize_dtype(x.dtype)
         if is_tensorflow_ragged(x):
-            return backend.KerasTensor(
+            return KerasTensor(
                 shape=shape,
                 dtype=dtype,
                 ragged=True,
@@ -207,9 +210,9 @@ def get_keras_tensor_spec(batches):
                 row_splits_dtype=x.row_splits.dtype,
             )
         if is_tensorflow_sparse(x) or is_scipy_sparse(x) or is_jax_sparse(x):
-            return backend.KerasTensor(shape=shape, dtype=dtype, sparse=True)
+            return KerasTensor(shape=shape, dtype=dtype, sparse=True)
         else:
-            return backend.KerasTensor(shape=shape, dtype=dtype)
+            return KerasTensor(shape=shape, dtype=dtype)
 
     return tree.map_structure(
         get_single_tensor_spec, *batches, none_is_leaf=False
@@ -228,7 +231,7 @@ def convert_to_tf_tensor_spec(keras_tensor, batch_axis_to_none=True):
 
     if keras_tensor is None:
         return tf.OptionalSpec(None)
-    if not isinstance(keras_tensor, backend.KerasTensor):
+    if not isinstance(keras_tensor, KerasTensor):
         raise TypeError(
             f"Expected a KerasTensor, but got {keras_tensor} of type "
             f"{type(keras_tensor)}."

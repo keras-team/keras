@@ -1,7 +1,10 @@
 import ml_dtypes
 import numpy as np
 
-from keras.src import backend
+from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import result_type
+from keras.src.backend.common import standardize_dtype
+from keras.src.backend.config import standardize_data_format
 from keras.src.backend.numpy.ops.core import convert_to_tensor
 from keras.src.random.seed_generator import draw_seed
 from keras.src.utils.module_utils import scipy
@@ -45,7 +48,7 @@ SCALE_AND_TRANSLATE_METHODS = {
 
 def rgb_to_grayscale(images, data_format=None):
     images = convert_to_tensor(images)
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     channels_axis = -1 if data_format == "channels_last" else -3
     if len(images.shape) not in (3, 4):
         raise ValueError(
@@ -62,7 +65,7 @@ def rgb_to_grayscale(images, data_format=None):
         return images.copy()
     # Convert to floats
     original_dtype = images.dtype
-    compute_dtype = backend.result_type(images.dtype, float)
+    compute_dtype = result_type(images.dtype, float)
     images = images.astype(compute_dtype)
 
     # Ref: tf.image.rgb_to_grayscale
@@ -75,8 +78,8 @@ def rgb_to_grayscale(images, data_format=None):
 def rgb_to_hsv(images, data_format=None):
     # Ref: dm_pix
     images = convert_to_tensor(images)
-    dtype = backend.standardize_dtype(images.dtype)
-    data_format = backend.standardize_data_format(data_format)
+    dtype = standardize_dtype(images.dtype)
+    data_format = standardize_data_format(data_format)
     channels_axis = -1 if data_format == "channels_last" else -3
     if len(images.shape) not in (3, 4):
         raise ValueError(
@@ -84,7 +87,7 @@ def rgb_to_hsv(images, data_format=None):
             "or rank 4 (batch of images). Received input with shape: "
             f"images.shape={images.shape}"
         )
-    if not backend.is_float_dtype(dtype):
+    if not is_float_dtype(dtype):
         raise ValueError(
             "Invalid images dtype: expected float dtype. "
             f"Received: images.dtype={dtype}"
@@ -126,7 +129,7 @@ def hsv_to_rgb(images, data_format=None):
     # Ref: dm_pix
     images = convert_to_tensor(images)
     dtype = images.dtype
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     channels_axis = -1 if data_format == "channels_last" else -3
     if len(images.shape) not in (3, 4):
         raise ValueError(
@@ -134,10 +137,10 @@ def hsv_to_rgb(images, data_format=None):
             "or rank 4 (batch of images). Received input with shape: "
             f"images.shape={images.shape}"
         )
-    if not backend.is_float_dtype(dtype):
+    if not is_float_dtype(dtype):
         raise ValueError(
             "Invalid images dtype: expected float dtype. "
-            f"Received: images.dtype={backend.standardize_dtype(dtype)}"
+            f"Received: images.dtype={standardize_dtype(dtype)}"
         )
     hue, saturation, value = np.split(images, 3, channels_axis)
     hue = np.squeeze(hue, channels_axis)
@@ -173,7 +176,7 @@ def resize(
     fill_value=0.0,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if interpolation not in RESIZE_INTERPOLATIONS:
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
@@ -554,7 +557,7 @@ def affine_transform(
     fill_value=0,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
@@ -589,8 +592,8 @@ def affine_transform(
         )
 
     # `scipy.ndimage.map_coordinates` lacks support for float16 and bfloat16.
-    input_dtype = backend.standardize_dtype(images.dtype)
-    compute_dtype = backend.result_type(input_dtype, "float32")
+    input_dtype = standardize_dtype(images.dtype)
+    compute_dtype = result_type(input_dtype, "float32")
     images = images.astype(compute_dtype)
     transform = transform.astype(compute_dtype)
 
@@ -668,7 +671,7 @@ def perspective_transform(
     fill_value=0,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     start_points = convert_to_tensor(start_points)
     end_points = convert_to_tensor(end_points)
 
@@ -772,11 +775,11 @@ def perspective_transform(
 def compute_homography_matrix(start_points, end_points):
     start_points = convert_to_tensor(start_points)
     end_points = convert_to_tensor(end_points)
-    dtype = backend.result_type(start_points.dtype, end_points.dtype, float)
+    dtype = result_type(start_points.dtype, end_points.dtype, float)
     # `np.linalg.solve` lacks support for float16 and bfloat16. Build the
     # coefficient matrix in float32 so low-precision start/end points do not
     # create an ill-conditioned (or singular) homography due to rounding.
-    compute_dtype = backend.result_type(dtype, "float32")
+    compute_dtype = result_type(dtype, "float32")
     start_points = start_points.astype(compute_dtype)
     end_points = end_points.astype(compute_dtype)
 
@@ -972,7 +975,7 @@ def map_coordinates(
         padded = np.pad(inputs, padding, mode=pad_mode)
 
     # `scipy.ndimage.map_coordinates` lacks support for float16 and bfloat16.
-    if backend.is_float_dtype(padded.dtype):
+    if is_float_dtype(padded.dtype):
         padded = padded.astype("float32")
     result = scipy.ndimage.map_coordinates(
         padded, shifted_coords, order=order, mode=fill_mode, cval=fill_value
@@ -1000,13 +1003,13 @@ def gaussian_blur(
         kernel = np.tile(kernel, (1, 1, num_channels))
         return kernel.astype(dtype)
 
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     images = convert_to_tensor(images)
     kernel_size = convert_to_tensor(kernel_size)
     sigma = convert_to_tensor(sigma)
-    input_dtype = backend.standardize_dtype(images.dtype)
+    input_dtype = standardize_dtype(images.dtype)
     # `scipy.signal.convolve2d` lacks support for float16 and bfloat16.
-    compute_dtype = backend.result_type(input_dtype, "float32")
+    compute_dtype = result_type(input_dtype, "float32")
     images = images.astype(compute_dtype)
     sigma = sigma.astype(compute_dtype)
 
@@ -1067,7 +1070,7 @@ def elastic_transform(
     seed=None,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
@@ -1204,7 +1207,7 @@ def scale_and_translate(
     scale = convert_to_tensor(scale)
     translation = convert_to_tensor(translation)
     kernel = _kernels[method]
-    dtype = backend.result_type(scale.dtype, translation.dtype)
+    dtype = result_type(scale.dtype, translation.dtype)
     scale = scale.astype(dtype)
     translation = translation.astype(dtype)
     return _scale_and_translate(

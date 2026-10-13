@@ -6,11 +6,12 @@ import pytest
 from absl.testing import parameterized
 
 from keras.src import applications
-from keras.src import backend
 from keras.src import layers
 from keras.src import ops
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend import config
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.dtype_policies import dtype_policy
 from keras.src.layers.core.input_layer import Input
@@ -402,8 +403,8 @@ class FunctionalTest(testing.TestCase):
         model = Functional((float_input, int_input), (float_output, int_output))
         float_data, int_data = model((np.ones((2, 2)), np.ones((2, 2))))
 
-        self.assertEqual(backend.standardize_dtype(float_data.dtype), "float16")
-        self.assertEqual(backend.standardize_dtype(int_data.dtype), "int32")
+        self.assertEqual(standardize_dtype(float_data.dtype), "float16")
+        self.assertEqual(standardize_dtype(int_data.dtype), "int32")
 
     def test_serialization(self):
         # Test basic model
@@ -781,7 +782,7 @@ class FunctionalTest(testing.TestCase):
 
     def test_for_functional_in_sequential(self):
         # Test for a v3.4.1 regression.
-        if backend.image_data_format() == "channels_first":
+        if config.image_data_format() == "channels_first":
             image_size = (3, 100, 100)
         else:
             image_size = (100, 100, 3)
@@ -793,8 +794,8 @@ class FunctionalTest(testing.TestCase):
         model.add(base_model)
         model.add(layers.GlobalAveragePooling2D())
         model.add(layers.Dense(7, activation="softmax"))
-        config = model.get_config()
-        model = Sequential.from_config(config)
+        model_config = model.get_config()
+        model = Sequential.from_config(model_config)
 
     def test_add_loss(self):
         # TODO

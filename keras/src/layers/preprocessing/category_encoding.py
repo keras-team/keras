@@ -1,5 +1,5 @@
 from keras.src.api_export import keras_export
-from keras.src.backend import KerasTensor
+from keras.src.backend.common import KerasTensor
 from keras.src.layers.preprocessing.data_layer import DataLayer
 from keras.src.utils import backend_utils
 from keras.src.utils import numerical_utils

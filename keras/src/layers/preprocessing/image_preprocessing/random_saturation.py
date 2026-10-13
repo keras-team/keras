@@ -1,5 +1,5 @@
 from keras.src.api_export import keras_export
-from keras.src.backend import epsilon
+from keras.src.backend import config
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
@@ -99,7 +99,7 @@ class RandomSaturation(BaseImagePreprocessingLayer):
             maxval=self.factor[1],
             seed=seed,
         )
-        factor = factor / (1 - factor + epsilon())
+        factor = factor / (1 - factor + config.epsilon())
         return {"factor": factor}
 
     def transform_images(self, images, transformation=None, training=True):

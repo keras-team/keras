@@ -16,9 +16,9 @@ from keras.src import random
 from keras.src import saving
 from keras.src import testing
 from keras.src import utils
-from keras.src.backend.config import disable_flash_attention
-from keras.src.backend.config import enable_flash_attention
-from keras.src.backend.config import is_flash_attention_enabled
+from keras.src.backend import config
+from keras.src.backend.common import get_keras_mask
+from keras.src.backend.common import set_keras_mask
 
 
 class MultiHeadAttentionTest(testing.TestCase):
@@ -26,14 +26,14 @@ class MultiHeadAttentionTest(testing.TestCase):
         super().setUp()
         # Flash attention is a newly introduced feature. We need to disable it
         # for testing purposes.
-        disable_flash_attention()
+        config.disable_flash_attention()
 
     def tearDown(self):
         super().tearDown()
-        enable_flash_attention()
+        config.enable_flash_attention()
 
     def test_basics(self):
-        self.assertFalse(is_flash_attention_enabled())
+        self.assertFalse(config.is_flash_attention_enabled())
         self.run_layer_test(
             layers.MultiHeadAttention,
             init_kwargs={
@@ -111,7 +111,7 @@ class MultiHeadAttentionTest(testing.TestCase):
         reason="Flash attention only supported on JAX and Torch",
     )
     def test_basics_with_flash_attention(self):
-        enable_flash_attention()
+        config.enable_flash_attention()
         if backend.backend() == "torch":
             try:
                 self.run_layer_test(
@@ -440,10 +440,10 @@ class MultiHeadAttentionTest(testing.TestCase):
         self.assertTrue(layer.supports_masking)
         query = np.array([[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]])
         masked_query = layers.Embedding(4, 8, mask_zero=True)(query)
-        query_mask = backend.get_keras_mask(masked_query)
+        query_mask = get_keras_mask(masked_query)
         value = np.random.normal(size=(3, 3, 8))
         output = layer(query=masked_query, value=value)
-        self.assertAllClose(query_mask, backend.get_keras_mask(output))
+        self.assertAllClose(query_mask, get_keras_mask(output))
 
     @parameterized.named_parameters(("causal", True), ("not_causal", 0))
     def test_masking(self, use_causal_mask):
@@ -465,8 +465,8 @@ class MultiHeadAttentionTest(testing.TestCase):
         )
         if use_causal_mask:
             mask = mask & np.array([[[1, 0, 0], [1, 1, 0]] + [[1, 1, 1]] * 3])
-        backend.set_keras_mask(masked_query, None)
-        backend.set_keras_mask(masked_value, None)
+        set_keras_mask(masked_query, None)
+        set_keras_mask(masked_value, None)
         output_with_manual_mask = layer(
             query=masked_query, value=masked_value, attention_mask=mask
         )
@@ -721,7 +721,7 @@ class MultiHeadAttentionTest(testing.TestCase):
     def test_correctness(self, flash_attention):
         if flash_attention:
             # Let the backend decide whether to use flash attention
-            enable_flash_attention()
+            config.enable_flash_attention()
         dtype = "float16"  # Flash attention only accepts float16/bfloat16
 
         num_heads = 8

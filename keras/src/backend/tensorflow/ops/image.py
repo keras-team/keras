@@ -5,7 +5,11 @@ import operator
 import numpy as np
 import tensorflow as tf
 
-from keras.src import backend
+from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import is_int_dtype
+from keras.src.backend.common import result_type
+from keras.src.backend.common import standardize_dtype
+from keras.src.backend.config import standardize_data_format
 from keras.src.backend.tensorflow.ops.core import convert_to_tensor
 from keras.src.backend.tensorflow.ops.numpy import moveaxis
 from keras.src.random.seed_generator import draw_seed
@@ -50,7 +54,7 @@ SCALE_AND_TRANSLATE_METHODS = {
 
 def rgb_to_grayscale(images, data_format=None):
     images = convert_to_tensor(images)
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     channels_axis = -1 if data_format == "channels_last" else -3
     if len(images.shape) not in (3, 4):
         raise ValueError(
@@ -67,7 +71,7 @@ def rgb_to_grayscale(images, data_format=None):
         return tf.identity(images)
     # Convert to floats
     original_dtype = images.dtype
-    compute_dtype = backend.result_type(images.dtype, float)
+    compute_dtype = result_type(images.dtype, float)
     images = tf.cast(images, compute_dtype)
 
     # Ref: tf.image.rgb_to_grayscale
@@ -82,17 +86,17 @@ def rgb_to_grayscale(images, data_format=None):
 def rgb_to_hsv(images, data_format=None):
     images = convert_to_tensor(images)
     dtype = images.dtype
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if len(images.shape) not in (3, 4):
         raise ValueError(
             "Invalid images rank: expected rank 3 (single image) "
             "or rank 4 (batch of images). Received input with shape: "
             f"images.shape={images.shape}"
         )
-    if not backend.is_float_dtype(dtype):
+    if not is_float_dtype(dtype):
         raise ValueError(
             "Invalid images dtype: expected float dtype. "
-            f"Received: images.dtype={backend.standardize_dtype(dtype)}"
+            f"Received: images.dtype={standardize_dtype(dtype)}"
         )
     if data_format == "channels_first":
         if len(images.shape) == 4:
@@ -111,17 +115,17 @@ def rgb_to_hsv(images, data_format=None):
 def hsv_to_rgb(images, data_format=None):
     images = convert_to_tensor(images)
     dtype = images.dtype
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if len(images.shape) not in (3, 4):
         raise ValueError(
             "Invalid images rank: expected rank 3 (single image) "
             "or rank 4 (batch of images). Received input with shape: "
             f"images.shape={images.shape}"
         )
-    if not backend.is_float_dtype(dtype):
+    if not is_float_dtype(dtype):
         raise ValueError(
             "Invalid images dtype: expected float dtype. "
-            f"Received: images.dtype={backend.standardize_dtype(dtype)}"
+            f"Received: images.dtype={standardize_dtype(dtype)}"
         )
     if data_format == "channels_first":
         if len(images.shape) == 4:
@@ -148,7 +152,7 @@ def resize(
     fill_value=0.0,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if interpolation not in RESIZE_INTERPOLATIONS:
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
@@ -348,7 +352,7 @@ def affine_transform(
     fill_value=0,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS:
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
@@ -413,7 +417,7 @@ def perspective_transform(
     fill_value=0,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     start_points = convert_to_tensor(start_points, dtype=tf.float32)
     end_points = convert_to_tensor(end_points, dtype=tf.float32)
 
@@ -773,9 +777,9 @@ def gaussian_blur(
         kernel = tf.cast(kernel, dtype)
         return kernel
 
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     images = convert_to_tensor(images)
-    dtype = backend.standardize_dtype(images.dtype)
+    dtype = standardize_dtype(images.dtype)
     kernel_size = convert_to_tensor(kernel_size, dtype=dtype)
     sigma = convert_to_tensor(sigma, dtype=dtype)
 
@@ -819,7 +823,7 @@ def elastic_transform(
     seed=None,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS:
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
@@ -987,7 +991,7 @@ _kernels = {
 def _compute_weight_mat(
     input_size, output_size, scale, translation, kernel, antialias
 ):
-    dtype = backend.result_type(scale.dtype, translation.dtype)
+    dtype = result_type(scale.dtype, translation.dtype)
     inv_scale = 1.0 / scale
     kernel_scale = tf.maximum(inv_scale, 1.0) if antialias else 1.0
     sample_f = (
@@ -1028,7 +1032,7 @@ def _scale_and_translate(
     input_shape = tf.shape(x)
     if len(spatial_dims) == 0:
         return x
-    if backend.is_int_dtype(x.dtype):
+    if is_int_dtype(x.dtype):
         output = tf.cast(x, tf.float32)
         use_rounding = True
     else:
@@ -1076,7 +1080,7 @@ def scale_and_translate(
     scale = convert_to_tensor(scale)
     translation = convert_to_tensor(translation)
     kernel = _kernels[method]
-    dtype = backend.result_type(scale.dtype, translation.dtype)
+    dtype = result_type(scale.dtype, translation.dtype)
     scale = tf.cast(scale, dtype)
     translation = tf.cast(translation, dtype)
     return _scale_and_translate(

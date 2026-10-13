@@ -31,14 +31,24 @@ from keras.src import regularizers
 from keras.src import tree
 from keras.src import utils
 from keras.src.api_export import keras_export
-from keras.src.backend import KerasTensor
+from keras.src.backend import config
+from keras.src.backend.common import AutocastScope
+from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import StatelessScope
+from keras.src.backend.common import get_autocast_scope
+from keras.src.backend.common import get_keras_mask
+from keras.src.backend.common import get_stateless_scope
 from keras.src.backend.common import global_state
+from keras.src.backend.common import in_stateless_scope
+from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import remat
+from keras.src.backend.common import set_keras_mask
+from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common import standardize_shape
 from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.backend.common.name_scope import current_path
 from keras.src.backend.common.remat import get_current_remat_mode
 from keras.src.backend.common.symbolic_scope import in_symbolic_scope
-from keras.src.backend.config import is_nnx_enabled
 from keras.src.distribution import distribution_lib
 from keras.src.dtype_policies import DTypePolicyMap
 from keras.src.layers import input_spec
@@ -607,7 +617,7 @@ class Layer(BackendLayer, Operation):
         if shape is None:
             shape = ()
         if dtype is not None:
-            dtype = backend.standardize_dtype(dtype)
+            dtype = standardize_dtype(dtype)
         else:
             dtype = self.variable_dtype
         if initializer is None:
@@ -910,12 +920,12 @@ class Layer(BackendLayer, Operation):
         # 1. Convert any array arguments to tensors of correct dtype.
         def maybe_convert(x):
             # Prevent _keras_mask from disappearing
-            mask = backend.get_keras_mask(x)
+            mask = get_keras_mask(x)
             y = self.dtype_policy.convert_input(
                 x, self.autocast, self.input_dtype
             )
             if mask is not None:
-                backend.set_keras_mask(y, mask)
+                set_keras_mask(y, mask)
             return y
 
         # `kwargs` is usually a dict with just the `training` argument, which
@@ -929,7 +939,7 @@ class Layer(BackendLayer, Operation):
             kwargs_may_need_convert
             or len(args) != 1
             or not is_backend_tensor_or_symbolic(args[0], allow_none=False)
-            or backend.standardize_dtype(args[0].dtype) != self.input_dtype
+            or standardize_dtype(args[0].dtype) != self.input_dtype
         ) and self._convert_input_args:
             args = tree.map_structure(maybe_convert, args)
             kwargs = tree.map_structure(maybe_convert, kwargs)
@@ -990,7 +1000,7 @@ class Layer(BackendLayer, Operation):
                 arg_name = list(call_spec.tensor_arguments_dict.keys())[0]
                 only_tensor_arg = call_spec.tensor_arguments_dict[arg_name]
                 mask = tree.map_structure(
-                    backend.get_keras_mask,
+                    get_keras_mask,
                     only_tensor_arg,
                 )
                 kwargs["mask"] = mask
@@ -999,7 +1009,7 @@ class Layer(BackendLayer, Operation):
                 expected_mask_arg_name = f"{k}_mask"
                 if expected_mask_arg_name in call_spec.argument_names:
                     if call_spec.arguments_dict[expected_mask_arg_name] is None:
-                        mask = tree.map_structure(backend.get_keras_mask, v)
+                        mask = tree.map_structure(get_keras_mask, v)
                         kwargs[expected_mask_arg_name] = mask
 
         # We need to cache the `previous_mask` before `__call__` because the
@@ -1010,28 +1020,28 @@ class Layer(BackendLayer, Operation):
         else:
             # Case 2: Fallback to the mask attached to the first input tensor.
             previous_mask = tree.map_structure(
-                backend.get_keras_mask, call_spec.first_arg
+                get_keras_mask, call_spec.first_arg
             )
 
         ####################
         # 7. Call the layer.
         try:
             with self._open_name_scope():
-                current_scope = backend.get_autocast_scope()
+                current_scope = get_autocast_scope()
                 new_scope = None
                 if current_scope is not None:
                     # Clear or update the current scope if necessary.
                     if not self.autocast:
-                        new_scope = backend.AutocastScope(None)
-                    elif not backend.is_float_dtype(self.compute_dtype):
+                        new_scope = AutocastScope(None)
+                    elif not is_float_dtype(self.compute_dtype):
                         # Some preprocessing layers might have a non-float
                         # dtype, we should not autocast in this case.
-                        new_scope = backend.AutocastScope(None)
+                        new_scope = AutocastScope(None)
                     elif current_scope.dtype != self.compute_dtype:
-                        new_scope = backend.AutocastScope(self.compute_dtype)
+                        new_scope = AutocastScope(self.compute_dtype)
                 elif self.compute_dtype != self.variable_dtype:
                     # Enter a new scope if our dtypes are "mixed".
-                    new_scope = backend.AutocastScope(self.compute_dtype)
+                    new_scope = AutocastScope(self.compute_dtype)
                 if new_scope is not None:
                     with new_scope:
                         outputs = super().__call__(*args, **kwargs)
@@ -1224,7 +1234,7 @@ class Layer(BackendLayer, Operation):
         try:
             # Call in stateless scope
             losses = None
-            with backend.StatelessScope(
+            with StatelessScope(
                 state_mapping=mapping, collect_losses=return_losses
             ) as scope:
                 if self.quantization_mode is not None:
@@ -1330,8 +1340,8 @@ class Layer(BackendLayer, Operation):
                     "`add_loss()` can only be called from inside `build()` or "
                     f"`call()`, on a tensor input. Received invalid value: {x}"
                 )
-        if backend.in_stateless_scope():
-            scope = backend.get_stateless_scope()
+        if in_stateless_scope():
+            scope = get_stateless_scope()
             if scope.collect_losses:
                 for x in losses:
                     scope.add_loss(x)
@@ -1340,9 +1350,9 @@ class Layer(BackendLayer, Operation):
             self._losses.extend(losses)
 
     def _get_own_losses(self):
-        if backend.in_stateless_scope():
+        if in_stateless_scope():
             losses = []
-            scope = backend.get_stateless_scope()
+            scope = get_stateless_scope()
             for loss in scope.losses:
                 if id(loss) in self._loss_ids:
                     losses.append(loss)
@@ -1355,11 +1365,11 @@ class Layer(BackendLayer, Operation):
         for variable in self.trainable_weights:
             if variable.regularizer is None:
                 continue
-            if backend.in_stateless_scope() and not in_symbolic_scope():
+            if in_stateless_scope() and not in_symbolic_scope():
                 # If in symbolic scope, we might get `None` from
                 # `get_current_value` in `backend.compute_output_spec`. So we
                 # assign `variable` instead.
-                v = backend.get_stateless_scope().get_current_value(variable)
+                v = get_stateless_scope().get_current_value(variable)
             else:
                 v = variable
             weight_regularization_losses.append(variable.regularizer(v))
@@ -1378,8 +1388,8 @@ class Layer(BackendLayer, Operation):
         return losses
 
     def _clear_losses(self):
-        if backend.in_stateless_scope():
-            scope = backend.get_stateless_scope()
+        if in_stateless_scope():
+            scope = get_stateless_scope()
             if scope.collect_losses:
                 # Filter by identity (id) rather than using list.remove(),
                 # which compares by value. Value comparison on JAX tracers
@@ -1879,7 +1889,7 @@ class Layer(BackendLayer, Operation):
     def _build_by_run_for_single_pos_arg(self, input_shape):
         # Case: all inputs are in the first arg (possibly nested).
         input_tensors = tree.map_shape_structure(
-            lambda s: backend.KerasTensor(s), input_shape
+            lambda s: KerasTensor(s), input_shape
         )
         try:
             backend.compute_output_spec(self.call, input_tensors)
@@ -1893,7 +1903,7 @@ class Layer(BackendLayer, Operation):
             # Case: all input keyword arguments were plain tensors.
             input_tensors = {
                 # We strip the `_shape` suffix to recover kwarg names.
-                utils.removesuffix(k, "_shape"): backend.KerasTensor(shape)
+                utils.removesuffix(k, "_shape"): KerasTensor(shape)
                 for k, shape in shapes_dict.items()
             }
             try:
@@ -1928,7 +1938,7 @@ class Layer(BackendLayer, Operation):
         # which flax's attribute scanning cannot process.
         if (
             backend.backend() == "jax"
-            and is_nnx_enabled()
+            and config.is_nnx_enabled()
             and name
             in (
                 "_called",
@@ -2018,7 +2028,7 @@ class Layer(BackendLayer, Operation):
         flat_outputs = tree.flatten(outputs)
 
         mask_already_computed = all(
-            backend.get_keras_mask(x) is not None for x in flat_outputs
+            get_keras_mask(x) is not None for x in flat_outputs
         )
         if mask_already_computed:
             return
@@ -2029,8 +2039,8 @@ class Layer(BackendLayer, Operation):
 
         flat_masks = tree.flatten(output_masks)
         for tensor, mask in zip(flat_outputs, flat_masks):
-            if backend.get_keras_mask(tensor) is None and mask is not None:
-                backend.set_keras_mask(tensor, mask)
+            if get_keras_mask(tensor) is None and mask is not None:
+                set_keras_mask(tensor, mask)
 
     @python_utils.default
     def get_config(self):
@@ -2054,7 +2064,9 @@ class Layer(BackendLayer, Operation):
             # nnx.Object state and the object was created at a different trace
             # level. We check if we are in NNX mode and if we are in a JAX
             # trace.
-            if not (is_nnx_enabled() and jax_utils.is_in_jax_tracing_scope()):
+            if not (
+                config.is_nnx_enabled() and jax_utils.is_in_jax_tracing_scope()
+            ):
                 self._parent_path = current_path()
 
         return backend.name_scope(self.name, caller=self)
@@ -2169,7 +2181,7 @@ class Layer(BackendLayer, Operation):
 def is_backend_tensor_or_symbolic(x, allow_none=False):
     if allow_none and x is None:
         return True
-    return backend.ops.is_tensor(x) or isinstance(x, backend.KerasTensor)
+    return backend.ops.is_tensor(x) or isinstance(x, KerasTensor)
 
 
 class CallSpec:
@@ -2256,7 +2268,7 @@ def get_shapes_dict(call_spec):
     """
 
     def standardize_shape_or_none(x):
-        return None if x is None else backend.standardize_shape(x.shape)
+        return None if x is None else standardize_shape(x.shape)
 
     shapes_dict = {}
     for k, v in call_spec.tensor_arguments_dict.items():

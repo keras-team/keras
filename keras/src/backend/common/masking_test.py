@@ -1,6 +1,7 @@
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.masking import get_keras_mask
 from keras.src.backend.common.masking import set_keras_mask
 
@@ -40,4 +41,4 @@ class MaskingTest(testing.TestCase):
             set_keras_mask(x, None)  # key is now deleted, should be a no-op
             self.assertIsNone(get_keras_mask(x))
 
-        backend.compute_output_spec(fn, backend.KerasTensor((2, 3)))
+        backend.compute_output_spec(fn, KerasTensor((2, 3)))

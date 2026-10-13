@@ -2,9 +2,9 @@ import functools
 
 import numpy as np
 
-from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.visualization.draw_segmentation_masks import (
     draw_segmentation_masks,
 )
@@ -61,7 +61,7 @@ def plot_segmentation_mask_gallery(
     Raises:
         ValueError: If `images` is not a 4D tensor/array.
     """
-    data_format = data_format or backend.image_data_format()
+    data_format = data_format or config.image_data_format()
     image_shape = ops.shape(images)
     if len(image_shape) != 4:
         raise ValueError(

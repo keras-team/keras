@@ -3,9 +3,9 @@
 import math
 
 import keras
-from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes import (
     converters,
 )
@@ -153,7 +153,7 @@ def compute_iou(
     boxes1_area = ops.expand_dims(boxes1_area, axis=-1)
     boxes2_area = ops.expand_dims(boxes2_area, axis=boxes2_axis)
     union_area = boxes1_area + boxes2_area - intersect_area
-    res = ops.divide(intersect_area, union_area + backend.epsilon())
+    res = ops.divide(intersect_area, union_area + config.epsilon())
 
     if boxes1_rank == 2:
         perm = [1, 0]

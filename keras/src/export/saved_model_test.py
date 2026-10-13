@@ -14,6 +14,7 @@ from keras.src import ops
 from keras.src import random
 from keras.src import testing
 from keras.src import tree
+from keras.src.backend.common import KerasTensor
 from keras.src.export import saved_model
 from keras.src.saving import saving_lib
 from keras.src.testing.test_utils import named_product
@@ -314,7 +315,7 @@ class ExportSavedModelTest(testing.TestCase):
                     dtype="float32", shape=(None, 10), name="inputs"
                 ),
                 tf.TensorSpec((None, 10), dtype="float32", name="inputs"),
-                backend.KerasTensor((None, 10), dtype="float32", name="inputs"),
+                KerasTensor((None, 10), dtype="float32", name="inputs"),
                 "backend_tensor",
             ],
         )

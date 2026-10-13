@@ -13,6 +13,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import testing
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.export import onnx
 from keras.src.layers.input_spec import InputSpec as InputSpec
 from keras.src.saving import saving_lib
@@ -323,7 +324,7 @@ class ExportONNXTest(testing.TestCase):
         """
 
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
-        channels_last = backend.image_data_format() == "channels_last"
+        channels_last = config.image_data_format() == "channels_last"
 
         # Define input shapes based on dynamic type, ordered for the active
         # image data format so the channel axis is always static. The torch CI
@@ -406,7 +407,7 @@ class ExportONNXTest(testing.TestCase):
         """Test ONNX export with multi-input model having dynamic shapes."""
 
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
-        channels_last = backend.image_data_format() == "channels_last"
+        channels_last = config.image_data_format() == "channels_last"
 
         # Create multi-input model with dynamic shapes. The image input is
         # ordered for the active data format so the dynamic spatial axes never
@@ -562,7 +563,7 @@ class ExportONNXTest(testing.TestCase):
         length is static.
         """
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
-        channels_last = backend.image_data_format() == "channels_last"
+        channels_last = config.image_data_format() == "channels_last"
         seq_input = layers.Input(shape=(10, 16), name="seq_input")
         image_input = layers.Input(
             shape=(None, None, 3) if channels_last else (3, None, None),

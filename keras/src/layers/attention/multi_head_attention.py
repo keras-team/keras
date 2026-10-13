@@ -8,7 +8,10 @@ from keras.src import constraints
 from keras.src import initializers
 from keras.src import regularizers
 from keras.src.api_export import keras_export
-from keras.src.backend.config import is_flash_attention_enabled
+from keras.src.backend import config
+from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import get_keras_mask
+from keras.src.backend.common import set_keras_mask
 from keras.src.layers.activations.softmax import Softmax
 from keras.src.layers.core.einsum_dense import EinsumDense
 from keras.src.layers.layer import Layer
@@ -171,7 +174,9 @@ class MultiHeadAttention(Layer):
                     "list, or int."
                 )
         self._output_shape = output_shape
-        self._flash_attention = flash_attention or is_flash_attention_enabled()
+        self._flash_attention = (
+            flash_attention or config.is_flash_attention_enabled()
+        )
         self._kernel_initializer = initializers.get(kernel_initializer)
         self._bias_initializer = initializers.get(bias_initializer)
         self._kernel_regularizer = regularizers.get(kernel_regularizer)
@@ -626,10 +631,10 @@ class MultiHeadAttention(Layer):
 
         # Delete the masks because the masks are handled at the level of the
         # layer
-        query_mask = backend.get_keras_mask(query)
-        backend.set_keras_mask(query, None)
-        backend.set_keras_mask(value, None)
-        backend.set_keras_mask(key, None)
+        query_mask = get_keras_mask(query)
+        set_keras_mask(query, None)
+        set_keras_mask(value, None)
+        set_keras_mask(key, None)
 
         # When causal masking is the only mask source, route through the
         # backend's native causal kernel by passing `is_causal=True` rather
@@ -696,7 +701,7 @@ class MultiHeadAttention(Layer):
 
         # Set mask on output if needed
         if query_mask is not None:
-            backend.set_keras_mask(attention_output, query_mask)
+            set_keras_mask(attention_output, query_mask)
 
         if return_attention_scores:
             return attention_output, attention_scores
@@ -884,13 +889,11 @@ class MultiHeadAttention(Layer):
         output_shape = self.compute_output_shape(
             query.shape, value.shape, key_shape
         )
-        output_spec = backend.KerasTensor(
-            output_shape, dtype=self.compute_dtype
-        )
+        output_spec = KerasTensor(output_shape, dtype=self.compute_dtype)
         if return_attention_scores:
             length = query.shape[1]
             attention_shape = (query.shape[0], self.num_heads, length, length)
-            return output_spec, backend.KerasTensor(
+            return output_spec, KerasTensor(
                 attention_shape, dtype=self.compute_dtype
             )
         return output_spec

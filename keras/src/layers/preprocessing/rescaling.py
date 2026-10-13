@@ -1,5 +1,5 @@
-from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.layers.preprocessing.data_layer import DataLayer
 from keras.src.saving import serialization_lib
 
@@ -45,7 +45,7 @@ class Rescaling(DataLayer):
         scale_shape = self.backend.ops.shape(scale)
         if (
             len(scale_shape) > 0
-            and backend.image_data_format() == "channels_first"
+            and config.image_data_format() == "channels_first"
         ):
             scale = self.backend.ops.numpy.reshape(
                 scale, scale_shape + (1,) * (3 - len(scale_shape))

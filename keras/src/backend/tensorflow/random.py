@@ -1,7 +1,7 @@
 import tensorflow as tf
 
+from keras.src.backend import config
 from keras.src.backend.common import standardize_dtype
-from keras.src.backend.config import floatx
 from keras.src.random.seed_generator import SeedGenerator
 from keras.src.random.seed_generator import draw_seed
 from keras.src.random.seed_generator import make_default_seed
@@ -21,7 +21,7 @@ def _cast_seed(seed):
 
 
 def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
-    dtype = dtype or floatx()
+    dtype = dtype or config.floatx()
     seed = _cast_seed(draw_seed(seed))
     return tf.random.stateless_normal(
         shape=shape, mean=mean, stddev=stddev, dtype=dtype, seed=seed
@@ -29,7 +29,7 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 
 
 def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
-    dtype = dtype or floatx()
+    dtype = dtype or config.floatx()
     seed = _cast_seed(draw_seed(seed))
     return tf.random.stateless_uniform(
         shape=shape,
@@ -62,7 +62,7 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
 
 
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
-    dtype = dtype or floatx()
+    dtype = dtype or config.floatx()
     seed = _cast_seed(draw_seed(seed))
     return tf.random.stateless_truncated_normal(
         shape=shape, mean=mean, stddev=stddev, dtype=dtype, seed=seed
@@ -106,7 +106,7 @@ def shuffle(x, axis=0, seed=None):
 
 
 def gamma(shape, alpha, dtype=None, seed=None):
-    dtype = dtype or floatx()
+    dtype = dtype or config.floatx()
     seed = _cast_seed(draw_seed(seed))
     # TODO: `tf.random.stateless_gamma` doesn't support bfloat16
     intermediate_dtype = dtype
@@ -124,7 +124,7 @@ def gamma(shape, alpha, dtype=None, seed=None):
 
 
 def binomial(shape, counts, probabilities, dtype=None, seed=None):
-    dtype = dtype or floatx()
+    dtype = dtype or config.floatx()
     seed = _cast_seed(draw_seed(seed))
     # TODO: `tf.random.stateless_binomial` doesn't support bfloat16
     intermediate_dtype = dtype
@@ -143,7 +143,7 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
 
 
 def beta(shape, alpha, beta, dtype=None, seed=None):
-    dtype = dtype or floatx()
+    dtype = dtype or config.floatx()
     # since tensorflow doesn't offer a beta distribution function
     # so we'll use the formula U(a,b) = (X(a) / (X(a) + Y(b)),
     # where U(a,b) is a beta-distributed random variable with

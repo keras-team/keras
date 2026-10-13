@@ -6,6 +6,7 @@ import numpy as np
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.layers.preprocessing.data_layer import DataLayer
 from keras.src.trainers.data_adapters.py_dataset_adapter import PyDataset
 from keras.src.utils.module_utils import tensorflow as tf
@@ -454,7 +455,7 @@ class Normalization(DataLayer):
                 self.backend.ops.numpy.multiply(
                     inputs,
                     self.backend.ops.numpy.maximum(
-                        self.backend.ops.numpy.sqrt(variance), backend.epsilon()
+                        self.backend.ops.numpy.sqrt(variance), config.epsilon()
                     ),
                 ),
             )
@@ -462,7 +463,7 @@ class Normalization(DataLayer):
             return self.backend.ops.numpy.divide(
                 self.backend.ops.numpy.subtract(inputs, mean),
                 self.backend.ops.numpy.maximum(
-                    self.backend.ops.numpy.sqrt(variance), backend.epsilon()
+                    self.backend.ops.numpy.sqrt(variance), config.epsilon()
                 ),
             )
 

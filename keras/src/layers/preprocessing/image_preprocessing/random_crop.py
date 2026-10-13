@@ -1,5 +1,6 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.config import standardize_data_format
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
@@ -66,7 +67,7 @@ class RandomCrop(BaseImagePreprocessingLayer):
             seed if seed is not None else backend.random.make_default_seed()
         )
         self.generator = SeedGenerator(seed)
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
 
         if self.data_format == "channels_first":
             self.height_axis = -2

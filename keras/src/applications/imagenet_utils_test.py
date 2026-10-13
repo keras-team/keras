@@ -3,9 +3,9 @@ import pytest
 from absl.testing import parameterized
 
 import keras
-from keras.src import backend
 from keras.src import testing
 from keras.src.applications import imagenet_utils as utils
+from keras.src.backend import config
 from keras.src.dtype_policies.dtype_policy import set_dtype_policy
 
 
@@ -78,7 +78,7 @@ class TestImageNetUtils(testing.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     def test_preprocess_input_symbolic(self, mode):
-        backend_data_format = backend.image_data_format()
+        backend_data_format = config.image_data_format()
         # Test image batch
         if backend_data_format == "channels_last":
             x = np.random.uniform(0, 255, (2, 10, 10, 3))

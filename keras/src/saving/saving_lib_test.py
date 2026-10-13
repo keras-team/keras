@@ -17,6 +17,7 @@ import keras
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.saving import saving_lib
 from keras.src.utils import file_utils
 
@@ -775,7 +776,7 @@ class SavingTest(testing.TestCase):
     def test_weights_sharding(self, model_name, max_shard_size):
         from keras.src.applications import efficientnet
 
-        if backend.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             shape = (224, 224, 3)
         else:
             shape = (3, 224, 224)

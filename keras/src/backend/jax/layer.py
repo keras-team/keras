@@ -1,7 +1,7 @@
+from keras.src.backend import config
 from keras.src.backend.common.symbolic_scope import in_symbolic_scope
-from keras.src.backend.config import is_nnx_enabled
 
-if is_nnx_enabled():
+if config.is_nnx_enabled():
     from flax import nnx
 
     class BaseLayer(nnx.Module):

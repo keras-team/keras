@@ -5,6 +5,7 @@ from keras.src import backend
 from keras.src import initializers
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.metrics import metrics_utils
 from keras.src.metrics.metric import Metric
 from keras.src.utils.python_utils import to_list
@@ -1249,7 +1250,7 @@ class AUC(Metric):
         # Add an endpoint "threshold" below zero and above one for either
         # threshold method to account for floating point imprecisions.
         self._thresholds = np.array(
-            [0.0 - backend.epsilon()] + thresholds + [1.0 + backend.epsilon()]
+            [0.0 - config.epsilon()] + thresholds + [1.0 + config.epsilon()]
         )
 
         if isinstance(curve, metrics_utils.AUCCurve):

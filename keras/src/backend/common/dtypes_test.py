@@ -6,6 +6,7 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import ops
 from keras.src.backend.common import dtypes
+from keras.src.backend.common.dtypes import result_type
 from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
 
@@ -44,7 +45,7 @@ class DtypesTest(test_case.TestCase):
     def test_result_type_with_python_scalar_types(self, dtype1, dtype2):
         import jax.numpy as jnp
 
-        out = backend.result_type(dtype1, dtype2)
+        out = result_type(dtype1, dtype2)
         expected = jnp.result_type(dtype1, dtype2).name
         self.assertEqual(out, expected)
 
@@ -59,7 +60,7 @@ class DtypesTest(test_case.TestCase):
         x1_jax = jnp.ones((1,), dtype=dtype1)
         x2_jax = jnp.ones((1,), dtype=dtype2)
 
-        out = backend.result_type(x1.dtype, x2.dtype)
+        out = result_type(x1.dtype, x2.dtype)
         expected = jnp.result_type(x1_jax, x2_jax).name
         self.assertEqual(out, expected)
 
@@ -83,7 +84,7 @@ class DtypesTest(test_case.TestCase):
         # https://github.com/keras-team/keras/issues/21677
         x1 = ops.ones((1,), dtype="int64")
         x2 = ops.ones((1,), dtype=dtype)
-        out = backend.result_type(x1.dtype, x2.dtype)
+        out = result_type(x1.dtype, x2.dtype)
         self.assertEqual(out, "int64")
 
     @parameterized.named_parameters(
@@ -110,16 +111,16 @@ class DtypesTest(test_case.TestCase):
         # https://github.com/keras-team/keras/issues/21677
         x1 = ops.ones((1,), dtype="float64")
         x2 = ops.ones((1,), dtype=dtype)
-        out = backend.result_type(x1.dtype, x2.dtype)
+        out = result_type(x1.dtype, x2.dtype)
         self.assertEqual(out, "float64")
 
     def test_result_type_with_none(self):
         import jax.numpy as jnp
 
-        self.assertEqual(backend.result_type(None), jnp.result_type(None).name)
+        self.assertEqual(result_type(None), jnp.result_type(None).name)
 
     def test_result_type_empty_list(self):
-        self.assertEqual(backend.result_type(), "float32")
+        self.assertEqual(result_type(), "float32")
 
     def test_respect_weak_type_for_bool(self):
         self.assertEqual(dtypes._respect_weak_type("bool", True), "bool")

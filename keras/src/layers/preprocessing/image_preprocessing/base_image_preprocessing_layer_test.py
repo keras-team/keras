@@ -1,8 +1,8 @@
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 
 
 class BaseImagePreprocessingLayerTest(testing.TestCase):
@@ -61,11 +61,11 @@ class BaseImagePreprocessingLayerTest(testing.TestCase):
         # silently reset it to the global image data format.
         data_format = (
             "channels_first"
-            if backend.image_data_format() == "channels_last"
+            if config.image_data_format() == "channels_last"
             else "channels_last"
         )
         layer = layer_cls(data_format=data_format, **init_kwargs)
-        config = layer.get_config()
-        self.assertIn("data_format", config)
-        revived = layer_cls.from_config(config)
+        layer_config = layer.get_config()
+        self.assertIn("data_format", layer_config)
+        revived = layer_cls.from_config(layer_config)
         self.assertEqual(revived.data_format, data_format)

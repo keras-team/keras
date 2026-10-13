@@ -2,9 +2,8 @@ import collections
 
 from keras.src import tree
 from keras.src.api_export import keras_export
-from keras.src.backend import KerasTensor
-from keras.src.backend.config import backend
-from keras.src.backend.config import is_nnx_enabled
+from keras.src.backend import config
+from keras.src.backend.common import KerasTensor
 from keras.src.ops.operation import Operation
 
 
@@ -46,7 +45,7 @@ class Function(Operation):
     def __init__(self, inputs, outputs, name=None):
         super().__init__(name=name)
 
-        if backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             # Temporary work around for
             # https://github.com/keras-team/keras/issues/931
             # This stop tensorflow from wrapping tf.function output in a
@@ -72,7 +71,7 @@ class Function(Operation):
                 f"outputs={outputs}"
             )
 
-        if backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             self._self_setattr_tracking = _self_setattr_tracking
 
         (nodes, nodes_by_depth, operations, operations_by_depth) = map_graph(
@@ -92,7 +91,7 @@ class Function(Operation):
         )
 
         # Special handling for NNX to ensure consistent operation instance usage
-        if is_nnx_enabled():
+        if config.is_nnx_enabled():
             self._setup_nnx_op_mapping()
 
     @property

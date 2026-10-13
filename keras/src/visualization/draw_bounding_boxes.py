@@ -1,8 +1,8 @@
 import numpy as np
 
-from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
     convert_format,
 )
@@ -86,7 +86,7 @@ def draw_bounding_boxes(
     text_thickness = (
         text_thickness or line_thickness
     )  # Default text_thickness if not provided.
-    data_format = data_format or backend.image_data_format()
+    data_format = data_format or config.image_data_format()
     images_shape = ops.shape(images)
     if len(images_shape) != 4:
         raise ValueError(

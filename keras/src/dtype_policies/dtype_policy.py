@@ -1,7 +1,11 @@
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import global_state
+from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import is_keras_tensor
+from keras.src.backend.common import standardize_dtype
 
 QUANTIZATION_MODES = ("int8", "float8", "int4", "ternary", "gptq", "awq")
 
@@ -211,7 +215,7 @@ class DTypePolicy:
         elif name == "mixed_bfloat16":
             return "bfloat16", "float32"
         try:
-            dtype = backend.standardize_dtype(name)
+            dtype = standardize_dtype(name)
             return dtype, dtype
         except ValueError:
             raise ValueError(
@@ -282,12 +286,12 @@ class DTypePolicy:
         floats.
         """
 
-        dtype = backend.standardize_dtype(dtype)
+        dtype = standardize_dtype(dtype)
         if backend.ops.is_tensor(x):
             if self._should_cast(x, autocast, dtype):
                 x = backend.ops.cast(x, dtype=dtype)
             return x
-        elif backend.is_keras_tensor(x):
+        elif is_keras_tensor(x):
             if self._should_cast(x, autocast, dtype):
                 x = ops.cast(x, dtype=dtype)
             return x
@@ -324,8 +328,8 @@ class DTypePolicy:
         return self._name == other._name
 
     def _should_cast(self, x, autocast, dtype):
-        x_dtype = backend.standardize_dtype(x.dtype)
-        if autocast and backend.is_float_dtype(x_dtype) and x_dtype != dtype:
+        x_dtype = standardize_dtype(x.dtype)
+        if autocast and is_float_dtype(x_dtype) and x_dtype != dtype:
             return True
         else:
             return False
@@ -629,7 +633,7 @@ def dtype_policy():
     """Returns the current default dtype policy object."""
     policy = global_state.get_global_attribute("dtype_policy", None)
     if policy is None:
-        policy = DTypePolicy(backend.floatx())
+        policy = DTypePolicy(config.floatx())
         set_dtype_policy(policy)
     return policy
 

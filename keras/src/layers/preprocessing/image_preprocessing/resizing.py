@@ -1,5 +1,6 @@
-from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.common import is_int_dtype
+from keras.src.backend.config import standardize_data_format
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
@@ -97,7 +98,7 @@ class Resizing(BaseImagePreprocessingLayer):
         self.height = height
         self.width = width
         self.interpolation = interpolation
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
         self.crop_to_aspect_ratio = crop_to_aspect_ratio
         self.pad_to_aspect_ratio = pad_to_aspect_ratio
         self.fill_mode = fill_mode
@@ -125,7 +126,7 @@ class Resizing(BaseImagePreprocessingLayer):
         )
         if resized.dtype == images.dtype:
             return resized
-        if backend.is_int_dtype(images.dtype):
+        if is_int_dtype(images.dtype):
             resized = self.backend.ops.numpy.round(resized)
         return _saturate_cast(resized, images.dtype, self.backend)
 

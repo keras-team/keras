@@ -9,6 +9,7 @@ from keras.src import backend
 from keras.src import initializers
 from keras.src import ops
 from keras.src.backend.common import dtypes
+from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.backend.common.variables import AutocastScope
 from keras.src.backend.common.variables import shape_equal
 from keras.src.backend.common.variables import standardize_dtype
@@ -22,7 +23,7 @@ class VariableInitializationTest(test_case.TestCase):
 
     def test_deferred_initialization(self):
         """Tests deferred initialization of variables."""
-        with backend.StatelessScope():
+        with StatelessScope():
             v = backend.Variable(
                 initializer=initializers.RandomNormal(), shape=(2, 2)
             )
@@ -32,7 +33,7 @@ class VariableInitializationTest(test_case.TestCase):
         self.assertEqual(v._value.shape, (2, 2))
 
         with self.assertRaisesRegex(ValueError, "while in a stateless scope"):
-            with backend.StatelessScope():
+            with StatelessScope():
                 v = backend.Variable(initializer=0)
 
     def test_variable_initialization_with_numpy_array(self):
@@ -146,7 +147,7 @@ class VariablePropertiesTest(test_case.TestCase):
 
     def test_deferred_assignment(self):
         """Tests deferred assignment to variables."""
-        with backend.StatelessScope() as scope:
+        with StatelessScope() as scope:
             v = backend.Variable(
                 initializer=initializers.RandomNormal(), shape=(2, 2)
             )
@@ -255,12 +256,10 @@ class VariablePropertiesTest(test_case.TestCase):
             dtype="float32",
         )
         self.assertEqual(v.dtype, "float32")
-        self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
+        self.assertEqual(standardize_dtype(v.value.dtype), "float32")
         with AutocastScope("float16"):
-            self.assertEqual(
-                backend.standardize_dtype(v.value.dtype), "float16"
-            )
-        self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
+            self.assertEqual(standardize_dtype(v.value.dtype), "float16")
+        self.assertEqual(standardize_dtype(v.value.dtype), "float32")
 
     def test_autocasting_float_assign(self):
         # Tests assigning value to variable within an autocast scope
@@ -270,23 +269,19 @@ class VariablePropertiesTest(test_case.TestCase):
             dtype="float32",
         )
         self.assertEqual(v.dtype, "float32")
-        self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
+        self.assertEqual(standardize_dtype(v.value.dtype), "float32")
 
         # Assign float16 value within float16 scope
         with AutocastScope("float16"):
-            self.assertEqual(
-                backend.standardize_dtype(v.value.dtype), "float16"
-            )
+            self.assertEqual(standardize_dtype(v.value.dtype), "float16")
             v.assign(ops.ones((2, 2), "float16"))
-        self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
+        self.assertEqual(standardize_dtype(v.value.dtype), "float32")
 
         # Assign float32 value within float16 scope
         with AutocastScope("float16"):
-            self.assertEqual(
-                backend.standardize_dtype(v.value.dtype), "float16"
-            )
+            self.assertEqual(standardize_dtype(v.value.dtype), "float16")
             v.assign(ops.zeros((2, 2), "float32"))
-        self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
+        self.assertEqual(standardize_dtype(v.value.dtype), "float32")
 
     def test_autocasting_int(self):
         # Test non-float variables are not affected
@@ -297,10 +292,10 @@ class VariablePropertiesTest(test_case.TestCase):
             trainable=False,
         )
         self.assertEqual(v.dtype, "int32")
-        self.assertEqual(backend.standardize_dtype(v.value.dtype), "int32")
+        self.assertEqual(standardize_dtype(v.value.dtype), "int32")
 
         with AutocastScope("float16"):
-            self.assertEqual(backend.standardize_dtype(v.value.dtype), "int32")
+            self.assertEqual(standardize_dtype(v.value.dtype), "int32")
 
     def test_autocasting_float_with_autocast_off(self):
         # Test autocast argument
@@ -311,13 +306,13 @@ class VariablePropertiesTest(test_case.TestCase):
             autocast=False,
         )
         self.assertEqual(v.dtype, "float32")
-        self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
+        self.assertEqual(standardize_dtype(v.value.dtype), "float32")
         with AutocastScope("float16"):
             self.assertEqual(
-                backend.standardize_dtype(v.value.dtype),
+                standardize_dtype(v.value.dtype),
                 "float32",  # ignore AutocastScope
             )
-        self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
+        self.assertEqual(standardize_dtype(v.value.dtype), "float32")
 
     @parameterized.named_parameters(
         ("autocast_on", True),
@@ -336,7 +331,7 @@ class VariablePropertiesTest(test_case.TestCase):
             v.assign(np.ones((2, 2), "float32"))
             v.assign_add(np.full((2, 2), 2.0, "float32"))
         self.assertAllClose(v.value, np.full((2, 2), 3.0))
-        self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
+        self.assertEqual(standardize_dtype(v.value.dtype), "float32")
 
     @parameterized.named_parameters(
         named_product(
@@ -381,7 +376,7 @@ class VariablePropertiesTest(test_case.TestCase):
         import torch
 
         x = torch.randn(4, 4)
-        backend.standardize_dtype(x.dtype)
+        standardize_dtype(x.dtype)
 
     def test_name_validation(self):
         """Tests validation of variable names."""
@@ -575,7 +570,7 @@ class VariableNumpyValueAndAssignmentTest(test_case.TestCase):
 
     def test_deferred_initialize_within_stateless_scope(self):
         """Test deferred init within a stateless scope."""
-        with backend.StatelessScope():
+        with StatelessScope():
             v = backend.Variable(
                 initializer=initializers.RandomNormal(), shape=(2, 2)
             )
@@ -620,7 +615,7 @@ class VariableDtypeShapeNdimRepr(test_case.TestCase):
         self.assertEqual(repr(v), expected_repr)
 
         # Test with `backend.StatelessScope()`
-        with backend.StatelessScope():
+        with StatelessScope():
             v = backend.Variable(
                 initializer="zeros", shape=(3,), name="test_var"
             )

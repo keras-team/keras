@@ -10,6 +10,7 @@ from torch.distributed.tensor import DTensor
 from torch.distributed.tensor import Replicate
 
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import global_state
 from keras.src.backend.common import standardize_dtype
@@ -21,7 +22,6 @@ from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.backend.common.stateless_scope import get_stateless_scope
 from keras.src.backend.common.stateless_scope import in_stateless_scope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
-from keras.src.backend.config import floatx
 
 _GLOBAL_DTENSOR_PROMOTION_MODE = None
 _DTENSOR_PROMOTION_ACTIVE = False
@@ -355,7 +355,7 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         elif isinstance(x, int):
             dt = torch.int64 if x < -(2**31) or x >= 2**31 else torch.int32
         elif isinstance(x, float):
-            dt = to_torch_dtype(floatx())
+            dt = to_torch_dtype(config.floatx())
         else:
             dt = torch.complex64
         return torch.as_tensor(x, dtype=dt, device=get_device())

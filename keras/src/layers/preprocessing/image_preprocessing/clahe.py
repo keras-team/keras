@@ -1,5 +1,5 @@
-from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.config import standardize_data_format
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
@@ -84,7 +84,7 @@ class ContrastLimitedAdaptiveHistogramEqualization(BaseImagePreprocessingLayer):
         self.value_range = value_range
         self.clip_limit = clip_limit
         self.tile_grid_size = tile_grid_size
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
 
     def transform_images(self, images, transformation=None, training=True):
         if self.data_format == "channels_first":

@@ -1,6 +1,6 @@
-from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.bounding_box import (  # noqa: E501
     BoundingBox,
 )
@@ -329,8 +329,8 @@ def encode_box_to_deltas(
         height=height,
         width=width,
     )
-    anchor_dimensions = ops.maximum(encoded_anchors[..., 2:], backend.epsilon())
-    box_dimensions = ops.maximum(boxes[..., 2:], backend.epsilon())
+    anchor_dimensions = ops.maximum(encoded_anchors[..., 2:], config.epsilon())
+    box_dimensions = ops.maximum(boxes[..., 2:], config.epsilon())
     # anchors be unbatched, boxes can either be batched or unbatched.
     boxes_delta = ops.concatenate(
         [

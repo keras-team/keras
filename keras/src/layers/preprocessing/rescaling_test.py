@@ -5,6 +5,7 @@ from tensorflow import data as tf_data
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 
 
 class RescalingTest(testing.TestCase):
@@ -88,14 +89,14 @@ class RescalingTest(testing.TestCase):
             self.assertEqual("cpu", str(output.device))
 
     def test_rescaling_with_channels_first_and_vector_scale(self):
-        config = backend.image_data_format()
-        backend.set_image_data_format("channels_first")
+        data_format = config.image_data_format()
+        config.set_image_data_format("channels_first")
         layer = layers.Rescaling(
             scale=[1.0 / 255, 1.5 / 255, 2.0 / 255], offset=0.5
         )
         x = np.random.random((2, 3, 10, 10)) * 255
         layer(x)
-        backend.set_image_data_format(config)
+        config.set_image_data_format(data_format)
 
     def test_numpy_args(self):
         # https://github.com/keras-team/keras/issues/20072

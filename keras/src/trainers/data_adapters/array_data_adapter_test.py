@@ -8,6 +8,8 @@ import torch
 from absl.testing import parameterized
 
 from keras.src import backend
+from keras.src.backend import config
+from keras.src.backend.common import standardize_dtype
 from keras.src.distribution import distribution_lib as dist_lib
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import array_data_adapter
@@ -109,10 +111,8 @@ class TestArrayDataAdapter(data_adapter_test_base.DataAdapterTest):
             bx, by = batch
             self.assertIsInstance(bx, expected_class)
             self.assertIsInstance(by, expected_class)
-            self.assertEqual(
-                backend.standardize_dtype(bx.dtype), backend.floatx()
-            )
-            self.assertEqual(backend.standardize_dtype(by.dtype), "int32")
+            self.assertEqual(standardize_dtype(bx.dtype), config.floatx())
+            self.assertEqual(standardize_dtype(by.dtype), "int32")
             if i < 2:
                 self.assertEqual(bx.shape, (16, xdim1))
                 self.assertEqual(by.shape, (16, ydim1))
@@ -200,7 +200,7 @@ class TestArrayDataAdapter(data_adapter_test_base.DataAdapterTest):
             self.assertIsInstance(bw[1], np.ndarray)
 
             self.assertEqual(bx["x1"].dtype, by[0].dtype)
-            self.assertEqual(bx["x1"].dtype, backend.floatx())
+            self.assertEqual(bx["x1"].dtype, config.floatx())
             if i < 2:
                 self.assertEqual(bx["x1"].shape, (16, 1))
                 self.assertEqual(bx["x2"].shape, (16, 2))
@@ -231,7 +231,7 @@ class TestArrayDataAdapter(data_adapter_test_base.DataAdapterTest):
             self.assertIsInstance(bw[1], tf.Tensor)
 
             self.assertEqual(bx["x1"].dtype, by[0].dtype)
-            self.assertEqual(bx["x1"].dtype, backend.floatx())
+            self.assertEqual(bx["x1"].dtype, config.floatx())
             if i < 2:
                 self.assertEqual(tuple(bx["x1"].shape), (16, 1))
                 self.assertEqual(tuple(bx["x2"].shape), (16, 2))

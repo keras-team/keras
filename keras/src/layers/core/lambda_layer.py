@@ -4,6 +4,7 @@ import types
 from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend.common import KerasTensor
 from keras.src.layers.layer import Layer
 from keras.src.saving import serialization_lib
 from keras.src.utils import python_utils
@@ -86,7 +87,7 @@ class Lambda(Layer):
             # Leverage backend shape inference
             try:
                 inputs = tree.map_shape_structure(
-                    lambda x: backend.KerasTensor(x, dtype=self.compute_dtype),
+                    lambda x: KerasTensor(x, dtype=self.compute_dtype),
                     input_shape,
                 )
                 output_spec = backend.compute_output_spec(self.call, inputs)

@@ -1,3 +1,5 @@
+from keras.src.backend.common import standardize_dtype
+
 """Registry of quantization strategies, one per mode.
 
 This module is the single dispatch point for quantization behavior. Each
@@ -299,7 +301,6 @@ def register_quantization_strategy(strategy):
     modes match only their exact grammar, so collisions between them are
     unambiguous).
     """
-    from keras.src import backend
     from keras.src.dtype_policies.dtype_policy import QUANTIZATION_MODES
 
     instance = strategy() if isinstance(strategy, type) else strategy
@@ -321,7 +322,7 @@ def register_quantization_strategy(strategy):
         )
     if name not in QUANTIZATION_MODES:
         try:
-            backend.standardize_dtype(name)
+            standardize_dtype(name)
             is_standard_dtype = True
         except ValueError:
             is_standard_dtype = False

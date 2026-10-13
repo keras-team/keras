@@ -2,8 +2,8 @@ import torch
 import torch._dynamo as dynamo
 import torch.nn.functional as tnn
 
+from keras.src.backend import config
 from keras.src.backend.common.backend_utils import canonicalize_axis
-from keras.src.backend.config import floatx
 from keras.src.backend.torch.ops.core import convert_to_tensor
 from keras.src.backend.torch.ops.core import get_device
 from keras.src.backend.torch.ops.core import to_torch_dtype
@@ -29,7 +29,7 @@ def torch_seed_generator(seed):
 
 
 def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
-    dtype = dtype or floatx()
+    dtype = dtype or config.floatx()
     dtype = to_torch_dtype(dtype)
     # Do not use generator during symbolic execution.
     if get_device() == "meta":
@@ -68,7 +68,7 @@ def categorical(logits, num_samples, dtype="int32", seed=None):
 
 
 def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
-    dtype = dtype or floatx()
+    dtype = dtype or config.floatx()
     dtype = to_torch_dtype(dtype)
     requested_shape = shape
     if len(requested_shape) == 0:
@@ -202,7 +202,7 @@ def shuffle(x, axis=0, seed=None):
 
 
 def gamma(shape, alpha, dtype=None, seed=None):
-    dtype = dtype or floatx()
+    dtype = dtype or config.floatx()
     dtype = to_torch_dtype(dtype)
     alpha = torch.broadcast_to(convert_to_tensor(alpha), shape)
     beta = torch.ones(shape, device=get_device())
@@ -218,7 +218,7 @@ def gamma(shape, alpha, dtype=None, seed=None):
 
 
 def binomial(shape, counts, probabilities, dtype=None, seed=None):
-    dtype = dtype or floatx()
+    dtype = dtype or config.floatx()
     dtype = to_torch_dtype(dtype)
     counts = torch.broadcast_to(convert_to_tensor(counts), shape)
     probabilities = torch.broadcast_to(convert_to_tensor(probabilities), shape)
@@ -236,7 +236,7 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
 
 
 def beta(shape, alpha, beta, dtype=None, seed=None):
-    dtype = dtype or floatx()
+    dtype = dtype or config.floatx()
     dtype = to_torch_dtype(dtype)
     alpha = torch.broadcast_to(convert_to_tensor(alpha), shape)
     beta = torch.broadcast_to(convert_to_tensor(beta), shape)

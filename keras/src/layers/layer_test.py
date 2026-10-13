@@ -14,7 +14,10 @@ from keras.src import models
 from keras.src import ops
 from keras.src import random
 from keras.src import testing
+from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import get_keras_mask
 from keras.src.backend.common import global_state
+from keras.src.backend.common import set_keras_mask
 from keras.src.backend.common.remat import RematScope
 from keras.src.models import Model
 from keras.src.quantizers.geometry import ProjectionGeometry
@@ -51,7 +54,7 @@ class LayerTest(testing.TestCase):
 
         layer = TestLayer()
         self.assertEqual(
-            layer.compute_output_spec(backend.KerasTensor((2, 3))).shape, (2, 3)
+            layer.compute_output_spec(KerasTensor((2, 3))).shape, (2, 3)
         )
 
         # Case: tuple output
@@ -63,7 +66,7 @@ class LayerTest(testing.TestCase):
                 return (input_shape, input_shape)
 
         layer = TestLayer()
-        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        out = layer.compute_output_spec(KerasTensor((2, 3)))
         self.assertIsInstance(out, tuple)
         self.assertEqual(len(out), 2)
         self.assertEqual(out[0].shape, (2, 3))
@@ -78,7 +81,7 @@ class LayerTest(testing.TestCase):
                 return [input_shape, input_shape]
 
         layer = TestLayer()
-        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        out = layer.compute_output_spec(KerasTensor((2, 3)))
         self.assertIsInstance(out, list)
         self.assertEqual(len(out), 2)
         self.assertEqual(out[0].shape, (2, 3))
@@ -93,7 +96,7 @@ class LayerTest(testing.TestCase):
                 return {"1": input_shape, "2": input_shape}
 
         layer = TestLayer()
-        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        out = layer.compute_output_spec(KerasTensor((2, 3)))
         self.assertIsInstance(out, dict)
         self.assertEqual(len(out), 2)
         self.assertEqual(out["1"].shape, (2, 3))
@@ -112,7 +115,7 @@ class LayerTest(testing.TestCase):
                 )
 
         layer = TestLayer()
-        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        out = layer.compute_output_spec(KerasTensor((2, 3)))
         self.assertIsInstance(out, tuple)
         self.assertEqual(len(out), 3)
         self.assertEqual(out[0].shape, (2, 3))
@@ -137,7 +140,7 @@ class LayerTest(testing.TestCase):
                 }
 
         layer = TestLayer()
-        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        out = layer.compute_output_spec(KerasTensor((2, 3)))
         self.assertIsInstance(out, dict)
         self.assertEqual(len(out), 2)
         self.assertEqual(out["1"].shape, (2, 3))
@@ -153,7 +156,7 @@ class LayerTest(testing.TestCase):
                     return x
                 return x + 1
 
-        x = backend.KerasTensor(shape=(2, 3), name="x")
+        x = KerasTensor(shape=(2, 3), name="x")
         with self.assertRaisesRegex(
             ValueError, "Only input tensors may be passed as"
         ):
@@ -578,7 +581,7 @@ class LayerTest(testing.TestCase):
                 return self.dense1(x)
 
         layer = LayerWithUnbuiltState(2)
-        layer(backend.KerasTensor((3, 4)))
+        layer(KerasTensor((3, 4)))
         self.assertLen(layer.weights, 2)
 
         class KwargsLayerWithUnbuiltState(layers.Layer):
@@ -591,11 +594,11 @@ class LayerTest(testing.TestCase):
                 return self.dense1(x1) + self.dense2(x2)
 
         layer = KwargsLayerWithUnbuiltState(2)
-        layer(backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4)))
+        layer(KerasTensor((3, 4)), KerasTensor((3, 4)))
         self.assertLen(layer.weights, 4)
 
         layer = KwargsLayerWithUnbuiltState(2)
-        layer(x1=backend.KerasTensor((3, 4)), x2=backend.KerasTensor((3, 4)))
+        layer(x1=KerasTensor((3, 4)), x2=KerasTensor((3, 4)))
         self.assertLen(layer.weights, 4)
 
         class DictLayerWithUnbuiltState(layers.Layer):
@@ -612,14 +615,14 @@ class LayerTest(testing.TestCase):
         layer = DictLayerWithUnbuiltState(2)
         layer(
             {
-                "x1": backend.KerasTensor((3, 4)),
-                "x2": backend.KerasTensor((3, 4)),
+                "x1": KerasTensor((3, 4)),
+                "x2": KerasTensor((3, 4)),
             }
         )
         self.assertLen(layer.weights, 2)
 
         layer = DictLayerWithUnbuiltState(2)
-        layer({"x1": backend.KerasTensor((3, 4)), "x2": None})
+        layer({"x1": KerasTensor((3, 4)), "x2": None})
         self.assertLen(layer.weights, 2)
 
         class ListLayerWithUnbuiltState(layers.Layer):
@@ -634,11 +637,11 @@ class LayerTest(testing.TestCase):
                 return result
 
         layer = ListLayerWithUnbuiltState(2)
-        layer([backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4))])
+        layer([KerasTensor((3, 4)), KerasTensor((3, 4))])
         self.assertLen(layer.weights, 2)
 
         layer = ListLayerWithUnbuiltState(2)
-        layer([backend.KerasTensor((3, 4)), None])
+        layer([KerasTensor((3, 4)), None])
         self.assertLen(layer.weights, 2)
 
     def test_activity_regularization(self):
@@ -953,10 +956,10 @@ class LayerTest(testing.TestCase):
 
         x = ops.zeros((1, 2), dtype="float32")
         mask = ops.array([True, False])
-        backend.set_keras_mask(x, mask)
+        set_keras_mask(x, mask)
         y = CustomLayer(dtype="float16")(x)
         self.assertAllEqual(
-            backend.get_keras_mask(y),
+            get_keras_mask(y),
             mask,
             msg="Masking is not propagated by Autocast",
         )
@@ -994,7 +997,7 @@ class LayerTest(testing.TestCase):
         layer = BasicMaskedLayer()
         x = backend.ops.numpy.ones((4, 4))
         mask = backend.ops.numpy.ones((4,))
-        backend.set_keras_mask(x, mask)
+        set_keras_mask(x, mask)
         layer(x)
 
         layer(backend.ops.numpy.ones((4, 4)), mask=backend.ops.numpy.ones((4,)))
@@ -1014,10 +1017,10 @@ class LayerTest(testing.TestCase):
         layer = NestedInputMaskedLayer()
         x1 = backend.ops.numpy.ones((4, 4))
         mask1 = backend.ops.numpy.ones((4,))
-        backend.set_keras_mask(x1, mask1)
+        set_keras_mask(x1, mask1)
         x2 = backend.ops.numpy.ones((4, 4))
         mask2 = backend.ops.numpy.ones((4,))
-        backend.set_keras_mask(x2, mask2)
+        set_keras_mask(x2, mask2)
         layer([x1, x2])
 
         layer(
@@ -1054,13 +1057,13 @@ class LayerTest(testing.TestCase):
         layer = PositionalNestedInputsMaskedLayer()
         x1_1 = backend.ops.numpy.ones((4, 4))
         mask1 = backend.ops.numpy.ones((4,))
-        backend.set_keras_mask(x1_1, mask1)
+        set_keras_mask(x1_1, mask1)
         x1_2 = backend.ops.numpy.ones((4, 4))
         mask2 = backend.ops.numpy.ones((4,))
-        backend.set_keras_mask(x1_2, mask2)
+        set_keras_mask(x1_2, mask2)
         x2 = backend.ops.numpy.ones((4, 4))
         mask2 = backend.ops.numpy.ones((4,))
-        backend.set_keras_mask(x2, mask2)
+        set_keras_mask(x2, mask2)
         layer((x1_1, x1_2), x2)
         layer(x1=(x1_1, x1_2), x2=x2)
 
@@ -1071,15 +1074,15 @@ class LayerTest(testing.TestCase):
 
             def call(self, x, mask=None):
                 test_obj.assertIsNotNone(mask)
-                backend.set_keras_mask(x, None)  # Unset mask
+                set_keras_mask(x, None)  # Unset mask
                 return x
 
         layer = MaskUnsetDuringCallLayer()
         x = backend.ops.numpy.ones((4, 4))
         mask = backend.ops.numpy.ones((4,))
-        backend.set_keras_mask(x, mask)
+        set_keras_mask(x, mask)
         y = layer(x)
-        self.assertAllClose(backend.get_keras_mask(y), mask)
+        self.assertAllClose(get_keras_mask(y), mask)
 
     def test_masking_with_explicit_kwarg_propagation(self):
         """This test validates that an explicit `mask` kwarg is correctly
@@ -1099,7 +1102,7 @@ class LayerTest(testing.TestCase):
         layer = PassthroughMaskLayer()
         # Create an input tensor WITHOUT an attached mask.
         x = backend.ops.numpy.ones((4, 4))
-        self.assertIsNone(backend.get_keras_mask(x))
+        self.assertIsNone(get_keras_mask(x))
 
         # Create a mask to be passed explicitly.
         explicit_mask = backend.ops.numpy.array([True, True, False, False])
@@ -1112,7 +1115,7 @@ class LayerTest(testing.TestCase):
 
         # Assert that the output tensor 'y' now has the explicit mask attached
         # for propagation to the next layer.
-        self.assertAllClose(backend.get_keras_mask(y), explicit_mask)
+        self.assertAllClose(get_keras_mask(y), explicit_mask)
 
     def test_stateless_call(self):
         class TestLayer(layers.Layer):
@@ -1683,7 +1686,7 @@ class LayerTest(testing.TestCase):
 
         layer = TrainingLayer()
         output = layer(
-            backend.KerasTensor(
+            KerasTensor(
                 (4, 1),
             )
         )
@@ -1736,7 +1739,7 @@ class LayerTest(testing.TestCase):
                 self._tracker.lock()
 
         layer = TrainingLayer()
-        output = layer(backend.KerasTensor((4, 2)))
+        output = layer(KerasTensor((4, 2)))
 
         self.assertEqual(output.shape, (4, 2))
         self.assertEqual(len(layer.variables), 1)

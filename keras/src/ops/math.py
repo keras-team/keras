@@ -4,9 +4,9 @@ import math as python_math
 
 from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.backend import KerasTensor
-from keras.src.backend import any_symbolic_tensors
 from keras.src.backend import config
+from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import any_symbolic_tensors
 from keras.src.backend.common.dtypes import result_type
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import broadcast_shapes

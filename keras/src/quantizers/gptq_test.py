@@ -14,6 +14,7 @@ from keras.src import ops
 from keras.src import random
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend.common import standardize_dtype
 from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.gptq import _stable_permutation
 from keras.src.quantizers.gptq import gptq_quantize_matrix
@@ -150,7 +151,7 @@ class GPTQTest(testing.TestCase):
         dense_gptq.update_hessian_with_batch(calibration_data)
         dense_gptq.quantize_and_correct_layer()
 
-        self.assertEqual(backend.standardize_dtype(dense.kernel.dtype), "uint8")
+        self.assertEqual(standardize_dtype(dense.kernel.dtype), "uint8")
 
         dense_gptq.free()
         self.assertIsNone(getattr(dense_gptq, "hessian", None))
@@ -188,11 +189,9 @@ class GPTQTest(testing.TestCase):
             tuple(dense.quantized_kernel.shape), (in_dim, packed_cols)
         )
         self.assertEqual(
-            backend.standardize_dtype(dense.quantized_kernel.dtype), "uint8"
+            standardize_dtype(dense.quantized_kernel.dtype), "uint8"
         )
-        self.assertEqual(
-            backend.standardize_dtype(dense.g_idx.dtype), "float32"
-        )
+        self.assertEqual(standardize_dtype(dense.g_idx.dtype), "float32")
 
         rng = np.random.default_rng(seed=123)
         x = rng.standard_normal((4, in_dim)).astype("float32")

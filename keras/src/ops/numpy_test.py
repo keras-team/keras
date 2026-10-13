@@ -11,8 +11,10 @@ import keras
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_int_dtype
+from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import numpy as knp
@@ -5738,7 +5740,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         # The eager path delegates to the backend's own transpose
         # (TF gets an explicit check; JAX/Torch/NumPy already raise
         # clear errors of their own).
-        x = backend.KerasTensor((2, 3, 4))
+        x = KerasTensor((2, 3, 4))
         with self.assertRaisesRegex(
             ValueError, "valid permutation.*axes=\\[0, 0, 0\\]"
         ):
@@ -6135,7 +6137,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_view(self):
         x = np.array(1, dtype="int16")
         result = knp.view(x, dtype="float16")
-        self.assertEqual(backend.standardize_dtype(result.dtype), "float16")
+        self.assertEqual(standardize_dtype(result.dtype), "float16")
 
         with self.assertRaises(Exception):
             result = knp.view(x, dtype="int8")
@@ -6145,26 +6147,26 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
         x = np.array([[1, 2, 3, 4], [5, 6, 7, 8]], dtype="int16")
         result = knp.view(x, dtype="int16")
-        self.assertEqual(backend.standardize_dtype(result.dtype), "int16")
+        self.assertEqual(standardize_dtype(result.dtype), "int16")
 
         self.assertEqual(
-            backend.standardize_dtype(knp.view(x, dtype="int16").dtype), "int16"
+            standardize_dtype(knp.view(x, dtype="int16").dtype), "int16"
         )
         self.assertAllClose(knp.view(x, dtype="int16"), x.view("int16"))
 
         self.assertEqual(
-            backend.standardize_dtype(knp.view(x, dtype="float16").dtype),
+            standardize_dtype(knp.view(x, dtype="float16").dtype),
             "float16",
         )
         self.assertAllClose(knp.view(x, dtype="float16"), x.view("float16"))
 
         self.assertEqual(
-            backend.standardize_dtype(knp.view(x, dtype="int8").dtype), "int8"
+            standardize_dtype(knp.view(x, dtype="int8").dtype), "int8"
         )
         self.assertAllClose(knp.view(x, dtype="int8"), x.view("int8"))
 
         self.assertEqual(
-            backend.standardize_dtype(knp.view(x, dtype="int32").dtype), "int32"
+            standardize_dtype(knp.view(x, dtype="int32").dtype), "int32"
         )
         self.assertAllClose(knp.view(x, dtype="int32"), x.view("int32"))
 
@@ -6175,7 +6177,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         for dtype in ("int16", "int32", "float32"):
             x = np.arange(8, dtype=dtype)
             result = knp.view(x)
-            self.assertEqual(backend.standardize_dtype(result.dtype), dtype)
+            self.assertEqual(standardize_dtype(result.dtype), dtype)
             self.assertEqual(tuple(result.shape), x.shape)
             self.assertAllClose(result, x)
 
@@ -7279,8 +7281,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         # All five ops should reject out-of-range axis cleanly in the symbolic
         # path, instead of either silently returning a wrong shape or failing
         # with a backend-specific error at eager execution time.
-        a = backend.KerasTensor((3, 4))
-        idx = backend.KerasTensor((2,), dtype="int32")
+        a = KerasTensor((3, 4))
+        idx = KerasTensor((2,), dtype="int32")
         msg = "axis 10 is out of bounds"
         for fn in (
             lambda: knp.sort(a, axis=10),
@@ -7807,7 +7809,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(y, [0, 1, 2, 42, 16, 25])
 
         # Test with symbolic tensors
-        x = backend.KerasTensor((6,))
+        x = KerasTensor((6,))
         condlist = [x < 3, x > 3]
         choicelist = [x, x**2]
         y = knp.select(condlist, choicelist, 42)
@@ -7816,15 +7818,15 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         # A broader condition or later choice widens the inferred shape (it is
         # broadcast against every condition and choice, like `where`), not just
         # the first choice's shape.
-        x = backend.KerasTensor((2, 3))
-        row = backend.KerasTensor((3,))
+        x = KerasTensor((2, 3))
+        row = KerasTensor((3,))
         y = knp.select([x > 0], [row], 0)
         self.assertEqual(y.shape, (2, 3))
 
         # `default` is broadcast too: a broader default widens the shape.
-        cond = backend.KerasTensor((1,))
-        choice = backend.KerasTensor((1,))
-        default_value = backend.KerasTensor((2, 3))
+        cond = KerasTensor((1,))
+        choice = KerasTensor((1,))
+        default_value = KerasTensor((2, 3))
         y = knp.select([cond > 0], [choice], default_value)
         self.assertEqual(y.shape, (2, 3))
 
@@ -7834,12 +7836,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(out[0], 0)
         self.assertAllClose(out[0], 0)
 
-        x = backend.KerasTensor((3, 3))
+        x = KerasTensor((3, 3))
         out = knp.slogdet(x)
         self.assertEqual(out[0].shape, ())
         self.assertEqual(out[1].shape, ())
 
-        x = backend.KerasTensor((2, 4, 3, 3))
+        x = KerasTensor((2, 4, 3, 3))
         out = knp.slogdet(x)
         self.assertEqual(out[0].shape, (2, 4))
         self.assertEqual(out[1].shape, (2, 4))
@@ -8406,7 +8408,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.NanToNum(nan=2, posinf=3, neginf=4)(x), [1.0, 2.0, 3.0, 4.0]
         )
 
-        x = backend.KerasTensor((3, 4))
+        x = KerasTensor((3, 4))
         self.assertEqual(
             knp.NanToNum(nan=2, posinf=3, neginf=4)(x).shape, (3, 4)
         )
@@ -9374,7 +9376,7 @@ class NumpyDtypeTest(testing.TestCase):
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_bartlett(self, dtype):
         x = knp.ones((), dtype=dtype)
-        expected_dtype = backend.floatx()
+        expected_dtype = config.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.bartlett(x).dtype), expected_dtype
@@ -9383,7 +9385,7 @@ class NumpyDtypeTest(testing.TestCase):
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_blackman(self, dtype):
         x = knp.ones((), dtype=dtype)
-        expected_dtype = backend.floatx()
+        expected_dtype = config.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.blackman(x).dtype), expected_dtype
@@ -9392,7 +9394,7 @@ class NumpyDtypeTest(testing.TestCase):
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_hamming(self, dtype):
         x = knp.ones((), dtype=dtype)
-        expected_dtype = backend.floatx()
+        expected_dtype = config.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.hamming(x).dtype), expected_dtype
@@ -9401,7 +9403,7 @@ class NumpyDtypeTest(testing.TestCase):
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_hanning(self, dtype):
         x = knp.ones((), dtype=dtype)
-        expected_dtype = backend.floatx()
+        expected_dtype = config.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.hanning(x).dtype), expected_dtype
@@ -9411,7 +9413,7 @@ class NumpyDtypeTest(testing.TestCase):
     def test_kaiser(self, dtype):
         x = knp.ones((), dtype=dtype)
         beta = knp.ones((), dtype=dtype)
-        expected_dtype = backend.floatx()
+        expected_dtype = config.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.kaiser(x, beta).dtype), expected_dtype
@@ -9845,7 +9847,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.arccos(x_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(standardize_dtype(knp.arccos(x).dtype), expected_dtype)
         self.assertEqual(
@@ -9861,7 +9863,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.arccosh(x_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.arccosh(x).dtype), expected_dtype
@@ -9879,7 +9881,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.arcsin(x_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(standardize_dtype(knp.arcsin(x).dtype), expected_dtype)
         self.assertEqual(
@@ -9895,7 +9897,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.arcsinh(x_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.arcsinh(x).dtype), expected_dtype
@@ -9913,7 +9915,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.arctan(x_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(standardize_dtype(knp.arctan(x).dtype), expected_dtype)
         self.assertEqual(
@@ -9936,7 +9938,7 @@ class NumpyDtypeTest(testing.TestCase):
         if dtype1 is not None and "float" not in dtype1:
             if dtype2 is not None and "float" not in dtype2:
                 if "int64" in (dtype1, dtype2) or "uint32" in (dtype1, dtype2):
-                    expected_dtype = backend.floatx()
+                    expected_dtype = config.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.arctan2(x1, x2).dtype), expected_dtype
@@ -9953,7 +9955,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.arctanh(x_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.arctanh(x).dtype), expected_dtype
@@ -9966,14 +9968,14 @@ class NumpyDtypeTest(testing.TestCase):
     @parameterized.parameters(
         (bool(0), "bool"),
         (int(0), "int32"),
-        (float(0), backend.floatx()),
+        (float(0), config.floatx()),
         ([False, True, False], "bool"),
         ([1, 2, 3], "int32"),
-        ([1.0, 2.0, 3.0], backend.floatx()),
-        ([1, 2.0, 3], backend.floatx()),
+        ([1.0, 2.0, 3.0], config.floatx()),
+        ([1, 2.0, 3], config.floatx()),
         ([[False], [True], [False]], "bool"),
         ([[1], [2], [3]], "int32"),
-        ([[1], [2.0], [3]], backend.floatx()),
+        ([[1], [2.0], [3]], config.floatx()),
         *[
             (np.array(0, dtype=dtype), dtype)
             for dtype in ALL_DTYPES
@@ -10001,7 +10003,7 @@ class NumpyDtypeTest(testing.TestCase):
         if dtype1 is not None and "float" not in dtype1:
             if dtype2 is not None and "float" not in dtype2:
                 if "int64" in (dtype1, dtype2) or "uint32" in (dtype1, dtype2):
-                    expected_dtype = backend.floatx()
+                    expected_dtype = config.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.average(x1, weights=x2).dtype), expected_dtype
@@ -10154,7 +10156,7 @@ class NumpyDtypeTest(testing.TestCase):
         import jax.numpy as jnp
 
         if dtype is None:
-            dtype = backend.floatx()
+            dtype = config.floatx()
         if dtype == "bool":
             value = [[True, False, True], [True, False, True]]
         elif "int" in dtype:
@@ -10166,7 +10168,7 @@ class NumpyDtypeTest(testing.TestCase):
         expected_dtype = standardize_dtype(jnp.ceil(x_jax).dtype)
         # Here, we follow Numpy's rule, not JAX's; ints are promoted to floats.
         if dtype == "bool" or is_int_dtype(dtype):
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(standardize_dtype(knp.ceil(x).dtype), expected_dtype)
         self.assertEqual(
@@ -10222,7 +10224,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.cos(x_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(standardize_dtype(knp.cos(x).dtype), expected_dtype)
         self.assertEqual(
@@ -10238,7 +10240,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.cosh(x_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(standardize_dtype(knp.cosh(x).dtype), expected_dtype)
         self.assertEqual(
@@ -10661,7 +10663,7 @@ class NumpyDtypeTest(testing.TestCase):
         rng = np.random.default_rng(0)
         x1 = knp.array(rng.integers(-4, 5, size=(2, 5, 8)), dtype=dtype1)
         x2 = knp.array(rng.integers(-4, 5, size=(8, 4, 16)), dtype=dtype2)
-        expected_dtype = backend.result_type(dtype1, dtype2)
+        expected_dtype = result_type(dtype1, dtype2)
 
         result = knp.einsum(subscripts, x1, x2)
         self.assertEqual(standardize_dtype(result.dtype), expected_dtype)
@@ -10804,7 +10806,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.exp(x_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(standardize_dtype(knp.exp(x).dtype), expected_dtype)
         self.assertEqual(
@@ -10819,7 +10821,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.exp2(x_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(standardize_dtype(knp.exp2(x).dtype), expected_dtype)
         self.assertEqual(
@@ -10850,7 +10852,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.expm1(x_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(standardize_dtype(knp.expm1(x).dtype), expected_dtype)
         self.assertEqual(
@@ -10864,7 +10866,7 @@ class NumpyDtypeTest(testing.TestCase):
 
         expected_dtype = standardize_dtype(jnp.eye(3, dtype=dtype).dtype)
         if dtype is None:
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.eye(3, dtype=dtype).dtype),
@@ -10873,7 +10875,7 @@ class NumpyDtypeTest(testing.TestCase):
 
         expected_dtype = standardize_dtype(jnp.eye(3, 4, 1, dtype=dtype).dtype)
         if dtype is None:
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.eye(3, 4, k=1, dtype=dtype).dtype),
@@ -10905,7 +10907,7 @@ class NumpyDtypeTest(testing.TestCase):
         expected_dtype = standardize_dtype(jnp.floor(x_jax).dtype)
         # Here, we follow Numpy's rule, not JAX's; ints are promoted to floats.
         if dtype == "bool" or is_int_dtype(dtype):
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(standardize_dtype(knp.floor(x).dtype), expected_dtype)
         self.assertEqual(
@@ -10963,7 +10965,7 @@ class NumpyDtypeTest(testing.TestCase):
 
         expected_dtype = standardize_dtype(jnp.full((), 0, dtype=dtype).dtype)
         if dtype is None:
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.full((), 0, dtype=dtype).dtype),
@@ -11149,7 +11151,7 @@ class NumpyDtypeTest(testing.TestCase):
 
         expected_dtype = standardize_dtype(jnp.identity(3, dtype=dtype).dtype)
         if dtype is None:
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.identity(3, dtype=dtype).dtype),
@@ -11434,7 +11436,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((3, 3), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.log(x_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(standardize_dtype(knp.log(x).dtype), expected_dtype)
         self.assertEqual(
@@ -11450,7 +11452,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((3, 3), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.log10(x_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(standardize_dtype(knp.log10(x).dtype), expected_dtype)
         self.assertEqual(
@@ -11466,7 +11468,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((3, 3), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.log1p(x_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(standardize_dtype(knp.log1p(x).dtype), expected_dtype)
         self.assertEqual(
@@ -11482,7 +11484,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((3, 3), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.log2(x_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(standardize_dtype(knp.log2(x).dtype), expected_dtype)
         self.assertEqual(
@@ -11507,7 +11509,7 @@ class NumpyDtypeTest(testing.TestCase):
         if dtype1 is not None and "float" not in dtype1:
             if dtype2 is not None and "float" not in dtype2:
                 if "int64" in (dtype1, dtype2) or "uint32" in (dtype1, dtype2):
-                    expected_dtype = backend.floatx()
+                    expected_dtype = config.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.logaddexp(x1, x2).dtype), expected_dtype
@@ -11763,7 +11765,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((3, 3), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.median(x_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(standardize_dtype(knp.median(x).dtype), expected_dtype)
         self.assertEqual(
@@ -11785,7 +11787,7 @@ class NumpyDtypeTest(testing.TestCase):
         if dtype == "bool":
             self.skipTest("meshgrid doesn't support bool dtype")
         elif dtype is None:
-            dtype = backend.floatx()
+            dtype = config.floatx()
         x = knp.array([1, 2, 3], dtype=dtype)
         y = knp.array([4, 5, 6], dtype=dtype)
         x_jax = jnp.array([1, 2, 3], dtype=dtype)
@@ -12139,7 +12141,7 @@ class NumpyDtypeTest(testing.TestCase):
 
         expected_dtype = standardize_dtype(jnp.nanpercentile(x_jax, 50).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.nanpercentile(x, 50).dtype),
@@ -12186,7 +12188,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((3,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.nanquantile(x_jax, 0.5).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.nanquantile(x, 0.5).dtype),
@@ -12439,7 +12441,7 @@ class NumpyDtypeTest(testing.TestCase):
 
         expected_dtype = standardize_dtype(jnp.percentile(x_jax, 50).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.percentile(x, 50).dtype),
@@ -12567,7 +12569,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((3,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.quantile(x_jax, 0.5).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.quantile(x, 0.5).dtype),
@@ -12760,7 +12762,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.sin(x_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(standardize_dtype(knp.sin(x).dtype), expected_dtype)
         self.assertEqual(
@@ -12776,7 +12778,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.sinc(x_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(standardize_dtype(knp.sinc(x).dtype), expected_dtype)
         self.assertEqual(
@@ -12792,7 +12794,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.sinh(x_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(standardize_dtype(knp.sinh(x).dtype), expected_dtype)
         self.assertEqual(
@@ -12922,7 +12924,7 @@ class NumpyDtypeTest(testing.TestCase):
         x1_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.sqrt(x1_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(standardize_dtype(knp.sqrt(x1).dtype), expected_dtype)
         self.assertEqual(
@@ -12992,7 +12994,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.std(x_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(
             standardize_dtype(knp.std(x).dtype),
@@ -13109,7 +13111,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.tan(x_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(standardize_dtype(knp.tan(x).dtype), expected_dtype)
         self.assertEqual(
@@ -13125,7 +13127,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.tanh(x_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(standardize_dtype(knp.tanh(x).dtype), expected_dtype)
         self.assertEqual(
@@ -13270,7 +13272,7 @@ class NumpyDtypeTest(testing.TestCase):
     def test_trunc(self, dtype):
         x = knp.ones((1, 1), dtype=dtype)
         # TODO: jax <= 0.30.0 doesn't preserve the original dtype.
-        expected_dtype = dtype or backend.floatx()
+        expected_dtype = dtype or config.floatx()
 
         self.assertEqual(standardize_dtype(knp.trunc(x).dtype), expected_dtype)
         self.assertEqual(
@@ -13320,7 +13322,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((2,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.var(x_jax).dtype)
         if dtype == "int64":
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(standardize_dtype(knp.var(x).dtype), expected_dtype)
         self.assertEqual(
@@ -13465,13 +13467,13 @@ class NumpyDtypeTest(testing.TestCase):
 
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.angle(x_jax).dtype)
         if dtype == "bool" or is_int_dtype(dtype):
-            expected_dtype = backend.floatx()
+            expected_dtype = config.floatx()
 
         self.assertEqual(standardize_dtype(knp.angle(x).dtype), expected_dtype)
         self.assertEqual(

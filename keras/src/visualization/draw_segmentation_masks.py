@@ -1,8 +1,10 @@
 import numpy as np
 
-from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import config
+from keras.src.backend.common import is_int_dtype
+from keras.src.backend.common import standardize_dtype
 
 
 @keras_export("keras.visualization.draw_segmentation_masks")
@@ -53,7 +55,7 @@ def draw_segmentation_masks(
         ValueError: If the input `images` is not a 4D tensor or NumPy array.
         TypeError: If the input `segmentation_masks` is not an integer type.
     """
-    data_format = data_format or backend.image_data_format()
+    data_format = data_format or config.image_data_format()
     images_shape = ops.shape(images)
     if len(images_shape) != 4:
         raise ValueError(
@@ -66,8 +68,8 @@ def draw_segmentation_masks(
     images = ops.convert_to_tensor(images, dtype="float32")
     segmentation_masks = ops.convert_to_tensor(segmentation_masks)
 
-    if not backend.is_int_dtype(segmentation_masks.dtype):
-        dtype = backend.standardize_dtype(segmentation_masks.dtype)
+    if not is_int_dtype(segmentation_masks.dtype):
+        dtype = standardize_dtype(segmentation_masks.dtype)
         raise TypeError(
             "`segmentation_masks` must be in integer dtype. "
             f"Received: segmentation_masks.dtype={dtype}"

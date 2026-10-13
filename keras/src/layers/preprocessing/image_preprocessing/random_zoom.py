@@ -1,5 +1,5 @@
-from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.config import standardize_data_format
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
@@ -142,7 +142,7 @@ class RandomZoom(BaseImagePreprocessingLayer):
         self.interpolation = interpolation
         self.seed = seed
         self.generator = SeedGenerator(seed)
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
         self.supports_jit = False
 
     def _set_factor(self, factor, factor_name):

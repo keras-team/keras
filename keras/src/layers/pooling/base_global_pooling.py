@@ -1,4 +1,4 @@
-from keras.src import backend
+from keras.src.backend.config import standardize_data_format
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 
@@ -11,7 +11,7 @@ class BaseGlobalPooling(Layer):
     ):
         super().__init__(**kwargs)
 
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
         self.keepdims = keepdims
         self.input_spec = InputSpec(ndim=pool_dimensions + 2)
 

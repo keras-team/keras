@@ -4,11 +4,13 @@ import warnings
 
 from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.backend import KerasTensor
-from keras.src.backend import any_symbolic_tensors
 from keras.src.backend import config
-from keras.src.backend import standardize_data_format
+from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import any_symbolic_tensors
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import result_type
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
@@ -18,6 +20,7 @@ from keras.src.backend.common.backend_utils import (
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
+from keras.src.backend.config import standardize_data_format
 from keras.src.ops import operation_utils
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import reduce_shape
@@ -1241,7 +1244,7 @@ class AdaptiveMaxPool(Operation):
             )
         else:
             output_shape = (inputs.shape[0], inputs.shape[1]) + spatial_dims
-        return backend.KerasTensor(output_shape, dtype=inputs.dtype)
+        return KerasTensor(output_shape, dtype=inputs.dtype)
 
 
 @keras_export(["keras.ops.adaptive_max_pool", "keras.ops.nn.adaptive_max_pool"])
@@ -1416,7 +1419,7 @@ class AdaptiveAveragePool(Operation):
             )
         else:
             output_shape = (inputs.shape[0], inputs.shape[1]) + spatial_dims
-        return backend.KerasTensor(output_shape, dtype=inputs.dtype)
+        return KerasTensor(output_shape, dtype=inputs.dtype)
 
 
 @keras_export(
@@ -1990,7 +1993,7 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
            [0. 0. 1. 0.]
            [1. 0. 0. 0.]], shape=(4, 4), dtype=float32)
     """
-    dtype = backend.standardize_dtype(dtype)
+    dtype = standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return OneHot(
             num_classes, axis=axis, dtype=dtype, sparse=sparse
@@ -1999,7 +2002,7 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
         x,
         num_classes,
         axis=axis,
-        dtype=dtype or backend.floatx(),
+        dtype=dtype or config.floatx(),
         sparse=sparse,
     )
 
@@ -2021,9 +2024,9 @@ class BinaryCrossentropy(Operation):
                 "Received: "
                 f"target.shape={target.shape}, output.shape={output.shape}"
             )
-        dtype = backend.standardize_dtype(output.dtype)
-        if not backend.is_float_dtype(dtype):
-            dtype = backend.floatx()
+        dtype = standardize_dtype(output.dtype)
+        if not is_float_dtype(dtype):
+            dtype = config.floatx()
         return KerasTensor(output.shape, dtype=dtype)
 
 
@@ -2268,7 +2271,7 @@ class MultiHot(Operation):
         super().__init__(name=name)
         self.num_classes = num_classes
         self.axis = axis
-        self.dtype = dtype or backend.floatx()
+        self.dtype = dtype or config.floatx()
         self.sparse = sparse
 
     def call(self, inputs):
@@ -2330,7 +2333,7 @@ def multi_hot(
     if num_classes is None:
         raise ValueError("Argument `num_classes` must be specified.")
 
-    dtype = backend.standardize_dtype(dtype)
+    dtype = standardize_dtype(dtype)
     if any_symbolic_tensors((inputs,)):
         return MultiHot(num_classes, axis, dtype, sparse).symbolic_call(inputs)
 
@@ -2530,7 +2533,7 @@ class CTCLoss(Operation):
         self._check_shape_first_dim(
             "output_length", output_length.shape, "output", output.shape
         )
-        dtype = backend.result_type(output.dtype, "float32")
+        dtype = result_type(output.dtype, "float32")
         return KerasTensor((target.shape[0],), dtype=dtype)
 
 
@@ -2600,7 +2603,7 @@ class CTCDecode(Operation):
             top_paths = 1
         else:
             top_paths = self.top_paths
-        dtype = backend.result_type(inputs.dtype, "float32")
+        dtype = result_type(inputs.dtype, "float32")
         return (
             KerasTensor(
                 (top_paths, inputs_shape[0], inputs_shape[1]), dtype="int32"
@@ -2742,7 +2745,7 @@ def _normalize(x, axis=-1, order=2, epsilon=None):
     if len(x.shape) == 0:
         x = backend.ops.numpy.expand_dims(x, axis=0)
     if epsilon is None:
-        epsilon = backend.epsilon()
+        epsilon = config.epsilon()
     if 2 == order:
         # A special case: L2 normalization with `x * rsqrt(...)`
         # instead of `x / sqrt(...)`. Clamp the squared norm before the
@@ -2878,7 +2881,7 @@ class DotProductAttention(Operation):
         mask=None,
         scale=None,
     ):
-        dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
+        dtype = result_type(query.dtype, key.dtype, value.dtype)
         return KerasTensor(query.shape, dtype=dtype)
 
 
@@ -3046,11 +3049,11 @@ def rms_normalization(x, scale=None, axis=-1, epsilon=None):
 
 def _rms_normalization(x, scale=None, axis=-1, epsilon=None):
     if epsilon is None:
-        epsilon = backend.epsilon()
-    original_dtype = backend.standardize_dtype(x.dtype)
+        epsilon = config.epsilon()
+    original_dtype = standardize_dtype(x.dtype)
     # Computes in at least float32 precision for stability in half precision
     # training.
-    compute_dtype = backend.result_type(x.dtype, "float32")
+    compute_dtype = result_type(x.dtype, "float32")
 
     x = backend.ops.convert_to_tensor(x, dtype=compute_dtype)
     if scale is not None:
@@ -3162,11 +3165,11 @@ def _layer_normalization(
     x, gamma=None, beta=None, axis=-1, epsilon=None, rms_scaling=False
 ):
     if epsilon is None:
-        epsilon = backend.epsilon()
-    original_dtype = backend.standardize_dtype(x.dtype)
+        epsilon = config.epsilon()
+    original_dtype = standardize_dtype(x.dtype)
     # Computes in at least float32 precision for stability in half precision
     # training.
-    compute_dtype = backend.result_type(x.dtype, "float32")
+    compute_dtype = result_type(x.dtype, "float32")
 
     x = backend.ops.convert_to_tensor(x, dtype=compute_dtype)
     if gamma is not None:
@@ -3225,10 +3228,10 @@ def _layer_normalization(
 
 class Polar(Operation):
     def compute_output_spec(self, abs_, angle):
-        dtype = backend.standardize_dtype(
+        dtype = standardize_dtype(
             dtypes.result_type(
-                getattr(abs_, "dtype", backend.floatx()),
-                getattr(angle, "dtype", backend.floatx()),
+                getattr(abs_, "dtype", config.floatx()),
+                getattr(angle, "dtype", config.floatx()),
             )
         )
         # `polar` combines two real tensors into a complex one, so the output

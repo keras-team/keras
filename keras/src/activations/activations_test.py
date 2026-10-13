@@ -4,6 +4,7 @@ from keras.src import activations
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.saving import object_registration
 
 
@@ -186,11 +187,11 @@ class ActivationsTest(testing.TestCase):
         alpha = 1.6732632423543772848170429916717
         scale = 1.0507009873554804934193349852946
 
-        positive_values = np.array([[1, 2]], dtype=backend.floatx())
+        positive_values = np.array([[1, 2]], dtype=config.floatx())
         result = activations.selu(positive_values[np.newaxis, :])[0]
         self.assertAllClose(result, positive_values * scale, rtol=1e-5)
 
-        negative_values = np.array([[-1, -2]], dtype=backend.floatx())
+        negative_values = np.array([[-1, -2]], dtype=config.floatx())
         result = activations.selu(negative_values[np.newaxis, :])[0]
         true_result = (np.exp(negative_values) - 1) * scale * alpha
         self.assertAllClose(result, true_result)
@@ -779,7 +780,7 @@ class ActivationsTest(testing.TestCase):
         x = np.random.random((2, 5))
         result = activations.elu(x[np.newaxis, :])[0]
         self.assertAllClose(result, x, rtol=1e-5)
-        negative_values = np.array([[-1, -2]], dtype=backend.floatx())
+        negative_values = np.array([[-1, -2]], dtype=config.floatx())
         result = activations.elu(negative_values[np.newaxis, :])[0]
         true_result = np.exp(negative_values) - 1
         self.assertAllClose(result, true_result)

@@ -7,9 +7,8 @@ import warnings
 
 from keras.src import backend as backend_module
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import global_state
-from keras.src.backend.config import BUILT_IN_BACKENDS
-from keras.src.backend.config import PLUGGABLE_BACKENDS
 from keras.src.utils.module_utils import get_pluggable_backend_module
 
 
@@ -87,11 +86,11 @@ class DynamicBackend:
 
     def set_backend(self, backend):
         if (
-            backend not in BUILT_IN_BACKENDS
-            and backend not in PLUGGABLE_BACKENDS
+            backend not in config.BUILT_IN_BACKENDS
+            and backend not in config.PLUGGABLE_BACKENDS
         ):
             all_backends = sorted(
-                list(BUILT_IN_BACKENDS) + list(PLUGGABLE_BACKENDS)
+                list(config.BUILT_IN_BACKENDS) + list(config.PLUGGABLE_BACKENDS)
             )
             raise ValueError(
                 f"Available backends are ({all_backends}). "

@@ -7,31 +7,6 @@ if backend() == "torch":
     import torch
 
 from keras.src.api_export import keras_export
-from keras.src.backend.common.dtypes import result_type
-from keras.src.backend.common.keras_tensor import KerasTensor
-from keras.src.backend.common.keras_tensor import any_symbolic_tensors
-from keras.src.backend.common.keras_tensor import is_keras_tensor
-from keras.src.backend.common.masking import get_keras_mask
-from keras.src.backend.common.masking import set_keras_mask
-from keras.src.backend.common.stateless_scope import StatelessScope
-from keras.src.backend.common.stateless_scope import get_stateless_scope
-from keras.src.backend.common.stateless_scope import in_stateless_scope
-from keras.src.backend.common.symbolic_scope import SymbolicScope
-from keras.src.backend.common.symbolic_scope import in_symbolic_scope
-from keras.src.backend.common.variables import AutocastScope
-from keras.src.backend.common.variables import get_autocast_scope
-from keras.src.backend.common.variables import is_float_dtype
-from keras.src.backend.common.variables import is_int_dtype
-from keras.src.backend.common.variables import standardize_dtype
-from keras.src.backend.common.variables import standardize_shape
-from keras.src.backend.config import PLUGGABLE_BACKENDS
-from keras.src.backend.config import epsilon
-from keras.src.backend.config import floatx
-from keras.src.backend.config import image_data_format
-from keras.src.backend.config import set_epsilon
-from keras.src.backend.config import set_floatx
-from keras.src.backend.config import set_image_data_format
-from keras.src.backend.config import standardize_data_format
 from keras.src.utils.module_utils import get_pluggable_backend_module
 
 # Import backend functions.

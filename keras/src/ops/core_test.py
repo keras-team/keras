@@ -14,7 +14,9 @@ from keras.src import optimizers
 from keras.src import random
 from keras.src import testing
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.remat import RematScope
 from keras.src.layers.core import input_layer
@@ -1632,21 +1634,21 @@ class CoreOpsDtypeTest(testing.TestCase):
         self.assertDType(core.Cast(dtype).symbolic_call(x), dtype)
 
     @parameterized.parameters(
-        ((), None, backend.floatx()),
-        ([], None, backend.floatx()),
+        ((), None, config.floatx()),
+        ([], None, config.floatx()),
         (bool(0), None, "bool"),
         (int(0), None, "int32"),
-        (float(0), None, backend.floatx()),
+        (float(0), None, config.floatx()),
         (1, "bool", "bool"),
         (1.0, "int32", "int32"),
         (1.0, "float32", "float32"),
         ([False, True, False], None, "bool"),
         ([1, 2, 3], None, "int32"),
-        ([1.0, 2.0, 3.0], None, backend.floatx()),
-        ([1, 2.0, 3], None, backend.floatx()),
+        ([1.0, 2.0, 3.0], None, config.floatx()),
+        ([1, 2.0, 3], None, config.floatx()),
         ([[False], [True], [False]], None, "bool"),
         ([[1], [2], [3]], None, "int32"),
-        ([[1], [2.0], [3]], None, backend.floatx()),
+        ([[1], [2.0], [3]], None, config.floatx()),
         *[
             (np.array(0, dtype=dtype), None, dtype)
             for dtype in ALL_DTYPES
@@ -1663,7 +1665,7 @@ class CoreOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_convert_to_numpy(self, dtype):
-        expected_dtype = backend.floatx() if dtype is None else dtype
+        expected_dtype = config.floatx() if dtype is None else dtype
 
         x = ops.array([1.0, 2.0, 3.0], dtype=dtype)
         self.assertDType(ops.convert_to_numpy(x), expected_dtype)
@@ -1716,18 +1718,18 @@ class ConvertToTensorFloatxTest(testing.TestCase):
 
     def setUp(self):
         super().setUp()
-        self._floatx = backend.floatx()
+        self._floatx = config.floatx()
 
     def tearDown(self):
         super().tearDown()
-        backend.set_floatx(self._floatx)
+        config.set_floatx(self._floatx)
 
     @parameterized.named_parameters(
         named_product(floatx=["float32", "bfloat16"])
     )
     def test_preserves_input_dtype(self, floatx):
         """An input that already carries a dtype keeps it."""
-        backend.set_floatx(floatx)
+        config.set_floatx(floatx)
         for dtype in self.PRESERVED_DTYPES:
             x = np.ones((2,), dtype=dtype)
             self.assertDType(
@@ -1741,7 +1743,7 @@ class ConvertToTensorFloatxTest(testing.TestCase):
     )
     def test_explicit_bfloat16_is_honored(self, floatx):
         """An explicit `dtype="bfloat16"` still works, for any input type."""
-        backend.set_floatx(floatx)
+        config.set_floatx(floatx)
         for x in (
             np.ones((2,), dtype="int32"),
             np.ones((2,), dtype="float32"),
@@ -1768,9 +1770,9 @@ class ConvertToTensorFloatxTest(testing.TestCase):
         `floatx` precision via `_lattice_result_type`), so only the kind
         of the dtype is asserted.
         """
-        backend.set_floatx(floatx)
+        config.set_floatx(floatx)
         for x in ([1, 2, 3], 3, (1, 2)):
-            dtype = backend.standardize_dtype(ops.convert_to_tensor(x).dtype)
+            dtype = standardize_dtype(ops.convert_to_tensor(x).dtype)
             self.assertIn(
                 dtype,
                 dtypes.INT_TYPES,
@@ -1780,7 +1782,7 @@ class ConvertToTensorFloatxTest(testing.TestCase):
 
     def test_integer_indices_survive_bfloat16_floatx(self):
         """Downstream ops that require integer inputs keep working."""
-        backend.set_floatx("bfloat16")
+        config.set_floatx("bfloat16")
         table = np.arange(12, dtype="float32").reshape(4, 3)
         indices = np.array([1, 2], dtype="int32")
 
@@ -1947,21 +1949,21 @@ class CoreOpsBehaviorTests(testing.TestCase):
         # backend, torch.export would otherwise lift the float64
         # constant into the graph before the cast runs.
         t = ops.convert_to_tensor(1.5, dtype="float32")
-        self.assertEqual(backend.standardize_dtype(t.dtype), "float32")
+        self.assertEqual(standardize_dtype(t.dtype), "float32")
         t = ops.convert_to_tensor(1.5, dtype="float16")
-        self.assertEqual(backend.standardize_dtype(t.dtype), "float16")
+        self.assertEqual(standardize_dtype(t.dtype), "float16")
 
     def test_convert_to_tensor_python_int_with_dtype(self):
         t = ops.convert_to_tensor(7, dtype="int16")
-        self.assertEqual(backend.standardize_dtype(t.dtype), "int16")
+        self.assertEqual(standardize_dtype(t.dtype), "int16")
         t = ops.convert_to_tensor(7, dtype="float32")
-        self.assertEqual(backend.standardize_dtype(t.dtype), "float32")
+        self.assertEqual(standardize_dtype(t.dtype), "float32")
 
     def test_convert_to_tensor_python_bool_with_dtype(self):
         t = ops.convert_to_tensor(True, dtype="float32")
-        self.assertEqual(backend.standardize_dtype(t.dtype), "float32")
+        self.assertEqual(standardize_dtype(t.dtype), "float32")
         t = ops.convert_to_tensor(True)
-        self.assertEqual(backend.standardize_dtype(t.dtype), "bool")
+        self.assertEqual(standardize_dtype(t.dtype), "bool")
 
     @pytest.mark.skipif(
         backend.backend() != "torch",

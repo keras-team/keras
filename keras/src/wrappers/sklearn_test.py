@@ -10,8 +10,7 @@ from packaging.version import parse as parse_version
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
 from keras.src import backend
-from keras.src.backend import floatx
-from keras.src.backend import set_floatx
+from keras.src.backend import config
 from keras.src.layers import Dense
 from keras.src.layers import Input
 from keras.src.models import Model
@@ -83,12 +82,12 @@ def use_floatx(x):
     """Context manager to temporarily
     set the keras backend precision.
     """
-    _floatx = floatx()
-    set_floatx(x)
+    _floatx = config.floatx()
+    config.set_floatx(x)
     try:
         yield
     finally:
-        set_floatx(_floatx)
+        config.set_floatx(_floatx)
 
 
 EXPECTED_FAILED_CHECKS = {

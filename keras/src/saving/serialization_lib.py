@@ -10,7 +10,9 @@ import numpy as np
 from keras.src import api_export
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import global_state
+from keras.src.backend.common import standardize_dtype
 from keras.src.saving import object_registration
 from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils import python_utils
@@ -204,7 +206,7 @@ def serialize_keras_object(obj):
     # to dynamically get the type.
     if isinstance(obj, type(Ellipsis)):
         return {"class_name": "__ellipsis__", "config": {}}
-    if isinstance(obj, backend.KerasTensor):
+    if isinstance(obj, KerasTensor):
         history = getattr(obj, "_keras_history", None)
         if history:
             history = list(history)
@@ -224,7 +226,7 @@ def serialize_keras_object(obj):
             "class_name": "__tensor__",
             "config": {
                 "value": backend.ops.convert_to_numpy(obj).tolist(),
-                "dtype": backend.standardize_dtype(obj.dtype),
+                "dtype": standardize_dtype(obj.dtype),
             },
         }
     if type(obj).__module__ == np.__name__:
@@ -233,7 +235,7 @@ def serialize_keras_object(obj):
                 "class_name": "__numpy__",
                 "config": {
                     "value": obj.tolist(),
-                    "dtype": backend.standardize_dtype(obj.dtype),
+                    "dtype": standardize_dtype(obj.dtype),
                 },
             }
         else:
@@ -622,9 +624,7 @@ def deserialize_keras_object(
 
     # Special cases:
     if class_name == "__keras_tensor__":
-        obj = backend.KerasTensor(
-            inner_config["shape"], dtype=inner_config["dtype"]
-        )
+        obj = KerasTensor(inner_config["shape"], dtype=inner_config["dtype"])
         obj._pre_serialization_keras_history = inner_config["keras_history"]
         return obj
 

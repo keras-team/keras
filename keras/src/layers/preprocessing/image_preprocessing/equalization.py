@@ -1,5 +1,5 @@
-from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.config import standardize_data_format
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
@@ -69,7 +69,7 @@ class Equalization(BaseImagePreprocessingLayer):
         super().__init__(**kwargs)
         self.bins = bins
         self._set_value_range(value_range)
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
 
     def _set_value_range(self, value_range):
         if not isinstance(value_range, (tuple, list)):

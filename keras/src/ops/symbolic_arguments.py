@@ -1,5 +1,5 @@
 from keras.src import tree
-from keras.src.backend import KerasTensor
+from keras.src.backend.common import KerasTensor
 
 
 class SymbolicArguments:
