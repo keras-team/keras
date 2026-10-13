@@ -545,120 +545,6 @@ def any(x, axis=None, keepdims=False):
     return backend.ops.numpy.any(x, axis=axis, keepdims=keepdims)
 
 
-class Amax(Operation):
-    def __init__(self, axis=None, keepdims=False, *, name=None):
-        super().__init__(name=name)
-        if isinstance(axis, int):
-            axis = [axis]
-        self.axis = axis
-        self.keepdims = keepdims
-
-    def call(self, x):
-        return backend.ops.numpy.amax(
-            x,
-            axis=self.axis,
-            keepdims=self.keepdims,
-        )
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
-            dtype=x.dtype,
-        )
-
-
-@keras_export(["keras.ops.amax", "keras.ops.numpy.amax"])
-def amax(x, axis=None, keepdims=False):
-    """Returns the maximum of an array or maximum value along an axis.
-
-    Args:
-        x: Input tensor.
-        axis: Axis along which to compute the maximum.
-            By default (`axis=None`), find the maximum value in all the
-            dimensions of the input array.
-        keepdims: If `True`, axes which are reduced are left in the result as
-            dimensions that are broadcast to the size of the original
-            input tensor. Defaults to `False`.
-
-    Returns:
-        An array with the maximum value. If `axis=None`, the result is a scalar
-        value representing the maximum element in the entire array. If `axis` is
-        given, the result is an array with the maximum values along
-        the specified axis.
-
-    Examples:
-    >>> x = keras.ops.convert_to_tensor([[1, 3, 5], [2, 3, 6]])
-    >>> keras.ops.amax(x)
-    array(6, dtype=int32)
-
-    >>> x = keras.ops.convert_to_tensor([[1, 6, 8], [1, 5, 2]])
-    >>> keras.ops.amax(x, axis=0)
-    array([1, 6, 8], dtype=int32)
-
-    >>> x = keras.ops.convert_to_tensor([[1, 6, 8], [1, 5, 2]])
-    >>> keras.ops.amax(x, axis=1, keepdims=True)
-    array([[8], [5]], dtype=int32)
-    """
-    if any_symbolic_tensors((x,)):
-        return Amax(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.ops.numpy.amax(x, axis=axis, keepdims=keepdims)
-
-
-class Amin(Operation):
-    def __init__(self, axis=None, keepdims=False, *, name=None):
-        super().__init__(name=name)
-        if isinstance(axis, int):
-            axis = [axis]
-        self.axis = axis
-        self.keepdims = keepdims
-
-    def call(self, x):
-        return backend.ops.numpy.amin(x, axis=self.axis, keepdims=self.keepdims)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
-            dtype=x.dtype,
-        )
-
-
-@keras_export(["keras.ops.amin", "keras.ops.numpy.amin"])
-def amin(x, axis=None, keepdims=False):
-    """Returns the minimum of an array or minimum value along an axis.
-
-    Args:
-        x: Input tensor.
-        axis: Axis along which to compute the minimum.
-            By default (`axis=None`), find the minimum value in all the
-            dimensions of the input array.
-        keepdims: If `True`, axes which are reduced are left in the result as
-            dimensions that are broadcast to the size of the original
-            input tensor. Defaults to `False`.
-
-    Returns:
-        An array with the minimum value. If `axis=None`, the result is a scalar
-        value representing the minimum element in the entire array. If `axis` is
-        given, the result is an array with the minimum values along
-        the specified axis.
-
-    Examples:
-    >>> x = keras.ops.convert_to_tensor([1, 3, 5, 2, 3, 6])
-    >>> keras.ops.amin(x)
-    array(1, dtype=int32)
-
-    >>> x = keras.ops.convert_to_tensor([[1, 6, 8], [7, 5, 3]])
-    >>> keras.ops.amin(x, axis=0)
-    array([1,5,3], dtype=int32)
-
-    >>> x = keras.ops.convert_to_tensor([[1, 6, 8], [7, 5, 3]])
-    >>> keras.ops.amin(x, axis=1, keepdims=True)
-    array([[1],[3]], dtype=int32)
-    """
-    if any_symbolic_tensors((x,)):
-        return Amin(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.ops.numpy.amin(x, axis=axis, keepdims=keepdims)
-
-
 class Append(Operation):
     def __init__(self, axis=None, *, name=None):
         super().__init__(name=name)
@@ -5306,9 +5192,24 @@ class Max(Operation):
         )
 
 
-@keras_export(["keras.ops.max", "keras.ops.numpy.max"])
+class Amax(Max):
+    """Kept for backward compatibility of saved models using `amax`."""
+
+    pass
+
+
+@keras_export(
+    [
+        "keras.ops.max",
+        "keras.ops.amax",
+        "keras.ops.numpy.max",
+        "keras.ops.numpy.amax",
+    ]
+)
 def max(x, axis=None, keepdims=False, initial=None):
     """Return the maximum of a tensor or maximum along an axis.
+
+    `keras.ops.amax` is an alias for this function.
 
     Args:
         x: Input tensor.
@@ -5572,9 +5473,24 @@ class Min(Operation):
         )
 
 
-@keras_export(["keras.ops.min", "keras.ops.numpy.min"])
+class Amin(Min):
+    """Kept for backward compatibility of saved models using `amin`."""
+
+    pass
+
+
+@keras_export(
+    [
+        "keras.ops.min",
+        "keras.ops.amin",
+        "keras.ops.numpy.min",
+        "keras.ops.numpy.amin",
+    ]
+)
 def min(x, axis=None, keepdims=False, initial=None):
     """Return the minimum of a tensor or minimum along an axis.
+
+    `keras.ops.amin` is an alias for this function.
 
     Args:
         x: Input tensor.

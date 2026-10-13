@@ -1530,21 +1530,13 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.sum(x, axis=1).shape, (None, 3))
         self.assertEqual(knp.sum(x, axis=1, keepdims=True).shape, (None, 1, 3))
 
-    def test_amax(self):
+    def test_min(self):
         x = KerasTensor((None, 3))
-        self.assertEqual(knp.amax(x).shape, ())
+        self.assertEqual(knp.min(x).shape, ())
 
         x = KerasTensor((None, 3, 3))
-        self.assertEqual(knp.amax(x, axis=1).shape, (None, 3))
-        self.assertEqual(knp.amax(x, axis=1, keepdims=True).shape, (None, 1, 3))
-
-    def test_amin(self):
-        x = KerasTensor((None, 3))
-        self.assertEqual(knp.amin(x).shape, ())
-
-        x = KerasTensor((None, 3, 3))
-        self.assertEqual(knp.amin(x, axis=1).shape, (None, 3))
-        self.assertEqual(knp.amin(x, axis=1, keepdims=True).shape, (None, 1, 3))
+        self.assertEqual(knp.min(x, axis=1).shape, (None, 3))
+        self.assertEqual(knp.min(x, axis=1, keepdims=True).shape, (None, 1, 3))
 
     def test_square(self):
         x = KerasTensor((None, 3))
@@ -2069,6 +2061,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
     def test_max(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.max(x).shape, ())
+
+        x = KerasTensor((None, 3, 3))
+        self.assertEqual(knp.max(x, axis=1).shape, (None, 3))
+        self.assertEqual(knp.max(x, axis=1, keepdims=True).shape, (None, 1, 3))
 
     def test_median(self):
         x = KerasTensor((None, 3))
@@ -2682,13 +2678,9 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.sum(x).shape, ())
 
-    def test_amax(self):
+    def test_min(self):
         x = KerasTensor((2, 3))
-        self.assertEqual(knp.amax(x).shape, ())
-
-    def test_amin(self):
-        x = KerasTensor((2, 3))
-        self.assertEqual(knp.amin(x).shape, ())
+        self.assertEqual(knp.min(x).shape, ())
 
     def test_square(self):
         x = KerasTensor((2, 3))
@@ -5678,50 +5670,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.sum(x, axis=1, keepdims=True),
         )
 
-    def test_amax(self):
-        x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(knp.amax(x), np.amax(x))
-        self.assertAllClose(knp.amax(x, axis=()), np.amax(x, axis=()))
-        self.assertAllClose(knp.amax(x, axis=1), np.amax(x, axis=1))
-        self.assertAllClose(knp.amax(x, axis=(1,)), np.amax(x, axis=(1,)))
-        self.assertAllClose(
-            knp.amax(x, axis=1, keepdims=True),
-            np.amax(x, axis=1, keepdims=True),
-        )
-        self.assertAllClose(
-            knp.amax(x, axis=None, keepdims=True),
-            np.amax(x, axis=None, keepdims=True),
-        )
-
-        self.assertAllClose(knp.Amax()(x), np.amax(x))
-        self.assertAllClose(knp.Amax(axis=1)(x), np.amax(x, axis=1))
-        self.assertAllClose(
-            knp.Amax(axis=1, keepdims=True)(x),
-            np.amax(x, axis=1, keepdims=True),
-        )
-
-    def test_amin(self):
-        x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(knp.amin(x), np.amin(x))
-        self.assertAllClose(knp.amin(x, axis=()), np.amin(x, axis=()))
-        self.assertAllClose(knp.amin(x, axis=1), np.amin(x, axis=1))
-        self.assertAllClose(knp.amin(x, axis=(1,)), np.amin(x, axis=(1,)))
-        self.assertAllClose(
-            knp.amin(x, axis=1, keepdims=True),
-            np.amin(x, axis=1, keepdims=True),
-        )
-        self.assertAllClose(
-            knp.amin(x, axis=None, keepdims=True),
-            np.amin(x, axis=None, keepdims=True),
-        )
-
-        self.assertAllClose(knp.Amin()(x), np.amin(x))
-        self.assertAllClose(knp.Amin(axis=1)(x), np.amin(x, axis=1))
-        self.assertAllClose(
-            knp.Amin(axis=1, keepdims=True)(x),
-            np.amin(x, axis=1, keepdims=True),
-        )
-
     def test_square(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.square(x), np.square(x))
@@ -6770,6 +6718,20 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(knp.max(x, 1), np.max(x, 1))
         self.assertAllClose(knp.Max(1)(x), np.max(x, 1))
+        self.assertAllClose(knp.Amax(1)(x), np.max(x, 1))
+
+        self.assertAllClose(knp.max(x, axis=()), np.max(x, axis=()))
+        self.assertAllClose(knp.Max(())(x), np.max(x, axis=()))
+
+        self.assertAllClose(knp.max(x, axis=(1,)), np.max(x, axis=(1,)))
+        self.assertAllClose(
+            knp.max(x, axis=1, keepdims=True),
+            np.max(x, axis=1, keepdims=True),
+        )
+        self.assertAllClose(
+            knp.Max(axis=1, keepdims=True)(x),
+            np.max(x, axis=1, keepdims=True),
+        )
 
         # `assertAllClose` broadcasts, so assert the shape explicitly.
         self.assertEqual(
@@ -6807,6 +6769,17 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(knp.min(x, 1), np.min(x, 1))
         self.assertAllClose(knp.Min(1)(x), np.min(x, 1))
+        self.assertAllClose(knp.Amin(1)(x), np.min(x, 1))
+
+        self.assertAllClose(knp.min(x, axis=(1,)), np.min(x, axis=(1,)))
+        self.assertAllClose(
+            knp.min(x, axis=1, keepdims=True),
+            np.min(x, axis=1, keepdims=True),
+        )
+        self.assertAllClose(
+            knp.Min(axis=1, keepdims=True)(x),
+            np.min(x, axis=1, keepdims=True),
+        )
 
         # `assertAllClose` broadcasts, so assert the shape explicitly.
         self.assertEqual(
@@ -9833,32 +9806,6 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertEqual(standardize_dtype(knp.all(x).dtype), expected_dtype)
         self.assertEqual(
             standardize_dtype(knp.All().symbolic_call(x).dtype), expected_dtype
-        )
-
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_amax(self, dtype):
-        import jax.numpy as jnp
-
-        x = knp.ones((1,), dtype=dtype)
-        x_jax = jnp.ones((1,), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.amax(x_jax).dtype)
-
-        self.assertEqual(standardize_dtype(knp.amax(x).dtype), expected_dtype)
-        self.assertEqual(
-            standardize_dtype(knp.Amax().symbolic_call(x).dtype), expected_dtype
-        )
-
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_amin(self, dtype):
-        import jax.numpy as jnp
-
-        x = knp.ones((1,), dtype=dtype)
-        x_jax = jnp.ones((1,), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.amin(x_jax).dtype)
-
-        self.assertEqual(standardize_dtype(knp.amin(x).dtype), expected_dtype)
-        self.assertEqual(
-            standardize_dtype(knp.Amin().symbolic_call(x).dtype), expected_dtype
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
