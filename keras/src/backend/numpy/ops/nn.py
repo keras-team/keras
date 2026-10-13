@@ -78,6 +78,10 @@ def softsign(x):
 
 
 def soft_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return np.where(
         x > threshold,
         np.array(x - threshold, dtype=x.dtype),
@@ -90,6 +94,10 @@ def soft_shrink(x, threshold=0.5):
 
 
 def sparse_plus(x):
+    x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return np.where(
         x <= -1,
         np.zeros_like(x, dtype=x.dtype),
@@ -158,6 +166,9 @@ def selu(x):
     alpha = 1.6732632423543772848170429916717
     scale = 1.0507009873554804934193349852946
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return np.array(scale, x.dtype) * elu(x, alpha)
 
 
