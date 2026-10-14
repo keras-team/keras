@@ -1877,8 +1877,33 @@ class Layer(BackendLayer, Operation):
         elif isinstance(obj, Layer):
             self._untrack_layer(obj)
             super().__delattr__(name)
+        elif (
+            isinstance(obj, (list, tuple, dict, set))
+            and name in self.__dict__
+        ):
+            # Container attributes hold sub-layers and variables that were
+            # tracked element-wise on assignment, so untrack them before
+            # removing the attribute. Properties such as `weights` or
+            # `layers` also return containers but are not stored in
+            # `__dict__`, so they fall through to the default behavior.
+            self._untrack_tracked_elements(obj)
+            super().__delattr__(name)
         else:
             super().__delattr__(name)
+
+    def _untrack_tracked_elements(self, container):
+        if not hasattr(self, "_tracker"):
+            return
+        elements = (
+            container.values() if isinstance(container, dict) else container
+        )
+        for element in elements:
+            if isinstance(element, backend.Variable):
+                self._untrack_variable(element)
+            elif isinstance(element, Layer):
+                self._untrack_layer(element)
+            elif isinstance(element, (list, tuple, dict, set)):
+                self._untrack_tracked_elements(element)
 
     def _check_super_called(self):
         if getattr(self, "_lock", True):

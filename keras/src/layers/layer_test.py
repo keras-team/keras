@@ -2193,6 +2193,34 @@ class LayerTest(testing.TestCase):
         self.assertEqual(model.count_params(), initial_params)
         self.assertNotIn(helper, model.layers)
 
+        # Sub-layers nested inside container attributes are untracked when
+        # the container attribute is deleted.
+        helpers = [layers.Dense(3), layers.Dense(4)]
+        for h in helpers:
+            h.build((None, 4))
+        model.helpers = helpers
+        self.assertGreater(len(model.weights), initial_num_weights)
+        self.assertGreater(model.count_params(), initial_params)
+
+        del model.helpers
+        self.assertEqual(len(model.weights), initial_num_weights)
+        self.assertEqual(model.count_params(), initial_params)
+        for h in helpers:
+            self.assertNotIn(h, model.layers)
+
+        # Same for mappings and nested containers.
+        helper_by_name = {"a": layers.Dense(3), "b": [layers.Dense(4)]}
+        for h in [helper_by_name["a"], *helper_by_name["b"]]:
+            h.build((None, 4))
+        model.helper_by_name = helper_by_name
+        self.assertGreater(len(model.weights), initial_num_weights)
+
+        del model.helper_by_name
+        self.assertEqual(len(model.weights), initial_num_weights)
+        self.assertEqual(model.count_params(), initial_params)
+        self.assertNotIn(helper_by_name["a"], model.layers)
+        self.assertNotIn(helper_by_name["b"][0], model.layers)
+
 
 class LoraLessQuantizationTest(testing.TestCase):
     def test_layer_does_not_enable_lora_by_default(self):
