@@ -604,6 +604,12 @@ class GetFileTest(test_case.TestCase):
         file_utils.rmtree(new_dir)
         self.assertFalse(os.path.exists(new_dir))
 
+    def test_makedirs_existing_directory(self):
+        new_dir = os.path.join(self.temp_dir, "new_directory")
+        file_utils.makedirs(new_dir)
+        file_utils.makedirs(new_dir)
+        self.assertTrue(os.path.isdir(new_dir))
+
     def test_copy(self):
         dest_path = os.path.join(self.temp_dir, "copy_sample_file.txt")
         file_utils.copy(self.file_path, dest_path)

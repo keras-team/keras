@@ -599,7 +599,10 @@ class TorchMultiProcessDistributeTest(
             devices=distribution_lib.list_devices(), auto_shard_dataset=False
         )
         directory = self._shared_temp_dir()
-        checkpoint_path = os.path.join(directory, "ckpt.weights.h5")
+        # The directory does not exist yet: every process creates it.
+        checkpoint_path = os.path.join(
+            directory, "checkpoints", "ckpt.weights.h5"
+        )
         rng = np.random.default_rng(0)
         x = rng.random((16, 8), dtype="float32")
         y = rng.random((16, 4), dtype="float32")
