@@ -1,3 +1,4 @@
+import inspect
 import os
 import pickle
 
@@ -11,6 +12,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import optimizers
 from keras.src import testing
+from keras.src.api_export import REGISTERED_NAMES_TO_OBJS
 
 
 class OptimizerTest(testing.TestCase):
@@ -163,6 +165,22 @@ class OptimizerTest(testing.TestCase):
 
         with self.assertRaises(ValueError):
             optimizers.get("typo")
+
+    def test_get_all_public_optimizers(self):
+        not_objects = {"get", "serialize", "deserialize"}
+        # Wrappers need an inner optimizer, so `get` can't build them by name.
+        wrappers = {"LossScaleOptimizer", "MultiOptimizer", "OptimizerMap"}
+        for name, obj in REGISTERED_NAMES_TO_OBJS.items():
+            if (
+                name.startswith("keras.optimizers.")
+                and name.count(".") == 2
+                and name.rsplit(".", 1)[1] not in not_objects | wrappers
+            ):
+                get_result = optimizers.get(name.rsplit(".", 1)[1])
+                if inspect.isclass(obj):
+                    self.assertIsInstance(get_result, obj)
+                else:
+                    self.assertIs(get_result, obj)
 
     def test_static_loss_scaling(self):
         v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
