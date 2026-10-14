@@ -49,6 +49,9 @@ def sigmoid(x):
 
 def sparse_sigmoid(x):
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tf.where(
         x <= -1,
         tf.constant(0.0, dtype=x.dtype),
@@ -73,6 +76,10 @@ def softsign(x):
 
 
 def soft_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tf.where(
         x > threshold,
         x - threshold,
@@ -81,6 +88,10 @@ def soft_shrink(x, threshold=0.5):
 
 
 def sparse_plus(x):
+    x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tf.where(
         x <= -1,
         tf.zeros_like(x),
@@ -136,6 +147,10 @@ def elu(x, alpha=1.0):
 
 
 def selu(x):
+    x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != backend.standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tf.nn.selu(x)
 
 
@@ -876,8 +891,13 @@ def conv(
     def _conv_xla():
         return _conv()
 
-    # Channels first "NCDHW" (3d convolutions) are broken on CPU without XLA.
-    needs_xla = data_format == "channels_first" and len(inputs.shape) == 5
+    # Channels first "NCW", NCHW" and "NCDHW" (1d, 2d and 3d convolutions) are
+    # broken on CPU without XLA.
+    needs_xla = (
+        data_format == "channels_first"
+        and len(inputs.shape) in (3, 4, 5)
+        and _cpu_only()  # fmt: skip
+    )
     # grouped convolutions are broken on CPU without XLA.
     if data_format == "channels_last":
         channels = inputs.shape[-1]

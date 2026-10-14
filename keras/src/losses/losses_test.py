@@ -1,3 +1,4 @@
+import inspect
 import re
 import warnings
 
@@ -6,8 +7,10 @@ import pytest
 from absl.testing import parameterized
 
 from keras.src import backend
+from keras.src import losses as losses_module
 from keras.src import ops
 from keras.src import testing
+from keras.src.api_export import REGISTERED_NAMES_TO_OBJS
 from keras.src.layers import Input
 from keras.src.losses import losses
 from keras.src.models import Functional
@@ -3016,3 +3019,19 @@ class CategoricalGeneralizedCrossEntropyTest(testing.TestCase):
             y_true, y_pred
         )
         self.assertDType(output, "bfloat16")
+
+
+class LossRegistryTest(testing.TestCase):
+    def test_get_all_public_losses(self):
+        not_objects = {"get", "serialize", "deserialize"}
+        for name, obj in REGISTERED_NAMES_TO_OBJS.items():
+            if (
+                name.startswith("keras.losses.")
+                and name.count(".") == 2
+                and name.rsplit(".", 1)[1] not in not_objects
+            ):
+                get_result = losses_module.get(name.rsplit(".", 1)[1])
+                if inspect.isclass(obj):
+                    self.assertIsInstance(get_result, obj)
+                else:
+                    self.assertIs(get_result, obj)

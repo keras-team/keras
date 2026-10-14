@@ -116,6 +116,8 @@ class Dense(Layer):
 
     def build(self, input_shape):
         kernel_shape = (input_shape[-1], self.units)
+        # The float kernel's shape, whatever a quantization mode stores.
+        self.kernel_shape = kernel_shape
         if self.quantization_mode:
             # A strategy that owns the weight storage creates the kernel. A
             # strategy that keeps the float kernel (float8) adds its
@@ -336,9 +338,7 @@ class Dense(Layer):
         for name in spec:
             key = str(idx)
             if name == "kernel":
-                target = (
-                    self._packed_kernel if mode == "ternary" else self._kernel
-                )
+                target = self._kernel
             elif name == "bias" and self.bias is None:
                 continue
             elif name == "kernel_zero" and not hasattr(self, "kernel_zero"):

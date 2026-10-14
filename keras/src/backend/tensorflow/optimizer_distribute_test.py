@@ -185,6 +185,43 @@ class OptimizerDistributeTest(testing.TestCase):
                 [[1.71, 2.71], [3.71, 4.71]],
             )
 
+    def test_ema_in_tf_function(self):
+        with self.strategy.scope():
+            v = backend.Variable([[3.0, 4.0], [5.0, 6.0]])
+            grads = backend.ops.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+            optimizer = SGD(
+                learning_rate=1.0,
+                use_ema=True,
+                ema_momentum=0.9,
+                ema_overwrite_frequency=3,
+            )
+
+            @tf.function
+            def distributed_update():
+                self.strategy.run(
+                    lambda: optimizer.apply_gradients([(grads, v)])
+                )
+
+            distributed_update()
+            self.assertAllClose(v, [[2.0, 3.0], [4.0, 5.0]])
+            self.assertAllClose(
+                optimizer._model_variables_moving_average[0],
+                [[2.0, 3.0], [4.0, 5.0]],  # initialized after first step
+            )
+            distributed_update()
+            self.assertAllClose(v, [[1.0, 2.0], [3.0, 4.0]])
+            self.assertAllClose(
+                optimizer._model_variables_moving_average[0],
+                [[1.9, 2.9], [3.9, 4.9]],
+            )
+            distributed_update()
+            # Variables were overwritten with EMA
+            self.assertAllClose(v, [[1.71, 2.71], [3.71, 4.71]])
+            self.assertAllClose(
+                optimizer._model_variables_moving_average[0],
+                [[1.71, 2.71], [3.71, 4.71]],
+            )
+
     def test_gradient_accumulation(self):
         with self.strategy.scope():
             v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])

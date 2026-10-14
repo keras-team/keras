@@ -1,3 +1,4 @@
+import dataclasses
 import re
 import string
 
@@ -177,6 +178,12 @@ class EinsumDense(Layer):
         )
         kernel_shape, bias_shape, _, input_axes, output_axes = shape_data
         self.input_spec = InputSpec(ndim=len(input_shape))
+        # The float kernel's N-D shape, whatever a quantization mode stores,
+        # and the equation's axis bookkeeping the quantization modes read.
+        self.kernel_shape = tuple(kernel_shape)
+        self.einsum_axes = EinsumAxes.from_equation(
+            self.equation, len(input_shape)
+        )
 
         kernel_initializer = self.kernel_initializer
         if isinstance(self.kernel_initializer, VarianceScaling) and (
@@ -300,15 +307,6 @@ class EinsumDense(Layer):
             )
         self._check_lora_supported(self.quantization_mode)
         self._tracker.unlock()
-        # Determine the appropriate (unpacked) kernel shape for LoRA.
-        if self.quantization_mode == "int4":
-            # INT4 weights are stored in a flattened 2D layout that loses
-            # the original N-dimensional structure required by the einsum
-            # equation. We use `original_kernel_shape`` to ensure LoRA adapters
-            # operate in the correct logical dimension space.
-            kernel_shape_for_lora = tuple(self.original_kernel_shape)
-        else:
-            kernel_shape_for_lora = self.kernel.shape
 
         # LoRA weights should be float32 to avoid the risk of underflow or
         # overflow during fine-tuning.
@@ -316,14 +314,14 @@ class EinsumDense(Layer):
         # original kernel while maintaining the original kernel's dtype.
         self.lora_kernel_a = self.add_weight(
             name="lora_kernel_a",
-            shape=(kernel_shape_for_lora[:-1] + (rank,)),
+            shape=(self.kernel_shape[:-1] + (rank,)),
             initializer=initializers.get(a_initializer),
             dtype="float32",
             regularizer=self.kernel_regularizer,
         )
         self.lora_kernel_b = self.add_weight(
             name="lora_kernel_b",
-            shape=(rank, kernel_shape_for_lora[-1]),
+            shape=(rank, self.kernel_shape[-1]),
             initializer=initializers.get(b_initializer),
             dtype="float32",
             regularizer=self.kernel_regularizer,
@@ -707,6 +705,33 @@ def _analyze_einsum_string(equation, bias_axes, input_shape, output_shape):
     )
 
 
+# The accepted forms, with "..." replaced by "0", and the side each elides.
+_EQUATION_FORMS = (
+    ("([a-zA-Z]+),([a-zA-Z]+)->([a-zA-Z]+)", None),
+    ("0([a-zA-Z]+),([a-zA-Z]+)->0([a-zA-Z]+)", "left"),
+    ("([a-zA-Z]{2,})0,([a-zA-Z]+)->([a-zA-Z]+)0", "right"),
+)
+
+
+def _split_equation(equation):
+    """Splits an equation into its inputs, kernel and output labels.
+
+    Returns:
+        `(input_spec, weight_spec, output_spec, ellipsis)`, where
+        `ellipsis` is the side the equation elides: `"left"`, `"right"`
+        or `None`.
+    """
+    dot_replaced_string = re.sub(r"\.\.\.", "0", equation)
+    for pattern, ellipsis in _EQUATION_FORMS:
+        split_string = re.match(pattern, dot_replaced_string)
+        if split_string:
+            return (*split_string.groups(), ellipsis)
+    raise ValueError(
+        f"Invalid einsum equation '{equation}'. Equations must be in the form "
+        "[X],[Y]->[Z], ...[X],[Y]->...[Z], or [X]...,[Y]->[Z]...."
+    )
+
+
 def _analyze_split_string(
     split_string, bias_axes, input_shape, output_shape, left_elided=False
 ):
@@ -844,6 +869,47 @@ def _analyze_split_string(
     return weight_shape, bias_shape, output_shape, input_axes, output_axes
 
 
+@dataclasses.dataclass(frozen=True)
+class EinsumAxes:
+    """The labels of an `EinsumDense` equation, any ellipsis spelled out.
+
+    Every axis fact the quantization modes read derives from the three
+    label strings. An input or kernel axis is reduced (contracted) when
+    its label is not in the output.
+    """
+
+    inputs: str
+    kernel: str
+    output: str
+
+    @classmethod
+    def from_equation(cls, equation, input_rank):
+        inputs, kernel, output, ellipsis = _split_equation(equation)
+        if ellipsis is not None:
+            # Give the elided axes labels of their own.
+            unused = sorted(
+                set(string.ascii_letters) - set(inputs + kernel + output)
+            )
+            elided = "".join(unused[: input_rank - len(inputs)])
+            if ellipsis == "left":
+                inputs, output = elided + inputs, elided + output
+            else:
+                inputs, output = inputs + elided, output + elided
+        return cls(inputs, kernel, output)
+
+    @property
+    def input_reduced_axes(self):
+        """The input axes the equation contracts."""
+        return tuple(
+            i for i, label in enumerate(self.inputs) if label not in self.output
+        )
+
+    @property
+    def gradient_equation(self):
+        """The einsum that produces the inputs gradient."""
+        return f"{self.output},{self.kernel}->{self.inputs}"
+
+
 def _analyze_quantization_info(equation, input_shape):
     """Analyzes an einsum equation to derive information for quantization.
 
@@ -872,68 +938,8 @@ def _analyze_quantization_info(equation, input_shape):
             scale transpose.
     """
 
-    def get_specs(equation, input_shape):
-        possible_labels = string.ascii_letters
-        dot_replaced_string = re.sub(r"\.\.\.", "0", equation)
-
-        # This is the case where no ellipses are present in the string.
-        split_string = re.match(
-            "([a-zA-Z]+),([a-zA-Z]+)->([a-zA-Z]+)", dot_replaced_string
-        )
-        if split_string is not None:
-            input_spec = split_string.group(1)
-            weight_spec = split_string.group(2)
-            output_spec = split_string.group(3)
-            return input_spec, weight_spec, output_spec
-
-        # This is the case where ellipses are present on the left.
-        split_string = re.match(
-            "0([a-zA-Z]+),([a-zA-Z]+)->0([a-zA-Z]+)", dot_replaced_string
-        )
-        if split_string is not None:
-            input_spec = split_string.group(1)
-            weight_spec = split_string.group(2)
-            output_spec = split_string.group(3)
-            elided = len(input_shape) - len(input_spec)
-            possible_labels = sorted(
-                set(possible_labels)
-                - set(input_spec)
-                - set(weight_spec)
-                - set(output_spec)
-            )
-            # Pad labels on the left to `input_spec` and `output_spec`
-            for i in range(elided):
-                input_spec = possible_labels[i] + input_spec
-                output_spec = possible_labels[i] + output_spec
-            return input_spec, weight_spec, output_spec
-
-        # This is the case where ellipses are present on the right.
-        split_string = re.match(
-            "([a-zA-Z]{2,})0,([a-zA-Z]+)->([a-zA-Z]+)0", dot_replaced_string
-        )
-        if split_string is not None:
-            input_spec = split_string.group(1)
-            weight_spec = split_string.group(2)
-            output_spec = split_string.group(3)
-            elided = len(input_shape) - len(input_spec)
-            possible_labels = sorted(
-                set(possible_labels)
-                - set(input_spec)
-                - set(weight_spec)
-                - set(output_spec)
-            )
-            # Pad labels on the right to `input_spec` and `output_spec`
-            for i in range(elided):
-                input_spec = input_spec + possible_labels[i]
-                output_spec = output_spec + possible_labels[i]
-            return input_spec, weight_spec, output_spec
-
-        raise ValueError(
-            f"Invalid einsum equation '{equation}'. Equations must be in the "
-            "form [X],[Y]->[Z], ...[X],[Y]->...[Z], or [X]...,[Y]->[Z]...."
-        )
-
-    input_spec, weight_spec, output_spec = get_specs(equation, input_shape)
+    axes = EinsumAxes.from_equation(equation, len(input_shape))
+    input_spec, weight_spec, output_spec = axes.inputs, axes.kernel, axes.output
 
     # Determine the axes that should be reduced by the quantizer
     input_reduced_axes = []

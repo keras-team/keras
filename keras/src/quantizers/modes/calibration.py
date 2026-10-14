@@ -61,13 +61,11 @@ class CalibrationStrategy(QuantizationStrategy):
         """
         if isinstance(config, self.config_cls):
             return getattr(config, attr)
-        policy = layer.dtype_policy
-        if isinstance(policy, DTypePolicyMap):
-            policy = policy[layer.path]
-            if policy.quantization_mode != self.name:
-                self._on_policy_map_mismatch(policy)
+        policy = layer._own_dtype_policy
         if policy.quantization_mode == self.name:
             return getattr(policy, attr)
+        if isinstance(layer.dtype_policy, DTypePolicyMap):
+            self._on_policy_map_mismatch(policy)
         raise ValueError(self._resolution_error(attr))
 
     def _on_policy_map_mismatch(self, policy):
@@ -93,7 +91,6 @@ class CalibrationStrategy(QuantizationStrategy):
         # Ensures the forward pass uses the original high-precision kernel
         # until calibration has been performed.
         setattr(layer, f"is_{self.name}_calibrated", False)
-        geometry.record_kernel_shape(input_shape)
 
         if len(input_shape) not in (2, 3):
             raise ValueError(
@@ -108,8 +105,6 @@ class CalibrationStrategy(QuantizationStrategy):
         )
         group_size = self.resolve_group_size(layer, config)
         n_groups = 1 if group_size == -1 else math.ceil(rows / group_size)
-
-        geometry.prepare()
 
         # Stored in the kernel's own `[in, out]` orientation and packed
         # along the output axis, like the int4 layout, so the forward pass
@@ -196,7 +191,7 @@ class CalibrationStrategy(QuantizationStrategy):
                 # `-1` means one group spanning every input row.
                 group_size=rows if group_size == -1 else group_size,
             ),
-            shape=geometry.recorded_kernel_shape(),
+            shape=geometry.weight_shape,
             axis=0,
             input_scales=self._input_scales(layer),
         )
