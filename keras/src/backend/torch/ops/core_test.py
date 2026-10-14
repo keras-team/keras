@@ -1,5 +1,7 @@
 """Tests for PyTorch backend core utilities."""
 
+import concurrent.futures
+
 import numpy as np
 import pytest
 import torch
@@ -203,7 +205,7 @@ class TorchCoreDistributedTest(TorchDistributedTestMixin, testing.TestCase):
             result = torch.addcmul(dtensor, plain_tensor, dtensor, value=0.5)
             self.assertIsInstance(result, DTensor)
 
-    def test_convert_to_tensor_pushes_dtensor_mode(self):
+    def test_activate_and_deactivate_dtensor_promotion(self):
         device_type = torch_core.get_device().split(":")[0]
         mesh = TorchDeviceMesh(device_type, np.array([0]))
         local_tensor = torch.ones((2, 2), device=device_type)
@@ -213,8 +215,6 @@ class TorchCoreDistributedTest(TorchDistributedTestMixin, testing.TestCase):
 
         torch_core.activate_dtensor_promotion()
 
-        convert_to_tensor(dtensor)
-
         plain_tensor = torch.zeros((2, 2), device=device_type)
         result = dtensor + plain_tensor
         self.assertIsInstance(result, DTensor)
@@ -223,6 +223,46 @@ class TorchCoreDistributedTest(TorchDistributedTestMixin, testing.TestCase):
                 result.to_local(), torch.ones((2, 2), device=device_type)
             )
         )
+
+        torch_core.deactivate_dtensor_promotion()
+
+        with self.assertRaisesRegex(
+            RuntimeError, "mixed torch.Tensor and DTensor"
+        ):
+            dtensor + plain_tensor
+
+    def test_dtensor_promotion_is_per_thread(self):
+        mesh = DeviceMesh(
+            shape=(1,),
+            axis_names=["model"],
+            devices=np.array([distribution_lib.list_devices()[0]]),
+        )
+        layout_map = LayoutMap(mesh)
+        layout_map[".*"] = (None, "model")
+        dist = ModelParallel(layout_map=layout_map)
+        ones = np.ones((2, 2), dtype="float32")
+
+        def worker(v):
+            # The distribution is per thread, so the worker enters its own
+            # scope while the main thread is still in its scope.
+            with dist.scope():
+                v.assign_add(ones)
+
+        with dist.scope():
+            v = Variable(np.zeros((2, 2), dtype="float32"))
+            self.assertIsInstance(v.value.data, DTensor)
+            with concurrent.futures.ThreadPoolExecutor(1) as executor:
+                # `result()` re-raises any error from the worker thread.
+                executor.submit(worker, v).result()
+            # The worker's scope exit leaves this thread's promotion active.
+            v.assign_add(ones)
+        self.assertAllClose(v, 2 * ones)
+
+        # Leaving the scope ends the promotion on this thread.
+        with self.assertRaisesRegex(
+            RuntimeError, "mixed torch.Tensor and DTensor"
+        ):
+            v.assign_add(ones)
 
     def test_convert_to_numpy_dtensor(self):
         device_type = torch_core.get_device().split(":")[0]
