@@ -278,6 +278,10 @@ def distribute_tensor(tensor, layout):
             and tensor.placements == layout.placements
         ):
             return tensor
+        # `torch.distributed.tensor.distribute_tensor` rejects a DTensor with
+        # a different layout, e.g. a `Partial` gradient or a value computed
+        # from differently sharded operands.
+        return tensor.redistribute(layout.device_mesh, layout.placements)
 
     if not isinstance(tensor, torch.Tensor):
         tensor = convert_to_tensor(tensor)
