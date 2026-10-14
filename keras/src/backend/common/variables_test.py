@@ -320,6 +320,25 @@ class VariablePropertiesTest(test_case.TestCase):
         self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
 
     @parameterized.named_parameters(
+        ("autocast_on", True),
+        ("autocast_off", False),
+    )
+    def test_assign_in_autocast_scope(self, autocast):
+        # Assignments in an `AutocastScope` of another dtype must update the
+        # variable itself, not the cast copy returned by `value`.
+        v = backend.Variable(
+            initializer=initializers.Zeros(),
+            shape=(2, 2),
+            dtype="float32",
+            autocast=autocast,
+        )
+        with AutocastScope("bfloat16"):
+            v.assign(np.ones((2, 2), "float32"))
+            v.assign_add(np.full((2, 2), 2.0, "float32"))
+        self.assertAllClose(v.value, np.full((2, 2), 3.0))
+        self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
+
+    @parameterized.named_parameters(
         named_product(
             dtype=(
                 dtype for dtype in dtypes.ALLOWED_DTYPES if dtype != "string"
