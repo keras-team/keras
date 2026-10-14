@@ -251,50 +251,52 @@ class Trainer(BaseTrainer):
         self.test_function = test_function
 
     def get_metrics_result(self):
-        if torch.distributed.is_initialized():
-            with torch.no_grad():
-                active_distribution = distribution()
-                process_group = None
-                if active_distribution is not None:
-                    # This also runs inside a compiled `train_step`, through
-                    # `compute_metrics()`. Reuse the cached mesh: TorchDynamo
-                    # fails to trace building a new one.
-                    backend_mesh = active_distribution.device_mesh.backend_mesh
-                    process_group = backend_mesh.get_group(
-                        active_distribution.batch_dim_name
-                    )
+        if not torch.distributed.is_initialized():
+            return super().get_metrics_result()
 
-                reduced_vars = []
-                for v in self.metrics_variables:
-                    # Use a copy for reduction to avoid modifying
-                    # the original variable.
-                    val = v.value.clone()
-                    if isinstance(val, DTensor):
-                        # DTensor indicates we're using ModelParallel.
-                        placements = [Replicate()] * len(val.placements)
-                        val = val.redistribute(
-                            val.device_mesh, placements
-                        ).to_local()
-                    dist.all_reduce(
-                        val,
-                        op=dist.ReduceOp.SUM,
-                        group=process_group,
-                    )
-                    reduced_vars.append(val)
+        # This also runs inside a compiled `train_step`, through
+        # `compute_metrics()`. The `with` blocks are not nested: TorchDynamo
+        # in torch 2.13 fails to inline a call inside nested `with` blocks on
+        # Python 3.11.
+        with torch.no_grad():
+            active_distribution = distribution()
+            process_group = None
+            if active_distribution is not None:
+                # Reuse the cached mesh: TorchDynamo fails to trace building
+                # a new one.
+                backend_mesh = active_distribution.device_mesh.backend_mesh
+                process_group = backend_mesh.get_group(
+                    active_distribution.batch_dim_name
+                )
 
-                with backend.StatelessScope(
-                    state_mapping=list(
-                        zip(self.metrics_variables, reduced_vars)
-                    )
-                ):
-                    results = super().get_metrics_result()
+            reduced_vars = []
+            for v in self.metrics_variables:
+                # Use a copy for reduction to avoid modifying
+                # the original variable.
+                val = v.value.clone()
+                if isinstance(val, DTensor):
+                    # DTensor indicates we're using ModelParallel.
+                    placements = [Replicate()] * len(val.placements)
+                    val = val.redistribute(
+                        val.device_mesh, placements
+                    ).to_local()
+                dist.all_reduce(
+                    val,
+                    op=dist.ReduceOp.SUM,
+                    group=process_group,
+                )
+                reduced_vars.append(val)
 
-                return {
-                    k: val.clone() if isinstance(val, torch.Tensor) else val
-                    for k, val in results.items()
-                }
+        # The reduced values have no gradient, so neither do the results.
+        with backend.StatelessScope(
+            state_mapping=list(zip(self.metrics_variables, reduced_vars))
+        ):
+            results = super().get_metrics_result()
 
-        return super().get_metrics_result()
+        return {
+            k: val.clone() if isinstance(val, torch.Tensor) else val
+            for k, val in results.items()
+        }
 
     def make_predict_function(self, force=False):
         if self.predict_function is not None and not force:
