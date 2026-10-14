@@ -271,6 +271,21 @@ class TorchDistributionLibTest(TorchDistributedTestMixin, testing.TestCase):
         if expected_placement_type == torch_tensor.Shard:
             self.assertEqual(backend_layout.placements[0].dim, 0)
 
+    def test_to_backend_layout_reuses_backend_mesh(self):
+        mesh = DeviceMesh(
+            shape=(1,), axis_names=["x"], devices=self._get_mesh_devices()
+        )
+        sharded = distribution_lib._to_backend_layout(
+            TensorLayout(axes=("x", None), device_mesh=mesh)
+        )
+        replicated = distribution_lib._to_backend_layout(
+            TensorLayout(axes=(None, None), device_mesh=mesh)
+        )
+        # Building a torch mesh can create process groups, so every layout
+        # of a Keras mesh shares one torch mesh.
+        self.assertIs(sharded.device_mesh, mesh.backend_mesh)
+        self.assertIs(replicated.device_mesh, mesh.backend_mesh)
+
     @parameterized.parameters(
         (
             None,

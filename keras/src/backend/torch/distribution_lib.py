@@ -232,7 +232,7 @@ def _to_backend_layout(tensor_layout):
             "the 'device_mesh' is not specified. Please ensure the layout "
             "has a valid 'device_mesh'."
         )
-    torch_mesh = _to_backend_mesh(keras_mesh)
+    torch_mesh = keras_mesh.backend_mesh
 
     mesh_axis_to_tensor_dim = {}
     valid_axis_names = set(keras_mesh.axis_names)

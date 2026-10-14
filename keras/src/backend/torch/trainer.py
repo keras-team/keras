@@ -12,7 +12,6 @@ from keras.src import callbacks as callbacks_module
 from keras.src import optimizers as optimizers_module
 from keras.src import tree
 from keras.src.backend import config
-from keras.src.backend.torch.distribution_lib import _to_backend_mesh
 from keras.src.backend.torch.distribution_lib import distribute_data_input
 from keras.src.backend.torch.ops.core import convert_to_tensor
 from keras.src.backend.torch.ops.core import get_device
@@ -61,9 +60,7 @@ class Trainer(BaseTrainer):
 
                 process_group = None
                 if active_distribution is not None:
-                    backend_mesh = _to_backend_mesh(
-                        active_distribution.device_mesh
-                    )
+                    backend_mesh = active_distribution.device_mesh.backend_mesh
                     process_group = backend_mesh.get_group(
                         active_distribution.batch_dim_name
                     )
@@ -80,6 +77,25 @@ class Trainer(BaseTrainer):
                         find_unused_parameters=False,
                     ),
                 )
+
+    def _use_torch_compile(self):
+        if self.run_eagerly or not self.jit_compile:
+            return False
+        active_distribution = distribution()
+        if active_distribution is not None and not isinstance(
+            active_distribution, DataParallel
+        ):
+            # The distribution entered `KerasDTensorPromotionMode`, a
+            # `TorchDispatchMode`. TorchDynamo skips every frame while a
+            # dispatch mode is active, and checking every frame makes the
+            # compiled step slower than the eager one.
+            warnings.warn(
+                "`jit_compile=True` is not supported with "
+                f"`{active_distribution.__class__.__name__}` on the torch "
+                "backend. Running without `torch.compile`."
+            )
+            return False
+        return True
 
     def train_step(self, data):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
@@ -191,7 +207,7 @@ class Trainer(BaseTrainer):
         self._initialize_ddp()
 
         train_step = self.train_step
-        if not self.run_eagerly and self.jit_compile:
+        if self._use_torch_compile():
             train_step = torch.compile(train_step)
             if (
                 type(self).train_step is Trainer.train_step
@@ -221,7 +237,7 @@ class Trainer(BaseTrainer):
         self._initialize_ddp()
 
         test_step = self.test_step
-        if not self.run_eagerly and self.jit_compile:
+        if self._use_torch_compile():
             test_step = torch.compile(test_step)
 
         def test_function(data):
@@ -240,9 +256,10 @@ class Trainer(BaseTrainer):
                 active_distribution = distribution()
                 process_group = None
                 if active_distribution is not None:
-                    backend_mesh = _to_backend_mesh(
-                        active_distribution.device_mesh
-                    )
+                    # This also runs inside a compiled `train_step`, through
+                    # `compute_metrics()`. Reuse the cached mesh: TorchDynamo
+                    # fails to trace building a new one.
+                    backend_mesh = active_distribution.device_mesh.backend_mesh
                     process_group = backend_mesh.get_group(
                         active_distribution.batch_dim_name
                     )
@@ -286,7 +303,7 @@ class Trainer(BaseTrainer):
         self._initialize_ddp()
 
         predict_step = self.predict_step
-        if not self.run_eagerly and self.jit_compile:
+        if self._use_torch_compile():
             predict_step = torch.compile(predict_step)
 
         def predict_function(data):
