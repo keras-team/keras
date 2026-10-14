@@ -288,6 +288,16 @@ class Variable(KerasVariable):
             return value.astype(dtype)
         return value
 
+    def __repr__(self):
+        if isinstance(getattr(self, "_value", None), DTensor):
+            # Gathering a sharded value is a collective, and a repr can run
+            # on a single process (a log line, a debugger, an error message).
+            return (
+                f"<Variable path={self.path}, shape={self.shape}, "
+                f"dtype={self.dtype}>"
+            )
+        return super().__repr__()
+
     @property
     def value(self):
         # We cannot chain super() here because it will fail TorchDynamo. The
@@ -413,10 +423,12 @@ def convert_to_numpy(x):
         if isinstance(x, Variable):
             x = x.value
         if is_tensor(x):
-            if isinstance(x, DTensor):
-                x = x.to_local()
             if x.requires_grad:
                 x = x.detach()
+            if isinstance(x, DTensor):
+                # Gather the global value. This is a collective when `x` is
+                # sharded across processes, so every process must convert it.
+                x = x.full_tensor()
             # Tensor has to be moved to CPU before converting to numpy.
             if x.device != torch.device("cpu"):
                 x = x.cpu()

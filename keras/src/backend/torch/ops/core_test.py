@@ -411,6 +411,25 @@ class TorchCoreDistributedTest(TorchDistributedTestMixin, testing.TestCase):
         self.assertEqual(nv.shape, (2, 2))
         self.assertTrue(np.allclose(nv, 1.0))
 
+    def test_dtensor_variable_repr_leaves_out_value(self):
+        mesh = DeviceMesh(
+            shape=(1,),
+            axis_names=["x"],
+            devices=np.array([distribution_lib.list_devices()[0]]),
+        )
+
+        layout_map = LayoutMap(mesh)
+        layout_map[".*"] = ("x", None)
+        dist = ModelParallel(layout_map=layout_map)
+
+        set_distribution(dist)
+
+        v = Variable(torch.ones((2, 2)))
+
+        self.assertIsInstance(v.value.data, DTensor)
+        self.assertNotIn("value=", repr(v))
+        self.assertIn("shape=(2, 2)", repr(v))
+
     @parameterized.parameters(
         ("callable",),
         ("parameter",),
