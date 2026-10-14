@@ -82,6 +82,9 @@ class Int4ProjectionHandlers:
                 trainable=False,
                 autocast=False,
             )
+        else:
+            layer.kernel_zero = None
+            layer.g_idx = None
 
         # Recorded for unpacking and reshaping at runtime.
         layer._int4_block_size = block_size

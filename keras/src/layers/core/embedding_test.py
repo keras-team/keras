@@ -993,7 +993,7 @@ class EmbeddingTest(test_case.TestCase):
         layer.quantize("int4", config=config)
 
         # Verify g_idx is created
-        self.assertTrue(hasattr(layer, "g_idx"))
+        self.assertIsNotNone(layer.g_idx)
 
         # Verify g_idx shape (output_dim for embedding)
         self.assertEqual(layer.g_idx.shape, (output_dim,))
@@ -1017,7 +1017,7 @@ class EmbeddingTest(test_case.TestCase):
         layer.quantize("int4", config=config)
 
         # Verify g_idx is NOT created for per-channel
-        self.assertFalse(hasattr(layer, "g_idx"))
+        self.assertIsNone(layer.g_idx)
 
     @pytest.mark.skipif(
         testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
@@ -1047,7 +1047,7 @@ class EmbeddingTest(test_case.TestCase):
 
         # Verify g_idx is preserved
         loaded_layer = loaded_model.layers[0]
-        self.assertTrue(hasattr(loaded_layer, "g_idx"))
+        self.assertIsNotNone(loaded_layer.g_idx)
         self.assertAllClose(loaded_layer.g_idx, g_idx_before)
 
         # Verify outputs match
@@ -1111,8 +1111,8 @@ class EmbeddingTest(test_case.TestCase):
             "int4", config=Int4QuantizationConfig(block_size=block_size)
         )
         self.assertEqual(tuple(layer.embeddings_scale.shape), (32,))
-        self.assertFalse(hasattr(layer, "embeddings_zero"))
-        self.assertFalse(hasattr(layer, "g_idx"))
+        self.assertIsNone(layer.embeddings_zero)
+        self.assertIsNone(layer.g_idx)
         self.assertEqual(layer.dtype_policy.name, "int4/-1_from_float32")
 
     @parameterized.named_parameters(
@@ -1139,14 +1139,14 @@ class EmbeddingTest(test_case.TestCase):
         self.assertEqual(layer.quantization_mode, "int4")
         if per_channel:
             self.assertEqual(tuple(layer.embeddings_scale.shape), (input_dim,))
-            self.assertFalse(hasattr(layer, "g_idx"))
+            self.assertIsNone(layer.g_idx)
         else:
             block_size = int(block_token)
             n_groups = math.ceil(output_dim / block_size)
             self.assertEqual(
                 tuple(layer.embeddings_scale.shape), (input_dim, n_groups)
             )
-            self.assertTrue(hasattr(layer, "g_idx"))
+            self.assertIsNotNone(layer.g_idx)
             self.assertEqual(tuple(layer.g_idx.shape), (output_dim,))
         self.assertEqual(
             backend.standardize_dtype(layer._embeddings.dtype), "int8"
