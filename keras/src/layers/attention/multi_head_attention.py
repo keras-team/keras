@@ -61,7 +61,10 @@ class MultiHeadAttention(Layer):
             attention for faster and more memory-efficient attention
             computations when possible. This behavior can be configured using
             `keras.config.enable_flash_attention()` or
-            `keras.config.disable_flash_attention()`.
+            `keras.config.disable_flash_attention()`. With the TensorFlow
+            backend, flash attention is only used when this is `True`, and
+            requires `tf.nn.flash_attention`; masks other than
+            `use_causal_mask=True` are then not supported.
         kernel_initializer: Initializer for dense layer kernels.
         bias_initializer: Initializer for dense layer biases.
         kernel_regularizer: Regularizer for dense layer kernels.

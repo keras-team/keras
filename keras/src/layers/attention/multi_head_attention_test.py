@@ -19,6 +19,7 @@ from keras.src import utils
 from keras.src.backend.config import disable_flash_attention
 from keras.src.backend.config import enable_flash_attention
 from keras.src.backend.config import is_flash_attention_enabled
+from keras.src.testing.test_utils import named_product
 
 
 class MultiHeadAttentionTest(testing.TestCase):
@@ -941,12 +942,8 @@ class MultiHeadAttentionTest(testing.TestCase):
         self.assertDType(layer._value_dense._kernel, "int8")
 
     def test_flash_attention_with_errors(self):
-        if backend.backend() in ("numpy", "tensorflow"):
-            pytest.skip(
-                reason=(
-                    "Flash attention is not supported on tensorflow and numpy."
-                )
-            )
+        if backend.backend() == "numpy":
+            pytest.skip(reason="Flash attention is not supported on numpy.")
         # Check `flash_attention=True` and `dropout=0.1`
         with self.assertRaisesRegex(
             ValueError,
@@ -970,6 +967,73 @@ class MultiHeadAttentionTest(testing.TestCase):
             " attention scores.",
         ):
             layer(query=query, value=value, return_attention_scores=True)
+
+    @parameterized.named_parameters(
+        named_product(
+            dtype=("float32", "float16", "bfloat16"),
+            use_causal_mask=(False, True),
+        )
+    )
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Tests the TensorFlow flash attention integration.",
+    )
+    def test_flash_attention_tensorflow(self, dtype, use_causal_mask):
+        import tensorflow as tf
+
+        if not hasattr(tf.nn, "flash_attention"):
+            self.skipTest("This TensorFlow build has no tf.nn.flash_attention.")
+        query = np.random.normal(size=(2, 16, 32)).astype("float32")
+        value = np.random.normal(size=(2, 16, 32)).astype("float32")
+
+        def make_layer(flash_attention):
+            return layers.MultiHeadAttention(
+                num_heads=4,
+                key_dim=16,
+                dtype=dtype,
+                flash_attention=flash_attention,
+            )
+
+        reference = make_layer(False)
+        flash = make_layer(True)
+        reference(query, value)
+        flash(query, value)
+        flash.set_weights(reference.get_weights())
+
+        def output_and_grads(layer):
+            q = tf.convert_to_tensor(query)
+            with tf.GradientTape() as tape:
+                tape.watch(q)
+                output = layer(q, value, use_causal_mask=use_causal_mask)
+                loss = tf.reduce_sum(tf.cast(output, "float32") ** 2)
+            grads = tape.gradient(loss, [q] + layer.trainable_variables)
+            return [output] + grads
+
+        # The reference must not use TensorFloat-32 matmuls on Ampere+.
+        tf32 = tf.config.experimental.tensor_float_32_execution_enabled()
+        tf.config.experimental.enable_tensor_float_32_execution(False)
+        self.addCleanup(
+            tf.config.experimental.enable_tensor_float_32_execution, tf32
+        )
+        got_all = [
+            ops.convert_to_numpy(ops.cast(t, "float32"))
+            for t in output_and_grads(flash)
+        ]
+        want_all = [
+            ops.convert_to_numpy(ops.cast(t, "float32"))
+            for t in output_and_grads(reference)
+        ]
+        # Compare against the largest magnitude overall: some gradients (e.g.
+        # of the key bias, which the softmax is invariant to) are ~0, so
+        # their own scale is just rounding noise.
+        scale = max(np.max(np.abs(w)) for w in want_all)
+        tol = 1e-4 if dtype == "float32" else 2e-2
+        for got, want in zip(got_all, want_all):
+            self.assertAllClose(got / scale, want / scale, atol=tol)
+
+        # Arbitrary attention masks aren't supported by flash attention.
+        with self.assertRaisesRegex(ValueError, "not supported"):
+            flash(query, value, attention_mask=np.ones((2, 16, 16), "bool"))
 
     def test_multi_head_attention_output_shape_as_int(self):
         """Test MultiHeadAttention with output_shape as an int."""
