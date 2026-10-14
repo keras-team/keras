@@ -2051,9 +2051,10 @@ class NNOpsCorrectnessTest(testing.TestCase):
         strides=(1, 2, 3),
         padding=("valid", "same"),
         dilation_rate=(1, 2),
+        data_format=("channels_first", "channels_last"),
     )
-    def test_conv_1d(self, strides, padding, dilation_rate):
-        if backend.config.image_data_format() == "channels_last":
+    def test_conv_1d(self, strides, padding, dilation_rate, data_format):
+        if data_format == "channels_last":
             input_shape = (2, 20, 3)
         else:
             input_shape = (2, 3, 20)
@@ -2066,6 +2067,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             strides=strides,
             padding=padding,
             dilation_rate=dilation_rate,
+            data_format=data_format,
         )
         expected = np_conv1d(
             inputs_1d,
@@ -2073,29 +2075,35 @@ class NNOpsCorrectnessTest(testing.TestCase):
             bias_weights=np.zeros((2,)),
             strides=strides,
             padding=padding.lower(),
-            data_format=backend.config.image_data_format(),
+            data_format=data_format,
             dilation_rate=dilation_rate,
             groups=1,
         )
         self.assertAllClose(outputs, expected)
 
-    @parameterized.product(strides=(1, 2, (1, 2)), padding=("valid", "same"))
-    def test_conv_2d(self, strides, padding):
-        if backend.config.image_data_format() == "channels_last":
+    @parameterized.product(
+        strides=(1, 2, (1, 2)),
+        padding=("valid", "same"),
+        data_format=("channels_last", "channels_first"),
+    )
+    def test_conv_2d(self, strides, padding, data_format):
+        if data_format == "channels_last":
             input_shape = (2, 10, 10, 3)
         else:
             input_shape = (2, 3, 10, 10)
         inputs_2d = np.arange(600, dtype=float).reshape(input_shape)
         kernel = np.arange(24, dtype=float).reshape([2, 2, 3, 2])
 
-        outputs = knn.conv(inputs_2d, kernel, strides, padding=padding)
+        outputs = knn.conv(
+            inputs_2d, kernel, strides, padding=padding, data_format=data_format
+        )
         expected = np_conv2d(
             inputs_2d,
             kernel,
             bias_weights=np.zeros((2,)),
             strides=strides,
             padding=padding,
-            data_format=backend.config.image_data_format(),
+            data_format=data_format,
             dilation_rate=1,
             groups=1,
         )
@@ -3205,30 +3213,28 @@ class NNOpsCorrectnessTest(testing.TestCase):
         # A backend kernel normalizes over trailing axes, so any other set of
         # axes exercises the backend moving them into place.
         backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        try:
-            x = np.arange(120, dtype="float32").reshape((2, 3, 4, 5)) / 120.0
-            axes = tuple(axis)
-            epsilon = 1e-5
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        x = np.arange(120, dtype="float32").reshape((2, 3, 4, 5)) / 120.0
+        axes = tuple(axis)
+        epsilon = 1e-5
 
-            expected = x / np.sqrt(
-                np.mean(np.square(x), axis=axes, keepdims=True) + epsilon
-            )
-            self.assertAllClose(
-                knn.rms_normalization(x, axis=axis, epsilon=epsilon),
-                expected,
-                atol=1e-5,
-            )
+        expected = x / np.sqrt(
+            np.mean(np.square(x), axis=axes, keepdims=True) + epsilon
+        )
+        self.assertAllClose(
+            knn.rms_normalization(x, axis=axis, epsilon=epsilon),
+            expected,
+            atol=1e-5,
+        )
 
-            mean = np.mean(x, axis=axes, keepdims=True)
-            variance = np.var(x, axis=axes, keepdims=True)
-            expected = (x - mean) / np.sqrt(variance + epsilon)
-            self.assertAllClose(
-                knn.layer_normalization(x, axis=axis, epsilon=epsilon),
-                expected,
-                atol=1e-5,
-            )
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
+        mean = np.mean(x, axis=axes, keepdims=True)
+        variance = np.var(x, axis=axes, keepdims=True)
+        expected = (x - mean) / np.sqrt(variance + epsilon)
+        self.assertAllClose(
+            knn.layer_normalization(x, axis=axis, epsilon=epsilon),
+            expected,
+            atol=1e-5,
+        )
 
 
 class NNOpsDtypeTest(testing.TestCase):

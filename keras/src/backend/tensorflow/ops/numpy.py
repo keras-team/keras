@@ -830,14 +830,6 @@ def any(x, axis=None, keepdims=False):
     return tf.reduce_any(x, axis=axis, keepdims=keepdims)
 
 
-def amax(x, axis=None, keepdims=False):
-    return max(x, axis=axis, keepdims=keepdims)
-
-
-def amin(x, axis=None, keepdims=False):
-    return min(x, axis=axis, keepdims=keepdims)
-
-
 def append(x1, x2, axis=None):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
