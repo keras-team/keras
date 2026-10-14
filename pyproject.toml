@@ -89,8 +89,6 @@ filterwarnings = [
     "ignore:Custom mask layers require a config",
 ]
 addopts = "-vv"
-# Keep passed/skipped `subTest` checks in the tally (0 drops them).
-verbosity_subtests = 1
 
 # Do not run tests in the `build` folders
 norecursedirs = ["build"]
