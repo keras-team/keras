@@ -27,10 +27,6 @@ _SKIPPED_DTYPES = {
         "uint16": "Not supported by the torch backend",
         "uint32": "Not supported by the torch backend",
     },
-    # TODO(hongyu): Re-enable uint32 once we determine how to handle
-    # dtypes.result_type(uint32, int*) -> int64 promotion. TF variables need
-    # int64 to be placed on the GPU, so int64 is enabled for TF only, but JAX
-    # can't represent it without x64, which prevents comparing the dtypes.
     "tensorflow": {
         "uint32": "TensorFlow promotes uint32 + int* to int64, which JAX "
         "gives as int32"
