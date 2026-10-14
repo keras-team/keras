@@ -51,11 +51,12 @@ class Rot90(Operation):
                 f"Invalid axes: {self.axes}. "
                 "Axes must be a tuple of two different dimensions."
             )
-        axis1, axis2 = self.axes
-        array_shape[axis1], array_shape[axis2] = (
-            array_shape[axis2],
-            array_shape[axis1],
-        )
+        if self.k % 2 == 1:
+            axis1, axis2 = self.axes
+            array_shape[axis1], array_shape[axis2] = (
+                array_shape[axis2],
+                array_shape[axis1],
+            )
         return KerasTensor(shape=array_shape, dtype=array.dtype)
 
 
@@ -542,120 +543,6 @@ def any(x, axis=None, keepdims=False):
     if any_symbolic_tensors((x,)):
         return Any(axis=axis, keepdims=keepdims).symbolic_call(x)
     return backend.ops.numpy.any(x, axis=axis, keepdims=keepdims)
-
-
-class Amax(Operation):
-    def __init__(self, axis=None, keepdims=False, *, name=None):
-        super().__init__(name=name)
-        if isinstance(axis, int):
-            axis = [axis]
-        self.axis = axis
-        self.keepdims = keepdims
-
-    def call(self, x):
-        return backend.ops.numpy.amax(
-            x,
-            axis=self.axis,
-            keepdims=self.keepdims,
-        )
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
-            dtype=x.dtype,
-        )
-
-
-@keras_export(["keras.ops.amax", "keras.ops.numpy.amax"])
-def amax(x, axis=None, keepdims=False):
-    """Returns the maximum of an array or maximum value along an axis.
-
-    Args:
-        x: Input tensor.
-        axis: Axis along which to compute the maximum.
-            By default (`axis=None`), find the maximum value in all the
-            dimensions of the input array.
-        keepdims: If `True`, axes which are reduced are left in the result as
-            dimensions that are broadcast to the size of the original
-            input tensor. Defaults to `False`.
-
-    Returns:
-        An array with the maximum value. If `axis=None`, the result is a scalar
-        value representing the maximum element in the entire array. If `axis` is
-        given, the result is an array with the maximum values along
-        the specified axis.
-
-    Examples:
-    >>> x = keras.ops.convert_to_tensor([[1, 3, 5], [2, 3, 6]])
-    >>> keras.ops.amax(x)
-    array(6, dtype=int32)
-
-    >>> x = keras.ops.convert_to_tensor([[1, 6, 8], [1, 5, 2]])
-    >>> keras.ops.amax(x, axis=0)
-    array([1, 6, 8], dtype=int32)
-
-    >>> x = keras.ops.convert_to_tensor([[1, 6, 8], [1, 5, 2]])
-    >>> keras.ops.amax(x, axis=1, keepdims=True)
-    array([[8], [5]], dtype=int32)
-    """
-    if any_symbolic_tensors((x,)):
-        return Amax(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.ops.numpy.amax(x, axis=axis, keepdims=keepdims)
-
-
-class Amin(Operation):
-    def __init__(self, axis=None, keepdims=False, *, name=None):
-        super().__init__(name=name)
-        if isinstance(axis, int):
-            axis = [axis]
-        self.axis = axis
-        self.keepdims = keepdims
-
-    def call(self, x):
-        return backend.ops.numpy.amin(x, axis=self.axis, keepdims=self.keepdims)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
-            dtype=x.dtype,
-        )
-
-
-@keras_export(["keras.ops.amin", "keras.ops.numpy.amin"])
-def amin(x, axis=None, keepdims=False):
-    """Returns the minimum of an array or minimum value along an axis.
-
-    Args:
-        x: Input tensor.
-        axis: Axis along which to compute the minimum.
-            By default (`axis=None`), find the minimum value in all the
-            dimensions of the input array.
-        keepdims: If `True`, axes which are reduced are left in the result as
-            dimensions that are broadcast to the size of the original
-            input tensor. Defaults to `False`.
-
-    Returns:
-        An array with the minimum value. If `axis=None`, the result is a scalar
-        value representing the minimum element in the entire array. If `axis` is
-        given, the result is an array with the minimum values along
-        the specified axis.
-
-    Examples:
-    >>> x = keras.ops.convert_to_tensor([1, 3, 5, 2, 3, 6])
-    >>> keras.ops.amin(x)
-    array(1, dtype=int32)
-
-    >>> x = keras.ops.convert_to_tensor([[1, 6, 8], [7, 5, 3]])
-    >>> keras.ops.amin(x, axis=0)
-    array([1,5,3], dtype=int32)
-
-    >>> x = keras.ops.convert_to_tensor([[1, 6, 8], [7, 5, 3]])
-    >>> keras.ops.amin(x, axis=1, keepdims=True)
-    array([[1],[3]], dtype=int32)
-    """
-    if any_symbolic_tensors((x,)):
-        return Amin(axis=axis, keepdims=keepdims).symbolic_call(x)
-    return backend.ops.numpy.amin(x, axis=axis, keepdims=keepdims)
 
 
 class Append(Operation):
@@ -5305,9 +5192,24 @@ class Max(Operation):
         )
 
 
-@keras_export(["keras.ops.max", "keras.ops.numpy.max"])
+class Amax(Max):
+    """Kept for backward compatibility of saved models using `amax`."""
+
+    pass
+
+
+@keras_export(
+    [
+        "keras.ops.max",
+        "keras.ops.amax",
+        "keras.ops.numpy.max",
+        "keras.ops.numpy.amax",
+    ]
+)
 def max(x, axis=None, keepdims=False, initial=None):
     """Return the maximum of a tensor or maximum along an axis.
+
+    `keras.ops.amax` is an alias for this function.
 
     Args:
         x: Input tensor.
@@ -5571,9 +5473,24 @@ class Min(Operation):
         )
 
 
-@keras_export(["keras.ops.min", "keras.ops.numpy.min"])
+class Amin(Min):
+    """Kept for backward compatibility of saved models using `amin`."""
+
+    pass
+
+
+@keras_export(
+    [
+        "keras.ops.min",
+        "keras.ops.amin",
+        "keras.ops.numpy.min",
+        "keras.ops.numpy.amin",
+    ]
+)
 def min(x, axis=None, keepdims=False, initial=None):
     """Return the minimum of a tensor or minimum along an axis.
+
+    `keras.ops.amin` is an alias for this function.
 
     Args:
         x: Input tensor.
@@ -6395,7 +6312,7 @@ def _nanmedian(x, axis=None, keepdims=False):
     x = backend.ops.convert_to_tensor(x)
     if axis == () or axis == []:
         return backend.ops.cast(x, dtypes.result_type(x.dtype, float))
-    return backend.ops.numpy.nanquantile(x, 0.5, axis=axis, keepdims=keepdims)
+    return _nanquantile(x, 0.5, axis=axis, keepdims=keepdims)
 
 
 class Nanmin(Operation):
@@ -6647,7 +6564,7 @@ class Nanquantile(Operation):
         self.keepdims = keepdims
 
     def call(self, x, q):
-        return backend.ops.numpy.nanquantile(
+        return _nanquantile(
             x, q, axis=self.axis, method=self.method, keepdims=self.keepdims
         )
 
@@ -6719,9 +6636,97 @@ def nanquantile(x, q, axis=None, method="linear", keepdims=False):
             axis=axis, method=method, keepdims=keepdims
         ).symbolic_call(x, q)
 
-    return backend.ops.numpy.nanquantile(
-        x, q, axis=axis, method=method, keepdims=keepdims
+    return _nanquantile(x, q, axis=axis, method=method, keepdims=keepdims)
+
+
+def _nanquantile(x, q, axis=None, method="linear", keepdims=False):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "nanquantile"
+    ):
+        return backend.ops.numpy.nanquantile(
+            x, q, axis=axis, method=method, keepdims=keepdims
+        )
+    if method not in ("linear", "lower", "higher", "midpoint", "nearest"):
+        raise ValueError(
+            "`method` must be one of 'linear', 'lower', 'higher', "
+            f"'midpoint', or 'nearest'. Received: method={method}"
+        )
+    x = backend.ops.convert_to_tensor(x)
+    if backend.standardize_dtype(x.dtype) == "int64":
+        dtype = backend.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = backend.ops.cast(x, dtype)
+    q = backend.ops.convert_to_tensor(q, dtype=dtype)
+    x_shape = backend.ops.shape(x)
+    ndim = len(x_shape)
+    output_shape = tuple(q.shape) + tuple(
+        reduce_shape(x_shape, axis=axis, keepdims=keepdims)
     )
+
+    # Move the reduced axes to the end and flatten them into one axis.
+    axes = tuple(range(ndim)) if axis is None else canonicalize_axes(axis, ndim)
+    y = backend.ops.numpy.moveaxis(x, axes, tuple(range(-len(axes), 0)))
+    y = backend.ops.numpy.reshape(y, reduce_shape(x_shape, axis=axes) + (-1,))
+
+    # Replace NaNs with +inf so they sort to the end of each slice, then
+    # count the valid (non-NaN) entries at the front of each slice.
+    nan_mask = backend.ops.numpy.isnan(y)
+    inf = backend.ops.cast(float("inf"), dtype)
+    sorted_y = backend.ops.numpy.sort(
+        backend.ops.numpy.where(nan_mask, inf, y), axis=-1
+    )
+    valid_count = backend.ops.numpy.sum(
+        backend.ops.cast(backend.ops.numpy.logical_not(nan_mask), dtype),
+        axis=-1,
+        keepdims=True,
+    )
+
+    last_valid_index = backend.ops.numpy.maximum(
+        backend.ops.numpy.subtract(valid_count, 1), 0
+    )
+    position = backend.ops.numpy.multiply(
+        last_valid_index, backend.ops.numpy.reshape(q, (-1,))
+    )
+
+    def take(indices):
+        indices = backend.ops.cast(indices, "int32")
+        return backend.ops.numpy.take_along_axis(sorted_y, indices, axis=-1)
+
+    if method == "lower":
+        result = take(backend.ops.numpy.floor(position))
+    elif method == "higher":
+        result = take(backend.ops.numpy.ceil(position))
+    elif method == "nearest":
+        result = take(backend.ops.numpy.round(position))
+    else:
+        lower_index = backend.ops.numpy.floor(position)
+        lower = take(lower_index)
+        upper = take(backend.ops.numpy.ceil(position))
+        if method == "midpoint":
+            result = backend.ops.numpy.multiply(
+                backend.ops.numpy.add(lower, upper), 0.5
+            )
+        else:  # linear
+            fraction = backend.ops.numpy.subtract(position, lower_index)
+            interpolated = backend.ops.numpy.add(
+                lower,
+                backend.ops.numpy.multiply(
+                    backend.ops.numpy.subtract(upper, lower), fraction
+                ),
+            )
+            result = backend.ops.numpy.where(
+                backend.ops.numpy.equal(lower, upper), lower, interpolated
+            )
+
+    # Slices with no valid entries yield NaN.
+    nan = backend.ops.cast(float("nan"), dtype)
+    result = backend.ops.numpy.where(
+        backend.ops.numpy.equal(valid_count, 0), nan, result
+    )
+
+    result = backend.ops.numpy.moveaxis(result, -1, 0)
+    return backend.ops.numpy.reshape(result, output_shape)
 
 
 class Nanstd(Operation):

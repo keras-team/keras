@@ -144,6 +144,8 @@ class Sequential(Model):
     def _maybe_rebuild(self):
         self.built = False
         self._functional = None
+        if not self._layers:
+            return
         if isinstance(self._layers[0], InputLayer) and len(self._layers) > 1:
             input_shape = self._layers[0].batch_shape
             self.build(input_shape)
