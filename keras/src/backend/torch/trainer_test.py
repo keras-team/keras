@@ -5,6 +5,7 @@ import pytest
 import torch
 import torch.multiprocessing as mp
 from absl.testing import parameterized
+from torch._dynamo.utils import counters
 
 from keras.src import backend
 from keras.src import layers
@@ -290,5 +291,38 @@ class TorchTrainerJitCompileTest(testing.TestCase):
             model.fit(x, y, epochs=2, batch_size=4, shuffle=False, verbose=0)
             trained_weights.append(model.get_weights())
 
+        for eager_weight, jit_weight in zip(*trained_weights):
+            self.assertAllClose(eager_weight, jit_weight, atol=1e-6)
+
+    @parameterized.named_parameters(
+        ("all_variables", None),
+        ("bias_excluded", ["bias"]),
+    )
+    def test_jit_compile_with_weight_decay_compiles_once(self, excluded_names):
+        x = np.random.rand(16, 10).astype("float32")
+        y = np.random.rand(16, 1).astype("float32")
+        reference = SimpleModel()
+        reference(x)
+        initial_weights = reference.get_weights()
+
+        trained_weights = []
+        for jit_compile in (False, True):
+            model = SimpleModel()
+            model(x)
+            model.set_weights(initial_weights)
+            optimizer = optimizers.AdamW(0.01)
+            if excluded_names:
+                optimizer.exclude_from_weight_decay(var_names=excluded_names)
+            model.compile(
+                optimizer=optimizer, loss="mse", jit_compile=jit_compile
+            )
+            torch._dynamo.reset()
+            counters.clear()
+            model.fit(x, y, epochs=2, batch_size=4, shuffle=False, verbose=0)
+            trained_weights.append(model.get_weights())
+
+        if hasattr(torch._dynamo.config, "trace_autograd_ops"):
+            # The weight decay lookup must not make the second step recompile.
+            self.assertEqual(counters["stats"]["unique_graphs"], 1)
         for eager_weight, jit_weight in zip(*trained_weights):
             self.assertAllClose(eager_weight, jit_weight, atol=1e-6)

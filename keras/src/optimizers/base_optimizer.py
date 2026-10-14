@@ -223,6 +223,10 @@ class BaseOptimizer(KerasSaveable):
                         name="gradient_accumulator",
                     )
                 )
+            # Fill the weight decay cache now so that compiled train steps
+            # only read it. Filling it lazily on the first step makes torch
+            # Dynamo recompile the step once the cache has changed.
+            self._use_weight_decay(variable)
         self._trainable_variables = variables[:]
         self.built = True
 
