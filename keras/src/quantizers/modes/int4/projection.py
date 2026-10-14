@@ -36,7 +36,6 @@ class Int4ProjectionHandlers:
         )
         rows, columns = geometry.rows_columns(kernel_shape)
         block_size = self.resolve_block_size(layer, config)
-        geometry.record_kernel_shape(kernel_shape)
 
         # Codes packed two per byte along the columns.
         layer._kernel = layer.add_weight(
@@ -86,17 +85,16 @@ class Int4ProjectionHandlers:
 
         # Recorded for unpacking and reshaping at runtime.
         layer._int4_block_size = block_size
-        layer._orig_input_dim = rows
-        layer._orig_output_dim = columns
 
     def _get_projection_quantized_weight(self, layer, geometry):
         grouped = is_grouped(layer._int4_block_size)
+        _, columns = geometry.rows_columns(geometry.weight_shape)
         return QuantizedWeight(
             codes=layer._kernel,
             scale=layer.kernel_scale,
-            layout=Int4Pairs(axis=-1, orig_len=layer._orig_output_dim),
+            layout=Int4Pairs(axis=-1, orig_len=columns),
             scheme=int4_scheme(layer._int4_block_size),
-            shape=geometry.recorded_kernel_shape(),
+            shape=geometry.weight_shape,
             axis=0,
             zero_point=layer.kernel_zero if grouped else None,
             g_idx=layer.g_idx if grouped else None,

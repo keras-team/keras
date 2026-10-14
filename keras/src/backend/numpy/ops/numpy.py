@@ -167,16 +167,6 @@ def any(x, axis=None, keepdims=False):
     return np.any(x, axis=axis, keepdims=keepdims)
 
 
-def amax(x, axis=None, keepdims=False):
-    axis = standardize_axis_for_numpy(axis)
-    return np.amax(x, axis=axis, keepdims=keepdims)
-
-
-def amin(x, axis=None, keepdims=False):
-    axis = standardize_axis_for_numpy(axis)
-    return np.amin(x, axis=axis, keepdims=keepdims)
-
-
 def append(x1, x2, axis=None):
     axis = standardize_axis_for_numpy(axis)
     x1 = convert_to_tensor(x1)

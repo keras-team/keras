@@ -20,6 +20,9 @@ from keras.src.layers.attention.attention import Attention as Attention
 from keras.src.layers.attention.grouped_query_attention import (
     GroupedQueryAttention as GroupQueryAttention,
 )
+from keras.src.layers.attention.grouped_query_attention import (
+    GroupedQueryAttention as GroupedQueryAttention,
+)
 from keras.src.layers.attention.multi_head_attention import (
     MultiHeadAttention as MultiHeadAttention,
 )

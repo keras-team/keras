@@ -778,6 +778,21 @@ class EinsumDenseTest(testing.TestCase):
 
         layer.quantize(mode, type_check=False)  # No error
 
+    def test_quantize_subclass_skipping_super_build_raises(self):
+        # Without `super().build()` the layer records neither `kernel_shape`
+        # nor `einsum_axes`; `quantize` refuses before it changes anything.
+        class MyEinsumDense(layers.EinsumDense):
+            def build(self, input_shape):
+                self._kernel = self.add_weight(name="kernel", shape=(3, 8))
+                self.bias = None
+
+        layer = MyEinsumDense(equation="ab,bc->ac", output_shape=8)
+        layer.build((None, 3))
+        with self.assertRaisesRegex(ValueError, "kernel_shape, einsum_axes"):
+            layer.quantize("int8", type_check=False)
+        self.assertIsNone(layer.quantization_mode)
+        self.assertEqual(tuple(layer._kernel.shape), (3, 8))
+
     @parameterized.named_parameters(
         ("int8", "int8"),
         ("float8", "float8"),
@@ -1280,7 +1295,7 @@ class EinsumDenseTest(testing.TestCase):
         unpacked = quantizers.unpack_int4(
             packed_kernel, layer.kernel_scale.shape[-1], axis=-1
         )
-        expected = ops.reshape(unpacked, layer.original_kernel_shape)
+        expected = ops.reshape(unpacked, layer.kernel_shape)
         self.assertAllClose(layer.kernel, expected)
 
     def test_legacy_load_own_variables(self):
