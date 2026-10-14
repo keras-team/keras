@@ -5,6 +5,7 @@ import pytest
 import torch
 import torch.multiprocessing as mp
 from absl.testing import parameterized
+from torch._dynamo.utils import counters
 
 from keras.src import backend
 from keras.src import layers
@@ -270,7 +271,13 @@ class TorchTrainerJitCompileTest(testing.TestCase):
         history = model.fit(x, y, epochs=2, batch_size=4, verbose=0)
         self.assertLen(history.history["loss"], 2)
 
-    def test_jit_compile_matches_eager_training(self):
+    @parameterized.named_parameters(
+        ("sgd", optimizers.SGD, {"learning_rate": 0.1}),
+        ("sgd_momentum", optimizers.SGD, {"momentum": 0.9}),
+        ("sgd_nesterov", optimizers.SGD, {"momentum": 0.9, "nesterov": True}),
+        ("adadelta", optimizers.Adadelta, {"learning_rate": 1.0}),
+    )
+    def test_jit_compile_matches_eager_training(self, optimizer_cls, kwargs):
         x = np.random.rand(16, 10).astype("float32")
         y = np.random.rand(16, 1).astype("float32")
         reference = SimpleModel()
@@ -283,12 +290,19 @@ class TorchTrainerJitCompileTest(testing.TestCase):
             model(x)
             model.set_weights(initial_weights)
             model.compile(
-                optimizer=optimizers.SGD(0.1),
+                optimizer=optimizer_cls(**kwargs),
                 loss="mse",
                 jit_compile=jit_compile,
             )
+            torch._dynamo.reset()
+            counters.clear()
             model.fit(x, y, epochs=2, batch_size=4, shuffle=False, verbose=0)
             trained_weights.append(model.get_weights())
 
+        if hasattr(torch._dynamo.config, "trace_autograd_ops"):
+            # The `jit_compile=True` fit (the last one) compiles the whole
+            # train step, optimizer update included, into one graph.
+            self.assertEqual(dict(counters["graph_break"]), {})
+            self.assertEqual(counters["stats"]["unique_graphs"], 1)
         for eager_weight, jit_weight in zip(*trained_weights):
             self.assertAllClose(eager_weight, jit_weight, atol=1e-6)
