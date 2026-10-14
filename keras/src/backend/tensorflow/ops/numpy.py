@@ -3811,7 +3811,25 @@ def floor_divide(x1, x2):
     )
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
-    return tf.math.floordiv(x1, x2)
+    if "float" not in dtype:
+        return tf.math.floordiv(x1, x2)
+    # `tf.math.floordiv` takes the floor of the rounded quotient, which can
+    # reach the next whole number: in float32, 4.2 / 1.4 rounds to 3.0, so
+    # 4.2 // 1.4 gave 3 instead of 2. Divide the exact multiple
+    # `x1 - fmod(x1, x2)` instead, as NumPy and JAX do.
+    # `tf.truncatemod` has no float16 or bfloat16 kernel.
+    compute_dtype = "float32" if dtype in ("float16", "bfloat16") else dtype
+    x1 = tf.cast(x1, compute_dtype)
+    x2 = tf.cast(x2, compute_dtype)
+    mod = tf.truncatemod(x1, x2)
+    div = (x1 - mod) / x2
+    # `fmod` has the sign of `x1`; floor division rounds toward -inf.
+    div = tf.where(
+        tf.logical_and(mod != 0, (mod < 0) != (x2 < 0)), div - 1, div
+    )
+    # A zero divisor gives `x1 / x2` (inf, -inf or nan), as before.
+    result = tf.where(x2 == 0, x1 / x2, tf.round(div))
+    return tf.cast(result, dtype)
 
 
 def logical_xor(x1, x2):
