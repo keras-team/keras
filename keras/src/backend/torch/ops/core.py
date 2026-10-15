@@ -242,7 +242,9 @@ class Variable(KerasVariable):
             ).to(get_device())
 
     def _direct_assign(self, value):
-        if isinstance(self.value.data, DTensor):
+        # Use `self._value`, not `self.value`: inside an `AutocastScope`,
+        # `self.value` is a cast copy and writes to it would be lost.
+        if isinstance(self._value.data, DTensor):
             from keras.src.backend.torch import distribution_lib
             from keras.src.distribution.distribution_lib import TensorLayout
 
@@ -251,10 +253,12 @@ class Variable(KerasVariable):
                 layout = layout.backend_layout
             if value.device.type != layout.device_mesh.device_type:
                 value = value.to(layout.device_mesh.device_type)
-            value = distribution_lib.distribute_tensor(value, layout)
+            # Assignment is not differentiable, and torch only distributes
+            # leaf tensors.
+            value = distribution_lib.distribute_tensor(value.detach(), layout)
 
         with torch.no_grad():
-            self.value.copy_(value)
+            self._value.copy_(value)
 
     def _convert_to_tensor(self, value, dtype=None):
         return convert_to_tensor(value, dtype=dtype)

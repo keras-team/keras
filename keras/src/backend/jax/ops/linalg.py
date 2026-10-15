@@ -84,6 +84,9 @@ def qr(x, mode="reduced"):
 
 
 def solve(a, b):
+    if b.ndim == a.ndim - 1:
+        b = jnp.expand_dims(b, axis=-1)
+        return jnp.linalg.solve(a, b).squeeze(axis=-1)
     return jnp.linalg.solve(a, b)
 
 

@@ -93,6 +93,9 @@ class Int4LookupHandlers:
                 trainable=False,
                 autocast=False,
             )
+        else:
+            layer.embeddings_zero = None
+            layer.g_idx = None
 
         if geometry.reversible:
             # Weight-only by default, like an int4 projection; a config may
@@ -126,6 +129,8 @@ class Int4LookupHandlers:
                         dtype="int8",
                         trainable=False,
                     )
+                else:
+                    layer.reverse_embeddings_zero = None
 
     def _call_lookup(self, layer, inputs, reverse=False):
         """Forward pass for an int4 quantized embeddings lookup."""

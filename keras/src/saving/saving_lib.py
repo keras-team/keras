@@ -161,6 +161,8 @@ def _save_model_to_dir(model, dirpath):
         f.write(config_json)
     weights_filepath = file_utils.join(dirpath, _VARS_FNAME_H5)
     assert_dirpath = file_utils.join(dirpath, _ASSETS_DIRNAME)
+    weights_store = None
+    asset_store = None
     try:
         weights_store = H5IOStore(weights_filepath, mode="w")
         asset_store = DiskIOStore(assert_dirpath, mode="w")
@@ -172,8 +174,10 @@ def _save_model_to_dir(model, dirpath):
             visited_saveables=set(),
         )
     finally:
-        weights_store.close()
-        asset_store.close()
+        if weights_store is not None:
+            weights_store.close()
+        if asset_store is not None:
+            asset_store.close()
 
 
 def _save_model_to_fileobj(model, fileobj):

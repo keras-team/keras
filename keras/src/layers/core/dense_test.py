@@ -633,7 +633,7 @@ class DenseTest(testing.TestCase):
         self.assertIn(layer._int4_block_size, (None, -1))
         # Per-channel: one scale per output unit, no zero point, no g_idx.
         self.assertEqual(tuple(layer.kernel_scale.shape), (2,))
-        self.assertFalse(hasattr(layer, "kernel_zero"))
+        self.assertIsNone(layer.kernel_zero)
         self.assertEqual(layer.dtype_policy.name, "int4/-1_from_float32")
 
     @parameterized.named_parameters(
@@ -1698,7 +1698,7 @@ class DenseTest(testing.TestCase):
         layer.quantize("int4", config=config)
 
         # Verify g_idx is created
-        self.assertTrue(hasattr(layer, "g_idx"))
+        self.assertIsNotNone(layer.g_idx)
 
         # Verify g_idx shape
         self.assertEqual(layer.g_idx.shape, (input_dim,))
@@ -1719,7 +1719,7 @@ class DenseTest(testing.TestCase):
         layer.quantize("int4", config=config)
 
         # Verify g_idx is NOT created for per-channel
-        self.assertFalse(hasattr(layer, "g_idx"))
+        self.assertIsNone(layer.g_idx)
 
     @pytest.mark.skipif(
         testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
@@ -1749,7 +1749,7 @@ class DenseTest(testing.TestCase):
 
         # Verify g_idx is preserved
         loaded_layer = loaded_model.layers[0]
-        self.assertTrue(hasattr(loaded_layer, "g_idx"))
+        self.assertIsNotNone(loaded_layer.g_idx)
         self.assertAllClose(loaded_layer.g_idx, g_idx_before)
 
         # Verify outputs match
@@ -2069,8 +2069,8 @@ class DenseTest(testing.TestCase):
             "int4", config=Int4QuantizationConfig(block_size=block_size)
         )
         self.assertEqual(tuple(layer.kernel_scale.shape), (output_dim,))
-        self.assertFalse(hasattr(layer, "kernel_zero"))
-        self.assertFalse(hasattr(layer, "g_idx"))
+        self.assertIsNone(layer.kernel_zero)
+        self.assertIsNone(layer.g_idx)
         self.assertEqual(layer.dtype_policy.name, "int4/-1_from_float32")
 
     @parameterized.named_parameters(
@@ -2095,14 +2095,14 @@ class DenseTest(testing.TestCase):
         self.assertEqual(layer.quantization_mode, "int4")
         if per_channel:
             self.assertEqual(tuple(layer.kernel_scale.shape), (output_dim,))
-            self.assertFalse(hasattr(layer, "g_idx"))
+            self.assertIsNone(layer.g_idx)
         else:
             block_size = int(block_token)
             n_groups = math.ceil(input_dim / block_size)
             self.assertEqual(
                 tuple(layer.kernel_scale.shape), (n_groups, output_dim)
             )
-            self.assertTrue(hasattr(layer, "g_idx"))
+            self.assertIsNotNone(layer.g_idx)
             self.assertEqual(tuple(layer.g_idx.shape), (input_dim,))
 
         # The packed kernel is always [input_dim, ceil(output_dim / 2)] int8.

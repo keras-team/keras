@@ -1,5 +1,6 @@
 import math
 import os
+import re
 
 import numpy as np
 import pytest
@@ -369,6 +370,55 @@ class EinsumDenseTest(testing.TestCase):
             layer.compute_output_shape((None, 3, 8)), tuple(layer(x).shape)
         )
 
+    @parameterized.named_parameters(
+        # Fewer axes than the equation has input labels.
+        ("plain_too_short", "ab,bc->ac", 4, (None,), "ndim=2"),
+        ("left_elided_too_short", "...ab,bc->...ac", 4, (None,), "min_ndim=2"),
+        ("right_elided_too_short", "ab...,bc->ac...", 4, (None,), "min_ndim=2"),
+        ("scalar_input", "ab,bc->ac", 4, (), "ndim=2"),
+        # A repeated leading label keeps the label map in range, so only the
+        # ndim check rejects these equations before they are called.
+        (
+            "left_elided_repeated_label_ndim_1",
+            "...aa,ac->...ac",
+            (),
+            (4,),
+            "min_ndim=2",
+        ),
+        (
+            "left_elided_repeated_label_ndim_2",
+            "...aab,bc->...ac",
+            (),
+            (3, 3),
+            "min_ndim=3",
+        ),
+        # More axes than labels, without an ellipsis to absorb them.
+        ("plain_too_long", "ab,bc->ac", 4, (None, 3, 5), "ndim=2"),
+        (
+            "plain_three_labels_too_long",
+            "abc,cd->abd",
+            (3, 4),
+            (None, 3, 5, 6),
+            "ndim=3",
+        ),
+    )
+    def test_input_ndim_must_fit_equation(
+        self, equation, output_shape, input_shape, expected_ndim
+    ):
+        message = re.escape(
+            f"The einsum equation '{equation}' expects an input with "
+            f"{expected_ndim}, but received input shape {input_shape} with "
+            f"ndim={len(input_shape)}."
+        )
+        layer = layers.EinsumDense(equation, output_shape=output_shape)
+        with self.assertRaisesRegex(ValueError, message):
+            layer.build(input_shape)
+        self.assertFalse(layer.built)
+
+        layer = layers.EinsumDense(equation, output_shape=output_shape)
+        with self.assertRaisesRegex(ValueError, message):
+            layer.compute_output_shape(input_shape)
+
     def test_einsum_dense_constraints(self):
         layer = layers.EinsumDense(
             "abc,cde->abde", (1, 3, 4), kernel_constraint="non_neg"
@@ -378,7 +428,7 @@ class EinsumDenseTest(testing.TestCase):
         layer = layers.EinsumDense(
             "ab,b->a", (1, 3, 4), bias_axes="a", bias_constraint="non_neg"
         )
-        layer.build((2, 1, 2))
+        layer.build((2, 1))
         self.assertIsInstance(layer.bias.constraint, constraints.NonNeg)
 
     def test_analyze_einsum_string_axes(self):
@@ -2046,7 +2096,7 @@ class EinsumDenseTest(testing.TestCase):
         layer.quantize("int4", config=config)
 
         # Verify g_idx is created
-        self.assertTrue(hasattr(layer, "g_idx"))
+        self.assertIsNotNone(layer.g_idx)
 
         # Verify g_idx shape (128 = input_dim = reduced dimension)
         self.assertEqual(layer.g_idx.shape, (128,))
@@ -2071,7 +2121,7 @@ class EinsumDenseTest(testing.TestCase):
         layer.quantize("int4", config=config)
 
         # Verify g_idx is NOT created for per-channel
-        self.assertFalse(hasattr(layer, "g_idx"))
+        self.assertIsNone(layer.g_idx)
 
     @pytest.mark.skipif(
         testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
@@ -2103,7 +2153,7 @@ class EinsumDenseTest(testing.TestCase):
 
         # Verify g_idx is preserved
         loaded_layer = loaded_model.layers[0]
-        self.assertTrue(hasattr(loaded_layer, "g_idx"))
+        self.assertIsNotNone(loaded_layer.g_idx)
         self.assertAllClose(loaded_layer.g_idx, g_idx_before)
 
         # Verify outputs match
@@ -2170,8 +2220,8 @@ class EinsumDenseTest(testing.TestCase):
         layer.quantize(
             "int4", config=Int4QuantizationConfig(block_size=block_size)
         )
-        self.assertFalse(hasattr(layer, "kernel_zero"))
-        self.assertFalse(hasattr(layer, "g_idx"))
+        self.assertIsNone(layer.kernel_zero)
+        self.assertIsNone(layer.g_idx)
         self.assertEqual(layer.dtype_policy.name, "int4/-1_from_float32")
 
     @parameterized.named_parameters(
@@ -2200,9 +2250,9 @@ class EinsumDenseTest(testing.TestCase):
 
         self.assertEqual(layer.quantization_mode, "int4")
         if per_channel:
-            self.assertFalse(hasattr(layer, "g_idx"))
+            self.assertIsNone(layer.g_idx)
         else:
-            self.assertTrue(hasattr(layer, "g_idx"))
+            self.assertIsNotNone(layer.g_idx)
             self.assertEqual(tuple(layer.g_idx.shape), (input_dim,))
         self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
 

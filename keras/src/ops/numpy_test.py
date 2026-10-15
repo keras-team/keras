@@ -6282,6 +6282,25 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.cov(x), np.cov(x))
         self.assertAllClose(knp.Cov()(x), np.cov(x))
 
+        if backend.SUPPORTS_COMPLEX_DTYPES:
+            x = np.array(
+                [
+                    [1 + 1j, 2 + 0j, 4 - 1j],
+                    [0 + 2j, 3 - 1j, 5 + 3j],
+                ],
+                dtype="complex64",
+            )
+            for dtype in ("complex64", "complex128"):
+                for values in (x, x[0], x[:1]):
+                    values = values.astype(dtype)
+                    expected = np.cov(values)
+                    for actual in (knp.cov(values), knp.Cov()(values)):
+                        self.assertAllClose(actual, expected)
+                        self.assertIn(
+                            standardize_dtype(actual.dtype),
+                            ("complex64", "complex128"),
+                        )
+
         # A 1D input, or a single variable, reduces to the sample
         # variance.
         x = np.array([1.0, 4.0, 2.0, 8.0])
