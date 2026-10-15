@@ -43,11 +43,11 @@ def array_to_img(x, data_format=None, scale=True, dtype=None):
 
     Example:
 
-    ```python
+```python
     from PIL import Image
     img = np.random.random(size=(100, 100, 3))
     pil_img = keras.utils.array_to_img(img)
-    ```
+```
 
     Args:
         x: Input data, in any form that can be converted to a NumPy array.
@@ -118,12 +118,12 @@ def img_to_array(img, data_format=None, dtype=None):
 
     Example:
 
-    ```python
+```python
     from PIL import Image
     img_data = np.random.random(size=(100, 100, 3))
     img = keras.utils.array_to_img(img_data)
     array = keras.utils.image.img_to_array(img)
-    ```
+```
 
     Args:
         img: Input PIL Image instance.
@@ -208,12 +208,12 @@ def load_img(
 
     Example:
 
-    ```python
+```python
     image = keras.utils.load_img(image_path)
     input_arr = keras.utils.img_to_array(image)
     input_arr = np.array([input_arr])  # Convert single image to a batch.
     predictions = model.predict(input_arr)
-    ```
+```
 
     Args:
         path: Path to image file.
@@ -330,10 +330,10 @@ def smart_resize(
 
     You could simply do, in TF (or JAX equivalent):
 
-    ```python
+```python
     size = (200, 200)
     ds = ds.map(lambda img: resize(img, size))
-    ```
+```
 
     However, if you do this, you distort the aspect ratio of your images, since
     in general they do not all have the same aspect ratio as `size`. This is
@@ -346,10 +346,10 @@ def smart_resize(
 
     This calls for:
 
-    ```python
+```python
     size = (200, 200)
     ds = ds.map(lambda img: smart_resize(img, size))
-    ```
+```
 
     Your output images will actually be `(200, 200)`, and will not be distorted.
     Instead, the parts of the image that do not fit within the target size
@@ -392,8 +392,20 @@ def smart_resize(
             f"Expected `size` to be a tuple of 2 integers, but got: {size}."
         )
     img = backend_module.ops.convert_to_tensor(x)
-    if len(img.shape) is not None:
-        if len(img.shape) < 3 or len(img.shape) > 4:
+    # Skip this rank check when the rank itself is unknown, e.g. a TensorFlow
+    # tensor traced with an unspecified-rank `tf.TensorSpec`. The previous
+    # `len(img.shape) is not None` was always `True` (`len` never returns
+    # `None`), so it was a no-op guard rather than actually detecting this
+    # case, and calling `len()` on such a tensor's shape raises: `TypeError`
+    # if `img.shape` is literally `None`, or, for TensorFlow specifically,
+    # `ValueError` ("Cannot take the length of shape with unknown rank") even
+    # though `img.shape` there is a `TensorShape` object and not `None`.
+    try:
+        img_rank = len(img.shape)
+    except (TypeError, ValueError):
+        img_rank = None
+    if img_rank is not None:
+        if img_rank < 3 or img_rank > 4:
             raise ValueError(
                 "Expected an image array with shape `(height, width, "
                 "channels)`, or `(batch_size, height, width, channels)`, but "
