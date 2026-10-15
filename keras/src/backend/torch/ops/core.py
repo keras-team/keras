@@ -253,7 +253,9 @@ class Variable(KerasVariable):
                 layout = layout.backend_layout
             if value.device.type != layout.device_mesh.device_type:
                 value = value.to(layout.device_mesh.device_type)
-            value = distribution_lib.distribute_tensor(value, layout)
+            # Assignment is not differentiable, and torch only distributes
+            # leaf tensors.
+            value = distribution_lib.distribute_tensor(value.detach(), layout)
 
         with torch.no_grad():
             self._value.copy_(value)
