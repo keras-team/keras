@@ -26,6 +26,9 @@ from keras.src.backend.config import floatx
 
 # The dispatch mode stack and the Keras distribution are both per thread, so
 # each thread's `set_distribution()` enters and exits its own promotion mode.
+# The mode is not kept in `global_state`: `clear_session()` replaces that state,
+# so a mode that is still on the dispatch stack would lose its reference and
+# no call could exit it.
 _DTENSOR_PROMOTION_STATE = threading.local()
 
 
