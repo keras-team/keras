@@ -278,13 +278,11 @@ def _check_input_spec(spec, x, input_index, layer_name):
                 )
     # Check shape.
     if spec.shape is not None:
-        spec_shape = spec.shape
-        if spec.allow_last_axis_squeeze:
-            if shape and shape[-1] == 1:
-                shape = shape[:-1]
-            if spec_shape and spec_shape[-1] == 1:
-                spec_shape = spec_shape[:-1]
-        for spec_dim, dim in zip(spec_shape, shape):
+        # `zip` stops at the shorter shape. With `allow_last_axis_squeeze`
+        # the ranks may differ, and only the leading dimensions are
+        # compared: `Functional._adjust_input_rank` checks the rank.
+        # Otherwise the ranks match, since `spec.ndim` is checked above.
+        for spec_dim, dim in zip(spec.shape, shape):
             if spec_dim is not None and dim is not None:
                 if spec_dim != dim:
                     raise ValueError(
