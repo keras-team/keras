@@ -646,6 +646,22 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         expected_result = np.array([[2, 0], [0, 2]], dtype="float32")
         self.assertAllClose(output, expected_result)
 
+    @parameterized.named_parameters(
+        named_product(batch_shape=[(), (1,), (2,), (3,), (2, 3)])
+    )
+    def test_solve_vector_rhs(self, batch_shape):
+        shape = batch_shape + (2,)
+        diagonals = np.arange(1, np.prod(shape) + 1, dtype="float32").reshape(
+            shape
+        )
+        a = diagonals[..., :, None] * np.eye(2, dtype="float32")
+        b = 2 * (diagonals + 1)
+        expected_result = b / diagonals
+        self.assertAllClose(linalg.solve(a, b), expected_result)
+        self.assertAllClose(
+            linalg.solve(a, b[..., None]), expected_result[..., None]
+        )
+
     def test_solve_triangular(self):
         # 2d-case
         x1 = np.array([[1, 2], [0, 5]], dtype="float32")

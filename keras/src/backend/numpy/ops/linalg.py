@@ -73,6 +73,9 @@ def qr(x, mode="reduced"):
 
 
 def solve(a, b):
+    if b.ndim == a.ndim - 1:
+        b = np.expand_dims(b, axis=-1)
+        return np.linalg.solve(a, b).squeeze(axis=-1)
     return np.linalg.solve(a, b)
 
 
