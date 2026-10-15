@@ -295,10 +295,24 @@ class TorchTrainerJitCompileTest(testing.TestCase):
             self.assertAllClose(eager_weight, jit_weight, atol=1e-6)
 
     @parameterized.named_parameters(
-        ("all_variables", None),
-        ("bias_excluded", ["bias"]),
+        ("adamw", optimizers.AdamW, {"learning_rate": 0.01}, None),
+        (
+            "adamw_bias_excluded",
+            optimizers.AdamW,
+            {"learning_rate": 0.01},
+            ["bias"],
+        ),
+        # `Muon` applies `adam_weight_decay` when `weight_decay` is None.
+        (
+            "muon_adam_weight_decay_only",
+            optimizers.Muon,
+            {"weight_decay": None},
+            None,
+        ),
     )
-    def test_jit_compile_with_weight_decay_compiles_once(self, excluded_names):
+    def test_jit_compile_with_weight_decay_compiles_once(
+        self, optimizer_cls, kwargs, excluded_names
+    ):
         x = np.random.rand(16, 10).astype("float32")
         y = np.random.rand(16, 1).astype("float32")
         reference = SimpleModel()
@@ -310,7 +324,7 @@ class TorchTrainerJitCompileTest(testing.TestCase):
             model = SimpleModel()
             model(x)
             model.set_weights(initial_weights)
-            optimizer = optimizers.AdamW(0.01)
+            optimizer = optimizer_cls(**kwargs)
             if excluded_names:
                 optimizer.exclude_from_weight_decay(var_names=excluded_names)
             model.compile(

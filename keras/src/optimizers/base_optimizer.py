@@ -225,7 +225,9 @@ class BaseOptimizer(KerasSaveable):
                 )
             # Fill the weight decay cache now so that compiled train steps
             # only read it. Filling it lazily on the first step makes torch
-            # Dynamo recompile the step once the cache has changed.
+            # Dynamo recompile the step once the cache has changed. Fill it
+            # even when `weight_decay` is None: `Muon` also reads the cache
+            # to apply `adam_weight_decay`.
             self._use_weight_decay(variable)
         self._trainable_variables = variables[:]
         self.built = True
