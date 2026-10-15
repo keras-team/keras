@@ -1,4 +1,3 @@
-import functools
 import unittest
 from unittest import mock
 
@@ -15,31 +14,29 @@ from keras.src.testing import test_case
 X = np.array([[1, 2, 3], [3, 2, 1]])
 
 
-class WrongRank(Operation):
-    """Squares `x`; the symbolic output has an extra dimension."""
+class Square(Operation):
+    """Squares `x`. The subclasses below break its symbolic path."""
 
     def call(self, x):
         return ops.square(x)
+
+
+class WrongRank(Square):
+    """The symbolic output has an extra dimension."""
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape + (1,), dtype=x.dtype)
 
 
-class WrongDtype(Operation):
-    """Squares `x`; the symbolic output dtype is always float32."""
-
-    def call(self, x):
-        return ops.square(x)
+class WrongDtype(Square):
+    """The symbolic output dtype is always float32."""
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype="float32")
 
 
-class NeedsStaticShape(Operation):
-    """Squares `x`; the symbolic path rejects unknown dimensions."""
-
-    def call(self, x):
-        return ops.square(x)
+class NeedsStaticShape(Square):
+    """The symbolic path rejects unknown dimensions."""
 
     def compute_output_spec(self, x):
         if None in x.shape:
@@ -47,11 +44,8 @@ class NeedsStaticShape(Operation):
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
-class LazyShape(Operation):
-    """Squares `x`; one unknown input dim makes every output dim unknown."""
-
-    def call(self, x):
-        return ops.square(x)
+class LazyShape(Square):
+    """One unknown input dim makes every output dim unknown."""
 
     def compute_output_spec(self, x):
         if None in x.shape:
@@ -108,10 +102,10 @@ class RunOpTestTest(testing.TestCase):
             lambda t: t.run_op_test(function_form(WrongRank()), np.square, (X,))
         )
         self.assertEqual(failed_checks(result), ["symbolic_static"])
-        self.assertIn(
-            "Output rank differs: symbolic=(2, 3, 1), eager=(2, 3) "
-            "for inputs int64[2, 3]",
+        self.assertRegex(
             result.failures[0][1],
+            r"Output differs: symbolic=int\d\d\[2, 3, 1\], "
+            r"eager=int\d\d\[2, 3\] for inputs int64\[2, 3\]",
         )
         self.assertEqual(
             [r for _, r in result.skipped], ["symbolic_static failed"] * 2
@@ -134,13 +128,13 @@ class RunOpTestTest(testing.TestCase):
         self.assertEqual(
             failed_checks(result), ["symbolic_dynamic", "symbolic_partial"]
         )
-        # All dims at once, then one mask per dim of `X`.
+        # All dims at once, then one unknown dim at a time.
         self.assertEqual(
-            [t.params.get("shapes") for t, _ in result.errors],
-            [None, "(None, 3)", "(2, None)"],
+            [t.params["shapes"] for t, _ in result.errors],
+            ["(None, None)", "(None, 3)", "(2, None)"],
         )
 
-    def test_partial_masks(self):
+    def test_unknown_dim_variants(self):
         shapes = []
 
         def op(x, y):
@@ -162,14 +156,12 @@ class RunOpTestTest(testing.TestCase):
 
     def test_lazy_shape_fails_precision(self):
         op = LazyShape()
-        self.run_op_symbolic_check(op, (X,), {}, none_dims={(0, 0), (0, 1)})
+        self.run_op_symbolic_check(op, (X,), {}, [(None, None)])
         with self.assertRaisesRegex(AssertionError, "does not depend on"):
-            self.run_op_symbolic_check(op, (X,), {}, none_dims={(0, 0)})
+            self.run_op_symbolic_check(op, (X,), {}, [(None, 3)])
 
     def test_invalid_probe_skips_precision(self):
-        self.run_op_symbolic_check(
-            LazyShapeNoSizeOne(), (X,), {}, none_dims={(0, 0)}
-        )
+        self.run_op_symbolic_check(LazyShapeNoSizeOne(), (X,), {}, [(None, 3)])
 
     def test_disabled_dynamic_shape_checks_are_skipped(self):
         result = run_as_test(
@@ -209,17 +201,9 @@ class RunOpTestTest(testing.TestCase):
 
     def test_symbolic_dtype_mismatch_fails(self):
         with self.assertRaisesRegex(
-            AssertionError, "Output dtype differs: symbolic=float32, eager=int"
+            AssertionError, "Output differs: symbolic=float32"
         ):
             self.run_op_symbolic_check(WrongDtype(), (X,), {})
-
-    def test_complex_outputs_compare_imaginary(self):
-        close = functools.partial(
-            test_case._assert_outputs_close, self, atol=1e-6, rtol=1e-6, msg=""
-        )
-        close(np.array([1 + 2j]), np.array([1 + 2j]))
-        with self.assertRaises(AssertionError):
-            close(np.array([1j]), np.array([-1j]))
 
     def test_python_scalar_inputs(self):
         self.run_op_test(ops.add, np.add, (X, 1))

@@ -180,8 +180,6 @@ DEFAULT_INPUT_DTYPES = (
     "float16",
     "float32",
 )
-INT_DTYPES = ("int8", "int16", "int32", "uint8", "uint16", "uint32")
-FLOAT_DTYPES = ("bfloat16", "float16", "float32")
 # Parity with the old `NumpyDtypeTest.BINARY_DTYPES`: torch also tests
 # float64 for multi-input ops.
 BINARY_INPUT_DTYPES = DEFAULT_INPUT_DTYPES + (

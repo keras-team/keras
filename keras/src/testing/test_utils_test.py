@@ -313,23 +313,18 @@ class NamedDtypeCombinationsTest(test_case.TestCase):
         )
 
     def test_per_input_pools(self):
-        pools = [self.POOL, test_utils.INT_DTYPES]
+        pools = [self.POOL, self.POOL[:3]]
         cases = test_utils.named_dtype_combinations(2, dtypes=pools)
-        self.assertLen(cases, 60)
+        self.assertLen(cases, 30)
         self.assertEqual(
             cases, test_utils.named_dtype_combinations(2, True, pools)
         )
         for case in cases:
-            self.assertIn(case["dtypes"][1], test_utils.INT_DTYPES)
+            self.assertIn(case["dtypes"][1], self.POOL[:3])
 
     def test_per_input_pools_length_mismatch(self):
         with self.assertRaisesRegex(ValueError, "Expected 2 dtype pools"):
             test_utils.named_dtype_combinations(2, dtypes=[self.POOL] * 3)
-
-    def test_float_int_pools(self):
-        floats, ints = set(test_utils.FLOAT_DTYPES), set(test_utils.INT_DTYPES)
-        self.assertTrue(floats <= set(self.POOL) and ints <= set(self.POOL))
-        self.assertFalse(floats & ints)
 
     def test_binary_pool_default(self):
         is_torch = backend.backend() == "torch"
