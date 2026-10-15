@@ -10737,7 +10737,10 @@ def _cov(x):
     num_samples = backend.ops.cast(backend.ops.shape(x)[-1], dtype)
     result = backend.ops.numpy.divide(
         backend.ops.numpy.matmul(
-            x_centered, backend.ops.numpy.transpose(x_centered)
+            x_centered,
+            backend.ops.numpy.transpose(
+                backend.ops.numpy.conjugate(x_centered)
+            ),
         ),
         backend.ops.numpy.subtract(num_samples, 1),
     )
