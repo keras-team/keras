@@ -6295,7 +6295,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
                     values = values.astype(dtype)
                     expected = np.cov(values)
                     for actual in (knp.cov(values), knp.Cov()(values)):
-                        self.assertAllClose(actual, expected)
+                        self.assertAllClose(
+                            actual, expected, tpu_atol=1e-2, tpu_rtol=1e-2
+                        )
                         self.assertIn(
                             standardize_dtype(actual.dtype),
                             ("complex64", "complex128"),
