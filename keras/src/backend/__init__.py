@@ -59,11 +59,11 @@ else:
 
 
 Variable.__module__ = __name__  # noqa: F405
-keras_export("keras.Variable")(Variable)  # noqa: F405
+Variable = keras_export("keras.Variable")(Variable)  # noqa: F405
 
 
 name_scope.__module__ = __name__  # noqa: F405
-keras_export("keras.name_scope")(name_scope)  # noqa: F405
+name_scope = keras_export("keras.name_scope")(name_scope)  # noqa: F405
 
 
 @keras_export("keras.device")
