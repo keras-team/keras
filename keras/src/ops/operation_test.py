@@ -381,3 +381,79 @@ class OperationTest(testing.TestCase):
             ValueError, "must be a string and cannot contain character `/`."
         ):
             OpWithMultipleOutputs(name="test/op")
+
+
+class ElementwiseUnaryOperationTest(testing.TestCase):
+    def test_elementwise_unary_operation_basic(self):
+        class DummyRelu(operation.ElementwiseUnaryOperation):
+            backend_fn = backend.ops.nn.relu
+            preserves_sparse = True
+
+        op = DummyRelu()
+        x = np.array([-2.0, 0.0, 3.0], dtype="float32")
+        out = op(x)
+        self.assertAllClose(out, [0.0, 0.0, 3.0])
+
+        sym_x = keras_tensor.KerasTensor((2, 3), dtype="float32")
+        sym_out = op(sym_x)
+        self.assertEqual(sym_out.shape, (2, 3))
+        self.assertEqual(sym_out.dtype, "float32")
+        self.assertFalse(sym_out.sparse)
+        self.assertFalse(sym_out.ragged)
+
+        sym_sparse_x = keras_tensor.KerasTensor(
+            (2, 3), dtype="float32", sparse=True
+        )
+        sym_sparse_out = op(sym_sparse_x)
+        self.assertTrue(sym_sparse_out.sparse)
+        self.assertFalse(sym_sparse_out.ragged)
+
+        # Non-sparse preserving op should not propagate sparse=True
+        class DummySigmoid(operation.ElementwiseUnaryOperation):
+            backend_fn = backend.ops.nn.sigmoid
+
+        dense_op = DummySigmoid()
+        self.assertFalse(dense_op(sym_sparse_x).sparse)
+
+        sym_ragged_x = keras_tensor.KerasTensor(
+            (2, None), dtype="float32", ragged=True
+        )
+        sym_ragged_out = op(sym_ragged_x)
+        self.assertFalse(sym_ragged_out.sparse)
+        self.assertTrue(sym_ragged_out.ragged)
+
+    def test_elementwise_unary_operation_missing_backend_fn(self):
+        with self.assertRaisesRegex(ValueError, "must define `backend_fn`"):
+
+            class MissingFnOp(operation.ElementwiseUnaryOperation):
+                pass
+
+    def test_elementwise_unary_operation_output_dtype(self):
+        class DummyIsNan(operation.ElementwiseUnaryOperation):
+            backend_fn = backend.ops.numpy.isnan
+            output_dtype = "bool"
+
+        op = DummyIsNan()
+        sym_x = keras_tensor.KerasTensor((2, 3), dtype="float32")
+        sym_out = op(sym_x)
+        self.assertEqual(sym_out.shape, (2, 3))
+        self.assertEqual(sym_out.dtype, "bool")
+
+    def test_elementwise_unary_operation_promote_to_float(self):
+        class DummyPromoteOp(operation.ElementwiseUnaryOperation):
+            backend_fn = backend.ops.nn.relu
+            promote_to_float = True
+
+        op = DummyPromoteOp()
+        sym_int = keras_tensor.KerasTensor((2, 3), dtype="int32")
+        sym_out = op(sym_int)
+        self.assertEqual(sym_out.shape, (2, 3))
+        self.assertEqual(sym_out.dtype, backend.floatx())
+
+        sym_bool = keras_tensor.KerasTensor((2, 3), dtype="bool")
+        sym_out_bool = op(sym_bool)
+        self.assertEqual(sym_out_bool.dtype, backend.floatx())
+
+        sym_float16 = keras_tensor.KerasTensor((2, 3), dtype="float16")
+        sym_out_f16 = op(sym_float16)
+        self.assertEqual(sym_out_f16.dtype, "float16")
