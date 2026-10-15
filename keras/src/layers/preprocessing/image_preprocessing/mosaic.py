@@ -31,6 +31,20 @@ class Mosaic(BaseImagePreprocessingLayer):
     **Note:** This layer is safe to use inside a `tf.data` pipeline
     (independently of which backend you're using).
 
+    Input shape:
+        A 4D (batched) tensor of images, or a dictionary with an `"images"`
+        key and optional `"labels"`, `"bounding_boxes"` and
+        `"segmentation_masks"` keys. Images have shape
+        `(batch, height, width, channels)` in `"channels_last"` format, or
+        `(batch, channels, height, width)` in `"channels_first"` format.
+        Labels have shape `(batch, num_classes)`, and segmentation masks have
+        the same layout as the images.
+
+    Output shape:
+        Same as the input, except that each image's bounding boxes become
+        4 times as many, since an output image can contain boxes from 4
+        images.
+
     References:
         - [YOLOv4 paper](https://arxiv.org/abs/2004.10934).
         - [YOLOv5 implementation](https://github.com/ultralytics/yolov5).
