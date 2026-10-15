@@ -79,6 +79,16 @@ class ArgumentValidationTest(testing.TestCase):
                 (True, False), 2, "kernel_size"
             )
 
+        with self.assertRaises(ValueError):
+            argument_validation.standardize_tuple(
+                np.bool_(True), 2, "kernel_size"
+            )
+
+        with self.assertRaises(ValueError):
+            argument_validation.standardize_tuple(
+                (np.bool_(True), np.bool_(False)), 2, "kernel_size"
+            )
+
         # Strings should not be accepted as an iterable of chars
         with self.assertRaises(ValueError):
             argument_validation.standardize_tuple("12", 2, "kernel_size")

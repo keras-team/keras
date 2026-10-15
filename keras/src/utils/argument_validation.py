@@ -20,7 +20,7 @@ def standardize_tuple(value, n, name, allow_zero=False):
         f"Received {name}={value}"
     )
 
-    if isinstance(value, (str, bytes, bool)):
+    if isinstance(value, (str, bytes, bool)) or type(value).__name__ == "bool_":
         raise ValueError(error_msg)
 
     if isinstance(value, numbers.Integral):
@@ -34,7 +34,10 @@ def standardize_tuple(value, n, name, allow_zero=False):
             raise ValueError(error_msg)
         converted_values = []
         for single_value in value_tuple:
-            if isinstance(single_value, bool):
+            if (
+                isinstance(single_value, bool)
+                or type(single_value).__name__ == "bool_"
+            ):
                 raise ValueError(
                     f"{error_msg}, including element {single_value} of "
                     f"type {type(single_value)}"
