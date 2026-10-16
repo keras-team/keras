@@ -2178,6 +2178,51 @@ class LayerTest(testing.TestCase):
             # they are still mean 0 / variance 1.
             self.assertAllClose(y, x / np.sqrt(1.0 + 1e-3), atol=1e-3)
 
+    def test_delattr_untrack_layer(self):
+        inputs = Input((4,))
+        model = Model(inputs, layers.Dense(4)(inputs))
+        initial_num_weights = len(model.weights)
+        initial_params = model.count_params()
+
+        helper = layers.Dense(3)
+        helper.build((None, 4))
+        model.helper = helper
+        self.assertGreater(len(model.weights), initial_num_weights)
+        self.assertGreater(model.count_params(), initial_params)
+
+        del model.helper
+        self.assertEqual(len(model.weights), initial_num_weights)
+        self.assertEqual(model.count_params(), initial_params)
+        self.assertNotIn(helper, model.layers)
+
+        # Sub-layers nested inside container attributes are untracked when
+        # the container attribute is deleted.
+        helpers = [layers.Dense(3), layers.Dense(4)]
+        for h in helpers:
+            h.build((None, 4))
+        model.helpers = helpers
+        self.assertGreater(len(model.weights), initial_num_weights)
+        self.assertGreater(model.count_params(), initial_params)
+
+        del model.helpers
+        self.assertEqual(len(model.weights), initial_num_weights)
+        self.assertEqual(model.count_params(), initial_params)
+        for h in helpers:
+            self.assertNotIn(h, model.layers)
+
+        # Same for mappings and nested containers.
+        helper_by_name = {"a": layers.Dense(3), "b": [layers.Dense(4)]}
+        for h in [helper_by_name["a"], *helper_by_name["b"]]:
+            h.build((None, 4))
+        model.helper_by_name = helper_by_name
+        self.assertGreater(len(model.weights), initial_num_weights)
+
+        del model.helper_by_name
+        self.assertEqual(len(model.weights), initial_num_weights)
+        self.assertEqual(model.count_params(), initial_params)
+        self.assertNotIn(helper_by_name["a"], model.layers)
+        self.assertNotIn(helper_by_name["b"][0], model.layers)
+
 
 class _LoraLessProjection(layers.Layer):
     """A third-party projection that opts into quantization without LoRA."""
