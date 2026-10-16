@@ -5,7 +5,6 @@ from keras.src import backend
 from keras.src.api_export import keras_export
 
 GLOBAL_STATE_TRACKER = threading.local()
-GLOBAL_SETTINGS_TRACKER = threading.local()
 
 
 def set_global_attribute(name, value):
@@ -71,7 +70,6 @@ def clear_session(free_memory=True):
     dense
     """
     global GLOBAL_STATE_TRACKER
-    global GLOBAL_SETTINGS_TRACKER
 
     # Reset the distribution through its own API, so the backend can undo what
     # `set_distribution()` started. The torch backend exits its DTensor
@@ -82,7 +80,6 @@ def clear_session(free_memory=True):
     distribution_lib.set_distribution(None)
 
     GLOBAL_STATE_TRACKER = threading.local()
-    GLOBAL_SETTINGS_TRACKER = threading.local()
 
     if backend.backend() == "tensorflow":
         from keras.src.utils.module_utils import tensorflow as tf
