@@ -1,4 +1,5 @@
 import numpy as np
+from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import layers
@@ -173,3 +174,18 @@ class LayerNormalizationTest(testing.TestCase):
         self.assertEqual(out_sorted.shape, (2, 3, 4))
         self.assertEqual(out_unsorted.shape, (2, 3, 4))
         self.assertAllClose(out_sorted, out_unsorted)
+
+    @parameterized.product(
+        input_dtype=["int32", "bool"],
+        dtype=["float32", "mixed_float16", "mixed_bfloat16"],
+    )
+    def test_non_float_input(self, input_dtype, dtype):
+        x = np.array([[1, 0, 2, 3], [4, 5, 0, 7]]).astype(input_dtype)
+        layer = layers.LayerNormalization(dtype=dtype)
+        outputs = layer(x)
+        self.assertDType(outputs, layer.compute_dtype)
+        self.assertDType(
+            layer(layers.Input((4,), dtype=input_dtype)), layer.compute_dtype
+        )
+        expected = layer(x.astype("float32"))
+        self.assertAllClose(outputs, expected, atol=1e-2, rtol=1e-2)
