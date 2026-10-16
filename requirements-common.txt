@@ -18,6 +18,7 @@ build
 optree
 pytest
 pytest-cov
+pytest-durations
 pytest-xdist
 packaging
 # for tree_test.py
