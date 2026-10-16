@@ -6,6 +6,7 @@ from keras.src import quantizers
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
 from keras.src.ops import linalg
+from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.quantizers import compute_quantization_parameters
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
@@ -516,12 +517,9 @@ class GPTQ:
         # add cross-byte bit-shuffling complexity for a modest gain. They are
         # stored one value per uint8 byte.
 
-        del self.original_layer._kernel
-        self.original_layer.quantized_kernel.assign(quantized)
-        self.original_layer.kernel_scale.assign(scale)
-        self.original_layer.kernel_zero.assign(zero)
-        self.original_layer.g_idx.assign(g_idx)
-        self.original_layer.is_gptq_calibrated = True
+        strategy_registry.get_strategy("gptq").write_back(
+            self.original_layer, quantized, scale, zero, g_idx
+        )
 
     def free(self):
         del self.hessian

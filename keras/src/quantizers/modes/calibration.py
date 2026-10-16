@@ -31,6 +31,9 @@ class CalibrationStrategy(QuantizationStrategy):
         # mode's variables from the layer's current weight shape.
         geometry = self.require_geometry(layer)
         layer.quantized_build(geometry.weight_shape, self.name, config)
+        # A live float layer keeps its float kernel as the weight until
+        # `write_back` installs the calibrated codes.
+        layer.calibration_pending = True
 
     # --- Config and policy-string surface ---------------------------------
 
@@ -80,6 +83,11 @@ class CalibrationStrategy(QuantizationStrategy):
 
     # --- Variables --------------------------------------------------------
 
+    # Name of the variable of per-input-row scales that multiplied the
+    # weights before quantization, or `None`. The quantized weight divides
+    # them back out (`QuantizedWeight.input_scales`).
+    input_scales_name = None
+
     def build(self, layer, input_shape, config):
         """Allocates the quantized kernel and quantization parameters.
 
@@ -87,10 +95,10 @@ class CalibrationStrategy(QuantizationStrategy):
         (run by `Model.quantize`) writes the quantized weights back.
         """
         geometry = self.require_geometry(layer)
-
-        # Ensures the forward pass uses the original high-precision kernel
-        # until calibration has been performed.
-        setattr(layer, f"is_{self.name}_calibrated", False)
+        # Allocation alone leaves nothing pending: a layer built under a
+        # calibration policy loads its codes from a checkpoint. `quantize`
+        # marks a live float layer pending after this returns.
+        layer.calibration_pending = False
 
         if len(input_shape) not in (2, 3):
             raise ValueError(
@@ -129,7 +137,17 @@ class CalibrationStrategy(QuantizationStrategy):
             dtype="uint8",
             trainable=False,
         )
-        self._build_extra_variables(layer, rows)
+        if self.input_scales_name is not None:
+            setattr(
+                layer,
+                self.input_scales_name,
+                layer.add_weight(
+                    name=self.input_scales_name,
+                    shape=(rows,),
+                    initializer="ones",
+                    trainable=False,
+                ),
+            )
         # `g_idx` is stored as `float32` because TF has no GPU kernel for
         # int32 resource variables (would pin the variable to CPU and break
         # jit_compile on GPU); consumers cast to int32 on-device.
@@ -143,18 +161,27 @@ class CalibrationStrategy(QuantizationStrategy):
             autocast=False,
         )
 
-    def _build_extra_variables(self, layer, rows):
-        """Creates any mode-specific variables, after the zero point."""
-
-    def _input_scales(self, layer):
-        """Per-input-row scales divided out of the dequantized kernel."""
-        del layer
-        return None
-
     # --- Calibration state ------------------------------------------------
 
+    def write_back(
+        self, layer, codes, scale, zero_point, g_idx, input_scales=None
+    ):
+        """Installs the calibrated values and retires the float kernel.
+
+        `input_scales` go to the `input_scales_name` variable of a mode
+        that has one.
+        """
+        del layer._kernel
+        layer.quantized_kernel.assign(codes)
+        layer.kernel_scale.assign(scale)
+        layer.kernel_zero.assign(zero_point)
+        layer.g_idx.assign(g_idx)
+        if self.input_scales_name is not None:
+            getattr(layer, self.input_scales_name).assign(input_scales)
+        layer.calibration_pending = False
+
     def check_saveable(self, layer):
-        if not getattr(layer, f"is_{self.name}_calibrated", False):
+        if layer.calibration_pending:
             raise ValueError(
                 f"Cannot save layer '{layer.name}' because it is quantized "
                 f"with mode '{self.name}' but has never been calibrated. Its "
@@ -166,8 +193,12 @@ class CalibrationStrategy(QuantizationStrategy):
             )
 
     def variables_loaded(self, layer):
-        layer.is_gptq_calibrated = self.name == "gptq"
-        layer.is_awq_calibrated = self.name == "awq"
+        # A stored calibration checkpoint is always calibrated: loading
+        # completes the transition and retires the float kernel a live
+        # `quantize()` left in place.
+        if layer.calibration_pending:
+            del layer._kernel
+            layer.calibration_pending = False
 
     @staticmethod
     def _get_pack_layout(bits, columns):
@@ -183,9 +214,9 @@ class CalibrationStrategy(QuantizationStrategy):
     # --- Quantized weight view --------------------------------------------
 
     def quantized_weight(self, layer):
-        if not getattr(layer, f"is_{self.name}_calibrated", False):
-            # Before calibration the codes are uninitialized and the float
-            # kernel is still the layer's weight.
+        if layer.calibration_pending:
+            # The codes are uninitialized; the float kernel is still the
+            # layer's weight.
             return None
         geometry = self.require_geometry(layer)
         config = layer.quantization_config
@@ -211,7 +242,11 @@ class CalibrationStrategy(QuantizationStrategy):
             ),
             shape=geometry.weight_shape,
             axis=0,
-            input_scales=self._input_scales(layer),
+            input_scales=(
+                getattr(layer, self.input_scales_name)
+                if self.input_scales_name is not None
+                else None
+            ),
         )
 
     # --- Forward pass -----------------------------------------------------

@@ -1453,7 +1453,7 @@ class EinsumDenseTest(testing.TestCase):
         layer = layers.EinsumDense(**config, dtype="gptq/4/8_from_float32")
         layer.build((None, 3))
         layer.load_own_variables(gptq_store)
-        self.assertTrue(layer.is_gptq_calibrated)
+        self.assertFalse(layer.calibration_pending)
         self.assertAllClose(layer.bias, gptq_store["0"])
         self.assertAllClose(layer.quantized_kernel, gptq_store["1"])
         self.assertAllClose(layer.kernel_scale, gptq_store["2"])
@@ -1466,7 +1466,7 @@ class EinsumDenseTest(testing.TestCase):
         layer = layers.EinsumDense(**config, dtype="awq/4/8_from_float32")
         layer.build((None, 3))
         layer.load_own_variables(awq_store)
-        self.assertTrue(layer.is_awq_calibrated)
+        self.assertFalse(layer.calibration_pending)
         self.assertAllClose(layer.bias, awq_store["0"])
         self.assertAllClose(layer.quantized_kernel, awq_store["1"])
         self.assertAllClose(layer.kernel_scale, awq_store["2"])
@@ -1551,8 +1551,7 @@ class EinsumDenseTest(testing.TestCase):
 
                 target = self._build_einsum_for_mode(mode)
                 target.load_own_variables(test_utils.positional_store(source))
-                self.assertEqual(target.is_gptq_calibrated, mode == "gptq")
-                self.assertEqual(target.is_awq_calibrated, mode == "awq")
+                self.assertFalse(target.calibration_pending)
                 test_utils.assert_serialized_variables_equal(
                     self, source, target
                 )
@@ -1592,7 +1591,7 @@ class EinsumDenseTest(testing.TestCase):
                 dataset=None, tokenizer=None, weight_bits=4, group_size=8
             ),
         )
-        layer.is_gptq_calibrated = True  # Bypass calibration check
+        layer.calibration_pending = False  # Bypass calibration check
         packed_kernel = layer.quantized_kernel
         self.assertAllClose(
             layer.kernel,
@@ -1653,7 +1652,7 @@ class EinsumDenseTest(testing.TestCase):
                 dataset=None, tokenizer=None, group_size=8, num_grid_points=10
             ),
         )
-        layer.is_awq_calibrated = True  # Bypass calibration check
+        layer.calibration_pending = False  # Bypass calibration check
         packed_kernel = layer.quantized_kernel
         self.assertAllClose(
             layer.kernel,
@@ -1742,13 +1741,9 @@ class EinsumDenseTest(testing.TestCase):
         config = Int4QuantizationConfig(block_size=block_size)
         layer.quantize("int4", config=config)
 
-        # For EinsumDense, when per-channel mode is used (block_size None
-        # or -1), the stored _int4_block_size is None (not the original value)
-        if block_size is None or block_size == -1:
-            # Per-channel is recorded as the resolved block size.
-            self.assertIn(layer._int4_block_size, (None, -1))
-        else:
-            self.assertEqual(layer._int4_block_size, block_size)
+        # Both spellings of per-channel resolve to an ungrouped scheme.
+        expected = None if block_size in (None, -1) else block_size
+        self.assertEqual(layer._quantized_weight().scheme.group_size, expected)
 
         # Verify kernel_scale shape (GPTQ layout)
         if block_size is None or block_size == -1:
@@ -2063,8 +2058,12 @@ class EinsumDenseTest(testing.TestCase):
         layer_multi.quantize("int4", config=config)
 
         # Both should use grouped quantization (block_size stored)
-        self.assertEqual(layer_single._int4_block_size, block_size)
-        self.assertEqual(layer_multi._int4_block_size, block_size)
+        self.assertEqual(
+            layer_single._quantized_weight().scheme.group_size, block_size
+        )
+        self.assertEqual(
+            layer_multi._quantized_weight().scheme.group_size, block_size
+        )
 
         # Verify forward pass works for both
         x_single = np.random.random((2, 128)).astype("float32")

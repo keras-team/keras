@@ -11,6 +11,7 @@ import types
 from keras.src import ops
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
+from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.quantizers import compute_quantization_parameters
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
@@ -558,14 +559,14 @@ class AWQ:
             quantized, axis=-1, dtype="uint8"
         )
 
-        # Assign to layer variables
-        del self.original_layer._kernel
-        self.original_layer.quantized_kernel.assign(quantized_packed)
-        self.original_layer.kernel_scale.assign(scale)
-        self.original_layer.kernel_zero.assign(zero)
-        self.original_layer.awq_scales.assign(awq_scales)
-        self.original_layer.g_idx.assign(g_idx)
-        self.original_layer.is_awq_calibrated = True
+        strategy_registry.get_strategy("awq").write_back(
+            self.original_layer,
+            quantized_packed,
+            scale,
+            zero,
+            g_idx,
+            input_scales=awq_scales,
+        )
 
     def free(self):
         """Free memory used by the quantizer."""

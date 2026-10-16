@@ -801,7 +801,7 @@ class GPTQTest(testing.TestCase):
         model.quantize("gptq", config=config)
 
         dense = block.layers[0]
-        self.assertTrue(dense.is_gptq_calibrated)
+        self.assertFalse(dense.calibration_pending)
         self.assertEqual(tuple(dense.kernel_scale.shape), (1, 4))
         self.assertEqual(tuple(dense.kernel_zero.shape), (1, 4))
 
@@ -1251,7 +1251,7 @@ class TestModelQuantization(testing.TestCase):
         # In-structure Dense layers are quantized and calibrated.
         for dense in block.layers:
             self.assertEqual(dense.quantization_mode, "gptq")
-            self.assertTrue(dense.is_gptq_calibrated)
+            self.assertFalse(dense.calibration_pending)
 
         # Out-of-structure layers must stay completely untouched.
         self.assertIsNone(getattr(head, "quantization_mode", None))
@@ -1278,7 +1278,7 @@ class TestModelQuantization(testing.TestCase):
 
         The activation `Layer` makes the `Dense` a non-leaf, but GPTQ must
         still discover and calibrate it: after `quantize("gptq")` the layer
-        is in `gptq` mode with `is_gptq_calibrated` set.
+        is in `gptq` mode with its calibration no longer pending.
         """
         keras.utils.set_random_seed(123)
         embed_dim = 8
@@ -1319,7 +1319,7 @@ class TestModelQuantization(testing.TestCase):
 
         act_dense = block.layers[0]
         self.assertEqual(act_dense.quantization_mode, "gptq")
-        self.assertTrue(act_dense.is_gptq_calibrated)
+        self.assertFalse(act_dense.calibration_pending)
 
     def test_gptq_missing_structure_leaves_model_unmodified(self):
         """A config without a structure raises before any layer is mutated."""
