@@ -5,6 +5,7 @@ from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import ops
+from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
@@ -248,6 +249,38 @@ class DtypesTest(test_case.TestCase):
 
     def test_resolve_weak_type_bool(self):
         self.assertEqual(dtypes._resolve_weak_type("bool"), "bool")
+
+    def test_result_type_with_bfloat16_floatx(self):
+        # Under a bfloat16 floatx, weak floats must resolve to `floatx`
+        # itself — not to a strong dtype that happens to carry the input's
+        # precision (e.g. "float32" from `standardize_dtype(float)`), and
+        # not "float16" (which a name-suffix precision read would suggest
+        # but which has a much smaller exponent range than floatx).
+        original_floatx = config.floatx()
+        try:
+            config.set_floatx("bfloat16")
+            self.assertEqual(backend.result_type(float), "bfloat16")
+            # Weak ints keep a 32-bit width under a bfloat16 floatx.
+            self.assertEqual(backend.result_type(int), "int32")
+            self.assertEqual(backend.result_type("int32", int), "int32")
+            # Mixed cases: a strong input dominates the weak one and no
+            # weak-type resolution happens (matching `jnp.result_type`).
+            self.assertEqual(backend.result_type("float32", float), "float32")
+            self.assertEqual(backend.result_type("bfloat16", float), "bfloat16")
+        finally:
+            config.set_floatx(original_floatx)
+
+    def test_result_type_with_float16_floatx(self):
+        # Weak floats resolve to floatx verbatim, not to a
+        # suffix-read precision.
+        original_floatx = config.floatx()
+        try:
+            config.set_floatx("float16")
+            self.assertEqual(backend.result_type(float), "float16")
+            # A strong input dominates the weak one (as in `jnp.result_type`).
+            self.assertEqual(backend.result_type("float32", float), "float32")
+        finally:
+            config.set_floatx(original_floatx)
 
     def test_resolve_weak_type_int(self):
         self.assertEqual(dtypes._resolve_weak_type("int"), "int32")

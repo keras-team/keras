@@ -281,7 +281,15 @@ def _lattice_result_type(*args):
 
     out_weak_type = (out_dtype != "bool") and out_weak_type
     if out_weak_type:
-        out_dtype = _resolve_weak_type(out_dtype, floatx=config.floatx())
+        # Canonicalize `out_dtype` to its weak form before resolving: the
+        # lattice may report a strong dtype here (e.g. the single-argument
+        # path keeps the `standardize_dtype` result, "float32" for a weak
+        # `float` input), and `_resolve_weak_type` must therefore see the
+        # canonical weak dtype, so that e.g. a bfloat16 floatx yields
+        # "bfloat16", not "float32"/"float16" read off the input's name.
+        out_dtype = _resolve_weak_type(
+            _respect_weak_type(out_dtype, True), floatx=config.floatx()
+        )
 
     # Force to be 32-bit dtype when encountering 64-bit dtype. This is to
     # be aligned with JAX's default behavior.
