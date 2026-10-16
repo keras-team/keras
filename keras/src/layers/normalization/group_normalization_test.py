@@ -2,6 +2,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src import constraints
+from keras.src import initializers
 from keras.src import layers
 from keras.src import ops
 from keras.src import regularizers
@@ -208,3 +209,19 @@ class GroupNormalizationTest(testing.TestCase):
         layer = layers.GroupNormalization(groups=2, dtype="mixed_float16")
         out = ops.convert_to_numpy(layer(x))
         self.assertFalse(np.any(np.isnan(out)))
+
+    def test_beta_preserved_for_large_constant_inputs(self):
+        x = ops.full((2, 1, 4), 1e10)
+        layer = layers.GroupNormalization(
+            groups=2,
+            scale=False,
+            beta_initializer=initializers.Constant(5.0),
+        )
+        self.assertAllClose(layer(x), ops.full((2, 1, 4), 5.0))
+
+        layer = layers.GroupNormalization(
+            groups=2,
+            gamma_initializer=initializers.Constant(3.0),
+            beta_initializer=initializers.Constant(5.0),
+        )
+        self.assertAllClose(layer(x), ops.full((2, 1, 4), 5.0))
