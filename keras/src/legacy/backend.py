@@ -266,19 +266,28 @@ def binary_crossentropy(target, output, from_logits=False):
     target = tf.convert_to_tensor(target)
     output = tf.convert_to_tensor(output)
 
-    if len(target.shape) != len(output.shape):
-        raise ValueError(
-            "Arguments `target` and `output` must have the same rank "
-            "(ndim). Received: "
-            f"target.shape={target.shape}, output.shape={output.shape}"
-        )
-    for e1, e2 in zip(target.shape, output.shape):
-        if e1 is not None and e2 is not None and e1 != e2:
+    # Guard unknown ranks (shape rank is None during symbolic/graph mode):
+    # TensorShape raises for len()/iteration when the rank is unknown.
+    target_shape = (
+        tuple(target.shape.as_list()) if target.shape.rank is not None else None
+    )
+    output_shape = (
+        tuple(output.shape.as_list()) if output.shape.rank is not None else None
+    )
+    if target_shape is not None and output_shape is not None:
+        if len(target_shape) != len(output_shape):
             raise ValueError(
-                "Arguments `target` and `output` must have the same shape. "
-                "Received: "
-                f"target.shape={target.shape}, output.shape={output.shape}"
+                "Arguments `target` and `output` must have the same rank "
+                "(ndim). Received: "
+                f"target.shape={target_shape}, output.shape={output_shape}"
             )
+        for e1, e2 in zip(target_shape, output_shape):
+            if e1 is not None and e2 is not None and e1 != e2:
+                raise ValueError(
+                    "Arguments `target` and `output` must have the same "
+                    "shape. Received: "
+                    f"target.shape={target_shape}, output.shape={output_shape}"
+                )
 
     if from_logits:
         return tf.nn.sigmoid_cross_entropy_with_logits(

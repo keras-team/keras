@@ -54,3 +54,20 @@ class LegacyBackendBceTest(testing.TestCase):
             "Arguments `target` and `output` must have the same rank",
         ):
             binary_crossentropy(target, output)
+
+    def test_binary_crossentropy_unknown_rank_skips_validation(self):
+        # With an unknown rank (e.g. `tf.TensorSpec(None)` during graph
+        # tracing), TensorShape raises on len()/iteration; validation must
+        # be skipped instead of raising inside the shape checks.
+        import tensorflow as tf
+
+        @tf.function(
+            input_signature=[tf.TensorSpec(None), tf.TensorSpec(None)]
+        )
+        def _bce(t, o):
+            return binary_crossentropy(t, o)
+
+        target = np.zeros((2, 2), dtype="float32")
+        output = np.full((2, 2), 0.5, dtype="float32")
+        result = _bce(target, output)
+        self.assertEqual(tuple(result.shape.as_list()), (2, 2))
