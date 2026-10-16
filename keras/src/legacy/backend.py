@@ -266,6 +266,20 @@ def binary_crossentropy(target, output, from_logits=False):
     target = tf.convert_to_tensor(target)
     output = tf.convert_to_tensor(output)
 
+    if len(target.shape) != len(output.shape):
+        raise ValueError(
+            "Arguments `target` and `output` must have the same rank "
+            "(ndim). Received: "
+            f"target.shape={target.shape}, output.shape={output.shape}"
+        )
+    for e1, e2 in zip(target.shape, output.shape):
+        if e1 is not None and e2 is not None and e1 != e2:
+            raise ValueError(
+                "Arguments `target` and `output` must have the same shape. "
+                "Received: "
+                f"target.shape={target.shape}, output.shape={output.shape}"
+            )
+
     if from_logits:
         return tf.nn.sigmoid_cross_entropy_with_logits(
             labels=target, logits=output
