@@ -167,6 +167,6 @@ class GlobalMaxPoolingCorrectnessTest(testing.TestCase):
     )
     def test_global_max_pooling_zero_batch(self, layer_cls, input_shape):
         # The pooled axes are not empty, so an empty batch gives an empty
-        # batch of channel vectors rather than raising.
+        # batch of channel vectors.
         outputs = layer_cls()(np.zeros(input_shape, "float32"))
         self.assertEqual(tuple(outputs.shape), (0, 4))

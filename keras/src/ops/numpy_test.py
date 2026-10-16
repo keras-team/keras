@@ -6770,7 +6770,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
 
         # A zero-size tensor reduced over axes that are not empty gives an
-        # empty result, as in NumPy, rather than raising.
+        # empty result, as in NumPy.
         x = np.zeros((0, 3, 2))
         for kwargs in [
             {"axis": (1, 2)},
@@ -6792,7 +6792,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             self.assertEqual(standardize_dtype(result.dtype), "int32")
             self.assertAllClose(result, expected)
 
-        # Reducing over an empty axis without `initial` still raises.
+        # Reducing over an empty axis without `initial` raises.
         with self.assertRaises(Exception):
             knp.max(np.zeros((3, 0)), axis=-1)
 
@@ -6834,7 +6834,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
 
         # A zero-size tensor reduced over axes that are not empty gives an
-        # empty result, as in NumPy, rather than raising.
+        # empty result, as in NumPy.
         x = np.zeros((0, 3, 2))
         for kwargs in [
             {"axis": (1, 2)},
@@ -6856,7 +6856,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             self.assertEqual(standardize_dtype(result.dtype), "int32")
             self.assertAllClose(result, expected)
 
-        # Reducing over an empty axis without `initial` still raises.
+        # Reducing over an empty axis without `initial` raises.
         with self.assertRaises(Exception):
             knp.min(np.zeros((3, 0)), axis=-1)
 
