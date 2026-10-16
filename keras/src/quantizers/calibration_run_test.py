@@ -6,6 +6,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.calibration_run import _stack_calibration_batch
 from keras.src.quantizers.calibration_run import find_layers_in_block
 from keras.src.quantizers.calibration_run import get_dataloader
@@ -442,3 +443,18 @@ class TestDataloaderReproducibility(testing.TestCase):
         self.assertEqual(out.shape, (4, 1, 8))
         self.assertAllClose(out[:, 0, 0], np.array([88, 336, 584, 832]))
         self.assertAllClose(out[0, 0], np.arange(88, 96))
+
+
+class CalibrationRunTest(testing.TestCase):
+    """The pieces the calibration drivers share, once per mode."""
+
+    @parameterized.named_parameters(("gptq", "gptq"), ("awq", "awq"))
+    def test_resolution_error_names_the_received_policy(self, mode):
+        layer = layers.Dense(4)
+        layer.build((None, 3))
+        strategy = strategy_registry.get_strategy(mode)
+        with self.assertRaisesRegex(
+            ValueError,
+            f"{mode.upper()} quantization.*Received: dtype_policy=<.*float32",
+        ):
+            strategy.resolve_group_size(layer, None)

@@ -7,9 +7,9 @@ render the registered-names tuple, and decorating would instead tie that
 order to the (alphabetical) import order.
 """
 
-from keras.src.quantizers.modes.awq import AWQStrategy
+from keras.src.quantizers.modes.calibration import AWQStrategy
+from keras.src.quantizers.modes.calibration import GPTQStrategy
 from keras.src.quantizers.modes.float8 import Float8Strategy
-from keras.src.quantizers.modes.gptq import GPTQStrategy
 from keras.src.quantizers.modes.int4 import Int4Strategy
 from keras.src.quantizers.modes.int8 import Int8Strategy
 from keras.src.quantizers.modes.ternary import TernaryStrategy
