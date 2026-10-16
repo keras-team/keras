@@ -238,6 +238,19 @@ class BatchNormalizationTest(testing.TestCase):
             layer.moving_variance.assign(large_value)
             self.assertAllClose(layer.moving_variance.value, large_value)
 
+    def test_large_value_float32_input(self):
+        layer = layers.BatchNormalization(axis=-1, momentum=0.0)
+        x = np.array(
+            [[10000.0], [10001.0], [10002.0], [10003.0]], dtype="float32"
+        )
+        out = layer(x, training=True)
+        # Population variance of [10000, 10001, 10002, 10003] is 1.25.
+        expected_var = 1.25
+        self.assertAllClose(layer.moving_variance, [expected_var], atol=1e-3)
+        expected_std = np.sqrt(expected_var + layer.epsilon)
+        expected_out = (x - 10001.5) / expected_std
+        self.assertAllClose(out, expected_out, atol=1e-3)
+
     def test_masked_broadcast_normalization(self):
         input_shape = (1, 2, 3, 4)
         mask_shape = (1, 2, 1)
