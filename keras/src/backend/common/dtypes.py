@@ -281,6 +281,25 @@ def _lattice_result_type(*args):
     return out_dtype
 
 
+def _result_type_uncached(floatx, dtypes):
+    for dtype in dtypes:
+        if dtype in FLOAT8_TYPES:
+            raise ValueError(
+                "There is no implicit conversions from float8 dtypes to others."
+                f" You must cast it internally. Received: {dtypes}"
+            )
+    return _lattice_result_type(
+        *(floatx if arg is None else arg for arg in dtypes),
+    )
+
+
+# `typed=True` keeps `tf.float32` and `1` apart: `tf.DType` hashes and compares
+# equal to a plain int. `floatx` is an argument, so it is part of the key.
+@functools.lru_cache(maxsize=512, typed=True)
+def _result_type_cached(floatx, *dtypes):
+    return _result_type_uncached(floatx, dtypes)
+
+
 @keras_export("keras.backend.result_type")
 def result_type(*dtypes):
     """Returns the type from applying the Keras type promotion rules.
@@ -317,15 +336,11 @@ def result_type(*dtypes):
         # If no dtypes provided, default to floatx, this matches
         # `ops.convert_to_tensor([])`
         return config.floatx()
-    for dtype in dtypes:
-        if dtype in FLOAT8_TYPES:
-            raise ValueError(
-                "There is no implicit conversions from float8 dtypes to others."
-                f" You must cast it internally. Received: {dtypes}"
-            )
-    return _lattice_result_type(
-        *(config.floatx() if arg is None else arg for arg in dtypes),
-    )
+    try:
+        return _result_type_cached(config.floatx(), *dtypes)
+    except TypeError:
+        # Unhashable, so not a valid dtype. Let the uncached path reject it.
+        return _result_type_uncached(config.floatx(), dtypes)
 
 
 def promote_to_float_dtype(dtype):
