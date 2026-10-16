@@ -204,24 +204,37 @@ def _respect_weak_type(dtype, weak_type):
 
 
 @functools.lru_cache(maxsize=None)
-def _resolve_weak_type(dtype, precision="32"):
-    """Resolve weak type by the precision of `backend.floatx()`."""
+def _resolve_weak_type(dtype, floatx="float32"):
+    """Resolve weak type by the precision of `floatx`."""
     extended_allowed_dtypes = set(ALLOWED_DTYPES).union(WEAK_TYPES)
     if dtype not in extended_allowed_dtypes:
         raise ValueError(
             "Invalid value for argument `dtype`. Expected one of "
             f"{extended_allowed_dtypes}. Received: dtype={dtype}"
         )
-    if precision not in ["16", "32", "64"]:
+    if floatx not in ["bfloat16", "float16", "float32", "float64"]:
         raise ValueError(
-            f"Invalid value for argument `precision`. Expected one of "
-            f"('16', '32', '64'). Received: precision={precision}"
+            "Invalid value for argument `floatx`. Expected one of "
+            "('bfloat16', 'float16', 'float32', 'float64'). "
+            f"Received: floatx={floatx}"
         )
+    # A weak float resolves to `floatx` itself, so that a bfloat16
+    # floatx yields bfloat16 — not float16, which reading a precision
+    # suffix off the name would suggest and which has a much smaller
+    # exponent range than the configured floatx.
+    if dtype == "float":
+        return floatx
+    # bfloat16 has no int/bool variant, so a bfloat16 floatx keeps the
+    # 32-bit default precision for any remaining (non-weak-float) dtype, as
+    # reading a bit width off its name would otherwise suggest 16.
+    if floatx == "bfloat16":
+        precision = "32"
+    else:
+        precision = floatx[-2:]
     if dtype == "bfloat16":  # special case for bfloat16
         dtype_indicator = "f"
     else:
         dtype_indicator = dtype[:1]
-
     if dtype_indicator == "b":
         return "bool"
     elif dtype_indicator == "i":
@@ -267,9 +280,8 @@ def _lattice_result_type(*args):
         out_weak_type = any(out_dtype is t for t in WEAK_TYPES)
 
     out_weak_type = (out_dtype != "bool") and out_weak_type
-    precision = config.floatx()[-2:]
     if out_weak_type:
-        out_dtype = _resolve_weak_type(out_dtype, precision=precision)
+        out_dtype = _resolve_weak_type(out_dtype, floatx=config.floatx())
 
     # Force to be 32-bit dtype when encountering 64-bit dtype. This is to
     # be aligned with JAX's default behavior.

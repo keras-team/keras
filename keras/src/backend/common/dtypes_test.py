@@ -131,11 +131,32 @@ class DtypesTest(test_case.TestCase):
         self.assertEqual(dtypes._respect_weak_type("float32", True), "float")
 
     def test_resolve_weak_type_for_bfloat16(self):
+        # A bfloat16 dtype (not the weak type) resolves via its precision.
         self.assertEqual(dtypes._resolve_weak_type("bfloat16"), "float32")
 
-    def test_resolve_weak_type_for_bfloat16_with_precision(self):
+    def test_resolve_weak_type_for_bfloat16_with_floatx(self):
         self.assertEqual(
-            dtypes._resolve_weak_type("bfloat16", precision="64"), "float64"
+            dtypes._resolve_weak_type("bfloat16", floatx="float64"),
+            "float64",
+        )
+
+    def test_resolve_weak_type_weak_float_resolves_to_floatx(self):
+        # A weak float resolves to `floatx` verbatim, including bfloat16
+        # (which has a wider exponent range than the float16 that a
+        # name-suffix precision would suggest).
+        self.assertEqual(
+            dtypes._resolve_weak_type("float", floatx="bfloat16"), "bfloat16"
+        )
+        self.assertEqual(
+            dtypes._resolve_weak_type("float", floatx="float32"), "float32"
+        )
+
+    def test_resolve_weak_type_bfloat16_floatx_int(self):
+        # Under a bfloat16 floatx, weak ints keep a 32-bit width (bfloat16
+        # has no int variant at 16 bits of *integer* precision; the floatx
+        # name suffix does not apply).
+        self.assertEqual(
+            dtypes._resolve_weak_type("int", floatx="bfloat16"), "int32"
         )
 
     def test_respect_weak_type_for_complex64(self):
@@ -160,12 +181,12 @@ class DtypesTest(test_case.TestCase):
         ):
             dtypes._resolve_weak_type("invalid_dtype")
 
-    def test_resolve_weak_type_for_invalid_precision(self):
+    def test_resolve_weak_type_for_invalid_floatx(self):
         with self.assertRaisesRegex(
             ValueError,
-            "Invalid value for argument `precision`. Expected one of",
+            "Invalid value for argument `floatx`. Expected one of",
         ):
-            dtypes._resolve_weak_type("int32", precision="invalid_precision")
+            dtypes._resolve_weak_type("int", floatx="invalid_floatx")
 
     def test_cycle_detection_in_make_lattice_upper_bounds(self):
         original_lattice_function = dtypes._type_promotion_lattice
@@ -229,27 +250,22 @@ class DtypesTest(test_case.TestCase):
         self.assertEqual(dtypes._resolve_weak_type("bool"), "bool")
 
     def test_resolve_weak_type_int(self):
+        self.assertEqual(dtypes._resolve_weak_type("int"), "int32")
         self.assertEqual(
-            dtypes._resolve_weak_type("int32", precision="32"), "int32"
-        )
-        self.assertEqual(
-            dtypes._resolve_weak_type("int64", precision="64"), "int64"
+            dtypes._resolve_weak_type("int", floatx="float64"), "int64"
         )
 
-    def test_resolve_weak_type_uint(self):
-        self.assertEqual(
-            dtypes._resolve_weak_type("uint32", precision="32"), "uint32"
-        )
-        self.assertEqual(
-            dtypes._resolve_weak_type("uint64", precision="64"), "uint64"
-        )
+    def test_resolve_weak_type_uint_invalid(self):
+        # `uint` is not a weak type in Keras' promotion rules.
+        with self.assertRaisesRegex(
+            ValueError, "Invalid value for argument `dtype`. Expected one of"
+        ):
+            dtypes._resolve_weak_type("uint")
 
     def test_resolve_weak_type_float(self):
+        self.assertEqual(dtypes._resolve_weak_type("float"), "float32")
         self.assertEqual(
-            dtypes._resolve_weak_type("float32", precision="32"), "float32"
-        )
-        self.assertEqual(
-            dtypes._resolve_weak_type("float64", precision="64"), "float64"
+            dtypes._resolve_weak_type("float", floatx="float64"), "float64"
         )
 
     def test_least_upper_bound_ensure_order_independence(self):
