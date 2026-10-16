@@ -3050,9 +3050,7 @@ def rms_normalization(x, scale=None, axis=-1, epsilon=None):
 def _rms_normalization(x, scale=None, axis=-1, epsilon=None):
     if epsilon is None:
         epsilon = backend.epsilon()
-    original_dtype = _normalization_output_dtype(
-        backend.standardize_dtype(x.dtype)
-    )
+    original_dtype = _normalization_output_dtype(x.dtype)
     # Computes in at least float32 precision for stability in half precision
     # training.
     compute_dtype = backend.result_type(x.dtype, "float32")
@@ -3172,9 +3170,7 @@ def _layer_normalization(
 ):
     if epsilon is None:
         epsilon = backend.epsilon()
-    original_dtype = _normalization_output_dtype(
-        backend.standardize_dtype(x.dtype)
-    )
+    original_dtype = _normalization_output_dtype(x.dtype)
     # Computes in at least float32 precision for stability in half precision
     # training.
     compute_dtype = backend.result_type(x.dtype, "float32")
