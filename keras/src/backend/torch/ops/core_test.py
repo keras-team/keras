@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 import torch
 from absl.testing import parameterized
+from torch._dynamo.testing import CompileCounter
 from torch.distributed.device_mesh import DeviceMesh as TorchDeviceMesh
 from torch.distributed.tensor import DTensor
 from torch.distributed.tensor import Replicate
@@ -20,6 +21,7 @@ from keras.src.backend.torch.ops.core import Variable
 from keras.src.backend.torch.ops.core import convert_to_tensor
 from keras.src.backend.torch.ops.core import get_device
 from keras.src.backend.torch.ops.core import slice as torch_slice
+from keras.src.distribution.distribution_lib import DataParallel
 from keras.src.distribution.distribution_lib import DeviceMesh
 from keras.src.distribution.distribution_lib import LayoutMap
 from keras.src.distribution.distribution_lib import ModelParallel
@@ -299,3 +301,22 @@ class TorchCoreDistributedTest(TorchDistributedTestMixin, testing.TestCase):
                 torch.zeros((2, 2), device=v.value.data.to_local().device),
             )
         )
+
+    def test_data_parallel_scope_keeps_torch_compile(self):
+        mesh = DeviceMesh(
+            shape=(1,),
+            axis_names=["batch"],
+            devices=np.array([distribution_lib.list_devices()[0]]),
+        )
+        counter = CompileCounter()
+
+        def add_one(x):
+            return x + 1
+
+        torch._dynamo.reset()
+        with DataParallel(device_mesh=mesh).scope():
+            result = torch.compile(add_one, backend=counter)(torch.zeros(2))
+
+        # TorchDynamo skips every frame while a dispatch mode is active.
+        self.assertEqual(counter.frame_count, 1)
+        self.assertAllClose(result, np.ones(2))
