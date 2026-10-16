@@ -133,6 +133,17 @@ class DtypesTest(test_case.TestCase):
     def test_resolve_weak_type_for_bfloat16(self):
         self.assertEqual(dtypes._resolve_weak_type("bfloat16"), "float32")
 
+    def test_result_type_weak_float_with_bfloat16_floatx(self):
+        original_floatx = backend.config.floatx()
+        backend.config.set_floatx("bfloat16")
+        try:
+            self.assertEqual(backend.result_type(float), "bfloat16")
+            self.assertEqual(backend.result_type("int32", float), "bfloat16")
+            self.assertEqual(backend.result_type("int64", float), "bfloat16")
+            self.assertEqual(backend.result_type("bool", float), "bfloat16")
+        finally:
+            backend.config.set_floatx(original_floatx)
+
     def test_resolve_weak_type_for_bfloat16_with_precision(self):
         self.assertEqual(
             dtypes._resolve_weak_type("bfloat16", precision="64"), "float64"
