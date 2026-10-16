@@ -128,14 +128,6 @@ def initialize(job_addresses=None, num_processes=None, process_id=None):
             backend=backend, rank=rank, world_size=world_size
         )
 
-        if torch_core._GLOBAL_DTENSOR_PROMOTION_MODE is None:
-            torch_core._GLOBAL_DTENSOR_PROMOTION_MODE = (
-                torch_core.KerasDTensorPromotionMode()
-            )
-            # We don't automatically enter the mode globally anymore,
-            # to avoid interfering with torch.compile.
-            # Instead, it's entered in Distribution.scope().
-
 
 def activate_dtensor_promotion():
     torch_core.activate_dtensor_promotion()
