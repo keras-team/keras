@@ -73,6 +73,12 @@ def clear_session(free_memory=True):
     global GLOBAL_STATE_TRACKER
     global GLOBAL_SETTINGS_TRACKER
 
+    # The torch DTensor promotion mode is also on the torch dispatch stack,
+    # which a new tracker does not reset. Exit it while the tracker still
+    # holds it, as `set_distribution(None)` does.
+    if hasattr(backend.distribution_lib, "deactivate_dtensor_promotion"):
+        backend.distribution_lib.deactivate_dtensor_promotion()
+
     GLOBAL_STATE_TRACKER = threading.local()
     GLOBAL_SETTINGS_TRACKER = threading.local()
 

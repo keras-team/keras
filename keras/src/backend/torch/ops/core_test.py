@@ -12,6 +12,7 @@ from torch.distributed.tensor import Replicate
 
 from keras.src import backend
 from keras.src import testing
+from keras.src.backend.common.global_state import clear_session
 from keras.src.backend.torch import distribution_lib
 from keras.src.backend.torch.distributed_test_utils import (
     TorchDistributedTestMixin,
@@ -263,6 +264,33 @@ class TorchCoreDistributedTest(TorchDistributedTestMixin, testing.TestCase):
             RuntimeError, "mixed torch.Tensor and DTensor"
         ):
             v.assign_add(ones)
+
+    def test_clear_session_ends_dtensor_promotion(self):
+        mesh = DeviceMesh(
+            shape=(1,),
+            axis_names=["model"],
+            devices=np.array([distribution_lib.list_devices()[0]]),
+        )
+        layout_map = LayoutMap(mesh)
+        layout_map[".*"] = (None, "model")
+        dist = ModelParallel(layout_map=layout_map)
+        ones = np.ones((2, 2), dtype="float32")
+
+        with dist.scope():
+            v = Variable(np.zeros((2, 2), dtype="float32"))
+            v.assign_add(ones)
+            # `clear_session()` resets the distribution, so the promotion
+            # ends with it and does not stay after the scope.
+            clear_session()
+            with self.assertRaisesRegex(
+                RuntimeError, "mixed torch.Tensor and DTensor"
+            ):
+                v.assign_add(ones)
+        with self.assertRaisesRegex(
+            RuntimeError, "mixed torch.Tensor and DTensor"
+        ):
+            v.assign_add(ones)
+        self.assertAllClose(v, ones)
 
     def test_convert_to_numpy_dtensor(self):
         device_type = torch_core.get_device().split(":")[0]

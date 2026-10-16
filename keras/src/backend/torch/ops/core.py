@@ -2,7 +2,6 @@ import builtins
 import contextlib
 import functools
 import os
-import threading
 
 import ml_dtypes
 import numpy as np
@@ -25,24 +24,23 @@ from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.config import floatx
 
 # The dispatch mode stack and the Keras distribution are both per thread, so
-# each thread's `set_distribution()` enters and exits its own promotion mode.
-# The mode is not kept in `global_state`: `clear_session()` replaces that state,
-# so a mode that is still on the dispatch stack would lose its reference and
-# no call could exit it.
-_DTENSOR_PROMOTION_STATE = threading.local()
+# the mode is kept in `global_state`. Each thread's `set_distribution()` enters
+# and exits its own promotion mode, and `clear_session()` exits it before it
+# drops the state.
+_DTENSOR_PROMOTION_MODE_ATTR = "dtensor_promotion_mode"
 
 
 def activate_dtensor_promotion():
-    if getattr(_DTENSOR_PROMOTION_STATE, "mode", None) is None:
+    if global_state.get_global_attribute(_DTENSOR_PROMOTION_MODE_ATTR) is None:
         mode = KerasDTensorPromotionMode()
         mode.__enter__()
-        _DTENSOR_PROMOTION_STATE.mode = mode
+        global_state.set_global_attribute(_DTENSOR_PROMOTION_MODE_ATTR, mode)
 
 
 def deactivate_dtensor_promotion():
-    mode = getattr(_DTENSOR_PROMOTION_STATE, "mode", None)
+    mode = global_state.get_global_attribute(_DTENSOR_PROMOTION_MODE_ATTR)
     if mode is not None:
-        _DTENSOR_PROMOTION_STATE.mode = None
+        global_state.set_global_attribute(_DTENSOR_PROMOTION_MODE_ATTR, None)
         mode.__exit__(None, None, None)
 
 
