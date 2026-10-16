@@ -23,24 +23,31 @@ from keras.src.backend.common.stateless_scope import in_stateless_scope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.config import floatx
 
-# The dispatch mode stack and the Keras distribution are both per thread, so
-# the mode is kept in `global_state`. Each thread's `set_distribution()` enters
-# and exits its own promotion mode, and `clear_session()` exits it before it
-# drops the state.
-_DTENSOR_PROMOTION_MODE_ATTR = "dtensor_promotion_mode"
+
+# The promotion mode lives only on the torch dispatch stack, which is per
+# thread like the Keras distribution. Keras keeps no reference to the mode, so
+# no reset of Keras state can orphan a mode that is still on the stack.
+def _get_dtensor_promotion_mode():
+    stack = torch.utils._python_dispatch._get_current_dispatch_mode_stack()
+    for mode in stack:
+        if isinstance(mode, KerasDTensorPromotionMode):
+            return mode
+    return None
 
 
 def activate_dtensor_promotion():
-    if global_state.get_global_attribute(_DTENSOR_PROMOTION_MODE_ATTR) is None:
-        mode = KerasDTensorPromotionMode()
-        mode.__enter__()
-        global_state.set_global_attribute(_DTENSOR_PROMOTION_MODE_ATTR, mode)
+    if _get_dtensor_promotion_mode() is None:
+        KerasDTensorPromotionMode().__enter__()
 
 
 def deactivate_dtensor_promotion():
-    mode = global_state.get_global_attribute(_DTENSOR_PROMOTION_MODE_ATTR)
-    if mode is not None:
-        global_state.set_global_attribute(_DTENSOR_PROMOTION_MODE_ATTR, None)
+    mode = _get_dtensor_promotion_mode()
+    # `__exit__` pops the top of the stack, so only exit the mode when it is
+    # on top. Otherwise it would pop a mode that was entered after it.
+    if (
+        mode is not None
+        and torch.utils._python_dispatch._get_current_dispatch_mode() is mode
+    ):
         mode.__exit__(None, None, None)
 
 
