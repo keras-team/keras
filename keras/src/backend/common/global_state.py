@@ -73,10 +73,13 @@ def clear_session(free_memory=True):
     global GLOBAL_STATE_TRACKER
     global GLOBAL_SETTINGS_TRACKER
 
-    # This resets the distribution, so also end the torch DTensor promotion
-    # that `set_distribution()` started, as `set_distribution(None)` does.
-    if hasattr(backend.distribution_lib, "deactivate_dtensor_promotion"):
-        backend.distribution_lib.deactivate_dtensor_promotion()
+    # Reset the distribution through its own API, so the backend can undo what
+    # `set_distribution()` started. The torch backend exits its DTensor
+    # promotion mode here, which a new tracker would not reset.
+    # Local import: `distribution_lib` imports this module.
+    from keras.src.distribution import distribution_lib
+
+    distribution_lib.set_distribution(None)
 
     GLOBAL_STATE_TRACKER = threading.local()
     GLOBAL_SETTINGS_TRACKER = threading.local()
