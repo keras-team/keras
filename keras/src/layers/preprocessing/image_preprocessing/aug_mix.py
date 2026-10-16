@@ -240,13 +240,24 @@ class AugMix(BaseImagePreprocessingLayer):
             len(self._augment_layers) + 1,
             seed=seed,
         )
-        chain_transforms = [
-            [
-                self._sample_layer_transformations(data)
-                for _ in range(self.chain_depth)
+        if self._is_tracing(layer_idxes):
+            chain_transforms = [
+                [
+                    self._sample_layer_transformations(data)
+                    for _ in range(self.chain_depth)
+                ]
+                for _ in range(self.num_chains)
             ]
-            for _ in range(self.num_chains)
-        ]
+        else:
+            chain_transforms = [
+                [
+                    self._sample_layer_transformations(
+                        data, selected=int(layer_idxes[i][j])
+                    )
+                    for j in range(self.chain_depth)
+                ]
+                for i in range(self.num_chains)
+            ]
 
         return {
             "chain_mixing_weights": chain_mixing_weights,
@@ -255,12 +266,14 @@ class AugMix(BaseImagePreprocessingLayer):
             "chain_transforms": chain_transforms,
         }
 
-    def _sample_layer_transformations(self, data):
+    def _sample_layer_transformations(self, data, selected=None):
         return [
             getattr(self, layer_name).get_random_transformation(
                 data, seed=self._get_seed_generator(self.backend._backend)
             )
-            for layer_name in self._augment_layers
+            if selected is None or idx == selected
+            else None
+            for idx, layer_name in enumerate(self._augment_layers)
         ]
 
     def _is_tracing(self, layer_idx):
