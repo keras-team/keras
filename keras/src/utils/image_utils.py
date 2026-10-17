@@ -392,18 +392,7 @@ def smart_resize(
             f"Expected `size` to be a tuple of 2 integers, but got: {size}."
         )
     img = backend_module.ops.convert_to_tensor(x)
-    # Skip this rank check when the rank itself is unknown, e.g. a TensorFlow
-    # tensor traced with an unspecified-rank `tf.TensorSpec`. The previous
-    # `len(img.shape) is not None` was always `True` (`len` never returns
-    # `None`), so it was a no-op guard rather than actually detecting this
-    # case, and calling `len()` on such a tensor's shape raises: `TypeError`
-    # if `img.shape` is literally `None`, or, for TensorFlow specifically,
-    # `ValueError` ("Cannot take the length of shape with unknown rank") even
-    # though `img.shape` there is a `TensorShape` object and not `None`.
-    try:
-        img_rank = len(img.shape)
-    except (TypeError, ValueError):
-        img_rank = None
+    img_rank = backend_module.ops.numpy.ndim(img)
     if img_rank is not None:
         if img_rank < 3 or img_rank > 4:
             raise ValueError(
@@ -456,7 +445,7 @@ def smart_resize(
         )
 
     if data_format == "channels_last":
-        if len(img.shape) == 4:
+        if img_rank == 4:
             img = img[
                 :,
                 crop_box_hstart : crop_box_hstart + crop_height,
@@ -470,7 +459,7 @@ def smart_resize(
                 :,
             ]
     else:
-        if len(img.shape) == 4:
+        if img_rank == 4:
             img = img[
                 :,
                 :,
