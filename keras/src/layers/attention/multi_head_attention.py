@@ -61,7 +61,12 @@ class MultiHeadAttention(Layer):
             attention for faster and more memory-efficient attention
             computations when possible. This behavior can be configured using
             `keras.config.enable_flash_attention()` or
-            `keras.config.disable_flash_attention()`.
+            `keras.config.disable_flash_attention()`. With the TensorFlow
+            backend, flash attention is only used when this is `True`, and
+            requires `tf.nn.flash_attention`; masks other than
+            `use_causal_mask=True` are then not supported, and `dropout` is
+            applied inside the kernel. Other backends don't support
+            `dropout` with flash attention.
         kernel_initializer: Initializer for dense layer kernels.
         bias_initializer: Initializer for dense layer biases.
         kernel_regularizer: Regularizer for dense layer kernels.
@@ -171,6 +176,9 @@ class MultiHeadAttention(Layer):
                     "list, or int."
                 )
         self._output_shape = output_shape
+        # The argument as given, for `get_config`; `_flash_attention` also
+        # folds in the global setting at construction time.
+        self._flash_attention_arg = flash_attention
         self._flash_attention = flash_attention or is_flash_attention_enabled()
         self._kernel_initializer = initializers.get(kernel_initializer)
         self._bias_initializer = initializers.get(bias_initializer)
@@ -199,8 +207,20 @@ class MultiHeadAttention(Layer):
 
         self._inverse_sqrt_key_dim = 1.0 / math.sqrt(float(self._key_dim))
 
-        # Check for flash attention constraints
-        if self._flash_attention and self._dropout > 0.0:
+        # Check for flash attention constraints. Dropout applies to the
+        # attention weights, which flash attention never materializes, so it
+        # has to happen inside the kernel: only the TensorFlow backend's
+        # (`tf.nn.flash_attention`) supports that.
+        self._flash_attention_dropout = (
+            bool(self._flash_attention)
+            and self._dropout > 0.0
+            and backend.backend() == "tensorflow"
+        )
+        if (
+            self._flash_attention
+            and self._dropout > 0.0
+            and not self._flash_attention_dropout
+        ):
             raise ValueError(
                 "Dropout is not supported when flash attention is enabled. "
                 "Please set dropout to 0.0 to use flash attention."
@@ -245,6 +265,7 @@ class MultiHeadAttention(Layer):
             "output_shape": self._output_shape,
             "attention_axes": self._attention_axes,
             "sliding_window": self._sliding_window,
+            "flash_attention": self._flash_attention_arg,
             "kernel_initializer": initializers.serialize(
                 self._kernel_initializer
             ),
@@ -472,6 +493,20 @@ class MultiHeadAttention(Layer):
                 )
         return self._softmax(attention_scores, mask=attention_mask)
 
+    def _flash_attention_dropout_kwargs(self, training):
+        """Dropout arguments for the TensorFlow backend's flash attention.
+
+        A fresh seed per call (from the dropout sublayer's seed generator)
+        gives a new dropout mask at every training step, reproducibly for a
+        given `seed`.
+        """
+        if not (self._flash_attention_dropout and training):
+            return {}
+        return {
+            "dropout_rate": self._dropout,
+            "seed": self._dropout_layer.seed_generator.next(),
+        }
+
     def _compute_attention(
         self,
         query,
@@ -518,7 +553,7 @@ class MultiHeadAttention(Layer):
 
         # Determine whether to use dot-product attention
         use_dot_product_attention = not (
-            self._dropout > 0.0
+            (self._dropout > 0.0 and not self._flash_attention_dropout)
             or return_attention_scores
             or (len(query.shape) != 4)
         )
@@ -536,6 +571,7 @@ class MultiHeadAttention(Layer):
                     scale=self._inverse_sqrt_key_dim,
                     is_causal=True,
                     flash_attention=self._flash_attention,
+                    **self._flash_attention_dropout_kwargs(training),
                 )
                 return attention_output, None
             if attention_mask is not None:
@@ -561,6 +597,7 @@ class MultiHeadAttention(Layer):
                 scale=self._inverse_sqrt_key_dim,
                 is_causal=use_causal_mask,
                 flash_attention=self._flash_attention,
+                **self._flash_attention_dropout_kwargs(training),
             )
             return attention_output, None
 
