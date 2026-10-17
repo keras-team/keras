@@ -716,6 +716,69 @@ class MultiHeadAttentionTest(testing.TestCase):
         restored = layers.MultiHeadAttention.from_config(config)
         self.assertEqual(restored._sliding_window, 5)
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Only the TensorFlow backend has dropout in flash attention.",
+    )
+    @parameterized.named_parameters(("causal", True), ("not_causal", False))
+    def test_flash_attention_dropout_tensorflow(self, use_causal_mask):
+        import tensorflow as tf
+
+        if not hasattr(tf.nn, "flash_attention"):
+            self.skipTest("This TensorFlow build has no tf.nn.flash_attention.")
+        query = np.random.normal(size=(2, 16, 32)).astype("float32")
+        value = np.random.normal(size=(2, 16, 32)).astype("float32")
+
+        def make_layer(dropout, seed=None):
+            return layers.MultiHeadAttention(
+                num_heads=4,
+                key_dim=16,
+                flash_attention=True,
+                dropout=dropout,
+                seed=seed,
+            )
+
+        layer = make_layer(0.3, seed=1)
+        no_dropout = make_layer(0.0)
+        layer(query, value)
+        no_dropout(query, value)
+        no_dropout.set_weights(layer.get_weights())
+
+        def run(lyr, training):
+            return ops.convert_to_numpy(
+                lyr(
+                    query,
+                    value,
+                    use_causal_mask=use_causal_mask,
+                    training=training,
+                )
+            )
+
+        # Inference: no dropout.
+        self.assertAllClose(run(layer, False), run(no_dropout, False))
+        # Training: dropout inside the kernel, with a new mask every call.
+        first = run(layer, True)
+        second = run(layer, True)
+        self.assertNotAllClose(first, run(no_dropout, False))
+        self.assertNotAllClose(first, second)
+        # The same `seed` reproduces the same sequence of masks.
+        same_seed = make_layer(0.3, seed=1)
+        same_seed(query, value)
+        same_seed.set_weights(layer.get_weights())
+        self.assertAllClose(run(same_seed, True), first)
+        # Gradients flow through the dropout path.
+        with tf.GradientTape() as tape:
+            loss = tf.reduce_sum(
+                layer(
+                    query, value, use_causal_mask=use_causal_mask, training=True
+                )
+                ** 2
+            )
+        grads = tape.gradient(loss, layer.trainable_variables)
+        self.assertTrue(
+            all(np.isfinite(ops.convert_to_numpy(g)).all() for g in grads)
+        )
+
     @parameterized.named_parameters(
         ("true", True), ("false", False), ("none", None)
     )
@@ -972,14 +1035,16 @@ class MultiHeadAttentionTest(testing.TestCase):
     def test_flash_attention_with_errors(self):
         if backend.backend() == "numpy":
             pytest.skip(reason="Flash attention is not supported on numpy.")
-        # Check `flash_attention=True` and `dropout=0.1`
-        with self.assertRaisesRegex(
-            ValueError,
-            "Dropout is not supported when flash attention is enabled.",
-        ):
-            layer = layers.MultiHeadAttention(
-                num_heads=2, key_dim=2, flash_attention=True, dropout=0.1
-            )
+        # Check `flash_attention=True` and `dropout=0.1`. The TensorFlow
+        # backend supports it (see test_flash_attention_dropout_tensorflow).
+        if backend.backend() != "tensorflow":
+            with self.assertRaisesRegex(
+                ValueError,
+                "Dropout is not supported when flash attention is enabled.",
+            ):
+                layer = layers.MultiHeadAttention(
+                    num_heads=2, key_dim=2, flash_attention=True, dropout=0.1
+                )
 
         # Check `flash_attention=True` and `return_attention_scores=True`
         layer = layers.MultiHeadAttention(

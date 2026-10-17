@@ -1867,9 +1867,20 @@ def dot_product_attention(
     is_causal=False,
     flash_attention=None,
     attn_logits_soft_cap=None,
+    dropout_rate=0.0,
+    seed=None,
 ):
+    # `dropout_rate` and `seed` are TensorFlow-only extensions used by the
+    # attention layers: `tf.nn.flash_attention` applies dropout to the
+    # attention weights inside the kernel, which the layers can't do
+    # themselves since the weights are never materialized.
     if flash_attention is None:
         flash_attention = False
+    if dropout_rate > 0.0 and not flash_attention:
+        raise ValueError(
+            "`dropout_rate` is only supported with `flash_attention=True`. "
+            f"Received: dropout_rate={dropout_rate}"
+        )
 
     # Ref: jax.nn.dot_product_attention
     # https://github.com/jax-ml/jax/blob/jax-v0.4.32/jax/_src/nn/functions.py#L828
@@ -1910,6 +1921,8 @@ def dot_product_attention(
             value,
             scale=None if scale is None else float(scale),
             is_causal=is_causal,
+            dropout_rate=float(dropout_rate),
+            seed=seed,
         )
 
     if bias is not None:
