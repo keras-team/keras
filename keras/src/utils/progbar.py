@@ -225,12 +225,6 @@ class Progbar:
                     if not isinstance(values, float):
                         values = np.mean(values)
                     avg = values / max(1, count)
-                    # Use `abs(avg)` here, matching the `verbose == 1` branch
-                    # above. Without it, a negative metric value (e.g. -5.0)
-                    # would fail `avg > 1e-3` and incorrectly be formatted in
-                    # scientific notation (`-5.0000e+00`) instead of the
-                    # intended `%.4f` (`-5.0000`), making the two verbosity
-                    # modes format the same value differently.
                     if abs(avg) > 1e-3:
                         info += f" {avg:.4f}"
                     else:
