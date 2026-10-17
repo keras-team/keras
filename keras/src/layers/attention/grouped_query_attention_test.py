@@ -6,6 +6,7 @@ from keras.src import backend
 from keras.src import initializers
 from keras.src import layers
 from keras.src import ops
+from keras.src import saving
 from keras.src import testing
 from keras.src.backend.config import disable_flash_attention
 from keras.src.backend.config import enable_flash_attention
@@ -559,6 +560,39 @@ class GroupedQueryAttentionTest(testing.TestCase):
         self.assertEqual(config["sliding_window"], 5)
         restored = layers.GroupedQueryAttention.from_config(config)
         self.assertEqual(restored.sliding_window, 5)
+
+    @parameterized.named_parameters(
+        ("true", True), ("false", False), ("none", None)
+    )
+    def test_flash_attention_serialization(self, flash_attention):
+        # The argument round-trips as given, so a saved
+        # `flash_attention=True` still uses flash attention after loading,
+        # and `None` still follows the global setting.
+        layer = layers.GroupedQueryAttention(
+            head_dim=8,
+            num_query_heads=4,
+            num_key_value_heads=2,
+            flash_attention=flash_attention,
+        )
+        config = layer.get_config()
+        self.assertIs(config["flash_attention"], flash_attention)
+        restored = layers.GroupedQueryAttention.from_config(config)
+        self.assertEqual(restored._flash_attention, layer._flash_attention)
+        self.assertIs(restored.get_config()["flash_attention"], flash_attention)
+        restored = saving.deserialize_keras_object(
+            saving.serialize_keras_object(layer)
+        )
+        self.assertEqual(restored._flash_attention, layer._flash_attention)
+
+    def test_flash_attention_config_missing(self):
+        # Configs saved before `flash_attention` was serialized still load,
+        # following the global setting.
+        config = layers.GroupedQueryAttention(
+            head_dim=8, num_query_heads=4, num_key_value_heads=2
+        ).get_config()
+        del config["flash_attention"]
+        restored = layers.GroupedQueryAttention.from_config(config)
+        self.assertFalse(restored._flash_attention)
 
     @parameterized.named_parameters(
         ("disable_flash_attention", False), ("enable_flash_attention", True)

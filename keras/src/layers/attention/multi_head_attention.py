@@ -174,6 +174,9 @@ class MultiHeadAttention(Layer):
                     "list, or int."
                 )
         self._output_shape = output_shape
+        # The argument as given, for `get_config`; `_flash_attention` also
+        # folds in the global setting at construction time.
+        self._flash_attention_arg = flash_attention
         self._flash_attention = flash_attention or is_flash_attention_enabled()
         self._kernel_initializer = initializers.get(kernel_initializer)
         self._bias_initializer = initializers.get(bias_initializer)
@@ -248,6 +251,7 @@ class MultiHeadAttention(Layer):
             "output_shape": self._output_shape,
             "attention_axes": self._attention_axes,
             "sliding_window": self._sliding_window,
+            "flash_attention": self._flash_attention_arg,
             "kernel_initializer": initializers.serialize(
                 self._kernel_initializer
             ),

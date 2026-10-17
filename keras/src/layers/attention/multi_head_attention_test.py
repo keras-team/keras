@@ -717,6 +717,34 @@ class MultiHeadAttentionTest(testing.TestCase):
         self.assertEqual(restored._sliding_window, 5)
 
     @parameterized.named_parameters(
+        ("true", True), ("false", False), ("none", None)
+    )
+    def test_flash_attention_serialization(self, flash_attention):
+        # The argument round-trips as given, so a saved
+        # `flash_attention=True` still uses flash attention after loading,
+        # and `None` still follows the global setting.
+        layer = layers.MultiHeadAttention(
+            num_heads=2, key_dim=8, flash_attention=flash_attention
+        )
+        config = layer.get_config()
+        self.assertIs(config["flash_attention"], flash_attention)
+        restored = layers.MultiHeadAttention.from_config(config)
+        self.assertEqual(restored._flash_attention, layer._flash_attention)
+        self.assertIs(restored.get_config()["flash_attention"], flash_attention)
+        restored = saving.deserialize_keras_object(
+            saving.serialize_keras_object(layer)
+        )
+        self.assertEqual(restored._flash_attention, layer._flash_attention)
+
+    def test_flash_attention_config_missing(self):
+        # Configs saved before `flash_attention` was serialized still load,
+        # following the global setting.
+        config = layers.MultiHeadAttention(num_heads=2, key_dim=8).get_config()
+        del config["flash_attention"]
+        restored = layers.MultiHeadAttention.from_config(config)
+        self.assertFalse(restored._flash_attention)
+
+    @parameterized.named_parameters(
         ("disable_flash_attention", False), ("enable_flash_attention", True)
     )
     def test_correctness(self, flash_attention):
