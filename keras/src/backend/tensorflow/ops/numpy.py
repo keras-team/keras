@@ -3829,7 +3829,7 @@ def floor_divide(x1, x2):
     )
     # A zero divisor gives `x1 / x2` (inf, -inf or nan), as before.
     result = tf.where(x2 == 0, x1 / x2, tf.round(div))
-    return tf.cast(result, dtype)
+    return tf.stop_gradient(tf.cast(result, dtype))
 
 
 def logical_xor(x1, x2):
