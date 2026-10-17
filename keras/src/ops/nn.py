@@ -19,17 +19,14 @@ from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
 from keras.src.ops import operation_utils
+from keras.src.ops.operation import ElementwiseUnaryOperation
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import reduce_shape
 from keras.src.utils.argument_validation import standardize_tuple
 
 
-class Relu(Operation):
-    def call(self, x):
-        return backend.ops.nn.relu(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+class Relu(ElementwiseUnaryOperation):
+    backend_fn = backend.ops.nn.relu
 
 
 @keras_export(["keras.ops.relu", "keras.ops.nn.relu"])
@@ -55,12 +52,8 @@ def relu(x):
     return backend.ops.nn.relu(x)
 
 
-class Relu6(Operation):
-    def call(self, x):
-        return backend.ops.nn.relu6(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+class Relu6(ElementwiseUnaryOperation):
+    backend_fn = backend.ops.nn.relu6
 
 
 @keras_export(["keras.ops.relu6", "keras.ops.nn.relu6"])
@@ -86,12 +79,8 @@ def relu6(x):
     return backend.ops.nn.relu6(x)
 
 
-class Sigmoid(Operation):
-    def call(self, x):
-        return backend.ops.nn.sigmoid(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+class Sigmoid(ElementwiseUnaryOperation):
+    backend_fn = backend.ops.nn.sigmoid
 
 
 @keras_export(["keras.ops.sigmoid", "keras.ops.nn.sigmoid"])
@@ -118,14 +107,9 @@ def sigmoid(x):
     return backend.ops.nn.sigmoid(x)
 
 
-class SparseSigmoid(Operation):
-    def call(self, x):
-        return backend.ops.nn.sparse_sigmoid(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
-        )
+class SparseSigmoid(ElementwiseUnaryOperation):
+    backend_fn = backend.ops.nn.sparse_sigmoid
+    promote_to_float = True
 
 
 @keras_export(["keras.ops.sparse_sigmoid", "keras.ops.nn.sparse_sigmoid"])
@@ -156,12 +140,8 @@ def sparse_sigmoid(x):
     return backend.ops.nn.sparse_sigmoid(x)
 
 
-class Softplus(Operation):
-    def call(self, x):
-        return backend.ops.nn.softplus(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+class Softplus(ElementwiseUnaryOperation):
+    backend_fn = backend.ops.nn.softplus
 
 
 @keras_export(["keras.ops.softplus", "keras.ops.nn.softplus"])
@@ -189,12 +169,8 @@ def softplus(x):
     return backend.ops.nn.softplus(x)
 
 
-class Softsign(Operation):
-    def call(self, x):
-        return backend.ops.nn.softsign(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+class Softsign(ElementwiseUnaryOperation):
+    backend_fn = backend.ops.nn.softsign
 
 
 @keras_export(["keras.ops.softsign", "keras.ops.nn.softsign"])
@@ -221,18 +197,16 @@ def softsign(x):
     return backend.ops.nn.softsign(x)
 
 
-class SoftShrink(Operation):
+class SoftShrink(ElementwiseUnaryOperation):
+    backend_fn = backend.ops.nn.soft_shrink
+    promote_to_float = True
+
     def __init__(self, threshold=0.5, *, name=None):
         super().__init__(name=name)
         self.threshold = threshold
 
     def call(self, x):
-        return backend.ops.nn.soft_shrink(x, self.threshold)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
-        )
+        return self.backend_fn(x, self.threshold)
 
 
 @keras_export(["keras.ops.soft_shrink", "keras.ops.nn.soft_shrink"])
@@ -265,14 +239,9 @@ def soft_shrink(x, threshold=0.5):
     return backend.ops.nn.soft_shrink(x, threshold)
 
 
-class SparsePlus(Operation):
-    def call(self, x):
-        return backend.ops.nn.sparse_plus(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
-        )
+class SparsePlus(ElementwiseUnaryOperation):
+    backend_fn = backend.ops.nn.sparse_plus
+    promote_to_float = True
 
 
 @keras_export(["keras.ops.sparse_plus", "keras.ops.nn.sparse_plus"])
@@ -305,12 +274,8 @@ def sparse_plus(x):
     return backend.ops.nn.sparse_plus(x)
 
 
-class Silu(Operation):
-    def call(self, x):
-        return backend.ops.nn.silu(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+class Silu(ElementwiseUnaryOperation):
+    backend_fn = backend.ops.nn.silu
 
 
 @keras_export(
@@ -347,16 +312,26 @@ def silu(x):
     return backend.ops.nn.silu(x)
 
 
-class Squareplus(Operation):
+def _squareplus(x, b=4):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.nn, "squareplus"
+    ):
+        return backend.ops.nn.squareplus(x, b)
+    x = backend.ops.convert_to_tensor(x)
+    b = backend.ops.convert_to_tensor(b, dtype=x.dtype)
+    y = (x + backend.ops.numpy.sqrt(backend.ops.numpy.square(x) + b)) / 2.0
+    return backend.ops.cast(y, dtype=x.dtype)
+
+
+class Squareplus(ElementwiseUnaryOperation):
+    backend_fn = _squareplus
+
     def __init__(self, b=4, *, name=None):
         super().__init__(name=name)
         self.b = b
 
     def call(self, x):
-        return _squareplus(x, self.b)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return self.backend_fn(x, self.b)
 
 
 @keras_export(["keras.ops.squareplus", "keras.ops.nn.squareplus"])
@@ -387,23 +362,8 @@ def squareplus(x, b=4):
     return _squareplus(x, b)
 
 
-def _squareplus(x, b):
-    if not config._use_backend_agnostic_ops() and hasattr(
-        backend.ops.nn, "squareplus"
-    ):
-        return backend.ops.nn.squareplus(x, b)
-    x = backend.ops.convert_to_tensor(x)
-    b = backend.ops.convert_to_tensor(b, dtype=x.dtype)
-    y = (x + backend.ops.numpy.sqrt(backend.ops.numpy.square(x) + b)) / 2.0
-    return backend.ops.cast(y, dtype=x.dtype)
-
-
-class LogSigmoid(Operation):
-    def call(self, x):
-        return backend.ops.nn.log_sigmoid(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+class LogSigmoid(ElementwiseUnaryOperation):
+    backend_fn = backend.ops.nn.log_sigmoid
 
 
 @keras_export(
@@ -435,20 +395,16 @@ def log_sigmoid(x):
     return backend.ops.nn.log_sigmoid(x)
 
 
-class LeakyRelu(Operation):
+class LeakyRelu(ElementwiseUnaryOperation):
+    backend_fn = backend.ops.nn.leaky_relu
+    promote_to_float = True
+
     def __init__(self, negative_slope=0.2, *, name=None):
         super().__init__(name=name)
         self.negative_slope = negative_slope
 
     def call(self, x):
-        return backend.ops.nn.leaky_relu(x, self.negative_slope)
-
-    def compute_output_spec(self, x):
-        # Integer and bool input is promoted to `floatx`, matching what the
-        # backends return. Same rule as `Exp.compute_output_spec`.
-        return KerasTensor(
-            x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
-        )
+        return self.backend_fn(x, self.negative_slope)
 
 
 @keras_export(["keras.ops.leaky_relu", "keras.ops.nn.leaky_relu"])
@@ -480,14 +436,9 @@ def leaky_relu(x, negative_slope=0.2):
     return backend.ops.nn.leaky_relu(x, negative_slope=negative_slope)
 
 
-class HardSigmoid(Operation):
-    def call(self, x):
-        return backend.ops.nn.hard_sigmoid(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
-        )
+class HardSigmoid(ElementwiseUnaryOperation):
+    backend_fn = backend.ops.nn.hard_sigmoid
+    promote_to_float = True
 
 
 @keras_export(
@@ -522,14 +473,9 @@ def hard_sigmoid(x):
     return backend.ops.nn.hard_sigmoid(x)
 
 
-class HardSilu(Operation):
-    def call(self, x):
-        return backend.ops.nn.hard_silu(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
-        )
+class HardSilu(ElementwiseUnaryOperation):
+    backend_fn = backend.ops.nn.hard_silu
+    promote_to_float = True
 
 
 @keras_export(
@@ -569,16 +515,15 @@ def hard_silu(x):
     return backend.ops.nn.hard_silu(x)
 
 
-class Elu(Operation):
+class Elu(ElementwiseUnaryOperation):
+    backend_fn = backend.ops.nn.elu
+
     def __init__(self, alpha=1.0, *, name=None):
         super().__init__(name=name)
         self.alpha = alpha
 
     def call(self, x):
-        return backend.ops.nn.elu(x, alpha=self.alpha)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return self.backend_fn(x, alpha=self.alpha)
 
 
 @keras_export(["keras.ops.elu", "keras.ops.nn.elu"])
@@ -609,14 +554,9 @@ def elu(x, alpha=1.0):
     return backend.ops.nn.elu(x, alpha=alpha)
 
 
-class Selu(Operation):
-    def call(self, x):
-        return backend.ops.nn.selu(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
-        )
+class Selu(ElementwiseUnaryOperation):
+    backend_fn = backend.ops.nn.selu
+    promote_to_float = True
 
 
 @keras_export(["keras.ops.selu", "keras.ops.nn.selu"])
@@ -647,16 +587,15 @@ def selu(x):
     return backend.ops.nn.selu(x)
 
 
-class Gelu(Operation):
+class Gelu(ElementwiseUnaryOperation):
+    backend_fn = backend.ops.nn.gelu
+
     def __init__(self, approximate=True, *, name=None):
         super().__init__(name=name)
         self.approximate = approximate
 
     def call(self, x):
-        return backend.ops.nn.gelu(x, self.approximate)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return self.backend_fn(x, self.approximate)
 
 
 @keras_export(["keras.ops.gelu", "keras.ops.nn.gelu"])
@@ -690,16 +629,15 @@ def gelu(x, approximate=True):
     return backend.ops.nn.gelu(x, approximate)
 
 
-class Celu(Operation):
+class Celu(ElementwiseUnaryOperation):
+    backend_fn = backend.ops.nn.celu
+
     def __init__(self, alpha=1.0, *, name=None):
         super().__init__(name=name)
         self.alpha = alpha
 
     def call(self, x):
-        return backend.ops.nn.celu(x, self.alpha)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return self.backend_fn(x, self.alpha)
 
 
 @keras_export(["keras.ops.celu", "keras.ops.nn.celu"])
@@ -780,12 +718,8 @@ def glu(x, axis=-1):
     return backend.ops.nn.glu(x, axis=axis)
 
 
-class TanhShrink(Operation):
-    def call(self, x):
-        return backend.ops.nn.tanh_shrink(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+class TanhShrink(ElementwiseUnaryOperation):
+    backend_fn = backend.ops.nn.tanh_shrink
 
 
 @keras_export(["keras.ops.tanh_shrink", "keras.ops.nn.tanh_shrink"])
@@ -816,12 +750,8 @@ def tanh_shrink(x):
     return backend.ops.nn.tanh_shrink(x)
 
 
-class HardTanh(Operation):
-    def call(self, x):
-        return backend.ops.nn.hard_tanh(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+class HardTanh(ElementwiseUnaryOperation):
+    backend_fn = backend.ops.nn.hard_tanh
 
 
 @keras_export(["keras.ops.hard_tanh", "keras.ops.nn.hard_tanh"])
@@ -852,16 +782,15 @@ def hard_tanh(x):
     return backend.ops.nn.hard_tanh(x)
 
 
-class HardShrink(Operation):
+class HardShrink(ElementwiseUnaryOperation):
+    backend_fn = backend.ops.nn.hard_shrink
+
     def __init__(self, threshold=0.5, *, name=None):
         super().__init__(name=name)
         self.threshold = threshold
 
     def call(self, x):
-        return backend.ops.nn.hard_shrink(x, self.threshold)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return self.backend_fn(x, self.threshold)
 
 
 @keras_export(["keras.ops.hard_shrink", "keras.ops.nn.hard_shrink"])
@@ -893,17 +822,16 @@ def hard_shrink(x, threshold=0.5):
     return backend.ops.nn.hard_shrink(x, threshold)
 
 
-class Threshold(Operation):
+class Threshold(ElementwiseUnaryOperation):
+    backend_fn = backend.ops.nn.threshold
+
     def __init__(self, threshold, default_value, *, name=None):
         super().__init__(name=name)
         self.threshold = threshold
         self.default_value = default_value
 
     def call(self, x):
-        return backend.ops.nn.threshold(x, self.threshold, self.default_value)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return self.backend_fn(x, self.threshold, self.default_value)
 
 
 @keras_export(["keras.ops.threshold", "keras.ops.nn.threshold"])
