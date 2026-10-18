@@ -1,3 +1,4 @@
+from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
@@ -25,20 +26,23 @@ class Mosaic(BaseImagePreprocessingLayer):
     to the output image; boxes that end up entirely outside of it get a label
     of `-1`. Segmentation masks are cropped exactly like the images.
 
-    Single (unbatched) images are returned unchanged, since there are no other
-    images to combine them with.
+    A single (unbatched) image is processed as a batch of one image. All 4
+    images of its grid are then that same image, so the output is the image
+    shifted with wrap-around. To combine different images, call the layer on
+    batches, for example after `tf.data.Dataset.batch()`.
 
-    **Note:** This layer is safe to use inside a `tf.data` pipeline
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
     (independently of which backend you're using).
 
     Input shape:
-        A 4D (batched) tensor of images, or a dictionary with an `"images"`
-        key and optional `"labels"`, `"bounding_boxes"` and
-        `"segmentation_masks"` keys. Images have shape
+        A 3D (unbatched) or 4D (batched) tensor of images, or a dictionary
+        with an `"images"` key and optional `"labels"`, `"bounding_boxes"`
+        and `"segmentation_masks"` keys. Batched images have shape
         `(batch, height, width, channels)` in `"channels_last"` format, or
         `(batch, channels, height, width)` in `"channels_first"` format.
-        Labels have shape `(batch, num_classes)`, and segmentation masks have
-        the same layout as the images.
+        Labels have shape `(batch, num_classes)`, or `(num_classes,)` for a
+        single image, and segmentation masks have the same layout as the
+        images.
 
     Output shape:
         Same as the input, except that each image's bounding boxes become
@@ -165,9 +169,9 @@ class Mosaic(BaseImagePreprocessingLayer):
 
         images_shape = self.backend.ops.shape(images)
         if len(images_shape) == 3:
-            return None
-
-        batch_size = images_shape[0]
+            batch_size = 1
+        else:
+            batch_size = images_shape[0]
 
         seed = seed or self._get_seed_generator(self.backend._backend)
 
@@ -230,12 +234,14 @@ class Mosaic(BaseImagePreprocessingLayer):
         if not training or transformation is None:
             return labels
 
-        if len(self.backend.ops.shape(labels)) != 2:
+        labels_shape = self.backend.ops.shape(labels)
+        if len(labels_shape) != 2 or not backend.is_float_dtype(labels.dtype):
             raise ValueError(
                 "Mosaic mixes labels in proportion to the area of each image, "
-                "so `labels` must be one-hot encoded (or soft) labels of shape "
-                "`(batch_size, num_classes)`. Received: labels.shape="
-                f"{self.backend.ops.shape(labels)}"
+                "so `labels` must be one-hot encoded (or soft) float labels of "
+                "shape `(batch_size, num_classes)`. Received: labels.shape="
+                f"{labels_shape}, "
+                f"labels.dtype={backend.standardize_dtype(labels.dtype)}"
             )
 
         permutation_order = transformation["permutation_order"]
