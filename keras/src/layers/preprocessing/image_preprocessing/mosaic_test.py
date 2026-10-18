@@ -1,6 +1,6 @@
 import numpy as np
+import pytest
 from absl.testing import parameterized
-from tensorflow import data as tf_data
 
 from keras.src import backend
 from keras.src import layers
@@ -62,11 +62,61 @@ class MosaicTest(testing.TestCase):
         output = layer(inputs, training=False)
         self.assertAllClose(inputs, output)
 
-    def test_single_image_is_unchanged(self):
-        layer = layers.Mosaic(seed=1)
-        inputs = np.random.random((8, 8, 3))
-        output = layer(inputs)
-        self.assertAllClose(inputs, output)
+    def test_unbatched_matches_batch_of_one(self):
+        data_format = backend.config.image_data_format()
+        image = _to_data_format(
+            np.random.random((1, 10, 12, 3)).astype("float32"), data_format
+        )[0]
+        mask = _to_data_format(
+            np.random.randint(0, 4, (1, 10, 12, 1)).astype("uint8"),
+            data_format,
+        )[0]
+        label = np.array([0.0, 1.0, 0.0], dtype="float32")
+        boxes = np.array([[2, 3, 8, 9]], dtype="float32")
+        box_labels = np.array([1])
+
+        def mosaic(data):
+            layer = layers.Mosaic(
+                seed=1, bounding_box_format="xyxy", data_format=data_format
+            )
+            return layer(data)
+
+        unbatched = mosaic(
+            {
+                "images": image,
+                "labels": label,
+                "segmentation_masks": mask,
+                "bounding_boxes": {"boxes": boxes, "labels": box_labels},
+            }
+        )
+        batched = mosaic(
+            {
+                "images": image[None],
+                "labels": label[None],
+                "segmentation_masks": mask[None],
+                "bounding_boxes": {
+                    "boxes": boxes[None],
+                    "labels": box_labels[None],
+                },
+            }
+        )
+
+        self.assertAllClose(unbatched["images"], batched["images"][0])
+        self.assertAllClose(unbatched["labels"], batched["labels"][0])
+        self.assertAllEqual(
+            unbatched["segmentation_masks"], batched["segmentation_masks"][0]
+        )
+        self.assertAllClose(
+            unbatched["bounding_boxes"]["boxes"],
+            batched["bounding_boxes"]["boxes"][0],
+        )
+        self.assertAllEqual(
+            unbatched["bounding_boxes"]["labels"],
+            batched["bounding_boxes"]["labels"][0],
+        )
+        self.assertEqual(
+            tuple(unbatched["bounding_boxes"]["boxes"].shape), (4, 4)
+        )
 
     @parameterized.named_parameters(
         ("tuple", (0.2, 0.6), (0.2, 0.6)),
@@ -164,7 +214,7 @@ class MosaicTest(testing.TestCase):
 
     @parameterized.named_parameters(
         ("float_labels", "float32"),
-        ("int_labels", "int32"),
+        ("float16_labels", "float16"),
     )
     def test_mosaic_labels(self, dtype):
         # Center (0.3, 0.6): the 4 images cover 18%, 42%, 12% and 28% of
@@ -265,6 +315,7 @@ class MosaicTest(testing.TestCase):
         self.assertAllClose(output_boxes[0, 4], [0, 70, 30, 100])
 
     def test_tf_data_compatibility(self):
+        tf_data = pytest.importorskip("tensorflow").data
         data_format = backend.config.image_data_format()
         images = _to_data_format(np.random.random((8, 8, 8, 3)), data_format)
         labels = np.eye(4, dtype="float32")[np.arange(8) % 4]
@@ -292,9 +343,43 @@ class MosaicTest(testing.TestCase):
             self.assertEqual(output["labels"].shape, (4, 4))
             self.assertEqual(output["bounding_boxes"]["boxes"].shape, (4, 4, 4))
 
-    def test_sparse_labels_raise(self):
+    def test_grain_compatibility(self):
+        grain = pytest.importorskip("grain")
+        data_format = backend.config.image_data_format()
+        images = _to_data_format(
+            np.random.random((8, 8, 8, 3)).astype("float32"), data_format
+        )
+        labels = np.eye(4, dtype="float32")[np.arange(8) % 4]
+        elements = [
+            {
+                "images": images[i],
+                "labels": labels[i],
+                "bounding_boxes": {
+                    "boxes": np.array([[1, 1, 3, 3]], dtype="float32"),
+                    "labels": np.array([1]),
+                },
+            }
+            for i in range(8)
+        ]
+        layer = layers.Mosaic(
+            seed=1, bounding_box_format="xyxy", data_format=data_format
+        )
+
+        ds = grain.MapDataset.source(elements).batch(4).map(layer)
+        output = ds[0]
+        self.assertEqual(tuple(output["images"].shape), (4,) + images.shape[1:])
+        self.assertEqual(tuple(output["labels"].shape), (4, 4))
+        self.assertEqual(
+            tuple(output["bounding_boxes"]["boxes"].shape), (4, 4, 4)
+        )
+
+    @parameterized.named_parameters(
+        ("sparse", np.array([0, 1, 2, 0])),
+        ("class_ids", np.array([[3], [7], [0], [9]], dtype="uint8")),
+        ("int_one_hot", np.eye(3, dtype="int32")[[0, 1, 2, 0]]),
+    )
+    def test_invalid_labels_raise(self, labels):
         images = np.random.random((4, 8, 8, 3))
-        labels = np.array([0, 1, 2, 0])
         layer = layers.Mosaic(seed=1)
         with self.assertRaisesRegex(ValueError, "one-hot"):
             layer({"images": images, "labels": labels})
