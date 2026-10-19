@@ -739,7 +739,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         def body_fun(i, x):
             return x + i
 
-        initial_value = np.array(0)
+        initial_value = 0
         result = core.fori_loop(0, 10, body_fun, initial_value)
         self.assertAllClose(result, 45)
 
