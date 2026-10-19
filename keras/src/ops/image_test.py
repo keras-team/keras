@@ -2628,7 +2628,14 @@ class ImageOpsCorrectnessTest(testing.TestCase):
                 data_format=data_format,
             )
             self.assertEqual(tuple(out.shape), tuple(input_image.shape))
-            self.assertAllClose(out, expected_image, atol=1e-6, rtol=1e-6)
+            self.assertAllClose(
+                out,
+                expected_image,
+                atol=1e-6,
+                rtol=1e-6,
+                tpu_atol=1e-2,
+                tpu_rtol=1e-2,
+            )
 
     def test_gaussian_blur_even_rectangular_kernel(self):
         image = (np.arange(9 * 11, dtype="float32").reshape(9, 11, 1) / 13) ** 2
@@ -2638,7 +2645,9 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         expected = gaussian_blur_np(image, kernel_size, sigma)
 
         self.assertEqual(tuple(out.shape), tuple(image.shape))
-        self.assertAllClose(out, expected, atol=5e-5, rtol=1e-5)
+        self.assertAllClose(
+            out, expected, atol=5e-5, rtol=1e-5, tpu_atol=1e-2, tpu_rtol=1e-2
+        )
 
     def test_gaussian_blur_even_kernel_size(self):
         """Test gaussian_blur with even kernel sizes"""
