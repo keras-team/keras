@@ -9,6 +9,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import testing
+from keras.src.backend.common import standardize_dtype
 from keras.src.saving import saving_api
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters.py_dataset_adapter import PyDataset
@@ -275,8 +276,8 @@ class DiscretizationTest(testing.TestCase):
         # Check consistency
         self.assertAllClose(model_call_output, predict_output)
         self.assertEqual(
-            backend.standardize_dtype(model_call_output.dtype),
-            backend.standardize_dtype(predict_output.dtype),
+            standardize_dtype(model_call_output.dtype),
+            standardize_dtype(predict_output.dtype),
         )
         self.assertTrue(backend.is_int_dtype(model_call_output.dtype))
 

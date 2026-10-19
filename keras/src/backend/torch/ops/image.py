@@ -8,6 +8,7 @@ import torch._dynamo as dynamo
 import torch.nn.functional as F
 
 from keras.src import backend
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.torch.ops.core import cast
 from keras.src.backend.torch.ops.core import convert_to_tensor
 from keras.src.backend.torch.ops.core import get_device
@@ -88,7 +89,7 @@ def rgb_to_hsv(images, data_format=None):
     if not backend.is_float_dtype(dtype):
         raise ValueError(
             "Invalid images dtype: expected float dtype. "
-            f"Received: images.dtype={backend.standardize_dtype(dtype)}"
+            f"Received: images.dtype={standardize_dtype(dtype)}"
         )
     eps = torch.finfo(dtype).eps
     images = torch.where(torch.abs(images) < eps, 0.0, images)
@@ -138,7 +139,7 @@ def hsv_to_rgb(images, data_format=None):
     if not backend.is_float_dtype(dtype):
         raise ValueError(
             "Invalid images dtype: expected float dtype. "
-            f"Received: images.dtype={backend.standardize_dtype(dtype)}"
+            f"Received: images.dtype={standardize_dtype(dtype)}"
         )
     hue, saturation, value = torch.split(images, [1, 1, 1], channels_axis)
     hue = torch.squeeze(hue, channels_axis)
@@ -505,7 +506,7 @@ def perspective_transform(
     data_format = backend.standardize_data_format(data_format)
 
     images = convert_to_tensor(images)
-    dtype = backend.standardize_dtype(images.dtype)
+    dtype = standardize_dtype(images.dtype)
     start_points = convert_to_tensor(start_points, dtype=dtype)
     end_points = convert_to_tensor(end_points, dtype=dtype)
 

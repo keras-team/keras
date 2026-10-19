@@ -6,6 +6,7 @@ import numpy as np
 import tensorflow as tf
 
 from keras.src import backend
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.tensorflow.ops.core import convert_to_tensor
 from keras.src.backend.tensorflow.ops.numpy import moveaxis
 from keras.src.random.seed_generator import draw_seed
@@ -92,7 +93,7 @@ def rgb_to_hsv(images, data_format=None):
     if not backend.is_float_dtype(dtype):
         raise ValueError(
             "Invalid images dtype: expected float dtype. "
-            f"Received: images.dtype={backend.standardize_dtype(dtype)}"
+            f"Received: images.dtype={standardize_dtype(dtype)}"
         )
     if data_format == "channels_first":
         if len(images.shape) == 4:
@@ -121,7 +122,7 @@ def hsv_to_rgb(images, data_format=None):
     if not backend.is_float_dtype(dtype):
         raise ValueError(
             "Invalid images dtype: expected float dtype. "
-            f"Received: images.dtype={backend.standardize_dtype(dtype)}"
+            f"Received: images.dtype={standardize_dtype(dtype)}"
         )
     if data_format == "channels_first":
         if len(images.shape) == 4:
@@ -775,7 +776,7 @@ def gaussian_blur(
 
     data_format = backend.standardize_data_format(data_format)
     images = convert_to_tensor(images)
-    dtype = backend.standardize_dtype(images.dtype)
+    dtype = standardize_dtype(images.dtype)
     kernel_size = convert_to_tensor(kernel_size, dtype=dtype)
     sigma = convert_to_tensor(sigma, dtype=dtype)
 

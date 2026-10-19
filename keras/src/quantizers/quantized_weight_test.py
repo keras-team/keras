@@ -10,6 +10,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend.common import standardize_dtype
 from keras.src.quantizers import packing
 from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.gptq_config import GPTQConfig
@@ -461,9 +462,7 @@ class LayerViewTest(testing.TestCase):
         )
         self.assertIsNone(layer._quantized_weight())
         # The float kernel is still what the property exposes.
-        self.assertEqual(
-            backend.standardize_dtype(layer.kernel.dtype), "float32"
-        )
+        self.assertEqual(standardize_dtype(layer.kernel.dtype), "float32")
 
 
 class QuantizationSummaryTest(testing.TestCase):

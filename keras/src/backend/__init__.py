@@ -22,7 +22,6 @@ from keras.src.backend.common.variables import AutocastScope
 from keras.src.backend.common.variables import get_autocast_scope
 from keras.src.backend.common.variables import is_float_dtype
 from keras.src.backend.common.variables import is_int_dtype
-from keras.src.backend.common.variables import standardize_dtype
 from keras.src.backend.common.variables import standardize_shape
 from keras.src.backend.config import PLUGGABLE_BACKENDS
 from keras.src.backend.config import epsilon

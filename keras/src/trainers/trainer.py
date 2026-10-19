@@ -7,6 +7,7 @@ from keras.src import metrics as metrics_module
 from keras.src import ops
 from keras.src import optimizers
 from keras.src import tree
+from keras.src.backend.common import standardize_dtype
 from keras.src.optimizers.loss_scale_optimizer import LossScaleOptimizer
 from keras.src.saving import serialization_lib
 from keras.src.trainers.compile_utils import CompileLoss
@@ -1162,9 +1163,7 @@ class BaseTrainer:
             def to_symbolic_input(v):
                 if v is None:
                     return None
-                return backend.KerasTensor(
-                    v.shape, backend.standardize_dtype(v.dtype)
-                )
+                return backend.KerasTensor(v.shape, standardize_dtype(v.dtype))
 
             if data_batch is None:
                 for _, _, data_or_iterator in iterator:

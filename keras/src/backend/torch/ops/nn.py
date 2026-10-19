@@ -7,6 +7,7 @@ from torch.distributed.tensor import Replicate
 
 from keras.src import backend
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
@@ -41,7 +42,7 @@ def sigmoid(x):
 def sparse_sigmoid(x):
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return torch.where(
         x <= -1,
@@ -77,7 +78,7 @@ def softsign(x):
 def soft_shrink(x, threshold=0.5):
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return tnn.softshrink(x, lambd=threshold)
 
@@ -85,7 +86,7 @@ def soft_shrink(x, threshold=0.5):
 def sparse_plus(x):
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return torch.where(
         x <= -1,
@@ -115,7 +116,7 @@ def leaky_relu(x, negative_slope=0.2):
     # `tnn.leaky_relu` is not implemented for integer or bool dtypes.
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return tnn.leaky_relu(x, negative_slope=negative_slope)
 
@@ -124,7 +125,7 @@ def hard_sigmoid(x):
     # `tnn.hardsigmoid` is not implemented for integer or bool dtypes.
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return tnn.hardsigmoid(x)
 
@@ -132,7 +133,7 @@ def hard_sigmoid(x):
 def hard_silu(x):
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return tnn.hardswish(x)
 
@@ -145,7 +146,7 @@ def elu(x, alpha=1.0):
 def selu(x):
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return tnn.selu(x)
 
@@ -186,12 +187,9 @@ def threshold(x, threshold, default_value):
 
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
-    dtype = backend.standardize_dtype(x.dtype)
+    dtype = standardize_dtype(x.dtype)
     # TODO: tnn.softmax doesn't support float16 using cpu
-    if (
-        get_device() == "cpu"
-        and backend.standardize_dtype(x.dtype) == "float16"
-    ):
+    if get_device() == "cpu" and dtype == "float16":
         x = cast(x, "float32")
     if axis is None:
         # Unlike numpy, PyTorch will handle axis=None as axis=-1.
@@ -206,12 +204,9 @@ def softmax(x, axis=-1):
 
 def log_softmax(x, axis=-1):
     x = convert_to_tensor(x)
-    dtype = backend.standardize_dtype(x.dtype)
+    dtype = standardize_dtype(x.dtype)
     # TODO: tnn.log_softmax doesn't support float16 using cpu
-    if (
-        get_device() == "cpu"
-        and backend.standardize_dtype(x.dtype) == "float16"
-    ):
+    if get_device() == "cpu" and dtype == "float16":
         x = cast(x, "float32")
     if axis is None:
         # Unlike numpy, PyTorch will handle axis=None as axis=-1.
@@ -1074,7 +1069,7 @@ def moments(x, axes, keepdims=False, synchronized=False):
     # workaround, we simply perform the operations on float32 and convert back
     # to float16
     need_cast = False
-    ori_dtype = backend.standardize_dtype(x.dtype)
+    ori_dtype = standardize_dtype(x.dtype)
     if ori_dtype == "float16":
         need_cast = True
         x = cast(x, "float32")
@@ -1486,7 +1481,7 @@ def psnr(x1, x2, max_val):
 
 
 def _get_large_negative(dtype):
-    dtype = backend.standardize_dtype(dtype)
+    dtype = standardize_dtype(dtype)
     if dtype == "float16":
         val = 65500.0
     else:
