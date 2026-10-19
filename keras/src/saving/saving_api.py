@@ -11,6 +11,7 @@ from keras.src.saving import saving_lib
 from keras.src.saving.orbax_util import build_orbax_abstract_pytree
 from keras.src.saving.orbax_util import find_latest_orbax_checkpoint
 from keras.src.saving.orbax_util import is_orbax_checkpoint
+from keras.src.saving.orbax_util import reject_orbax_pytree_bomb
 from keras.src.utils import file_utils
 from keras.src.utils import io_utils
 from keras.src.utils.module_utils import h5py
@@ -353,8 +354,10 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
 
         # Build abstract pytree with target shardings so Orbax can
         # reshard arrays onto the current distribution layout.
+        ref_state = model.get_state_tree()
+        reject_orbax_pytree_bomb(checkpoint_path, ref_state)
         abstract_pytree = build_orbax_abstract_pytree(
-            checkpoint_path, model.get_state_tree()
+            checkpoint_path, ref_state
         )
 
         loaded_checkpointables = ocp.load_checkpointables(
@@ -432,8 +435,10 @@ def _load_model_from_orbax_checkpoint(
         )
 
         # Step 2: Load pytree (arrays) with optional resharding.
+        ref_state = model.get_state_tree()
+        reject_orbax_pytree_bomb(checkpoint_path, ref_state)
         abstract_pytree = build_orbax_abstract_pytree(
-            checkpoint_path, model.get_state_tree()
+            checkpoint_path, ref_state
         )
 
         request = {"pytree": abstract_pytree}

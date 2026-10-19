@@ -538,6 +538,64 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
         with self.assertRaises(ValueError):
             saving.load_model(weights_only_dir)
 
+    def _save_crafted_checkpoint(self, directory, pytree, config_json=None):
+        """Save an Orbax checkpoint with a hand-built pytree (and config)."""
+        from keras.src.utils.module_utils import ocp
+
+        checkpointer = ocp.training.Checkpointer(
+            directory=directory,
+            save_decision_policy=(
+                ocp.training.save_decision_policies.FixedIntervalPolicy(1)
+            ),
+        )
+        payload = {"pytree": pytree}
+        if config_json is not None:
+            payload["model_config"] = {"config": config_json}
+        with ocp.Context():
+            checkpointer.save_checkpointables(0, payload)
+        checkpointer.close()
+
+    def test_load_rejects_pytree_shape_bomb(self):
+        """A tiny checkpoint declaring huge arrays is refused before loading."""
+        from keras.src.saving import saving_lib
+
+        model = self._create_test_model()
+        config_json, _ = saving_lib._serialize_model_as_json(model)
+
+        # The arrays are all-zeros, so Orbax stores a few kilobytes on disk
+        # while the metadata declares ~48 MB; scaled up this is a multi-GB
+        # allocation from a tiny file.
+        pytree = {
+            "trainable_variables": {
+                "test_model": {
+                    "dense_layer": {
+                        "kernel": np.zeros((1, 12_000_000), dtype="float32"),
+                        "bias": np.zeros((6,), dtype="float32"),
+                    }
+                }
+            },
+            "non_trainable_variables": {},
+            "optimizer_variables": {},
+            "metrics_variables": {},
+        }
+
+        bomb_dir = os.path.join(self.get_temp_dir(), "pytree_bomb")
+        self._save_crafted_checkpoint(bomb_dir, pytree, config_json=config_json)
+
+        on_disk = sum(
+            os.path.getsize(os.path.join(root, f))
+            for root, _, files in os.walk(bomb_dir)
+            for f in files
+        )
+        self.assertLess(on_disk, 1 << 20)  # a few KB on disk
+
+        with self.assertRaisesRegex(ValueError, "shape bomb"):
+            saving.load_model(bomb_dir)
+
+        # The load_weights entry point shares the guard.
+        with self.assertRaisesRegex(ValueError, "shape bomb"):
+            self._create_test_model().load_weights(bomb_dir)
+
     @parameterized.parameters(
         {"save_on_background": False},
         {"save_on_background": True},
