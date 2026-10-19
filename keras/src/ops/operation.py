@@ -408,8 +408,8 @@ class Operation(KerasSaveable):
         tensor returned by that call:
 
         ```python
-        inputs_a = keras.Input((3,))
-        inputs_b = keras.Input((3,))
+        inputs_a = keras.Input(shape=(3,))
+        inputs_b = keras.Input(shape=(3,))
         shared = keras.layers.Dense(2)
 
         outputs_a = shared(inputs_a)  # First call.
