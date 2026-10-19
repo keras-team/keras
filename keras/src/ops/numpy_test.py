@@ -428,11 +428,6 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((1, 3))
         self.assertEqual(knp.copysign(x, y).shape, (None, 3))
 
-    def test_nextafter(self):
-        x = KerasTensor((None, 3))
-        y = KerasTensor((1, 3))
-        self.assertEqual(knp.nextafter(x, y).shape, (None, 3))
-
     def test_not_equal(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
@@ -1220,15 +1215,6 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 3))
         y = KerasTensor((1, 3))
         self.assertEqual(knp.copysign(x, y).shape, (2, 3))
-
-    def test_nextafter(self):
-        x = KerasTensor((2, 3))
-        y = KerasTensor((2, 3))
-        self.assertEqual(knp.nextafter(x, y).shape, (2, 3))
-
-        x = KerasTensor((2, 3))
-        y = KerasTensor((1, 3))
-        self.assertEqual(knp.nextafter(x, y).shape, (2, 3))
 
     def test_not_equal(self):
         x = KerasTensor((2, 3))
@@ -4846,54 +4832,6 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             )
         finally:
             backend.config._set_use_backend_agnostic_ops(False)
-
-    @parameterized.named_parameters(
-        ("float32", "float32"),
-        ("float16", "float16"),
-    )
-    def test_nextafter(self, dtype):
-        x = np.array([[1, 2, 3], [3, 2, 1]], dtype=dtype)
-        y = np.array([[4, 5, 6], [3, 2, 1]], dtype=dtype)
-        self.assertAllClose(knp.nextafter(x, y), np.nextafter(x, y))
-        self.assertAllClose(knp.Nextafter()(x, y), np.nextafter(x, y))
-
-        # `atol` and `rtol` must be zero because the differences are so small.
-        # Stepping away from an infinity must land on the largest finite
-        # value of the result dtype rather than staying at infinity.
-        x = np.array([np.inf, -np.inf], dtype=dtype)
-        y = np.array([-np.inf, np.inf], dtype=dtype)
-        self.assertAllClose(
-            knp.nextafter(x, y), np.nextafter(x, y), atol=0, rtol=0
-        )
-
-        # A NaN in either argument propagates, including from an
-        # infinity, where it has to win over the step to the largest
-        # finite value.
-        x = np.array([np.inf, -np.inf, np.nan, 1.0], dtype=dtype)
-        y = np.array([np.nan, np.nan, 1.0, np.nan], dtype=dtype)
-        self.assertAllClose(
-            knp.nextafter(x, y), np.nextafter(x, y), atol=0, rtol=0
-        )
-
-        # A step between ordinary values must move by exactly one ulp.
-        x = np.array([1.0, -1.0], dtype=dtype)
-        y = np.array([2.0, -2.0], dtype=dtype)
-        self.assertAllClose(
-            knp.nextafter(x, y), np.nextafter(x, y), atol=0, rtol=0
-        )
-
-    @parameterized.named_parameters(
-        ("float32", "float32"),
-        ("float16", "float16"),
-    )
-    def test_nextafter_tiny(self, dtype):
-        # Steps near zero are smaller than one ulp of 1.0, so they are lost
-        # if the computation happens in a wider dtype and is cast back.
-        x = np.array([0.0, np.finfo(dtype).tiny], dtype=dtype)
-        y = np.array([1.0, 0.0], dtype=dtype)
-        self.assertAllClose(
-            knp.nextafter(x, y), np.nextafter(x, y), atol=0, rtol=0
-        )
 
     def test_not_equal(self):
         x = np.array([[1, 2], [3, 4]])
@@ -12256,29 +12194,6 @@ class NumpyDtypeTest(testing.TestCase):
         finally:
             backend.config._set_use_backend_agnostic_ops(False)
 
-    @parameterized.named_parameters(
-        named_product(
-            dtypes=list(itertools.product(BINARY_DTYPES, BINARY_DTYPES))
-        )
-    )
-    def test_nextafter(self, dtypes):
-        import jax.numpy as jnp
-
-        dtype1, dtype2 = dtypes
-        x1 = knp.ones((), dtype=dtype1)
-        x2 = knp.ones((), dtype=dtype2)
-        x1_jax = jnp.ones((), dtype=dtype1)
-        x2_jax = jnp.ones((), dtype=dtype2)
-        expected_dtype = standardize_dtype(jnp.nextafter(x1_jax, x2_jax).dtype)
-
-        self.assertEqual(
-            standardize_dtype(knp.nextafter(x1, x2).dtype), expected_dtype
-        )
-        self.assertEqual(
-            standardize_dtype(knp.Nextafter().symbolic_call(x1, x2).dtype),
-            expected_dtype,
-        )
-
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_nonzero(self, dtype):
         import jax.numpy as jnp
@@ -13750,6 +13665,57 @@ class PowerTest(testing.TestCase):
     def test_python_types(self, dtypes, scalar_type):
         self.run_op_input_dtypes_check(
             knp.power, np.power, jnp.power, (X, scalar_type(1)), {}, dtypes
+        )
+
+
+class NextafterTest(testing.TestCase):
+    # `atol` and `rtol` are zero: a step is far below any tolerance. Stepping
+    # away from an infinity must land on the largest finite value of the
+    # dtype; a NaN in either argument propagates, also from an infinity; a
+    # step between ordinary values moves by exactly one ulp; steps near zero
+    # ("tiny") are below one ulp of 1.0, so they are lost if the computation
+    # happens in a wider dtype and is cast back.
+    @parameterized.named_parameters(
+        named_product(
+            case=["basic", "broadcast", "from_inf", "nan", "one_ulp", "tiny"],
+            dtype=["float32", "float16"],
+        )
+    )
+    def test_op(self, case, dtype):
+        x, y = {
+            "basic": (X, Y),
+            "broadcast": (X, [[4, 5, 6]]),
+            "from_inf": ([np.inf, -np.inf], [-np.inf, np.inf]),
+            "nan": (
+                [np.inf, -np.inf, np.nan, 1.0],
+                [np.nan, np.nan, 1.0, np.nan],
+            ),
+            "one_ulp": ([1.0, -1.0], [2.0, -2.0]),
+            "tiny": ([0.0, np.finfo(dtype).tiny], [1.0, 0.0]),
+        }[case]
+        x, y = np.array(x, dtype=dtype), np.array(y, dtype=dtype)
+        self.run_op_test(knp.nextafter, np.nextafter, (x, y), atol=0, rtol=0)
+        self.run_op_test(knp.Nextafter(), np.nextafter, (x, y), atol=0, rtol=0)
+
+    # `x1` and `x2` play different roles (value and direction), so both
+    # orders are tested.
+    @parameterized.named_parameters(named_dtype_combinations(2, ordered=True))
+    def test_input_dtypes(self, dtypes):
+        self.run_op_input_dtypes_check(
+            knp.nextafter, np.nextafter, jnp.nextafter, (X, Y), {}, dtypes
+        )
+
+    @parameterized.named_parameters(
+        named_product(named_dtype_combinations(1), scalar_type=[int, float])
+    )
+    def test_python_types(self, dtypes, scalar_type):
+        self.run_op_input_dtypes_check(
+            knp.nextafter,
+            np.nextafter,
+            jnp.nextafter,
+            (X, scalar_type(1)),
+            {},
+            dtypes,
         )
 
 

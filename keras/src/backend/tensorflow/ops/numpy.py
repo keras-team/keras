@@ -3631,12 +3631,15 @@ def _nextafter_16bit(x1, x2, dtype):
 
 
 def nextafter(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
-    x1 = tf.cast(x1, dtype)
-    x2 = tf.cast(x2, dtype)
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)), getattr(x2, "dtype", type(x2)), float
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
     # tf.math.nextafter supports only float32 and float64.
     if dtype in ("float16", "bfloat16"):
         return _nextafter_16bit(x1, x2, dtype)

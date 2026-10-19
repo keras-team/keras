@@ -2248,12 +2248,7 @@ def negative(x):
 
 
 def nextafter(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
-    x1 = cast(x1, dtype)
-    x2 = cast(x2, dtype)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2, float)
     return torch.nextafter(x1, x2)
 
 

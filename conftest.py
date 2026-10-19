@@ -14,6 +14,7 @@ import pytest  # noqa: E402
 from keras.src.backend import SUPPORTS_GRADIENT  # noqa: E402
 from keras.src.backend.config import PLUGGABLE_BACKENDS
 from keras.src.backend.config import backend  # noqa: E402
+from keras.src.testing import test_case  # noqa: E402
 from keras.src.utils.module_utils import get_pluggable_backend_module
 
 
@@ -62,13 +63,18 @@ def pytest_collection_modifyitems(config, items):
         # An installed backend package has no exclusion list.
         if os.path.exists(exclusions_path):
             with open(exclusions_path, "r") as file:
-                # Exclude empty lines and comments.
-                backend_skipped_tests = {
-                    stripped
-                    for line in file.readlines()
-                    if (stripped := line.strip())
-                    and not stripped.startswith("#")
-                }
+                lines = [line.strip() for line in file]
+            # Whole tests are skipped below; single checks (`subTest`s) by
+            # the op test harness, see `test_case.EXCLUDED_CHECKS`.
+            for line in lines:
+                if not line or line.startswith("#"):
+                    continue  # Empty lines and comments.
+                nodeid, params = test_case.parse_excluded_test(line)
+                if params is None:
+                    backend_skipped_tests.add(nodeid)
+                else:
+                    checks = test_case.EXCLUDED_CHECKS.setdefault(nodeid, [])
+                    checks.append(params)
 
     if backend() == "jax":
         import jax

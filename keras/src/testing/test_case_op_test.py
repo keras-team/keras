@@ -3,6 +3,7 @@ from unittest import mock
 
 import jax.numpy as jnp
 import numpy as np
+from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import ops
@@ -211,6 +212,36 @@ class RunOpTestTest(testing.TestCase):
             ops.add, np.add, jnp.add, (X, 1), {}, ("int8",)
         )
 
+    def test_excluded_check_is_skipped(self):
+        def run(t):
+            excluded = {test_case._nodeid(t): [{"check": "eager"}]}
+            with mock.patch.dict(test_case.EXCLUDED_CHECKS, excluded):
+                t.run_op_test(
+                    function_form(WrongRankAndValues()), np.square, (X,)
+                )
+
+        result = run_as_test(run)
+        self.assertEqual(failed_checks(result), ["symbolic_static"])
+        self.assertEqual(
+            [r for _, r in result.skipped],
+            [f"Not supported operation by {backend.backend()} backend"]
+            + ["symbolic_static failed"] * 2,
+        )
+
+    def test_excluded_check_params_are_a_subset_match(self):
+        def run(t):
+            excluded = {test_case._nodeid(t): [{"check": "symbolic_partial"}]}
+            with mock.patch.dict(test_case.EXCLUDED_CHECKS, excluded):
+                t.run_op_test(ops.square, np.square, (X,))
+
+        result = run_as_test(run)
+        self.assertTrue(result.wasSuccessful())
+        # Both partial variants are skipped, the dynamic one still ran.
+        self.assertEqual(
+            [t.params["check"] for t, _ in result.skipped],
+            ["symbolic_partial"] * 2,
+        )
+
 
 class RunOpInputDtypesCheckTest(testing.TestCase):
     def test_dtype_mismatch_vs_jax_fails(self):
@@ -242,3 +273,28 @@ class RunOpInputDtypesCheckTest(testing.TestCase):
             self.run_op_input_dtypes_check(
                 ops.add, np.add, jnp.add, (X, X), {}, ("int8",)
             )
+
+
+class ParseExcludedTestTest(testing.TestCase):
+    NODEID = "keras/src/ops/x_test.py::FooTest::test_op"
+
+    @parameterized.named_parameters(
+        ("whole_test", "", None),
+        ("parameterized_name", "_('int8', 'bool')", None),
+        ("nested_parens", "_(1, (2, 3))", None),
+        ("one_check", " (check='eager')", {"check": "eager"}),
+        (
+            "two_params",
+            " (check='symbolic_partial', shapes='(None, 3) x (2, 3)')",
+            {"check": "symbolic_partial", "shapes": "(None, 3) x (2, 3)"},
+        ),
+        (
+            "nested_parens_and_check",
+            "_(1, (2, 3)) (check='eager')",
+            {"check": "eager"},
+        ),
+    )
+    def test_parse(self, suffix, params):
+        line = self.NODEID + suffix
+        nodeid = line.split(" (check=")[0] if params else line
+        self.assertEqual(test_case.parse_excluded_test(line), (nodeid, params))

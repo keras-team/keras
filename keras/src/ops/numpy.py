@@ -9342,10 +9342,12 @@ class Nextafter(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-
-        x1_type = backend.standardize_dtype(getattr(x1, "dtype", type(x1)))
-        x2_type = backend.standardize_dtype(getattr(x2, "dtype", type(x2)))
-        dtype = dtypes.result_type(x1_type, x2_type, float)
+        # Python scalars stay weakly typed, as in `Add`.
+        dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+            float,
+        )
         return KerasTensor(output_shape, dtype=dtype)
 
 

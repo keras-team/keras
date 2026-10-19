@@ -1,3 +1,4 @@
+import ast
 import json
 import shutil
 import tempfile
@@ -31,6 +32,10 @@ _SKIPPED_DTYPES = {
         "gives as int32"
     },
 }
+
+# Checks (`subTest`s) of the op tests to skip, filled by `conftest.py` from
+# the backend's `excluded_tests.txt`: pytest node id -> `subTest` params.
+EXCLUDED_CHECKS = {}
 
 
 class TestCase(parameterized.TestCase):
@@ -686,7 +691,8 @@ class TestCase(parameterized.TestCase):
         first dimension of every input for 2+ inputs), see
         `run_op_symbolic_check`. Each check runs in its own `subTest`, so one
         failing check doesn't hide the others; a check that refines a failed
-        one is skipped instead, so one bug is one failure.
+        one is skipped instead, so one bug is one failure. A check listed in
+        `EXCLUDED_CHECKS` for this test is skipped.
 
         The symbolic checks need a function with array inputs: an `Operation`
         instance (`knp.Square()`) is already covered through its function, so
@@ -713,6 +719,7 @@ class TestCase(parameterized.TestCase):
         # eagerly fails here, before any check.
         outputs = _call_eager(op, inputs, kwargs)
         with self.subTest(check="eager"):
+            self._skip_if_excluded(check="eager")
             self.run_op_eager_check(
                 op, reference_fn, inputs, kwargs, atol, rtol, outputs
             )
@@ -738,6 +745,7 @@ class TestCase(parameterized.TestCase):
             for shapes in variants:
                 shapes_id = " x ".join(str(shape) for shape in shapes)
                 with self.subTest(check=name, shapes=shapes_id):
+                    self._skip_if_excluded(check=name, shapes=shapes_id)
                     try:
                         self.run_op_symbolic_check(
                             op, inputs, kwargs, shapes, outputs
@@ -825,24 +833,26 @@ class TestCase(parameterized.TestCase):
                 )
         if not any(None in shape for shape in symbolic_shapes):
             return
-        # Precision: an output dim that doesn't change when the unknown input
-        # dims are resized can't depend on them, so it must be known.
-        resized = [
-            tuple(
-                (2 if e == 1 else 1) if s is None else s
-                for s, e in zip(shape, x.shape)
-            )
-            for shape, x in zip(symbolic_shapes, arrays)
-        ]
-        try:
-            probe = _call_symbolic(op, inputs, kwargs, resized)
-        except Exception:  # The resized shapes may be invalid for the op.
-            return
-        if [len(p.shape) for p in probe] != [len(e.shape) for e in eager]:
-            return
-        for sym, eag, prb in zip(symbolic, eager, probe):
-            for d, (s, e, p) in enumerate(zip(sym.shape, eag.shape, prb.shape)):
-                if s is None and p == e:
+        # Precision: an output dim that stays the same when the unknown input
+        # dims are resized can't depend on them, so it must be known. Two
+        # sizes, as one can coincide (e.g. broadcasting against a dim of 1).
+        largest = max((d for x in arrays for d in x.shape), default=0)
+        probes = []
+        for size in (1, largest + 1):
+            resized = [
+                tuple(size if s is None else s for s in shape)
+                for shape in symbolic_shapes
+            ]
+            try:
+                probe = _call_symbolic(op, inputs, kwargs, resized)
+            except Exception:  # The resized shapes may be invalid for the op.
+                return
+            if [len(p.shape) for p in probe] != [len(e.shape) for e in eager]:
+                return
+            probes.append(probe)
+        for i, (sym, eag) in enumerate(zip(symbolic, eager)):
+            for d, (s, e) in enumerate(zip(sym.shape, eag.shape)):
+                if s is None and all(p[i].shape[d] == e for p in probes):
                     raise AssertionError(
                         f"Output dim {d} is None but does not depend on the "
                         f"unknown input dims {where}"
@@ -860,7 +870,7 @@ class TestCase(parameterized.TestCase):
         the combination, the check fails.
 
         Skipped if the backend doesn't support one of `dtypes` (see
-        `_SKIPPED_DTYPES`).
+        `_SKIPPED_DTYPES`); a check listed in `EXCLUDED_CHECKS` is skipped.
 
         Args:
             op: The op to test, e.g. `knp.add`.
@@ -884,10 +894,12 @@ class TestCase(parameterized.TestCase):
         inputs = _replace_arrays(inputs, cast)
         outputs = _call_eager(op, inputs, kwargs)
         with self.subTest(check="symbolic"):
+            self._skip_if_excluded(check="symbolic")
             self.run_op_symbolic_check(
                 op, inputs, kwargs, eager_outputs=outputs
             )
         with self.subTest(check="jax_dtype"):
+            self._skip_if_excluded(check="jax_dtype")
             import jax.numpy as jnp
 
             jax_outputs = jax_fn(*_map_arrays(jnp.asarray, inputs), **kwargs)
@@ -900,6 +912,45 @@ class TestCase(parameterized.TestCase):
                     f"jax={', '.join(jax_dtypes)} "
                     f"for inputs {_signature(inputs)}"
                 )
+
+    def _skip_if_excluded(self, **params):
+        """Skips the current `subTest` if `EXCLUDED_CHECKS` lists it.
+
+        An entry matches when its params are a subset of `params`, so
+        `{"check": "symbolic_partial"}` covers every shapes variant.
+        """
+        excluded = EXCLUDED_CHECKS.get(_nodeid(self), ())
+        if any(e.items() <= params.items() for e in excluded):
+            self.skipTest(
+                f"Not supported operation by {backend.backend()} backend"
+            )
+
+
+def parse_excluded_test(line):
+    """Parses an `excluded_tests.txt` line into `(nodeid, params)`.
+
+    `params` is `None` for a whole test. For one check of a test, the line
+    is the test's node id followed by the `subTest` params as pytest prints
+    them, e.g. `path/to/x_test.py::FooTest::test_op (check='eager')`. The
+    params start at the first ` (` followed by keyword arguments.
+    """
+    start = 0
+    while (i := line.find(" (", start)) != -1:
+        start = i + 1
+        try:
+            call = ast.parse(f"f{line[start:]}", mode="eval").body
+            params = {k.arg: ast.literal_eval(k.value) for k in call.keywords}
+        except (SyntaxError, ValueError, AttributeError):
+            continue  # Part of a parameterized name, e.g. `test_x_(1, (2, 3))`.
+        if params and not call.args:
+            return line[:i], params
+    return line, None
+
+
+def _nodeid(test):
+    """The pytest node id of a `unittest` test, e.g. `a/b_test.py::T::t`."""
+    module, cls, name = test.id().rsplit(".", 2)
+    return f"{module.replace('.', '/')}.py::{cls}::{name}"
 
 
 def _is_scalar(x):
