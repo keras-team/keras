@@ -551,6 +551,7 @@ def cond(pred, true_fn, false_fn):
 
 
 def vectorized_map(function, elements):
+    elements = tree.map_structure(convert_to_tensor, elements)
     return torch.vmap(function)(elements)
 
 
@@ -923,12 +924,14 @@ def fori_loop(lower, upper, body_fun, init_val):
 def stop_gradient(variable):
     if isinstance(variable, Variable):
         variable = variable.value
+    variable = convert_to_tensor(variable)
     # We can't use `.requires_grad_(False)` here since it only
     # works when the tensor is a leaf node in the graph.
     return variable.detach()
 
 
 def unstack(x, num=None, axis=0):
+    x = convert_to_tensor(x)
     return x.unbind(axis)
 
 
