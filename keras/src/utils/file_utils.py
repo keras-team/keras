@@ -524,9 +524,9 @@ def is_remote_path(filepath):
     return False
 
 
-# Remote paths are handled by TensorFlow's `gfile` when
-# TensorFlow is installed, and otherwise by `etils.epath`, so that remote file
-# access does not require TensorFlow. Local paths always use `os` / `shutil`.
+# Remote paths are handled by TensorFlow's `gfile` when TensorFlow is installed,
+# and otherwise by `etils.epath`, so that remote file access does not require
+# TensorFlow. Local paths always use `os` / `shutil`.
 
 
 def _remote_backend(path):
