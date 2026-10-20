@@ -928,9 +928,9 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     # Torch one_hot does not natively handle negative or out of range values,
     # so we clamp the input to `[0, num_classes - 1]`. The output will have
     # some invalid results, so we set them back to 0 using `where` afterwards.
-    valid = expand_dims((x >= 0) & (x < num_classes), axis=-1)
+    valid = ((x >= 0) & (x < num_classes)).unsqueeze(-1)
     output = tnn.one_hot(torch.clamp(x, 0, num_classes - 1), num_classes)
-    output = where(valid, output, zero)
+    output = torch.where(valid, output, zero)
     output = convert_to_tensor(output, dtype=dtype)
     dims = output.dim()
     axis = canonicalize_axis(axis, dims)
