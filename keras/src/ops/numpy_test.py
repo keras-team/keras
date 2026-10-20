@@ -7765,6 +7765,30 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.FloorDivide()(x, y), np.floor_divide(x, y))
         self.assertAllClose(knp.FloorDivide()(x, z), np.floor_divide(x, z))
 
+    @parameterized.named_parameters(
+        named_product(dtype=["float16", "float32", "float64", "bfloat16"])
+    )
+    def test_floor_divide_float_quotient_rounding(self, dtype):
+        # In float32, 4.2 / 1.4 and 0.7 / 0.1 round up to the whole numbers 3
+        # and 7, which the exact quotients are just below.
+        x = ops.cast(np.array([4.2, 0.7, -1.0, 5.0, -5.0], "float32"), dtype)
+        y = ops.cast(np.array([1.4, 0.1, 0.1, -3.0, 3.0], "float32"), dtype)
+        result = knp.floor_divide(x, y)
+        # The exact floor division of the values the backend holds.
+        x_np = ops.convert_to_numpy(ops.cast(x, "float32")).astype("float64")
+        y_np = ops.convert_to_numpy(ops.cast(y, "float32")).astype("float64")
+        self.assertAllClose(
+            ops.cast(result, "float32"), np.floor_divide(x_np, y_np)
+        )
+        # `x == x // y * y + x % y`
+        self.assertAllClose(
+            ops.cast(
+                knp.add(knp.multiply(result, y), knp.mod(x, y)), "float32"
+            ),
+            x_np,
+            atol=1e-2,
+        )
+
     def test_xor(self):
         x = np.array([[True, False], [True, True]])
         y = np.array([[False, False], [True, False]])
