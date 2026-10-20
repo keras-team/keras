@@ -524,32 +524,22 @@ def is_remote_path(filepath):
     return False
 
 
-# Below are gfile-replacement utils.
-#
-# Remote paths (see `is_remote_path`) are handled by TensorFlow's `gfile` when
+# Remote paths are handled by TensorFlow's `gfile` when
 # TensorFlow is installed, and otherwise by `etils.epath`, so that remote file
 # access does not require TensorFlow. Local paths always use `os` / `shutil`.
 
 
-def _raise_if_no_remote_backend(path):
-    raise ValueError(
-        "Handling remote paths requires installing `etils[epath]` "
-        "(e.g. `pip install keras[gcs]` for `gs://` paths) or TensorFlow. "
-        f"Received path: {path}"
-    )
-
-
 def _remote_backend(path):
-    """Returns the name of the backend to use for the remote `path`.
-
-    Returns `"gfile"` if TensorFlow is available, otherwise `"epath"` if
-    `etils.epath` is available, otherwise raises a `ValueError`.
-    """
+    """Returns `"gfile"` or `"epath"` for the remote `path`, or raises."""
     if gfile.available:
         return "gfile"
     if epath.available:
         return "epath"
-    _raise_if_no_remote_backend(path)
+    raise ValueError(
+        "Handling remote paths requires installing `etils[epath]` "
+        "(e.g. `pip install keras[gcs]`) or TensorFlow. "
+        f"Received: path={path}"
+    )
 
 
 def exists(path):
@@ -612,8 +602,7 @@ def copy(src, dst):
     if is_remote_path(src) or is_remote_path(dst):
         if _remote_backend(f"src={src} dst={dst}") == "gfile":
             return gfile.copy(src, dst, overwrite=True)
-        # `epath` picks the filesystem from `src`; for a local `src` and a
-        # remote `dst`, the target filesystem is resolved from `dst`.
+        # epath uses the remote backend if either src or dst is remote.
         return epath.Path(src).copy(dst, overwrite=True)
     return shutil.copy(src, dst)
 
