@@ -3871,6 +3871,38 @@ class NNOpsDtypeTest(testing.TestCase):
         self.assertDType(
             knn.LayerNorm().symbolic_call(inputs, gamma, beta), expected_dtype
         )
+    @parameterized.named_parameters(
+        named_product(dtype=["int32", "bool"])
+    )
+    def test_normalization_non_float_input(self, dtype):
+        inputs = knp.ones((2, 8), dtype=dtype)
+
+        self.assertDType(knn.rms_normalization(inputs), "float32")
+        self.assertDType(knn.RMSNorm().symbolic_call(inputs, None), "float32")
+        self.assertDType(knn.layer_normalization(inputs), "float32")
+        self.assertDType(
+            knn.LayerNorm().symbolic_call(inputs, None, None), "float32"
+        )
+
+    @parameterized.named_parameters(
+        named_product(
+            dtype=["int32", "bool"],
+            floatx=["bfloat16", "float16", "float64"],
+        )
+    )
+    def test_normalization_non_float_input_floatx(self, dtype, floatx):
+        if backend.backend() == "jax" and floatx == "float64":
+            self.skipTest("JAX runs without float64 support (x64 disabled).")
+        self.addCleanup(backend.set_floatx, backend.floatx())
+        backend.set_floatx(floatx)
+        inputs = knp.ones((2, 8), dtype=dtype)
+
+        self.assertDType(knn.rms_normalization(inputs), floatx)
+        self.assertDType(knn.RMSNorm().symbolic_call(inputs, None), floatx)
+        self.assertDType(knn.layer_normalization(inputs), floatx)
+        self.assertDType(
+            knn.LayerNorm().symbolic_call(inputs, None, None), floatx
+        )
 
 
 class NNOpsBehaviorTest(testing.TestCase):

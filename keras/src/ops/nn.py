@@ -2989,6 +2989,19 @@ def dot_product_attention(
     )
 
 
+def _normalization_output_dtype(dtype):
+    """Output dtype for normalization ops.
+
+    A float or complex input keeps its dtype; any other input (int, bool,
+    ...) computes in float precision and gets a float output — casting the
+    normalized values back to an integer or bool dtype would truncate them.
+    """
+    dtype = backend.standardize_dtype(dtype)
+    if backend.is_float_dtype(dtype) or "complex" in dtype:
+        return dtype
+    return backend.floatx()
+
+
 class RMSNorm(Operation):
     def __init__(self, axis=-1, epsilon=None, *, name=None):
         super().__init__(name=name)
@@ -2996,7 +3009,9 @@ class RMSNorm(Operation):
         self.epsilon = epsilon
 
     def compute_output_spec(self, x, scale):
-        return KerasTensor(shape=x.shape, dtype=x.dtype)
+        return KerasTensor(
+            shape=x.shape, dtype=_normalization_output_dtype(x.dtype)
+        )
 
     def call(self, x, scale=None):
         return _rms_normalization(
@@ -3047,7 +3062,7 @@ def rms_normalization(x, scale=None, axis=-1, epsilon=None):
 def _rms_normalization(x, scale=None, axis=-1, epsilon=None):
     if epsilon is None:
         epsilon = backend.epsilon()
-    original_dtype = backend.standardize_dtype(x.dtype)
+    original_dtype = _normalization_output_dtype(x.dtype)
     # Computes in at least float32 precision for stability in half precision
     # training.
     compute_dtype = backend.result_type(x.dtype, "float32")
@@ -3087,7 +3102,9 @@ class LayerNorm(Operation):
         self.rms_scaling = rms_scaling
 
     def compute_output_spec(self, x, gamma, beta):
-        return KerasTensor(shape=x.shape, dtype=x.dtype)
+        return KerasTensor(
+            shape=x.shape, dtype=_normalization_output_dtype(x.dtype)
+        )
 
     def call(self, x, gamma=None, beta=None):
         return _layer_normalization(
@@ -3163,7 +3180,7 @@ def _layer_normalization(
 ):
     if epsilon is None:
         epsilon = backend.epsilon()
-    original_dtype = backend.standardize_dtype(x.dtype)
+    original_dtype = _normalization_output_dtype(x.dtype)
     # Computes in at least float32 precision for stability in half precision
     # training.
     compute_dtype = backend.result_type(x.dtype, "float32")
