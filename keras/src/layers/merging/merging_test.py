@@ -5,8 +5,8 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import layers
 from keras.src import models
-from keras.src import ops
 from keras.src import testing
+from keras.src.backend.common import standardize_shape
 
 
 def np_dot(a, b, axes):
@@ -233,7 +233,7 @@ class MergingLayersTest(testing.TestCase):
         a = np.random.random(a_shape)
         b = np.random.random(b_shape)
         c = layers.Dot(axes=(-2, -1))([a, b])
-        self.assertEqual(backend.standardize_shape(c.shape), (1, 2, 1, 2))
+        self.assertEqual(standardize_shape(c.shape), (1, 2, 1, 2))
 
     def test_add_with_mask(self):
         mask = layers.Masking()
@@ -375,7 +375,7 @@ class MergingLayersTest(testing.TestCase):
         x1 = np.ones((1, 1, 1, 1, 5))
         x2 = np.ones((1, 1, 1, 1, 4))
         out = layers.Concatenate(axis=-1)([x1, x2])
-        self.assertEqual(ops.shape(out), (1, 1, 1, 1, 9))
+        self.assertEqual(backend.ops.shape(out), (1, 1, 1, 1, 9))
 
         # This won't
         x1 = np.ones((1, 2, 1, 1, 5))
