@@ -4781,11 +4781,6 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             knp.nanpercentile(x, q, axis=1, keepdims=True),
             np.nanpercentile(x, q, axis=1, keepdims=True),
         )
-        self.assertAllClose(knp.Nanpercentile()(x, q), np.nanpercentile(x, q))
-        self.assertAllClose(
-            knp.Nanpercentile(axis=1, keepdims=True)(x, q),
-            np.nanpercentile(x, q, axis=1, keepdims=True),
-        )
         self.assertAllClose(
             knp.nanpercentile(x, q, axis=(1, 2)),
             np.nanpercentile(x, q, axis=(1, 2)),

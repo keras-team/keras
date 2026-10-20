@@ -6396,8 +6396,8 @@ class Nanpercentile(Operation):
         elif isinstance(q, (list, tuple)):
             output_shape = (len(q),) + output_shape
 
-        if is_int_dtype(x.dtype):
-            dtype = backend.floatx()
+        if standardize_dtype(x.dtype) == "int64":
+            dtype = config.floatx()
         else:
             dtype = dtypes.result_type(x.dtype, float)
 
@@ -6455,20 +6455,19 @@ def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
 
 
 def _nanpercentile(x, q, axis=None, method="linear", keepdims=False):
+    if method not in ("linear", "lower", "higher", "midpoint", "nearest"):
+        raise ValueError(
+            "`method` must be one of 'linear', 'lower', 'higher', "
+            f"'midpoint', or 'nearest'. Received: method={method}"
+        )
     if not config._use_backend_agnostic_ops() and hasattr(
         backend.ops.numpy, "nanpercentile"
     ):
         return backend.ops.numpy.nanpercentile(
             x, q, axis=axis, method=method, keepdims=keepdims
         )
-    x = backend.ops.convert_to_tensor(x)
-    if backend.is_int_dtype(x.dtype):
-        dtype = backend.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
-    x = backend.ops.cast(x, dtype)
     q = backend.ops.numpy.divide(
-        backend.ops.convert_to_tensor(q, dtype=dtype), 100.0
+        backend.ops.convert_to_tensor(q, dtype=config.floatx()), 100.0
     )
     return _nanquantile(x, q, axis=axis, method=method, keepdims=keepdims)
 
