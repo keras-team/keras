@@ -35,6 +35,7 @@ from keras.src.backend import KerasTensor
 from keras.src.backend.common import AutocastScope
 from keras.src.backend.common import get_autocast_scope
 from keras.src.backend.common import global_state
+from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import remat
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common import standardize_shape
@@ -1027,7 +1028,7 @@ class Layer(BackendLayer, Operation):
                     # Clear or update the current scope if necessary.
                     if not self.autocast:
                         new_scope = AutocastScope(None)
-                    elif not backend.is_float_dtype(self.compute_dtype):
+                    elif not is_float_dtype(self.compute_dtype):
                         # Some preprocessing layers might have a non-float
                         # dtype, we should not autocast in this case.
                         new_scope = AutocastScope(None)

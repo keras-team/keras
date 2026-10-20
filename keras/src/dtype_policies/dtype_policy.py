@@ -2,6 +2,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
+from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import standardize_dtype
 
 QUANTIZATION_MODES = ("int8", "float8", "int4", "ternary", "gptq", "awq")
@@ -326,7 +327,7 @@ class DTypePolicy:
 
     def _should_cast(self, x, autocast, dtype):
         x_dtype = standardize_dtype(x.dtype)
-        if autocast and backend.is_float_dtype(x_dtype) and x_dtype != dtype:
+        if autocast and is_float_dtype(x_dtype) and x_dtype != dtype:
             return True
         else:
             return False

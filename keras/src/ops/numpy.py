@@ -10,6 +10,8 @@ from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import is_int_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
@@ -5830,7 +5832,7 @@ def _nanargmax(x, axis=None, keepdims=False):
     ):
         return backend.ops.numpy.nanargmax(x, axis=axis, keepdims=keepdims)
     x = backend.ops.convert_to_tensor(x)
-    if not backend.is_float_dtype(x.dtype):
+    if not is_float_dtype(x.dtype):
         return backend.ops.numpy.argmax(x, axis=axis, keepdims=keepdims)
     nan_mask = backend.ops.numpy.isnan(x)
     neg_inf = backend.ops.cast(float("-inf"), x.dtype)
@@ -5909,7 +5911,7 @@ def _nanargmin(x, axis=None, keepdims=False):
     ):
         return backend.ops.numpy.nanargmin(x, axis=axis, keepdims=keepdims)
     x = backend.ops.convert_to_tensor(x)
-    if not backend.is_float_dtype(x.dtype):
+    if not is_float_dtype(x.dtype):
         return backend.ops.numpy.argmin(x, axis=axis, keepdims=keepdims)
     nan_mask = backend.ops.numpy.isnan(x)
     pos_inf = backend.ops.cast(float("inf"), x.dtype)
@@ -5990,7 +5992,7 @@ def _nancumsum(x, axis=None, dtype=None):
     ):
         return backend.ops.numpy.nancumsum(x, axis=axis, dtype=dtype)
     x = backend.ops.convert_to_tensor(x)
-    if backend.is_float_dtype(x.dtype):
+    if is_float_dtype(x.dtype):
         x = backend.ops.numpy.where(
             backend.ops.numpy.isnan(x), backend.ops.cast(0, x.dtype), x
         )
@@ -6062,7 +6064,7 @@ def _nancumprod(x, axis=None, dtype=None):
     ):
         return backend.ops.numpy.nancumprod(x, axis=axis, dtype=dtype)
     x = backend.ops.convert_to_tensor(x)
-    if backend.is_float_dtype(x.dtype):
+    if is_float_dtype(x.dtype):
         x = backend.ops.numpy.where(
             backend.ops.numpy.isnan(x), backend.ops.cast(1, x.dtype), x
         )
@@ -6132,7 +6134,7 @@ def _nanmax(x, axis=None, keepdims=False):
     ):
         return backend.ops.numpy.nanmax(x, axis=axis, keepdims=keepdims)
     x = backend.ops.convert_to_tensor(x)
-    if not backend.is_float_dtype(x.dtype):
+    if not is_float_dtype(x.dtype):
         return backend.ops.numpy.max(x, axis=axis, keepdims=keepdims)
     nan_mask = backend.ops.numpy.isnan(x)
     neg_inf = backend.ops.cast(float("-inf"), x.dtype)
@@ -6352,7 +6354,7 @@ def _nanmin(x, axis=None, keepdims=False):
     ):
         return backend.ops.numpy.nanmin(x, axis=axis, keepdims=keepdims)
     x = backend.ops.convert_to_tensor(x)
-    if not backend.is_float_dtype(x.dtype):
+    if not is_float_dtype(x.dtype):
         return backend.ops.numpy.min(x, axis=axis, keepdims=keepdims)
     nan_mask = backend.ops.numpy.isnan(x)
     pos_inf = backend.ops.cast(float("inf"), x.dtype)
@@ -6394,7 +6396,7 @@ class Nanpercentile(Operation):
         elif isinstance(q, (list, tuple)):
             output_shape = (len(q),) + output_shape
 
-        if backend.is_int_dtype(x.dtype):
+        if is_int_dtype(x.dtype):
             dtype = backend.floatx()
         else:
             dtype = dtypes.result_type(x.dtype, float)
@@ -6522,7 +6524,7 @@ def _nanprod(x, axis=None, keepdims=False):
     ):
         return backend.ops.numpy.nanprod(x, axis=axis, keepdims=keepdims)
     x = backend.ops.convert_to_tensor(x)
-    if backend.is_float_dtype(x.dtype):
+    if is_float_dtype(x.dtype):
         x = backend.ops.numpy.where(
             backend.ops.numpy.isnan(x), backend.ops.cast(1, x.dtype), x
         )
@@ -6831,7 +6833,7 @@ def _nansum(x, axis=None, keepdims=False):
     ):
         return backend.ops.numpy.nansum(x, axis=axis, keepdims=keepdims)
     x = backend.ops.convert_to_tensor(x)
-    if backend.is_float_dtype(x.dtype):
+    if is_float_dtype(x.dtype):
         x = backend.ops.numpy.where(backend.ops.numpy.isnan(x), 0, x)
     return backend.ops.numpy.sum(x, axis=axis, keepdims=keepdims)
 
@@ -7263,7 +7265,7 @@ class Percentile(Operation):
         elif isinstance(q, (list, tuple)):
             output_shape = (len(q),) + output_shape
 
-        if not backend.is_float_dtype(x.dtype):
+        if not is_float_dtype(x.dtype):
             dtype = backend.floatx()
         else:
             dtype = x.dtype
