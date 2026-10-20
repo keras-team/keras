@@ -686,6 +686,28 @@ class SavingTest(testing.TestCase):
         self.assertIn("model.keras", os.listdir(Path(filepath).parent))
 
     @parameterized.named_parameters(
+        # A directory where the weights file must go.
+        ("weights_store", "model.weights.h5", True, IsADirectoryError),
+        # A regular file where the assets directory must go.
+        ("assets_store", "assets", False, FileExistsError),
+    )
+    def test_save_model_to_dir_store_error_raised(
+        self, blocked_name, blocked_by_dir, error_type
+    ):
+        model = keras.Sequential([keras.Input([1]), keras.layers.Dense(1)])
+        dirpath = os.path.join(self.get_temp_dir(), "my_model")
+        os.makedirs(dirpath)
+        blocked_path = os.path.join(dirpath, blocked_name)
+        if blocked_by_dir:
+            os.makedirs(blocked_path)
+        else:
+            Path(blocked_path).touch()
+
+        # The store fails to open. Its error must reach the caller.
+        with self.assertRaises(error_type):
+            saving_lib.save_model(model, dirpath, zipped=False)
+
+    @parameterized.named_parameters(
         ("high_memory_config", True),
         ("low_memory_config", False),
     )

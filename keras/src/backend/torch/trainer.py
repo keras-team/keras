@@ -12,7 +12,6 @@ from keras.src import callbacks as callbacks_module
 from keras.src import optimizers as optimizers_module
 from keras.src import tree
 from keras.src.backend import config
-from keras.src.backend.torch.distribution_lib import _to_backend_mesh
 from keras.src.backend.torch.distribution_lib import distribute_data_input
 from keras.src.backend.torch.ops.core import convert_to_tensor
 from keras.src.backend.torch.ops.core import get_device
@@ -28,7 +27,7 @@ from keras.src.utils import tracking
 from keras.src.utils.python_utils import pythonify_logs
 
 
-class TorchTrainer(BaseTrainer):
+class Trainer(BaseTrainer):
     def __init__(self):
         super().__init__()
         self.train_function = None
@@ -61,9 +60,7 @@ class TorchTrainer(BaseTrainer):
 
                 process_group = None
                 if active_distribution is not None:
-                    backend_mesh = _to_backend_mesh(
-                        active_distribution.device_mesh
-                    )
+                    backend_mesh = active_distribution.device_mesh.backend_mesh
                     process_group = backend_mesh.get_group(
                         active_distribution.batch_dim_name
                     )
@@ -80,6 +77,25 @@ class TorchTrainer(BaseTrainer):
                         find_unused_parameters=False,
                     ),
                 )
+
+    def _use_torch_compile(self):
+        if self.run_eagerly or not self.jit_compile:
+            return False
+        active_distribution = distribution()
+        if active_distribution is not None and not isinstance(
+            active_distribution, DataParallel
+        ):
+            # The distribution entered `KerasDTensorPromotionMode`, a
+            # `TorchDispatchMode`. TorchDynamo skips every frame while a
+            # dispatch mode is active, and checking every frame makes the
+            # compiled step slower than the eager one.
+            warnings.warn(
+                "`jit_compile=True` is not supported with "
+                f"`{active_distribution.__class__.__name__}` on the torch "
+                "backend. Running without `torch.compile`."
+            )
+            return False
+        return True
 
     def train_step(self, data):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
@@ -191,10 +207,10 @@ class TorchTrainer(BaseTrainer):
         self._initialize_ddp()
 
         train_step = self.train_step
-        if not self.run_eagerly and self.jit_compile:
+        if self._use_torch_compile():
             train_step = torch.compile(train_step)
             if (
-                type(self).train_step is TorchTrainer.train_step
+                type(self).train_step is Trainer.train_step
                 and self.ddp_model is None
                 and hasattr(torch._dynamo.config, "trace_autograd_ops")
             ):
@@ -221,7 +237,7 @@ class TorchTrainer(BaseTrainer):
         self._initialize_ddp()
 
         test_step = self.test_step
-        if not self.run_eagerly and self.jit_compile:
+        if self._use_torch_compile():
             test_step = torch.compile(test_step)
 
         def test_function(data):
@@ -235,49 +251,52 @@ class TorchTrainer(BaseTrainer):
         self.test_function = test_function
 
     def get_metrics_result(self):
-        if torch.distributed.is_initialized():
-            with torch.no_grad():
-                active_distribution = distribution()
-                process_group = None
-                if active_distribution is not None:
-                    backend_mesh = _to_backend_mesh(
-                        active_distribution.device_mesh
-                    )
-                    process_group = backend_mesh.get_group(
-                        active_distribution.batch_dim_name
-                    )
+        if not torch.distributed.is_initialized():
+            return super().get_metrics_result()
 
-                reduced_vars = []
-                for v in self.metrics_variables:
-                    # Use a copy for reduction to avoid modifying
-                    # the original variable.
-                    val = v.value.clone()
-                    if isinstance(val, DTensor):
-                        # DTensor indicates we're using ModelParallel.
-                        placements = [Replicate()] * len(val.placements)
-                        val = val.redistribute(
-                            val.device_mesh, placements
-                        ).to_local()
-                    dist.all_reduce(
-                        val,
-                        op=dist.ReduceOp.SUM,
-                        group=process_group,
-                    )
-                    reduced_vars.append(val)
+        # This also runs inside a compiled `train_step`, through
+        # `compute_metrics()`. The `with` blocks are not nested: TorchDynamo
+        # in torch 2.13 fails to inline a call inside nested `with` blocks on
+        # Python 3.11.
+        with torch.no_grad():
+            active_distribution = distribution()
+            process_group = None
+            if active_distribution is not None:
+                # Reuse the cached mesh: TorchDynamo fails to trace building
+                # a new one.
+                backend_mesh = active_distribution.device_mesh.backend_mesh
+                process_group = backend_mesh.get_group(
+                    active_distribution.batch_dim_name
+                )
 
-                with backend.StatelessScope(
-                    state_mapping=list(
-                        zip(self.metrics_variables, reduced_vars)
-                    )
-                ):
-                    results = super().get_metrics_result()
+            reduced_vars = []
+            for v in self.metrics_variables:
+                # Use a copy for reduction to avoid modifying
+                # the original variable.
+                val = v.value.clone()
+                if isinstance(val, DTensor):
+                    # DTensor indicates we're using ModelParallel.
+                    placements = [Replicate()] * len(val.placements)
+                    val = val.redistribute(
+                        val.device_mesh, placements
+                    ).to_local()
+                dist.all_reduce(
+                    val,
+                    op=dist.ReduceOp.SUM,
+                    group=process_group,
+                )
+                reduced_vars.append(val)
 
-                return {
-                    k: val.clone() if isinstance(val, torch.Tensor) else val
-                    for k, val in results.items()
-                }
+        # The reduced values have no gradient, so neither do the results.
+        with backend.StatelessScope(
+            state_mapping=list(zip(self.metrics_variables, reduced_vars))
+        ):
+            results = super().get_metrics_result()
 
-        return super().get_metrics_result()
+        return {
+            k: val.clone() if isinstance(val, torch.Tensor) else val
+            for k, val in results.items()
+        }
 
     def make_predict_function(self, force=False):
         if self.predict_function is not None and not force:
@@ -286,7 +305,7 @@ class TorchTrainer(BaseTrainer):
         self._initialize_ddp()
 
         predict_step = self.predict_step
-        if not self.run_eagerly and self.jit_compile:
+        if self._use_torch_compile():
             predict_step = torch.compile(predict_step)
 
         def predict_function(data):

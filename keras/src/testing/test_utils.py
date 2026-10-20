@@ -240,16 +240,12 @@ def serialized_variable(layer, name):
 
     `save_own_variables`/`load_own_variables` serialize the raw
     `_kernel`/`_embeddings` variables for the `"kernel"`/`"embeddings"` spec
-    entries. In `ternary` mode there is no float `_kernel` at all -- the layer
-    stores `_packed_kernel` instead, and that is what gets serialized for
-    `"kernel"`. All other spec names map directly to the attribute of the same
-    name. Returns `None` if the attribute does not exist on the layer.
+    entries (a quantized layer's `_kernel` holds its codes). All other spec
+    names map directly to the attribute of the same name. Returns `None` if
+    the attribute does not exist on the layer.
     """
     if name == "kernel":
-        kernel = getattr(layer, "_kernel", None)
-        if kernel is None:
-            kernel = getattr(layer, "_packed_kernel", None)
-        return kernel
+        return getattr(layer, "_kernel", None)
     if name == "embeddings":
         return getattr(layer, "_embeddings", None)
     return getattr(layer, name, None)
@@ -259,13 +255,10 @@ def is_serialized_variable(layer, name):
     """Mirrors the skip conditions used by `save_own_variables`.
 
     Optional variables (`bias`, `kernel_zero`, `g_idx`, `embeddings_zero` and
-    the `reverse_*` variables of `ReversibleEmbedding`) are only serialized when
-    they actually exist on the layer for its current configuration.
+    the `reverse_*` variables of `ReversibleEmbedding`) are attributes that
+    hold `None` when the layer's configuration omits them, and are only
+    serialized when they hold a variable.
     """
-    if name == "bias":
-        return getattr(layer, "bias", None) is not None
-    if name in ("kernel_zero", "g_idx", "embeddings_zero"):
-        return hasattr(layer, name)
     return serialized_variable(layer, name) is not None
 
 

@@ -19,12 +19,9 @@ from keras.src.backend.common.stateless_scope import in_stateless_scope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.backend.common.variables import AutocastScope
-from keras.src.backend.common.variables import Variable
 from keras.src.backend.common.variables import get_autocast_scope
 from keras.src.backend.common.variables import is_float_dtype
 from keras.src.backend.common.variables import is_int_dtype
-from keras.src.backend.common.variables import standardize_dtype
-from keras.src.backend.common.variables import standardize_shape
 from keras.src.backend.config import PLUGGABLE_BACKENDS
 from keras.src.backend.config import epsilon
 from keras.src.backend.config import floatx
@@ -38,18 +35,12 @@ from keras.src.utils.module_utils import get_pluggable_backend_module
 # Import backend functions.
 if backend() == "tensorflow":
     from keras.src.backend.tensorflow import *  # noqa: F403
-    from keras.src.backend.tensorflow.ops.core import (
-        Variable as BackendVariable,
-    )
 elif backend() == "jax":
     from keras.src.backend.jax import *  # noqa: F403
-    from keras.src.backend.jax.ops.core import Variable as BackendVariable
 elif backend() == "torch":
     from keras.src.backend.torch import *  # noqa: F403
-    from keras.src.backend.torch.ops.core import Variable as BackendVariable
 elif backend() == "numpy":
     from keras.src.backend.numpy import *  # noqa: F403
-    from keras.src.backend.numpy.ops.core import Variable as BackendVariable
 
     distribution_lib = None
 else:
@@ -64,20 +55,13 @@ else:
         {name: getattr(backend_module, name) for name in backend_module_names}
     )
 
-    BackendVariable = getattr(backend_module, "Variable")
+
+Variable.__module__ = __name__  # noqa: F405
+Variable = keras_export("keras.Variable")(Variable)  # noqa: F405
 
 
-@keras_export("keras.Variable")
-class Variable(BackendVariable):  # noqa: F811
-    pass
-
-
-backend_name_scope = name_scope  # noqa: F405
-
-
-@keras_export("keras.name_scope")
-class name_scope(backend_name_scope):
-    pass
+name_scope.__module__ = __name__  # noqa: F405
+name_scope = keras_export("keras.name_scope")(name_scope)  # noqa: F405
 
 
 @keras_export("keras.device")

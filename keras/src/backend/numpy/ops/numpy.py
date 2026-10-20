@@ -3,8 +3,8 @@ import numpy as np
 from keras.src import backend
 from keras.src import tree
 from keras.src.backend import config
-from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import standardize_axis_for_numpy
 from keras.src.backend.numpy.ops.core import convert_to_tensor
@@ -165,16 +165,6 @@ def angle(x):
 def any(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     return np.any(x, axis=axis, keepdims=keepdims)
-
-
-def amax(x, axis=None, keepdims=False):
-    axis = standardize_axis_for_numpy(axis)
-    return np.amax(x, axis=axis, keepdims=keepdims)
-
-
-def amin(x, axis=None, keepdims=False):
-    axis = standardize_axis_for_numpy(axis)
-    return np.amin(x, axis=axis, keepdims=keepdims)
 
 
 def append(x1, x2, axis=None):
@@ -1880,7 +1870,7 @@ def cov(x):
 
     if x.dtype in ["int64", "float64"]:
         dtype = "float64"
-    elif x.dtype in ["bfloat16", "float16"]:
+    elif x.dtype in ["bfloat16", "float16", "complex64", "complex128"]:
         dtype = x.dtype
     else:
         dtype = config.floatx()

@@ -1,13 +1,13 @@
 import numpy as np
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import dtype_policies
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend.common import standardize_dtype
 from keras.src.dtype_policies.dtype_policy import QUANTIZATION_MODES
 from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.awq_config import AWQConfig
@@ -382,9 +382,7 @@ class ToyModeRegistrationTest(testing.TestCase):
 
         # The kernel is now stored in float16 and the policy is named after
         # the mode, all through the generic machinery.
-        self.assertEqual(
-            backend.standardize_dtype(layer._kernel.dtype), "float16"
-        )
+        self.assertEqual(standardize_dtype(layer._kernel.dtype), "float16")
         self.assertEqual(layer.dtype_policy.name, "demo_half_from_float32")
         self.assertEqual(layer.quantization_mode, "demo_half")
         self.assertTrue(layer._is_quantized)

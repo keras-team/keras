@@ -13,6 +13,7 @@ import math
 
 from keras.src import backend
 from keras.src import ops
+from keras.src.backend.common import standardize_dtype
 from keras.src.quantizers.packing import unpack_int2
 from keras.src.quantizers.packing import unpack_int4
 from keras.src.quantizers.packing import unpack_ternary
@@ -120,7 +121,7 @@ class Int4Pairs(_AxisPack):
     values_per_byte = 2
 
     def unpack(self, codes):
-        dtype = backend.standardize_dtype(codes.dtype)
+        dtype = standardize_dtype(codes.dtype)
         return unpack_int4(codes, self.orig_len, axis=self.axis, dtype=dtype)
 
 
@@ -130,7 +131,7 @@ class Int2Quads(_AxisPack):
     values_per_byte = 4
 
     def unpack(self, codes):
-        dtype = backend.standardize_dtype(codes.dtype)
+        dtype = standardize_dtype(codes.dtype)
         return unpack_int2(codes, self.orig_len, axis=self.axis, dtype=dtype)
 
 

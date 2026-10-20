@@ -7,6 +7,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.losses.loss import Loss
 from keras.src.losses.loss import reduce_weighted_values
@@ -2586,7 +2587,7 @@ def sparse_categorical_focal_crossentropy(
     # boundaries such as 256 classes with uint8 labels. Preserve int64 inputs
     # so very large invalid labels are identified before the gather, while using
     # int32 otherwise to remain compatible with JAX's default dtype mode.
-    if backend.standardize_dtype(y_true.dtype) != "int64":
+    if standardize_dtype(y_true.dtype) != "int64":
         y_true = ops.cast(y_true, "int32")
 
     valid_mask = None
