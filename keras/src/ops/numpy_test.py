@@ -4744,7 +4744,10 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Fmod()(xf, yf), np.fmod(xf, yf))
         self.assertAllClose(knp.Fmod()(xf, 1.5), np.fmod(xf, 1.5))
 
-    def test_nanpercentile(self):
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_nanpercentile(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         x = np.array(
             [
                 [[np.nan, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]],
@@ -4776,6 +4779,11 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         )
         self.assertAllClose(
             knp.nanpercentile(x, q, axis=1, keepdims=True),
+            np.nanpercentile(x, q, axis=1, keepdims=True),
+        )
+        self.assertAllClose(knp.Nanpercentile()(x, q), np.nanpercentile(x, q))
+        self.assertAllClose(
+            knp.Nanpercentile(axis=1, keepdims=True)(x, q),
             np.nanpercentile(x, q, axis=1, keepdims=True),
         )
         self.assertAllClose(
@@ -12178,10 +12186,14 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_nanpercentile(self, dtype):
+    @parameterized.named_parameters(
+        named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
+    )
+    def test_nanpercentile(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         x = knp.ones((3,), dtype=dtype)
         x_jax = jnp.ones((3,), dtype=dtype)
 
