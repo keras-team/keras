@@ -11,6 +11,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend.common import standardize_dtype
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
@@ -721,7 +722,7 @@ class ReversibleEmbeddingConsistencyTest(test_case.TestCase):
         )
         x = np.random.random((3, 6)).astype("float32")
         logits = quantized(x, reverse=True)
-        self.assertEqual(backend.standardize_dtype(logits.dtype), "bfloat16")
+        self.assertEqual(standardize_dtype(logits.dtype), "bfloat16")
         self.assertAllClose(
             logits, reference(x, reverse=True), atol=0.2, rtol=0.2
         )

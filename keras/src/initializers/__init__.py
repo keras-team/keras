@@ -5,6 +5,7 @@ import numpy as np
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend.common import standardize_dtype
 from keras.src.initializers.constant_initializers import STFT
 from keras.src.initializers.constant_initializers import Constant
 from keras.src.initializers.constant_initializers import Identity
@@ -138,7 +139,7 @@ def get(identifier):
     ):
 
         def initialize_fn(shape, dtype=None):
-            dtype = backend.standardize_dtype(dtype)
+            dtype = standardize_dtype(dtype)
             if backend.standardize_shape(shape) != backend.standardize_shape(
                 identifier.shape
             ):

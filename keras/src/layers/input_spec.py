@@ -1,6 +1,7 @@
 from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend.common import standardize_dtype
 
 
 @keras_export(["keras.InputSpec", "keras.layers.InputSpec"])
@@ -60,9 +61,7 @@ class InputSpec:
         name=None,
         optional=False,
     ):
-        self.dtype = (
-            backend.standardize_dtype(dtype) if dtype is not None else None
-        )
+        self.dtype = standardize_dtype(dtype) if dtype is not None else None
         if shape is not None:
             self.shape = backend.standardize_shape(shape)
             self.ndim = len(shape)
@@ -248,7 +247,7 @@ def _check_input_spec(spec, x, input_index, layer_name):
             )
     # Check dtype.
     if spec.dtype is not None:
-        dtype = backend.standardize_dtype(x.dtype)
+        dtype = standardize_dtype(x.dtype)
         if dtype != spec.dtype:
             raise ValueError(
                 f"Input {input_index} with name '{spec.name}' of layer "

@@ -2,6 +2,7 @@ import ml_dtypes
 import numpy as np
 
 from keras.src import backend
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.numpy.ops.core import convert_to_tensor
 from keras.src.random.seed_generator import draw_seed
 from keras.src.utils.module_utils import scipy
@@ -75,7 +76,7 @@ def rgb_to_grayscale(images, data_format=None):
 def rgb_to_hsv(images, data_format=None):
     # Ref: dm_pix
     images = convert_to_tensor(images)
-    dtype = backend.standardize_dtype(images.dtype)
+    dtype = standardize_dtype(images.dtype)
     data_format = backend.standardize_data_format(data_format)
     channels_axis = -1 if data_format == "channels_last" else -3
     if len(images.shape) not in (3, 4):
@@ -137,7 +138,7 @@ def hsv_to_rgb(images, data_format=None):
     if not backend.is_float_dtype(dtype):
         raise ValueError(
             "Invalid images dtype: expected float dtype. "
-            f"Received: images.dtype={backend.standardize_dtype(dtype)}"
+            f"Received: images.dtype={standardize_dtype(dtype)}"
         )
     hue, saturation, value = np.split(images, 3, channels_axis)
     hue = np.squeeze(hue, channels_axis)
@@ -589,7 +590,7 @@ def affine_transform(
         )
 
     # `scipy.ndimage.map_coordinates` lacks support for float16 and bfloat16.
-    input_dtype = backend.standardize_dtype(images.dtype)
+    input_dtype = standardize_dtype(images.dtype)
     compute_dtype = backend.result_type(input_dtype, "float32")
     images = images.astype(compute_dtype)
     transform = transform.astype(compute_dtype)
@@ -1004,7 +1005,7 @@ def gaussian_blur(
     images = convert_to_tensor(images)
     kernel_size = convert_to_tensor(kernel_size)
     sigma = convert_to_tensor(sigma)
-    input_dtype = backend.standardize_dtype(images.dtype)
+    input_dtype = standardize_dtype(images.dtype)
     # `scipy.signal.convolve2d` lacks support for float16 and bfloat16.
     compute_dtype = backend.result_type(input_dtype, "float32")
     images = images.astype(compute_dtype)

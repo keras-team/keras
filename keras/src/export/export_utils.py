@@ -3,6 +3,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import tree
+from keras.src.backend.common import standardize_dtype
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -88,11 +89,11 @@ def make_input_spec(x):
         input_spec = x
     elif isinstance(x, backend.KerasTensor):
         shape = (None,) + backend.standardize_shape(x.shape)[1:]
-        dtype = backend.standardize_dtype(x.dtype)
+        dtype = standardize_dtype(x.dtype)
         input_spec = layers.InputSpec(dtype=dtype, shape=shape, name=x.name)
     elif backend.ops.is_tensor(x):
         shape = (None,) + backend.standardize_shape(x.shape)[1:]
-        dtype = backend.standardize_dtype(x.dtype)
+        dtype = standardize_dtype(x.dtype)
         input_spec = layers.InputSpec(dtype=dtype, shape=shape, name=None)
     else:
         raise TypeError(

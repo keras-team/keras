@@ -4,6 +4,7 @@ import jax
 import jax.numpy as jnp
 
 from keras.src import backend
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.jax.ops.core import convert_to_tensor
 from keras.src.random.seed_generator import draw_seed
 
@@ -90,7 +91,7 @@ def rgb_to_hsv(images, data_format=None):
     if not backend.is_float_dtype(dtype):
         raise ValueError(
             "Invalid images dtype: expected float dtype. "
-            f"Received: images.dtype={backend.standardize_dtype(dtype)}"
+            f"Received: images.dtype={standardize_dtype(dtype)}"
         )
     eps = jnp.finfo(dtype).eps
     images = jnp.where(jnp.abs(images) < eps, 0.0, images)
@@ -140,7 +141,7 @@ def hsv_to_rgb(images, data_format=None):
     if not backend.is_float_dtype(dtype):
         raise ValueError(
             "Invalid images dtype: expected float dtype. "
-            f"Received: images.dtype={backend.standardize_dtype(dtype)}"
+            f"Received: images.dtype={standardize_dtype(dtype)}"
         )
     hue, saturation, value = jnp.split(images, 3, channels_axis)
     hue = jnp.squeeze(hue, channels_axis)
@@ -712,7 +713,7 @@ def gaussian_blur(
 
     data_format = backend.standardize_data_format(data_format)
     images = convert_to_tensor(images)
-    dtype = backend.standardize_dtype(images.dtype)
+    dtype = standardize_dtype(images.dtype)
     sigma = convert_to_tensor(sigma, dtype=dtype)
 
     if len(images.shape) not in (3, 4):

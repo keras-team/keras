@@ -44,6 +44,8 @@ This module must stay import-light: it is consulted lazily from
 not pull in layers or policies at module level.
 """
 
+from keras.src.backend.common import standardize_dtype
+
 _MODE_TO_STRATEGY = {}  # mode -> QuantizationStrategy, in registration order.
 
 
@@ -299,7 +301,6 @@ def register_quantization_strategy(strategy):
     modes match only their exact grammar, so collisions between them are
     unambiguous).
     """
-    from keras.src import backend
     from keras.src.dtype_policies.dtype_policy import QUANTIZATION_MODES
 
     instance = strategy() if isinstance(strategy, type) else strategy
@@ -321,7 +322,7 @@ def register_quantization_strategy(strategy):
         )
     if name not in QUANTIZATION_MODES:
         try:
-            backend.standardize_dtype(name)
+            standardize_dtype(name)
             is_standard_dtype = True
         except ValueError:
             is_standard_dtype = False

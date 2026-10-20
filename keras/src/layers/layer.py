@@ -34,6 +34,7 @@ from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend.common import global_state
 from keras.src.backend.common import remat
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.backend.common.name_scope import current_path
 from keras.src.backend.common.remat import get_current_remat_mode
@@ -607,7 +608,7 @@ class Layer(BackendLayer, Operation):
         if shape is None:
             shape = ()
         if dtype is not None:
-            dtype = backend.standardize_dtype(dtype)
+            dtype = standardize_dtype(dtype)
         else:
             dtype = self.variable_dtype
         if initializer is None:
@@ -929,7 +930,7 @@ class Layer(BackendLayer, Operation):
             kwargs_may_need_convert
             or len(args) != 1
             or not is_backend_tensor_or_symbolic(args[0], allow_none=False)
-            or backend.standardize_dtype(args[0].dtype) != self.input_dtype
+            or standardize_dtype(args[0].dtype) != self.input_dtype
         ) and self._convert_input_args:
             args = tree.map_structure(maybe_convert, args)
             kwargs = tree.map_structure(maybe_convert, kwargs)

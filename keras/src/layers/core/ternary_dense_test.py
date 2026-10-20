@@ -10,6 +10,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend.common import standardize_dtype
 
 
 class TernaryDenseTest(testing.TestCase):
@@ -173,9 +174,7 @@ class TernaryDenseTest(testing.TestCase):
         k = ops.convert_to_numpy(layer.kernel)
         self.assertEqual(k.shape, (11, 16))
         self.assertTrue(set(np.unique(k).tolist()) <= {-1, 0, 1})
-        self.assertEqual(
-            backend.standardize_dtype(layer._kernel.dtype), "uint8"
-        )
+        self.assertEqual(standardize_dtype(layer._kernel.dtype), "uint8")
 
         y_quantized = layer(x)
         self.assertAllClose(y_float, y_quantized)
@@ -238,11 +237,9 @@ class TernaryDenseTest(testing.TestCase):
         layer.build((None, 16))
         x = np.random.rand(4, 16).astype("float32")
         y = layer(x)
+        self.assertEqual(standardize_dtype(y.dtype), layer.compute_dtype)
         self.assertEqual(
-            backend.standardize_dtype(y.dtype), layer.compute_dtype
-        )
-        self.assertEqual(
-            backend.standardize_dtype(layer._kernel.dtype), layer.variable_dtype
+            standardize_dtype(layer._kernel.dtype), layer.variable_dtype
         )
 
     def test_quantize_fixed_threshold_matches_float_forward(self):
