@@ -10,6 +10,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend.common import AutocastScope
 from keras.src.backend.common import standardize_dtype
 from keras.src.quantizers import packing
 from keras.src.quantizers import strategy_registry
@@ -321,7 +322,7 @@ class QuantizedWeightTest(testing.TestCase):
             shape=(4, 2),
             axis=0,
         )
-        with backend.AutocastScope("bfloat16"):
+        with AutocastScope("bfloat16"):
             codes, scale = view.read_tensors()
         self.assertDType(codes, "int8")
         self.assertDType(scale, "bfloat16")
