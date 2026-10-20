@@ -7769,6 +7769,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         named_product(dtype=["float16", "float32", "float64", "bfloat16"])
     )
     def test_floor_divide_float_quotient_rounding(self, dtype):
+        if testing.uses_tpu() and dtype in ["float32", "float64"]:
+            self.skipTest("TPUs use bfloat16 for division")
+
         # In float32, 4.2 / 1.4 and 0.7 / 0.1 round up to the whole numbers 3
         # and 7, which the exact quotients are just below.
         x = ops.cast(np.array([4.2, 0.7, -1.0, 5.0, -5.0], "float32"), dtype)
