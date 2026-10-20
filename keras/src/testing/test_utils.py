@@ -167,7 +167,8 @@ def named_product(*args, **kwargs):
     return tests
 
 
-# Input dtype pools for `named_dtype_combinations`. No 64-bit dtypes yet.
+# Input dtype pools of the op dtype tests. No 64-bit dtypes yet; torch also
+# tests float64 for multi-input ops, as the old `NumpyDtypeTest` did.
 DEFAULT_INPUT_DTYPES = (
     "bool",
     "int8",
@@ -180,8 +181,6 @@ DEFAULT_INPUT_DTYPES = (
     "float16",
     "float32",
 )
-# Parity with the old `NumpyDtypeTest.BINARY_DTYPES`: torch also tests
-# float64 for multi-input ops.
 BINARY_INPUT_DTYPES = DEFAULT_INPUT_DTYPES + (
     ("float64",) if backend.backend() == "torch" else ()
 )
@@ -190,31 +189,10 @@ BINARY_INPUT_DTYPES = DEFAULT_INPUT_DTYPES + (
 def named_dtype_combinations(num_inputs, ordered=False, dtypes=None):
     """Returns `named_parameters` entries of input dtype combinations.
 
-    `dtypes` is one pool shared by all inputs, or a list with one pool per
-    input. Defaults to `DEFAULT_INPUT_DTYPES` for one input and
-    `BINARY_INPUT_DTYPES` for more. A shared pool gives unordered
-    combinations with same-dtype pairs (all orders if `ordered`); per-input
-    pools always give the full product.
-
-    For example, this code:
-    ```
-    class PowerTest(testing.TestCase):
-        @parameterized.named_parameters(named_dtype_combinations(2))
-        def test_input_dtypes(self, dtypes):
-            ...
-    ```
-    produces one test per dtype pair, e.g.
-    `PowerTest::test_input_dtypes_int8_uint32`.
-
-    Args:
-        num_inputs: Number of array inputs.
-        ordered: If `True`, a shared pool gives every ordered combination,
-            for ops whose inputs play different roles (e.g. `power`).
-        dtypes: A shared pool of dtype names, or a list of `num_inputs`
-            pools.
-
-    Returns:
-        A list of dicts with `"testcase_name"` and `"dtypes"` keys.
+    `dtypes` is one pool shared by all inputs (default: the pools above),
+    giving unordered combinations with same-dtype pairs, or every ordered
+    combination if `ordered`; or a list of one pool per input, giving their
+    product. Test names are the joined dtypes, e.g. `"int8_uint32"`.
     """
     if dtypes is None:
         dtypes = (

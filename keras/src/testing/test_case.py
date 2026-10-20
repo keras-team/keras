@@ -1,4 +1,5 @@
 import functools
+import itertools
 import json
 import shutil
 import tempfile
@@ -21,22 +22,17 @@ from keras.src.models import Model
 from keras.src.testing.test_utils import named_dtype_combinations
 from keras.src.utils import traceback_utils
 
-# Input dtypes `run_op_input_dtypes_check` skips per backend, with the reason
-# shown in the test report.
+# Input dtypes the dtype checks skip per backend, with the reason.
 _SKIPPED_DTYPES = {
     "torch": {
         "uint16": "Not supported by the torch backend",
         "uint32": "Not supported by the torch backend",
     },
-    "tensorflow": {
-        "uint32": "TensorFlow promotes uint32 + int* to int64, which JAX "
-        "gives as int32"
-    },
+    "tensorflow": {"uint32": "uint32 + int promotes to int64, unlike JAX"},
 }
 
-# Standard inputs of the op tests: small non-negative integers, so they fit
-# every dtype. `Z` broadcasts against `X`. Not int64: 64-bit dtypes are not
-# covered yet (`result_type` caps them to 32-bit, torch keeps them eagerly).
+# Standard op test inputs: small non-negative ints fit every dtype. `Z`
+# broadcasts against `X`. 32-bit, as 64-bit dtypes are not covered yet.
 X = np.array([[1, 2, 3], [3, 2, 1]], dtype="int32")
 Y = np.array([[4, 5, 6], [3, 2, 1]], dtype="int32")
 Z = np.array([[[1, 2, 3], [3, 2, 1]]], dtype="int32")
@@ -678,29 +674,10 @@ class TestCase(parameterized.TestCase):
                         self.assertEqual(dtype, "float32")
 
     def run_op_eager_check(
-        self,
-        op,
-        reference_fn,
-        inputs,
-        kwargs,
-        atol=1e-6,
-        rtol=1e-6,
-        eager_outputs=None,
+        self, op, reference_fn, inputs, kwargs, atol=1e-6, rtol=1e-6
     ):
-        """Checks the eager output count and values against `reference_fn`.
-
-        Args:
-            op: The op to test.
-            reference_fn: Reference implementation.
-            inputs: Tuple of inputs, as in `OpTest`.
-            kwargs: Static arguments, passed to both functions by keyword.
-            atol: Absolute tolerance.
-            rtol: Relative tolerance.
-            eager_outputs: The op's outputs for `inputs`, if already computed.
-        """
-        if eager_outputs is None:
-            eager_outputs = _call_eager(op, inputs, kwargs)
-        actual = tree.flatten(eager_outputs)
+        """Checks the eager output count and values against `reference_fn`."""
+        actual = tree.flatten(_call_eager(op, inputs, kwargs))
         expected = tree.flatten(reference_fn(*inputs, **kwargs))
         msg = f"Unexpected eager output for inputs {_signature(inputs)}"
         self.assertLen(actual, len(expected), f"{msg}: output count differs")
@@ -710,23 +687,11 @@ class TestCase(parameterized.TestCase):
     def run_op_symbolic_check(
         self, op, inputs, kwargs, symbolic_shapes=None, eager_outputs=None
     ):
-        """Checks the symbolic output against the eager output.
+        """Checks the symbolic output count, shapes and dtypes against eager.
 
-        Compares output count, rank, known dimensions and dtype. Symbolic
-        inputs mirror the converted eager tensors, so both paths see the
-        same input dtypes.
-
-        Args:
-            op: The op to test.
-            inputs: Tuple of inputs, as in `OpTest`.
-            kwargs: Static arguments, passed to the op by keyword.
-            symbolic_shapes: One shape per array input, in flattening order,
-                with `None` for the dimensions that are unknown symbolically.
-                Defaults to the arrays' shapes. An output dimension may be
-                `None` only if it depends on an unknown input dimension: one
-                that doesn't change when the unknown input dimensions are
-                resized must be known.
-            eager_outputs: The op's outputs for `inputs`, if already computed.
+        `symbolic_shapes` has one shape per array input, with `None` for the
+        unknown dimensions. An output dimension may be `None` only if it
+        depends on an unknown input dimension.
         """
         arrays = _arrays(inputs)
         if symbolic_shapes is None:
@@ -735,30 +700,19 @@ class TestCase(parameterized.TestCase):
             eager_outputs = _call_eager(op, inputs, kwargs)
         eager = tree.flatten(eager_outputs)
         where = f"for inputs {_signature(inputs)}"
-
         symbolic = _call_symbolic(op, inputs, kwargs, symbolic_shapes)
-        if len(symbolic) != len(eager):
+        if len(symbolic) != len(eager) or not all(
+            isinstance(s, KerasTensor) and _symbolic_matches(s, e)
+            for s, e in zip(symbolic, eager)
+        ):
             raise AssertionError(
-                f"Output count differs: symbolic={len(symbolic)}, "
-                f"eager={len(eager)} {where}"
+                f"Output differs: symbolic={_signature(symbolic)}, "
+                f"eager={_signature(eager)} {where}"
             )
-        for i, (sym, eag) in enumerate(zip(symbolic, eager)):
-            out = f"Output {i}" if len(eager) > 1 else "Output"
-            if not isinstance(sym, KerasTensor):
-                raise AssertionError(
-                    f"{out} is a {type(sym).__name__}, not a KerasTensor "
-                    f"{where}"
-                )
-            if not _symbolic_matches(sym, eag):
-                raise AssertionError(
-                    f"{out} differs: symbolic={_signature([sym])}, "
-                    f"eager={_signature([eag])} {where}"
-                )
         if not any(None in shape for shape in symbolic_shapes):
             return
-        # Precision: an output dim that stays the same when the unknown input
-        # dims are resized can't depend on them, so it must be known. Two
-        # sizes, as one can coincide (e.g. broadcasting against a dim of 1).
+        # An unknown output dim that doesn't change when the unknown input
+        # dims are resized (twice, as one size can coincide) must be known.
         largest = max((d for x in arrays for d in x.shape), default=0)
         probes = []
         for size in (1, largest + 1):
@@ -781,31 +735,11 @@ class TestCase(parameterized.TestCase):
                         f"unknown input dims {where}"
                     )
 
-    def run_op_input_dtypes_check(
-        self, op, reference_fn, jax_fn, inputs, kwargs, dtypes
-    ):
-        """Checks the output dtypes for one input dtype combination.
+    def run_op_input_dtypes_check(self, op, jax_fn, inputs, kwargs, dtypes):
+        """Checks the output dtypes with the array inputs cast to `dtypes`.
 
-        Casts the array inputs to `dtypes` and checks, in two `subTest`s,
-        that the symbolic output dtypes match the eager ones (`symbolic`) and
-        that the eager output dtypes match `jax_fn` on the same inputs
-        (`jax_dtype`; default JAX mode, so no 64-bit dtypes). If JAX rejects
-        the combination, the check fails.
-
-        Skipped if the backend doesn't support one of `dtypes` (see
-        `_SKIPPED_DTYPES`).
-
-        Args:
-            op: The op to test, e.g. `knp.add`.
-            reference_fn: Reference implementation, e.g. `np.add`. Not used
-                yet: a value check per dtype combination is planned.
-            jax_fn: JAX reference for the output dtypes, e.g. `jnp.add`.
-            inputs: Tuple of inputs, as in `OpTest`. Array values should be
-                small non-negative integers (e.g. `0` to `5`), so they fit
-                every dtype.
-            kwargs: Static arguments, passed to all three functions.
-            dtypes: One dtype per array input, in flattening order, e.g.
-                `("int8", "uint32")`.
+        The eager output dtypes must match `jax_fn` (default JAX mode, so no
+        64-bit dtypes), and the symbolic ones must match the eager ones.
         """
         skipped = _SKIPPED_DTYPES.get(backend.backend(), {})
         for dtype in dtypes:
@@ -819,74 +753,46 @@ class TestCase(parameterized.TestCase):
         import jax.numpy as jnp
 
         jax_outputs = jax_fn(*_map_arrays(jnp.asarray, inputs), **kwargs)
-        keras_dtypes = _dtypes_of(outputs)
-        jax_dtypes = _dtypes_of(jax_outputs)
+        keras_dtypes, jax_dtypes = _dtypes_of(outputs), _dtypes_of(jax_outputs)
         if keras_dtypes != jax_dtypes:
             raise AssertionError(
-                "Output dtype differs from JAX: "
-                f"keras={', '.join(keras_dtypes)}, "
-                f"jax={', '.join(jax_dtypes)} "
-                f"for inputs {_signature(inputs)}"
+                f"Output dtype differs from JAX: keras={keras_dtypes}, "
+                f"jax={jax_dtypes} for inputs {_signature(inputs)}"
             )
         self.run_op_symbolic_check(op, inputs, kwargs, eager_outputs=outputs)
 
 
 class OpTest(TestCase):
-    """Base class for the tests of one op: set attributes, get the tests.
+    """Generates the standard tests of an op from class attributes.
 
-    A subclass declares the op; `__init_subclass__` generates one test
-    method per check and per case, so every check is an ordinary test:
-    `test_eager` (values vs `reference_fn`), `test_eager_class` (same, on
-    `op_class`), `test_symbolic_static`, `test_symbolic_dynamic` (every
-    input dimension unknown) and `test_symbolic_partial` (one input
-    dimension unknown at a time, plus the first dimension of every input
-    for 2+ inputs), with a `_<case>` suffix when `cases` is set; plus
-    `test_input_dtypes_<dtypes>` per input dtype combination and
-    `test_python_types_<dtype>_<int|float>` if `python_scalars`. See
-    `run_op_eager_check`, `run_op_symbolic_check` and
-    `run_op_input_dtypes_check` for what each checks.
-
-    A check that refines a failed one is skipped (`eager_class` after
-    `eager`, the `symbolic_*` checks after `symbolic_static`), so one bug
-    is one failure. A method defined in the class body with a generated
-    name replaces it; that is how an op test customizes or skips a check:
-
-    ```python
-    class AddTest(testing.BinaryOpTest):
-        op, op_class = knp.add, knp.Add
-        reference_fn, jax_fn = np.add, jnp.add
-
-        def test_input_dtypes_bool_bool(self):
-            if backend.backend() == "tensorflow":
-                self.skipTest("TODO: `tf.add` has no bool kernel.")
-            self.check_input_dtypes(("bool", "bool"))
-    ```
+    One test method is generated per check and per case: `test_eager`
+    (values vs `reference_fn`), `test_eager_class` (same, on `op_class`),
+    `test_symbolic_static`, `test_symbolic_dynamic` (every input dimension
+    unknown) and `test_symbolic_partial` (one unknown dimension at a time,
+    plus a shared first dimension), with a `_<case>` suffix if `cases` is
+    set; plus `test_input_dtypes_<dtypes>` per input dtype combination and
+    `test_python_types_<dtype>_<int|float>` if `python_scalars`. A check
+    that refines a failed one is skipped, so one bug is one failure.
+    Defining a method with a generated name replaces it, e.g. to skip a
+    dtype combination with a reason and else `self.check_input_dtypes(...)`.
 
     Attributes:
-        op: The op's function form, e.g. `knp.add`.
-        op_class: The op's `Operation` class, e.g. `knp.Add`, built with the
-            case's `kwargs` and checked eagerly only, as its symbolic path
-            is the function's. `None` skips it.
-        reference_fn: Reference implementation, e.g. `np.add`.
-        jax_fn: JAX reference for the output dtypes, e.g. `jnp.add`. `None`
-            for an op without one, which then has no dtype tests.
-        inputs: Tuple of inputs passed to the op positionally: NumPy arrays
-            (may be nested) and Python scalars, passed through as-is.
-        kwargs: Static arguments, passed to the op by keyword.
-        cases: Dict of `(inputs, kwargs)` by name, instead of `inputs` and
-            `kwargs`, to run every check on several inputs.
+        op: Function form of the op, e.g. `knp.add`.
+        op_class: `Operation` class, e.g. `knp.Add`, built with the case's
+            `kwargs` and checked eagerly only. `None` to skip.
+        reference_fn: NumPy reference, e.g. `np.add`.
+        jax_fn: JAX reference for the output dtypes. `None` skips them.
+        inputs: Tuple of NumPy arrays and Python scalars passed to the op.
+        kwargs: Static keyword arguments of the op.
+        cases: `{name: (inputs, kwargs)}` to test several inputs instead.
         atol: Absolute tolerance of the eager checks.
         rtol: Relative tolerance of the eager checks.
-        run_dynamic_shape_checks: Whether to run `symbolic_dynamic` and
-            `symbolic_partial`. Disable for ops that need static sizes,
-            e.g. `squeeze`; they are then reported as skipped.
+        run_dynamic_shape_checks: Disable for ops that need static sizes.
         dtypes: Dtype pool(s), see `named_dtype_combinations`.
-        ordered: Whether to test every order of the input dtypes, for ops
-            whose inputs play different roles, e.g. `power`.
-        python_scalars: Whether to also test a Python `int` and `float` as
-            the last input, for every dtype of the other inputs.
+        ordered: Whether to test every order of the input dtypes.
+        python_scalars: Whether to also test a Python scalar as last input.
         dtype_inputs: Inputs of the dtype tests, if the first case's values
-            don't fit every dtype (small non-negative integers do).
+            don't fit every dtype.
     """
 
     op = None
@@ -911,7 +817,7 @@ class OpTest(TestCase):
             if callable(fn) and not isinstance(fn, (type, staticmethod)):
                 setattr(cls, name, staticmethod(fn))  # Or it would bind.
         if cls.op is None:
-            return  # A base class such as `UnaryOpTest`, not an op test.
+            return  # A base class such as `UnaryOpTest`.
         for name, check, args in cls._generated_tests():
             existing = getattr(cls, name, None)
             if existing is None or getattr(existing, "generated", False):
@@ -919,18 +825,16 @@ class OpTest(TestCase):
 
     @classmethod
     def _cases(cls):
-        """The `(inputs, kwargs)` by case name; `None` for the single case."""
         return cls.cases or {None: (cls.inputs, cls.kwargs)}
 
     @classmethod
     def _dtype_case(cls):
-        """The `(inputs, kwargs)` of the dtype tests."""
         inputs, kwargs = next(iter(cls._cases().values()))
         return cls.dtype_inputs or inputs, kwargs
 
     @classmethod
     def _generated_tests(cls):
-        """Yields `(test name, check method name, its args)` to generate."""
+        """Yields `(test name, check method, its args)` for every test."""
         for case, (inputs, _) in cls._cases().items():
             suffix = "" if case is None else f"_{case}"
             yield f"test_eager{suffix}", "check_eager", (case,)
@@ -940,24 +844,18 @@ class OpTest(TestCase):
                 for kind in ("static", "dynamic", "partial"):
                     name = f"test_symbolic_{kind}{suffix}"
                     yield name, f"check_symbolic_{kind}", (case,)
-        if cls.jax_fn is None:
-            return
-        num_inputs = len(_arrays(cls._dtype_case()[0]))
+        n = len(_arrays(cls._dtype_case()[0])) if cls.jax_fn else 0
         combinations = functools.partial(
             named_dtype_combinations, ordered=cls.ordered, dtypes=cls.dtypes
         )
-        for entry in combinations(num_inputs) if num_inputs else ():
+        for entry in combinations(n) if n else ():
             name = f"test_input_dtypes_{entry['testcase_name']}"
             yield name, "check_input_dtypes", (entry["dtypes"],)
-        if not cls.python_scalars:
-            return
-        if num_inputs < 2:
-            raise ValueError("`python_scalars` needs two or more array inputs.")
-        for entry in combinations(num_inputs - 1):
-            for scalar_type in (int, float):
-                name = f"test_python_types_{entry['testcase_name']}_"
-                name += scalar_type.__name__
-                yield name, "check_python_types", (entry["dtypes"], scalar_type)
+        scalars = combinations(n - 1) if cls.python_scalars and n > 1 else ()
+        for entry, scalar_type in itertools.product(scalars, (int, float)):
+            name = f"test_python_types_{entry['testcase_name']}_"
+            name += scalar_type.__name__
+            yield name, "check_python_types", (entry["dtypes"], scalar_type)
 
     def _require(self, name, check):
         """Returns `check()`, or skips the test if it fails."""
@@ -969,27 +867,22 @@ class OpTest(TestCase):
             self.skipTest(f"{name} failed")
 
     def check_eager(self, case=None):
-        """The `eager` check of `case`: values vs `reference_fn`."""
         inputs, kwargs = self._cases()[case]
         self.run_op_eager_check(
             self.op, self.reference_fn, inputs, kwargs, self.atol, self.rtol
         )
 
     def check_eager_class(self, case=None):
-        """The `eager` check of `case` on `op_class(**kwargs)`."""
         self._require("eager", lambda: self.check_eager(case))
         inputs, kwargs = self._cases()[case]
+        op = self.op_class(**kwargs)
+        reference_fn = functools.partial(self.reference_fn, **kwargs)
         self.run_op_eager_check(
-            self.op_class(**kwargs),
-            functools.partial(self.reference_fn, **kwargs),
-            inputs,
-            {},
-            self.atol,
-            self.rtol,
+            op, reference_fn, inputs, {}, self.atol, self.rtol
         )
 
     def check_symbolic_static(self, case=None):
-        """The `symbolic_static` check of `case`; returns the eager outputs."""
+        """Returns the eager outputs, for the checks refining this one."""
         inputs, kwargs = self._cases()[case]
         outputs = self._require(
             "eager", lambda: _call_eager(self.op, inputs, kwargs)
@@ -1000,11 +893,9 @@ class OpTest(TestCase):
         return outputs
 
     def check_symbolic_dynamic(self, case=None):
-        """The `symbolic_dynamic` check of `case`: every input dim unknown."""
         self._check_symbolic_variants(case, "dynamic")
 
     def check_symbolic_partial(self, case=None):
-        """The `symbolic_partial` check of `case`: one unknown dim at a time."""
         self._check_symbolic_variants(case, "partial")
 
     def _check_symbolic_variants(self, case, kind):
@@ -1027,19 +918,17 @@ class OpTest(TestCase):
                 raise
 
     def check_input_dtypes(self, dtypes):
-        """The dtype check of one input dtype combination."""
         inputs, kwargs = self._dtype_case()
         self.run_op_input_dtypes_check(
-            self.op, self.reference_fn, self.jax_fn, inputs, kwargs, dtypes
+            self.op, self.jax_fn, inputs, kwargs, dtypes
         )
 
     def check_python_types(self, dtypes, scalar_type):
-        """The dtype check with a Python scalar as the last input."""
         inputs, kwargs = self._dtype_case()
         arrays = _arrays(inputs)
         inputs = _replace_arrays(inputs, arrays[:-1] + [scalar_type(1)])
         self.run_op_input_dtypes_check(
-            self.op, self.reference_fn, self.jax_fn, inputs, kwargs, dtypes
+            self.op, self.jax_fn, inputs, kwargs, dtypes
         )
 
 
@@ -1076,8 +965,6 @@ class ReductionOpTest(OpTest):
 
 
 def _generated_test(name, check, args):
-    """A test method calling `self.<check>(*args)`."""
-
     def test(self):
         getattr(self, check)(*args)
 
@@ -1107,23 +994,17 @@ def _replace_arrays(inputs, arrays):
 
 
 def _call_eager(op, inputs, kwargs):
-    """Calls `op` with the arrays converted to backend tensors."""
     return op(*_map_arrays(ops.convert_to_tensor, inputs), **kwargs)
 
 
 def _call_symbolic(op, inputs, kwargs, shapes):
-    """Calls `op` with the arrays replaced by `KerasTensor`s of `shapes`.
-
-    Their dtypes mirror the converted eager tensors, so both paths see the
-    same input dtypes (e.g. NumPy `int64` is `int32` on JAX).
-    """
+    """Calls `op` on `KerasTensor`s of `shapes` and the eager input dtypes."""
     dtypes = _dtypes_of([ops.convert_to_tensor(x) for x in _arrays(inputs)])
     tensors = [KerasTensor(s, dtype=d) for s, d in zip(shapes, dtypes)]
     return tree.flatten(op(*_replace_arrays(inputs, tensors), **kwargs))
 
 
 def _dtypes_of(xs):
-    """The standardized dtypes of the flattened `xs`."""
     return [standardize_dtype(x.dtype) for x in tree.flatten(xs)]
 
 
@@ -1138,12 +1019,10 @@ def _symbolic_matches(sym, eag):
 
 
 def _unknown_dim_variants(shapes):
-    """Variants of `shapes` with unknown (`None`) dimensions to test.
+    """Returns `(dynamic, partial)` lists of `shapes` with `None` dims.
 
-    Returns `(dynamic, partial)`: `dynamic` has every dimension unknown;
-    `partial` has one dimension unknown at a time, plus the first dimension
-    of every array for 2+ arrays (a shared batch dimension). Each variant is
-    a list with one shape per array, e.g. `[(None, 3), (2, 3)]`.
+    `dynamic` has every dim unknown; `partial` one dim at a time, plus the
+    first dim of every array for 2+ arrays (a shared batch dim).
     """
 
     def with_unknown(positions):
@@ -1163,7 +1042,7 @@ def _unknown_dim_variants(shapes):
 
 
 def _signature(inputs):
-    """Describes the inputs for messages, e.g. `int64[2, 3], float32[2]`."""
+    """Describes inputs or outputs for messages, e.g. `int32[2, 3], 1.0`."""
     return ", ".join(
         repr(x)
         if _is_scalar(x)

@@ -22,22 +22,16 @@ class Square(Operation):
 
 
 class WrongRank(Square):
-    """The symbolic output has an extra dimension."""
-
     def compute_output_spec(self, x):
         return KerasTensor(x.shape + (1,), dtype=x.dtype)
 
 
 class WrongDtype(Square):
-    """The symbolic output dtype is always float32."""
-
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype="float32")
 
 
 class NeedsStaticShape(Square):
-    """The symbolic path rejects unknown dimensions."""
-
     def compute_output_spec(self, x):
         if None in x.shape:
             raise ValueError("Needs a static shape")
@@ -54,8 +48,6 @@ class LazyShape(Square):
 
 
 class LazyShapeNoSizeOne(LazyShape):
-    """`LazyShape` whose symbolic path also rejects dimensions of size 1."""
-
     def compute_output_spec(self, x):
         if 1 in x.shape:
             raise ValueError("Size-1 dimensions are not supported")
@@ -63,8 +55,6 @@ class LazyShapeNoSizeOne(LazyShape):
 
 
 class WrongRankAndValues(WrongRank):
-    """`WrongRank` whose eager values are also off by one."""
-
     def call(self, x):
         return ops.square(x) + 1
 
@@ -75,24 +65,18 @@ def function_form(op):
 
 
 def methods_of(cls):
-    """The test method names of a test class, sorted."""
     return sorted(n for n in dir(cls) if n.startswith("test"))
 
 
 def outcomes(cls):
-    """Runs the tests of `cls` and returns `{name: outcome}`.
-
-    An outcome is `"passed"`, `"skipped: <reason>"` or `"failed: <last
-    line of the traceback>"`.
-    """
+    """Runs the tests of `cls`: `{name: passed / skipped: … / failed: …}`."""
     tests = list(unittest.TestLoader().loadTestsFromTestCase(cls))
     result = unittest.TestResult()
     unittest.TestSuite(tests).run(result)
     out = {test._testMethodName: "passed" for test in tests}
     for test, traceback in result.failures + result.errors:
-        out[test._testMethodName] = (
-            "failed: " + traceback.strip().rsplit("\n", 1)[-1]
-        )
+        error = traceback.strip().rsplit("\n", 1)[-1]
+        out[test._testMethodName] = f"failed: {error}"
     for test, reason in result.skipped:
         out[test._testMethodName] = f"skipped: {reason}"
     return out
@@ -100,12 +84,12 @@ def outcomes(cls):
 
 class OpTestTest(testing.TestCase):
     def test_generated_names(self):
-        class Case(testing.OpTest):
+        class Unary(testing.OpTest):
             op, op_class = ops.square, Square
             reference_fn, jax_fn = np.square, jnp.square
             inputs = (X,)
 
-        names = methods_of(Case)
+        names = methods_of(Unary)
         self.assertEqual(
             [n for n in names if "input_dtypes" not in n],
             [
@@ -117,22 +101,19 @@ class OpTestTest(testing.TestCase):
             ],
         )
         self.assertLen([n for n in names if "input_dtypes" in n], 10)
-        self.assertIn("test_input_dtypes_bfloat16", names)
 
-    def test_generated_names_with_cases(self):
-        class Case(testing.OpTest):
-            op = ops.add
-            reference_fn, jax_fn = np.add, jnp.add
+        class Binary(testing.OpTest):
+            op, reference_fn, jax_fn = ops.add, np.add, jnp.add
             cases = {"a": ((X, X), {}), "b": ((X, X[:1]), {})}
             python_scalars = True
 
-        names = methods_of(Case)
+        names = methods_of(Binary)
         self.assertIn("test_eager_a", names)
         self.assertIn("test_symbolic_partial_b", names)
         self.assertNotIn("test_eager_class_a", names)  # No `op_class`.
         self.assertLen(
             [n for n in names if "input_dtypes" in n],
-            len(named_dtype_combinations(2)),  # 55; 66 on torch (float64).
+            len(named_dtype_combinations(2)),
         )
         self.assertLen([n for n in names if "python_types" in n], 20)
         self.assertIn("test_python_types_int8_float", names)
@@ -142,22 +123,15 @@ class OpTestTest(testing.TestCase):
             op, reference_fn, jax_fn = ops.ones, np.ones, jnp.ones
             inputs = ((2, 3),)
 
-        self.assertEqual(methods_of(NoArrays), ["test_eager"])
         self.assertEqual(outcomes(NoArrays), {"test_eager": "passed"})
 
         class NoJax(testing.OpTest):
             op, reference_fn = ops.square, np.square
             inputs = (X,)
+            python_scalars = True  # Needs two inputs: nothing generated.
 
         self.assertNotIn("test_input_dtypes_int8", methods_of(NoJax))
-
-    def test_python_scalars_need_two_inputs(self):
-        with self.assertRaisesRegex(ValueError, "two or more array inputs"):
-
-            class Case(testing.OpTest):
-                op, reference_fn, jax_fn = ops.square, np.square, jnp.square
-                inputs = (X,)
-                python_scalars = True
+        self.assertNotIn("test_python_types_int8_int", methods_of(NoJax))
 
     def test_override_is_kept(self):
         class Case(testing.OpTest):
@@ -251,7 +225,6 @@ class OpTestTest(testing.TestCase):
     def test_unknown_dim_variants(self):
         dynamic, partial = test_case._unknown_dim_variants([(2, 3), (2, 3)])
         self.assertEqual(dynamic, [[(None, None), (None, None)]])
-        # One dim at a time, then the shared batch dim.
         self.assertEqual(
             partial,
             [
@@ -259,7 +232,7 @@ class OpTestTest(testing.TestCase):
                 [(2, None), (2, 3)],
                 [(2, 3), (None, 3)],
                 [(2, 3), (2, None)],
-                [(None, 3), (None, 3)],
+                [(None, 3), (None, 3)],  # The shared batch dim.
             ],
         )
 
@@ -281,6 +254,10 @@ class OpTestTest(testing.TestCase):
         with self.assertRaisesRegex(AssertionError, "output count differs"):
             self.run_op_eager_check(
                 lambda x: ops.stack([x, x]), lambda x: (x, x), (X,), {}
+            )
+        with self.assertRaisesRegex(AssertionError, "Output differs"):
+            self.run_op_symbolic_check(  # Two eager outputs, one symbolic.
+                lambda x: x if isinstance(x, KerasTensor) else (x, x), (X,), {}
             )
 
     def test_symbolic_dtype_mismatch_fails(self):
@@ -323,28 +300,24 @@ class RunOpInputDtypesCheckTest(testing.TestCase):
 
         with self.assertRaisesRegex(
             AssertionError,
-            "Output dtype differs from JAX: keras=int32, jax=uint8 "
-            r"for inputs uint8\[2, 3\]",
+            r"Output dtype differs from JAX: keras=\['int32'\], "
+            r"jax=\['uint8'\] for inputs uint8\[2, 3\]",
         ):
-            self.run_op_input_dtypes_check(
-                op, np.square, jnp.square, (X,), {}, ("uint8",)
-            )
+            self.run_op_input_dtypes_check(op, jnp.square, (X,), {}, ("uint8",))
 
     def test_skipped_dtype_has_reason(self):
         skipped = {backend.backend(): {"int8": "no int8 here"}}
         with mock.patch.dict(test_case._SKIPPED_DTYPES, skipped):
             with self.assertRaisesRegex(unittest.SkipTest, "int8: no int8"):
                 self.run_op_input_dtypes_check(
-                    ops.square, np.square, jnp.square, (X,), {}, ("int8",)
+                    ops.square, jnp.square, (X,), {}, ("int8",)
                 )
 
     def test_dtype_count_mismatch_raises(self):
         with self.assertRaises(ValueError):
             self.run_op_input_dtypes_check(
-                ops.add, np.add, jnp.add, (X, X), {}, ("int8",)
+                ops.add, jnp.add, (X, X), {}, ("int8",)
             )
 
     def test_python_scalar_input(self):
-        self.run_op_input_dtypes_check(
-            ops.add, np.add, jnp.add, (X, 1), {}, ("int8",)
-        )
+        self.run_op_input_dtypes_check(ops.add, jnp.add, (X, 1), {}, ("int8",))
