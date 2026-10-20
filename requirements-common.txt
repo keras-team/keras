@@ -33,5 +33,5 @@ tf2onnx
 grain
 # for orbax_checkpoint_test.py
 orbax-checkpoint
-# for remote file access without TensorFlow (file_utils_test.py)
+# for remote file access
 etils[epath]

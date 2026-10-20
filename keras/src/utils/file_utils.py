@@ -602,7 +602,6 @@ def copy(src, dst):
     if is_remote_path(src) or is_remote_path(dst):
         if _remote_backend(f"src={src} dst={dst}") == "gfile":
             return gfile.copy(src, dst, overwrite=True)
-        # epath uses the remote backend if either src or dst is remote.
         return epath.Path(src).copy(dst, overwrite=True)
     return shutil.copy(src, dst)
 

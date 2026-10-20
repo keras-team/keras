@@ -777,7 +777,6 @@ class IsRemotePathTest(test_case.TestCase):
 
 
 class RemoteBackendTest(test_case.TestCase):
-    # A module that can never be imported, used to hide `gfile` / `epath`.
     _UNAVAILABLE = LazyModule("keras_test_unavailable_module")
 
     def test_epath_remote_file_ops(self):
