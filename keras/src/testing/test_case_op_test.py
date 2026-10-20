@@ -3,7 +3,6 @@ from unittest import mock
 
 import jax.numpy as jnp
 import numpy as np
-from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import ops
@@ -11,8 +10,8 @@ from keras.src import testing
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops.operation import Operation
 from keras.src.testing import test_case
-
-X = np.array([[1, 2, 3], [3, 2, 1]])
+from keras.src.testing.test_case import X
+from keras.src.testing.test_utils import named_dtype_combinations
 
 
 class Square(Operation):
@@ -75,83 +74,192 @@ def function_form(op):
     return lambda *args, **kwargs: op(*args, **kwargs)
 
 
-def run_as_test(fn):
-    """Runs `fn(test_case)` as a test and returns its `unittest.TestResult`.
+def methods_of(cls):
+    """The test method names of a test class, sorted."""
+    return sorted(n for n in dir(cls) if n.startswith("test"))
 
-    `subTest` failures and skips are recorded on the result, not raised.
+
+def outcomes(cls):
+    """Runs the tests of `cls` and returns `{name: outcome}`.
+
+    An outcome is `"passed"`, `"skipped: <reason>"` or `"failed: <last
+    line of the traceback>"`.
     """
-
-    class Case(testing.TestCase):
-        def runTest(self):
-            fn(self)
-
+    tests = list(unittest.TestLoader().loadTestsFromTestCase(cls))
     result = unittest.TestResult()
-    Case().run(result)
-    return result
-
-
-def failed_checks(result):
-    """Returns the distinct `check` names of the failed or errored subtests."""
-    return sorted(
-        {t.params["check"] for t, _ in result.failures + result.errors}
-    )
-
-
-class RunOpTestTest(testing.TestCase):
-    def test_failed_check_skips_the_checks_refining_it(self):
-        result = run_as_test(
-            lambda t: t.run_op_test(function_form(WrongRank()), np.square, (X,))
+    unittest.TestSuite(tests).run(result)
+    out = {test._testMethodName: "passed" for test in tests}
+    for test, traceback in result.failures + result.errors:
+        out[test._testMethodName] = (
+            "failed: " + traceback.strip().rsplit("\n", 1)[-1]
         )
-        self.assertEqual(failed_checks(result), ["symbolic_static"])
+    for test, reason in result.skipped:
+        out[test._testMethodName] = f"skipped: {reason}"
+    return out
+
+
+class OpTestTest(testing.TestCase):
+    def test_generated_names(self):
+        class Case(testing.OpTest):
+            op, op_class = ops.square, Square
+            reference_fn, jax_fn = np.square, jnp.square
+            inputs = (X,)
+
+        names = methods_of(Case)
+        self.assertEqual(
+            [n for n in names if "input_dtypes" not in n],
+            [
+                "test_eager",
+                "test_eager_class",
+                "test_symbolic_dynamic",
+                "test_symbolic_partial",
+                "test_symbolic_static",
+            ],
+        )
+        self.assertLen([n for n in names if "input_dtypes" in n], 10)
+        self.assertIn("test_input_dtypes_bfloat16", names)
+
+    def test_generated_names_with_cases(self):
+        class Case(testing.OpTest):
+            op = ops.add
+            reference_fn, jax_fn = np.add, jnp.add
+            cases = {"a": ((X, X), {}), "b": ((X, X[:1]), {})}
+            python_scalars = True
+
+        names = methods_of(Case)
+        self.assertIn("test_eager_a", names)
+        self.assertIn("test_symbolic_partial_b", names)
+        self.assertNotIn("test_eager_class_a", names)  # No `op_class`.
+        self.assertLen(
+            [n for n in names if "input_dtypes" in n],
+            len(named_dtype_combinations(2)),  # 55; 66 on torch (float64).
+        )
+        self.assertLen([n for n in names if "python_types" in n], 20)
+        self.assertIn("test_python_types_int8_float", names)
+
+    def test_not_generated_when_inapplicable(self):
+        class NoArrays(testing.OpTest):  # `ones` has no symbolic path.
+            op, reference_fn, jax_fn = ops.ones, np.ones, jnp.ones
+            inputs = ((2, 3),)
+
+        self.assertEqual(methods_of(NoArrays), ["test_eager"])
+        self.assertEqual(outcomes(NoArrays), {"test_eager": "passed"})
+
+        class NoJax(testing.OpTest):
+            op, reference_fn = ops.square, np.square
+            inputs = (X,)
+
+        self.assertNotIn("test_input_dtypes_int8", methods_of(NoJax))
+
+    def test_python_scalars_need_two_inputs(self):
+        with self.assertRaisesRegex(ValueError, "two or more array inputs"):
+
+            class Case(testing.OpTest):
+                op, reference_fn, jax_fn = ops.square, np.square, jnp.square
+                inputs = (X,)
+                python_scalars = True
+
+    def test_override_is_kept(self):
+        class Case(testing.OpTest):
+            op, reference_fn = ops.square, np.square
+            inputs = (X,)
+
+            def test_eager(self):
+                self.skipTest("overridden")
+
+        class Subclass(Case):
+            pass
+
+        self.assertEqual(outcomes(Case)["test_eager"], "skipped: overridden")
+        self.assertIs(Subclass.test_eager, Case.test_eager)
+
+    def test_functions_are_unbound(self):
+        class Case(testing.OpTest):
+            op, reference_fn, jax_fn = ops.square, np.square, jnp.square
+            inputs = (X,)
+
+        case = Case("test_eager")
+        self.assertAllClose(case.op(X), case.reference_fn(X))
+        self.assertAllClose(case.jax_fn(X), np.square(X))
+
+    def test_disabled_dynamic_checks_are_skipped(self):
+        class Case(testing.OpTest):
+            op, reference_fn = function_form(NeedsStaticShape()), np.square
+            inputs = (X,)
+            run_dynamic_shape_checks = False
+
+        self.assertEqual(
+            outcomes(Case),
+            {
+                "test_eager": "passed",
+                "test_symbolic_static": "passed",
+                "test_symbolic_dynamic": "skipped: Disabled by the test",
+                "test_symbolic_partial": "skipped: Disabled by the test",
+            },
+        )
+
+    def test_failed_prerequisite_skips_dependents(self):
+        class Case(testing.OpTest):
+            op, op_class = function_form(WrongRank()), WrongRank
+            reference_fn = np.square
+            inputs = (X,)
+
+        out = outcomes(Case)
+        self.assertEqual(out["test_eager"], "passed")
+        self.assertEqual(out["test_eager_class"], "passed")
         self.assertRegex(
-            result.failures[0][1],
-            r"Output differs: symbolic=int\d\d\[2, 3, 1\], "
-            r"eager=int\d\d\[2, 3\] for inputs int64\[2, 3\]",
+            out["test_symbolic_static"],
+            r"^failed: AssertionError: Output differs: "
+            r"symbolic=int\d\d\[2, 3, 1\], eager=int\d\d\[2, 3\] "
+            r"for inputs int32\[2, 3\]$",
         )
         self.assertEqual(
-            [r for _, r in result.skipped], ["symbolic_static failed"] * 2
+            out["test_symbolic_dynamic"], "skipped: symbolic_static failed"
+        )
+        self.assertEqual(
+            out["test_symbolic_partial"], "skipped: symbolic_static failed"
         )
 
-    def test_failing_check_does_not_hide_independent_ones(self):
-        result = run_as_test(
-            lambda t: t.run_op_test(
-                function_form(WrongRankAndValues()), np.square, (X,)
-            )
+        class EagerCase(Case):
+            op = function_form(WrongRankAndValues())
+            op_class = WrongRankAndValues
+
+        out = outcomes(EagerCase)
+        self.assertRegex(out["test_eager"], "^failed: ")
+        self.assertEqual(out["test_eager_class"], "skipped: eager failed")
+        self.assertRegex(out["test_symbolic_static"], "^failed: ")
+        self.assertEqual(
+            out["test_symbolic_dynamic"], "skipped: symbolic_static failed"
         )
-        self.assertEqual(failed_checks(result), ["eager", "symbolic_static"])
 
     def test_unknown_dims_checks(self):
-        result = run_as_test(
-            lambda t: t.run_op_test(
-                function_form(NeedsStaticShape()), np.square, (X,)
-            )
+        class Case(testing.OpTest):
+            op, reference_fn = function_form(NeedsStaticShape()), np.square
+            inputs = (X,)
+
+        out = outcomes(Case)
+        self.assertEqual(out["test_symbolic_static"], "passed")
+        # The failing symbolic shapes are added to the error.
+        self.assertEqual(
+            out["test_symbolic_dynamic"],
+            "failed: Symbolic shapes: (None, None)",
         )
         self.assertEqual(
-            failed_checks(result), ["symbolic_dynamic", "symbolic_partial"]
-        )
-        # All dims at once, then one unknown dim at a time.
-        self.assertEqual(
-            [t.params["shapes"] for t, _ in result.errors],
-            ["(None, None)", "(None, 3)", "(2, None)"],
+            out["test_symbolic_partial"], "failed: Symbolic shapes: (None, 3)"
         )
 
     def test_unknown_dim_variants(self):
-        shapes = []
-
-        def op(x, y):
-            shapes.append((tuple(x.shape), tuple(y.shape)))
-            return ops.add(x, y)
-
-        self.run_op_test(op, np.add, (X, X))
+        dynamic, partial = test_case._unknown_dim_variants([(2, 3), (2, 3)])
+        self.assertEqual(dynamic, [[(None, None), (None, None)]])
+        # One dim at a time, then the shared batch dim.
         self.assertEqual(
-            [s for s in shapes if None in s[0] + s[1]],
+            partial,
             [
-                ((None, None), (None, None)),
-                ((None, 3), (2, 3)),
-                ((2, None), (2, 3)),
-                ((2, 3), (None, 3)),
-                ((2, 3), (2, None)),
-                ((None, 3), (None, 3)),
+                [(None, 3), (2, 3)],
+                [(2, None), (2, 3)],
+                [(2, 3), (None, 3)],
+                [(2, 3), (2, None)],
+                [(None, 3), (None, 3)],
             ],
         )
 
@@ -164,35 +272,10 @@ class RunOpTestTest(testing.TestCase):
     def test_invalid_probe_skips_precision(self):
         self.run_op_symbolic_check(LazyShapeNoSizeOne(), (X,), {}, [(None, 3)])
 
-    def test_disabled_dynamic_shape_checks_are_skipped(self):
-        result = run_as_test(
-            lambda t: t.run_op_test(
-                function_form(NeedsStaticShape()),
-                np.square,
-                (X,),
-                run_dynamic_shape_checks=False,
-            )
-        )
-        self.assertTrue(result.wasSuccessful())
-        self.assertEqual(
-            [r for _, r in result.skipped], ["Disabled by the test"] * 2
-        )
-
-    def test_operation_instance_runs_eager_only(self):
-        # The symbolic checks would fail on `WrongRank`, so they didn't run.
-        result = run_as_test(
-            lambda t: t.run_op_test(WrongRank(), np.square, (X,))
-        )
-        self.assertTrue(result.wasSuccessful())
-        self.assertEqual(result.skipped, [])
-
-    def test_no_array_inputs_runs_eager_only(self):
-        # `ones` has no symbolic path, so a symbolic check would fail.
-        result = run_as_test(
-            lambda t: t.run_op_test(ops.ones, np.ones, ((2, 3),))
-        )
-        self.assertTrue(result.wasSuccessful())
-        self.assertEqual(result.skipped, [])
+    def test_broadcast_probe_has_no_false_positive(self):
+        inputs = (X, X[:1])  # (2, 3) x (1, 3)
+        for shapes in [(None, None)] * 2, [(None, 3)] * 2:
+            self.run_op_symbolic_check(ops.add, inputs, {}, shapes)
 
     def test_output_count_mismatch_fails(self):
         with self.assertRaisesRegex(AssertionError, "output count differs"):
@@ -206,41 +289,31 @@ class RunOpTestTest(testing.TestCase):
         ):
             self.run_op_symbolic_check(WrongDtype(), (X,), {})
 
-    def test_python_scalar_inputs(self):
-        self.run_op_test(ops.add, np.add, (X, 1))
-        self.run_op_input_dtypes_check(
-            ops.add, np.add, jnp.add, (X, 1), {}, ("int8",)
-        )
+    def test_presets(self):
+        for preset in (
+            testing.UnaryOpTest,
+            testing.BinaryOpTest,
+            testing.ReductionOpTest,
+        ):
+            self.assertEqual(methods_of(preset), [])
 
-    def test_excluded_check_is_skipped(self):
-        def run(t):
-            excluded = {test_case._nodeid(t): [{"check": "eager"}]}
-            with mock.patch.dict(test_case.EXCLUDED_CHECKS, excluded):
-                t.run_op_test(
-                    function_form(WrongRankAndValues()), np.square, (X,)
-                )
+        class Unary(testing.UnaryOpTest):
+            op, reference_fn, jax_fn = ops.square, np.square, jnp.square
 
-        result = run_as_test(run)
-        self.assertEqual(failed_checks(result), ["symbolic_static"])
-        self.assertEqual(
-            [r for _, r in result.skipped],
-            [f"Not supported operation by {backend.backend()} backend"]
-            + ["symbolic_static failed"] * 2,
-        )
+        class Binary(testing.BinaryOpTest):
+            op, reference_fn, jax_fn = ops.add, np.add, jnp.add
 
-    def test_excluded_check_params_are_a_subset_match(self):
-        def run(t):
-            excluded = {test_case._nodeid(t): [{"check": "symbolic_partial"}]}
-            with mock.patch.dict(test_case.EXCLUDED_CHECKS, excluded):
-                t.run_op_test(ops.square, np.square, (X,))
+        class Reduction(testing.ReductionOpTest):
+            op, reference_fn, jax_fn = ops.sum, np.sum, jnp.sum
 
-        result = run_as_test(run)
-        self.assertTrue(result.wasSuccessful())
-        # Both partial variants are skipped, the dynamic one still ran.
-        self.assertEqual(
-            [t.params["check"] for t, _ in result.skipped],
-            ["symbolic_partial"] * 2,
-        )
+        self.assertIn("test_symbolic_partial", methods_of(Unary))
+        self.assertIn("test_symbolic_partial_broadcast", methods_of(Binary))
+        self.assertIn("test_python_types_int8_float", methods_of(Binary))
+        reduction = methods_of(Reduction)
+        self.assertIn("test_symbolic_partial_axis1_keepdims", reduction)
+        self.assertLen([n for n in reduction if n.startswith("test_eager")], 10)
+        failed = {k: v for k, v in outcomes(Unary).items() if "failed" in v}
+        self.assertEqual(failed, {})
 
 
 class RunOpInputDtypesCheckTest(testing.TestCase):
@@ -248,17 +321,14 @@ class RunOpInputDtypesCheckTest(testing.TestCase):
         def op(x):
             return ops.cast(ops.square(x), "int32")
 
-        result = run_as_test(
-            lambda t: t.run_op_input_dtypes_check(
+        with self.assertRaisesRegex(
+            AssertionError,
+            "Output dtype differs from JAX: keras=int32, jax=uint8 "
+            r"for inputs uint8\[2, 3\]",
+        ):
+            self.run_op_input_dtypes_check(
                 op, np.square, jnp.square, (X,), {}, ("uint8",)
             )
-        )
-        self.assertEqual(failed_checks(result), ["jax_dtype"])
-        self.assertIn(
-            "Output dtype differs from JAX: keras=int32, jax=uint8 "
-            "for inputs uint8[2, 3]",
-            result.failures[0][1],
-        )
 
     def test_skipped_dtype_has_reason(self):
         skipped = {backend.backend(): {"int8": "no int8 here"}}
@@ -274,27 +344,7 @@ class RunOpInputDtypesCheckTest(testing.TestCase):
                 ops.add, np.add, jnp.add, (X, X), {}, ("int8",)
             )
 
-
-class ParseExcludedTestTest(testing.TestCase):
-    NODEID = "keras/src/ops/x_test.py::FooTest::test_op"
-
-    @parameterized.named_parameters(
-        ("whole_test", "", None),
-        ("parameterized_name", "_('int8', 'bool')", None),
-        ("nested_parens", "_(1, (2, 3))", None),
-        ("one_check", " (check='eager')", {"check": "eager"}),
-        (
-            "two_params",
-            " (check='symbolic_partial', shapes='(None, 3) x (2, 3)')",
-            {"check": "symbolic_partial", "shapes": "(None, 3) x (2, 3)"},
-        ),
-        (
-            "nested_parens_and_check",
-            "_(1, (2, 3)) (check='eager')",
-            {"check": "eager"},
-        ),
-    )
-    def test_parse(self, suffix, params):
-        line = self.NODEID + suffix
-        nodeid = line.split(" (check=")[0] if params else line
-        self.assertEqual(test_case.parse_excluded_test(line), (nodeid, params))
+    def test_python_scalar_input(self):
+        self.run_op_input_dtypes_check(
+            ops.add, np.add, jnp.add, (X, 1), {}, ("int8",)
+        )

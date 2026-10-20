@@ -6,7 +6,6 @@ try:
 except ImportError:
     torch = None
 
-import collections  # noqa: E402
 import os  # noqa: E402
 
 import pytest  # noqa: E402
@@ -14,7 +13,6 @@ import pytest  # noqa: E402
 from keras.src.backend import SUPPORTS_GRADIENT  # noqa: E402
 from keras.src.backend.config import PLUGGABLE_BACKENDS
 from keras.src.backend.config import backend  # noqa: E402
-from keras.src.testing import test_case  # noqa: E402
 from keras.src.utils.module_utils import get_pluggable_backend_module
 
 
@@ -63,18 +61,13 @@ def pytest_collection_modifyitems(config, items):
         # An installed backend package has no exclusion list.
         if os.path.exists(exclusions_path):
             with open(exclusions_path, "r") as file:
-                lines = [line.strip() for line in file]
-            # Whole tests are skipped below; single checks (`subTest`s) by
-            # the op test harness, see `test_case.EXCLUDED_CHECKS`.
-            for line in lines:
-                if not line or line.startswith("#"):
-                    continue  # Empty lines and comments.
-                nodeid, params = test_case.parse_excluded_test(line)
-                if params is None:
-                    backend_skipped_tests.add(nodeid)
-                else:
-                    checks = test_case.EXCLUDED_CHECKS.setdefault(nodeid, [])
-                    checks.append(params)
+                # Exclude empty lines and comments.
+                backend_skipped_tests = {
+                    stripped
+                    for line in file.readlines()
+                    if (stripped := line.strip())
+                    and not stripped.startswith("#")
+                }
 
     if backend() == "jax":
         import jax
@@ -123,36 +116,3 @@ def pytest_collection_modifyitems(config, items):
 
 def skip_if_backend(given_backend, reason):
     return pytest.mark.skipif(backend() == given_backend, reason=reason)
-
-
-# Checks (`subTest`s) seen per test: (nodeid, "total" | "failed") -> count.
-_checks = collections.Counter()
-
-
-@pytest.hookimpl(tryfirst=True)
-def pytest_report_teststatus(report):
-    """One console line per test, with its `subTest` check count.
-
-    Passed and skipped checks are counted but print nothing (pytest would
-    otherwise start a second line for the test); a failed check is left to
-    pytest, which prints its `SUBFAILED(check=...)` summary entry. The
-    test's own status then reads `PASSED (12 checks)` or, if a check failed,
-    `FAILED (1/4 checks)` instead of `PASSED`. Tests without checks, and
-    pytest < 9 (no `SubtestReport`), are unaffected.
-    """
-    if report.when != "call":
-        return None
-    if isinstance(report, getattr(pytest, "SubtestReport", ())):
-        _checks[report.nodeid, "total"] += 1
-        if report.failed:
-            _checks[report.nodeid, "failed"] += 1
-            return None
-        return ("subtests passed" if report.passed else "skipped"), "", ""
-    total = _checks.pop((report.nodeid, "total"), 0)
-    failed = _checks.pop((report.nodeid, "failed"), 0)
-    if failed:
-        word = f"FAILED ({failed}/{total} checks)"
-        return report.outcome, "F", (word, {"red": True})
-    if total and report.passed:
-        return "passed", ".", (f"PASSED ({total} checks)", {"green": True})
-    return None

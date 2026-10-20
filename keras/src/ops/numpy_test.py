@@ -17,7 +17,8 @@ from keras.src.backend.common import is_int_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import numpy as knp
-from keras.src.testing.test_utils import named_dtype_combinations
+from keras.src.testing.test_case import X
+from keras.src.testing.test_case import Y
 from keras.src.testing.test_utils import named_product
 
 BACKEND_AGNOSTIC_OPS = [
@@ -1455,14 +1456,6 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.var(x, axis=1).shape, (None, 3))
         self.assertEqual(knp.var(x, axis=1, keepdims=True).shape, (None, 1, 3))
 
-    def test_sum(self):
-        x = KerasTensor((None, 3))
-        self.assertEqual(knp.sum(x).shape, ())
-
-        x = KerasTensor((None, 3, 3))
-        self.assertEqual(knp.sum(x, axis=1).shape, (None, 3))
-        self.assertEqual(knp.sum(x, axis=1, keepdims=True).shape, (None, 1, 3))
-
     def test_amax(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.amax(x).shape, ())
@@ -2586,10 +2579,6 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_var(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.var(x).shape, ())
-
-    def test_sum(self):
-        x = KerasTensor((2, 3))
-        self.assertEqual(knp.sum(x).shape, ())
 
     def test_amax(self):
         x = KerasTensor((2, 3))
@@ -5421,28 +5410,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.Var(axis=1, keepdims=True)(x),
             np.var(x, axis=1, keepdims=True),
-        )
-
-    def test_sum(self):
-        x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(knp.sum(x), np.sum(x))
-        self.assertAllClose(knp.sum(x, axis=()), np.sum(x, axis=()))
-        self.assertAllClose(knp.sum(x, axis=1), np.sum(x, axis=1))
-        self.assertAllClose(knp.sum(x, axis=(1,)), np.sum(x, axis=(1,)))
-        self.assertAllClose(
-            knp.sum(x, axis=1, keepdims=True),
-            np.sum(x, axis=1, keepdims=True),
-        )
-        self.assertAllClose(
-            knp.sum(x, axis=None, keepdims=True),
-            np.sum(x, axis=None, keepdims=True),
-        )
-
-        self.assertAllClose(knp.Sum()(x), np.sum(x))
-        self.assertAllClose(knp.Sum(axis=1)(x), np.sum(x, axis=1))
-        self.assertAllClose(
-            knp.Sum(axis=1, keepdims=True)(x),
-            np.sum(x, axis=1, keepdims=True),
         )
 
     def test_amax(self):
@@ -12820,24 +12787,6 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertAllClose(actual, expected)
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_sum(self, dtype):
-        import jax.numpy as jnp
-
-        x = knp.ones((1,), dtype=dtype)
-        x_jax = jnp.ones((1,), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.sum(x_jax).dtype)
-
-        # TODO: torch doesn't support uint32
-        if backend.backend() == "torch" and expected_dtype == "uint32":
-            expected_dtype = "int32"
-
-        self.assertEqual(standardize_dtype(knp.sum(x).dtype), expected_dtype)
-        self.assertEqual(
-            standardize_dtype(knp.Sum().symbolic_call(x).dtype),
-            expected_dtype,
-        )
-
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_swapaxes(self, dtype):
         import jax.numpy as jnp
 
@@ -13530,63 +13479,30 @@ class RepeatTest(testing.TestCase):
         self.assertAllClose(model.predict(x), expected)
 
 
-# Inputs for the per-op tests below: small non-negative integers, so they fit
-# every dtype. `Z` broadcasts against `X`.
-X = np.array([[1, 2, 3], [3, 2, 1]])
-Y = np.array([[4, 5, 6], [3, 2, 1]])
-Z = np.array([[[1, 2, 3], [3, 2, 1]]])
+class SquareTest(testing.UnaryOpTest):
+    op, op_class = knp.square, knp.Square
+    reference_fn, jax_fn = np.square, jnp.square
 
 
-class SquareTest(testing.TestCase):
-    def test_op(self):
-        self.run_op_test(knp.square, np.square, (X,))
-        self.run_op_test(knp.Square(), np.square, (X,))
-
-    @parameterized.named_parameters(named_dtype_combinations(1))
-    def test_input_dtypes(self, dtypes):
-        self.run_op_input_dtypes_check(
-            knp.square, np.square, jnp.square, (X,), {}, dtypes
-        )
+class CbrtTest(testing.UnaryOpTest):
+    op, op_class = knp.cbrt, knp.Cbrt
+    reference_fn, jax_fn = np.cbrt, jnp.cbrt
+    inputs = (np.array([[-8, -1, 0], [1, 8, 27]], dtype="float32"),)
+    dtype_inputs = (X,)
 
 
-class CbrtTest(testing.TestCase):
-    def test_op(self):
-        x = np.array([[-8, -1, 0], [1, 8, 27]], dtype="float32")
-        self.run_op_test(knp.cbrt, np.cbrt, (x,))
-        self.run_op_test(knp.Cbrt(), np.cbrt, (x,))
+class AddTest(testing.BinaryOpTest):
+    op, op_class = knp.add, knp.Add
+    reference_fn, jax_fn = np.add, jnp.add
 
-    @parameterized.named_parameters(named_dtype_combinations(1))
-    def test_input_dtypes(self, dtypes):
-        self.run_op_input_dtypes_check(
-            knp.cbrt, np.cbrt, jnp.cbrt, (X,), {}, dtypes
-        )
-
-
-class AddTest(testing.TestCase):
-    @parameterized.named_parameters(("same_shape", Y), ("broadcast", Z))
-    def test_op(self, y):
-        self.run_op_test(knp.add, np.add, (X, y))
-        self.run_op_test(knp.Add(), np.add, (X, y))
+    def test_input_dtypes_bool_bool(self):
+        if backend.backend() == "tensorflow":
+            self.skipTest("TODO: `tf.add` has no bool kernel.")
+        self.check_input_dtypes(("bool", "bool"))
 
     def test_incompatible_shapes(self):
         with self.assertRaises(ValueError):
             knp.add(KerasTensor((2, 3)), KerasTensor((2, 3, 4)))
-
-    @parameterized.named_parameters(named_dtype_combinations(2))
-    def test_input_dtypes(self, dtypes):
-        if dtypes == ("bool", "bool") and backend.backend() == "tensorflow":
-            self.skipTest("TODO: `tf.add` has no bool kernel.")
-        self.run_op_input_dtypes_check(
-            knp.add, np.add, jnp.add, (X, Y), {}, dtypes
-        )
-
-    @parameterized.named_parameters(
-        named_product(named_dtype_combinations(1), scalar_type=[int, float])
-    )
-    def test_python_types(self, dtypes, scalar_type):
-        self.run_op_input_dtypes_check(
-            knp.add, np.add, jnp.add, (X, scalar_type(1)), {}, dtypes
-        )
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_RAGGED_TENSORS,
@@ -13636,53 +13552,38 @@ class AddTest(testing.TestCase):
         )
 
 
-class PowerTest(testing.TestCase):
-    @parameterized.named_parameters(("same_shape", Y), ("broadcast", Z))
-    def test_op(self, y):
-        self.run_op_test(knp.power, np.power, (X, y))
-        self.run_op_test(knp.Power(), np.power, (X, y))
+class PowerTest(testing.BinaryOpTest):
+    op, op_class = knp.power, knp.Power
+    reference_fn, jax_fn = np.power, jnp.power
+    ordered = True  # Base and exponent play different roles.
+
+    def test_input_dtypes_bool_bool(self):
+        self.skipTest(
+            "TODO: eager output is int8 (numpy) or int32 (jax) while the "
+            "symbolic output is bool; tensorflow and torch have no bool "
+            "kernel."
+        )
 
     def test_incompatible_shapes(self):
         with self.assertRaises(ValueError):
             knp.power(KerasTensor((2, 3)), KerasTensor((2, 3, 4)))
 
-    # Base and exponent play different roles, so both orders are tested.
-    @parameterized.named_parameters(named_dtype_combinations(2, ordered=True))
-    def test_input_dtypes(self, dtypes):
-        if dtypes == ("bool", "bool"):
-            self.skipTest(
-                "TODO: eager output is int8 (numpy) or int32 (jax) while the "
-                "symbolic output is bool; tensorflow and torch have no bool "
-                "kernel."
-            )
-        self.run_op_input_dtypes_check(
-            knp.power, np.power, jnp.power, (X, Y), {}, dtypes
-        )
 
-    @parameterized.named_parameters(
-        named_product(named_dtype_combinations(1), scalar_type=[int, float])
-    )
-    def test_python_types(self, dtypes, scalar_type):
-        self.run_op_input_dtypes_check(
-            knp.power, np.power, jnp.power, (X, scalar_type(1)), {}, dtypes
-        )
-
-
-class NextafterTest(testing.TestCase):
-    # `atol` and `rtol` are zero: a step is far below any tolerance. Stepping
-    # away from an infinity must land on the largest finite value of the
-    # dtype; a NaN in either argument propagates, also from an infinity; a
-    # step between ordinary values moves by exactly one ulp; steps near zero
-    # ("tiny") are below one ulp of 1.0, so they are lost if the computation
-    # happens in a wider dtype and is cast back.
-    @parameterized.named_parameters(
-        named_product(
-            case=["basic", "broadcast", "from_inf", "nan", "one_ulp", "tiny"],
-            dtype=["float32", "float16"],
-        )
-    )
-    def test_op(self, case, dtype):
-        x, y = {
+class NextafterTest(testing.BinaryOpTest):
+    op, op_class = knp.nextafter, knp.Nextafter
+    reference_fn, jax_fn = np.nextafter, jnp.nextafter
+    ordered = True  # Value and direction play different roles.
+    # A step is far below any tolerance. Stepping away from an infinity must
+    # land on the largest finite value of the dtype; a NaN in either argument
+    # propagates, also from an infinity; a step between ordinary values moves
+    # by exactly one ulp; steps near zero ("tiny") are below one ulp of 1.0,
+    # so they are lost if the computation happens in a wider dtype and is
+    # cast back.
+    atol = rtol = 0
+    cases = {
+        f"{name}_{dtype}": ((np.array(x, dtype), np.array(y, dtype)), {})
+        for dtype in ("float32", "float16")
+        for name, (x, y) in {
             "basic": (X, Y),
             "broadcast": (X, [[4, 5, 6]]),
             "from_inf": ([np.inf, -np.inf], [-np.inf, np.inf]),
@@ -13692,61 +13593,43 @@ class NextafterTest(testing.TestCase):
             ),
             "one_ulp": ([1.0, -1.0], [2.0, -2.0]),
             "tiny": ([0.0, np.finfo(dtype).tiny], [1.0, 0.0]),
-        }[case]
-        x, y = np.array(x, dtype=dtype), np.array(y, dtype=dtype)
-        self.run_op_test(knp.nextafter, np.nextafter, (x, y), atol=0, rtol=0)
-        self.run_op_test(knp.Nextafter(), np.nextafter, (x, y), atol=0, rtol=0)
+        }.items()
+    }
 
-    # `x1` and `x2` play different roles (value and direction), so both
-    # orders are tested.
-    @parameterized.named_parameters(named_dtype_combinations(2, ordered=True))
-    def test_input_dtypes(self, dtypes):
-        self.run_op_input_dtypes_check(
-            knp.nextafter, np.nextafter, jnp.nextafter, (X, Y), {}, dtypes
+
+class SumTest(testing.ReductionOpTest):
+    op, op_class = knp.sum, knp.Sum
+    reference_fn, jax_fn = np.sum, jnp.sum
+    cases = {**testing.ReductionOpTest.cases, "no_axis": ((X,), {"axis": ()})}
+
+    def test_input_dtypes_uint8(self):
+        if backend.backend() == "torch":
+            # `Sum.compute_output_spec` returns int32 on torch, which has no
+            # uint32; JAX returns uint32.
+            self.skipTest("torch has no uint32")
+        self.check_input_dtypes(("uint8",))
+
+
+class SqueezeTest(testing.OpTest):
+    op, op_class = knp.squeeze, knp.Squeeze
+    reference_fn, jax_fn = np.squeeze, jnp.squeeze
+    # With unknown dimensions, the op can't tell which axes have size 1.
+    run_dynamic_shape_checks = False
+    cases = {
+        name: ((np.ones(shape),), kwargs)
+        for name, shape, kwargs in (
+            ("no_op", [2, 3], {}),
+            ("all", [1, 3, 1, 5], {}),
+            ("axis", [1, 3, 1, 5], {"axis": 0}),
+            ("middle", [2, 1, 3], {}),
+            ("middle_axis", [2, 1, 3], {"axis": 1}),
+            ("negative_axis", [2, 1, 3], {"axis": -2}),
+            ("axes", [2, 1, 1, 1], {"axis": (1, 2)}),
+            ("negative_axes", [2, 1, 1, 1], {"axis": (-1, -2)}),
+            ("all_axes", [2, 1, 1, 1], {"axis": (1, 2, 3)}),
+            ("mixed_axes", [2, 1, 1, 1], {"axis": (-1, 1)}),
         )
-
-    @parameterized.named_parameters(
-        named_product(named_dtype_combinations(1), scalar_type=[int, float])
-    )
-    def test_python_types(self, dtypes, scalar_type):
-        self.run_op_input_dtypes_check(
-            knp.nextafter,
-            np.nextafter,
-            jnp.nextafter,
-            (X, scalar_type(1)),
-            {},
-            dtypes,
-        )
-
-
-class SqueezeTest(testing.TestCase):
-    CASES = (
-        ("no_op", [2, 3], {}),
-        ("all", [1, 3, 1, 5], {}),
-        ("axis", [1, 3, 1, 5], {"axis": 0}),
-        ("middle", [2, 1, 3], {}),
-        ("middle_axis", [2, 1, 3], {"axis": 1}),
-        ("negative_axis", [2, 1, 3], {"axis": -2}),
-        ("axes", [2, 1, 1, 1], {"axis": (1, 2)}),
-        ("negative_axes", [2, 1, 1, 1], {"axis": (-1, -2)}),
-        ("all_axes", [2, 1, 1, 1], {"axis": (1, 2, 3)}),
-        ("mixed_axes", [2, 1, 1, 1], {"axis": (-1, 1)}),
-    )
-
-    @parameterized.named_parameters(*CASES)
-    def test_op(self, shape, kwargs):
-        x = np.ones(shape)
-        # With unknown dimensions, the op can't tell which axes have size 1.
-        self.run_op_test(
-            knp.squeeze,
-            np.squeeze,
-            (x,),
-            kwargs,
-            run_dynamic_shape_checks=False,
-        )
-        self.run_op_test(
-            knp.Squeeze(**kwargs), functools.partial(np.squeeze, **kwargs), (x,)
-        )
+    }
 
     def test_dynamic_shape_inference(self):
         x = KerasTensor((None, 1))
@@ -13763,9 +13646,3 @@ class SqueezeTest(testing.TestCase):
             knp.squeeze(KerasTensor((None, 1)), axis=0)
         with self.assertRaises(ValueError):
             knp.squeeze(KerasTensor((2, 1, 3)), axis=0)
-
-    @parameterized.named_parameters(named_dtype_combinations(1))
-    def test_input_dtypes(self, dtypes):
-        self.run_op_input_dtypes_check(
-            knp.squeeze, np.squeeze, jnp.squeeze, (np.ones((1, 1)),), {}, dtypes
-        )
