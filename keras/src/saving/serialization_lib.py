@@ -56,10 +56,15 @@ NON_MODELING_APIS = frozenset(
         "keras.utils.get_file",
         "keras.utils.image_dataset_from_directory",
         "keras.utils.load_img",
+        "keras.utils.model_to_dot",
+        "keras.utils.plot_model",
         "keras.utils.register_keras_serializable",
         "keras.utils.save_img",
         "keras.utils.serialize_keras_object",
         "keras.utils.text_dataset_from_directory",
+        "keras.visualization.plot_bounding_box_gallery",
+        "keras.visualization.plot_image_gallery",
+        "keras.visualization.plot_segmentation_mask_gallery",
     }
 )
 
