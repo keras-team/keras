@@ -1550,6 +1550,22 @@ def _can_use_flash_attention(
     return can_use_flash_attention(spda_params, False)
 
 
+def _causal_mask(query_length, kv_length, like):
+    """Lower-triangular boolean mask placed like the tensor `like`."""
+    causal_mask = torch.tril(
+        torch.ones(
+            (query_length, kv_length), dtype=torch.bool, device=like.device
+        )
+    )
+    if isinstance(like, DTensor):
+        causal_mask = DTensor.from_local(
+            causal_mask,
+            like.device_mesh,
+            [Replicate()] * like.device_mesh.ndim,
+        )
+    return causal_mask
+
+
 def dot_product_attention(
     query,
     key,
@@ -1586,24 +1602,22 @@ def dot_product_attention(
             # `is_causal` as mutually exclusive, so a caller-provided mask
             # would otherwise silently drop the causal constraint. Fold the
             # causal mask into the explicit mask to honor both.
-            q_len, kv_len = query.shape[1], key.shape[1]
-            causal_mask = torch.tril(
-                torch.ones(
-                    (q_len, kv_len), dtype=torch.bool, device=mask.device
-                )
+            mask = torch.logical_and(
+                mask, _causal_mask(query.shape[1], key.shape[1], mask)
             )
-            if isinstance(mask, DTensor):
-                causal_mask = DTensor.from_local(
-                    causal_mask,
-                    mask.device_mesh,
-                    [Replicate()] * mask.device_mesh.ndim,
-                )
-            mask = torch.logical_and(mask, causal_mask)
         # Explicitly set `is_causal` to `False` when `mask` is not `None`.
         is_causal = False
         mask = torch.where(mask, 0.0, _get_large_negative(query.dtype))
     if bias is not None:
         bias = convert_to_tensor(bias, dtype=compute_dtype)
+        if is_causal:
+            # The same exclusivity applies to a float `attn_mask` (the bias).
+            bias = torch.where(
+                _causal_mask(query.shape[1], key.shape[1], bias),
+                bias,
+                _get_large_negative(bias.dtype).to(bias.device),
+            )
+            is_causal = False
         mask = bias  # Use `bias` as `mask` for scaled_dot_product_attention.
 
     axis0, axis1 = 1, 2
