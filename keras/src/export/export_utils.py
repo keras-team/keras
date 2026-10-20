@@ -4,6 +4,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import tree
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common import standardize_shape
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -88,11 +89,11 @@ def make_input_spec(x):
             )
         input_spec = x
     elif isinstance(x, backend.KerasTensor):
-        shape = (None,) + backend.standardize_shape(x.shape)[1:]
+        shape = (None,) + standardize_shape(x.shape)[1:]
         dtype = standardize_dtype(x.dtype)
         input_spec = layers.InputSpec(dtype=dtype, shape=shape, name=x.name)
     elif backend.ops.is_tensor(x):
-        shape = (None,) + backend.standardize_shape(x.shape)[1:]
+        shape = (None,) + standardize_shape(x.shape)[1:]
         dtype = standardize_dtype(x.dtype)
         input_spec = layers.InputSpec(dtype=dtype, shape=shape, name=None)
     else:
@@ -136,7 +137,7 @@ def make_tf_tensor_spec(x, dynamic_batch=False):
 
 
 def convert_spec_to_tensor(spec, replace_none_number=None):
-    shape = backend.standardize_shape(spec.shape)
+    shape = standardize_shape(spec.shape)
     if replace_none_number is not None:
         replace_none_number = int(replace_none_number)
         shape = tuple(
