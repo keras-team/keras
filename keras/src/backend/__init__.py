@@ -18,8 +18,6 @@ from keras.src.backend.common.stateless_scope import get_stateless_scope
 from keras.src.backend.common.stateless_scope import in_stateless_scope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.common.symbolic_scope import in_symbolic_scope
-from keras.src.backend.common.variables import AutocastScope
-from keras.src.backend.common.variables import get_autocast_scope
 from keras.src.backend.common.variables import is_float_dtype
 from keras.src.backend.common.variables import is_int_dtype
 from keras.src.backend.config import PLUGGABLE_BACKENDS

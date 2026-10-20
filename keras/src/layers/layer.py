@@ -32,6 +32,8 @@ from keras.src import tree
 from keras.src import utils
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
+from keras.src.backend.common import AutocastScope
+from keras.src.backend.common import get_autocast_scope
 from keras.src.backend.common import global_state
 from keras.src.backend.common import remat
 from keras.src.backend.common import standardize_dtype
@@ -1019,21 +1021,21 @@ class Layer(BackendLayer, Operation):
         # 7. Call the layer.
         try:
             with self._open_name_scope():
-                current_scope = backend.get_autocast_scope()
+                current_scope = get_autocast_scope()
                 new_scope = None
                 if current_scope is not None:
                     # Clear or update the current scope if necessary.
                     if not self.autocast:
-                        new_scope = backend.AutocastScope(None)
+                        new_scope = AutocastScope(None)
                     elif not backend.is_float_dtype(self.compute_dtype):
                         # Some preprocessing layers might have a non-float
                         # dtype, we should not autocast in this case.
-                        new_scope = backend.AutocastScope(None)
+                        new_scope = AutocastScope(None)
                     elif current_scope.dtype != self.compute_dtype:
-                        new_scope = backend.AutocastScope(self.compute_dtype)
+                        new_scope = AutocastScope(self.compute_dtype)
                 elif self.compute_dtype != self.variable_dtype:
                     # Enter a new scope if our dtypes are "mixed".
-                    new_scope = backend.AutocastScope(self.compute_dtype)
+                    new_scope = AutocastScope(self.compute_dtype)
                 if new_scope is not None:
                     with new_scope:
                         outputs = super().__call__(*args, **kwargs)
