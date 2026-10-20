@@ -1528,10 +1528,12 @@ def _can_use_flash_attention(
     return can_use_flash_attention(spda_params, False)
 
 
-def _causal_mask(q_len, kv_len, like):
+def _causal_mask(query_length, kv_length, like):
     """Lower-triangular boolean mask placed like the tensor `like`."""
     causal_mask = torch.tril(
-        torch.ones((q_len, kv_len), dtype=torch.bool, device=like.device)
+        torch.ones(
+            (query_length, kv_length), dtype=torch.bool, device=like.device
+        )
     )
     if isinstance(like, DTensor):
         causal_mask = DTensor.from_local(
@@ -1591,7 +1593,7 @@ def dot_product_attention(
             bias = torch.where(
                 _causal_mask(query.shape[1], key.shape[1], bias),
                 bias,
-                _get_large_negative(bias.dtype),
+                _get_large_negative(bias.dtype).to(bias.device),
             )
             is_causal = False
         mask = bias  # Use `bias` as `mask` for scaled_dot_product_attention.
