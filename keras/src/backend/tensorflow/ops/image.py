@@ -701,7 +701,7 @@ def map_coordinates(
             )
         elif fill_mode == "mirror":
             # Period is `2 * (size - 1)`; a size-1 axis maps to index 0.
-            if size == 1:
+            if isinstance(size, int) and size == 1:
                 coords = tf.zeros_like(coords)
             else:
                 coords = _mirror_index_fixer(coords, size)
