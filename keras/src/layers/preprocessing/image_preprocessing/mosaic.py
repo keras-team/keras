@@ -107,6 +107,7 @@ class Mosaic(BaseImagePreprocessingLayer):
         self.offset = self._parse_offset(offset)
         self.seed = seed
         self.generator = SeedGenerator(seed)
+        self.interpolation = "nearest"
 
         if self.data_format == "channels_first":
             self.height_axis = -2
@@ -271,7 +272,7 @@ class Mosaic(BaseImagePreprocessingLayer):
 
         return labels
 
-    def _mosaic(self, images, transformation):
+    def _transform_images(self, images, transformation, interpolation):
         image_shape = self.backend.ops.shape(images)
         input_height = image_shape[self.height_axis]
         input_width = image_shape[self.width_axis]
@@ -332,25 +333,6 @@ class Mosaic(BaseImagePreprocessingLayer):
         )
 
         return outputs
-
-    def transform_images(self, images, transformation=None, training=True):
-        images = self.backend.ops.cast(images, dtype=self.compute_dtype)
-
-        if not training or transformation is None:
-            return images
-
-        return self._mosaic(images, transformation)
-
-    def transform_segmentation_masks(
-        self, segmentation_masks, transformation, training=True
-    ):
-        segmentation_masks = self.backend.ops.convert_to_tensor(
-            segmentation_masks
-        )
-        if not training or transformation is None:
-            return segmentation_masks
-
-        return self._mosaic(segmentation_masks, transformation)
 
     def transform_bounding_boxes(
         self, bounding_boxes, transformation, training=True
