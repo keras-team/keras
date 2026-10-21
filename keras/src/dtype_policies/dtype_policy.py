@@ -646,22 +646,14 @@ def _quantized_mode_of(policy):
     return mode if _strategy_registry().is_registered(mode) else None
 
 
-def _quantized_policy_hint(name):
-    """Returns an error hint for a name that resembles a quantized policy.
-
-    The hint applies when `name` contains `_from_`, or when the token before
-    the first "/" is a mode name (`"gptq"`, `"gptq/4/128"`). Otherwise it is
-    empty.
-    """
-    registry = _strategy_registry()
-    mode = name.split("_from_")[0].split("/")[0]
-    if "_from_" not in name and not registry.is_registered(mode):
+def _quantized_policy_hint(policy):
+    """Returns an error hint when `policy` is a quantized policy name."""
+    if not _is_quantized_policy_string(policy):
         return ""
     return (
-        " A quantized dtype policy name has the form "
-        "`<mode>[/<params>]_from_<source>`, where `<mode>` is one of "
-        f"{registry.registered_modes()}. To quantize a layer or a model, "
-        "call its `quantize()` method."
+        " You passed a quantized dtype policy name, which is not allowed to "
+        "create a `DTypePolicy`. To quantize a layer or a model, call its "
+        "`quantize()` method instead."
     )
 
 
