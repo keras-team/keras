@@ -10074,7 +10074,7 @@ class Argpartition(Operation):
         self.axis = axis
 
     def call(self, x):
-        return backend.ops.numpy.argpartition(x, kth=self.kth, axis=self.axis)
+        return _argpartition(x, kth=self.kth, axis=self.axis)
 
     def compute_output_spec(self, x):
         shape = x.shape
@@ -10115,7 +10115,24 @@ def argpartition(x, kth, axis=-1):
     """
     if any_symbolic_tensors((x,)):
         return Argpartition(kth, axis).symbolic_call(x)
-    return backend.ops.numpy.argpartition(x, kth, axis)
+    return _argpartition(x, kth, axis)
+
+
+def _argpartition(x, kth, axis=-1):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "argpartition"
+    ):
+        return backend.ops.numpy.argpartition(x, kth, axis)
+    x = backend.ops.convert_to_tensor(x)
+    if axis is None:
+        x = backend.ops.numpy.reshape(x, (-1,))
+        axis = -1
+    size = x.shape[axis]
+    if size is not None and not -size <= kth < size:
+        raise ValueError(f"kth(={kth}) out of bounds for axis of size {size}.")
+    # A full sort is a valid partition for every kth.
+    indices = backend.ops.numpy.argsort(x, axis=axis)
+    return backend.ops.cast(indices, "int32")
 
 
 class Histogram(Operation):
