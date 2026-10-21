@@ -3956,17 +3956,26 @@ def argpartition(x, kth, axis=-1):
 
     x = swapaxes(x, axis, -1)
 
+    static_n = x.shape[-1]
     n = tf.shape(x)[-1]
-    kth = tf.clip_by_value(tf.cast(kth, tf.int32), 0, n - 1)
+    if static_n is not None and isinstance(kth, int):
+        if not -static_n <= kth < static_n:
+            raise ValueError(
+                f"kth must be in the range [-{static_n}, {static_n}) for an "
+                f"axis of size {static_n}. Received: kth={kth}"
+            )
+        if kth < 0:
+            kth += static_n
+    else:
+        kth = tf.cast(kth, tf.int32)
+        kth = tf.where(tf.less(kth, 0), kth + n, kth)
 
     bottom_ind = tf.math.top_k(-x, kth + 1).indices
 
-    mask = tf.reduce_sum(tf.one_hot(bottom_ind, n, dtype=tf.int32), axis=0)
-    indices = tf.where(mask)
-    updates = tf.zeros(tf.shape(indices)[0], dtype=tf.int32)
-    final_mask = tf.tensor_scatter_nd_update(x, indices, updates)
+    mask = tf.reduce_sum(tf.one_hot(bottom_ind, n, dtype=tf.int32), axis=-2)
+    proxy = tf.ones_like(mask) - mask
 
-    top_ind = tf.math.top_k(final_mask, n - kth - 1).indices
+    top_ind = tf.math.top_k(proxy, n - kth - 1).indices
 
     out = tf.concat([bottom_ind, top_ind], axis=-1)
 

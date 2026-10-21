@@ -2603,7 +2603,7 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
 
     def test_argpartition(self):
         x = KerasTensor((None, 3))
-        self.assertEqual(knp.argpartition(x, 3).shape, (None, 3))
+        self.assertEqual(knp.argpartition(x, 2).shape, (None, 3))
         self.assertEqual(knp.argpartition(x, 1, axis=1).shape, (None, 3))
 
         with self.assertRaises(ValueError):
@@ -3480,7 +3480,7 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
 
     def test_argpartition(self):
         x = KerasTensor((2, 3))
-        self.assertEqual(knp.argpartition(x, 3).shape, (2, 3))
+        self.assertEqual(knp.argpartition(x, 2).shape, (2, 3))
         self.assertEqual(knp.argpartition(x, 1, axis=1).shape, (2, 3))
 
         with self.assertRaises(ValueError):
@@ -8492,7 +8492,28 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertTrue(np.all(flat_x[result[:2]] <= kth_value))
         self.assertTrue(np.all(flat_x[result[3:]] >= kth_value))
 
+        for kth in (-1, -2, -3, -4):
+            out = backend.ops.convert_to_numpy(knp.argpartition(x, kth))
+            k = kth % len(x)
+            self.assertEqual(x[out[k]], np.sort(x)[k])
+            self.assertTrue(np.all(x[out[:k]] <= x[out[k]]))
+            self.assertTrue(np.all(x[out[k + 1 :]] >= x[out[k]]))
+
         x = np.array([[3, 4, 2], [1, 3, 4]])
+        out = backend.ops.convert_to_numpy(knp.argpartition(x, -1, axis=1))
+        self.assertAllClose(
+            np.take_along_axis(x, out, axis=1)[:, -1], np.max(x, axis=1)
+        )
+
+        result = backend.ops.convert_to_numpy(
+            knp.argpartition(x, -2, axis=None)
+        )
+        flat_x = x.flatten()
+        kth_value = np.sort(flat_x)[-2]
+        self.assertEqual(flat_x[result[-2]], kth_value)
+        self.assertTrue(np.all(flat_x[result[:-2]] <= kth_value))
+        self.assertTrue(np.all(flat_x[result[-1:]] >= kth_value))
+
         self.assertAllClose(knp.argpartition(x, 1), np.argpartition(x, 1))
         self.assertAllClose(knp.Argpartition(1)(x), np.argpartition(x, 1))
 
@@ -8511,6 +8532,13 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         kth_value = np.sort(flat_x)[1]
         self.assertTrue(np.all(flat_x[result[:1]] <= kth_value))
         self.assertTrue(np.all(flat_x[result[2:]] >= kth_value))
+
+    def test_argpartition_kth_out_of_range(self):
+        x = np.array([3, 4, 2, 1])
+        with self.assertRaises(ValueError):
+            knp.argpartition(x, 4)
+        with self.assertRaises(ValueError):
+            knp.argpartition(x, -5)
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_angle(self, backend_agnostic_ops):

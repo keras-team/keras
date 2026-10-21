@@ -2437,6 +2437,15 @@ def argpartition(x, kth, axis=-1):
 
     x = torch.transpose(x, axis, -1)
 
+    n = x.shape[-1]
+    if not -n <= kth < n:
+        raise ValueError(
+            f"kth must be in the range [-{n}, {n}) for an axis of size {n}. "
+            f"Received: kth={kth}"
+        )
+    if kth < 0:
+        kth += n
+
     bottom_ind = torch.topk(-x, kth + 1)[1]
 
     def set_to_zero(a, i):
