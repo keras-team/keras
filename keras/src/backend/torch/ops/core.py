@@ -937,7 +937,10 @@ def stop_gradient(variable):
 
 
 def unstack(x, num=None, axis=0):
-    x = convert_to_tensor(x)
+    if isinstance(x, Variable):
+        x = x.value
+    elif not is_tensor(x):
+        x = convert_to_tensor(x)
     return x.unbind(axis)
 
 
