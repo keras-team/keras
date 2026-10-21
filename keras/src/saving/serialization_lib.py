@@ -1,7 +1,11 @@
 """Object config serialization and deserialization logic."""
 
 import importlib
+import importlib.machinery
+import importlib.util
 import inspect
+import os
+import sys
 import types
 import warnings
 
@@ -798,6 +802,86 @@ def _assert_no_registered_name_for_builtin(full_config, name, resolved_name):
     )
 
 
+def _script_directory():
+    """Returns the `sys.path` entry that Python derives from the invocation.
+
+    `sys.path[0]` is the directory of the script being run, or the current
+    working directory for `python -c`, an interactive session or a notebook.
+    Unlike the rest of `sys.path` it is not part of the installed environment:
+    when a model is loaded from the directory it was downloaded into, that
+    entry is a directory supplied by whoever distributed the model. Returns
+    `None` when there is no such entry, as under `python -P`,
+    `PYTHONSAFEPATH=1` or `python -I`.
+    """
+    if not sys.path:
+        return None
+    entry = sys.path[0]
+    try:
+        if entry in ("", os.curdir):
+            entry = os.getcwd()
+        return os.path.realpath(entry)
+    except OSError:
+        return None
+
+
+def _spec_locations(spec):
+    """Returns the paths a module spec would load code from."""
+    if spec is None:
+        return []
+    paths = []
+    if spec.origin and spec.origin not in ("built-in", "frozen"):
+        paths.append(spec.origin)
+    # A directory without an `__init__.py` is importable as a namespace
+    # package. Importing it runs no code, but importing a submodule of it
+    # does, so the search locations count as well.
+    paths.extend(spec.submodule_search_locations or ())
+    locations = []
+    for path in paths:
+        try:
+            locations.append(os.path.realpath(path))
+        except OSError:
+            continue
+    return locations
+
+
+def _is_within(path, directory):
+    try:
+        return os.path.commonpath([path, directory]) == directory
+    except (OSError, ValueError):
+        # An unusable path, or paths on different Windows drives.
+        return False
+
+
+def _shadowing_import_location(package):
+    """Returns the location the script directory would import `package` from.
+
+    Returns `None` unless the script directory is what supplies `package`,
+    i.e. unless importing it would run code from there instead of from the
+    installed environment. Finding the spec of a top-level name does not
+    execute the package, so this can be consulted before importing it.
+    """
+    directory = _script_directory()
+    if directory is None:
+        return None
+    try:
+        # Does the script directory hold a candidate for `package` at all?
+        # This is asked first because the directory can also be a parent of
+        # the installed environment, e.g. when it is the filesystem root.
+        finder = importlib.machinery.PathFinder
+        if finder.find_spec(package, [directory]) is None:
+            return None
+        # A candidate is only shadowing if it is also what the import would
+        # resolve to: a regular package elsewhere on `sys.path` still wins
+        # over a namespace package portion in the script directory.
+        locations = _spec_locations(importlib.util.find_spec(package))
+    except (ImportError, ValueError):
+        return None
+    for location in locations:
+        if _is_within(location, directory):
+            return location
+    return None
+
+
 def _retrieve_class_or_fn(
     name, registered_name, module, obj_type, full_config, custom_objects=None
 ):
@@ -865,6 +949,28 @@ def _retrieve_class_or_fn(
         # and `class_name`. Import the module, find the class.
         package = module.split(".", maxsplit=1)[0]
         if package in {"keras", "keras_hub", "keras_cv", "keras_nlp"}:
+            # Importing `module` executes it, as well as the `__init__.py` of
+            # each of its parent packages. `keras` is necessarily imported
+            # already, so its submodules resolve against its own `__path__`,
+            # but `keras_hub`, `keras_cv` and `keras_nlp` are separate
+            # distributions that are usually not imported at this point, so
+            # Python resolves them through `sys.path`. That starts with the
+            # directory of the running script, which is typically the directory
+            # the model was downloaded into, so a config naming one of these
+            # packages would otherwise run code shipped alongside the model.
+            if package not in sys.modules:
+                location = _shadowing_import_location(package)
+                if location is not None:
+                    raise ValueError(
+                        f"Could not deserialize {obj_type} '{name}': refusing "
+                        f"to import module '{module}', because package "
+                        f"'{package}' resolves to '{location}', which is not "
+                        "part of the installed environment and may have been "
+                        f"shipped alongside the model. Install '{package}' to "
+                        "load this model, or, if that location is trusted, "
+                        f"`import {package}` before loading the model. Full "
+                        f"object config: {full_config}"
+                    )
             try:
                 mod = importlib.import_module(module)
                 obj = getattr(mod, name, None)

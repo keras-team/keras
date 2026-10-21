@@ -1,6 +1,10 @@
 """Tests for serialization_lib."""
 
+import importlib
 import json
+import os
+import sys
+from unittest import mock
 
 import numpy as np
 
@@ -655,6 +659,146 @@ class SerializationLibTest(testing.TestCase):
         config = serialization_lib.serialize_keras_object(layer)
         restored = serialization_lib.deserialize_keras_object(config)
         self.assertIsInstance(restored, MyDense)
+
+    def _write_shadow_package(self, name, namespace_package=False):
+        """Writes a package whose import would run code.
+
+        Returns its directory, the module name to deserialize, and a marker
+        path that only exists if the payload ran.
+        """
+        directory = self.get_temp_dir()
+        os.makedirs(os.path.join(directory, name))
+        marker = os.path.join(directory, "marker")
+        payload = f"import pathlib\npathlib.Path({marker!r}).touch()\n"
+        if namespace_package:
+            # No `__init__.py`: the directory is importable as a namespace
+            # package, and importing a submodule of it runs the submodule.
+            file_name, module = "mod.py", f"{name}.mod"
+        else:
+            file_name, module = "__init__.py", name
+        with open(os.path.join(directory, name, file_name), "w") as f:
+            f.write(payload)
+        importlib.invalidate_caches()
+        return directory, module, marker
+
+    def _as_script_directory(self, directory, *module_names):
+        """Puts `directory` first on `sys.path`, as the script directory is."""
+        for module_name in module_names:
+            self.addCleanup(sys.modules.pop, module_name, None)
+        return mock.patch.object(sys, "path", [directory] + sys.path)
+
+    def test_domain_package_shadowed_by_script_directory_is_refused(self):
+        for name in ("keras_hub", "keras_cv", "keras_nlp"):
+            for namespace_package in (False, True):
+                with self.subTest(name=name, namespace=namespace_package):
+                    directory, module, marker = self._write_shadow_package(
+                        name, namespace_package
+                    )
+                    config = {
+                        "module": module,
+                        "class_name": "AnyName",
+                        "registered_name": None,
+                        "config": {},
+                    }
+                    with self._as_script_directory(directory, name, module):
+                        with self.assertRaisesRegex(
+                            ValueError, "refusing to import module"
+                        ):
+                            serialization_lib.deserialize_keras_object(config)
+                    self.assertFalse(os.path.exists(marker))
+
+    def test_shadowed_domain_package_is_refused_inside_a_model_config(self):
+        directory, module, marker = self._write_shadow_package("keras_cv")
+        config = {
+            "module": "keras",
+            "class_name": "Sequential",
+            "registered_name": "Sequential",
+            "config": {
+                "name": "sequential",
+                "layers": [
+                    {
+                        "module": "keras.layers",
+                        "class_name": "InputLayer",
+                        "registered_name": None,
+                        "config": {
+                            "batch_shape": [None, 2],
+                            "dtype": "float32",
+                            "name": "input_layer",
+                        },
+                    },
+                    {
+                        "module": module,
+                        "class_name": "AnyName",
+                        "registered_name": None,
+                        "config": {"name": "shadowed"},
+                    },
+                ],
+            },
+        }
+        with self._as_script_directory(directory, module):
+            with self.assertRaises(Exception):
+                serialization_lib.deserialize_keras_object(config)
+        self.assertFalse(os.path.exists(marker))
+
+    def test_keras_modules_resolve_when_script_directory_is_shadowed(self):
+        # `keras` is always imported already, so its submodules resolve
+        # against its own `__path__` and are unaffected by `sys.path`.
+        directory, module, _ = self._write_shadow_package("keras_cv")
+        with self._as_script_directory(directory, module):
+            obj = serialization_lib._retrieve_class_or_fn(
+                "Dense",
+                None,
+                "keras.layers",
+                obj_type="class",
+                full_config={},
+                custom_objects={},
+            )
+        self.assertIs(obj, keras.layers.Dense)
+
+    def test_script_directory_containing_the_environment_still_imports(self):
+        # The script directory can be a parent of the installed packages, as
+        # when the working directory is the filesystem root. It does not hold
+        # `keras_cv` itself, so the import is not shadowed.
+        base = self.get_temp_dir()
+        environment = os.path.join(base, "environment")
+        os.makedirs(os.path.join(environment, "keras_cv"))
+        with open(
+            os.path.join(environment, "keras_cv", "__init__.py"), "w"
+        ) as f:
+            f.write("from keras.src.layers import Dense\n")
+        importlib.invalidate_caches()
+        self.addCleanup(sys.modules.pop, "keras_cv", None)
+        with mock.patch.object(sys, "path", [base, environment] + sys.path):
+            obj = serialization_lib._retrieve_class_or_fn(
+                "Dense",
+                None,
+                "keras_cv",
+                obj_type="class",
+                full_config={},
+                custom_objects={},
+            )
+        self.assertIs(obj, keras.layers.Dense)
+
+    def test_domain_package_outside_the_script_directory_still_imports(self):
+        directory = self.get_temp_dir()
+        os.makedirs(os.path.join(directory, "keras_cv"))
+        with open(os.path.join(directory, "keras_cv", "__init__.py"), "w") as f:
+            f.write("from keras.src.layers import Dense\n")
+        importlib.invalidate_caches()
+        self.addCleanup(sys.modules.pop, "keras_cv", None)
+        # Appending rather than prepending: `directory` is a regular
+        # `sys.path` entry rather than the one Python derives from the
+        # invocation, i.e. it stands in for an installed package.
+        with mock.patch.object(sys, "path", sys.path + [directory]):
+            obj = serialization_lib._retrieve_class_or_fn(
+                "Dense",
+                None,
+                "keras_cv",
+                obj_type="class",
+                full_config={},
+                custom_objects={},
+            )
+        self.assertIs(obj, keras.layers.Dense)
 
 
 @keras.saving.register_keras_serializable()
