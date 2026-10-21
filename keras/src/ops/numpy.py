@@ -10129,7 +10129,10 @@ def _argpartition(x, kth, axis=-1):
         axis = -1
     size = x.shape[axis]
     if size is not None and not -size <= kth < size:
-        raise ValueError(f"kth(={kth}) out of bounds for axis of size {size}.")
+        raise ValueError(
+            f"kth must be in the range [-{size}, {size}) for an axis of size "
+            f"{size}. Received: kth={kth}"
+        )
     # A full sort is a valid partition for every kth.
     indices = backend.ops.numpy.argsort(x, axis=axis)
     return backend.ops.cast(indices, "int32")
