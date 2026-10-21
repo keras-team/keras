@@ -529,86 +529,90 @@ def is_remote_path(filepath):
 # TensorFlow. Local paths always use `os` / `shutil`.
 
 
-def _remote_backend(path):
-    """Returns `"gfile"` or `"epath"` for the remote `path`, or raises."""
-    if gfile.available:
-        return "gfile"
-    if epath.available:
-        return "epath"
-    raise ValueError(
-        "Handling remote paths requires installing `etils[epath]` "
-        "(e.g. `pip install keras[gcs]`) or TensorFlow. "
-        f"Received: path={path}"
-    )
+def _is_remote_path_or_raise(path):
+    """Returns whether `path` is remote (see `is_remote_path`).
+
+    Raises a `ValueError` if `path` is remote but neither TensorFlow nor
+    `etils.epath` is installed.
+    """
+    if not is_remote_path(path):
+        return False
+    if not (gfile.available or epath.available):
+        raise ValueError(
+            "Handling remote paths requires installing `etils[epath]` "
+            "(e.g. `pip install keras[gcs]`) or TensorFlow. "
+            f"Received: path={path}"
+        )
+    return True
 
 
 def exists(path):
-    if is_remote_path(path):
-        if _remote_backend(path) == "gfile":
+    if _is_remote_path_or_raise(path):
+        if gfile.available:
             return gfile.exists(path)
         return epath.Path(path).exists()
     return os.path.exists(path)
 
 
 def File(path, mode="r"):
-    if is_remote_path(path):
-        if _remote_backend(path) == "gfile":
+    if _is_remote_path_or_raise(path):
+        if gfile.available:
             return gfile.GFile(path, mode=mode)
         return epath.Path(path).open(mode=mode)
     return open(path, mode=mode)
 
 
 def join(path, *paths):
-    if is_remote_path(path):
-        if _remote_backend(path) == "gfile":
+    if _is_remote_path_or_raise(path):
+        if gfile.available:
             return gfile.join(path, *paths)
         return str(epath.Path(path).joinpath(*paths))
     return os.path.join(path, *paths)
 
 
 def isdir(path):
-    if is_remote_path(path):
-        if _remote_backend(path) == "gfile":
+    if _is_remote_path_or_raise(path):
+        if gfile.available:
             return gfile.isdir(path)
         return epath.Path(path).is_dir()
     return os.path.isdir(path)
 
 
 def remove(path):
-    if is_remote_path(path):
-        if _remote_backend(path) == "gfile":
+    if _is_remote_path_or_raise(path):
+        if gfile.available:
             return gfile.remove(path)
         return epath.Path(path).unlink()
     return os.remove(path)
 
 
 def rmtree(path):
-    if is_remote_path(path):
-        if _remote_backend(path) == "gfile":
+    if _is_remote_path_or_raise(path):
+        if gfile.available:
             return gfile.rmtree(path)
         return epath.Path(path).rmtree()
     return shutil.rmtree(path)
 
 
 def listdir(path):
-    if is_remote_path(path):
-        if _remote_backend(path) == "gfile":
+    if _is_remote_path_or_raise(path):
+        if gfile.available:
             return gfile.listdir(path)
         return [child.name for child in epath.Path(path).iterdir()]
     return os.listdir(path)
 
 
 def copy(src, dst):
-    if is_remote_path(src) or is_remote_path(dst):
-        if _remote_backend(f"src={src} dst={dst}") == "gfile":
+    if _is_remote_path_or_raise(src) or _is_remote_path_or_raise(dst):
+        if gfile.available:
             return gfile.copy(src, dst, overwrite=True)
         return epath.Path(src).copy(dst, overwrite=True)
     return shutil.copy(src, dst)
 
 
 def makedirs(path):
-    if is_remote_path(path):
-        if _remote_backend(path) == "gfile":
+    if _is_remote_path_or_raise(path):
+        if gfile.available:
             return gfile.makedirs(path)
         # Match `gfile.makedirs`, which does not fail if `path` exists.
         return epath.Path(path).mkdir(parents=True, exist_ok=True)

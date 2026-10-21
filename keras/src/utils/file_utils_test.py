@@ -776,10 +776,27 @@ class IsRemotePathTest(test_case.TestCase):
         self.assertFalse(file_utils.is_remote_path("~/relative/path"))
 
 
-class RemoteBackendTest(test_case.TestCase):
+class RemotePathTest(test_case.TestCase):
+    # A module that can never be imported, used to hide `gfile` / `epath`.
     _UNAVAILABLE = LazyModule("keras_test_unavailable_module")
 
-    def test_epath_remote_file_ops(self):
+    def test_is_remote_path_or_raise_raises_correct_message(self):
+        path = "gs://bucket/some/file.txt"
+        expected_error_msg = (
+            r"Handling remote paths requires installing `etils\[epath\]` "
+            f".*or TensorFlow.*Received: path={path}"
+        )
+        with (
+            patch.object(file_utils, "gfile", self._UNAVAILABLE),
+            patch.object(file_utils, "epath", self._UNAVAILABLE),
+        ):
+            with self.assertRaisesRegex(ValueError, expected_error_msg):
+                file_utils._is_remote_path_or_raise(path)
+            self.assertFalse(
+                file_utils._is_remote_path_or_raise("/local/path/file.txt")
+            )
+
+    def test_epath_remote_path(self):
         if not file_utils.epath.available:
             self.skipTest("etils.epath is not installed.")
         root = self.get_temp_dir()
@@ -812,11 +829,3 @@ class RemoteBackendTest(test_case.TestCase):
             self.assertFalse(file_utils.exists(dst))
             file_utils.rmtree(file_utils.join(root, "a"))
             self.assertFalse(file_utils.exists(subdir))
-
-    def test_raises_when_no_remote_backend(self):
-        with (
-            patch.object(file_utils, "gfile", self._UNAVAILABLE),
-            patch.object(file_utils, "epath", self._UNAVAILABLE),
-        ):
-            with self.assertRaisesRegex(ValueError, "requires installing"):
-                file_utils.exists("gs://bucket/file.txt")
