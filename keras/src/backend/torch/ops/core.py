@@ -551,7 +551,13 @@ def cond(pred, true_fn, false_fn):
 
 
 def vectorized_map(function, elements):
-    elements = tree.map_structure(convert_to_tensor, elements)
+    def safe_convert(x):
+        if isinstance(x, Variable):
+            return x.value
+        if is_tensor(x):
+            return x
+        return convert_to_tensor(x)
+    elements = tree.map_structure(safe_convert, elements)
     return torch.vmap(function)(elements)
 
 
