@@ -179,6 +179,23 @@ def matmul(x1, x2):
             x1, x2, preferred_element_type=preferred_element_type
         )
 
+    if (
+        preferred_element_type == "int32"
+        and x1.ndim >= 1
+        and x2.ndim == 2
+        and math.prod(x1.shape[:-1]) == 1
+        and _uses_cpu(x1)
+    ):
+        # XLA CPU runs a one-row int8 dot as an int32 dot on an int32 copy
+        # of `x2`. Two rows keep the int8 dot, so pad `x1` to two rows and
+        # keep the first row of the result. The padded `x1` is rank 3: with
+        # a rank-2 `x1`, a transposed `x2` also gets the int32 dot.
+        outputs = jnp.matmul(
+            jnp.pad(jnp.reshape(x1, (1, 1, -1)), ((0, 0), (0, 1), (0, 0))),
+            x2,
+            preferred_element_type=preferred_element_type,
+        )
+        return jnp.reshape(outputs[:, :1], x1.shape[:-1] + x2.shape[-1:])
     return jnp.matmul(x1, x2, preferred_element_type=preferred_element_type)
 
 

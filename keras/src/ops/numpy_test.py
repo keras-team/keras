@@ -3798,6 +3798,38 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         )
         self.assertSparse(knp.matmul(x, y), x_sparse and y_sparse)
 
+    @parameterized.named_parameters(
+        named_product(
+            (
+                {"testcase_name": "rank1", "x_shape": (64,)},
+                {"testcase_name": "one_row", "x_shape": (1, 64)},
+                {"testcase_name": "two_rows", "x_shape": (2, 64)},
+                {"testcase_name": "one_row_rank3", "x_shape": (1, 1, 64)},
+                {"testcase_name": "three_rows_rank3", "x_shape": (3, 1, 64)},
+                {"testcase_name": "one_row_k16384", "x_shape": (1, 16384)},
+            ),
+            values=["random", "extreme"],
+        )
+    )
+    def test_matmul_int8(self, x_shape, values):
+        if backend.backend() == "tensorflow" and len(x_shape) == 1:
+            pytest.skip("TensorFlow returns int8 for a rank-1 int8 `matmul`")
+        y_shape = (x_shape[-1], 256)
+        if values == "random":
+            rng = np.random.default_rng(0)
+            x = rng.integers(-128, 128, size=x_shape, dtype="int8")
+            y = rng.integers(-128, 128, size=y_shape, dtype="int8")
+        else:
+            # The largest positive and the most negative sums.
+            x = np.full(x_shape, -128, dtype="int8")
+            y = np.where(np.arange(256) % 2 == 0, -128, 127)
+            y = np.broadcast_to(y, y_shape).astype("int8")
+        expected = np.matmul(x.astype("int64"), y.astype("int64"))
+
+        outputs = knp.matmul(x, y)
+        self.assertEqual(standardize_dtype(outputs.dtype), "int32")
+        self.assertAllEqual(outputs, expected)
+
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_float_power(self, backend_agnostic_ops):
         backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
