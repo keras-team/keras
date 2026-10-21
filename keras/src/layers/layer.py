@@ -32,8 +32,12 @@ from keras.src import tree
 from keras.src import utils
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
+from keras.src.backend.common import AutocastScope
+from keras.src.backend.common import get_autocast_scope
 from keras.src.backend.common import global_state
 from keras.src.backend.common import remat
+from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common import standardize_shape
 from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.backend.common.name_scope import current_path
 from keras.src.backend.common.remat import get_current_remat_mode
@@ -610,7 +614,7 @@ class Layer(BackendLayer, Operation):
         if shape is None:
             shape = ()
         if dtype is not None:
-            dtype = backend.standardize_dtype(dtype)
+            dtype = standardize_dtype(dtype)
         else:
             dtype = self.variable_dtype
         if initializer is None:
@@ -932,7 +936,7 @@ class Layer(BackendLayer, Operation):
             kwargs_may_need_convert
             or len(args) != 1
             or not is_backend_tensor_or_symbolic(args[0], allow_none=False)
-            or backend.standardize_dtype(args[0].dtype) != self.input_dtype
+            or standardize_dtype(args[0].dtype) != self.input_dtype
         ) and self._convert_input_args:
             args = tree.map_structure(maybe_convert, args)
             kwargs = tree.map_structure(maybe_convert, kwargs)
@@ -1024,21 +1028,21 @@ class Layer(BackendLayer, Operation):
         # 7. Call the layer.
         try:
             with self._open_name_scope():
-                current_scope = backend.get_autocast_scope()
+                current_scope = get_autocast_scope()
                 new_scope = None
                 if current_scope is not None:
                     # Clear or update the current scope if necessary.
                     if not self.autocast:
-                        new_scope = backend.AutocastScope(None)
+                        new_scope = AutocastScope(None)
                     elif not backend.is_float_dtype(self.compute_dtype):
                         # Some preprocessing layers might have a non-float
                         # dtype, we should not autocast in this case.
-                        new_scope = backend.AutocastScope(None)
+                        new_scope = AutocastScope(None)
                     elif current_scope.dtype != self.compute_dtype:
-                        new_scope = backend.AutocastScope(self.compute_dtype)
+                        new_scope = AutocastScope(self.compute_dtype)
                 elif self.compute_dtype != self.variable_dtype:
                     # Enter a new scope if our dtypes are "mixed".
-                    new_scope = backend.AutocastScope(self.compute_dtype)
+                    new_scope = AutocastScope(self.compute_dtype)
                 if new_scope is not None:
                     with new_scope:
                         outputs = super().__call__(*args, **kwargs)
@@ -1234,19 +1238,7 @@ class Layer(BackendLayer, Operation):
             with backend.StatelessScope(
                 state_mapping=mapping, collect_losses=return_losses
             ) as scope:
-                if self.quantization_mode is not None:
-                    if self._remat_mode is not None:
-                        outputs = self.rematerialized_call(
-                            self.quantized_call, *args, **kwargs
-                        )(*args, **kwargs)
-                    else:
-                        outputs = self.quantized_call(*args, **kwargs)
-                elif self._remat_mode is not None:
-                    outputs = self.rematerialized_call(
-                        self.call, *args, **kwargs
-                    )(*args, **kwargs)
-                else:
-                    outputs = self.call(*args, **kwargs)
+                outputs = self._dispatch_call(*args, **kwargs)
                 if return_losses:
                     losses = self.losses
         finally:
@@ -1537,6 +1529,8 @@ class Layer(BackendLayer, Operation):
         `None` when the layer is not quantized, or when its mode holds no
         integer codes for it (see `QuantizationStrategy.quantized_weight`).
         """
+        if not self.built:
+            return None
         strategy = strategy_registry.get_strategy(self.quantization_mode)
         if strategy is None:
             return None
@@ -1568,6 +1562,88 @@ class Layer(BackendLayer, Operation):
         )
         strategy = strategy_registry.get_strategy(self.quantization_mode)
         return strategy.encode(self, merged, self.quantization_config)
+
+    def _serialized_attribute(self, entry, attribute):
+        """Returns the attribute that holds an entry of the spec."""
+        try:
+            return getattr(self, attribute)
+        except AttributeError as e:
+            raise AttributeError(
+                f"Layer '{self.name}' lists '{entry}' in its "
+                "`variable_serialization_spec` for the quantization mode "
+                f"{self.quantization_mode!r}, but reading `self.{attribute}` "
+                f"failed: {e}. Every name in the spec must be an attribute "
+                "of the layer. Set it to `None` when the configuration omits "
+                "the variable, or leave the name out of the spec for a layer "
+                "that does not hold it."
+            ) from e
+
+    def _save_serialized_variables(self, store, name):
+        """Saves the variables `variable_serialization_spec` lists.
+
+        `name` is the spec entry of the layer's weight (`"kernel"` or
+        `"embeddings"`), held at `_<name>`. The weight and its scale and
+        zero point come from `_get_weight_with_merged_lora`. Each variable
+        is stored under its position in the spec ("0", "1", ...). Every
+        entry of the spec is an attribute of the layer, and an entry whose
+        variable is `None` for this configuration is skipped.
+        """
+        if not self.built:
+            return
+        mode = self.quantization_mode
+        if mode not in self.variable_serialization_spec:
+            raise self._quantization_mode_error(mode)
+        strategy = strategy_registry.get_strategy(mode)
+        if strategy is not None:
+            strategy.check_saveable(self)
+        value, scale, zero_point = self._get_weight_with_merged_lora(name)
+        merged = {name: value}
+        if scale is not None:
+            merged[f"{name}_scale"] = scale
+        if zero_point is not None:
+            merged[f"{name}_zero"] = zero_point
+        idx = 0
+        for entry in self.variable_serialization_spec[mode]:
+            if entry in merged:
+                value = merged[entry]
+            else:
+                value = self._serialized_attribute(entry, entry)
+            if value is None:
+                continue
+            store[str(idx)] = value
+            idx += 1
+
+    def _load_serialized_variables(self, store, name):
+        """Loads the variables `_save_serialized_variables` saved."""
+        if not self.lora_enabled:
+            self._check_load_own_variables(store)
+        if not self.built:
+            return
+        mode = self.quantization_mode
+        if mode not in self.variable_serialization_spec:
+            raise self._quantization_mode_error(mode)
+        idx = 0
+        for entry in self.variable_serialization_spec[mode]:
+            target = self._serialized_attribute(
+                entry, f"_{name}" if entry == name else entry
+            )
+            if target is None:
+                continue
+            value = store[str(idx)]
+            if entry == "g_idx":
+                # `g_idx` is stored as `float32` (see build). Cast to the
+                # variable dtype on assign so both legacy `float32`
+                # checkpoints and any `int32`-saved ones load correctly.
+                value = ops.cast(value, target.dtype)
+            target.assign(value)
+            idx += 1
+        if self.lora_enabled:
+            for factor in ("a", "b"):
+                lora = getattr(self, f"lora_{name}_{factor}")
+                lora.assign(ops.zeros(lora.shape))
+        strategy = strategy_registry.get_strategy(mode)
+        if strategy is not None:
+            strategy.variables_loaded(self)
 
     def _quantization_type_owner(self):
         """The class whose `_quantization_geometry` definition applies."""
@@ -2204,7 +2280,7 @@ def get_shapes_dict(call_spec):
     """
 
     def standardize_shape_or_none(x):
-        return None if x is None else backend.standardize_shape(x.shape)
+        return None if x is None else standardize_shape(x.shape)
 
     shapes_dict = {}
     for k, v in call_spec.tensor_arguments_dict.items():

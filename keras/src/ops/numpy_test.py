@@ -6135,7 +6135,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_view(self):
         x = np.array(1, dtype="int16")
         result = knp.view(x, dtype="float16")
-        self.assertEqual(backend.standardize_dtype(result.dtype), "float16")
+        self.assertEqual(standardize_dtype(result.dtype), "float16")
 
         with self.assertRaises(Exception):
             result = knp.view(x, dtype="int8")
@@ -6145,26 +6145,26 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
         x = np.array([[1, 2, 3, 4], [5, 6, 7, 8]], dtype="int16")
         result = knp.view(x, dtype="int16")
-        self.assertEqual(backend.standardize_dtype(result.dtype), "int16")
+        self.assertEqual(standardize_dtype(result.dtype), "int16")
 
         self.assertEqual(
-            backend.standardize_dtype(knp.view(x, dtype="int16").dtype), "int16"
+            standardize_dtype(knp.view(x, dtype="int16").dtype), "int16"
         )
         self.assertAllClose(knp.view(x, dtype="int16"), x.view("int16"))
 
         self.assertEqual(
-            backend.standardize_dtype(knp.view(x, dtype="float16").dtype),
+            standardize_dtype(knp.view(x, dtype="float16").dtype),
             "float16",
         )
         self.assertAllClose(knp.view(x, dtype="float16"), x.view("float16"))
 
         self.assertEqual(
-            backend.standardize_dtype(knp.view(x, dtype="int8").dtype), "int8"
+            standardize_dtype(knp.view(x, dtype="int8").dtype), "int8"
         )
         self.assertAllClose(knp.view(x, dtype="int8"), x.view("int8"))
 
         self.assertEqual(
-            backend.standardize_dtype(knp.view(x, dtype="int32").dtype), "int32"
+            standardize_dtype(knp.view(x, dtype="int32").dtype), "int32"
         )
         self.assertAllClose(knp.view(x, dtype="int32"), x.view("int32"))
 
@@ -6175,7 +6175,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         for dtype in ("int16", "int32", "float32"):
             x = np.arange(8, dtype=dtype)
             result = knp.view(x)
-            self.assertEqual(backend.standardize_dtype(result.dtype), dtype)
+            self.assertEqual(standardize_dtype(result.dtype), dtype)
             self.assertEqual(tuple(result.shape), x.shape)
             self.assertAllClose(result, x)
 
@@ -6281,6 +6281,27 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([[1.0, 2.0, 3.0], [3.0, 2.0, 1.0]])
         self.assertAllClose(knp.cov(x), np.cov(x))
         self.assertAllClose(knp.Cov()(x), np.cov(x))
+
+        if backend.SUPPORTS_COMPLEX_DTYPES:
+            x = np.array(
+                [
+                    [1 + 1j, 2 + 0j, 4 - 1j],
+                    [0 + 2j, 3 - 1j, 5 + 3j],
+                ],
+                dtype="complex64",
+            )
+            for dtype in ("complex64", "complex128"):
+                for values in (x, x[0], x[:1]):
+                    values = values.astype(dtype)
+                    expected = np.cov(values)
+                    for actual in (knp.cov(values), knp.Cov()(values)):
+                        self.assertAllClose(
+                            actual, expected, tpu_atol=1e-2, tpu_rtol=1e-2
+                        )
+                        self.assertIn(
+                            standardize_dtype(actual.dtype),
+                            ("complex64", "complex128"),
+                        )
 
         # A 1D input, or a single variable, reduces to the sample
         # variance.
@@ -7743,6 +7764,33 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(knp.FloorDivide()(x, y), np.floor_divide(x, y))
         self.assertAllClose(knp.FloorDivide()(x, z), np.floor_divide(x, z))
+
+    @parameterized.named_parameters(
+        named_product(dtype=["float16", "float32", "float64", "bfloat16"])
+    )
+    def test_floor_divide_float_quotient_rounding(self, dtype):
+        if testing.uses_tpu() and dtype in ["float32", "float64"]:
+            self.skipTest("TPUs use bfloat16 for division")
+
+        # In float32, 4.2 / 1.4 and 0.7 / 0.1 round up to the whole numbers 3
+        # and 7, which the exact quotients are just below.
+        x = ops.cast(np.array([4.2, 0.7, -1.0, 5.0, -5.0], "float32"), dtype)
+        y = ops.cast(np.array([1.4, 0.1, 0.1, -3.0, 3.0], "float32"), dtype)
+        result = knp.floor_divide(x, y)
+        # The exact floor division of the values the backend holds.
+        x_np = ops.convert_to_numpy(ops.cast(x, "float32")).astype("float64")
+        y_np = ops.convert_to_numpy(ops.cast(y, "float32")).astype("float64")
+        self.assertAllClose(
+            ops.cast(result, "float32"), np.floor_divide(x_np, y_np)
+        )
+        # `x == x // y * y + x % y`
+        self.assertAllClose(
+            ops.cast(
+                knp.add(knp.multiply(result, y), knp.mod(x, y)), "float32"
+            ),
+            x_np,
+            atol=1e-2,
+        )
 
     def test_xor(self):
         x = np.array([[True, False], [True, True]])

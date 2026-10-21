@@ -11,28 +11,9 @@ from keras.src import ops
 from keras.src import utils as keras_utils
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
+from keras.src.quantizers.capture import calibration_scope
 from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.utils import should_quantize_layer
-
-
-def get_calibration_call_attribute(layer):
-    """Returns the name of the forward method dispatched for `layer`.
-
-    `Operation.__call__` dispatches to `layer.quantized_call` (instead of
-    `layer.call`) as soon as the layer has a quantization mode. During
-    `model.quantize(...)`, layers are switched to their quantized dtype
-    policy before calibration runs, so calibration hooks must patch the
-    method that is actually invoked.
-
-    Args:
-        layer: The Keras layer to inspect.
-
-    Returns:
-        str. Either `"quantized_call"` or `"call"`.
-    """
-    if getattr(layer, "quantization_mode", None) is not None:
-        return "quantized_call"
-    return "call"
 
 
 def calibration_no_grad_scope():
@@ -58,30 +39,26 @@ def calibration_no_grad_scope():
 @contextmanager
 def stream_hessians(layers_map, gptq_objects, execution_trace=None):
     """
-    Temporarily monkey-patch each target layer's forward method so
-    that input activations are streamed into the GPTQ instance
-    running Hessian estimate at capture time.
+    Streams every target layer's input activations into its GPTQ
+    instance's running Hessian estimate at capture time.
 
-    On `__enter__`: For every (name, layer) in `layers_map`, replaces
-     the layer's dispatched forward method (`layer.quantized_call` if the
-     layer is already in a quantized mode, `layer.call` otherwise) with a
-     wrapper that:
-     1) extracts the layer input from `*args`/`**kwargs`,
-     2) reshapes it to 2D `[-1, rows]` where
+    On `__enter__`: For every (name, layer) in `layers_map`, registers a
+     calibration capture (`keras.src.quantizers.capture`) that the
+     dispatch machinery runs before each of the layer's forward passes,
+     whichever forward that is; the capture
+     1) reshapes the layer input to 2D `[-1, rows]` where
       `rows = gptq_objects[name].rows`,
-     3) calls `gptq_objects[name].update_hessian_with_batch(x2d)`
-     4) delegates to the original forward method and returns its
-      output.
+     2) calls `gptq_objects[name].update_hessian_with_batch(x2d)`.
 
-    On `__exit__`: All original forward methods are restored even if an
-     exception occurs.
+    On `__exit__`: Every capture is removed even if an exception occurs.
+     Nothing on the layers is rebound.
 
     * Space complexity: O(d**2) per layer (for the Hessian).
     * No weights are modified; only GPTQ statistics are updated.
 
     Args:
         layers_map: Dict[str, Layer]. Mapping from logical layer names to
-         the Keras layers that should be patched during calibration. Keys must
+         the Keras layers to observe during calibration. Keys must
          match `gptq_objects`.
         gptq_objects: Dict[str, GPTQ]. Mapping from names to GPTQ instances.
         execution_trace: Optional dict. When provided, each layer's FIRST
@@ -93,8 +70,8 @@ def stream_hessians(layers_map, gptq_objects, execution_trace=None):
          after use.
 
     Yields:
-        None: The patched state is active only within the `with` block. After
-         exit, all layers are unpatched and safe to use normally.
+        None: The captures are active only within the `with` block. After
+         exit, the layers carry no capture and are safe to use normally.
 
     Example:
     ```python
@@ -103,15 +80,13 @@ def stream_hessians(layers_map, gptq_objects, execution_trace=None):
     ...         if len(sample.shape) == 2:
     ...             sample = ops.expand_dims(sample, 0)
     ...         _ = block(sample)   # hooks update Hessians on-the-fly
-    >>> # <- original forward methods restored here
+    >>> # <- captures removed here
     ```
     """
-    original_calls = {}
     call_counter = [0]
 
-    def create_hook(name, original_call_func):
-        def hook(*args, **kwargs):
-            inp = args[0] if args else kwargs["inputs"]
+    def create_capture(name):
+        def capture(inp):
             if execution_trace is not None and name not in execution_trace:
                 # Record block-level execution order and the input tensor's
                 # identity on the first call (a live reference is kept so the
@@ -126,19 +101,13 @@ def stream_hessians(layers_map, gptq_objects, execution_trace=None):
             num_features = gptq_objects[name].rows
             input_2d = ops.reshape(inp, (-1, num_features))
             gptq_objects[name].update_hessian_with_batch(input_2d)
-            return original_call_func(*args, **kwargs)
 
-        return hook
+        return capture
 
-    try:
-        for name, layer in layers_map.items():
-            attr = get_calibration_call_attribute(layer)
-            original_calls[name] = (attr, getattr(layer, attr))
-            setattr(layer, attr, create_hook(name, original_calls[name][1]))
+    with calibration_scope(
+        {layer: create_capture(name) for name, layer in layers_map.items()}
+    ):
         yield
-    finally:
-        for name, (attr, original_call) in original_calls.items():
-            setattr(layers_map[name], attr, original_call)
 
 
 def get_dataloader(

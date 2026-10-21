@@ -12,6 +12,7 @@ from torch.distributed.tensor import Shard
 
 from keras.src import layers
 from keras.src import models
+from keras.src import optimizers
 from keras.src import testing
 from keras.src.backend import backend
 from keras.src.backend.torch import distribution_lib as torch_distribution_lib
@@ -341,6 +342,62 @@ class TorchMultiProcessDistributeTest(
 
             model.evaluate(dataset)
         self._assert_weights_in_sync(model)
+
+    @parameterized.named_parameters(
+        [
+            ("data_only", 1),
+            ("model_only", 2),
+        ]
+    )
+    def test_e2e_model_parallel_lamb(self, model_dim):
+        # Lamb updates sharded kernels through `assign` with `Partial`
+        # gradients, which must be redistributed to the kernel layout.
+        num_devices = torch_distribution_lib.get_device_count()
+        model_dim = min(model_dim, num_devices)
+        device_mesh = distribution_lib.DeviceMesh(
+            shape=(num_devices // model_dim, model_dim),
+            axis_names=["batch", "model"],
+            devices=distribution_lib.list_devices(),
+        )
+        layout_map = distribution_lib.LayoutMap(device_mesh)
+        layout_map[".*dense.*kernel"] = distribution_lib.TensorLayout(
+            [None, "model"]
+        )
+        distribution = distribution_lib.ModelParallel(
+            layout_map=layout_map, batch_dim_name="batch"
+        )
+
+        def build_model():
+            inputs = layers.Input(shape=[8])
+            y = layers.Dense(units=16, activation="relu")(inputs)
+            y = layers.Dense(units=4)(y)
+            return models.Model(inputs=inputs, outputs=y)
+
+        inputs = np.random.normal(size=(32, 8)).astype("float32")
+        labels = np.random.normal(size=(32, 4)).astype("float32")
+        dataset = tf.data.Dataset.from_tensor_slices((inputs, labels)).batch(16)
+
+        # Unsharded reference, trained on the same batches.
+        reference = build_model()
+        initial_weights = reference.get_weights()
+        reference.compile(
+            optimizer=optimizers.Lamb(learning_rate=0.01), loss="mse"
+        )
+        reference.fit(dataset, epochs=1)
+
+        with distribution.scope():
+            model = build_model()
+            model.set_weights(initial_weights)
+            model.compile(
+                optimizer=optimizers.Lamb(learning_rate=0.01), loss="mse"
+            )
+            model.fit(dataset, epochs=1)
+
+        for weight, expected in zip(model.weights, reference.weights):
+            value = weight.value
+            if isinstance(value, DTensor):
+                value = value.full_tensor()
+            self.assertAllClose(value, expected, msg=weight.path)
 
 
 if __name__ == "__main__":

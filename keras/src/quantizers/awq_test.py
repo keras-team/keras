@@ -460,10 +460,10 @@ class AWQLayerTest(testing.TestCase):
         # Check that AWQ-specific variables exist
         self.assertTrue(hasattr(layer, "quantized_kernel"))
         self.assertTrue(hasattr(layer, "kernel_scale"))
-        self.assertTrue(hasattr(layer, "kernel_zero"))
+        self.assertIsNotNone(layer.kernel_zero)
         self.assertTrue(hasattr(layer, "awq_scales"))
-        self.assertTrue(hasattr(layer, "g_idx"))
-        self.assertFalse(layer.is_awq_calibrated)
+        self.assertIsNotNone(layer.g_idx)
+        self.assertTrue(layer.calibration_pending)
 
 
 @pytest.mark.requires_trainable_backend
@@ -936,7 +936,7 @@ class AWQAccuracyTest(testing.TestCase):
         # In-structure Dense layers are quantized and calibrated.
         for dense in block.layers:
             self.assertEqual(dense.quantization_mode, "awq")
-            self.assertTrue(dense.is_awq_calibrated)
+            self.assertFalse(dense.calibration_pending)
 
         # Out-of-structure layers must stay completely untouched.
         self.assertIsNone(getattr(head, "quantization_mode", None))

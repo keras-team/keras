@@ -14,11 +14,12 @@ from keras.src import ops
 from keras.src import random
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend.common import standardize_dtype
+from keras.src.quantizers.calibration_run import find_layers_in_block
 from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.gptq import _stable_permutation
 from keras.src.quantizers.gptq import gptq_quantize_matrix
 from keras.src.quantizers.gptq_config import GPTQConfig
-from keras.src.quantizers.gptq_core import find_layers_in_block
 from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantizers import compute_quantization_parameters
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
@@ -150,7 +151,7 @@ class GPTQTest(testing.TestCase):
         dense_gptq.update_hessian_with_batch(calibration_data)
         dense_gptq.quantize_and_correct_layer()
 
-        self.assertEqual(backend.standardize_dtype(dense.kernel.dtype), "uint8")
+        self.assertEqual(standardize_dtype(dense.kernel.dtype), "uint8")
 
         dense_gptq.free()
         self.assertIsNone(getattr(dense_gptq, "hessian", None))
@@ -188,11 +189,9 @@ class GPTQTest(testing.TestCase):
             tuple(dense.quantized_kernel.shape), (in_dim, packed_cols)
         )
         self.assertEqual(
-            backend.standardize_dtype(dense.quantized_kernel.dtype), "uint8"
+            standardize_dtype(dense.quantized_kernel.dtype), "uint8"
         )
-        self.assertEqual(
-            backend.standardize_dtype(dense.g_idx.dtype), "float32"
-        )
+        self.assertEqual(standardize_dtype(dense.g_idx.dtype), "float32")
 
         rng = np.random.default_rng(seed=123)
         x = rng.standard_normal((4, in_dim)).astype("float32")
@@ -801,7 +800,7 @@ class GPTQTest(testing.TestCase):
         model.quantize("gptq", config=config)
 
         dense = block.layers[0]
-        self.assertTrue(dense.is_gptq_calibrated)
+        self.assertFalse(dense.calibration_pending)
         self.assertEqual(tuple(dense.kernel_scale.shape), (1, 4))
         self.assertEqual(tuple(dense.kernel_zero.shape), (1, 4))
 
@@ -1251,7 +1250,7 @@ class TestModelQuantization(testing.TestCase):
         # In-structure Dense layers are quantized and calibrated.
         for dense in block.layers:
             self.assertEqual(dense.quantization_mode, "gptq")
-            self.assertTrue(dense.is_gptq_calibrated)
+            self.assertFalse(dense.calibration_pending)
 
         # Out-of-structure layers must stay completely untouched.
         self.assertIsNone(getattr(head, "quantization_mode", None))
@@ -1278,7 +1277,7 @@ class TestModelQuantization(testing.TestCase):
 
         The activation `Layer` makes the `Dense` a non-leaf, but GPTQ must
         still discover and calibrate it: after `quantize("gptq")` the layer
-        is in `gptq` mode with `is_gptq_calibrated` set.
+        is in `gptq` mode with its calibration no longer pending.
         """
         keras.utils.set_random_seed(123)
         embed_dim = 8
@@ -1319,7 +1318,7 @@ class TestModelQuantization(testing.TestCase):
 
         act_dense = block.layers[0]
         self.assertEqual(act_dense.quantization_mode, "gptq")
-        self.assertTrue(act_dense.is_gptq_calibrated)
+        self.assertFalse(act_dense.calibration_pending)
 
     def test_gptq_missing_structure_leaves_model_unmodified(self):
         """A config without a structure raises before any layer is mutated."""

@@ -18,6 +18,8 @@ from keras.src import testing
 from keras.src.backend.common import global_state
 from keras.src.backend.common.remat import RematScope
 from keras.src.models import Model
+from keras.src.quantizers.geometry import ProjectionGeometry
+from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 
 
 class MockRemat:
@@ -305,15 +307,17 @@ class LayerTest(testing.TestCase):
         self.assertLen(mock_remat.rematted_functions, 1)
         next(iter(mock_remat.rematted_functions.values())).assert_called()
 
-    def test_gptq_quantization_by_setting_dtype(self):
-        """Tests error being raised when dtype is set to GPTQ."""
+    @parameterized.named_parameters(("gptq", "gptq"), ("awq", "awq"))
+    def test_calibration_quantization_by_setting_dtype(self, mode):
+        """Tests error being raised when dtype is set to GPTQ or AWQ."""
         with self.assertRaisesRegex(
             ValueError,
-            "Implicitly enabling GPTQ quantization.*is not supported",
+            f"Implicitly enabling {mode.upper()} quantization.*is not "
+            "supported.*requires a calibration dataset",
         ):
             layer = layers.Dense(3)
             layer.build((2, 4))
-            layer.dtype_policy = "gptq/4/-1_from_float32"
+            layer.dtype_policy = f"{mode}/4/-1_from_float32"
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_GRADIENT,
@@ -2243,6 +2247,132 @@ class LayerTest(testing.TestCase):
             self.assertEqual(len(bind_calls), 1)
 
 
+class _LoraLessProjection(layers.Layer):
+    """A third-party projection that opts into quantization without LoRA."""
+
+    def __init__(self, units, **kwargs):
+        super().__init__(**kwargs)
+        self.units = units
+        self.activation = None
+
+    def build(self, input_shape):
+        self.kernel_shape = (input_shape[-1], self.units)
+        if self.quantization_mode:
+            self.quantized_build(
+                self.kernel_shape,
+                mode=self.quantization_mode,
+                config=self.quantization_config,
+            )
+        if not self._strategy_owns_weight_storage():
+            self._kernel = self.add_weight(
+                name="kernel", shape=self.kernel_shape
+            )
+        self.bias = None
+
+    def call(self, inputs):
+        return ops.matmul(inputs, self._kernel)
+
+    def _quantization_geometry(self):
+        return ProjectionGeometry(self)
+
+    @property
+    def variable_serialization_spec(self):
+        return {
+            None: ["kernel"],
+            "int8": ["kernel", "kernel_scale"],
+            "int4": ["kernel", "kernel_scale", "kernel_zero", "g_idx"],
+            "float8": [
+                "kernel",
+                "inputs_scale",
+                "inputs_amax_history",
+                "kernel_scale",
+                "kernel_amax_history",
+                "outputs_grad_scale",
+                "outputs_grad_amax_history",
+            ],
+        }
+
+    def save_own_variables(self, store):
+        self._save_serialized_variables(store, "kernel")
+
+    def load_own_variables(self, store):
+        self._load_serialized_variables(store, "kernel")
+
+
 class LoraLessQuantizationTest(testing.TestCase):
     def test_layer_does_not_enable_lora_by_default(self):
         self.assertFalse(layers.Layer().lora_enabled)
+
+    @parameterized.named_parameters(
+        ("int8", "int8", None),
+        ("int4_per_channel", "int4", -1),
+        ("int4_grouped", "int4", 4),
+    )
+    def test_quantize_call_and_round_trip(self, mode, block_size):
+        config = None
+        if mode == "int4":
+            config = Int4QuantizationConfig(block_size=block_size)
+        inputs = Input((8,))
+        layer = _LoraLessProjection(6)
+        model = Model(inputs, layer(inputs))
+        x = np.random.default_rng(0).standard_normal((3, 8)).astype("float32")
+        model.quantize(mode, config=config)
+        self.assertEqual(layer.quantization_mode, mode)
+        y = layer(x)
+
+        store = {}
+        layer.save_own_variables(store)
+        restored = _LoraLessProjection(6, dtype=layer.dtype_policy.name)
+        restored.build((None, 8))
+        restored.load_own_variables(store)
+        self.assertAllClose(restored(x), y)
+
+    def test_float8_quantize_and_call(self):
+        layer = _LoraLessProjection(6)
+        layer.build((None, 8))
+        layer.quantize("float8")
+        layer(np.ones((3, 8), dtype="float32"))
+
+
+class _DenseListingExtra(layers.Dense):
+    """A `Dense` whose spec lists a name that the layer may not define."""
+
+    @property
+    def variable_serialization_spec(self):
+        spec = super().variable_serialization_spec
+        return {mode: names + ["extra"] for mode, names in spec.items()}
+
+
+class SpecNameWithoutAttributeTest(testing.TestCase):
+    def _layer(self, extra_is_none=False):
+        layer = _DenseListingExtra(4)
+        layer.build((None, 3))
+        if extra_is_none:
+            layer.extra = None
+        return layer
+
+    def test_save_raises_for_a_spec_name_without_attribute(self):
+        layer = self._layer()
+        with self.assertRaisesRegex(
+            AttributeError, "lists 'extra' in its `variable_serialization_spec`"
+        ):
+            layer.save_own_variables({})
+
+    def test_load_raises_for_a_spec_name_without_attribute(self):
+        layer = self._layer()
+        store = {"0": np.ones((3, 4), "float32"), "1": np.ones((4,), "float32")}
+        with self.assertRaisesRegex(
+            AttributeError, "lists 'extra' in its `variable_serialization_spec`"
+        ):
+            layer.load_own_variables(store)
+
+    def test_spec_name_holding_none_is_skipped(self):
+        layer = self._layer(extra_is_none=True)
+        store = {}
+        layer.save_own_variables(store)
+        self.assertEqual(sorted(store), ["0", "1"])
+
+        restored = self._layer(extra_is_none=True)
+        restored.load_own_variables(store)
+        self.assertAllClose(restored.kernel, layer.kernel)
+        self.assertAllClose(restored.bias, layer.bias)
