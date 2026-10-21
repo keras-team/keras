@@ -630,6 +630,36 @@ class TorchMultiProcessDistributeTest(
             restored.load_weights(checkpoint_path)
             self._assert_weights_equal(restored, model.get_weights())
 
+    def test_backup_and_restore_shared_dir_data_parallel(self):
+        distribution = distribution_lib.DataParallel(
+            devices=distribution_lib.list_devices(), auto_shard_dataset=False
+        )
+        directory = self._shared_temp_dir()
+        # The directory does not exist yet: every process creates it.
+        backup_dir = os.path.join(directory, "backup")
+        rng = np.random.default_rng(0)
+        x = rng.random((16, 8), dtype="float32")
+        y = rng.random((16, 4), dtype="float32")
+
+        with distribution.scope():
+            model = self._dense_model(4)
+            model.compile(optimizer="sgd", loss="mse")
+            # The other processes can end training while process 0 still
+            # writes the last backup.
+            model.fit(
+                x,
+                y,
+                batch_size=8,
+                epochs=2,
+                shuffle=False,
+                verbose=0,
+                callbacks=[callbacks.BackupAndRestore(backup_dir)],
+            )
+            torch.distributed.barrier()
+
+            # Process 0 deletes the backup when training ends.
+            self.assertFalse(os.path.exists(backup_dir))
+
 
 if __name__ == "__main__":
     pytest.main([__file__])
