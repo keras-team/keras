@@ -12,7 +12,7 @@ from keras.src import utils as keras_utils
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
 from keras.src.quantizers.capture import calibration_scope
-from keras.src.quantizers.gptq import GPTQ
+from keras.src.quantizers.gptq import GPTQCalibrator
 from keras.src.quantizers.utils import should_quantize_layer
 
 
@@ -40,15 +40,14 @@ def calibration_no_grad_scope():
 def stream_hessians(layers_map, gptq_objects, execution_trace=None):
     """
     Streams every target layer's input activations into its GPTQ
-    instance's running Hessian estimate at capture time.
+    calibrator's running Hessian estimate at capture time.
 
     On `__enter__`: For every (name, layer) in `layers_map`, registers a
      calibration capture (`keras.src.quantizers.capture`) that the
      dispatch machinery runs before each of the layer's forward passes,
-     whichever forward that is; the capture
-     1) reshapes the layer input to 2D `[-1, rows]` where
-      `rows = gptq_objects[name].rows`,
-     2) calls `gptq_objects[name].update_hessian_with_batch(x2d)`.
+     whichever forward that is; the capture calls
+     `gptq_objects[name].observe` with the layer input, which the
+     calibrator lays out as `[-1, rows]`.
 
     On `__exit__`: Every capture is removed even if an exception occurs.
      Nothing on the layers is rebound.
@@ -60,7 +59,8 @@ def stream_hessians(layers_map, gptq_objects, execution_trace=None):
         layers_map: Dict[str, Layer]. Mapping from logical layer names to
          the Keras layers to observe during calibration. Keys must
          match `gptq_objects`.
-        gptq_objects: Dict[str, GPTQ]. Mapping from names to GPTQ instances.
+        gptq_objects: Dict[str, GPTQCalibrator]. Mapping from names to
+         GPTQ calibrators.
         execution_trace: Optional dict. When provided, each layer's FIRST
          hook invocation records `{name: (call_index, input_tensor)}` into
          it — the block-level execution order and the identity of the input
@@ -93,14 +93,7 @@ def stream_hessians(layers_map, gptq_objects, execution_trace=None):
                 # id cannot be recycled while tracing).
                 execution_trace[name] = (call_counter[0], inp)
                 call_counter[0] += 1
-            # Explicitly reshape the input tensor to be 2D, with the
-            # second dimension matching the number of input features
-            # expected by the layer's kernel.
-            # This correctly handles inputs of any dimensionality
-            # (e.g., 3D or 4D).
-            num_features = gptq_objects[name].rows
-            input_2d = ops.reshape(inp, (-1, num_features))
-            gptq_objects[name].update_hessian_with_batch(input_2d)
+            gptq_objects[name].observe(inp)
 
         return capture
 
@@ -406,7 +399,7 @@ def apply_gptq_layerwise(dataloader, config, structure, filters=None):
         else:
             logging.info(f"Found layers: {list(sub_layers_map.keys())}")
             gptq_objects = {
-                name: GPTQ(layer, config)
+                name: GPTQCalibrator(layer, config)
                 for name, layer in sub_layers_map.items()
             }
 
@@ -435,8 +428,11 @@ def apply_gptq_layerwise(dataloader, config, structure, filters=None):
                     }
                     stage_objects = {}
                     for name in stage_names:
-                        gptq_objects[name].free()
-                        gptq_objects[name] = GPTQ(sub_layers_map[name], config)
+                        # Drop the stale statistics before allocating new ones.
+                        del gptq_objects[name]
+                        gptq_objects[name] = GPTQCalibrator(
+                            sub_layers_map[name], config
+                        )
                         stage_objects[name] = gptq_objects[name]
                     with stream_hessians(stage_map, stage_objects):
                         for start in range(0, num_samples, batch_size):
@@ -446,14 +442,13 @@ def apply_gptq_layerwise(dataloader, config, structure, filters=None):
                             _ = block(batch)
 
                 for name in stage_names:
-                    gptq_object = gptq_objects[name]
+                    gptq_object = gptq_objects.pop(name)
                     tokens = int(gptq_object.num_samples)
                     rows = int(gptq_object.rows)
-                    if tokens < 4 * rows:
+                    if tokens < gptq_object.warn_tokens_per_row * rows:
                         undersampled_layers.append((name, tokens, rows))
                     logging.info(f"Quantizing {name}...")
-                    gptq_object.quantize_and_correct_layer()
-                    gptq_object.free()
+                    gptq_object.quantize()
 
             del gptq_objects
 
@@ -473,21 +468,8 @@ def apply_gptq_layerwise(dataloader, config, structure, filters=None):
         progbar.update(current=block_idx + 1)
 
     if undersampled_layers:
-        worst = min(t / r for _, t, r in undersampled_layers)
-        examples = ", ".join(
-            f"{name} ({tokens} tokens for {rows} input features)"
-            for name, tokens, rows in undersampled_layers[:3]
-        )
         warnings.warn(
-            f"GPTQ calibration is undersampled for "
-            f"{len(undersampled_layers)} layer(s): fewer than 4 calibration "
-            "tokens per input feature (worst ratio: "
-            f"{worst:.1f}). With this little data the Hessian is close to "
-            "singular and GPTQ's error correction can overfit the "
-            "calibration set and produce worse results than plain "
-            "round-to-nearest. Increase `num_samples` and/or "
-            "`sequence_length` in `GPTQConfig` (8 or more tokens per input "
-            f"feature is recommended). Examples: {examples}.",
+            GPTQCalibrator.undersampling_warning(undersampled_layers),
             stacklevel=2,
         )
 

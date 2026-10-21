@@ -103,6 +103,15 @@ class PackLayoutTest(testing.TestCase):
         self.assertEqual(layout.packed_length(11), 3)
         self.assertAllClose(layout.unpack(packed), codes)
 
+    def test_ternary_pack_inverts_unpack(self):
+        rng = np.random.default_rng(0)
+        codes = rng.integers(-1, 2, (3, 11)).astype("int8")
+        layout = TernaryTrits(axis=-1, orig_len=11)
+        packed = layout.pack(codes)
+        expected, _, _ = packing.pack_ternary(codes, axis=-1)
+        self.assertAllEqual(packed, expected)
+        self.assertAllEqual(layout.unpack(packed), codes)
+
 
 class QuantizedWeightTest(testing.TestCase):
     def test_validates_variables_against_scheme(self):
