@@ -525,21 +525,21 @@ def is_remote_path(filepath):
 
 
 # Remote paths are handled by TensorFlow's `gfile` when TensorFlow is installed,
-# and otherwise by `etils.epath`, so that remote file access does not require
+# and otherwise by etils.epath, so that remote file access does not require
 # TensorFlow. Local paths always use `os` / `shutil`.
 
 
 def _is_remote_path_or_raise(path):
-    """Returns whether `path` is remote (see `is_remote_path`).
+    """Returns whether `path` is remote.
 
     Raises a `ValueError` if `path` is remote but neither TensorFlow nor
-    `etils.epath` is installed.
+    etils.epath is installed.
     """
     if not is_remote_path(path):
         return False
     if not (gfile.available or epath.available):
         raise ValueError(
-            "Handling remote paths requires installing `etils[epath]` "
+            "Handling remote paths requires installing etils[epath] "
             "(e.g. `pip install keras[gcs]`) or TensorFlow. "
             f"Received: path={path}"
         )

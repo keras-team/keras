@@ -783,7 +783,7 @@ class RemotePathTest(test_case.TestCase):
     def test_is_remote_path_or_raise_raises_correct_message(self):
         path = "gs://bucket/some/file.txt"
         expected_error_msg = (
-            r"Handling remote paths requires installing `etils\[epath\]` "
+            r"Handling remote paths requires installing etils\[epath\] "
             f".*or TensorFlow.*Received: path={path}"
         )
         with (
