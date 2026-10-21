@@ -10127,8 +10127,8 @@ def _argpartition(x, kth, axis=-1):
     if axis is None:
         x = backend.ops.numpy.reshape(x, (-1,))
         axis = -1
-    size = x.shape[axis]
-    if size is not None and not -size <= kth < size:
+    size = backend.ops.shape(x)[axis]
+    if isinstance(size, int) and not -size <= kth < size:
         raise ValueError(
             f"kth must be in the range [-{size}, {size}) for an axis of size "
             f"{size}. Received: kth={kth}"
