@@ -686,6 +686,11 @@ def _get_quantized_dtype_policy_by_str(policy):
             f"Received: policy={policy}"
         )
     mode, source_name = split_name
+    if not source_name:
+        raise ValueError(
+            f"Cannot convert '{policy}' to a quantized DTypePolicy. The "
+            "source dtype policy name after `_from_` must not be empty."
+        )
     if source_name == "None":
         # Older checkpoints carry a literal "None" source; use the default.
         source_name = None

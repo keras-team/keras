@@ -660,6 +660,16 @@ class DTypePolicyGlobalFunctionsTest(test_case.TestCase):
         self.assertNotIn("quantize", str(cm.exception))
 
     @parameterized.named_parameters(
+        ("int8", "int8_from_"),
+        ("gptq", "gptq/4/128_from_"),
+    )
+    def test_empty_source_name_is_refused(self, name):
+        with self.assertRaisesRegex(
+            ValueError, f"Cannot convert '{name}'.*must not be empty"
+        ):
+            get(name)
+
+    @parameterized.named_parameters(
         ("int8", "int8"),
         ("float8_e4m3fn", "float8_e4m3fn"),
         ("float8_e5m2", "float8_e5m2"),
