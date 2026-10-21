@@ -11,7 +11,6 @@ from keras.src.backend import any_symbolic_tensors
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_float_dtype
-from keras.src.backend.common import is_int_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
@@ -6680,6 +6679,9 @@ def _nanquantile(x, q, axis=None, method="linear", keepdims=False):
     )
     position = backend.ops.numpy.multiply(
         last_valid_index, backend.ops.numpy.reshape(q, (-1,))
+    )
+    position = backend.ops.numpy.minimum(
+        backend.ops.numpy.maximum(position, 0), last_valid_index
     )
 
     def take(indices):
