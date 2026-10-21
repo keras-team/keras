@@ -8,6 +8,8 @@ import torch._dynamo as dynamo
 import torch.nn.functional as F
 
 from keras.src import backend
+from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import is_int_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.torch.ops.core import cast
 from keras.src.backend.torch.ops.core import convert_to_tensor
@@ -86,7 +88,7 @@ def rgb_to_hsv(images, data_format=None):
             "or rank 4 (batch of images). Received input with shape: "
             f"images.shape={images.shape}"
         )
-    if not backend.is_float_dtype(dtype):
+    if not is_float_dtype(dtype):
         raise ValueError(
             "Invalid images dtype: expected float dtype. "
             f"Received: images.dtype={standardize_dtype(dtype)}"
@@ -136,7 +138,7 @@ def hsv_to_rgb(images, data_format=None):
             "or rank 4 (batch of images). Received input with shape: "
             f"images.shape={images.shape}"
         )
-    if not backend.is_float_dtype(dtype):
+    if not is_float_dtype(dtype):
         raise ValueError(
             "Invalid images dtype: expected float dtype. "
             f"Received: images.dtype={standardize_dtype(dtype)}"
@@ -1183,7 +1185,7 @@ def _scale_and_translate(
     input_shape = x.shape
     if len(spatial_dims) == 0:
         return x
-    if backend.is_int_dtype(x.dtype):
+    if is_int_dtype(x.dtype):
         output = cast(x, "float32")
         use_rounding = True
     else:

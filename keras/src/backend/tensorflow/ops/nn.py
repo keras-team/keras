@@ -6,6 +6,7 @@ import tensorflow as tf
 
 from keras.src import backend
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
@@ -1565,7 +1566,7 @@ def binary_crossentropy(target, output, from_logits=False):
     """
     target = tf.convert_to_tensor(target)
     output = tf.convert_to_tensor(output)
-    if not backend.is_float_dtype(output.dtype):
+    if not is_float_dtype(output.dtype):
         output = tf.cast(output, backend.floatx())
     target = tf.cast(target, output.dtype)
 
