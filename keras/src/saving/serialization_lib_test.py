@@ -3,7 +3,6 @@
 import json
 
 import numpy as np
-import pytest
 
 import keras
 from keras.src import ops
@@ -96,6 +95,53 @@ class SerializationLibTest(testing.TestCase):
         self.assertEqual(layer.name, restored.name)
         self.assertEqual(layer.trainable, restored.trainable)
         self.assertEqual(layer.compute_dtype, restored.compute_dtype)
+
+    def test_builtin_layers_with_alias_name(self):
+        obj = serialization_lib.deserialize_keras_object(
+            {
+                "class_name": "AveragePooling1D",
+                "module": "keras.layers",
+                "registered_name": "",
+                "config": {"pool_size": 2},
+            }
+        )
+        self.assertIsInstance(obj, keras.layers.AveragePooling1D)
+
+        obj = serialization_lib.deserialize_keras_object(
+            {
+                "class_name": "AvgPool1D",
+                "module": "keras.layers",
+                "registered_name": "",
+                "config": {"pool_size": 2},
+            }
+        )
+        self.assertIsInstance(obj, keras.layers.AveragePooling1D)
+
+    def test_missing_module(self):
+        with self.assertRaisesRegex(
+            TypeError, "'keras.foo' cannot be imported"
+        ):
+            serialization_lib.deserialize_keras_object(
+                {
+                    "class_name": "Bar",
+                    "module": "keras.foo",
+                    "registered_name": "",
+                    "config": {},
+                }
+            )
+
+    def test_missing_attribute(self):
+        with self.assertRaisesRegex(
+            ValueError, "'keras.layers' has no attribute 'Foo'"
+        ):
+            serialization_lib.deserialize_keras_object(
+                {
+                    "class_name": "Foo",
+                    "module": "keras.layers",
+                    "registered_name": "",
+                    "config": {},
+                }
+            )
 
     def test_numpy_get_item_layer(self):
         def tuples_to_lists_str(x):
@@ -227,7 +273,6 @@ class SerializationLibTest(testing.TestCase):
         y2 = new_lmbda(x)
         self.assertAllClose(y1, y2, atol=1e-5)
 
-    @pytest.mark.requires_trainable_backend
     def test_dict_inputs_outputs(self):
         input_foo = keras.Input((2,), name="foo")
         input_bar = keras.Input((2,), name="bar")
@@ -248,7 +293,6 @@ class SerializationLibTest(testing.TestCase):
         self.assertAllClose(original_output["foo"], restored_output["foo"])
         self.assertAllClose(original_output["bar"], restored_output["bar"])
 
-    @pytest.mark.requires_trainable_backend
     def test_shared_inner_layer(self):
         with serialization_lib.ObjectSharingScope():
             input_1 = keras.Input((2,))
@@ -265,7 +309,6 @@ class SerializationLibTest(testing.TestCase):
             self.assertIs(model.layers[2], model.layers[3].layer)
             self.assertIs(new_model.layers[2], new_model.layers[3].layer)
 
-    @pytest.mark.requires_trainable_backend
     def test_functional_subclass(self):
         class PlainFunctionalSubclass(keras.Model):
             pass

@@ -306,15 +306,17 @@ class LayerTest(testing.TestCase):
         self.assertLen(mock_remat.rematted_functions, 1)
         next(iter(mock_remat.rematted_functions.values())).assert_called()
 
-    def test_gptq_quantization_by_setting_dtype(self):
-        """Tests error being raised when dtype is set to GPTQ."""
+    @parameterized.named_parameters(("gptq", "gptq"), ("awq", "awq"))
+    def test_calibration_quantization_by_setting_dtype(self, mode):
+        """Tests error being raised when dtype is set to GPTQ or AWQ."""
         with self.assertRaisesRegex(
             ValueError,
-            "Implicitly enabling GPTQ quantization.*is not supported",
+            f"Implicitly enabling {mode.upper()} quantization.*is not "
+            "supported.*requires a calibration dataset",
         ):
             layer = layers.Dense(3)
             layer.build((2, 4))
-            layer.dtype_policy = "gptq/4/-1_from_float32"
+            layer.dtype_policy = f"{mode}/4/-1_from_float32"
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_GRADIENT,

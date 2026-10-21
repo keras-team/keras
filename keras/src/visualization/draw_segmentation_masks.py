@@ -3,6 +3,7 @@ import numpy as np
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend.common import standardize_dtype
 
 
 @keras_export("keras.visualization.draw_segmentation_masks")
@@ -67,7 +68,7 @@ def draw_segmentation_masks(
     segmentation_masks = ops.convert_to_tensor(segmentation_masks)
 
     if not backend.is_int_dtype(segmentation_masks.dtype):
-        dtype = backend.standardize_dtype(segmentation_masks.dtype)
+        dtype = standardize_dtype(segmentation_masks.dtype)
         raise TypeError(
             "`segmentation_masks` must be in integer dtype. "
             f"Received: segmentation_masks.dtype={dtype}"

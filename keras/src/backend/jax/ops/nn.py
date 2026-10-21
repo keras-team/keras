@@ -17,6 +17,7 @@ from jax.experimental.pallas.ops.tpu.splash_attention import (
 
 from keras.src import backend
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
@@ -50,7 +51,7 @@ def sigmoid(x):
 def sparse_sigmoid(x):
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return jnn.sparse_sigmoid(x)
 
@@ -109,7 +110,7 @@ def leaky_relu(x, negative_slope=0.2):
     # `floatx`, which would disagree with `compute_output_spec`.
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return jnn.leaky_relu(x, negative_slope=negative_slope)
 
@@ -119,7 +120,7 @@ def hard_sigmoid(x):
     # `floatx`, which would disagree with `compute_output_spec`.
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return jnn.hard_sigmoid(x)
 
@@ -127,7 +128,7 @@ def hard_sigmoid(x):
 def hard_silu(x):
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return jnn.hard_silu(x)
 
@@ -1067,7 +1068,7 @@ def moments(x, axes, keepdims=False, synchronized=False):
     # workaround, we simply perform the operations on float32 and convert back
     # to float16
     need_cast = False
-    ori_dtype = backend.standardize_dtype(x.dtype)
+    ori_dtype = standardize_dtype(x.dtype)
     if ori_dtype in ("float16", "bfloat16"):
         need_cast = True
         x = cast(x, "float32")

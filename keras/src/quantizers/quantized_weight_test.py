@@ -10,6 +10,8 @@ from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend.common import AutocastScope
+from keras.src.backend.common import standardize_dtype
 from keras.src.quantizers import packing
 from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.gptq_config import GPTQConfig
@@ -320,7 +322,7 @@ class QuantizedWeightTest(testing.TestCase):
             shape=(4, 2),
             axis=0,
         )
-        with backend.AutocastScope("bfloat16"):
+        with AutocastScope("bfloat16"):
             codes, scale = view.read_tensors()
         self.assertDType(codes, "int8")
         self.assertDType(scale, "bfloat16")
@@ -461,9 +463,7 @@ class LayerViewTest(testing.TestCase):
         )
         self.assertIsNone(layer._quantized_weight())
         # The float kernel is still what the property exposes.
-        self.assertEqual(
-            backend.standardize_dtype(layer.kernel.dtype), "float32"
-        )
+        self.assertEqual(standardize_dtype(layer.kernel.dtype), "float32")
 
 
 class QuantizationSummaryTest(testing.TestCase):
@@ -521,14 +521,8 @@ class QuantizationSummaryTest(testing.TestCase):
     )
     def test_summary_counts_every_stored_tensor(self, policy, store):
         inputs = layers.Input([16])
-        layer = layers.Dense(8, use_bias=False, dtype=policy)
-        outputs = layer(inputs)
+        outputs = layers.Dense(8, use_bias=False, dtype=policy)(inputs)
         model = models.Model(inputs, outputs)
-        # A calibration mode holds no view until its calibration pass has
-        # run; the policy only allocates the variables.
-        mode = layer.quantization_mode
-        if mode in ("gptq", "awq"):
-            setattr(layer, f"is_{mode}_calibrated", True)
         summary = model.quantization_summary(verbose=False)
         self.assertIn(f"weight store : {store}", summary)
         self.assertIn("Quantized params : 128", summary)

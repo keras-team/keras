@@ -304,9 +304,9 @@ def _result_type_cached(floatx, *dtypes):
 def result_type(*dtypes):
     """Returns the type from applying the Keras type promotion rules.
 
-    In general, each argument is first parsed by `backend.standardize_dtype`,
-    and the resulting dtype is determined by the least upper bound of the type
-    promotion lattice.
+    In general, each argument is first parsed by `standardize_dtype` and the
+    resulting dtype is determined by the least upper bound of the type promotion
+    lattice.
 
     Note: This function attempts to match the result of `jnp.result_type`.
 

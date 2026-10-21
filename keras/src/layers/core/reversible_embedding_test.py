@@ -11,6 +11,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend.common import standardize_dtype
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
@@ -413,7 +414,10 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         layer.quantize("int4", config=config)
 
         # Verify block_size is stored
-        self.assertEqual(layer._int4_block_size, block_size)
+        self.assertEqual(
+            layer._quantized_weight().scheme.group_size,
+            None if block_size in (None, -1) else block_size,
+        )
 
         # Verify embeddings_scale shape
         if block_size is None or block_size == -1:
@@ -718,7 +722,7 @@ class ReversibleEmbeddingConsistencyTest(test_case.TestCase):
         )
         x = np.random.random((3, 6)).astype("float32")
         logits = quantized(x, reverse=True)
-        self.assertEqual(backend.standardize_dtype(logits.dtype), "bfloat16")
+        self.assertEqual(standardize_dtype(logits.dtype), "bfloat16")
         self.assertAllClose(
             logits, reference(x, reverse=True), atol=0.2, rtol=0.2
         )

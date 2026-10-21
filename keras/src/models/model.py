@@ -11,7 +11,7 @@ from keras.src.layers.core.input_layer import InputLayer
 from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
 from keras.src.quantizers import strategy_registry
-from keras.src.quantizers.gptq_core import find_layers_in_block
+from keras.src.quantizers.calibration_run import find_layers_in_block
 from keras.src.quantizers.quantization_config import validate_and_resolve_config
 from keras.src.quantizers.report import QuantizationReport
 from keras.src.quantizers.utils import should_quantize_layer
