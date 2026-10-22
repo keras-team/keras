@@ -234,15 +234,7 @@ def max(x, axis=None, keepdims=False, initial=None):
         else:
             return torch.tensor(initial)
 
-    if axis is None:
-        # Reduce over every dimension explicitly, since older torch versions
-        # do not accept `dim=None` for `torch.amax`.
-        axis = tuple(range(x.ndim))
-    if axis == () or axis == []:
-        # Torch handles the empty axis case differently from numpy.
-        result = x
-    else:
-        result = torch.amax(x, dim=axis, keepdim=keepdims)
+    result = amax(x, axis=axis, keepdims=keepdims)
 
     if initial is not None:
         dtype = to_torch_dtype(result.dtype)
@@ -324,6 +316,30 @@ def any(x, axis=None, keepdims=False):
     return cast(torch.any(x, dim=axis, keepdim=keepdims), "bool")
 
 
+def amax(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    if axis is None:
+        # Reduce over every dimension explicitly, since older torch versions
+        # do not accept `dim=None` for `torch.amax`.
+        axis = tuple(range(x.ndim))
+    if axis == () or axis == []:
+        # Torch handles the empty axis case differently from numpy.
+        return x
+    return torch.amax(x, dim=axis, keepdim=keepdims)
+
+
+def amin(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    if axis is None:
+        # Reduce over every dimension explicitly, since older torch versions
+        # do not accept `dim=None` for `torch.amin`.
+        axis = tuple(range(x.ndim))
+    if axis == () or axis == []:
+        # Torch handles the empty axis case differently from numpy.
+        return x
+    return torch.amin(x, dim=axis, keepdim=keepdims)
+
+
 def append(x1, x2, axis=None):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     if axis is None:
@@ -344,6 +360,12 @@ def arange(start, stop=None, step=None, dtype=None):
         start, stop = 0, start
     if step is None:
         step = 1
+    if (
+        builtins.all(isinstance(v, (int, float)) for v in (start, stop, step))
+        and (stop - start) / step <= 0
+    ):
+        # `torch.arange` raises on an empty range, NumPy returns an empty array.
+        return torch.zeros((0,), dtype=dtype, device=get_device())
     return torch.arange(
         start, stop, step=step, dtype=dtype, device=get_device()
     )
@@ -1366,15 +1388,7 @@ def min(x, axis=None, keepdims=False, initial=None):
         else:
             return torch.tensor(initial)
 
-    if axis is None:
-        # Reduce over every dimension explicitly, since older torch versions
-        # do not accept `dim=None` for `torch.amin`.
-        axis = tuple(range(x.ndim))
-    if axis == () or axis == []:
-        # Torch handles the empty axis case differently from numpy.
-        result = x
-    else:
-        result = torch.amin(x, dim=axis, keepdim=keepdims)
+    result = amin(x, axis=axis, keepdims=keepdims)
 
     if initial is not None:
         dtype = to_torch_dtype(result.dtype)
