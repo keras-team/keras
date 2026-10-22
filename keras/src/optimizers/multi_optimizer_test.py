@@ -117,9 +117,9 @@ class MultiOptimizerTest(testing.TestCase):
         multi_opt.build([w1, w2, w_fallback])
 
         grads = [
-            backend.convert_to_tensor([[1.0, 1.0]]),
-            backend.convert_to_tensor([[1.0, 1.0]]),
-            backend.convert_to_tensor([[1.0, 1.0]]),
+            backend.ops.convert_to_tensor([[1.0, 1.0]]),
+            backend.ops.convert_to_tensor([[1.0, 1.0]]),
+            backend.ops.convert_to_tensor([[1.0, 1.0]]),
         ]
 
         multi_opt.apply(grads, [w1, w2, w_fallback])
@@ -158,8 +158,8 @@ class MultiOptimizerTest(testing.TestCase):
         multi_opt.build([w1, w2])
 
         grads = [
-            backend.convert_to_tensor([[1.0, 1.0]]),
-            backend.convert_to_tensor([[1.0, 1.0]]),
+            backend.ops.convert_to_tensor([[1.0, 1.0]]),
+            backend.ops.convert_to_tensor([[1.0, 1.0]]),
         ]
 
         trainable_variables = [w1.numpy(), w2.numpy()]
@@ -228,7 +228,7 @@ class MultiOptimizerTest(testing.TestCase):
             w1 = backend.Variable([[1.0]], name="kernel")
         multi_opt.build([w1])
 
-        loss = backend.convert_to_tensor(2.0)
+        loss = backend.ops.convert_to_tensor(2.0)
         scaled_loss = multi_opt.scale_loss(loss)
         self.assertAllClose(scaled_loss, 10.0)
 
@@ -248,7 +248,7 @@ class MultiOptimizerTest(testing.TestCase):
         # Expected unscaled gradient is 10.0 / 5.0 = 2.0
         # Expected weight update is:
         # 2.0 - lr * unscaled_grad = 2.0 - 0.1 * 2.0 = 1.8
-        grads = [backend.convert_to_tensor([[10.0, 10.0]])]
+        grads = [backend.ops.convert_to_tensor([[10.0, 10.0]])]
 
         multi_opt.apply(grads, [w])
 
@@ -280,8 +280,8 @@ class MultiOptimizerTest(testing.TestCase):
 
         # Verify gradient application via custom callable routing
         grads = [
-            backend.convert_to_tensor([[1.0]]),
-            backend.convert_to_tensor([[1.0]]),
+            backend.ops.convert_to_tensor([[1.0]]),
+            backend.ops.convert_to_tensor([[1.0]]),
         ]
         multi_opt.apply(grads, [w1, w2])
 
@@ -370,9 +370,11 @@ class MultiOptimizerTest(testing.TestCase):
         lr_scheduler.set_model(model)
         lr_scheduler.on_epoch_begin(epoch=1)
 
-        self.assertAllClose(backend.convert_to_numpy(opt_1.learning_rate), 0.05)
         self.assertAllClose(
-            backend.convert_to_numpy(opt_2.learning_rate), 0.005
+            backend.ops.convert_to_numpy(opt_1.learning_rate), 0.05
+        )
+        self.assertAllClose(
+            backend.ops.convert_to_numpy(opt_2.learning_rate), 0.005
         )
 
     @pytest.mark.requires_trainable_backend
@@ -417,14 +419,20 @@ class MultiOptimizerTest(testing.TestCase):
 
         # First epoch: set a baseline val_loss
         reduce_lr.on_epoch_end(epoch=0, logs={"val_loss": 1.0})
-        self.assertAllClose(backend.convert_to_numpy(opt_1.learning_rate), 0.1)
-        self.assertAllClose(backend.convert_to_numpy(opt_2.learning_rate), 0.01)
+        self.assertAllClose(
+            backend.ops.convert_to_numpy(opt_1.learning_rate), 0.1
+        )
+        self.assertAllClose(
+            backend.ops.convert_to_numpy(opt_2.learning_rate), 0.01
+        )
 
         # Second epoch: val_loss does not improve (plateau), exceeds patience=1
         reduce_lr.on_epoch_end(epoch=1, logs={"val_loss": 1.0})
-        self.assertAllClose(backend.convert_to_numpy(opt_1.learning_rate), 0.05)
         self.assertAllClose(
-            backend.convert_to_numpy(opt_2.learning_rate), 0.005
+            backend.ops.convert_to_numpy(opt_1.learning_rate), 0.05
+        )
+        self.assertAllClose(
+            backend.ops.convert_to_numpy(opt_2.learning_rate), 0.005
         )
 
     @pytest.mark.requires_trainable_backend
@@ -529,7 +537,7 @@ class MultiOptimizerTest(testing.TestCase):
         opt_1._model_variables_moving_average[0].assign(w_dense_1_ema)
 
         # Track dense_2 weights (should not change because use_ema=False)
-        dense_2_weights_before = backend.convert_to_numpy(
+        dense_2_weights_before = backend.ops.convert_to_numpy(
             model.layers[1].kernel
         )
 
@@ -540,19 +548,19 @@ class MultiOptimizerTest(testing.TestCase):
         swap_callback.on_test_begin()
 
         # Assert dense_1 weights are swapped with EMA weights
-        dense_1_weights_during = backend.convert_to_numpy(
+        dense_1_weights_during = backend.ops.convert_to_numpy(
             model.layers[0].kernel
         )
         self.assertAllClose(dense_1_weights_during, w_dense_1_ema)
 
         # Assert opt_1 EMA variable now holds the initial model weights
-        opt_1_ema_during = backend.convert_to_numpy(
+        opt_1_ema_during = backend.ops.convert_to_numpy(
             opt_1._model_variables_moving_average[0]
         )
         self.assertAllClose(opt_1_ema_during, w_dense_1_initial)
 
         # Assert dense_2 weights are NOT swapped
-        dense_2_weights_during = backend.convert_to_numpy(
+        dense_2_weights_during = backend.ops.convert_to_numpy(
             model.layers[1].kernel
         )
         self.assertAllClose(dense_2_weights_during, dense_2_weights_before)
@@ -561,13 +569,17 @@ class MultiOptimizerTest(testing.TestCase):
         swap_callback.on_test_end()
 
         # Assert weights are restored
-        dense_1_weights_after = backend.convert_to_numpy(model.layers[0].kernel)
-        dense_2_weights_after = backend.convert_to_numpy(model.layers[1].kernel)
+        dense_1_weights_after = backend.ops.convert_to_numpy(
+            model.layers[0].kernel
+        )
+        dense_2_weights_after = backend.ops.convert_to_numpy(
+            model.layers[1].kernel
+        )
         self.assertAllClose(dense_1_weights_after, w_dense_1_initial)
         self.assertAllClose(dense_2_weights_after, dense_2_weights_before)
 
         # Assert EMA weights are restored
-        opt_1_ema_after = backend.convert_to_numpy(
+        opt_1_ema_after = backend.ops.convert_to_numpy(
             opt_1._model_variables_moving_average[0]
         )
         self.assertAllClose(opt_1_ema_after, w_dense_1_ema)
@@ -608,13 +620,13 @@ class MultiOptimizerTest(testing.TestCase):
         self.assertIsNone(opt_2.loss_scale_factor)
 
         # 2. Verify scale_loss uses LSO's dynamic scale (10.0)
-        loss = backend.convert_to_tensor(2.0)
+        loss = backend.ops.convert_to_tensor(2.0)
         self.assertAllClose(lso_opt.scale_loss(loss), 20.0)
 
         # 3. Verify gradient unscaling and application
         grads = [
-            backend.convert_to_tensor([[10.0, 10.0]]),  # for w1
-            backend.convert_to_tensor([[10.0, 10.0]]),  # for w2
+            backend.ops.convert_to_tensor([[10.0, 10.0]]),  # for w1
+            backend.ops.convert_to_tensor([[10.0, 10.0]]),  # for w2
         ]
 
         # Expected unscaled grads: 10.0 / 10.0 = 1.0

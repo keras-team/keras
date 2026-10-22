@@ -5,6 +5,7 @@ from keras.src import initializers
 from keras.src import ops
 from keras.src import regularizers
 from keras.src.api_export import keras_export
+from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.layers.layer import Layer
 
 
@@ -151,12 +152,13 @@ class LayerNormalization(Layer):
         self.autocast = False
 
     def build(self, input_shape):
-        if isinstance(self.axis, (list, tuple)):
-            self.axis = sorted(self.axis)
-            shape = tuple(input_shape[dim] for dim in self.axis)
-        else:
-            shape = (input_shape[self.axis],)
-            self.axis = [self.axis]
+        axes = canonicalize_axes(self.axis, len(input_shape))
+        if len(set(axes)) != len(axes):
+            raise ValueError(
+                f"Duplicate axes are not allowed. Received: axis={self.axis}"
+            )
+        self.axis = sorted(axes)
+        shape = tuple(input_shape[dim] for dim in self.axis)
         if self.scale or self.rms_scaling:
             self.gamma = self.add_weight(
                 name="gamma",
@@ -195,18 +197,7 @@ class LayerNormalization(Layer):
         return ops.cast(outputs, self.compute_dtype)
 
     def compute_output_shape(self, input_shape):
-        if isinstance(self.axis, int):
-            axes = [self.axis]
-        else:
-            axes = self.axis
-
-        for axis in axes:
-            if axis >= len(input_shape) or axis < -len(input_shape):
-                raise ValueError(
-                    f"Axis {axis} is out of bounds for "
-                    f"input shape {input_shape}. "
-                    f"Received: axis={self.axis}"
-                )
+        canonicalize_axes(self.axis, len(input_shape))
         return input_shape
 
     def get_config(self):

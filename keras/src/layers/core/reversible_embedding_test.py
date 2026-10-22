@@ -11,10 +11,14 @@ from keras.src import models
 from keras.src import ops
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend.common import standardize_dtype
+from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
+from keras.src.quantizers.report import QuantizationReport
 from keras.src.testing import test_case
+from keras.src.testing import test_utils
 from keras.src.testing.test_utils import named_product
 
 
@@ -206,6 +210,117 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         self.assertAllClose(model.predict(x), new_model.predict(x))
 
     @parameterized.named_parameters(
+        named_product(mode=("float8", "gptq"), tie_weights=(True, False))
+    )
+    def test_quantize_unsupported_mode_no_mutation(self, mode, tie_weights):
+        # `ReversibleEmbedding` only supports int8/int4. Other modes must be
+        # rejected before any state is mutated, so that `Model.quantize`
+        # records the layer as skipped instead of leaving it half-quantized.
+        layer = layers.ReversibleEmbedding(10, 16, tie_weights=tie_weights)
+        layer.build()
+        x = np.random.randint(0, 9, size=(4, 3))
+        x_reverse = np.random.uniform(size=(4, 16)).astype("float32")
+        y_before = layer(x)
+        y_reverse_before = layer(x_reverse, reverse=True)
+        original_dtype_policy = layer.dtype_policy
+
+        if mode == "gptq":
+            config = GPTQConfig(dataset=None, tokenizer=None)
+        else:
+            config = None
+        with self.assertRaisesRegex(
+            NotImplementedError, "Invalid quantization mode."
+        ):
+            layer.quantize(mode, config=config)
+
+        # No state was stashed or replaced by the failed quantization.
+        self.assertIsNone(layer.quantization_config)
+        self.assertFalse(getattr(layer, "_is_quantized", False))
+        self.assertEqual(layer.dtype_policy, original_dtype_policy)
+        self.assertDType(layer.embeddings, layer.variable_dtype)
+        if not tie_weights:
+            self.assertDType(layer.reverse_embeddings, layer.variable_dtype)
+
+        # The layer still works in both directions with unchanged outputs.
+        self.assertAllClose(layer(x), y_before)
+        self.assertAllClose(layer(x_reverse, reverse=True), y_reverse_before)
+
+        # The failed attempt must not block a supported quantization.
+        layer.quantize("int8")
+        self.assertTrue(layer._is_quantized)
+
+    @parameterized.named_parameters(named_product(tie_weights=(True, False)))
+    def test_model_quantize_unsupported_mode_skips_with_reason(
+        self, tie_weights
+    ):
+        # When quantizing a whole model with a mode the embedding does not
+        # support, the embedding must be skipped (and reported as such) while
+        # the rest of the model is quantized and remains usable.
+        embedding = layers.ReversibleEmbedding(10, 16, tie_weights=tie_weights)
+        dense = layers.Dense(8)
+        model = models.Sequential([embedding, dense])
+        x = np.random.randint(0, 9, size=(4, 3))
+        model.build((None, 3))
+
+        # `ternary` is supported by `Dense` but not by the embedding.
+        report = model.quantize("ternary", verbose=False)
+
+        # The embedding was skipped with the "no support" reason and the
+        # report lists it; the dense layer was quantized.
+        unsupported = report.skipped_by_reason(
+            QuantizationReport.SKIP_NO_SUPPORT
+        )
+        self.assertIn(embedding.path or embedding.name, unsupported)
+        quantized_paths = [path for path, _, _ in report.quantized]
+        self.assertIn(dense.path or dense.name, quantized_paths)
+
+        # The embedding was left completely untouched.
+        self.assertIsNone(embedding.quantization_config)
+        self.assertFalse(getattr(embedding, "_is_quantized", False))
+        self.assertDType(embedding.embeddings, embedding.variable_dtype)
+        if not tie_weights:
+            self.assertDType(
+                embedding.reverse_embeddings, embedding.variable_dtype
+            )
+
+        # The model still runs, and so does the reverse path.
+        y = model.predict(x, verbose=0)
+        self.assertEqual(y.shape, (4, 3, 8))
+        x_reverse = np.random.uniform(size=(4, 16)).astype("float32")
+        y_reverse = embedding(x_reverse, reverse=True)
+        self.assertEqual(ops.shape(y_reverse), (4, 10))
+
+    @staticmethod
+    def _build_reversible_for_mode(mode, tie_weights):
+        layer = layers.ReversibleEmbedding(64, 32, tie_weights=tie_weights)
+        layer.build()
+        if mode != "none":
+            layer.quantize(mode)
+        return layer
+
+    @parameterized.named_parameters(
+        named_product(mode=("none", "int8", "int4"), tie_weights=(True, False))
+    )
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
+    def test_serialization_round_trip(self, mode, tie_weights):
+        source = self._build_reversible_for_mode(mode, tie_weights)
+        test_utils.randomize_serialized_variables(source)
+
+        store = {}
+        source.save_own_variables(store)
+        # Variables (incl. `reverse_*` for untied weights) are keyed by
+        # consecutive integer positions in the mode's serialization spec --
+        # the on-disk contract.
+        n_expected = len(test_utils.serialized_variable_names(source))
+        self.assertEqual(set(store.keys()), {str(i) for i in range(n_expected)})
+
+        target = self._build_reversible_for_mode(mode, tie_weights)
+        target.load_own_variables(store)
+        test_utils.assert_serialized_variables_equal(self, source, target)
+
+    @parameterized.named_parameters(
         ("int8_tie_weights", "int8_from_mixed_bfloat16", True, 0, 2),
         ("int8_untie_weights", "int8_from_mixed_bfloat16", False, 0, 4),
         ("int4_tie_weights", "int4_from_mixed_bfloat16", True, 0, 2),
@@ -299,7 +414,10 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         layer.quantize("int4", config=config)
 
         # Verify block_size is stored
-        self.assertEqual(layer._int4_block_size, block_size)
+        self.assertEqual(
+            layer._quantized_weight().scheme.group_size,
+            None if block_size in (None, -1) else block_size,
+        )
 
         # Verify embeddings_scale shape
         if block_size is None or block_size == -1:
@@ -374,7 +492,7 @@ class ReversibleEmbeddingTest(test_case.TestCase):
 
         # Verify reverse_embeddings_zero is preserved for untied grouped
         if not tie_weights and block_size is not None:
-            self.assertTrue(hasattr(loaded_layer, "reverse_embeddings_zero"))
+            self.assertIsNotNone(loaded_layer.reverse_embeddings_zero)
             self.assertAllClose(
                 loaded_layer.reverse_embeddings_zero,
                 layer.reverse_embeddings_zero,
@@ -423,13 +541,13 @@ class ReversibleEmbeddingTest(test_case.TestCase):
             )
             # Check reverse_embeddings_zero shape for grouped quantization
             if block_size is not None and block_size != -1:
-                self.assertTrue(hasattr(layer, "reverse_embeddings_zero"))
+                self.assertIsNotNone(layer.reverse_embeddings_zero)
                 self.assertEqual(
                     layer.reverse_embeddings_zero.shape,
                     expected_reverse_scale_shape,
                 )
             else:
-                self.assertFalse(hasattr(layer, "reverse_embeddings_zero"))
+                self.assertIsNone(layer.reverse_embeddings_zero)
 
     @parameterized.named_parameters(
         ("grouped_block_4", 4),
@@ -450,10 +568,13 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         layer.quantize("int4", config=config)
 
         # Verify g_idx is created
-        self.assertTrue(hasattr(layer, "g_idx"))
+        self.assertIsNotNone(layer.g_idx)
 
         # Verify g_idx shape (output_dim for embedding)
         self.assertEqual(layer.g_idx.shape, (output_dim,))
+
+        # g_idx is integer group metadata stored as float32 (see build).
+        self.assertDType(layer.g_idx, "float32")
 
         # Verify g_idx values (should map each column to its group)
         expected_g_idx = np.arange(output_dim) // block_size
@@ -471,7 +592,7 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         layer.quantize("int4", config=config)
 
         # Verify g_idx is NOT created for per-channel
-        self.assertFalse(hasattr(layer, "g_idx"))
+        self.assertIsNone(layer.g_idx)
 
     @pytest.mark.skipif(
         testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
@@ -503,9 +624,125 @@ class ReversibleEmbeddingTest(test_case.TestCase):
 
         # Verify g_idx is preserved
         loaded_layer = loaded_model.layers[0]
-        self.assertTrue(hasattr(loaded_layer, "g_idx"))
+        self.assertIsNotNone(loaded_layer.g_idx)
         self.assertAllClose(loaded_layer.g_idx, g_idx_before)
 
         # Verify outputs match
         y_after = loaded_model(x)
         self.assertAllClose(y_before, y_after)
+
+
+class ReversibleEmbeddingConsistencyTest(test_case.TestCase):
+    """The reverse projection follows the forward table in every mode."""
+
+    def _config(self, mode, **kwargs):
+        if mode == "int8":
+            return Int8QuantizationConfig(**kwargs)
+        return Int4QuantizationConfig(block_size=-1, **kwargs)
+
+    def _layers(self, mode, tie_weights, config=None, **kwargs):
+        # A float reference and a quantized copy with identical weights.
+        reference = layers.ReversibleEmbedding(
+            12, 6, tie_weights=tie_weights, **kwargs
+        )
+        reference.build((None,))
+        quantized = layers.ReversibleEmbedding(
+            12, 6, tie_weights=tie_weights, **kwargs
+        )
+        quantized.build((None,))
+        for name in ("_embeddings", "reverse_embeddings"):
+            if hasattr(reference, name):
+                getattr(quantized, name).assign(getattr(reference, name))
+        quantized.quantize(mode, config=config)
+        return reference, quantized
+
+    @parameterized.named_parameters(
+        named_product(mode=["int8", "int4"], tie_weights=[True, False])
+    )
+    def test_custom_weight_quantizer_applies_to_both_tables(
+        self, mode, tie_weights
+    ):
+        # A user quantizer used to crash the untied reverse table, which
+        # was quantized with the forward axis.
+        if mode == "int8":
+            quantizer = AbsMaxQuantizer(axis=-1)
+        else:
+            quantizer = AbsMaxQuantizer(
+                axis=-1, value_range=(-8, 7), output_dtype="int8"
+            )
+        reference, quantized = self._layers(
+            mode,
+            tie_weights,
+            config=self._config(mode, weight_quantizer=quantizer),
+        )
+        x = np.random.random((3, 6)).astype("float32")
+        self.assertAllClose(
+            quantized(x, reverse=True),
+            reference(x, reverse=True),
+            atol=0.2,
+            rtol=0.2,
+        )
+
+    @parameterized.named_parameters(("int8", "int8"), ("int4", "int4"))
+    def test_tied_reverse_includes_lora_delta(self, mode):
+        # The LoRA update reaches the reverse projection of a tied layer, as
+        # it does in float mode and in the forward lookup.
+        _, layer = self._layers(mode, tie_weights=True)
+        x = np.random.random((3, 6)).astype("float32")
+        before = ops.convert_to_numpy(layer(x, reverse=True))
+        layer.enable_lora(2)
+        rng = np.random.default_rng(0)
+        layer.lora_embeddings_a.assign(rng.random((12, 2)) - 0.5)
+        layer.lora_embeddings_b.assign(rng.random((2, 6)) - 0.5)
+        after = ops.convert_to_numpy(layer(x, reverse=True))
+        a = ops.convert_to_numpy(layer.lora_embeddings_a)
+        b = ops.convert_to_numpy(layer.lora_embeddings_b)
+        expected = (layer.lora_alpha / layer.lora_rank) * (x @ b.T @ a.T)
+        self.assertAllClose(
+            after - before,
+            expected,
+            atol=1e-5,
+            rtol=1e-5,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
+        )
+
+    @parameterized.named_parameters(("int8", "int8"), ("int4", "int4"))
+    def test_mask_survives_quantization(self, mode):
+        _, layer = self._layers(mode, tie_weights=True, mask_zero=True)
+        outputs = layer(np.array([[0, 3, 5]]))
+        mask = backend.get_keras_mask(outputs)
+        self.assertIsNotNone(mask)
+        self.assertAllClose(mask, [[False, True, True]])
+
+    @parameterized.named_parameters(("int8", "int8"), ("int4", "int4"))
+    def test_reverse_dtype_is_honored(self, mode):
+        reference, quantized = self._layers(
+            mode, tie_weights=True, reverse_dtype="bfloat16"
+        )
+        x = np.random.random((3, 6)).astype("float32")
+        logits = quantized(x, reverse=True)
+        self.assertEqual(standardize_dtype(logits.dtype), "bfloat16")
+        self.assertAllClose(
+            logits, reference(x, reverse=True), atol=0.2, rtol=0.2
+        )
+
+    @parameterized.named_parameters(
+        named_product(mode=["int8", "int4"], tie_weights=[True, False])
+    )
+    def test_reverse_outputs_survive_save_load(self, mode, tie_weights):
+        _, layer = self._layers(mode, tie_weights)
+        model = models.Sequential([layers.Input((6,)), layer])
+        x = np.random.random((3, 6)).astype("float32")
+        expected = model.layers[-1](x, reverse=True)
+        path = os.path.join(self.get_temp_dir(), "model.keras")
+        model.save(path)
+        restored = saving.load_model(path)
+        self.assertAllClose(restored.layers[-1](x, reverse=True), expected)
+
+    def test_int4_policy_build_is_weight_only(self):
+        # An int4 layer built from a dtype policy is weight-only on the
+        # reverse projection, like every other int4 path.
+        layer = layers.ReversibleEmbedding(12, 6, dtype="int4_from_float32")
+        layer.build((None,))
+        self.assertIsNone(layer.inputs_quantizer)

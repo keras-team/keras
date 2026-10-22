@@ -155,7 +155,7 @@ class CIoUTest(testing.TestCase):
         bb1 = np.array([[100, 101, 200, 201]])
         bb2 = np.array([[101, 102, 201, 202]])
         self.assertAllClose(
-            iou_lib.compute_ciou(bb1, bb2, "yxyx")[0], [0.96087853672]
+            iou_lib.compute_ciou(bb1, bb2, "yxyx")[0], 0.96087853672
         )
 
     def test_compute_ciou(self):

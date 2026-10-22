@@ -584,6 +584,28 @@ class TreeTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "[Too many leaves|holds 3]"):
             t.pack_sequence_as([10, 20], [1, 2, 3])
 
+    def test_nested_dict_key_order(self, t):
+        # Two structurally equal dicts that differ only in key insertion
+        # order, at the inner level as well as the outer one.
+        unsorted = {"b": {"d": 40, "c": 30}, "a": 10}
+        expected = {"a": 10, "b": {"c": 30, "d": 40}}
+
+        # Keys are sorted at every level, so both flatten the same way.
+        self.assertEqualStrict(t.flatten(unsorted), [10, 30, 40])
+        self.assertEqualStrict(t.flatten(expected), [10, 30, 40])
+        self.assertEqualStrict(
+            t.flatten_with_path(unsorted),
+            [(("a",), 10), (("b", "c"), 30), (("b", "d"), 40)],
+        )
+
+        # Sorting only the outer level would associate 30 with "d" here.
+        self.assertEqualStrict(
+            t.pack_sequence_as(unsorted, [10, 30, 40]), expected
+        )
+
+        # Dicts below a non-dict node are sorted too.
+        self.assertEqualStrict(t.flatten({"b": [{"d": 40, "c": 30}]}), [30, 40])
+
     @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
     def test_pack_sequence_as_tf_wrappers(self, t):
         from tensorflow.python.trackable.data_structures import ListWrapper
@@ -2506,3 +2528,33 @@ class TreeTest(testing.TestCase):
                 (7, None, 9),
             ],
         )
+
+    @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
+    def test_traverse_torch_compile_fullgraph(self, t):
+        import torch
+
+        from keras.src.tree import torchtree_impl
+
+        if t is not torchtree_impl:
+            self.skipTest("Only applicable to torchtree implementation.")
+
+        x = [
+            torch.ones((2, 2)),
+            {"b": torch.zeros((2, 2)), "a": torch.ones((2, 2))},
+        ]
+
+        def fn(s):
+            return t.traverse(
+                lambda tensor: (
+                    tensor + 1 if isinstance(tensor, torch.Tensor) else None
+                ),
+                s,
+            )
+
+        compiled_fn = torch.compile(fn, fullgraph=True)
+        out = compiled_fn(x)
+        expected = fn(x)
+        self.assertAllClose(out[0], expected[0])
+        self.assertAllClose(out[1]["a"], expected[1]["a"])
+        self.assertAllClose(out[1]["b"], expected[1]["b"])
+        self.assertEqual(list(out[1].keys()), ["a", "b"])

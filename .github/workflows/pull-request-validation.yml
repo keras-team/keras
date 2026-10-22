@@ -1,0 +1,17 @@
+name: Pull request validation
+# Every PR from an external contributor is converted to a draft if its
+# description does not link an approved issue assigned to the PR author.
+# Repository owners, org members, collaborators and bots bypass this check.
+on:
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
+    types: [opened, edited, reopened, ready_for_review]
+
+permissions:
+  contents: write # Needed, with pull-requests: write, to toggle draft state.
+  issues: read
+  pull-requests: write
+
+jobs:
+  approved-issue:
+    if: github.repository == 'keras-team/keras'
+    uses: keras-team/shared-workflows/.github/workflows/pull-request-validation.yml@5759d017529ab86921f5908358dd9bf9ee86a14e

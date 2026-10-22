@@ -1,20 +1,7 @@
 import binascii
 import codecs
 import marshal
-import os
 import types as python_types
-
-
-def is_continuous_axis(axis):
-    # Used to determine whether the dimensions in an axis are continuous
-    if isinstance(axis, int) or len(axis) <= 1:
-        return True
-
-    step = axis[1] - axis[0]
-    if step not in (1, -1):
-        return False
-
-    return all(axis[i + 1] - axis[i] == step for i in range(len(axis) - 1))
 
 
 def default(method):
@@ -37,12 +24,8 @@ def func_dump(func):
     Returns:
         A tuple `(code, defaults, closure)`.
     """
-    if os.name == "nt":
-        raw_code = marshal.dumps(func.__code__).replace(b"\\", b"/")
-        code = codecs.encode(raw_code, "base64").decode("ascii")
-    else:
-        raw_code = marshal.dumps(func.__code__)
-        code = codecs.encode(raw_code, "base64").decode("ascii")
+    raw_code = marshal.dumps(func.__code__)
+    code = codecs.encode(raw_code, "base64").decode("ascii")
     defaults = func.__defaults__
     if func.__closure__:
         closure = tuple(c.cell_contents for c in func.__closure__)
@@ -185,8 +168,8 @@ def pythonify_logs(logs):
         else:
             try:
                 # Prevent torch compiler from breaking the graph.
-                if backend.is_tensor(value):
-                    value = backend.convert_to_numpy(value)
+                if backend.ops.is_tensor(value):
+                    value = backend.ops.convert_to_numpy(value)
                 value = float(value)
             except:
                 pass

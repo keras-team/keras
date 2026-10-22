@@ -244,22 +244,24 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
     def get_config(self):
         from keras.src.saving import serialization_lib
 
-        policy_map = self._policy_map
+        policy_map = serialization_lib.serialize_keras_object(self._policy_map)
         if self._default_policy_arg is None:
-            # `default_policy=None` enables us to defer to
-            # `keras.config.dtype_policy()` during loading.
-            # To support this feature, we can set `_name` and `_source_name` to
-            # `None` in `DTypePolicy` and `QuantizedDTypePolicy`,
-            # respectively.
-            for policy in policy_map.values():
-                if isinstance(policy, dtype_policies.QuantizedDTypePolicy):
-                    policy._name = None
-                    policy._source_name = None
-                elif isinstance(policy, dtype_policies.DTypePolicy):
-                    policy._name = None
+            # `default_policy=None` defers to `keras.config.dtype_policy()`
+            # during loading. To support this, the serialized policies carry
+            # no source: `source_name` of a quantized policy, `name` of a
+            # plain one. Only the serialized entries change: the policies in
+            # the map are often the layers' own policies.
+            for key, policy in self._policy_map.items():
+                if not isinstance(policy, DTypePolicy):
+                    continue
+                config = policy_map[key]["config"]
+                if "source_name" in config:
+                    config["source_name"] = None
+                elif "name" in config:
+                    config["name"] = None
         return {
             "default_policy": self._default_policy_arg,
-            "policy_map": serialization_lib.serialize_keras_object(policy_map),
+            "policy_map": policy_map,
         }
 
     @classmethod

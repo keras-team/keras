@@ -2,6 +2,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
+from keras.src.backend.common import standardize_dtype
 from keras.src.layers.layer import Layer
 
 
@@ -118,22 +119,27 @@ class Attention(Layer):
             Tensor of shape `(batch_size, Tq, Tv)`.
         """
         if self.score_mode == "dot":
-            scores = ops.matmul(query, ops.swapaxes(key, -2, -1))
+            scores = backend.ops.numpy.matmul(
+                query, backend.ops.numpy.swapaxes(key, -2, -1)
+            )
             if self.scale is not None:
-                scores = ops.multiply(scores, self.scale)
+                scores = backend.ops.numpy.multiply(scores, self.scale)
         elif self.score_mode == "concat":
             # Reshape tensors to enable broadcasting.
             # Reshape into [batch_size, Tq, 1, dim].
-            q_reshaped = ops.expand_dims(query, axis=-2)
+            q_reshaped = backend.ops.numpy.expand_dims(query, axis=-2)
             # Reshape into [batch_size, 1, Tv, dim].
-            k_reshaped = ops.expand_dims(key, axis=-3)
+            k_reshaped = backend.ops.numpy.expand_dims(key, axis=-3)
             if self.scale is not None:
-                scores = self.concat_score_weight * ops.sum(
-                    ops.tanh(self.scale * (q_reshaped + k_reshaped)), axis=-1
+                scores = self.concat_score_weight * backend.ops.numpy.sum(
+                    backend.ops.numpy.tanh(
+                        self.scale * (q_reshaped + k_reshaped)
+                    ),
+                    axis=-1,
                 )
             else:
-                scores = self.concat_score_weight * ops.sum(
-                    ops.tanh(q_reshaped + k_reshaped), axis=-1
+                scores = self.concat_score_weight * backend.ops.numpy.sum(
+                    backend.ops.numpy.tanh(q_reshaped + k_reshaped), axis=-1
                 )
         else:
             raise ValueError("scores not computed")
@@ -158,9 +164,9 @@ class Attention(Layer):
             value: Value tensor of shape `(batch_size, Tv, dim)`.
             scores_mask: A boolean mask tensor of shape `(batch_size, 1, Tv)`
                 or `(batch_size, Tq, Tv)`. If given, scores at positions where
-                `scores_mask==False` do not contribute to the result. It must
-                contain at least one `True` value in each line along the last
-                dimension.
+                `scores_mask==False` do not contribute to the result. A line
+                with no `True` value attends to nothing, so its result and
+                attention scores are 0.
             training: Python boolean indicating whether the layer should behave
                 in training mode (adding dropout) or in inference mode
                 (no dropout).
@@ -171,40 +177,53 @@ class Attention(Layer):
                 `(batch_size, Tq, Tv)`.
         """
         if scores_mask is not None:
-            padding_mask = ops.logical_not(scores_mask)
-            # Bias so padding positions do not contribute to attention
-            # distribution.  Note 65504. is the max float16 value.
-            max_value = 65504.0 if scores.dtype == "float16" else 1.0e9
+            padding_mask = backend.ops.numpy.logical_not(scores_mask)
+            # Replace masked scores with a large negative constant so they do
+            # not contribute to the attention distribution. Note 65504. is the
+            # max float16 value. A constant rather than a bias keeps the
+            # scores finite: in float16, `scores - 65504.` overflows to -inf
+            # for any score below -16, and a row of -inf gives NaN weights.
+            max_value = (
+                65504.0
+                if standardize_dtype(scores.dtype) == "float16"
+                else 1.0e9
+            )
             if len(padding_mask.shape) == 2:
-                padding_mask = ops.expand_dims(padding_mask, axis=-2)
-            scores = ops.where(padding_mask, scores - max_value, scores)
+                padding_mask = backend.ops.numpy.expand_dims(
+                    padding_mask, axis=-2
+                )
+            scores = backend.ops.numpy.where(padding_mask, -max_value, scores)
 
-        weights = ops.softmax(scores, axis=-1)
+        weights = backend.ops.nn.softmax(scores, axis=-1)
+        if scores_mask is not None:
+            # Zero out masked positions in case a whole row is masked, where
+            # softmax would otherwise spread the weights over masked values.
+            weights = backend.ops.numpy.where(padding_mask, 0.0, weights)
         if training and self.dropout > 0:
             weights = backend.random.dropout(
                 weights,
                 self.dropout,
                 seed=self.seed_generator,
             )
-        return ops.matmul(weights, value), weights
+        return backend.ops.numpy.matmul(weights, value), weights
 
     def _calculate_score_mask(self, scores, v_mask, use_causal_mask):
         if use_causal_mask:
             # Creates a lower triangular mask, so position i cannot attend to
             # positions j > i. This prevents the flow of information from the
             # future into the past.
-            score_shape = ops.shape(scores)
+            score_shape = backend.ops.shape(scores)
             # causal_mask_shape = [1, Tq, Tv].
             mask_shape = (1, score_shape[-2], score_shape[-1])
-            ones_mask = ops.ones(shape=mask_shape, dtype="int32")
-            row_index = ops.cumsum(ones_mask, axis=-2)
-            col_index = ops.cumsum(ones_mask, axis=-1)
-            causal_mask = ops.greater_equal(row_index, col_index)
+            ones_mask = backend.ops.numpy.ones(shape=mask_shape, dtype="int32")
+            row_index = backend.ops.numpy.cumsum(ones_mask, axis=-2)
+            col_index = backend.ops.numpy.cumsum(ones_mask, axis=-1)
+            causal_mask = backend.ops.numpy.greater_equal(row_index, col_index)
 
             if v_mask is not None:
                 # Mask of shape [batch_size, 1, Tv].
-                v_mask = ops.expand_dims(v_mask, axis=-2)
-                return ops.logical_and(v_mask, causal_mask)
+                v_mask = backend.ops.numpy.expand_dims(v_mask, axis=-2)
+                return backend.ops.numpy.logical_and(v_mask, causal_mask)
             return causal_mask
         else:
             # If not using causal mask, return the value mask as is,
@@ -234,8 +253,10 @@ class Attention(Layer):
         )
         if q_mask is not None:
             # Mask of shape [batch_size, Tq, 1].
-            q_mask = ops.expand_dims(q_mask, axis=-1)
-            attention_output = ops.where(q_mask, attention_output, 0)
+            q_mask = backend.ops.numpy.expand_dims(q_mask, axis=-1)
+            attention_output = backend.ops.numpy.where(
+                q_mask, attention_output, 0
+            )
         if return_attention_scores:
             return (attention_output, attention_scores)
         else:

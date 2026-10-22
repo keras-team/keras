@@ -177,23 +177,70 @@ class Bidirectional(Layer):
                     f'"{backward_value}" for backward layer'
                 )
 
+    def _check_merge_widths(self, forward_units, backward_units):
+        # "sum", "mul" and "ave" combine the two directions elementwise, so
+        # both directions must produce the same width.
+        if self.merge_mode not in ("sum", "mul", "ave"):
+            return
+        if None in (forward_units, backward_units):
+            return
+        if forward_units != backward_units:
+            raise ValueError(
+                "The forward and backward layers must produce the same "
+                "number of units when `merge_mode` combines them "
+                "elementwise. Received: "
+                f"merge_mode={self.merge_mode}, "
+                f"forward units={forward_units}, "
+                f"backward units={backward_units}. Use "
+                'merge_mode="concat" or merge_mode=None to combine '
+                "layers of different sizes."
+            )
+
     def compute_output_shape(self, sequences_shape, initial_state_shape=None):
-        output_shape = self.forward_layer.compute_output_shape(sequences_shape)
+        # An explicit `backward_layer` may have a different number of units
+        # from the forward layer, so the result cannot be derived from the
+        # forward layer alone.
+        forward_output_shape = self.forward_layer.compute_output_shape(
+            sequences_shape
+        )
+        backward_output_shape = self.backward_layer.compute_output_shape(
+            sequences_shape
+        )
 
         if self.return_state:
-            output_shape, state_shape = output_shape[0], output_shape[1:]
+            forward_output_shape, forward_state_shape = (
+                forward_output_shape[0],
+                forward_output_shape[1:],
+            )
+            backward_output_shape, backward_state_shape = (
+                backward_output_shape[0],
+                backward_output_shape[1:],
+            )
 
         if self.merge_mode == "concat":
-            output_shape = list(output_shape)
-            output_shape[-1] *= 2
+            output_shape = list(forward_output_shape)
+            output_shape[-1] += backward_output_shape[-1]
             output_shape = tuple(output_shape)
         elif self.merge_mode is None:
-            output_shape = [output_shape, output_shape]
+            output_shape = [forward_output_shape, backward_output_shape]
+        else:
+            self._check_merge_widths(
+                forward_output_shape[-1], backward_output_shape[-1]
+            )
+            output_shape = forward_output_shape
 
         if self.return_state:
             if self.merge_mode is None:
-                return tuple(output_shape) + state_shape + state_shape
-            return tuple([output_shape]) + (state_shape) + (state_shape)
+                return (
+                    tuple(output_shape)
+                    + forward_state_shape
+                    + backward_state_shape
+                )
+            return (
+                tuple([output_shape])
+                + forward_state_shape
+                + backward_state_shape
+            )
         return tuple(output_shape)
 
     def call(
@@ -245,6 +292,7 @@ class Bidirectional(Layer):
             y = y[0]
             y_rev = y_rev[0]
 
+        self._check_merge_widths(y.shape[-1], y_rev.shape[-1])
         y = ops.cast(y, self.compute_dtype)
         y_rev = ops.cast(y_rev, self.compute_dtype)
 
@@ -274,7 +322,7 @@ class Bidirectional(Layer):
 
     def _can_attempt_fused_lstm(self, mask, initial_state=None):
         # Layer-level preconditions for dispatching to
-        # `backend.bidirectional_lstm`. Backends that don't support a
+        # `backend.rnn.bidirectional_lstm`. Backends that don't support a
         # fused path (or don't have the runtime resources for one, e.g.
         # no GPU) raise `NotImplementedError` from the call itself, and
         # the caller falls back to the two-layer path.
@@ -320,7 +368,7 @@ class Bidirectional(Layer):
         else:
             fwd_h0, fwd_c0, bwd_h0, bwd_c0 = initial_state
 
-        fwd_out, bwd_out = backend.bidirectional_lstm(
+        fwd_out, bwd_out = backend.rnn.bidirectional_lstm(
             sequences,
             fwd_h0,
             fwd_c0,
@@ -378,7 +426,7 @@ class Bidirectional(Layer):
 
     def _can_attempt_fused_gru(self, mask, initial_state=None):
         # Layer-level preconditions for dispatching to
-        # `backend.bidirectional_gru`. The structure matches the LSTM gate
+        # `backend.rnn.bidirectional_gru`. The structure matches the LSTM gate
         # above. The only differences are the layer type, the
         # `reset_after=True` requirement (the cuDNN GRU formulation), and
         # the state count (one h per direction, so length 2).
@@ -426,7 +474,7 @@ class Bidirectional(Layer):
         else:
             fwd_h0, bwd_h0 = initial_state
 
-        fwd_out, bwd_out = backend.bidirectional_gru(
+        fwd_out, bwd_out = backend.rnn.bidirectional_gru(
             sequences,
             fwd_h0,
             bwd_h0,
