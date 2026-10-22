@@ -167,6 +167,25 @@ class TorchCoreTest(testing.TestCase):
         out = ep.module()(torch.arange(12).reshape(3, 4))
         self.assertEqual(tuple(out.shape), (3, 2))
 
+    @parameterized.parameters(((3,),), ((2, 3),))
+    def test_custom_gradient_single_output(self, shape):
+        """A result with no `grad_fn` is the output and has no gradient."""
+        calls = 0
+
+        @torch_core.custom_gradient
+        def triple(x):
+            nonlocal calls
+            calls += 1
+            return x * 3.0
+
+        x = torch.ones(shape, requires_grad=True)
+        y = triple(x)
+        self.assertEqual(calls, 1)
+        self.assertEqual(tuple(y.shape), shape)
+        self.assertAllClose(y, np.full(shape, 3.0))
+        with self.assertRaisesRegex(ValueError, "grad_fn must be provided"):
+            y.sum().backward()
+
 
 @pytest.mark.skipif(
     backend.backend() != "torch", reason="Requires torch backend"
