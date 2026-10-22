@@ -13,6 +13,8 @@ from torch.distributed.tensor import DTensor
 from torch.distributed.tensor import Replicate
 
 from keras.src import backend
+from keras.src import layers
+from keras.src import ops
 from keras.src import testing
 from keras.src.backend.common.global_state import clear_session
 from keras.src.backend.torch import distribution_lib
@@ -118,6 +120,65 @@ class TorchCoreTest(testing.TestCase):
             torch.float32,
             dtype="float32",
         )
+
+    def _get_other_device(self):
+        """Returns a device type that is not the type of `get_device()`."""
+        keras_device = get_device().split(":")[0]
+        devices = ["cpu"]
+        if torch.cuda.is_available():
+            devices.append("cuda")
+        if torch.backends.mps.is_available():
+            devices.append("mps")
+        for device in devices:
+            if device != keras_device:
+                return device
+        self.skipTest(
+            f"Needs a device other than `get_device()` ({keras_device!r}). "
+            "This host has no CUDA or MPS device."
+        )
+
+    def _get_inputs_gradient(self, fn, x_value, device):
+        x = torch.tensor(x_value, device=device, requires_grad=True)
+        fn(x).sum().backward()
+        return x.grad
+
+    def test_custom_gradient_on_inputs_device(self):
+        """The gradient is on the device of the input, not `get_device()`."""
+        other_device = self._get_other_device()
+
+        @ops.custom_gradient
+        def scaled_square(x):
+            def grad_fn(*args, upstream=None):
+                if upstream is None:
+                    (upstream,) = args
+                return ops.multiply(upstream, ops.multiply(3.0, x))
+
+            return ops.square(x), grad_fn
+
+        x_value = np.arange(6, dtype="float32").reshape(2, 3)
+        grad = self._get_inputs_gradient(scaled_square, x_value, other_device)
+        expected = self._get_inputs_gradient(
+            scaled_square, x_value, get_device()
+        )
+        self.assertEqual(grad.device.type, other_device)
+        # The custom gradient is 3 * x, not the autodiff gradient 2 * x.
+        self.assertAllClose(grad, 3.0 * x_value)
+        self.assertAllClose(grad, expected)
+
+    @parameterized.named_parameters(("int8", "int8"), ("int4", "int4"))
+    def test_quantized_dense_inputs_gradient_on_inputs_device(self, mode):
+        """The quantized forward uses a custom gradient for the inputs."""
+        other_device = self._get_other_device()
+        layer = layers.Dense(8)
+        layer.build((None, 16))
+        layer.quantize(mode)
+
+        x_value = np.random.RandomState(0).standard_normal((2, 16))
+        x_value = x_value.astype("float32")
+        grad = self._get_inputs_gradient(layer, x_value, other_device)
+        expected = self._get_inputs_gradient(layer, x_value, get_device())
+        self.assertEqual(grad.device.type, other_device)
+        self.assertAllClose(grad, expected)
 
     def test_slice_fast_path_accepts_symint(self):
         """slice fast path should accept SymInt without crashing."""
