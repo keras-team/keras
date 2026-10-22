@@ -3480,6 +3480,11 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         y = KerasTensor((1, 3))
         self.assertEqual(knp.vstack([x, y]).shape, (2, 3))
 
+        # A scalar input is a `(1, 1)` row, matching `np.vstack`.
+        x = KerasTensor(())
+        y = KerasTensor(())
+        self.assertEqual(knp.vstack([x, y]).shape, (2, 1))
+
     def test_dstack(self):
         x = KerasTensor((3,))
         y = KerasTensor((3,))
@@ -7766,6 +7771,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         y = np.array([[4, 5, 6]])
         self.assertAllClose(knp.vstack([x, y]), np.vstack([x, y]))
         self.assertAllClose(knp.Vstack()([x, y]), np.vstack([x, y]))
+
+        # A scalar input is a `(1, 1)` row, matching `np.vstack`.
+        self.assertAllClose(knp.vstack([1.0, 2.0]), np.vstack([1.0, 2.0]))
+        self.assertAllClose(knp.Vstack()([1.0, 2.0]), np.vstack([1.0, 2.0]))
 
     def test_dstack(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])

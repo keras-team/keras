@@ -8884,10 +8884,12 @@ class Vstack(Operation):
         return backend.ops.numpy.vstack(xs)
 
     def compute_output_spec(self, xs):
-        # `np.vstack` treats a 1-D input as a single row, so the effective
-        # shape of `(n,)` is `(1, n)`.
+        # `np.vstack` applies `atleast_2d` to every input first, so `(n,)`
+        # behaves as `(1, n)` and a scalar `()` behaves as `(1, 1)`.
         def as_rows(shape):
             shape = tuple(shape)
+            if not shape:
+                return (1, 1)
             return (1,) + shape if len(shape) == 1 else shape
 
         shapes = [as_rows(x.shape) for x in xs]
