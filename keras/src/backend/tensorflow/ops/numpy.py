@@ -12,8 +12,8 @@ from tensorflow.python.ops.math_ops import is_nan
 
 from keras.src import tree
 from keras.src.backend import config
+from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
-from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import normalize_shift_and_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
@@ -830,6 +830,14 @@ def any(x, axis=None, keepdims=False):
     return tf.reduce_any(x, axis=axis, keepdims=keepdims)
 
 
+def amax(x, axis=None, keepdims=False):
+    return max(x, axis=axis, keepdims=keepdims)
+
+
+def amin(x, axis=None, keepdims=False):
+    return min(x, axis=axis, keepdims=keepdims)
+
+
 def append(x1, x2, axis=None):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -853,6 +861,16 @@ def arange(start, stop=None, step=None, dtype=None):
     dtype = standardize_dtype(dtype)
     if step is None:
         step = 1
+    range_start, range_stop = (0, start) if stop is None else (start, stop)
+    if (
+        builtins.all(
+            isinstance(v, (int, float))
+            for v in (range_start, range_stop, step)
+        )
+        and (range_stop - range_start) / step <= 0
+    ):
+        # `tf.range` raises on an empty range, NumPy returns an empty array.
+        return tf.zeros((0,), dtype=dtype)
     try:
         out = tf.range(start, stop, delta=step, dtype=dtype)
     except tf.errors.NotFoundError:
@@ -1026,9 +1044,13 @@ def array(x, dtype=None):
 
 
 def view(x, dtype=None):
+    from keras.src import backend
+
     x = convert_to_tensor(x)
-    old_dtype = tf.as_dtype(standardize_dtype(x.dtype))
-    new_dtype = tf.as_dtype(standardize_dtype(dtype if dtype else x.dtype))
+    old_dtype = tf.as_dtype(backend.standardize_dtype(x.dtype))
+    new_dtype = tf.as_dtype(
+        backend.standardize_dtype(dtype if dtype else x.dtype)
+    )
 
     old_itemsize = old_dtype.size
     new_itemsize = new_dtype.size
@@ -3807,25 +3829,7 @@ def floor_divide(x1, x2):
     )
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
-    if "float" not in dtype:
-        return tf.math.floordiv(x1, x2)
-    # `tf.math.floordiv` takes the floor of the rounded quotient, which can
-    # reach the next whole number: in float32, 4.2 / 1.4 rounds to 3.0, so
-    # 4.2 // 1.4 gave 3 instead of 2. Divide the exact multiple
-    # `x1 - fmod(x1, x2)` instead, as NumPy and JAX do.
-    # `tf.truncatemod` has no float16 or bfloat16 kernel.
-    compute_dtype = "float32" if dtype in ("float16", "bfloat16") else dtype
-    x1 = tf.cast(x1, compute_dtype)
-    x2 = tf.cast(x2, compute_dtype)
-    mod = tf.truncatemod(x1, x2)
-    div = (x1 - mod) / x2
-    # `fmod` has the sign of `x1`; floor division rounds toward -inf.
-    div = tf.where(
-        tf.logical_and(mod != 0, (mod < 0) != (x2 < 0)), div - 1, div
-    )
-    # A zero divisor gives `x1 / x2` (inf, -inf or nan), as before.
-    result = tf.where(x2 == 0, x1 / x2, tf.round(div))
-    return tf.stop_gradient(tf.cast(result, dtype))
+    return tf.math.floordiv(x1, x2)
 
 
 def logical_xor(x1, x2):
