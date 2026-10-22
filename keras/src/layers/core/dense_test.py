@@ -587,7 +587,7 @@ class DenseTest(testing.TestCase):
 
     @parameterized.named_parameters(
         ("int8", "int8_from_float32", 3),
-        ("int4", "int4_from_float32", 5),  # bias + kernel + scale + zero + gidx
+        ("int4", "int4_from_float32", 3),  # kernel + bias + scale
         ("float8", "float8_from_float32", 8),
     )
     @pytest.mark.skipif(
