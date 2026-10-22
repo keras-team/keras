@@ -6,6 +6,7 @@ from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.ops.operation import Operation
@@ -15,7 +16,7 @@ from keras.src.utils import traceback_utils
 
 class Map(Operation):
     def call(self, f, xs):
-        return backend.core.map(f, xs)
+        return backend.ops.core.map(f, xs)
 
     def compute_output_spec(self, f, xs):
         x = tree.map_structure(lambda t: t[0], xs)
@@ -76,7 +77,7 @@ def map(f, xs):
     """
     if any_symbolic_tensors((xs,)):
         return Map().symbolic_call(f, xs)
-    return backend.core.map(f, xs)
+    return backend.ops.core.map(f, xs)
 
 
 class Scan(Operation):
@@ -87,7 +88,7 @@ class Scan(Operation):
         self.unroll = unroll
 
     def call(self, f, init, xs=None):
-        return backend.core.scan(
+        return backend.ops.core.scan(
             f,
             init,
             xs,
@@ -187,7 +188,7 @@ def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
         return Scan(
             length=length, reverse=reverse, unroll=unroll
         ).symbolic_call(f, init, xs)
-    return backend.core.scan(
+    return backend.ops.core.scan(
         f, init, xs, length, reverse=reverse, unroll=unroll
     )
 
@@ -199,7 +200,7 @@ class AssociativeScan(Operation):
         self.axis = axis
 
     def call(self, f, elems):
-        return backend.core.associative_scan(
+        return backend.ops.core.associative_scan(
             f, elems, reverse=self.reverse, axis=self.axis
         )
 
@@ -287,7 +288,9 @@ def associative_scan(f, elems, reverse=False, axis=0):
         return AssociativeScan(reverse=reverse, axis=axis).symbolic_call(
             f, elems
         )
-    return backend.core.associative_scan(f, elems, reverse=reverse, axis=axis)
+    return backend.ops.core.associative_scan(
+        f, elems, reverse=reverse, axis=axis
+    )
 
 
 class Scatter(Operation):
@@ -296,7 +299,7 @@ class Scatter(Operation):
         self.shape = shape
 
     def call(self, indices, values):
-        return backend.core.scatter(indices, values, self.shape)
+        return backend.ops.core.scatter(indices, values, self.shape)
 
     def compute_output_spec(self, indices, values):
         return KerasTensor(self.shape, dtype=values.dtype)
@@ -330,7 +333,7 @@ def scatter(indices, values, shape):
     """
     if any_symbolic_tensors((indices, values)):
         return Scatter(shape=shape).symbolic_call(indices, values)
-    return backend.core.scatter(indices, values, shape)
+    return backend.ops.core.scatter(indices, values, shape)
 
 
 class ScatterUpdate(Operation):
@@ -339,7 +342,7 @@ class ScatterUpdate(Operation):
         self.reduction = reduction
 
     def call(self, inputs, indices, updates):
-        return backend.core.scatter_update(
+        return backend.ops.core.scatter_update(
             inputs, indices, updates, reduction=self.reduction
         )
 
@@ -422,7 +425,7 @@ def scatter_update(inputs, indices, updates, reduction=None):
         return ScatterUpdate(reduction=reduction).symbolic_call(
             inputs, indices, updates
         )
-    return backend.core.scatter_update(
+    return backend.ops.core.scatter_update(
         inputs, indices, updates, reduction=reduction
     )
 
@@ -433,7 +436,7 @@ class Slice(Operation):
         self.shape = shape
 
     def call(self, inputs, start_indices):
-        return backend.core.slice(inputs, start_indices, self.shape)
+        return backend.ops.core.slice(inputs, start_indices, self.shape)
 
     def compute_output_spec(self, inputs, start_indices):
         if len(self.shape) != len(inputs.shape):
@@ -492,12 +495,12 @@ def slice(inputs, start_indices, shape):
     """
     if any_symbolic_tensors((inputs, start_indices)):
         return Slice(shape=shape).symbolic_call(inputs, start_indices)
-    return backend.core.slice(inputs, start_indices, shape)
+    return backend.ops.core.slice(inputs, start_indices, shape)
 
 
 class SliceUpdate(Operation):
     def call(self, inputs, start_indices, updates):
-        return backend.core.slice_update(inputs, start_indices, updates)
+        return backend.ops.core.slice_update(inputs, start_indices, updates)
 
     def compute_output_spec(self, inputs, start_indices, updates):
         return KerasTensor(inputs.shape, dtype=inputs.dtype)
@@ -536,12 +539,12 @@ def slice_update(inputs, start_indices, updates):
     """
     if any_symbolic_tensors((inputs, start_indices, updates)):
         return SliceUpdate().symbolic_call(inputs, start_indices, updates)
-    return backend.core.slice_update(inputs, start_indices, updates)
+    return backend.ops.core.slice_update(inputs, start_indices, updates)
 
 
 class Switch(Operation):
     def call(self, index, branches, *operands):
-        return backend.core.switch(index, branches, *operands)
+        return backend.ops.core.switch(index, branches, *operands)
 
     def compute_output_spec(self, index, branches, *operands):
         # We use first branch for output_spec
@@ -587,7 +590,7 @@ def switch(index, branches, *operands):
     """
     if any_symbolic_tensors(operands):
         return Switch().symbolic_call(index, branches, *operands)
-    return backend.core.switch(index, branches, *operands)
+    return backend.ops.core.switch(index, branches, *operands)
 
 
 class WhileLoop(Operation):
@@ -598,7 +601,7 @@ class WhileLoop(Operation):
         self.maximum_iterations = maximum_iterations
 
     def call(self, loop_vars):
-        return backend.core.while_loop(
+        return backend.ops.core.while_loop(
             self.cond,
             self.body,
             loop_vars,
@@ -657,7 +660,7 @@ def while_loop(
         return WhileLoop(
             cond, body, maximum_iterations=maximum_iterations
         ).symbolic_call(loop_vars)
-    return backend.core.while_loop(
+    return backend.ops.core.while_loop(
         cond,
         body,
         loop_vars,
@@ -667,7 +670,7 @@ def while_loop(
 
 class StopGradient(Operation):
     def call(self, variable):
-        return backend.core.stop_gradient(variable)
+        return backend.ops.core.stop_gradient(variable)
 
     def compute_output_spec(self, variable):
         return KerasTensor(variable.shape, dtype=variable.dtype)
@@ -686,7 +689,7 @@ def stop_gradient(variable):
 
     Examples:
 
-    >>> var = keras.backend.convert_to_tensor(
+    >>> var = keras.ops.convert_to_tensor(
     ...     [1., 2., 3.],
     ...     dtype="float32"
     ... )
@@ -694,7 +697,7 @@ def stop_gradient(variable):
     """
     if any_symbolic_tensors((variable,)):
         return StopGradient().symbolic_call(variable)
-    return backend.core.stop_gradient(variable)
+    return backend.ops.core.stop_gradient(variable)
 
 
 class ForiLoop(Operation):
@@ -705,7 +708,7 @@ class ForiLoop(Operation):
         self.body_fun = body_fun
 
     def call(self, init_val):
-        return backend.core.fori_loop(
+        return backend.ops.core.fori_loop(
             self.lower,
             self.upper,
             self.body_fun,
@@ -742,7 +745,7 @@ def fori_loop(lower, upper, body_fun, init_val):
     """
     if any_symbolic_tensors((lower, upper, init_val)):
         return ForiLoop(lower, upper, body_fun).symbolic_call(init_val)
-    return backend.core.fori_loop(lower, upper, body_fun, init_val)
+    return backend.ops.core.fori_loop(lower, upper, body_fun, init_val)
 
 
 class Unstack(Operation):
@@ -752,7 +755,7 @@ class Unstack(Operation):
         self.axis = axis
 
     def call(self, x):
-        return backend.core.unstack(x, self.num, self.axis)
+        return backend.ops.core.unstack(x, self.num, self.axis)
 
     def compute_output_spec(self, x):
         axis = canonicalize_axis(self.axis, len(x.shape))
@@ -794,7 +797,7 @@ def unstack(x, num=None, axis=0):
     """
     if any_symbolic_tensors((x,)):
         return Unstack(num, axis).symbolic_call(x)
-    return backend.core.unstack(x, num=num, axis=axis)
+    return backend.ops.core.unstack(x, num=num, axis=axis)
 
 
 @keras_export("keras.ops.shape")
@@ -821,7 +824,7 @@ def shape(x):
     """
     if any_symbolic_tensors((x,)):
         return x.shape
-    return backend.core.shape(x)
+    return backend.ops.core.shape(x)
 
 
 @keras_export("keras.ops.dtype")
@@ -845,7 +848,7 @@ def dtype(x):
     'float32'
 
     """
-    return backend.standardize_dtype(x.dtype)
+    return standardize_dtype(x.dtype)
 
 
 class Cast(Operation):
@@ -854,7 +857,7 @@ class Cast(Operation):
         self.dtype = dtype
 
     def call(self, x):
-        return backend.core.cast(x, self.dtype)
+        return backend.ops.core.cast(x, self.dtype)
 
     def compute_output_spec(self, x):
         return backend.KerasTensor(shape=x.shape, dtype=self.dtype)
@@ -876,10 +879,10 @@ def cast(x, dtype):
     >>> x = keras.ops.arange(4)
     >>> x = keras.ops.cast(x, dtype="float16")
     """
-    dtype = backend.standardize_dtype(dtype)
+    dtype = standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return Cast(dtype=dtype)(x)
-    return backend.core.cast(x, dtype)
+    return backend.ops.core.cast(x, dtype)
 
 
 class SaturateCast(Operation):
@@ -941,7 +944,7 @@ def saturate_cast(x, dtype):
     >>> #  [255 255 255 255]]
 
     """
-    dtype = backend.standardize_dtype(dtype)
+    dtype = standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return SaturateCast(dtype=dtype)(x)
     return _saturate_cast(x, dtype)
@@ -962,8 +965,8 @@ def _saturate_cast(x, dtype, backend_module=None):
             dtype_max = ml_dtypes.finfo(dtype).max
         return dtype_min, dtype_max
 
-    dtype = backend.standardize_dtype(dtype)
-    in_dtype = backend.standardize_dtype(x.dtype)
+    dtype = standardize_dtype(dtype)
+    in_dtype = standardize_dtype(x.dtype)
     in_min, in_max = get_dtype_min_max(in_dtype)
     out_min, out_max = get_dtype_min_max(dtype)
 
@@ -982,9 +985,9 @@ def _saturate_cast(x, dtype, backend_module=None):
         max_limit = np.nextafter(max_limit, 0, dtype=in_dtype)
 
     # Unconditionally apply `clip` to fix `inf` behavior.
-    x = backend_module.numpy.clip(x, min_limit, max_limit)
+    x = backend_module.ops.numpy.clip(x, min_limit, max_limit)
 
-    return backend_module.cast(x, dtype)
+    return backend_module.ops.cast(x, dtype)
 
 
 class ConvertToTensor(Operation):
@@ -995,16 +998,12 @@ class ConvertToTensor(Operation):
         self.ragged = ragged
 
     def call(self, x):
-        return backend.core.convert_to_tensor(
+        return backend.ops.core.convert_to_tensor(
             x, dtype=self.dtype, sparse=self.sparse, ragged=self.ragged
         )
 
     def compute_output_spec(self, x):
-        dtype = (
-            backend.standardize_dtype(x.dtype)
-            if self.dtype is None
-            else self.dtype
-        )
+        dtype = standardize_dtype(x.dtype) if self.dtype is None else self.dtype
         sparse = (
             False if self.sparse is not None and not self.sparse else x.sparse
         )
@@ -1041,10 +1040,10 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     >>> x = np.array([1, 2, 3])
     >>> y = keras.ops.convert_to_tensor(x)
     """
-    dtype = None if dtype is None else backend.standardize_dtype(dtype)
+    dtype = None if dtype is None else standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return ConvertToTensor(dtype=dtype, sparse=sparse, ragged=ragged)(x)
-    return backend.core.convert_to_tensor(
+    return backend.ops.core.convert_to_tensor(
         x, dtype=dtype, sparse=sparse, ragged=ragged
     )
 
@@ -1063,7 +1062,7 @@ def convert_to_numpy(x):
         # This will raise a `ValueError` defined in the `KerasTensor` class.
         # We trigger it rather than duplicate it here.
         return np.array(x)
-    return backend.convert_to_numpy(x)
+    return backend.ops.core.convert_to_numpy(x)
 
 
 class Cond(Operation):
@@ -1097,7 +1096,7 @@ class Cond(Operation):
         return call_fn(*args, **kwargs)
 
     def call(self, pred, true_fn, false_fn):
-        return backend.core.cond(pred, true_fn, false_fn)
+        return backend.ops.core.cond(pred, true_fn, false_fn)
 
     def compute_output_spec(self, pred, true_fn, false_fn):
         true_fn_spec = backend.compute_output_spec(true_fn)
@@ -1146,7 +1145,7 @@ class VectorizedMap(Operation):
         self.function = function
 
     def call(self, elements):
-        return backend.core.vectorized_map(self.function, elements)
+        return backend.ops.core.vectorized_map(self.function, elements)
 
     def compute_output_spec(self, elements):
         x = tree.map_structure(lambda t: t[0], elements)
@@ -1210,7 +1209,7 @@ def vectorized_map(function, elements):
     """
     if any_symbolic_tensors((elements,)):
         return VectorizedMap(function)(elements)
-    return backend.core.vectorized_map(function, elements)
+    return backend.ops.core.vectorized_map(function, elements)
 
 
 @keras_export("keras.ops.is_tensor")
@@ -1226,7 +1225,46 @@ def is_tensor(x):
     Returns:
         `True` if `x` is a tensor, otherwise `False`.
     """
-    return backend.core.is_tensor(x)
+    return backend.ops.core.is_tensor(x)
+
+
+@keras_export("keras.ops.grad")
+def grad(f, argnums=0):
+    """Return a function that computes the gradient of `f`.
+
+    Experimental. This works on concrete tensors only, not symbolic ones,
+    and raises `NotImplementedError` on backends without automatic
+    differentiation. A non-scalar output is summed before differentiating,
+    the same as a gradient tape would.
+
+    Args:
+        f: A function returning a tensor. The arguments at `argnums` may be
+            tensors, variables or nested structures of them.
+        argnums: An integer or a tuple of integers, the positions of the
+            arguments to differentiate with respect to. Defaults to `0`.
+
+    Returns:
+        A function with the signature of `f` that returns the gradient for
+        each position in `argnums`, a single value for an integer and a
+        tuple for a tuple. Arguments that do not affect the output get zeros.
+
+    Example:
+
+    ```python
+    def f(x, y):
+        return x * y
+
+    x = ops.array([1.0, 2.0])
+    y = ops.array([3.0, 4.0])
+    dx = ops.grad(f)(x, y)
+    # dx is [3.0, 4.0]
+    dx, dy = ops.grad(f, argnums=(0, 1))(x, y)
+    # dy is [1.0, 2.0]
+    ops.grad(ops.tanh)(x)
+    # the elementwise derivative of tanh at x
+    ```
+    """
+    return backend.ops.core.grad(f, argnums=argnums)
 
 
 @keras_export("keras.ops.custom_gradient")
@@ -1310,4 +1348,4 @@ def custom_gradient(f):
         return ops.log(1 + e), grad
     ```
     """
-    return backend.core.custom_gradient(f)
+    return backend.ops.core.custom_gradient(f)

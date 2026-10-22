@@ -1,9 +1,9 @@
 from collections import OrderedDict
 from collections import namedtuple
 
+from keras.src import backend
 from keras.src import losses as losses_module
 from keras.src import metrics as metrics_module
-from keras.src import ops
 from keras.src import tree
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.losses import loss as loss_module
@@ -581,6 +581,17 @@ class CompileLoss(losses_module.Loss):
                 current_path + (key,),
             )
 
+    def _call_loss(self, loss_fn, y_t, y_p, sample_weight, loss_name):
+        try:
+            return loss_fn(y_t, y_p, sample_weight)
+        except ValueError as e:
+            raise ValueError(
+                f"Error when computing loss for output '{loss_name}'. "
+                f"Received target shape {tuple(y_t.shape)} and "
+                f"prediction shape {tuple(y_p.shape)}.\n"
+                f"{str(e).strip()}"
+            ) from e
+
     def build(self, y_true, y_pred):
         loss = self._user_loss
         loss_weights = self._user_loss_weights
@@ -703,7 +714,7 @@ class CompileLoss(losses_module.Loss):
         return output_names
 
     def __call__(self, y_true, y_pred, sample_weight=None):
-        with ops.name_scope(self.name):
+        with backend.name_scope(self.name):
             return self.call(y_true, y_pred, sample_weight)
 
     def call(self, y_true, y_pred, sample_weight=None):
@@ -719,7 +730,7 @@ class CompileLoss(losses_module.Loss):
             # Although we are in the fast path, we still need to iterate
             # through the losses to prevent the torch compiler from failing.
             loss_values = []
-            for path, loss_fn, loss_weight, _ in self._flat_losses:
+            for path, loss_fn, loss_weight, loss_name in self._flat_losses:
                 y_t, y_p = (
                     resolve_path(path, y_true),
                     resolve_path(path, y_pred),
@@ -728,11 +739,14 @@ class CompileLoss(losses_module.Loss):
                     _sample_weight = resolve_path(path, sample_weight)
                 else:
                     _sample_weight = sample_weight
-                value = ops.cast(
-                    loss_fn(y_t, y_p, _sample_weight), dtype=self.dtype
+                value = backend.ops.cast(
+                    self._call_loss(
+                        loss_fn, y_t, y_p, _sample_weight, loss_name
+                    ),
+                    dtype=self.dtype,
                 )
                 if loss_weight is not None:
-                    value = ops.multiply(value, loss_weight)
+                    value = backend.ops.numpy.multiply(value, loss_weight)
                 loss_values.append(value)
             return loss_values[0]
 
@@ -819,7 +833,7 @@ class CompileLoss(losses_module.Loss):
         # Iterate all losses in flat form.
         loss_values = []
 
-        for (path, loss_fn, loss_weight, _), metric in zip(
+        for (path, loss_fn, loss_weight, loss_name), metric in zip(
             self._flat_losses, metrics
         ):
             y_t, y_p = resolve_path(path, y_true), resolve_path(path, y_pred)
@@ -828,8 +842,9 @@ class CompileLoss(losses_module.Loss):
             else:
                 _sample_weight = sample_weight
 
-            value = ops.cast(
-                loss_fn(y_t, y_p, _sample_weight), dtype=self.dtype
+            value = backend.ops.cast(
+                self._call_loss(loss_fn, y_t, y_p, _sample_weight, loss_name),
+                dtype=self.dtype,
             )
             # Record *unweighted* individual losses.
             if metric:
@@ -838,7 +853,7 @@ class CompileLoss(losses_module.Loss):
                     sample_weight=tree.flatten(y_p)[0].shape[0],
                 )
             if loss_weight is not None:
-                value = ops.multiply(value, loss_weight)
+                value = backend.ops.numpy.multiply(value, loss_weight)
             loss_values.append(value)
 
         if loss_values:

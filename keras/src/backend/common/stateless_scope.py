@@ -54,9 +54,9 @@ class StatelessScope:
                     f"instances. Received instead: {k}"
                 )
             if isinstance(v, Variable):
-                v = backend.cast(v.value, dtype=k.dtype)
+                v = backend.ops.cast(v.value, dtype=k.dtype)
             else:
-                v = backend.convert_to_tensor(v, dtype=k.dtype)
+                v = backend.ops.convert_to_tensor(v, dtype=k.dtype)
             if k.shape != v.shape:
                 raise ValueError(
                     "Invalid variable value in StatelessScope: "

@@ -16,6 +16,7 @@ from keras.src.ops.core import convert_to_tensor as convert_to_tensor
 from keras.src.ops.core import custom_gradient as custom_gradient
 from keras.src.ops.core import dtype as dtype
 from keras.src.ops.core import fori_loop as fori_loop
+from keras.src.ops.core import grad as grad
 from keras.src.ops.core import is_tensor as is_tensor
 from keras.src.ops.core import map as map
 from keras.src.ops.core import saturate_cast as saturate_cast
@@ -55,10 +56,12 @@ from keras.src.ops.math import erfinv as erfinv
 from keras.src.ops.math import extract_sequences as extract_sequences
 from keras.src.ops.math import fft as fft
 from keras.src.ops.math import fft2 as fft2
+from keras.src.ops.math import gammainc as gammainc
 from keras.src.ops.math import ifft2 as ifft2
 from keras.src.ops.math import in_top_k as in_top_k
 from keras.src.ops.math import irfft as irfft
 from keras.src.ops.math import istft as istft
+from keras.src.ops.math import lgamma as lgamma
 from keras.src.ops.math import logdet as logdet
 from keras.src.ops.math import logsumexp as logsumexp
 from keras.src.ops.math import rfft as rfft
@@ -135,8 +138,6 @@ from keras.src.ops.numpy import absolute as absolute
 from keras.src.ops.numpy import add as add
 from keras.src.ops.numpy import all as all
 from keras.src.ops.numpy import allclose as allclose
-from keras.src.ops.numpy import amax as amax
-from keras.src.ops.numpy import amin as amin
 from keras.src.ops.numpy import angle as angle
 from keras.src.ops.numpy import any as any
 from keras.src.ops.numpy import append as append
@@ -174,11 +175,13 @@ from keras.src.ops.numpy import concatenate as concatenate
 from keras.src.ops.numpy import conj as conj
 from keras.src.ops.numpy import conjugate as conjugate
 from keras.src.ops.numpy import copy as copy
+from keras.src.ops.numpy import copysign as copysign
 from keras.src.ops.numpy import corrcoef as corrcoef
 from keras.src.ops.numpy import correlate as correlate
 from keras.src.ops.numpy import cos as cos
 from keras.src.ops.numpy import cosh as cosh
 from keras.src.ops.numpy import count_nonzero as count_nonzero
+from keras.src.ops.numpy import cov as cov
 from keras.src.ops.numpy import cross as cross
 from keras.src.ops.numpy import cumprod as cumprod
 from keras.src.ops.numpy import cumsum as cumsum
@@ -206,6 +209,7 @@ from keras.src.ops.numpy import fabs as fabs
 from keras.src.ops.numpy import flip as flip
 from keras.src.ops.numpy import fliplr as fliplr
 from keras.src.ops.numpy import flipud as flipud
+from keras.src.ops.numpy import float_power as float_power
 from keras.src.ops.numpy import floor as floor
 from keras.src.ops.numpy import floor_divide as floor_divide
 from keras.src.ops.numpy import fmax as fmax
@@ -257,11 +261,13 @@ from keras.src.ops.numpy import logical_or as logical_or
 from keras.src.ops.numpy import logical_xor as logical_xor
 from keras.src.ops.numpy import logspace as logspace
 from keras.src.ops.numpy import matmul as matmul
+from keras.src.ops.numpy import max as amax
 from keras.src.ops.numpy import max as max
 from keras.src.ops.numpy import maximum as maximum
 from keras.src.ops.numpy import mean as mean
 from keras.src.ops.numpy import median as median
 from keras.src.ops.numpy import meshgrid as meshgrid
+from keras.src.ops.numpy import min as amin
 from keras.src.ops.numpy import min as min
 from keras.src.ops.numpy import minimum as minimum
 from keras.src.ops.numpy import mod as mod

@@ -20,6 +20,9 @@ from keras.src.layers.attention.attention import Attention as Attention
 from keras.src.layers.attention.grouped_query_attention import (
     GroupedQueryAttention as GroupQueryAttention,
 )
+from keras.src.layers.attention.grouped_query_attention import (
+    GroupedQueryAttention as GroupedQueryAttention,
+)
 from keras.src.layers.attention.multi_head_attention import (
     MultiHeadAttention as MultiHeadAttention,
 )
@@ -76,6 +79,7 @@ from keras.src.layers.core.masking import Masking as Masking
 from keras.src.layers.core.reversible_embedding import (
     ReversibleEmbedding as ReversibleEmbedding,
 )
+from keras.src.layers.core.ternary_dense import TernaryDense as TernaryDense
 from keras.src.layers.core.wrapper import Wrapper as Wrapper
 from keras.src.layers.input_spec import InputSpec as InputSpec
 from keras.src.layers.layer import Layer as Layer

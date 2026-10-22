@@ -347,7 +347,7 @@ class RNN(Layer):
         if not tree.is_nested(initial_state):
             initial_state = [initial_state]
 
-        return backend.rnn(
+        return backend.rnn.rnn(
             step,
             sequences,
             initial_state,
@@ -410,7 +410,7 @@ class RNN(Layer):
         # Note that states may be deeply nested
         # (e.g. in the stacked cells case).
         initial_state = tree.map_structure(
-            lambda x: backend.convert_to_tensor(
+            lambda x: backend.ops.convert_to_tensor(
                 x, dtype=self.cell.compute_dtype
             ),
             initial_state,

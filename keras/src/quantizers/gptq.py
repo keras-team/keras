@@ -1,12 +1,8 @@
-import types
+import functools
 
 from keras.src import ops
-from keras.src import quantizers
-from keras.src.layers import Dense
-from keras.src.layers import EinsumDense
 from keras.src.ops import linalg
-from keras.src.quantizers.gptq_config import GPTQConfig
-from keras.src.quantizers.quantizers import GPTQQuantizer
+from keras.src.quantizers.calibrator import Calibrator
 from keras.src.quantizers.quantizers import compute_quantization_parameters
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
 from keras.src.quantizers.quantizers import quantize_with_zero_point
@@ -24,9 +20,22 @@ def _stable_permutation(metric):
     return ops.argsort(ops.negative(metric_jittered))
 
 
+def _stored_scale_zero(weights, *, scale_dtype, **kwargs):
+    """`compute_quantization_parameters`, with the scale the layer stores.
+
+    The parameters are computed in float32, then the scale is rounded to
+    `scale_dtype`, the dtype of the variable that holds it. The solve then
+    chooses the codes, and corrects their error, against the scale the
+    forward pass dequantizes with.
+    """
+    scale, zero, maxq = compute_quantization_parameters(weights, **kwargs)
+    scale = ops.cast(ops.cast(scale, scale_dtype), "float32")
+    return scale, zero, maxq
+
+
 def gptq_quantize_matrix(
     weights_transpose,
-    inv_hessian,
+    hessian,
     *,
     blocksize=128,
     group_size=-1,
@@ -53,18 +62,24 @@ def gptq_quantize_matrix(
     - invH[block, future] denotes the cross-block slice of the inverse Hessian,
     - W[:, future] are the columns yet to be quantized.
 
+    The inverse Hessian used for error propagation is derived from the
+    (already dampened) Hessian using the reference GPTQ/AutoGPTQ Cholesky
+    formulation rather than a dense matrix inverse: the upper-triangular
+    Cholesky factor of `H^-1` is computed via triangular solves and indexed
+    directly inside the error-correction loop.
+
     Args:
         weights_transpose: Transposed weight matrix [out_features, in_features]
          to quantize.
-        inv_hessian: Inverse Hessian matrix [in_features, in_features] for
-         error propagation.
+        hessian: Dampened Hessian matrix [in_features, in_features]. The upper
+         Cholesky factor of its inverse drives error propagation.
         blocksize: Size of the blocks to process (default: 128).
         group_size: Size of the groups for parameter reuse
          (default: -1, no grouping).
         activation_order: Whether to apply activation-order permutation
          (default: False).
         order_metric: Metric for ordering features
-         (default: None, uses 1 / diag(invH)).
+         (default: None, uses diag(H)).
         compute_scale_zero: Function to compute scale and zero for
          quantization.
 
@@ -78,11 +93,9 @@ def gptq_quantize_matrix(
     in_features = ops.shape(weights_transpose)[1]
 
     if activation_order:
-        # Use 1 / diag(inverse_hessian) as importance proxy by default.
+        # Use diag(H) as the importance proxy by default (as in AutoGPTQ).
         if order_metric is None:
-            order_metric = ops.reciprocal(
-                ops.add(ops.diagonal(inv_hessian), 1e-12)
-            )
+            order_metric = ops.diagonal(hessian)
         else:
             # sanitize provided metric
             order_metric = ops.cast(order_metric, "float32")
@@ -96,11 +109,19 @@ def gptq_quantize_matrix(
         inv_perm = ops.argsort(perm)
 
         weights_transpose = ops.take(weights_transpose, perm, axis=1)
-        inv_hessian = ops.take(
-            ops.take(inv_hessian, perm, axis=0), perm, axis=1
-        )
+        # Permute the Hessian *before* factorization. Cholesky does not commute
+        # with permutation, so the factor must be computed on the reordered H.
+        hessian = ops.take(ops.take(hessian, perm, axis=0), perm, axis=1)
     else:
         perm = inv_perm = None
+
+    # Reference GPTQ/AutoGPTQ inverse-Hessian factorization. Compute `H^-1`
+    # from its lower Cholesky factor using triangular solves (no dense inverse),
+    # then take the UPPER Cholesky factor of `H^-1`. Indexing this factor inside
+    # the loop below reproduces AutoGPTQ's error-propagation exactly.
+    cholesky_lower = linalg.cholesky(hessian)
+    inverse_hessian = linalg.cholesky_inverse(cholesky_lower)
+    inv_hessian = linalg.cholesky(inverse_hessian, upper=True)
 
     # weights_buffer: [out_features, in_features]
     weights_buffer = weights_transpose
@@ -112,6 +133,17 @@ def gptq_quantize_matrix(
 
     # Compute effective group size
     effective_group = in_features if group_size == -1 else group_size
+
+    # Per-group cached params, reused until the column index crosses into
+    # the next group. The cache must live across processing blocks: a group
+    # can span several blocks (`group_size == -1` covers the whole matrix,
+    # and `group_size > blocksize` covers more than one block). Resetting it
+    # per block would recompute and re-append the same group's params once
+    # per block, corrupting the [out_features, n_groups] scale/zero layout.
+    cached_scale = None
+    cached_zero = None
+    cached_maxq = None
+    cached_group_start = -1
 
     # Process features in blocks
     for block_start in range(0, in_features, blocksize):
@@ -127,12 +159,6 @@ def gptq_quantize_matrix(
         block_inv_hessian = inv_hessian[
             block_start:block_end, block_start:block_end
         ]
-
-        # Per-group cached params for reuse within the group
-        cached_scale = None
-        cached_zero = None
-        cached_maxq = None
-        cached_group_start = -1
 
         for block_idx in range(block_size):
             # Current global column index, represents the original column
@@ -189,8 +215,8 @@ def gptq_quantize_matrix(
             # block_inv_hessian_diag: scalar
             current_block_influence = block_inv_hessian[block_idx, block_idx]
             # We divide by current_block_influence to get the
-            # correct scaling of the error term.
-            err = ops.divide(
+            # correct scaling of the error term. Prevent division by zero.
+            err = ops.divide_no_nan(
                 ops.subtract(weight_column, dequantized_col),
                 current_block_influence,
             )
@@ -244,10 +270,10 @@ def gptq_quantize_matrix(
     # base_group = effective_group (int)
     base_group = effective_group
 
-    # g_idx in permuted domain
-    g_idx = ops.arange(0, in_features, dtype="int32")
-    g_idx = ops.divide(g_idx, base_group)
-    g_idx = ops.cast(g_idx, "float32")
+    # g_idx in permuted domain. It is integer group metadata, kept as int32.
+    g_idx = ops.floor_divide(
+        ops.arange(0, in_features, dtype="int32"), base_group
+    )
 
     # Map group indices and quantized weights back to original column order
     if activation_order:
@@ -269,103 +295,65 @@ def gptq_quantize_matrix(
     return quantized_weights_buffer, scale, zero, g_idx
 
 
-class GPTQ:
-    def __init__(self, layer, config=GPTQConfig(tokenizer=None, dataset=None)):
-        self.original_layer = layer
-        self.num_samples = 0
-        self.config = config
-        self.quantizer = GPTQQuantizer(
-            config, compute_dtype=layer.variable_dtype
+class GPTQCalibrator(Calibrator):
+    """GPTQ calibrator for one layer: the Hessian of its inputs.
+
+    Args:
+        layer: A layer with a projection geometry (`Dense`, `EinsumDense`)
+            that supports the `gptq` mode.
+        config: `GPTQConfig` instance with quantization parameters.
+    """
+
+    mode = "gptq"
+
+    # GPTQ's Hessian is close to singular with fewer calibration tokens
+    # than this per input feature.
+    warn_tokens_per_row = 4
+
+    def __init__(self, layer, config):
+        super().__init__(layer, config)
+        # `kernel_scale` is stored in the layer's variable dtype.
+        self.compute_scale_zero = functools.partial(
+            _stored_scale_zero,
+            scale_dtype=layer.variable_dtype,
+            bits=config.weight_bits,
+            symmetric=config.symmetric,
+            per_channel=config.per_channel,
+            group_size=config.group_size,
         )
-
-        # Explicitly handle each supported layer type
-        if isinstance(layer, Dense) or (
-            isinstance(layer, EinsumDense) and layer.kernel.ndim == 2
-        ):
-            # For a standard Dense layer, the dimensions are straightforward.
-            self.kernel_shape = layer.kernel.shape
-            # rows: [input_features]
-            self.rows = self.kernel_shape[0]
-            # columns: [output_features]
-            self.columns = self.kernel_shape[1]
-            self.layer = layer
-
-        # Handle 3D EinsumDense layers (typically from attention blocks).
-        elif isinstance(layer, EinsumDense) and layer.kernel.ndim == 3:
-            # For EinsumDense, we determine the effective 2D dimensions.
-            self.kernel_shape = layer.kernel.shape
-            shape = list(self.kernel_shape)
-            d_model_dim_index = shape.index(max(shape))
-
-            if d_model_dim_index == 0:  # QKV projection case
-                in_features, heads, head_dim = shape
-                self.rows, self.columns = (
-                    in_features,
-                    ops.multiply(heads, head_dim),
-                )
-            elif d_model_dim_index in [1, 2]:  # Attention Output case
-                heads, head_dim, out_features = shape
-                self.rows, self.columns = (
-                    ops.multiply(heads, head_dim),
-                    out_features,
-                )
-
-            # Create a temporary object that holds a reshaped
-            # 2D version of the kernel.
-            self.layer = types.SimpleNamespace(
-                kernel=ops.reshape(layer.kernel, (self.rows, self.columns)),
-            )
-        else:
-            # Raise an error if the layer is not supported.
-            raise TypeError(f"Unsupported layer type for GPTQ: {type(layer)}")
         self.hessian = ops.zeros((self.rows, self.rows), dtype="float32")
 
-    def update_hessian_with_batch(self, input_batch):
-        """
-        Updates the running average of the Hessian matrix with a new batch.
-
-        This method computes the Hessian matrix for a given batch of input
-        activations and updates the accumulated Hessian (`self.hessian`) using a
-        numerically stable running average. This allows the Hessian to be
-        computed over a large dataset without loading all samples into memory
-        at once.
-
-        The input tensor is first reshaped into a 2D matrix [num_samples,
-        num_features] before the Hessian is calculated.
+    @classmethod
+    def undersampling_warning(cls, layers):
+        """The warning for layers calibrated on too few tokens.
 
         Args:
-            input_batch: A 2D or higher-dimensional tensor of input activations
-                from a calibration batch.
-
-        Raises:
-            ValueError: If the feature dimension of the input tensor
-                `input_batch` does not match the dimensions of the
-                pre-initialized Hessian matrix `self.hessian`.
+            layers: List of `(name, tokens, rows)` for every undersampled
+                layer, as tallied by the calibration driver.
         """
-        if input_batch is None:
-            raise ValueError("Input tensor cannot be None.")
+        worst = min(tokens / rows for _, tokens, rows in layers)
+        examples = ", ".join(
+            f"{name} ({tokens} tokens for {rows} input features)"
+            for name, tokens, rows in layers[:3]
+        )
+        return (
+            f"GPTQ calibration is undersampled for {len(layers)} layer(s): "
+            f"fewer than {cls.warn_tokens_per_row} calibration tokens per "
+            f"input feature (worst ratio: {worst:.1f}). With this little "
+            "data the Hessian is close to singular and GPTQ's error "
+            "correction can overfit the calibration set and produce worse "
+            "results than plain round-to-nearest. Increase `num_samples` "
+            "and/or "
+            "`sequence_length` in `GPTQConfig` (8 or more tokens per input "
+            f"feature is recommended). Examples: {examples}."
+        )
 
-        if len(input_batch.shape) < 2:
-            raise ValueError(
-                "Input tensor must have rank >= 2 "
-                f"(got rank {len(input_batch.shape)})."
-            )
-        if ops.size(input_batch) == 0:
-            raise ValueError("Input tensor cannot be empty.")
-        if len(input_batch.shape) > 2:
-            # [batch, features]
-            input_batch = ops.reshape(input_batch, (-1, input_batch.shape[-1]))
-        x = ops.cast(input_batch, "float32")
-
-        num_new_samples = ops.shape(x)[0]
+    def observe(self, inputs):
+        """Updates the running mean of the Hessian `2 X^T X / N`."""
+        x = self._flatten_inputs(inputs)
+        num_new_samples = int(ops.shape(x)[0])
         num_prev_samples = self.num_samples
-        total_samples = ops.add(num_prev_samples, num_new_samples)
-
-        if ops.shape(self.hessian)[0] != ops.shape(x)[-1]:
-            raise ValueError(
-                f"Hessian dimensions ({ops.shape(self.hessian)[0]}) do not "
-                f"match input features ({ops.shape(x)[-1]})."
-            )
+        total_samples = num_prev_samples + num_new_samples
 
         # gram_matrix: [features, features]
         gram_matrix = ops.matmul(ops.transpose(x), x)
@@ -387,51 +375,9 @@ class GPTQ:
             ops.multiply(ops.divide(2.0, total_samples), gram_matrix),
         )
 
-        self.num_samples = self.num_samples + ops.shape(x)[0] or 0
+        self.num_samples = total_samples
 
-    def quantize_and_correct_layer(
-        self,
-        blocksize=128,
-    ):
-        """
-        Performs GPTQ quantization and correction on the layer's weights.
-
-        This method implements the core logic of the "Optimal Brain Quant"
-        (OBQ) method, as applied by GPTQ, to quantize the weights of a single
-        layer. It iteratively quantizes blocks of weights and corrects for the
-        quantization error by updating the remaining weights.
-
-        The algorithm follows these main steps:
-        1.  Initialization: It optionally reorders the weight columns based
-            on activation magnitudes (`activation_order=True`) to protect more
-            salient
-            weights.
-        2.  Hessian Modification: The Hessian matrix, pre-computed from
-            calibration data, is dampened to ensure its invertibility and
-            stability.
-        3.  Iterative Quantization: The function iterates through the
-            weight columns in blocks (`blocksize`). In each iteration, it:
-            a. Quantizes one column.
-            b. Calculates the quantization error.
-            c. Updates the remaining weights in the *current* block by
-                distributing the error, using the inverse Hessian.
-        4.  Block-wise Correction: After a block is quantized, the total
-            error from that block is propagated to the *next* block of weights
-            to be processed.
-        5.  Finalization: The quantized weights are reordered back if
-            `activation_order` was used, and the layer's weights are updated.
-        This implementation is based on the official GPTQ paper and repository.
-        For more details, see:
-        - Paper: https://arxiv.org/abs/2210.17323
-        - Original Code: https://github.com/IST-DASLab/gptq
-
-
-        Args:
-            blocksize: (int, optional) The size of the weight block to process
-             at a time. Defaults to 128.
-        """
-        weights_matrix = ops.transpose(self.layer.kernel)
-
+    def _solve(self, weights):
         # Dampen the Hessian for Stability
         hessian_diagonal = ops.diagonal(self.hessian)
         dead_diagonal = ops.equal(hessian_diagonal, 0.0)
@@ -455,35 +401,15 @@ class GPTQ:
             ops.diag(hessian_diagonal),
         )
 
-        # Compute the inverse Hessian, which is used for error correction
-        inverse_hessian = linalg.inv(hessian_matrix)
-
-        quantized, scale, zero, g_idx = gptq_quantize_matrix(
-            weights_matrix,
-            inv_hessian=inverse_hessian,
-            blocksize=blocksize,
+        # The inverse Hessian used for error correction is derived inside
+        # `gptq_quantize_matrix` from the dampened Hessian using a numerically
+        # stable Cholesky formulation (triangular solves, no dense inverse).
+        codes, scale, zero, g_idx = gptq_quantize_matrix(
+            weights,
+            hessian=hessian_matrix,
             group_size=self.config.group_size,
             activation_order=self.config.activation_order,
             order_metric=ops.diagonal(hessian_matrix),
-            compute_scale_zero=self.quantizer.find_params,
+            compute_scale_zero=self.compute_scale_zero,
         )
-        quantized = ops.cast(
-            quantized, self.original_layer.quantized_kernel.dtype
-        )
-
-        if self.config.weight_bits == 4:
-            # For 4-bit weights, we need to pack them into bytes
-            quantized, _, _ = quantizers.pack_int4(
-                quantized, axis=0, dtype="uint8"
-            )
-
-        del self.original_layer._kernel
-        self.original_layer.quantized_kernel.assign(quantized)
-        self.original_layer.kernel_scale.assign(scale)
-        self.original_layer.kernel_zero.assign(zero)
-        self.original_layer.g_idx.assign(g_idx)
-        self.original_layer.is_gptq_calibrated = True
-
-    def free(self):
-        del self.hessian
-        del self.layer
+        return codes, scale, zero, g_idx, None

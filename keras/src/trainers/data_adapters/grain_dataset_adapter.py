@@ -105,7 +105,7 @@ class GrainDatasetAdapter(DataAdapter):
             )
         return dataset
 
-    def get_jax_iterator(self):
+    def get_jax_iterator(self, super_batch=None):
         def convert_to_jax_compatible(x):
             if data_adapter_utils.is_scipy_sparse(x):
                 x = data_adapter_utils.scipy_sparse_to_jax_sparse(x)
@@ -134,6 +134,12 @@ class GrainDatasetAdapter(DataAdapter):
                 shard_options=self._dataset._shard_options,
                 read_options=self._dataset._read_options,
                 enable_profiling=self._dataset._multiprocessing_options.enable_profiling,
+            )
+        if super_batch:
+            import jax.numpy as jnp
+
+            dataset = data_adapter_utils.super_batch_iterator(
+                iter(dataset), super_batch, stack_fn=jnp.stack
             )
         return dataset
 

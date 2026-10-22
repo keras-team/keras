@@ -314,10 +314,17 @@ def get_file(
 
     if not fname:
         fname = os.path.basename(urllib.parse.urlsplit(origin).path)
-        if not fname:
+        # `basename` strips separators, but a URL path ending in `/.` or `/..`
+        # (or, on Windows, in a drive letter) still yields a name that escapes
+        # `datadir` when joined to it.
+        if (
+            not fname
+            or fname in (os.curdir, os.pardir)
+            or os.path.splitdrive(fname)[0]
+        ):
             raise ValueError(
                 "Can't parse the file name from the origin provided: "
-                f"'{origin}'."
+                f"'{origin}'. "
                 "Please specify the `fname` argument."
             )
     else:
@@ -499,7 +506,7 @@ def is_remote_path(filepath):
 
     This function checks if the filepath represents a known remote pattern
     such as GCS (`/gcs`), CNS (`/cns`), CFS (`/cfs`), HDFS (`/hdfs`), Placer
-    (`/placer`), TFHub (`/tfhub`), or a URL (`.*://`).
+    (`/placer`), TFHub (`/tfhub`), Namespace (`/namespace`), or a URL (`.*://`).
 
     Args:
         filepath (str): The path to be checked.
@@ -508,7 +515,8 @@ def is_remote_path(filepath):
         bool: True if the filepath is a recognized remote path, otherwise False
     """
     if re.match(
-        r"^(/cns|/cfs|/gcs|/hdfs|/readahead|/placer|/tfhub|.*://).*$",
+        r"^(/cns|/cfs|/gcs|/hdfs|/readahead|/placer|/tfhub|/namespace"
+        r"|.*://).*$",
         str(filepath),
     ):
         return True

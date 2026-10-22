@@ -67,7 +67,7 @@ class StringLookupTest(testing.TestCase):
         layer.adapt(["a", "a", "a", "b", "b", "c"])
         input_data = ["b", "c", "d"]
         output = layer(input_data)
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(backend.ops.is_tensor(output))
         self.assertAllClose(output, np.array([2, 3, 0]))
         self.assertIn("a", [str(v) for v in layer.get_vocabulary()])
 
@@ -116,7 +116,7 @@ class StringLookupTest(testing.TestCase):
         )
         input_data = ["b", "c", "d"]
         output = layer(input_data)
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(backend.ops.is_tensor(output))
         self.assertAllClose(output, np.array([2, 3, 0]))
 
     @pytest.mark.skipif(
@@ -144,7 +144,7 @@ class StringLookupTest(testing.TestCase):
         layer.set_vocabulary(["a", "b", "c"])
         input_data = ["b", "c", "d"]
         output = layer(input_data)
-        self.assertTrue(backend.is_tensor(output))
+        self.assertTrue(backend.ops.is_tensor(output))
         self.assertAllClose(output, np.array([2, 3, 0]))
 
     def test_tf_data_compatibility(self):
@@ -208,7 +208,7 @@ class StringLookupTest(testing.TestCase):
         )
         output = layer([1, 2, 0])
         self.assertAllEqual(
-            backend.convert_to_numpy(output).astype(str),
+            backend.ops.convert_to_numpy(output).astype(str),
             ["a", "b", "[UNK]"],
         )
 
@@ -219,6 +219,22 @@ class StringLookupTest(testing.TestCase):
         )
         output = layer(["a", "a", "a", "b", "b"])
         self.assertEqual(output.shape[-1], len(layer.get_vocabulary()))
+
+    def test_output_mode_tf_idf(self):
+        layer = layers.StringLookup(
+            vocabulary=["a", "b", "c"],
+            output_mode="tf_idf",
+            idf_weights=[0.2, 0.4, 0.6],
+        )
+        output = layer(["a", "b"])
+        self.assertAllClose(output, [0.0, 0.2, 0.4, 0.0])
+        output = layer([["a", "a"], ["c", "a"]])
+        self.assertAllClose(
+            output, [[0.0, 0.4, 0.0, 0.0], [0.0, 0.2, 0.0, 0.6]]
+        )
+        # Test with OOV token (should map to index 0 with average IDF weight)
+        output = layer(["a", "b", "d"])
+        self.assertAllClose(output, [0.4, 0.2, 0.4, 0.0])
 
     def test_output_mode_multi_hot_binary(self):
         layer = layers.StringLookup(
@@ -308,6 +324,6 @@ class StringLookupTest(testing.TestCase):
             vocabulary=vocab, num_oov_indices=4, salt=[137, 42]
         )
         oov_values = ["x", "y", "z", "w", "v", "u"]
-        out_farmhash = backend.convert_to_numpy(layer_farmhash(oov_values))
-        out_siphash = backend.convert_to_numpy(layer_siphash(oov_values))
+        out_farmhash = backend.ops.convert_to_numpy(layer_farmhash(oov_values))
+        out_siphash = backend.ops.convert_to_numpy(layer_siphash(oov_values))
         self.assertFalse(np.array_equal(out_farmhash, out_siphash))

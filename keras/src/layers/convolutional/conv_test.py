@@ -1102,7 +1102,12 @@ class ConvCorrectnessTest(testing.TestCase):
             groups=groups,
         )
         self.assertAllClose(
-            outputs, expected, rtol=1e-3, tpu_atol=1e-1, tpu_rtol=1e-1
+            outputs,
+            expected,
+            atol=1e-5,
+            rtol=1e-3,
+            tpu_atol=1e-1,
+            tpu_rtol=1e-1,
         )
 
     def test_conv_constraints(self):

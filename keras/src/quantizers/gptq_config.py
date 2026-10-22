@@ -120,6 +120,12 @@ class GPTQConfig(QuantizationConfig):
             Defaults to 4.
         num_samples: (int, optional) The number of calibration data samples to
             use from the dataset. Defaults to 128.
+        calibration_batch_size: (int, optional) The number of calibration
+            samples to run through each block per forward pass during
+            calibration. Larger values reduce the number of forward passes
+            (and therefore wall-clock calibration time) without changing the
+            quantization result, at the cost of higher peak activation memory.
+            Defaults to 8.
         sequence_length: (int, optional) The sequence length to use for each
             calibration sample. Defaults to 512.
         hessian_damping: (float, optional) The % of Hessian damping to use for
@@ -147,6 +153,7 @@ class GPTQConfig(QuantizationConfig):
         *,
         weight_bits: int = 4,
         num_samples: int = 128,
+        calibration_batch_size: int = 8,
         per_channel: bool = True,
         sequence_length: int = 512,
         hessian_damping: float = 0.01,
@@ -163,6 +170,10 @@ class GPTQConfig(QuantizationConfig):
             )
         if num_samples <= 0:
             raise ValueError("num_samples must be a positive integer.")
+        if calibration_batch_size <= 0:
+            raise ValueError(
+                "calibration_batch_size must be a positive integer."
+            )
         if sequence_length <= 0:
             raise ValueError("sequence_length must be a positive integer.")
         if hessian_damping < 0 or hessian_damping > 1:
@@ -176,6 +187,7 @@ class GPTQConfig(QuantizationConfig):
         self.dataset = dataset
         self.tokenizer = tokenizer
         self.num_samples = num_samples
+        self.calibration_batch_size = calibration_batch_size
         self.per_channel = per_channel
         self.sequence_length = sequence_length
         self.hessian_damping = hessian_damping
@@ -196,6 +208,7 @@ class GPTQConfig(QuantizationConfig):
             "quantization_layer_structure": None,
             "weight_bits": self.weight_bits,
             "num_samples": self.num_samples,
+            "calibration_batch_size": self.calibration_batch_size,
             "per_channel": self.per_channel,
             "sequence_length": self.sequence_length,
             "hessian_damping": self.hessian_damping,

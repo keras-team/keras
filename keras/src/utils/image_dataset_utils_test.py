@@ -589,7 +589,6 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         ("grain", "grain"),
     )
     def test_image_dataset_from_directory_shuffle(self, format):
-        # TODO: add same test for train/val
         directory = self._prepare_directory(
             num_classes=2, count=25, nested_dirs=True
         )
@@ -602,9 +601,10 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             shuffle=False,
             format=format,
         )
-        batches_1 = np.concatenate([b for b in dataset], axis=0)
-        batches_2 = np.concatenate([b for b in dataset], axis=0)
-        self.assertAllClose(batches_1, batches_2, atol=1e-6)
+        unshuffled_batches = []
+        for b in dataset:
+            unshuffled_batches.append(self.convert_to_numpy(b))
+        unshuffled_batches = np.concatenate(unshuffled_batches, axis=0)
 
         dataset = image_dataset_utils.image_dataset_from_directory(
             directory,
@@ -616,8 +616,16 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             seed=1337,
             format=format,
         )
-        batches_1 = np.concatenate([b for b in dataset], axis=0)
-        batches_2 = np.concatenate([b for b in dataset], axis=0)
+        batches_1 = []
+        batches_2 = []
+        for b in dataset:
+            batches_1.append(self.convert_to_numpy(b))
+        batches_1 = np.concatenate(batches_1, axis=0)
+        for b in dataset:
+            batches_2.append(self.convert_to_numpy(b))
+        batches_2 = np.concatenate(batches_2, axis=0)
+        self.assertNotAllClose(unshuffled_batches, batches_1, atol=1e-6)
+
         if format == "tf":
             self.assertNotAllClose(batches_1, batches_2, atol=1e-6)
         else:
@@ -635,5 +643,104 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             seed=1337,
             format=format,
         )
-        batches_1_alt = np.concatenate([b for b in dataset], axis=0)
+        batches_1_alt = []
+        for b in dataset:
+            batches_1_alt.append(self.convert_to_numpy(b))
+        batches_1_alt = np.concatenate(batches_1_alt, axis=0)
         self.assertAllClose(batches_1, batches_1_alt, atol=1e-6)
+
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_image_dataset_from_directory_shuffle_with_split(self, format):
+        directory = self._prepare_directory(
+            num_classes=2, count=25, nested_dirs=True
+        )
+        train_ds, val_ds = image_dataset_utils.image_dataset_from_directory(
+            directory,
+            batch_size=8,
+            image_size=(18, 18),
+            label_mode=None,
+            follow_links=True,
+            shuffle=False,
+            validation_split=0.2,
+            subset="both",
+            seed=1337,
+            format=format,
+        )
+        unshuffled_train_batches = []
+        for b in train_ds:
+            unshuffled_train_batches.append(self.convert_to_numpy(b))
+        unshuffled_train_batches = np.concatenate(
+            unshuffled_train_batches, axis=0
+        )
+
+        train_ds, val_ds = image_dataset_utils.image_dataset_from_directory(
+            directory,
+            batch_size=8,
+            image_size=(18, 18),
+            label_mode=None,
+            follow_links=True,
+            shuffle=True,
+            seed=1337,
+            validation_split=0.2,
+            subset="both",
+            format=format,
+        )
+        train_batches_1 = []
+        val_batches_1 = []
+        for b in train_ds:
+            train_batches_1.append(self.convert_to_numpy(b))
+        train_batches_1 = np.concatenate(train_batches_1, axis=0)
+        for b in val_ds:
+            val_batches_1.append(self.convert_to_numpy(b))
+        val_batches_1 = np.concatenate(val_batches_1, axis=0)
+
+        train_batches_2 = []
+        val_batches_2 = []
+        for b in train_ds:
+            train_batches_2.append(self.convert_to_numpy(b))
+        train_batches_2 = np.concatenate(train_batches_2, axis=0)
+        for b in val_ds:
+            val_batches_2.append(self.convert_to_numpy(b))
+        val_batches_2 = np.concatenate(val_batches_2, axis=0)
+
+        self.assertNotAllClose(
+            unshuffled_train_batches, train_batches_1, atol=1e-6
+        )
+
+        if format == "tf":
+            self.assertNotAllClose(train_batches_1, train_batches_2, atol=1e-6)
+            # validation dataset is never shuffled, so it will always
+            # yield the same order
+            self.assertAllClose(val_batches_1, val_batches_2, atol=1e-6)
+        else:
+            # Grain shuffles deterministically, so we expect the same batches.
+            self.assertAllClose(train_batches_1, train_batches_2, atol=1e-6)
+            self.assertAllClose(val_batches_1, val_batches_2, atol=1e-6)
+
+        # Test random seed determinism
+        train_ds, val_ds = image_dataset_utils.image_dataset_from_directory(
+            directory,
+            batch_size=8,
+            image_size=(18, 18),
+            label_mode=None,
+            follow_links=True,
+            shuffle=True,
+            seed=1337,
+            validation_split=0.2,
+            subset="both",
+            format=format,
+        )
+        train_batches_1_alt = []
+        val_batches_1_alt = []
+        for b in train_ds:
+            train_batches_1_alt.append(self.convert_to_numpy(b))
+        train_batches_1_alt = np.concatenate(train_batches_1_alt, axis=0)
+        for b in val_ds:
+            val_batches_1_alt.append(self.convert_to_numpy(b))
+        val_batches_1_alt = np.concatenate(val_batches_1_alt, axis=0)
+
+        self.assertAllClose(train_batches_1, train_batches_1_alt, atol=1e-6)
+        self.assertAllClose(val_batches_1, val_batches_1_alt, atol=1e-6)

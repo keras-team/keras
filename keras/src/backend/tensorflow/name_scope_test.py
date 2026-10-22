@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from keras.src.backend.tensorflow.core import name_scope
+from keras.src.backend.tensorflow.ops.core import name_scope
 from keras.src.testing import TestCase
 
 
