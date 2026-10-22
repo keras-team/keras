@@ -1,4 +1,3 @@
-from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import standardize_dtype
