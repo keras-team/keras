@@ -1,5 +1,6 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.common import standardize_dtype
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
@@ -242,7 +243,7 @@ class Mosaic(BaseImagePreprocessingLayer):
                 "so `labels` must be one-hot encoded (or soft) float labels of "
                 "shape `(batch_size, num_classes)`. Received: labels.shape="
                 f"{labels_shape}, "
-                f"labels.dtype={backend.standardize_dtype(labels.dtype)}"
+                f"labels.dtype={standardize_dtype(labels.dtype)}"
             )
 
         permutation_order = transformation["permutation_order"]
