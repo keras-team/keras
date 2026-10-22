@@ -1,5 +1,10 @@
+import contextlib
+import gc
+import io
 import os
 import pickle
+import warnings
+import weakref
 from collections import namedtuple
 
 import numpy as np
@@ -9,12 +14,18 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import layers
 from keras.src import losses
+from keras.src import ops
 from keras.src import testing
 from keras.src import tree
+from keras.src.backend.common import standardize_dtype
+from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
 from keras.src.layers.core.input_layer import Input
 from keras.src.models.functional import Functional
 from keras.src.models.model import Model
 from keras.src.models.model import model_from_json
+from keras.src.models.sequential import Sequential
+from keras.src.quantizers.gptq_config import GPTQConfig
+from keras.src.quantizers.report import QuantizationReport
 
 
 def _get_model():
@@ -787,6 +798,30 @@ class ModelTest(testing.TestCase):
         ref_keys = sorted(["loss", "output_a_loss", "output_b_loss"])
         self.assertListEqual(hist_keys, ref_keys)
 
+    def test_subclass_model_training_arg(self):
+        class CustomLayer(layers.Layer):
+            def call(self, inputs, training=False):
+                return inputs * 0.0 if training else inputs
+
+        class CustomModel(Model):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.layer = CustomLayer()
+
+            def call(self, inputs, training=False):
+                # We do not propagate `training` here on purpose.
+                # The call context should take care of it automatically.
+                return self.layer(inputs)
+
+        model = CustomModel()
+        self.assertAllClose(model(np.ones((4, 20))), np.ones((4, 20)))
+        self.assertAllClose(
+            model(np.ones((4, 20)), training=False), np.ones((4, 20))
+        )
+        self.assertAllClose(
+            model(np.ones((4, 20)), training=True), np.zeros((4, 20))
+        )
+
     @parameterized.named_parameters(
         ("int8", "int8"),
         ("float8", "float8"),
@@ -917,13 +952,296 @@ class ModelTest(testing.TestCase):
             for weight in model.weights:
                 if weight.name == "kernel":
                     kernel_count += 1
-                    self.assertEqual(
-                        backend.standardize_dtype(weight.dtype), "int8"
-                    )
+                    self.assertEqual(standardize_dtype(weight.dtype), "int8")
             self.assertEqual(kernel_count, 3)
         if mode == "float8":
             # kernel + bias + scale * 3 + amax_history * 3 == 8
             self.assertEqual(len(model.weights), 3 * 8)
+
+    @parameterized.named_parameters(
+        ("sequential", "sequential"),
+        ("sequential_in_sequential", "sequential_in_sequential"),
+        ("sequential_in_functional", "sequential_in_functional"),
+        ("sequential_in_subclassed", "sequential_in_subclassed"),
+    )
+    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
+    def test_quantize_sequential_retracks_torch_params(self, structure):
+        if structure == "sequential":
+            model = Sequential([Input((8,)), layers.Dense(16), layers.Dense(4)])
+        elif structure == "sequential_in_sequential":
+            inner = Sequential([layers.Dense(16), layers.Dense(4)])
+            model = Sequential([Input((8,)), inner, layers.Dense(2)])
+        elif structure == "sequential_in_functional":
+            inner = Sequential([Input((8,)), layers.Dense(16), layers.Dense(4)])
+            inputs = Input((8,))
+            model = Model(inputs, inner(inputs))
+        else:
+
+            class MyModel(Model):
+                def __init__(self):
+                    super().__init__()
+                    self.block = Sequential(
+                        [Input((8,)), layers.Dense(16), layers.Dense(4)]
+                    )
+
+                def call(self, x):
+                    return self.block(x)
+
+            model = MyModel()
+            model(np.zeros((1, 8)))
+        owners = [model] + [
+            layer
+            for layer in model._flatten_layers(include_self=False)
+            if isinstance(layer, Sequential)
+        ]
+        # Create the parameter lists before quantization.
+        for owner in owners:
+            self.assertLen(list(owner.named_parameters()), len(owner.weights))
+        float_kernels = [
+            weakref.ref(layer.kernel.value)
+            for layer in model._flatten_layers()
+            if isinstance(layer, layers.Dense)
+        ]
+
+        model.quantize("int8")
+        gc.collect()
+
+        # The parameters of the model and of each `Sequential` are its
+        # quantized variables, and no parameter keeps a float kernel alive.
+        for owner in owners:
+            variables = {id(v.value) for v in owner.variables}
+            parameters = list(owner.named_parameters())
+            self.assertLen(parameters, len(owner.variables))
+            for name, parameter in parameters:
+                self.assertIn(id(parameter), variables, name)
+        self.assertEqual(
+            [ref() for ref in float_kernels], [None] * len(float_kernels)
+        )
+
+    def _get_mixed_layer_model(self):
+        inputs = layers.Input([4], name="in")
+        x = layers.Dense(5, name="d1")(inputs)
+        x = layers.Activation("relu", name="act")(x)
+        outputs = layers.Dense(3, name="d2")(x)
+        return Model(inputs, outputs)
+
+    def test_quantize_returns_and_stores_report(self):
+        model = self._get_mixed_layer_model()
+
+        report = model.quantize("int8", verbose=False)
+
+        # The report is returned and also attached to the model.
+        self.assertIsNotNone(report)
+        self.assertIs(model._quantization_report, report)
+        self.assertEqual(report.mode, "int8")
+
+        # Both `Dense` layers were quantized with the expected scheme.
+        quantized_paths = sorted(path for path, _, _ in report.quantized)
+        self.assertEqual(quantized_paths, ["d1", "d2"])
+        for _, layer_mode, scheme in report.quantized:
+            self.assertEqual(layer_mode, "int8")
+            self.assertEqual(scheme, "int8_from_float32")
+
+        # The relu activation does not support quantization and is recorded
+        # as such (rather than being silently dropped).
+        unsupported = report.skipped_by_reason(
+            QuantizationReport.SKIP_NO_SUPPORT
+        )
+        self.assertIn("act", unsupported)
+
+        # Input layers carry no weights and must never appear in the report as
+        # skipped entries (they are neither quantizable nor a meaningful skip).
+        skipped_paths = [path for path, _ in report.skipped]
+        input_layers = [
+            layer
+            for layer in model._flatten_layers()
+            if isinstance(layer, layers.InputLayer)
+        ]
+        self.assertTrue(input_layers)  # sanity: the model has an input layer
+        for layer in input_layers:
+            self.assertNotIn(layer.path or layer.name, skipped_paths)
+
+    def test_quantize_report_filtered_reason(self):
+        model = self._get_mixed_layer_model()
+
+        report = model.quantize("int8", filters="d1", verbose=False)
+
+        quantized_paths = [path for path, _, _ in report.quantized]
+        self.assertEqual(quantized_paths, ["d1"])
+        # `d2` is a quantizable layer that was excluded by the filter.
+        filtered = report.skipped_by_reason(QuantizationReport.SKIP_FILTERED)
+        self.assertIn("d2", filtered)
+
+    def test_quantize_dense_with_layer_activation(self):
+        # A `Dense` whose activation is a `Layer` owns that `Layer` as a
+        # sub-layer, but is still quantizable and must not be skipped.
+        inputs = layers.Input([4], name="in")
+        outputs = layers.Dense(4, activation=layers.ReLU(), name="act_dense")(
+            inputs
+        )
+        model = Model(inputs, outputs)
+
+        rep = model.quantize("int8", verbose=False)
+
+        dense = model.get_layer("act_dense")
+        quantized_paths = [p for p, _, _ in rep.quantized]
+        self.assertIn(dense.path, quantized_paths)
+        self.assertEqual(dense.quantization_mode, "int8")
+
+        y = model(np.random.rand(2, 4))
+        self.assertTrue(np.all(np.isfinite(ops.convert_to_numpy(y))))
+
+    def test_quantize_visits_nested_model_layers_once(self):
+        # A nested `Model` is skipped as a unit (its layers are already
+        # visited by the recursive walk), so its inner `Dense` is quantized
+        # exactly once and the `Sequential` wrapper itself is never quantized.
+        inner = Sequential([layers.Dense(4, name="inner_dense")])
+        inputs = layers.Input([4], name="in")
+        outputs = inner(inputs)
+        model = Model(inputs, outputs)
+
+        rep = model.quantize("int8", verbose=False)
+
+        inner_dense = inner.get_layer("inner_dense")
+        quantized_paths = [p for p, _, _ in rep.quantized]
+        self.assertEqual(quantized_paths.count(inner_dense.path), 1)
+        self.assertNotIn(inner.path, quantized_paths)
+
+    def test_quantize_emits_single_summary_warning(self):
+        model = self._get_mixed_layer_model()
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            model.quantize("int8", verbose=False)
+
+        # Exactly one summary warning is emitted (instead of one per
+        # non-quantizable leaf layer).
+        summary_warnings = [
+            w for w in caught if "`model.quantize()`" in str(w.message)
+        ]
+        self.assertLen(summary_warnings, 1)
+        self.assertIn(
+            "do not support quantization",
+            str(summary_warnings[0].message),
+        )
+
+    def test_quantize_verbose_prints_report(self):
+        model = self._get_mixed_layer_model()
+
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            model.quantize("int8", verbose=True)
+        output = buffer.getvalue()
+        self.assertIn("Quantization report (mode='int8')", output)
+
+    def test_quantize_propagates_attribute_error(self):
+        class BrokenLayer(layers.Layer):
+            def build(self, input_shape):
+                self.w = self.add_weight(shape=(input_shape[-1], 3), name="w")
+
+            def call(self, inputs):
+                return ops.matmul(inputs, self.w)
+
+            def quantize(self, mode=None, type_check=True, config=None):
+                raise AttributeError("boom: real bug in custom layer")
+
+        inputs = layers.Input([4])
+        outputs = BrokenLayer()(inputs)
+        model = Model(inputs, outputs)
+
+        # A real `AttributeError` from a layer must propagate rather than be
+        # silently swallowed.
+        with self.assertRaisesRegex(AttributeError, "boom: real bug"):
+            model.quantize("int8", verbose=False)
+
+    def test_quantize_gptq_without_structure_leaves_model_untouched(self):
+        inputs = layers.Input([8], name="in")
+        x = layers.Dense(8, name="g1")(inputs)
+        outputs = layers.Dense(4, name="g2")(x)
+        model = Model(inputs, outputs)
+
+        dense_layers = [
+            layer for layer in model.layers if isinstance(layer, layers.Dense)
+        ]
+        pre_policies = [layer.dtype_policy.name for layer in dense_layers]
+
+        config = GPTQConfig(dataset=["a"], tokenizer=lambda t: t)
+        with self.assertRaisesRegex(ValueError, "quantization structure"):
+            model.quantize("gptq", config=config, verbose=False)
+
+        # Structure resolution happens before any mutation, so a missing
+        # structure leaves the model completely untouched: float kernels,
+        # original dtype policies, and no half-allocated packed buffers.
+        for layer, pre in zip(dense_layers, pre_policies):
+            self.assertEqual(layer.dtype_policy.name, pre)
+            self.assertFalse(getattr(layer, "_is_quantized", False))
+            self.assertFalse(hasattr(layer, "quantized_kernel"))
+            self.assertEqual(standardize_dtype(layer.kernel.dtype), "float32")
+        # No report is attached when the call aborts before quantizing.
+        self.assertFalse(hasattr(model, "_quantization_report"))
+
+    def test_quantize_gptq_reports_layers_outside_structure(self):
+        vocab_size, seq_len, embed_dim = 16, 4, 4
+        inputs = layers.Input(shape=(seq_len,), dtype="int32")
+        embedding = layers.Embedding(vocab_size, embed_dim, name="emb")
+        x = embedding(inputs)
+        block = Sequential([layers.Dense(embed_dim, name="d1")])
+        x = block(x)
+        x = layers.GlobalAveragePooling1D()(x)
+        head = layers.Dense(2, name="head")
+        outputs = head(x)
+        model = Model(inputs, outputs)
+
+        rng = np.random.default_rng(seed=3)
+        config = GPTQConfig(
+            dataset=[
+                rng.integers(0, vocab_size, size=(1, seq_len)).astype("int32")
+            ],
+            tokenizer=lambda t: t,
+            num_samples=1,
+            sequence_length=seq_len,
+            group_size=-1,
+            quantization_layer_structure={
+                "pre_block_layers": [embedding],
+                "sequential_blocks": [block],
+            },
+        )
+        report = model.quantize("gptq", config=config, verbose=False)
+
+        # Only the structure-covered Dense is quantized; everything else is
+        # reported as outside the quantization structure.
+        quantized_paths = [path for path, _, _ in report.quantized]
+        self.assertEqual(quantized_paths, [block.layers[0].path])
+        outside = report.skipped_by_reason(
+            QuantizationReport.SKIP_OUTSIDE_STRUCTURE
+        )
+        self.assertIn(head.path, outside)
+        self.assertIn(embedding.path, outside)
+        self.assertIsNone(getattr(head, "quantization_mode", None))
+        self.assertFalse(hasattr(head, "quantized_kernel"))
+
+    def test_quantization_summary_int8(self):
+        inputs = layers.Input([256], name="in")
+        outputs = layers.Dense(128, name="d1")(inputs)
+        model = Model(inputs, outputs)
+        model.quantize("int8", verbose=False)
+
+        summary = model.quantization_summary(verbose=False)
+        self.assertIn("d1", summary)
+        self.assertIn("int8_from_float32", summary)
+        # The int8 codes (32768) and the 128-entry float32 scale (512).
+        self.assertIn("weight store : int8 (33280 bytes)", summary)
+        self.assertIn("Quantized layers : 1", summary)
+        self.assertIn("3.94x smaller", summary)
+
+    def test_quantize_reports_the_policy_of_a_dtype_policy_map_entry(self):
+        # A map's `name` is its default policy's ("map_float32"); the report
+        # names the layer's own entry.
+        inputs = layers.Input([6])
+        outputs = layers.Dense(4, name="d", dtype=DTypePolicyMap())(inputs)
+        model = Model(inputs, outputs)
+        report = model.quantize("int8", verbose=False)
+        self.assertEqual(report.quantized, [("d", "int8", "int8_from_float32")])
 
     def test_get_state_tree(self):
         model = _get_model_single_output()
@@ -1307,11 +1625,5 @@ class ModelTest(testing.TestCase):
 
         # Bad backend
         if backend.backend() not in ("tensorflow", "jax", "torch"):
-            with self.assertRaisesRegex(
-                NotImplementedError,
-                (
-                    r"`export_saved_model` only currently supports the "
-                    r"tensorflow, jax and torch backends."
-                ),
-            ):
+            with self.assertRaises(NotImplementedError):
                 model.export(temp_filepath, format="tf_saved_model")

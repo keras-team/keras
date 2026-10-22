@@ -22,37 +22,49 @@ def _tree_is_leaf(tree, is_leaf=None):
 
 def _dict_to_ordered_dict(structure):
     # We need to sort dict and defaultdict to ensure a deterministic order that
-    # that is consistent with other tree implementations.
-    def func(x):
-        if type(x) is dict:
-            return {k: x[k] for k in sorted(x.keys())}
-        elif type(x) is defaultdict:
-            return defaultdict(
-                x.default_factory,
-                {k: x[k] for k in sorted(x.keys())},
-            )
-        return None
+    # is consistent with other tree implementations. This has to happen at
+    # every level of nesting: if only the outermost level is sorted, two
+    # structurally equal dicts flatten to different leaf orders and
+    # `pack_sequence_as` associates the values with the wrong keys.
+    return _dict_to_ordered_dict_with_changed(structure)[0]
 
-    def traverse_children():
-        structure_id = id(structure)
-        children, treedef = torch_tree.tree_flatten(
-            structure,
-            is_leaf=lambda x: id(x) != structure_id,
-        )
-        if treedef.num_nodes == 1 and treedef.num_leaves == 1:
-            return structure
-        else:
-            return torch_tree.tree_unflatten(
-                [_dict_to_ordered_dict(c) for c in children],
-                treedef,
-            )
 
-    ret = func(structure)
-    if ret is None:
-        return traverse_children()
-    if isinstance(ret, type) and ret.__name__ == "MAP_TO_NONE":
-        return None
-    return ret
+def _dict_to_ordered_dict_with_changed(structure):
+    # Returns `(ordered_structure, changed)`. Reporting `changed` explicitly
+    # replaces an `is not` check on the rebuilt children, which `torch.compile`
+    # cannot trace for dicts.
+    cls = type(structure)
+    if cls is dict or cls is defaultdict:
+        sorted_keys = sorted(structure)
+        changed = sorted_keys != list(structure)
+        ordered_items = {}
+        for key in sorted_keys:
+            child, child_changed = _dict_to_ordered_dict_with_changed(
+                structure[key]
+            )
+            ordered_items[key] = child
+            changed = changed or child_changed
+        if not changed:
+            return structure, False
+        if cls is defaultdict:
+            return defaultdict(structure.default_factory, ordered_items), True
+        return ordered_items, True
+    node_def = torch_tree.SUPPORTED_NODES.get(
+        torch_tree._get_node_type(structure)
+    )
+    if node_def is None:
+        return structure, False  # Leaf, nothing to sort.
+    # Other internal node: only rebuild it if a dict below it was reordered.
+    children, context = node_def.flatten_fn(structure)
+    ordered_children = []
+    changed = False
+    for child in children:
+        ordered_child, child_changed = _dict_to_ordered_dict_with_changed(child)
+        ordered_children.append(ordered_child)
+        changed = changed or child_changed
+    if changed:
+        return node_def.unflatten_fn(ordered_children, context), True
+    return structure, False
 
 
 def is_nested(structure):
@@ -60,21 +72,27 @@ def is_nested(structure):
 
 
 def traverse(func, structure, top_down=True):
-    def traverse_children():
-        structure_id = id(structure)
-        children, treedef = torch_tree.tree_flatten(
-            structure,
-            is_leaf=lambda x: id(x) != structure_id,
-        )
-        if treedef.num_nodes == 1 and treedef.num_leaves == 1:
-            return structure
-        else:
-            return torch_tree.tree_unflatten(
-                [traverse(func, c, top_down=top_down) for c in children],
-                treedef,
-            )
+    # Sort dicts once, here at the root. `_traverse` below then walks an
+    # already ordered structure and does not redo this at every level.
+    return _traverse(func, _dict_to_ordered_dict(structure), top_down=top_down)
 
-    structure = _dict_to_ordered_dict(structure)
+
+def _traverse(func, structure, top_down=True):
+    def traverse_children():
+        # Flatten exactly one level. Going through the node type directly
+        # avoids the `id()` comparison that `torch.compile` cannot trace, and
+        # skips building a `TreeSpec` that is discarded right after.
+        node_def = torch_tree.SUPPORTED_NODES.get(
+            torch_tree._get_node_type(structure)
+        )
+        if node_def is None:
+            return structure  # Leaf, no children to traverse.
+        children, context = node_def.flatten_fn(structure)
+        return node_def.unflatten_fn(
+            [_traverse(func, c, top_down=top_down) for c in children],
+            context,
+        )
+
     if top_down:
         ret = func(structure)
         if ret is None:

@@ -54,7 +54,7 @@ class MaxNumBoundingBoxes(BaseImagePreprocessingLayer):
     def transform_bounding_boxes(
         self, bounding_boxes, transformation, training=True
     ):
-        ops = self.backend
+        ops = self.backend.ops
         boxes = bounding_boxes["boxes"]
         labels = bounding_boxes["labels"]
         boxes_shape = ops.shape(boxes)
@@ -111,5 +111,10 @@ class MaxNumBoundingBoxes(BaseImagePreprocessingLayer):
 
     def get_config(self):
         config = super().get_config()
-        config.update({"max_number": self.max_number})
+        config.update(
+            {
+                "max_number": self.max_number,
+                "fill_value": self.fill_value,
+            }
+        )
         return config

@@ -20,15 +20,23 @@ class ZeroPadding2DTest(testing.TestCase):
 
         if data_format == "channels_first":
             for index in [0, -1, -2]:
-                self.assertAllClose(outputs[:, :, index, :], 0.0)
+                self.assertAllClose(
+                    outputs[:, :, index, :], np.zeros((1, 2, 11))
+                )
             for index in [0, 1, 2, -1, -2, -3, -4]:
-                self.assertAllClose(outputs[:, :, :, index], 0.0)
+                self.assertAllClose(
+                    outputs[:, :, :, index], np.zeros((1, 2, 6))
+                )
             self.assertAllClose(outputs[:, :, 1:-2, 3:-4], inputs)
         else:
             for index in [0, -1, -2]:
-                self.assertAllClose(outputs[:, index, :, :], 0.0)
+                self.assertAllClose(
+                    outputs[:, index, :, :], np.zeros((1, 10, 4))
+                )
             for index in [0, 1, 2, -1, -2, -3, -4]:
-                self.assertAllClose(outputs[:, :, index, :], 0.0)
+                self.assertAllClose(
+                    outputs[:, :, index, :], np.zeros((1, 5, 4))
+                )
             self.assertAllClose(outputs[:, 1:-2, 3:-4, :], inputs)
 
     @parameterized.product(
@@ -50,13 +58,21 @@ class ZeroPadding2DTest(testing.TestCase):
 
         if data_format == "channels_first":
             for index in [0, 1, -1, -2]:
-                self.assertAllClose(outputs[:, :, index, :], 0.0)
-                self.assertAllClose(outputs[:, :, :, index], 0.0)
+                self.assertAllClose(
+                    outputs[:, :, index, :], np.zeros((1, 2, 8))
+                )
+                self.assertAllClose(
+                    outputs[:, :, :, index], np.zeros((1, 2, 7))
+                )
             self.assertAllClose(outputs[:, :, 2:-2, 2:-2], inputs)
         else:
             for index in [0, 1, -1, -2]:
-                self.assertAllClose(outputs[:, index, :, :], 0.0)
-                self.assertAllClose(outputs[:, :, index, :], 0.0)
+                self.assertAllClose(
+                    outputs[:, index, :, :], np.zeros((1, 7, 4))
+                )
+                self.assertAllClose(
+                    outputs[:, :, index, :], np.zeros((1, 6, 4))
+                )
             self.assertAllClose(outputs[:, 2:-2, 2:-2, :], inputs)
 
     def test_zero_padding_2d_with_dynamic_spatial_dim(self):

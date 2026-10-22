@@ -152,19 +152,18 @@ Documentation and error messages are an integral part of the API. Good docs and 
 
 Note that Keras uses the following rules for writing docstrings:
 
-- For class docstrings, document arguments in a `Arguments:` section in the class docstring, not in `__init__`.
+- For class docstrings, document arguments in an `Args:` section in the class docstring, not in `__init__`.
     - When a user creates a class, they are not calling the `MyLayer.__init__()` method as if it were a regular method, they are calling `MyLayer`. We don't want to generate documentation for the `__init__()` method as a standalone method that needs to be called directly, that would be confusing. We also don't need `__init__()` docstrings that always start with "Initializes a MyLayer class.", which is useless information. Leaving `__init__()` without a docstring is the best practice.
-    - If constructor arguments are documented in `__init__`, it forces us to programmatically copy the `__init__` docstring when generating docs and concatenate it to the class docstring. This means that the Arguments section becomes the last thing in the docstring, which is bad.
+    - If constructor arguments are documented in `__init__`, it forces us to programmatically copy the `__init__` docstring when generating docs and concatenate it to the class docstring. This means that the `Args` section becomes the last thing in the docstring, which is bad.
 - The order of information in a class docstring should be:
     - One-line description of the class, that gives initial context to the user. e.g. `Applies Dropout to the input.` Make sure the one-line description is useful. No `Intantiates an ObscureName class instance.`
     - Paragraph(s) of more detailed information that tells the user what the object is for and when they need to use it. e.g. `The Dropout layer randomly sets input units to 0 with a frequency of "rate" at each step during training time, which helps prevent overfitting. Inputs not set to 0 are scaled up by "1/(1 - rate)" such that the sum over all inputs is unchanged. [...]`
     - If there is a reference paper, cite it here.
-    - `Arguments` section.
+    - `Args` section.
     - If it's a layer that has arguments in `call`, the `Call arguments` section.
     - If it's a `Layer`, `Input shape` and `Output shape` sections.
     - Example(s).
     - Lastly, addendum. Information that isn't very important and that most users don't need, but that should be documented somewhere.
-        - e.g. the section "About the layer's `dtype` attribute" in the base Layer class.
         - e.g. warnings about edge cases or compatibility issues.
         - e.g. pointers to further guides and tutorials.
 
@@ -213,17 +212,51 @@ Keras supports multiple backends (JAX, TensorFlow, PyTorch) and uses symbolic ex
 
 ### Multi-Backend Compatibility
 
-- **Prefer `backend.convert_to_tensor` over backend-specific methods**: Use `backend.convert_to_tensor(x)` instead of direct calls like `torch.as_tensor(x)`. This ensures proper handling of various input types, including Keras objects such as variables, and consistent detection of the dtype.
-- **Backend-Agnostic Shape Handling**: Prefer using `backend.shape(inputs)` (or a passed `backend_module.shape(inputs)`) over the `.shape` property. This ensures consistency across JAX, TF, and Torch, especially for symbolic tensors.
+- **Prefer `backend.ops.convert_to_tensor` over backend-specific methods**: Use `backend.ops.convert_to_tensor(x)` instead of direct calls like `torch.as_tensor(x)`. This ensures proper handling of various input types, including Keras objects such as variables, and consistent detection of the dtype.
+- **Backend-Agnostic Shape Handling**: Prefer using `backend.ops.shape(inputs)` (or a passed `backend_module.ops.shape(inputs)`) over the `.shape` property. This ensures consistency across JAX, TF, and Torch, especially for symbolic tensors.
 - **Support Dynamic Dimensions**:
-    - Use `len(shape)` or `backend.ndim(x)` to access shapes in a backend-agnostic way.
+    - Use `len(shape)` or `ops.ndim(x)` to access shapes in a backend-agnostic way.
     - Use `isinstance(d, int)` to detect that a dimension is static and not dynamic. `None` is not the only representation for dynamic dimensions.
     - Use plain Python operators (e.g. `+`, `*`, `//`) to perform math on the dimensions of a shape, not Keras ops. This works seamlessly for static dimensions, symbolic dimensions (JAX, Torch) and tensor dimensions (TensorFlow). For instance, `math.prod(shape)` is the correct way to determine the size of an array.
+
+### Backend-Agnostic Implementation for New Ops
+
+Applies when a PR adds an op under `keras/src/ops/`. Every op must have 
+an implementation written purely with other Keras ops, in addition to any
+backend-specific fast path.
+
+Flag the following in the diff:
+
+- **No agnostic path**: the op is only implemented in `keras/src/backend/<backend>/ops/`
+  and the `keras/src/ops/` function just forwards to backend-specific implementation.
+  The op then breaks on any backend that does not implement it.
+- **Logic not centralized**: the implementation is inlined in the public
+  function or in `Operation.call()`, and the other one duplicates it. Both must
+  delegate to a single private module-level `_my_op()` helper that owns the
+  dispatch and the fallback.
+- **Only one path tested**: the test is not parameterized with
+  `@parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))`.
+- **Leaked test flag**: a test calls `_set_use_backend_agnostic_ops(...)`
+  without immediately registering
+  `self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)`.
+  A failing assertion then silently changes the behavior of every subsequent
+  test in the process. Also flag new tests that reset the flag in a
+  `try`/`finally` block and suggest `self.addCleanup` instead.
+- **Public `ops` API in the fallback**: inside `keras/src/ops/`, the fallback
+  must call backend ops directly — `backend.ops.<op>` for core ops (e.g.
+  `backend.ops.cast`) and `backend.ops.<module>.<op>` otherwise (e.g.
+  `backend.ops.numpy.sqrt`), or the dependency's `_<dep>()` helper if it has
+  one. Flag calls to the public `ops.<op>` / `keras.ops` API. Never suggest
+  replacing `backend.ops.*` with `ops.*`.
+
+When flagging, cite "Backend-agnostic implementation for new ops" in
+`CONTRIBUTING.md` and point to `vsplit`/`_vsplit` in `keras/src/ops/numpy.py`
+as the reference implementation.
 
 ### Optimization & Numeric Stability
 
 - **Division by Zero**: Use `ops.divide_no_nan` for mask weight calculations or any situation where a zero divisor is possible.
-- **Arithmetic Masking**: Use `ops.where(x, mask, 0)` or `backend.numpy.where(x, mask, 0)` instead of multiplication `x * mask` to clear values outside of a mask to save memory on intermediary values.
+- **Arithmetic Masking**: Use `ops.where(mask, x, 0)` or `backend.ops.numpy.where(mask, x, 0)` instead of multiplication `x * mask` to clear values outside of a mask to save memory on intermediary values.
 
 ### API Design & Validation
 

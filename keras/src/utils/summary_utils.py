@@ -11,8 +11,8 @@ import rich.markup
 # for below imports
 import rich.table
 
-from keras.src import backend
 from keras.src import tree
+from keras.src.backend.common import standardize_dtype
 from keras.src.utils import dtype_utils
 from keras.src.utils import io_utils
 
@@ -25,7 +25,7 @@ def count_params(weights):
 @functools.lru_cache(512)
 def _compute_memory_size(shape, dtype):
     weight_counts = math.prod(shape)
-    dtype = backend.standardize_dtype(dtype)
+    dtype = standardize_dtype(dtype)
     per_param_size = dtype_utils.dtype_size(dtype)
     return weight_counts * per_param_size
 
@@ -397,8 +397,8 @@ def get_layer_index_bound_by_layer_name(layers, layer_range=None):
     display.
 
     Args:
-        model: `Model` instance.
-        layer_names: a list or tuple of 2 strings, the starting layer name and
+        layers: list of `Layer` instances.
+        layer_range: a list or tuple of 2 strings, the starting layer name and
             ending layer name (both inclusive) for the result. All layers will
             be included when `None` is provided.
 
@@ -442,3 +442,136 @@ def get_layer_index_bound_by_layer_name(layers, layer_range=None):
     if min(lower_index) > max(upper_index):
         return [min(upper_index), max(lower_index) + 1]
     return [min(lower_index), max(upper_index) + 1]
+
+
+def print_quantization_summary(model, verbose=True):
+    """Build (and optionally print) a per-quantized-layer summary of a model.
+
+    See `Model.quantization_summary` for a description of the reported fields.
+
+    Args:
+        model: Keras model instance.
+        verbose: Whether to print the summary. Defaults to `True`. The summary
+            string is always returned.
+
+    Returns:
+        The summary as a string.
+    """
+
+    def _weight_bytes(weight):
+        num_elements = math.prod(weight.shape)
+        dtype = standardize_dtype(weight.dtype)
+        return num_elements * dtype_utils.dtype_size(dtype) // 8
+
+    rows = []
+    total_quantized_bytes = 0
+    total_float_bytes = 0
+    total_logical_params = 0
+    for layer in model._flatten_layers():
+        mode = layer.quantization_mode
+        if mode is None:
+            continue
+        # The layer's own variables: a container has none, and a layer that
+        # owns a sub-layer (a `Dense` with a layer activation) has its own.
+        weights = layer._trainable_variables + layer._non_trainable_variables
+        if not weights:
+            continue
+
+        # Imported here, not at module scope: this module is pulled in
+        # while `keras.src.ops` is still initializing, and the quantizers
+        # package imports back into `keras.src.ops`.
+        from keras.src.quantizers import strategy_registry
+
+        strategy = strategy_registry.get_strategy(mode)
+        # A layer that defines no quantization geometry (a custom layer
+        # that stores its own weights) has no view.
+        geometry = layer._quantization_geometry()
+        quantized_weights = (
+            strategy.quantized_weights(layer)
+            if strategy is not None and geometry is not None
+            else ()
+        )
+        keeps_float_weight = (
+            strategy is not None
+            and geometry is not None
+            and not strategy.owns_weight_storage
+        )
+        if quantized_weights:
+            # The mode stores integer codes: count the weights they stand
+            # for, which a packed layout stores several to a byte. A layer
+            # may hold more than one table (an untied reversible lookup).
+            logical_params = sum(math.prod(q.shape) for q in quantized_weights)
+            # The bytes of every stored tensor of every view. Views of one
+            # layer can share a tensor (the `g_idx` of an untied lookup), so
+            # each tensor counts once.
+            stored = {}
+            for q in quantized_weights:
+                for tensor in (
+                    q.codes,
+                    q.scale,
+                    q.zero_point,
+                    q.g_idx,
+                    q.input_scales,
+                ):
+                    if tensor is not None:
+                        stored[id(tensor)] = tensor
+            storage_bytes = sum(_weight_bytes(t) for t in stored.values())
+            storage_dtype = standardize_dtype(quantized_weights[0].codes.dtype)
+        elif keeps_float_weight:
+            # The mode keeps the float weight (float8). Its scale and
+            # history variables are not weight storage.
+            logical_params = math.prod(geometry.weight_shape)
+            storage_dtype = standardize_dtype(layer.variable_dtype)
+            storage_bytes = (
+                logical_params * dtype_utils.dtype_size(storage_dtype) // 8
+            )
+        else:
+            # No view: the primary weight is the largest one, stored one
+            # value per element.
+            primary = max(weights, key=lambda w: math.prod(w.shape))
+            logical_params = math.prod(primary.shape)
+            storage_bytes = _weight_bytes(primary)
+            storage_dtype = standardize_dtype(primary.dtype)
+        float_bytes = logical_params * 4  # float32 baseline.
+
+        rows.append(
+            {
+                "path": layer.path or layer.name,
+                "policy": layer._own_dtype_policy.name,
+                "dtype": storage_dtype,
+                "bytes": storage_bytes,
+                "keeps_float_weight": keeps_float_weight,
+            }
+        )
+        total_quantized_bytes += storage_bytes
+        total_float_bytes += float_bytes
+        total_logical_params += logical_params
+
+    lines = [f"Quantization summary for '{model.name}'", "=" * 65]
+    if not rows:
+        lines.append("No quantized layers found.")
+    else:
+        for row in rows:
+            kept = ", float weight kept" if row["keeps_float_weight"] else ""
+            lines.append(f"Layer: {row['path']}")
+            lines.append(f"  dtype policy : {row['policy']}")
+            lines.append(
+                f"  weight store : {row['dtype']} ({row['bytes']} bytes{kept})"
+            )
+        lines.append("-" * 65)
+        lines.append(f"Quantized layers : {len(rows)}")
+        lines.append(f"Quantized params : {total_logical_params}")
+        ratio = (
+            total_float_bytes / total_quantized_bytes
+            if total_quantized_bytes
+            else 0.0
+        )
+        lines.append(
+            f"Weight storage   : {total_quantized_bytes} bytes quantized "
+            f"vs {total_float_bytes} bytes float32 "
+            f"({ratio:.2f}x smaller)"
+        )
+    summary = "\n".join(lines)
+    if verbose:
+        io_utils.print_msg(summary)
+    return summary

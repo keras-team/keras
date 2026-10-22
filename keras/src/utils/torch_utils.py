@@ -88,7 +88,7 @@ class TorchModuleWrapper(Layer):
         super().__init__(name=name, **kwargs)
         import torch.nn as nn
 
-        from keras.src.backend.torch.core import get_device
+        from keras.src.backend.torch.ops.core import get_device
 
         if (
             isinstance(module, nn.modules.lazy.LazyModuleMixin)

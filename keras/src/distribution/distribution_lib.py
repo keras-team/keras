@@ -831,3 +831,12 @@ def set_distribution(value):
         value: a `Distribution` instance.
     """
     global_state.set_global_attribute(GLOBAL_ATTRIBUTE_NAME, value)
+    # `DataParallel` replicates the variables and keeps the inputs local, so
+    # there is nothing to promote. On torch, the promotion mode would also make
+    # TorchDynamo skip every frame, which disables `jit_compile=True`.
+    if value is not None and not isinstance(value, DataParallel):
+        if hasattr(distribution_lib, "activate_dtensor_promotion"):
+            distribution_lib.activate_dtensor_promotion()
+    else:
+        if hasattr(distribution_lib, "deactivate_dtensor_promotion"):
+            distribution_lib.deactivate_dtensor_promotion()

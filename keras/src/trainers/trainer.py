@@ -7,6 +7,8 @@ from keras.src import metrics as metrics_module
 from keras.src import ops
 from keras.src import optimizers
 from keras.src import tree
+from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import standardize_dtype
 from keras.src.optimizers.loss_scale_optimizer import LossScaleOptimizer
 from keras.src.saving import serialization_lib
 from keras.src.trainers.compile_utils import CompileLoss
@@ -16,7 +18,7 @@ from keras.src.utils import traceback_utils
 from keras.src.utils import tracking
 
 
-class Trainer:
+class BaseTrainer:
     def __init__(self):
         self._lock = False
         self._run_eagerly = False
@@ -296,7 +298,7 @@ class Trainer:
                 metrics.extend(self._compile_loss.metrics)
         metrics.extend(self._metrics)
         for layer in self._flatten_layers(include_self=False):
-            if isinstance(layer, Trainer):
+            if isinstance(layer, BaseTrainer):
                 # All Trainer-related metrics in sublayers should be ignored
                 # because a new Trainer has been instantiated.
                 continue
@@ -432,7 +434,7 @@ class Trainer:
             A tensor representing the summed loss, cast to the `floatx()` if
             necessary.
         """
-        if not backend.is_float_dtype(loss.dtype):
+        if not is_float_dtype(loss.dtype):
             loss = ops.cast(loss, dtype=backend.floatx())
         return ops.sum(loss)
 
@@ -1000,7 +1002,7 @@ class Trainer:
         Args:
             config: Dict containing information for compiling the model.
         """
-        has_overridden_compile = self.__class__.compile != Trainer.compile
+        has_overridden_compile = self.__class__.compile != BaseTrainer.compile
         if has_overridden_compile:
             warnings.warn(
                 "`compile()` was not called as part of model loading "
@@ -1122,7 +1124,8 @@ class Trainer:
             raise ValueError(msg)
             self._warn_if_trainable_state_changed()
 
-    def _symbolic_build(self, iterator=None, data_batch=None):
+    def _get_unbuilt_components(self):
+        """Returns a 4-tuple of booleans for unbuilt trainer components."""
         model_unbuilt = not all(layer.built for layer in self._flatten_layers())
         compile_metrics_unbuilt = (
             self._compile_metrics is not None
@@ -1134,15 +1137,34 @@ class Trainer:
         optimizer_unbuilt = (
             self.optimizer is not None and not self.optimizer.built
         )
+        return (
+            model_unbuilt,
+            compile_metrics_unbuilt,
+            compile_loss_unbuilt,
+            optimizer_unbuilt,
+        )
+
+    def _symbolic_build(self, iterator=None, data_batch=None):
+        (
+            model_unbuilt,
+            compile_metrics_unbuilt,
+            compile_loss_unbuilt,
+            optimizer_unbuilt,
+        ) = self._get_unbuilt_components()
+        if not (
+            model_unbuilt
+            or compile_metrics_unbuilt
+            or compile_loss_unbuilt
+            or optimizer_unbuilt
+        ):
+            return
         if model_unbuilt or compile_metrics_unbuilt or compile_loss_unbuilt:
             # Create symbolic tensors matching an input batch.
 
             def to_symbolic_input(v):
                 if v is None:
                     return None
-                return backend.KerasTensor(
-                    v.shape, backend.standardize_dtype(v.dtype)
-                )
+                return backend.KerasTensor(v.shape, standardize_dtype(v.dtype))
 
             if data_batch is None:
                 for _, _, data_or_iterator in iterator:

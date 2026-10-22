@@ -47,18 +47,18 @@ class MixUp(BaseImagePreprocessingLayer):
         else:
             images = data
 
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
 
         if len(images_shape) == 3:
             batch_size = 1
         else:
-            batch_size = self.backend.shape(images)[0]
+            batch_size = self.backend.ops.shape(images)[0]
 
         if seed is None:
             seed = self._get_seed_generator(self.backend._backend)
 
         permutation_order = self.backend.random.shuffle(
-            self.backend.numpy.arange(0, batch_size, dtype="int64"),
+            self.backend.ops.numpy.arange(0, batch_size, dtype="int64"),
             seed=seed,
         )
 
@@ -72,15 +72,15 @@ class MixUp(BaseImagePreprocessingLayer):
 
     def transform_images(self, images, transformation=None, training=True):
         def _mix_up_input(images, transformation):
-            images = self.backend.cast(images, self.compute_dtype)
+            images = self.backend.ops.cast(images, self.compute_dtype)
             mix_weight = transformation["mix_weight"]
             permutation_order = transformation["permutation_order"]
-            mix_weight = self.backend.cast(
-                self.backend.numpy.reshape(mix_weight, [-1, 1, 1, 1]),
+            mix_weight = self.backend.ops.cast(
+                self.backend.ops.numpy.reshape(mix_weight, [-1, 1, 1, 1]),
                 dtype=self.compute_dtype,
             )
-            mix_up_images = self.backend.cast(
-                self.backend.numpy.take(images, permutation_order, axis=0),
+            mix_up_images = self.backend.ops.cast(
+                self.backend.ops.numpy.take(images, permutation_order, axis=0),
                 dtype=self.compute_dtype,
             )
             images = mix_weight * images + (1.0 - mix_weight) * mix_up_images
@@ -94,10 +94,10 @@ class MixUp(BaseImagePreprocessingLayer):
         def _mix_up_labels(labels, transformation):
             mix_weight = transformation["mix_weight"]
             permutation_order = transformation["permutation_order"]
-            labels_for_mix_up = self.backend.numpy.take(
+            labels_for_mix_up = self.backend.ops.numpy.take(
                 labels, permutation_order, axis=0
             )
-            mix_weight = self.backend.numpy.reshape(mix_weight, [-1, 1])
+            mix_weight = self.backend.ops.numpy.reshape(mix_weight, [-1, 1])
             labels = (
                 mix_weight * labels + (1.0 - mix_weight) * labels_for_mix_up
             )
@@ -122,18 +122,18 @@ class MixUp(BaseImagePreprocessingLayer):
             permutation_order = ops.convert_to_numpy(permutation_order)
 
             boxes, labels = bounding_boxes["boxes"], bounding_boxes["labels"]
-            boxes_for_mix_up = self.backend.numpy.take(
+            boxes_for_mix_up = self.backend.ops.numpy.take(
                 boxes, permutation_order, axis=0
             )
 
-            labels_for_mix_up = self.backend.numpy.take(
+            labels_for_mix_up = self.backend.ops.numpy.take(
                 labels, permutation_order, axis=0
             )
-            boxes = self.backend.numpy.concatenate(
+            boxes = self.backend.ops.numpy.concatenate(
                 [boxes, boxes_for_mix_up], axis=1
             )
 
-            labels = self.backend.numpy.concatenate(
+            labels = self.backend.ops.numpy.concatenate(
                 [labels, labels_for_mix_up], axis=0
             )
 
@@ -155,8 +155,10 @@ class MixUp(BaseImagePreprocessingLayer):
             # Make sure we are on cpu for torch tensors.
             mix_weight = ops.convert_to_numpy(mix_weight)
             permutation_order = transformation["permutation_order"]
-            mix_weight = self.backend.numpy.reshape(mix_weight, [-1, 1, 1, 1])
-            segmentation_masks_for_mix_up = self.backend.numpy.take(
+            mix_weight = self.backend.ops.numpy.reshape(
+                mix_weight, [-1, 1, 1, 1]
+            )
+            segmentation_masks_for_mix_up = self.backend.ops.numpy.take(
                 segmentation_masks, permutation_order
             )
             segmentation_masks = (

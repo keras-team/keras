@@ -41,10 +41,10 @@ class EqualizationTest(testing.TestCase):
             np.float32
         )
         layer = layers.Equalization(value_range=(0, 255))
-        xs = layer(xs)
+        xs = ops.convert_to_numpy(layer(xs))
 
         for i in range(0, 256):
-            self.assertTrue(np.any(ops.convert_to_numpy(xs) == i))
+            self.assertTrue(np.any(xs == i))
 
     @parameterized.named_parameters(
         ("float32", np.float32), ("int32", np.int32), ("int64", np.int64)
@@ -109,14 +109,14 @@ class EqualizationTest(testing.TestCase):
             value_range=(0, 255), data_format="channels_last"
         )
         equalized_last = ops.convert_to_numpy(layer_last(xs_last))
-        self.assertAllClose(equalized_last, 128.0)
+        self.assertAllClose(equalized_last, np.full((1, 64, 64, 3), 128.0))
 
         xs_first = np.full((1, 3, 64, 64), 128, dtype=np.float32)
         layer_first = layers.Equalization(
             value_range=(0, 255), data_format="channels_first"
         )
         equalized_first = ops.convert_to_numpy(layer_first(xs_first))
-        self.assertAllClose(equalized_first, 128.0)
+        self.assertAllClose(equalized_first, np.full((1, 3, 64, 64), 128.0))
 
     def test_different_bin_sizes(self):
         rng = np.random.default_rng(seed=42)

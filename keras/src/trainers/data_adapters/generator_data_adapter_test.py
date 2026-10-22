@@ -11,8 +11,8 @@ from absl.testing import parameterized
 from jax import numpy as jnp
 
 from keras.src import backend
-from keras.src import testing
 from keras.src.testing.test_utils import named_product
+from keras.src.trainers.data_adapters import data_adapter_test_base
 from keras.src.trainers.data_adapters import generator_data_adapter
 
 
@@ -31,7 +31,7 @@ def example_generator(x, y, sample_weight=None, batch_size=32):
     return make
 
 
-class GeneratorDataAdapterTest(testing.TestCase):
+class GeneratorDataAdapterTest(data_adapter_test_base.DataAdapterTest):
     @parameterized.named_parameters(
         named_product(
             [
@@ -101,7 +101,7 @@ class GeneratorDataAdapterTest(testing.TestCase):
             if use_sample_weight:
                 self.assertIsInstance(bsw, expected_class)
             for j in range(by.shape[0]):
-                sample_order.append(backend.convert_to_numpy(by[j, 0]))
+                sample_order.append(backend.ops.convert_to_numpy(by[j, 0]))
         self.assertAllClose(sample_order, list(range(34)))
 
     def test_empty_generator_raises_clear_error(self):
@@ -238,3 +238,24 @@ class GeneratorDataAdapterTest(testing.TestCase):
             self.assertIsInstance(by, expected_class)
             self.assertEqual(bx.shape, (2, None, 2))
             self.assertEqual(by.shape, (2, None, 2))
+
+    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
+    def test_get_jax_iterator_with_super_batch(self):
+        # Even batches: 4 batches with super_batch=2 -> 2 super-batches
+        gen_even = ((np.ones((16, 4)), np.ones((16, 2))) for _ in range(4))
+        adapter = generator_data_adapter.GeneratorDataAdapter(gen_even)
+        self.verify_super_batched_iterator(
+            adapter.get_jax_iterator(super_batch=2),
+            expected_super_batches=2,
+            has_partial_batch=False,
+        )
+
+        # Uneven batches: 5 batches with super_batch=2 -> 2 super-batches + 1
+        # partial batch list
+        gen_uneven = ((np.ones((16, 4)), np.ones((16, 2))) for _ in range(5))
+        adapter_uneven = generator_data_adapter.GeneratorDataAdapter(gen_uneven)
+        self.verify_super_batched_iterator(
+            adapter_uneven.get_jax_iterator(super_batch=2),
+            expected_super_batches=2,
+            has_partial_batch=True,
+        )
