@@ -1,5 +1,6 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
@@ -237,7 +238,7 @@ class Mosaic(BaseImagePreprocessingLayer):
             return labels
 
         labels_shape = self.backend.ops.shape(labels)
-        if len(labels_shape) != 2 or not backend.is_float_dtype(labels.dtype):
+        if len(labels_shape) != 2 or not is_float_dtype(labels.dtype):
             raise ValueError(
                 "Mosaic mixes labels in proportion to the area of each image, "
                 "so `labels` must be one-hot encoded (or soft) float labels of "
