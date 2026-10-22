@@ -5,6 +5,7 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend.common import standardize_dtype
 
 
 def _to_data_format(x, data_format):
@@ -480,12 +481,8 @@ class MosaicTest(testing.TestCase):
                 "labels": np.eye(4, dtype="float32"),
             }
         )
-        self.assertEqual(
-            backend.standardize_dtype(output["images"].dtype), "float16"
-        )
-        self.assertEqual(
-            backend.standardize_dtype(output["labels"].dtype), "float16"
-        )
+        self.assertEqual(standardize_dtype(output["images"].dtype), "float16")
+        self.assertEqual(standardize_dtype(output["labels"].dtype), "float16")
         self.assertAllClose(
             np.sum(backend.ops.convert_to_numpy(output["labels"]), axis=-1),
             np.ones(4),
