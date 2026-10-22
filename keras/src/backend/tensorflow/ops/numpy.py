@@ -3467,6 +3467,11 @@ def vstack(xs):
     if len(dtype_set) > 1:
         dtype = dtypes.result_type(*dtype_set)
         xs = tree.map_structure(lambda x: convert_to_tensor(x, dtype), xs)
+    # `np.vstack` treats a 1-D input as a single row, so `[ones(3), zeros(3)]`
+    # becomes `(2, 3)`. Concatenating directly would flatten it to `(6,)`, and
+    # mixing a 1-D input with a 2-D one would fail outright.
+    xs = [convert_to_tensor(x) for x in xs]
+    xs = [tf.expand_dims(x, 0) if x.shape.rank == 1 else x for x in xs]
     return tf.concat(xs, axis=0)
 
 

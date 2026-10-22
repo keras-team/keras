@@ -2555,6 +2555,11 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((None, None))
         self.assertEqual(knp.vstack([x, y]).shape, (None, 3))
 
+        # A 1-D input is a single row, matching `np.vstack`.
+        x = KerasTensor((None,))
+        y = KerasTensor((None,))
+        self.assertEqual(knp.vstack([x, y]).shape, (2, None))
+
     def test_dstack(self):
         x = KerasTensor((None,))
         y = KerasTensor((None,))
@@ -3464,6 +3469,16 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 3))
         y = KerasTensor((2, 3))
         self.assertEqual(knp.vstack([x, y]).shape, (4, 3))
+
+        # A 1-D input is a single row, matching `np.vstack`.
+        x = KerasTensor((3,))
+        y = KerasTensor((3,))
+        self.assertEqual(knp.vstack([x, y]).shape, (2, 3))
+
+        # 1-D and 2-D inputs can be mixed.
+        x = KerasTensor((3,))
+        y = KerasTensor((1, 3))
+        self.assertEqual(knp.vstack([x, y]).shape, (2, 3))
 
     def test_dstack(self):
         x = KerasTensor((3,))
@@ -7738,6 +7753,17 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_vstack(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [6, 5, 4]])
+        self.assertAllClose(knp.vstack([x, y]), np.vstack([x, y]))
+        self.assertAllClose(knp.Vstack()([x, y]), np.vstack([x, y]))
+
+        # A 1-D input is a single row, matching `np.vstack`.
+        x = np.array([1, 2, 3])
+        y = np.array([4, 5, 6])
+        self.assertAllClose(knp.vstack([x, y]), np.vstack([x, y]))
+        self.assertAllClose(knp.Vstack()([x, y]), np.vstack([x, y]))
+
+        # 1-D and 2-D inputs can be mixed.
+        y = np.array([[4, 5, 6]])
         self.assertAllClose(knp.vstack([x, y]), np.vstack([x, y]))
         self.assertAllClose(knp.Vstack()([x, y]), np.vstack([x, y]))
 
