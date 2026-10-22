@@ -306,7 +306,7 @@ def residual_block_v2(
         kernel_size: Kernel size of the bottleneck layer. Defaults to `3`.
         stride: Stride of the first layer. Defaults to `1`.
         conv_shortcut: Use convolution shortcut if `True`, otherwise
-            use identity shortcut. Defaults to `True`
+            use identity shortcut. Defaults to `False`
         name(optional): Name of the block
 
     Returns:

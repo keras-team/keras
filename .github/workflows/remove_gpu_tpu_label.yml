@@ -1,0 +1,30 @@
+name: Remove run-gpu-tpu-tests label
+
+# The run-gpu-tpu-tests label is a one-shot button: adding it starts the GPU
+# and TPU test workflows (gpu_tests.yml / tpu_tests.yml, triggered by the
+# `labeled` event), and this workflow removes the label again so it never
+# has to be cleared by hand. pull_request_target is used only because it
+# carries a write token for fork PRs; no PR code is checked out or executed
+# here. The removal itself is made with GITHUB_TOKEN and therefore triggers
+# no further workflows.
+on:
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
+    types: [labeled]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  remove_label:
+    if: github.event.label.name == 'run-gpu-tpu-tests'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            await github.rest.issues.removeLabel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              name: 'run-gpu-tpu-tests',
+            })

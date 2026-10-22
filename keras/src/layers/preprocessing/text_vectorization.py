@@ -10,6 +10,14 @@ from keras.src.utils import argument_validation
 from keras.src.utils import backend_utils
 from keras.src.utils import tf_utils
 from keras.src.utils.module_utils import tensorflow as tf
+from keras.src.utils.progbar import Progbar
+
+
+def _extract_batch(batch):
+    """Return input from batch; handle (x, y) or (x, y, sample_weight)."""
+    if isinstance(batch, tuple):
+        return batch[0]
+    return batch
 
 
 @keras_export("keras.layers.TextVectorization")
@@ -52,7 +60,7 @@ class TextVectorization(Layer):
        by the callable depends on the active Keras backend. With the
        TensorFlow backend, the callable receives a `tf.Tensor` of dtype
        `string`, so it should use `tf.strings` operations. With any other
-       backend (JAX, NumPy, PyTorch, OpenVINO) the callable receives a
+       backend (JAX, NumPy, PyTorch) the callable receives a
        NumPy array of unicode strings, so it should use `np.char` /
        `np.strings` operations (or any vectorized string logic of your
        choice). The callable should return data of the same shape as the
@@ -422,19 +430,33 @@ class TextVectorization(Layer):
         """
         self.reset_state()
         if isinstance(data, tf.data.Dataset):
+            if steps is None and hasattr(data, "cardinality"):
+                cardinality = data.cardinality()
+                if cardinality.numpy() not in (
+                    tf.data.UNKNOWN_CARDINALITY,
+                    tf.data.INFINITE_CARDINALITY,
+                ):
+                    steps = int(cardinality.numpy())
+
+            progbar = Progbar(target=steps, unit_name="step")
             if steps is not None:
                 data = data.take(steps)
-            for batch in data:
-                self.update_state(batch)
+            for i, batch in enumerate(data):
+                self.update_state(_extract_batch(batch))
+                progbar.update(i + 1)
+            progbar.update(steps if steps is not None else i + 1, finalize=True)
         elif hasattr(data, "__iter__") and not (
             isinstance(data, (list, tuple, np.ndarray))
-            or backend.is_tensor(data)
+            or backend.ops.is_tensor(data)
             or tf.is_tensor(data)
         ):
+            progbar = Progbar(target=steps, unit_name="step")
             for i, batch in enumerate(data):
                 if steps is not None and i >= steps:
                     break
-                self.update_state(batch)
+                self.update_state(_extract_batch(batch))
+                progbar.update(i + 1)
+            progbar.update(steps if steps is not None else i + 1, finalize=True)
         else:
             data = tf_utils.ensure_tensor(data, dtype="string")
             if data.shape.rank == 1:
@@ -541,8 +563,8 @@ class TextVectorization(Layer):
         """
         if isinstance(inputs, np.ndarray):
             np_inputs = inputs
-        elif backend.is_tensor(inputs):
-            np_inputs = backend.convert_to_numpy(inputs)
+        elif backend.ops.is_tensor(inputs):
+            np_inputs = backend.ops.convert_to_numpy(inputs)
         else:
             np_inputs = np.asarray(inputs)
 
@@ -563,8 +585,8 @@ class TextVectorization(Layer):
     def _preprocess(self, inputs):
         if not isinstance(
             inputs, (tf.Tensor, tf.RaggedTensor, np.ndarray, list, tuple)
-        ) and backend.is_tensor(inputs):
-            inputs = backend.convert_to_numpy(inputs)
+        ) and backend.ops.is_tensor(inputs):
+            inputs = backend.ops.convert_to_numpy(inputs)
         with tf.device("CPU:0"):
             if (
                 callable(self._standardize)

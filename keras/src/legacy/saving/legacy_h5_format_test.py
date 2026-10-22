@@ -7,6 +7,7 @@ import keras
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
+from keras.src import random
 from keras.src import testing
 from keras.src.legacy.saving import legacy_h5_format
 from keras.src.saving import object_registration
@@ -143,9 +144,19 @@ class LegacyH5WholeModelTest(testing.TestCase):
         ref_input = np.random.random((1, 3))
         self._check_reloading_model(ref_input, model)
 
+    def test_saving_preserves_compile_config(self):
+        model = models.Sequential([layers.Input((3,)), layers.Dense(2)])
+        model.compile(optimizer="adam", loss="mean_squared_error")
+        compile_config = model.get_compile_config()
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "model.h5")
+        legacy_h5_format.save_model_to_hdf5(model, temp_filepath)
+
+        self.assertEqual(model.get_compile_config(), compile_config)
+
     def test_saving_lambda(self):
-        mean = ops.random.uniform((4, 2, 3))
-        std = ops.abs(ops.random.uniform((4, 2, 3))) + 1e-5
+        mean = random.uniform((4, 2, 3))
+        std = ops.abs(random.uniform((4, 2, 3))) + 1e-5
         inputs = layers.Input(shape=(4, 2, 3))
         output = layers.Lambda(
             lambda image, mu, std: (image - mu) / std,

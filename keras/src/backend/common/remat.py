@@ -127,6 +127,8 @@ def get_current_remat_mode():
     if not remat_scope_stack:
         return None
     active_scope = remat_scope_stack[-1]
+    if active_scope.mode is None:
+        return None
     return RematMode(
         active_scope.mode,
         active_scope.output_size_threshold,
@@ -183,4 +185,4 @@ def remat(f):
     model.compile(optimizer="sgd", loss="mse")
     ```
     """
-    return backend.core.remat(f)
+    return backend.ops.remat(f)

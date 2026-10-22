@@ -7,37 +7,35 @@ from collections.abc import Callable
 from keras.src import backend
 from keras.src import utils
 from keras.src.api_export import keras_export
+from keras.src.layers.core.input_layer import InputLayer
 from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
-from keras.src.quantizers.awq_core import awq_quantize
-from keras.src.quantizers.gptq_core import find_layers_in_block
-from keras.src.quantizers.gptq_core import gptq_quantize
+from keras.src.quantizers import strategy_registry
+from keras.src.quantizers.calibration_run import find_layers_in_block
+from keras.src.quantizers.quantization_config import validate_and_resolve_config
+from keras.src.quantizers.report import QuantizationReport
 from keras.src.quantizers.utils import should_quantize_layer
 from keras.src.saving import saving_api
-from keras.src.trainers import trainer as base_trainer
+from keras.src.utils import io_utils
 from keras.src.utils import summary_utils
 from keras.src.utils import traceback_utils
+from keras.src.utils.module_utils import get_pluggable_backend_module
 
 if backend.backend() == "tensorflow":
-    from keras.src.backend.tensorflow.trainer import (
-        TensorFlowTrainer as Trainer,
-    )
+    from keras.src.backend.tensorflow.trainer import Trainer
 elif backend.backend() == "jax":
-    from keras.src.backend.jax.trainer import JAXTrainer as Trainer
+    from keras.src.backend.jax.trainer import Trainer
 elif backend.backend() == "torch":
-    from keras.src.backend.torch.trainer import TorchTrainer as Trainer
+    from keras.src.backend.torch.trainer import Trainer
 elif backend.backend() == "numpy":
-    from keras.src.backend.numpy.trainer import NumpyTrainer as Trainer
-elif backend.backend() == "openvino":
-    from keras.src.backend.openvino.trainer import OpenVINOTrainer as Trainer
+    from keras.src.backend.numpy.trainer import Trainer
 else:
-    raise RuntimeError(
-        f"Backend '{backend.backend()}' must implement the Trainer class."
-    )
+    backend_trainer_module = get_pluggable_backend_module("src.trainer")
+    Trainer = getattr(backend_trainer_module, "Trainer")
 
 
 @keras_export(["keras.Model", "keras.models.Model"])
-class Model(Trainer, base_trainer.Trainer, Layer):
+class Model(Trainer, Layer):
     """A model grouping layers into an object with training/inference features.
 
     There are three ways to instantiate a `Model`:
@@ -448,7 +446,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         del mode  # Unused.
         return None
 
-    def quantize(self, mode=None, config=None, filters=None, **kwargs):
+    def quantize(
+        self, mode=None, config=None, filters=None, verbose=True, **kwargs
+    ):
         """Quantize the weights of the model.
 
         Note that the model must be built first before calling this method.
@@ -467,18 +467,58 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         `get_quantization_layer_structure(mode)` hook). All other layers
         are left in their original precision.
 
+        The call collects a `QuantizationReport` describing which layers were
+        quantized and which were skipped (and why). The report is returned and
+        also stored on the model as `model._quantization_report`. A single
+        summary warning is emitted if any layers could not be quantized because
+        they do not support quantization. For a per-layer view of storage sizes,
+        call `model.quantization_summary()`.
+
         Args:
             mode: The mode of the quantization. Supported modes are:
-                `"int8"`, `"int4"`, `"float8"`, `"gptq"`, `"awq"`. This is
-                optional if `config` is provided.
+                `"int8"`, `"int4"`, `"float8"`, `"ternary"`, `"gptq"` and
+                `"awq"`. This is optional if `config` is provided. Passing a
+                bare string uses the default configuration for that mode,
+                which is identical to passing the corresponding config object
+                with default arguments (e.g. `quantize("int4")` matches
+                `quantize(config=Int4QuantizationConfig())`). The activation
+                (A) times weight (W) semantics of each mode are:
+
+                -   `"int8"`: **W8A8 dynamic**. Weights and activations are both
+                    quantized to `int8` and multiplied with a real integer
+                    GEMM; activation scales are computed dynamically per call.
+                -   `"int4"`: **W4A16 weight-only**, **grouped** with
+                    `block_size=128` by default. Only weights are quantized (to
+                    4 bits, packed two per `int8` byte); this is storage-only
+                    today (weights are dequantized to float before each
+                    matmul). Pass `Int4QuantizationConfig(block_size=-1)` for
+                    per-channel.
+                -   `"float8"`: **float8 QDQ** mixed-precision training scheme
+                    (not post-training compression); weights and activations
+                    are dynamically cast to `float8` during training.
+                -   `"ternary"`: **weight-only** BitNet b1.58 quantization of
+                    `Dense` layers. Weights are quantized to `{-1, 0, +1}`
+                    with one scalar scale and packed five per byte; this is
+                    storage-only today (weights are unpacked to float before
+                    each matmul).
+                -   `"gptq"`: **weight-only** post-training quantization to
+                    2, 3, 4 or 8 bits (`GPTQConfig.weight_bits`, 4 by
+                    default); requires a `GPTQConfig` passed via `config`.
+                -   `"awq"`: **W4A16 weight-only** post-training quantization;
+                    requires an `AWQConfig` passed via `config`.
             config: The configuration object specifying additional
                 quantization options. This argument allows to configure
-                the weight and activation quantizers. be an instance of
+                the weight and activation quantizers. It must be an instance of
                 `keras.quantizers.QuantizationConfig`.
             filters: Optional filters to apply to the quantization. Can be a
                 regex string, a list of regex strings, or a callable. Only the
                 layers which match the filter conditions will be quantized.
+            verbose: Whether to print the quantization report. Defaults to
+                `True`.
             **kwargs: Additional keyword arguments.
+
+        Returns:
+            A `QuantizationReport` describing the outcome of the call.
 
         Example:
 
@@ -525,6 +565,14 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         model.quantize(config=config)
         ```
         """
+        # Resolve `mode`/`config` into a concrete mode string and
+        # `QuantizationConfig`, and validate that the model can be quantized,
+        # before validating the remaining arguments (mirroring
+        # `Layer.quantize`'s validation order).
+        config = validate_and_resolve_config(mode, config)
+        mode = config.mode
+        self._check_quantize_args(mode, self.compute_dtype)
+
         # Validate inputs.
         type_check = kwargs.pop("type_check", True)
         if kwargs:
@@ -541,16 +589,20 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     f"{type(filters)}"
                 )
 
-        # For GPTQ/AWQ, resolve the model structure before any layer is
-        # modified so that an invalid structure surfaces early, and restrict
-        # quantization to the layers covered by the structure. Only those
-        # layers are calibrated afterwards; quantizing any other layer would
-        # leave it uncalibrated, and its uninitialized quantized weights
-        # would silently replace the real ones when the model is saved and
-        # reloaded.
+        # For structure-aware modes (`gptq`/`awq`), resolve and validate the
+        # layer structure *before* mutating any layer, and restrict
+        # quantization to the layers covered by the structure. Resolving it
+        # here (rather than after the mutation loop) guarantees that a
+        # missing/invalid structure leaves the model completely untouched
+        # instead of half-quantized (buffers allocated, dtype policies
+        # swapped). Only structure-covered layers are calibrated afterwards;
+        # quantizing any other layer would leave it uncalibrated, and its
+        # uninitialized quantized weights would silently replace the real
+        # ones when the model is saved and reloaded.
+        strategy = strategy_registry.get_strategy(mode)
         structure = None
         structure_layer_ids = None
-        if mode in ("gptq", "awq"):
+        if strategy.requires_layer_structure:
             # 1. If quantization_layer_structure is provided inside the
             # config, use that.
             structure = config.quantization_layer_structure
@@ -573,31 +625,74 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 for sub_layer in find_layers_in_block(block).values():
                     structure_layer_ids.add(id(sub_layer))
 
+        report = QuantizationReport(mode=mode)
         graph_modified = False
         for layer in self._flatten_layers():
-            # Apply filters
-            if not should_quantize_layer(layer, filters):
+            # Skip nested models: this walk already visits their layers
+            # directly (`_flatten_layers` is recursive), and calling
+            # `quantize` on a sub-model would recurse into a second full
+            # walk. Owning sub-layers does NOT make a layer unquantizable
+            # (e.g. `Dense` with a `Layer` activation), so this is an
+            # isinstance test, not a topology test; any other layer that
+            # cannot be quantized reports itself by raising
+            # `NotImplementedError` below.
+            if isinstance(layer, Model):
                 continue
-            # For GPTQ/AWQ, skip layers that the structure does not cover.
+
+            # Input layers carry no weights; they are not a meaningful skip.
+            if isinstance(layer, InputLayer):
+                continue
+
+            path = layer.path or layer.name
+
+            # 1. For GPTQ/AWQ, layers outside the structure's sequential
+            # blocks are never calibrated, so they must not be quantized at
+            # all.
             if (
                 structure_layer_ids is not None
                 and id(layer) not in structure_layer_ids
             ):
+                report.add_skipped(
+                    path, QuantizationReport.SKIP_OUTSIDE_STRUCTURE
+                )
                 continue
+            # 2. Excluded by `filters`.
+            if not should_quantize_layer(layer, filters):
+                report.add_skipped(path, QuantizationReport.SKIP_FILTERED)
+                continue
+            # 3. Already quantized (e.g. a previously quantized layer).
+            if layer._is_quantized:
+                report.add_skipped(
+                    path, QuantizationReport.SKIP_ALREADY_QUANTIZED
+                )
+                continue
+            # 4. Attempt to quantize. Only `NotImplementedError` means the
+            # layer does not support quantization; any other exception is a
+            # real bug and is allowed to propagate.
+            try:
+                layer.quantize(mode, type_check=type_check, config=config)
+            except NotImplementedError:
+                report.add_skipped(path, QuantizationReport.SKIP_NO_SUPPORT)
+                continue
+            report.add_quantized(
+                path, layer.quantization_mode, layer._own_dtype_policy.name
+            )
+            graph_modified = True
 
-            if len(list(layer._flatten_layers())) == 1:
-                try:
-                    layer.quantize(mode, type_check=type_check, config=config)
-                    graph_modified = True
-                except NotImplementedError as e:
-                    warnings.warn(str(e))
-                except AttributeError:
-                    pass
+        # Structure-aware modes run their calibration pass here (a no-op
+        # for the other modes).
+        strategy.finalize_model_quantization(self, config, structure, filters)
 
-        if mode == "gptq":
-            gptq_quantize(config, structure, filters=filters)
-        elif mode == "awq":
-            awq_quantize(config, structure, filters=filters)
+        # Emit a single summary warning in place of the previous per-layer
+        # warning storm (one `UserWarning` per non-quantizable leaf).
+        warning_message = report.summary_warning()
+        if warning_message is not None:
+            warnings.warn(warning_message, stacklevel=2)
+
+        if verbose:
+            io_utils.print_msg(report.render())
+
+        self._quantization_report = report
 
         # If any layer was changed, we must rebuild the execution functions.
         if graph_modified:
@@ -606,13 +701,46 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             self.predict_function = None
             self._post_quantize(mode, **kwargs)
 
+        return report
+
+    def quantization_summary(self, verbose=True):
+        """Print a per-quantized-layer summary of the model.
+
+        For every quantized layer this reports the layer path, its own dtype
+        policy (its entry, for a layer that holds a `DTypePolicyMap`), the
+        storage dtype of its quantized weight, and the bytes the weight
+        stores: codes, scale, zero point, group index and input scales. A
+        mode that keeps the float weight (float8) reports that weight and
+        says so. It also prints totals comparing the quantized weight
+        storage against a float32 baseline.
+
+        Args:
+            verbose: Whether to print the summary. Defaults to `True`. The
+                summary string is always returned.
+
+        Returns:
+            The summary as a string.
+        """
+        return summary_utils.print_quantization_summary(self, verbose=verbose)
+
     def _post_quantize(self, mode, **kwargs):
         if backend.backend() == "torch":
+            # Local import: `sequential` imports this module.
+            from keras.src.models.sequential import Sequential
+
             # We need to manually retrack `torch_params`.
             # The reason is that after quantization, the removed variables are
             # still referenced by `torch_params` and cannot be gc.
             for layer in self._flatten_layers():
                 layer._track_variables()
+                # A `Sequential` runs its layers through the `Functional` in
+                # `_functional`, which `_flatten_layers` does not visit. Its
+                # `torch_params` also reference the removed variables.
+                if (
+                    isinstance(layer, Sequential)
+                    and layer._functional is not None
+                ):
+                    layer._functional._track_variables()
 
     def build_from_config(self, config):
         if not config:

@@ -4,6 +4,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend.common import standardize_dtype
 
 NUM_BATCHES_FOR_TENSOR_SPEC = 2
 
@@ -197,7 +198,7 @@ def get_keras_tensor_spec(batches):
             dims_set = set(dims)
             shape.append(dims_set.pop() if len(dims_set) == 1 else None)
 
-        dtype = backend.standardize_dtype(x.dtype)
+        dtype = standardize_dtype(x.dtype)
         if is_tensorflow_ragged(x):
             return backend.KerasTensor(
                 shape=shape,
@@ -289,10 +290,14 @@ def get_jax_iterator(iterable):
 def get_numpy_iterator(iterable):
     def convert_to_numpy(x):
         if not isinstance(x, np.ndarray):
-            # Using `__array__` should handle `tf.Tensor`, `jax.np.ndarray`,
-            # `torch.Tensor`, as well as any other tensor-like object that
-            # has added numpy support.
-            if hasattr(x, "__array__"):
+            if backend.ops.is_tensor(x):
+                # The backend knows how to convert its own tensors, including
+                # the ones `__array__` cannot, e.g. a bfloat16 MLX array.
+                x = ops.convert_to_numpy(x)
+            elif hasattr(x, "__array__"):
+                # Using `__array__` should handle `tf.Tensor`,
+                # `jax.np.ndarray`, `torch.Tensor`, as well as any other
+                # tensor-like object that has added numpy support.
                 if is_torch_tensor(x):
                     x = x.cpu()
                 x = np.asarray(x)
@@ -305,7 +310,7 @@ def get_numpy_iterator(iterable):
 def get_torch_dataloader(iterable):
     import torch.utils.data as torch_data
 
-    from keras.src.backend.torch.core import convert_to_tensor
+    from keras.src.backend.torch.ops.core import convert_to_tensor
 
     class ConverterIterableDataset(torch_data.IterableDataset):
         def __init__(self, iterable):
@@ -355,7 +360,9 @@ def is_tensorflow_sparse(value):
 def is_jax_array(value):
     if hasattr(value, "__class__"):
         for parent in value.__class__.__mro__:
-            if parent.__name__ == "Array" and str(parent.__module__) == "jax":
+            if parent.__name__.endswith("Array") and str(
+                parent.__module__
+            ).startswith("jax"):
                 return True
     return is_jax_sparse(value)  # JAX sparse arrays do not extend jax.Array
 
@@ -519,3 +526,49 @@ def jax_sparse_to_tf_sparse(x):
     from keras.src.utils.module_utils import tensorflow as tf
 
     return tf.SparseTensor(x.indices, x.data, x.shape)
+
+
+class PartialBatchList(list):
+    """Container for unstacked remainder batches from super_batch_iterator."""
+
+    pass
+
+
+def super_batch_iterator(iterator, super_batch, stack_fn=np.stack):
+    """Wraps an iterator to stack batches into super-batches along axis 0."""
+    while True:
+        batches = []
+        try:
+            for _ in range(super_batch):
+                batches.append(next(iterator))
+        except StopIteration:
+            pass
+
+        if not batches:
+            break
+
+        for leaf in tree.flatten(batches[0]):
+            if (
+                is_scipy_sparse(leaf)
+                or is_tensorflow_sparse(leaf)
+                or is_jax_sparse(leaf)
+            ):
+                raise ValueError(
+                    "`steps_per_execution > 1` is not supported with sparse "
+                    "tensors."
+                )
+
+        if len(batches) == super_batch:
+            try:
+
+                def _stack_leaf(*xs):
+                    if xs[0] is None:
+                        return None
+                    return stack_fn(xs)
+
+                yield tree.map_structure(_stack_leaf, *batches)
+                continue
+            except (ValueError, RuntimeError):
+                pass
+
+        yield PartialBatchList(batches)

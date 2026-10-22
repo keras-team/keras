@@ -15,6 +15,9 @@ class DataAdapter:
         """
         raise NotImplementedError
 
+    def get_native_iterator(self):
+        return self.get_numpy_iterator()
+
     def get_tf_dataset(self):
         """Get a `tf.data.Dataset` instance for the DataAdapter.
 
@@ -29,7 +32,7 @@ class DataAdapter:
         """
         raise NotImplementedError
 
-    def get_jax_iterator(self):
+    def get_jax_iterator(self, super_batch=None):
         """Get a Python iterable for the `DataAdapter`, that yields arrays that
         that can be fed to JAX. NumPy arrays are preferred for performance.
 

@@ -9,12 +9,14 @@ import torch
 from keras.src import Sequential
 from keras.src import backend
 from keras.src import layers
+from keras.src import models
 from keras.src import testing
 from keras.src.distribution import distribution_lib
+from keras.src.trainers.data_adapters import data_adapter_test_base
 from keras.src.trainers.data_adapters import tf_dataset_adapter
 
 
-class TestTFDatasetAdapter(testing.TestCase):
+class TestTFDatasetAdapter(data_adapter_test_base.DataAdapterTest):
     def test_basic_flow(self):
         x = tf.random.normal((34, 4))
         y = tf.random.normal((34, 2))
@@ -462,6 +464,119 @@ class TestTFDatasetAdapter(testing.TestCase):
         self.assertEqual(len(data), 2)
         self.assertAllClose(data[0], np.arange(8))
         self.assertAllClose(data[1], np.arange(8, 16))
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="JAX only",
+    )
+    def test_get_jax_iterator_with_super_batch_known_batch_size(self):
+        # Even batches: 4 batches of size 16 with super_batch=2 ->
+        # 2 super-batches
+        x = tf.ones((64, 4), dtype="float32")
+        y = tf.ones((64, 2), dtype="float32")
+        base_ds = tf.data.Dataset.from_tensor_slices((x, y)).batch(
+            16, drop_remainder=True
+        )
+        adapter = tf_dataset_adapter.TFDatasetAdapter(base_ds)
+        self.assertEqual(adapter.batch_size, 16)
+        self.verify_super_batched_iterator(
+            adapter.get_jax_iterator(super_batch=2),
+            expected_super_batches=2,
+            has_partial_batch=False,
+        )
+
+        # Uneven batches: 5 batches of size 16 with super_batch=2 ->
+        # 2 super-batches + 1 remainder super-batch of shape (1, 16, ...)
+        x = tf.ones((80, 4), dtype="float32")
+        y = tf.ones((80, 2), dtype="float32")
+        base_ds = tf.data.Dataset.from_tensor_slices((x, y)).batch(
+            16, drop_remainder=True
+        )
+        adapter = tf_dataset_adapter.TFDatasetAdapter(base_ds)
+        self.assertEqual(adapter.batch_size, 16)
+        self.verify_super_batched_iterator(
+            adapter.get_jax_iterator(super_batch=2),
+            expected_super_batches=2,
+            has_partial_batch=True,
+        )
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="JAX only",
+    )
+    def test_get_jax_iterator_with_super_batch_unknown_batch_size(self):
+        output_signature = (
+            tf.TensorSpec(shape=(None, 4), dtype=tf.float32),
+            tf.TensorSpec(shape=(None, 2), dtype=tf.float32),
+        )
+
+        def make_gen(num_batches):
+            def _gen():
+                for _ in range(num_batches):
+                    yield (
+                        np.ones((16, 4), dtype="float32"),
+                        np.ones((16, 2), dtype="float32"),
+                    )
+
+            return _gen
+
+        # Even batches: 4 batches with super_batch=2 -> 2 super-batches
+        base_ds = tf.data.Dataset.from_generator(
+            make_gen(4), output_signature=output_signature
+        )
+        adapter = tf_dataset_adapter.TFDatasetAdapter(base_ds)
+        self.assertIsNone(adapter.batch_size)
+        self.verify_super_batched_iterator(
+            adapter.get_jax_iterator(super_batch=2),
+            expected_super_batches=2,
+            has_partial_batch=False,
+        )
+
+        # Uneven batches: 5 batches with super_batch=2 -> 2 super-batches +
+        # 1 partial batch list
+        base_ds = tf.data.Dataset.from_generator(
+            make_gen(5), output_signature=output_signature
+        )
+        adapter = tf_dataset_adapter.TFDatasetAdapter(base_ds)
+        self.assertIsNone(adapter.batch_size)
+        self.verify_super_batched_iterator(
+            adapter.get_jax_iterator(super_batch=2),
+            expected_super_batches=2,
+            has_partial_batch=True,
+        )
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="TensorFlow only",
+    )
+    def test_fit_unknown_rank_dataset_steps_per_execution(self):
+        def make_example(_):
+            return np.ones((3,), dtype=np.float32), np.float32(1)
+
+        def map_fn(index):
+            return tf.numpy_function(
+                make_example, [index], [tf.float32, tf.float32]
+            )
+
+        def map_fn_with_shape(index):
+            x, y = map_fn(index)
+            return tf.ensure_shape(x, (3,)), tf.ensure_shape(y, ())
+
+        def build_model():
+            inputs = layers.Input(shape=(3,))
+            model = models.Model(inputs, layers.Dense(1)(inputs))
+            model.compile(optimizer="sgd", loss="mse", steps_per_execution=2)
+            return model
+
+        dataset = tf.data.Dataset.range(2).map(map_fn).batch(1)
+        with self.assertRaisesRegex(
+            ValueError, "unknown rank.*tf.ensure_shape"
+        ):
+            build_model().fit(dataset, epochs=1, verbose=0)
+
+        # Specifying the shapes makes multi-step training work.
+        dataset = tf.data.Dataset.range(2).map(map_fn_with_shape).batch(1)
+        build_model().fit(dataset, epochs=1, verbose=0)
 
 
 @pytest.mark.skipif(

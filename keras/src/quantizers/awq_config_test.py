@@ -23,6 +23,7 @@ class AWQConfigTest(testing.TestCase):
         self.assertEqual(config.sequence_length, 512)
         self.assertEqual(config.group_size, 128)
         self.assertEqual(config.num_grid_points, 20)
+        self.assertTrue(config.apply_clip)
         self.assertEqual(config.mode, "awq")
 
     def test_config_custom_values(self):
@@ -98,9 +99,21 @@ class AWQConfigTest(testing.TestCase):
         self.assertEqual(cfg["weight_bits"], 4)
         self.assertEqual(cfg["group_size"], 64)
         self.assertEqual(cfg["num_grid_points"], 30)
+        self.assertTrue(cfg["apply_clip"])
         # Dataset and tokenizer should not be serialized
         self.assertIsNone(cfg["dataset"])
         self.assertIsNone(cfg["tokenizer"])
+
+    def test_config_apply_clip(self):
+        """Test apply_clip flag round-trips through serialization."""
+        config = AWQConfig(
+            dataset=["test"],
+            tokenizer=self.MockTokenizer(),
+            apply_clip=False,
+        )
+        self.assertFalse(config.apply_clip)
+        restored = AWQConfig.from_config(config.get_config())
+        self.assertFalse(restored.apply_clip)
 
     def test_dtype_policy_string(self):
         """Test dtype policy string generation."""

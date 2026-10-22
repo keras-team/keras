@@ -2,7 +2,9 @@ import numpy as np
 
 from keras.src import activations
 from keras.src import backend
+from keras.src import ops
 from keras.src import testing
+from keras.src.saving import object_registration
 
 
 def _ref_softmax(values):
@@ -992,6 +994,24 @@ class ActivationsTest(testing.TestCase):
             activations.sparsemax(x_3d, axis=-3), expected_result
         )
 
+        # Closely spaced logits keep more than one coordinate in the
+        # support. Every case above expects a one hot result, which only
+        # exercises a support of size one.
+        x_dense = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
+        expected_result = np.array([0.0, 0.1, 0.2, 0.3, 0.4])
+        self.assertAllClose(activations.sparsemax(x_dense), expected_result)
+
+        # sparsemax projects onto the probability simplex, so whatever the
+        # support size, each slice along the axis sums to one.
+        x_2d = np.array([[0.1, 0.2, 0.3], [-1.0, 0.5, 0.4]])
+        self.assertAllClose(
+            np.sum(
+                backend.ops.convert_to_numpy(activations.sparsemax(x_2d)),
+                axis=-1,
+            ),
+            np.ones(2),
+        )
+
         # result check with axis=-3 with 4d input
         x_4d = np.linspace(1, 12, num=12).reshape(-1, 1, 1, 2)
         expected_result = np.ones_like(x_4d)
@@ -1008,3 +1028,41 @@ class ActivationsTest(testing.TestCase):
 
         with self.assertRaises(ValueError):
             activations.get("typo")
+
+    def test_serialize_deserialize_built_in_activation(self):
+        serialized = activations.serialize(activations.gelu)
+        self.assertEqual(serialized, "gelu")
+
+        deserialized = activations.deserialize(serialized)
+        self.assertIs(deserialized, activations.gelu)
+
+    def test_serialize_deserialize_op_activation(self):
+        serialized = activations.serialize(ops.gelu)
+        self.assertIsInstance(serialized, dict)
+
+        deserialized = activations.deserialize(serialized)
+        self.assertIs(deserialized, ops.gelu)
+        self.assertIsNot(deserialized, activations.gelu)
+
+    def test_serialize_deserialize_registered_function(self):
+        @object_registration.register_keras_serializable(package="serial_test")
+        def gelu(x):
+            return x
+
+        serialized = activations.serialize(gelu)
+        self.assertIsInstance(serialized, dict)
+
+        deserialized = activations.deserialize(serialized)
+        self.assertIs(deserialized, gelu)
+
+    def test_serialize_deserialize_unregistered_function(self):
+        def gelu(x):
+            return x
+
+        serialized = activations.serialize(gelu)
+        self.assertIsInstance(serialized, dict)
+
+        deserialized = activations.deserialize(
+            serialized, custom_objects={"gelu": gelu}
+        )
+        self.assertIs(deserialized, gelu)

@@ -1,6 +1,6 @@
 from keras.src import ops
 from keras.src.api_export import keras_export
-from keras.src.backend import standardize_dtype
+from keras.src.backend.common import standardize_dtype
 from keras.src.initializers.initializer import Initializer
 from keras.src.saving import serialization_lib
 from keras.src.utils.module_utils import scipy
@@ -152,6 +152,9 @@ class Identity(Initializer):
             )
         dtype = standardize_dtype(dtype)
         return self.gain * ops.eye(*shape, dtype=dtype)
+
+    def get_config(self):
+        return {"gain": self.gain}
 
 
 @keras_export(

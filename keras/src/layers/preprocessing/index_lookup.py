@@ -9,6 +9,14 @@ from keras.src.utils import argument_validation
 from keras.src.utils import numerical_utils
 from keras.src.utils import tf_utils
 from keras.src.utils.module_utils import tensorflow as tf
+from keras.src.utils.progbar import Progbar
+
+
+def _extract_batch(batch):
+    """Return input from batch; handle (x, y) or (x, y, sample_weight)."""
+    if isinstance(batch, tuple):
+        return batch[0]
+    return batch
 
 
 class IndexLookup(Layer):
@@ -645,19 +653,33 @@ class IndexLookup(Layer):
     def adapt(self, data, steps=None):
         self.reset_state()
         if isinstance(data, tf.data.Dataset):
+            if steps is None and hasattr(data, "cardinality"):
+                cardinality = data.cardinality()
+                if cardinality.numpy() not in (
+                    tf.data.UNKNOWN_CARDINALITY,
+                    tf.data.INFINITE_CARDINALITY,
+                ):
+                    steps = int(cardinality.numpy())
+
+            progbar = Progbar(target=steps, unit_name="step")
             if steps is not None:
                 data = data.take(steps)
-            for batch in data:
-                self.update_state(batch)
+            for i, batch in enumerate(data):
+                self.update_state(_extract_batch(batch))
+                progbar.update(i + 1)
+            progbar.update(steps if steps is not None else i + 1, finalize=True)
         elif hasattr(data, "__iter__") and not (
             isinstance(data, (list, tuple, np.ndarray))
-            or backend.is_tensor(data)
+            or backend.ops.is_tensor(data)
             or tf.is_tensor(data)
         ):
+            progbar = Progbar(target=steps, unit_name="step")
             for i, batch in enumerate(data):
                 if steps is not None and i >= steps:
                     break
-                self.update_state(batch)
+                self.update_state(_extract_batch(batch))
+                progbar.update(i + 1)
+            progbar.update(steps if steps is not None else i + 1, finalize=True)
         else:
             data = tf_utils.ensure_tensor(data, dtype=self.vocabulary_dtype)
             if data.shape.rank == 1:
@@ -836,8 +858,8 @@ class IndexLookup(Layer):
                         "When `output_mode` is `'tf_idf'`, "
                         "`idf_weights` must be provided."
                     )
-                output = tf_backend.numpy.multiply(
-                    tf_backend.core.cast(output, idf_weights.dtype), idf_weights
+                output = tf_backend.ops.numpy.multiply(
+                    tf_backend.ops.cast(output, idf_weights.dtype), idf_weights
                 )
             return output
 

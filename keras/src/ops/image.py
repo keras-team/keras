@@ -3,6 +3,8 @@ from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
+from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import is_int_dtype
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import compute_conv_output_shape
 
@@ -13,7 +15,7 @@ class RGBToGrayscale(Operation):
         self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
-        return backend.image.rgb_to_grayscale(
+        return backend.ops.image.rgb_to_grayscale(
             images, data_format=self.data_format
         )
 
@@ -77,7 +79,7 @@ def rgb_to_grayscale(images, data_format=None):
     """
     if any_symbolic_tensors((images,)):
         return RGBToGrayscale(data_format=data_format).symbolic_call(images)
-    return backend.image.rgb_to_grayscale(images, data_format=data_format)
+    return backend.ops.image.rgb_to_grayscale(images, data_format=data_format)
 
 
 class RGBToHSV(Operation):
@@ -86,7 +88,9 @@ class RGBToHSV(Operation):
         self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
-        return backend.image.rgb_to_hsv(images, data_format=self.data_format)
+        return backend.ops.image.rgb_to_hsv(
+            images, data_format=self.data_format
+        )
 
     def compute_output_spec(self, images):
         images_shape = list(images.shape)
@@ -97,7 +101,7 @@ class RGBToHSV(Operation):
                 "or rank 4 (batch of images). "
                 f"Received: images.shape={images_shape}"
             )
-        if not backend.is_float_dtype(dtype):
+        if not is_float_dtype(dtype):
             raise ValueError(
                 "Invalid images dtype: expected float dtype. "
                 f"Received: images.dtype={dtype}"
@@ -156,7 +160,7 @@ def rgb_to_hsv(images, data_format=None):
     """
     if any_symbolic_tensors((images,)):
         return RGBToHSV(data_format=data_format).symbolic_call(images)
-    return backend.image.rgb_to_hsv(images, data_format=data_format)
+    return backend.ops.image.rgb_to_hsv(images, data_format=data_format)
 
 
 class HSVToRGB(Operation):
@@ -165,7 +169,9 @@ class HSVToRGB(Operation):
         self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
-        return backend.image.hsv_to_rgb(images, data_format=self.data_format)
+        return backend.ops.image.hsv_to_rgb(
+            images, data_format=self.data_format
+        )
 
     def compute_output_spec(self, images):
         images_shape = list(images.shape)
@@ -176,7 +182,7 @@ class HSVToRGB(Operation):
                 "or rank 4 (batch of images). "
                 f"Received: images.shape={images_shape}"
             )
-        if not backend.is_float_dtype(dtype):
+        if not is_float_dtype(dtype):
             raise ValueError(
                 "Invalid images dtype: expected float dtype. "
                 f"Received: images.dtype={dtype}"
@@ -232,7 +238,7 @@ def hsv_to_rgb(images, data_format=None):
     """
     if any_symbolic_tensors((images,)):
         return HSVToRGB(data_format=data_format).symbolic_call(images)
-    return backend.image.hsv_to_rgb(images, data_format=data_format)
+    return backend.ops.image.hsv_to_rgb(images, data_format=data_format)
 
 
 class Resize(Operation):
@@ -307,7 +313,8 @@ def resize(
         images: Input image or batch of images. Must be 3D or 4D.
         size: Size of output image in `(height, width)` format.
         interpolation: Interpolation method. Available methods are `"nearest"`,
-            `"bilinear"`, and `"bicubic"`. Defaults to `"bilinear"`.
+            `"bilinear"`, `"bicubic"`, `"lanczos3"`, and `"lanczos5"`.
+            Defaults to `"bilinear"`.
         antialias: Whether to use an antialiasing filter when downsampling an
             image. Defaults to `False`.
         crop_to_aspect_ratio: If `True`, resize the images without aspect
@@ -412,7 +419,7 @@ def _resize(
     fill_value=0.0,
     data_format=None,
 ):
-    resized = backend.image.resize(
+    resized = backend.ops.image.resize(
         images,
         size,
         interpolation=interpolation,
@@ -427,7 +434,7 @@ def _resize(
         # Only `torch` backend will cast result to original dtype with
         # correct rounding and without dtype overflow
         return resized
-    if backend.is_int_dtype(images.dtype):
+    if is_int_dtype(images.dtype):
         resized = ops.round(resized)
     return ops.saturate_cast(resized, images.dtype)
 
@@ -449,7 +456,7 @@ class AffineTransform(Operation):
         self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images, transform):
-        return backend.image.affine_transform(
+        return backend.ops.image.affine_transform(
             images,
             transform,
             interpolation=self.interpolation,
@@ -470,6 +477,11 @@ class AffineTransform(Operation):
                 "Invalid transform rank: expected rank 1 (single transform) "
                 "or rank 2 (batch of transforms). Received input with shape: "
                 f"transform.shape={transform.shape}"
+            )
+        if isinstance(transform.shape[-1], int) and transform.shape[-1] != 8:
+            raise ValueError(
+                "Invalid transform shape: expected the last dimension to be 8. "
+                f"Received: transform.shape={transform.shape}"
             )
         return KerasTensor(images.shape, dtype=images.dtype)
 
@@ -564,7 +576,7 @@ def affine_transform(
             fill_value=fill_value,
             data_format=data_format,
         ).symbolic_call(images, transform)
-    return backend.image.affine_transform(
+    return backend.ops.image.affine_transform(
         images,
         transform,
         interpolation=interpolation,
@@ -793,15 +805,15 @@ def _extract_patches_2d(
     if not strides:
         strides = size
     out_dim = patch_h * patch_w * channels_in
-    kernel = backend.numpy.eye(out_dim, dtype=images.dtype)
-    kernel = backend.numpy.reshape(
+    kernel = backend.ops.numpy.eye(out_dim, dtype=images.dtype)
+    kernel = backend.ops.numpy.reshape(
         kernel, (patch_h, patch_w, channels_in, out_dim)
     )
     _unbatched = False
     if len(images.shape) == 3:
         _unbatched = True
-        images = backend.numpy.expand_dims(images, axis=0)
-    patches = backend.nn.conv(
+        images = backend.ops.numpy.expand_dims(images, axis=0)
+    patches = backend.ops.nn.conv(
         inputs=images,
         kernel=kernel,
         strides=strides,
@@ -810,7 +822,7 @@ def _extract_patches_2d(
         dilation_rate=dilation_rate,
     )
     if _unbatched:
-        patches = backend.numpy.squeeze(patches, axis=0)
+        patches = backend.ops.numpy.squeeze(patches, axis=0)
     return patches
 
 
@@ -843,15 +855,15 @@ def _extract_patches_3d(
     elif data_format == "channels_first":
         channels_in = volumes.shape[-4]
     out_dim = patch_d * patch_w * patch_h * channels_in
-    kernel = backend.numpy.eye(out_dim, dtype=volumes.dtype)
-    kernel = backend.numpy.reshape(
+    kernel = backend.ops.numpy.eye(out_dim, dtype=volumes.dtype)
+    kernel = backend.ops.numpy.reshape(
         kernel, (patch_d, patch_h, patch_w, channels_in, out_dim)
     )
     _unbatched = False
     if len(volumes.shape) == 4:
         _unbatched = True
-        volumes = backend.numpy.expand_dims(volumes, axis=0)
-    patches = backend.nn.conv(
+        volumes = backend.ops.numpy.expand_dims(volumes, axis=0)
+    patches = backend.ops.nn.conv(
         inputs=volumes,
         kernel=kernel,
         strides=strides,
@@ -860,7 +872,7 @@ def _extract_patches_3d(
         dilation_rate=dilation_rate,
     )
     if _unbatched:
-        patches = backend.numpy.squeeze(patches, axis=0)
+        patches = backend.ops.numpy.squeeze(patches, axis=0)
     return patches
 
 
@@ -934,7 +946,7 @@ class ReconstructPatches(Operation):
     def __init__(
         self,
         size,
-        output_size,
+        output_size=None,
         strides=None,
         padding="valid",
         data_format=None,
@@ -945,7 +957,9 @@ class ReconstructPatches(Operation):
         if isinstance(size, int):
             size = (size, size)
         self.size = tuple(size)
-        self.output_size = tuple(output_size)
+        self.output_size = (
+            tuple(output_size) if output_size is not None else None
+        )
         self.is_3d = len(self.size) == 3
         if strides is None:
             strides = self.size
@@ -954,6 +968,12 @@ class ReconstructPatches(Operation):
         self.strides = tuple(strides)
         self.padding = padding
         self.data_format = backend.standardize_data_format(data_format)
+        if self.output_size is None and self.padding != "valid":
+            raise ValueError(
+                "`output_size=None` (auto-infer) is only supported for "
+                "`padding='valid'`. For `padding='same'`, the original "
+                "size is ambiguous from patches alone — pass `output_size`."
+            )
 
     def call(self, patches):
         return _reconstruct_patches(
@@ -981,11 +1001,9 @@ class ReconstructPatches(Operation):
         if self.is_3d:
             expected_ndim_batched = 5
             expected_ndim_unbatched = 4
-            spatial = self.output_size  # (D, H, W)
         else:
             expected_ndim_batched = 4
             expected_ndim_unbatched = 3
-            spatial = self.output_size  # (H, W)
 
         if original_ndim == expected_ndim_batched:
             batch = patches_shape[0]
@@ -1013,25 +1031,38 @@ class ReconstructPatches(Operation):
             # channels_first: the grid dims are the trailing dims,
             # (B, flat, *grid) batched or (flat, *grid) unbatched.
             grid = patches_shape[-len(self.size) :]
-        dim_names = ("depth", "height", "width")[-len(self.size) :]
-        for g, p, o, dim_name in zip(
-            grid, self.size, self.output_size, dim_names
-        ):
-            if not isinstance(g, int):
-                continue
-            if self.padding == "valid":
-                if g * p != o:
+
+        # Resolve the output spatial shape: use `output_size` if given
+        # (validating it against static grid dims), else auto-infer from
+        # the grid — `__init__` guarantees `padding="valid"` when
+        # `output_size` is None. Unknown grid dims stay None.
+        if self.output_size is None:
+            spatial = tuple(
+                (g - 1) * s + k if isinstance(g, int) else None
+                for g, s, k in zip(grid, self.strides, self.size)
+            )
+        else:
+            spatial = self.output_size
+            dim_names = ("depth", "height", "width")[-len(self.size) :]
+            for g, p, s, o, dim_name in zip(
+                grid, self.size, self.strides, self.output_size, dim_names
+            ):
+                if not isinstance(g, int):
+                    continue
+                if self.padding == "valid":
+                    if (g - 1) * s + p != o:
+                        raise ValueError(
+                            f"`padding='valid'` requires output_size to "
+                            f"equal (grid - 1) * stride + size. Got "
+                            f"output_size={self.output_size}, grid "
+                            f"{dim_name}={g}, stride={s}, size={p}."
+                        )
+                elif not (g * p - p < o <= g * p):
                     raise ValueError(
-                        f"`padding='valid'` requires output_size to equal "
-                        f"size * grid. Got output_size={self.output_size}, "
-                        f"grid {dim_name}={g}, size={self.size}."
+                        f"For `padding='same'`, `output_size` {dim_name} "
+                        f"({o}) must be in the range ((g-1)*p, g*p], i.e. "
+                        f"({g * p - p}, {g * p}]. Got: grid={g}, patch={p}."
                     )
-            elif not (g * p - p < o <= g * p):
-                raise ValueError(
-                    f"For `padding='same'`, `output_size` {dim_name} ({o}) "
-                    f"must be in the range ((g-1)*p, g*p], i.e. "
-                    f"({g * p - p}, {g * p}]. Got: grid={g}, patch={p}."
-                )
 
         if self.data_format == "channels_last":
             out_shape = list(spatial) + [channels_out]
@@ -1056,7 +1087,7 @@ class ReconstructPatches(Operation):
 def reconstruct_patches(
     patches,
     size,
-    output_size,
+    output_size=None,
     strides=None,
     padding="valid",
     data_format=None,
@@ -1080,11 +1111,14 @@ def reconstruct_patches(
             Length 2 tuple for 2D, length 3 tuple for 3D, or int.
         output_size: Target spatial shape of the reconstruction. Length 2
             tuple `(H, W)` for 2D, length 3 tuple `(D, H, W)` for 3D. With
-            `padding="valid"` this must equal `grid * size` — the region
-            covered by the extracted patches, i.e. the original size
-            cropped down to a multiple of `size`. With `padding="same"`,
-            pass the original spatial shape so the padding added during
-            extraction can be unambiguously removed.
+            `padding="valid"` this may be omitted (`None`) and is then
+            inferred from the patch grid; if given, it must equal
+            `(grid - 1) * stride + size` per dim — the region covered by
+            the extracted patches, i.e. the original size cropped down to
+            a multiple of `size` in the non-overlapping case.
+            With `padding="same"` it is required: pass the original
+            spatial shape so the padding added during extraction can be
+            unambiguously removed.
         strides: Currently must equal `size` (non-overlapping). Defaults
             to `size`.
         padding: `"same"` or `"valid"`, matching the extraction.
@@ -1131,7 +1165,7 @@ def reconstruct_patches(
                 "Invalid `size` argument. Expected a tuple of length 2 or 3. "
                 f"Received: size={size} with length {len(size)}"
             )
-    if not isinstance(output_size, (tuple, list)):
+    if output_size is not None and not isinstance(output_size, (tuple, list)):
         raise TypeError(
             "Invalid `output_size` argument. Expected a tuple or list. "
             f"Received: output_size={output_size} of type "
@@ -1199,6 +1233,30 @@ def _validate_reconstruct_strides(size, strides, fn_name):
     return tuple(strides)
 
 
+def _infer_output_size_valid(patches, size, strides, data_format):
+    """Infer `output_size` from the patch grid for `padding='valid'`.
+
+    The forward `extract_patches` with `padding='valid'` produces a grid of
+    `g = (input - size) // stride + 1`, so the smallest input that yields
+    grid `g` is `(g - 1) * stride + size`. Requires statically-known grid
+    dims; raises otherwise so the caller can pass `output_size` explicitly.
+    """
+    rank = len(patches.shape)
+    n = len(size)
+    if data_format == "channels_last":
+        grid_start = 0 if rank == n + 1 else 1
+    else:
+        grid_start = 1 if rank == n + 1 else 2
+    grid = patches.shape[grid_start : grid_start + n]
+    if any(not isinstance(g, int) for g in grid):
+        raise ValueError(
+            "Cannot auto-infer `output_size` for `padding='valid'`: at "
+            "least one patch-grid dimension is unknown "
+            f"(patches.shape={patches.shape}). Pass `output_size` explicitly."
+        )
+    return tuple((g - 1) * s + k for g, s, k in zip(grid, strides, size))
+
+
 def _reconstruct_patches_2d(
     patches,
     size,
@@ -1214,51 +1272,56 @@ def _reconstruct_patches_2d(
             "Invalid `size`. Expected length 2 for 2D reconstruction. "
             f"Got: size={size}"
         )
-    if len(output_size) != 2:
-        raise ValueError(
-            "Invalid `output_size`. Expected length 2 (H, W). "
-            f"Got: output_size={output_size}"
-        )
     if padding not in ("same", "valid"):
         raise ValueError(
             f"Invalid `padding`. Expected 'same' or 'valid'. Got: {padding}"
         )
-    _validate_reconstruct_strides(size, strides, "reconstruct_patches")
-    data_format = backend.standardize_data_format(data_format)
-    if data_format == "channels_first":
-        # Reconstruct in channels_last layout, then move channels back.
-        # Patches are (flat, gH, gW) unbatched or (B, flat, gH, gW) batched.
-        if len(patches.shape) == 3:
-            patches = backend.numpy.transpose(patches, axes=(1, 2, 0))
-        elif len(patches.shape) == 4:
-            patches = backend.numpy.transpose(patches, axes=(0, 2, 3, 1))
-        else:
-            raise ValueError(
-                "`patches` has unexpected rank for 2D channels_first "
-                "reconstruction. Expected 3 (unbatched) or 4 (batched). "
-                f"Received shape: {patches.shape}"
-            )
-        result = _reconstruct_patches_2d(
-            patches, size, output_size, strides, padding, "channels_last"
-        )
-        if len(result.shape) == 3:
-            return backend.numpy.transpose(result, axes=(2, 0, 1))
-        return backend.numpy.transpose(result, axes=(0, 3, 1, 2))
-
-    pH, pW = size
-    H, W = output_size
-
     if len(patches.shape) not in (3, 4):
         raise ValueError(
             "`patches` has unexpected rank for 2D reconstruction. "
             "Expected 3 (unbatched) or 4 (batched). "
             f"Received shape: {patches.shape}"
         )
+    strides = _validate_reconstruct_strides(
+        size, strides, "reconstruct_patches"
+    )
+    data_format = backend.standardize_data_format(data_format)
+    if output_size is None:
+        if padding != "valid":
+            raise ValueError(
+                "`output_size=None` (auto-infer) is only supported for "
+                "`padding='valid'`. For `padding='same'`, the original "
+                "size is ambiguous from patches alone — pass `output_size`."
+            )
+        output_size = _infer_output_size_valid(
+            patches, size, strides, data_format
+        )
+    if len(output_size) != 2:
+        raise ValueError(
+            "Invalid `output_size`. Expected length 2 (H, W). "
+            f"Got: output_size={output_size}"
+        )
+    if data_format == "channels_first":
+        # Reconstruct in channels_last layout, then move channels back.
+        # Patches are (flat, gH, gW) unbatched or (B, flat, gH, gW) batched.
+        if len(patches.shape) == 3:
+            patches = backend.ops.numpy.transpose(patches, axes=(1, 2, 0))
+        else:
+            patches = backend.ops.numpy.transpose(patches, axes=(0, 2, 3, 1))
+        result = _reconstruct_patches_2d(
+            patches, size, output_size, strides, padding, "channels_last"
+        )
+        if len(result.shape) == 3:
+            return backend.ops.numpy.transpose(result, axes=(2, 0, 1))
+        return backend.ops.numpy.transpose(result, axes=(0, 3, 1, 2))
+
+    pH, pW = size
+    H, W = output_size
 
     _unbatched = False
     if len(patches.shape) == 3:
         _unbatched = True
-        patches = backend.numpy.expand_dims(patches, axis=0)
+        patches = backend.ops.numpy.expand_dims(patches, axis=0)
 
     shp = ops.shape(patches)
     B, gH, gW = shp[0], shp[1], shp[2]
@@ -1273,9 +1336,9 @@ def _reconstruct_patches_2d(
             )
         C = static_flat // (pH * pW)
 
-    x = backend.numpy.reshape(patches, (B, gH, gW, pH, pW, C))
-    x = backend.numpy.transpose(x, axes=(0, 1, 3, 2, 4, 5))
-    x = backend.numpy.reshape(x, (B, gH * pH, gW * pW, C))
+    x = backend.ops.numpy.reshape(patches, (B, gH, gW, pH, pW, C))
+    x = backend.ops.numpy.transpose(x, axes=(0, 1, 3, 2, 4, 5))
+    x = backend.ops.numpy.reshape(x, (B, gH * pH, gW * pW, C))
 
     if padding == "same":
         static_gH = patches.shape[1]
@@ -1304,15 +1367,17 @@ def _reconstruct_patches_2d(
         out_shape = [B, H, W, C]
         x = ops.slice(x, begin, out_shape)
     else:
-        if gH * pH != H or gW * pW != W:
+        sH, sW = strides
+        if (gH - 1) * sH + pH != H or (gW - 1) * sW + pW != W:
             raise ValueError(
                 f"`padding='valid'` requires output_size to equal "
-                f"size * grid. Got output_size=({H},{W}), "
-                f"grid=({gH},{gW}), size=({pH},{pW})."
+                f"(grid - 1) * stride + size. Got output_size=({H},{W}), "
+                f"grid=({gH},{gW}), strides=({sH},{sW}), "
+                f"size=({pH},{pW})."
             )
 
     if _unbatched:
-        x = backend.numpy.squeeze(x, axis=0)
+        x = backend.ops.numpy.squeeze(x, axis=0)
     return x
 
 
@@ -1324,51 +1389,56 @@ def _reconstruct_patches_3d(
     padding="valid",
     data_format=None,
 ):
-    if len(output_size) != 3:
-        raise ValueError(
-            "Invalid `output_size`. Expected length 3 (D, H, W). "
-            f"Got: output_size={output_size}"
-        )
     if padding not in ("same", "valid"):
         raise ValueError(
             f"Invalid `padding`. Expected 'same' or 'valid'. Got: {padding}"
         )
-    _validate_reconstruct_strides(size, strides, "reconstruct_patches")
-    data_format = backend.standardize_data_format(data_format)
-    if data_format == "channels_first":
-        # Reconstruct in channels_last layout, then move channels back.
-        # Patches are (flat, gD, gH, gW) unbatched or (B, flat, gD, gH, gW).
-        if len(patches.shape) == 4:
-            patches = backend.numpy.transpose(patches, axes=(1, 2, 3, 0))
-        elif len(patches.shape) == 5:
-            patches = backend.numpy.transpose(patches, axes=(0, 2, 3, 4, 1))
-        else:
-            raise ValueError(
-                "`patches` has unexpected rank for 3D channels_first "
-                "reconstruction. Expected 4 (unbatched) or 5 (batched). "
-                f"Received shape: {patches.shape}"
-            )
-        result = _reconstruct_patches_3d(
-            patches, size, output_size, strides, padding, "channels_last"
-        )
-        if len(result.shape) == 4:
-            return backend.numpy.transpose(result, axes=(3, 0, 1, 2))
-        return backend.numpy.transpose(result, axes=(0, 4, 1, 2, 3))
-
-    pD, pH, pW = size
-    D, H, W = output_size
-
     if len(patches.shape) not in (4, 5):
         raise ValueError(
             "`patches` has unexpected rank for 3D reconstruction. "
             "Expected 4 (unbatched) or 5 (batched). "
             f"Received shape: {patches.shape}"
         )
+    strides = _validate_reconstruct_strides(
+        size, strides, "reconstruct_patches"
+    )
+    data_format = backend.standardize_data_format(data_format)
+    if output_size is None:
+        if padding != "valid":
+            raise ValueError(
+                "`output_size=None` (auto-infer) is only supported for "
+                "`padding='valid'`. For `padding='same'`, the original "
+                "size is ambiguous from patches alone — pass `output_size`."
+            )
+        output_size = _infer_output_size_valid(
+            patches, size, strides, data_format
+        )
+    if len(output_size) != 3:
+        raise ValueError(
+            "Invalid `output_size`. Expected length 3 (D, H, W). "
+            f"Got: output_size={output_size}"
+        )
+    if data_format == "channels_first":
+        # Reconstruct in channels_last layout, then move channels back.
+        # Patches are (flat, gD, gH, gW) unbatched or (B, flat, gD, gH, gW).
+        if len(patches.shape) == 4:
+            patches = backend.ops.numpy.transpose(patches, axes=(1, 2, 3, 0))
+        else:
+            patches = backend.ops.numpy.transpose(patches, axes=(0, 2, 3, 4, 1))
+        result = _reconstruct_patches_3d(
+            patches, size, output_size, strides, padding, "channels_last"
+        )
+        if len(result.shape) == 4:
+            return backend.ops.numpy.transpose(result, axes=(3, 0, 1, 2))
+        return backend.ops.numpy.transpose(result, axes=(0, 4, 1, 2, 3))
+
+    pD, pH, pW = size
+    D, H, W = output_size
 
     _unbatched = False
     if len(patches.shape) == 4:
         _unbatched = True
-        patches = backend.numpy.expand_dims(patches, axis=0)
+        patches = backend.ops.numpy.expand_dims(patches, axis=0)
 
     shp = ops.shape(patches)
     B, gD, gH, gW = shp[0], shp[1], shp[2], shp[3]
@@ -1384,9 +1454,9 @@ def _reconstruct_patches_3d(
             )
         C = static_flat // (pD * pH * pW)
 
-    x = backend.numpy.reshape(patches, (B, gD, gH, gW, pD, pH, pW, C))
-    x = backend.numpy.transpose(x, axes=(0, 1, 4, 2, 5, 3, 6, 7))
-    x = backend.numpy.reshape(x, (B, gD * pD, gH * pH, gW * pW, C))
+    x = backend.ops.numpy.reshape(patches, (B, gD, gH, gW, pD, pH, pW, C))
+    x = backend.ops.numpy.transpose(x, axes=(0, 1, 4, 2, 5, 3, 6, 7))
+    x = backend.ops.numpy.reshape(x, (B, gD * pD, gH * pH, gW * pW, C))
 
     if padding == "same":
         static_gD = patches.shape[1]
@@ -1432,15 +1502,21 @@ def _reconstruct_patches_3d(
         out_shape = [B, D, H, W, C]
         x = ops.slice(x, begin, out_shape)
     else:
-        if gD * pD != D or gH * pH != H or gW * pW != W:
+        sD, sH, sW = strides
+        if (
+            (gD - 1) * sD + pD != D
+            or (gH - 1) * sH + pH != H
+            or (gW - 1) * sW + pW != W
+        ):
             raise ValueError(
                 f"`padding='valid'` requires output_size to equal "
-                f"size * grid. Got output_size=({D},{H},{W}), "
-                f"grid=({gD},{gH},{gW}), size=({pD},{pH},{pW})."
+                f"(grid - 1) * stride + size. Got output_size=({D},{H},{W}), "
+                f"grid=({gD},{gH},{gW}), strides=({sD},{sH},{sW}), "
+                f"size=({pD},{pH},{pW})."
             )
 
     if _unbatched:
-        x = backend.numpy.squeeze(x, axis=0)
+        x = backend.ops.numpy.squeeze(x, axis=0)
     return x
 
 
@@ -1452,7 +1528,7 @@ class MapCoordinates(Operation):
         self.fill_value = fill_value
 
     def call(self, inputs, coordinates):
-        return backend.image.map_coordinates(
+        return backend.ops.image.map_coordinates(
             inputs,
             coordinates,
             order=self.order,
@@ -1522,7 +1598,7 @@ def map_coordinates(
             fill_mode,
             fill_value,
         ).symbolic_call(inputs, coordinates)
-    return backend.image.map_coordinates(
+    return backend.ops.image.map_coordinates(
         inputs,
         coordinates,
         order,
@@ -1800,7 +1876,7 @@ def _pad_images(
     data_format=None,
 ):
     data_format = backend.standardize_data_format(data_format)
-    images = backend.convert_to_tensor(images)
+    images = backend.ops.convert_to_tensor(images)
     images_shape = ops.shape(images)
 
     # Check
@@ -1863,7 +1939,7 @@ def _pad_images(
     if is_batch:
         pad_width = [[0, 0]] + pad_width
 
-    padded_images = backend.numpy.pad(images, pad_width)
+    padded_images = backend.ops.numpy.pad(images, pad_width)
     return padded_images
 
 
@@ -2075,7 +2151,7 @@ def _crop_images(
     data_format=None,
 ):
     data_format = backend.standardize_data_format(data_format)
-    images = backend.convert_to_tensor(images)
+    images = backend.ops.convert_to_tensor(images)
     images_shape = ops.shape(images)
 
     # Check
@@ -2164,7 +2240,7 @@ class PerspectiveTransform(Operation):
         self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images, start_points, end_points):
-        return backend.image.perspective_transform(
+        return backend.ops.image.perspective_transform(
             images,
             start_points,
             end_points,
@@ -2284,7 +2360,7 @@ def perspective_transform(
             fill_value=fill_value,
             data_format=data_format,
         ).symbolic_call(images, start_points, end_points)
-    return backend.image.perspective_transform(
+    return backend.ops.image.perspective_transform(
         images,
         start_points,
         end_points,
@@ -2309,7 +2385,7 @@ class GaussianBlur(Operation):
         self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
-        return backend.image.gaussian_blur(
+        return backend.ops.image.gaussian_blur(
             images,
             kernel_size=self.kernel_size,
             sigma=self.sigma,
@@ -2373,7 +2449,7 @@ def gaussian_blur(
             sigma=sigma,
             data_format=data_format,
         ).symbolic_call(images)
-    return backend.image.gaussian_blur(
+    return backend.ops.image.gaussian_blur(
         images,
         kernel_size=kernel_size,
         sigma=sigma,
@@ -2404,7 +2480,7 @@ class ElasticTransform(Operation):
         self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
-        return backend.image.elastic_transform(
+        return backend.ops.image.elastic_transform(
             images,
             alpha=self.alpha,
             sigma=self.sigma,
@@ -2447,7 +2523,7 @@ def elastic_transform(
             and `"bilinear"`. Defaults to `"bilinear"`.
         fill_mode: Points outside the boundaries of the input are filled
             according to the given mode. Available methods are `"constant"`,
-            `"nearest"`, `"wrap"` and `"reflect"`. Defaults to `"constant"`.
+            `"nearest"`, `"wrap"` and `"reflect"`. Defaults to `"reflect"`.
             - `"reflect"`: `(d c b a | a b c d | d c b a)`
                 The input is extended by reflecting about the edge of the last
                 pixel.
@@ -2500,7 +2576,7 @@ def elastic_transform(
             seed=seed,
             data_format=data_format,
         ).symbolic_call(images)
-    return backend.image.elastic_transform(
+    return backend.ops.image.elastic_transform(
         images,
         alpha=alpha,
         sigma=sigma,
@@ -2520,7 +2596,7 @@ class ScaleAndTranslate(Operation):
         self.antialias = antialias
 
     def call(self, images, output_shape, scale, translation):
-        return backend.image.scale_and_translate(
+        return backend.ops.image.scale_and_translate(
             images,
             output_shape=output_shape,
             scale=scale,
@@ -2610,7 +2686,7 @@ def scale_and_translate(
         return ScaleAndTranslate(spatial_dims, method, antialias).symbolic_call(
             images, output_shape, scale, translation
         )
-    return backend.image.scale_and_translate(
+    return backend.ops.image.scale_and_translate(
         images,
         output_shape,
         scale,
@@ -2627,7 +2703,9 @@ class SobelEdges(Operation):
         self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, images):
-        return backend.image.sobel_edges(images, data_format=self.data_format)
+        return backend.ops.image.sobel_edges(
+            images, data_format=self.data_format
+        )
 
     def compute_output_spec(self, images):
         images_shape = list(images.shape)
@@ -2679,7 +2757,7 @@ def sobel_edges(images, data_format=None):
     """
     if any_symbolic_tensors((images,)):
         return SobelEdges(data_format=data_format).symbolic_call(images)
-    return backend.image.sobel_edges(
+    return backend.ops.image.sobel_edges(
         images, data_format=backend.standardize_data_format(data_format)
     )
 
@@ -2836,8 +2914,8 @@ def _ssim(
 ):
     """Backend-agnostic SSIM implementation using Keras ops."""
     data_format = backend.standardize_data_format(data_format)
-    image1 = backend.convert_to_tensor(image1)
-    image2 = backend.convert_to_tensor(image2)
+    image1 = backend.ops.convert_to_tensor(image1)
+    image2 = backend.ops.convert_to_tensor(image2)
 
     # Ensure float dtype for computation
     original_dtype = image1.dtype
@@ -2942,7 +3020,7 @@ def _create_gaussian_kernel(size, sigma, dtype):
 def _depthwise_conv(images, kernel):
     """Apply depthwise convolution with valid padding."""
     # Expand kernel for conv: (H, W, in_channels=1, out_channels=1)
-    return backend.nn.conv(
+    return backend.ops.nn.conv(
         images,
         kernel,
         strides=1,

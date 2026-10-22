@@ -9,8 +9,6 @@ from keras.src.ops.numpy import absolute as absolute
 from keras.src.ops.numpy import add as add
 from keras.src.ops.numpy import all as all
 from keras.src.ops.numpy import allclose as allclose
-from keras.src.ops.numpy import amax as amax
-from keras.src.ops.numpy import amin as amin
 from keras.src.ops.numpy import angle as angle
 from keras.src.ops.numpy import any as any
 from keras.src.ops.numpy import append as append
@@ -48,11 +46,13 @@ from keras.src.ops.numpy import concatenate as concatenate
 from keras.src.ops.numpy import conj as conj
 from keras.src.ops.numpy import conjugate as conjugate
 from keras.src.ops.numpy import copy as copy
+from keras.src.ops.numpy import copysign as copysign
 from keras.src.ops.numpy import corrcoef as corrcoef
 from keras.src.ops.numpy import correlate as correlate
 from keras.src.ops.numpy import cos as cos
 from keras.src.ops.numpy import cosh as cosh
 from keras.src.ops.numpy import count_nonzero as count_nonzero
+from keras.src.ops.numpy import cov as cov
 from keras.src.ops.numpy import cross as cross
 from keras.src.ops.numpy import cumprod as cumprod
 from keras.src.ops.numpy import cumsum as cumsum
@@ -80,6 +80,7 @@ from keras.src.ops.numpy import fabs as fabs
 from keras.src.ops.numpy import flip as flip
 from keras.src.ops.numpy import fliplr as fliplr
 from keras.src.ops.numpy import flipud as flipud
+from keras.src.ops.numpy import float_power as float_power
 from keras.src.ops.numpy import floor as floor
 from keras.src.ops.numpy import floor_divide as floor_divide
 from keras.src.ops.numpy import fmax as fmax
@@ -131,11 +132,13 @@ from keras.src.ops.numpy import logical_or as logical_or
 from keras.src.ops.numpy import logical_xor as logical_xor
 from keras.src.ops.numpy import logspace as logspace
 from keras.src.ops.numpy import matmul as matmul
+from keras.src.ops.numpy import max as amax
 from keras.src.ops.numpy import max as max
 from keras.src.ops.numpy import maximum as maximum
 from keras.src.ops.numpy import mean as mean
 from keras.src.ops.numpy import median as median
 from keras.src.ops.numpy import meshgrid as meshgrid
+from keras.src.ops.numpy import min as amin
 from keras.src.ops.numpy import min as min
 from keras.src.ops.numpy import minimum as minimum
 from keras.src.ops.numpy import mod as mod

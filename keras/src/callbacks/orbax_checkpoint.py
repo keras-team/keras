@@ -354,8 +354,17 @@ class OrbaxCheckpoint(MonitorCallback):
         # to complete before closing
         try:
             self.checkpointer.close()
-        except Exception:
-            pass  # Ignore errors during cleanup
+        except Exception as e:
+            # Closing is what surfaces failures from pending saves, so
+            # swallowing the error here leaves a run that never wrote its
+            # last checkpoint looking exactly like one that did.
+            warnings.warn(
+                f"Failed to finalize checkpoints in {self.directory}: "
+                f"{e!r}. The most recent checkpoint may be missing or "
+                "incomplete.",
+                UserWarning,
+                stacklevel=2,
+            )
 
         # Multi-host synchronization: ensure all hosts complete cleanup
         self._sync_processes("checkpoint_cleanup")
