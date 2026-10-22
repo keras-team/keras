@@ -1,4 +1,5 @@
 import functools
+import warnings
 
 from keras.src.api_export import keras_export
 from keras.src.backend import config
@@ -274,11 +275,64 @@ def _lattice_result_type(*args):
     precision = config.floatx()[-2:]
     if out_weak_type:
         out_dtype = _resolve_weak_type(out_dtype, precision=precision)
+    return _cap_to_32bit(out_dtype, dtypes, weak_types)
 
-    # Force to be 32-bit dtype when encountering 64-bit dtype. This is to
-    # be aligned with JAX's default behavior.
-    out_dtype = BIT64_TO_BIT32_DTYPE.get(out_dtype, out_dtype)
-    return out_dtype
+
+def _cap_to_32bit(out_dtype, dtypes, weak_types):
+    """Caps a 64-bit `out_dtype` to 32-bit, unless `x64_mode` keeps it.
+
+    The cap matches JAX's default behavior, which refuses 64-bit dtypes.
+    """
+    if _keeps_64bit(dtypes, weak_types):
+        return out_dtype
+    return BIT64_TO_BIT32_DTYPE.get(out_dtype, out_dtype)
+
+
+def _keeps_64bit(dtypes, weak_types):
+    """Whether the current `x64_mode` keeps a 64-bit result for these inputs.
+
+    In `"explicit_x64"` a result stays 64-bit only if a strongly typed input
+    is 64-bit. Python scalars (weak types) and 32-bit-only inputs never
+    promote to 64-bit, as with JAX's `jax_explicit_x64_dtypes="allow"`.
+    """
+    has_64bit_input = any(
+        dtype in BIT64_TO_BIT32_DTYPE and not weak_type
+        for dtype, weak_type in zip(dtypes, weak_types)
+    )
+    return has_64bit_input and _explicit_x64_enabled()
+
+
+def _explicit_x64_enabled():
+    """Whether 64-bit inputs keep their dtype: `x64_mode`, or JAX's flag.
+
+    On the JAX backend, `jax_explicit_x64_dtypes="allow"` is followed when
+    `x64_mode` is `"off"`, with a one-time warning pointing at the Keras
+    setting. `jax_enable_x64` has no supported Keras mode yet and raises.
+    """
+    if config.x64_mode() == "explicit_x64":
+        return True
+    if config.backend() != "jax":
+        return False
+    if config._jax_x64_enabled():
+        raise ValueError(
+            "`jax_enable_x64` is on, but Keras does not support "
+            "`x64_mode='enable_x64'` yet. Turn it off and use "
+            "`keras.config.set_x64_mode('explicit_x64')` instead."
+        )
+    if config._jax_explicit_x64_allowed():
+        _warn_jax_x64_without_keras_mode()
+        return True
+    return False
+
+
+@functools.lru_cache(maxsize=None)  # Warns once per process.
+def _warn_jax_x64_without_keras_mode():
+    warnings.warn(
+        "JAX is configured to keep 64-bit dtypes and Keras follows it, but "
+        "`keras.config.x64_mode()` is 'off'. Set `KERAS_X64_MODE=explicit_x64`"
+        " or call `keras.config.set_x64_mode('explicit_x64')` instead, for "
+        "the same behavior on every backend."
+    )
 
 
 @keras_export("keras.backend.result_type")
@@ -290,6 +344,8 @@ def result_type(*dtypes):
     promotion lattice.
 
     Note: This function attempts to match the result of `jnp.result_type`.
+    64-bit dtypes are capped to 32-bit unless `keras.config.set_x64_mode()`
+    says otherwise.
 
     Args:
         dtypes: Input dtypes.
