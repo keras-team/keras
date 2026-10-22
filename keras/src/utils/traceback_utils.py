@@ -8,6 +8,7 @@ from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
+from keras.src.backend.common import standardize_dtype
 
 _EXCLUDED_PATHS = (
     os.path.abspath(os.path.join(__file__, "..", "..")),
@@ -269,7 +270,7 @@ def inject_argument_info_in_error(e, fn, args, kwargs, object_name=None):
 
 
 def format_argument_value(value):
-    if backend.is_tensor(value):
+    if backend.ops.is_tensor(value):
         # Simplified representation for eager / graph tensors
         # to keep messages readable
         if backend.backend() == "tensorflow":
@@ -285,6 +286,6 @@ def format_argument_value(value):
 
         return (
             f"{tensor_cls}(shape={value.shape}, "
-            f"dtype={backend.standardize_dtype(value.dtype)})"
+            f"dtype={standardize_dtype(value.dtype)})"
         )
     return repr(value)

@@ -75,6 +75,8 @@ class EarlyStopping(MonitorCallback):
         start_from_epoch=0,
     ):
         super().__init__(monitor, mode, min_delta=min_delta)
+        if patience < 0:
+            raise ValueError(f"`patience` must be >= 0, got {patience}")
         self.patience = patience
         self.verbose = verbose
         self.baseline = baseline

@@ -1,4 +1,4 @@
-from keras.src import ops
+from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.optimizers import optimizer
 
@@ -101,38 +101,47 @@ class Adam(optimizer.Optimizer):
 
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
-        lr = ops.cast(learning_rate, variable.dtype)
-        gradient = ops.cast(gradient, variable.dtype)
-        local_step = ops.cast(self.iterations + 1, variable.dtype)
-        beta_1_power = ops.power(
-            ops.cast(self.beta_1, variable.dtype), local_step
+        lr = backend.ops.cast(learning_rate, variable.dtype)
+        gradient = backend.ops.cast(gradient, variable.dtype)
+        local_step = backend.ops.cast(self.iterations + 1, variable.dtype)
+        beta_1_power = backend.ops.numpy.power(
+            backend.ops.cast(self.beta_1, variable.dtype), local_step
         )
-        beta_2_power = ops.power(
-            ops.cast(self.beta_2, variable.dtype), local_step
+        beta_2_power = backend.ops.numpy.power(
+            backend.ops.cast(self.beta_2, variable.dtype), local_step
         )
 
         m = self._momentums[self._get_variable_index(variable)]
         v = self._velocities[self._get_variable_index(variable)]
 
-        alpha = lr * ops.sqrt(1 - beta_2_power) / (1 - beta_1_power)
+        alpha = (
+            lr * backend.ops.numpy.sqrt(1 - beta_2_power) / (1 - beta_1_power)
+        )
 
         self.assign_add(
-            m, ops.multiply(ops.subtract(gradient, m), 1 - self.beta_1)
+            m,
+            backend.ops.numpy.multiply(
+                backend.ops.numpy.subtract(gradient, m), 1 - self.beta_1
+            ),
         )
         self.assign_add(
             v,
-            ops.multiply(
-                ops.subtract(ops.square(gradient), v), 1 - self.beta_2
+            backend.ops.numpy.multiply(
+                backend.ops.numpy.subtract(
+                    backend.ops.numpy.square(gradient), v
+                ),
+                1 - self.beta_2,
             ),
         )
         if self.amsgrad:
             v_hat = self._velocity_hats[self._get_variable_index(variable)]
-            self.assign(v_hat, ops.maximum(v_hat, v))
+            self.assign(v_hat, backend.ops.numpy.maximum(v_hat, v))
             v = v_hat
         self.assign_sub(
             variable,
-            ops.divide(
-                ops.multiply(m, alpha), ops.add(ops.sqrt(v), self.epsilon)
+            backend.ops.numpy.divide(
+                backend.ops.numpy.multiply(m, alpha),
+                backend.ops.numpy.add(backend.ops.numpy.sqrt(v), self.epsilon),
             ),
         )
 

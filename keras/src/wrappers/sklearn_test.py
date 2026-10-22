@@ -9,7 +9,7 @@ import sklearn
 from packaging.version import parse as parse_version
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
-import keras
+from keras.src import backend
 from keras.src.backend import floatx
 from keras.src.backend import set_floatx
 from keras.src.layers import Dense
@@ -156,7 +156,7 @@ def test_sklearn_estimator_checks(estimator, check):
     try:
         check(estimator)
     except Exception as exc:
-        if keras.config.backend() in ["numpy", "openvino"] and (
+        if not backend.SUPPORTS_GRADIENT and (
             isinstance(exc, NotImplementedError)
             or "NotImplementedError" in str(exc)
         ):
@@ -210,7 +210,7 @@ def test_sklearn_estimator_decision_function(estimator):
                 "decision_function and predict are inconsistent"
             )
     except Exception as exc:
-        if keras.config.backend() in ["numpy", "openvino"] and (
+        if not backend.SUPPORTS_GRADIENT and (
             isinstance(exc, NotImplementedError)
             or "NotImplementedError" in str(exc)
         ):

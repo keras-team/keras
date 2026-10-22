@@ -8,7 +8,7 @@ import numpy as np
 from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
-from keras.src.backend.common.variables import is_float_dtype
+from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common.variables import standardize_dtype
 from keras.src.layers.layer import Layer
 from keras.src.random.seed_generator import draw_seed
@@ -419,7 +419,7 @@ class JaxLayer(Layer):
         """
 
         def create_variable(value):
-            if backend.is_tensor(value) or isinstance(
+            if backend.ops.is_tensor(value) or isinstance(
                 value, (np.ndarray, np.generic, jax.Array)
             ):
                 dtype = value.dtype
@@ -427,7 +427,7 @@ class JaxLayer(Layer):
                     dtype = None  # Use the layer dtype policy
                 return self.add_weight(
                     value.shape,
-                    initializer=backend.convert_to_tensor(value),
+                    initializer=backend.ops.convert_to_tensor(value),
                     dtype=dtype,
                     trainable=trainable,
                 )
@@ -437,7 +437,7 @@ class JaxLayer(Layer):
                     dtype = None  # Use the layer dtype policy
                 return self.add_weight(
                     (),
-                    initializer=backend.convert_to_tensor(value),
+                    initializer=backend.ops.convert_to_tensor(value),
                     dtype=dtype,
                     trainable=trainable,
                 )

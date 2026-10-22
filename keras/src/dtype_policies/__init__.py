@@ -1,5 +1,5 @@
-from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.common import standardize_dtype
 from keras.src.dtype_policies import dtype_policy
 from keras.src.dtype_policies.dtype_policy import QUANTIZATION_MODES
 from keras.src.dtype_policies.dtype_policy import AWQDTypePolicy
@@ -9,6 +9,10 @@ from keras.src.dtype_policies.dtype_policy import GPTQDTypePolicy
 from keras.src.dtype_policies.dtype_policy import Int4DTypePolicy
 from keras.src.dtype_policies.dtype_policy import QuantizedDTypePolicy
 from keras.src.dtype_policies.dtype_policy import QuantizedFloat8DTypePolicy
+from keras.src.dtype_policies.dtype_policy import (
+    _get_quantized_dtype_policy_by_str,
+)
+from keras.src.dtype_policies.dtype_policy import _is_quantized_policy_string
 from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
 
 ALL_OBJECTS = {
@@ -89,10 +93,6 @@ def get(identifier):
     Returns:
         A Keras `DTypePolicy` instance.
     """
-    from keras.src.dtype_policies.dtype_policy import (
-        _get_quantized_dtype_policy_by_str,
-    )
-
     if identifier is None:
         return dtype_policy.dtype_policy()
     if isinstance(identifier, DTypePolicy):
@@ -100,12 +100,12 @@ def get(identifier):
     if isinstance(identifier, dict):
         return deserialize(identifier)
     if isinstance(identifier, str):
-        if identifier.startswith(QUANTIZATION_MODES):
+        if _is_quantized_policy_string(identifier):
             return _get_quantized_dtype_policy_by_str(identifier)
         else:
             return DTypePolicy(identifier)
     try:
-        return DTypePolicy(backend.standardize_dtype(identifier))
+        return DTypePolicy(standardize_dtype(identifier))
     except:
         raise ValueError(
             "Cannot interpret `dtype` argument. Expected a string "

@@ -3,7 +3,6 @@ import warnings
 
 from keras.src import backend
 from keras.src import initializers
-from keras.src import ops
 from keras.src.optimizers.schedules import learning_rate_schedule
 from keras.src.saving import serialization_lib
 from keras.src.saving.keras_saveable import KerasSaveable
@@ -195,7 +194,7 @@ class BaseOptimizer(KerasSaveable):
     @property
     def iterations(self):
         if self.gradient_accumulation_steps:
-            return ops.floor_divide(
+            return backend.ops.numpy.floor_divide(
                 self._iterations, self.gradient_accumulation_steps
             )
 
@@ -215,8 +214,13 @@ class BaseOptimizer(KerasSaveable):
             )
         if self.gradient_accumulation_steps:
             self._accumulated_gradients = []
+        # Decide here which variables get weight decay. Train steps only read
+        # this dict, so a compiled train step (torch Dynamo) never sees it
+        # change and does not recompile.
+        self._weight_decay_by_var_key = {}
         for i, variable in enumerate(variables):
-            self._trainable_variables_indices[self._var_key(variable)] = i
+            var_key = self._var_key(variable)
+            self._trainable_variables_indices[var_key] = i
             if self.gradient_accumulation_steps:
                 self._accumulated_gradients.append(
                     self.add_variable_from_reference(
@@ -224,6 +228,10 @@ class BaseOptimizer(KerasSaveable):
                         name="gradient_accumulator",
                     )
                 )
+            # Fill it even when `weight_decay` is None: `Muon` also uses it
+            # to apply `adam_weight_decay`.
+            excluded = self._is_excluded_from_weight_decay(variable)
+            self._weight_decay_by_var_key[var_key] = not excluded
         self._trainable_variables = variables[:]
         self.built = True
 
@@ -576,7 +584,7 @@ class BaseOptimizer(KerasSaveable):
                 )
                 self._backend_reset_gradient_accumulators()
 
-            ops.cond(
+            backend.ops.cond(
                 is_update_step,
                 lambda: _update_step_fn(grads, trainable_variables),
                 lambda: self._backend_increment_gradient_accumulators(
@@ -600,15 +608,8 @@ class BaseOptimizer(KerasSaveable):
             if self.ema_overwrite_frequency:
                 # Only when self.ema_overwrite_frequency is not None, we
                 # overwrite the model variables.
-                should_overwrite_model_vars = (
-                    self.iterations + 1
-                ) % self.ema_overwrite_frequency == 0
-                ops.cond(
-                    should_overwrite_model_vars,
-                    lambda: self._overwrite_model_variables_with_average_value(
-                        self._trainable_variables
-                    ),
-                    lambda: None,
+                self._backend_maybe_overwrite_model_variables(
+                    self._trainable_variables
                 )
 
     def _backend_update_step(self, grads, trainable_variables, learning_rate):
@@ -623,7 +624,9 @@ class BaseOptimizer(KerasSaveable):
     def _backend_reset_gradient_accumulators(self):
         for g_acc in self._accumulated_gradients:
             if g_acc is not None:
-                g_acc.assign(ops.zeros(g_acc.shape, dtype=g_acc.dtype))
+                g_acc.assign(
+                    backend.ops.numpy.zeros(g_acc.shape, dtype=g_acc.dtype)
+                )
 
     def _backend_increment_gradient_accumulators(self, grads, acc_grads):
         new_g_accs = [(g + acc_g) for g, acc_g in zip(grads, acc_grads)]
@@ -817,19 +820,19 @@ class BaseOptimizer(KerasSaveable):
                     acc_g = self._accumulated_gradients[
                         self._get_variable_index(v)
                     ]
-                    # `ops.maximum` is utilized for gradient accumulation for
-                    # `overwrite_with_gradient=True` variables
-                    new_g_acc = ops.cond(
+                    # `backend.ops.numpy.maximum` is utilized for gradient
+                    # accumulation for `overwrite_with_gradient=True` variables
+                    new_g_acc = backend.ops.cond(
                         is_update_step,
-                        lambda: ops.zeros(g.shape, dtype=g.dtype),
-                        lambda: ops.maximum(g, acc_g),
+                        lambda: backend.ops.numpy.zeros(g.shape, dtype=g.dtype),
+                        lambda: backend.ops.numpy.maximum(g, acc_g),
                     )
-                    new_g = ops.cond(
+                    new_g = backend.ops.cond(
                         is_update_step,
-                        lambda: ops.maximum(g, acc_g),
+                        lambda: backend.ops.numpy.maximum(g, acc_g),
                         lambda: g,
                     )
-                    new_v = ops.cond(
+                    new_v = backend.ops.cond(
                         is_update_step, lambda: new_g, lambda: v.value
                     )
                     v.assign(new_v)
@@ -876,7 +879,10 @@ class BaseOptimizer(KerasSaveable):
             return clip_by_global_norm(grads, self.global_clipnorm)
         elif self.clipvalue and self.clipvalue > 0:
             v = self.clipvalue
-            return [ops.clip(g, -v, v) if g is not None else g for g in grads]
+            return [
+                backend.ops.numpy.clip(g, -v, v) if g is not None else g
+                for g in grads
+            ]
         else:
             return grads
 
@@ -895,7 +901,7 @@ class BaseOptimizer(KerasSaveable):
                 excluded from weight decay. For example, `var_names=['bias']`
                 excludes all bias variables from weight decay.
         """
-        if hasattr(self, "_built") and self._built:
+        if self.built:
             raise ValueError(
                 "`exclude_from_weight_decay()` can only be configured before "
                 "the optimizer is built."
@@ -917,45 +923,38 @@ class BaseOptimizer(KerasSaveable):
         else:
             self._exclude_from_weight_decay_pattern = None
 
-        # Reset cache
-        self._exclude_from_weight_decay_cache = dict()
-
-    def _use_weight_decay(self, variable):
-        variable_id = self._var_key(variable)
-
-        # Immediately return the value if `variable_id` hits the cache
-        if not hasattr(self, "_exclude_from_weight_decay_cache"):
-            self._exclude_from_weight_decay_cache = dict()
-        if variable_id in self._exclude_from_weight_decay_cache:
-            return self._exclude_from_weight_decay_cache[variable_id]
-
-        # Determine whether the variable should apply weight decay or not
+    def _is_excluded_from_weight_decay(self, variable):
         exclude_from_weight_decay = getattr(
             self, "_exclude_from_weight_decay", set()
         )
         exclude_from_weight_decay_pattern = getattr(
             self, "_exclude_from_weight_decay_pattern", None
         )
-        if variable_id in exclude_from_weight_decay:
-            self._exclude_from_weight_decay_cache[variable_id] = False
-            return False
+        if self._var_key(variable) in exclude_from_weight_decay:
+            return True
         if exclude_from_weight_decay_pattern is not None:
             if (
                 re.search(exclude_from_weight_decay_pattern, variable.name)
                 is not None
             ):
-                self._exclude_from_weight_decay_cache[variable_id] = False
-                return False
-        self._exclude_from_weight_decay_cache[variable_id] = True
-        return True
+                return True
+        return False
+
+    def _use_weight_decay(self, variable):
+        if not self.built:
+            raise ValueError(
+                "The optimizer must be built before `_use_weight_decay()` "
+                "is called."
+            )
+        return self._weight_decay_by_var_key[self._var_key(variable)]
 
     def _apply_weight_decay(self, variables):
         if self.weight_decay is None:
             return
         for variable in variables:
             if self._use_weight_decay(variable):
-                lr = ops.cast(self.learning_rate, variable.dtype)
-                wd = ops.cast(self.weight_decay, variable.dtype)
+                lr = backend.ops.cast(self.learning_rate, variable.dtype)
+                wd = backend.ops.cast(self.weight_decay, variable.dtype)
                 variable.assign(variable - variable * wd * lr)
 
     def _check_super_called(self):
@@ -974,16 +973,38 @@ class BaseOptimizer(KerasSaveable):
                 trainable_variables, self._model_variables_moving_average
             ):
                 if average is not None:
-                    not_first_step = ops.not_equal(self.iterations, 0)
-                    momentum = ops.multiply(
-                        ops.cast(not_first_step, var.dtype), self.ema_momentum
+                    not_first_step = backend.ops.numpy.not_equal(
+                        self.iterations, 0
+                    )
+                    momentum = backend.ops.numpy.multiply(
+                        backend.ops.cast(not_first_step, var.dtype),
+                        self.ema_momentum,
                     )
                     average.assign(
-                        ops.add(
-                            ops.multiply(momentum, average),
-                            ops.multiply(ops.subtract(1, momentum), var),
+                        backend.ops.numpy.add(
+                            backend.ops.numpy.multiply(momentum, average),
+                            backend.ops.numpy.multiply(
+                                backend.ops.numpy.subtract(1, momentum), var
+                            ),
                         )
                     )
+
+    def _backend_maybe_overwrite_model_variables(self, trainable_variables):
+        """Overwrite model variables with their moving average values on every
+        `ema_overwrite_frequency`-th iteration.
+
+        It is overridden by TF to support tf.distribute.
+        """
+        should_overwrite_model_vars = (
+            self.iterations + 1
+        ) % self.ema_overwrite_frequency == 0
+        backend.ops.cond(
+            should_overwrite_model_vars,
+            lambda: self._overwrite_model_variables_with_average_value(
+                trainable_variables
+            ),
+            lambda: None,
+        )
 
     def _overwrite_model_variables_with_average_value(
         self, trainable_variables
@@ -1046,7 +1067,7 @@ class BaseOptimizer(KerasSaveable):
             )
         elif isinstance(self._learning_rate, backend.Variable):
             learning_rate = float(self._learning_rate.numpy())
-        elif ops.is_tensor(self._learning_rate):
+        elif backend.ops.is_tensor(self._learning_rate):
             learning_rate = float(self._learning_rate)
         elif callable(self._learning_rate):
             learning_rate = serialization_lib.serialize_keras_object(
@@ -1107,15 +1128,21 @@ class BaseOptimizer(KerasSaveable):
 
     def _clip_by_norm(self, values, axes=None):
         # Calculate L2-norm, clip elements by ratio of clip_norm to L2-norm
-        l2sum = ops.sum(ops.square(values), axes, keepdims=True)
+        l2sum = backend.ops.numpy.sum(
+            backend.ops.numpy.square(values), axes, keepdims=True
+        )
         pred = l2sum > 0
         # Two-tap tf.where trick to bypass NaN gradients
-        l2sum_safe = ops.where(pred, l2sum, ops.ones_like(l2sum))
-        l2norm = ops.where(pred, ops.sqrt(l2sum_safe), l2sum)
-        intermediate = ops.multiply(values, self.clipnorm)
-        values_clip = ops.convert_to_tensor(intermediate) / ops.maximum(
-            l2norm, self.clipnorm
+        l2sum_safe = backend.ops.numpy.where(
+            pred, l2sum, backend.ops.numpy.ones_like(l2sum)
         )
+        l2norm = backend.ops.numpy.where(
+            pred, backend.ops.numpy.sqrt(l2sum_safe), l2sum
+        )
+        intermediate = backend.ops.numpy.multiply(values, self.clipnorm)
+        values_clip = backend.ops.convert_to_tensor(
+            intermediate
+        ) / backend.ops.numpy.maximum(l2norm, self.clipnorm)
         return values_clip
 
     def _untrack_variable(self, variable):
@@ -1181,16 +1208,20 @@ base_optimizer_keyword_args = """name: String. The name to use
 def global_norm(value_list):
     """Computes the global norm of multiple tensors."""
     squared_norms = [
-        ops.sum(ops.square(v)) for v in value_list if v is not None
+        backend.ops.numpy.sum(backend.ops.numpy.square(v))
+        for v in value_list
+        if v is not None
     ]
-    squared_norm = ops.sum(ops.stack(squared_norms))
-    return ops.sqrt(squared_norm)
+    squared_norm = backend.ops.numpy.sum(backend.ops.numpy.stack(squared_norms))
+    return backend.ops.numpy.sqrt(squared_norm)
 
 
 def clip_by_global_norm(value_list, clip_norm):
     use_norm = global_norm(value_list)
     # Calculate L2-norm, clip elements by ratio of clip_norm to L2-norm
-    scale_for_finite = clip_norm * ops.minimum(1.0 / use_norm, 1.0 / clip_norm)
+    scale_for_finite = clip_norm * backend.ops.numpy.minimum(
+        1.0 / use_norm, 1.0 / clip_norm
+    )
     # If use_norm is any finite number, this is a no-op. For inf/-inf/NaN,
     # this will make scale NaN.
     scale = scale_for_finite + (use_norm - use_norm)

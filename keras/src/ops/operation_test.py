@@ -1,6 +1,5 @@
 import numpy as np
 
-from conftest import skip_if_backend
 from keras.src import backend
 from keras.src import testing
 from keras.src.backend.common import keras_tensor
@@ -185,25 +184,25 @@ class OperationTest(testing.TestCase):
 
         # Positional arguments
         out = op(x, y, z)
-        self.assertTrue(backend.is_tensor(out))
+        self.assertTrue(backend.ops.is_tensor(out))
         self.assertAllClose(out, 6 * np.ones((2, 3)))
 
         # Keyword arguments
         out = op(x=x, y=y, z=z)
-        self.assertTrue(backend.is_tensor(out))
+        self.assertTrue(backend.ops.is_tensor(out))
         self.assertAllClose(out, 6 * np.ones((2, 3)))
 
         # Mixed arguments
         out = op(x, y=y, z=z)
-        self.assertTrue(backend.is_tensor(out))
+        self.assertTrue(backend.ops.is_tensor(out))
         self.assertAllClose(out, 6 * np.ones((2, 3)))
 
         # Test multiple outputs
         op = OpWithMultipleOutputs()
         out = op(x)
         self.assertEqual(len(out), 2)
-        self.assertTrue(backend.is_tensor(out[0]))
-        self.assertTrue(backend.is_tensor(out[1]))
+        self.assertTrue(backend.ops.is_tensor(out[0]))
+        self.assertTrue(backend.ops.is_tensor(out[1]))
         self.assertAllClose(out[0], np.ones((2, 3)))
         self.assertAllClose(out[1], np.ones((2, 3)) + 1)
 
@@ -216,7 +215,7 @@ class OperationTest(testing.TestCase):
         with RematScope(mode="full"):
             op = OpWithMultipleInputs(name="test_op")
         out = op(x, x, x)
-        self.assertTrue(backend.is_tensor(out))
+        self.assertTrue(backend.ops.is_tensor(out))
         self.assertAllClose(out, 6 * np.ones((2, 3)))
 
         # Test quantized rematerialized call
@@ -224,7 +223,7 @@ class OperationTest(testing.TestCase):
             op_q = OpWithQuantizedCall(name="test_op_q")
         op_q.quantization_mode = object()
         out = op_q(x)
-        self.assertTrue(backend.is_tensor(out))
+        self.assertTrue(backend.ops.is_tensor(out))
         self.assertAllClose(out, 2 * np.ones((2, 3)))
 
         # Test traceback filtering branch
@@ -235,7 +234,7 @@ class OperationTest(testing.TestCase):
             with RematScope(mode="full"):
                 op = OpWithMultipleInputs(name="test_op_traceback")
             out = op(x, x, x)
-            self.assertTrue(backend.is_tensor(out))
+            self.assertTrue(backend.ops.is_tensor(out))
             self.assertAllClose(out, 6 * np.ones((2, 3)))
 
             # Quantized rematerialized
@@ -243,7 +242,7 @@ class OperationTest(testing.TestCase):
                 op_q = OpWithQuantizedCall(name="test_op_q_traceback")
             op_q.quantization_mode = object()
             out = op_q(x)
-            self.assertTrue(backend.is_tensor(out))
+            self.assertTrue(backend.ops.is_tensor(out))
             self.assertAllClose(out, 2 * np.ones((2, 3)))
         finally:
             if not was_enabled:
@@ -364,9 +363,6 @@ class OperationTest(testing.TestCase):
         self.assertEqual(revived.get_config(), config)
         self.assertEqual(revived.name, op.name)
 
-    @skip_if_backend(
-        "openvino", "Can not constant fold eltwise node by CPU plugin"
-    )
     def test_input_conversion(self):
         x = np.ones((2,))
         y = np.ones((2,))
@@ -375,7 +371,7 @@ class OperationTest(testing.TestCase):
             z = z.cpu()
         op = OpWithMultipleInputs()
         out = op(x, y, z)
-        self.assertTrue(backend.is_tensor(out))
+        self.assertTrue(backend.ops.is_tensor(out))
         self.assertAllClose(out, 6 * np.ones((2,)))
 
     def test_valid_naming(self):

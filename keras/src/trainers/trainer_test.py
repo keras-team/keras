@@ -20,27 +20,11 @@ from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.callbacks.callback import Callback
 from keras.src.distribution.distribution_lib import DataParallel
 from keras.src.distribution.distribution_lib import DeviceMesh
+from keras.src.models.model import Trainer
 from keras.src.optimizers.rmsprop import RMSprop
 from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import py_dataset_adapter
-
-if backend.backend() == "jax":
-    from keras.src.backend.jax.trainer import JAXTrainer as Trainer
-    from keras.src.distribution import DataParallel
-    from keras.src.distribution import DeviceMesh
-elif backend.backend() == "torch":
-    from keras.src.backend.torch.trainer import TorchTrainer as Trainer
-elif backend.backend() == "tensorflow":
-    from keras.src.backend.tensorflow.trainer import (
-        TensorFlowTrainer as Trainer,
-    )
-elif backend.backend() == "numpy":
-    from keras.src.backend.numpy.trainer import NumpyTrainer as Trainer
-elif backend.backend() == "openvino":
-    from keras.src.backend.openvino.trainer import OpenVINOTrainer as Trainer
-else:
-    raise ImportError(f"Invalid backend: {backend.backend()}")
 
 
 # A model is just a layer mixed in with a Trainer.
@@ -162,13 +146,7 @@ class TestPyDataset(py_dataset_adapter.PyDataset):
         return None if self.infinite else 20
 
     def __getitem__(self, idx):
-        CPU_DEVICES = {
-            "tensorflow": "CPU:0",
-            "jax": "cpu:0",
-            "torch": "cpu",
-        }
-        with backend.device(CPU_DEVICES[backend.backend()]):
-            return ops.ones((5, 4)), ops.zeros((5, 3))
+        return np.ones((5, 4)), np.zeros((5, 3))
 
 
 def create_dataset(dataset_type, dataset_kwargs):
@@ -758,7 +736,7 @@ class TestTrainer(testing.TestCase):
         history = history.history
         self.assertIn("loss", history)
         self.assertIn("mean_squared_error", history)
-        self.assertAllClose(history["my_custom_metric"], 10.0)
+        self.assertAllClose(history["my_custom_metric"], [10.0])
 
     @parameterized.named_parameters(
         named_product(
@@ -2229,19 +2207,21 @@ class TestTrainer(testing.TestCase):
         y = model.predict(x)
         self.assertEqual(type(y), tf.RaggedTensor)
 
-    def test_predict_dropout(self):
+    def test_functional_layer_training_overrides_model_training_argument(self):
         # Test that `predict` with a dropout op
         # has nondeterministic behavior across batches.
 
         inputs = layers.Input((20,))
+        # Passing `training=True` during construction will force dropout to be
+        # enabled even during predict.
         outputs = layers.Dropout(0.5, seed=1337)(inputs, training=True)
         model = keras.Model(inputs, outputs)
         out1 = model.predict(np.ones((4, 20)), batch_size=2)
-        self.assertGreater(5, np.sum(np.abs(out1[:2, :] - out1[2:4, :])))
+        self.assertNotAllClose(out1[:2, :], out1[2:4, :])
 
         out2 = model.predict_on_batch(np.ones((2, 20)))
         out3 = model.predict_on_batch(np.ones((2, 20)))
-        self.assertGreater(5, np.sum(np.abs(out2 - out3)))
+        self.assertNotAllClose(out2, out3)
 
     @pytest.mark.requires_trainable_backend
     def test_recompile(self):
@@ -2306,7 +2286,9 @@ class TestTrainer(testing.TestCase):
         history = model.fit(
             [np.ones((3, 2)), np.ones((3, 3))], np.ones((3, 2))
         ).history
-        self.assertAllClose(history["loss"], 16.0, tpu_atol=1e-4, tpu_rtol=1e-4)
+        self.assertAllClose(
+            history["loss"], [16.0], tpu_atol=1e-4, tpu_rtol=1e-4
+        )
         train_out = model.train_on_batch(
             [np.ones((3, 2)), np.ones((3, 3))], np.ones((3, 2))
         )
@@ -2361,6 +2343,33 @@ class TestTrainer(testing.TestCase):
         self.assertEqual(recorder.train_counter, 3)
         self.assertEqual(recorder.val_counter, 4)
 
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="Only JAX backend uses _maybe_symbolic_build.",
+    )
+    @pytest.mark.requires_trainable_backend
+    def test_symbolic_build_empty_dataset(self):
+        val_x = np.empty((0, 2), dtype="float32")
+        val_y = np.empty((0, 3), dtype="float32")
+        unbuilt_model = ExampleModel(units=3)
+        unbuilt_model.compile(optimizer="sgd", loss="mse")
+        with self.assertRaisesRegex(
+            ValueError,
+            "The symbolic build failed because train or validation dataset "
+            "is empty",
+        ):
+            unbuilt_model.evaluate(val_x, val_y)
+
+    @pytest.mark.requires_trainable_backend
+    def test_fit_empty_validation_data(self):
+        model = ExampleModel(units=3)
+        model.compile(optimizer="sgd", loss="mse")
+        x = np.ones((4, 2), dtype="float32")
+        y = np.ones((4, 3), dtype="float32")
+        val_x = np.empty((0, 2), dtype="float32")
+        val_y = np.empty((0, 3), dtype="float32")
+        model.fit(x, y, epochs=1, batch_size=2, validation_data=(val_x, val_y))
+
     @parameterized.named_parameters(
         [
             ("fit", "fit", "training", "train"),
@@ -2409,7 +2418,7 @@ class TestTrainer(testing.TestCase):
         model.compile(optimizer="rmsprop", loss="mse")
         model.fit(x, y)
         self.assertGreaterEqual(
-            np.min(backend.convert_to_numpy(model.layers[0].kernel)), 0.0
+            np.min(backend.ops.convert_to_numpy(model.layers[0].kernel)), 0.0
         )
 
     @pytest.mark.requires_trainable_backend

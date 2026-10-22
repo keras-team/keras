@@ -1,15 +1,19 @@
 from absl.testing import parameterized
 
+from keras.src import dtype_policies
 from keras.src.dtype_policies import deserialize
 from keras.src.dtype_policies import get
 from keras.src.dtype_policies import serialize
 from keras.src.dtype_policies.dtype_policy import AWQDTypePolicy
 from keras.src.dtype_policies.dtype_policy import DTypePolicy
 from keras.src.dtype_policies.dtype_policy import FloatDTypePolicy
+from keras.src.dtype_policies.dtype_policy import GPTQDTypePolicy
+from keras.src.dtype_policies.dtype_policy import Int4DTypePolicy
 from keras.src.dtype_policies.dtype_policy import QuantizedDTypePolicy
 from keras.src.dtype_policies.dtype_policy import QuantizedFloat8DTypePolicy
 from keras.src.dtype_policies.dtype_policy import dtype_policy
 from keras.src.dtype_policies.dtype_policy import set_dtype_policy
+from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.testing import test_case
 
@@ -548,11 +552,21 @@ class DTypePolicyGlobalFunctionsTest(test_case.TestCase):
         policy = dtype_policy()
         self.assertEqual(policy.name, "mixed_float16")
 
-    def test_set_dtype_policy_valid_string_quantized(self):
-        """Test set_dtype_policy with a valid string."""
-        set_dtype_policy("int8_from_mixed_bfloat16")
-        policy = dtype_policy()
-        self.assertEqual(policy.name, "int8_from_mixed_bfloat16")
+    @parameterized.named_parameters(
+        ("int8", "int8_from_mixed_bfloat16"),
+        ("int4", "int4/32_from_float32"),
+        ("float8", "float8_from_float32"),
+        ("gptq", "gptq/4/128_from_float32"),
+        ("object", QuantizedDTypePolicy("int8", "mixed_bfloat16")),
+    )
+    def test_set_dtype_policy_rejects_quantized_policy(self, policy):
+        set_dtype_policy("mixed_float16")
+        with self.assertRaisesRegex(
+            ValueError, "The global dtype policy cannot be quantized"
+        ):
+            set_dtype_policy(policy)
+        # The global policy is unchanged.
+        self.assertEqual(dtype_policy().name, "mixed_float16")
 
     def test_set_dtype_policy_valid_policy(self):
         """Test set_dtype_policy with a valid DTypePolicy object."""
@@ -560,15 +574,6 @@ class DTypePolicyGlobalFunctionsTest(test_case.TestCase):
         set_dtype_policy(policy_obj)
         policy = dtype_policy()
         self.assertEqual(policy.name, "mixed_float16")
-
-    def test_set_dtype_policy_valid_policy_quantized(self):
-        """Test set_dtype_policy with a valid QuantizedDTypePolicy object."""
-        policy_obj = QuantizedDTypePolicy(
-            mode="int8", source_name="mixed_bfloat16"
-        )
-        set_dtype_policy(policy_obj)
-        policy = dtype_policy()
-        self.assertEqual(policy.name, "int8_from_mixed_bfloat16")
 
     def test_set_dtype_policy_invalid(self):
         """Test set_dtype_policy with an invalid input."""
@@ -675,6 +680,36 @@ class QuantizedDTypePolicyEdgeCasesTest(test_case.TestCase):
             )
 
 
+class Int4DTypePolicyTest(test_case.TestCase):
+    @parameterized.named_parameters(
+        ("grouped_128", "int4/128_from_float32", 128),
+        ("per_channel_neg1", "int4/-1_from_float32", -1),
+        # Legacy checkpoints spelled per-channel as the literal "None".
+        ("legacy_none", "int4/None_from_float32", -1),
+    )
+    def test_parse_block_size(self, policy_name, expected_block_size):
+        policy = get(policy_name)
+        self.assertIsInstance(policy, Int4DTypePolicy)
+        self.assertEqual(policy.mode, "int4")
+        self.assertEqual(policy.block_size, expected_block_size)
+
+    def test_legacy_none_normalizes_name(self):
+        """`int4/None` must load and report the canonical `int4/-1` name."""
+        policy = get("int4/None_from_float32")
+        self.assertEqual(policy.name, "int4/-1_from_float32")
+        # It must compare equal to the explicit per-channel policy.
+        self.assertEqual(policy, get("int4/-1_from_float32"))
+
+    @parameterized.named_parameters(
+        ("non_integer", "int4/abc_from_float32"),
+        ("zero", "int4/0_from_float32"),
+        ("below_neg1", "int4/-2_from_float32"),
+    )
+    def test_invalid_block_size_rejected(self, policy_name):
+        with self.assertRaises(ValueError):
+            get(policy_name)
+
+
 class DTypePolicyGlobalFunctionsEdgeCasesTest(test_case.TestCase):
     def setUp(self):
         super().setUp()
@@ -747,6 +782,40 @@ class GPTQConfigErrorHandlingTest(test_case.TestCase):
                 tokenizer=None,
                 group_size=0,
             )
+
+
+class QuantizedPolicySourceNameTest(test_case.TestCase):
+    """Source-name resolution of the GPTQ and AWQ policy names."""
+
+    def test_default_source_name_is_resolved(self):
+        # Without a source, the name takes the global dtype policy's.
+        self.assertEqual(
+            GPTQDTypePolicy("gptq/4/128").name, "gptq/4/128_from_float32"
+        )
+        self.assertEqual(
+            AWQDTypePolicy("awq/4/128").name, "awq/4/128_from_float32"
+        )
+
+    def test_legacy_from_none_names_load(self):
+        # A literal "None" source resolves to the global dtype policy.
+        policy = dtype_policies.get("gptq/4/128_from_None")
+        self.assertEqual(policy.name, "gptq/4/128_from_float32")
+        self.assertEqual(policy.weight_bits, 4)
+        self.assertEqual(policy.group_size, 128)
+        policy = dtype_policies.get("awq/4/64_from_None")
+        self.assertEqual(policy.name, "awq/4/64_from_float32")
+
+    def test_map_roundtrip_keeps_resolved_source(self):
+        # A map serializes its policies without a source; a reload resolves it.
+        policy_map = DTypePolicyMap()
+        policy_map["dense/kernel"] = GPTQDTypePolicy(
+            "gptq/4/128", source_name="float32"
+        )
+        config = policy_map.get_config()
+        revived = DTypePolicyMap.from_config(config)
+        self.assertEqual(
+            revived["dense/kernel"].name, "gptq/4/128_from_float32"
+        )
 
 
 class AWQDTypePolicyTest(test_case.TestCase):

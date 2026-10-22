@@ -1,12 +1,13 @@
 import grain
 import numpy as np
+import pytest
 import tensorflow as tf
 import torch
 from absl.testing import parameterized
 
 from keras.src import backend
-from keras.src import testing
 from keras.src.testing.test_utils import named_product
+from keras.src.trainers.data_adapters import data_adapter_test_base
 from keras.src.trainers.data_adapters import grain_dataset_adapter
 
 
@@ -22,10 +23,12 @@ class Range2DSource(grain.sources.RandomAccessDataSource):
         return self.stop - self.start
 
 
-class GrainDatasetAdapterTest(testing.TestCase):
-    def _get_dataset(self, dataset_type, worker_count=0, num_threads=0):
-        x = np.random.normal(size=(34, 4)).astype("float32")
-        y = np.random.normal(size=(34, 2)).astype("float32")
+class GrainDatasetAdapterTest(data_adapter_test_base.DataAdapterTest):
+    def _get_dataset(
+        self, dataset_type, num_samples=34, worker_count=0, num_threads=0
+    ):
+        x = np.random.normal(size=(num_samples, 4)).astype("float32")
+        y = np.random.normal(size=(num_samples, 2)).astype("float32")
 
         class MySource(grain.sources.RandomAccessDataSource):
             def __init__(self, x, y):
@@ -212,3 +215,24 @@ class GrainDatasetAdapterTest(testing.TestCase):
             grain_dataset_adapter.GrainDatasetAdapter(
                 "This is not a grain.Dataset"
             )
+
+    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
+    def test_get_jax_iterator_with_super_batch(self):
+        # Even batches: 4 batches with super_batch=2 -> 2 super-batches
+        ds_even = self._get_dataset("map_dataset", num_samples=64)
+        adapter_even = grain_dataset_adapter.GrainDatasetAdapter(ds_even)
+        self.verify_super_batched_iterator(
+            adapter_even.get_jax_iterator(super_batch=2),
+            expected_super_batches=2,
+            has_partial_batch=False,
+        )
+
+        # Uneven batches: 5 batches with super_batch=2 -> 2 super-batches + 1
+        # partial batch list
+        ds_uneven = self._get_dataset("map_dataset", num_samples=80)
+        adapter_uneven = grain_dataset_adapter.GrainDatasetAdapter(ds_uneven)
+        self.verify_super_batched_iterator(
+            adapter_uneven.get_jax_iterator(super_batch=2),
+            expected_super_batches=2,
+            has_partial_batch=True,
+        )
