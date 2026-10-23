@@ -69,7 +69,7 @@ class LossFunctionWrapper(Loss):
     def from_config(cls, config):
         if "fn" in config:
             config = serialization_lib.deserialize_keras_object(config)
-        return cls(**config)
+        return super().from_config(config)
 
     def __repr__(self):
         return f"<LossFunctionWrapper({self.fn}, kwargs={self._fn_kwargs})>"
