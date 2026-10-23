@@ -82,3 +82,22 @@ class PoolingChannelsLastContiguityTest(testing.TestCase):
         x = torch.randn((2, 6, 6, 6, 4))
         out = ops.max_pool(x, (2, 2, 2), data_format="channels_last")
         self.assertTrue(out.is_contiguous())
+
+
+@pytest.mark.skipif(
+    backend.backend() != "torch",
+    reason="This test is only applicable to the PyTorch backend.",
+)
+class TorchLossNumericsTest(testing.TestCase):
+    def test_binary_crossentropy_nan_propagates(self):
+        # A `NaN` prediction must yield a `NaN` loss, not a finite value, so
+        # that `TerminateOnNaN` can catch it. The MPS kernel used to turn
+        # `NaN` into a finite `-100` term (#23661).
+        target = ops.convert_to_tensor(
+            np.array([1.0, 1.0, 0.0, 0.0], "float32")
+        )
+        output = ops.convert_to_tensor(
+            np.array([0.3, float("nan"), 0.3, 0.9], "float32")
+        )
+        loss = ops.binary_crossentropy(target, output)
+        self.assertTrue(np.isnan(ops.convert_to_numpy(loss)).any())
