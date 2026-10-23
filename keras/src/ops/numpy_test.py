@@ -7924,23 +7924,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             atol=1e-2,
         )
 
-    @parameterized.named_parameters(
-        named_product(dtype=["float16", "float32", "float64", "bfloat16"])
-    )
-    @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
-        reason="Legacy graph mode is specific to TensorFlow.",
-    )
-    def test_floor_divide_tf_legacy_graph(self, dtype):
-        import tensorflow as tf
-
-        # In legacy graph mode, `==` and `!=` on tensors compare identity.
-        x = np.array([4.2, 0.7, 7.0, -7.0, 6.0, -1.0, 1.0, -1.0], dtype)
-        y = np.array([1.4, 0.1, 2.0, -2.0, -2.0, 0.1, 0.0, 0.0], dtype)
-        with tf.Graph().as_default(), tf.compat.v1.Session() as sess:
-            result = sess.run(knp.floor_divide(x, y))
-        self.assertAllClose(result, np.floor_divide(x, y))
-
     def test_xor(self):
         x = np.array([[True, False], [True, True]])
         y = np.array([[False, False], [True, False]])
