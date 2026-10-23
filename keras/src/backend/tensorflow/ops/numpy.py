@@ -3847,10 +3847,15 @@ def floor_divide(x1, x2):
     div = (x1 - mod) / x2
     # `fmod` has the sign of `x1`; floor division rounds toward -inf.
     div = tf.where(
-        tf.logical_and(mod != 0, (mod < 0) != (x2 < 0)), div - 1, div
+        tf.logical_and(
+            tf.not_equal(mod, 0),
+            tf.math.logical_xor(tf.less(mod, 0), tf.less(x2, 0)),
+        ),
+        div - 1,
+        div,
     )
-    # A zero divisor gives `x1 / x2` (inf, -inf or nan), as before.
-    result = tf.where(x2 == 0, x1 / x2, tf.round(div))
+    # # A zero divisor gives `x1 / x2` (inf, -inf or nan), as before.
+    result = tf.where(tf.equal(x2, 0), x1 / x2, tf.round(div))
     return tf.stop_gradient(tf.cast(result, dtype))
 
 
