@@ -783,8 +783,8 @@ class RemotePathTest(test_case.TestCase):
     def test_is_remote_path_or_raise_raises_correct_message(self):
         path = "gs://bucket/some/file.txt"
         expected_error_msg = (
-            r"Handling remote paths requires TensorFlow or etils\.epath "
-            r"\(e\.g\. `pip install keras\[gcs\]`\).*"
+            r"Handling remote paths requires installing etils\[epath\] "
+            r"\(e\.g\. `pip install keras\[gcs\]`\) or TensorFlow\. "
             f"Received: path={path}"
         )
         with (
