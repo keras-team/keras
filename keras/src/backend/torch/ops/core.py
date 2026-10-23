@@ -200,10 +200,11 @@ class Variable(KerasVariable):
 
         from keras.src.distribution.distribution_lib import TensorLayout
 
-        if isinstance(self._layout, TensorLayout):
-            if all(axis is None for axis in self._layout.axes):
+        layout = self._layout
+        if isinstance(layout, TensorLayout):
+            if all(axis is None for axis in layout.axes):
                 return None
-            self._layout = self._layout.backend_layout
+            layout = layout.backend_layout
 
         if callable(initializer):
             value = initializer(self._shape, dtype=self._dtype)
@@ -218,10 +219,10 @@ class Variable(KerasVariable):
             value = value.detach()
 
         if isinstance(value, torch.Tensor):
-            if value.device.type != self._layout.device_mesh.device_type:
-                value = value.to(self._layout.device_mesh.device_type)
+            if value.device.type != layout.device_mesh.device_type:
+                value = value.to(layout.device_mesh.device_type)
 
-        dtensor = distribution_lib.distribute_tensor(value, self._layout)
+        dtensor = distribution_lib.distribute_tensor(value, layout)
 
         return torch.nn.Parameter(dtensor, requires_grad=self.trainable)
 
