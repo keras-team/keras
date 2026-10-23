@@ -3854,7 +3854,7 @@ def floor_divide(x1, x2):
         div - 1,
         div,
     )
-    # # A zero divisor gives `x1 / x2` (inf, -inf or nan), as before.
+    # A zero divisor gives `x1 / x2` (inf, -inf or nan), as before.
     result = tf.where(tf.equal(x2, 0), x1 / x2, tf.round(div))
     return tf.stop_gradient(tf.cast(result, dtype))
 
