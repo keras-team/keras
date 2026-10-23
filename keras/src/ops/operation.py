@@ -378,6 +378,15 @@ class Operation(KerasSaveable):
         Only returns the tensor(s) corresponding to the *first time*
         the operation was called.
 
+        Note that for a layer called more than once (a shared layer),
+        this property returns the inputs of the first call only, even
+        though the layer has several inputs. There is no public accessor
+        for the inputs of the other calls. Keep a reference to the
+        inputs used in each call instead.
+
+        `layer._inbound_nodes[i].input_tensors` exposes the inputs of the
+        `i`-th call, but it is a private API.
+
         Returns:
             Input tensor or list of input tensors.
         """
@@ -389,6 +398,30 @@ class Operation(KerasSaveable):
 
         Only returns the tensor(s) corresponding to the *first time*
         the operation was called.
+
+        Note that for a layer called more than once (a shared layer),
+        this property returns the output of the first call only, silently
+        ignoring the later calls. There is no public accessor for the
+        outputs of the other calls.
+
+        To access the output of a specific call, keep a reference to the
+        tensor returned by that call:
+
+        ```python
+        inputs_a = keras.Input(shape=(3,))
+        inputs_b = keras.Input(shape=(3,))
+        shared = keras.layers.Dense(2)
+
+        outputs_a = shared(inputs_a)  # First call.
+        outputs_b = shared(inputs_b)  # Second call.
+
+        # `shared.output` is `outputs_a`, the first call's output, not
+        # `outputs_b`. Use the returned tensors directly instead.
+        model = keras.Model([inputs_a, inputs_b], [outputs_a, outputs_b])
+        ```
+
+        `layer._inbound_nodes[i].output_tensors` exposes the outputs of the
+        `i`-th call, but it is a private API.
 
         Returns:
             Output tensor or list of output tensors.
