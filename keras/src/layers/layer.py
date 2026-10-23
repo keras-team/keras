@@ -509,6 +509,7 @@ class Layer(BackendLayer, Operation):
         autocast=True,
         regularizer=None,
         constraint=None,
+        layout=None,
         name=None,
     ):
         """Add a weight variable to the layer.
@@ -523,6 +524,7 @@ class Layer(BackendLayer, Operation):
             autocast=autocast,
             regularizer=regularizer,
             constraint=constraint,
+            layout=layout,
             name=name,
         )
 
@@ -538,6 +540,7 @@ class Layer(BackendLayer, Operation):
         constraint=None,
         aggregation="none",
         overwrite_with_gradient=False,
+        layout=None,
         name=None,
     ):
         """Add a weight variable to the layer.
@@ -572,6 +575,10 @@ class Layer(BackendLayer, Operation):
             overwrite_with_gradient: Boolean, whether to overwrite the variable
                 with the computed gradient. This is useful for float8 training.
                 Defaults to `False`.
+            layout: Optional. Sharding layout for the variable, used instead of
+                the one the active Distribution would assign. Either a
+                `keras.distribution.TensorLayout` with its `device_mesh` set, or
+                a backend-specific layout.
             name: String name of the variable. Useful for debugging purposes.
         """
         self._check_super_called()
@@ -631,6 +638,7 @@ class Layer(BackendLayer, Operation):
                 trainable=trainable,
                 autocast=autocast,
                 aggregation=aggregation,
+                layout=layout,
                 name=name,
             )
         # Will be added to layer.losses
