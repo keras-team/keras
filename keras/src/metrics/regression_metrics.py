@@ -1,5 +1,6 @@
 import warnings
 
+from keras.src import backend
 from keras.src import initializers
 from keras.src import ops
 from keras.src.api_export import keras_export
@@ -236,14 +237,14 @@ class RootMeanSquaredError(reduction_metrics.Mean):
         Returns:
             Update op.
         """
-        y_true = ops.convert_to_tensor(y_true, self._dtype)
-        y_pred = ops.convert_to_tensor(y_pred, self._dtype)
+        y_true = backend.ops.convert_to_tensor(y_true, self._dtype)
+        y_pred = backend.ops.convert_to_tensor(y_pred, self._dtype)
         y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
-        error_sq = ops.square(y_pred - y_true)
+        error_sq = backend.ops.numpy.square(y_pred - y_true)
         return super().update_state(error_sq, sample_weight=sample_weight)
 
     def result(self):
-        return ops.sqrt(super().result())
+        return backend.ops.numpy.sqrt(super().result())
 
 
 @keras_export("keras.metrics.CosineSimilarity")
@@ -492,8 +493,8 @@ class R2Score(reduction_metrics.Metric):
         Returns:
             Update op.
         """
-        y_true = ops.convert_to_tensor(y_true, dtype=self._dtype)
-        y_pred = ops.convert_to_tensor(y_pred, dtype=self._dtype)
+        y_true = backend.ops.convert_to_tensor(y_true, dtype=self._dtype)
+        y_pred = backend.ops.convert_to_tensor(y_pred, dtype=self._dtype)
         y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
         if not self._built:
             self._build(y_true.shape, y_pred.shape)
@@ -501,34 +502,45 @@ class R2Score(reduction_metrics.Metric):
         if sample_weight is None:
             sample_weight = 1
 
-        sample_weight = ops.convert_to_tensor(sample_weight, dtype=self.dtype)
+        sample_weight = backend.ops.convert_to_tensor(
+            sample_weight, dtype=self.dtype
+        )
 
         if len(sample_weight.shape) == 1:
             # Make sure there's a features dimension
-            sample_weight = ops.expand_dims(sample_weight, axis=1)
+            sample_weight = backend.ops.numpy.expand_dims(sample_weight, axis=1)
 
-        sample_weight = ops.broadcast_to(sample_weight, ops.shape(y_true))
+        sample_weight = backend.ops.numpy.broadcast_to(
+            sample_weight, backend.ops.shape(y_true)
+        )
 
-        sample_weight = ops.cast(sample_weight, y_true.dtype)
+        sample_weight = backend.ops.cast(sample_weight, y_true.dtype)
         weighted_y_true = y_true * sample_weight
-        self.sum.assign(self.sum + ops.sum(weighted_y_true, axis=0))
+        self.sum.assign(
+            self.sum + backend.ops.numpy.sum(weighted_y_true, axis=0)
+        )
         self.squared_sum.assign(
-            self.squared_sum + ops.sum(y_true * weighted_y_true, axis=0)
+            self.squared_sum
+            + backend.ops.numpy.sum(y_true * weighted_y_true, axis=0)
         )
         self.total_mse.assign(
             self.total_mse
-            + ops.sum(
+            + backend.ops.numpy.sum(
                 (y_true - y_pred) ** 2 * sample_weight,
                 axis=0,
             )
         )
-        self.count.assign(self.count + ops.sum(sample_weight, axis=0))
+        self.count.assign(
+            self.count + backend.ops.numpy.sum(sample_weight, axis=0)
+        )
         # Count non-zero samples. We count a sample if it has a
         # non-zero weight in at least one output. This avoids N x K inflation
         # for multi-output regression and ensures num_samples is an integer.
-        is_nonzero = ops.not_equal(sample_weight, 0.0)
-        nonzero_per_sample = ops.any(is_nonzero, axis=-1)
-        num_samples_update = ops.sum(ops.cast(nonzero_per_sample, self.dtype))
+        is_nonzero = backend.ops.numpy.not_equal(sample_weight, 0.0)
+        nonzero_per_sample = backend.ops.numpy.any(is_nonzero, axis=-1)
+        num_samples_update = backend.ops.numpy.sum(
+            backend.ops.cast(nonzero_per_sample, self.dtype)
+        )
         self.num_samples.assign_add(num_samples_update)
 
     def result(self):
@@ -542,17 +554,25 @@ class R2Score(reduction_metrics.Metric):
         # apart from the deliberate 0/0 of a zero-variance perfect
         # prediction. It would silently report a perfect score instead of
         # surfacing the NaN.
-        safe_total = ops.where(ops.equal(total, 0.0), 1.0, total)
+        safe_total = backend.ops.numpy.where(
+            backend.ops.numpy.equal(total, 0.0), 1.0, total
+        )
         raw_scores = 1.0 - (self.total_mse / safe_total)
-        raw_scores = ops.where(ops.equal(total, 0.0), 0.0, raw_scores)
-        raw_scores = ops.where(ops.equal(self.total_mse, 0.0), 1.0, raw_scores)
-        raw_scores = ops.where(ops.isinf(raw_scores), 0.0, raw_scores)
+        raw_scores = backend.ops.numpy.where(
+            backend.ops.numpy.equal(total, 0.0), 0.0, raw_scores
+        )
+        raw_scores = backend.ops.numpy.where(
+            backend.ops.numpy.equal(self.total_mse, 0.0), 1.0, raw_scores
+        )
+        raw_scores = backend.ops.numpy.where(
+            backend.ops.numpy.isinf(raw_scores), 0.0, raw_scores
+        )
 
         if self.class_aggregation == "uniform_average":
-            r2_score = ops.mean(raw_scores)
+            r2_score = backend.ops.numpy.mean(raw_scores)
         elif self.class_aggregation == "variance_weighted_average":
-            weighted_sum = ops.sum(total * raw_scores)
-            sum_of_weights = ops.sum(total)
+            weighted_sum = backend.ops.numpy.sum(total * raw_scores)
+            sum_of_weights = backend.ops.numpy.sum(total)
             r2_score = weighted_sum / sum_of_weights
         else:
             r2_score = raw_scores
@@ -571,18 +591,27 @@ class R2Score(reduction_metrics.Metric):
                     stacklevel=2,
                 )
             else:
-                n = ops.convert_to_tensor(self.num_samples, dtype="float32")
-                p = ops.convert_to_tensor(self.num_regressors, dtype="float32")
-                num = ops.multiply(
-                    ops.subtract(1.0, r2_score), ops.subtract(n, 1.0)
+                n = backend.ops.convert_to_tensor(
+                    self.num_samples, dtype="float32"
                 )
-                den = ops.subtract(ops.subtract(n, p), 1.0)
-                r2_score = ops.subtract(1.0, ops.divide(num, den))
+                p = backend.ops.convert_to_tensor(
+                    self.num_regressors, dtype="float32"
+                )
+                num = backend.ops.numpy.multiply(
+                    backend.ops.numpy.subtract(1.0, r2_score),
+                    backend.ops.numpy.subtract(n, 1.0),
+                )
+                den = backend.ops.numpy.subtract(
+                    backend.ops.numpy.subtract(n, p), 1.0
+                )
+                r2_score = backend.ops.numpy.subtract(
+                    1.0, backend.ops.numpy.divide(num, den)
+                )
         return r2_score
 
     def reset_state(self):
         for v in self.variables:
-            v.assign(ops.zeros(v.shape, dtype=v.dtype))
+            v.assign(backend.ops.numpy.zeros(v.shape, dtype=v.dtype))
 
     def get_config(self):
         config = {

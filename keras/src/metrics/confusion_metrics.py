@@ -3,7 +3,6 @@ import numpy as np
 from keras.src import activations
 from keras.src import backend
 from keras.src import initializers
-from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.metrics import metrics_utils
 from keras.src.metrics.metric import Metric
@@ -390,16 +389,16 @@ class Precision(Metric):
         )
 
     def result(self):
-        result = ops.divide_no_nan(
+        result = backend.ops.numpy.divide_no_nan(
             self.true_positives,
-            ops.add(self.true_positives, self.false_positives),
+            backend.ops.numpy.add(self.true_positives, self.false_positives),
         )
         return result[0] if len(self.thresholds) == 1 else result
 
     def reset_state(self):
         num_thresholds = len(to_list(self.thresholds))
-        self.true_positives.assign(ops.zeros((num_thresholds,)))
-        self.false_positives.assign(ops.zeros((num_thresholds,)))
+        self.true_positives.assign(backend.ops.numpy.zeros((num_thresholds,)))
+        self.false_positives.assign(backend.ops.numpy.zeros((num_thresholds,)))
 
     def get_config(self):
         config = {
@@ -534,16 +533,16 @@ class Recall(Metric):
         )
 
     def result(self):
-        result = ops.divide_no_nan(
+        result = backend.ops.numpy.divide_no_nan(
             self.true_positives,
-            ops.add(self.true_positives, self.false_negatives),
+            backend.ops.numpy.add(self.true_positives, self.false_negatives),
         )
         return result[0] if len(self.thresholds) == 1 else result
 
     def reset_state(self):
         num_thresholds = len(to_list(self.thresholds))
-        self.true_positives.assign(ops.zeros((num_thresholds,)))
-        self.false_negatives.assign(ops.zeros((num_thresholds,)))
+        self.true_positives.assign(backend.ops.numpy.zeros((num_thresholds,)))
+        self.false_negatives.assign(backend.ops.numpy.zeros((num_thresholds,)))
 
     def get_config(self):
         config = {
@@ -637,10 +636,10 @@ class SensitivitySpecificityBase(Metric):
 
     def reset_state(self):
         num_thresholds = len(self.thresholds)
-        self.true_positives.assign(ops.zeros((num_thresholds,)))
-        self.false_positives.assign(ops.zeros((num_thresholds,)))
-        self.true_negatives.assign(ops.zeros((num_thresholds,)))
-        self.false_negatives.assign(ops.zeros((num_thresholds,)))
+        self.true_positives.assign(backend.ops.numpy.zeros((num_thresholds,)))
+        self.false_positives.assign(backend.ops.numpy.zeros((num_thresholds,)))
+        self.true_negatives.assign(backend.ops.numpy.zeros((num_thresholds,)))
+        self.false_negatives.assign(backend.ops.numpy.zeros((num_thresholds,)))
 
     def get_config(self):
         config = {"class_id": self.class_id}
@@ -666,8 +665,8 @@ class SensitivitySpecificityBase(Metric):
         """
         feasible = predicate(constrained, self.value)
         # Mask values based on whether they satisfy the constraint and take max.
-        return ops.max(
-            ops.where(feasible, dependent, 0),
+        return backend.ops.numpy.max(
+            backend.ops.numpy.where(feasible, dependent, 0),
             initial=0,
         )
 
@@ -755,16 +754,16 @@ class SensitivityAtSpecificity(SensitivitySpecificityBase):
         )
 
     def result(self):
-        sensitivities = ops.divide_no_nan(
+        sensitivities = backend.ops.numpy.divide_no_nan(
             self.true_positives,
-            ops.add(self.true_positives, self.false_negatives),
+            backend.ops.numpy.add(self.true_positives, self.false_negatives),
         )
-        specificities = ops.divide_no_nan(
+        specificities = backend.ops.numpy.divide_no_nan(
             self.true_negatives,
-            ops.add(self.true_negatives, self.false_positives),
+            backend.ops.numpy.add(self.true_negatives, self.false_positives),
         )
         return self._find_max_under_constraint(
-            specificities, sensitivities, ops.greater_equal
+            specificities, sensitivities, backend.ops.numpy.greater_equal
         )
 
     def get_config(self):
@@ -859,16 +858,16 @@ class SpecificityAtSensitivity(SensitivitySpecificityBase):
         )
 
     def result(self):
-        sensitivities = ops.divide_no_nan(
+        sensitivities = backend.ops.numpy.divide_no_nan(
             self.true_positives,
-            ops.add(self.true_positives, self.false_negatives),
+            backend.ops.numpy.add(self.true_positives, self.false_negatives),
         )
-        specificities = ops.divide_no_nan(
+        specificities = backend.ops.numpy.divide_no_nan(
             self.true_negatives,
-            ops.add(self.true_negatives, self.false_positives),
+            backend.ops.numpy.add(self.true_negatives, self.false_positives),
         )
         return self._find_max_under_constraint(
-            sensitivities, specificities, ops.greater_equal
+            sensitivities, specificities, backend.ops.numpy.greater_equal
         )
 
     def get_config(self):
@@ -949,16 +948,16 @@ class PrecisionAtRecall(SensitivitySpecificityBase):
         )
 
     def result(self):
-        recalls = ops.divide_no_nan(
+        recalls = backend.ops.numpy.divide_no_nan(
             self.true_positives,
-            ops.add(self.true_positives, self.false_negatives),
+            backend.ops.numpy.add(self.true_positives, self.false_negatives),
         )
-        precisions = ops.divide_no_nan(
+        precisions = backend.ops.numpy.divide_no_nan(
             self.true_positives,
-            ops.add(self.true_positives, self.false_positives),
+            backend.ops.numpy.add(self.true_positives, self.false_positives),
         )
         return self._find_max_under_constraint(
-            recalls, precisions, ops.greater_equal
+            recalls, precisions, backend.ops.numpy.greater_equal
         )
 
     def get_config(self):
@@ -1044,16 +1043,16 @@ class RecallAtPrecision(SensitivitySpecificityBase):
         )
 
     def result(self):
-        recalls = ops.divide_no_nan(
+        recalls = backend.ops.numpy.divide_no_nan(
             self.true_positives,
-            ops.add(self.true_positives, self.false_negatives),
+            backend.ops.numpy.add(self.true_positives, self.false_negatives),
         )
-        precisions = ops.divide_no_nan(
+        precisions = backend.ops.numpy.divide_no_nan(
             self.true_positives,
-            ops.add(self.true_positives, self.false_positives),
+            backend.ops.numpy.add(self.true_positives, self.false_positives),
         )
         return self._find_max_under_constraint(
-            precisions, recalls, ops.greater_equal
+            precisions, recalls, backend.ops.numpy.greater_equal
         )
 
     def get_config(self):
@@ -1268,7 +1267,9 @@ class AUC(Metric):
         self.multi_label = multi_label
         self.num_labels = num_labels
         if label_weights is not None:
-            label_weights = ops.array(label_weights, dtype=self.dtype)
+            label_weights = backend.ops.numpy.array(
+                label_weights, dtype=self.dtype
+            )
             self.label_weights = label_weights
 
         else:
@@ -1418,48 +1419,68 @@ class AUC(Metric):
             pr_auc: an approximation of the area under the P-R curve.
         """
 
-        dtp = ops.subtract(
+        dtp = backend.ops.numpy.subtract(
             self.true_positives[: self.num_thresholds - 1],
             self.true_positives[1:],
         )
-        p = ops.add(self.true_positives, self.false_positives)
-        dp = ops.subtract(p[: self.num_thresholds - 1], p[1:])
-        prec_slope = ops.divide_no_nan(dtp, ops.maximum(dp, 0))
-        intercept = ops.subtract(
-            self.true_positives[1:], ops.multiply(prec_slope, p[1:])
+        p = backend.ops.numpy.add(self.true_positives, self.false_positives)
+        dp = backend.ops.numpy.subtract(p[: self.num_thresholds - 1], p[1:])
+        prec_slope = backend.ops.numpy.divide_no_nan(
+            dtp, backend.ops.numpy.maximum(dp, 0)
+        )
+        intercept = backend.ops.numpy.subtract(
+            self.true_positives[1:],
+            backend.ops.numpy.multiply(prec_slope, p[1:]),
         )
 
-        safe_p_ratio = ops.where(
-            ops.logical_and(p[: self.num_thresholds - 1] > 0, p[1:] > 0),
-            ops.divide_no_nan(
-                p[: self.num_thresholds - 1], ops.maximum(p[1:], 0)
+        safe_p_ratio = backend.ops.numpy.where(
+            backend.ops.numpy.logical_and(
+                p[: self.num_thresholds - 1] > 0, p[1:] > 0
             ),
-            ops.ones_like(p[1:]),
+            backend.ops.numpy.divide_no_nan(
+                p[: self.num_thresholds - 1],
+                backend.ops.numpy.maximum(p[1:], 0),
+            ),
+            backend.ops.numpy.ones_like(p[1:]),
         )
 
-        pr_auc_increment = ops.divide_no_nan(
-            ops.multiply(
+        pr_auc_increment = backend.ops.numpy.divide_no_nan(
+            backend.ops.numpy.multiply(
                 prec_slope,
-                (ops.add(dtp, ops.multiply(intercept, ops.log(safe_p_ratio)))),
+                (
+                    backend.ops.numpy.add(
+                        dtp,
+                        backend.ops.numpy.multiply(
+                            intercept, backend.ops.numpy.log(safe_p_ratio)
+                        ),
+                    )
+                ),
             ),
-            ops.maximum(
-                ops.add(self.true_positives[1:], self.false_negatives[1:]), 0
+            backend.ops.numpy.maximum(
+                backend.ops.numpy.add(
+                    self.true_positives[1:], self.false_negatives[1:]
+                ),
+                0,
             ),
         )
 
         if self.multi_label:
-            by_label_auc = ops.sum(pr_auc_increment, axis=0)
+            by_label_auc = backend.ops.numpy.sum(pr_auc_increment, axis=0)
             if self.label_weights is None:
                 # Evenly weighted average of the label AUCs.
-                return ops.mean(by_label_auc)
+                return backend.ops.numpy.mean(by_label_auc)
             else:
                 # Weighted average of the label AUCs.
-                return ops.divide_no_nan(
-                    ops.sum(ops.multiply(by_label_auc, self.label_weights)),
-                    ops.sum(self.label_weights),
+                return backend.ops.numpy.divide_no_nan(
+                    backend.ops.numpy.sum(
+                        backend.ops.numpy.multiply(
+                            by_label_auc, self.label_weights
+                        )
+                    ),
+                    backend.ops.numpy.sum(self.label_weights),
                 )
         else:
-            return ops.sum(pr_auc_increment)
+            return backend.ops.numpy.sum(pr_auc_increment)
 
     def result(self):
         if (
@@ -1471,21 +1492,25 @@ class AUC(Metric):
             return self.interpolate_pr_auc()
 
         # Set `x` and `y` values for the curves based on `curve` config.
-        recall = ops.divide_no_nan(
+        recall = backend.ops.numpy.divide_no_nan(
             self.true_positives,
-            ops.add(self.true_positives, self.false_negatives),
+            backend.ops.numpy.add(self.true_positives, self.false_negatives),
         )
         if self.curve == metrics_utils.AUCCurve.ROC:
-            fp_rate = ops.divide_no_nan(
+            fp_rate = backend.ops.numpy.divide_no_nan(
                 self.false_positives,
-                ops.add(self.false_positives, self.true_negatives),
+                backend.ops.numpy.add(
+                    self.false_positives, self.true_negatives
+                ),
             )
             x = fp_rate
             y = recall
         elif self.curve == metrics_utils.AUCCurve.PR:  # curve == 'PR'.
-            precision = ops.divide_no_nan(
+            precision = backend.ops.numpy.divide_no_nan(
                 self.true_positives,
-                ops.add(self.true_positives, self.false_positives),
+                backend.ops.numpy.add(
+                    self.true_positives, self.false_positives
+                ),
             )
             x = recall
             y = precision
@@ -1506,26 +1531,42 @@ class AUC(Metric):
 
             # The scaling factor $\frac{P}{N}$ that is used to for both gain
             # values.
-            scaling_factor = ops.divide_no_nan(
-                ops.add(self.true_positives, self.false_negatives),
-                ops.add(self.true_negatives, self.false_positives),
+            scaling_factor = backend.ops.numpy.divide_no_nan(
+                backend.ops.numpy.add(
+                    self.true_positives, self.false_negatives
+                ),
+                backend.ops.numpy.add(
+                    self.true_negatives, self.false_positives
+                ),
             )
 
-            recall_gain = 1.0 - scaling_factor * ops.divide_no_nan(
-                self.false_negatives, self.true_positives
+            recall_gain = (
+                1.0
+                - scaling_factor
+                * backend.ops.numpy.divide_no_nan(
+                    self.false_negatives, self.true_positives
+                )
             )
-            precision_gain = 1.0 - scaling_factor * ops.divide_no_nan(
-                self.false_positives, self.true_positives
+            precision_gain = (
+                1.0
+                - scaling_factor
+                * backend.ops.numpy.divide_no_nan(
+                    self.false_positives, self.true_positives
+                )
             )
             # Handle case 2.
-            recall_gain = ops.where(
-                ops.equal(self.true_positives, 0.0), 0.0, recall_gain
+            recall_gain = backend.ops.numpy.where(
+                backend.ops.numpy.equal(self.true_positives, 0.0),
+                0.0,
+                recall_gain,
             )
-            precision_gain = ops.where(
-                ops.equal(self.true_positives, 0.0), 1.0, precision_gain
+            precision_gain = backend.ops.numpy.where(
+                backend.ops.numpy.equal(self.true_positives, 0.0),
+                1.0,
+                precision_gain,
             )
             # Handle case 3.
-            recall_gain = ops.maximum(recall_gain, 0.0)
+            recall_gain = backend.ops.numpy.maximum(recall_gain, 0.0)
 
             x = recall_gain
             y = precision_gain
@@ -1536,33 +1577,42 @@ class AUC(Metric):
             == metrics_utils.AUCSummationMethod.INTERPOLATION
         ):
             # Note: the case ('PR', 'interpolation') has been handled above.
-            heights = ops.divide(
-                ops.add(y[: self.num_thresholds - 1], y[1:]), 2.0
+            heights = backend.ops.numpy.divide(
+                backend.ops.numpy.add(y[: self.num_thresholds - 1], y[1:]), 2.0
             )
         elif self.summation_method == metrics_utils.AUCSummationMethod.MINORING:
-            heights = ops.minimum(y[: self.num_thresholds - 1], y[1:])
+            heights = backend.ops.numpy.minimum(
+                y[: self.num_thresholds - 1], y[1:]
+            )
         # self.summation_method = metrics_utils.AUCSummationMethod.MAJORING:
         else:
-            heights = ops.maximum(y[: self.num_thresholds - 1], y[1:])
+            heights = backend.ops.numpy.maximum(
+                y[: self.num_thresholds - 1], y[1:]
+            )
 
         # Sum up the areas of all the rectangles.
-        riemann_terms = ops.multiply(
-            ops.subtract(x[: self.num_thresholds - 1], x[1:]), heights
+        riemann_terms = backend.ops.numpy.multiply(
+            backend.ops.numpy.subtract(x[: self.num_thresholds - 1], x[1:]),
+            heights,
         )
         if self.multi_label:
-            by_label_auc = ops.sum(riemann_terms, axis=0)
+            by_label_auc = backend.ops.numpy.sum(riemann_terms, axis=0)
 
             if self.label_weights is None:
                 # Unweighted average of the label AUCs.
-                return ops.mean(by_label_auc)
+                return backend.ops.numpy.mean(by_label_auc)
             else:
                 # Weighted average of the label AUCs.
-                return ops.divide_no_nan(
-                    ops.sum(ops.multiply(by_label_auc, self.label_weights)),
-                    ops.sum(self.label_weights),
+                return backend.ops.numpy.divide_no_nan(
+                    backend.ops.numpy.sum(
+                        backend.ops.numpy.multiply(
+                            by_label_auc, self.label_weights
+                        )
+                    ),
+                    backend.ops.numpy.sum(self.label_weights),
                 )
         else:
-            return ops.sum(riemann_terms)
+            return backend.ops.numpy.sum(riemann_terms)
 
     def reset_state(self):
         if self._built:
@@ -1571,10 +1621,10 @@ class AUC(Metric):
             else:
                 variable_shape = (self.num_thresholds,)
 
-            self.true_positives.assign(ops.zeros(variable_shape))
-            self.false_positives.assign(ops.zeros(variable_shape))
-            self.true_negatives.assign(ops.zeros(variable_shape))
-            self.false_negatives.assign(ops.zeros(variable_shape))
+            self.true_positives.assign(backend.ops.numpy.zeros(variable_shape))
+            self.false_positives.assign(backend.ops.numpy.zeros(variable_shape))
+            self.true_negatives.assign(backend.ops.numpy.zeros(variable_shape))
+            self.false_negatives.assign(backend.ops.numpy.zeros(variable_shape))
 
     def get_config(self):
         label_weights = self.label_weights
