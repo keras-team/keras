@@ -883,6 +883,16 @@ class SavingAPITest(testing.TestCase):
         model = keras.saving.load_model(temp_filepath)
         self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
 
+    def test_model_api_endpoint_unzipped_existing_directory(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel")
+        model = _get_basic_functional_model(compile=False)
+        model.save(temp_filepath, zipped=False)
+        model.set_weights([w + 1 for w in model.get_weights()])
+        model.save(temp_filepath, zipped=False)
+        loaded_model = keras.saving.load_model(temp_filepath)
+        for w_ref, w in zip(model.variables, loaded_model.variables):
+            self.assertAllClose(w, w_ref)
+
     def test_model_api_errors(self):
         model = _get_basic_functional_model()
 
