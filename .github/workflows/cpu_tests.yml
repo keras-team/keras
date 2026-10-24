@@ -30,7 +30,7 @@ jobs:
       image: python:3.11-slim
 
     name: ${{ format('Run tests on CPU ({0}{1})', matrix.backend, matrix.nnx_enabled && ', NNX' || '') }}
-    runs-on: linux-x86-n2-16
+    runs-on: linux-x86-n4-16
     timeout-minutes: ${{ inputs.timeout }}
 
     env:
