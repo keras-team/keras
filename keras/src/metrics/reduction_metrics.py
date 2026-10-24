@@ -1,7 +1,6 @@
 from keras.src import backend
 from keras.src import initializers
 from keras.src import losses
-from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.metrics.metric import Metric
 from keras.src.saving import serialization_lib
@@ -10,9 +9,11 @@ from keras.src.saving import serialization_lib
 def reduce_to_samplewise_values(values, sample_weight, reduce_fn, dtype):
     dtype = dtype or backend.floatx()
     mask = backend.get_keras_mask(values)
-    values = ops.cast(values, dtype=dtype)
+    values = backend.ops.cast(values, dtype=dtype)
     if sample_weight is not None:
-        sample_weight = ops.convert_to_tensor(sample_weight, dtype=dtype)
+        sample_weight = backend.ops.convert_to_tensor(
+            sample_weight, dtype=dtype
+        )
 
         if mask is not None:
             sample_weight = losses.loss.apply_mask(
@@ -31,7 +32,9 @@ def reduce_to_samplewise_values(values, sample_weight, reduce_fn, dtype):
             )
         # Broadcast sample_weight. It doesn't change the multiplication below
         # but changes the sample_weight reduction applied later.
-        sample_weight = ops.broadcast_to(sample_weight, ops.shape(values))
+        sample_weight = backend.ops.numpy.broadcast_to(
+            sample_weight, backend.ops.shape(values)
+        )
         values = values * sample_weight
         if weight_ndim > 1:
             sample_weight = reduce_fn(
@@ -82,15 +85,18 @@ class Sum(Metric):
 
     def update_state(self, values, sample_weight=None):
         values, _ = reduce_to_samplewise_values(
-            values, sample_weight, reduce_fn=ops.sum, dtype=self.dtype
+            values,
+            sample_weight,
+            reduce_fn=backend.ops.numpy.sum,
+            dtype=self.dtype,
         )
-        self.total.assign_add(ops.sum(values))
+        self.total.assign_add(backend.ops.numpy.sum(values))
 
     def reset_state(self):
         self.total.assign(0)
 
     def result(self):
-        return ops.cast(self.total, self.dtype)
+        return backend.ops.cast(self.total, self.dtype)
 
 
 @keras_export("keras.metrics.Mean")
@@ -137,24 +143,27 @@ class Mean(Metric):
 
     def update_state(self, values, sample_weight=None):
         values, sample_weight = reduce_to_samplewise_values(
-            values, sample_weight, reduce_fn=ops.mean, dtype=self.dtype
+            values,
+            sample_weight,
+            reduce_fn=backend.ops.numpy.mean,
+            dtype=self.dtype,
         )
-        self.total.assign_add(ops.sum(values))
+        self.total.assign_add(backend.ops.numpy.sum(values))
         if sample_weight is not None:
-            num_samples = ops.sum(sample_weight)
+            num_samples = backend.ops.numpy.sum(sample_weight)
         elif len(values.shape) >= 1:
-            num_samples = ops.shape(values)[0]
+            num_samples = backend.ops.shape(values)[0]
         else:
             num_samples = 1
-        self.count.assign_add(ops.cast(num_samples, dtype=self.dtype))
+        self.count.assign_add(backend.ops.cast(num_samples, dtype=self.dtype))
 
     def reset_state(self):
         self.total.assign(0)
         self.count.assign(0)
 
     def result(self):
-        return ops.divide_no_nan(
-            self.total, ops.cast(self.count, dtype=self.dtype)
+        return backend.ops.numpy.divide_no_nan(
+            self.total, backend.ops.cast(self.count, dtype=self.dtype)
         )
 
 
