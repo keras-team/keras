@@ -3861,6 +3861,93 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(ops.convert_to_numpy(x1_grad), expected_x1_grad)
         self.assertAllClose(ops.convert_to_numpy(x2_grad), expected_x2_grad)
 
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_GRADIENT,
+        reason="Backend does not support gradients.",
+    )
+    def test_logaddexp_gradients(self):
+        # Equal inputs should produce 0.5 partial derivatives
+        # (fixes tensorflow/tensorflow#127232)
+        expected_x1_grad = np.array([0.5, 0.5, 0.5], dtype="float32")
+        expected_x2_grad = np.array([0.5, 0.5, 0.5], dtype="float32")
+
+        def f(x1, x2):
+            return knp.logaddexp(x1, x2)
+
+        x1 = knp.array([-4.0, 0.0, 5.0])
+        x2 = knp.array([-4.0, 0.0, 5.0])
+        x1_grad, x2_grad = ops.grad(f, argnums=(0, 1))(x1, x2)
+
+        self.assertAllClose(ops.convert_to_numpy(x1_grad), expected_x1_grad)
+        self.assertAllClose(ops.convert_to_numpy(x2_grad), expected_x2_grad)
+
+        # Exact weighted reproducer from tensorflow/tensorflow#127232
+        def f_weighted(t):
+            y = knp.logaddexp(t, knp.array([-4.0, 0.0, 5.0], dtype="float64"))
+            return y[0] + 2 * y[1] - y[2] / 2
+
+        grad_t = ops.grad(f_weighted)(knp.array(-4.0, dtype="float64"))
+        self.assertAllClose(
+            ops.convert_to_numpy(grad_t), 0.53591072263619, atol=1e-7
+        )
+
+        # Test gradient with infinite inputs
+        def f_inf(x1, x2):
+            return knp.logaddexp(x1, x2)
+
+        x1 = knp.array([np.inf, 5.0])
+        x2 = knp.array([5.0, -np.inf])
+        x1_grad = ops.grad(f_inf, argnums=0)(x1, x2)
+        self.assertAllClose(ops.convert_to_numpy(x1_grad), [1.0, 1.0])
+
+        # Mixed finite and non-finite batch WhereGrad test
+        def f_mixed(xb1, xb2):
+            yb = knp.logaddexp(xb1, xb2)
+            return ops.sum(ops.where(knp.isfinite(yb), yb, 0.0))
+
+        xb1 = knp.array([1.0, np.inf, -np.inf])
+        xb2 = knp.array([0.0, 0.0, 5.0])
+        g_xb1 = ops.grad(f_mixed, argnums=0)(xb1, xb2)
+        self.assertTrue(np.isfinite(ops.convert_to_numpy(g_xb1)[0]))
+
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_GRADIENT,
+        reason="Backend does not support gradients.",
+    )
+    def test_logaddexp2_gradients(self):
+        # Equal inputs should produce 0.5 partial derivatives
+        expected_x1_grad = np.array([0.5, 0.5, 0.5], dtype="float32")
+        expected_x2_grad = np.array([0.5, 0.5, 0.5], dtype="float32")
+
+        def f(x1, x2):
+            return knp.logaddexp2(x1, x2)
+
+        x1 = knp.array([-4.0, 0.0, 5.0])
+        x2 = knp.array([-4.0, 0.0, 5.0])
+        x1_grad, x2_grad = ops.grad(f, argnums=(0, 1))(x1, x2)
+
+        self.assertAllClose(ops.convert_to_numpy(x1_grad), expected_x1_grad)
+        self.assertAllClose(ops.convert_to_numpy(x2_grad), expected_x2_grad)
+
+        # Test gradient with infinite inputs
+        def f_inf(x1, x2):
+            return knp.logaddexp2(x1, x2)
+
+        x1 = knp.array([np.inf, 5.0])
+        x2 = knp.array([5.0, -np.inf])
+        x1_grad = ops.grad(f_inf, argnums=0)(x1, x2)
+        self.assertAllClose(ops.convert_to_numpy(x1_grad), [1.0, 1.0])
+
+        # Mixed finite and non-finite batch WhereGrad test
+        def f_mixed(xb1, xb2):
+            yb = knp.logaddexp2(xb1, xb2)
+            return ops.sum(ops.where(knp.isfinite(yb), yb, 0.0))
+
+        xb1 = knp.array([1.0, np.inf, -np.inf])
+        xb2 = knp.array([0.0, 0.0, 5.0])
+        g_xb1 = ops.grad(f_mixed, argnums=0)(xb1, xb2)
+        self.assertTrue(np.isfinite(ops.convert_to_numpy(g_xb1)[0]))
+
     def test_true_divide(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
@@ -4505,6 +4592,24 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.ldexp(x, y), np.ldexp(x, y))
         self.assertAllClose(knp.Ldexp()(x, y), np.ldexp(x, y))
 
+        # Test zero input values and overflow exponents preserving signed zero
+        # (fixes tensorflow/tensorflow#127244)
+        x_f64 = np.array([0.0, -0.0, 0.0, -0.0, 1.0], dtype=np.float64)
+        y_f64 = np.array([1024, 1024, -3, -3, 4], dtype=np.int32)
+        out_f64 = self.convert_to_numpy(knp.ldexp(x_f64, y_f64))
+        ref_f64 = np.ldexp(x_f64, y_f64)
+        self.assertFalse(np.any(np.isnan(out_f64)))
+        self.assertAllClose(out_f64, ref_f64)
+        self.assertAllEqual(np.signbit(out_f64), np.signbit(ref_f64))
+
+        x_f32 = np.array([0.0, -0.0, 0.0, -0.0], dtype=np.float32)
+        y_f32 = np.array([128, 128, -3, -3], dtype=np.int32)
+        out_f32 = self.convert_to_numpy(knp.ldexp(x_f32, y_f32))
+        ref_f32 = np.ldexp(x_f32, y_f32)
+        self.assertFalse(np.any(np.isnan(out_f32)))
+        self.assertAllClose(out_f32, ref_f32)
+        self.assertAllEqual(np.signbit(out_f32), np.signbit(ref_f32))
+
     def test_less(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
@@ -4744,7 +4849,10 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Fmod()(xf, yf), np.fmod(xf, yf))
         self.assertAllClose(knp.Fmod()(xf, 1.5), np.fmod(xf, 1.5))
 
-    def test_nanpercentile(self):
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_nanpercentile(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         x = np.array(
             [
                 [[np.nan, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]],
@@ -6135,7 +6243,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_view(self):
         x = np.array(1, dtype="int16")
         result = knp.view(x, dtype="float16")
-        self.assertEqual(backend.standardize_dtype(result.dtype), "float16")
+        self.assertEqual(standardize_dtype(result.dtype), "float16")
 
         with self.assertRaises(Exception):
             result = knp.view(x, dtype="int8")
@@ -6145,26 +6253,26 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
         x = np.array([[1, 2, 3, 4], [5, 6, 7, 8]], dtype="int16")
         result = knp.view(x, dtype="int16")
-        self.assertEqual(backend.standardize_dtype(result.dtype), "int16")
+        self.assertEqual(standardize_dtype(result.dtype), "int16")
 
         self.assertEqual(
-            backend.standardize_dtype(knp.view(x, dtype="int16").dtype), "int16"
+            standardize_dtype(knp.view(x, dtype="int16").dtype), "int16"
         )
         self.assertAllClose(knp.view(x, dtype="int16"), x.view("int16"))
 
         self.assertEqual(
-            backend.standardize_dtype(knp.view(x, dtype="float16").dtype),
+            standardize_dtype(knp.view(x, dtype="float16").dtype),
             "float16",
         )
         self.assertAllClose(knp.view(x, dtype="float16"), x.view("float16"))
 
         self.assertEqual(
-            backend.standardize_dtype(knp.view(x, dtype="int8").dtype), "int8"
+            standardize_dtype(knp.view(x, dtype="int8").dtype), "int8"
         )
         self.assertAllClose(knp.view(x, dtype="int8"), x.view("int8"))
 
         self.assertEqual(
-            backend.standardize_dtype(knp.view(x, dtype="int32").dtype), "int32"
+            standardize_dtype(knp.view(x, dtype="int32").dtype), "int32"
         )
         self.assertAllClose(knp.view(x, dtype="int32"), x.view("int32"))
 
@@ -6175,7 +6283,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         for dtype in ("int16", "int32", "float32"):
             x = np.arange(8, dtype=dtype)
             result = knp.view(x)
-            self.assertEqual(backend.standardize_dtype(result.dtype), dtype)
+            self.assertEqual(standardize_dtype(result.dtype), dtype)
             self.assertEqual(tuple(result.shape), x.shape)
             self.assertAllClose(result, x)
 
@@ -6699,11 +6807,35 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.logaddexp(x, y), np.logaddexp(x, y))
         self.assertAllClose(knp.Logaddexp()(x, y), np.logaddexp(x, y))
 
+        # Edge cases: equal values, extremes
+        x_edge = np.array([-1000.0, 1000.0, -4.0, 0.0])
+        y_edge = np.array([-1000.0, 1000.0, -4.0, 0.0])
+        self.assertAllClose(
+            knp.logaddexp(x_edge, y_edge), np.logaddexp(x_edge, y_edge)
+        )
+        x_inf = np.array([np.inf, -np.inf])
+        y_inf = np.array([5.0, 5.0])
+        self.assertAllClose(
+            knp.logaddexp(x_inf, y_inf), np.logaddexp(x_inf, y_inf)
+        )
+
     def test_logaddexp2(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.logaddexp2(x, y), np.logaddexp2(x, y))
         self.assertAllClose(knp.Logaddexp2()(x, y), np.logaddexp2(x, y))
+
+        # Edge cases: equal values, extremes
+        x_edge = np.array([-1000.0, 1000.0, -4.0, 0.0])
+        y_edge = np.array([-1000.0, 1000.0, -4.0, 0.0])
+        self.assertAllClose(
+            knp.logaddexp2(x_edge, y_edge), np.logaddexp2(x_edge, y_edge)
+        )
+        x_inf = np.array([np.inf, -np.inf])
+        y_inf = np.array([5.0, 5.0])
+        self.assertAllClose(
+            knp.logaddexp2(x_inf, y_inf), np.logaddexp2(x_inf, y_inf)
+        )
 
     def test_logical_not(self):
         x = np.array([[True, False], [False, True]])
@@ -7765,6 +7897,33 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.FloorDivide()(x, y), np.floor_divide(x, y))
         self.assertAllClose(knp.FloorDivide()(x, z), np.floor_divide(x, z))
 
+    @parameterized.named_parameters(
+        named_product(dtype=["float16", "float32", "float64", "bfloat16"])
+    )
+    def test_floor_divide_float_quotient_rounding(self, dtype):
+        if testing.uses_tpu() and dtype in ["float32", "float64"]:
+            self.skipTest("TPUs use bfloat16 for division")
+
+        # In float32, 4.2 / 1.4 and 0.7 / 0.1 round up to the whole numbers 3
+        # and 7, which the exact quotients are just below.
+        x = ops.cast(np.array([4.2, 0.7, -1.0, 5.0, -5.0], "float32"), dtype)
+        y = ops.cast(np.array([1.4, 0.1, 0.1, -3.0, 3.0], "float32"), dtype)
+        result = knp.floor_divide(x, y)
+        # The exact floor division of the values the backend holds.
+        x_np = ops.convert_to_numpy(ops.cast(x, "float32")).astype("float64")
+        y_np = ops.convert_to_numpy(ops.cast(y, "float32")).astype("float64")
+        self.assertAllClose(
+            ops.cast(result, "float32"), np.floor_divide(x_np, y_np)
+        )
+        # `x == x // y * y + x % y`
+        self.assertAllClose(
+            ops.cast(
+                knp.add(knp.multiply(result, y), knp.mod(x, y)), "float32"
+            ),
+            x_np,
+            atol=1e-2,
+        )
+
     def test_xor(self):
         x = np.array([[True, False], [True, True]])
         y = np.array([[False, False], [True, False]])
@@ -8454,7 +8613,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             out, np.vectorize(np.diag, signature="(d,d)->(d)")(np.eye(4))
         )
 
-    def test_argpartition(self):
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_argpartition(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         x = np.array([3, 4, 2, 1])
         self.assertAllClose(knp.argpartition(x, 2), np.argpartition(x, 2))
         self.assertAllClose(knp.Argpartition(2)(x), np.argpartition(x, 2))
@@ -9787,10 +9949,14 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_argpartition(self, dtype):
+    @parameterized.named_parameters(
+        named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
+    )
+    def test_argpartition(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         if dtype == "bool":
             self.skipTest("argpartition doesn't support bool dtype")
 
@@ -12151,10 +12317,14 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_nanpercentile(self, dtype):
+    @parameterized.named_parameters(
+        named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
+    )
+    def test_nanpercentile(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         x = knp.ones((3,), dtype=dtype)
         x_jax = jnp.ones((3,), dtype=dtype)
 

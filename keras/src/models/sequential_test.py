@@ -317,6 +317,28 @@ class SequentialTest(testing.TestCase):
         )
         self.assertLen(revived.layers, 1)
 
+    def test_from_config_keeps_variable_paths(self):
+        # Regression test for #23251: deserializing builds the layers, and
+        # their variables must get the same `<model>/<layer>/...` paths as in
+        # a model built from scratch, so state trees can be restored.
+        for model in [
+            Sequential([Input(shape=(3,)), layers.Dense(4), layers.Dense(5)]),
+            Sequential([layers.Dense(4), layers.Dense(5)]),
+        ]:
+            model.build((None, 3))
+            model.compile(optimizer="sgd", loss="mse")
+            revived = Sequential.from_config(model.get_config())
+            self.assertEqual(
+                [v.path for v in revived.weights],
+                [v.path for v in model.weights],
+            )
+            state = model.get_state_tree()
+            revived.set_state_tree(
+                {"trainable_variables": state["trainable_variables"]}
+            )
+            for orig, new in zip(model.get_weights(), revived.get_weights()):
+                self.assertAllClose(orig, new)
+
     def test_serialization_with_lambda_layer(self):
         # https://github.com/keras-team/keras/issues/20074
         inputs = np.random.random(size=(1, 10, 4)).astype("float32")

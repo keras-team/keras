@@ -604,6 +604,12 @@ class ModelParallel(Distribution):
         print(v.path)
     ```
 
+    With the PyTorch backend, each process holds only its own shards of a
+    sharded variable. Reading the full value, for example in `model.save()`,
+    `model.get_weights()`, `model.predict()` or
+    `keras.ops.convert_to_numpy()`, gathers the shards from all processes,
+    so call these methods on every process, not only on process 0.
+
     Args:
         layout_map: `LayoutMap` instance which map the variable path to the
             corresponding tensor layout.
