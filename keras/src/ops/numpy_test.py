@@ -8613,7 +8613,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             out, np.vectorize(np.diag, signature="(d,d)->(d)")(np.eye(4))
         )
 
-    def test_argpartition(self):
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_argpartition(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         x = np.array([3, 4, 2, 1])
         self.assertAllClose(knp.argpartition(x, 2), np.argpartition(x, 2))
         self.assertAllClose(knp.Argpartition(2)(x), np.argpartition(x, 2))
@@ -9946,10 +9949,14 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_argpartition(self, dtype):
+    @parameterized.named_parameters(
+        named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
+    )
+    def test_argpartition(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         if dtype == "bool":
             self.skipTest("argpartition doesn't support bool dtype")
 
