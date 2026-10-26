@@ -3071,6 +3071,7 @@ def split(x, indices_or_sections, axis=0):
         # `indices_or_sections` to the appropriate format.
         total_size = x.shape[axis]
         indices_or_sections = convert_to_tensor(indices_or_sections)
+        total_size = shape_op(x)[axis]
         # Like NumPy, wrap negative indices and clip them to the axis length.
         indices_or_sections = tf.where(
             indices_or_sections < 0,
