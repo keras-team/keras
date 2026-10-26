@@ -35,6 +35,7 @@ from keras.src.backend import KerasTensor
 from keras.src.backend.common import AutocastScope
 from keras.src.backend.common import get_autocast_scope
 from keras.src.backend.common import global_state
+from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import remat
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common import standardize_shape
@@ -1034,7 +1035,7 @@ class Layer(BackendLayer, Operation):
                     # Clear or update the current scope if necessary.
                     if not self.autocast:
                         new_scope = AutocastScope(None)
-                    elif not backend.is_float_dtype(self.compute_dtype):
+                    elif not is_float_dtype(self.compute_dtype):
                         # Some preprocessing layers might have a non-float
                         # dtype, we should not autocast in this case.
                         new_scope = AutocastScope(None)
@@ -1438,6 +1439,18 @@ class Layer(BackendLayer, Operation):
                 "quantization."
             )
 
+    def _check_quantized_build_attributes(self, geometry):
+        """Raises if `build()` did not set an attribute `geometry` reads."""
+        missing = [a for a in geometry.build_attributes if not hasattr(self, a)]
+        if missing:
+            raise ValueError(
+                f"Layer '{self.name}' (of type '{type(self).__name__}') "
+                f"cannot be quantized: its `build()` did not set "
+                f"{', '.join(missing)}. "
+                "A subclass that overrides `build()` must call "
+                "`super().build()`."
+            )
+
     def quantized_build(self, input_shape, mode, config=None):
         strategy = strategy_registry.get_strategy(mode)
         if strategy is None or not self._supports_quantization_mode(strategy):
@@ -1484,15 +1497,7 @@ class Layer(BackendLayer, Operation):
         strategy = strategy_registry.get_strategy(mode)
         if strategy is None or not self._supports_quantization_mode(strategy):
             raise self._quantization_mode_error(mode)
-        missing = [a for a in geometry.build_attributes if not hasattr(self, a)]
-        if missing:
-            raise ValueError(
-                f"Layer '{self.name}' (of type '{type(self).__name__}') "
-                f"cannot be quantized: its `build()` did not set "
-                f"{', '.join(missing)}. "
-                "A subclass that overrides `build()` must call "
-                "`super().build()`."
-            )
+        self._check_quantized_build_attributes(geometry)
         strategy.check_quantizable(self)
         if self.lora_enabled:
             self._check_lora_supported(mode)

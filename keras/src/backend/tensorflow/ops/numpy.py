@@ -2042,8 +2042,9 @@ def ldexp(x1, x2):
 
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, x1.dtype)
-    result = x1 * tf.pow(tf.constant(2.0, dtype=x1.dtype), x2)
-    return tf.cast(tf.where(tf.math.is_inf(x1) | (x1 == 0), x1, result), dtype)
+    pow_val = tf.pow(tf.constant(2.0, dtype=x1.dtype), x2)
+    result = tf.where(tf.math.is_inf(pow_val) & (x1 == 0), x1, x1 * pow_val)
+    return tf.cast(tf.where(tf.math.is_inf(x1), x1, result), dtype)
 
 
 def less(x1, x2):
@@ -2161,27 +2162,52 @@ def logaddexp(x1, x2):
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
-    delta = x1 - x2
+    amax = tf.maximum(x1, x2)
+    amin = tf.minimum(x1, x2)
+    finite_max = tf.math.is_finite(amax)
+    # Dummy center is 0 when amax is non-finite so exp/log stay finite.
+    safe_max = tf.stop_gradient(tf.where(finite_max, amax, tf.zeros_like(amax)))
+    # Unused branch: both operands = safe_max -> log(2) finite (WhereGrad).
+    use_lse = finite_max & tf.math.is_finite(amin)
+    x1_masked = tf.where(use_lse, x1, safe_max)
+    x2_masked = tf.where(use_lse, x2, safe_max)
+    lse = safe_max + tf.math.log(
+        tf.math.exp(x1_masked - safe_max) + tf.math.exp(x2_masked - safe_max)
+    )
+    # NaN in, NaN out; non-finite inputs resolve via amax (including inf pairs).
     return tf.where(
-        tf.math.is_nan(delta),
+        tf.math.is_nan(x1) | tf.math.is_nan(x2),
         x1 + x2,
-        tf.maximum(x1, x2) + tf.math.log1p(tf.math.exp(-tf.abs(delta))),
+        tf.where(use_lse, lse, amax),
     )
 
 
 def logaddexp2(x1, x2):
-    x1 = tf.convert_to_tensor(x1)
-    x2 = tf.convert_to_tensor(x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
-    delta = x1 - x2
+    amax = tf.maximum(x1, x2)
+    amin = tf.minimum(x1, x2)
+    finite_max = tf.math.is_finite(amax)
+    safe_max = tf.stop_gradient(tf.where(finite_max, amax, tf.zeros_like(amax)))
+    use_lse = finite_max & tf.math.is_finite(amin)
     log2 = tf.cast(tf.math.log(2.0), dtype)
+    x1_masked = tf.where(use_lse, x1, safe_max)
+    x2_masked = tf.where(use_lse, x2, safe_max)
+    lse = (
+        safe_max
+        + tf.math.log(
+            tf.math.exp((x1_masked - safe_max) * log2)
+            + tf.math.exp((x2_masked - safe_max) * log2)
+        )
+        / log2
+    )
     return tf.where(
-        tf.math.is_nan(delta),
+        tf.math.is_nan(x1) | tf.math.is_nan(x2),
         x1 + x2,
-        tf.maximum(x1, x2)
-        + tf.math.log1p(tf.math.exp(-tf.abs(delta) * log2)) / log2,
+        tf.where(use_lse, lse, amax),
     )
 
 
@@ -3821,10 +3847,15 @@ def floor_divide(x1, x2):
     div = (x1 - mod) / x2
     # `fmod` has the sign of `x1`; floor division rounds toward -inf.
     div = tf.where(
-        tf.logical_and(mod != 0, (mod < 0) != (x2 < 0)), div - 1, div
+        tf.logical_and(
+            tf.not_equal(mod, 0),
+            tf.math.logical_xor(tf.less(mod, 0), tf.less(x2, 0)),
+        ),
+        div - 1,
+        div,
     )
     # A zero divisor gives `x1 / x2` (inf, -inf or nan), as before.
-    result = tf.where(x2 == 0, x1 / x2, tf.round(div))
+    result = tf.where(tf.equal(x2, 0), x1 / x2, tf.round(div))
     return tf.stop_gradient(tf.cast(result, dtype))
 
 

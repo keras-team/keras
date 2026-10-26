@@ -2376,3 +2376,48 @@ class SpecNameWithoutAttributeTest(testing.TestCase):
         restored.load_own_variables(store)
         self.assertAllClose(restored.kernel, layer.kernel)
         self.assertAllClose(restored.bias, layer.bias)
+
+
+def _int4_setter_case(kind, dtype=None):
+    if kind == "dense":
+        layer = layers.Dense(6, dtype=dtype)
+        layer.build((None, 256))
+        x = np.random.default_rng(0).standard_normal((2, 256))
+    elif kind == "einsum":
+        layer = layers.EinsumDense(
+            "ab,bcd->acd", output_shape=(8, 32), bias_axes="d", dtype=dtype
+        )
+        layer.build((None, 256))
+        x = np.random.default_rng(0).standard_normal((2, 256))
+    elif kind == "embedding":
+        layer = layers.Embedding(300, 16, dtype=dtype)
+        layer.build()
+        x = np.array([[1, 2, 299]])
+    else:
+        layer = layers.ReversibleEmbedding(300, 16, dtype=dtype)
+        layer.build()
+        x = np.array([[1, 2, 299]])
+    return layer, x
+
+
+class LegacyInt4PolicySetterTest(testing.TestCase):
+    @parameterized.named_parameters(
+        ("dense", "dense"),
+        ("einsum", "einsum"),
+        ("embedding", "embedding"),
+        ("reversible_embedding", "reversible_embedding"),
+    )
+    def test_bare_int4_policy_builds_what_the_name_builds(self, kind):
+        # The legacy bare "int4" name holds no block size, and a layer built
+        # from it is per-channel. Setting it on a built layer quantizes
+        # per-channel too, so a layer built from the name alone (a
+        # `DTypePolicyMap` reload) loads the store.
+        layer, x = _int4_setter_case(kind)
+        layer.dtype_policy = "int4_from_float32"
+        self.assertEqual(layer.dtype_policy.name, "int4_from_float32")
+        store = {}
+        layer.save_own_variables(store)
+
+        restored, _ = _int4_setter_case(kind, dtype="int4_from_float32")
+        restored.load_own_variables(store)
+        self.assertAllEqual(restored(x), layer(x))

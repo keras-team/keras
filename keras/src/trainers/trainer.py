@@ -7,6 +7,7 @@ from keras.src import metrics as metrics_module
 from keras.src import ops
 from keras.src import optimizers
 from keras.src import tree
+from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.optimizers.loss_scale_optimizer import LossScaleOptimizer
 from keras.src.saving import serialization_lib
@@ -433,7 +434,7 @@ class BaseTrainer:
             A tensor representing the summed loss, cast to the `floatx()` if
             necessary.
         """
-        if not backend.is_float_dtype(loss.dtype):
+        if not is_float_dtype(loss.dtype):
             loss = ops.cast(loss, dtype=backend.floatx())
         return ops.sum(loss)
 

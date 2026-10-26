@@ -722,6 +722,20 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             dz_dx = ops.grad(log1pexp_nan)(x)
             self.assertTrue(ops.isnan(dz_dx))
 
+    def test_custom_gradient_forward_error(self):
+        calls = 0
+
+        @ops.custom_gradient
+        def failing(x):
+            nonlocal calls
+            calls += 1
+            raise RuntimeError("Forward failed.")
+
+        with self.assertRaisesRegex(RuntimeError, "Forward failed."):
+            failing(ops.ones((3,)))
+        # The forward runs once and its error reaches the caller.
+        self.assertEqual(calls, 1)
+
     def test_dynamic_slice(self):
         def cond(index, inputs, sum):
             return index < 10

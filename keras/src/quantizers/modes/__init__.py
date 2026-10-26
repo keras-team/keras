@@ -1,10 +1,10 @@
 """Built-in quantization strategies.
 
-Importing this package registers the built-in modes. They register here,
-explicitly, rather than by decorating each strategy: registration order
-is the canonical `QUANTIZATION_MODES` order, validation error messages
-render the registered-names tuple, and decorating would instead tie that
-order to the (alphabetical) import order.
+Importing this package registers the built-in modes, which are the
+complete set of modes. They register here, explicitly, rather than by
+decorating each strategy: validation error messages render the
+registered-names tuple, so its order is written down here, and decorating
+would instead tie that order to the (alphabetical) import order.
 """
 
 from keras.src.quantizers.modes.calibration import AWQStrategy

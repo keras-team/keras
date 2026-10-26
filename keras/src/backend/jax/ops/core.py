@@ -355,6 +355,12 @@ if config.is_nnx_enabled():
 
 
 def should_shard_at_init(init_layout, shape):
+    # Keras itself creates `NamedSharding` instances that have a `mesh`
+    # attribute. However, KerasRS uses layouts and formats, which do not
+    # directly have a mesh attribute. Apply the sharding in this case.
+    if not isinstance(init_layout, jax.sharding.NamedSharding):
+        return True
+
     size_threshold = 250 * 1024 * 1024
     # We multiply by the mesh size here to take into account the worst case
     # scenario of the array being first duplicated in the memory of one device

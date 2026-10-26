@@ -12,7 +12,7 @@ from keras.src import utils as keras_utils
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
 from keras.src.quantizers.capture import calibration_scope
-from keras.src.quantizers.gptq import GPTQ
+from keras.src.quantizers.gptq import GPTQCalibrator
 from keras.src.quantizers.utils import should_quantize_layer
 
 
@@ -40,15 +40,14 @@ def calibration_no_grad_scope():
 def stream_hessians(layers_map, gptq_objects, execution_trace=None):
     """
     Streams every target layer's input activations into its GPTQ
-    instance's running Hessian estimate at capture time.
+    calibrator's running Hessian estimate at capture time.
 
     On `__enter__`: For every (name, layer) in `layers_map`, registers a
      calibration capture (`keras.src.quantizers.capture`) that the
      dispatch machinery runs before each of the layer's forward passes,
-     whichever forward that is; the capture
-     1) reshapes the layer input to 2D `[-1, rows]` where
-      `rows = gptq_objects[name].rows`,
-     2) calls `gptq_objects[name].update_hessian_with_batch(x2d)`.
+     whichever forward that is; the capture calls
+     `gptq_objects[name].observe` with the layer input, which the
+     calibrator lays out as `[-1, rows]`.
 
     On `__exit__`: Every capture is removed even if an exception occurs.
      Nothing on the layers is rebound.
@@ -60,7 +59,8 @@ def stream_hessians(layers_map, gptq_objects, execution_trace=None):
         layers_map: Dict[str, Layer]. Mapping from logical layer names to
          the Keras layers to observe during calibration. Keys must
          match `gptq_objects`.
-        gptq_objects: Dict[str, GPTQ]. Mapping from names to GPTQ instances.
+        gptq_objects: Dict[str, GPTQCalibrator]. Mapping from names to
+         GPTQ calibrators.
         execution_trace: Optional dict. When provided, each layer's FIRST
          hook invocation records `{name: (call_index, input_tensor)}` into
          it — the block-level execution order and the identity of the input
@@ -93,14 +93,7 @@ def stream_hessians(layers_map, gptq_objects, execution_trace=None):
                 # id cannot be recycled while tracing).
                 execution_trace[name] = (call_counter[0], inp)
                 call_counter[0] += 1
-            # Explicitly reshape the input tensor to be 2D, with the
-            # second dimension matching the number of input features
-            # expected by the layer's kernel.
-            # This correctly handles inputs of any dimensionality
-            # (e.g., 3D or 4D).
-            num_features = gptq_objects[name].rows
-            input_2d = ops.reshape(inp, (-1, num_features))
-            gptq_objects[name].update_hessian_with_batch(input_2d)
+            gptq_objects[name].observe(inp)
 
         return capture
 
@@ -110,34 +103,24 @@ def stream_hessians(layers_map, gptq_objects, execution_trace=None):
         yield
 
 
-def get_dataloader(
-    tokenizer,
-    sequence_length,
-    dataset,
-    num_samples=128,
-    *,
-    strategy="strided",
-    seed=42,
-    stride=None,
-    eos_id=None,
-):
-    """
-    Prepares and chunks the calibration dataloader, repeating short datasets.
-    All processing happens on the CPU.
+# Seed of the offset of the first calibration window.
+_WINDOW_OFFSET_SEED = 42
+
+
+def get_dataloader(tokenizer, sequence_length, dataset, num_samples=128):
+    """Cuts `num_samples` token windows out of the calibration dataset.
+
+    The dataset is tokenized into one token stream, repeated if it is too
+    short, and windows of `sequence_length` tokens are taken at a regular
+    stride from a fixed offset. All processing happens on the CPU.
+    Documents are joined with no separator, so a window can span two of
+    them, and the start offsets wrap around the end of the token stream.
 
     Args:
         tokenizer: The tokenizer to use for text splitting.
         sequence_length: The length of each input sequence.
         dataset: The dataset to sample from.
         num_samples: The number of samples to generate.
-        strategy: The sampling strategy to use. Possible values are
-         1. "strided": Samples are taken at regular intervals.
-         2. "linspace": Samples are taken at evenly spaced intervals.
-         3. "random": Samples are taken at random positions.
-        seed: The random seed for reproducibility. Used only if
-         strategy="random"
-        stride: The stride length for "strided" sampling.
-        eos_id: The end-of-sequence token ID.
 
     Returns:
         np.ndarray of shape (num_samples, 1, sequence_length), dtype int32.
@@ -154,24 +137,11 @@ def get_dataloader(
     if not dataset_list:
         raise ValueError("Provided dataset is empty.")
 
-    pieces = []
     if isinstance(dataset_list[0], str):
-        for i, s in enumerate(dataset_list):
-            toks = ops.convert_to_numpy(tokenizer.tokenize(s)).reshape(-1)
-            pieces.append(toks)
-            # avoid windows that span document boundaries
-            if eos_id is not None and i < len(dataset_list) - 1:
-                pieces.append(np.array([eos_id], dtype=np.int32))
-    else:
-        for s in dataset_list:
-            toks = ops.convert_to_numpy(s).reshape(-1)
-            pieces.append(toks.astype(np.int32, copy=False))
-
-    all_tokens = (
-        pieces[0].astype(np.int32, copy=False)
-        if len(pieces) == 1
-        else np.concatenate(pieces, axis=0).astype(np.int32, copy=False)
-    )
+        dataset_list = [tokenizer.tokenize(s) for s in dataset_list]
+    all_tokens = np.concatenate(
+        [ops.convert_to_numpy(s).reshape(-1) for s in dataset_list]
+    ).astype(np.int32, copy=False)
 
     required_tokens = num_samples * sequence_length
     if all_tokens.size < required_tokens:
@@ -185,42 +155,22 @@ def get_dataloader(
             f"(have {all_tokens.size})."
         )
 
-    # Choose deterministic, well-spread starts by default
-    if strategy == "random":
-        rng = np.random.default_rng(seed)
-        starts = rng.integers(
-            0, max_start + 1, size=num_samples, dtype=np.int64
-        )
-    elif strategy == "linspace":
-        # even coverage with no RNG
-        starts = np.linspace(0, max_start, num_samples, dtype=np.int64)
-    elif strategy == "strided":
-        # stride chosen to cover the space roughly uniformly
-        if stride is None:
-            stride = max(1, (max_start + 1) // num_samples)
-        # Offset derived deterministically from the seed. Python's
-        # built-in `hash()` must not be used here: string/tuple hashes are
-        # randomized per process (PYTHONHASHSEED), which silently made
-        # calibration windows - and therefore every quantization result -
-        # unreproducible across runs despite the fixed seed.
-        offset = (
-            int(np.random.default_rng(seed).integers(0, max_start + 1))
-            if max_start > 0
-            else 0
-        )
-        starts = (offset + np.arange(num_samples, dtype=np.int64) * stride) % (
-            max_start + 1
-        )
-    else:
-        raise ValueError(f"Unknown strategy: {strategy}")
-
-    # Gather contiguous windows
-    # sliding_window_view avoids building a big index matrix
+    # A stride that covers the stream roughly uniformly, from an offset
+    # derived from a fixed seed. Python's `hash()` must not be used here:
+    # it is randomized per process, so the windows, and every quantization
+    # result, would differ between runs.
+    stride = max(1, (max_start + 1) // num_samples)
+    offset = int(
+        np.random.default_rng(_WINDOW_OFFSET_SEED).integers(0, max_start + 1)
+    )
+    starts = (offset + np.arange(num_samples, dtype=np.int64) * stride) % (
+        max_start + 1
+    )
+    # `sliding_window_view` avoids building a big index matrix.
     windows = np.lib.stride_tricks.sliding_window_view(
         all_tokens, sequence_length
     )
-    samples = windows[starts]  # (num_samples, sequence_length)
-    return samples.astype(np.int32)[:, None, :]
+    return windows[starts][:, None, :]
 
 
 def _stack_calibration_batch(samples):
@@ -406,7 +356,7 @@ def apply_gptq_layerwise(dataloader, config, structure, filters=None):
         else:
             logging.info(f"Found layers: {list(sub_layers_map.keys())}")
             gptq_objects = {
-                name: GPTQ(layer, config)
+                name: GPTQCalibrator(layer, config)
                 for name, layer in sub_layers_map.items()
             }
 
@@ -435,8 +385,11 @@ def apply_gptq_layerwise(dataloader, config, structure, filters=None):
                     }
                     stage_objects = {}
                     for name in stage_names:
-                        gptq_objects[name].free()
-                        gptq_objects[name] = GPTQ(sub_layers_map[name], config)
+                        # Drop the stale statistics before allocating new ones.
+                        del gptq_objects[name]
+                        gptq_objects[name] = GPTQCalibrator(
+                            sub_layers_map[name], config
+                        )
                         stage_objects[name] = gptq_objects[name]
                     with stream_hessians(stage_map, stage_objects):
                         for start in range(0, num_samples, batch_size):
@@ -446,14 +399,13 @@ def apply_gptq_layerwise(dataloader, config, structure, filters=None):
                             _ = block(batch)
 
                 for name in stage_names:
-                    gptq_object = gptq_objects[name]
+                    gptq_object = gptq_objects.pop(name)
                     tokens = int(gptq_object.num_samples)
                     rows = int(gptq_object.rows)
-                    if tokens < 4 * rows:
+                    if tokens < gptq_object.warn_tokens_per_row * rows:
                         undersampled_layers.append((name, tokens, rows))
                     logging.info(f"Quantizing {name}...")
-                    gptq_object.quantize_and_correct_layer()
-                    gptq_object.free()
+                    gptq_object.quantize()
 
             del gptq_objects
 
@@ -473,21 +425,8 @@ def apply_gptq_layerwise(dataloader, config, structure, filters=None):
         progbar.update(current=block_idx + 1)
 
     if undersampled_layers:
-        worst = min(t / r for _, t, r in undersampled_layers)
-        examples = ", ".join(
-            f"{name} ({tokens} tokens for {rows} input features)"
-            for name, tokens, rows in undersampled_layers[:3]
-        )
         warnings.warn(
-            f"GPTQ calibration is undersampled for "
-            f"{len(undersampled_layers)} layer(s): fewer than 4 calibration "
-            "tokens per input feature (worst ratio: "
-            f"{worst:.1f}). With this little data the Hessian is close to "
-            "singular and GPTQ's error correction can overfit the "
-            "calibration set and produce worse results than plain "
-            "round-to-nearest. Increase `num_samples` and/or "
-            "`sequence_length` in `GPTQConfig` (8 or more tokens per input "
-            f"feature is recommended). Examples: {examples}.",
+            GPTQCalibrator.undersampling_warning(undersampled_layers),
             stacklevel=2,
         )
 

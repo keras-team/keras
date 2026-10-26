@@ -9,6 +9,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import testing
+from keras.src.backend.common import is_int_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.saving import saving_api
 from keras.src.testing.test_utils import named_product
@@ -279,7 +280,7 @@ class DiscretizationTest(testing.TestCase):
             standardize_dtype(model_call_output.dtype),
             standardize_dtype(predict_output.dtype),
         )
-        self.assertTrue(backend.is_int_dtype(model_call_output.dtype))
+        self.assertTrue(is_int_dtype(model_call_output.dtype))
 
     @parameterized.named_parameters(
         named_product(
