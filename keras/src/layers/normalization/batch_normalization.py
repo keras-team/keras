@@ -437,10 +437,11 @@ class BatchNormalization(Layer):
         return {**base_config, **config}
 
     def _moments(self, inputs, mask):
+        reduction_axes = list(self._reduction_axes)
         if mask is None:
             return ops.moments(
                 inputs,
-                axes=self._reduction_axes,
+                axes=reduction_axes,
                 synchronized=self.synchronized,
             )
 
@@ -451,12 +452,12 @@ class BatchNormalization(Layer):
 
         masked_input_sum = ops.sum(
             masked_inputs,
-            self._reduction_axes,
+            reduction_axes,
             keepdims=True,
         )
         sum_of_weights = ops.sum(
             ops.cast(mask_broadcasted, inputs.dtype),
-            self._reduction_axes,
+            reduction_axes,
             keepdims=True,
         )
         mean = masked_input_sum / (sum_of_weights + backend.epsilon())
@@ -469,7 +470,7 @@ class BatchNormalization(Layer):
         del difference
         weighted_distsq = ops.sum(
             squared_difference,
-            self._reduction_axes,
+            reduction_axes,
             keepdims=True,
         )
         del squared_difference
