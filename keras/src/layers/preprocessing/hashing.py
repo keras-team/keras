@@ -215,7 +215,7 @@ class Hashing(Layer):
         if (
             self.output_mode == "one_hot"
             and input_shape
-            and input_shape[-1] != 1
+            and (not isinstance(input_shape[-1], int) or input_shape[-1] != 1)
         ):
             return tuple(input_shape) + (self.num_bins,)
         # `one_hot`, `multi_hot` and `count` encode the last (sample) axis
