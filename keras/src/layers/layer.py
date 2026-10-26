@@ -2179,8 +2179,11 @@ def _single_positional_call_defaults(signature):
     if (
         params
         and params[0].kind
-        in (params[0].POSITIONAL_ONLY, params[0].POSITIONAL_OR_KEYWORD)
-        and all(p.default is not p.empty for p in params[1:])
+        in (
+            inspect.Parameter.POSITIONAL_ONLY,
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+        )
+        and all(p.default is not inspect.Parameter.empty for p in params[1:])
     ):
         return params[0].name, {p.name: p.default for p in params[1:]}
     return None
