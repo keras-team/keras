@@ -363,41 +363,42 @@ class Sequential(Model):
 
     @classmethod
     def from_config(cls, config, custom_objects=None):
-        if "name" in config:
-            name = config["name"]
-            build_input_shape = config.get("build_input_shape")
-            layer_configs = config["layers"]
-        else:
+        if "layers" not in config:
             raise ValueError(
-                "A Sequential model configuration must be "
-                "a dictionary containing the 'name' and "
-                f"'layers' keys. Received: config={config}"
+                "A Sequential model configuration must be a dictionary "
+                f"containing the 'layers' key. Received: config={config}"
             )
-        model = cls(name=name)
-        # Deserializing a layer can build it and create its variables, so do
-        # it under the model's name scope: the variable paths then match those
-        # of a model built from scratch (`<model>/<layer>/<variable>`), which
-        # state-tree based restores (e.g. Orbax checkpoints) rely on.
-        with model._open_name_scope():
-            for layer_config in layer_configs:
-                if "module" not in layer_config:
-                    # Legacy format deserialization (no "module" key)
-                    # used for H5 and SavedModel formats
-                    layer = saving_utils.model_from_config(
-                        layer_config,
-                        custom_objects=custom_objects,
-                    )
-                else:
-                    layer = serialization_lib.deserialize_keras_object(
-                        layer_config,
-                        custom_objects=custom_objects,
-                    )
-                model.add(layer)
+
+        kwargs = {k: v for k, v in config.items() if k in ("name", "trainable")}
+        model = cls(**kwargs)
+
+        layer_configs = config["layers"]
+        is_legacy = False
+        for layer_config in layer_configs:
+            if "module" not in layer_config:
+                # Legacy format deserialization (no "module" key)
+                # used for H5 and SavedModel formats
+                is_legacy = True
+                layer = saving_utils.model_from_config(
+                    layer_config,
+                    custom_objects=custom_objects,
+                )
+            else:
+                layer = serialization_lib.deserialize_keras_object(
+                    layer_config,
+                    custom_objects=custom_objects,
+                )
+            # Do not build now, this will be done by `build_from_config`.
+            model.add(layer, rebuild=False)
+
+        if is_legacy:
+            build_input_shape = config.get("build_input_shape")
             if (
                 not model._functional
-                and "build_input_shape" in locals()
                 and build_input_shape
                 and isinstance(build_input_shape, (tuple, list))
             ):
                 model.build(build_input_shape)
+            else:
+                model._maybe_rebuild()
         return model

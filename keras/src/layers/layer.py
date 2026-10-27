@@ -1883,7 +1883,17 @@ class Layer(BackendLayer, Operation):
             lambda s: backend.KerasTensor(s), input_shape
         )
         try:
-            backend.compute_output_spec(self.call, input_tensors)
+            # Because `build` is not defined, we use `compute_output_spec` to
+            # trace the layer and build it, which will call nested layers. But
+            # because this is not initiated from `build` nor `__call__` (we're
+            # using call), we need to open the name scope here to match the
+            # behavior of `__call__` and `build`.
+            with backend.name_scope(self.name):
+                backend.compute_output_spec(self.call, input_tensors)
+            # Mark this layer as built and capture the `path` of this layer.
+            # We do this after so that it doesn't happen in case of failure of
+            # `compute_output_spec`.
+            self.build(input_shape)
             return True
         except:
             return False
