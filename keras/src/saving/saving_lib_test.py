@@ -19,6 +19,7 @@ from keras.src import ops
 from keras.src import testing
 from keras.src.saving import saving_lib
 from keras.src.utils import file_utils
+from keras.src.utils.module_utils import LazyModule
 
 
 @keras.saving.register_keras_serializable(package="my_custom_package")
@@ -1449,6 +1450,30 @@ class SavingBattleTest(testing.TestCase):
             model = _get_basic_functional_model()
             model.save_weights(temp_filepath)
             model.load_weights(temp_filepath)
+
+    def test_remote_path_saving_and_loading_with_epath(self):
+        # A local directory stands in for the remote location, and TensorFlow
+        # is hidden so that etils.epath is used.
+        remote_dir = os.path.join(self.get_temp_dir(), "remote")
+        os.makedirs(remote_dir)
+        filepath = os.path.join(remote_dir, "model.keras")
+        model = _get_basic_functional_model()
+        x = np.random.random((2, 4))
+
+        with (
+            mock.patch.object(
+                file_utils,
+                "is_remote_path",
+                lambda path: str(path).startswith(remote_dir),
+            ),
+            mock.patch.object(
+                file_utils, "gfile", LazyModule("keras_test_unavailable_module")
+            ),
+        ):
+            saving_lib.save_model(model, filepath)
+            new_model = saving_lib.load_model(filepath)
+
+        self.assertAllClose(model.predict(x), new_model.predict(x))
 
 
 class SavingH5IOStoreTest(testing.TestCase):
