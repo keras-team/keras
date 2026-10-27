@@ -10,6 +10,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend.common import AutocastScope
 from keras.src.backend.common import standardize_dtype
 
 
@@ -206,11 +207,11 @@ class TernaryDenseTest(testing.TestCase):
         layer._kernel.assign(np.tile(pattern, (3, 16)))
         x = np.random.rand(4, 12).astype("float32")
         if nested:
-            with backend.AutocastScope(layer.compute_dtype):
+            with AutocastScope(layer.compute_dtype):
                 y_float = layer(x)
         else:
             y_float = layer(x)
-        with backend.AutocastScope(layer.compute_dtype):
+        with AutocastScope(layer.compute_dtype):
             k_ste, _ = layer._ternary_kernel()
         k_ste = ops.convert_to_numpy(ops.cast(k_ste, "float32"))
 

@@ -9,6 +9,7 @@ from keras.src.backend import any_symbolic_tensors
 from keras.src.backend import config
 from keras.src.backend import standardize_data_format
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
@@ -2023,7 +2024,7 @@ class BinaryCrossentropy(Operation):
                 f"target.shape={target.shape}, output.shape={output.shape}"
             )
         dtype = standardize_dtype(output.dtype)
-        if not backend.is_float_dtype(dtype):
+        if not is_float_dtype(dtype):
             dtype = backend.floatx()
         return KerasTensor(output.shape, dtype=dtype)
 

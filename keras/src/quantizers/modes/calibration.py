@@ -3,14 +3,15 @@
 GPTQ and AWQ allocate the same family of variables, run the same
 dequantize-and-contract forward pass, and speak the same three-part policy
 grammar. They differ in the code bit-width (which fixes how the kernel is
-packed), in the dtype policy class, in the driver that calibrates a model
-and in one extra AWQ variable of input scales that the quantized weight
-divides out. `GPTQStrategy` and `AWQStrategy`, at the end of this module,
-declare these differences.
+packed), in the dtype policy class, in the calibrator class, in the driver
+that calibrates a model and in one extra AWQ variable of input scales that
+the quantized weight divides out. `GPTQStrategy` and `AWQStrategy`, at the
+end of this module, declare these differences.
 """
 
 import math
 
+from keras.src import ops
 from keras.src.dtype_policies.dtype_policy import AWQDTypePolicy
 from keras.src.dtype_policies.dtype_policy import GPTQDTypePolicy
 from keras.src.quantizers.awq_config import AWQConfig
@@ -114,11 +115,6 @@ class CalibrationStrategy(QuantizationStrategy):
         # marks a live float layer pending after this returns.
         layer.calibration_pending = False
 
-        if len(input_shape) not in (2, 3):
-            raise ValueError(
-                f"{self.name.upper()} quantization only supports 2D or 3D "
-                "kernels."
-            )
         rows, columns = geometry.calibration_rows_columns(input_shape)
 
         bits = self.resolve_weight_bits(layer, config)
@@ -182,9 +178,14 @@ class CalibrationStrategy(QuantizationStrategy):
     ):
         """Installs the calibrated values and retires the float kernel.
 
+        `codes` are the unpacked codes in the kernel's `[in, out]`
+        orientation; they are packed here as `build` lays out the variable.
         `input_scales` go to the `input_scales_name` variable of a mode
         that has one.
         """
+        bits = self.resolve_weight_bits(layer, layer.quantization_config)
+        codes = ops.cast(codes, layer.quantized_kernel.dtype)
+        codes = self._get_pack_layout(bits, codes.shape[-1]).pack(codes)
         del layer._kernel
         layer.quantized_kernel.assign(codes)
         layer.kernel_scale.assign(scale)

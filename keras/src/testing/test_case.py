@@ -646,8 +646,7 @@ class TestCase(parameterized.TestCase):
                         spec.shape,
                         dtype=(
                             layer.compute_dtype
-                            if layer.autocast
-                            and backend.is_float_dtype(spec.dtype)
+                            if layer.autocast and is_float_dtype(spec.dtype)
                             else spec.dtype
                         ),
                     ),

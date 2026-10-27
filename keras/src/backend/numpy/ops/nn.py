@@ -6,6 +6,7 @@ from jax import lax
 
 from keras.src import backend
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
@@ -953,7 +954,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
 def binary_crossentropy(target, output, from_logits=False):
     target = np.array(target)
     output = np.array(output)
-    if not backend.is_float_dtype(output.dtype):
+    if not is_float_dtype(output.dtype):
         output = cast(output, backend.floatx())
     target = cast(target, output.dtype)
     dtype = output.dtype

@@ -490,7 +490,7 @@ class EmbeddingTest(test_case.TestCase):
 
     @parameterized.named_parameters(
         ("int8", "int8_from_float32", 2),
-        ("int4", "int4_from_float32", 4),  # embeddings + scale + zero
+        ("int4", "int4_from_float32", 2),  # embeddings + scale
     )
     def test_quantize_by_setting_dtype_policy(
         self, policy, expected_num_variables

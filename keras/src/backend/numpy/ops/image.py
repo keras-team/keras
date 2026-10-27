@@ -2,6 +2,7 @@ import ml_dtypes
 import numpy as np
 
 from keras.src import backend
+from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.numpy.ops.core import convert_to_tensor
 from keras.src.random.seed_generator import draw_seed
@@ -85,7 +86,7 @@ def rgb_to_hsv(images, data_format=None):
             "or rank 4 (batch of images). Received input with shape: "
             f"images.shape={images.shape}"
         )
-    if not backend.is_float_dtype(dtype):
+    if not is_float_dtype(dtype):
         raise ValueError(
             "Invalid images dtype: expected float dtype. "
             f"Received: images.dtype={dtype}"
@@ -135,7 +136,7 @@ def hsv_to_rgb(images, data_format=None):
             "or rank 4 (batch of images). Received input with shape: "
             f"images.shape={images.shape}"
         )
-    if not backend.is_float_dtype(dtype):
+    if not is_float_dtype(dtype):
         raise ValueError(
             "Invalid images dtype: expected float dtype. "
             f"Received: images.dtype={standardize_dtype(dtype)}"
@@ -973,7 +974,7 @@ def map_coordinates(
         padded = np.pad(inputs, padding, mode=pad_mode)
 
     # `scipy.ndimage.map_coordinates` lacks support for float16 and bfloat16.
-    if backend.is_float_dtype(padded.dtype):
+    if is_float_dtype(padded.dtype):
         padded = padded.astype("float32")
     result = scipy.ndimage.map_coordinates(
         padded, shifted_coords, order=order, mode=fill_mode, cval=fill_value
