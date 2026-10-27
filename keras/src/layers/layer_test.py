@@ -711,6 +711,27 @@ class LayerTest(testing.TestCase):
         self.assertLen(model.losses, 1)
         self.assertAllClose(model.losses[0], 1.0)
 
+    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
+    def test_add_loss_torch_compile_does_not_recompile(self):
+        import torch
+        from torch._dynamo.utils import counters
+
+        class LossLayer(layers.Layer):
+            def call(self, x):
+                self.add_loss(ops.sum(x))
+                return x
+
+        layer = LossLayer()
+        torch._dynamo.reset()
+        counters.clear()
+        compiled_layer = torch.compile(layer, backend="eager")
+        num_graphs = []
+        for value in (1.0, 2.0, 3.0, 4.0, 5.0, 6.0):
+            compiled_layer(ops.full((2,), value))
+            num_graphs.append(counters["stats"]["unique_graphs"])
+        # first call has empty loss so still recompiles once, 2nd call onward should not recompile
+        self.assertAllEqual(num_graphs[1:], [2] * len(num_graphs[1:]))
+
     def test_training_arg_value_resolution(self):
         # Check that even if `training` is not passed
         # to an inner layer, the outer value gets propagated

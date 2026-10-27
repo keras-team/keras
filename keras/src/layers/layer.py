@@ -1382,7 +1382,7 @@ class Layer(BackendLayer, Operation):
                 scope.losses[:] = [
                     x for x in scope.losses if id(x) not in self._loss_ids
                 ]
-        self._losses.clear()
+        self._losses[:] = []
         self._loss_ids.clear()
         for layer in self._layers:
             layer._clear_losses()
