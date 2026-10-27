@@ -14,4 +14,4 @@ permissions:
 jobs:
   approved-issue:
     if: github.repository == 'keras-team/keras'
-    uses: keras-team/shared-workflows/.github/workflows/pull-request-validation.yml@4053b2cd6ad0eda06cfbbb0d7208a1bb2a3e9e56
+    uses: keras-team/shared-workflows/.github/workflows/pull-request-validation.yml@d69e45d9fa1bb5c686c67d81b08634bff2c3aa65
