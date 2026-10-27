@@ -174,7 +174,7 @@ def _has_dynamic_shape(x):
         # Framework-specific shape objects, e.g. `tf.TensorShape`.
         return not shape.is_fully_defined()
     if isinstance(shape, (tuple, list)):
-        return any(dim is None for dim in shape)
+        return any(not isinstance(dim, int) for dim in shape)
     return False
 
 
