@@ -179,15 +179,15 @@ def x64_mode_scope(mode):
     Args:
         mode: `"off"` or `"explicit_x64"`.
     """
-    # The JAX scope goes first: on the JAX backend `set_x64_mode` changes
-    # JAX's flag too, and the previous value must be captured before that.
-    with _jax_explicit_x64_scope(mode == "explicit_x64"):
-        previous_mode = config.x64_mode()
-        config.set_x64_mode(mode)
-        try:
+    # JAX's flag is set first and restored first, so it always matches the
+    # Keras mode when `set_x64_mode` reconciles the two.
+    previous_mode = config.x64_mode()
+    try:
+        with _jax_explicit_x64_scope(mode == "explicit_x64"):
+            config.set_x64_mode(mode)
             yield
-        finally:
-            config.set_x64_mode(previous_mode)
+    finally:
+        config.set_x64_mode(previous_mode)
 
 
 @contextlib.contextmanager
