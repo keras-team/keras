@@ -15,7 +15,9 @@ from keras.src import models
 from keras.src import ops
 from keras.src import random
 from keras.src import testing
+from keras.src.backend.common import get_keras_mask
 from keras.src.backend.common import global_state
+from keras.src.backend.common import set_keras_mask
 from keras.src.backend.common.remat import RematScope
 from keras.src.models import Model
 from keras.src.quantizers.geometry import ProjectionGeometry
@@ -956,10 +958,10 @@ class LayerTest(testing.TestCase):
 
         x = ops.zeros((1, 2), dtype="float32")
         mask = ops.array([True, False])
-        backend.set_keras_mask(x, mask)
+        set_keras_mask(x, mask)
         y = CustomLayer(dtype="float16")(x)
         self.assertAllEqual(
-            backend.get_keras_mask(y),
+            get_keras_mask(y),
             mask,
             msg="Masking is not propagated by Autocast",
         )
@@ -997,7 +999,7 @@ class LayerTest(testing.TestCase):
         layer = BasicMaskedLayer()
         x = backend.ops.numpy.ones((4, 4))
         mask = backend.ops.numpy.ones((4,))
-        backend.set_keras_mask(x, mask)
+        set_keras_mask(x, mask)
         layer(x)
 
         layer(backend.ops.numpy.ones((4, 4)), mask=backend.ops.numpy.ones((4,)))
@@ -1017,10 +1019,10 @@ class LayerTest(testing.TestCase):
         layer = NestedInputMaskedLayer()
         x1 = backend.ops.numpy.ones((4, 4))
         mask1 = backend.ops.numpy.ones((4,))
-        backend.set_keras_mask(x1, mask1)
+        set_keras_mask(x1, mask1)
         x2 = backend.ops.numpy.ones((4, 4))
         mask2 = backend.ops.numpy.ones((4,))
-        backend.set_keras_mask(x2, mask2)
+        set_keras_mask(x2, mask2)
         layer([x1, x2])
 
         layer(
@@ -1057,13 +1059,13 @@ class LayerTest(testing.TestCase):
         layer = PositionalNestedInputsMaskedLayer()
         x1_1 = backend.ops.numpy.ones((4, 4))
         mask1 = backend.ops.numpy.ones((4,))
-        backend.set_keras_mask(x1_1, mask1)
+        set_keras_mask(x1_1, mask1)
         x1_2 = backend.ops.numpy.ones((4, 4))
         mask2 = backend.ops.numpy.ones((4,))
-        backend.set_keras_mask(x1_2, mask2)
+        set_keras_mask(x1_2, mask2)
         x2 = backend.ops.numpy.ones((4, 4))
         mask2 = backend.ops.numpy.ones((4,))
-        backend.set_keras_mask(x2, mask2)
+        set_keras_mask(x2, mask2)
         layer((x1_1, x1_2), x2)
         layer(x1=(x1_1, x1_2), x2=x2)
 
@@ -1074,15 +1076,15 @@ class LayerTest(testing.TestCase):
 
             def call(self, x, mask=None):
                 test_obj.assertIsNotNone(mask)
-                backend.set_keras_mask(x, None)  # Unset mask
+                set_keras_mask(x, None)  # Unset mask
                 return x
 
         layer = MaskUnsetDuringCallLayer()
         x = backend.ops.numpy.ones((4, 4))
         mask = backend.ops.numpy.ones((4,))
-        backend.set_keras_mask(x, mask)
+        set_keras_mask(x, mask)
         y = layer(x)
-        self.assertAllClose(backend.get_keras_mask(y), mask)
+        self.assertAllClose(get_keras_mask(y), mask)
 
     def test_masking_with_explicit_kwarg_propagation(self):
         """This test validates that an explicit `mask` kwarg is correctly
@@ -1102,7 +1104,7 @@ class LayerTest(testing.TestCase):
         layer = PassthroughMaskLayer()
         # Create an input tensor WITHOUT an attached mask.
         x = backend.ops.numpy.ones((4, 4))
-        self.assertIsNone(backend.get_keras_mask(x))
+        self.assertIsNone(get_keras_mask(x))
 
         # Create a mask to be passed explicitly.
         explicit_mask = backend.ops.numpy.array([True, True, False, False])
@@ -1115,7 +1117,7 @@ class LayerTest(testing.TestCase):
 
         # Assert that the output tensor 'y' now has the explicit mask attached
         # for propagation to the next layer.
-        self.assertAllClose(backend.get_keras_mask(y), explicit_mask)
+        self.assertAllClose(get_keras_mask(y), explicit_mask)
 
     def test_stateless_call(self):
         class TestLayer(layers.Layer):

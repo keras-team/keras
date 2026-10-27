@@ -2,9 +2,9 @@ import copy
 import inspect
 import typing
 
-from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend.common import get_keras_mask
 from keras.src.backend.common import global_state
 from keras.src.backend.common import standardize_shape
 from keras.src.layers.core.input_layer import InputLayer
@@ -253,7 +253,7 @@ class Sequential(Model):
                 outputs = layer(inputs)
             inputs = outputs
 
-            mask = tree.map_structure(backend.get_keras_mask, outputs)
+            mask = tree.map_structure(get_keras_mask, outputs)
         return outputs
 
     @property
