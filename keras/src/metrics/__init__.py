@@ -49,7 +49,6 @@ from keras.src.metrics.regression_metrics import MeanSquaredError
 from keras.src.metrics.regression_metrics import MeanSquaredLogarithmicError
 from keras.src.metrics.regression_metrics import R2Score
 from keras.src.metrics.regression_metrics import RootMeanSquaredError
-from keras.src.metrics.regression_metrics import cosine_similarity
 from keras.src.saving import serialization_lib
 from keras.src.utils.naming import to_snake_case
 
