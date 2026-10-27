@@ -871,7 +871,7 @@ class EinsumDenseTest(testing.TestCase):
     @parameterized.named_parameters(
         ("int8", "int8_from_float32", 3),
         ("float8", "float8_from_float32", 8),
-        ("int4", "int4_from_float32", 5),  # kernel + bias + scale + zero + gidx
+        ("int4", "int4_from_float32", 3),  # kernel + bias + scale
     )
     def test_quantize_by_setting_dtype_policy(
         self, policy, expected_num_variables

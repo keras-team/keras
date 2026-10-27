@@ -2,9 +2,9 @@ import copy
 import inspect
 import typing
 
-from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend.common import get_keras_mask
 from keras.src.backend.common import global_state
 from keras.src.backend.common import standardize_shape
 from keras.src.layers.core.input_layer import InputLayer
@@ -253,7 +253,7 @@ class Sequential(Model):
                 outputs = layer(inputs)
             inputs = outputs
 
-            mask = tree.map_structure(backend.get_keras_mask, outputs)
+            mask = tree.map_structure(get_keras_mask, outputs)
         return outputs
 
     @property
@@ -374,25 +374,30 @@ class Sequential(Model):
                 f"'layers' keys. Received: config={config}"
             )
         model = cls(name=name)
-        for layer_config in layer_configs:
-            if "module" not in layer_config:
-                # Legacy format deserialization (no "module" key)
-                # used for H5 and SavedModel formats
-                layer = saving_utils.model_from_config(
-                    layer_config,
-                    custom_objects=custom_objects,
-                )
-            else:
-                layer = serialization_lib.deserialize_keras_object(
-                    layer_config,
-                    custom_objects=custom_objects,
-                )
-            model.add(layer)
-        if (
-            not model._functional
-            and "build_input_shape" in locals()
-            and build_input_shape
-            and isinstance(build_input_shape, (tuple, list))
-        ):
-            model.build(build_input_shape)
+        # Deserializing a layer can build it and create its variables, so do
+        # it under the model's name scope: the variable paths then match those
+        # of a model built from scratch (`<model>/<layer>/<variable>`), which
+        # state-tree based restores (e.g. Orbax checkpoints) rely on.
+        with model._open_name_scope():
+            for layer_config in layer_configs:
+                if "module" not in layer_config:
+                    # Legacy format deserialization (no "module" key)
+                    # used for H5 and SavedModel formats
+                    layer = saving_utils.model_from_config(
+                        layer_config,
+                        custom_objects=custom_objects,
+                    )
+                else:
+                    layer = serialization_lib.deserialize_keras_object(
+                        layer_config,
+                        custom_objects=custom_objects,
+                    )
+                model.add(layer)
+            if (
+                not model._functional
+                and "build_input_shape" in locals()
+                and build_input_shape
+                and isinstance(build_input_shape, (tuple, list))
+            ):
+                model.build(build_input_shape)
         return model

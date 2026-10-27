@@ -34,9 +34,11 @@ from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend.common import AutocastScope
 from keras.src.backend.common import get_autocast_scope
+from keras.src.backend.common import get_keras_mask
 from keras.src.backend.common import global_state
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import remat
+from keras.src.backend.common import set_keras_mask
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common import standardize_shape
 from keras.src.backend.common.keras_tensor import any_symbolic_tensors
@@ -915,12 +917,12 @@ class Layer(BackendLayer, Operation):
         # 1. Convert any array arguments to tensors of correct dtype.
         def maybe_convert(x):
             # Prevent _keras_mask from disappearing
-            mask = backend.get_keras_mask(x)
+            mask = get_keras_mask(x)
             y = self.dtype_policy.convert_input(
                 x, self.autocast, self.input_dtype
             )
             if mask is not None:
-                backend.set_keras_mask(y, mask)
+                set_keras_mask(y, mask)
             return y
 
         # `kwargs` is usually a dict with just the `training` argument, which
@@ -995,7 +997,7 @@ class Layer(BackendLayer, Operation):
                 arg_name = list(call_spec.tensor_arguments_dict.keys())[0]
                 only_tensor_arg = call_spec.tensor_arguments_dict[arg_name]
                 mask = tree.map_structure(
-                    backend.get_keras_mask,
+                    get_keras_mask,
                     only_tensor_arg,
                 )
                 kwargs["mask"] = mask
@@ -1004,7 +1006,7 @@ class Layer(BackendLayer, Operation):
                 expected_mask_arg_name = f"{k}_mask"
                 if expected_mask_arg_name in call_spec.argument_names:
                     if call_spec.arguments_dict[expected_mask_arg_name] is None:
-                        mask = tree.map_structure(backend.get_keras_mask, v)
+                        mask = tree.map_structure(get_keras_mask, v)
                         kwargs[expected_mask_arg_name] = mask
 
         # We need to cache the `previous_mask` before `__call__` because the
@@ -1015,7 +1017,7 @@ class Layer(BackendLayer, Operation):
         else:
             # Case 2: Fallback to the mask attached to the first input tensor.
             previous_mask = tree.map_structure(
-                backend.get_keras_mask, call_spec.first_arg
+                get_keras_mask, call_spec.first_arg
             )
 
         ####################
@@ -2017,7 +2019,7 @@ class Layer(BackendLayer, Operation):
         flat_outputs = tree.flatten(outputs)
 
         mask_already_computed = all(
-            backend.get_keras_mask(x) is not None for x in flat_outputs
+            get_keras_mask(x) is not None for x in flat_outputs
         )
         if mask_already_computed:
             return
@@ -2028,8 +2030,8 @@ class Layer(BackendLayer, Operation):
 
         flat_masks = tree.flatten(output_masks)
         for tensor, mask in zip(flat_outputs, flat_masks):
-            if backend.get_keras_mask(tensor) is None and mask is not None:
-                backend.set_keras_mask(tensor, mask)
+            if get_keras_mask(tensor) is None and mask is not None:
+                set_keras_mask(tensor, mask)
 
     @python_utils.default
     def get_config(self):

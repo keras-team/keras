@@ -288,6 +288,16 @@ class Variable(KerasVariable):
             return value.astype(dtype)
         return value
 
+    def __repr__(self):
+        if isinstance(getattr(self, "_value", None), DTensor):
+            # Gathering a sharded value is a collective, and a repr can run
+            # on a single process (a log line, a debugger, an error message).
+            return (
+                f"<Variable path={self.path}, shape={self.shape}, "
+                f"dtype={self.dtype}>"
+            )
+        return super().__repr__()
+
     @property
     def value(self):
         # We cannot chain super() here because it will fail TorchDynamo. The
@@ -413,10 +423,12 @@ def convert_to_numpy(x):
         if isinstance(x, Variable):
             x = x.value
         if is_tensor(x):
-            if isinstance(x, DTensor):
-                x = x.to_local()
             if x.requires_grad:
                 x = x.detach()
+            if isinstance(x, DTensor):
+                # Gather the global value. This is a collective when `x` is
+                # sharded across processes, so every process must convert it.
+                x = x.full_tensor()
             # Tensor has to be moved to CPU before converting to numpy.
             if x.device != torch.device("cpu"):
                 x = x.cpu()
@@ -986,11 +998,11 @@ class CustomGradientFunction(torch.autograd.Function):
         """
         ctx.forward_fn = forward_fn
         ctx.save_for_backward(*args)
-        try:
-            output, ctx.grad_fn = forward_fn(*args, **kwargs)
-        except:
-            output = forward_fn(*args, **kwargs)
-            ctx.grad_fn = lambda *args, **kwargs: torch.full((), float("nan"))
+        result = forward_fn(*args, **kwargs)
+        if isinstance(result, (list, tuple)) and len(result) == 2:
+            output, ctx.grad_fn = result
+        else:
+            output, ctx.grad_fn = result, None
         return output
 
     @staticmethod
@@ -1008,7 +1020,13 @@ class CustomGradientFunction(torch.autograd.Function):
         grads = grad_fn(*args, upstream=grad_output)
         if not isinstance(grads, tuple):
             grads = (grads,)
-        return (None,) + grads
+        # Keras ops compute the gradients on `get_device()`, but autograd
+        # needs each gradient on the device of its input.
+        grads = list(grads)
+        for i, (grad, x) in enumerate(zip(grads, args)):
+            if isinstance(grad, torch.Tensor) and x is not None:
+                grads[i] = grad.to(x.device)
+        return (None,) + tuple(grads)
 
 
 def grad(f, argnums=0):
