@@ -2,9 +2,11 @@
 tensorflow-cpu
 
 # Torch with cuda support.
-# - torch is pinned to a version that is compatible with torch-xla.
+# - Pin torch to the newest release that exists on the cu130 index. Without
+#   it pip backtracks to a PyPI cu12 wheel when PyPI is ahead of the index.
+#   Bump once the next release is published on cu130 and verified.
 --extra-index-url https://download.pytorch.org/whl/cu130
-torch
+torch==2.14.*
 torch-xla;sys_platform != 'darwin'
 
 # Jax cpu-only version (needed for testing).
