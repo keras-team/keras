@@ -10,9 +10,10 @@ from keras.src.models.model import Model
 from keras.src.saving import serialization_lib
 
 
-class _StudentFeatureCache(threading.local):
-    enabled = False
-    features = None
+class _StudentFeatureCache:
+    def __init__(self):
+        self.enabled = False
+        self.features = None
 
 
 @keras_export("keras.distillation.Distiller")
