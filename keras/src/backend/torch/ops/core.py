@@ -184,26 +184,19 @@ class KerasDTensorPromotionMode(torch.utils._python_dispatch.TorchDispatchMode):
 
 class Variable(KerasVariable):
     def _initialize_distributed(self, initializer):
+        from keras.src.backend.torch import distribution_lib
+        from keras.src.distribution.distribution_lib import TensorLayout
         from keras.src.distribution.distribution_lib import distribution
 
-        dist = distribution()
-        if dist is None:
-            return None
-
-        from keras.src.backend.torch import distribution_lib
-
-        if self._layout is None:
-            self._layout = dist.get_variable_layout(self)
+        if self._layout is None and distribution() is not None:
+            self._layout = distribution().get_variable_layout(self)
 
         if self._layout is None:
             return None
-
-        from keras.src.distribution.distribution_lib import TensorLayout
 
         if isinstance(self._layout, TensorLayout):
             if all(axis is None for axis in self._layout.axes):
                 return None
-            self._layout = self._layout.backend_layout
 
         if callable(initializer):
             value = initializer(self._shape, dtype=self._dtype)
@@ -218,8 +211,13 @@ class Variable(KerasVariable):
             value = value.detach()
 
         if isinstance(value, torch.Tensor):
-            if value.device.type != self._layout.device_mesh.device_type:
-                value = value.to(self._layout.device_mesh.device_type)
+            if isinstance(self._layout, TensorLayout):
+                backend_mesh = self._layout.device_mesh.backend_mesh
+            else:
+                backend_mesh = self._layout.device_mesh
+
+            if value.device.type != backend_mesh.device_type:
+                value = value.to(backend_mesh.device_type)
 
         dtensor = distribution_lib.distribute_tensor(value, self._layout)
 
