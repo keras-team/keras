@@ -315,7 +315,7 @@ class Variable:
             dtype = autocast_scope.dtype
         else:
             dtype = self._dtype
-        return backend.standardize_dtype(dtype)
+        return standardize_dtype(dtype)
 
     @property
     def shape(self):

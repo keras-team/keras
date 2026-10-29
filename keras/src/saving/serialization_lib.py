@@ -11,6 +11,7 @@ from keras.src import api_export
 from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
+from keras.src.backend.common import standardize_dtype
 from keras.src.saving import object_registration
 from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils import python_utils
@@ -55,10 +56,15 @@ NON_MODELING_APIS = frozenset(
         "keras.utils.get_file",
         "keras.utils.image_dataset_from_directory",
         "keras.utils.load_img",
+        "keras.utils.model_to_dot",
+        "keras.utils.plot_model",
         "keras.utils.register_keras_serializable",
         "keras.utils.save_img",
         "keras.utils.serialize_keras_object",
         "keras.utils.text_dataset_from_directory",
+        "keras.visualization.plot_bounding_box_gallery",
+        "keras.visualization.plot_image_gallery",
+        "keras.visualization.plot_segmentation_mask_gallery",
     }
 )
 
@@ -224,7 +230,7 @@ def serialize_keras_object(obj):
             "class_name": "__tensor__",
             "config": {
                 "value": backend.ops.convert_to_numpy(obj).tolist(),
-                "dtype": backend.standardize_dtype(obj.dtype),
+                "dtype": standardize_dtype(obj.dtype),
             },
         }
     if type(obj).__module__ == np.__name__:
@@ -233,7 +239,7 @@ def serialize_keras_object(obj):
                 "class_name": "__numpy__",
                 "config": {
                     "value": obj.tolist(),
-                    "dtype": backend.standardize_dtype(obj.dtype),
+                    "dtype": standardize_dtype(obj.dtype),
                 },
             }
         else:
