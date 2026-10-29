@@ -1,3 +1,6 @@
+import contextlib
+import threading
+
 import keras
 from keras.src import backend
 from keras.src import tree
@@ -5,6 +8,11 @@ from keras.src.api_export import keras_export
 from keras.src.distillation.distillation_loss import _convert_loss_to_function
 from keras.src.models.model import Model
 from keras.src.saving import serialization_lib
+
+
+class _StudentFeatureCache(threading.local):
+    enabled = False
+    features = None
 
 
 @keras_export("keras.distillation.Distiller")
@@ -162,6 +170,7 @@ class Distiller(Model):
             )
 
         self._create_multi_feature_extractors()
+        self._student_feature_cache = _StudentFeatureCache()
 
         # Freeze teacher model
         self.teacher.trainable = False
@@ -362,10 +371,13 @@ class Distiller(Model):
 
     def _extract_all_student_features(self, x, y_pred, training=True):
         """Extract all student features in a single forward pass."""
-        if self._student_feature_extractor is not None:
-            return self._student_feature_extractor(x, training=training)
-        else:
+        if self._student_feature_extractor is None:
             return {"final_output": y_pred}
+        cache = self._student_feature_cache
+        features, cache.features = cache.features, None
+        if features is not None and features["final_output"] is y_pred:
+            return features
+        return self._student_feature_extractor(x, training=training)
 
     def _get_distillation_loss_features(
         self, distillation_loss, all_features, is_teacher
@@ -414,7 +426,35 @@ class Distiller(Model):
 
     def call(self, inputs, training=None, **kwargs):
         """Forward pass returns student predictions."""
+        if (
+            self._student_feature_extractor is not None
+            and self._student_feature_cache.enabled
+            and not kwargs
+        ):
+            features = self._student_feature_extractor(
+                inputs, training=training
+            )
+            self._student_feature_cache.features = features
+            return features["final_output"]
         return self.student(inputs, training=training, **kwargs)
+
+    @contextlib.contextmanager
+    def _reuse_student_pass(self):
+        cache = self._student_feature_cache
+        cache.enabled = True
+        try:
+            yield
+        finally:
+            cache.enabled = False
+            cache.features = None
+
+    def train_step(self, *args, **kwargs):
+        with self._reuse_student_pass():
+            return super().train_step(*args, **kwargs)
+
+    def test_step(self, *args, **kwargs):
+        with self._reuse_student_pass():
+            return super().test_step(*args, **kwargs)
 
     def compute_loss(
         self, x=None, y=None, y_pred=None, sample_weight=None, training=True
