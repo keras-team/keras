@@ -190,10 +190,16 @@ def heaviside(x1, x2):
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
 
+    # NaN is neither < 0 nor > 0, so it has to be propagated explicitly
+    # instead of falling through to `x2`, which is only meant for `x1 == 0`.
     return tf.where(
         x1 < 0,
         tf.zeros_like(x1),
-        tf.where(x1 > 0, tf.ones_like(x1), x2),
+        tf.where(
+            x1 > 0,
+            tf.ones_like(x1),
+            tf.where(tf.math.is_nan(x1), x1, x2),
+        ),
     )
 
 
