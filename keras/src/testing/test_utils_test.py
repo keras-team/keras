@@ -304,13 +304,11 @@ class NamedDtypeCombinationsTest(test_case.TestCase):
 
     def test_names_and_values(self):
         cases = test_utils.named_dtype_combinations(2, dtypes=self.POOL)
-        names = [case["testcase_name"] for case in cases]
+        names = [name for name, _ in cases]
         self.assertLen(set(names), len(names))
         self.assertIn("int8_uint32", names)
         self.assertNotIn("uint32_int8", names)
-        self.assertIn(
-            {"testcase_name": "int8_int8", "dtypes": ("int8", "int8")}, cases
-        )
+        self.assertIn(("int8_int8", ("int8", "int8")), cases)
 
     def test_per_input_pools(self):
         pools = [self.POOL, self.POOL[:3]]
@@ -319,8 +317,8 @@ class NamedDtypeCombinationsTest(test_case.TestCase):
         self.assertEqual(
             cases, test_utils.named_dtype_combinations(2, True, pools)
         )
-        for case in cases:
-            self.assertIn(case["dtypes"][1], self.POOL[:3])
+        for _, dtypes in cases:
+            self.assertIn(dtypes[1], self.POOL[:3])
 
     def test_per_input_pools_length_mismatch(self):
         with self.assertRaisesRegex(ValueError, "Expected 2 dtype pools"):

@@ -187,12 +187,13 @@ BINARY_INPUT_DTYPES = DEFAULT_INPUT_DTYPES + (
 
 
 def named_dtype_combinations(num_inputs, ordered=False, dtypes=None):
-    """Returns `named_parameters` entries of input dtype combinations.
+    """Returns `(name, dtypes)` pairs of input dtype combinations.
 
     `dtypes` is one pool shared by all inputs (default: the pools above),
     giving unordered combinations with same-dtype pairs, or every ordered
     combination if `ordered`; or a list of one pool per input, giving their
-    product. Test names are the joined dtypes, e.g. `"int8_uint32"`.
+    product. Names are the joined dtypes, e.g. `"int8_uint32"`. The pairs
+    are valid `named_parameters` entries.
     """
     if dtypes is None:
         dtypes = (
@@ -210,7 +211,7 @@ def named_dtype_combinations(num_inputs, ordered=False, dtypes=None):
         )
     else:
         combos = itertools.product(*dtypes)
-    return [{"testcase_name": "_".join(c), "dtypes": c} for c in combos]
+    return [("_".join(combo), combo) for combo in combos]
 
 
 def serialized_variable(layer, name):

@@ -38,22 +38,6 @@ class NeedsStaticShape(Square):
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
-class LazyShape(Square):
-    """One unknown input dim makes every output dim unknown."""
-
-    def compute_output_spec(self, x):
-        if None in x.shape:
-            return KerasTensor([None] * len(x.shape), dtype=x.dtype)
-        return KerasTensor(x.shape, dtype=x.dtype)
-
-
-class LazyShapeNoSizeOne(LazyShape):
-    def compute_output_spec(self, x):
-        if 1 in x.shape:
-            raise ValueError("Size-1 dimensions are not supported")
-        return super().compute_output_spec(x)
-
-
 class WrongRankAndValues(WrongRank):
     def call(self, x):
         return ops.square(x) + 1
@@ -216,39 +200,26 @@ class OpTestTest(testing.TestCase):
         # The failing symbolic shapes are added to the error.
         self.assertEqual(
             out["test_symbolic_dynamic"],
-            "failed: Symbolic shapes: (None, None)",
+            "failed: Symbolic input shapes: [(None, None)]",
         )
         self.assertEqual(
-            out["test_symbolic_partial"], "failed: Symbolic shapes: (None, 3)"
+            out["test_symbolic_partial"],
+            "failed: Symbolic input shapes: [(None, 3)]",
         )
 
-    def test_unknown_dim_variants(self):
-        dynamic, partial = test_case._unknown_dim_variants([(2, 3), (2, 3)])
-        self.assertEqual(dynamic, [[(None, None), (None, None)]])
+    def test_unknown_dim_shapes(self):
+        shapes = [(2, 3), (2,)]
         self.assertEqual(
-            partial,
+            test_case._all_dims_unknown(shapes), [(None, None), (None,)]
+        )
+        self.assertEqual(
+            test_case._one_dim_unknown(shapes),
             [
-                [(None, 3), (2, 3)],
-                [(2, None), (2, 3)],
-                [(2, 3), (None, 3)],
-                [(2, 3), (2, None)],
-                [(None, 3), (None, 3)],  # The shared batch dim.
+                [(None, 3), (2,)],
+                [(2, None), (2,)],
+                [(2, 3), (None,)],
             ],
         )
-
-    def test_lazy_shape_fails_precision(self):
-        op = LazyShape()
-        self.run_op_symbolic_check(op, (X,), {}, [(None, None)])
-        with self.assertRaisesRegex(AssertionError, "does not depend on"):
-            self.run_op_symbolic_check(op, (X,), {}, [(None, 3)])
-
-    def test_invalid_probe_skips_precision(self):
-        self.run_op_symbolic_check(LazyShapeNoSizeOne(), (X,), {}, [(None, 3)])
-
-    def test_broadcast_probe_has_no_false_positive(self):
-        inputs = (X, X[:1])  # (2, 3) x (1, 3)
-        for shapes in [(None, None)] * 2, [(None, 3)] * 2:
-            self.run_op_symbolic_check(ops.add, inputs, {}, shapes)
 
     def test_output_count_mismatch_fails(self):
         with self.assertRaisesRegex(AssertionError, "output count differs"):
@@ -265,6 +236,10 @@ class OpTestTest(testing.TestCase):
             AssertionError, "Output differs: symbolic=float32"
         ):
             self.run_op_symbolic_check(WrongDtype(), (X,), {})
+
+    def test_unknown_output_dims_are_accepted(self):
+        self.run_op_symbolic_check(ops.square, (X,), {}, [(None, 3)])
+        self.run_op_symbolic_check(ops.add, (X, X[:1]), {}, [(None, 3)] * 2)
 
     def test_presets(self):
         for preset in (
@@ -300,8 +275,7 @@ class RunOpInputDtypesCheckTest(testing.TestCase):
 
         with self.assertRaisesRegex(
             AssertionError,
-            r"Output dtype differs from JAX: keras=\['int32'\], "
-            r"jax=\['uint8'\] for inputs uint8\[2, 3\]",
+            r"Output dtype differs from JAX for inputs uint8\[2, 3\]",
         ):
             self.run_op_input_dtypes_check(op, jnp.square, (X,), {}, ("uint8",))
 

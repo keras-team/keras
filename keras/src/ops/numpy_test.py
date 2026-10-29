@@ -13562,8 +13562,10 @@ class SquareTest(testing.UnaryOpTest):
 class CbrtTest(testing.UnaryOpTest):
     op, op_class = knp.cbrt, knp.Cbrt
     reference_fn, jax_fn = np.cbrt, jnp.cbrt
-    inputs = (np.array([[-8, -1, 0], [1, 8, 27]], dtype="float32"),)
-    dtype_inputs = (X,)
+    cases = {  # The first case feeds the dtype tests: non-negative.
+        "standard": ((X,), {}),
+        "negative": ((np.array([[-8, -1, 0], [1, 8, 27]], "float32"),), {}),
+    }
 
 
 class AddTest(testing.BinaryOpTest):
