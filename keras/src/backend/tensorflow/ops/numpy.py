@@ -1192,10 +1192,10 @@ def blackman(x):
     dtype = config.floatx()
     compute_dtype = dtypes.result_type(dtype, "float32")
 
-    m = tf.cast(x, "int32")
-    n = tf.range(m, dtype=compute_dtype)
-    m_minus_1 = tf.cast(m - 1, compute_dtype)
-    phase = np.pi * (2 * n - m_minus_1) / tf.maximum(m_minus_1, 1)
+    x = tf.cast(x, "int32")
+    n = tf.range(x, dtype=compute_dtype)
+    x_minus_1 = tf.cast(x - 1, compute_dtype)
+    phase = np.pi * (2 * n - x_minus_1) / tf.maximum(x_minus_1, 1)
     window = 0.42 + 0.5 * tf.cos(phase) + 0.08 * tf.cos(2 * phase)
     return tf.cast(window, dtype)
 

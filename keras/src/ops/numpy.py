@@ -1854,13 +1854,13 @@ def _blackman(x):
         return backend.ops.numpy.blackman(x)
     dtype = config.floatx()
     compute_dtype = dtypes.result_type(dtype, "float32")
-    m = backend.ops.cast(x, "int32")
-    n = backend.ops.numpy.arange(m, dtype=compute_dtype)
-    m_minus_1 = backend.ops.cast(m - 1, compute_dtype)
+    x = backend.ops.cast(x, "int32")
+    n = backend.ops.numpy.arange(x, dtype=compute_dtype)
+    x_minus_1 = backend.ops.cast(x - 1, compute_dtype)
     phase = (
         python_math.pi
-        * (2 * n - m_minus_1)
-        / backend.ops.numpy.maximum(m_minus_1, 1)
+        * (2 * n - x_minus_1)
+        / backend.ops.numpy.maximum(x_minus_1, 1)
     )
     window = (
         0.42
