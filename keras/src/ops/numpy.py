@@ -1844,7 +1844,30 @@ def blackman(x):
             f"Blackman operation does not support symbolic tensors. "
             f"Received input x = {x} of type {type(x)}"
         )
-    return backend.ops.numpy.blackman(x)
+    return _blackman(x)
+
+
+def _blackman(x):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "blackman"
+    ):
+        return backend.ops.numpy.blackman(x)
+    dtype = config.floatx()
+    compute_dtype = dtypes.result_type(dtype, "float32")
+    m = backend.ops.cast(x, "int32")
+    n = backend.ops.numpy.arange(m, dtype=compute_dtype)
+    m_minus_1 = backend.ops.cast(m - 1, compute_dtype)
+    phase = (
+        python_math.pi
+        * (2 * n - m_minus_1)
+        / backend.ops.numpy.maximum(m_minus_1, 1)
+    )
+    window = (
+        0.42
+        + 0.5 * backend.ops.numpy.cos(phase)
+        + 0.08 * backend.ops.numpy.cos(2 * phase)
+    )
+    return backend.ops.cast(window, dtype)
 
 
 class BroadcastTo(Operation):
