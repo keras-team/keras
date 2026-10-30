@@ -633,5 +633,4 @@ class TestDistillerFeatureExtractionTrainingFlag(TestCase):
         distiller.fit(x, y, batch_size=2, epochs=1, verbose=0)
 
         mean_after, _ = self._batch_norm_state(student)
-        with self.assertRaises(AssertionError):
-            self.assertAllClose(mean_after, mean_before)
+        self.assertNotAllClose(mean_after, mean_before)
