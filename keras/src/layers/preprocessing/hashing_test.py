@@ -285,6 +285,16 @@ class HashingTest(testing.TestCase):
         output_data = model(input_array)
         self.assertAllClose(output_data, expected_output)
 
+    def test_one_hot_output_non_singleton_last_axis(self):
+        inputs = layers.Input(shape=(3,), dtype="int32")
+        encoded = layers.Hashing(num_bins=5, output_mode="one_hot")(inputs)
+        self.assertEqual(encoded.shape, (None, 3, 5))
+
+        flattened = layers.Flatten()(encoded)
+        model = models.Model(inputs, layers.Dense(1)(flattened))
+        predictions = model.predict(np.array([[1, 2, 3], [4, 5, 6]]), verbose=0)
+        self.assertEqual(predictions.shape, (2, 1))
+
     def test_multi_hot_output(self):
         input_array = np.array([[0, 1, 2, 3, 4]])
 

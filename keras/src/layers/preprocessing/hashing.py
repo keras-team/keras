@@ -212,6 +212,12 @@ class Hashing(Layer):
     def compute_output_shape(self, input_shape):
         if self.output_mode == "int":
             return tuple(input_shape)
+        if (
+            self.output_mode == "one_hot"
+            and input_shape
+            and (not isinstance(input_shape[-1], int) or input_shape[-1] != 1)
+        ):
+            return tuple(input_shape) + (self.num_bins,)
         # `one_hot`, `multi_hot` and `count` encode the last (sample) axis
         # into a `num_bins`-sized axis.
         if len(input_shape) == 0:
@@ -277,12 +283,8 @@ class Hashing(Layer):
     def compute_output_spec(self, inputs):
         if self.output_mode == "int":
             return backend.KerasTensor(shape=inputs.shape, dtype=self.dtype)
-        if len(inputs.shape) >= 1:
-            base_shape = tuple(inputs.shape)[:-1]
-        else:
-            base_shape = ()
         return backend.KerasTensor(
-            shape=base_shape + (self.num_bins,), dtype=self.dtype
+            shape=self.compute_output_shape(inputs.shape), dtype=self.dtype
         )
 
     def get_config(self):
