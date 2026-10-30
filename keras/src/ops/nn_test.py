@@ -3076,7 +3076,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
                 )
             if mask is not None:
                 self.skipTest(
-                    "Flash attention doesn't support `mask=None` in torch "
+                    "Flash attention doesn't support custom masks in torch "
                     "backend."
                 )
             if not torch.cuda.is_available():
