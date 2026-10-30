@@ -617,3 +617,12 @@ def makedirs(path):
         # Match `gfile.makedirs`, which does not fail if `path` exists.
         return epath.Path(path).mkdir(parents=True, exist_ok=True)
     return os.makedirs(path)
+
+
+def getmtime(path):
+    """Returns the last modification time of `path`, in seconds since epoch."""
+    if _is_remote_path_or_raise(path):
+        if gfile.available:
+            return gfile.stat(path).mtime_nsec / 1e9
+        return epath.Path(path).stat().mtime
+    return os.path.getmtime(path)
