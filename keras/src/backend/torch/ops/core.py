@@ -90,6 +90,14 @@ TORCH_DTYPES = {
     "complex128": torch.complex128,
 }
 
+# TODO: Remove the MPS dtype downcasts if PyTorch adds support for these
+# dtypes on MPS (Metal currently has no double-precision support, see
+# https://github.com/pytorch/pytorch/issues/79019).
+MPS_UNSUPPORTED_DTYPES = {
+    "float64": "float32",
+    "complex128": "complex64",
+}
+
 
 @contextlib.contextmanager
 def device_scope(device_name):
@@ -353,16 +361,30 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         raise ValueError("`sparse=True` is not supported with torch backend")
     if ragged:
         raise ValueError("`ragged=True` is not supported with torch backend")
+    inferred_dtype = dtype is None
     if isinstance(x, Variable) or is_tensor(x):
         if isinstance(x, Variable):
             x = x.value
         device = get_device()
         if x.is_meta:
-            x = torch.empty_like(x, device=device)
-        else:
+            if dtype is None and "mps" in str(device):
+                dtype = MPS_UNSUPPORTED_DTYPES.get(standardize_dtype(x.dtype))
+            x = torch.empty_like(
+                x,
+                dtype=None if dtype is None else to_torch_dtype(dtype),
+                device=device,
+            )
+        elif dtype is None and "mps" in str(device):
+            x_dtype = standardize_dtype(x.dtype)
+            fallback_dtype = MPS_UNSUPPORTED_DTYPES.get(x_dtype)
+            if fallback_dtype is not None:
+                x = x.to(device=device, dtype=to_torch_dtype(fallback_dtype))
+            else:
+                x = x.to(device)
+        elif dtype is None:
             x = x.to(device)
-        if dtype is not None:
-            x = x.to(to_torch_dtype(dtype))
+        else:
+            x = x.to(device=device, dtype=to_torch_dtype(dtype))
         return x
     if isinstance(x, (bool, int, float, complex)):
         if dtype is not None:
@@ -412,6 +434,8 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         dtype = result_type(
             *[getattr(item, "dtype", type(item)) for item in tree.flatten(x)]
         )
+    if inferred_dtype and "mps" in str(get_device()):
+        dtype = MPS_UNSUPPORTED_DTYPES.get(standardize_dtype(dtype), dtype)
     dtype = to_torch_dtype(dtype)
     return torch.as_tensor(x, dtype=dtype, device=get_device())
 
