@@ -360,7 +360,7 @@ class Distiller(Model):
         else:
             return {"final_output": self.teacher(x, training=False)}
 
-    def _extract_all_student_features(self, x, y_pred, training=True):
+    def _extract_all_student_features(self, x, y_pred, training):
         """Extract all student features in a single forward pass."""
         if self._student_feature_extractor is not None:
             return self._student_feature_extractor(x, training=training)
