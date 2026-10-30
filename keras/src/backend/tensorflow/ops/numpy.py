@@ -1195,7 +1195,7 @@ def blackman(x):
     x = tf.cast(x, "int32")
     n = tf.range(x, dtype=compute_dtype)
     x_minus_1 = tf.cast(x - 1, compute_dtype)
-    phase = np.pi * (2 * n - x_minus_1) / tf.maximum(x_minus_1, 1)
+    phase = np.pi * (2 * n - x_minus_1) / tf.maximum(x_minus_1, 1.0)
     window = 0.42 + 0.5 * tf.cos(phase) + 0.08 * tf.cos(2 * phase)
     return tf.cast(window, dtype)
 

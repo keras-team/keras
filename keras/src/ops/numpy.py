@@ -1860,7 +1860,7 @@ def _blackman(x):
     phase = (
         python_math.pi
         * (2 * n - x_minus_1)
-        / backend.ops.numpy.maximum(x_minus_1, 1)
+        / backend.ops.numpy.maximum(x_minus_1, 1.0)
     )
     window = (
         0.42
