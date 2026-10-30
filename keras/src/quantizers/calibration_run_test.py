@@ -32,6 +32,13 @@ class MockTokenizer:
         return self.tokenize(text)
 
 
+class PassthroughTokenizer:
+    """A tokenizer for datasets that are already token ids."""
+
+    def tokenize(self, x):
+        return np.asarray(x, dtype=np.int32)
+
+
 class EmptyBlock(layers.Layer):
     """A block that contains no quantizable layers."""
 
@@ -100,43 +107,20 @@ def _get_model_with_backbone(
     return model
 
 
-def build_all_tokens_strings(dataset, tokenizer, eos_id=None):
-    pieces = []
-    for i, s in enumerate(dataset):
-        toks = np.asarray(tokenizer.tokenize(s), dtype=np.int32).reshape(-1)
-        pieces.append(toks)
-        if eos_id is not None and i < len(dataset) - 1:
-            pieces.append(np.array([eos_id], dtype=np.int32))
-    return np.concatenate(pieces, axis=0).astype(np.int32, copy=False)
-
-
-def sliding_windows(x, L):
-    return np.lib.stride_tricks.sliding_window_view(x, L)
-
-
 @pytest.mark.requires_trainable_backend
 class TestGPTQCore(testing.TestCase):
-    @parameterized.named_parameters(
-        [("strided", "strided"), ("linspace", "linspace"), ("random", "random")]
-    )
-    def test_shape_and_dtype_strings(self, strategy):
+    def test_shape_and_dtype_strings(self):
         """Test the shape and dtype of the output for string inputs."""
         tok = MockTokenizer()
         dataset = ["a b c d e f g", "h i j k"]
         seq_len, n = 5, 7
 
-        out = get_dataloader(
-            tok, seq_len, dataset, num_samples=n, strategy=strategy, seed=123
-        )
+        out = get_dataloader(tok, seq_len, dataset, num_samples=n)
         self.assertEqual(out.shape, (n, 1, seq_len))
         self.assertEqual(out.dtype, np.int32)
 
-    @parameterized.named_parameters(
-        [("strided", "strided"), ("linspace", "linspace"), ("random", "random")]
-    )
-    def test_shape_and_dtype_pretokenized(self, strategy):
+    def test_shape_and_dtype_pretokenized(self):
         """Test the shape and dtype of the output for pre-tokenized inputs."""
-        tok = MockTokenizer()
         # Pre-tokenized inputs; mixed shapes (1, L) and (L,)
         seqs = [
             np.array([[1, 2, 3, 4]], dtype=np.int64),
@@ -145,108 +129,9 @@ class TestGPTQCore(testing.TestCase):
         tok = MockTokenizer()
         seq_len, n = 3, 4
 
-        out = get_dataloader(
-            tok, seq_len, seqs, num_samples=n, strategy=strategy, seed=7
-        )
+        out = get_dataloader(tok, seq_len, seqs, num_samples=n)
         self.assertEqual(out.shape, (n, 1, seq_len))
         self.assertEqual(out.dtype, np.int32)
-
-    def test_strided_is_deterministic_for_same_args(self):
-        tok = MockTokenizer()
-        dataset = ["a b c d e", "f g h i j k"]
-        out1 = get_dataloader(
-            tok, 4, dataset, num_samples=6, strategy="strided", seed=99
-        )
-        out2 = get_dataloader(
-            tok, 4, dataset, num_samples=6, strategy="strided", seed=99
-        )
-        self.assertTrue(ops.all(ops.equal(out1, out2)))
-
-    def test_random_reproducibility_by_seed(self):
-        tok = MockTokenizer()
-        dataset = ["a b c d e", "f g h i j k"]
-        a = get_dataloader(
-            tok, 4, dataset, num_samples=6, strategy="random", seed=123
-        )
-        b = get_dataloader(
-            tok, 4, dataset, num_samples=6, strategy="random", seed=123
-        )
-        c = get_dataloader(
-            tok, 4, dataset, num_samples=6, strategy="random", seed=124
-        )
-        self.assertTrue(ops.all(ops.equal(a, b)))
-        self.assertFalse(ops.all(ops.equal(a, c)))
-
-    def test_linspace_windows_match_expected(self):
-        tok = MockTokenizer()
-        dataset = ["aa bb cc dd", "ee ff gg"]
-        seq_len, n = 3, 5
-        eos_id = None
-
-        all_tokens = build_all_tokens_strings(dataset, tok, eos_id=eos_id)
-        max_start = all_tokens.size - seq_len
-        expected_starts = np.linspace(0, max_start, n, dtype=np.int64)
-
-        expected = sliding_windows(all_tokens, seq_len)[expected_starts]
-        got = get_dataloader(
-            tok, seq_len, dataset, num_samples=n, strategy="linspace"
-        )
-        self.assertTrue(
-            ops.all(ops.equal(got[:, 0, :], expected.astype(np.int32)))
-        )
-
-    def test_strided_override_respected(self):
-        """Tests that strided windows are disjoint and cover the input."""
-        tok = MockTokenizer()
-        # 20 tokens total
-        # with seq_len=4 and stride=4, we expect disjoint chunks
-        # in order (modulo offset)
-        dataset = [" ".join([f"t{i}" for i in range(20)])]
-        seq_len, n, stride = 4, 5, 4
-
-        out = get_dataloader(
-            tok,
-            seq_len,
-            dataset,
-            num_samples=n,
-            strategy="strided",
-            stride=stride,
-            seed=0,
-        )
-
-        # Validate that each sample is a contiguous run
-        # of length seq_len from the flattened stream
-        flat = build_all_tokens_strings(dataset, tok)
-        for s in out[:, 0, :]:
-            # Each window should appear as a slice in the flat stream
-            # (This is a soft check; exact start positions depend on offset.)
-            joined = " ".join(map(str, s.tolist()))
-            self.assertIn(joined, " ".join(map(str, flat.tolist())))
-
-    def test_eos_insertion_is_present_in_some_window_with_linspace(self):
-        tok = MockTokenizer()
-        dataset = ["aa aa", "bb bb"]  # len = 5 + 1(EOS) + 5 = 11
-        eos = 9999
-        seq_len = 3
-        n = 3
-
-        out = get_dataloader(
-            tok,
-            seq_len,
-            dataset,
-            num_samples=n,
-            strategy="linspace",
-            eos_id=eos,
-        )
-
-        # linspace starts -> [0, 4, 8]; the middle window [4:7]
-        # includes EOS at 5
-        windows = out[:, 0, :]
-        self.assertTrue(
-            np.any(np.any(windows == eos, axis=1)),
-            "Expected EOS to appear in at least one sampled window with "
-            "linspace.",
-        )
 
     def test_get_dataloader_error_scenarios(self):
         """Tests error cases for get_dataloader."""
@@ -436,11 +321,6 @@ class TestDataloaderReproducibility(testing.TestCase):
         4 samples); the old hash-based offset only reproduces them under
         one specific PYTHONHASHSEED by coincidence.
         """
-
-        class PassthroughTokenizer:
-            def tokenize(self, x):
-                return np.asarray(x, dtype=np.int32)
-
         out = get_dataloader(
             PassthroughTokenizer(),
             8,
@@ -450,6 +330,16 @@ class TestDataloaderReproducibility(testing.TestCase):
         self.assertEqual(out.shape, (4, 1, 8))
         self.assertAllClose(out[:, 0, 0], np.array([88, 336, 584, 832]))
         self.assertAllClose(out[0, 0], np.arange(88, 96))
+
+    def test_windows_wrap_around_the_end_of_the_stream(self):
+        # 33 tokens, 16 windows of 2: stride 2 from offset 2. The last
+        # window would start at 32, past the last valid start (31), so it
+        # wraps to 0.
+        out = get_dataloader(
+            PassthroughTokenizer(), 2, [np.arange(33)], num_samples=16
+        )
+        self.assertEqual(out[:, 0, 0].tolist(), [*range(2, 31, 2), 0])
+        self.assertAllClose(out[:, 0, 1], out[:, 0, 0] + 1)
 
 
 def _tiny_model(mode, num_samples=4, dtype=None, **kwargs):

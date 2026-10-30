@@ -11,6 +11,8 @@ from keras.src import losses as losses_module
 from keras.src import ops
 from keras.src import testing
 from keras.src.api_export import REGISTERED_NAMES_TO_OBJS
+from keras.src.backend.common import get_keras_mask
+from keras.src.backend.common import set_keras_mask
 from keras.src.layers import Input
 from keras.src.losses import losses
 from keras.src.models import Functional
@@ -1876,7 +1878,7 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
         self.assertAllClose(output[0], reference[0])
         self.assertAllClose(output[2], reference[2])
         self.assertAllClose(output[1], 0.0)
-        self.assertAllClose(backend.get_keras_mask(output), [True, False, True])
+        self.assertAllClose(get_keras_mask(output), [True, False, True])
 
 
 class BinaryFocalCrossentropyTest(testing.TestCase):
@@ -2256,7 +2258,7 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
             y_true, y_pred, ignore_class=255
         )
         self.assertAllEqual(
-            backend.get_keras_mask(function_result), [True, False, True]
+            get_keras_mask(function_result), [True, False, True]
         )
         result = loss_obj(y_true, y_pred)
         expected_valid = losses.sparse_categorical_focal_crossentropy(
@@ -2296,9 +2298,7 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
             dtype="float32",
         )
         y_pred = ops.convert_to_tensor(y_pred_values)
-        backend.set_keras_mask(
-            y_pred, ops.convert_to_tensor([False, True, True])
-        )
+        set_keras_mask(y_pred, ops.convert_to_tensor([False, True, True]))
 
         result = losses.SparseCategoricalFocalCrossentropy(
             ignore_class=255, reduction=None

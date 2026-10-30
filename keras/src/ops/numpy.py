@@ -11,7 +11,6 @@ from keras.src.backend import any_symbolic_tensors
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_float_dtype
-from keras.src.backend.common import is_int_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
@@ -1845,7 +1844,30 @@ def blackman(x):
             f"Blackman operation does not support symbolic tensors. "
             f"Received input x = {x} of type {type(x)}"
         )
-    return backend.ops.numpy.blackman(x)
+    return _blackman(x)
+
+
+def _blackman(x):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "blackman"
+    ):
+        return backend.ops.numpy.blackman(x)
+    dtype = config.floatx()
+    compute_dtype = dtypes.result_type(dtype, "float32")
+    x = backend.ops.cast(x, "int32")
+    n = backend.ops.numpy.arange(x, dtype=compute_dtype)
+    x_minus_1 = backend.ops.cast(x - 1, compute_dtype)
+    phase = (
+        python_math.pi
+        * (2 * n - x_minus_1)
+        / backend.ops.numpy.maximum(x_minus_1, 1.0)
+    )
+    window = (
+        0.42
+        + 0.5 * backend.ops.numpy.cos(phase)
+        + 0.08 * backend.ops.numpy.cos(2 * phase)
+    )
+    return backend.ops.cast(window, dtype)
 
 
 class BroadcastTo(Operation):
@@ -6381,7 +6403,7 @@ class Nanpercentile(Operation):
         self.keepdims = keepdims
 
     def call(self, x, q):
-        return backend.ops.numpy.nanpercentile(
+        return _nanpercentile(
             x, q, axis=self.axis, method=self.method, keepdims=self.keepdims
         )
 
@@ -6396,8 +6418,8 @@ class Nanpercentile(Operation):
         elif isinstance(q, (list, tuple)):
             output_shape = (len(q),) + output_shape
 
-        if is_int_dtype(x.dtype):
-            dtype = backend.floatx()
+        if standardize_dtype(x.dtype) == "int64":
+            dtype = config.floatx()
         else:
             dtype = dtypes.result_type(x.dtype, float)
 
@@ -6451,9 +6473,25 @@ def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
             axis=axis, method=method, keepdims=keepdims
         ).symbolic_call(x, q)
 
-    return backend.ops.numpy.nanpercentile(
-        x, q, axis=axis, method=method, keepdims=keepdims
+    return _nanpercentile(x, q, axis=axis, method=method, keepdims=keepdims)
+
+
+def _nanpercentile(x, q, axis=None, method="linear", keepdims=False):
+    if method not in ("linear", "lower", "higher", "midpoint", "nearest"):
+        raise ValueError(
+            "`method` must be one of 'linear', 'lower', 'higher', "
+            f"'midpoint', or 'nearest'. Received: method={method}"
+        )
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "nanpercentile"
+    ):
+        return backend.ops.numpy.nanpercentile(
+            x, q, axis=axis, method=method, keepdims=keepdims
+        )
+    q = backend.ops.numpy.divide(
+        backend.ops.convert_to_tensor(q, dtype=config.floatx()), 100.0
     )
+    return _nanquantile(x, q, axis=axis, method=method, keepdims=keepdims)
 
 
 class Nanprod(Operation):
@@ -6664,6 +6702,9 @@ def _nanquantile(x, q, axis=None, method="linear", keepdims=False):
     )
     position = backend.ops.numpy.multiply(
         last_valid_index, backend.ops.numpy.reshape(q, (-1,))
+    )
+    position = backend.ops.numpy.minimum(
+        backend.ops.numpy.maximum(position, 0), last_valid_index
     )
 
     def take(indices):
@@ -10076,7 +10117,7 @@ class Argpartition(Operation):
         self.axis = axis
 
     def call(self, x):
-        return backend.ops.numpy.argpartition(x, kth=self.kth, axis=self.axis)
+        return _argpartition(x, kth=self.kth, axis=self.axis)
 
     def compute_output_spec(self, x):
         shape = x.shape
@@ -10117,7 +10158,27 @@ def argpartition(x, kth, axis=-1):
     """
     if any_symbolic_tensors((x,)):
         return Argpartition(kth, axis).symbolic_call(x)
-    return backend.ops.numpy.argpartition(x, kth, axis)
+    return _argpartition(x, kth, axis)
+
+
+def _argpartition(x, kth, axis=-1):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "argpartition"
+    ):
+        return backend.ops.numpy.argpartition(x, kth, axis)
+    x = backend.ops.convert_to_tensor(x)
+    if axis is None:
+        x = backend.ops.numpy.reshape(x, (-1,))
+        axis = -1
+    size = x.shape[axis]
+    if size is not None and not -size <= kth < size:
+        raise ValueError(
+            f"kth must be in the range [-{size}, {size}) for an axis of size "
+            f"{size}. Received: kth={kth}"
+        )
+    # A full sort is a valid partition for every kth.
+    indices = backend.ops.numpy.argsort(x, axis=axis)
+    return backend.ops.cast(indices, "int32")
 
 
 class Histogram(Operation):
@@ -10221,7 +10282,7 @@ class ArraySplit(Operation):
         self.axis = axis
 
     def call(self, x):
-        return backend.ops.numpy.array_split(
+        return _array_split(
             x,
             indices_or_sections=self.indices_or_sections,
             axis=self.axis,
@@ -10309,9 +10370,27 @@ def array_split(x, indices_or_sections, axis=0):
             indices_or_sections=indices_or_sections, axis=axis
         ).symbolic_call(x)
 
-    return backend.ops.numpy.array_split(
-        x, indices_or_sections=indices_or_sections, axis=axis
-    )
+    return _array_split(x, indices_or_sections=indices_or_sections, axis=axis)
+
+
+def _array_split(x, indices_or_sections, axis=0):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "array_split"
+    ):
+        return backend.ops.numpy.array_split(
+            x, indices_or_sections=indices_or_sections, axis=axis
+        )
+    x = backend.ops.convert_to_tensor(x)
+    total_size = backend.ops.shape(x)[axis]
+    num_splits = indices_or_sections
+    if num_splits == 1:
+        return [x]
+    indices = []
+    offset = 0
+    for i in range(num_splits - 1):
+        offset += (total_size + num_splits - 1 - i) // num_splits
+        indices.append(offset)
+    return backend.ops.numpy.split(x, indices, axis=axis)
 
 
 class Unique(Operation):
