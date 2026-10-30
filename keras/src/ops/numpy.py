@@ -10259,7 +10259,7 @@ class ArraySplit(Operation):
         self.axis = axis
 
     def call(self, x):
-        return backend.ops.numpy.array_split(
+        return _array_split(
             x,
             indices_or_sections=self.indices_or_sections,
             axis=self.axis,
@@ -10347,9 +10347,27 @@ def array_split(x, indices_or_sections, axis=0):
             indices_or_sections=indices_or_sections, axis=axis
         ).symbolic_call(x)
 
-    return backend.ops.numpy.array_split(
-        x, indices_or_sections=indices_or_sections, axis=axis
-    )
+    return _array_split(x, indices_or_sections=indices_or_sections, axis=axis)
+
+
+def _array_split(x, indices_or_sections, axis=0):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "array_split"
+    ):
+        return backend.ops.numpy.array_split(
+            x, indices_or_sections=indices_or_sections, axis=axis
+        )
+    x = backend.ops.convert_to_tensor(x)
+    total_size = backend.ops.shape(x)[axis]
+    num_splits = indices_or_sections
+    if num_splits == 1:
+        return [x]
+    indices = []
+    offset = 0
+    for i in range(num_splits - 1):
+        offset += (total_size + num_splits - 1 - i) // num_splits
+        indices.append(offset)
+    return backend.ops.numpy.split(x, indices, axis=axis)
 
 
 class Unique(Operation):
