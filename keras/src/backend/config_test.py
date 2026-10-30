@@ -9,7 +9,6 @@ from keras.src.backend import config
 from keras.src.testing.test_utils import x64_mode_scope
 
 X64_SUPPORTED = backend.backend() in config._X64_BACKENDS
-JAX_ONLY = pytest.mark.skipif(backend.backend() != "jax", reason="JAX only.")
 
 
 class X64ModeTest(testing.TestCase):
@@ -36,7 +35,7 @@ class X64ModeTest(testing.TestCase):
             config.set_x64_mode("explicit_x64")
         self.assertEqual(config.x64_mode(), "off")
 
-    @JAX_ONLY
+    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only.")
     def test_explicit_x64_sets_jax_flag(self):
         import jax
 
@@ -48,10 +47,10 @@ class X64ModeTest(testing.TestCase):
             jax.config.update("jax_explicit_x64_dtypes", previous)
             config.set_x64_mode("off")
 
-    @JAX_ONLY
+    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only.")
     def test_matching_jax_flag_does_not_warn(self):
         with warnings.catch_warnings():
-            warnings.filterwarnings("error", message="JAX's 64-bit flags")
+            warnings.filterwarnings("error", message=".*does not match")
             # The scope sets JAX's flag first, like a user who sets it
             # before calling `set_x64_mode`.
             with x64_mode_scope("explicit_x64"):
@@ -62,14 +61,14 @@ class X64ModeTest(testing.TestCase):
         ("enable_off", "jax_enable_x64", True, "off", "int32"),
         ("enable_explicit", "jax_enable_x64", True, "explicit_x64", "int64"),
     )
-    @JAX_ONLY
+    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only.")
     def test_mismatched_jax_flag_warns(self, flag, value, mode, expected):
         import jax
 
         previous = getattr(jax.config, flag)
         jax.config.update(flag, value)
         try:
-            with self.assertWarnsRegex(UserWarning, "JAX's 64-bit flags"):
+            with self.assertWarnsRegex(UserWarning, f"`jax.config.{flag}`"):
                 config.set_x64_mode(mode)
             # Keras keeps its own mode and does not follow JAX's flags.
             self.assertEqual(config.x64_mode(), mode)
