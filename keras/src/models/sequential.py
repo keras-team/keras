@@ -346,7 +346,10 @@ class Sequential(Model):
 
     def get_config(self):
         serialize_fn = serialization_lib.serialize_keras_object
-        if global_state.get_global_attribute("use_legacy_config", False):
+        use_legacy_config = global_state.get_global_attribute(
+            "use_legacy_config", False
+        )
+        if use_legacy_config:
             # Legacy format serialization used for H5 and SavedModel formats
             serialize_fn = legacy_serialization.serialize_keras_object
         layer_configs = []
@@ -357,7 +360,7 @@ class Sequential(Model):
         config = Model.get_config(self)
         config["name"] = self.name
         config["layers"] = copy.deepcopy(layer_configs)
-        if self._functional is not None:
+        if use_legacy_config and self._functional is not None:
             config["build_input_shape"] = self._layers[0].batch_shape
         return config
 

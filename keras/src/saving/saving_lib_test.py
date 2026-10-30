@@ -128,6 +128,22 @@ class CustomModelX(keras.Model):
 
 
 @keras.saving.register_keras_serializable(package="my_custom_package")
+class ModelWithKwargsCall(keras.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.dense_a = keras.layers.Dense(1, name="dense_a")
+        self.dense_b = keras.layers.Dense(1, name="dense_b")
+
+    def build(self, a_shape, b_shape):
+        self.dense_a.build(a_shape)
+        self.dense_b.build(b_shape)
+        super().build(a_shape)
+
+    def call(self, a, b):
+        return self.dense_a(a) + self.dense_b(b)
+
+
+@keras.saving.register_keras_serializable(package="my_custom_package")
 class ModelWithCustomSaving(keras.Model):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -183,6 +199,17 @@ def my_mean_squared_error(y_true, y_pred):
 
 def _get_subclassed_model(compile=True):
     subclassed_model = CustomModelX(name="custom_model_x")
+    if compile:
+        subclassed_model.compile(
+            optimizer="adam",
+            loss=my_mean_squared_error,
+            metrics=[keras.metrics.Hinge(), "mse"],
+        )
+    return subclassed_model
+
+
+def _get_subclassed_model_with_kwargs(compile=True):
+    subclassed_model = ModelWithKwargsCall(name="model_with_kwargs_call")
     if compile:
         subclassed_model.compile(
             optimizer="adam",
@@ -311,8 +338,16 @@ class SavingTest(testing.TestCase):
         saving_lib._MEMORY_UPPER_BOUND = self.original_value
 
     def _test_inference_after_instantiation(self, model):
-        x_ref = np.random.random((2, 4))
-        y_ref = model(x_ref)
+        if isinstance(model, ModelWithKwargsCall):
+            args = ()
+            kwargs = {
+                "a": np.random.random((2, 4)),
+                "b": np.random.random((2, 4)),
+            }
+        else:
+            args = (np.random.random((2, 4)),)
+            kwargs = {}
+        y_ref = model(*args, **kwargs)
         temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
         model.save(temp_filepath)
 
@@ -333,11 +368,12 @@ class SavingTest(testing.TestCase):
             self.assertEqual(loaded_l.name, l.name)
             self.assertEqual(loaded_l.path, l.path)
 
-        self.assertAllClose(loaded_model(x_ref), y_ref)
+        self.assertAllClose(loaded_model(*args, **kwargs), y_ref)
 
     @parameterized.named_parameters(
         ("subclassed", _get_subclassed_model),
         ("subclassed_with_nested", _get_subclassed_model_with_nested),
+        ("subclassed_with_kwargs", _get_subclassed_model_with_kwargs),
         ("basic_sequential", _get_basic_sequential_model),
         ("basic_functional", _get_basic_functional_model),
         ("custom_sequential", _get_custom_sequential_model),
