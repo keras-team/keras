@@ -1891,27 +1891,47 @@ class Layer(BackendLayer, Operation):
             lambda s: backend.KerasTensor(s), input_shape
         )
         try:
-            backend.compute_output_spec(self.call, input_tensors)
+            # Because `build` is not defined, we trace `call` via
+            # `compute_output_spec` to build the nested layers. This is
+            # reached from `build_from_config`, not from `build` or
+            # `__call__`, so the name scope is not open yet; open it here so
+            # nested layers capture the same `path` as a from-code build.
+            with backend.name_scope(self.name):
+                backend.compute_output_spec(self.call, input_tensors)
+            # Mark this layer as built and capture the `path` of this layer.
+            # We do this after so that it doesn't happen in case of failure of
+            # `compute_output_spec`.
+            self.build(input_shape)
             return True
         except:
             return False
 
     def _build_by_run_for_kwargs(self, shapes_dict):
         # Case: inputs were recorded as multiple keyword arguments.
-        if all(is_shape_tuple(s) for s in shapes_dict.values()):
-            # Case: all input keyword arguments were plain tensors.
-            input_tensors = {
-                # We strip the `_shape` suffix to recover kwarg names.
-                utils.removesuffix(k, "_shape"): backend.KerasTensor(shape)
-                for k, shape in shapes_dict.items()
-            }
-            try:
-                backend.compute_output_spec(self.call, **input_tensors)
-                return True
-            except:
-                return False
-        else:
+        if not all(is_shape_tuple(s) for s in shapes_dict.values()):
             # Not supported: nested input keyword arguments.
+            return False
+
+        # Case: all input keyword arguments were plain tensors.
+        input_tensors = {
+            # We strip the `_shape` suffix to recover kwarg names.
+            utils.removesuffix(k, "_shape"): backend.KerasTensor(shape)
+            for k, shape in shapes_dict.items()
+        }
+        try:
+            # Because `build` is not defined, we trace `call` via
+            # `compute_output_spec` to build the nested layers. This is
+            # reached from `build_from_config`, not from `build` or
+            # `__call__`, so the name scope is not open yet; open it here so
+            # nested layers capture the same `path` as a from-code build.
+            with backend.name_scope(self.name):
+                backend.compute_output_spec(self.call, **input_tensors)
+            # Mark this layer as built and capture the `path` of this layer.
+            # We do this after so that it doesn't happen in case of failure of
+            # `compute_output_spec`.
+            self.build(shapes_dict)
+            return True
+        except:
             return False
 
     def __repr__(self):
