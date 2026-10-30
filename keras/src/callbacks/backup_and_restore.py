@@ -2,6 +2,7 @@ import json
 
 from keras.src.api_export import keras_export
 from keras.src.callbacks.callback import Callback
+from keras.src.saving import saving_lib
 from keras.src.utils import file_utils
 
 
@@ -58,7 +59,9 @@ class BackupAndRestore(Callback):
             cannot be reused elsewhere to store other files, e.g. by the
             `BackupAndRestore` callback of another training run,
             or by another callback (e.g. `ModelCheckpoint`)
-            of the same training run.
+            of the same training run. In a multi-process run, only
+            process 0 writes to it, so put it on a filesystem that all the
+            processes share.
         save_freq: `"epoch"`, integer, or `False`. When set to `"epoch"`
           the callback saves the checkpoint at the end of each epoch.
           When set to an integer, the callback saves the checkpoint every
@@ -170,6 +173,12 @@ class BackupAndRestore(Callback):
                 is set to `"epoch"`.
             logs: the `logs` dict passed in to `on_batch_end` or `on_epoch_end`.
         """
+        if not saving_lib._is_writing_process():
+            # Only process 0 writes the backup. The other processes save the
+            # weights too, because gathering sharded variables needs all of
+            # them, but they write no file.
+            self.model.save_weights(filepath=self._weights_path, overwrite=True)
+            return
         # Create host directory if it doesn't exist.
         if not file_utils.exists(self.backup_dir):
             file_utils.makedirs(self.backup_dir)
@@ -206,5 +215,11 @@ class BackupAndRestore(Callback):
         return False
 
     def on_train_end(self, logs=None):
-        if self.delete_checkpoint and file_utils.exists(self.backup_dir):
+        # Only process 0 writes the backup, and the other processes do not
+        # wait for it, so only process 0 deletes it.
+        if (
+            self.delete_checkpoint
+            and saving_lib._is_writing_process()
+            and file_utils.exists(self.backup_dir)
+        ):
             file_utils.rmtree(self.backup_dir)

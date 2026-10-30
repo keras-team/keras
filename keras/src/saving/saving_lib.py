@@ -123,6 +123,11 @@ def save_model(model, filepath, zipped=True):
             "When saving to the Hugging Face Hub, you should not save the "
             f"model as zipped. Received: filepath={filepath}, zipped={zipped}"
         )
+    if not _is_writing_process():
+        # Run the same steps as process 0, without writing files.
+        _serialize_model_as_json(model)
+        _save_without_writing(model, with_assets=True, visited_saveables=set())
+        return
     if is_hf:
         _upload_model_to_hf(model, filepath)
     elif not zipped:
@@ -150,6 +155,45 @@ def _serialize_model_as_json(model):
         }
     )
     return config_json, metadata_json
+
+
+def _is_writing_process():
+    """Whether this process writes the files of a save.
+
+    In a multi-process run, every process runs the save, because gathering
+    a variable that is sharded across processes needs all of them. Only
+    process 0 writes, so that processes sharing a filesystem do not write
+    the same files at the same time.
+    """
+    distribution_lib = getattr(backend, "distribution_lib", None)
+    if not (
+        hasattr(distribution_lib, "num_processes")
+        and hasattr(distribution_lib, "process_id")
+    ):
+        return True
+    return (
+        distribution_lib.num_processes() <= 1
+        or distribution_lib.process_id() == 0
+    )
+
+
+def _save_without_writing(model, with_assets, visited_saveables):
+    """Runs the steps of a save on a process that does not write files."""
+    # Assets go to a fresh local temporary directory that `close()` removes.
+    asset_store = (
+        DiskIOStore(_ASSETS_DIRNAME, mode="w") if with_assets else None
+    )
+    try:
+        _save_state(
+            model,
+            weights_store=_DiscardingH5IOStore(),
+            assets_store=asset_store,
+            inner_path="",
+            visited_saveables=visited_saveables,
+        )
+    finally:
+        if asset_store is not None:
+            asset_store.close()
 
 
 def _save_model_to_dir(model, dirpath):
@@ -578,6 +622,16 @@ def save_weights_only(
             "The filename must end in `.weights.json` when `max_shard_size` is "
             f"specified. Received: filepath={filepath_str}"
         )
+    if objects_to_skip is not None:
+        visited_saveables = set(id(o) for o in objects_to_skip)
+    else:
+        visited_saveables = set()
+    if not _is_writing_process():
+        # Run the same steps as process 0, without writing files.
+        _save_without_writing(
+            model, with_assets=False, visited_saveables=visited_saveables
+        )
+        return
     try:
         if file_utils.is_remote_path(filepath):
             tmp_dir = get_temp_dir()
@@ -589,10 +643,6 @@ def save_weights_only(
             weights_store = ShardedH5IOStore(filepath, max_shard_size, mode="w")
         else:
             weights_store = H5IOStore(filepath, mode="w")
-        if objects_to_skip is not None:
-            visited_saveables = set(id(o) for o in objects_to_skip)
-        else:
-            visited_saveables = set()
         _save_state(
             model,
             weights_store=weights_store,
@@ -1782,6 +1832,39 @@ class ShardedH5IOStore(H5IOStore):
                 return True
         self._restore_h5_file()
         return False
+
+
+class _DiscardingH5IOStore(H5IOStore):
+    """Weights store that converts every value and writes nothing.
+
+    Processes other than 0 save to it: they take part in the collectives
+    that gather sharded values, but they write no file.
+    """
+
+    def __init__(self):
+        # No file is opened. These are the attributes that the methods of
+        # the base class read.
+        self.mode = "w"
+        self.archive = None
+        self.io_file = None
+        self.h5_file = None
+        self._h5_entry_path = None
+        self._h5_entry_group = {}
+        self._h5_entry_metadata = None
+        self._h5_entry_initialized = True
+
+    def __bool__(self):
+        return True
+
+    def make(self, path, metadata=None):
+        self._h5_entry_path = path
+        return self
+
+    def __setitem__(self, key, value):
+        backend.ops.convert_to_numpy(value)
+
+    def close(self):
+        pass
 
 
 def get_temp_dir():

@@ -283,6 +283,12 @@ class Model(Trainer, Layer):
 
         Thus models can be reinstantiated in the exact same state.
 
+        In a multi-process run, only process 0 writes the saved model
+        (except in the legacy `.h5` format). The other processes return
+        without waiting for the write to finish. With the PyTorch backend,
+        call `save()` on every process when variables are sharded across
+        processes, because their shards are gathered from all of them.
+
         Args:
             filepath: `str` or `pathlib.Path` object.
                 The path where to save the model. Must end in `.keras`
@@ -331,6 +337,12 @@ class Model(Trainer, Layer):
             'weight_map'.
         - `*_xxxxxx.weights.h5`: The sharded files containing only the
             weights.
+
+        In a multi-process run, only process 0 writes the files, and the
+        other processes return without waiting for the write to finish.
+        With the PyTorch backend, call `save_weights()` on every process
+        when variables are sharded across processes, because their shards
+        are gathered from all of them.
 
         Args:
             filepath: `str` or `pathlib.Path` object. Path where the weights
