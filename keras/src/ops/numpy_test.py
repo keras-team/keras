@@ -1708,7 +1708,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = np.random.randint(1, 100 + 1)
         self.assertEqual(knp.bartlett(x).shape[0], x)
 
-    def test_blackman(self):
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_blackman(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         x = np.random.randint(1, 100 + 1)
         self.assertEqual(knp.blackman(x).shape[0], x)
 
@@ -6060,17 +6063,36 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(out.shape[0], x)
         self.assertAllClose(out, expected)
 
-    def test_blackman(self):
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_blackman(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         x = np.random.randint(1, 100 + 1)
         self.assertAllClose(knp.blackman(x), np.blackman(x))
 
-    def test_blackman_length_1(self):
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_blackman_length_1(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         x = 1
         x_tensor = keras.ops.convert_to_tensor(x)
         expected = np.blackman(x)
         out = knp.blackman(x_tensor)
         self.assertEqual(out.shape[0], x)
         self.assertAllClose(out, expected)
+
+    @parameterized.named_parameters(
+        named_product(BACKEND_AGNOSTIC_OPS, floatx=["float16", "bfloat16"])
+    )
+    def test_blackman_low_precision_floatx(self, backend_agnostic_ops, floatx):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        self.addCleanup(backend.set_floatx, backend.floatx())
+        backend.set_floatx(floatx)
+        x = 4097
+        out = knp.blackman(x)
+        self.assertEqual(out.shape[0], x)
+        self.assertAllClose(out, np.blackman(x), atol=1e-2, rtol=1e-2)
 
     def test_hamming(self):
         x = np.random.randint(1, 100 + 1)
@@ -9580,8 +9602,12 @@ class NumpyDtypeTest(testing.TestCase):
             standardize_dtype(knp.bartlett(x).dtype), expected_dtype
         )
 
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_blackman(self, dtype):
+    @parameterized.named_parameters(
+        named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
+    )
+    def test_blackman(self, backend_agnostic_ops, dtype):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         x = knp.ones((), dtype=dtype)
         expected_dtype = backend.floatx()
 

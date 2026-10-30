@@ -1190,17 +1190,14 @@ def right_shift(x, y):
 
 def blackman(x):
     dtype = config.floatx()
-    x = tf.cast(x, dtype)
-    n = tf.range(x, dtype=dtype)
-    n_minus_1 = tf.cast(x - 1, dtype)
-    n_minus_1_safe = tf.where(
-        tf.equal(n_minus_1, 0), tf.ones_like(n_minus_1), n_minus_1
-    )
-    term1 = 0.42
-    term2 = -0.5 * tf.cos(2 * np.pi * n / n_minus_1_safe)
-    term3 = 0.08 * tf.cos(4 * np.pi * n / n_minus_1_safe)
-    window = term1 + term2 + term3
-    return tf.where(tf.equal(n_minus_1, 0), tf.ones_like(window), window)
+    compute_dtype = dtypes.result_type(dtype, "float32")
+
+    x = tf.cast(x, "int32")
+    n = tf.range(x, dtype=compute_dtype)
+    x_minus_1 = tf.cast(x - 1, compute_dtype)
+    phase = np.pi * (2 * n - x_minus_1) / tf.maximum(x_minus_1, 1.0)
+    window = 0.42 + 0.5 * tf.cos(phase) + 0.08 * tf.cos(2 * phase)
+    return tf.cast(window, dtype)
 
 
 def broadcast_to(x, shape):
