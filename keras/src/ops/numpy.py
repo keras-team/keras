@@ -10358,10 +10358,10 @@ def _array_split(x, indices_or_sections, axis=0):
             x, indices_or_sections=indices_or_sections, axis=axis
         )
     x = backend.ops.convert_to_tensor(x)
+    total_size = backend.ops.shape(x)[axis]
     num_splits = indices_or_sections
     if num_splits == 1:
         return [x]
-    total_size = backend.ops.shape(x)[axis]
     indices = []
     offset = 0
     for i in range(num_splits - 1):

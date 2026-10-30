@@ -5628,6 +5628,14 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         for k_arr, n_arr in zip(knp_res3, np_res3):
             self.assertAllClose(k_arr, n_arr)
 
+        knp_res4 = knp.array_split(x, 1)
+        np_res4 = np.array_split(x, 1)
+        self.assertEqual(len(knp_res4), len(np_res4))
+        self.assertAllClose(knp_res4[0], np_res4[0])
+
+        with self.assertRaises(IndexError):
+            knp.array_split(x, 1, axis=5)
+
     def test_all(self):
         x = np.array([[True, False, True], [True, True, True]])
         self.assertAllClose(knp.all(x), np.all(x))
