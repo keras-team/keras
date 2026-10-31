@@ -522,9 +522,9 @@ class R2Score(reduction_metrics.Metric):
             ops.sum(sample_weight, axis=0),
         )
         shift = ops.where(
-            ops.equal(self.count, 0.0),
+            ops.equal(self.count.value, 0.0),
             batch_mean,
-            ops.convert_to_tensor(self.shift),
+            self.shift.value,
         )
         self.shift.assign(shift)
         shifted_y_true = y_true - shift
