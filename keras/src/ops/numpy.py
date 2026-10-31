@@ -1396,7 +1396,7 @@ def _bartlett(x):
     half = (x - 1) / 2
 
     window = backend.ops.numpy.where(
-        n <= half,
+        backend.ops.numpy.less_equal(n, half),
         2.0 * n / (x - 1),
         2.0 - 2.0 * n / (x - 1),
     )
