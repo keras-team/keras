@@ -11,31 +11,30 @@ owns:
   class parses its own grammar),
 - the mode's math: the `build`/`call`/`quantize` methods create the mode's
   variables, run its forward pass, and compute its quantized values against
-  the layer's quantization geometry (`keras.src.quantizers.geometry`),
+  the layer's quantization geometry (`keras.src.quantizers.geometry`);
+  `encode` turns a float weight into the stored form, and
+  `quantized_weight` reads the stored variables back through a
+  `QuantizedWeight` (`keras.src.quantizers.quantized_weight`),
 - per-layer hyperparameter resolution (block size, weight bits, group size),
 - model-level orchestration hooks (calibration for structure-aware modes).
 
-The registry is internal API (`keras.src.quantizers`). Layers do not branch
-on mode strings and hold no per-mode methods; they expose their structure
-through `Layer._quantization_geometry()` and the strategies do the rest.
-Adding a mode is a registration, not an edit of every dispatch chain:
+The registry is internal API (`keras.src.quantizers`), and its set of
+modes is closed: `keras.src.quantizers.modes` registers the built-in
+modes, and Keras supports no other modes. A policy string names a mode
+only through the grammar `<mode>[/<params>]_from_<source>`, so a mode
+name never captures a plain dtype policy name such as `"int8"`.
 
-```python
-from keras.src.quantizers.strategy_registry import QuantizationStrategy
-from keras.src.quantizers.strategy_registry import (
-    register_quantization_strategy,
-)
+Layers stay open. A layer, built-in or custom, opts in to the built-in
+modes through two declarations: `Layer._quantization_geometry()` returns
+its quantizable structure, and `variable_serialization_spec` lists the
+modes it supports. The strategies build the mode's variables, run its
+forward pass and compute its quantized values through the geometry; the
+layer implements none of them. `keras.src.quantizers.geometry` ("Making a
+layer quantizable") lists what such a layer defines.
 
-class MyStrategy(QuantizationStrategy):
-    name = "my_mode"
-    ...
-
-register_quantization_strategy(MyStrategy())
-```
-
-This module must stay import-light: it is consulted lazily from
-`keras.src.dtype_policies` and `keras.src.layers.layer`, so importing it must
-not pull in layers or policies at module level.
+`keras.src.dtype_policies` imports this module on first use, because the
+mode modules import the policy classes. `keras.src.layers.layer` imports
+this module at module level, so this module must not import layers.
 """
 
 _MODE_TO_STRATEGY = {}  # mode -> QuantizationStrategy, in registration order.
@@ -44,10 +43,13 @@ _MODE_TO_STRATEGY = {}  # mode -> QuantizationStrategy, in registration order.
 class QuantizationStrategy:
     """Implementation of one quantization mode.
 
-    Subclasses set `name` and `config_cls` and implement the
-    `build`/`call`/`quantize` adapters against the layer's quantization
-    geometry (`Layer._quantization_geometry()`), which describes the layer's
-    quantizable structure without the layer knowing about any mode.
+    Subclasses set `name`, `config_cls` and `geometry_families` and
+    implement `build`, `call` and `quantize` against the layer's
+    quantization geometry (`Layer._quantization_geometry()`), which
+    describes the layer's quantizable structure without the layer knowing
+    about any mode. A mode that stores integer codes also implements
+    `quantized_weight`; a mode that supports a LoRA-merged save also
+    implements `encode`.
     """
 
     # The mode identifier, e.g. `"int8"`. Also the root of the policy-string
@@ -72,9 +74,14 @@ class QuantizationStrategy:
     # (pre-block layers + sequential blocks) before mutating any layer.
     requires_layer_structure = False
 
-    # Storage byte multiplier used by `Model.quantization_summary` (packed
-    # sub-byte formats store two values per byte).
-    summary_byte_multiplier = 1
+    # Whether a layer quantized with this mode can use LoRA. `enable_lora`
+    # and `Layer.quantize` check it, so a mode that sets it to False refuses
+    # LoRA in either order, before the layer changes.
+    supports_lora = True
+
+    # The geometry families (`QuantizationGeometry.family`) this mode's math
+    # handles. A layer of another family is refused before it changes.
+    geometry_families = ()
 
     # --- Config resolution ------------------------------------------------
 
@@ -152,10 +159,9 @@ class QuantizationStrategy:
         """Returns `layer`'s quantization geometry, raising if it has none.
 
         The built-in strategies read the layer through its geometry, so a layer
-        that does not define one (a layer still on its own per-mode
-        methods, or a custom layer that a registered mode claims through
-        `supports_layer`) is refused here with a clear error rather than
-        failing deeper inside the mode.
+        that does not define one, or whose geometry family the mode does
+        not handle (`geometry_families`), is refused here with a clear
+        error rather than failing deeper inside the mode.
 
         Args:
             layer: The layer being quantized.
@@ -170,18 +176,25 @@ class QuantizationStrategy:
                 f"quantization geometry, so mode '{self.name}' cannot be "
                 "applied to it."
             )
+        if geometry.family not in self.geometry_families:
+            raise NotImplementedError(
+                f"Quantization mode '{self.name}' does not support the "
+                f"'{geometry.family}' quantization geometry of layer "
+                f"{layer.__class__.__name__}."
+            )
         return geometry
 
-    def supports_layer(self, layer):
-        """Whether this mode claims support for `layer`.
+    def check_quantizable(self, layer):
+        """Raises `NotImplementedError` if this mode cannot quantize `layer`.
 
-        Layers primarily declare support by listing the mode in their
-        `variable_serialization_spec`; this hook lets an externally
-        registered mode claim layers it can quantize generically without
-        the layer having to know about it.
+        `Layer.quantize` calls it before the layer changes, so a refused
+        layer stays as it was. The default requires a quantization
+        geometry.
+
+        Args:
+            layer: The layer about to be quantized.
         """
-        del layer
-        return False
+        self.require_geometry(layer)
 
     # --- Mode math --------------------------------------------------------
 
@@ -207,6 +220,49 @@ class QuantizationStrategy:
             f"Quantization mode '{self.name}' does not implement `quantize`."
         )
 
+    def encode(self, layer, weight, config=None):
+        """Quantizes a float `weight` into this mode's stored form.
+
+        Returns `(codes, scale, zero_point)` exactly as the mode's variables
+        hold them (packed and oriented for storage), ready to assign.
+        The LoRA-merged save path uses it to re-quantize a merged weight.
+        `zero_point` is `None` for a symmetric scheme.
+        """
+        raise NotImplementedError(
+            f"Quantization mode '{self.name}' does not implement `encode`."
+        )
+
+    # --- Quantized weight view --------------------------------------------
+
+    def quantized_weight(self, layer):
+        """Returns the `QuantizedWeight` view of `layer`'s weight, or `None`.
+
+        `None` means the mode holds no integer codes for the layer: it keeps
+        the float weight (float8), or the codes are not available yet (a
+        calibration mode before its calibration pass).
+        """
+        del layer
+        return None
+
+    def quantized_weights(self, layer):
+        """All `QuantizedWeight` views of `layer`'s quantized weights.
+
+        Most layers hold one; an untied `ReversibleEmbedding` also holds its
+        reverse table. Empty when the mode holds no integer codes.
+        """
+        quantized_weight = self.quantized_weight(layer)
+        return () if quantized_weight is None else (quantized_weight,)
+
+    # --- Serialization ----------------------------------------------------
+
+    def check_saveable(self, layer):
+        """Raises if `layer`'s variables are not in a persistable state."""
+        del layer
+
+    def variables_loaded(self, layer):
+        """Called after `layer`'s variables were assigned from a store."""
+        del layer
+
     # --- Model-level orchestration ----------------------------------------
 
     def finalize_model_quantization(self, model, config, structure, filters):
@@ -229,16 +285,8 @@ def register_quantization_strategy(strategy):
 
     The strategy is validated at registration time, not at first use:
     the name must be a non-empty string, must not be registered already,
-    must not contain the policy-grammar separators ("/" and "_from_"),
-    must not shadow a standard dtype or mixed-precision policy name, and
-    must not share a prefix with a built-in mode (built-in names are
-    routed by `str.startswith` over policy strings; externally registered
-    modes match only their exact grammar, so collisions between them are
-    unambiguous).
+    and must not contain the policy-grammar separators ("/" and "_from_").
     """
-    from keras.src import backend
-    from keras.src.dtype_policies.dtype_policy import QUANTIZATION_MODES
-
     instance = strategy() if isinstance(strategy, type) else strategy
     name = instance.name
     if not isinstance(name, str) or not name:
@@ -256,31 +304,6 @@ def register_quantization_strategy(strategy):
             "not contain '/' or '_from_', which are the policy-string "
             "grammar separators."
         )
-    if name not in QUANTIZATION_MODES:
-        try:
-            backend.standardize_dtype(name)
-            is_standard_dtype = True
-        except ValueError:
-            is_standard_dtype = False
-        if is_standard_dtype or name.startswith("mixed_"):
-            raise ValueError(
-                f"Cannot register quantization mode '{name}': its name "
-                "conflicts with a standard dtype or mixed-precision "
-                "policy name."
-            )
-    for existing in _MODE_TO_STRATEGY:
-        builtin_involved = (
-            existing in QUANTIZATION_MODES or name in QUANTIZATION_MODES
-        )
-        if builtin_involved and (
-            existing.startswith(name) or name.startswith(existing)
-        ):
-            raise ValueError(
-                f"Cannot register quantization mode '{name}': its name "
-                f"collides with registered mode '{existing}'. Built-in "
-                "mode names are routed by prefix over policy strings, so "
-                "no mode name may share a prefix with a built-in mode."
-            )
     has_config_source = (
         instance.config_cls is not None
         or instance.requires_config

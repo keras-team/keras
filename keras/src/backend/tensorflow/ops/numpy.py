@@ -12,8 +12,8 @@ from tensorflow.python.ops.math_ops import is_nan
 
 from keras.src import tree
 from keras.src.backend import config
-from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import normalize_shift_and_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
@@ -91,29 +91,63 @@ def add(x1, x2):
     )
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
+    if (
+        x1.shape.rank is None
+        or x2.shape.rank is None
+        or dtype == "string"
+        or isinstance(x1, tf.RaggedTensor)
+        or isinstance(x2, tf.RaggedTensor)
+    ):
+        return tf.add(x1, x2)
+
+    x1_shape = x1.shape.as_list()
+    x1_rank = len(x1_shape)
+    x2_shape = x2.shape.as_list()
+    x2_rank = len(x2_shape)
 
     # Special case of `tf.add`: `tf.nn.bias_add`
     # `BiasAdd` can be fused with `MatMul` and `Conv*` kernels
     # Expecting `x1` to be `inputs` and `x2` to be `bias` (no swapping)
-    x2_squeeze_shape = [d for d in x2.shape.as_list() if d is None or d > 1]
-    if (
-        # `x2` looks like bias (can be squeezed to vector)
-        1 == len(x2_squeeze_shape)
-        # `x1` looks like input tensor (rank >= 2)
-        and len(x1.shape) > 1
-        # `x2` non-squeezable dimension defined
-        and x2_squeeze_shape[0] is not None
-        # `x2` non-squeezable dimension match `x1` channel dimension
-        and x2_squeeze_shape[0]
-        in {x1.shape.as_list()[1], x1.shape.as_list()[-1]}
-    ):
-        if x1.shape[-1] == x2_squeeze_shape[0]:
-            data_format = "NHWC"
+    if x1_rank > 1 and x2_rank == 1:
+        # Detect the dense layer case (`MatMul` + `BiasAdd` fusion)
+        if x2_shape[0] is not None and x2_shape[0] == x1_shape[-1]:
+            return tf.nn.bias_add(x1, x2)
+    elif x1_rank >= 3 and x1_rank == x2_rank:
+        # Detect the conv layer case (`Conv` + `BiasAdd` fusion)
+        channels_idx = None
+        dim_one_count = 0
+        for i, d in enumerate(x2_shape):
+            if d == 1:
+                dim_one_count += 1
+            else:
+                channels_idx = i
+
+        if dim_one_count == x2_rank - 1:
+            # channels_idx points to the one dimension that is not 1.
+            channels_dim = x2_shape[channels_idx]
+        elif dim_one_count == x2_rank:
+            # All dimensions are 1, solve the ambiguity by checking x1 shape.
+            channels_dim = 1
+            if x1_shape[-1] == 1:
+                channels_idx = x1_rank - 1
+            elif x1_shape[1] == 1:
+                channels_idx = 1
         else:
-            data_format = "NCHW"
-        if len(x2.shape) > 1:
-            x2 = tf.squeeze(x2)
-        return tf.nn.bias_add(x1, x2, data_format=data_format)
+            # Note: channels_idx is bogus and unused.
+            channels_dim = None
+
+        if (
+            channels_dim is not None
+            and channels_idx in (1, x2_rank - 1)
+            and x1_shape[channels_idx] == channels_dim
+        ):
+            x2 = tf.squeeze(
+                x2, axis=[i for i in range(x2_rank) if i != channels_idx]
+            )
+            if channels_idx == 1:
+                return tf.nn.bias_add(x1, x2, data_format="NCHW")
+            elif channels_idx == x2_rank - 1:
+                return tf.nn.bias_add(x1, x2, data_format="NHWC")
 
     return tf.add(x1, x2)
 
@@ -699,18 +733,18 @@ def mean(x, axis=None, keepdims=False):
                 tf.gather(x.dense_shape, gather_indices, axis=0),
             )
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    compute_dtype = dtypes.result_type(x.dtype, "float32")
-    # `tf.reduce_mean` does not handle low precision (e.g., float16) overflow
-    # correctly, so we compute with float32 and cast back to the original type.
-    if "int" in ori_dtype or ori_dtype == "bool":
-        result_dtype = compute_dtype
-    else:
-        result_dtype = ori_dtype
-    output = tf.reduce_mean(
-        tf.cast(x, compute_dtype), axis=axis, keepdims=keepdims
-    )
-    return tf.cast(output, result_dtype)
+    dtype = standardize_dtype(x.dtype)
+    if dtype == "float16":
+        # The CPU implementation of reduce_mean for float16 is broken, but the
+        # XLA implementation is correct.
+        @tf.function(jit_compile=True)
+        def xla_reduce_mean(t):
+            return tf.reduce_mean(t, axis=axis, keepdims=keepdims)
+
+        return xla_reduce_mean(x)
+    if "int" in dtype or dtype == "bool":
+        x = tf.cast(x, config.floatx())
+    return tf.reduce_mean(x, axis=axis, keepdims=keepdims)
 
 
 def max(x, axis=None, keepdims=False, initial=None):
@@ -730,7 +764,7 @@ def max(x, axis=None, keepdims=False, initial=None):
     # TensorFlow returns -inf by default for an empty list, but for consistency
     # with other backends and the numpy API we want to throw in this case.
     if tf.executing_eagerly():
-        size_x = size(x)
+        size_x = tf.size(x)
         tf.assert_greater(
             size_x,
             tf.constant(0, dtype=size_x.dtype),
@@ -794,14 +828,6 @@ def angle(x):
 def any(x, axis=None, keepdims=False):
     x = tf.cast(x, "bool")
     return tf.reduce_any(x, axis=axis, keepdims=keepdims)
-
-
-def amax(x, axis=None, keepdims=False):
-    return max(x, axis=axis, keepdims=keepdims)
-
-
-def amin(x, axis=None, keepdims=False):
-    return min(x, axis=axis, keepdims=keepdims)
 
 
 def append(x1, x2, axis=None):
@@ -1000,13 +1026,9 @@ def array(x, dtype=None):
 
 
 def view(x, dtype=None):
-    from keras.src import backend
-
     x = convert_to_tensor(x)
-    old_dtype = tf.as_dtype(backend.standardize_dtype(x.dtype))
-    new_dtype = tf.as_dtype(
-        backend.standardize_dtype(dtype if dtype else x.dtype)
-    )
+    old_dtype = tf.as_dtype(standardize_dtype(x.dtype))
+    new_dtype = tf.as_dtype(standardize_dtype(dtype if dtype else x.dtype))
 
     old_itemsize = old_dtype.size
     new_itemsize = new_dtype.size
@@ -1168,17 +1190,14 @@ def right_shift(x, y):
 
 def blackman(x):
     dtype = config.floatx()
-    x = tf.cast(x, dtype)
-    n = tf.range(x, dtype=dtype)
-    n_minus_1 = tf.cast(x - 1, dtype)
-    n_minus_1_safe = tf.where(
-        tf.equal(n_minus_1, 0), tf.ones_like(n_minus_1), n_minus_1
-    )
-    term1 = 0.42
-    term2 = -0.5 * tf.cos(2 * np.pi * n / n_minus_1_safe)
-    term3 = 0.08 * tf.cos(4 * np.pi * n / n_minus_1_safe)
-    window = term1 + term2 + term3
-    return tf.where(tf.equal(n_minus_1, 0), tf.ones_like(window), window)
+    compute_dtype = dtypes.result_type(dtype, "float32")
+
+    x = tf.cast(x, "int32")
+    n = tf.range(x, dtype=compute_dtype)
+    x_minus_1 = tf.cast(x - 1, compute_dtype)
+    phase = np.pi * (2 * n - x_minus_1) / tf.maximum(x_minus_1, 1.0)
+    window = 0.42 + 0.5 * tf.cos(phase) + 0.08 * tf.cos(2 * phase)
+    return tf.cast(window, dtype)
 
 
 def broadcast_to(x, shape):
@@ -1782,10 +1801,17 @@ def hypot(x1, x2):
     x1_abs = tf.abs(x1)
     x2_abs = tf.abs(x2)
     max_val = tf.maximum(x1_abs, x2_abs)
-    min_val = tf.minimum(x1_abs, x2_abs)
-
-    ratio = tf.math.divide_no_nan(min_val, max_val)
-    result = max_val * tf.sqrt(1.0 + tf.square(ratio))
+    both_zero = tf.equal(max_val, 0)
+    scale = tf.stop_gradient(
+        tf.where(both_zero, tf.ones_like(max_val), max_val)
+    )
+    sum_sq = tf.square(x1 / scale) + tf.square(x2 / scale)
+    safe_sum_sq = tf.where(both_zero, tf.ones_like(sum_sq), sum_sq)
+    result = tf.where(
+        both_zero,
+        tf.zeros_like(max_val),
+        scale * tf.sqrt(safe_sum_sq),
+    )
     return tf.where(
         tf.math.is_inf(x1_abs) | tf.math.is_inf(x2_abs),
         tf.constant(float("inf"), dtype=result.dtype),
@@ -2013,8 +2039,9 @@ def ldexp(x1, x2):
 
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, x1.dtype)
-    result = x1 * tf.pow(tf.constant(2.0, dtype=x1.dtype), x2)
-    return tf.cast(tf.where(tf.math.is_inf(x1) | (x1 == 0), x1, result), dtype)
+    pow_val = tf.pow(tf.constant(2.0, dtype=x1.dtype), x2)
+    result = tf.where(tf.math.is_inf(pow_val) & (x1 == 0), x1, x1 * pow_val)
+    return tf.cast(tf.where(tf.math.is_inf(x1), x1, result), dtype)
 
 
 def less(x1, x2):
@@ -2132,27 +2159,52 @@ def logaddexp(x1, x2):
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
-    delta = x1 - x2
+    amax = tf.maximum(x1, x2)
+    amin = tf.minimum(x1, x2)
+    finite_max = tf.math.is_finite(amax)
+    # Dummy center is 0 when amax is non-finite so exp/log stay finite.
+    safe_max = tf.stop_gradient(tf.where(finite_max, amax, tf.zeros_like(amax)))
+    # Unused branch: both operands = safe_max -> log(2) finite (WhereGrad).
+    use_lse = finite_max & tf.math.is_finite(amin)
+    x1_masked = tf.where(use_lse, x1, safe_max)
+    x2_masked = tf.where(use_lse, x2, safe_max)
+    lse = safe_max + tf.math.log(
+        tf.math.exp(x1_masked - safe_max) + tf.math.exp(x2_masked - safe_max)
+    )
+    # NaN in, NaN out; non-finite inputs resolve via amax (including inf pairs).
     return tf.where(
-        tf.math.is_nan(delta),
+        tf.math.is_nan(x1) | tf.math.is_nan(x2),
         x1 + x2,
-        tf.maximum(x1, x2) + tf.math.log1p(tf.math.exp(-tf.abs(delta))),
+        tf.where(use_lse, lse, amax),
     )
 
 
 def logaddexp2(x1, x2):
-    x1 = tf.convert_to_tensor(x1)
-    x2 = tf.convert_to_tensor(x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
-    delta = x1 - x2
+    amax = tf.maximum(x1, x2)
+    amin = tf.minimum(x1, x2)
+    finite_max = tf.math.is_finite(amax)
+    safe_max = tf.stop_gradient(tf.where(finite_max, amax, tf.zeros_like(amax)))
+    use_lse = finite_max & tf.math.is_finite(amin)
     log2 = tf.cast(tf.math.log(2.0), dtype)
+    x1_masked = tf.where(use_lse, x1, safe_max)
+    x2_masked = tf.where(use_lse, x2, safe_max)
+    lse = (
+        safe_max
+        + tf.math.log(
+            tf.math.exp((x1_masked - safe_max) * log2)
+            + tf.math.exp((x2_masked - safe_max) * log2)
+        )
+        / log2
+    )
     return tf.where(
-        tf.math.is_nan(delta),
+        tf.math.is_nan(x1) | tf.math.is_nan(x2),
         x1 + x2,
-        tf.maximum(x1, x2)
-        + tf.math.log1p(tf.math.exp(-tf.abs(delta) * log2)) / log2,
+        tf.where(use_lse, lse, amax),
     )
 
 
@@ -2251,7 +2303,7 @@ def min(x, axis=None, keepdims=False, initial=None):
     # TensorFlow returns inf by default for an empty list, but for consistency
     # with other backends and the numpy API we want to throw in this case.
     if tf.executing_eagerly():
-        size_x = size(x)
+        size_x = tf.size(x)
         tf.assert_greater(
             size_x,
             tf.constant(0, dtype=size_x.dtype),
@@ -2990,6 +3042,9 @@ def sinh(x):
 
 def size(x):
     x = convert_to_tensor(x)
+    # A dynamic shape has no static size, so return a tensor instead.
+    if x.shape.is_fully_defined():
+        return x.shape.num_elements()
     return tf.size(x)
 
 
@@ -3775,7 +3830,30 @@ def floor_divide(x1, x2):
     )
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
-    return tf.math.floordiv(x1, x2)
+    if "float" not in dtype:
+        return tf.math.floordiv(x1, x2)
+    # `tf.math.floordiv` takes the floor of the rounded quotient, which can
+    # reach the next whole number: in float32, 4.2 / 1.4 rounds to 3.0, so
+    # 4.2 // 1.4 gave 3 instead of 2. Divide the exact multiple
+    # `x1 - fmod(x1, x2)` instead, as NumPy and JAX do.
+    # `tf.truncatemod` has no float16 or bfloat16 kernel.
+    compute_dtype = "float32" if dtype in ("float16", "bfloat16") else dtype
+    x1 = tf.cast(x1, compute_dtype)
+    x2 = tf.cast(x2, compute_dtype)
+    mod = tf.truncatemod(x1, x2)
+    div = (x1 - mod) / x2
+    # `fmod` has the sign of `x1`; floor division rounds toward -inf.
+    div = tf.where(
+        tf.logical_and(
+            tf.not_equal(mod, 0),
+            tf.math.logical_xor(tf.less(mod, 0), tf.less(x2, 0)),
+        ),
+        div - 1,
+        div,
+    )
+    # A zero divisor gives `x1 / x2` (inf, -inf or nan), as before.
+    result = tf.where(tf.equal(x2, 0), x1 / x2, tf.round(div))
+    return tf.stop_gradient(tf.cast(result, dtype))
 
 
 def logical_xor(x1, x2):

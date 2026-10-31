@@ -5,6 +5,7 @@ from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.ops.operation import Operation
 
@@ -100,10 +101,13 @@ def fake_quant_with_min_max_vars(
     Returns:
         Tensor: A Keras tensor with fake quantization applied.
     """
-    if any_symbolic_tensors((inputs,)):
-        return FakeQuantWithMinMaxVars().symbolic_call(
-            inputs, min_vals, max_vals
-        )
+    if any_symbolic_tensors((inputs, min_vals, max_vals)):
+        if axis is not None:
+            # Validate the axis while the graph is built.
+            axis = canonicalize_axis(axis, len(ops.shape(inputs)))
+        return FakeQuantWithMinMaxVars(
+            num_bits=num_bits, narrow_range=narrow_range, axis=axis
+        ).symbolic_call(inputs, min_vals, max_vals)
 
     inputs = ops.convert_to_tensor(inputs)
     min_vals = ops.convert_to_tensor(min_vals)
@@ -119,7 +123,7 @@ def fake_quant_with_min_max_vars(
         import tensorflow as tf
 
         # `tf.quantization.fake_quant_*` only supports float32.
-        dtype = backend.standardize_dtype(inputs.dtype)
+        dtype = standardize_dtype(inputs.dtype)
         if axis is None:
             outputs = tf.quantization.fake_quant_with_min_max_vars(
                 ops.cast(inputs, "float32"),
@@ -147,7 +151,7 @@ def fake_quant_with_min_max_vars(
 
     @ops.custom_gradient
     def _fake_quant_with_min_max_vars_per_channel(x, min_val, max_val):
-        dtype = backend.standardize_dtype(x.dtype)
+        dtype = standardize_dtype(x.dtype)
 
         # Calculate quantization parameters for all channels at once
         nudged_min, nudged_max, scale, inv_scale = adjust_and_nudge(

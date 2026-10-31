@@ -3,7 +3,6 @@
 import math as python_math
 
 from keras.src import backend
-from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
@@ -1457,41 +1456,57 @@ def _lgamma(x):
 
     # If the input is less than 0.5 use Euler's reflection formula:
     # gamma(x) = pi / (sin(pi * x) * gamma(1 - x))
-    need_to_reflect = ops.less(x, 0.5)
-    z = ops.where(need_to_reflect, -x, x - 1.0)
+    need_to_reflect = backend.ops.numpy.less(x, 0.5)
+    z = backend.ops.numpy.where(need_to_reflect, -x, x - 1.0)
 
-    series = ops.cast(_BASE_LANCZOS_COEFF, compute_dtype)
+    series = backend.ops.cast(_BASE_LANCZOS_COEFF, compute_dtype)
     for i, coeff in enumerate(_LANCZOS_COEFFICIENTS):
-        series = series + ops.cast(coeff, compute_dtype) / (z + float(i + 1))
+        series = series + backend.ops.cast(coeff, compute_dtype) / (
+            z + float(i + 1)
+        )
 
-    lanczos_gamma_plus_half = ops.cast(_LANCZOS_GAMMA_PLUS_HALF, compute_dtype)
-    log_lanczos_gamma_plus_half = ops.cast(
+    lanczos_gamma_plus_half = backend.ops.cast(
+        _LANCZOS_GAMMA_PLUS_HALF, compute_dtype
+    )
+    log_lanczos_gamma_plus_half = backend.ops.cast(
         _LOG_LANCZOS_GAMMA_PLUS_HALF, compute_dtype
     )
-    pi = ops.cast(_PI, compute_dtype)
+    pi = backend.ops.cast(_PI, compute_dtype)
     t = z + lanczos_gamma_plus_half
-    log_t = log_lanczos_gamma_plus_half + ops.log1p(z / lanczos_gamma_plus_half)
-
-    log_sqrt_two_pi = ops.cast(_LOG_SQRT_TWO_PI, compute_dtype)
-    log_y = log_sqrt_two_pi + (z + 0.5 - t / log_t) * log_t + ops.log(series)
-
-    abs_x = ops.abs(x)
-    abs_frac_x = abs_x - ops.floor(abs_x)
-    reduced_frac_x = ops.where(
-        ops.greater(abs_frac_x, 0.5), 1.0 - abs_frac_x, abs_frac_x
+    log_t = log_lanczos_gamma_plus_half + backend.ops.numpy.log1p(
+        z / lanczos_gamma_plus_half
     )
-    reflection_denom = ops.log(ops.sin(pi * reduced_frac_x))
 
-    reflection = ops.where(
-        ops.isfinite(reflection_denom),
-        ops.cast(ops.log(pi), compute_dtype) - reflection_denom - log_y,
+    log_sqrt_two_pi = backend.ops.cast(_LOG_SQRT_TWO_PI, compute_dtype)
+    log_y = (
+        log_sqrt_two_pi
+        + (z + 0.5 - t / log_t) * log_t
+        + backend.ops.numpy.log(series)
+    )
+
+    abs_x = backend.ops.numpy.abs(x)
+    abs_frac_x = abs_x - backend.ops.numpy.floor(abs_x)
+    reduced_frac_x = backend.ops.numpy.where(
+        backend.ops.numpy.greater(abs_frac_x, 0.5), 1.0 - abs_frac_x, abs_frac_x
+    )
+    reflection_denom = backend.ops.numpy.log(
+        backend.ops.numpy.sin(pi * reduced_frac_x)
+    )
+
+    reflection = backend.ops.numpy.where(
+        backend.ops.numpy.isfinite(reflection_denom),
+        backend.ops.cast(backend.ops.numpy.log(pi), compute_dtype)
+        - reflection_denom
+        - log_y,
         -reflection_denom,
     )
-    result = ops.where(need_to_reflect, reflection, log_y)
+    result = backend.ops.numpy.where(need_to_reflect, reflection, log_y)
 
     # Handle +/-inf edge cases: lgamma(+/-inf) = +inf
-    inf_val = ops.cast(float("inf"), compute_dtype)
-    result = ops.where(ops.isinf(x), inf_val, result)
+    inf_val = backend.ops.cast(float("inf"), compute_dtype)
+    result = backend.ops.numpy.where(
+        backend.ops.numpy.isinf(x), inf_val, result
+    )
 
     if compute_dtype != target_dtype:
         result = backend.ops.cast(result, target_dtype)

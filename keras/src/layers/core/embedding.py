@@ -3,13 +3,11 @@ import warnings
 from keras.src import constraints
 from keras.src import initializers
 from keras.src import ops
-from keras.src import quantizers
 from keras.src import regularizers
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.geometry import LookupGeometry
-from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.saving import serialization_lib
 
 
@@ -160,7 +158,7 @@ class Embedding(Layer):
             )
         self.built = True
         if self.lora_rank:
-            self.enable_lora(self.lora_rank)
+            self.enable_lora(self.lora_rank, lora_alpha=self.lora_alpha)
 
     @property
     def embeddings(self):
@@ -168,11 +166,14 @@ class Embedding(Layer):
             raise AttributeError(
                 "You must build the layer before accessing `embeddings`."
             )
-        embeddings = self._embeddings
-        if self.quantization_mode == "int4":
-            embeddings = quantizers.unpack_int4(
-                embeddings, self._orig_output_dim, axis=-1
-            )
+        # A quantized layer exposes its integer codes in the table's shape;
+        # without a `QuantizedWeight` view, the float table.
+        quantized_weight = self._quantized_weight()
+        embeddings = (
+            self._embeddings
+            if quantized_weight is None
+            else quantized_weight.unpack()
+        )
         if self.lora_enabled:
             embeddings = ops.cast(
                 ops.add(
@@ -228,6 +229,7 @@ class Embedding(Layer):
             raise ValueError(
                 "lora is already enabled. This can only be done once per layer."
             )
+        self._check_lora_supported(self.quantization_mode)
         self._tracker.unlock()
 
         # LoRA weights should be float32 to avoid the risk of underflow or
@@ -257,104 +259,10 @@ class Embedding(Layer):
         self.lora_alpha = lora_alpha if lora_alpha is not None else rank
 
     def save_own_variables(self, store):
-        # Do nothing if the layer isn't yet built
-        if not self.built:
-            return
-        mode = self.quantization_mode
-        if mode not in self.variable_serialization_spec:
-            raise self._quantization_mode_error(mode)
-
-        # Embeddings plus optional merged LoRA-aware scale/zero (returns
-        # (embeddings, None, None) for `None` mode).
-        embeddings_value, merged_embeddings_scale, merged_embeddings_zero = (
-            self._get_embeddings_with_merged_lora()
-        )
-        # Variables are stored under their integer position ("0", "1", ...)
-        # within the mode's serialization spec. Each branch picks the value
-        # for the current spec entry (or skips it); the write happens at a
-        # single point so save and load stay position-consistent.
-        idx = 0
-        for name in self.variable_serialization_spec[mode]:
-            if name == "embeddings":
-                value = embeddings_value
-            elif name == "embeddings_zero":
-                if merged_embeddings_zero is None:
-                    # embeddings_zero only exists for sub-channel int4
-                    # quantization
-                    continue
-                value = merged_embeddings_zero
-            elif name == "g_idx" and not hasattr(self, "g_idx"):
-                # g_idx only exists for sub-channel int4 quantization
-                continue
-            elif name == "embeddings_scale" and mode in ("int4", "int8"):
-                # For int4/int8, the merged LoRA scale (if any) comes from
-                # `_get_embeddings_with_merged_lora()`
-                value = merged_embeddings_scale
-            else:
-                # Generic handling for subclass variables:
-                # Check if the attribute exists on the instance before saving.
-                # This supports optional variables in subclasses (e.g.,
-                # `reverse_embeddings_zero` in ReversibleEmbedding) that are
-                # present in the spec but may not exist on the object depending
-                # on configuration (e.g., per-channel vs. sub-channel).
-                if not hasattr(self, name):
-                    continue
-                value = getattr(self, name)
-            store[str(idx)] = value
-            idx += 1
+        self._save_serialized_variables(store, "embeddings")
 
     def load_own_variables(self, store):
-        if not self.lora_enabled:
-            self._check_load_own_variables(store)
-        # Do nothing if the layer isn't yet built
-        if not self.built:
-            return
-        mode = self.quantization_mode
-        if mode not in self.variable_serialization_spec:
-            raise self._quantization_mode_error(mode)
-
-        spec = self.variable_serialization_spec[mode]
-        # Variables are keyed by their integer position ("0", "1", ...) within
-        # the mode's serialization spec. Each branch picks the target variable
-        # for the current spec entry (or skips it); the assign happens at a
-        # single point so save and load stay position-consistent.
-        idx = 0
-        for name in spec:
-            key = str(idx)
-            if name == "embeddings":
-                target = self._embeddings
-            elif name == "embeddings_zero" and not hasattr(
-                self, "embeddings_zero"
-            ):
-                # embeddings_zero only exists for sub-channel int4 quantization
-                continue
-            elif name == "g_idx":
-                if not hasattr(self, "g_idx"):
-                    # g_idx only exists for sub-channel int4 quantization
-                    continue
-                # `g_idx` is stored as `float32` (see build). Cast to the
-                # variable dtype on assign so both legacy `float32`
-                # checkpoints and any `int32`-saved ones load correctly.
-                self.g_idx.assign(ops.cast(store[key], self.g_idx.dtype))
-                idx += 1
-                continue
-            else:
-                # Generic handling for subclass variables:
-                # Check if the attribute exists before attempting to assign.
-                # If the variable is in the spec but missing from the object,
-                # we skip it to prevent AttributeError.
-                if not hasattr(self, name):
-                    continue
-                target = getattr(self, name)
-            target.assign(store[key])
-            idx += 1
-        if self.lora_enabled:
-            self.lora_embeddings_a.assign(
-                ops.zeros(self.lora_embeddings_a.shape)
-            )
-            self.lora_embeddings_b.assign(
-                ops.zeros(self.lora_embeddings_b.shape)
-            )
+        self._load_serialized_variables(store, "embeddings")
 
     def get_config(self):
         base_config = super().get_config()
@@ -423,146 +331,5 @@ class Embedding(Layer):
             ],
         }
 
-    def quantize(self, mode=None, type_check=True, config=None):
-        # Prevent quantization of the subclasses.
-        if type_check and type(self) is not Embedding:
-            raise self._not_implemented_error(self.quantize)
-        self._registry_quantize(mode, config)
-
     def _quantization_geometry(self):
         return LookupGeometry(self)
-
-    def _get_embeddings_with_merged_lora(self):
-        """Returns the embeddings with LoRA matrices merged, for serialization.
-
-        This method is called by `save_own_variables` to produce a single
-        embeddings tensor that includes the adaptations from LoRA. This is
-        useful for deploying the model or for continuing training after
-        permanently applying the LoRA update.
-
-        If the layer is quantized (`int8` or `int4`), the process is:
-        1. Dequantize the base embeddings to float.
-        2. Compute the LoRA delta (`lora_embeddings_a @ lora_embeddings_b`) and
-            add it to the dequantized embeddings.
-        3. Re-quantize the merged result back to the original quantized
-            type (`int8` or packed `int4`), calculating a new scale factor.
-
-        If the layer is not quantized, this method returns the result of the
-        `embeddings` property (which computes the merge in floating-point) and a
-        scale of `None`.
-
-        If LoRA is not enabled, it returns the original embeddings and scale
-        without modification.
-
-        Returns:
-            A tuple `(embeddings_value, embeddings_scale, embeddings_zero)`:
-                `embeddings_value`: The merged embeddings. A quantized tensor if
-                    quantization is active, otherwise a high precision tensor.
-                `embeddings_scale`: The quantization scale for the merged
-                    embeddings. This is `None` if the layer is not quantized.
-                `embeddings_zero`: The zero point for sub-channel quantization.
-                    This is `None` for per-channel quantization modes.
-        """
-        if self.dtype_policy.quantization_mode in (None, "gptq", "awq"):
-            return self.embeddings, None, None
-
-        embeddings_value = self._embeddings
-        embeddings_scale = self.embeddings_scale
-        embeddings_zero = getattr(self, "embeddings_zero", None)
-
-        if not self.lora_enabled:
-            return embeddings_value, embeddings_scale, embeddings_zero
-
-        block_size = getattr(self, "_int4_block_size", None)
-
-        # Dequantize embeddings to float.
-        if self.quantization_mode == "int4":
-            unpacked_embeddings = quantizers.unpack_int4(
-                embeddings_value, self._orig_output_dim, axis=-1
-            )
-            if block_size is None or block_size == -1:
-                # Per-channel dequantization
-                float_embeddings = ops.divide(
-                    ops.cast(unpacked_embeddings, self.compute_dtype),
-                    ops.expand_dims(embeddings_scale, axis=-1),
-                )
-            else:
-                # Sub-channel: grouped dequantization using shared utility
-                float_embeddings = dequantize_with_sz_map(
-                    ops.cast(unpacked_embeddings, self.compute_dtype),
-                    embeddings_scale,
-                    self.embeddings_zero,
-                    self.g_idx,
-                    group_axis=-1,
-                )
-            quant_range = (-8, 7)
-        elif self.quantization_mode == "int8":
-            float_embeddings = ops.divide(
-                ops.cast(embeddings_value, self.compute_dtype),
-                ops.expand_dims(embeddings_scale, axis=-1),
-            )
-            quant_range = (-127, 127)
-        else:
-            raise ValueError(
-                f"Unsupported quantization mode: {self.quantization_mode}"
-            )
-
-        # Merge LoRA weights in float domain.
-        lora_delta = (self.lora_alpha / self.lora_rank) * ops.matmul(
-            self.lora_embeddings_a, self.lora_embeddings_b
-        )
-        merged_float_embeddings = ops.add(float_embeddings, lora_delta)
-
-        # Requantize.
-        if self.quantization_mode == "int4":
-            if block_size is None or block_size == -1:
-                # Per-channel re-quantization
-                requantized_embeddings, new_scale = quantizers.abs_max_quantize(
-                    merged_float_embeddings,
-                    axis=-1,
-                    value_range=quant_range,
-                    dtype="int8",
-                    to_numpy=True,
-                )
-                new_scale = ops.squeeze(new_scale, axis=-1)
-                embeddings_zero = None
-            else:
-                # Grouped re-quantization (asymmetric with zero point)
-                merged_np = merged_float_embeddings
-                # Transpose to (output_dim, input_dim) for grouped quantization
-                merged_t = ops.transpose(merged_np)
-
-                requantized_t, scale_t, zero_t = (
-                    quantizers.abs_max_quantize_grouped_with_zero_point(
-                        merged_t,
-                        block_size=block_size,
-                        value_range=quant_range,
-                        dtype="int8",
-                        to_numpy=True,
-                    )
-                )
-                # Transpose back
-                requantized_embeddings = ops.transpose(requantized_t)
-                new_scale = ops.transpose(scale_t)
-                embeddings_zero = ops.transpose(zero_t)
-
-            # Pack for int4
-            embeddings_value, _, _ = quantizers.pack_int4(
-                requantized_embeddings, axis=-1
-            )
-            embeddings_scale = new_scale
-        else:
-            # int8 re-quantization
-            requantized_embeddings, embeddings_scale = (
-                quantizers.abs_max_quantize(
-                    merged_float_embeddings,
-                    axis=-1,
-                    value_range=quant_range,
-                    dtype="int8",
-                    to_numpy=True,
-                )
-            )
-            embeddings_scale = ops.squeeze(embeddings_scale, axis=-1)
-            embeddings_value = requantized_embeddings
-            embeddings_zero = None
-        return embeddings_value, embeddings_scale, embeddings_zero

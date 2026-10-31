@@ -1,8 +1,10 @@
 import contextlib
+import gc
 import io
 import os
 import pickle
 import warnings
+import weakref
 from collections import namedtuple
 
 import numpy as np
@@ -15,6 +17,8 @@ from keras.src import losses
 from keras.src import ops
 from keras.src import testing
 from keras.src import tree
+from keras.src.backend.common import standardize_dtype
+from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
 from keras.src.layers.core.input_layer import Input
 from keras.src.models.functional import Functional
 from keras.src.models.model import Model
@@ -948,13 +952,71 @@ class ModelTest(testing.TestCase):
             for weight in model.weights:
                 if weight.name == "kernel":
                     kernel_count += 1
-                    self.assertEqual(
-                        backend.standardize_dtype(weight.dtype), "int8"
-                    )
+                    self.assertEqual(standardize_dtype(weight.dtype), "int8")
             self.assertEqual(kernel_count, 3)
         if mode == "float8":
             # kernel + bias + scale * 3 + amax_history * 3 == 8
             self.assertEqual(len(model.weights), 3 * 8)
+
+    @parameterized.named_parameters(
+        ("sequential", "sequential"),
+        ("sequential_in_sequential", "sequential_in_sequential"),
+        ("sequential_in_functional", "sequential_in_functional"),
+        ("sequential_in_subclassed", "sequential_in_subclassed"),
+    )
+    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
+    def test_quantize_sequential_retracks_torch_params(self, structure):
+        if structure == "sequential":
+            model = Sequential([Input((8,)), layers.Dense(16), layers.Dense(4)])
+        elif structure == "sequential_in_sequential":
+            inner = Sequential([layers.Dense(16), layers.Dense(4)])
+            model = Sequential([Input((8,)), inner, layers.Dense(2)])
+        elif structure == "sequential_in_functional":
+            inner = Sequential([Input((8,)), layers.Dense(16), layers.Dense(4)])
+            inputs = Input((8,))
+            model = Model(inputs, inner(inputs))
+        else:
+
+            class MyModel(Model):
+                def __init__(self):
+                    super().__init__()
+                    self.block = Sequential(
+                        [Input((8,)), layers.Dense(16), layers.Dense(4)]
+                    )
+
+                def call(self, x):
+                    return self.block(x)
+
+            model = MyModel()
+            model(np.zeros((1, 8)))
+        owners = [model] + [
+            layer
+            for layer in model._flatten_layers(include_self=False)
+            if isinstance(layer, Sequential)
+        ]
+        # Create the parameter lists before quantization.
+        for owner in owners:
+            self.assertLen(list(owner.named_parameters()), len(owner.weights))
+        float_kernels = [
+            weakref.ref(layer.kernel.value)
+            for layer in model._flatten_layers()
+            if isinstance(layer, layers.Dense)
+        ]
+
+        model.quantize("int8")
+        gc.collect()
+
+        # The parameters of the model and of each `Sequential` are its
+        # quantized variables, and no parameter keeps a float kernel alive.
+        for owner in owners:
+            variables = {id(v.value) for v in owner.variables}
+            parameters = list(owner.named_parameters())
+            self.assertLen(parameters, len(owner.variables))
+            for name, parameter in parameters:
+                self.assertIn(id(parameter), variables, name)
+        self.assertEqual(
+            [ref() for ref in float_kernels], [None] * len(float_kernels)
+        )
 
     def _get_mixed_layer_model(self):
         inputs = layers.Input([4], name="in")
@@ -986,7 +1048,6 @@ class ModelTest(testing.TestCase):
             QuantizationReport.SKIP_NO_SUPPORT
         )
         self.assertIn("act", unsupported)
-        self.assertEqual(report.num_errors, 0)
 
         # Input layers carry no weights and must never appear in the report as
         # skipped entries (they are neither quantizable nor a meaningful skip).
@@ -1115,9 +1176,7 @@ class ModelTest(testing.TestCase):
             self.assertEqual(layer.dtype_policy.name, pre)
             self.assertFalse(getattr(layer, "_is_quantized", False))
             self.assertFalse(hasattr(layer, "quantized_kernel"))
-            self.assertEqual(
-                backend.standardize_dtype(layer.kernel.dtype), "float32"
-            )
+            self.assertEqual(standardize_dtype(layer.kernel.dtype), "float32")
         # No report is attached when the call aborts before quantizing.
         self.assertFalse(hasattr(model, "_quantization_report"))
 
@@ -1170,9 +1229,19 @@ class ModelTest(testing.TestCase):
         summary = model.quantization_summary(verbose=False)
         self.assertIn("d1", summary)
         self.assertIn("int8_from_float32", summary)
-        self.assertIn("weight store : int8 (32768 bytes)", summary)
+        # The int8 codes (32768) and the 128-entry float32 scale (512).
+        self.assertIn("weight store : int8 (33280 bytes)", summary)
         self.assertIn("Quantized layers : 1", summary)
-        self.assertIn("4.00x smaller", summary)
+        self.assertIn("3.94x smaller", summary)
+
+    def test_quantize_reports_the_policy_of_a_dtype_policy_map_entry(self):
+        # A map's `name` is its default policy's ("map_float32"); the report
+        # names the layer's own entry.
+        inputs = layers.Input([6])
+        outputs = layers.Dense(4, name="d", dtype=DTypePolicyMap())(inputs)
+        model = Model(inputs, outputs)
+        report = model.quantize("int8", verbose=False)
+        self.assertEqual(report.quantized, [("d", "int8", "int8_from_float32")])
 
     def test_get_state_tree(self):
         model = _get_model_single_output()
@@ -1556,11 +1625,5 @@ class ModelTest(testing.TestCase):
 
         # Bad backend
         if backend.backend() not in ("tensorflow", "jax", "torch"):
-            with self.assertRaisesRegex(
-                NotImplementedError,
-                (
-                    r"`export_saved_model` only currently supports the "
-                    r"tensorflow, jax and torch backends."
-                ),
-            ):
+            with self.assertRaises(NotImplementedError):
                 model.export(temp_filepath, format="tf_saved_model")

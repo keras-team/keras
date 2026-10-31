@@ -20,6 +20,9 @@ class Float8Strategy(QuantizationStrategy):
     config_cls = Float8QuantizationConfig
     # The float kernel is kept; only auxiliary variables are added.
     owns_weight_storage = False
+    geometry_families = ("projection",)
+    # The fp8 forward has no term for a LoRA update.
+    supports_lora = False
 
     def policy_from_string(self, mode_str, source_name):
         return QuantizedFloat8DTypePolicy(mode_str, source_name)
@@ -34,12 +37,14 @@ class Float8Strategy(QuantizationStrategy):
         # The scale/amax variables are shape-independent and the float
         # kernel is left in place.
         del input_shape, config
-        # If `layer.dtype_policy` is not QuantizedFloat8DTypePolicy, then set
-        # `amax_history_length` to its default value.
-        amax_history_length = getattr(
-            layer.dtype_policy,
-            "amax_history_length",
-            QuantizedFloat8DTypePolicy.default_amax_history_length,
+        self.require_geometry(layer)
+        # A float layer being quantized has no float8 policy yet and uses
+        # the default length.
+        policy = layer._own_dtype_policy
+        amax_history_length = (
+            policy.amax_history_length
+            if isinstance(policy, QuantizedFloat8DTypePolicy)
+            else QuantizedFloat8DTypePolicy.default_amax_history_length
         )
         # We set `trainable=True` because we will use the gradients to
         # overwrite these variables
@@ -162,7 +167,7 @@ class Float8Strategy(QuantizationStrategy):
             # to BF16 first to get the biasAdd fusion support. ref. PR
             # https://github.com/tensorflow/tensorflow/pull/60306
             bias = layer.bias
-            if layer.dtype_policy.compute_dtype == "float32":
+            if layer.compute_dtype == "float32":
                 bias_bf16 = ops.cast(bias, "bfloat16")
                 bias = ops.cast(bias_bf16, bias.dtype)
             x = ops.add(x, bias)

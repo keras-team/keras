@@ -3,10 +3,10 @@
 import json
 
 import numpy as np
-import pytest
 
 import keras
 from keras.src import ops
+from keras.src import random
 from keras.src import testing
 from keras.src.saving import deserialize_keras_object
 from keras.src.saving import object_registration
@@ -96,6 +96,53 @@ class SerializationLibTest(testing.TestCase):
         self.assertEqual(layer.trainable, restored.trainable)
         self.assertEqual(layer.compute_dtype, restored.compute_dtype)
 
+    def test_builtin_layers_with_alias_name(self):
+        obj = serialization_lib.deserialize_keras_object(
+            {
+                "class_name": "AveragePooling1D",
+                "module": "keras.layers",
+                "registered_name": "",
+                "config": {"pool_size": 2},
+            }
+        )
+        self.assertIsInstance(obj, keras.layers.AveragePooling1D)
+
+        obj = serialization_lib.deserialize_keras_object(
+            {
+                "class_name": "AvgPool1D",
+                "module": "keras.layers",
+                "registered_name": "",
+                "config": {"pool_size": 2},
+            }
+        )
+        self.assertIsInstance(obj, keras.layers.AveragePooling1D)
+
+    def test_missing_module(self):
+        with self.assertRaisesRegex(
+            TypeError, "'keras.foo' cannot be imported"
+        ):
+            serialization_lib.deserialize_keras_object(
+                {
+                    "class_name": "Bar",
+                    "module": "keras.foo",
+                    "registered_name": "",
+                    "config": {},
+                }
+            )
+
+    def test_missing_attribute(self):
+        with self.assertRaisesRegex(
+            ValueError, "'keras.layers' has no attribute 'Foo'"
+        ):
+            serialization_lib.deserialize_keras_object(
+                {
+                    "class_name": "Foo",
+                    "module": "keras.layers",
+                    "registered_name": "",
+                    "config": {},
+                }
+            )
+
     def test_numpy_get_item_layer(self):
         def tuples_to_lists_str(x):
             return str(x).replace("(", "[").replace(")", "]")
@@ -114,7 +161,7 @@ class SerializationLibTest(testing.TestCase):
         self.assertEqual(..., deserialized)
 
     def test_tensors_and_shapes(self):
-        x = ops.random.normal((2, 2), dtype="float64")
+        x = random.normal((2, 2), dtype="float64")
         obj = {"x": x}
         _, new_obj, _ = self.roundtrip(obj)
         self.assertAllClose(x, new_obj["x"], atol=1e-5)
@@ -136,7 +183,7 @@ class SerializationLibTest(testing.TestCase):
         _, new_dense, _ = self.roundtrip(
             dense, custom_objects={"custom_fn": custom_fn}
         )
-        x = ops.random.normal((2, 2))
+        x = random.normal((2, 2))
         y1 = dense(x)
         _ = new_dense(x)
         new_dense.set_weights(dense.get_weights())
@@ -145,7 +192,7 @@ class SerializationLibTest(testing.TestCase):
 
     def test_custom_layer(self):
         layer = CustomLayer(factor=2)
-        x = ops.random.normal((2, 2))
+        x = random.normal((2, 2))
         y1 = layer(x)
         _, new_layer, _ = self.roundtrip(
             layer, custom_objects={"CustomLayer": CustomLayer}
@@ -154,7 +201,7 @@ class SerializationLibTest(testing.TestCase):
         self.assertAllClose(y1, y2, atol=1e-5)
 
         layer = NestedCustomLayer(factor=2)
-        x = ops.random.normal((2, 2))
+        x = random.normal((2, 2))
         y1 = layer(x)
         _, new_layer, _ = self.roundtrip(
             layer,
@@ -182,7 +229,7 @@ class SerializationLibTest(testing.TestCase):
             self.roundtrip(lmbda, safe_mode=True)
 
         _, new_lmbda, _ = self.roundtrip(lmbda, safe_mode=False)
-        x = ops.random.normal((2, 2))
+        x = random.normal((2, 2))
         y1 = lmbda(x)
         y2 = new_lmbda(x)
         self.assertAllClose(y1, y2, atol=1e-5)
@@ -221,12 +268,11 @@ class SerializationLibTest(testing.TestCase):
                 self.roundtrip(lmbda)
         with serialization_lib.SafeModeScope(safe_mode=False):
             _, new_lmbda, _ = self.roundtrip(lmbda)
-        x = ops.random.normal((2, 2))
+        x = random.normal((2, 2))
         y1 = lmbda(x)
         y2 = new_lmbda(x)
         self.assertAllClose(y1, y2, atol=1e-5)
 
-    @pytest.mark.requires_trainable_backend
     def test_dict_inputs_outputs(self):
         input_foo = keras.Input((2,), name="foo")
         input_bar = keras.Input((2,), name="bar")
@@ -247,7 +293,6 @@ class SerializationLibTest(testing.TestCase):
         self.assertAllClose(original_output["foo"], restored_output["foo"])
         self.assertAllClose(original_output["bar"], restored_output["bar"])
 
-    @pytest.mark.requires_trainable_backend
     def test_shared_inner_layer(self):
         with serialization_lib.ObjectSharingScope():
             input_1 = keras.Input((2,))
@@ -264,7 +309,6 @@ class SerializationLibTest(testing.TestCase):
             self.assertIs(model.layers[2], model.layers[3].layer)
             self.assertIs(new_model.layers[2], new_model.layers[3].layer)
 
-    @pytest.mark.requires_trainable_backend
     def test_functional_subclass(self):
         class PlainFunctionalSubclass(keras.Model):
             pass
@@ -272,7 +316,7 @@ class SerializationLibTest(testing.TestCase):
         inputs = keras.Input((2,), batch_size=3)
         outputs = keras.layers.Dense(1)(inputs)
         model = PlainFunctionalSubclass(inputs, outputs)
-        x = ops.random.normal((2, 2))
+        x = random.normal((2, 2))
         y1 = model(x)
         _, new_model, _ = self.roundtrip(
             model,
@@ -294,7 +338,7 @@ class SerializationLibTest(testing.TestCase):
                 return {"num_units": self.num_units}
 
         model = FunctionalSubclassWCustomInit(num_units=3)
-        x = ops.random.normal((2, 2))
+        x = random.normal((2, 2))
         y1 = model(x)
         _, new_model, _ = self.roundtrip(
             model,
@@ -435,38 +479,64 @@ class SerializationLibTest(testing.TestCase):
     def test_layer_string_as_activation(self):
         """Tests serialization when activation is a string."""
 
-        layer_dense_relu_string = keras.layers.Dense(units=4, activation="relu")
-        layer_dense_relu_string.build(input_shape=(None, 8))
-        _, restored_dense_relu_string, _ = self.roundtrip(
-            layer_dense_relu_string
-        )
+        layer = keras.layers.Dense(units=4, activation="gelu")
+        layer.build(input_shape=(None, 8))
+        _, restored_layer, _ = self.roundtrip(layer)
+        self.assertIs(restored_layer.activation, keras.activations.gelu)
 
-        # Verify the activation is correctly deserialized to the relu function
-        self.assertTrue(callable(restored_dense_relu_string.activation))
-        # Check if it resolves to the canonical keras activation function
-        self.assertEqual(
-            restored_dense_relu_string.activation, keras.activations.relu
-        )
+    def test_layer_function_as_activation(self):
+        """Tests serialization when activation is an activation function."""
 
-    def test_missing_name_for_sequential_model(self):
+        layer = keras.layers.Dense(units=4, activation=keras.activations.gelu)
+        layer.build(input_shape=(None, 8))
+        _, restored_layer, _ = self.roundtrip(layer)
+        self.assertIs(restored_layer.activation, keras.activations.gelu)
+
+    def test_layer_op_as_activation(self):
+        """Tests serialization when activation is an op."""
+
+        layer = keras.layers.Dense(units=4, activation=keras.ops.gelu)
+        layer.build(input_shape=(None, 8))
+        _, restored_layer, _ = self.roundtrip(layer)
+        self.assertIs(restored_layer.activation, keras.ops.gelu)
+        self.assertIsNot(restored_layer.activation, keras.activations.gelu)
+
+    def test_layer_registered_function_as_activation(self):
+        """Tests serialization when activation is a registered function."""
+
+        @keras.saving.register_keras_serializable(package="serial_test")
+        def gelu(x):
+            return x
+
+        layer = keras.layers.Dense(units=4, activation=gelu)
+        layer.build(input_shape=(None, 8))
+        _, restored_layer, _ = self.roundtrip(layer)
+        self.assertIs(restored_layer.activation, gelu)
+
+    def test_layer_unregistered_function_as_activation(self):
+        """Tests serialization when activation is an unregistered function."""
+
+        def gelu(x):
+            return x
+
+        layer = keras.layers.Dense(units=4, activation=gelu)
+        layer.build(input_shape=(None, 8))
+        _, restored_layer, _ = self.roundtrip(
+            layer, custom_objects={"gelu": gelu}
+        )
+        self.assertIs(restored_layer.activation, gelu)
+
+    def test_missing_layers_for_sequential_model(self):
         """Tests serialization when sequential model has no name."""
         serialized = {
             "class_name": "Sequential",
             "module": "keras",
-            "config": {
-                "layers": [
-                    {
-                        "class_name": "Dense",
-                        "module": "keras.layers",
-                        "config": {"units": 4},
-                    }
-                ],
-            },
+            "config": {"name": "sequential_model"},
         }
         with self.assertRaisesRegex(
             ValueError,
             "A Sequential model configuration must be a "
-            "dictionary containing the 'name' and 'layers' keys",
+            "dictionary containing the 'layers' key",
         ):
             deserialize_keras_object(serialized)
 

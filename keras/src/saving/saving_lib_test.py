@@ -19,6 +19,7 @@ from keras.src import ops
 from keras.src import testing
 from keras.src.saving import saving_lib
 from keras.src.utils import file_utils
+from keras.src.utils.module_utils import LazyModule
 
 
 @keras.saving.register_keras_serializable(package="my_custom_package")
@@ -88,6 +89,31 @@ class LayerWithCustomSaving(MyDense):
 
 
 @keras.saving.register_keras_serializable(package="my_custom_package")
+class LayerWithNestedLayers(keras.layers.Layer):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.dense = keras.layers.Dense(1, name="dense")
+
+    def build(self, input_shape):
+        self.dense.build(input_shape)
+
+    def call(self, inputs):
+        return self.dense(inputs)
+
+
+@keras.saving.register_keras_serializable(package="my_custom_package")
+class ModelWithNestedLayers(keras.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.dense1 = LayerWithNestedLayers(name="dense1")
+        self.dense2 = LayerWithNestedLayers(name="dense2")
+
+    def call(self, inputs):
+        x = self.dense1(inputs)
+        return self.dense2(x)
+
+
+@keras.saving.register_keras_serializable(package="my_custom_package")
 class CustomModelX(keras.Model):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -100,6 +126,22 @@ class CustomModelX(keras.Model):
 
     def one(self):
         return 1
+
+
+@keras.saving.register_keras_serializable(package="my_custom_package")
+class ModelWithKwargsCall(keras.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.dense_a = keras.layers.Dense(1, name="dense_a")
+        self.dense_b = keras.layers.Dense(1, name="dense_b")
+
+    def build(self, a_shape, b_shape):
+        self.dense_a.build(a_shape)
+        self.dense_b.build(b_shape)
+        super().build(a_shape)
+
+    def call(self, a, b):
+        return self.dense_a(a) + self.dense_b(b)
 
 
 @keras.saving.register_keras_serializable(package="my_custom_package")
@@ -136,7 +178,7 @@ class SubclassFunctional(keras.Model):
     """Subclassed functional identical to `_get_basic_functional_model`."""
 
     def __init__(self, **kwargs):
-        inputs = keras.Input(shape=(4,), batch_size=2)
+        inputs = keras.Input(shape=(4,), batch_size=2, name="input")
         dense = keras.layers.Dense(1, name="first_dense")
         x = dense(inputs)
         outputs = keras.layers.Dense(1, name="second_dense")(x)
@@ -148,13 +190,6 @@ class SubclassFunctional(keras.Model):
     def layer_property(self):
         # Properties for layers in the functional graph should not affect saving
         return self.layer_attr
-
-    def get_config(self):
-        return {}
-
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
 
 
 @keras.saving.register_keras_serializable(package="my_custom_package")
@@ -172,6 +207,28 @@ def _get_subclassed_model(compile=True):
             metrics=[keras.metrics.Hinge(), "mse"],
         )
     return subclassed_model
+
+
+def _get_subclassed_model_with_kwargs(compile=True):
+    subclassed_model = ModelWithKwargsCall(name="model_with_kwargs_call")
+    if compile:
+        subclassed_model.compile(
+            optimizer="adam",
+            loss=my_mean_squared_error,
+            metrics=[keras.metrics.Hinge(), "mse"],
+        )
+    return subclassed_model
+
+
+def _get_subclassed_model_with_nested(compile=True):
+    model = ModelWithNestedLayers(name="model_with_nested_layers")
+    if compile:
+        model.compile(
+            optimizer="adam",
+            loss=my_mean_squared_error,
+            metrics=[keras.metrics.Hinge(), "mse"],
+        )
+    return model
 
 
 def _get_custom_sequential_model(compile=True):
@@ -232,6 +289,28 @@ def _get_basic_functional_model(compile=True):
     return functional_model
 
 
+def _get_nested_functional_model(compile=True):
+    inputs1 = keras.Input(shape=(4,), batch_size=2)
+    outputs1 = keras.layers.Dense(1, name="dense")(inputs1)
+    functional_model_1 = keras.Model(inputs1, outputs1)
+
+    inputs2 = keras.Input(shape=(1,), batch_size=2)
+    outputs2 = keras.layers.Dense(1, name="dense")(inputs2)
+    functional_model_2 = keras.Model(inputs2, outputs2)
+
+    inputs = keras.Input(shape=(4,), batch_size=2)
+    x = functional_model_1(inputs)
+    x = functional_model_2(x)
+    functional_model = keras.Model(inputs, x)
+    if compile:
+        functional_model.compile(
+            optimizer="adam",
+            loss=my_mean_squared_error,
+            metrics=[keras.metrics.Hinge(), "mse"],
+        )
+    return functional_model
+
+
 def _get_subclassed_functional_model(compile=True):
     functional_model = SubclassFunctional()
     if compile:
@@ -260,23 +339,47 @@ class SavingTest(testing.TestCase):
         saving_lib._MEMORY_UPPER_BOUND = self.original_value
 
     def _test_inference_after_instantiation(self, model):
-        x_ref = np.random.random((2, 4))
-        y_ref = model(x_ref)
+        if isinstance(model, ModelWithKwargsCall):
+            args = ()
+            kwargs = {
+                "a": np.random.random((2, 4)),
+                "b": np.random.random((2, 4)),
+            }
+        else:
+            args = (np.random.random((2, 4)),)
+            kwargs = {}
+        y_ref = model(*args, **kwargs)
         temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
         model.save(temp_filepath)
 
         loaded_model = saving_lib.load_model(temp_filepath)
         self.assertFalse(model.compiled)
+
+        self.assertLen(loaded_model.variables, len(model.variables))
         for w_ref, w in zip(model.variables, loaded_model.variables):
+            self.assertEqual(w.name, w_ref.name)
+            self.assertEqual(w.path, w_ref.path)
             self.assertAllClose(w, w_ref)
-        self.assertAllClose(loaded_model(x_ref), y_ref)
+
+        layers = model._flatten_layers(include_self=True)
+        loaded_layers = loaded_model._flatten_layers(include_self=True)
+        self.assertLen(loaded_layers, len(layers))
+        for l, loaded_l in zip(layers, loaded_layers):
+            self.assertIs(loaded_l.__class__, l.__class__)
+            self.assertEqual(loaded_l.name, l.name)
+            self.assertEqual(loaded_l.path, l.path)
+
+        self.assertAllClose(loaded_model(*args, **kwargs), y_ref)
 
     @parameterized.named_parameters(
         ("subclassed", _get_subclassed_model),
+        ("subclassed_with_nested", _get_subclassed_model_with_nested),
+        ("subclassed_with_kwargs", _get_subclassed_model_with_kwargs),
         ("basic_sequential", _get_basic_sequential_model),
         ("basic_functional", _get_basic_functional_model),
         ("custom_sequential", _get_custom_sequential_model),
         ("custom_functional", _get_custom_functional_model),
+        ("nested_functional", _get_nested_functional_model),
         ("subclassed_functional", _get_subclassed_functional_model),
     )
     def test_inference_after_instantiation(self, model_fn):
@@ -684,6 +787,28 @@ class SavingTest(testing.TestCase):
         # Ensure we don't have any temporary files left.
         self.assertLen(os.listdir(Path(filepath).parent), 1)
         self.assertIn("model.keras", os.listdir(Path(filepath).parent))
+
+    @parameterized.named_parameters(
+        # A directory where the weights file must go.
+        ("weights_store", "model.weights.h5", True, IsADirectoryError),
+        # A regular file where the assets directory must go.
+        ("assets_store", "assets", False, FileExistsError),
+    )
+    def test_save_model_to_dir_store_error_raised(
+        self, blocked_name, blocked_by_dir, error_type
+    ):
+        model = keras.Sequential([keras.Input([1]), keras.layers.Dense(1)])
+        dirpath = os.path.join(self.get_temp_dir(), "my_model")
+        os.makedirs(dirpath)
+        blocked_path = os.path.join(dirpath, blocked_name)
+        if blocked_by_dir:
+            os.makedirs(blocked_path)
+        else:
+            Path(blocked_path).touch()
+
+        # The store fails to open. Its error must reach the caller.
+        with self.assertRaises(error_type):
+            saving_lib.save_model(model, dirpath, zipped=False)
 
     @parameterized.named_parameters(
         ("high_memory_config", True),
@@ -1428,6 +1553,30 @@ class SavingBattleTest(testing.TestCase):
             model.save_weights(temp_filepath)
             model.load_weights(temp_filepath)
 
+    def test_remote_path_saving_and_loading_with_epath(self):
+        # A local directory stands in for the remote location, and TensorFlow
+        # is hidden so that etils.epath is used.
+        remote_dir = os.path.join(self.get_temp_dir(), "remote")
+        os.makedirs(remote_dir)
+        filepath = os.path.join(remote_dir, "model.keras")
+        model = _get_basic_functional_model()
+        x = np.random.random((2, 4))
+
+        with (
+            mock.patch.object(
+                file_utils,
+                "is_remote_path",
+                lambda path: str(path).startswith(remote_dir),
+            ),
+            mock.patch.object(
+                file_utils, "gfile", LazyModule("keras_test_unavailable_module")
+            ),
+        ):
+            saving_lib.save_model(model, filepath)
+            new_model = saving_lib.load_model(filepath)
+
+        self.assertAllClose(model.predict(x), new_model.predict(x))
+
 
 class SavingH5IOStoreTest(testing.TestCase):
     def test_h5_io_store_basics(self):
@@ -1744,6 +1893,119 @@ class SafeZipReadTest(testing.TestCase):
             with self.assertRaisesRegex(ValueError, "decompression bomb"):
                 saving_lib.load_model(evil)
 
+    def test_rejects_cumulative_archive_bomb_under_floor(self):
+        # Several members that each stay under the (real, 4 GiB) per-member
+        # floor but jointly declare far more than is stored on disk: the
+        # per-member guard passes each one, the cumulative guard rejects them.
+        path = os.path.join(self.get_temp_dir(), "a.zip")
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
+            for i in range(4):
+                zf.writestr(f"m{i}.json", b"A" * 100_000)
+        self.assertLess(os.path.getsize(path), 1 << 16)  # tiny file on disk
+        with mock.patch.object(
+            saving_lib, "_ZIP_CUMULATIVE_BOMB_FLOOR_BYTES", 250_000
+        ):
+            with zipfile.ZipFile(path, "r") as zf:
+                # The per-member guard (real 4 GiB floor) passes each member.
+                for i in range(4):
+                    saving_lib._reject_zip_bomb(zf, f"m{i}.json")
+                # The cumulative guard rejects the archive as a whole.
+                with self.assertRaisesRegex(ValueError, "decompression bomb"):
+                    saving_lib._reject_zip_archive_bomb(zf)
+
+    @parameterized.parameters("model", "weights", "editor")
+    def test_load_model_rejects_cumulative_bomb(self, consumer):
+        # End-to-end: a tiny `.keras` whose config.json declares well under the
+        # 4 GiB per-member floor (so `_reject_zip_bomb` passes) is still
+        # rejected by the cumulative guard before any member is read.
+        path = os.path.join(self.get_temp_dir(), "bomb.keras")
+        payload = b'{"x":"' + b" " * 400_000 + b'"}'
+        with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("metadata.json", b'{"keras_version":"3"}')
+            zf.writestr("config.json", payload)
+        self.assertLess(os.path.getsize(path), 1 << 16)  # tiny file on disk
+        model = keras.Sequential([keras.Input((4,)), keras.layers.Dense(3)])
+        with (
+            mock.patch.object(
+                saving_lib, "_ZIP_CUMULATIVE_BOMB_FLOOR_BYTES", 64
+            ),
+            mock.patch.object(
+                zipfile.ZipFile,
+                "open",
+                side_effect=AssertionError("Member read"),
+            ),
+        ):
+            with self.assertRaisesRegex(ValueError, "decompression bomb"):
+                if consumer == "model":
+                    saving_lib.load_model(path)
+                elif consumer == "weights":
+                    saving_lib.load_weights_only(model, path)
+                else:
+                    keras.saving.KerasFileEditor(path)
+
+    def test_archive_check_only_reads_directory_metadata(self):
+        path = self._zip_with_member("weights", os.urandom(100_000))
+        with zipfile.ZipFile(path) as archive:
+            with mock.patch.object(
+                archive, "open", side_effect=AssertionError("Member read")
+            ):
+                saving_lib._reject_zip_archive_bomb(archive)
+
+    def test_stored_weights_do_not_hide_compressed_assets(self):
+        path = os.path.join(self.get_temp_dir(), "padded.keras")
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr("model.weights.h5", b"A" * 100_000)
+            archive.writestr(
+                "assets/large.txt",
+                b"A" * 100_000,
+                compress_type=zipfile.ZIP_DEFLATED,
+            )
+        with (
+            zipfile.ZipFile(path) as archive,
+            mock.patch.object(
+                saving_lib, "_ZIP_CUMULATIVE_BOMB_FLOOR_BYTES", 64
+            ),
+        ):
+            infos = archive.infolist()
+            self.assertLess(
+                sum(info.file_size for info in infos),
+                100 * sum(info.compress_size for info in infos),
+            )
+            with self.assertRaisesRegex(ValueError, "decompression bomb"):
+                saving_lib._reject_zip_archive_bomb(archive)
+
+    @parameterized.parameters(True, False)
+    def test_load_model_requires_h5_weights(self, zipped):
+        model = keras.Sequential([keras.Input((4,)), keras.layers.Dense(3)])
+        config, metadata = saving_lib._serialize_model_as_json(model)
+        path = os.path.join(self.get_temp_dir(), "unsupported")
+        if zipped:
+            path += ".keras"
+            with zipfile.ZipFile(path, "w") as archive:
+                archive.writestr("config.json", config)
+                archive.writestr("metadata.json", metadata)
+                archive.writestr("model.weights.npz", b"")
+        else:
+            os.makedirs(path)
+            with open(os.path.join(path, "config.json"), "w") as f:
+                f.write(config)
+            with open(os.path.join(path, "model.weights.npz"), "wb"):
+                pass
+        with self.assertRaisesRegex(ValueError, "Expected a model.weights.h5"):
+            saving_lib.load_model(path)
+
+    def test_does_not_reject_genuine_keras(self):
+        # A genuine `.keras` (members stored ~uncompressed, ratio ~1) must pass
+        # both the direct cumulative guard and an end-to-end load.
+        model = keras.Sequential(
+            [keras.Input((16,)), keras.layers.Dense(64), keras.layers.Dense(8)]
+        )
+        path = os.path.join(self.get_temp_dir(), "good.keras")
+        model.save(path)
+        with zipfile.ZipFile(path, "r") as zf:
+            saving_lib._reject_zip_archive_bomb(zf)  # must not raise
+        keras.saving.load_model(path)  # must not raise
+
     def test_load_model_rejects_extraction_bomb(self):
         model = keras.Sequential([keras.Input((4,)), keras.layers.Dense(3)])
         good = os.path.join(self.get_temp_dir(), "good.keras")
@@ -1759,7 +2021,9 @@ class SafeZipReadTest(testing.TestCase):
             info.compress_type = zipfile.ZIP_DEFLATED
             zf.writestr(info, b"\x00" * 200_000)  # 4th member, deflated bomb
 
-        with mock.patch.object(saving_lib, "_ZIP_EXTRACT_BOMB_FLOOR_BYTES", 64):
+        with mock.patch.object(
+            saving_lib, "_ZIP_CUMULATIVE_BOMB_FLOOR_BYTES", 64
+        ):
             with self.assertRaisesRegex(ValueError, "decompression bomb"):
                 saving_lib.load_model(evil)
 
@@ -1858,36 +2122,3 @@ class SavingDiskIOStoreTest(testing.TestCase):
         for bad in ["../escape", "/abs", os.path.join("x", "..", "..", "y")]:
             with self.assertRaisesRegex(ValueError, "Invalid asset path"):
                 store._full_path(bad)
-
-
-class SavingNpzIOStoreTest(testing.TestCase):
-    def _write_npz_member(self, path, name, shape, descr="<f8", data=b""):
-        """Write an npz `name` member declaring `shape` but storing no `data`.
-
-        Used to craft a member whose `.npy` header declares a huge array while
-        almost nothing is stored on disk (a shape/decompression bomb).
-        """
-        header = BytesIO()
-        np.lib.format.write_array_header_1_0(
-            header,
-            {"descr": descr, "fortran_order": False, "shape": shape},
-        )
-        with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
-            zf.writestr(f"{name}.npy", header.getvalue() + data)
-
-    def test_npz_io_store_rejects_shape_bomb(self):
-        # Member declares an 8 PiB array but stores only its header.
-        temp_filepath = os.path.join(self.get_temp_dir(), "bomb.npz")
-        self._write_npz_member(temp_filepath, "w", shape=(2**50,))
-        store = saving_lib.NpzIOStore(temp_filepath, mode="r")
-        with self.assertRaisesRegex(
-            ValueError, r"Refusing to load npz weight 'w'"
-        ):
-            store.get("w")
-
-    def test_npz_io_store_loads_normal_array(self):
-        temp_filepath = os.path.join(self.get_temp_dir(), "store.npz")
-        a = np.arange(6, dtype="float32").reshape(2, 3)
-        np.savez(temp_filepath, w=a)
-        store = saving_lib.NpzIOStore(temp_filepath, mode="r")
-        self.assertAllClose(store.get("w"), a.tolist())

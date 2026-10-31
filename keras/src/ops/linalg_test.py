@@ -5,6 +5,7 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import linalg
 from keras.src.testing.test_utils import named_product
@@ -419,19 +420,13 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
 
 class LinalgOpsCorrectnessTest(testing.TestCase):
     def test_cholesky(self):
-        if backend.backend() != "openvino":
-            # OpenVINO builds a lazy graph and cannot raise on non-PSD inputs
-            # at graph-construction time; sqrt of a negative produces
-            # NaN silently at inference. There is no check_numerics equivalent
-            # in opset15 that can interrupt execution and surface a Python
-            # exception.
-            # Shift the diagonal negative: without it the four uniform
-            # matrices are occasionally all positive definite, and
-            # assertRaises then fails intermittently.
-            x_non_psd = np.random.rand(4, 3, 3).astype("float32")
-            x_non_psd -= 10.0 * np.eye(3, dtype="float32")
-            with self.assertRaises(ValueError):
-                linalg.cholesky(x_non_psd)
+        # Shift the diagonal negative: without it the four uniform
+        # matrices are occasionally all positive definite, and
+        # assertRaises then fails intermittently.
+        x_non_psd = np.random.rand(4, 3, 3).astype("float32")
+        x_non_psd -= 10.0 * np.eye(3, dtype="float32")
+        with self.assertRaises(ValueError):
+            linalg.cholesky(x_non_psd)
 
         x = np.random.rand(4, 3, 3).astype("float32")
         # 0.1 keeps the matrix well conditioned; at 1e-5 the smallest pivot
@@ -553,9 +548,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         _, symbolic_pivots = linalg.LuFactor().symbolic_call(
             KerasTensor((m, n), dtype="float32")
         )
-        self.assertEqual(
-            backend.standardize_dtype(pivots.dtype), symbolic_pivots.dtype
-        )
+        self.assertEqual(standardize_dtype(pivots.dtype), symbolic_pivots.dtype)
 
         m, n = 4, 3
         x = np.random.rand(m, n)
@@ -651,6 +644,22 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         output = linalg.solve(x1, x2)
         expected_result = np.array([[2, 0], [0, 2]], dtype="float32")
         self.assertAllClose(output, expected_result)
+
+    @parameterized.named_parameters(
+        named_product(batch_shape=[(), (1,), (2,), (3,), (2, 3)])
+    )
+    def test_solve_vector_rhs(self, batch_shape):
+        shape = batch_shape + (2,)
+        diagonals = np.arange(1, np.prod(shape) + 1, dtype="float32").reshape(
+            shape
+        )
+        a = diagonals[..., :, None] * np.eye(2, dtype="float32")
+        b = 2 * (diagonals + 1)
+        expected_result = b / diagonals
+        self.assertAllClose(linalg.solve(a, b), expected_result)
+        self.assertAllClose(
+            linalg.solve(a, b[..., None]), expected_result[..., None]
+        )
 
     def test_solve_triangular(self):
         # 2d-case
@@ -885,7 +894,7 @@ class QrOpTest(testing.TestCase):
         self.assertEqual(r.shape, (10, 10))
 
     def test_jvp(self):
-        if backend.backend() in ["openvino", "numpy"]:
+        if not backend.SUPPORTS_GRADIENT:
             pytest.skip("Backend does not support jvp operation")
         a1, a2 = ops.convert_to_tensor(0.1), ops.convert_to_tensor(0.2)
         primals, tangents = linalg.jvp(backend.ops.numpy.sin, (a1,), (a2,))

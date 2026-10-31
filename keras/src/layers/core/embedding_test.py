@@ -14,6 +14,7 @@ from keras.src import ops
 from keras.src import quantizers
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend.common import standardize_dtype
 from keras.src.quantizers.awq_config import AWQConfig
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
@@ -54,9 +55,7 @@ class EmbeddingTest(test_case.TestCase):
         layer.quantize(mode, config=config)
 
         # Verify weights are quantized
-        self.assertEqual(
-            backend.standardize_dtype(layer._embeddings.dtype), "int8"
-        )
+        self.assertEqual(standardize_dtype(layer._embeddings.dtype), "int8")
         self.assertTrue(hasattr(layer, "embeddings_scale"))
 
         # Verify call works
@@ -328,6 +327,36 @@ class EmbeddingTest(test_case.TestCase):
             supports_masking=False,
         )
 
+    def test_lora_alpha_argument(self):
+        layer = layers.Embedding(
+            input_dim=5, output_dim=4, lora_rank=2, lora_alpha=16
+        )
+        layer.build()
+        self.assertEqual(layer.lora_alpha, 16)
+        self.assertEqual(layer.get_config()["lora_alpha"], 16)
+
+        # The forward pass scales the update by `lora_alpha / lora_rank`.
+        # Every value, product and sum is exact in bfloat16, so the check
+        # also holds where matmuls round their inputs to bfloat16 (TPU).
+        embeddings = np.arange(20, dtype="float32").reshape((5, 4)) / 4 - 2
+        lora_a = (
+            np.array([[1, 0], [0, 1], [1, 1], [0, 0], [1, -1]], "float32") / 2
+        )
+        lora_b = np.ones((2, 4), dtype="float32")
+        layer._embeddings.assign(embeddings)
+        layer.lora_embeddings_a.assign(lora_a)
+        layer.lora_embeddings_b.assign(lora_b)
+        x = np.array([[0, 1, 4], [2, 3, 0]], dtype="int32")
+        expected = (embeddings + (16 / 2) * lora_a @ lora_b)[x]
+        self.assertAllClose(layer(x), expected)
+
+        # A layer built from the config keeps `lora_alpha`.
+        restored = layers.Embedding.from_config(layer.get_config())
+        restored.build()
+        self.assertEqual(restored.lora_alpha, 16)
+        restored.set_weights(layer.get_weights())
+        self.assertAllClose(restored(x), expected)
+
     def test_enable_lora_with_embeddings_constraint(self):
         layer = layers.Embedding(
             input_dim=10, output_dim=16, embeddings_constraint="max_norm"
@@ -371,11 +400,9 @@ class EmbeddingTest(test_case.TestCase):
         # Verify the dtype of the weights.
         # The embeddings's dtype is int8, despite the int4 quantization, because
         # we pack the int4 values into int8.
+        self.assertEqual(standardize_dtype(layer._embeddings.dtype), "int8")
         self.assertEqual(
-            backend.standardize_dtype(layer._embeddings.dtype), "int8"
-        )
-        self.assertEqual(
-            backend.standardize_dtype(layer.embeddings_scale.dtype),
+            standardize_dtype(layer.embeddings_scale.dtype),
             layer.variable_dtype,
         )
 
@@ -463,7 +490,7 @@ class EmbeddingTest(test_case.TestCase):
 
     @parameterized.named_parameters(
         ("int8", "int8_from_float32", 2),
-        ("int4", "int4_from_float32", 4),  # embeddings + scale + zero
+        ("int4", "int4_from_float32", 2),  # embeddings + scale
     )
     def test_quantize_by_setting_dtype_policy(
         self, policy, expected_num_variables
@@ -805,7 +832,10 @@ class EmbeddingTest(test_case.TestCase):
         layer.quantize("int4", config=config)
 
         # Verify block_size is stored
-        self.assertEqual(layer._int4_block_size, block_size)
+        self.assertEqual(
+            layer._quantized_weight().scheme.group_size,
+            None if block_size in (None, -1) else block_size,
+        )
 
         # Verify embeddings_scale shape
         if block_size is None or block_size == -1:
@@ -884,6 +914,41 @@ class EmbeddingTest(test_case.TestCase):
         y = layer(x)
         self.assertEqual(y.shape, (4, 8, output_dim))
 
+    def test_int4_grouped_merged_save_keeps_lora_update(self):
+        # See `DenseTest.test_int4_grouped_merged_save_keeps_lora_update`.
+        input_dim, output_dim, block_size = 12, 16, 4
+        inputs = layers.Input((1,), dtype="int32")
+        layer = layers.Embedding(input_dim, output_dim, name="target")
+        model = models.Model(inputs, layer(inputs))
+        layer.quantize(
+            "int4", config=Int4QuantizationConfig(block_size=block_size)
+        )
+        ids = np.arange(input_dim)
+        quantized = ops.convert_to_numpy(layer(ids))
+        layer.enable_lora(2)
+        rng = np.random.RandomState(0)
+        layer.lora_embeddings_a.assign(
+            rng.randn(input_dim, 2).astype("float32") * 0.5
+        )
+        layer.lora_embeddings_b.assign(
+            rng.randn(2, output_dim).astype("float32") * 0.5
+        )
+        with_update = ops.convert_to_numpy(layer(ids))
+        path = os.path.join(self.get_temp_dir(), "merged.keras")
+        model.save(path)
+        merged_layer = saving.load_model(path).get_layer("target")
+        merged = ops.convert_to_numpy(merged_layer(ids))
+        # Half a step of the re-quantized grid: groups run along the
+        # output axis, one row of scales per token.
+        scale = ops.convert_to_numpy(merged_layer.embeddings_scale)
+        half_step = 0.5 * scale[:, np.arange(output_dim) // block_size]
+        self.assertGreater(
+            np.abs(with_update - quantized).max(), 4 * half_step.max()
+        )
+        self.assertTrue(
+            np.all(np.abs(merged - with_update) <= half_step * 1.001 + 1e-6)
+        )
+
     def test_int4_grouped_vs_perchannel_scale_shapes(self):
         """Test that grouped and per-channel have different scale shapes."""
 
@@ -928,7 +993,7 @@ class EmbeddingTest(test_case.TestCase):
         layer.quantize("int4", config=config)
 
         # Verify g_idx is created
-        self.assertTrue(hasattr(layer, "g_idx"))
+        self.assertIsNotNone(layer.g_idx)
 
         # Verify g_idx shape (output_dim for embedding)
         self.assertEqual(layer.g_idx.shape, (output_dim,))
@@ -952,7 +1017,7 @@ class EmbeddingTest(test_case.TestCase):
         layer.quantize("int4", config=config)
 
         # Verify g_idx is NOT created for per-channel
-        self.assertFalse(hasattr(layer, "g_idx"))
+        self.assertIsNone(layer.g_idx)
 
     @pytest.mark.skipif(
         testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
@@ -982,7 +1047,7 @@ class EmbeddingTest(test_case.TestCase):
 
         # Verify g_idx is preserved
         loaded_layer = loaded_model.layers[0]
-        self.assertTrue(hasattr(loaded_layer, "g_idx"))
+        self.assertIsNotNone(loaded_layer.g_idx)
         self.assertAllClose(loaded_layer.g_idx, g_idx_before)
 
         # Verify outputs match
@@ -1022,8 +1087,8 @@ class EmbeddingTest(test_case.TestCase):
             v_cfg = vars_cfg[name]
             self.assertEqual(tuple(v_str.shape), tuple(v_cfg.shape))
             self.assertEqual(
-                backend.standardize_dtype(v_str.dtype),
-                backend.standardize_dtype(v_cfg.dtype),
+                standardize_dtype(v_str.dtype),
+                standardize_dtype(v_cfg.dtype),
             )
             self.assertAllClose(v_str, v_cfg)
 
@@ -1046,8 +1111,8 @@ class EmbeddingTest(test_case.TestCase):
             "int4", config=Int4QuantizationConfig(block_size=block_size)
         )
         self.assertEqual(tuple(layer.embeddings_scale.shape), (32,))
-        self.assertFalse(hasattr(layer, "embeddings_zero"))
-        self.assertFalse(hasattr(layer, "g_idx"))
+        self.assertIsNone(layer.embeddings_zero)
+        self.assertIsNone(layer.g_idx)
         self.assertEqual(layer.dtype_policy.name, "int4/-1_from_float32")
 
     @parameterized.named_parameters(
@@ -1074,18 +1139,16 @@ class EmbeddingTest(test_case.TestCase):
         self.assertEqual(layer.quantization_mode, "int4")
         if per_channel:
             self.assertEqual(tuple(layer.embeddings_scale.shape), (input_dim,))
-            self.assertFalse(hasattr(layer, "g_idx"))
+            self.assertIsNone(layer.g_idx)
         else:
             block_size = int(block_token)
             n_groups = math.ceil(output_dim / block_size)
             self.assertEqual(
                 tuple(layer.embeddings_scale.shape), (input_dim, n_groups)
             )
-            self.assertTrue(hasattr(layer, "g_idx"))
+            self.assertIsNotNone(layer.g_idx)
             self.assertEqual(tuple(layer.g_idx.shape), (output_dim,))
-        self.assertEqual(
-            backend.standardize_dtype(layer._embeddings.dtype), "int8"
-        )
+        self.assertEqual(standardize_dtype(layer._embeddings.dtype), "int8")
 
         x = np.array([[1, 2, 3], [4, 5, 6]], dtype="int32")
         self.assertEqual(tuple(layer(x).shape), (2, 3, output_dim))

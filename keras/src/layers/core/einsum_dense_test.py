@@ -1,5 +1,6 @@
 import math
 import os
+import re
 
 import numpy as np
 import pytest
@@ -16,6 +17,7 @@ from keras.src import quantizers
 from keras.src import random
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend.common import standardize_dtype
 from keras.src.layers.core.einsum_dense import _analyze_einsum_string
 from keras.src.quantizers.awq_config import AWQConfig
 from keras.src.quantizers.gptq_config import GPTQConfig
@@ -90,9 +92,7 @@ class EinsumDenseTest(testing.TestCase):
 
         if mode == "int4":
             # Verify kernel is int8 (packed int4)
-            self.assertEqual(
-                backend.standardize_dtype(layer._kernel.dtype), "int8"
-            )
+            self.assertEqual(standardize_dtype(layer._kernel.dtype), "int8")
 
     @parameterized.named_parameters(
         {
@@ -369,6 +369,55 @@ class EinsumDenseTest(testing.TestCase):
             layer.compute_output_shape((None, 3, 8)), tuple(layer(x).shape)
         )
 
+    @parameterized.named_parameters(
+        # Fewer axes than the equation has input labels.
+        ("plain_too_short", "ab,bc->ac", 4, (None,), "ndim=2"),
+        ("left_elided_too_short", "...ab,bc->...ac", 4, (None,), "min_ndim=2"),
+        ("right_elided_too_short", "ab...,bc->ac...", 4, (None,), "min_ndim=2"),
+        ("scalar_input", "ab,bc->ac", 4, (), "ndim=2"),
+        # A repeated leading label keeps the label map in range, so only the
+        # ndim check rejects these equations before they are called.
+        (
+            "left_elided_repeated_label_ndim_1",
+            "...aa,ac->...ac",
+            (),
+            (4,),
+            "min_ndim=2",
+        ),
+        (
+            "left_elided_repeated_label_ndim_2",
+            "...aab,bc->...ac",
+            (),
+            (3, 3),
+            "min_ndim=3",
+        ),
+        # More axes than labels, without an ellipsis to absorb them.
+        ("plain_too_long", "ab,bc->ac", 4, (None, 3, 5), "ndim=2"),
+        (
+            "plain_three_labels_too_long",
+            "abc,cd->abd",
+            (3, 4),
+            (None, 3, 5, 6),
+            "ndim=3",
+        ),
+    )
+    def test_input_ndim_must_fit_equation(
+        self, equation, output_shape, input_shape, expected_ndim
+    ):
+        message = re.escape(
+            f"The einsum equation '{equation}' expects an input with "
+            f"{expected_ndim}, but received input shape {input_shape} with "
+            f"ndim={len(input_shape)}."
+        )
+        layer = layers.EinsumDense(equation, output_shape=output_shape)
+        with self.assertRaisesRegex(ValueError, message):
+            layer.build(input_shape)
+        self.assertFalse(layer.built)
+
+        layer = layers.EinsumDense(equation, output_shape=output_shape)
+        with self.assertRaisesRegex(ValueError, message):
+            layer.compute_output_shape(input_shape)
+
     def test_einsum_dense_constraints(self):
         layer = layers.EinsumDense(
             "abc,cde->abde", (1, 3, 4), kernel_constraint="non_neg"
@@ -378,7 +427,7 @@ class EinsumDenseTest(testing.TestCase):
         layer = layers.EinsumDense(
             "ab,b->a", (1, 3, 4), bias_axes="a", bias_constraint="non_neg"
         )
-        layer.build((2, 1, 2))
+        layer.build((2, 1))
         self.assertIsInstance(layer.bias.constraint, constraints.NonNeg)
 
     def test_analyze_einsum_string_axes(self):
@@ -569,9 +618,9 @@ class EinsumDenseTest(testing.TestCase):
         layer.quantize(mode)
 
         # Verify weights dtype
-        self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
+        self.assertEqual(standardize_dtype(layer._kernel.dtype), "int8")
         self.assertEqual(
-            backend.standardize_dtype(layer.kernel_scale.dtype),
+            standardize_dtype(layer.kernel_scale.dtype),
             layer.variable_dtype,
         )
 
@@ -603,30 +652,24 @@ class EinsumDenseTest(testing.TestCase):
             dtype=f"{mode}_from_mixed_bfloat16",
         )
         layer.build((1, 8, 2, 4, 32))
-        self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
-        self.assertEqual(
-            backend.standardize_dtype(layer.kernel_scale.dtype), "float32"
-        )
+        self.assertEqual(standardize_dtype(layer._kernel.dtype), "int8")
+        self.assertEqual(standardize_dtype(layer.kernel_scale.dtype), "float32")
         layer = layers.EinsumDense(
             equation="a,b->ab",  # Test expand
             output_shape=(4,),
             dtype=f"{mode}_from_float32",
         )
         layer.build((None,))
-        self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
-        self.assertEqual(
-            backend.standardize_dtype(layer.kernel_scale.dtype), "float32"
-        )
+        self.assertEqual(standardize_dtype(layer._kernel.dtype), "int8")
+        self.assertEqual(standardize_dtype(layer.kernel_scale.dtype), "float32")
         layer = layers.EinsumDense(
             equation="ab,ab->a",  # Test squeeze
             output_shape=(2,),
             dtype="int8_from_float32",
         )
         layer.build((2, 4))
-        self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
-        self.assertEqual(
-            backend.standardize_dtype(layer.kernel_scale.dtype), "float32"
-        )
+        self.assertEqual(standardize_dtype(layer._kernel.dtype), "int8")
+        self.assertEqual(standardize_dtype(layer.kernel_scale.dtype), "float32")
 
     @parameterized.named_parameters(
         (
@@ -682,13 +725,65 @@ class EinsumDenseTest(testing.TestCase):
         set_random_seed(1337)
         layer = layers.EinsumDense(equation=equation, output_shape=output_shape)
         layer.build(input_shape)
-        x = ops.random.uniform(input_shape)
+        x = random.uniform(input_shape)
         y_float = layer(x)
 
         layer.quantize(quantization_mode)
         y_quantized = layer(x)
         mse = ops.mean(ops.square(y_float - y_quantized))
         self.assertLess(mse, error_threshold)  # A weak correctness test
+
+    @parameterized.named_parameters(
+        ("abc,bdc->ad", "abc,bdc->ad", (3, 4), (5,)),
+        ("ab,b->a", "ab,b->a", (3,), ()),
+        ("abc,c->ab", "abc,c->ab", (3, 4), (3,)),
+        ("abc,cb->ab", "abc,cb->ab", (3, 4), (3,)),
+        ("abc,bc->a", "abc,bc->a", (3, 4), ()),
+        ("abcd,cd->ab", "abcd,cd->ab", (3, 4, 5), (3,)),
+        ("size_one_free_axis", "acd,gecd->aeg", (4, 5), (6, 1)),
+        ("size_one_inputs_axis", "acdb,bc->acd", (4, 1, 3), (4, 1)),
+    )
+    def test_quantize_int8_scale_alignment(
+        self, equation, input_shape, output_shape
+    ):
+        # These equations reduce more axes than the output adds, so the
+        # scales need a squeeze to line up with the outputs. In the size-one
+        # cases, the squeeze must not remove another axis of size 1. The
+        # int8 output must equal an einsum of the dequantized inputs and the
+        # dequantized kernel.
+        layer = layers.EinsumDense(equation, output_shape=output_shape)
+        layer.build((None,) + input_shape)
+        rng = np.random.default_rng(0)
+        kernel = rng.standard_normal(layer.kernel.shape).astype("float32")
+        layer.kernel.assign(kernel)
+        x = rng.standard_normal((2,) + input_shape).astype("float32")
+        y_float = layer(x)
+
+        layer.quantize("int8")
+        y_quantized = ops.convert_to_numpy(layer(x))
+
+        inputs_spec, rest = equation.split(",")
+        kernel_spec, output_spec = rest.split("->")
+        inputs_axes = [
+            i for i, c in enumerate(inputs_spec) if c not in output_spec
+        ]
+        kernel_axes = [
+            i for i, c in enumerate(kernel_spec) if c not in output_spec
+        ]
+        x_q, x_scale = quantizers.abs_max_quantize(
+            x, axis=inputs_axes, to_numpy=True
+        )
+        kernel_q, kernel_scale = quantizers.abs_max_quantize(
+            kernel, axis=kernel_axes, to_numpy=True
+        )
+        self.assertAllEqual(layer._kernel, kernel_q)
+        expected = np.einsum(
+            equation,
+            ops.convert_to_numpy(x_q) / ops.convert_to_numpy(x_scale),
+            ops.convert_to_numpy(kernel_q) / ops.convert_to_numpy(kernel_scale),
+        )
+        self.assertEqual(y_quantized.shape, tuple(y_float.shape))
+        self.assertAllClose(y_quantized, expected, atol=1e-5, rtol=1e-5)
 
     @parameterized.named_parameters(
         ("int8", "int8"),
@@ -726,6 +821,21 @@ class EinsumDenseTest(testing.TestCase):
 
         layer.quantize(mode, type_check=False)  # No error
 
+    def test_quantize_subclass_skipping_super_build_raises(self):
+        # Without `super().build()` the layer records neither `kernel_shape`
+        # nor `einsum_axes`; `quantize` refuses before it changes anything.
+        class MyEinsumDense(layers.EinsumDense):
+            def build(self, input_shape):
+                self._kernel = self.add_weight(name="kernel", shape=(3, 8))
+                self.bias = None
+
+        layer = MyEinsumDense(equation="ab,bc->ac", output_shape=8)
+        layer.build((None, 3))
+        with self.assertRaisesRegex(ValueError, "kernel_shape, einsum_axes"):
+            layer.quantize("int8", type_check=False)
+        self.assertIsNone(layer.quantization_mode)
+        self.assertEqual(tuple(layer._kernel.shape), (3, 8))
+
     @parameterized.named_parameters(
         ("int8", "int8"),
         ("float8", "float8"),
@@ -761,7 +871,7 @@ class EinsumDenseTest(testing.TestCase):
     @parameterized.named_parameters(
         ("int8", "int8_from_float32", 3),
         ("float8", "float8_from_float32", 8),
-        ("int4", "int4_from_float32", 5),  # kernel + bias + scale + zero + gidx
+        ("int4", "int4_from_float32", 3),  # kernel + bias + scale
     )
     def test_quantize_by_setting_dtype_policy(
         self, policy, expected_num_variables
@@ -1100,6 +1210,42 @@ class EinsumDenseTest(testing.TestCase):
         y_training = layer(x, training=True)
         self.assertAllClose(y_inference, y_training)
 
+    @parameterized.named_parameters(
+        ("ab_bc_ac", "ab,bc->ac", (16,), "c", (None, 8)),
+        ("btd_dnh_btnh", "btd,dnh->btnh", (5, 2, 4), "nh", (None, 5, 8)),
+        (
+            "btd_dnh_btnh_no_bias",
+            "btd,dnh->btnh",
+            (5, 2, 4),
+            None,
+            (None, 5, 8),
+        ),
+    )
+    def test_quantize_float8_weights_order(
+        self, equation, output_shape, bias_axes, input_shape
+    ):
+        # A layer quantized in place and a layer built from its policy hold
+        # the same variables in the same order.
+        config = dict(
+            equation=equation, output_shape=output_shape, bias_axes=bias_axes
+        )
+        layer = layers.EinsumDense(**config)
+        layer.build(input_shape)
+        layer.quantize("float8")
+        for v in layer.weights:
+            v.assign(np.random.uniform(0.5, 1.5, v.shape))
+        new_layer = layers.EinsumDense(**config, dtype=layer.dtype_policy)
+        new_layer.build(input_shape)
+        self.assertEqual(
+            [(v.name, v.shape) for v in new_layer.weights],
+            [(v.name, v.shape) for v in layer.weights],
+        )
+        new_layer.set_weights(layer.get_weights())
+        x = np.random.random((2,) + input_shape[1:])
+        self.assertAllClose(
+            new_layer(x, training=False), layer(x, training=False)
+        )
+
     def test_gptq_serialization(self):
         """Test that a GPTQ-quantized layer can be serialized and deserialized
         correctly."""
@@ -1190,9 +1336,9 @@ class EinsumDenseTest(testing.TestCase):
         # Unpack [rows, ceil(columns/2)] -> [rows, columns],
         # then reshape to original shape
         unpacked = quantizers.unpack_int4(
-            packed_kernel, layer._orig_output_dim, axis=-1
+            packed_kernel, layer.kernel_scale.shape[-1], axis=-1
         )
-        expected = ops.reshape(unpacked, layer.original_kernel_shape)
+        expected = ops.reshape(unpacked, layer.kernel_shape)
         self.assertAllClose(layer.kernel, expected)
 
     def test_legacy_load_own_variables(self):
@@ -1234,11 +1380,11 @@ class EinsumDenseTest(testing.TestCase):
             # bias
             "0": np.random.random((32,)).astype("float32"),
             # quantized_kernel
-            "1": np.random.randint(0, 16, size=(16, 24), dtype="uint8"),
+            "1": np.random.randint(0, 16, size=(24, 16), dtype="uint8"),
             # kernel_scale.
-            "2": np.random.random((32, 3)).astype("float32"),
+            "2": np.random.random((3, 32)).astype("float32"),
             # kernel_zero
-            "3": np.random.random((32, 3)).astype("uint8"),
+            "3": np.random.random((3, 32)).astype("uint8"),
             # g_idx: legacy checkpoints stored the integer group indices as
             # float32; they load into the float32 g_idx variable unchanged.
             "4": (np.arange(24) // 8).astype("float32"),
@@ -1246,9 +1392,9 @@ class EinsumDenseTest(testing.TestCase):
         # kernel shape (3, 8, 32), packed: (16, 24) for 4-bit
         awq_store = {
             "0": np.random.random((32,)).astype("float32"),  # bias
-            "1": np.random.randint(0, 16, size=(16, 24), dtype="uint8"),
-            "2": np.random.random((32, 3)).astype("float32"),  # scale
-            "3": np.random.random((32, 3)).astype("uint8"),  # zero
+            "1": np.random.randint(0, 16, size=(24, 16), dtype="uint8"),
+            "2": np.random.random((3, 32)).astype("float32"),  # scale
+            "3": np.random.random((3, 32)).astype("uint8"),  # zero
             "4": np.random.random((24,)).astype("float32"),  # awq_scales
             # g_idx saved as int32 by a newer checkpoint; the cast on load
             # brings it into the float32 storage variable (see above).
@@ -1300,7 +1446,7 @@ class EinsumDenseTest(testing.TestCase):
         layer = layers.EinsumDense(**config, dtype="gptq/4/8_from_float32")
         layer.build((None, 3))
         layer.load_own_variables(gptq_store)
-        self.assertTrue(layer.is_gptq_calibrated)
+        self.assertFalse(layer.calibration_pending)
         self.assertAllClose(layer.bias, gptq_store["0"])
         self.assertAllClose(layer.quantized_kernel, gptq_store["1"])
         self.assertAllClose(layer.kernel_scale, gptq_store["2"])
@@ -1313,7 +1459,7 @@ class EinsumDenseTest(testing.TestCase):
         layer = layers.EinsumDense(**config, dtype="awq/4/8_from_float32")
         layer.build((None, 3))
         layer.load_own_variables(awq_store)
-        self.assertTrue(layer.is_awq_calibrated)
+        self.assertFalse(layer.calibration_pending)
         self.assertAllClose(layer.bias, awq_store["0"])
         self.assertAllClose(layer.quantized_kernel, awq_store["1"])
         self.assertAllClose(layer.kernel_scale, awq_store["2"])
@@ -1398,11 +1544,12 @@ class EinsumDenseTest(testing.TestCase):
 
                 target = self._build_einsum_for_mode(mode)
                 target.load_own_variables(test_utils.positional_store(source))
-                self.assertEqual(target.is_gptq_calibrated, mode == "gptq")
-                self.assertEqual(target.is_awq_calibrated, mode == "awq")
+                self.assertFalse(target.calibration_pending)
                 test_utils.assert_serialized_variables_equal(
                     self, source, target
                 )
+                # The codes come back in the kernel's own 3-D shape.
+                self.assertEqual(tuple(target.kernel.shape), (256, 8, 32))
 
     def test_load_own_variables_reports_clear_errors(self):
         # int8 spec order: kernel ("0"), bias ("1"), kernel_scale ("2").
@@ -1437,10 +1584,11 @@ class EinsumDenseTest(testing.TestCase):
                 dataset=None, tokenizer=None, weight_bits=4, group_size=8
             ),
         )
-        layer.is_gptq_calibrated = True  # Bypass calibration check
+        layer.calibration_pending = False  # Bypass calibration check
         packed_kernel = layer.quantized_kernel
         self.assertAllClose(
-            layer.kernel, quantizers.unpack_int4(packed_kernel, 2)
+            layer.kernel,
+            quantizers.unpack_int4(packed_kernel, 2, axis=-1, dtype="uint8"),
         )
 
     def test_gptq_kernel_packing(self):
@@ -1468,6 +1616,21 @@ class EinsumDenseTest(testing.TestCase):
             original_kernel_params // 2,
         )
 
+    def test_from_config_ignores_legacy_gptq_unpacked_column_size(self):
+        # Configs written by earlier releases carried the unpacked column
+        # count of a GPTQ kernel; it is read from the stored group
+        # parameters now, so the key is accepted and dropped.
+        layer = layers.EinsumDense(
+            "ab,bc->ac", output_shape=(4,), dtype="gptq/4/8_from_float32"
+        )
+        config = layer.get_config()
+        self.assertNotIn("gptq_unpacked_column_size", config)
+        config["gptq_unpacked_column_size"] = 4
+        restored = layers.EinsumDense.from_config(config)
+        restored.build((None, 8))
+        self.assertEqual(restored.quantization_mode, "gptq")
+        self.assertEqual(tuple(restored.kernel_scale.shape), (1, 4))
+
     def test_int4_awq_kernel_returns_unpacked_form(self):
         """Test that the `kernel` property returns the unpacked int4 AWQ
         kernel."""
@@ -1482,10 +1645,11 @@ class EinsumDenseTest(testing.TestCase):
                 dataset=None, tokenizer=None, group_size=8, num_grid_points=10
             ),
         )
-        layer.is_awq_calibrated = True  # Bypass calibration check
+        layer.calibration_pending = False  # Bypass calibration check
         packed_kernel = layer.quantized_kernel
         self.assertAllClose(
-            layer.kernel, quantizers.unpack_int4(packed_kernel, 2)
+            layer.kernel,
+            quantizers.unpack_int4(packed_kernel, 2, axis=-1, dtype="uint8"),
         )
 
     def test_awq_kernel_packing(self):
@@ -1570,13 +1734,9 @@ class EinsumDenseTest(testing.TestCase):
         config = Int4QuantizationConfig(block_size=block_size)
         layer.quantize("int4", config=config)
 
-        # For EinsumDense, when per-channel mode is used (block_size None
-        # or -1), the stored _int4_block_size is None (not the original value)
-        if block_size is None or block_size == -1:
-            # Per-channel is recorded as the resolved block size.
-            self.assertIn(layer._int4_block_size, (None, -1))
-        else:
-            self.assertEqual(layer._int4_block_size, block_size)
+        # Both spellings of per-channel resolve to an ungrouped scheme.
+        expected = None if block_size in (None, -1) else block_size
+        self.assertEqual(layer._quantized_weight().scheme.group_size, expected)
 
         # Verify kernel_scale shape (GPTQ layout)
         if block_size is None or block_size == -1:
@@ -1664,6 +1824,44 @@ class EinsumDenseTest(testing.TestCase):
         # Should run without error
         y = layer(x)
         self.assertEqual(y.shape, (2, 64))
+
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
+    def test_int4_grouped_merged_save_keeps_lora_update(self):
+        # See `DenseTest.test_int4_grouped_merged_save_keeps_lora_update`.
+        input_dim, units, block_size = 12, 16, 4
+        inputs = layers.Input((input_dim,))
+        layer = layers.EinsumDense(
+            "ab,bc->ac", output_shape=units, bias_axes=None, name="target"
+        )
+        model = models.Model(inputs, layer(inputs))
+        layer.quantize(
+            "int4", config=Int4QuantizationConfig(block_size=block_size)
+        )
+        eye = np.eye(input_dim, dtype="float32")
+        quantized = ops.convert_to_numpy(layer(eye))
+        layer.enable_lora(2)
+        rng = np.random.RandomState(0)
+        layer.lora_kernel_a.assign(
+            rng.randn(input_dim, 2).astype("float32") * 0.5
+        )
+        layer.lora_kernel_b.assign(rng.randn(2, units).astype("float32") * 0.5)
+        with_update = ops.convert_to_numpy(layer(eye))
+        path = os.path.join(self.get_temp_dir(), "merged.keras")
+        model.save(path)
+        merged_layer = saving.load_model(path).get_layer("target")
+        merged = ops.convert_to_numpy(merged_layer(eye))
+        scale = ops.convert_to_numpy(merged_layer.kernel_scale)
+        half_step = 0.5 * scale[np.arange(input_dim) // block_size]
+        self.assertGreater(
+            np.abs(with_update - quantized).max(), 4 * half_step.max()
+        )
+        # A float32 matmul runs at bfloat16 precision on TPU.
+        atol = 1e-2 if testing.uses_tpu() else 1e-6
+        self.assertTrue(
+            np.all(np.abs(merged - with_update) <= half_step * 1.001 + atol)
+        )
 
     @pytest.mark.skipif(
         testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
@@ -1853,8 +2051,12 @@ class EinsumDenseTest(testing.TestCase):
         layer_multi.quantize("int4", config=config)
 
         # Both should use grouped quantization (block_size stored)
-        self.assertEqual(layer_single._int4_block_size, block_size)
-        self.assertEqual(layer_multi._int4_block_size, block_size)
+        self.assertEqual(
+            layer_single._quantized_weight().scheme.group_size, block_size
+        )
+        self.assertEqual(
+            layer_multi._quantized_weight().scheme.group_size, block_size
+        )
 
         # Verify forward pass works for both
         x_single = np.random.random((2, 128)).astype("float32")
@@ -1886,7 +2088,7 @@ class EinsumDenseTest(testing.TestCase):
         layer.quantize("int4", config=config)
 
         # Verify g_idx is created
-        self.assertTrue(hasattr(layer, "g_idx"))
+        self.assertIsNotNone(layer.g_idx)
 
         # Verify g_idx shape (128 = input_dim = reduced dimension)
         self.assertEqual(layer.g_idx.shape, (128,))
@@ -1911,7 +2113,7 @@ class EinsumDenseTest(testing.TestCase):
         layer.quantize("int4", config=config)
 
         # Verify g_idx is NOT created for per-channel
-        self.assertFalse(hasattr(layer, "g_idx"))
+        self.assertIsNone(layer.g_idx)
 
     @pytest.mark.skipif(
         testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
@@ -1943,7 +2145,7 @@ class EinsumDenseTest(testing.TestCase):
 
         # Verify g_idx is preserved
         loaded_layer = loaded_model.layers[0]
-        self.assertTrue(hasattr(loaded_layer, "g_idx"))
+        self.assertIsNotNone(loaded_layer.g_idx)
         self.assertAllClose(loaded_layer.g_idx, g_idx_before)
 
         # Verify outputs match
@@ -1985,8 +2187,8 @@ class EinsumDenseTest(testing.TestCase):
             v_cfg = vars_cfg[name]
             self.assertEqual(tuple(v_str.shape), tuple(v_cfg.shape))
             self.assertEqual(
-                backend.standardize_dtype(v_str.dtype),
-                backend.standardize_dtype(v_cfg.dtype),
+                standardize_dtype(v_str.dtype),
+                standardize_dtype(v_cfg.dtype),
             )
             self.assertAllClose(v_str, v_cfg)
 
@@ -2010,8 +2212,8 @@ class EinsumDenseTest(testing.TestCase):
         layer.quantize(
             "int4", config=Int4QuantizationConfig(block_size=block_size)
         )
-        self.assertFalse(hasattr(layer, "kernel_zero"))
-        self.assertFalse(hasattr(layer, "g_idx"))
+        self.assertIsNone(layer.kernel_zero)
+        self.assertIsNone(layer.g_idx)
         self.assertEqual(layer.dtype_policy.name, "int4/-1_from_float32")
 
     @parameterized.named_parameters(
@@ -2040,11 +2242,11 @@ class EinsumDenseTest(testing.TestCase):
 
         self.assertEqual(layer.quantization_mode, "int4")
         if per_channel:
-            self.assertFalse(hasattr(layer, "g_idx"))
+            self.assertIsNone(layer.g_idx)
         else:
-            self.assertTrue(hasattr(layer, "g_idx"))
+            self.assertIsNotNone(layer.g_idx)
             self.assertEqual(tuple(layer.g_idx.shape), (input_dim,))
-        self.assertEqual(backend.standardize_dtype(layer._kernel.dtype), "int8")
+        self.assertEqual(standardize_dtype(layer._kernel.dtype), "int8")
 
         x = np.random.random((2, input_dim)).astype("float32")
         self.assertEqual(tuple(layer(x).shape), (2, output_dim))
@@ -2120,6 +2322,25 @@ class EinsumDenseTest(testing.TestCase):
             atol=1e-6,
             rtol=1e-6,
         )
+
+
+class EinsumDenseLoRATest(testing.TestCase):
+    def test_float8_refuses_lora(self):
+        # Refused in either order, before the layer changes.
+        message = "lora is not currently supported with FLOAT8"
+        layer = layers.EinsumDense("ab,bc->ac", output_shape=(4,))
+        layer.build((None, 3))
+        layer.quantize("float8")
+        with self.assertRaisesRegex(NotImplementedError, message):
+            layer.enable_lora(2)
+        self.assertFalse(layer.lora_enabled)
+
+        layer = layers.EinsumDense("ab,bc->ac", output_shape=(4,))
+        layer.build((None, 3))
+        layer.enable_lora(2)
+        with self.assertRaisesRegex(NotImplementedError, message):
+            layer.quantize("float8")
+        self.assertIsNone(layer.quantization_mode)
 
 
 class EinsumDenseLoRAEquationsTest(testing.TestCase):

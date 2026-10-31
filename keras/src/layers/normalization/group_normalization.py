@@ -85,6 +85,11 @@ class GroupNormalization(Layer):
                 "a positive integer (or `-1` for instance normalization). "
                 f"Received: groups={groups}"
             )
+        if epsilon is None or epsilon <= 0:
+            raise ValueError(
+                "Argument `epsilon` must be positive. "
+                f"Received: epsilon={epsilon}"
+            )
         super().__init__(**kwargs)
         self.supports_masking = True
         self.autocast = False
@@ -200,13 +205,12 @@ class GroupNormalization(Layer):
             gamma = ops.cast(gamma, reshaped_inputs.dtype)
             inv = inv * gamma
 
-        res = -mean * inv
+        normalized_inputs = (reshaped_inputs - mean) * inv
         if self.center:
             beta = ops.reshape(self.beta, broadcast_shape)
             beta = ops.cast(beta, reshaped_inputs.dtype)
-            res = res + beta
+            normalized_inputs = normalized_inputs + beta
 
-        normalized_inputs = reshaped_inputs * inv + res
         normalized_inputs = ops.cast(normalized_inputs, inputs_dtype)
 
         return normalized_inputs

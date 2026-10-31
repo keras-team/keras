@@ -9,6 +9,7 @@ from keras.src import ops
 from keras.src import random
 from keras.src import testing
 from keras.src import utils
+from keras.src.backend.common import AutocastScope
 from keras.src.losses import MeanSquaredError
 from keras.src.models import Model
 
@@ -234,7 +235,7 @@ class BatchNormalizationTest(testing.TestCase):
         layer.build((1, 4, 4, 3))
         # Use 70000 to trigger overflow for float16
         large_value = ops.full(layer.moving_variance.shape, 70000)
-        with backend.AutocastScope("float16"):
+        with AutocastScope("float16"):
             layer.moving_variance.assign(large_value)
             self.assertAllClose(layer.moving_variance.value, large_value)
 
@@ -308,6 +309,14 @@ class BatchNormalizationTest(testing.TestCase):
             layers.BatchNormalization(
                 renorm=True, renorm_clipping={"rmax": 1.0, "dmax": -1.0}
             )
+
+    def test_invalid_momentum(self):
+        for momentum in (-0.1, 1.5):
+            with self.assertRaisesRegex(ValueError, "`momentum` must be"):
+                layers.BatchNormalization(momentum=momentum)
+        # Boundary values are accepted.
+        layers.BatchNormalization(momentum=0.0)
+        layers.BatchNormalization(momentum=1.0)
 
     def test_renorm_stddev_initializer(self):
         # `moving_stddev` and `renorm_stddev` should be initialized as

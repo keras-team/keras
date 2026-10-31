@@ -4,7 +4,7 @@ from keras.src import layers
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
-from keras.src.backend import set_keras_mask
+from keras.src.backend.common import set_keras_mask
 from keras.src.quantizers.geometry import ReversibleLookupGeometry
 
 
@@ -188,12 +188,6 @@ class ReversibleEmbedding(layers.Embedding):
                     # reverse_embeddings_zero only exists for sub-channel
                     variable_spec.append("reverse_embeddings_zero")
         return _spec
-
-    def quantize(self, mode=None, type_check=True, config=None):
-        # Prevent quantization of the subclasses.
-        if type_check and type(self) is not ReversibleEmbedding:
-            raise self._not_implemented_error(self.quantize)
-        self._registry_quantize(mode, config)
 
     def _quantization_geometry(self):
         return ReversibleLookupGeometry(self)

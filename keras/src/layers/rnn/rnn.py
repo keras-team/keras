@@ -347,7 +347,7 @@ class RNN(Layer):
         if not tree.is_nested(initial_state):
             initial_state = [initial_state]
 
-        return backend.rnn(
+        return backend.rnn.rnn(
             step,
             sequences,
             initial_state,

@@ -234,7 +234,15 @@ def max(x, axis=None, keepdims=False, initial=None):
         else:
             return torch.tensor(initial)
 
-    result = amax(x, axis=axis, keepdims=keepdims)
+    if axis is None:
+        # Reduce over every dimension explicitly, since older torch versions
+        # do not accept `dim=None` for `torch.amax`.
+        axis = tuple(range(x.ndim))
+    if axis == () or axis == []:
+        # Torch handles the empty axis case differently from numpy.
+        result = x
+    else:
+        result = torch.amax(x, dim=axis, keepdim=keepdims)
 
     if initial is not None:
         dtype = to_torch_dtype(result.dtype)
@@ -314,30 +322,6 @@ def any(x, axis=None, keepdims=False):
     if isinstance(axis, list):
         axis = tuple(axis)
     return cast(torch.any(x, dim=axis, keepdim=keepdims), "bool")
-
-
-def amax(x, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
-    if axis is None:
-        # Reduce over every dimension explicitly, since older torch versions
-        # do not accept `dim=None` for `torch.amax`.
-        axis = tuple(range(x.ndim))
-    if axis == () or axis == []:
-        # Torch handles the empty axis case differently from numpy.
-        return x
-    return torch.amax(x, dim=axis, keepdim=keepdims)
-
-
-def amin(x, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
-    if axis is None:
-        # Reduce over every dimension explicitly, since older torch versions
-        # do not accept `dim=None` for `torch.amin`.
-        axis = tuple(range(x.ndim))
-    if axis == () or axis == []:
-        # Torch handles the empty axis case differently from numpy.
-        return x
-    return torch.amin(x, dim=axis, keepdim=keepdims)
 
 
 def append(x1, x2, axis=None):
@@ -752,7 +736,36 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
     if axis is None:
         # match numpy default (last axis)
         axis = -1
-    return cast(torch.linalg.cross(x1, x2, dim=axis), result_dtype)
+
+    x1_dim = x1.shape[axis]
+    x2_dim = x2.shape[axis]
+    if x1_dim not in (2, 3) or x2_dim not in (2, 3):
+        raise ValueError(
+            "Both input arrays must be (arrays of) 2 or 3-dimensional "
+            f"vectors, but they are {x1_dim} and {x2_dim} dimensional "
+            "instead."
+        )
+
+    if x1_dim == 3 and x2_dim == 3:
+        return cast(torch.linalg.cross(x1, x2, dim=axis), result_dtype)
+
+    # `torch.linalg.cross` only supports 3-dimensional vectors, so pad
+    # 2-dimensional vectors to 3 dimensions ourselves (with an implicit zero
+    # z-component) before delegating the cross product of the resulting
+    # 3-dimensional vectors to `torch.linalg.cross`.
+    def _pad_2d_vector_to_3d(x):
+        if x.shape[-1] == 2:
+            return torch.cat([x, torch.zeros_like(x[..., :1])], dim=-1)
+        return x
+
+    x1 = _pad_2d_vector_to_3d(torch.movedim(x1, axis, -1))
+    x2 = _pad_2d_vector_to_3d(torch.movedim(x2, axis, -1))
+
+    c = torch.linalg.cross(x1, x2, dim=-1)
+
+    if x1_dim == 2 and x2_dim == 2:
+        return cast(c[..., 2], result_dtype)
+    return cast(torch.movedim(c, -1, axis), result_dtype)
 
 
 def cumprod(x, axis=None, dtype=None):
@@ -1353,7 +1366,15 @@ def min(x, axis=None, keepdims=False, initial=None):
         else:
             return torch.tensor(initial)
 
-    result = amin(x, axis=axis, keepdims=keepdims)
+    if axis is None:
+        # Reduce over every dimension explicitly, since older torch versions
+        # do not accept `dim=None` for `torch.amin`.
+        axis = tuple(range(x.ndim))
+    if axis == () or axis == []:
+        # Torch handles the empty axis case differently from numpy.
+        result = x
+    else:
+        result = torch.amin(x, dim=axis, keepdim=keepdims)
 
     if initial is not None:
         dtype = to_torch_dtype(result.dtype)
@@ -1922,8 +1943,8 @@ def sinh(x):
 
 
 def size(x):
-    x_shape = convert_to_tensor(tuple(x.shape))
-    return torch.prod(x_shape)
+    x = convert_to_tensor(x)
+    return math.prod(x.shape)
 
 
 def sort(x, axis=-1):

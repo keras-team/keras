@@ -8,6 +8,9 @@ import torch._dynamo as dynamo
 import torch.nn.functional as F
 
 from keras.src import backend
+from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import is_int_dtype
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.torch.ops.core import cast
 from keras.src.backend.torch.ops.core import convert_to_tensor
 from keras.src.backend.torch.ops.core import get_device
@@ -19,7 +22,7 @@ RESIZE_INTERPOLATIONS = {
     "nearest": "nearest-exact",
     "bicubic": "bicubic",
 }
-UNSUPPORTED_INTERPOLATIONS = (
+LANCZOS_INTERPOLATIONS = (
     "lanczos3",
     "lanczos5",
 )
@@ -85,10 +88,10 @@ def rgb_to_hsv(images, data_format=None):
             "or rank 4 (batch of images). Received input with shape: "
             f"images.shape={images.shape}"
         )
-    if not backend.is_float_dtype(dtype):
+    if not is_float_dtype(dtype):
         raise ValueError(
             "Invalid images dtype: expected float dtype. "
-            f"Received: images.dtype={backend.standardize_dtype(dtype)}"
+            f"Received: images.dtype={standardize_dtype(dtype)}"
         )
     eps = torch.finfo(dtype).eps
     images = torch.where(torch.abs(images) < eps, 0.0, images)
@@ -135,10 +138,10 @@ def hsv_to_rgb(images, data_format=None):
             "or rank 4 (batch of images). Received input with shape: "
             f"images.shape={images.shape}"
         )
-    if not backend.is_float_dtype(dtype):
+    if not is_float_dtype(dtype):
         raise ValueError(
             "Invalid images dtype: expected float dtype. "
-            f"Received: images.dtype={backend.standardize_dtype(dtype)}"
+            f"Received: images.dtype={standardize_dtype(dtype)}"
         )
     hue, saturation, value = torch.split(images, [1, 1, 1], channels_axis)
     hue = torch.squeeze(hue, channels_axis)
@@ -209,16 +212,14 @@ def resize(
     data_format=None,
 ):
     data_format = backend.standardize_data_format(data_format)
-    if interpolation in UNSUPPORTED_INTERPOLATIONS:
-        raise ValueError(
-            "Resizing with Lanczos interpolation is "
-            "not supported by the PyTorch backend. "
-            f"Received: interpolation={interpolation}."
-        )
-    if interpolation not in RESIZE_INTERPOLATIONS:
+    if (
+        interpolation not in RESIZE_INTERPOLATIONS
+        and interpolation not in LANCZOS_INTERPOLATIONS
+    ):
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
-            f"{RESIZE_INTERPOLATIONS}. Received: interpolation={interpolation}"
+            f"{tuple(RESIZE_INTERPOLATIONS.keys()) + LANCZOS_INTERPOLATIONS}. "
+            f"Received: interpolation={interpolation}"
         )
     if fill_mode != "constant":
         raise ValueError(
@@ -320,25 +321,58 @@ def resize(
             )
         images = padded_img
 
-    # This implementation is based on
-    # https://github.com/pytorch/vision/blob/main/torchvision/transforms/_functional_tensor.py
-    if antialias and interpolation not in ("bilinear", "bicubic"):
+    if antialias and interpolation not in (
+        ("bilinear", "bicubic") + LANCZOS_INTERPOLATIONS
+    ):
         # We manually set it to False to avoid an error downstream in
-        # interpolate(). This behaviour is documented: the parameter is
-        # irrelevant for modes that are not bilinear or bicubic. We used to
-        # raise an error here, but now we don't use True as the default.
+        # interpolate(). The parameter is irrelevant for other modes.
         antialias = False
-    # Define align_corners to avoid warnings
-    align_corners = False if interpolation in ("bilinear", "bicubic") else None
-    resized = F.interpolate(
-        images,
-        size=size,
-        mode=RESIZE_INTERPOLATIONS[interpolation],
-        align_corners=align_corners,
-        antialias=antialias,
-    )
-    if interpolation == "bicubic" and out_dtype == torch.uint8:
-        resized = resized.clamp(min=0, max=255)
+
+    if interpolation in LANCZOS_INTERPOLATIONS:
+        shape = images.shape
+        height, width = shape[-2], shape[-1]
+        target_height, target_width = size
+        output_shape = (shape[0], shape[1], target_height, target_width)
+        scale = torch.tensor(
+            [target_height / height, target_width / width],
+            dtype=torch.float32,
+            device=images.device,
+        )
+        translation = torch.zeros(
+            (2,), dtype=torch.float32, device=images.device
+        )
+        resized = scale_and_translate(
+            images,
+            output_shape=output_shape,
+            scale=scale,
+            translation=translation,
+            spatial_dims=(2, 3),
+            method=interpolation,
+            antialias=antialias,
+        )
+    else:
+        # This implementation is based on
+        # https://github.com/pytorch/vision/blob/main/torchvision/transforms/_functional_tensor.py
+        # Define align_corners to avoid warnings
+        align_corners = (
+            False if interpolation in ("bilinear", "bicubic") else None
+        )
+        resized = F.interpolate(
+            images,
+            size=size,
+            mode=RESIZE_INTERPOLATIONS[interpolation],
+            align_corners=align_corners,
+            antialias=antialias,
+        )
+    if interpolation in ("bicubic",) + LANCZOS_INTERPOLATIONS and out_dtype in (
+        torch.uint8,
+        torch.int8,
+        torch.int16,
+        torch.int32,
+        torch.int64,
+    ):
+        iinfo = torch.iinfo(out_dtype)
+        resized = resized.clamp(min=iinfo.min, max=iinfo.max)
     if data_format == "channels_last":
         resized = resized.permute((0, 2, 3, 1))
     resized = _cast_squeeze_out(
@@ -385,6 +419,11 @@ def affine_transform(
             "Invalid transform rank: expected rank 1 (single transform) "
             "or rank 2 (batch of transforms). Received input with shape: "
             f"transform.shape={transform.shape}"
+        )
+    if isinstance(transform.shape[-1], int) and transform.shape[-1] != 8:
+        raise ValueError(
+            "Invalid transform shape: expected the last dimension to be 8. "
+            f"Received: transform.shape={transform.shape}"
         )
 
     # unbatched case
@@ -469,7 +508,7 @@ def perspective_transform(
     data_format = backend.standardize_data_format(data_format)
 
     images = convert_to_tensor(images)
-    dtype = backend.standardize_dtype(images.dtype)
+    dtype = standardize_dtype(images.dtype)
     start_points = convert_to_tensor(start_points, dtype=dtype)
     end_points = convert_to_tensor(end_points, dtype=dtype)
 
@@ -857,9 +896,9 @@ def gaussian_blur(
             return kernel1d / torch.sum(kernel1d)
 
         def _get_gaussian_kernel2d(size, sigma):
-            kernel1d_x = _get_gaussian_kernel1d(size[0], sigma[0])
-            kernel1d_y = _get_gaussian_kernel1d(size[1], sigma[1])
-            return torch.outer(kernel1d_y, kernel1d_x)
+            kernel1d_height = _get_gaussian_kernel1d(size[0], sigma[0])
+            kernel1d_width = _get_gaussian_kernel1d(size[1], sigma[1])
+            return torch.outer(kernel1d_height, kernel1d_width)
 
         kernel = _get_gaussian_kernel2d(kernel_size, sigma)
 
@@ -868,7 +907,7 @@ def gaussian_blur(
 
     data_format = backend.standardize_data_format(data_format)
     images = convert_to_tensor(images)
-    kernel_size = convert_to_tensor(kernel_size)
+    kernel_size = tuple(int(size) for size in kernel_size)
     sigma = convert_to_tensor(sigma)
     dtype = images.dtype
 
@@ -892,11 +931,23 @@ def gaussian_blur(
 
     kernel = kernel.expand(num_channels, 1, kernel_size[0], kernel_size[1])
 
+    pad_height = (kernel_size[0] - 1) // 2
+    pad_width = (kernel_size[1] - 1) // 2
+    images = torch.nn.functional.pad(
+        images,
+        (
+            pad_width,
+            kernel_size[1] - 1 - pad_width,
+            pad_height,
+            kernel_size[0] - 1 - pad_height,
+        ),
+    )
+
     blurred_images = torch.nn.functional.conv2d(
         images,
         kernel,
         stride=1,
-        padding=int(kernel_size[0] // 2),
+        padding=0,
         groups=num_channels,
     )
 
@@ -1134,7 +1185,7 @@ def _scale_and_translate(
     input_shape = x.shape
     if len(spatial_dims) == 0:
         return x
-    if backend.is_int_dtype(x.dtype):
+    if is_int_dtype(x.dtype):
         output = cast(x, "float32")
         use_rounding = True
     else:

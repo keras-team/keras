@@ -4,6 +4,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend.common import standardize_dtype
 
 NUM_BATCHES_FOR_TENSOR_SPEC = 2
 
@@ -197,7 +198,7 @@ def get_keras_tensor_spec(batches):
             dims_set = set(dims)
             shape.append(dims_set.pop() if len(dims_set) == 1 else None)
 
-        dtype = backend.standardize_dtype(x.dtype)
+        dtype = standardize_dtype(x.dtype)
         if is_tensorflow_ragged(x):
             return backend.KerasTensor(
                 shape=shape,
@@ -289,10 +290,14 @@ def get_jax_iterator(iterable):
 def get_numpy_iterator(iterable):
     def convert_to_numpy(x):
         if not isinstance(x, np.ndarray):
-            # Using `__array__` should handle `tf.Tensor`, `jax.np.ndarray`,
-            # `torch.Tensor`, as well as any other tensor-like object that
-            # has added numpy support.
-            if hasattr(x, "__array__"):
+            if backend.ops.is_tensor(x):
+                # The backend knows how to convert its own tensors, including
+                # the ones `__array__` cannot, e.g. a bfloat16 MLX array.
+                x = ops.convert_to_numpy(x)
+            elif hasattr(x, "__array__"):
+                # Using `__array__` should handle `tf.Tensor`,
+                # `jax.np.ndarray`, `torch.Tensor`, as well as any other
+                # tensor-like object that has added numpy support.
                 if is_torch_tensor(x):
                     x = x.cpu()
                 x = np.asarray(x)

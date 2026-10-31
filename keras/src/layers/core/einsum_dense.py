@@ -1,4 +1,4 @@
-import math
+import dataclasses
 import re
 import string
 
@@ -8,14 +8,12 @@ from keras.src import activations
 from keras.src import constraints
 from keras.src import initializers
 from keras.src import ops
-from keras.src import quantizers
 from keras.src import regularizers
 from keras.src.api_export import keras_export
 from keras.src.initializers.random_initializers import VarianceScaling
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.geometry import EinsumProjectionGeometry
-from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.saving import serialization_lib
 
 
@@ -134,7 +132,6 @@ class EinsumDense(Layer):
         bias_constraint=None,
         lora_rank=None,
         lora_alpha=None,
-        gptq_unpacked_column_size=None,
         quantization_config=None,
         **kwargs,
     ):
@@ -155,7 +152,6 @@ class EinsumDense(Layer):
         self.lora_rank = lora_rank
         self.lora_alpha = lora_alpha if lora_alpha is not None else lora_rank
         self.lora_enabled = False
-        self.gptq_unpacked_column_size = gptq_unpacked_column_size
         self.quantization_config = quantization_config
 
     def _update_kernel_initializer(self, input_axes, output_axes):
@@ -182,6 +178,12 @@ class EinsumDense(Layer):
         )
         kernel_shape, bias_shape, _, input_axes, output_axes = shape_data
         self.input_spec = InputSpec(ndim=len(input_shape))
+        # The float kernel's N-D shape, whatever a quantization mode stores,
+        # and the equation's axis bookkeeping the quantization modes read.
+        self.kernel_shape = tuple(kernel_shape)
+        self.einsum_axes = EinsumAxes.from_equation(
+            self.equation, len(input_shape)
+        )
 
         kernel_initializer = self.kernel_initializer
         if isinstance(self.kernel_initializer, VarianceScaling) and (
@@ -193,11 +195,15 @@ class EinsumDense(Layer):
             )
 
         if self.quantization_mode is not None:
-            self.quantized_build(
-                kernel_shape,
-                mode=self.quantization_mode,
-                config=self.quantization_config,
-            )
+            # A strategy that owns the weight storage creates the kernel. A
+            # strategy that keeps the float kernel (float8) adds its
+            # variables after the float weights, as `quantize` does.
+            if self._strategy_owns_weight_storage():
+                self.quantized_build(
+                    kernel_shape,
+                    mode=self.quantization_mode,
+                    config=self.quantization_config,
+                )
         if not self._strategy_owns_weight_storage():
             self._kernel = self.add_weight(
                 name="kernel",
@@ -220,6 +226,12 @@ class EinsumDense(Layer):
             )
         else:
             self.bias = None
+        if self.quantization_mode and not self._strategy_owns_weight_storage():
+            self.quantized_build(
+                kernel_shape,
+                mode=self.quantization_mode,
+                config=self.quantization_config,
+            )
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank, lora_alpha=self.lora_alpha)
@@ -230,57 +242,14 @@ class EinsumDense(Layer):
             raise AttributeError(
                 "You must build the layer before accessing `kernel`."
             )
-
-        mode = self.quantization_mode
-        is_gptq = mode == "gptq"
-        is_awq = mode == "awq"
-        is_int4 = mode == "int4"
-        gptq_calibrated = bool(getattr(self, "is_gptq_calibrated", False))
-        awq_calibrated = bool(getattr(self, "is_awq_calibrated", False))
-        # Resolved once when the GPTQ variables are built, so the
-        # inference path never re-parses the dtype policy.
-        gptq_bits = self._gptq_weight_bits if is_gptq else None
-
-        # Decide the source tensor first (packed vs already-quantized vs plain
-        # kernel)
-        if is_gptq and gptq_calibrated and gptq_bits not in (2, 4):
-            # calibrated GPTQ, not a packed bit-width, no unpacking needed
-            kernel = self.quantized_kernel
-        else:
-            # Start with the stored kernel
-            kernel = getattr(self, "_kernel", None)
-
-            # Handle int4 unpacking cases in one place
-            if is_int4:
-                # unpack [rows, ceil(columns/2)] to [rows, columns]
-                kernel = quantizers.unpack_int4(
-                    kernel,
-                    self._orig_output_dim,
-                    axis=-1,
-                )
-                kernel = ops.reshape(kernel, self.original_kernel_shape)
-            elif is_gptq and gptq_calibrated and gptq_bits == 4:
-                kernel = quantizers.unpack_int4(
-                    self.quantized_kernel,
-                    orig_len=self.gptq_unpacked_column_size,
-                    axis=0,
-                    dtype="uint8",
-                )
-            elif is_gptq and gptq_calibrated and gptq_bits == 2:
-                kernel = quantizers.unpack_int2(
-                    self.quantized_kernel,
-                    orig_len=self.gptq_unpacked_column_size,
-                    axis=0,
-                    dtype="uint8",
-                )
-            elif is_awq and awq_calibrated:
-                # AWQ always uses 4-bit quantization
-                kernel = quantizers.unpack_int4(
-                    self.quantized_kernel,
-                    orig_len=self.awq_unpacked_column_size,
-                    axis=0,
-                    dtype="uint8",
-                )
+        # A quantized layer exposes its integer codes in the kernel's shape;
+        # without a `QuantizedWeight` view, the float kernel.
+        quantized_weight = self._quantized_weight()
+        kernel = (
+            self._kernel
+            if quantized_weight is None
+            else quantized_weight.unpack()
+        )
 
         # Apply LoRA if enabled
         if self.lora_enabled:
@@ -292,7 +261,6 @@ class EinsumDense(Layer):
                 ),
                 dtype=self.compute_dtype,
             )
-
         return kernel
 
     def compute_output_shape(self, input_shape):
@@ -337,16 +305,8 @@ class EinsumDense(Layer):
             raise NotImplementedError(
                 "lora is not currently supported with GPTQ quantization."
             )
+        self._check_lora_supported(self.quantization_mode)
         self._tracker.unlock()
-        # Determine the appropriate (unpacked) kernel shape for LoRA.
-        if self.quantization_mode == "int4":
-            # INT4 weights are stored in a flattened 2D layout that loses
-            # the original N-dimensional structure required by the einsum
-            # equation. We use `original_kernel_shape`` to ensure LoRA adapters
-            # operate in the correct logical dimension space.
-            kernel_shape_for_lora = tuple(self.original_kernel_shape)
-        else:
-            kernel_shape_for_lora = self.kernel.shape
 
         # LoRA weights should be float32 to avoid the risk of underflow or
         # overflow during fine-tuning.
@@ -354,14 +314,14 @@ class EinsumDense(Layer):
         # original kernel while maintaining the original kernel's dtype.
         self.lora_kernel_a = self.add_weight(
             name="lora_kernel_a",
-            shape=(kernel_shape_for_lora[:-1] + (rank,)),
+            shape=(self.kernel_shape[:-1] + (rank,)),
             initializer=initializers.get(a_initializer),
             dtype="float32",
             regularizer=self.kernel_regularizer,
         )
         self.lora_kernel_b = self.add_weight(
             name="lora_kernel_b",
-            shape=(rank, kernel_shape_for_lora[-1]),
+            shape=(rank, self.kernel_shape[-1]),
             initializer=initializers.get(b_initializer),
             dtype="float32",
             regularizer=self.kernel_regularizer,
@@ -373,134 +333,10 @@ class EinsumDense(Layer):
         self.lora_alpha = lora_alpha if lora_alpha is not None else rank
 
     def save_own_variables(self, store):
-        # Do nothing if the layer isn't yet built
-        if not self.built:
-            return
-        mode = self.quantization_mode
-        if mode not in self.variable_serialization_spec:
-            raise self._quantization_mode_error(mode)
-
-        # GPTQ/AWQ layers are only serializable after calibration. Before
-        # calibration, the quantized variables hold uninitialized values
-        # while the real weights live in the float `_kernel`, which has no
-        # slot in the serialization spec, so saving would silently drop the
-        # actual weights and produce a corrupted model on reload.
-        if (
-            mode == "gptq" and not getattr(self, "is_gptq_calibrated", False)
-        ) or (mode == "awq" and not getattr(self, "is_awq_calibrated", False)):
-            raise ValueError(
-                f"Cannot save layer '{self.name}' because it is quantized "
-                f"with mode '{mode}' but has never been calibrated. Its "
-                "quantized weights are uninitialized, so saving would "
-                "produce a corrupted model. Run calibration first, e.g. via "
-                "`model.quantize(...)` with a quantization layer structure "
-                "that covers this layer, or exclude the layer from "
-                "quantization with `filters`."
-            )
-
-        # Kernel plus optional merged LoRA-aware scale/zero (returns
-        # (kernel, None, None) for None/gptq)
-        kernel_value, merged_kernel_scale, merged_kernel_zero = (
-            self._get_kernel_with_merged_lora()
-        )
-        # Variables are stored under their integer position ("0", "1", ...)
-        # within the mode's serialization spec. Each branch picks the value
-        # for the current spec entry (or skips it); the write happens at a
-        # single point so save and load stay position-consistent.
-        idx = 0
-        for name in self.variable_serialization_spec[mode]:
-            if name == "kernel":
-                value = kernel_value
-            elif name == "bias" and self.bias is None:
-                continue
-            elif name == "kernel_zero" and mode == "int4":
-                # For int4, the (LoRA-merged) zero point comes from
-                # `_get_kernel_with_merged_lora()` and only exists for
-                # sub-channel quantization.
-                if merged_kernel_zero is None:
-                    continue
-                value = merged_kernel_zero
-            elif name == "g_idx":
-                if not hasattr(self, "g_idx"):
-                    # g_idx only exists for sub-channel int4 quantization
-                    continue
-                value = self.g_idx
-            elif name == "kernel_scale" and mode in ("int4", "int8"):
-                # For int4/int8, the merged LoRA scale (if any) comes from
-                # `_get_kernel_with_merged_lora()`
-                value = merged_kernel_scale
-            else:
-                value = getattr(self, name)
-            store[str(idx)] = value
-            idx += 1
+        self._save_serialized_variables(store, "kernel")
 
     def load_own_variables(self, store):
-        if not self.lora_enabled:
-            self._check_load_own_variables(store)
-        # Do nothing if the layer isn't yet built
-        if not self.built:
-            return
-        mode = self.quantization_mode
-        if mode not in self.variable_serialization_spec:
-            raise self._quantization_mode_error(mode)
-
-        # A saved GPTQ/AWQ quantized model will always be calibrated.
-        self.is_gptq_calibrated = mode == "gptq"
-        self.is_awq_calibrated = mode == "awq"
-
-        spec = self.variable_serialization_spec[mode]
-        # Variables are keyed by their integer position ("0", "1", ...) within
-        # the mode's serialization spec. Each branch picks the target variable
-        # for the current spec entry (or skips it); the assign happens at a
-        # single point so save and load stay position-consistent.
-        idx = 0
-        for name in spec:
-            key = str(idx)
-            if name == "kernel":
-                target = self._kernel
-            elif name == "bias" and self.bias is None:
-                continue
-            elif name == "kernel_zero" and not hasattr(self, "kernel_zero"):
-                # kernel_zero only exists for sub-channel int4 quantization
-                continue
-            elif name == "g_idx":
-                if not hasattr(self, "g_idx"):
-                    # g_idx only exists for sub-channel int4 quantization
-                    continue
-                # `g_idx` is stored as `float32` (see build). Cast to the
-                # variable dtype on assign so both legacy `float32`
-                # checkpoints and any `int32`-saved ones load correctly.
-                self.g_idx.assign(ops.cast(store[key], self.g_idx.dtype))
-                idx += 1
-                continue
-            elif name == "quantized_kernel" and mode == "gptq":
-                # Handles legacy unpacked 2-bit layouts.
-                self._assign_gptq_quantized_kernel(store[key])
-                idx += 1
-                continue
-            else:
-                target = getattr(self, name)
-            target.assign(store[key])
-            idx += 1
-        if self.lora_enabled:
-            self.lora_kernel_a.assign(ops.zeros(self.lora_kernel_a.shape))
-            self.lora_kernel_b.assign(ops.zeros(self.lora_kernel_b.shape))
-
-    def _assign_gptq_quantized_kernel(self, value):
-        """Assigns a stored GPTQ quantized kernel, handling legacy layouts.
-
-        Older checkpoints stored 2-bit GPTQ kernels unpacked (one value per
-        uint8 byte). Current checkpoints pack four 2-bit values per byte. When
-        a legacy unpacked 2-bit store is detected by shape, it is packed on load
-        so the inference path can always unpack a packed kernel.
-        """
-        if self._gptq_weight_bits == 2 and tuple(value.shape) != tuple(
-            self.quantized_kernel.shape
-        ):
-            value, _, _ = quantizers.pack_int2(
-                ops.cast(value, "uint8"), axis=0, dtype="uint8"
-            )
-        self.quantized_kernel.assign(value)
+        self._load_serialized_variables(store, "kernel")
 
     def get_config(self):
         base_config = super().get_config()
@@ -529,13 +365,14 @@ class EinsumDense(Layer):
         if self.lora_rank:
             config["lora_rank"] = self.lora_rank
             config["lora_alpha"] = self.lora_alpha
-        if self.gptq_unpacked_column_size:
-            config["gptq_unpacked_column_size"] = self.gptq_unpacked_column_size
         return {**base_config, **config}
 
     @classmethod
     def from_config(cls, config):
         config = config.copy()
+        # Written by earlier releases; the unpacked column count is read
+        # from the stored group parameters now.
+        config.pop("gptq_unpacked_column_size", None)
         config["quantization_config"] = (
             serialization_lib.deserialize_keras_object(
                 config.get("quantization_config", None)
@@ -595,190 +432,33 @@ class EinsumDense(Layer):
             ],
         }
 
-    def quantize(self, mode=None, type_check=True, config=None):
-        # Prevent quantization of the subclasses.
-        if type_check and type(self) is not EinsumDense:
-            raise self._not_implemented_error(self.quantize)
-        self._registry_quantize(mode, config)
-
     def _quantization_geometry(self):
         return EinsumProjectionGeometry(self)
 
-    def _get_kernel_scale_shape(self, kernel_shape, block_size=None):
+    def _get_kernel_scale_shape(self, kernel_shape):
         """Get the shape of the kernel scale tensor.
 
         The kernel scale tensor is used to scale the kernel tensor.
         The shape of the kernel scale tensor is the same as the shape of the
-        kernel tensor, but with the reduced axes set to 1 (for per-channel)
-        or n_groups (for grouped quantization), and the transpose axes set
-        to the original axes.
+        kernel tensor, but with the reduced axes set to 1, and the transpose
+        axes set to the original axes.
 
         Args:
             kernel_shape: The shape of the kernel tensor.
-            block_size: If provided and positive, use grouped quantization
-                along the reduced axes with the specified block size.
 
         Returns:
             The shape of the kernel scale tensor.
         """
-        if block_size is not None and block_size > 0:
-            # Grouped quantization: use simple 2D scale shape
-            # (n_groups, non_reduced) - matches dequantize_grouped format
-            total_reduced_dim = 1
-            for ax in self._kernel_reduced_axes:
-                total_reduced_dim *= kernel_shape[ax]
-            n_groups = math.ceil(total_reduced_dim / block_size)
+        kernel_scale_shape = np.array(kernel_shape)
+        kernel_scale_shape[self._kernel_reduced_axes] = 1
 
-            total_non_reduced = 1
-            for i, dim in enumerate(kernel_shape):
-                if i not in self._kernel_reduced_axes:
-                    total_non_reduced *= dim
-
-            return (n_groups, total_non_reduced)
-        else:
-            # Per-channel quantization: use the original transformation logic
-            kernel_scale_shape = np.array(kernel_shape)
-            kernel_scale_shape[self._kernel_reduced_axes] = 1
-
-            kernel_scale_shape = kernel_scale_shape[self._kernel_transpose_axes]
-            kernel_scale_shape = kernel_scale_shape.tolist()
-            for a in sorted(self._kernel_expand_axes):
-                kernel_scale_shape.insert(a, 1)
-            for a in sorted(self._kernel_squeeze_axes, reverse=True):
-                kernel_scale_shape.pop(a)
-            return kernel_scale_shape
-
-    def _get_kernel_with_merged_lora(self):
-        """Returns the kernel with LoRA matrices merged, for serialization.
-
-        This method is called by `save_own_variables` to produce a single
-        kernel tensor that includes the adaptations from LoRA. This is useful
-        for deploying the model or for continuing training after permanently
-        applying the LoRA update.
-
-        If the layer is quantized (`int8` or `int4`), the process is:
-        1. Dequantize the base kernel to float.
-        2. Adjust the scale tensor layout for dequantization. This is the
-            reverse order of operations used when building the layer.
-        3. Compute the LoRA delta (`lora_kernel_a @ lora_kernel_b`) and add
-            it to the dequantized kernel.
-        4. Re-quantize the merged result back to the original quantized
-            type (`int8` or packed `int4`), calculating a new scale factor.
-        5. Adjust the scale tensor layout for quantization. This is the forward
-            order of operations used when building the layer.
-
-        If the layer is not quantized, this method returns the result of the
-        `kernel` property (which computes the merge in floating-point) and a
-        scale of `None`.
-
-        If LoRA is not enabled, it returns the original kernel and scale
-        without modification.
-
-        Returns:
-            A tuple `(kernel_value, kernel_scale, kernel_zero)`:
-                `kernel_value`: The merged kernel. A quantized tensor if
-                    quantization is active, otherwise a high precision tensor.
-                `kernel_scale`: The quantization scale for the merged kernel.
-                    This is `None` if the layer is not quantized.
-                `kernel_zero`: The zero point for sub-channel int4 quantization.
-                    This is `None` for per-channel or non-int4 modes.
-        """
-        # If not a quantized layer, return the full-precision kernel directly.
-        if self.dtype_policy.quantization_mode in (None, "gptq", "awq"):
-            return self.kernel, None, None
-
-        kernel_zero = getattr(self, "kernel_zero", None)
-
-        # If quantized but LoRA is not enabled, return the original quantized
-        # kernel.
-        if not self.lora_enabled:
-            return self._kernel, self.kernel_scale, kernel_zero
-
-        # Dequantize, Merge, and Re-quantize
-
-        # 1. Dequantize the kernel
-        if self.quantization_mode == "int4":
-            # Unpack [rows, ceil(columns/2)] to [rows, columns]
-            unpacked_kernel = quantizers.unpack_int4(
-                self._kernel,
-                self._orig_output_dim,
-                axis=-1,
-            )
-            block_size = getattr(self, "_int4_block_size", None)
-            if block_size is not None and block_size != -1:
-                # Grouped dequantization with group_axis=0
-                kernel_fp = dequantize_with_sz_map(
-                    unpacked_kernel,
-                    self.kernel_scale,
-                    self.kernel_zero,
-                    self.g_idx,
-                    group_axis=0,
-                )
-            else:
-                # Per-channel dequantization:
-                # kernel [rows, columns], scale [columns]
-                kernel_fp = ops.divide(
-                    ops.cast(unpacked_kernel, self.compute_dtype),
-                    self.kernel_scale,
-                )
-            kernel_fp = ops.reshape(kernel_fp, self.original_kernel_shape)
-        elif self.quantization_mode == "int8":
-            adjusted_scale = self._adjust_scale_for_dequant(self.kernel_scale)
-            kernel_fp = ops.divide(self._kernel, adjusted_scale)
-        else:
-            raise ValueError(
-                f"Unsupported quantization mode: {self.quantization_mode}"
-            )
-
-        # 2. Merge the LoRA update in the float domain
-        lora_update = (self.lora_alpha / self.lora_rank) * ops.matmul(
-            self.lora_kernel_a, self.lora_kernel_b
-        )
-        merged_kernel = ops.add(kernel_fp, lora_update)
-
-        # 3. Re-quantize the merged float kernel back to the target format
-        if self.quantization_mode == "int4":
-            block_size = getattr(self, "_int4_block_size", None)
-            rows = self._orig_input_dim
-            columns = self._orig_output_dim
-
-            # Flatten to 2D [rows, columns]
-            flat_kernel = ops.reshape(merged_kernel, (rows, columns))
-
-            if block_size is not None and block_size != -1:
-                # Use abs_max_quantize_grouped_with_zero_point for proper
-                # signed quantization (same as quantize() method)
-                # Returns kernel [rows, columns], scale [n_groups, columns]
-                kernel_quant, new_scale, new_zero = (
-                    quantizers.abs_max_quantize_grouped_with_zero_point(
-                        flat_kernel, block_size=block_size, to_numpy=True
-                    )
-                )
-                kernel_zero = new_zero
-            else:
-                # Per-channel: quantize along rows axis
-                kernel_quant, new_scale = quantizers.abs_max_quantize(
-                    flat_kernel,
-                    axis=0,
-                    value_range=(-8, 7),
-                    dtype="int8",
-                    to_numpy=True,
-                )
-                new_scale = ops.squeeze(new_scale, axis=0)
-                kernel_zero = None
-
-            # Pack along last axis
-            new_kernel, _, _ = quantizers.pack_int4(kernel_quant, axis=-1)
-        elif self.quantization_mode == "int8":
-            new_kernel, new_scale = quantizers.abs_max_quantize(
-                merged_kernel,
-                axis=self._kernel_reduced_axes,
-                to_numpy=True,
-            )
-            new_scale = self._adjust_scale_for_quant(new_scale, "kernel")
-            kernel_zero = None
-
-        return new_kernel, new_scale, kernel_zero
+        kernel_scale_shape = kernel_scale_shape[self._kernel_transpose_axes]
+        kernel_scale_shape = kernel_scale_shape.tolist()
+        for a in sorted(self._kernel_expand_axes):
+            kernel_scale_shape.insert(a, 1)
+        for a in sorted(self._kernel_squeeze_axes, reverse=True):
+            kernel_scale_shape.pop(a)
+        return kernel_scale_shape
 
     def _adjust_scale_for_dequant(self, scale):
         """Adjusts scale tensor layout for dequantization.
@@ -884,7 +564,9 @@ def _analyze_einsum_string(equation, bias_axes, input_shape, output_shape):
             `output_axes`: The axes representing output units.
 
     Raises:
-        ValueError: If the einsum `equation` is not in a supported format.
+        ValueError: If the einsum `equation` is not in a supported format, or
+            if the `ndim` of `input_shape` does not fit the input labels of
+            the `equation`.
     """
 
     dot_replaced_string = re.sub(r"\.\.\.", "0", equation)
@@ -894,6 +576,9 @@ def _analyze_einsum_string(equation, bias_axes, input_shape, output_shape):
         "([a-zA-Z]+),([a-zA-Z]+)->([a-zA-Z]+)", dot_replaced_string
     )
     if split_string:
+        _check_input_ndim(
+            equation, input_shape, split_string.group(1), exact=True
+        )
         return _analyze_split_string(
             split_string, bias_axes, input_shape, output_shape
         )
@@ -903,6 +588,7 @@ def _analyze_einsum_string(equation, bias_axes, input_shape, output_shape):
         "0([a-zA-Z]+),([a-zA-Z]+)->0([a-zA-Z]+)", dot_replaced_string
     )
     if split_string:
+        _check_input_ndim(equation, input_shape, split_string.group(1))
         return _analyze_split_string(
             split_string, bias_axes, input_shape, output_shape, left_elided=True
         )
@@ -912,6 +598,7 @@ def _analyze_einsum_string(equation, bias_axes, input_shape, output_shape):
         "([a-zA-Z]{2,})0,([a-zA-Z]+)->([a-zA-Z]+)0", dot_replaced_string
     )
     if split_string:
+        _check_input_ndim(equation, input_shape, split_string.group(1))
         return _analyze_split_string(
             split_string, bias_axes, input_shape, output_shape
         )
@@ -919,6 +606,61 @@ def _analyze_einsum_string(equation, bias_axes, input_shape, output_shape):
     raise ValueError(
         f"Invalid einsum equation '{equation}'. Equations must be in the form "
         "[X],[Y]->[Z], ...[X],[Y]->...[Z], or [X]...,[Y]->[Z]...."
+    )
+
+
+# The accepted forms, with "..." replaced by "0", and the side each elides.
+_EQUATION_FORMS = (
+    ("([a-zA-Z]+),([a-zA-Z]+)->([a-zA-Z]+)", None),
+    ("0([a-zA-Z]+),([a-zA-Z]+)->0([a-zA-Z]+)", "left"),
+    ("([a-zA-Z]{2,})0,([a-zA-Z]+)->([a-zA-Z]+)0", "right"),
+)
+
+
+def _split_equation(equation):
+    """Splits an equation into its inputs, kernel and output labels.
+
+    Returns:
+        `(input_spec, weight_spec, output_spec, ellipsis)`, where
+        `ellipsis` is the side the equation elides: `"left"`, `"right"`
+        or `None`.
+    """
+    dot_replaced_string = re.sub(r"\.\.\.", "0", equation)
+    for pattern, ellipsis in _EQUATION_FORMS:
+        split_string = re.match(pattern, dot_replaced_string)
+        if split_string:
+            return (*split_string.groups(), ellipsis)
+    raise ValueError(
+        f"Invalid einsum equation '{equation}'. Equations must be in the form "
+        "[X],[Y]->[Z], ...[X],[Y]->...[Z], or [X]...,[Y]->[Z]...."
+    )
+
+
+def _check_input_ndim(equation, input_shape, input_spec, exact=False):
+    """Checks that the input `ndim` can hold the labels of the input spec.
+
+    An equation without an ellipsis labels every input axis, so `ndim` must
+    match the number of labels. An equation with an ellipsis labels only some
+    of the axes, so `ndim` must be at least the number of labels.
+
+    Args:
+        equation: The einsum equation string, used in the error message.
+        input_shape: The shape of the input tensor.
+        input_spec: The input labels of the equation, without the ellipsis.
+        exact: A boolean indicating if `ndim` must equal the number of
+            labels instead of being at least that number.
+
+    Raises:
+        ValueError: If the `ndim` of `input_shape` does not fit `input_spec`.
+    """
+    ndim = len(input_shape)
+    num_labels = len(input_spec)
+    if ndim == num_labels or (ndim > num_labels and not exact):
+        return
+    expected = f"ndim={num_labels}" if exact else f"min_ndim={num_labels}"
+    raise ValueError(
+        f"The einsum equation '{equation}' expects an input with {expected}, "
+        f"but received input shape {tuple(input_shape)} with ndim={ndim}."
     )
 
 
@@ -1059,6 +801,47 @@ def _analyze_split_string(
     return weight_shape, bias_shape, output_shape, input_axes, output_axes
 
 
+@dataclasses.dataclass(frozen=True)
+class EinsumAxes:
+    """The labels of an `EinsumDense` equation, any ellipsis spelled out.
+
+    Every axis fact the quantization modes read derives from the three
+    label strings. An input or kernel axis is reduced (contracted) when
+    its label is not in the output.
+    """
+
+    inputs: str
+    kernel: str
+    output: str
+
+    @classmethod
+    def from_equation(cls, equation, input_rank):
+        inputs, kernel, output, ellipsis = _split_equation(equation)
+        if ellipsis is not None:
+            # Give the elided axes labels of their own.
+            unused = sorted(
+                set(string.ascii_letters) - set(inputs + kernel + output)
+            )
+            elided = "".join(unused[: input_rank - len(inputs)])
+            if ellipsis == "left":
+                inputs, output = elided + inputs, elided + output
+            else:
+                inputs, output = inputs + elided, output + elided
+        return cls(inputs, kernel, output)
+
+    @property
+    def input_reduced_axes(self):
+        """The input axes the equation contracts."""
+        return tuple(
+            i for i, label in enumerate(self.inputs) if label not in self.output
+        )
+
+    @property
+    def gradient_equation(self):
+        """The einsum that produces the inputs gradient."""
+        return f"{self.output},{self.kernel}->{self.inputs}"
+
+
 def _analyze_quantization_info(equation, input_shape):
     """Analyzes an einsum equation to derive information for quantization.
 
@@ -1087,68 +870,8 @@ def _analyze_quantization_info(equation, input_shape):
             scale transpose.
     """
 
-    def get_specs(equation, input_shape):
-        possible_labels = string.ascii_letters
-        dot_replaced_string = re.sub(r"\.\.\.", "0", equation)
-
-        # This is the case where no ellipses are present in the string.
-        split_string = re.match(
-            "([a-zA-Z]+),([a-zA-Z]+)->([a-zA-Z]+)", dot_replaced_string
-        )
-        if split_string is not None:
-            input_spec = split_string.group(1)
-            weight_spec = split_string.group(2)
-            output_spec = split_string.group(3)
-            return input_spec, weight_spec, output_spec
-
-        # This is the case where ellipses are present on the left.
-        split_string = re.match(
-            "0([a-zA-Z]+),([a-zA-Z]+)->0([a-zA-Z]+)", dot_replaced_string
-        )
-        if split_string is not None:
-            input_spec = split_string.group(1)
-            weight_spec = split_string.group(2)
-            output_spec = split_string.group(3)
-            elided = len(input_shape) - len(input_spec)
-            possible_labels = sorted(
-                set(possible_labels)
-                - set(input_spec)
-                - set(weight_spec)
-                - set(output_spec)
-            )
-            # Pad labels on the left to `input_spec` and `output_spec`
-            for i in range(elided):
-                input_spec = possible_labels[i] + input_spec
-                output_spec = possible_labels[i] + output_spec
-            return input_spec, weight_spec, output_spec
-
-        # This is the case where ellipses are present on the right.
-        split_string = re.match(
-            "([a-zA-Z]{2,})0,([a-zA-Z]+)->([a-zA-Z]+)0", dot_replaced_string
-        )
-        if split_string is not None:
-            input_spec = split_string.group(1)
-            weight_spec = split_string.group(2)
-            output_spec = split_string.group(3)
-            elided = len(input_shape) - len(input_spec)
-            possible_labels = sorted(
-                set(possible_labels)
-                - set(input_spec)
-                - set(weight_spec)
-                - set(output_spec)
-            )
-            # Pad labels on the right to `input_spec` and `output_spec`
-            for i in range(elided):
-                input_spec = input_spec + possible_labels[i]
-                output_spec = output_spec + possible_labels[i]
-            return input_spec, weight_spec, output_spec
-
-        raise ValueError(
-            f"Invalid einsum equation '{equation}'. Equations must be in the "
-            "form [X],[Y]->[Z], ...[X],[Y]->...[Z], or [X]...,[Y]->[Z]...."
-        )
-
-    input_spec, weight_spec, output_spec = get_specs(equation, input_shape)
+    axes = EinsumAxes.from_equation(equation, len(input_shape))
+    input_spec, weight_spec, output_spec = axes.inputs, axes.kernel, axes.output
 
     # Determine the axes that should be reduced by the quantizer
     input_reduced_axes = []
@@ -1185,7 +908,8 @@ def _analyze_quantization_info(equation, input_shape):
             weight_transpose_axes.append(index_weight)
     # Postprocess the information:
     # 1. Add dummy axes (1) to transpose_axes
-    # 2. Add axis to squeeze_axes if 1. failed
+    # 2. Add axis to squeeze_axes if 1. failed. The axis then stays at its
+    #    own position, so the squeeze removes that size-1 axis.
     input_squeeze_axes = []
     weight_squeeze_axes = []
     for ori_index in input_reduced_axes:
@@ -1193,12 +917,14 @@ def _analyze_quantization_info(equation, input_shape):
             index = input_expand_axes.pop(0)
         except IndexError:
             input_squeeze_axes.append(ori_index)
+            index = ori_index
         input_transpose_axes.insert(index, ori_index)
     for ori_index in weight_reduced_axes:
         try:
             index = weight_expand_axes.pop(0)
         except IndexError:
             weight_squeeze_axes.append(ori_index)
+            index = ori_index
         weight_transpose_axes.insert(index, ori_index)
     # Prepare equation for `einsum_with_inputs_gradient`
     custom_gradient_equation = f"{output_spec},{weight_spec}->{input_spec}"

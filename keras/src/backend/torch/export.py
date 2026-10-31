@@ -7,12 +7,14 @@ from keras.src import layers
 from keras.src import tree
 from keras.src.export.export_utils import convert_spec_to_tensor
 from keras.src.export.export_utils import make_tf_tensor_spec
-from keras.src.export.saved_model_export_archive import SavedModelExportArchive
+from keras.src.export.saved_model_export_archive import (
+    BaseSavedModelExportArchive,
+)
 from keras.src.utils.module_utils import tensorflow as tf
 from keras.src.utils.module_utils import torch_xla
 
 
-class TorchExportArchive(SavedModelExportArchive):
+class SavedModelExportArchive(BaseSavedModelExportArchive):
     """Torch backend implementation of SavedModel export archive."""
 
     def _backend_track_layer(self, layer):

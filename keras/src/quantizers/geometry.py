@@ -46,21 +46,34 @@ The geometry is a thin adapter, so the strategies still read
 state directly off the layer. Beyond what `Layer` already provides, a
 quantizable layer must define:
 
-- Projections: `_kernel` (the float kernel variable), `units`, `bias` and
-  `activation` (either may be `None`), and, while LoRA is enabled,
-  `lora_enabled`, `lora_kernel_a`, `lora_kernel_b`, `lora_alpha` and
-  `lora_rank`. `EinsumProjectionGeometry` additionally relies on the
-  equation analysis `EinsumDense` prepares in `_set_quantization_info()`.
-- Lookups: `_embeddings`, `input_dim`, `output_dim`, and the
-  `lora_embeddings_a` / `lora_embeddings_b` equivalents. A reversible
+- Projections: `_kernel` (the float kernel variable), `kernel_shape` (its
+  shape, recorded in `build()`), `units`, `bias` and `activation` (either
+  may be `None`). `EinsumProjectionGeometry` additionally relies on the
+  `einsum_axes` record `EinsumDense` derives from its equation in
+  `build()`, and on the equation analysis `EinsumDense` prepares in
+  `_set_quantization_info()` (called through the geometry's `prepare()`).
+- Lookups: `_embeddings`, `input_dim` and `output_dim`. A reversible
   lookup adds `tie_weights`, `logit_soft_cap`, and, when untied, the
   `reverse_embeddings` variables.
+
+LoRA is optional: `Layer` defines `lora_enabled = False`. A layer that
+supports it sets `lora_enabled` in `enable_lora()` and defines
+`lora_kernel_a`, `lora_kernel_b`, `lora_alpha` and `lora_rank` (a lookup
+defines `lora_embeddings_a` and `lora_embeddings_b` in place of the kernel
+factors).
 
 The rest comes from `Layer` itself: strategies read `compute_dtype`,
 `dtype_policy` and `path`, create their quantized variables through
 `add_weight`, and re-enter through `Layer.quantized_build`, which routes
 straight back to the strategy. A layer never needs to know which mode is
 running, and implements none of these itself.
+
+Defining `_quantization_geometry()` on a subclass also makes that subclass
+the owner of its quantization support: `Layer.quantize`'s type check
+accepts instances of the exact class that defines the method. A `Dense`
+subclass therefore opts in by defining it; without it the subclass is
+skipped by `Model.quantize` and remains reachable through
+`quantize(..., type_check=False)`.
 
 Customizing what a strategy does to a layer
 -------------------------------------------
@@ -77,33 +90,37 @@ on the strategy; a layer that contracts its kernel differently overrides
 the geometry hooks, and anything beyond that means replacing the strategy (by
 subclassing it, overriding the one handler, and registering it under a
 new mode name). A new geometry family, on the other hand, needs no dispatcher
-change at all: declare its `family` and implement the strategy's
-`_build_<family>`, `_call_<family>` and `_quantize_<family>` methods.
+change at all: declare its `family`, list it in the mode's
+`geometry_families` and implement the strategy's handlers for it, which
+`GeometryDispatchStrategy` lists (`keras.src.quantizers.modes.common`).
 """
 
 import string
 
-import numpy as np
-
 from keras.src import ops
+from keras.src.quantizers.quantizers import ternarize
 
 
 class QuantizationGeometry:
     """Base class for a layer's quantization geometry.
 
-    A geometry names the *family* it belongs to. Strategies
-    implement one `_build_<family>`, `_call_<family>` and
-    `_quantize_<family>` method per family they support, so introducing a
-    family is a declaration plus those methods, with no dispatch chain to
-    edit anywhere.
+    A geometry names the *family* it belongs to. A strategy built on
+    `GeometryDispatchStrategy` implements one handler per verb for each
+    family it lists in `geometry_families`, so introducing a family is a
+    declaration plus those handlers, with no dispatch chain to edit
+    anywhere.
     """
 
-    # Dispatch key: every strategy verb resolves to `_<verb>_<family>`.
+    # Dispatch key: each `GeometryDispatchStrategy` verb resolves to the
+    # mode's handler for this family.
     family = None
     # Whether the layer also projects back through its weight. Not a
     # dispatch key: strategies branch on it where the reverse table
     # matters, and the forward handler takes the layer's `reverse` argument.
     reversible = False
+    # Attributes the layer's `build()` records and the strategies read.
+    # `Layer.quantize` checks them before it changes the layer.
+    build_attributes = ()
 
     def __init__(self, layer):
         self.layer = layer
@@ -120,11 +137,16 @@ class ProjectionGeometry(QuantizationGeometry):
     """Geometry of a 2D kernel `(input_dim, units)` contracted by matmul."""
 
     family = "projection"
+    build_attributes = ("kernel_shape",)
 
     @property
     def weight_shape(self):
-        """Shape of the float weight that quantization replaces."""
-        return self.layer._kernel.shape
+        """Shape of the float kernel, as the layer recorded it in `build()`.
+
+        Quantized storage may be packed or flattened, so this is the
+        logical shape every strategy reads rather than a variable's shape.
+        """
+        return tuple(self.layer.kernel_shape)
 
     def prepare(self):
         """Computes any layout analysis the geometry needs (idempotent)."""
@@ -137,15 +159,6 @@ class ProjectionGeometry(QuantizationGeometry):
         """
         return kernel_shape[0], kernel_shape[1]
 
-    def store_unpacked_columns(self, mode, columns):
-        """Records the unpacked column count for the calibration call path."""
-        del mode, columns  # The matmul case reads `layer.units` instead.
-
-    def unpacked_columns(self, mode):
-        """The unpacked column count recorded at calibration build time."""
-        del mode
-        return self.layer.units
-
     def contract(self, inputs, kernel):
         """Contracts `inputs` against a kernel in the contraction shape."""
         return ops.matmul(inputs, kernel)
@@ -154,16 +167,13 @@ class ProjectionGeometry(QuantizationGeometry):
         """Gradient of `contract` with respect to its inputs."""
         return ops.matmul(upstream, ops.transpose(float_kernel))
 
-    def reshape_kernel(self, kernel):
-        """Restores a 2D dequantized kernel to the contraction shape."""
-        return kernel
-
-    def record_kernel_shape(self, kernel_shape):
-        """Records the float kernel shape for a later reshape or write-back."""
-        self.layer.kernel_shape = kernel_shape
-
     def rows_columns(self, kernel_shape):
-        """2D `(rows, columns)` view: contracted axes times the rest."""
+        """2D `(rows, columns)` shape a plain reshape of the kernel takes.
+
+        `rows` is the product of the contracted axes and `columns` that of
+        the rest, so the reshape is `(contracted, rest)` only when the
+        contracted axes lead the kernel.
+        """
         return kernel_shape[0], kernel_shape[1]
 
     @property
@@ -183,6 +193,15 @@ class ProjectionGeometry(QuantizationGeometry):
     def kernel_scale_shape(self, kernel_shape):
         """Shape of a per-channel scale stored alongside the kernel."""
         return (kernel_shape[1],)
+
+    @property
+    def kernel_scale_axis(self):
+        """Kernel axis a per-channel scale is shared along.
+
+        `None` when the stored scale is laid out for the outputs and
+        `kernel_scale_for_dequant` lays it out against the kernel instead.
+        """
+        return 0
 
     def kernel_scale_for_storage(self, scale):
         """Aligns a freshly computed kernel scale with its stored layout."""
@@ -205,20 +224,13 @@ class ProjectionGeometry(QuantizationGeometry):
     def ternary_values(self):
         """Returns `(ternary_kernel, scale)` for ternary quantization.
 
-        The default applies the BitNet b1.58 rule to the float kernel:
-        `threshold = 0.5 * mean(|W|)` and `scale = mean(|W|)`. A layer that
-        owns its own ternarization rule (`TernaryDense` and its straight-
-        through estimator) overrides this in its geometry.
+        The default applies the BitNet b1.58 rule to the float kernel
+        (`quantizers.ternarize`): `threshold = 0.5 * mean(|W|)` and
+        `scale = mean(|W|)`. A layer that owns its own ternarization rule
+        (`TernaryDense` and its straight-through estimator) overrides this
+        in its geometry.
         """
-        kernel = self.layer._kernel
-        kernel_np = ops.convert_to_numpy(kernel)
-        abs_k = ops.convert_to_numpy(ops.abs(kernel))
-        t = float(ops.convert_to_numpy(ops.mean(abs_k))) * 0.5
-        kernel_ternary = np.sign(kernel_np) * (abs_k > t).astype(
-            kernel_np.dtype
-        )
-        beta = float(np.mean(abs_k))
-        return kernel_ternary, beta
+        return ternarize(self.layer._kernel)
 
 
 def _lora_equations(equation):
@@ -266,10 +278,17 @@ class EinsumProjectionGeometry(ProjectionGeometry):
     implementation; this class routes the strategies to it.
     """
 
+    build_attributes = ("kernel_shape", "einsum_axes")
+
     def prepare(self):
         self.layer._set_quantization_info()
 
     def calibration_rows_columns(self, kernel_shape):
+        if len(kernel_shape) not in (2, 3):
+            raise ValueError(
+                "Calibration only supports 2D or 3D kernels. Received: "
+                f"kernel_shape={tuple(kernel_shape)}"
+            )
         if len(kernel_shape) == 2:
             return kernel_shape[0], kernel_shape[1]
         # 3D kernels are split by locating the model dimension (the largest
@@ -285,26 +304,14 @@ class EinsumProjectionGeometry(ProjectionGeometry):
             return heads * head_dim, out_features
         raise ValueError("Could not determine row/column split.")
 
-    def store_unpacked_columns(self, mode, columns):
-        setattr(self.layer, f"{mode}_unpacked_column_size", columns)
-
-    def unpacked_columns(self, mode):
-        return getattr(self.layer, f"{mode}_unpacked_column_size")
-
     def contract(self, inputs, kernel):
         return ops.einsum(self.layer.equation, inputs, kernel)
 
     def contract_grad(self, upstream, float_kernel):
         # From https://stackoverflow.com/a/47609896
         return ops.einsum(
-            self.layer._custom_gradient_equation, upstream, float_kernel
+            self.layer.einsum_axes.gradient_equation, upstream, float_kernel
         )
-
-    def reshape_kernel(self, kernel):
-        return ops.reshape(kernel, self.layer.original_kernel_shape)
-
-    def record_kernel_shape(self, kernel_shape):
-        self.layer.original_kernel_shape = kernel_shape
 
     def rows_columns(self, kernel_shape):
         rows = 1
@@ -322,13 +329,19 @@ class EinsumProjectionGeometry(ProjectionGeometry):
 
     @property
     def inputs_quantization_axis(self):
-        return tuple(self.layer._input_reduced_axes)
+        return self.layer.einsum_axes.input_reduced_axes
 
     def align_inputs_scale(self, scale):
         return self.layer._adjust_scale_for_quant(scale, "input")
 
     def kernel_scale_shape(self, kernel_shape):
         return self.layer._get_kernel_scale_shape(kernel_shape)
+
+    @property
+    def kernel_scale_axis(self):
+        # The equation analysis may transpose or expand the stored scale
+        # even for a 2-D kernel; `kernel_scale_for_dequant` lays it out.
+        return None
 
     def kernel_scale_for_storage(self, scale):
         return self.layer._adjust_scale_for_quant(scale, "kernel")

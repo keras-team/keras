@@ -3,6 +3,8 @@ from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
+from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import is_int_dtype
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import compute_conv_output_shape
 
@@ -99,7 +101,7 @@ class RGBToHSV(Operation):
                 "or rank 4 (batch of images). "
                 f"Received: images.shape={images_shape}"
             )
-        if not backend.is_float_dtype(dtype):
+        if not is_float_dtype(dtype):
             raise ValueError(
                 "Invalid images dtype: expected float dtype. "
                 f"Received: images.dtype={dtype}"
@@ -180,7 +182,7 @@ class HSVToRGB(Operation):
                 "or rank 4 (batch of images). "
                 f"Received: images.shape={images_shape}"
             )
-        if not backend.is_float_dtype(dtype):
+        if not is_float_dtype(dtype):
             raise ValueError(
                 "Invalid images dtype: expected float dtype. "
                 f"Received: images.dtype={dtype}"
@@ -311,7 +313,8 @@ def resize(
         images: Input image or batch of images. Must be 3D or 4D.
         size: Size of output image in `(height, width)` format.
         interpolation: Interpolation method. Available methods are `"nearest"`,
-            `"bilinear"`, and `"bicubic"`. Defaults to `"bilinear"`.
+            `"bilinear"`, `"bicubic"`, `"lanczos3"`, and `"lanczos5"`.
+            Defaults to `"bilinear"`.
         antialias: Whether to use an antialiasing filter when downsampling an
             image. Defaults to `False`.
         crop_to_aspect_ratio: If `True`, resize the images without aspect
@@ -431,7 +434,7 @@ def _resize(
         # Only `torch` backend will cast result to original dtype with
         # correct rounding and without dtype overflow
         return resized
-    if backend.is_int_dtype(images.dtype):
+    if is_int_dtype(images.dtype):
         resized = ops.round(resized)
     return ops.saturate_cast(resized, images.dtype)
 
@@ -474,6 +477,11 @@ class AffineTransform(Operation):
                 "Invalid transform rank: expected rank 1 (single transform) "
                 "or rank 2 (batch of transforms). Received input with shape: "
                 f"transform.shape={transform.shape}"
+            )
+        if isinstance(transform.shape[-1], int) and transform.shape[-1] != 8:
+            raise ValueError(
+                "Invalid transform shape: expected the last dimension to be 8. "
+                f"Received: transform.shape={transform.shape}"
             )
         return KerasTensor(images.shape, dtype=images.dtype)
 

@@ -19,13 +19,6 @@ from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.tensorflow.sparse import sparse_to_dense
 from keras.src.utils.naming import auto_name
 
-SUPPORTS_SPARSE_TENSORS = True
-SUPPORTS_RAGGED_TENSORS = True
-SUPPORTS_COMPLEX_DTYPES = True
-SUPPORTS_GRADIENT = True
-# https://github.com/tensorflow/tensorflow/issues/78338
-IS_THREAD_SAFE = False
-
 
 class Variable(
     KerasVariable,
@@ -172,6 +165,15 @@ def convert_to_numpy(x):
         x = tf.convert_to_tensor(x)
     elif isinstance(x, tf.RaggedTensor):
         x = x.to_tensor()
+
+    if is_tensor(x) and x.dtype == "bfloat16" and hasattr(x, "numpy"):
+        # Direct conversion of bfloat16 fails.
+        # Note that we still call `np.array` on the result of `numpy()` because:
+        # - scalars are returned as scalar instances by `numpy()` but we want an
+        #   `np.ndarray` even for scalars
+        # - we want mutable arrays
+        x = x.numpy()
+
     return np.array(x)
 
 

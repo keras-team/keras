@@ -9,6 +9,8 @@ from keras.src.backend import any_symbolic_tensors
 from keras.src.backend import config
 from keras.src.backend import standardize_data_format
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
@@ -21,6 +23,7 @@ from keras.src.backend.common.backend_utils import (
 from keras.src.ops import operation_utils
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import reduce_shape
+from keras.src.utils.argument_validation import standardize_tuple
 
 
 class Relu(Operation):
@@ -122,7 +125,9 @@ class SparseSigmoid(Operation):
         return backend.ops.nn.sparse_sigmoid(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return KerasTensor(
+            x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
+        )
 
 
 @keras_export(["keras.ops.sparse_sigmoid", "keras.ops.nn.sparse_sigmoid"])
@@ -227,7 +232,9 @@ class SoftShrink(Operation):
         return backend.ops.nn.soft_shrink(x, self.threshold)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return KerasTensor(
+            x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
+        )
 
 
 @keras_export(["keras.ops.soft_shrink", "keras.ops.nn.soft_shrink"])
@@ -265,7 +272,9 @@ class SparsePlus(Operation):
         return backend.ops.nn.sparse_plus(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return KerasTensor(
+            x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
+        )
 
 
 @keras_export(["keras.ops.sparse_plus", "keras.ops.nn.sparse_plus"])
@@ -437,7 +446,11 @@ class LeakyRelu(Operation):
         return backend.ops.nn.leaky_relu(x, self.negative_slope)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        # Integer and bool input is promoted to `floatx`, matching what the
+        # backends return. Same rule as `Exp.compute_output_spec`.
+        return KerasTensor(
+            x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
+        )
 
 
 @keras_export(["keras.ops.leaky_relu", "keras.ops.nn.leaky_relu"])
@@ -474,7 +487,9 @@ class HardSigmoid(Operation):
         return backend.ops.nn.hard_sigmoid(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return KerasTensor(
+            x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
+        )
 
 
 @keras_export(
@@ -514,7 +529,9 @@ class HardSilu(Operation):
         return backend.ops.nn.hard_silu(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return KerasTensor(
+            x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
+        )
 
 
 @keras_export(
@@ -599,7 +616,9 @@ class Selu(Operation):
         return backend.ops.nn.selu(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return KerasTensor(
+            x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
+        )
 
 
 @keras_export(["keras.ops.selu", "keras.ops.nn.selu"])
@@ -1206,7 +1225,7 @@ class AdaptiveMaxPool(Operation):
     def __init__(self, output_size, data_format=None, *, name=None):
         super().__init__(name=name)
         self.output_size = output_size
-        self.data_format = data_format
+        self.data_format = standardize_data_format(data_format)
 
     def call(self, inputs):
         return backend.ops.nn.adaptive_max_pool(
@@ -1214,15 +1233,15 @@ class AdaptiveMaxPool(Operation):
         )
 
     def compute_output_spec(self, inputs):
+        num_spatial_dims = len(inputs.shape) - 2
+        spatial_dims = standardize_tuple(
+            self.output_size, num_spatial_dims, "output_size"
+        )
         if self.data_format == "channels_last":
-            spatial_dims = self.output_size
             output_shape = (
-                inputs.shape[: -len(self.output_size)]
-                + spatial_dims
-                + (inputs.shape[-1],)
+                (inputs.shape[0],) + spatial_dims + (inputs.shape[-1],)
             )
         else:
-            spatial_dims = self.output_size
             output_shape = (inputs.shape[0], inputs.shape[1]) + spatial_dims
         return backend.KerasTensor(output_shape, dtype=inputs.dtype)
 
@@ -1270,8 +1289,7 @@ def adaptive_max_pool(
     >>> y.shape
     (2, 7, 7, 3)
     """
-    if data_format is None:
-        data_format = config.image_data_format()
+    data_format = standardize_data_format(data_format)
 
     if any_symbolic_tensors((inputs,)):
         return AdaptiveMaxPool(output_size, data_format).symbolic_call(inputs)
@@ -1382,7 +1400,7 @@ class AdaptiveAveragePool(Operation):
     def __init__(self, output_size, data_format=None, *, name=None):
         super().__init__(name=name)
         self.output_size = output_size
-        self.data_format = data_format
+        self.data_format = standardize_data_format(data_format)
 
     def call(self, inputs):
         return backend.ops.nn.adaptive_average_pool(
@@ -1390,15 +1408,15 @@ class AdaptiveAveragePool(Operation):
         )
 
     def compute_output_spec(self, inputs):
+        num_spatial_dims = len(inputs.shape) - 2
+        spatial_dims = standardize_tuple(
+            self.output_size, num_spatial_dims, "output_size"
+        )
         if self.data_format == "channels_last":
-            spatial_dims = self.output_size
             output_shape = (
-                inputs.shape[: -len(self.output_size)]
-                + spatial_dims
-                + (inputs.shape[-1],)
+                (inputs.shape[0],) + spatial_dims + (inputs.shape[-1],)
             )
         else:
-            spatial_dims = self.output_size
             output_shape = (inputs.shape[0], inputs.shape[1]) + spatial_dims
         return backend.KerasTensor(output_shape, dtype=inputs.dtype)
 
@@ -1449,8 +1467,7 @@ def adaptive_average_pool(
     >>> y.shape
     (2, 7, 7, 3)
     """
-    if data_format is None:
-        data_format = config.image_data_format()
+    data_format = standardize_data_format(data_format)
 
     if any_symbolic_tensors((inputs,)):
         return AdaptiveAveragePool(output_size, data_format).symbolic_call(
@@ -1814,11 +1831,11 @@ class ConvTranspose(Operation):
         return backend.ops.nn.conv_transpose(
             inputs,
             kernel,
-            self.strides,
-            self.output_padding,
-            self.padding,
-            self.data_format,
-            self.dilation_rate,
+            strides=self.strides,
+            padding=self.padding,
+            output_padding=self.output_padding,
+            data_format=self.data_format,
+            dilation_rate=self.dilation_rate,
         )
 
     def compute_output_spec(self, inputs, kernel):
@@ -1935,15 +1952,8 @@ class OneHot(Operation):
 
     def compute_output_spec(self, x):
         x_shape = list(getattr(x, "shape", []))
-        if self.axis == -1:
-            x_shape.append(self.num_classes)
-        elif self.axis >= 0 and self.axis < len(x_shape):
-            x_shape.insert(self.axis, self.num_classes)
-        else:
-            raise ValueError(
-                f"axis must be -1 or between [0, {len(x.shape)}), but "
-                f"received {self.axis}."
-            )
+        axis = canonicalize_axis(self.axis, len(x_shape) + 1)
+        x_shape.insert(axis, self.num_classes)
         return KerasTensor(x_shape, dtype=self.dtype, sparse=self.sparse)
 
 
@@ -1982,7 +1992,7 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
            [0. 0. 1. 0.]
            [1. 0. 0. 0.]], shape=(4, 4), dtype=float32)
     """
-    dtype = backend.standardize_dtype(dtype)
+    dtype = standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return OneHot(
             num_classes, axis=axis, dtype=dtype, sparse=sparse
@@ -2013,7 +2023,10 @@ class BinaryCrossentropy(Operation):
                 "Received: "
                 f"target.shape={target.shape}, output.shape={output.shape}"
             )
-        return KerasTensor(output.shape, dtype=output.dtype)
+        dtype = standardize_dtype(output.dtype)
+        if not is_float_dtype(dtype):
+            dtype = backend.floatx()
+        return KerasTensor(output.shape, dtype=dtype)
 
 
 @keras_export(
@@ -2043,7 +2056,7 @@ def binary_crossentropy(target, output, from_logits=False):
             Defaults to `False`.
 
     Returns:
-        Integer tensor: The computed binary cross-entropy loss between
+        Floating-point tensor: The computed binary cross-entropy loss between
         `target` and `output`.
 
     Example:
@@ -2087,7 +2100,10 @@ class CategoricalCrossentropy(Operation):
                 "Received: "
                 f"target.shape={target.shape}, output.shape={output.shape}"
             )
-        return KerasTensor(output.shape[:-1], dtype=output.dtype)
+        axis = canonicalize_axis(self.axis, len(output.shape))
+        return KerasTensor(
+            output.shape[:axis] + output.shape[axis + 1 :], dtype=output.dtype
+        )
 
 
 @keras_export(
@@ -2263,26 +2279,18 @@ class MultiHot(Operation):
             num_classes=self.num_classes,
             axis=self.axis,
             dtype=self.dtype,
+            sparse=self.sparse,
         )
 
     def compute_output_spec(self, inputs):
         x_shape = list(getattr(inputs, "shape", []))
-        if self.axis == -1:
-            x_shape.append(self.num_classes)
-        elif self.axis >= 0 and self.axis < len(x_shape):
-            x_shape.insert(self.axis, self.num_classes)
-        else:
-            raise ValueError(
-                f"axis must be -1 or between [0, {len(inputs.shape)}), but "
-                f"received {self.axis}."
-            )
+        input_rank = len(x_shape)
+        axis = canonicalize_axis(self.axis, input_rank + 1)
+        x_shape.insert(axis, self.num_classes)
+        reduction_axis = 1 if input_rank > 1 else 0
+        del x_shape[reduction_axis]
 
-        if len(x_shape) == 2:
-            x_shape = [x_shape[-1]]
-        else:
-            x_shape = [x_shape[0]] + x_shape[2:]
-
-        return KerasTensor(x_shape, dtype=inputs.dtype, sparse=self.sparse)
+        return KerasTensor(x_shape, dtype=self.dtype, sparse=self.sparse)
 
 
 @keras_export(
@@ -2324,7 +2332,7 @@ def multi_hot(
     if num_classes is None:
         raise ValueError("Argument `num_classes` must be specified.")
 
-    dtype = backend.standardize_dtype(dtype)
+    dtype = standardize_dtype(dtype)
     if any_symbolic_tensors((inputs,)):
         return MultiHot(num_classes, axis, dtype, sparse).symbolic_call(inputs)
 
@@ -2432,7 +2440,7 @@ class BatchNorm(Operation):
         self._check_shape("variance", tuple(variance.shape), shape)
         if offset is not None:
             self._check_shape("offset", tuple(offset.shape), shape)
-        if offset is not scale:
+        if scale is not None:
             self._check_shape("scale", tuple(scale.shape), shape)
         return KerasTensor(x.shape, dtype=x.dtype)
 
@@ -3041,7 +3049,7 @@ def rms_normalization(x, scale=None, axis=-1, epsilon=None):
 def _rms_normalization(x, scale=None, axis=-1, epsilon=None):
     if epsilon is None:
         epsilon = backend.epsilon()
-    original_dtype = backend.standardize_dtype(x.dtype)
+    original_dtype = standardize_dtype(x.dtype)
     # Computes in at least float32 precision for stability in half precision
     # training.
     compute_dtype = backend.result_type(x.dtype, "float32")
@@ -3157,7 +3165,7 @@ def _layer_normalization(
 ):
     if epsilon is None:
         epsilon = backend.epsilon()
-    original_dtype = backend.standardize_dtype(x.dtype)
+    original_dtype = standardize_dtype(x.dtype)
     # Computes in at least float32 precision for stability in half precision
     # training.
     compute_dtype = backend.result_type(x.dtype, "float32")
@@ -3209,17 +3217,19 @@ def _layer_normalization(
     if gamma is not None:
         inv = inv * gamma
 
-    res = -mean * inv
+    # Center before scaling. Folding the mean and beta into a single offset,
+    # as `x * inv + (beta - mean * inv)`, loses beta whenever `mean * inv` is
+    # large enough that adding beta to it rounds away: for a constant row the
+    # two large terms then cancel exactly and the result is 0 instead of beta.
+    outputs = (x - mean) * inv
     if beta is not None:
-        res = res + beta
-
-    outputs = x * inv + res
+        outputs = outputs + beta
     return backend.ops.cast(outputs, original_dtype)
 
 
 class Polar(Operation):
     def compute_output_spec(self, abs_, angle):
-        dtype = backend.standardize_dtype(
+        dtype = standardize_dtype(
             dtypes.result_type(
                 getattr(abs_, "dtype", backend.floatx()),
                 getattr(angle, "dtype", backend.floatx()),

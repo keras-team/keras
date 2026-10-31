@@ -1,16 +1,19 @@
 from absl.testing import parameterized
 
+from keras.src import dtype_policies
 from keras.src.dtype_policies import deserialize
 from keras.src.dtype_policies import get
 from keras.src.dtype_policies import serialize
 from keras.src.dtype_policies.dtype_policy import AWQDTypePolicy
 from keras.src.dtype_policies.dtype_policy import DTypePolicy
 from keras.src.dtype_policies.dtype_policy import FloatDTypePolicy
+from keras.src.dtype_policies.dtype_policy import GPTQDTypePolicy
 from keras.src.dtype_policies.dtype_policy import Int4DTypePolicy
 from keras.src.dtype_policies.dtype_policy import QuantizedDTypePolicy
 from keras.src.dtype_policies.dtype_policy import QuantizedFloat8DTypePolicy
 from keras.src.dtype_policies.dtype_policy import dtype_policy
 from keras.src.dtype_policies.dtype_policy import set_dtype_policy
+from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.testing import test_case
 
@@ -549,11 +552,21 @@ class DTypePolicyGlobalFunctionsTest(test_case.TestCase):
         policy = dtype_policy()
         self.assertEqual(policy.name, "mixed_float16")
 
-    def test_set_dtype_policy_valid_string_quantized(self):
-        """Test set_dtype_policy with a valid string."""
-        set_dtype_policy("int8_from_mixed_bfloat16")
-        policy = dtype_policy()
-        self.assertEqual(policy.name, "int8_from_mixed_bfloat16")
+    @parameterized.named_parameters(
+        ("int8", "int8_from_mixed_bfloat16"),
+        ("int4", "int4/32_from_float32"),
+        ("float8", "float8_from_float32"),
+        ("gptq", "gptq/4/128_from_float32"),
+        ("object", QuantizedDTypePolicy("int8", "mixed_bfloat16")),
+    )
+    def test_set_dtype_policy_rejects_quantized_policy(self, policy):
+        set_dtype_policy("mixed_float16")
+        with self.assertRaisesRegex(
+            ValueError, "The global dtype policy cannot be quantized"
+        ):
+            set_dtype_policy(policy)
+        # The global policy is unchanged.
+        self.assertEqual(dtype_policy().name, "mixed_float16")
 
     def test_set_dtype_policy_valid_policy(self):
         """Test set_dtype_policy with a valid DTypePolicy object."""
@@ -561,15 +574,6 @@ class DTypePolicyGlobalFunctionsTest(test_case.TestCase):
         set_dtype_policy(policy_obj)
         policy = dtype_policy()
         self.assertEqual(policy.name, "mixed_float16")
-
-    def test_set_dtype_policy_valid_policy_quantized(self):
-        """Test set_dtype_policy with a valid QuantizedDTypePolicy object."""
-        policy_obj = QuantizedDTypePolicy(
-            mode="int8", source_name="mixed_bfloat16"
-        )
-        set_dtype_policy(policy_obj)
-        policy = dtype_policy()
-        self.assertEqual(policy.name, "int8_from_mixed_bfloat16")
 
     def test_set_dtype_policy_invalid(self):
         """Test set_dtype_policy with an invalid input."""
@@ -623,7 +627,72 @@ class DTypePolicyGlobalFunctionsTest(test_case.TestCase):
         with self.assertRaisesRegex(
             ValueError, "Cannot convert `policy` into a valid pair"
         ):
+            get("int8_from_float32_from_float32")
+        # Without `_from_`, the string is a plain dtype policy name.
+        with self.assertRaisesRegex(ValueError, "Cannot convert 'int8_abc_'"):
             get("int8_abc_")
+        # A mode token that is not registered is not a quantized policy.
+        with self.assertRaisesRegex(
+            ValueError, "Cannot convert 'int8x_from_float32'"
+        ):
+            get("int8x_from_float32")
+
+    @parameterized.named_parameters(
+        ("int8", "int8_from_float32"),
+        ("int4", "int4/128_from_float32"),
+        ("gptq", "gptq/4/128_from_bfloat16"),
+    )
+    def test_quantized_name_error_points_at_quantize(self, name):
+        with self.assertRaisesRegex(
+            ValueError,
+            r"You passed a quantized dtype policy name.*call its "
+            r"`quantize\(\)` method instead",
+        ):
+            DTypePolicy(name)
+
+    @parameterized.named_parameters(
+        ("plain", "mixed_bfloat15"),
+        ("mode_prefix_only", "int8_abc_"),
+        ("bare_mode", "gptq"),
+        ("mode_without_source", "gptq/4/128"),
+        ("unregistered_mode", "int8x_from_float32"),
+    )
+    def test_plain_name_error_has_no_quantization_hint(self, name):
+        with self.assertRaisesRegex(ValueError, "Cannot convert") as cm:
+            get(name)
+        self.assertNotIn("quantize", str(cm.exception))
+
+    @parameterized.named_parameters(
+        ("int8", "int8_from_"),
+        ("gptq", "gptq/4/128_from_"),
+    )
+    def test_empty_source_name_is_refused(self, name):
+        with self.assertRaisesRegex(
+            ValueError, f"Cannot convert '{name}'.*must not be empty"
+        ):
+            get(name)
+
+    @parameterized.named_parameters(
+        ("int8", "int8"),
+        ("float8_e4m3fn", "float8_e4m3fn"),
+        ("float8_e5m2", "float8_e5m2"),
+    )
+    def test_dtype_name_starting_with_a_mode_is_a_plain_policy(self, name):
+        # Only `<mode>[/<params>]_from_<source>` names a quantized policy,
+        # so a dtype name that equals or starts with a mode name stays a
+        # plain policy.
+        policy = get(name)
+        self.assertIs(type(policy), DTypePolicy)
+        self.assertEqual(policy.name, name)
+        self.assertEqual(policy.compute_dtype, name)
+        self.assertIsNone(policy.quantization_mode)
+
+        policy_map = DTypePolicyMap()
+        policy_map["layer"] = name
+        self.assertEqual(policy_map["layer"], policy)
+
+        set_dtype_policy(name)
+        self.assertEqual(dtype_policy(), policy)
 
 
 class DTypePolicyEdgeCasesTest(test_case.TestCase):
@@ -778,6 +847,40 @@ class GPTQConfigErrorHandlingTest(test_case.TestCase):
                 tokenizer=None,
                 group_size=0,
             )
+
+
+class QuantizedPolicySourceNameTest(test_case.TestCase):
+    """Source-name resolution of the GPTQ and AWQ policy names."""
+
+    def test_default_source_name_is_resolved(self):
+        # Without a source, the name takes the global dtype policy's.
+        self.assertEqual(
+            GPTQDTypePolicy("gptq/4/128").name, "gptq/4/128_from_float32"
+        )
+        self.assertEqual(
+            AWQDTypePolicy("awq/4/128").name, "awq/4/128_from_float32"
+        )
+
+    def test_legacy_from_none_names_load(self):
+        # A literal "None" source resolves to the global dtype policy.
+        policy = dtype_policies.get("gptq/4/128_from_None")
+        self.assertEqual(policy.name, "gptq/4/128_from_float32")
+        self.assertEqual(policy.weight_bits, 4)
+        self.assertEqual(policy.group_size, 128)
+        policy = dtype_policies.get("awq/4/64_from_None")
+        self.assertEqual(policy.name, "awq/4/64_from_float32")
+
+    def test_map_roundtrip_keeps_resolved_source(self):
+        # A map serializes its policies without a source; a reload resolves it.
+        policy_map = DTypePolicyMap()
+        policy_map["dense/kernel"] = GPTQDTypePolicy(
+            "gptq/4/128", source_name="float32"
+        )
+        config = policy_map.get_config()
+        revived = DTypePolicyMap.from_config(config)
+        self.assertEqual(
+            revived["dense/kernel"].name, "gptq/4/128_from_float32"
+        )
 
 
 class AWQDTypePolicyTest(test_case.TestCase):
