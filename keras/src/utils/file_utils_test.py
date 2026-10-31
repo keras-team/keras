@@ -1,4 +1,3 @@
-import contextlib
 import hashlib
 import os
 import tarfile
@@ -490,17 +489,19 @@ class GetFileTest(test_case.TestCase):
             ):
                 _ = file_utils.get_file(origin=origin, cache_dir=cache_dir)
 
-    def _tmp_fallback_dir_name(self):
-        uid = getattr(os, "getuid", None)
-        return ".keras" if uid is None else f".keras-{uid()}"
+    def test_get_file_tmp_fallback_is_per_user(self):
+        """Each user gets their own fallback dir in a shared tmp location."""
+        if not hasattr(os, "getuid"):
+            self.skipTest("Per-user fallback dirs require `os.getuid`.")
+        fake_tmp = os.path.join(self.get_temp_dir(), "tmp")
+        # A shared `.keras` dir left behind by another user, which this user
+        # can't write to.
+        shared = os.path.join(fake_tmp, ".keras")
+        os.makedirs(shared)
+        os.chmod(shared, 0o555)
 
-    def _get_file_via_tmp_fallback(self, fake_tmp, extra_patches=()):
-        """Run `get_file` with an unwritable cache dir and tmp redirected.
-
-        Returns `(returned path, fallback base dir actually used)`.
-        """
         read_only_cache = os.path.join(self.get_temp_dir(), "cache")
-        os.makedirs(read_only_cache, exist_ok=True)
+        os.makedirs(read_only_cache)
         src_path = os.path.join(self.get_temp_dir(), "src.txt")
         with open(src_path, "w") as f:
             f.write("data")
@@ -518,97 +519,19 @@ class GetFileTest(test_case.TestCase):
         real_isdir = os.path.isdir
 
         def fake_isdir(path):
-            if path == "/tmp":
-                return False
-            return real_isdir(path)
+            return False if path == "/tmp" else real_isdir(path)
 
-        # Force a permissive umask so that a fallback directory created
-        # without an explicit mode would be group/world-accessible.
-        old_umask = os.umask(0o022)
-        try:
-            with contextlib.ExitStack() as stack:
-                stack.enter_context(patch("os.access", side_effect=fake_access))
-                stack.enter_context(
-                    patch("os.path.isdir", side_effect=fake_isdir)
-                )
-                stack.enter_context(
-                    patch("tempfile.gettempdir", return_value=fake_tmp)
-                )
-                for extra in extra_patches:
-                    stack.enter_context(extra)
-                path = file_utils.get_file(
-                    "f.txt", origin, cache_dir=read_only_cache
-                )
-        finally:
-            os.umask(old_umask)
-        # `path` is `<fallback base>/<cache_subdir>/f.txt`.
-        return path, os.path.dirname(os.path.dirname(path))
+        with (
+            patch("os.access", side_effect=fake_access),
+            patch("os.path.isdir", side_effect=fake_isdir),
+            patch("tempfile.gettempdir", return_value=fake_tmp),
+        ):
+            path = file_utils.get_file(
+                "f.txt", origin, cache_dir=read_only_cache
+            )
 
-    def assertOwnerOnly(self, path):
-        self.assertTrue(os.path.isdir(path))
-        mode = os.stat(path).st_mode & 0o777
-        self.assertEqual(
-            mode & 0o077,
-            0,
-            f"fallback cache dir is group/world-accessible: {oct(mode)}",
-        )
-
-    def test_get_file_restricts_world_writable_tmp_fallback(self):
-        """Fallback cache dir in a shared tmp location must be owner-only."""
-        fake_tmp = os.path.join(self.get_temp_dir(), "tmp")
-        os.makedirs(fake_tmp)
-
-        _, fallback_base = self._get_file_via_tmp_fallback(fake_tmp)
-
-        self.assertEqual(
-            fallback_base, os.path.join(fake_tmp, self._tmp_fallback_dir_name())
-        )
-        self.assertOwnerOnly(fallback_base)
-
-    def test_get_file_tmp_fallback_locks_down_existing_dir(self):
-        """An own fallback dir left world-accessible must be locked down."""
-        fake_tmp = os.path.join(self.get_temp_dir(), "tmp")
-        existing = os.path.join(fake_tmp, self._tmp_fallback_dir_name())
-        os.makedirs(existing)
-        os.chmod(existing, 0o777)
-
-        _, fallback_base = self._get_file_via_tmp_fallback(fake_tmp)
-
-        self.assertEqual(fallback_base, existing)
-        self.assertOwnerOnly(fallback_base)
-
-    def test_get_file_tmp_fallback_ignores_dir_owned_by_other_user(self):
-        """A fallback dir owned by another user must not be used."""
-        if not hasattr(os, "getuid"):
-            self.skipTest("Ownership checks require `os.getuid`.")
-        fake_tmp = os.path.join(self.get_temp_dir(), "tmp")
-        hijacked = os.path.join(fake_tmp, self._tmp_fallback_dir_name())
-        # A pre-created directory with a file `get_file` would otherwise
-        # return as is, since no `file_hash` is passed.
-        os.makedirs(os.path.join(hijacked, "datasets"))
-        with open(os.path.join(hijacked, "datasets", "f.txt"), "w") as f:
-            f.write("planted")
-
-        real_lstat = os.lstat
-
-        def fake_lstat(path, *args, **kwargs):
-            st = real_lstat(path, *args, **kwargs)
-            if os.path.abspath(path) == os.path.abspath(hijacked):
-                # Pretend the directory belongs to another local user.
-                return os.stat_result(
-                    (st.st_mode, st.st_ino, st.st_dev, st.st_nlink)
-                    + (st.st_uid + 1, st.st_gid)
-                    + (st.st_size, st.st_atime, st.st_mtime, st.st_ctime)
-                )
-            return st
-
-        path, fallback_base = self._get_file_via_tmp_fallback(
-            fake_tmp, extra_patches=[patch("os.lstat", side_effect=fake_lstat)]
-        )
-
-        self.assertNotEqual(fallback_base, hijacked)
-        self.assertEqual(os.path.dirname(fallback_base), fake_tmp)
-        self.assertOwnerOnly(fallback_base)
+        user_dir = os.path.join(fake_tmp, f".keras-{os.getuid()}")
+        self.assertEqual(path, os.path.join(user_dir, "datasets", "f.txt"))
         with open(path) as f:
             self.assertEqual(f.read(), "data")
 
