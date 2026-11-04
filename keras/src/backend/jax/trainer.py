@@ -1164,6 +1164,7 @@ def get_layout(d, distribution=None, is_super_batch=False):
 
 
 def _data_to_jax_arrays_on_devices(data, layouts=None, is_super_batch=False):
+    data = _keep_64bit_dtypes(data)
     distribution = distribution_lib.distribution()
 
     if distribution is not None:
@@ -1179,6 +1180,27 @@ def _data_to_jax_arrays_on_devices(data, layouts=None, is_super_batch=False):
         return tree.map_structure(jax_dist_data_input, data, layouts)
 
     return tree.map_structure(jax.device_put, data)
+
+
+_64BIT_DTYPES = (np.int64, np.uint64, np.float64, np.complex128)
+
+
+def _keep_64bit_dtypes(data):
+    """Moves 64-bit NumPy arrays to JAX without cutting them to 32-bit.
+
+    Under `x64_mode="explicit_x64"`, JAX keeps a 64-bit dtype only when it is
+    named. `jax.device_put` and `jax.jit` would turn an `int64` NumPy array
+    into `int32` and wrap the values above 2**31.
+    """
+    if config.x64_mode() != "explicit_x64":
+        return data
+
+    def keep(x):
+        if isinstance(x, np.ndarray) and x.dtype in _64BIT_DTYPES:
+            return jax.numpy.asarray(x, x.dtype)
+        return x
+
+    return tree.map_structure(keep, data)
 
 
 class JAXEpochIterator(EpochIterator):
