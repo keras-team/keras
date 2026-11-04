@@ -159,7 +159,6 @@ class DeferredBuildScope:
                 scope.instance.built = True
             if scope.compile_config:
                 scope.instance.compile_from_config(scope.compile_config)
-                scope.instance.compiled = True
 
     def defer_build(self, instance, build_config, compile_config):
         self.instance = instance
@@ -885,7 +884,6 @@ def deserialize_keras_object(
                     instance.built = True
                 if compile_config:
                     instance.compile_from_config(compile_config)
-                    instance.compiled = True
         except TypeError as e:
             raise TypeError(
                 f"{cls} could not be deserialized properly. Please"
