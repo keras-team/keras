@@ -6,15 +6,23 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.backend import set_image_data_format
 
 
 class UpSampling2dTest(testing.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.original_image_data_format = backend.image_data_format()
+
+    @classmethod
+    def tearDownClass(cls):
+        backend.set_image_data_format(cls.original_image_data_format)
+
     @parameterized.product(
         data_format=["channels_first", "channels_last"],
         length_row=[2],
         length_col=[2, 3],
     )
-    @pytest.mark.requires_trainable_backend
     def test_upsampling_2d(self, data_format, length_row, length_col):
         num_samples = 2
         stack_size = 2
@@ -44,11 +52,11 @@ class UpSampling2dTest(testing.TestCase):
         layer.build(inputs.shape)
         np_output = layer(inputs=backend.Variable(inputs))
         if data_format == "channels_first":
-            assert np_output.shape[2] == length_row * input_num_row
-            assert np_output.shape[3] == length_col * input_num_col
+            self.assertEqual(np_output.shape[2], length_row * input_num_row)
+            self.assertEqual(np_output.shape[3], length_col * input_num_col)
         else:
-            assert np_output.shape[1] == length_row * input_num_row
-            assert np_output.shape[2] == length_col * input_num_col
+            self.assertEqual(np_output.shape[1], length_row * input_num_row)
+            self.assertEqual(np_output.shape[2], length_col * input_num_col)
 
         # compare with numpy
         if data_format == "channels_first":
@@ -62,15 +70,21 @@ class UpSampling2dTest(testing.TestCase):
 
     @parameterized.product(
         data_format=["channels_first", "channels_last"],
+        use_set_image_data_format=[True, False],
         length_row=[2],
         length_col=[2, 3],
     )
-    @pytest.mark.requires_trainable_backend
-    def test_upsampling_2d_bilinear(self, data_format, length_row, length_col):
+    def test_upsampling_2d_bilinear(
+        self, data_format, use_set_image_data_format, length_row, length_col
+    ):
         num_samples = 2
         stack_size = 2
         input_num_row = 11
         input_num_col = 12
+
+        if use_set_image_data_format:
+            set_image_data_format(data_format)
+
         if data_format == "channels_first":
             inputs = np.random.rand(
                 num_samples, stack_size, input_num_row, input_num_col
@@ -93,6 +107,7 @@ class UpSampling2dTest(testing.TestCase):
         layer = layers.UpSampling2D(
             size=(length_row, length_col),
             data_format=data_format,
+            interpolation="bilinear",
         )
         layer.build(inputs.shape)
         np_output = layer(inputs=backend.Variable(inputs))
@@ -131,9 +146,6 @@ class UpSampling2dTest(testing.TestCase):
         for interpolation in ["nearest", "bilinear", "bicubic"]:
             layers.UpSampling2D(size=(1, 2), interpolation=interpolation)(x)
 
-    @pytest.mark.skipif(
-        backend.backend() == "torch", reason="Torch does not support lanczos."
-    )
     def test_upsampling_2d_lanczos_interpolation_methods(self):
         input_shape = (2, 2, 1, 3)
         x = np.arange(np.prod(input_shape)).reshape(input_shape)

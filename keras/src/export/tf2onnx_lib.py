@@ -1,6 +1,7 @@
 import copy
 import functools
 import logging
+import math
 import traceback
 
 import numpy as np
@@ -145,21 +146,13 @@ def patch_tf2onnx():
         if external_tensor_storage is None or a.type != AttributeProto.TENSOR:
             return a
 
-        def prod(x):
-            if hasattr(np, "product"):
-                return np.product(x)
-            else:
-                return np.prod(x)
-
         if (
-            prod(a.t.dims)
+            math.prod(a.t.dims)
             > external_tensor_storage.external_tensor_size_threshold
         ):
             a = copy.deepcopy(a)
             tensor_name = (
-                self.name.strip()
-                + "_"
-                + str(external_tensor_storage.name_counter)
+                f"{self.name.strip()}_{external_tensor_storage.name_counter}"
             )
             for c in '~"#%&*:<>?/\\{|}':
                 tensor_name = tensor_name.replace(c, "_")

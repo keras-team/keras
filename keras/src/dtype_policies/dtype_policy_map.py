@@ -35,29 +35,54 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
     However, it is also possible to set a regex as the key. See the docstring of
     `get` for more details.
 
-    See below for a usage example. You can define the naming schema
-    of the `DTypePolicy`, and then retrieve the corresponding `DTypePolicy`
-    instance.
-
-    ```python
-    dtype_policy_map = DTypePolicyMap()
-    dtype_policy_map["layer/dense_0"] = DTypePolicy("bfloat16")
-    dtype_policy_map["layer/dense_1"] = QuantizedDTypePolicy("int8", "bfloat16")
-
-    policy_0 = dtype_policy_map["layer/dense_0"]
-    policy_1 = dtype_policy_map["layer/dense_1"]
-    policy_2 = dtype_policy_map["layer/dense_2"]  # No hit
-    assert policy_0 == DTypePolicy("bfloat16")
-    assert policy_1 == QuantizedDTypePolicy("int8", "bfloat16")
-    assert policy_2 == keras.config.dtype_policy()
-    ```
-
     Args:
         default_policy: An optional `DTypePolicy` instance specifying the
             default dtype policy. If not specified, the value will default to
             `keras.config.dtype_policy()`.
         policy_map: An optional dict that maps string to `DTypePolicy`
             instances. Defaults to `None`
+
+    Example:
+
+    ```python
+    >>> from keras.src import dtype_policies
+    >>> bfloat16 = dtype_policies.DTypePolicy("bfloat16")
+    >>> float16 = dtype_policies.DTypePolicy("float16")
+    >>> float32 = dtype_policies.DTypePolicy("float32")
+    >>> policy_map = DTypePolicyMap(default_policy=float32)
+
+    # Set policies using an exact path and a regex pattern.
+    # Note: "decoder" will only match the exact path, not its children.
+    >>> policy_map["encoder/layer_0/dense"] = bfloat16
+    >>> policy_map["encoder/.*"] = float16
+    >>> policy_map["decoder"] = bfloat16
+
+    # 1. An exact match is found and returned directly.
+    >>> policy_map["encoder/layer_0/dense"].name
+    'bfloat16'
+
+    # 2. A regex match is found for a child layer.
+    # It matches the "encoder/.*" pattern.
+    >>> policy_map["encoder/attention/query"].name
+    'float16'
+
+    # 3. No implicit prefix matching occurs.
+    # "decoder/attention" does not match the key "decoder".
+    # The default policy is returned.
+    >>> policy_map["decoder/attention"].name
+    'float32'
+
+    # 4. A ValueError is raised if a path matches multiple patterns.
+    >>> policy_map["encoder/attention/.*"] = bfloat16
+    # "encoder/attention/query" now matches two patterns:
+    # - "encoder/.*"
+    # - "encoder/attention/.*"
+    >>> try:
+    ...     policy_map["encoder/attention/query"]
+    ... except ValueError as e:
+    ...     print(e)
+    Path 'encoder/attention/query' matches multiple dtype policy ..
+    ```
     """
 
     def __init__(self, default_policy=None, policy_map=None):
@@ -74,7 +99,7 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
 
     @property
     def name(self):
-        return "map_" + self.default_policy._name
+        return f"map_{self.default_policy._name}"
 
     @property
     def default_policy(self):
@@ -100,24 +125,79 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
     def __getitem__(self, key):
         """Retrieves the corresponding `DTypePolicy` by the string key.
 
-        When there isn't an exact match, all the existing keys in the map
-        will be treated as a regex and map against the input key again. When
-        there are multiple matches for the regex, an `ValueError` will be
-        raised. Returns `self.default_policy` if there isn't any match found.
+        This method first attempts an exact key match. If no exact match is
+        found, it treats all keys in the map as regular expression patterns
+        and uses `re.fullmatch` to find a policy.
+
+        For example, to apply a policy to all sublayers of an `encoder` block,
+        the key should be explicitly set to `"encoder/.*"`. A key of
+        `"encoder"` will only match the layer with that exact path.
 
         Args:
-            key: String key to query a `DTypePolicy`.
+            key: str. The key to query for a `DTypePolicy`.
 
         Returns:
-            Corresponding `DTypePolicy` based on the query.
+            The corresponding `DTypePolicy`. If no match is found, this method
+            returns `self.default_policy`.
+
+        Raises:
+            ValueError: If the `key` matches more than one regex pattern in the
+            map.
+
+        Example:
+
+        ```python
+        >>> from keras.src import dtype_policies
+        >>> bfloat16 = dtype_policies.DTypePolicy("bfloat16")
+        >>> float16 = dtype_policies.DTypePolicy("float16")
+        >>> float32 = dtype_policies.DTypePolicy("float32")
+        >>> policy_map = DTypePolicyMap(default_policy=float32)
+
+        # Set policies using an exact path and a regex pattern.
+        # Note: "decoder" will only match the exact path, not its children.
+        >>> policy_map["encoder/layer_0/dense"] = bfloat16
+        >>> policy_map["encoder/.*"] = float16
+        >>> policy_map["decoder"] = bfloat16
+
+        # 1. An exact match is found and returned directly.
+        >>> policy_map["encoder/layer_0/dense"].name
+        'bfloat16'
+
+        # 2. A regex match is found for a child layer.
+        # It matches the "encoder/.*" pattern.
+        >>> policy_map["encoder/attention/query"].name
+        'float16'
+
+        # 3. No implicit prefix matching occurs.
+        # "decoder/attention" does not match the key "decoder".
+        # The default policy is returned.
+        >>> policy_map["decoder/attention"].name
+        'float32'
+
+        # 4. A ValueError is raised if a path matches multiple patterns.
+        >>> policy_map["encoder/attention/.*"] = bfloat16
+        # "encoder/attention/query" now matches two patterns:
+        # - "encoder/.*"
+        # - "encoder/attention/.*"
+        >>> try:
+        ...     policy_map["encoder/attention/query"]
+        ... except ValueError as e:
+        ...     print(e)
+        Path 'encoder/attention/query' matches multiple dtype policy ..
+        ```
         """
+        # 1. Check for an exact match.
         if key in self._policy_map:
             return self._policy_map[key]
 
-        matching_keys = []
-        for k in self._policy_map:
-            if re.search(k, key):
-                matching_keys.append(k)
+        # 2. Fallback to a full regex match.
+        matching_keys = [
+            pattern
+            for pattern in self._policy_map
+            if re.fullmatch(pattern, key)
+        ]
+
+        # 3. Handle cases based on the number of matches found.
         if len(matching_keys) > 1:
             raise ValueError(
                 f"Path '{key}' matches multiple dtype policy "
@@ -127,6 +207,8 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
             )
         elif len(matching_keys) == 1:
             return self._policy_map[matching_keys[0]]
+
+        # 4. If there were no matches, return the default.
         return self.default_policy
 
     def __setitem__(self, key, policy):
@@ -162,22 +244,24 @@ class DTypePolicyMap(DTypePolicy, MutableMapping):
     def get_config(self):
         from keras.src.saving import serialization_lib
 
-        policy_map = self._policy_map
+        policy_map = serialization_lib.serialize_keras_object(self._policy_map)
         if self._default_policy_arg is None:
-            # `default_policy=None` enables us to defer to
-            # `keras.config.dtype_policy()` during loading.
-            # To support this feature, we can set `_name` and `_source_name` to
-            # `None` in `DTypePolicy` and `QuantizedDTypePolicy`,
-            # respectively.
-            for policy in policy_map.values():
-                if isinstance(policy, dtype_policies.QuantizedDTypePolicy):
-                    policy._name = None
-                    policy._source_name = None
-                elif isinstance(policy, dtype_policies.DTypePolicy):
-                    policy._name = None
+            # `default_policy=None` defers to `keras.config.dtype_policy()`
+            # during loading. To support this, the serialized policies carry
+            # no source: `source_name` of a quantized policy, `name` of a
+            # plain one. Only the serialized entries change: the policies in
+            # the map are often the layers' own policies.
+            for key, policy in self._policy_map.items():
+                if not isinstance(policy, DTypePolicy):
+                    continue
+                config = policy_map[key]["config"]
+                if "source_name" in config:
+                    config["source_name"] = None
+                elif "name" in config:
+                    config["name"] = None
         return {
             "default_policy": self._default_policy_arg,
-            "policy_map": serialization_lib.serialize_keras_object(policy_map),
+            "policy_map": policy_map,
         }
 
     @classmethod

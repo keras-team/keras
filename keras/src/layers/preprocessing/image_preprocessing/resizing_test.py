@@ -1,3 +1,4 @@
+import grain
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -26,9 +27,6 @@ class ResizingTest(testing.TestCase):
         antialias,
         data_format,
     ):
-        if interpolation == "lanczos5" and backend.backend() == "torch":
-            self.skipTest("Torch does not support lanczos.")
-
         crop_to_aspect_ratio, pad_to_aspect_ratio = crop_pad
         if data_format == "channels_last":
             input_shape = (2, 12, 12, 3)
@@ -73,7 +71,7 @@ class ResizingTest(testing.TestCase):
         )
         if data_format == "channels_first":
             ref_out = ref_out.transpose(0, 3, 1, 2)
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(out, ref_out)
 
     @parameterized.parameters([("channels_first",), ("channels_last",)])
     def test_up_sampling_numeric(self, data_format):
@@ -93,7 +91,7 @@ class ResizingTest(testing.TestCase):
         )
         if data_format == "channels_first":
             ref_out = ref_out.transpose(0, 3, 1, 2)
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(out, ref_out)
 
     @parameterized.parameters([("channels_first",), ("channels_last",)])
     def test_crop_to_aspect_ratio(self, data_format):
@@ -121,7 +119,7 @@ class ResizingTest(testing.TestCase):
         )
         if data_format == "channels_first":
             ref_out = ref_out.transpose(0, 3, 1, 2)
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(out, ref_out)
 
     @parameterized.parameters([("channels_first",), ("channels_last",)])
     def test_unbatched_image(self, data_format):
@@ -143,7 +141,7 @@ class ResizingTest(testing.TestCase):
         )
         if data_format == "channels_first":
             ref_out = ref_out.transpose(2, 0, 1)
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(out, ref_out)
 
     def test_tf_data_compatibility(self):
         if backend.config.image_data_format() == "channels_last":
@@ -157,6 +155,34 @@ class ResizingTest(testing.TestCase):
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         output = next(iter(ds)).numpy()
         self.assertEqual(tuple(output.shape), output_shape)
+
+    def test_grain_compatibility(self):
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (2, 10, 12, 3)
+            output_shape = (2, 8, 9, 3)
+        else:
+            input_shape = (2, 3, 10, 12)
+            output_shape = (2, 3, 8, 9)
+        layer = layers.Resizing(8, 9)
+        input_data = np.random.random(input_shape)
+        ds = (
+            grain.MapDataset.source(input_data)
+            .to_iter_dataset()
+            .batch(2)
+            .map(layer)
+        )
+        output = next(iter(ds))
+        output_np = backend.ops.convert_to_numpy(output)
+
+        self.assertEqual(tuple(output_np.shape), output_shape)
+        self.assertTrue(backend.ops.is_tensor(output))
+        # Ensure the device of the data is on CPU.
+        if backend.backend() == "tensorflow":
+            self.assertIn("CPU", str(output.device).upper())
+        elif backend.backend() == "jax":
+            self.assertIn("CPU", str(output.device).upper())
+        elif backend.backend() == "torch":
+            self.assertEqual("cpu", str(output.device))
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",

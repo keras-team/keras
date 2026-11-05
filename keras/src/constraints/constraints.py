@@ -107,10 +107,12 @@ class MaxNorm(Constraint):
         self.axis = axis
 
     def __call__(self, w):
-        w = backend.convert_to_tensor(w)
+        w = backend.ops.convert_to_tensor(w)
         norms = ops.sqrt(ops.sum(ops.square(w), axis=self.axis, keepdims=True))
         desired = ops.clip(norms, 0, self.max_value)
-        return w * (desired / (backend.epsilon() + norms))
+        return ops.cast(w, norms.dtype) * (
+            desired / (backend.epsilon() + norms)
+        )
 
     def get_config(self):
         return {"max_value": self.max_value, "axis": self.axis}
@@ -121,8 +123,8 @@ class NonNeg(Constraint):
     """Constrains the weights to be non-negative."""
 
     def __call__(self, w):
-        w = backend.convert_to_tensor(w)
-        return w * ops.cast(ops.greater_equal(w, 0.0), dtype=w.dtype)
+        w = backend.ops.convert_to_tensor(w)
+        return ops.maximum(w, 0)
 
 
 @keras_export(["keras.constraints.UnitNorm", "keras.constraints.unit_norm"])
@@ -147,11 +149,9 @@ class UnitNorm(Constraint):
         self.axis = axis
 
     def __call__(self, w):
-        w = backend.convert_to_tensor(w)
-        return w / (
-            backend.epsilon()
-            + ops.sqrt(ops.sum(ops.square(w), axis=self.axis, keepdims=True))
-        )
+        w = backend.ops.convert_to_tensor(w)
+        norms = ops.sqrt(ops.sum(ops.square(w), axis=self.axis, keepdims=True))
+        return ops.cast(w, norms.dtype) / (backend.epsilon() + norms)
 
     def get_config(self):
         return {"axis": self.axis}
@@ -196,13 +196,15 @@ class MinMaxNorm(Constraint):
         self.axis = axis
 
     def __call__(self, w):
-        w = backend.convert_to_tensor(w)
+        w = backend.ops.convert_to_tensor(w)
         norms = ops.sqrt(ops.sum(ops.square(w), axis=self.axis, keepdims=True))
         desired = (
             self.rate * ops.clip(norms, self.min_value, self.max_value)
             + (1 - self.rate) * norms
         )
-        return w * (desired / (backend.epsilon() + norms))
+        return ops.cast(w, norms.dtype) * (
+            desired / (backend.epsilon() + norms)
+        )
 
     def get_config(self):
         return {

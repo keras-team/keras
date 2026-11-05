@@ -1,8 +1,8 @@
 import numpy as np
-import pytest
 
 from keras.src import layers
 from keras.src import ops
+from keras.src import random
 from keras.src import testing
 
 
@@ -66,7 +66,6 @@ class TwoStatesRNNCell(layers.Layer):
 
 
 class RNNTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_basics(self):
         self.run_layer_test(
             layers.RNN,
@@ -76,7 +75,7 @@ class RNNTest(testing.TestCase):
             expected_num_trainable_weights=2,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
-            supports_masking=True,
+            supports_masking=False,
         )
         self.run_layer_test(
             layers.RNN,
@@ -86,7 +85,7 @@ class RNNTest(testing.TestCase):
             expected_num_trainable_weights=2,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
-            supports_masking=True,
+            supports_masking=False,
         )
         self.run_layer_test(
             layers.RNN,
@@ -96,7 +95,7 @@ class RNNTest(testing.TestCase):
             expected_num_trainable_weights=2,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
-            supports_masking=True,
+            supports_masking=False,
         )
         self.run_layer_test(
             layers.RNN,
@@ -106,7 +105,7 @@ class RNNTest(testing.TestCase):
             expected_num_trainable_weights=2,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
-            supports_masking=True,
+            supports_masking=False,
         )
         self.run_layer_test(
             layers.RNN,
@@ -120,7 +119,7 @@ class RNNTest(testing.TestCase):
             expected_num_trainable_weights=2,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
-            supports_masking=True,
+            supports_masking=False,
         )
         self.run_layer_test(
             layers.RNN,
@@ -130,7 +129,7 @@ class RNNTest(testing.TestCase):
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
-            supports_masking=True,
+            supports_masking=False,
         )
         self.run_layer_test(
             layers.RNN,
@@ -140,7 +139,7 @@ class RNNTest(testing.TestCase):
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
-            supports_masking=True,
+            supports_masking=False,
         )
         self.run_layer_test(
             layers.RNN,
@@ -150,7 +149,7 @@ class RNNTest(testing.TestCase):
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
-            supports_masking=True,
+            supports_masking=False,
         )
 
     def test_compute_output_shape_single_state(self):
@@ -255,124 +254,137 @@ class RNNTest(testing.TestCase):
         sequence = np.ones((1, 2, 3))
         layer = layers.RNN(OneStateRNNCell(2), return_sequences=False)
         output = layer(sequence)
-        self.assertAllClose(np.array([[9.0, 9.0]]), output)
+        self.assertAllClose(output, np.array([[9.0, 9.0]]))
 
         layer = layers.RNN(OneStateRNNCell(2), return_sequences=True)
         output = layer(sequence)
-        self.assertAllClose(np.array([[[3.0, 3.0], [9.0, 9.0]]]), output)
+        self.assertAllClose(output, np.array([[[3.0, 3.0], [9.0, 9.0]]]))
 
         layer = layers.RNN(
             OneStateRNNCell(2), return_sequences=False, return_state=True
         )
         output, state = layer(sequence)
-        self.assertAllClose(np.array([[9.0, 9.0]]), output)
-        self.assertAllClose(np.array([[9.0, 9.0]]), state)
+        self.assertAllClose(output, np.array([[9.0, 9.0]]))
+        self.assertAllClose(state, np.array([[9.0, 9.0]]))
 
         layer = layers.RNN(
             OneStateRNNCell(2), return_sequences=True, return_state=True
         )
         output, state = layer(sequence)
-        self.assertAllClose(np.array([[[3.0, 3.0], [9.0, 9.0]]]), output)
-        self.assertAllClose(np.array([[9.0, 9.0]]), state)
+        self.assertAllClose(output, np.array([[[3.0, 3.0], [9.0, 9.0]]]))
+        self.assertAllClose(state, np.array([[9.0, 9.0]]))
 
     def test_forward_pass_two_states(self):
         sequence = np.ones((1, 2, 3))
         layer = layers.RNN(TwoStatesRNNCell(2), return_sequences=False)
         output = layer(sequence)
-        self.assertAllClose(np.array([[18.0, 18.0]]), output)
+        self.assertAllClose(output, np.array([[18.0, 18.0]]))
 
         layer = layers.RNN(TwoStatesRNNCell(2), return_sequences=True)
         output = layer(sequence)
-        self.assertAllClose(np.array([[[6.0, 6.0], [18.0, 18.0]]]), output)
+        self.assertAllClose(output, np.array([[[6.0, 6.0], [18.0, 18.0]]]))
 
         layer = layers.RNN(
             TwoStatesRNNCell(2), return_sequences=False, return_state=True
         )
         output, state1, state2 = layer(sequence)
-        self.assertAllClose(np.array([[18.0, 18.0]]), output)
-        self.assertAllClose(np.array([[9.0, 9.0]]), state1)
-        self.assertAllClose(np.array([[9.0, 9.0]]), state2)
+        self.assertAllClose(output, np.array([[18.0, 18.0]]))
+        self.assertAllClose(state1, np.array([[9.0, 9.0]]))
+        self.assertAllClose(state2, np.array([[9.0, 9.0]]))
 
         layer = layers.RNN(
             TwoStatesRNNCell(2), return_sequences=True, return_state=True
         )
         output, state1, state2 = layer(sequence)
-        self.assertAllClose(np.array([[[6.0, 6.0], [18.0, 18.0]]]), output)
-        self.assertAllClose(np.array([[9.0, 9.0]]), state1)
-        self.assertAllClose(np.array([[9.0, 9.0]]), state2)
+        self.assertAllClose(output, np.array([[[6.0, 6.0], [18.0, 18.0]]]))
+        self.assertAllClose(state1, np.array([[9.0, 9.0]]))
+        self.assertAllClose(state2, np.array([[9.0, 9.0]]))
 
     def test_passing_initial_state_single_state(self):
         sequence = np.ones((2, 3, 2))
         state = np.ones((2, 2))
         layer = layers.RNN(OneStateRNNCell(2), return_sequences=False)
         output = layer(sequence, initial_state=state)
-        self.assertAllClose(np.array([[22.0, 22.0], [22.0, 22.0]]), output)
+        self.assertAllClose(output, np.array([[22.0, 22.0], [22.0, 22.0]]))
 
         layer = layers.RNN(
             OneStateRNNCell(2), return_sequences=False, return_state=True
         )
         output, state = layer(sequence, initial_state=state)
-        self.assertAllClose(np.array([[22.0, 22.0], [22.0, 22.0]]), output)
-        self.assertAllClose(np.array([[22.0, 22.0], [22.0, 22.0]]), state)
+        self.assertAllClose(output, np.array([[22.0, 22.0], [22.0, 22.0]]))
+        self.assertAllClose(state, np.array([[22.0, 22.0], [22.0, 22.0]]))
 
     def test_passing_initial_state_two_states(self):
         sequence = np.ones((2, 3, 2))
         state = [np.ones((2, 2)), np.ones((2, 2))]
         layer = layers.RNN(TwoStatesRNNCell(2), return_sequences=False)
         output = layer(sequence, initial_state=state)
-        self.assertAllClose(np.array([[44.0, 44.0], [44.0, 44.0]]), output)
+        self.assertAllClose(output, np.array([[44.0, 44.0], [44.0, 44.0]]))
 
         layer = layers.RNN(
             TwoStatesRNNCell(2), return_sequences=False, return_state=True
         )
         output, state_1, state_2 = layer(sequence, initial_state=state)
-        self.assertAllClose(np.array([[44.0, 44.0], [44.0, 44.0]]), output)
-        self.assertAllClose(np.array([[22.0, 22.0], [22.0, 22.0]]), state_1)
-        self.assertAllClose(np.array([[22.0, 22.0], [22.0, 22.0]]), state_2)
+        self.assertAllClose(output, np.array([[44.0, 44.0], [44.0, 44.0]]))
+        self.assertAllClose(state_1, np.array([[22.0, 22.0], [22.0, 22.0]]))
+        self.assertAllClose(state_2, np.array([[22.0, 22.0], [22.0, 22.0]]))
 
     def test_statefulness_single_state(self):
         sequence = np.ones((1, 2, 3))
         layer = layers.RNN(OneStateRNNCell(2), stateful=True)
         layer(sequence)
         output = layer(sequence)
-        self.assertAllClose(np.array([[45.0, 45.0]]), output)
+        self.assertAllClose(output, np.array([[45.0, 45.0]]))
 
         layer = layers.RNN(OneStateRNNCell(2), stateful=True, return_state=True)
         layer(sequence)
         output, state = layer(sequence)
-        self.assertAllClose(np.array([[45.0, 45.0]]), output)
-        self.assertAllClose(np.array([[45.0, 45.0]]), state)
+        self.assertAllClose(output, np.array([[45.0, 45.0]]))
+        self.assertAllClose(state, np.array([[45.0, 45.0]]))
 
     def test_statefulness_two_states(self):
         sequence = np.ones((1, 2, 3))
         layer = layers.RNN(TwoStatesRNNCell(2), stateful=True)
         layer(sequence)
         output = layer(sequence)
-        self.assertAllClose(np.array([[90.0, 90.0]]), output)
+        self.assertAllClose(output, np.array([[90.0, 90.0]]))
 
         layer = layers.RNN(
             TwoStatesRNNCell(2), stateful=True, return_state=True
         )
         layer(sequence)
         output, state_1, state_2 = layer(sequence)
-        self.assertAllClose(np.array([[90.0, 90.0]]), output)
-        self.assertAllClose(np.array([[45.0, 45.0]]), state_1)
-        self.assertAllClose(np.array([[45.0, 45.0]]), state_2)
+        self.assertAllClose(output, np.array([[90.0, 90.0]]))
+        self.assertAllClose(state_1, np.array([[45.0, 45.0]]))
+        self.assertAllClose(state_2, np.array([[45.0, 45.0]]))
 
     def test_go_backwards(self):
         sequence = np.arange(24).reshape((2, 3, 4)).astype("float32")
         layer = layers.RNN(OneStateRNNCell(2), go_backwards=True)
         layer(sequence)
         output = layer(sequence)
-        self.assertAllClose(np.array([[202.0, 202.0], [538.0, 538.0]]), output)
+        self.assertAllClose(
+            output,
+            np.array([[202.0, 202.0], [538.0, 538.0]]),
+            tpu_atol=1e-4,
+            tpu_rtol=1e-4,
+        )
 
         layer = layers.RNN(OneStateRNNCell(2), stateful=True, return_state=True)
         layer(sequence)
         output, state = layer(sequence)
         self.assertAllClose(
-            np.array([[954.0, 954.0], [3978.0, 3978.0]]), output
+            output,
+            np.array([[954.0, 954.0], [3978.0, 3978.0]]),
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
-        self.assertAllClose(np.array([[954.0, 954.0], [3978.0, 3978.0]]), state)
+        self.assertAllClose(
+            state,
+            np.array([[954.0, 954.0], [3978.0, 3978.0]]),
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
+        )
 
     def test_serialization(self):
         layer = layers.RNN(TwoStatesRNNCell(2), return_sequences=False)
@@ -381,4 +393,100 @@ class RNNTest(testing.TestCase):
         layer = layers.RNN(OneStateRNNCell(2), return_sequences=False)
         self.run_class_serialization_test(layer)
 
-    # TODO: test masking
+    def test_stateful_batch_size_mismatch_raises(self):
+        from keras.src.models import Functional
+
+        batch_size = 4
+        timesteps = 5
+        features = 3
+
+        layer = layers.RNN(TwoStatesRNNCell(2), stateful=True)
+        inputs = layers.Input(
+            shape=(timesteps, features), batch_size=batch_size
+        )
+        model = Functional(inputs, layer(inputs))
+
+        # Call once with correct batch size
+        x = random.uniform(shape=(batch_size, timesteps, features))
+        _ = model(x)
+
+        # Expect ValueError when called with incorrect batch size
+        with self.assertRaisesRegex(ValueError, "batch size"):
+            x_bad = random.uniform(shape=(1, timesteps, features))
+            model(x_bad)
+
+    def test_masking(self):
+        sequence = np.arange(24).reshape((2, 4, 3)).astype("float32")
+        mask = np.array([[True, True, True, False], [True, True, False, False]])
+
+        # Test unroll=False, return_sequences=False
+        layer = layers.RNN(OneStateRNNCell(2), unroll=False)
+        output = layer(sequence, mask=mask)
+        self.assertAllClose(
+            output,
+            np.array([[57.0, 57.0], [126.0, 126.0]]),
+            atol=1e-5,
+            rtol=1e-5,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
+        )
+
+        # Test unroll=True, return_sequences=False
+        layer = layers.RNN(OneStateRNNCell(2), unroll=True)
+        output = layer(sequence, mask=mask)
+        self.assertAllClose(
+            output,
+            np.array([[57.0, 57.0], [126.0, 126.0]]),
+            atol=1e-5,
+            rtol=1e-5,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
+        )
+
+        # Test unroll=False, return_sequences=True
+        layer = layers.RNN(
+            OneStateRNNCell(2), return_sequences=True, unroll=False
+        )
+        output = layer(sequence, mask=mask)
+        self.assertAllClose(
+            output,
+            np.array(
+                [
+                    [[3.0, 3.0], [18.0, 18.0], [57.0, 57.0], [57.0, 57.0]],
+                    [
+                        [39.0, 39.0],
+                        [126.0, 126.0],
+                        [126.0, 126.0],
+                        [126.0, 126.0],
+                    ],
+                ]
+            ),
+            atol=1e-5,
+            rtol=1e-5,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
+        )
+
+        # Test unroll=True, return_sequences=True
+        layer = layers.RNN(
+            OneStateRNNCell(2), return_sequences=True, unroll=True
+        )
+        output = layer(sequence, mask=mask)
+        self.assertAllClose(
+            output,
+            np.array(
+                [
+                    [[3.0, 3.0], [18.0, 18.0], [57.0, 57.0], [57.0, 57.0]],
+                    [
+                        [39.0, 39.0],
+                        [126.0, 126.0],
+                        [126.0, 126.0],
+                        [126.0, 126.0],
+                    ],
+                ]
+            ),
+            atol=1e-5,
+            rtol=1e-5,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
+        )

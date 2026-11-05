@@ -2,71 +2,163 @@ import warnings
 
 import numpy as np
 import torch
-from packaging.version import parse
+import torch.distributed as dist
+from torch.distributed.tensor import DTensor
+from torch.distributed.tensor import Replicate
+from torch.distributed.tensor import Shard
+from torch.nn.parallel import DistributedDataParallel
 
 from keras.src import backend
 from keras.src import callbacks as callbacks_module
 from keras.src import optimizers as optimizers_module
 from keras.src import tree
 from keras.src.backend import config
-from keras.src.trainers import trainer as base_trainer
+from keras.src.backend.torch.distribution_lib import distribute_data_input
+from keras.src.backend.torch.ops.core import convert_to_tensor
+from keras.src.backend.torch.ops.core import get_device
+from keras.src.distribution.distribution_lib import DataParallel
+from keras.src.distribution.distribution_lib import ModelParallel
+from keras.src.distribution.distribution_lib import distribution
 from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
+from keras.src.trainers.trainer import BaseTrainer
 from keras.src.utils import traceback_utils
+from keras.src.utils import tracking
+from keras.src.utils.python_utils import pythonify_logs
 
 
-class TorchTrainer(base_trainer.Trainer):
+class Trainer(BaseTrainer):
     def __init__(self):
         super().__init__()
         self.train_function = None
         self.test_function = None
         self.predict_function = None
+        self.ddp_model = None
 
-    def _should_torch_compile(self):
-        # require torch>=2.1.0 to enable dynamo since it
-        # includes many improvements/fixes to torch.compile()
-        # TODO eventually we want to get rid of this when
-        # torch is upgraded to >=2.1 (from 2.0.1) in g3
-        if self.jit_compile and parse(torch.__version__) < parse("2.1.0"):
+    @tracking.no_automatic_dependency_tracking
+    def _initialize_ddp(self):
+        if torch.distributed.is_initialized() and self.ddp_model is None:
+            active_distribution = distribution()
+
+            if active_distribution is None or isinstance(
+                active_distribution, DataParallel
+            ):
+                device = get_device()
+                device_str = str(device)
+                if device_str.startswith("cuda") or device_str.startswith(
+                    "xpu"
+                ):
+                    if ":" in device_str:
+                        device_ids = [int(device_str.split(":")[-1])]
+                    else:
+                        if device_str.startswith("cuda"):
+                            device_ids = [torch.cuda.current_device()]
+                        else:
+                            device_ids = [torch.xpu.current_device()]
+                else:
+                    device_ids = None
+
+                process_group = None
+                if active_distribution is not None:
+                    backend_mesh = active_distribution.device_mesh.backend_mesh
+                    process_group = backend_mesh.get_group(
+                        active_distribution.batch_dim_name
+                    )
+
+                # Bypass PyTorch submodule registration, which does not handle
+                # circular dependencies
+                object.__setattr__(
+                    self,
+                    "ddp_model",
+                    DistributedDataParallel(
+                        self,
+                        device_ids=device_ids,
+                        process_group=process_group,
+                        find_unused_parameters=False,
+                    ),
+                )
+
+    def _use_torch_compile(self):
+        if self.run_eagerly or not self.jit_compile:
+            return False
+        active_distribution = distribution()
+        if active_distribution is not None and not isinstance(
+            active_distribution, DataParallel
+        ):
+            # The distribution entered `KerasDTensorPromotionMode`, a
+            # `TorchDispatchMode`. TorchDynamo skips every frame while a
+            # dispatch mode is active, and checking every frame makes the
+            # compiled step slower than the eager one.
             warnings.warn(
-                "Please upgrade to torch>=2.1.0 for `jit_compile=True` "
-                "to take effect. Using `jit_compile=False`"
+                "`jit_compile=True` is not supported with "
+                f"`{active_distribution.__class__.__name__}` on the torch "
+                "backend. Running without `torch.compile`."
             )
-            self.jit_compile = False
-
-        return self.jit_compile
+            return False
+        return True
 
     def train_step(self, data):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
 
         # Compute predictions
+        model = self.ddp_model or self
         if self._call_has_training_arg:
-            y_pred = self(x, training=True)
+            y_pred = model(x, training=True)
         else:
-            y_pred = self(x)
+            y_pred = model(x)
 
         # Call torch.nn.Module.zero_grad() to clear the leftover gradients
         # for the weights from the previous train step.
-        self.zero_grad()
+        model.zero_grad()
 
         loss = self._compute_loss(
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=True
         )
         self._loss_tracker.update_state(
-            loss, sample_weight=tree.flatten(x)[0].shape[0]
+            loss.detach() if isinstance(loss, torch.Tensor) else loss,
+            sample_weight=(
+                x.shape[0]
+                if isinstance(x, torch.Tensor)
+                else next(i for i in tree.flatten(x) if i is not None).shape[0]
+            ),
         )
         if self.optimizer is not None:
             loss = self.optimizer.scale_loss(loss)
 
         # Compute gradients
         if self.trainable_weights:
-            # Call torch.Tensor.backward() on the loss to compute gradients
-            # for the weights.
-            loss.backward()
-
             trainable_weights = self.trainable_weights[:]
-            gradients = [v.value.grad for v in trainable_weights]
+            if (
+                not self.run_eagerly
+                and self.jit_compile
+                and self.ddp_model is None
+            ):
+                trainable_tensors = [v.value for v in trainable_weights]
+                if isinstance(loss, torch.Tensor) and not loss.requires_grad:
+                    gradients = [None] * len(trainable_weights)
+                elif all(t.requires_grad for t in trainable_tensors):
+                    gradients = torch.autograd.grad(
+                        loss, trainable_tensors, allow_unused=True
+                    )
+                else:
+                    inputs = [t for t in trainable_tensors if t.requires_grad]
+                    grads = (
+                        iter(
+                            torch.autograd.grad(loss, inputs, allow_unused=True)
+                        )
+                        if inputs
+                        else iter(())
+                    )
+                    gradients = [
+                        next(grads) if t.requires_grad else None
+                        for t in trainable_tensors
+                    ]
+            else:
+                # Call torch.Tensor.backward() on the loss to compute gradients
+                # for the weights (required for DDP bucket all-reduce hooks).
+                loss.backward()
+                gradients = [v.value.grad for v in trainable_weights]
 
             # Update weights
             with torch.no_grad():
@@ -82,87 +174,163 @@ class TorchTrainer(base_trainer.Trainer):
             y,
             sample_weight,
         ) = data_adapter_utils.unpack_x_y_sample_weight(data)
+        model = self.ddp_model or self
         if self._call_has_training_arg:
-            y_pred = self(x, training=False)
+            y_pred = model(x, training=False)
         else:
-            y_pred = self(x)
+            y_pred = model(x)
         loss = self._compute_loss(
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=False
         )
         self._loss_tracker.update_state(
-            loss, sample_weight=tree.flatten(x)[0].shape[0]
+            loss,
+            sample_weight=(
+                x.shape[0]
+                if isinstance(x, torch.Tensor)
+                else next(i for i in tree.flatten(x) if i is not None).shape[0]
+            ),
         )
         return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 
     def predict_step(self, data):
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
+        model = self.ddp_model or self
         if self._call_has_training_arg:
-            y_pred = self(x, training=False)
+            y_pred = model(x, training=False)
         else:
-            y_pred = self(x)
+            y_pred = model(x)
         return y_pred
 
     def make_train_function(self, force=False):
         if self.train_function is not None and not force:
             return self.train_function
 
-        if self.steps_per_execution > 1:
-            raise ValueError(
-                "`steps_per_execution` must be 1 with the PyTorch backend. "
-                f"Received: steps_per_execution={self.steps_per_execution}"
-            )
+        self._initialize_ddp()
 
-        def one_step_on_data(data):
-            """Runs a single training step on a batch of data."""
-            data = data[0]
-            return self.train_step(data)
+        train_step = self.train_step
+        if self._use_torch_compile():
+            train_step = torch.compile(train_step)
+            if (
+                type(self).train_step is Trainer.train_step
+                and self.ddp_model is None
+                and hasattr(torch._dynamo.config, "trace_autograd_ops")
+            ):
+                # Let Dynamo trace `torch.autograd.grad` into the graph. Scope
+                # the flag to this step: with the flag on, Dynamo also traces
+                # `Tensor.backward()`, which breaks `train_step` overrides.
+                train_step = torch._dynamo.config.patch(
+                    trace_autograd_ops=True
+                )(train_step)
 
-        if self._should_torch_compile():
-            self.train_function = torch.compile(one_step_on_data)
-        else:
-            self.train_function = one_step_on_data
+        def train_function(data):
+            """Runs training steps on a list of batches of data."""
+            logs = {}
+            for step_data in data:
+                logs = train_step(step_data)
+            return logs
+
+        self.train_function = train_function
 
     def make_test_function(self, force=False):
         if self.test_function is not None and not force:
             return self.test_function
 
-        if self.steps_per_execution > 1:
-            raise ValueError(
-                "`steps_per_execution` must be 1 with the PyTorch backend. "
-                f"Received: steps_per_execution={self.steps_per_execution}"
-            )
+        self._initialize_ddp()
 
-        def one_step_on_data(data):
-            """Runs a single test step on a batch of data."""
-            data = data[0]
+        test_step = self.test_step
+        if self._use_torch_compile():
+            test_step = torch.compile(test_step)
+
+        def test_function(data):
+            """Runs test steps on a list of batches of data."""
+            logs = {}
             with torch.no_grad():
-                return self.test_step(data)
+                for step_data in data:
+                    logs = test_step(step_data)
+            return logs
 
-        if self._should_torch_compile():
-            self.test_function = torch.compile(one_step_on_data)
-        else:
-            self.test_function = one_step_on_data
+        self.test_function = test_function
+
+    def get_metrics_result(self):
+        if not torch.distributed.is_initialized():
+            return super().get_metrics_result()
+
+        # This also runs inside a compiled `train_step`, through
+        # `compute_metrics()`. The `with` blocks are not nested: TorchDynamo
+        # in torch 2.13 fails to inline a call inside nested `with` blocks on
+        # Python 3.11.
+        with torch.no_grad():
+            active_distribution = distribution()
+            process_group = None
+            if active_distribution is not None:
+                # Reuse the cached mesh: TorchDynamo fails to trace building
+                # a new one.
+                backend_mesh = active_distribution.device_mesh.backend_mesh
+                process_group = backend_mesh.get_group(
+                    active_distribution.batch_dim_name
+                )
+
+            reduced_vars = []
+            for v in self.metrics_variables:
+                # Use a copy for reduction to avoid modifying
+                # the original variable.
+                val = v.value.clone()
+                if isinstance(val, DTensor):
+                    # DTensor indicates we're using ModelParallel.
+                    placements = [Replicate()] * len(val.placements)
+                    val = val.redistribute(
+                        val.device_mesh, placements
+                    ).to_local()
+                dist.all_reduce(
+                    val,
+                    op=dist.ReduceOp.SUM,
+                    group=process_group,
+                )
+                reduced_vars.append(val)
+
+        # The reduced values have no gradient, so neither do the results.
+        with backend.StatelessScope(
+            state_mapping=list(zip(self.metrics_variables, reduced_vars))
+        ):
+            results = super().get_metrics_result()
+
+        return {
+            k: val.clone() if isinstance(val, torch.Tensor) else val
+            for k, val in results.items()
+        }
 
     def make_predict_function(self, force=False):
         if self.predict_function is not None and not force:
             return self.predict_function
 
-        if self.steps_per_execution > 1:
-            raise ValueError(
-                "`steps_per_execution` must be 1 with the PyTorch backend. "
-                f"Received: steps_per_execution={self.steps_per_execution}"
-            )
+        self._initialize_ddp()
 
-        def one_step_on_data(data):
-            """Runs a predict test step on a batch of data."""
-            data = data[0]
+        predict_step = self.predict_step
+        if self._use_torch_compile():
+            predict_step = torch.compile(predict_step)
+
+        def predict_function(data):
+            """Runs predict steps on a list of batches of data."""
+            outputs = []
             with torch.no_grad():
-                return self.predict_step(data)
+                for step_data in data:
+                    outputs.append(
+                        _gather_non_batch_axes(predict_step(step_data))
+                    )
 
-        if self._should_torch_compile():
-            self.predict_function = torch.compile(one_step_on_data)
-        else:
-            self.predict_function = one_step_on_data
+            def concat_outputs(outputs):
+                if not outputs:
+                    return []
+                if len(outputs) == 1:
+                    return outputs[0]
+                return tree.map_structure(
+                    lambda *args: torch.cat(args, dim=0),
+                    *outputs,
+                )
+
+            return concat_outputs(outputs)
+
+        self.predict_function = predict_function
 
     @traceback_utils.filter_traceback
     def fit(
@@ -184,10 +352,7 @@ class TorchTrainer(base_trainer.Trainer):
         validation_batch_size=None,
         validation_freq=1,
     ):
-        if not self.compiled:
-            raise ValueError(
-                "You must call `compile()` before calling `fit()`."
-            )
+        self._assert_compile_called("fit")
         # Possibly cap epochs for debugging runs.
         max_epochs = config.max_epochs()
         if max_epochs and max_epochs < epochs:
@@ -256,14 +421,14 @@ class TorchTrainer(base_trainer.Trainer):
             self.train()
 
             logs = {}
-            for step, data in epoch_iterator:
+            for begin_step, end_step, data in epoch_iterator:
                 # Callbacks
-                callbacks.on_train_batch_begin(step)
+                callbacks.on_train_batch_begin(begin_step)
 
                 logs = self.train_function(data)
 
                 # Callbacks
-                callbacks.on_train_batch_end(step, logs)
+                callbacks.on_train_batch_end(end_step, logs)
                 if self.stop_training:
                     break
 
@@ -299,7 +464,7 @@ class TorchTrainer(base_trainer.Trainer):
                     _use_cached_eval_dataset=True,
                 )
                 val_logs = {
-                    "val_" + name: val for name, val in val_logs.items()
+                    f"val_{name}": val for name, val in val_logs.items()
                 }
                 epoch_logs.update(val_logs)
 
@@ -374,13 +539,13 @@ class TorchTrainer(base_trainer.Trainer):
         callbacks.on_test_begin()
         logs = {}
         self.reset_metrics()
-        for step, data in epoch_iterator:
-            callbacks.on_test_batch_begin(step)
+        for begin_step, end_step, data in epoch_iterator:
+            callbacks.on_test_batch_begin(begin_step)
             logs = self.test_function(data)
-            callbacks.on_test_batch_end(step, logs)
+            callbacks.on_test_batch_end(end_step, logs)
             if self.stop_evaluating:
                 break
-        logs = self._get_metrics_result_or_logs(logs)
+        logs = pythonify_logs(self._get_metrics_result_or_logs(logs))
         callbacks.on_test_end(logs)
 
         if return_dict:
@@ -433,15 +598,15 @@ class TorchTrainer(base_trainer.Trainer):
         self.stop_predicting = False
         callbacks.on_predict_begin()
         outputs = None
-        for step, data in epoch_iterator:
-            callbacks.on_predict_batch_begin(step)
+        for begin_step, end_step, data in epoch_iterator:
+            callbacks.on_predict_batch_begin(begin_step)
             batch_outputs = self.predict_function(data)
             outputs = append_to_outputs(batch_outputs, outputs)
-            callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
+            callbacks.on_predict_batch_end(end_step, {"outputs": batch_outputs})
             if self.stop_predicting:
                 break
         callbacks.on_predict_end()
-        outputs = tree.map_structure(backend.convert_to_numpy, outputs)
+        outputs = tree.map_structure(backend.ops.convert_to_numpy, outputs)
         return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
 
     def train_on_batch(
@@ -466,13 +631,15 @@ class TorchTrainer(base_trainer.Trainer):
             )
 
         data = (x, y, sample_weight)
+        data = _distribute_data(data)
 
         # Maybe build model
         self._symbolic_build(data_batch=data)
         self.make_train_function()
+        self.reset_metrics()
 
         logs = self.train_function([data])
-        logs = tree.map_structure(lambda x: np.array(x), logs)
+        logs = pythonify_logs(logs)
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)
@@ -487,26 +654,95 @@ class TorchTrainer(base_trainer.Trainer):
         self._assert_compile_called("test_on_batch")
 
         data = (x, y, sample_weight)
+        data = _distribute_data(data)
 
         # Maybe build model
         self._symbolic_build(data_batch=data)
         self.make_test_function()
+        self.reset_metrics()
 
         logs = self.test_function([data])
-        logs = tree.map_structure(lambda x: np.array(x), logs)
+        logs = pythonify_logs(logs)
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)
 
     def predict_on_batch(self, x):
         self.make_predict_function()
+        x = _distribute_data(x)
         batch_outputs = self.predict_function([(x,)])
         batch_outputs = tree.map_structure(
-            backend.convert_to_numpy, batch_outputs
+            backend.ops.convert_to_numpy, batch_outputs
         )
         return batch_outputs
 
 
+def _gather_non_batch_axes(data):
+    """Gathers sharded outputs along every mesh axis but the batch axis.
+
+    This is the inverse of `_distribute_data`: each process gets every
+    feature of the rows that it fed in.
+    """
+    active_distribution = distribution()
+    if active_distribution is None:
+        return data
+    batch_dim_name = active_distribution.batch_dim_name
+
+    def gather(x):
+        if not isinstance(x, DTensor):
+            return x
+        mesh = x.device_mesh
+        names = mesh.mesh_dim_names or (None,) * mesh.ndim
+        placements = [
+            Shard(0) if x.ndim and name == batch_dim_name else Replicate()
+            for name in names
+        ]
+        return x.redistribute(mesh, placements).to_local()
+
+    return tree.map_structure(gather, data)
+
+
+def _distribute_data(data, layouts=None):
+    active_distribution = distribution()
+    if active_distribution is not None and isinstance(
+        active_distribution, ModelParallel
+    ):
+        if layouts is None:
+
+            def get_layout(d):
+                if d is None:
+                    return None
+                return active_distribution.get_data_layout(d.shape)
+
+            layouts = tree.map_structure(get_layout, data)
+        return tree.map_structure(
+            lambda d, l: distribute_data_input(d, l),
+            data,
+            layouts,
+        )
+    return tree.map_structure(
+        lambda x: convert_to_tensor(x) if x is not None else None, data
+    )
+
+
 class TorchEpochIterator(EpochIterator):
     def _get_iterator(self):
+        active_distribution = distribution()
+        if active_distribution is not None and isinstance(
+            active_distribution, ModelParallel
+        ):
+            return self._get_distributed_iterator(active_distribution)
         return self.data_adapter.get_torch_dataloader()
+
+    def _get_distributed_iterator(self, active_distribution):
+        layouts = None
+        for data in self.data_adapter.get_numpy_iterator():
+            if layouts is None:
+
+                def get_layout(d):
+                    if d is None:
+                        return None
+                    return active_distribution.get_data_layout(d.shape)
+
+                layouts = tree.map_structure(get_layout, data)
+            yield _distribute_data(data, layouts)

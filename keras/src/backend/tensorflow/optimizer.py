@@ -21,6 +21,25 @@ class TFOptimizer(KerasAutoTrackable, base_optimizer.BaseOptimizer):
         super().__init__(*args, **kwargs)
         self._distribution_strategy = tf.distribute.get_strategy()
 
+    def add_variable(
+        self,
+        shape,
+        initializer="zeros",
+        dtype=None,
+        aggregation="none",
+        layout=None,
+        name=None,
+    ):
+        with tf.init_scope():
+            return super().add_variable(
+                shape,
+                initializer=initializer,
+                dtype=dtype,
+                aggregation=aggregation,
+                layout=layout,
+                name=name,
+            )
+
     def add_variable_from_reference(
         self, reference_variable, name=None, initializer="zeros"
     ):
@@ -170,8 +189,32 @@ class TFOptimizer(KerasAutoTrackable, base_optimizer.BaseOptimizer):
             else:
                 reduced_with_nones.append((reduced[reduced_pos], v))
                 reduced_pos += 1
-        assert reduced_pos == len(reduced), "Failed to add all gradients"
+        if reduced_pos != len(reduced):
+            raise ValueError(
+                "Internal error: Failed to add all gradients. Expected to "
+                f"process {len(reduced)} gradients, but processed "
+                f"{reduced_pos}."
+            )
         return reduced_with_nones
+
+    def _backend_maybe_overwrite_model_variables(self, trainable_variables):
+        maybe_overwrite = super()._backend_maybe_overwrite_model_variables
+        if (
+            tf.distribute.in_cross_replica_context()
+            or tf.__internal__.distribute.strategy_supports_no_merge_call()
+        ):
+            return maybe_overwrite(trainable_variables)
+
+        # The overwrite calls `distribution.extended.update`, which calls
+        # `merge_call` in replica context. DistributionStrategy does not
+        # support a cond in replica context with a branch that calls
+        # `merge_call`, so we call the cond in cross-replica context.
+        def _distributed_maybe_overwrite(distribution):
+            maybe_overwrite(trainable_variables)
+
+        tf.distribute.get_replica_context().merge_call(
+            _distributed_maybe_overwrite
+        )
 
     def _overwrite_model_variables_with_average_value(
         self, trainable_variables

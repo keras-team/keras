@@ -1,4 +1,4 @@
-from keras.src import ops
+from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.layers.merging.base_merge import Merge
 from keras.src.utils.numerical_utils import normalize
@@ -41,6 +41,7 @@ def batch_dot(x, y, axes=None):
         axes: Tuple or list of integers with target dimensions, or single
             integer. The sizes of `x.shape[axes[0]]` and `y.shape[axes[1]]`
             should be equal.
+            Note that axis `0` (the batch axis) cannot be included.
 
     Returns:
         A tensor with shape equal to the concatenation of `x`'s shape
@@ -124,11 +125,11 @@ def batch_dot(x, y, axes=None):
 
     # if rank is 2, expand to 3.
     if x_ndim == 2:
-        x = ops.expand_dims(x, 1)
+        x = backend.ops.numpy.expand_dims(x, 1)
         a0 += 1
         x_ndim += 1
     if y_ndim == 2:
-        y = ops.expand_dims(y, 2)
+        y = backend.ops.numpy.expand_dims(y, 2)
         y_ndim += 1
 
     # bring x's dimension to be reduced to last axis.
@@ -137,7 +138,7 @@ def batch_dot(x, y, axes=None):
         for i in range(a0, x_ndim - 1):
             pattern[i] = pattern[i + 1]
         pattern[-1] = a0
-        x = ops.transpose(x, pattern)
+        x = backend.ops.numpy.transpose(x, pattern)
 
     # bring y's dimension to be reduced to axis 1.
     if a1 != 1:
@@ -145,33 +146,33 @@ def batch_dot(x, y, axes=None):
         for i in range(a1, 1, -1):
             pattern[i] = pattern[i - 1]
         pattern[1] = a1
-        y = ops.transpose(y, pattern)
+        y = backend.ops.numpy.transpose(y, pattern)
 
     # normalize both inputs to rank 3.
     if x_ndim > 3:
         # squash middle dimensions of x.
-        x_shape = ops.shape(x)
+        x_shape = backend.ops.shape(x)
         x_mid_dims = x_shape[1:-1]
         x_squashed_shape = (x_shape[0], -1, x_shape[-1])
-        x = ops.reshape(x, x_squashed_shape)
+        x = backend.ops.numpy.reshape(x, x_squashed_shape)
         x_squashed = True
     else:
         x_squashed = False
 
     if y_ndim > 3:
         # squash trailing dimensions of y.
-        y_shape = ops.shape(y)
+        y_shape = backend.ops.shape(y)
         y_trail_dims = y_shape[2:]
         y_squashed_shape = (y_shape[0], y_shape[1], -1)
-        y = ops.reshape(y, y_squashed_shape)
+        y = backend.ops.numpy.reshape(y, y_squashed_shape)
         y_squashed = True
     else:
         y_squashed = False
 
-    result = ops.matmul(x, y)
+    result = backend.ops.numpy.matmul(x, y)
 
     # if inputs were squashed, we have to reshape the matmul output.
-    output_shape = ops.shape(result)
+    output_shape = backend.ops.shape(result)
     do_reshape = False
 
     if x_squashed:
@@ -183,13 +184,13 @@ def batch_dot(x, y, axes=None):
         do_reshape = True
 
     if do_reshape:
-        result = ops.reshape(result, output_shape)
+        result = backend.ops.numpy.reshape(result, output_shape)
 
     # if the inputs were originally rank 2, we remove the added 1 dim.
     if orig_x_ndim == 2:
-        result = ops.squeeze(result, 1)
+        result = backend.ops.numpy.squeeze(result, 1)
     elif orig_y_ndim == 2:
-        result = ops.squeeze(result, -1)
+        result = backend.ops.numpy.squeeze(result, -1)
 
     return result
 
@@ -226,7 +227,8 @@ class Dot(Merge):
             take the dot product. If a tuple, should be two integers
             corresponding to the desired axis from the first input and the
             desired axis from the second input, respectively. Note that the
-            size of the two selected axes must match.
+            size of the two selected axes must match, and that
+            axis `0` (the batch axis) cannot be included.
         normalize: Whether to L2-normalize samples along the dot product axis
             before taking the dot product. If set to `True`, then
             the output of the dot product is the cosine proximity
@@ -363,6 +365,7 @@ def dot(inputs, axes=-1, **kwargs):
         inputs: A list of input tensors (at least 2).
         axes: Integer or tuple of integers,
             axis or axes along which to take the dot product.
+            Note that axis `0` (the batch axis) cannot be included.
         normalize: Whether to L2-normalize samples along the
             dot product axis before taking the dot product.
             If set to `True`, then the output of the dot product

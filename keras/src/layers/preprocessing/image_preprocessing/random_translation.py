@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_transform_example,
+)
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
     clip_to_image_size,
 )
@@ -23,6 +26,9 @@ class RandomTranslation(BaseImagePreprocessingLayer):
     of integer or floating point dtype. By default, the layer will output
     floats.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
     Input shape:
         3D (unbatched) or 4D (batched) tensor with shape:
         `(..., height, width, channels)`, in `"channels_last"` format,
@@ -33,9 +39,6 @@ class RandomTranslation(BaseImagePreprocessingLayer):
         `(..., target_height, target_width, channels)`,
         or `(..., channels, target_height, target_width)`,
         in `"channels_first"` format.
-
-    **Note:** This layer is safe to use inside a `tf.data` pipeline
-    (independently of which backend you're using).
 
     Args:
         height_factor: a float represented as fraction of value, or a tuple of
@@ -87,6 +90,10 @@ class RandomTranslation(BaseImagePreprocessingLayer):
             `~/.keras/keras.json`. If you never set it, then it will be
             `"channels_last"`.
         **kwargs: Base layer keyword arguments, such as `name` and `dtype`.
+
+    Example:
+
+    {{base_image_preprocessing_transform_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -164,17 +171,14 @@ class RandomTranslation(BaseImagePreprocessingLayer):
                 + f"Received: input_number={input_number}"
             )
 
-    def transform_images(self, images, transformation, training=True):
-        images = self.backend.cast(images, self.compute_dtype)
-        if training:
-            return self._translate_inputs(images, transformation)
-        return images
+    def _transform_images(self, images, transformation, interpolation):
+        return self._translate_inputs(images, transformation, interpolation)
 
     def transform_labels(self, labels, transformation, training=True):
         return labels
 
     def get_transformed_x_y(self, x, y, transform):
-        a0, a1, a2, b0, b1, b2, c0, c1 = self.backend.numpy.split(
+        a0, a1, a2, b0, b1, b2, c0, c1 = self.backend.ops.numpy.split(
             transform, 8, axis=-1
         )
 
@@ -185,20 +189,24 @@ class RandomTranslation(BaseImagePreprocessingLayer):
 
     def get_shifted_bbox(self, bounding_boxes, w_shift_factor, h_shift_factor):
         bboxes = bounding_boxes["boxes"]
-        x1, x2, x3, x4 = self.backend.numpy.split(bboxes, 4, axis=-1)
+        x1, x2, x3, x4 = self.backend.ops.numpy.split(bboxes, 4, axis=-1)
 
-        w_shift_factor = self.backend.convert_to_tensor(
+        w_shift_factor = self.backend.ops.convert_to_tensor(
             w_shift_factor, dtype=x1.dtype
         )
-        h_shift_factor = self.backend.convert_to_tensor(
+        h_shift_factor = self.backend.ops.convert_to_tensor(
             h_shift_factor, dtype=x1.dtype
         )
 
         if len(bboxes.shape) == 3:
-            w_shift_factor = self.backend.numpy.expand_dims(w_shift_factor, -1)
-            h_shift_factor = self.backend.numpy.expand_dims(h_shift_factor, -1)
+            w_shift_factor = self.backend.ops.numpy.expand_dims(
+                w_shift_factor, -1
+            )
+            h_shift_factor = self.backend.ops.numpy.expand_dims(
+                h_shift_factor, -1
+            )
 
-        bounding_boxes["boxes"] = self.backend.numpy.concatenate(
+        bounding_boxes["boxes"] = self.backend.ops.numpy.concatenate(
             [
                 x1 - w_shift_factor,
                 x2 - h_shift_factor,
@@ -268,13 +276,6 @@ class RandomTranslation(BaseImagePreprocessingLayer):
 
         return bounding_boxes
 
-    def transform_segmentation_masks(
-        self, segmentation_masks, transformation, training=True
-    ):
-        return self.transform_images(
-            segmentation_masks, transformation, training=training
-        )
-
     def get_random_transformation(self, data, training=True, seed=None):
         if not training:
             return None
@@ -284,10 +285,10 @@ class RandomTranslation(BaseImagePreprocessingLayer):
         else:
             images = data
 
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         unbatched = len(images_shape) == 3
         if unbatched:
-            images_shape = self.backend.shape(images)
+            images_shape = self.backend.ops.shape(images)
             batch_size = 1
         else:
             batch_size = images_shape[0]
@@ -307,62 +308,66 @@ class RandomTranslation(BaseImagePreprocessingLayer):
             shape=[batch_size, 1],
             seed=seed,
         )
-        height_translate = self.backend.numpy.multiply(height_translate, height)
+        height_translate = self.backend.ops.numpy.multiply(
+            height_translate, height
+        )
         width_translate = self.backend.random.uniform(
             minval=self.width_lower,
             maxval=self.width_upper,
             shape=[batch_size, 1],
             seed=seed,
         )
-        width_translate = self.backend.numpy.multiply(width_translate, width)
-        translations = self.backend.cast(
-            self.backend.numpy.concatenate(
+        width_translate = self.backend.ops.numpy.multiply(
+            width_translate, width
+        )
+        translations = self.backend.ops.cast(
+            self.backend.ops.numpy.concatenate(
                 [width_translate, height_translate], axis=1
             ),
             dtype="float32",
         )
         return {"translations": translations, "input_shape": images_shape}
 
-    def _translate_inputs(self, inputs, transformation):
+    def _translate_inputs(self, inputs, transformation, interpolation):
         if transformation is None:
             return inputs
 
-        inputs_shape = self.backend.shape(inputs)
+        inputs_shape = self.backend.ops.shape(inputs)
         unbatched = len(inputs_shape) == 3
         if unbatched:
-            inputs = self.backend.numpy.expand_dims(inputs, axis=0)
+            inputs = self.backend.ops.numpy.expand_dims(inputs, axis=0)
 
         translations = transformation["translations"]
-        outputs = self.backend.image.affine_transform(
+        outputs = self.backend.ops.image.affine_transform(
             inputs,
             transform=self._get_translation_matrix(translations),
-            interpolation=self.interpolation,
+            interpolation=interpolation,
             fill_mode=self.fill_mode,
             fill_value=self.fill_value,
             data_format=self.data_format,
         )
 
         if unbatched:
-            outputs = self.backend.numpy.squeeze(outputs, axis=0)
+            outputs = self.backend.ops.numpy.squeeze(outputs, axis=0)
         return outputs
 
     def _get_translation_matrix(self, translations):
-        num_translations = self.backend.shape(translations)[0]
+        num_translations = self.backend.ops.shape(translations)[0]
         # The translation matrix looks like:
         #     [[1 0 -dx]
         #      [0 1 -dy]
         #      [0 0 1]]
         # where the last entry is implicit.
         # translation matrices are always float32.
-        return self.backend.numpy.concatenate(
+        return self.backend.ops.numpy.concatenate(
             [
-                self.backend.numpy.ones((num_translations, 1)),
-                self.backend.numpy.zeros((num_translations, 1)),
+                self.backend.ops.numpy.ones((num_translations, 1)),
+                self.backend.ops.numpy.zeros((num_translations, 1)),
                 -translations[:, 0:1],
-                self.backend.numpy.zeros((num_translations, 1)),
-                self.backend.numpy.ones((num_translations, 1)),
+                self.backend.ops.numpy.zeros((num_translations, 1)),
+                self.backend.ops.numpy.ones((num_translations, 1)),
                 -translations[:, 1:],
-                self.backend.numpy.zeros((num_translations, 2)),
+                self.backend.ops.numpy.zeros((num_translations, 2)),
             ],
             axis=1,
         )
@@ -382,3 +387,12 @@ class RandomTranslation(BaseImagePreprocessingLayer):
             "data_format": self.data_format,
         }
         return {**base_config, **config}
+
+
+if RandomTranslation.__doc__ is not None:
+    RandomTranslation.__doc__ = RandomTranslation.__doc__.replace(
+        "{{base_image_preprocessing_transform_example}}",
+        base_image_preprocessing_transform_example.replace(
+            "{LayerName}", "RandomTranslation"
+        ),
+    )

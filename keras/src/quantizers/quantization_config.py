@@ -1,0 +1,320 @@
+from keras.src.api_export import keras_export
+from keras.src.quantizers import strategy_registry
+from keras.src.saving import serialization_lib
+
+
+@keras_export("keras.quantizers.QuantizationConfig")
+class QuantizationConfig:
+    """Base class for quantization configs.
+
+    Subclasses must implement the `mode` property and the `get_config` and
+    `from_config` class methods.
+
+    Args:
+        weight_quantizer: Quantizer for weights.
+        activation_quantizer: Quantizer for activations.
+    """
+
+    def __init__(self, weight_quantizer=None, activation_quantizer=None):
+        self.weight_quantizer = weight_quantizer
+        self.activation_quantizer = activation_quantizer
+
+    @property
+    def mode(self):
+        raise NotImplementedError(
+            "Subclasses must implement this property. Do not instantiate "
+            "QuantizationConfig directly."
+        )
+
+    def get_config(self):
+        return {
+            "weight_quantizer": serialization_lib.serialize_keras_object(
+                self.weight_quantizer
+            ),
+            "activation_quantizer": serialization_lib.serialize_keras_object(
+                self.activation_quantizer
+            ),
+        }
+
+    @classmethod
+    def from_config(cls, config):
+        weight_quantizer = serialization_lib.deserialize_keras_object(
+            config.get("weight_quantizer")
+        )
+        activation_quantizer = serialization_lib.deserialize_keras_object(
+            config.get("activation_quantizer")
+        )
+        return cls(
+            weight_quantizer=weight_quantizer,
+            activation_quantizer=activation_quantizer,
+        )
+
+    @staticmethod
+    def weight_quantizer_or_default(config, default):
+        if config is not None and config.weight_quantizer is not None:
+            return config.weight_quantizer
+        return default
+
+    @staticmethod
+    def activation_quantizer_or_default(config, default):
+        if config is not None:
+            return config.activation_quantizer
+        return default
+
+
+@keras_export("keras.quantizers.Int8QuantizationConfig")
+class Int8QuantizationConfig(QuantizationConfig):
+    """Int8 quantization config.
+
+    Scheme: **W8A8 dynamic** (`int8` weights times `int8` activations). Both
+    the weights and the activations are quantized to 8-bit integers, and the
+    matmul runs as a real integer GEMM. Activation scales are computed
+    dynamically at run time (per call), so no calibration data is required.
+
+    Args:
+        weight_quantizer: Quantizer for weights.
+        activation_quantizer: Quantizer for activations. If "default", uses
+            AbsMaxQuantizer with axis=-1.
+    """
+
+    def __init__(self, weight_quantizer=None, activation_quantizer="default"):
+        from keras.src.quantizers.quantizers import AbsMaxQuantizer
+
+        if activation_quantizer == "default":
+            activation_quantizer = AbsMaxQuantizer()
+        super().__init__(weight_quantizer, activation_quantizer)
+        if self.weight_quantizer is not None:
+            if self.weight_quantizer.output_dtype != "int8":
+                raise ValueError(
+                    "Int8QuantizationConfig requires a weight_quantizer "
+                    "with output_dtype='int8'. Received: "
+                    f"output_dtype={self.weight_quantizer.output_dtype}"
+                )
+
+    @property
+    def mode(self):
+        return "int8"
+
+
+@keras_export("keras.quantizers.Int4QuantizationConfig")
+class Int4QuantizationConfig(QuantizationConfig):
+    """Int4 quantization config.
+
+    Scheme: **W4A16 weight-only** (`int4` weights times `float16`/high-precision
+    activations). Only the weights are quantized to 4 bits (packed two per
+    `int8` byte); activations stay in the compute dtype. This is
+    **storage-only** today: the packed weights are dequantized back to float
+    before every matmul, so it reduces the model's memory footprint but does
+    not (yet) run a 4-bit GEMM. By default the weights use **grouped**
+    (sub-channel) quantization with a group size of 128 along the input
+    dimension, which is more accurate than per-channel at scale. Pass
+    `block_size=-1` (or `None`) for the per-channel escape hatch.
+
+    Args:
+        weight_quantizer: Quantizer for weights.
+        activation_quantizer: Quantizer for activations. If "default", uses
+            weight-only quantization (activations are left unquantized).
+        block_size: Size of groups along the input dimension for sub-channel
+            quantization. If a positive integer, uses sub-channel quantization
+            with `ceil(input_dim / block_size)` groups. If `None` or `-1`,
+            uses per-channel quantization (one scale per output channel).
+            Default: `128` (sub-channel with 128-element groups). This default
+            is identical to what the bare string shortcut `quantize("int4")`
+            resolves to.
+    """
+
+    def __init__(
+        self,
+        weight_quantizer=None,
+        activation_quantizer="default",
+        block_size=128,
+    ):
+        if activation_quantizer == "default":
+            # Use weight-only quantization by default for int4
+            activation_quantizer = None
+        super().__init__(weight_quantizer, activation_quantizer)
+
+        # Validate block_size
+        if block_size is not None and block_size != -1 and block_size <= 0:
+            raise ValueError(
+                f"block_size must be None, -1, or a positive integer. "
+                f"Received: block_size={block_size}"
+            )
+        self.block_size = block_size
+
+        # Sub-channel quantization does not support custom quantizers
+        is_sub_channel = block_size is not None and block_size > 0
+        has_custom_quantizer = (
+            self.weight_quantizer is not None
+            or self.activation_quantizer is not None
+        )
+        if is_sub_channel and has_custom_quantizer:
+            raise ValueError(
+                "Int4 sub-channel quantization (block_size > 0) does not "
+                "support custom quantizers. Either set block_size to None "
+                "or -1 for per-channel quantization, or remove the custom "
+                f"quantizer arguments. Received: block_size={block_size}"
+            )
+
+        if self.weight_quantizer is not None:
+            # A quantizer restored from JSON can hold a list.
+            if tuple(self.weight_quantizer.value_range) != (-8, 7):
+                raise ValueError(
+                    "Int4QuantizationConfig requires a weight_quantizer "
+                    "with value_range=(-8, 7). Received: "
+                    f"value_range={self.weight_quantizer.value_range}"
+                )
+
+            if self.weight_quantizer.output_dtype != "int8":
+                raise ValueError(
+                    "Int4QuantizationConfig requires a weight_quantizer "
+                    "with output_dtype='int8'. Received: "
+                    f"output_dtype={self.weight_quantizer.output_dtype}"
+                )
+
+    @property
+    def mode(self):
+        return "int4"
+
+    def get_config(self):
+        config = super().get_config()
+        config["block_size"] = self.block_size
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        weight_quantizer = serialization_lib.deserialize_keras_object(
+            config.get("weight_quantizer")
+        )
+        activation_quantizer = serialization_lib.deserialize_keras_object(
+            config.get("activation_quantizer")
+        )
+        # Default to None for backwards compatibility with models saved
+        # before block_size was introduced (those used per-channel mode)
+        block_size = config.get("block_size", None)
+        return cls(
+            weight_quantizer=weight_quantizer,
+            activation_quantizer=activation_quantizer,
+            block_size=block_size,
+        )
+
+
+@keras_export("keras.quantizers.Float8QuantizationConfig")
+class Float8QuantizationConfig(QuantizationConfig):
+    """FP8 quantization config.
+
+    Scheme: **float8 QDQ** (quantize-dequantize) mixed-precision *training*.
+    Unlike the int8/int4 schemes, this is not a post-training weight
+    compression: both weights and activations are dynamically cast to `float8`
+    with maintained amax histories, and the forward/backward passes simulate
+    fp8 arithmetic to keep training numerically faithful.
+
+    FP8 mixed-precision training does not support user defined quantizers.
+    This config is only used to indicate that FP8 mixed-precision training
+    should be used.
+    """
+
+    def __init__(self):
+        super().__init__(None, None)
+
+    @property
+    def mode(self):
+        return "float8"
+
+    def get_config(self):
+        return {}
+
+    @classmethod
+    def from_config(cls, config):
+        return cls()
+
+
+@keras_export("keras.quantizers.TernaryQuantizationConfig")
+class TernaryQuantizationConfig(QuantizationConfig):
+    """Ternary quantization config.
+
+    Quantizes weights to `{-1, 0, +1}` (BitNet b1.58) and stores them at the
+    information-theoretic floor of `log2(3) ~= 1.58` bits/value by packing five
+    trits per byte. The quantization rule (threshold and scale) is owned by the
+    layer, so this config takes no quantizer arguments.
+    """
+
+    def __init__(self):
+        super().__init__(None, None)
+
+    @property
+    def mode(self):
+        return "ternary"
+
+    def get_config(self):
+        return {}
+
+    @classmethod
+    def from_config(cls, config):
+        return cls()
+
+
+def validate_and_resolve_config(mode, config):
+    """Validate and resolve quantization config.
+
+    This function validates the quantization config and resolves the mode.
+    If mode is not provided, it is inferred from the config.
+    If config is not provided, a default config is inferred from the mode
+    through the mode's registered strategy.
+
+    Args:
+        mode: Quantization mode.
+        config: Quantization config.
+    """
+    # 1. Backwards Compatibility: Handle string shortcuts.
+    if isinstance(config, str):
+        mode = config
+        config = None
+
+    _validate_mode(mode)
+
+    # 2. Resolve "mode" into a Config object.
+    if config is None:
+        if mode is None:
+            raise ValueError(
+                "You must provide either `mode` or `config` to `quantize`."
+            )
+        # `default_config` raises for modes that require an explicit config
+        # (gptq/awq need a calibration dataset).
+        config = strategy_registry.get_strategy(mode).default_config()
+    else:
+        if not isinstance(config, QuantizationConfig):
+            raise ValueError(
+                "Argument `config` must be an instance of "
+                "`QuantizationConfig`. "
+                f"Received: config={config} (of type {type(config)})"
+            )
+
+    # 3. Validation: Prevent contradictions.
+    if mode is not None and config.mode != mode:
+        raise ValueError(
+            f"Contradictory arguments: mode='{mode}' but "
+            f"config.mode='{config.mode}'"
+        )
+
+    # Ensure mode is consistent. When `mode` was supplied it is already
+    # validated and equal to `config.mode` (the contradiction check above),
+    # so only a config-derived mode still needs validating.
+    if mode is None:
+        _validate_mode(config.mode)
+    mode = config.mode
+
+    # Mode-specific config validation (e.g. gptq requires a `GPTQConfig`).
+    strategy_registry.get_strategy(mode).validate_config(config)
+
+    return config
+
+
+def _validate_mode(mode):
+    """Validates quantization mode."""
+    if mode is not None and not strategy_registry.is_registered(mode):
+        raise ValueError(
+            "Invalid quantization mode. "
+            f"Expected one of {strategy_registry.registered_modes()}. "
+            f"Received: mode={mode}"
+        )

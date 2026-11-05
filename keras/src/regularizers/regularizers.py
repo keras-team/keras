@@ -1,4 +1,5 @@
 import math
+import numbers
 
 from keras.src import ops
 from keras.src.api_export import keras_export
@@ -45,8 +46,8 @@ class Regularizer:
     >>> out = layer(tensor)
 
     >>> # The kernel regularization term is 0.25
-    >>> # The activity regularization term (after dividing by the batch size)
-    >>> # is 5
+    >>> # The activity regularization term (after dividing by batch size of 5)
+    >>> # is 5.0
     >>> ops.sum(layer.losses)
     5.25
 
@@ -192,22 +193,23 @@ class L1L2(Regularizer):
         # and no l1 penalty.
         l1 = 0.0 if l1 is None else l1
         l2 = 0.0 if l2 is None else l2
-        validate_float_arg(l1, name="l1")
-        validate_float_arg(l2, name="l2")
-
-        self.l1 = l1
-        self.l2 = l2
+        self.l1 = validate_float_arg(l1, name="l1")
+        self.l2 = validate_float_arg(l2, name="l2")
 
     def __call__(self, x):
         regularization = ops.convert_to_tensor(0.0, dtype=x.dtype)
-        if self.l1:
-            regularization += self.l1 * ops.sum(ops.absolute(x))
-        if self.l2:
-            regularization += self.l2 * ops.sum(ops.square(x))
+        if self.l1 != 0.0:
+            regularization += ops.cast(self.l1, dtype=x.dtype) * ops.sum(
+                ops.absolute(x)
+            )
+        if self.l2 != 0.0:
+            regularization += ops.cast(self.l2, dtype=x.dtype) * ops.sum(
+                ops.square(x)
+            )
         return regularization
 
     def get_config(self):
-        return {"l1": float(self.l1), "l2": float(self.l2)}
+        return {"l1": self.l1, "l2": self.l2}
 
 
 @keras_export(["keras.regularizers.L1", "keras.regularizers.l1"])
@@ -229,11 +231,11 @@ class L1(Regularizer):
 
     def __init__(self, l1=0.01):
         l1 = 0.01 if l1 is None else l1
-        validate_float_arg(l1, name="l1")
+        l1 = validate_float_arg(l1, name="l1")
         self.l1 = ops.convert_to_tensor(l1)
 
     def __call__(self, x):
-        return self.l1 * ops.sum(ops.absolute(x))
+        return ops.cast(self.l1, dtype=x.dtype) * ops.sum(ops.absolute(x))
 
     def get_config(self):
         return {"l1": float(self.l1)}
@@ -258,14 +260,13 @@ class L2(Regularizer):
 
     def __init__(self, l2=0.01):
         l2 = 0.01 if l2 is None else l2
-        validate_float_arg(l2, name="l2")
-        self.l2 = l2
+        self.l2 = validate_float_arg(l2, name="l2")
 
     def __call__(self, x):
-        return self.l2 * ops.sum(ops.square(x))
+        return ops.cast(self.l2, dtype=x.dtype) * ops.sum(ops.square(x))
 
     def get_config(self):
-        return {"l2": float(self.l2)}
+        return {"l2": self.l2}
 
 
 @keras_export(
@@ -339,14 +340,16 @@ class OrthogonalRegularizer(Regularizer):
 
 
 def validate_float_arg(value, name):
-    """check penalty number availability, raise ValueError if failed."""
-    if (
-        not isinstance(value, (float, int))
-        or (math.isinf(value) or math.isnan(value))
-        or value < 0
-    ):
+    """Check penalty number availability, raise ValueError if failed."""
+    if isinstance(value, bool) or not isinstance(value, numbers.Real):
         raise ValueError(
             f"Invalid value for argument {name}: expected a non-negative float."
             f"Received: {name}={value}"
         )
-    return float(value)
+    value = float(value)
+    if not math.isfinite(value) or value < 0:
+        raise ValueError(
+            f"Invalid value for argument {name}: expected a non-negative float."
+            f"Received: {name}={value}"
+        )
+    return value

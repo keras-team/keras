@@ -1,7 +1,9 @@
+import math
+
 import numpy as np
 
 from keras.src.backend.config import floatx
-from keras.src.backend.numpy.nn import softmax
+from keras.src.backend.numpy.ops.nn import softmax
 from keras.src.random.seed_generator import SeedGenerator
 from keras.src.random.seed_generator import draw_seed
 from keras.src.random.seed_generator import make_default_seed
@@ -48,7 +50,7 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     lower_bound = mean - 2 * stddev
     upper_bound = mean + 2 * stddev
 
-    flat_shape = np.prod(shape)
+    flat_shape = math.prod(shape)
     random_numbers = np.empty(0)
 
     # loop until we have enough valid numbers to fill our desired shape
@@ -67,11 +69,14 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 
 
 def dropout(inputs, rate, noise_shape=None, seed=None):
+    if rate == 1.0:
+        return np.zeros_like(inputs)
+    if rate == 0.0:
+        return inputs
     dtype = inputs.dtype
     seed = draw_seed(seed)
 
     keep_prob = 1.0 - rate
-
     # If noise_shape is not provided, use the shape of inputs
     if noise_shape is None:
         noise_shape = inputs.shape

@@ -8,14 +8,50 @@ import pytest
 import tensorflow as tf
 
 from keras.src import backend
+from keras.src import layers
 from keras.src import testing
 from keras.src.backend import distribution_lib as backend_dlib
 from keras.src.distribution import distribution_lib
 
 
+class LayerWithLayout(layers.Layer):
+    def __init__(self, layout, **kwargs):
+        self.layout = layout
+        super().__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.bias = self.add_weight(
+            shape=(input_shape[-1],),
+            initializer="ones",
+            layout=self.layout,
+            name="bias",
+        )
+
+    def call(self, inputs):
+        return inputs + self.bias
+
+
+class MockDeviceMesh:
+    device_type = "cpu"
+
+
+def create_custom_layout():
+    """Create a custom layout for testing.
+
+    This layout is based on the real devices, but cannot possibly match a
+    layout created by DataParallel or ModelParallel as it uses a different axis
+    name.
+    """
+    explicit_devices = np.array(backend_dlib.list_devices())
+    explicit_mesh = distribution_lib.DeviceMesh(
+        explicit_devices.shape, ["x"], explicit_devices
+    )
+    return distribution_lib.TensorLayout(["x"], explicit_mesh)
+
+
 @pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="Only JAX has the backend to mock at the moment",
+    backend.backend() not in ("jax", "torch"),
+    reason="Only JAX and Torch have the backend to mock at the moment",
 )
 @mock.patch.object(
     backend_dlib,
@@ -23,10 +59,6 @@ from keras.src.distribution import distribution_lib
     return_value=None,
 )
 class MultiProcessInitializeTest(testing.TestCase):
-    def tearDown(self):
-        super().tearDown()
-        os.environ.clear()
-
     def test_initialize_with_explicit_param(self, mock_backend_initialize):
         job_addresses = "10.0.0.1:1234,10.0.0.2:2345"
         num_processes = 2
@@ -48,10 +80,15 @@ class MultiProcessInitializeTest(testing.TestCase):
         os.environ["KERAS_DISTRIBUTION_NUM_PROCESSES"] = str(num_processes)
         os.environ["KERAS_DISTRIBUTION_PROCESS_ID"] = str(current_process_id)
 
-        distribution_lib.initialize()
-        mock_backend_initialize.assert_called_once_with(
-            job_addresses, num_processes, current_process_id
-        )
+        try:
+            distribution_lib.initialize()
+            mock_backend_initialize.assert_called_once_with(
+                job_addresses, num_processes, current_process_id
+            )
+        finally:
+            os.environ.pop("KERAS_DISTRIBUTION_JOB_ADDRESSES", None)
+            os.environ.pop("KERAS_DISTRIBUTION_NUM_PROCESSES", None)
+            os.environ.pop("KERAS_DISTRIBUTION_PROCESS_ID", None)
 
     def test_init_with_nones(self, mock_backend_initialize):
         # This is also valid case for Cloud TPU on JAX
@@ -90,6 +127,7 @@ class DeviceMeshTest(testing.TestCase):
 
 class TensorLayoutTest(testing.TestCase):
     def setUp(self):
+        super().setUp()
         self.mesh = distribution_lib.DeviceMesh(
             (4, 2), ["data", "model"], [f"cpu:{i}" for i in range(8)]
         )
@@ -162,10 +200,54 @@ class DistributionTest(testing.TestCase):
 
         self.assertIsNone(distribution_lib.distribution())
 
+    def test_data_shard_id(self):
+        # Case 1: num_model_replicas >= num_processes
+        # data_shard_id should be process_id
+        distribution = distribution_lib.Distribution(self.device_mesh)
+        with (
+            mock.patch.object(
+                distribution.__class__,
+                "num_model_replicas",
+                new_callable=mock.PropertyMock,
+                return_value=8,
+            ),
+            mock.patch.object(
+                distribution.__class__,
+                "num_processes",
+                new_callable=mock.PropertyMock,
+                return_value=4,
+            ),
+        ):
+            for process_id in range(4):
+                with mock.patch.object(distribution, "_process_id", process_id):
+                    self.assertEqual(distribution.data_shard_id, process_id)
+
+        # Case 2: num_model_replicas < num_processes
+        # data_shard_id should be process_id //
+        # (num_processes // num_model_replicas)
+        with (
+            mock.patch.object(
+                distribution.__class__,
+                "num_model_replicas",
+                new_callable=mock.PropertyMock,
+                return_value=2,
+            ),
+            mock.patch.object(
+                distribution.__class__,
+                "num_processes",
+                new_callable=mock.PropertyMock,
+                return_value=4,
+            ),
+        ):
+            expected_data_shard_ids = [0, 0, 1, 1]
+            for process_id, expected in enumerate(expected_data_shard_ids):
+                with mock.patch.object(distribution, "_process_id", process_id):
+                    self.assertEqual(distribution.data_shard_id, expected)
+
 
 @pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="Only JAX has the proper backend distribution lib",
+    backend.backend() not in ("jax", "torch"),
+    reason="Only JAX and Torch have the proper backend distribution lib",
 )
 class DataParallelDistributionTest(testing.TestCase):
     def setUp(self):
@@ -190,7 +272,7 @@ class DataParallelDistributionTest(testing.TestCase):
 
         self.assertFalse(distribution._is_multi_process)
         self.assertEqual(distribution._process_id, 0)
-        self.assertEqual(distribution._num_process, 1)
+        self.assertEqual(distribution.num_processes, 1)
 
     def test_create_with_devices(self):
         distribution = distribution_lib.DataParallel(devices=self.devices)
@@ -223,31 +305,74 @@ class DataParallelDistributionTest(testing.TestCase):
         self.assertIs(data_layout.device_mesh, self.device_mesh)
         self.assertEqual(data_layout.axes, ("data", None, None))
 
-    @pytest.mark.skipif(testing.jax_uses_gpu(), reason="CI segfault")
     def test_get_variable_layout(self):
         distribution = distribution_lib.DataParallel(
             device_mesh=self.device_mesh
         )
 
-        variable = backend.Variable(initializer=[1, 2, 3])
+        variable = backend.Variable(initializer=[1.0, 2.0, 3.0])
         variable_layout = distribution.get_variable_layout(variable)
         self.assertIs(variable_layout.device_mesh, self.device_mesh)
         self.assertEqual(variable_layout.axes, (None,))
 
-    @pytest.mark.skipif(testing.jax_uses_gpu(), reason="CI segfault")
-    def test_get_variable_layout_with_explicit_layout(self):
+    def test_variable_layout_with_explicit_layout(self):
         distribution = distribution_lib.DataParallel(
             device_mesh=self.device_mesh
         )
+        explicit_layout = create_custom_layout()
 
-        explicit_mesh = distribution_lib.DeviceMesh((8,), ["x"], self.devices)
-        explicit_layout = distribution_lib.TensorLayout(["x"], explicit_mesh)
+        with (
+            distribution.scope(),
+            mock.patch.object(
+                backend_dlib,
+                "_to_backend_mesh",
+                return_value=MockDeviceMesh(),
+            ),
+            mock.patch.object(
+                backend_dlib,
+                "distribute_tensor",
+                side_effect=lambda v, l: v,
+            ) as mock_distribute_tensor,
+        ):
+            backend.Variable(
+                shape=(3,), initializer="ones", layout=explicit_layout
+            )
+            mock_distribute_tensor.assert_called_once()
+            _, actual_layout = mock_distribute_tensor.call_args.args
+            self.assertIs(actual_layout, explicit_layout)
 
-        variable = backend.Variable(initializer=[1, 2, 3])
-        variable._layout = explicit_layout
-        variable_layout = distribution.get_variable_layout(variable)
-        self.assertIs(variable_layout.device_mesh, explicit_mesh)
-        self.assertEqual(variable_layout.axes, explicit_layout.axes)
+    def test_add_weight_layout_with_explicit_layout(self):
+        distribution = distribution_lib.DataParallel(
+            device_mesh=self.device_mesh
+        )
+        explicit_layout = create_custom_layout()
+        layer = LayerWithLayout(layout=explicit_layout)
+
+        with (
+            distribution.scope(),
+            mock.patch.object(
+                backend_dlib,
+                "_to_backend_mesh",
+                return_value=MockDeviceMesh(),
+            ),
+            mock.patch.object(
+                backend_dlib,
+                "distribute_tensor",
+                side_effect=lambda v, l: v,
+            ) as mock_distribute_tensor,
+        ):
+            layer.build((8, explicit_layout.device_mesh.devices.size))
+            mock_distribute_tensor.assert_called_once()
+            _, actual_layout = mock_distribute_tensor.call_args.args
+            self.assertIs(actual_layout, explicit_layout)
+
+    @mock.patch.object(backend_dlib, "num_processes", return_value=2)
+    def test_num_model_replicas(self, mock_backend_num_processes):
+        distribution = distribution_lib.DataParallel(
+            device_mesh=self.device_mesh
+        )
+        self.assertEqual(distribution.num_model_replicas, 8)
+        self.assertEqual(distribution.num_processes, 2)
 
     def test_get_tensor_layout(self):
         distribution = distribution_lib.DataParallel(
@@ -258,18 +383,9 @@ class DataParallelDistributionTest(testing.TestCase):
         tensor_layout = distribution.get_tensor_layout(path)
         self.assertIsNone(tensor_layout)
 
-    def test_distribute_dataset(self):
-        # We can only verify the single worker/process case in OSS for now.
-        dataset = tf.data.Dataset.range(8)
-        distribution = distribution_lib.DataParallel(
-            device_mesh=self.device_mesh
-        )
-        distributed_dataset = distribution.distribute_dataset(dataset)
-        self.assertIs(dataset, distributed_dataset)
-
 
 @pytest.mark.skipif(
-    backend.backend() != "jax",
+    backend.backend() not in ("jax", "torch"),
     reason="Only JAX has the proper backend distribution lib",
 )
 class ModelParallelDistributionTest(testing.TestCase):
@@ -283,7 +399,6 @@ class ModelParallelDistributionTest(testing.TestCase):
             shape, axis_names, self.devices
         )
 
-    @pytest.mark.skipif(testing.jax_uses_gpu(), reason="CI segfault")
     def test_distribute_weights(self):
         layout_map = distribution_lib.LayoutMap(self.device_mesh)
         layout_map[".*kernel"] = distribution_lib.TensorLayout([None, "model"])
@@ -292,9 +407,15 @@ class ModelParallelDistributionTest(testing.TestCase):
         distribution = distribution_lib.ModelParallel(
             layout_map=layout_map, batch_dim_name="data"
         )
-        kernel = backend.Variable(initializer=np.arange(8, 4), name="kernel")
-        bias = backend.Variable(initializer=np.arange(4), name="bias")
-        rng_seed = backend.Variable(initializer=[0, 1], name="seed")
+        kernel = backend.Variable(
+            initializer=np.ones((8, 4), dtype="float32"), name="kernel"
+        )
+        bias = backend.Variable(
+            initializer=np.ones((4,), dtype="float32"), name="bias"
+        )
+        rng_seed = backend.Variable(
+            initializer=[0, 1], trainable=False, name="seed"
+        )
 
         kernel_layout = distribution.get_variable_layout(kernel)
         self.assertIs(kernel_layout.device_mesh, self.device_mesh)
@@ -335,31 +456,95 @@ class ModelParallelDistributionTest(testing.TestCase):
         layout = distribution.get_tensor_layout("/model/layer/other_tensor")
         self.assertIsNone(layout)
 
-    @pytest.mark.skipif(testing.jax_uses_gpu(), reason="CI segfault")
-    def test_get_variable_layout_with_explicit_layout(self):
+    def test_variable_layout_with_explicit_layout(self):
         layout_map = distribution_lib.LayoutMap(self.device_mesh)
-        layout_map[".*kernel"] = distribution_lib.TensorLayout([None, "model"])
+        layout_map[".*bias"] = distribution_lib.TensorLayout([None, "model"])
         distribution = distribution_lib.ModelParallel(
             layout_map=layout_map, batch_dim_name="data"
         )
+        explicit_layout = create_custom_layout()
 
-        explicit_mesh = distribution_lib.DeviceMesh((8,), ["x"], self.devices)
-        explicit_layout = distribution_lib.TensorLayout(["x"], explicit_mesh)
-        variable = backend.Variable(initializer=[1, 2, 3], name="kernel")
-        variable._layout = explicit_layout
-        variable_layout = distribution.get_variable_layout(variable)
-        self.assertIs(variable_layout.device_mesh, explicit_mesh)
-        self.assertEqual(variable_layout.axes, explicit_layout.axes)
+        with (
+            distribution.scope(),
+            mock.patch.object(
+                backend_dlib,
+                "_to_backend_mesh",
+                return_value=MockDeviceMesh(),
+            ),
+            mock.patch.object(
+                backend_dlib,
+                "distribute_tensor",
+                side_effect=lambda v, l: v,
+            ) as mock_distribute_tensor,
+        ):
+            backend.Variable(
+                shape=(3,),
+                initializer="ones",
+                layout=explicit_layout,
+                name="bias",
+            )
+            mock_distribute_tensor.assert_called_once()
+            _, actual_layout = mock_distribute_tensor.call_args.args
+            self.assertIs(actual_layout, explicit_layout)
 
-    def test_distribute_dataset(self):
-        # We can only verify the single worker/process case in OSS for now.
-        dataset = tf.data.Dataset.range(8)
+    def test_add_weight_layout_with_explicit_layout(self):
         layout_map = distribution_lib.LayoutMap(self.device_mesh)
+        layout_map[".*bias"] = distribution_lib.TensorLayout([None, "model"])
         distribution = distribution_lib.ModelParallel(
             layout_map=layout_map, batch_dim_name="data"
         )
-        distributed_dataset = distribution.distribute_dataset(dataset)
-        self.assertIs(dataset, distributed_dataset)
+        explicit_layout = create_custom_layout()
+        layer = LayerWithLayout(layout=explicit_layout)
+
+        with (
+            distribution.scope(),
+            mock.patch.object(
+                backend_dlib,
+                "_to_backend_mesh",
+                return_value=MockDeviceMesh(),
+            ),
+            mock.patch.object(
+                backend_dlib,
+                "distribute_tensor",
+                side_effect=lambda v, l: v,
+            ) as mock_distribute_tensor,
+        ):
+            layer.build((8, explicit_layout.device_mesh.devices.size))
+            mock_distribute_tensor.assert_called_once()
+            _, actual_layout = mock_distribute_tensor.call_args.args
+            self.assertIs(actual_layout, explicit_layout)
+
+    @mock.patch.object(backend_dlib, "num_processes", return_value=4)
+    def test_num_processes_validation(self, mock_backend_num_processes):
+        device_mesh = distribution_lib.DeviceMesh(
+            (3, 2),
+            ["data", "model"],
+            ["cpu:0", "cpu:1", "cpu:2", "cpu:3", "cpu:4", "cpu:5"],
+        )
+        layout_map = distribution_lib.LayoutMap(device_mesh)
+        with self.assertRaisesRegex(
+            ValueError,
+            "`num_processes` must be divisible by `num_model_replicas`",
+        ):
+            distribution_lib.ModelParallel(
+                layout_map=layout_map,
+                batch_dim_name="data",
+                auto_shard_dataset=True,
+            )
+
+    @mock.patch.object(backend_dlib, "num_processes", return_value=2)
+    def test_num_model_replicas(self, mock_backend_num_processes):
+        device_mesh = distribution_lib.DeviceMesh(
+            (4, 2),
+            ["data", "model"],
+            [f"cpu:{i}" for i in range(8)],
+        )
+        layout_map = distribution_lib.LayoutMap(device_mesh)
+        distribution = distribution_lib.ModelParallel(
+            layout_map=layout_map, batch_dim_name="data"
+        )
+        self.assertEqual(distribution.num_model_replicas, 4)
+        self.assertEqual(distribution.num_processes, 2)
 
 
 class LayoutMapTest(testing.TestCase):
@@ -412,10 +597,10 @@ class LayoutMapTest(testing.TestCase):
         layout_map["dense/kernel"] = self.sharded_2d
         layout_map["dense/bias"] = self.sharded_1d
 
-        layout_map["dense.*kernel"] = self.replicated_2d
-        layout_map["dense.*bias"] = self.replicated_1d
+        layout_map[".*dense.*kernel"] = self.replicated_2d
+        layout_map[".*dense.*bias"] = self.replicated_1d
 
-        layout_map["bias"] = self.sharded_1d
+        layout_map[".*bias"] = self.sharded_1d
 
         self.assertEqual(layout_map["dense/kernel"], self.sharded_2d)
         self.assertEqual(layout_map["dense/bias"], self.sharded_1d)
@@ -475,6 +660,70 @@ class LayoutMapTest(testing.TestCase):
 
         self.assertEqual(keys, ["dense/kernel", "dense/bias"])
         self.assertEqual(values, [self.sharded_2d, self.sharded_1d])
+
+
+@pytest.mark.skipif(
+    backend.backend() not in ("jax", "torch"),
+    reason="Only JAX has the proper backend distribution lib",
+)
+@pytest.mark.multi_device
+class DataShardingIntegrationTest(testing.TestCase):
+    def test_distribute_dataset_sharding_behavior(self):
+        num_devices = distribution_lib.get_device_count()
+        self.assertGreaterEqual(
+            num_devices, 4, "Number of devices must be at least 4"
+        )
+        self.assertEqual(num_devices % 2, 0, "Number of devices must be even")
+
+        num_model_replicas = num_devices // 2
+        device_mesh = distribution_lib.DeviceMesh(
+            (num_model_replicas, 2),
+            ["data", "model"],
+        )
+        layout_map = distribution_lib.LayoutMap(device_mesh)
+        global_dataset = tf.data.Dataset.range(4 * num_model_replicas).batch(
+            2 * num_model_replicas
+        )
+
+        shards = []
+        distribution = distribution_lib.ModelParallel(
+            layout_map=layout_map,
+            batch_dim_name="data",
+            auto_shard_dataset=True,
+        )
+
+        # Simulate one process per local device to exercise process-group
+        # sharding semantics without backend mocking.
+        distribution._num_processes = num_devices
+        distribution._is_multi_process = True
+
+        from keras.src.trainers.data_adapters import tf_dataset_adapter
+
+        for process_id in range(num_devices):
+            distribution._process_id = process_id
+            adapter = tf_dataset_adapter.TFDatasetAdapter(
+                global_dataset, distribution=distribution
+            )
+            ds = adapter.get_tf_dataset()
+            shards.append(list(ds.unbatch().as_numpy_iterator()))
+
+        processes_per_replica = num_devices // num_model_replicas
+        for replica_id in range(num_model_replicas):
+            start = replica_id * processes_per_replica
+            for process_id in range(start + 1, start + processes_per_replica):
+                self.assertEqual(
+                    shards[start],
+                    shards[process_id],
+                    f"Processes {start} and {process_id} should have same "
+                    f"shard, got {shards}",
+                )
+
+        for replica_id in range(1, num_model_replicas):
+            self.assertNotEqual(
+                shards[0],
+                shards[replica_id * processes_per_replica],
+                f"Replica groups should have different shards, got {shards}",
+            )
 
 
 # @pytest.mark.skipif(

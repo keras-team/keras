@@ -1,5 +1,6 @@
 from keras.src import backend
 from keras.src import ops
+from keras.src import random
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 
@@ -59,7 +60,7 @@ class AlphaDropout(Layer):
             alpha_p = -alpha * scale
 
             kept_idx = ops.greater_equal(
-                ops.random.uniform(noise_shape, seed=self.seed_generator),
+                random.uniform(noise_shape, seed=self.seed_generator),
                 self.rate,
             )
             kept_idx = ops.cast(kept_idx, inputs.dtype)

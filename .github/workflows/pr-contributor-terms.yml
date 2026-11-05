@@ -1,0 +1,18 @@
+name: 'PR Contributor Agreement'
+
+on:
+  pull_request:
+    types:
+      - 'opened'
+      - 'edited'
+      - 'reopened'
+      - 'synchronize'
+
+permissions:
+  contents: 'read'
+  pull-requests: 'read'
+
+jobs:
+  verify:
+    if: github.repository == 'keras-team/keras'
+    uses: keras-team/shared-workflows/.github/workflows/pr-contributor-terms.yml@5ee0604fc2fb4bf0ff6032083a20d1da69e8b923 # v2

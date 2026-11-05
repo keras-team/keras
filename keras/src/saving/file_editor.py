@@ -1,9 +1,10 @@
 import collections
 import json
+import math
+import os.path
 import pprint
 import zipfile
 
-import h5py
 import numpy as np
 import rich.console
 
@@ -13,6 +14,7 @@ from keras.src.saving import saving_lib
 from keras.src.saving.saving_lib import H5IOStore
 from keras.src.utils import naming
 from keras.src.utils import summary_utils
+from keras.src.utils.module_utils import h5py
 
 try:
     import IPython as ipython
@@ -75,15 +77,25 @@ class KerasFileEditor:
 
         if filepath.endswith(".keras"):
             zf = zipfile.ZipFile(filepath, "r")
+            try:
+                saving_lib._reject_zip_archive_bomb(zf)
+            except Exception:
+                zf.close()
+                raise
+            # Reject a decompression-bomb weights member up front, mirroring
+            # `saving_lib._load_model_from_fileobj`.
+            saving_lib._reject_zip_bomb(zf, saving_lib._VARS_FNAME_H5)
             weights_store = H5IOStore(
-                saving_lib._VARS_FNAME + ".h5",
+                saving_lib._VARS_FNAME_H5,
                 archive=zf,
                 mode="r",
             )
-            with zf.open(saving_lib._CONFIG_FILENAME, "r") as f:
-                config_json = f.read()
-            with zf.open(saving_lib._METADATA_FILENAME, "r") as f:
-                metadata_json = f.read()
+            config_json = saving_lib._safe_zip_read(
+                zf, saving_lib._CONFIG_FILENAME
+            )
+            metadata_json = saving_lib._safe_zip_read(
+                zf, saving_lib._METADATA_FILENAME
+            )
             self.config = json.loads(config_json)
             self.metadata = json.loads(metadata_json)
 
@@ -143,7 +155,7 @@ class KerasFileEditor:
         ):
             base_inner_path = inner_path
             for ref_key, ref_val in ref_spec.items():
-                inner_path = base_inner_path + "/" + ref_key
+                inner_path = f"{base_inner_path}/{ref_key}"
                 if inner_path in checked_paths:
                     continue
 
@@ -435,7 +447,7 @@ class KerasFileEditor:
                         _save(
                             weights_dict[name],
                             weights_store,
-                            inner_path=inner_path + "/" + name,
+                            inner_path=os.path.join(inner_path, name),
                         )
                 else:
                     # e.g. name="0", value=HDF5Dataset
@@ -454,6 +466,9 @@ class KerasFileEditor:
     def _extract_weights_from_store(self, data, metadata=None, inner_path=""):
         metadata = metadata or {}
 
+        # ------------------------------------------------------
+        # Collect metadata for this HDF5 group
+        # ------------------------------------------------------
         object_metadata = {}
         for k, v in data.attrs.items():
             object_metadata[k] = v
@@ -461,26 +476,120 @@ class KerasFileEditor:
             metadata[inner_path] = object_metadata
 
         result = collections.OrderedDict()
+
+        # ------------------------------------------------------
+        # Iterate over all keys in this HDF5 group
+        # ------------------------------------------------------
         for key in data.keys():
-            inner_path = inner_path + "/" + key
+            # IMPORTANT:
+            # Never mutate inner_path; use local variable.
+            current_inner_path = f"{inner_path}/{key}"
+
+            # Reject HDF5 `ExternalLink`/`SoftLink`.
+            child_class = data.get(
+                key, default=None, getclass=True, getlink=True
+            )
+            if child_class in (h5py.ExternalLink, h5py.SoftLink):
+                raise ValueError(
+                    f"Not allowed: H5 file with {child_class.__name__}"
+                )
+
             value = data[key]
+
+            # ------------------------------------------------------
+            # CASE 1 — HDF5 GROUP → RECURSE
+            # ------------------------------------------------------
             if isinstance(value, h5py.Group):
+                # Skip empty groups
                 if len(value) == 0:
                     continue
-                if "vars" in value.keys() and len(value["vars"]) == 0:
-                    continue
 
-            if hasattr(value, "keys"):
+                # Recurse into "vars" subgroup when present
                 if "vars" in value.keys():
+                    vars_group = saving_lib.safe_get_h5_group(value, "vars")
+                    # Skip empty "vars" groups
+                    if len(vars_group) == 0:
+                        continue
                     result[key], metadata = self._extract_weights_from_store(
-                        value["vars"], metadata=metadata, inner_path=inner_path
+                        vars_group,
+                        metadata=metadata,
+                        inner_path=current_inner_path,
                     )
                 else:
+                    # Recurse normally
                     result[key], metadata = self._extract_weights_from_store(
-                        value, metadata=metadata, inner_path=inner_path
+                        value,
+                        metadata=metadata,
+                        inner_path=current_inner_path,
                     )
-            else:
-                result[key] = value[()]
+
+                continue  # finished processing this key
+
+            # ------------------------------------------------------
+            # CASE 2 — HDF5 DATASET → SAFE LOADING
+            # ------------------------------------------------------
+
+            # Skip any objects that are not proper datasets
+            if not isinstance(value, h5py.Dataset):
+                continue
+
+            if value.external:
+                raise ValueError(
+                    "Not allowed: H5 file Dataset with external links: "
+                    f"{value.external}"
+                )
+
+            if value.is_virtual:
+                raise ValueError(
+                    "Not allowed: H5 file with virtual Dataset at "
+                    f"{current_inner_path}"
+                )
+
+            shape = value.shape
+            dtype = value.dtype
+
+            # ------------------------------------------------------
+            # Validate SHAPE (avoid malformed / malicious metadata)
+            # ------------------------------------------------------
+
+            # No negative dimensions
+            if any(dim < 0 for dim in shape):
+                raise ValueError(
+                    "Malformed HDF5 dataset shape encountered in .keras file; "
+                    "negative dimension detected."
+                )
+
+            # Prevent absurdly high-rank tensors
+            if len(shape) > 64:
+                raise ValueError(
+                    "Malformed HDF5 dataset shape encountered in .keras file; "
+                    "tensor rank exceeds safety limit."
+                )
+
+            # Safe product computation (Python int is unbounded)
+            num_elems = math.prod(shape)
+
+            # ------------------------------------------------------
+            # Validate TOTAL memory size
+            # ------------------------------------------------------
+            MAX_BYTES = 1 << 32  # 4 GiB
+
+            size_bytes = num_elems * dtype.itemsize
+
+            if size_bytes > MAX_BYTES:
+                raise ValueError(
+                    f"HDF5 dataset too large to load safely "
+                    f"({size_bytes} bytes; limit is {MAX_BYTES})."
+                )
+
+            # ------------------------------------------------------
+            # SAFE — load dataset (guaranteed ≤ 4 GiB)
+            # ------------------------------------------------------
+            result[key] = value[()]
+
+        # ------------------------------------------------------
+        # Return final tree and metadata
+        # ------------------------------------------------------
         return result, metadata
 
     def _generate_filepath_info(self, rich_style=False):
@@ -506,7 +615,7 @@ class KerasFileEditor:
         self, weights_dict, indent=0, is_first=True, prefix="", inner_path=""
     ):
         for idx, (key, value) in enumerate(weights_dict.items()):
-            inner_path = inner_path + "/" + key
+            inner_path = os.path.join(inner_path, key)
             is_last = idx == len(weights_dict) - 1
             if is_first:
                 is_first = False
@@ -556,29 +665,30 @@ class KerasFileEditor:
             html = ""
             for key, value in dictionary.items():
                 if isinstance(value, dict) and value:
+                    weights_html = _generate_html_weights(
+                        value, margin_left + 20, font_size - 1
+                    )
                     html += (
                         f'<details style="margin-left: {margin_left}px;">'
-                        + '<summary style="'
-                        + f"font-size: {font_size}em; "
-                        + "font-weight: bold;"
-                        + f'">{key}</summary>'
-                        + _generate_html_weights(
-                            value, margin_left + 20, font_size - 1
-                        )
-                        + "</details>"
+                        '<summary style="'
+                        f"font-size: {font_size}em; "
+                        "font-weight: bold;"
+                        f'">{key}</summary>'
+                        f"{weights_html}"
+                        "</details>"
                     )
                 else:
                     html += (
                         f'<details style="margin-left: {margin_left}px;">'
-                        + f'<summary style="font-size: {font_size}em;">'
-                        + f"{key} : shape={value.shape}"
-                        + f", dtype={value.dtype}</summary>"
-                        + f"<div style="
+                        f'<summary style="font-size: {font_size}em;">'
+                        f"{key} : shape={value.shape}"
+                        f", dtype={value.dtype}</summary>"
+                        f"<div style="
                         f'"margin-left: {margin_left}px;'
                         f'"margin-top: {margin_left}px;">'
-                        + f"{display_weight(value)}"
-                        + "</div>"
-                        + "</details>"
+                        f"{display_weight(value)}"
+                        "</div>"
+                        "</details>"
                     )
             return html
 

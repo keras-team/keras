@@ -1,9 +1,14 @@
 import hashlib
+import inspect
 import os
 import re
 import shutil
+import sys
 import tarfile
+import tempfile
 import urllib
+import urllib.error
+import urllib.parse
 import warnings
 import zipfile
 from urllib.request import urlretrieve
@@ -11,6 +16,7 @@ from urllib.request import urlretrieve
 from keras.src.api_export import keras_export
 from keras.src.backend import config
 from keras.src.utils import io_utils
+from keras.src.utils.module_utils import epath
 from keras.src.utils.module_utils import gfile
 from keras.src.utils.progbar import Progbar
 
@@ -37,35 +43,119 @@ def path_to_string(path):
 
 
 def resolve_path(path):
-    return os.path.realpath(os.path.abspath(path))
+    return os.path.realpath(path)
 
 
-def is_path_in_dir(path, base_dir):
-    return resolve_path(os.path.join(base_dir, path)).startswith(base_dir)
+def resolve_sub_path(base_dir, relative_path):
+    """Verify that a relative path stays within the base directory.
+
+    Args:
+        base_dir: The base directory to check against, must be resolved via
+            `resolve_path`.
+        relative_path: The relative path to check.
+
+    Returns:
+        The resolved path if it is within the base directory, None otherwise.
+    """
+    path = resolve_path(os.path.join(base_dir, relative_path))
+    try:
+        if os.path.commonpath([path, base_dir]) == base_dir:
+            return path
+        return None
+    except ValueError:
+        return None
 
 
-def is_link_in_dir(info, base):
-    tip = resolve_path(os.path.join(base, os.path.dirname(info.name)))
-    return is_path_in_dir(info.linkname, base_dir=tip)
+def is_link_in_dir(info, base_dir):
+    if info.islnk():
+        # Hard links resolve relative to the root. Verify both the link
+        # location and target location.
+        return (
+            resolve_sub_path(base_dir, info.name) is not None
+            and resolve_sub_path(base_dir, info.linkname) is not None
+        )
+
+    # Symlinks resolve relative to the directory of their destination.
+    destination = resolve_sub_path(base_dir, info.name)
+    if destination is None:
+        return False
+    link = resolve_path(
+        os.path.join(os.path.dirname(destination), info.linkname)
+    )
+    try:
+        if os.path.commonpath([link, base_dir]) == base_dir:
+            return True
+        return False
+    except ValueError:
+        return False
 
 
-def filter_safe_paths(members):
-    base_dir = resolve_path(".")
+def filter_safe_zipinfos(members, base_dir):
+    base_dir = resolve_path(base_dir)
     for finfo in members:
         valid_path = False
-        if is_path_in_dir(finfo.name, base_dir):
+        if resolve_sub_path(base_dir, finfo.filename) is not None:
             valid_path = True
             yield finfo
-        elif finfo.issym() or finfo.islnk():
+        if not valid_path:
+            warnings.warn(
+                "Skipping invalid path during archive extraction: "
+                f"'{finfo.filename}'.",
+                stacklevel=2,
+            )
+
+
+def filter_safe_tarinfos(members, base_dir):
+    base_dir = resolve_path(base_dir)
+    for finfo in members:
+        valid_path = False
+        if finfo.issym() or finfo.islnk():
             if is_link_in_dir(finfo, base_dir):
                 valid_path = True
                 yield finfo
+        elif resolve_sub_path(base_dir, finfo.name) is not None:
+            valid_path = True
+            yield finfo
         if not valid_path:
             warnings.warn(
                 "Skipping invalid path during archive extraction: "
                 f"'{finfo.name}'.",
                 stacklevel=2,
             )
+
+
+def extract_open_archive(archive, path="."):
+    """Extracts an open tar or zip archive to the provided directory.
+
+    This function filters unsafe paths during extraction.
+
+    Args:
+        archive: The archive object, either a `TarFile` or a `ZipFile`.
+        path: Where to extract the archive file.
+    """
+    if isinstance(archive, zipfile.ZipFile):
+        # Zip archive.
+        archive.extractall(
+            path, members=filter_safe_zipinfos(archive.infolist(), path)
+        )
+    else:
+        # Tar archive.
+        extractall_kwargs = {}
+        # The `filter="data"` option was:
+        # - added in Python 3.12
+        # - backported to Python 3.10.12 and 3.11.4
+        # - became the default starting from Python 3.14
+        # So we only specify it for supported versions before 3.14.
+        if (
+            sys.version_info < (3, 14)
+            and "filter" in inspect.signature(archive.extractall).parameters
+        ):
+            extractall_kwargs = {"filter": "data"}
+        archive.extractall(
+            path,
+            members=filter_safe_tarinfos(archive, path),
+            **extractall_kwargs,
+        )
 
 
 def extract_archive(file_path, path=".", archive_format="auto"):
@@ -109,14 +199,7 @@ def extract_archive(file_path, path=".", archive_format="auto"):
         if is_match_fn(file_path):
             with open_fn(file_path) as archive:
                 try:
-                    if zipfile.is_zipfile(file_path):
-                        # Zip archive.
-                        archive.extractall(path)
-                    else:
-                        # Tar archive, perhaps unsafe. Filter paths.
-                        archive.extractall(
-                            path, members=filter_safe_paths(archive)
-                        )
+                    extract_open_archive(archive, path)
                 except (tarfile.TarError, RuntimeError, KeyboardInterrupt):
                     if os.path.exists(path):
                         if os.path.isfile(path):
@@ -159,7 +242,7 @@ def get_file(
     ```python
     path_to_downloaded_file = get_file(
         origin="https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz",
-        extract=True,
+        extract=True
     )
     ```
 
@@ -221,7 +304,9 @@ def get_file(
         hash_algorithm = "md5"
     datadir_base = os.path.expanduser(cache_dir)
     if not os.access(datadir_base, os.W_OK):
-        datadir_base = os.path.join("/tmp", ".keras")
+        datadir_base = os.path.join(
+            "/tmp" if os.path.isdir("/tmp") else tempfile.gettempdir(), ".keras"
+        )
     datadir = os.path.join(datadir_base, cache_subdir)
     os.makedirs(datadir, exist_ok=True)
 
@@ -230,14 +315,21 @@ def get_file(
 
     if not fname:
         fname = os.path.basename(urllib.parse.urlsplit(origin).path)
-        if not fname:
+        # `basename` strips separators, but a URL path ending in `/.` or `/..`
+        # (or, on Windows, in a drive letter) still yields a name that escapes
+        # `datadir` when joined to it.
+        if (
+            not fname
+            or fname in (os.curdir, os.pardir)
+            or os.path.splitdrive(fname)[0]
+        ):
             raise ValueError(
                 "Can't parse the file name from the origin provided: "
-                f"'{origin}'."
+                f"'{origin}'. "
                 "Please specify the `fname` argument."
             )
     else:
-        if os.sep in fname:
+        if os.sep in fname or (os.altsep and os.altsep in fname):
             raise ValueError(
                 "Paths are no longer accepted as the `fname` argument. "
                 "To specify the file's parent directory, use "
@@ -249,13 +341,13 @@ def get_file(
             if "." in fname:
                 download_target = os.path.join(datadir, fname)
                 fname = fname[: fname.find(".")]
-                extraction_dir = os.path.join(datadir, fname + "_extracted")
+                extraction_dir = os.path.join(datadir, f"{fname}_extracted")
             else:
                 extraction_dir = os.path.join(datadir, fname)
-                download_target = os.path.join(datadir, fname + "_archive")
+                download_target = os.path.join(datadir, f"{fname}_archive")
         else:
             extraction_dir = os.path.join(datadir, fname)
-            download_target = os.path.join(datadir, fname + "_archive")
+            download_target = os.path.join(datadir, f"{fname}_archive")
     else:
         download_target = os.path.join(datadir, fname)
 
@@ -415,7 +507,7 @@ def is_remote_path(filepath):
 
     This function checks if the filepath represents a known remote pattern
     such as GCS (`/gcs`), CNS (`/cns`), CFS (`/cfs`), HDFS (`/hdfs`), Placer
-    (`/placer`), TFHub (`/tfhub`), or a URL (`.*://`).
+    (`/placer`), TFHub (`/tfhub`), Namespace (`/namespace`), or a URL (`.*://`).
 
     Args:
         filepath (str): The path to be checked.
@@ -424,99 +516,136 @@ def is_remote_path(filepath):
         bool: True if the filepath is a recognized remote path, otherwise False
     """
     if re.match(
-        r"^(/cns|/cfs|/gcs|/hdfs|/readahead|/placer|/tfhub|.*://).*$",
+        r"^(/cns|/cfs|/gcs|/hdfs|/readahead|/placer|/tfhub|/namespace"
+        r"|.*://).*$",
         str(filepath),
     ):
         return True
     return False
 
 
-# Below are gfile-replacement utils.
+# Remote paths are handled by TensorFlow's `gfile` when TensorFlow is installed,
+# and otherwise by etils.epath, so that remote file access does not require
+# TensorFlow. Local paths always use `os` / `shutil`.
 
 
-def _raise_if_no_gfile(path):
-    raise ValueError(
-        "Handling remote paths requires installing TensorFlow "
-        f"(in order to use gfile). Received path: {path}"
-    )
+def _is_remote_path_or_raise(path):
+    """Returns whether `path` is remote.
+
+    Raises a `ValueError` if `path` is remote but neither TensorFlow nor
+    etils.epath is installed.
+    """
+    if not is_remote_path(path):
+        return False
+    if not (gfile.available or epath.available):
+        raise ValueError(
+            "Handling remote paths requires installing etils[epath] "
+            "(e.g. `pip install keras[gcs]`) or TensorFlow. "
+            f"Received: path={path}"
+        )
+    return True
 
 
 def exists(path):
-    if is_remote_path(path):
+    if _is_remote_path_or_raise(path):
         if gfile.available:
             return gfile.exists(path)
-        else:
-            _raise_if_no_gfile(path)
+        return epath.Path(path).exists()
     return os.path.exists(path)
 
 
 def File(path, mode="r"):
-    if is_remote_path(path):
+    if _is_remote_path_or_raise(path):
         if gfile.available:
             return gfile.GFile(path, mode=mode)
-        else:
-            _raise_if_no_gfile(path)
+        return epath.Path(path).open(mode=mode)
     return open(path, mode=mode)
 
 
 def join(path, *paths):
-    if is_remote_path(path):
+    if _is_remote_path_or_raise(path):
         if gfile.available:
             return gfile.join(path, *paths)
-        else:
-            _raise_if_no_gfile(path)
+        res = str(epath.Path(path).joinpath(*paths))
+        # Match `gfile.join`, which preserves a trailing slash.
+        last = paths[-1] if paths else path
+        if (last == "" or str(last).endswith("/")) and not res.endswith("/"):
+            return res + "/"
+        return res
     return os.path.join(path, *paths)
 
 
 def isdir(path):
-    if is_remote_path(path):
+    if _is_remote_path_or_raise(path):
         if gfile.available:
             return gfile.isdir(path)
-        else:
-            _raise_if_no_gfile(path)
+        return epath.Path(path).is_dir()
     return os.path.isdir(path)
 
 
 def remove(path):
-    if is_remote_path(path):
+    if _is_remote_path_or_raise(path):
         if gfile.available:
             return gfile.remove(path)
-        else:
-            _raise_if_no_gfile(path)
+        return epath.Path(path).unlink()
     return os.remove(path)
 
 
 def rmtree(path):
-    if is_remote_path(path):
+    if _is_remote_path_or_raise(path):
         if gfile.available:
             return gfile.rmtree(path)
-        else:
-            _raise_if_no_gfile(path)
+        return epath.Path(path).rmtree()
     return shutil.rmtree(path)
 
 
 def listdir(path):
-    if is_remote_path(path):
+    if _is_remote_path_or_raise(path):
         if gfile.available:
             return gfile.listdir(path)
-        else:
-            _raise_if_no_gfile(path)
+        return [child.name for child in epath.Path(path).iterdir()]
     return os.listdir(path)
 
 
+def _epath_walk(top, topdown=True, onerror=None):
+    # Match `gfile.walk`, which yields `root` as a `str` rather than a `Path`.
+    for root, dirs, files in epath.Path(top).walk(
+        top_down=topdown, on_error=onerror
+    ):
+        yield str(root), dirs, files
+
+
+def walk(top, topdown=True, onerror=None, followlinks=False):
+    if _is_remote_path_or_raise(top):
+        if gfile.available:
+            return gfile.walk(top, topdown=topdown, onerror=onerror)
+        return _epath_walk(top, topdown=topdown, onerror=onerror)
+    return os.walk(
+        top, topdown=topdown, onerror=onerror, followlinks=followlinks
+    )
+
+
 def copy(src, dst):
-    if is_remote_path(src) or is_remote_path(dst):
+    if _is_remote_path_or_raise(src) or _is_remote_path_or_raise(dst):
         if gfile.available:
             return gfile.copy(src, dst, overwrite=True)
-        else:
-            _raise_if_no_gfile(f"src={src} dst={dst}")
+        return epath.Path(src).copy(dst, overwrite=True)
     return shutil.copy(src, dst)
 
 
 def makedirs(path):
-    if is_remote_path(path):
+    if _is_remote_path_or_raise(path):
         if gfile.available:
             return gfile.makedirs(path)
-        else:
-            _raise_if_no_gfile(path)
+        # Match `gfile.makedirs`, which does not fail if `path` exists.
+        return epath.Path(path).mkdir(parents=True, exist_ok=True)
     return os.makedirs(path)
+
+
+def getmtime(path):
+    """Returns the last modification time of `path`, in seconds since epoch."""
+    if _is_remote_path_or_raise(path):
+        if gfile.available:
+            return gfile.stat(path).mtime_nsec / 1e9
+        return epath.Path(path).stat().mtime
+    return os.path.getmtime(path)

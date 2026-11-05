@@ -1,12 +1,16 @@
+import io
 import os
 import pathlib
 import unittest.mock as mock
 
+import h5py
 import numpy as np
 from absl import logging
 from absl.testing import parameterized
 
 from keras.src import layers
+from keras.src.legacy.saving.legacy_h5_format import save_model_to_hdf5
+from keras.src.models import Model
 from keras.src.models import Sequential
 from keras.src.saving import saving_api
 from keras.src.testing import test_case
@@ -53,7 +57,18 @@ class SaveModelTests(test_case.TestCase):
         """Test saving model in h5 format."""
         model = self.get_model()
         filepath_h5 = os.path.join(self.get_temp_dir(), "test_model.h5")
-        saving_api.save_model(model, filepath_h5)
+
+        # Verify the warning.
+        with mock.patch.object(logging, "warning") as mock_warn:
+            saving_api.save_model(model, filepath_h5)
+            mock_warn.assert_called_once_with(
+                "You are saving your model as an HDF5 file via "
+                "`model.save()` or `keras.saving.save_model(model)`. "
+                "This file format is considered legacy. "
+                "We recommend using instead the native Keras format, "
+                "e.g. `model.save('my_model.keras')` or "
+                "`keras.saving.save_model(model, 'my_model.keras')`. "
+            )
         self.assertTrue(os.path.exists(filepath_h5))
         os.remove(filepath_h5)
 
@@ -103,6 +118,45 @@ class SaveModelTests(test_case.TestCase):
             model.layers[0].get_weights()[1],
         )
 
+    def test_objects_to_skip_with_functional_subclass_attribute_layer(self):
+        class Backbone(Model):
+            def __init__(self):
+                # Simulate a layer owned by a Functional subclass, but not
+                # part of the Functional graph. This matches e.g. a decoder
+                # attached to a backbone but called by a task model.
+                decoder = layers.Dense(2, name="decoder")
+
+                encoder = layers.Dense(4, name="encoder")
+                inputs = layers.Input((3,))
+                outputs = encoder(inputs)
+                super().__init__(inputs, outputs)
+                self.decoder = decoder
+
+        class Task(Model):
+            def __init__(self, backbone):
+                inputs = backbone.input
+                outputs = backbone.decoder(backbone(inputs))
+                super().__init__(inputs, outputs)
+                self.backbone = backbone
+
+        legacy_task = Task(Backbone())
+        legacy_task(np.ones((1, 3)))
+        filepath = os.path.join(self.get_temp_dir(), "legacy_task.weights.h5")
+        # This simulates a legacy task weight file that contains the full task,
+        # while modern task loading skips backbone-owned objects.
+        saving_api.save_weights(legacy_task, filepath)
+
+        new_task = Task(Backbone())
+        new_task(np.ones((1, 3)))
+        decoder_kernel = np.array(new_task.backbone.decoder.kernel)
+        objects_to_skip = list(new_task.backbone._flatten_layers())
+
+        self.assertIn(new_task.backbone.decoder, objects_to_skip)
+        saving_api.load_weights(
+            new_task, filepath, objects_to_skip=objects_to_skip
+        )
+        self.assertAllClose(new_task.backbone.decoder.kernel, decoder_kernel)
+
 
 class LoadModelTests(test_case.TestCase):
     def get_model(self, dtype=None):
@@ -130,6 +184,18 @@ class LoadModelTests(test_case.TestCase):
         loaded_model = saving_api.load_model(filepath)
         x = np.random.uniform(size=(10, 3))
         self.assertEqual(loaded_model.weights[0].dtype, dtype)
+        self.assertTrue(np.allclose(model.predict(x), loaded_model.predict(x)))
+
+    def test_load_from_fileobj(self):
+        """Test loading model from an io.BytesIO file object."""
+        model = self.get_model()
+        filepath = os.path.join(self.get_temp_dir(), "test_model.keras")
+        saving_api.save_model(model, filepath)
+        with open(filepath, "rb") as f:
+            model_bytes = io.BytesIO(f.read())
+
+        loaded_model = saving_api.load_model(model_bytes)
+        x = np.random.uniform(size=(10, 3))
         self.assertTrue(np.allclose(model.predict(x), loaded_model.predict(x)))
 
     def test_load_unsupported_format(self):
@@ -203,40 +269,114 @@ class LoadWeightsTests(test_case.TestCase):
 
     @parameterized.named_parameters(
         named_product(
+            save_format=["keras", "weights.h5", "h5"],
             source_dtype=["float64", "float32", "float16", "bfloat16"],
             dest_dtype=["float64", "float32", "float16", "bfloat16"],
         )
     )
-    def test_load_keras_weights(self, source_dtype, dest_dtype):
+    def test_load_weights(self, save_format, source_dtype, dest_dtype):
         """Test loading keras weights."""
         src_model = self.get_model(dtype=source_dtype)
-        filepath = os.path.join(self.get_temp_dir(), "test_weights.weights.h5")
-        src_model.save_weights(filepath)
-        src_weights = src_model.get_weights()
+        if save_format == "keras":
+            filepath = os.path.join(self.get_temp_dir(), "test_weights.keras")
+            src_model.save(filepath)
+        elif save_format == "weights.h5":
+            filepath = os.path.join(
+                self.get_temp_dir(), "test_weights.weights.h5"
+            )
+            src_model.save_weights(filepath)
+        elif save_format == "h5":
+            if "bfloat16" in (source_dtype, dest_dtype):
+                raise self.skipTest(
+                    "bfloat16 dtype is not supported in legacy h5 format."
+                )
+            filepath = os.path.join(self.get_temp_dir(), "test_weights.h5")
+            save_model_to_hdf5(src_model, filepath)
+        else:
+            raise ValueError(f"Unsupported save format: {save_format}")
+
         dest_model = self.get_model(dtype=dest_dtype)
         dest_model.load_weights(filepath)
+
+        src_weights = src_model.get_weights()
         dest_weights = dest_model.get_weights()
         for orig, loaded in zip(src_weights, dest_weights):
             self.assertAllClose(
                 orig.astype("float32"),
                 loaded.astype("float32"),
-                atol=0.001,
-                rtol=0.01,
+                atol=1e-3,
+                rtol=1e-2,
             )
 
-    def test_load_h5_weights_by_name(self):
-        """Test loading h5 weights by name."""
-        model = self.get_model()
-        filepath = os.path.join(self.get_temp_dir(), "test_weights.weights.h5")
-        model.save_weights(filepath)
-        with self.assertRaisesRegex(ValueError, "Invalid keyword arguments"):
-            model.load_weights(filepath, by_name=True)
+    def test_load_weights_invalid_kwargs(self):
+        src_model = self.get_model()
+        keras_filepath = os.path.join(self.get_temp_dir(), "test_weights.keras")
+        weight_h5_filepath = os.path.join(
+            self.get_temp_dir(), "test_weights.weights.h5"
+        )
+        legacy_h5_filepath = os.path.join(
+            self.get_temp_dir(), "test_weights.h5"
+        )
+        src_model.save(keras_filepath)
+        src_model.save_weights(weight_h5_filepath)
+        save_model_to_hdf5(src_model, legacy_h5_filepath)
+
+        dest_model = self.get_model()
+        # Test keras file.
+        with self.assertRaisesRegex(
+            ValueError, r"only supports loading '.weights.h5' files."
+        ):
+            dest_model.load_weights(keras_filepath, objects_to_skip=[])
+        with self.assertRaisesRegex(
+            ValueError, r"only supports loading legacy '.h5' or '.hdf5' files."
+        ):
+            dest_model.load_weights(keras_filepath, by_name=True)
+        with self.assertRaisesRegex(ValueError, r"Invalid keyword arguments"):
+            dest_model.load_weights(keras_filepath, bad_kwarg=None)
+        # Test weights.h5 file.
+        with self.assertRaisesRegex(
+            ValueError, r"only supports loading legacy '.h5' or '.hdf5' files."
+        ):
+            dest_model.load_weights(weight_h5_filepath, by_name=True)
+        # Test h5 file.
+        with self.assertRaisesRegex(
+            ValueError, r"only supports loading '.weights.h5' files."
+        ):
+            dest_model.load_weights(legacy_h5_filepath, objects_to_skip=[])
 
     def test_load_weights_invalid_extension(self):
         """Test loading weights with unsupported extension."""
         model = self.get_model()
         with self.assertRaisesRegex(ValueError, "File format not supported"):
             model.load_weights("invalid_extension.pkl")
+
+    def test_load_weights_rejects_h5_external_link(self):
+        target_fpath = os.path.join(self.get_temp_dir(), "target.h5")
+        src_model = self.get_model()
+        save_model_to_hdf5(src_model, target_fpath)
+
+        attacker_fpath = os.path.join(self.get_temp_dir(), "attacker.h5")
+        with h5py.File(attacker_fpath, "w") as f:
+            f["model_weights"] = h5py.ExternalLink(
+                target_fpath, "/model_weights"
+            )
+
+        dest_model = self.get_model()
+        with self.assertRaisesRegex(ValueError, "ExternalLink"):
+            dest_model.load_weights(attacker_fpath)
+
+    def test_load_weights_rejects_h5_soft_link(self):
+        attacker_fpath = os.path.join(
+            self.get_temp_dir(), "softlink_attacker.h5"
+        )
+        with h5py.File(attacker_fpath, "w") as f:
+            real = f.create_group("real_weights")
+            real.create_dataset("inner", data=np.zeros((1,)))
+            f["model_weights"] = h5py.SoftLink("/real_weights")
+
+        dest_model = self.get_model()
+        with self.assertRaisesRegex(ValueError, "SoftLink"):
+            dest_model.load_weights(attacker_fpath)
 
     def test_load_sharded_weights(self):
         src_model = self.get_model()
@@ -251,29 +391,3 @@ class LoadWeightsTests(test_case.TestCase):
         dest_weights = dest_model.get_weights()
         for orig, loaded in zip(src_weights, dest_weights):
             self.assertAllClose(orig, loaded)
-
-
-class SaveModelTestsWarning(test_case.TestCase):
-    def get_model(self):
-        return Sequential(
-            [
-                layers.Dense(5, input_shape=(3,)),
-                layers.Softmax(),
-            ]
-        )
-
-    def test_h5_deprecation_warning(self):
-        """Test deprecation warning for h5 format."""
-        model = self.get_model()
-        filepath = os.path.join(self.get_temp_dir(), "test_model.h5")
-
-        with mock.patch.object(logging, "warning") as mock_warn:
-            saving_api.save_model(model, filepath)
-            mock_warn.assert_called_once_with(
-                "You are saving your model as an HDF5 file via "
-                "`model.save()` or `keras.saving.save_model(model)`. "
-                "This file format is considered legacy. "
-                "We recommend using instead the native Keras format, "
-                "e.g. `model.save('my_model.keras')` or "
-                "`keras.saving.save_model(model, 'my_model.keras')`. "
-            )

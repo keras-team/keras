@@ -1,3 +1,5 @@
+import numpy as np
+
 try:
     import sklearn
     from sklearn.base import BaseEstimator
@@ -25,8 +27,8 @@ def _check_model(model):
     # compile model if user gave us an un-compiled model
     if not model.compiled or not model.loss or not model.optimizer:
         raise RuntimeError(
-            "Given model needs to be compiled, and have a loss and an "
-            "optimizer."
+            "Given model needs to be compiled, and have a loss "
+            "and an optimizer."
         )
 
 
@@ -78,10 +80,11 @@ class TargetReshaper(TransformerMixin, BaseEstimator):
                 If the transformer was fit to a 1D numpy array,
                 and a 2D numpy array with a singleton second dimension
                 is passed, it will be squeezed back to 1D. Otherwise, it
-                will eb left untouched.
+                will be left untouched.
         """
-        sklearn.base.check_is_fitted(self)
-        xp, _ = sklearn.utils._array_api.get_namespace(y)
+        from sklearn.utils.validation import check_is_fitted
+
+        check_is_fitted(self)
         if self.ndim_ == 1 and y.ndim == 2:
-            return xp.squeeze(y, axis=1)
+            return np.squeeze(y, axis=1)
         return y

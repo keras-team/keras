@@ -47,7 +47,7 @@ class RandomZoomTest(testing.TestCase):
                 [0, 0, 0, 0, 0],
             ]
         )
-        expected_output = backend.convert_to_tensor(
+        expected_output = backend.ops.convert_to_tensor(
             np.reshape(expected_output, input_shape)
         )
         self.run_layer_test(
@@ -63,6 +63,8 @@ class RandomZoomTest(testing.TestCase):
             expected_output=expected_output,
             supports_masking=False,
             run_training_check=False,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
 
     def test_random_zoom_in_correctness(self):
@@ -80,7 +82,7 @@ class RandomZoomTest(testing.TestCase):
                 [16.0, 16.5, 17.0, 17.5, 18.0],
             ]
         )
-        expected_output = backend.convert_to_tensor(
+        expected_output = backend.ops.convert_to_tensor(
             np.reshape(expected_output, input_shape)
         )
         self.run_layer_test(
@@ -121,7 +123,7 @@ class RandomZoomTest(testing.TestCase):
             ]
         ).reshape(input_shape)
         output = next(iter(ds)).numpy()
-        self.assertAllClose(expected_output, output)
+        self.assertAllClose(output, expected_output)
 
     def test_dynamic_shape(self):
         inputs = layers.Input((None, None, 3))
@@ -135,8 +137,8 @@ class RandomZoomTest(testing.TestCase):
         model.predict(np.random.random((1, 6, 6, 3)))
 
     @pytest.mark.skipif(
-        backend.backend() == "numpy",
-        reason="The NumPy backend does not implement fit.",
+        not backend.SUPPORTS_GRADIENT,
+        reason="Backends without gradient support do not implement fit.",
     )
     def test_connect_with_flatten(self):
         model = models.Sequential(

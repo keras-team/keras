@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -31,9 +33,10 @@ class TestEpochIterator(testing.TestCase):
             generator = iterator
         else:
             generator = iterator.enumerate_epoch()
-        for step, batch in generator:
+        for begin_step, end_step, batch in generator:
             batch = batch[0]
-            steps_seen.append(step)
+            steps_seen.append(begin_step)
+            self.assertEqual(begin_step, end_step)
             self.assertEqual(len(batch), 3)
             self.assertIsInstance(batch[0], np.ndarray)
         self.assertEqual(steps_seen, [0, 1, 2, 3, 4, 5, 6])
@@ -52,11 +55,33 @@ class TestEpochIterator(testing.TestCase):
         )
         steps_seen = []
         with pytest.warns(match="Your input ran out of data"):
-            for step, _ in iterator:
+            for step, _, _ in iterator:
                 steps_seen.append(step)
         self.assertLen(steps_seen, steps_per_epoch - 2)
 
         self.assertIsInstance(iterator, epoch_iterator.EpochIterator)
+
+    def test_unknown_length_input_does_not_warn(self):
+        # Reaching the end of an input of unknown length is how the epoch size
+        # gets discovered, not an interruption, so it should not warn.
+        num_batches = 4
+
+        def generator_example():
+            for i in range(num_batches):
+                yield (np.array([i]), np.array([i * 2]))
+
+        iterator = epoch_iterator.EpochIterator(x=generator_example())
+        self.assertIsNone(iterator.num_batches)
+
+        steps_seen = []
+        with warnings.catch_warnings(record=True) as raised:
+            warnings.simplefilter("always")
+            for step, _, _ in iterator:
+                steps_seen.append(step)
+        self.assertLen(steps_seen, num_batches)
+        self.assertEmpty(
+            [w for w in raised if "ran out of data" in str(w.message)]
+        )
 
     def test_unsupported_y_arg_tfdata(self):
         with self.assertRaisesRegex(ValueError, "`y` should not be passed"):
@@ -96,7 +121,7 @@ class TestEpochIterator(testing.TestCase):
             torch_dataset, batch_size=8, shuffle=True
         )
         iterator = epoch_iterator.EpochIterator(torch_dataloader)
-        for _, batch in iterator:
+        for _, _, batch in iterator:
             batch = batch[0]
             self.assertEqual(batch[0].shape, (8, 2))
             self.assertEqual(batch[1].shape, (8, 1))
@@ -226,7 +251,7 @@ class TestEpochIterator(testing.TestCase):
 
         num_epochs = 5
         for epoch in range(num_epochs):
-            for step, batch in epoch_iter:
+            for _, _, _ in epoch_iter:
                 pass
 
         self.assertAllEqual(ds.tracker, [1, 2] * num_epochs)

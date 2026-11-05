@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from keras.src import backend
 from keras.src import layers
@@ -7,7 +6,6 @@ from keras.src import testing
 
 
 class AlphaDropoutTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_alpha_dropout_basics(self):
         self.run_layer_test(
             layers.AlphaDropout,
@@ -30,7 +28,7 @@ class AlphaDropoutTest(testing.TestCase):
         layer = layers.AlphaDropout(0.3, seed=1337)
         outputs = layer(inputs, training=True)
         self.assertAllClose(
-            np.std(backend.convert_to_numpy(outputs)), 1.0, atol=1e-1
+            np.std(backend.ops.convert_to_numpy(outputs)), 1.0, atol=1e-1
         )
 
     def test_alpha_dropout_partial_noise_shape_dynamic(self):

@@ -1,4 +1,3 @@
-from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.pooling.base_global_pooling import BaseGlobalPooling
@@ -71,14 +70,15 @@ class GlobalAveragePooling1D(BaseGlobalPooling):
     def call(self, inputs, mask=None):
         steps_axis = 1 if self.data_format == "channels_last" else 2
         if mask is not None:
-            mask = backend.cast(mask, inputs[0].dtype)
-            mask = ops.expand_dims(
+            mask_expanded = ops.expand_dims(
                 mask, 2 if self.data_format == "channels_last" else 1
             )
-            inputs *= mask
+            mask_expanded = ops.cast(mask_expanded, "bool")
+            inputs = ops.where(mask_expanded, inputs, 0)
+            float_mask = ops.cast(mask_expanded, inputs.dtype)
             return ops.sum(
                 inputs, axis=steps_axis, keepdims=self.keepdims
-            ) / ops.sum(mask, axis=steps_axis, keepdims=self.keepdims)
+            ) / ops.sum(float_mask, axis=steps_axis, keepdims=self.keepdims)
         else:
             return ops.mean(inputs, axis=steps_axis, keepdims=self.keepdims)
 

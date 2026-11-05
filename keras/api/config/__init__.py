@@ -17,6 +17,7 @@ from keras.src.backend.config import image_data_format as image_data_format
 from keras.src.backend.config import (
     is_flash_attention_enabled as is_flash_attention_enabled,
 )
+from keras.src.backend.config import is_nnx_enabled as is_nnx_enabled
 from keras.src.backend.config import max_epochs as max_epochs
 from keras.src.backend.config import max_steps_per_epoch as max_steps_per_epoch
 from keras.src.backend.config import set_epsilon as set_epsilon
@@ -28,6 +29,8 @@ from keras.src.backend.config import set_max_epochs as set_max_epochs
 from keras.src.backend.config import (
     set_max_steps_per_epoch as set_max_steps_per_epoch,
 )
+from keras.src.backend.config import set_x64_mode as set_x64_mode
+from keras.src.backend.config import x64_mode as x64_mode
 from keras.src.dtype_policies.dtype_policy import dtype_policy as dtype_policy
 from keras.src.dtype_policies.dtype_policy import (
     set_dtype_policy as set_dtype_policy,

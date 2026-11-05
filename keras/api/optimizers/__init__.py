@@ -21,8 +21,15 @@ from keras.src.optimizers.lion import Lion as Lion
 from keras.src.optimizers.loss_scale_optimizer import (
     LossScaleOptimizer as LossScaleOptimizer,
 )
+from keras.src.optimizers.multi_optimizer import (
+    MultiOptimizer as MultiOptimizer,
+)
+from keras.src.optimizers.multi_optimizer import OptimizerMap as OptimizerMap
 from keras.src.optimizers.muon import Muon as Muon
 from keras.src.optimizers.nadam import Nadam as Nadam
 from keras.src.optimizers.optimizer import Optimizer as Optimizer
 from keras.src.optimizers.rmsprop import RMSprop as RMSprop
+from keras.src.optimizers.schedule_free_adamw import (
+    ScheduleFreeAdamW as ScheduleFreeAdamW,
+)
 from keras.src.optimizers.sgd import SGD as SGD

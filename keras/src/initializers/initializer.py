@@ -5,13 +5,26 @@ from keras.src.api_export import keras_export
 class Initializer:
     """Initializer base class: all Keras initializers inherit from this class.
 
-    Initializers should implement a `__call__()` method with the following
-    signature:
+    Initializers should implement a `__call__()` method with one of two possible
+    signatures. If your initializer does not handle distribution layouts, it
+    should use this signature:
 
     ```python
-    def __call__(self, shape, dtype=None, **kwargs):
+    def __call__(self, shape, dtype=None):
         # returns a tensor of shape `shape` and dtype `dtype`
-        # containing values drawn from a distribution of your choice.
+        # containing values drawn using a function of your choice.
+    ```
+
+    If your initializer handles distribution layouts, it should use this
+    signature. `layout` can either be a `keras.distribution.TensorLayout` or a
+    backend-specific layout. If the given `layout` is not `None`, the returned
+    value must be distributed according to `layout`.
+
+    ```python
+    def __call__(self, shape, dtype=None, layout=None):
+        # returns a tensor of shape `shape`, dtype `dtype` and distributed
+        # across devices according to the layout `layout`.
+        # containing values drawn using a function of your choice.
     ```
 
     Optionally, you can also implement the method `get_config()` and the class
@@ -26,7 +39,7 @@ class Initializer:
             self.mean = mean
             self.stddev = stddev
 
-        def __call__(self, shape, dtype=None, **kwargs):
+        def __call__(self, shape, dtype=None):
             return keras.random.normal(
                 shape, mean=self.mean, stddev=self.stddev, dtype=dtype
             )

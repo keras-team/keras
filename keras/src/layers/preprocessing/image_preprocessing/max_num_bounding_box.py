@@ -8,10 +8,36 @@ from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing
 class MaxNumBoundingBoxes(BaseImagePreprocessingLayer):
     """Ensure the maximum number of bounding boxes.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
     Args:
         max_number: Desired output number of bounding boxes.
         padding_value: The padding value of the `boxes` and `labels` in
             `bounding_boxes`. Defaults to `-1`.
+
+    Example:
+
+    ```python
+    max_boxes_layer = keras.layers.MaxNumBoundingBoxes(
+        max_number=10,
+        fill_value=-1
+    )
+
+    images = np.random.randint(0, 255, (1, 224, 224, 3), dtype="uint8")
+
+    bounding_boxes = {
+        "boxes": np.array([
+            [[10, 20, 100, 150], [50, 60, 200, 250], [0, 0, 50, 50]],
+        ]),
+        "labels": np.array([[1, 2, 3]])
+    }
+
+    result = max_boxes_layer({
+        "images": images,
+        "bounding_boxes": bounding_boxes
+    })
+    ```
     """
 
     def __init__(self, max_number, fill_value=-1, **kwargs):
@@ -28,7 +54,7 @@ class MaxNumBoundingBoxes(BaseImagePreprocessingLayer):
     def transform_bounding_boxes(
         self, bounding_boxes, transformation, training=True
     ):
-        ops = self.backend
+        ops = self.backend.ops
         boxes = bounding_boxes["boxes"]
         labels = bounding_boxes["labels"]
         boxes_shape = ops.shape(boxes)
@@ -85,5 +111,10 @@ class MaxNumBoundingBoxes(BaseImagePreprocessingLayer):
 
     def get_config(self):
         config = super().get_config()
-        config.update({"max_number": self.max_number})
+        config.update(
+            {
+                "max_number": self.max_number,
+                "fill_value": self.fill_value,
+            }
+        )
         return config

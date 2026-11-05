@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: Keras
+authors:
+  - family-names: Chollet
+    given-names: François
+  - name: "Keras Contributors"
+date-released: 2015-03-27
+url: "https://keras.io"
+preferred-citation:
+  type: generic
+  title: Keras
+  authors:
+    - family-names: Chollet
+      given-names: François
+    - name: "others"
+  date-released: 2015-03-27
+  url: "https://keras.io"

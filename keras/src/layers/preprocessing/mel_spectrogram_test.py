@@ -8,6 +8,17 @@ from keras.src import testing
 
 
 class MelSpectrogramTest(testing.TestCase):
+    def test_invalid_fft_length_raises(self):
+        with self.assertRaisesRegex(
+            ValueError, "`fft_length` must be greater than or equal to"
+        ):
+            layers.MelSpectrogram(
+                fft_length=256,
+                sequence_stride=256,
+                sequence_length=512,
+                num_mel_bins=80,
+            )
+
     @pytest.mark.requires_trainable_backend
     def test_mel_spectrogram_basics(self):
         self.run_layer_test(

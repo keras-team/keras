@@ -1,6 +1,7 @@
 """Legacy Keras 1/2 backend functions."""
 
 import itertools
+import math
 
 import numpy as np
 
@@ -68,11 +69,7 @@ def batch_dot(x, y, axes=None):
         raise ValueError(
             "Cannot do batch_dot on inputs "
             "with rank < 2. "
-            "Received inputs with tf.shapes "
-            + str(x_shape)
-            + " and "
-            + str(y_shape)
-            + "."
+            f"Received inputs with tf.shapes {x_shape} and {y_shape}."
         )
 
     x_batch_size = x_shape[0]
@@ -84,10 +81,7 @@ def batch_dot(x, y, axes=None):
                 "Cannot do batch_dot on inputs "
                 "with different batch sizes. "
                 "Received inputs with tf.shapes "
-                + str(x_shape)
-                + " and "
-                + str(y_shape)
-                + "."
+                f"{x_shape} and {y_shape}."
             )
     if isinstance(axes, int):
         axes = [axes, axes]
@@ -101,9 +95,8 @@ def batch_dot(x, y, axes=None):
     if py_any(isinstance(a, (list, tuple)) for a in axes):
         raise ValueError(
             "Multiple target dimensions are not supported. "
-            + "Expected: None, int, (int, int), "
-            + "Provided: "
-            + str(axes)
+            "Expected: None, int, (int, int), "
+            f"Provided: {axes}"
         )
 
     # if tuple, convert to list.
@@ -130,12 +123,8 @@ def batch_dot(x, y, axes=None):
     if d1 is not None and d2 is not None and d1 != d2:
         raise ValueError(
             "Cannot do batch_dot on inputs with tf.shapes "
-            + str(x_shape)
-            + " and "
-            + str(y_shape)
-            + " with axes="
-            + str(axes)
-            + ". x.shape[%d] != y.shape[%d] (%d != %d)."
+            f"{x_shape} and {y_shape} with axes={axes}. "
+            "x.shape[%d] != y.shape[%d] (%d != %d)."
             % (axes[0], axes[1], d1, d2)
         )
 
@@ -646,7 +635,7 @@ def cos(x):
 @keras_export("keras._legacy.backend.count_params")
 def count_params(x):
     """DEPRECATED."""
-    return np.prod(x.shape.as_list())
+    return math.prod(x.shape.as_list())
 
 
 @keras_export("keras._legacy.backend.ctc_batch_cost")
@@ -1129,7 +1118,7 @@ def pool2d(
             x, pool_size, strides, padding=padding, data_format=tf_data_format
         )
     else:
-        raise ValueError("Invalid pooling mode: " + str(pool_mode))
+        raise ValueError(f"Invalid pooling mode: {str(pool_mode)}")
 
     if data_format == "channels_first" and tf_data_format == "NHWC":
         x = tf.transpose(x, (0, 3, 1, 2))  # NHWC -> NCHW
@@ -1169,7 +1158,7 @@ def pool3d(
             x, pool_size, strides, padding=padding, data_format=tf_data_format
         )
     else:
-        raise ValueError("Invalid pooling mode: " + str(pool_mode))
+        raise ValueError(f"Invalid pooling mode: {str(pool_mode)}")
 
     if data_format == "channels_first" and tf_data_format == "NDHWC":
         x = tf.transpose(x, (0, 4, 1, 2, 3))
@@ -1308,7 +1297,10 @@ def relu(x, alpha=0.0, max_value=None, threshold=0.0):
 @keras_export("keras._legacy.backend.repeat")
 def repeat(x, n):
     """DEPRECATED."""
-    assert ndim(x) == 2
+    if ndim(x) != 2:
+        raise ValueError(
+            f"Expected input `x` to have rank 2. Received: rank(x)={ndim(x)}"
+        )
     x = tf.expand_dims(x, 1)
     pattern = tf.stack([1, n, 1])
     return tf.tile(x, pattern)
@@ -2020,9 +2012,11 @@ def sparse_categorical_crossentropy(
 @keras_export("keras._legacy.backend.spatial_2d_padding")
 def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     """DEPRECATED."""
-    assert len(padding) == 2
-    assert len(padding[0]) == 2
-    assert len(padding[1]) == 2
+    if len(padding) != 2 or len(padding[0]) != 2 or len(padding[1]) != 2:
+        raise ValueError(
+            "Expected `padding` to be a tuple of 2 tuples of 2 integers. "
+            f"Received: padding={padding}"
+        )
     if data_format is None:
         data_format = backend.image_data_format()
     if data_format not in {"channels_first", "channels_last"}:
@@ -2038,10 +2032,16 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
 @keras_export("keras._legacy.backend.spatial_3d_padding")
 def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     """DEPRECATED."""
-    assert len(padding) == 3
-    assert len(padding[0]) == 2
-    assert len(padding[1]) == 2
-    assert len(padding[2]) == 2
+    if (
+        len(padding) != 3
+        or len(padding[0]) != 2
+        or len(padding[1]) != 2
+        or len(padding[2]) != 2
+    ):
+        raise ValueError(
+            "Expected `padding` to be a tuple of 3 tuples of 2 integers. "
+            f"Received: padding={padding}"
+        )
     if data_format is None:
         data_format = backend.image_data_format()
     if data_format not in {"channels_first", "channels_last"}:
@@ -2150,9 +2150,7 @@ def switch(condition, then_expression, else_expression):
                 "Rank of `condition` should be less than or"
                 " equal to rank of `then_expression` and "
                 "`else_expression`. ndim(condition)="
-                + str(cond_ndim)
-                + ", ndim(then_expression)="
-                + str(expr_ndim)
+                f"{cond_ndim}, ndim(then_expression)={expr_ndim}"
             )
         if cond_ndim > 1:
             ndim_diff = expr_ndim - cond_ndim
@@ -2179,7 +2177,11 @@ def tanh(x):
 @keras_export("keras._legacy.backend.temporal_padding")
 def temporal_padding(x, padding=(1, 1)):
     """DEPRECATED."""
-    assert len(padding) == 2
+    if len(padding) != 2:
+        raise ValueError(
+            "Expected `padding` to be a tuple of 2 integers. "
+            f"Received: padding={padding}"
+        )
     pattern = [[0, 0], [padding[0], padding[1]], [0, 0]]
     return tf.compat.v1.pad(x, pattern)
 

@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from tensorflow import data as tf_data
 
 from keras.src import backend
@@ -8,7 +7,6 @@ from keras.src import testing
 
 
 class RandAugmentTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_layer(self):
         self.run_layer_test(
             layers.RandAugment,
@@ -55,7 +53,7 @@ class RandAugmentTest(testing.TestCase):
 
         augmented_image = layer(input_data)
         self.assertAllClose(
-            backend.convert_to_numpy(augmented_image), input_data
+            backend.ops.convert_to_numpy(augmented_image), input_data
         )
 
     def test_random_augment_randomness(self):
@@ -69,7 +67,7 @@ class RandAugmentTest(testing.TestCase):
         augmented_image = layer(input_data)
 
         self.assertNotAllClose(
-            backend.convert_to_numpy(augmented_image), input_data
+            backend.ops.convert_to_numpy(augmented_image), input_data
         )
 
     def test_tf_data_compatibility(self):
@@ -112,3 +110,18 @@ class RandAugmentTest(testing.TestCase):
             bounding_box_format="xyxy",
         )
         ds.map(layer)
+
+    def test_graph_issue(self):
+        input_data = np.random.random((10, 8, 8, 3))
+        layer = layers.RandAugment()
+        ds = (
+            tf_data.Dataset.from_tensor_slices(input_data)
+            .batch(2)
+            .map(lambda x: layer.get_random_transformation(x))
+        )
+
+        key_list = []
+        for output in ds:
+            key_list.append(output["layer_idxes"])
+
+        self.assertNotEqual(len(np.unique(key_list)), 1)

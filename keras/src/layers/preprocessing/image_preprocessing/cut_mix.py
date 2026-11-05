@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_color_example,
+)
 from keras.src.random import SeedGenerator
 
 
@@ -12,6 +15,12 @@ class CutMix(BaseImagePreprocessingLayer):
     CutMix is a data augmentation method where patches are cut and pasted
     between two images in the dataset, while the labels are also mixed
     proportionally to the area of the patches.
+
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
+    References:
+       - [CutMix paper]( https://arxiv.org/abs/1905.04899).
 
     Args:
         factor: A single float or a tuple of two floats between 0 and 1.
@@ -24,8 +33,9 @@ class CutMix(BaseImagePreprocessingLayer):
             Defaults to 1.
         seed: Integer. Used to create a random seed.
 
-    References:
-       - [CutMix paper]( https://arxiv.org/abs/1905.04899).
+    Example:
+
+    {{base_image_preprocessing_color_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -55,7 +65,7 @@ class CutMix(BaseImagePreprocessingLayer):
         else:
             images = data
 
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         if len(images_shape) == 3:
             return None
 
@@ -66,7 +76,7 @@ class CutMix(BaseImagePreprocessingLayer):
         seed = seed or self._get_seed_generator(self.backend._backend)
 
         mix_weight = self._generate_mix_weight(batch_size, seed)
-        ratio = self.backend.numpy.sqrt(1.0 - mix_weight)
+        ratio = self.backend.ops.numpy.sqrt(1.0 - mix_weight)
 
         x0, x1 = self._compute_crop_bounds(batch_size, image_width, ratio, seed)
         y0, y1 = self._compute_crop_bounds(
@@ -79,7 +89,7 @@ class CutMix(BaseImagePreprocessingLayer):
         )
 
         permutation_order = self.backend.random.shuffle(
-            self.backend.numpy.arange(0, batch_size, dtype="int32"),
+            self.backend.ops.numpy.arange(0, batch_size, dtype="int32"),
             seed=seed,
         )
 
@@ -91,27 +101,27 @@ class CutMix(BaseImagePreprocessingLayer):
 
     def _generate_batch_mask(self, images_shape, box_corners):
         def _generate_grid_xy(image_height, image_width):
-            grid_y, grid_x = self.backend.numpy.meshgrid(
-                self.backend.numpy.arange(
+            grid_y, grid_x = self.backend.ops.numpy.meshgrid(
+                self.backend.ops.numpy.arange(
                     image_height, dtype=self.compute_dtype
                 ),
-                self.backend.numpy.arange(
+                self.backend.ops.numpy.arange(
                     image_width, dtype=self.compute_dtype
                 ),
                 indexing="ij",
             )
             if self.data_format == "channels_last":
-                grid_y = self.backend.cast(
+                grid_y = self.backend.ops.cast(
                     grid_y[None, :, :, None], dtype=self.compute_dtype
                 )
-                grid_x = self.backend.cast(
+                grid_x = self.backend.ops.cast(
                     grid_x[None, :, :, None], dtype=self.compute_dtype
                 )
             else:
-                grid_y = self.backend.cast(
+                grid_y = self.backend.ops.cast(
                     grid_y[None, None, :, :], dtype=self.compute_dtype
                 )
-                grid_x = self.backend.cast(
+                grid_x = self.backend.ops.cast(
                     grid_x[None, None, :, :], dtype=self.compute_dtype
                 )
             return grid_x, grid_y
@@ -132,14 +142,14 @@ class CutMix(BaseImagePreprocessingLayer):
         batch_masks = (
             (grid_x >= x0) & (grid_x < x1) & (grid_y >= y0) & (grid_y < y1)
         )
-        batch_masks = self.backend.numpy.repeat(
+        batch_masks = self.backend.ops.numpy.repeat(
             batch_masks, images_shape[self.channel_axis], axis=self.channel_axis
         )
         mix_weight = 1.0 - (x1 - x0) * (y1 - y0) / (image_width * image_height)
         return batch_masks, mix_weight
 
     def _compute_crop_bounds(self, batch_size, image_length, crop_ratio, seed):
-        crop_length = self.backend.cast(
+        crop_length = self.backend.ops.cast(
             crop_ratio * image_length, dtype=self.compute_dtype
         )
 
@@ -173,17 +183,17 @@ class CutMix(BaseImagePreprocessingLayer):
 
     def transform_images(self, images, transformation=None, training=True):
         if training and transformation is not None:
-            images = self.backend.cast(images, self.compute_dtype)
+            images = self.backend.ops.cast(images, self.compute_dtype)
 
             permutation_order = transformation["permutation_order"]
             batch_masks = transformation["batch_masks"]
 
-            images = self.backend.numpy.where(
+            images = self.backend.ops.numpy.where(
                 batch_masks,
-                self.backend.numpy.take(images, permutation_order, axis=0),
+                self.backend.ops.numpy.take(images, permutation_order, axis=0),
                 images,
             )
-        images = self.backend.cast(images, self.compute_dtype)
+        images = self.backend.ops.cast(images, self.compute_dtype)
         return images
 
     def transform_labels(self, labels, transformation, training=True):
@@ -191,10 +201,10 @@ class CutMix(BaseImagePreprocessingLayer):
             permutation_order = transformation["permutation_order"]
             mix_weight = transformation["mix_weight"]
 
-            cutout_labels = self.backend.numpy.take(
+            cutout_labels = self.backend.ops.numpy.take(
                 labels, permutation_order, axis=0
             )
-            mix_weight = self.backend.numpy.reshape(mix_weight, [-1, 1])
+            mix_weight = self.backend.ops.numpy.reshape(mix_weight, [-1, 1])
             labels = mix_weight * labels + (1.0 - mix_weight) * cutout_labels
 
         return labels
@@ -210,9 +220,23 @@ class CutMix(BaseImagePreprocessingLayer):
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
-        return self.transform_images(
-            segmentation_masks, transformation, training
-        )
+        # CutMix pastes a rectangular region from another sample. For masks
+        # this is an exact copy (no blending/interpolation), so keep the
+        # original class-index dtype instead of casting to `compute_dtype`.
+        if training and transformation is not None:
+            segmentation_masks = self.backend.ops.convert_to_tensor(
+                segmentation_masks
+            )
+            permutation_order = transformation["permutation_order"]
+            batch_masks = transformation["batch_masks"]
+            segmentation_masks = self.backend.ops.numpy.where(
+                batch_masks,
+                self.backend.ops.numpy.take(
+                    segmentation_masks, permutation_order, axis=0
+                ),
+                segmentation_masks,
+            )
+        return segmentation_masks
 
     def compute_output_shape(self, input_shape):
         return input_shape
@@ -224,3 +248,10 @@ class CutMix(BaseImagePreprocessingLayer):
         }
         base_config = super().get_config()
         return {**base_config, **config}
+
+
+if CutMix.__doc__ is not None:
+    CutMix.__doc__ = CutMix.__doc__.replace(
+        "{{base_image_preprocessing_color_example}}",
+        base_image_preprocessing_color_example.replace("{LayerName}", "CutMix"),
+    )

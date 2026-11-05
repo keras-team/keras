@@ -1,5 +1,7 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import is_int_dtype
 
 
 @keras_export("keras.random.normal")
@@ -73,7 +75,7 @@ def categorical(logits, num_samples, dtype="int32", seed=None):
     Returns:
         A 2-D tensor with (batch_size, num_samples).
     """
-    logits_shape = list(backend.convert_to_tensor(logits).shape)
+    logits_shape = list(backend.ops.convert_to_tensor(logits).shape)
     if len(logits_shape) != 2:
         raise ValueError(
             "`logits` should be a 2-D tensor with shape "
@@ -118,7 +120,7 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
             supported. Therefore, during tracing the default value seed=None
             will produce an error, and a `seed` argument must be provided.
     """
-    if dtype and not backend.is_float_dtype(dtype):
+    if dtype and not is_float_dtype(dtype):
         raise ValueError(
             "`keras.random.uniform` requires a floating point `dtype`. "
             f"Received: dtype={dtype} "
@@ -162,7 +164,7 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
             supported. Therefore, during tracing the default value seed=None
             will produce an error, and a `seed` argument must be provided.
     """
-    if dtype and not backend.is_int_dtype(dtype):
+    if dtype and not is_int_dtype(dtype):
         raise ValueError(
             "`keras.random.randint` requires an integer `dtype`. "
             f"Received: dtype={dtype} "

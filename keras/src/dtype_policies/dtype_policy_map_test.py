@@ -1,3 +1,6 @@
+import copy
+import json
+
 import numpy as np
 import pytest
 
@@ -9,6 +12,27 @@ from keras.src import testing
 from keras.src.dtype_policies.dtype_policy import dtype_policy
 from keras.src.dtype_policies.dtype_policy import set_dtype_policy
 from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
+from keras.src.saving import serialization_lib
+
+
+def _serialize_by_blanking_policies(dtype_policy_map):
+    """Reference for `DTypePolicyMap.get_config` with no default policy.
+
+    It removes the sources from the policies themselves and then serializes
+    them, so call it on a copy only.
+    """
+    for policy in dtype_policy_map._policy_map.values():
+        if isinstance(policy, dtype_policies.QuantizedDTypePolicy):
+            policy._name = None
+            policy._source_name = None
+        elif isinstance(policy, dtype_policies.DTypePolicy):
+            policy._name = None
+    return {
+        "default_policy": dtype_policy_map._default_policy_arg,
+        "policy_map": serialization_lib.serialize_keras_object(
+            dtype_policy_map._policy_map
+        ),
+    }
 
 
 @pytest.mark.skipif(testing.jax_uses_gpu(), reason="Leads to core dumps on CI")
@@ -124,50 +148,63 @@ class DTypePolicyMapTest(testing.TestCase):
             dtype_policy_map["layer/dense_3"] = 123
 
     def test_get(self):
-        dtype_policy_map = DTypePolicyMap()
-        dtype_policy_map["layer/dense_0"] = dtype_policies.DTypePolicy(
-            "bfloat16"
-        )
-        dtype_policy_map["layer/dense_1"] = dtype_policies.QuantizedDTypePolicy(
+        # 1. Setup
+        bfloat16_policy = dtype_policies.DTypePolicy("bfloat16")
+        int8_policy = dtype_policies.QuantizedDTypePolicy(
             "int8", "mixed_bfloat16"
         )
-        dtype_policy_map["layer/dense_2"] = (
-            dtype_policies.QuantizedFloat8DTypePolicy("float8", "mixed_float16")
+        float32_policy = dtype_policies.DTypePolicy("float32")
+        float16_policy = dtype_policies.DTypePolicy("float16")
+
+        policy_map = DTypePolicyMap()
+        # Policy for an exact layer path
+        policy_map["model/encoder/layer_0/dense"] = bfloat16_policy
+        # Policy for a layer that is also a prefix of another layer's name
+        policy_map["model/encoder/attention/query"] = int8_policy
+        # Regex policies for entire scopes MUST include wildcards
+        policy_map["model/decoder/.*"] = float32_policy
+        policy_map["model/decoder/attention/.*"] = float16_policy
+
+        # 2. Test exact match
+        self.assertEqual(
+            policy_map["model/encoder/layer_0/dense"], bfloat16_policy
+        )
+        self.assertEqual(
+            policy_map["model/encoder/attention/query"], int8_policy
         )
 
+        # 3. Test successful regex fallback (explicit wildcard)
+        # "model/decoder/.*" should match its children.
+        self.assertEqual(policy_map["model/decoder/layer_0"], float32_policy)
+
+        # 4. Test that partial matches are ignored
+        # The exact key "model/encoder/attention/query" should not match
+        # "model/encoder/attention/query_norm" without a wildcard.
         self.assertEqual(
-            dtype_policy_map["layer/dense_0"],
-            dtype_policies.DTypePolicy("bfloat16"),
+            policy_map["model/encoder/attention/query_norm"],
+            policy_map.default_policy,
         )
+        # A plain key "model/decoder" will not match "model/decoder/layer_0"
+        policy_map["model/decoder"] = bfloat16_policy  # Add exact key
+        self.assertEqual(policy_map["model/decoder/layer_0"], float32_policy)
+        # Still matches the more general regex
+        self.assertEqual(policy_map["model/decoder"], bfloat16_policy)
+
+        # 5. Test no match
         self.assertEqual(
-            dtype_policy_map["layer/dense_1"],
-            dtype_policies.QuantizedDTypePolicy("int8", "mixed_bfloat16"),
-        )
-        self.assertEqual(
-            dtype_policy_map["layer/dense_2"],
-            dtype_policies.QuantizedFloat8DTypePolicy(
-                "float8", "mixed_float16"
-            ),
+            policy_map["model/embedding"], policy_map.default_policy
         )
 
-        self.assertNotEqual(
-            dtype_policy_map["layer/dense_2"],
-            dtype_policies.QuantizedFloat8DTypePolicy("float8", "bfloat16"),
-        )
-
-        # No hit
-        self.assertEqual(
-            dtype_policy_map["layer/batch_normalization"],
-            dtype_policy_map.default_policy,
-        )
-
-        # It will cause a ValueError in the case of one-to-many.
-        dtype_policy_map["dense"] = dtype_policies.DTypePolicy("float32")
-        dtype_policy_map["dense_1"] = dtype_policies.DTypePolicy("float32")
+        # 6. Test multiple regex matches causing a ValueError
+        # "model/decoder/attention/output" matches two regex patterns:
+        # - "model/decoder/.*"
+        # - "model/decoder/attention/.*"
         with self.assertRaisesRegex(
-            ValueError, "Path 'dense_10' matches multiple dtype policy"
+            ValueError,
+            "Path 'model/decoder/attention/output' matches multiple "
+            "dtype policy",
         ):
-            dtype_policy_map["dense_10"]
+            _ = policy_map["model/decoder/attention/output"]
 
     def test_delete(self):
         dtype_policy_map = DTypePolicyMap()
@@ -321,6 +358,69 @@ class DTypePolicyMapTest(testing.TestCase):
         original_config = config.copy()
         DTypePolicyMap.from_config(config)
         self.assertDictEqual(config, original_config)
+
+    def test_get_config_keeps_the_policies_in_the_map(self):
+        # With no default policy, the serialized entries carry no source.
+        # The policies in the map keep their names, sources and equality.
+        policies = {
+            "plain": dtype_policies.DTypePolicy("mixed_bfloat16"),
+            "int8": dtype_policies.QuantizedDTypePolicy(
+                "int8", "mixed_bfloat16"
+            ),
+            "int4": dtype_policies.get("int4/32_from_bfloat16"),
+            "float8": dtype_policies.QuantizedFloat8DTypePolicy(
+                "float8", "mixed_float16", amax_history_length=16
+            ),
+            "gptq": dtype_policies.get("gptq/4/128_from_float32"),
+            "awq": dtype_policies.get("awq/4/64_from_mixed_bfloat16"),
+        }
+        nested = DTypePolicyMap(default_policy="float16")
+        nested["inner"] = dtype_policies.get("int8_from_mixed_bfloat16")
+        dtype_policy_map = DTypePolicyMap()
+        for key, policy in policies.items():
+            dtype_policy_map[key] = policy
+        dtype_policy_map["nested"] = nested
+        dtype_policy_map["int8_again"] = policies["int8"]
+        originals = copy.deepcopy(policies)
+        reference = copy.deepcopy(dtype_policy_map)
+
+        config = dtype_policy_map.get_config()
+
+        for key, policy in policies.items():
+            self.assertIs(dtype_policy_map[key], policy)
+            self.assertEqual(policy.name, originals[key].name)
+            self.assertEqual(policy.get_config(), originals[key].get_config())
+            self.assertEqual(policy, originals[key])
+        self.assertEqual(nested["inner"].name, "int8_from_mixed_bfloat16")
+        other = dtype_policies.QuantizedDTypePolicy("int8", "float32")
+        other_map = DTypePolicyMap()
+        other_map["dense"] = other
+        other_map.get_config()
+        self.assertNotEqual(policies["int8"], other)
+        # The serialized output is byte-identical to the reference. The test
+        # compares the JSON text, not the dicts, because the key order is
+        # part of the bytes.
+        expected = _serialize_by_blanking_policies(reference)
+        self.assertEqual(json.dumps(config), json.dumps(expected))
+        self.assertEqual(
+            json.dumps(dtype_policy_map.get_config()), json.dumps(config)
+        )
+
+    def test_get_config_keeps_the_layer_policy(self):
+        # A map that holds a layer's own policy, as in the class docstring,
+        # leaves that policy unchanged when it is serialized.
+        layer = layers.Dense(4, dtype="int8_from_mixed_bfloat16")
+        dtype_policy_map = DTypePolicyMap()
+        dtype_policy_map["dense"] = layer.dtype_policy
+        dtype_policy_map.get_config()
+
+        self.assertEqual(layer.dtype_policy.name, "int8_from_mixed_bfloat16")
+        self.assertEqual(
+            layer.get_config()["dtype"]["config"]["source_name"],
+            "mixed_bfloat16",
+        )
+        clone = layers.Dense.from_config(layer.get_config())
+        self.assertEqual(clone.compute_dtype, "bfloat16")
 
     def test_repr(self):
         dtype_policy_map = DTypePolicyMap()

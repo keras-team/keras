@@ -1,0 +1,46 @@
+name: '🏷️ Gemini Automated Issue Triage'
+
+on:
+  issues:
+    types:
+      - 'opened'
+      - 'reopened'
+  issue_comment: # zizmor: ignore[dangerous-triggers]
+    types:
+      - 'created'
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'issue number to triage'
+        required: true
+        type: 'number'
+
+permissions:
+  contents: 'read'
+  issues: 'write'
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.event.issue.number || github.event.inputs.issue_number }}'
+  cancel-in-progress: true
+
+jobs:
+  triage:
+    if: |-
+      github.repository == 'keras-team/keras' &&
+      (
+        github.event_name == 'workflow_dispatch' ||
+        (
+          (github.event_name == 'issues' || github.event_name == 'issue_comment') &&
+          (github.event_name != 'issue_comment' || (
+            (contains(github.event.comment.body, '@keras-team/triage') || contains(github.event.comment.body, '@keras-team /triage')) &&
+            (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'MEMBER' || github.event.comment.author_association == 'COLLABORATOR')
+          ))
+        )
+      )
+    uses: keras-team/shared-workflows/.github/workflows/gemini-issue-triage.yml@5ee0604fc2fb4bf0ff6032083a20d1da69e8b923 # v2
+    secrets:
+      GEMINI_API: '${{ secrets.GEMINI_API }}'
+    with:
+      issue_number: '${{ github.event.inputs.issue_number || inputs.issue_number }}'
+      allowed_labels: 'backend:jax,backend:tensorflow,backend:torch,backend:OpenVino,Gemma,layers,python,dependencies,Duplicate,stale,stat:awaiting response from contributor,Good first issue,stat:contributions welcome,wont-fix,user error,to investigate,gTech-team-review-pending'
+      gemini_model: 'gemini-3.5-flash'

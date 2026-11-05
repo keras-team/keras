@@ -7,6 +7,7 @@ from keras.src.testing import test_utils
 
 class GetTestDataTest(test_case.TestCase):
     def setUp(self):
+        super().setUp()
         self.train_samples = 100
         self.test_samples = 50
         self.input_shape = (28, 28)
@@ -156,6 +157,7 @@ class GetTestDataTest(test_case.TestCase):
 
 class ClassDistributionTests(test_case.TestCase):
     def setUp(self):
+        super().setUp()
         self.train_samples = 100
         self.test_samples = 50
         self.input_shape = (28, 28)

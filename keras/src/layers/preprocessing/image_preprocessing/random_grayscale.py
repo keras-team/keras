@@ -3,6 +3,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_color_example,
+)
 
 
 @keras_export("keras.layers.RandomGrayscale")
@@ -19,7 +22,7 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
     image using standard RGB to grayscale conversion coefficients. Images
     that are not selected for conversion remain unchanged.
 
-    **Note:** This layer is safe to use inside a `tf.data` pipeline
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
     (independently of which backend you're using).
 
     Args:
@@ -33,6 +36,7 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
             `(batch, height, width, channels)` while `"channels_first"`
             corresponds to inputs with shape
             `(batch, channels, height, width)`.
+        seed: Integer. Used to create a random seed.
 
     Input shape:
         3D (unbatched) or 4D (batched) tensor with shape:
@@ -43,6 +47,10 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
         Same as input shape. The output maintains the same number of channels
         as the input, even for grayscale-converted images where all channels
         will have the same value.
+
+    Example:
+
+    {{base_image_preprocessing_color_example}}
     """
 
     def __init__(self, factor=0.5, data_format=None, seed=None, **kwargs):
@@ -63,7 +71,7 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
         batch_size = 1
         if len(images.shape) == 4:
             # This is a batch of images (4D input)
-            batch_size = self.backend.core.shape(images)[0]
+            batch_size = self.backend.ops.shape(images)[0]
 
         random_values = self.backend.random.uniform(
             shape=(batch_size,),
@@ -71,7 +79,7 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
             maxval=1,
             seed=seed,
         )
-        should_apply = self.backend.numpy.expand_dims(
+        should_apply = self.backend.ops.numpy.expand_dims(
             random_values < self.factor, axis=[1, 2, 3]
         )
         return should_apply
@@ -84,10 +92,10 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
                 else self.get_random_transformation(images)
             )
 
-            grayscale_images = self.backend.image.rgb_to_grayscale(
+            grayscale_images = self.backend.ops.image.rgb_to_grayscale(
                 images, data_format=self.data_format
             )
-            return self.backend.numpy.where(
+            return self.backend.ops.numpy.where(
                 should_apply, grayscale_images, images
             )
         return images
@@ -113,5 +121,14 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
 
     def get_config(self):
         config = super().get_config()
-        config.update({"factor": self.factor})
+        config.update({"factor": self.factor, "seed": self.seed})
         return config
+
+
+if RandomGrayscale.__doc__ is not None:
+    RandomGrayscale.__doc__ = RandomGrayscale.__doc__.replace(
+        "{{base_image_preprocessing_color_example}}",
+        base_image_preprocessing_color_example.replace(
+            "{LayerName}", "RandomGrayscale"
+        ),
+    )

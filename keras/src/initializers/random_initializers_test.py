@@ -1,11 +1,12 @@
 import numpy as np
 
-from conftest import skip_if_backend
 from keras.src import backend
 from keras.src import initializers
 from keras.src import random
 from keras.src import testing
 from keras.src import utils
+from keras.src.initializers.random_initializers import compute_fans
+from keras.src.layers.attention.multi_head_attention import MultiHeadAttention
 
 
 class RandomInitializersTest(testing.TestCase):
@@ -24,7 +25,7 @@ class RandomInitializersTest(testing.TestCase):
         self.assertEqual(initializer.seed, seed)
         self.assertEqual(values.shape, shape)
         self.assertAllClose(
-            np.std(backend.convert_to_numpy(values)), stddev, atol=1e-1
+            np.std(backend.ops.convert_to_numpy(values)), stddev, atol=1e-1
         )
 
         self.run_class_serialization_test(initializer)
@@ -86,7 +87,7 @@ class RandomInitializersTest(testing.TestCase):
         self.assertEqual(initializer.maxval, maxval)
         self.assertEqual(initializer.seed, seed)
         self.assertEqual(values.shape, shape)
-        values = backend.convert_to_numpy(values)
+        values = backend.ops.convert_to_numpy(values)
         self.assertGreaterEqual(np.min(values), minval)
         self.assertLess(np.max(values), maxval)
 
@@ -105,7 +106,7 @@ class RandomInitializersTest(testing.TestCase):
         self.assertEqual(initializer.seed, seed)
         self.assertEqual(values.shape, shape)
         self.assertAllClose(
-            np.std(backend.convert_to_numpy(values)),
+            np.std(backend.ops.convert_to_numpy(values)),
             np.sqrt(scale / 25),
             atol=1e-1,
         )
@@ -119,13 +120,12 @@ class RandomInitializersTest(testing.TestCase):
         self.assertEqual(initializer.seed, seed)
         self.assertEqual(values.shape, shape)
         self.assertAllClose(
-            np.std(backend.convert_to_numpy(values)),
+            np.std(backend.ops.convert_to_numpy(values)),
             np.sqrt(scale / 20),
             atol=1e-1,
         )
         self.run_class_serialization_test(initializer)
 
-    @skip_if_backend("openvino", "openvino backend does not support `qr`")
     def test_orthogonal(self):
         shape = (5, 5)
         gain = 2.0
@@ -136,7 +136,7 @@ class RandomInitializersTest(testing.TestCase):
         self.assertEqual(initializer.gain, gain)
 
         self.assertEqual(values.shape, shape)
-        array = backend.convert_to_numpy(values)
+        array = backend.ops.convert_to_numpy(values)
         # Making sure that the columns have gain * unit norm value
         for column in array.T:
             self.assertAlmostEqual(np.linalg.norm(column), gain * 1.0)
@@ -164,9 +164,6 @@ class RandomInitializersTest(testing.TestCase):
         with self.assertRaises(ValueError):
             initializers.get("typo")
 
-    @skip_if_backend(
-        "openvino", "openvino backend does not support `uniform` with None seed"
-    )
     def test_get_method_with_tensor(self):
         shape = (5, 5)
 
@@ -232,4 +229,87 @@ class RandomInitializersTest(testing.TestCase):
 
         seed = random.SeedGenerator()
         initializer = initializers.RandomNormal(seed=seed)
+        self.run_class_serialization_test(initializer)
+
+    def test_compute_fans_with_axes(self):
+        shape = (512, 8, 64)
+
+        # Test with explicit axes (e.g. Query projection)
+        fan_in, fan_out = compute_fans(
+            shape, input_axes=[0], output_axes=[1, 2]
+        )
+        self.assertEqual(fan_in, 512)
+        self.assertEqual(fan_out, 512)
+
+        # Test with another combination (e.g. Output projection)
+        fan_in, fan_out = compute_fans(
+            shape, input_axes=[0, 1], output_axes=[2]
+        )
+        self.assertEqual(fan_in, 512 * 8)
+        self.assertEqual(fan_out, 64)
+
+    def test_variance_scaling_with_axes(self):
+        utils.set_random_seed(1337)
+        shape = (32, 4, 16)
+        scale = 2.0
+        seed = 1234
+
+        # Testing standard deviation with given axes
+        initializer = initializers.VarianceScaling(
+            scale=scale,
+            seed=seed,
+            mode="fan_in",
+            input_axes=[0],
+            output_axes=[1, 2],
+        )
+        values = initializer(shape=shape)
+        self.assertEqual(values.shape, shape)
+        self.assertAllClose(
+            np.std(backend.ops.convert_to_numpy(values)),
+            np.sqrt(scale / 32),
+            atol=1e-1,
+        )
+
+        # Test output standard deviation without axes
+        initializer = initializers.VarianceScaling(
+            scale=scale, seed=seed, mode="fan_in"
+        )
+        values = initializer(shape=shape)
+        self.assertAllClose(
+            np.std(backend.ops.convert_to_numpy(values)),
+            np.sqrt(scale / 128),
+            atol=1e-1,
+        )
+
+    def test_mha_query_projection_variance(self):
+        utils.set_random_seed(1337)
+        num_heads = 8
+        key_dim = 16
+        dim = 32
+
+        mha = MultiHeadAttention(
+            num_heads=num_heads,
+            key_dim=key_dim,
+            kernel_initializer="lecun_normal",
+        )
+        # Build with a typical shape: (batch, seq, dim)
+        mha.build((None, 10, dim), (None, 10, dim))
+
+        # Access the query dense layer
+        query_dense = mha.query_dense
+        kernel = query_dense.kernel
+
+        # Kernel shape should be (dim, num_heads, key_dim) -> (32, 8, 16)
+        self.assertEqual(kernel.shape, (dim, num_heads, key_dim))
+
+        # Expected fan_in is dim (32)
+        # So expected stddev is sqrt(1 / dim)
+        expected_std = np.sqrt(1.0 / dim)
+        actual_std = np.std(backend.ops.convert_to_numpy(kernel))
+        self.assertAllClose(actual_std, expected_std, atol=1e-1)
+
+    def test_variance_scaling_serialization_with_axes(self):
+        initializer = initializers.VarianceScaling(
+            input_axes=[0], output_axes=[1, 2]
+        )
         self.run_class_serialization_test(initializer)

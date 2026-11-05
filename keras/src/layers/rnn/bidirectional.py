@@ -1,9 +1,12 @@
 import copy
 
+from keras.src import backend
 from keras.src import ops
 from keras.src import utils
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
+from keras.src.layers.rnn.gru import GRU
+from keras.src.layers.rnn.lstm import LSTM
 from keras.src.saving import serialization_lib
 
 
@@ -109,22 +112,26 @@ class Bidirectional(Layer):
         # Recreate the forward layer from the original layer config, so that it
         # will not carry over any state from the layer.
         config = serialization_lib.serialize_keras_object(layer)
-        config["config"]["name"] = "forward_" + utils.removeprefix(
-            layer.name, "forward_"
+        config["config"]["name"] = (
+            f"forward_{utils.removeprefix(layer.name, 'forward_')}"
         )
         self.forward_layer = serialization_lib.deserialize_keras_object(config)
 
         if backward_layer is None:
             config = serialization_lib.serialize_keras_object(layer)
             config["config"]["go_backwards"] = True
-            config["config"]["name"] = "backward_" + utils.removeprefix(
-                layer.name, "backward_"
+            config["config"]["name"] = (
+                f"backward_{utils.removeprefix(layer.name, 'backward_')}"
             )
             self.backward_layer = serialization_lib.deserialize_keras_object(
                 config
             )
         else:
             self.backward_layer = backward_layer
+        # Keep the use_cudnn attribute if defined (not serialized).
+        if hasattr(layer, "use_cudnn"):
+            self.forward_layer.use_cudnn = layer.use_cudnn
+            self.backward_layer.use_cudnn = layer.use_cudnn
         self._verify_layer_config()
 
         def force_zero_output_for_mask(layer):
@@ -143,7 +150,7 @@ class Bidirectional(Layer):
         self.stateful = layer.stateful
         self.return_sequences = layer.return_sequences
         self.return_state = layer.return_state
-        self.supports_masking = True
+        self.supports_masking = False
         self.input_spec = layer.input_spec
 
     def _verify_layer_config(self):
@@ -170,23 +177,70 @@ class Bidirectional(Layer):
                     f'"{backward_value}" for backward layer'
                 )
 
+    def _check_merge_widths(self, forward_units, backward_units):
+        # "sum", "mul" and "ave" combine the two directions elementwise, so
+        # both directions must produce the same width.
+        if self.merge_mode not in ("sum", "mul", "ave"):
+            return
+        if None in (forward_units, backward_units):
+            return
+        if forward_units != backward_units:
+            raise ValueError(
+                "The forward and backward layers must produce the same "
+                "number of units when `merge_mode` combines them "
+                "elementwise. Received: "
+                f"merge_mode={self.merge_mode}, "
+                f"forward units={forward_units}, "
+                f"backward units={backward_units}. Use "
+                'merge_mode="concat" or merge_mode=None to combine '
+                "layers of different sizes."
+            )
+
     def compute_output_shape(self, sequences_shape, initial_state_shape=None):
-        output_shape = self.forward_layer.compute_output_shape(sequences_shape)
+        # An explicit `backward_layer` may have a different number of units
+        # from the forward layer, so the result cannot be derived from the
+        # forward layer alone.
+        forward_output_shape = self.forward_layer.compute_output_shape(
+            sequences_shape
+        )
+        backward_output_shape = self.backward_layer.compute_output_shape(
+            sequences_shape
+        )
 
         if self.return_state:
-            output_shape, state_shape = output_shape[0], output_shape[1:]
+            forward_output_shape, forward_state_shape = (
+                forward_output_shape[0],
+                forward_output_shape[1:],
+            )
+            backward_output_shape, backward_state_shape = (
+                backward_output_shape[0],
+                backward_output_shape[1:],
+            )
 
         if self.merge_mode == "concat":
-            output_shape = list(output_shape)
-            output_shape[-1] *= 2
+            output_shape = list(forward_output_shape)
+            output_shape[-1] += backward_output_shape[-1]
             output_shape = tuple(output_shape)
         elif self.merge_mode is None:
-            output_shape = [output_shape, output_shape]
+            output_shape = [forward_output_shape, backward_output_shape]
+        else:
+            self._check_merge_widths(
+                forward_output_shape[-1], backward_output_shape[-1]
+            )
+            output_shape = forward_output_shape
 
         if self.return_state:
             if self.merge_mode is None:
-                return tuple(output_shape) + state_shape + state_shape
-            return tuple([output_shape]) + (state_shape) + (state_shape)
+                return (
+                    tuple(output_shape)
+                    + forward_state_shape
+                    + backward_state_shape
+                )
+            return (
+                tuple([output_shape])
+                + forward_state_shape
+                + backward_state_shape
+            )
         return tuple(output_shape)
 
     def call(
@@ -196,6 +250,17 @@ class Bidirectional(Layer):
         mask=None,
         training=None,
     ):
+        if self._can_attempt_fused_lstm(mask, initial_state):
+            try:
+                return self._call_fused_lstm(sequences, initial_state)
+            except NotImplementedError:
+                pass
+        if self._can_attempt_fused_gru(mask, initial_state):
+            try:
+                return self._call_fused_gru(sequences, initial_state)
+            except NotImplementedError:
+                pass
+
         kwargs = {}
         if self.forward_layer._call_has_training_arg:
             kwargs["training"] = training
@@ -227,6 +292,7 @@ class Bidirectional(Layer):
             y = y[0]
             y_rev = y_rev[0]
 
+        self._check_merge_widths(y.shape[-1], y_rev.shape[-1])
         y = ops.cast(y, self.compute_dtype)
         y_rev = ops.cast(y_rev, self.compute_dtype)
 
@@ -249,6 +315,212 @@ class Bidirectional(Layer):
                 'Expected one of {"concat", "sum", "ave", "mul"}.'
             )
         if self.return_state:
+            if self.merge_mode is None:
+                return output + states
+            return (output,) + states
+        return output
+
+    def _can_attempt_fused_lstm(self, mask, initial_state=None):
+        # Layer-level preconditions for dispatching to
+        # `backend.rnn.bidirectional_lstm`. Backends that don't support a
+        # fused path (or don't have the runtime resources for one, e.g.
+        # no GPU) raise `NotImplementedError` from the call itself, and
+        # the caller falls back to the two-layer path.
+        if mask is not None or self.stateful:
+            return False
+        if initial_state is not None and len(initial_state) != 4:
+            return False
+
+        fwd, bwd = self.forward_layer, self.backward_layer
+        if not isinstance(fwd, LSTM) or not isinstance(bwd, LSTM):
+            return False
+        if fwd.use_cudnn not in (True, "auto"):
+            return False
+        if bwd.use_cudnn not in (True, "auto"):
+            return False
+        if fwd.cell.dropout or fwd.cell.recurrent_dropout:
+            return False
+        if bwd.cell.dropout or bwd.cell.recurrent_dropout:
+            return False
+        if fwd.cell.units != bwd.cell.units:
+            return False
+        if fwd.cell.activation is not bwd.cell.activation:
+            return False
+        if fwd.cell.recurrent_activation is not bwd.cell.recurrent_activation:
+            return False
+        if not fwd.cell.use_bias or not bwd.cell.use_bias:
+            return False
+        if not fwd.built or not bwd.built:
+            return False
+        return True
+
+    def _call_fused_lstm(self, sequences, initial_state):
+        fwd_cell = self.forward_layer.cell
+        bwd_cell = self.backward_layer.cell
+        units = fwd_cell.units
+
+        sequences = ops.convert_to_tensor(sequences)
+        batch_size = ops.shape(sequences)[0]
+
+        if initial_state is None:
+            zeros = ops.zeros((batch_size, units), dtype=sequences.dtype)
+            fwd_h0, fwd_c0, bwd_h0, bwd_c0 = zeros, zeros, zeros, zeros
+        else:
+            fwd_h0, fwd_c0, bwd_h0, bwd_c0 = initial_state
+
+        fwd_out, bwd_out = backend.rnn.bidirectional_lstm(
+            sequences,
+            fwd_h0,
+            fwd_c0,
+            bwd_h0,
+            bwd_c0,
+            mask=None,
+            fwd_kernel=fwd_cell.kernel,
+            fwd_recurrent_kernel=fwd_cell.recurrent_kernel,
+            fwd_bias=fwd_cell.bias,
+            bwd_kernel=bwd_cell.kernel,
+            bwd_recurrent_kernel=bwd_cell.recurrent_kernel,
+            bwd_bias=bwd_cell.bias,
+            activation=fwd_cell.activation,
+            recurrent_activation=fwd_cell.recurrent_activation,
+            return_sequences=self.return_sequences,
+            unroll=self.forward_layer.unroll,
+        )
+        fwd_last, fwd_seq, fwd_states = fwd_out
+        bwd_last, bwd_seq, bwd_states = bwd_out
+
+        if self.return_sequences:
+            y, y_rev = fwd_seq, bwd_seq
+        else:
+            y, y_rev = fwd_last, bwd_last
+
+        y = ops.cast(y, self.compute_dtype)
+        y_rev = ops.cast(y_rev, self.compute_dtype)
+
+        # The fused backend helper already returns backward outputs in
+        # original time order, so the per-layer `ops.flip(y_rev)` that the
+        # non-fused path applies is unnecessary here.
+        if self.merge_mode == "concat":
+            output = ops.concatenate([y, y_rev], axis=-1)
+        elif self.merge_mode == "sum":
+            output = y + y_rev
+        elif self.merge_mode == "ave":
+            output = (y + y_rev) / 2
+        elif self.merge_mode == "mul":
+            output = y * y_rev
+        elif self.merge_mode is None:
+            output = (y, y_rev)
+        else:
+            raise ValueError(
+                "Unrecognized value for `merge_mode`. "
+                f"Received: {self.merge_mode}. "
+                'Expected one of {"concat", "sum", "ave", "mul"}.'
+            )
+
+        if self.return_state:
+            states = tuple(fwd_states + bwd_states)
+            if self.merge_mode is None:
+                return output + states
+            return (output,) + states
+        return output
+
+    def _can_attempt_fused_gru(self, mask, initial_state=None):
+        # Layer-level preconditions for dispatching to
+        # `backend.rnn.bidirectional_gru`. The structure matches the LSTM gate
+        # above. The only differences are the layer type, the
+        # `reset_after=True` requirement (the cuDNN GRU formulation), and
+        # the state count (one h per direction, so length 2).
+        if mask is not None or self.stateful:
+            return False
+        if initial_state is not None and len(initial_state) != 2:
+            return False
+
+        fwd, bwd = self.forward_layer, self.backward_layer
+        if not isinstance(fwd, GRU) or not isinstance(bwd, GRU):
+            return False
+        if fwd.use_cudnn not in (True, "auto"):
+            return False
+        if bwd.use_cudnn not in (True, "auto"):
+            return False
+        if fwd.cell.dropout or fwd.cell.recurrent_dropout:
+            return False
+        if bwd.cell.dropout or bwd.cell.recurrent_dropout:
+            return False
+        if fwd.cell.units != bwd.cell.units:
+            return False
+        if fwd.cell.activation is not bwd.cell.activation:
+            return False
+        if fwd.cell.recurrent_activation is not bwd.cell.recurrent_activation:
+            return False
+        if not fwd.cell.use_bias or not bwd.cell.use_bias:
+            return False
+        if not fwd.cell.reset_after or not bwd.cell.reset_after:
+            return False
+        if not fwd.built or not bwd.built:
+            return False
+        return True
+
+    def _call_fused_gru(self, sequences, initial_state):
+        fwd_cell = self.forward_layer.cell
+        bwd_cell = self.backward_layer.cell
+        units = fwd_cell.units
+
+        sequences = ops.convert_to_tensor(sequences)
+        batch_size = ops.shape(sequences)[0]
+
+        if initial_state is None:
+            zeros = ops.zeros((batch_size, units), dtype=sequences.dtype)
+            fwd_h0, bwd_h0 = zeros, zeros
+        else:
+            fwd_h0, bwd_h0 = initial_state
+
+        fwd_out, bwd_out = backend.rnn.bidirectional_gru(
+            sequences,
+            fwd_h0,
+            bwd_h0,
+            mask=None,
+            fwd_kernel=fwd_cell.kernel,
+            fwd_recurrent_kernel=fwd_cell.recurrent_kernel,
+            fwd_bias=fwd_cell.bias,
+            bwd_kernel=bwd_cell.kernel,
+            bwd_recurrent_kernel=bwd_cell.recurrent_kernel,
+            bwd_bias=bwd_cell.bias,
+            activation=fwd_cell.activation,
+            recurrent_activation=fwd_cell.recurrent_activation,
+            return_sequences=self.return_sequences,
+            unroll=self.forward_layer.unroll,
+            reset_after=fwd_cell.reset_after,
+        )
+        fwd_last, fwd_seq, fwd_states = fwd_out
+        bwd_last, bwd_seq, bwd_states = bwd_out
+
+        if self.return_sequences:
+            y, y_rev = fwd_seq, bwd_seq
+        else:
+            y, y_rev = fwd_last, bwd_last
+
+        y = ops.cast(y, self.compute_dtype)
+        y_rev = ops.cast(y_rev, self.compute_dtype)
+
+        if self.merge_mode == "concat":
+            output = ops.concatenate([y, y_rev], axis=-1)
+        elif self.merge_mode == "sum":
+            output = y + y_rev
+        elif self.merge_mode == "ave":
+            output = (y + y_rev) / 2
+        elif self.merge_mode == "mul":
+            output = y * y_rev
+        elif self.merge_mode is None:
+            output = (y, y_rev)
+        else:
+            raise ValueError(
+                "Unrecognized value for `merge_mode`. "
+                f"Received: {self.merge_mode}. "
+                'Expected one of {"concat", "sum", "ave", "mul"}.'
+            )
+
+        if self.return_state:
+            states = tuple(fwd_states + bwd_states)
             if self.merge_mode is None:
                 return output + states
             return (output,) + states

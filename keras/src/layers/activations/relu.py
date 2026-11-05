@@ -28,8 +28,8 @@ class ReLU(Layer):
     ```
 
     Args:
-        max_value: Float >= 0. Maximum activation value. None means unlimited.
-            Defaults to `None`.
+        max_value: Float >= 0. Maximum activation value. `None` means
+            unlimited. Defaults to `None`.
         negative_slope: Float >= 0. Negative slope coefficient.
             Defaults to `0.0`.
         threshold: Float >= 0. Threshold value for thresholded activation.
@@ -48,13 +48,13 @@ class ReLU(Layer):
             )
         if negative_slope is None or negative_slope < 0.0:
             raise ValueError(
-                "negative_slope of a ReLU layer cannot be a negative "
-                f"value. Received: negative_slope={negative_slope}"
+                "negative_slope of a ReLU layer cannot be None or a "
+                f"negative value. Received: negative_slope={negative_slope}"
             )
         if threshold is None or threshold < 0.0:
             raise ValueError(
-                "threshold of a ReLU layer cannot be a negative "
-                f"value. Received: threshold={threshold}"
+                "threshold of a ReLU layer cannot be None or a "
+                f"negative value. Received: threshold={threshold}"
             )
 
         self.max_value = max_value

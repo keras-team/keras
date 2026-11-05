@@ -114,7 +114,9 @@ class TestTFSMLayer(testing.TestCase):
 
         # Test reinstantiation from config
         config = reloaded_layer.get_config()
-        rereloaded_layer = tfsm_layer.TFSMLayer.from_config(config)
+        rereloaded_layer = tfsm_layer.TFSMLayer.from_config(
+            config, safe_mode=False
+        )
         self.assertAllClose(rereloaded_layer(ref_input), ref_output, atol=1e-7)
 
         # Test whole model saving with reloaded layer inside
@@ -122,10 +124,37 @@ class TestTFSMLayer(testing.TestCase):
         temp_model_filepath = os.path.join(self.get_temp_dir(), "m.keras")
         model.save(temp_model_filepath, save_format="keras_v3")
         reloaded_model = saving_lib.load_model(
-            temp_model_filepath,
-            custom_objects={"TFSMLayer": tfsm_layer.TFSMLayer},
+            temp_model_filepath, safe_mode=False
         )
         self.assertAllClose(reloaded_model(ref_input), ref_output, atol=1e-7)
+
+    def test_safe_mode_blocks_model_loading(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+
+        # Create and export a model
+        model = get_model()
+        model(tf.random.normal((1, 10)))
+        saved_model.export_saved_model(model, temp_filepath)
+
+        # Wrap SavedModel in TFSMLayer and save as .keras
+        reloaded_layer = tfsm_layer.TFSMLayer(temp_filepath)
+        wrapper_model = models.Sequential([reloaded_layer])
+
+        model_path = os.path.join(self.get_temp_dir(), "tfsm_model.keras")
+        wrapper_model.save(model_path)
+
+        # Default safe_mode=True should block loading
+        with self.assertRaisesRegex(
+            ValueError,
+            "arbitrary code execution",
+        ):
+            saving_lib.load_model(model_path)
+
+        # Explicit opt-out should allow loading
+        loaded_model = saving_lib.load_model(model_path, safe_mode=False)
+
+        x = tf.random.normal((2, 10))
+        self.assertAllClose(loaded_model(x), wrapper_model(x))
 
     def test_errors(self):
         # Test missing call endpoint

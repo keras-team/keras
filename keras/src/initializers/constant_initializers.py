@@ -1,6 +1,6 @@
 from keras.src import ops
 from keras.src.api_export import keras_export
-from keras.src.backend import standardize_dtype
+from keras.src.backend.common import standardize_dtype
 from keras.src.initializers.initializer import Initializer
 from keras.src.saving import serialization_lib
 from keras.src.utils.module_utils import scipy
@@ -153,6 +153,9 @@ class Identity(Initializer):
         dtype = standardize_dtype(dtype)
         return self.gain * ops.eye(*shape, dtype=dtype)
 
+    def get_config(self):
+        return {"gain": self.gain}
+
 
 @keras_export(
     [
@@ -253,14 +256,18 @@ class STFT(Initializer):
                 scaling = ops.sum(ops.abs(win))
 
         _fft_length = (fft_length - 1) * 2
-        freq = (
-            ops.reshape(ops.arange(fft_length, dtype=dtype), (1, 1, fft_length))
-            / _fft_length
+        freq = ops.divide(
+            ops.reshape(
+                ops.arange(fft_length, dtype=dtype), (1, 1, fft_length)
+            ),
+            _fft_length,
         )
         time = ops.reshape(
             ops.arange(frame_length, dtype=dtype), (frame_length, 1, 1)
         )
-        args = -2 * time * freq * ops.arccos(ops.cast(-1, dtype))
+        args = ops.multiply(ops.multiply(-2, time), freq) * ops.arccos(
+            ops.cast(-1, dtype)
+        )
 
         if self.side == "real":
             kernel = ops.cast(ops.cos(args), dtype)
@@ -268,7 +275,7 @@ class STFT(Initializer):
             kernel = ops.cast(ops.sin(args), dtype)
 
         if win is not None:
-            kernel = kernel * win / scaling
+            kernel = ops.divide(ops.multiply(kernel, win), scaling)
         return kernel
 
     def get_config(self):

@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from tensorflow import data as tf_data
 
 from keras.src import backend
@@ -8,7 +7,6 @@ from keras.src import testing
 
 
 class CutMixTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_layer(self):
         self.run_layer_test(
             layers.CutMix,
@@ -70,7 +68,7 @@ class CutMixTest(testing.TestCase):
 
         output = layer.transform_images(inputs, transformation)
 
-        self.assertAllClose(expected_output, output)
+        self.assertAllClose(output, expected_output)
 
     def test_tf_data_compatibility(self):
         data_format = backend.config.image_data_format()
@@ -83,3 +81,15 @@ class CutMixTest(testing.TestCase):
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
             output.numpy()
+
+    def test_segmentation_mask_preserves_dtype_and_classes(self):
+        # CutMix pastes an exact region between samples; masks must keep their
+        # integer dtype and contain no invented classes. See #20857.
+        images = np.random.random((2, 8, 8, 3)).astype("float32")
+        masks = np.zeros((2, 8, 8, 1), dtype="uint8")
+        masks[0] = 4  # sample 0 is all class 4, sample 1 all class 0
+        layer = layers.CutMix(seed=1)
+        out = layer({"images": images, "segmentation_masks": masks})
+        result = backend.ops.convert_to_numpy(out["segmentation_masks"])
+        self.assertEqual(result.dtype, np.uint8)
+        self.assertTrue(set(np.unique(result).tolist()).issubset({0, 4}))

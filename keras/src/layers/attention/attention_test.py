@@ -1,8 +1,12 @@
 import numpy as np
+import pytest
+from absl.testing import parameterized
 
+from keras.src import backend
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
+from keras.src.testing import test_utils
 
 
 class AttentionTest(testing.TestCase):
@@ -41,6 +45,13 @@ class AttentionTest(testing.TestCase):
             run_training_check=False,
         )
 
+    def test_attention_seed_preserved_in_config(self):
+        layer = layers.Attention(dropout=0.5, seed=1337)
+        config = layer.get_config()
+        self.assertEqual(config["seed"], 1337)
+        restored = layers.Attention.from_config(config)
+        self.assertEqual(restored.seed, 1337)
+
     def test_attention_correctness(self):
         query = np.array([[[1.0, 0.0], [0.0, 1.0]]])
         key = np.array([[[0.0, 1.0], [1.0, 0.0]]])
@@ -53,10 +64,18 @@ class AttentionTest(testing.TestCase):
             return_attention_scores=True,
         )
         self.assertAllClose(
-            output, [[[2.462, 3.462], [1.538, 2.538]]], atol=1e-3
+            output,
+            [[[2.462, 3.462], [1.538, 2.538]]],
+            atol=1e-3,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
         self.assertAllClose(
-            scores, [[[0.269, 0.731], [0.731, 0.269]]], atol=1e-3
+            scores,
+            [[[0.269, 0.731], [0.731, 0.269]]],
+            atol=1e-3,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
 
         # Concat.
@@ -66,10 +85,18 @@ class AttentionTest(testing.TestCase):
             return_attention_scores=True,
         )
         self.assertAllClose(
-            output, [[[1.727, 2.727], [2.272, 3.272]]], atol=1e-3
+            output,
+            [[[1.727, 2.727], [2.272, 3.272]]],
+            atol=1e-3,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
         self.assertAllClose(
-            scores, [[[0.636, 0.363], [0.363, 0.636]]], atol=1e-3
+            scores,
+            [[[0.636, 0.363], [0.363, 0.636]]],
+            atol=1e-3,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
 
     def test_attention_with_mask(self):
@@ -85,6 +112,83 @@ class AttentionTest(testing.TestCase):
         )
         self.assertAllClose(output, [[[1.0, 1.0], [0.0, 0.0]]])
         self.assertAllClose(scores, [[[1.0, 0.0], [1.0, 0.0]]])
+
+    @parameterized.named_parameters(
+        test_utils.named_product(dtype=["float32", "float16"])
+    )
+    def test_attention_with_fully_masked_row(self, dtype):
+        # Batch element 0 masks every value position, element 1 masks one. A
+        # fully masked row attends to nothing, so its output and scores are 0.
+        query = np.array([[[1.0, 0.0], [0.0, 1.0]]] * 2)
+        value = np.array([[[1.0, 2.0], [3.0, 4.0]]] * 2)
+        value_mask = np.array([[False, False], [True, False]])
+        layer = layers.Attention(dtype=dtype)
+        output, scores = layer(
+            [query.astype(dtype), value.astype(dtype)],
+            mask=[None, value_mask],
+            return_attention_scores=True,
+        )
+        self.assertAllClose(
+            output, [[[0.0, 0.0], [0.0, 0.0]], [[1.0, 2.0], [1.0, 2.0]]]
+        )
+        self.assertAllClose(
+            scores, [[[0.0, 0.0], [0.0, 0.0]], [[1.0, 0.0], [1.0, 0.0]]]
+        )
+
+    @parameterized.named_parameters(
+        test_utils.named_product(dtype=["float32", "float16"])
+    )
+    @pytest.mark.requires_trainable_backend
+    def test_attention_fully_masked_row_has_zero_gradients(self, dtype):
+        # Every value position is masked, so the gradients are 0. Every score
+        # is below -16, which overflows to -inf in float16 if the masked
+        # scores are offset rather than replaced, and gives NaN gradients.
+        query = np.array([[[-10.0, -10.0], [-20.0, 0.0]]])
+        value = np.array([[[1.0, 2.0], [3.0, 4.0]]])
+        mask = [None, np.array([[False, False]])]
+        layer = layers.Attention(dtype=dtype)
+        grads = ops.grad(lambda q, v: layer([q, v], mask=mask), argnums=(0, 1))(
+            query.astype(dtype), value.astype(dtype)
+        )
+        for grad in grads:
+            self.assertAllClose(grad, ops.zeros_like(grad))
+
+    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
+    def test_attention_fully_masked_row_float16_backward_has_no_nan(self):
+        # A torch dtype never compares equal to the string "float16", so this
+        # checks that torch also masks float16 scores with 65504 rather than
+        # with 1e9, which is -inf in float16. A fully masked row of -inf gives
+        # NaN in the softmax backward, which anomaly detection reports even
+        # though the gradients reaching the inputs are 0.
+        import torch
+
+        query = torch.tensor([[[1.0, 0.0]]], dtype=torch.float16)
+        value = torch.tensor(
+            [[[1.0, 2.0], [3.0, 4.0]]], dtype=torch.float16, requires_grad=True
+        )
+        value_mask = np.array([[False, False]])
+        layer = layers.Attention(dtype="float16")
+        with torch.autograd.detect_anomaly():
+            output = layer([query, value], mask=[None, value_mask])
+            output.float().sum().backward()
+        self.assertAllClose(value.grad, np.zeros((1, 2, 2)))
+
+    def test_attention_2D_mask_shape_mismatch(self):
+        layer = layers.Attention()
+        batch_size, Tq, Tv, dim = 2, 3, 4, 5
+        query = np.random.random((batch_size, Tq, dim)).astype(np.float32)
+        value = np.random.random((batch_size, Tv, dim)).astype(np.float32)
+        query_mask = np.array([[True, False, True], [True, False, True]])
+        value_mask = np.array(
+            [[True, False, True, True], [True, False, True, True]]
+        )
+        output, scores = layer(
+            [query, value],
+            mask=[query_mask, value_mask],
+            return_attention_scores=True,
+        )
+        self.assertEqual(output.shape, (batch_size, Tq, dim))
+        self.assertEqual(scores.shape, (batch_size, Tq, Tv))
 
     def test_attention_errors(self):
         layer = layers.Attention()
@@ -132,7 +236,9 @@ class AttentionTest(testing.TestCase):
         expected_scores = np.matmul(query, key.transpose((0, 2, 1)))
         expected_scores *= layer.scale.numpy()
         actual_scores = layer._calculate_scores(query, key)
-        self.assertAllClose(actual_scores, expected_scores)
+        self.assertAllClose(
+            actual_scores, expected_scores, tpu_atol=1e-2, tpu_rtol=1e-2
+        )
 
     def test_attention_calculate_score_mask_no_causal_no_vmask(self):
         scores = np.random.random((2, 3, 4))
@@ -351,13 +457,27 @@ class AttentionTest(testing.TestCase):
         key = np.random.random((2, 3, 4))
         layer = layers.Attention()
         output = layer([query, value, key])
-        self.assertAllEqual(output.shape, value.shape)
-        self.assertAllEqual(
+        self.assertEqual(output.shape, value.shape)
+        self.assertEqual(
             layer.compute_output_shape(
                 input_shape=[query.shape, value.shape, key.shape]
             ),
             output.shape,
         )
+
+    def test_attention_nd_inputs(self):
+        """Test that Attention handles N-D inputs (e.g. 4D from Conv2D)."""
+        layer = layers.Attention()
+        # 4D inputs: (batch, height, width, channels)
+        query = np.random.random((2, 8, 6, 4)).astype(np.float32)
+        value = np.random.random((2, 8, 6, 4)).astype(np.float32)
+        output = layer([query, value])
+        self.assertEqual(output.shape, (2, 8, 6, 4))
+
+        # With return_attention_scores
+        output, scores = layer([query, value], return_attention_scores=True)
+        self.assertEqual(output.shape, (2, 8, 6, 4))
+        self.assertEqual(scores.shape, (2, 8, 6, 6))
 
     def test_return_attention_scores_true(self):
         """Test that the layer returns attention scores along with outputs."""
@@ -429,3 +549,25 @@ class AttentionTest(testing.TestCase):
         )
         self.assertEqual(output.shape, (None, 3, 5))  # Output shape
         self.assertEqual(attention_scores.shape, (None, 3, 4))
+
+    def test_symbolic_call_does_not_leak_return_attention_scores(self):
+        # `Attention` used to stash `return_attention_scores` on an instance
+        # flag in `call()`, so a later symbolic call that set it to `False`
+        # still returned a `(output, scores)` tuple from `compute_output_spec`
+        # and `compute_output_shape`. Both paths must trust only the explicit
+        # argument.
+        attention = layers.Attention()
+        q_eager = np.random.rand(2, 3, 5).astype("float32")
+        v_eager = np.random.rand(2, 4, 5).astype("float32")
+        attention([q_eager, v_eager], return_attention_scores=True)
+
+        x = layers.Input(shape=(3, 5))
+        y = layers.Input(shape=(4, 5))
+        output = attention([x, y])
+        self.assertNotIsInstance(output, (tuple, list))
+        self.assertEqual(output.shape, (None, 3, 5))
+
+        self.assertEqual(
+            attention.compute_output_shape([x.shape, y.shape]),
+            (None, 3, 5),
+        )

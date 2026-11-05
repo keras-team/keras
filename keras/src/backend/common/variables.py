@@ -40,6 +40,10 @@ class Variable:
             to `"none"`.
         name: Optional. A unique name for the variable. Automatically generated
             if not set.
+        layout: Optional. Sharding layout for the variable. Either a
+            `keras.distribution.TensorLayout` with its `device_mesh` set, or a
+            backend-specific layout.
+        kwargs: Additional backend-specific keyword arguments.
 
     Attributes:
         shape: The shape of the variable (tuple of integers).
@@ -51,7 +55,6 @@ class Variable:
         value: The current value of the variable (NumPy array or tensor).
         name: The name of the variable (string).
         path: The path of the variable within the Keras model or layer (string).
-        kwargs: Additional backend-specific keyword arguments.
 
     Examples:
 
@@ -99,9 +102,9 @@ class Variable:
         aggregation="none",
         synchronization="auto",
         name=None,
+        layout=None,
         **kwargs,
     ):
-        del kwargs
         name = name or auto_name(self.__class__.__name__)
         if not isinstance(name, str) or "/" in name:
             raise ValueError(
@@ -139,10 +142,19 @@ class Variable:
             )
         if synchronization is None:
             synchronization = "none"
+        if layout is not None:
+            from keras.src.distribution.distribution_lib import TensorLayout
+
+            if isinstance(layout, TensorLayout) and layout.device_mesh is None:
+                raise ValueError(
+                    "Argument `layout` must have `device_mesh` set. "
+                    f"Received: layout={layout}"
+                )
+
         self._name = name
         parent_path = current_path()
         if parent_path:
-            self._path = current_path() + "/" + name
+            self._path = f"{parent_path}/{name}"
         else:
             self._path = name
         self._shape = None
@@ -153,6 +165,8 @@ class Variable:
         self._autocast = bool(autocast)
         self._aggregation = aggregation
         self._synchronization = synchronization
+        self._layout = layout
+
         # `self._overwrite_with_gradient` is an internal property to determine
         # whether this variable should be overwritten by the computed gradient.
         # Ref: https://github.com/google/flax/blob/main/flax/linen/fp8_ops.py
@@ -211,6 +225,11 @@ class Variable:
 
     def _deferred_initialize(self):
         if self._value is not None:
+            # If NNX is enabled, it's possible the variable was already
+            # initialized by a concrete call. In this case, _deferred_initialize
+            # returns early and does not raise an error.
+            if config.is_nnx_enabled():
+                return
             raise ValueError(f"Variable {self.path} is already initialized.")
 
         if in_stateless_scope():
@@ -271,13 +290,13 @@ class Variable:
         return self._maybe_autocast(self._value)
 
     def assign(self, value):
-        value = self._convert_to_tensor(value, dtype=self.dtype)
+        value = self._convert_to_tensor(value, dtype=self._dtype)
         if not shape_equal(value.shape, self.shape):
             raise ValueError(
                 "The shape of the target variable and "
                 "the shape of the target value in "
                 "`variable.assign(value)` must match. "
-                f"variable.shape={self.value.shape}, "
+                f"variable.shape={self.shape}, "
                 f"Received: value.shape={value.shape}. "
                 f"Target variable: {self}"
             )
@@ -306,7 +325,7 @@ class Variable:
             dtype = autocast_scope.dtype
         else:
             dtype = self._dtype
-        return backend.standardize_dtype(dtype)
+        return standardize_dtype(dtype)
 
     @property
     def shape(self):
@@ -365,13 +384,11 @@ class Variable:
 
     @regularizer.setter
     def regularizer(self, value):
-        from keras.src.regularizers import Regularizer
-
-        if value is not None and not isinstance(value, Regularizer):
+        if value is not None and not callable(value):
             raise ValueError(
-                "Invalid value for attribute `regularizer`. Expected an "
-                "instance of `keras.regularizers.Regularizer`, or `None`. "
-                f"Received: regularizer={value}"
+                "Invalid value for attribute `regularizer`. Expected a "
+                "callable (such as a `keras.regularizers.Regularizer` "
+                f"instance) or `None`. Received: regularizer={value}"
             )
         self._regularizer = value
 
@@ -381,20 +398,22 @@ class Variable:
 
     @constraint.setter
     def constraint(self, value):
-        from keras.src.constraints import Constraint
-
-        if value is not None and not isinstance(value, Constraint):
+        if value is not None and not callable(value):
             raise ValueError(
-                "Invalid value for attribute `constraint`. Expected an "
-                "instance of `keras.constraints.Constraint`, or `None`. "
-                f"Received: constraint={value}"
+                "Invalid value for attribute `constraint`. Expected a "
+                "callable (such as a `keras.constraints.Constraint` instance) "
+                f"or `None`. Received: constraint={value}"
             )
         self._constraint = value
 
     def __repr__(self):
         value = None
         if hasattr(self, "_value") and self._value is not None:
-            value = backend.core.convert_to_numpy(self._value)
+            try:
+                value = backend.ops.convert_to_numpy(self._value)
+            except:
+                # In some cases the conversion to numpy can fail.
+                pass
         value_str = f", value={value}" if value is not None else ""
         return (
             f"<Variable path={self.path}, shape={self.shape}, "
@@ -455,92 +474,92 @@ class Variable:
         return self.value.__invert__()
 
     def __eq__(self, other):
-        return backend.numpy.equal(self.value, other)
+        return backend.ops.numpy.equal(self.value, other)
 
     def __ne__(self, other):
-        return backend.numpy.not_equal(self.value, other)
+        return backend.ops.numpy.not_equal(self.value, other)
 
     def __lt__(self, other):
-        return backend.numpy.less(self.value, other)
+        return backend.ops.numpy.less(self.value, other)
 
     def __le__(self, other):
-        return backend.numpy.less_equal(self.value, other)
+        return backend.ops.numpy.less_equal(self.value, other)
 
     def __gt__(self, other):
-        return backend.numpy.greater(self.value, other)
+        return backend.ops.numpy.greater(self.value, other)
 
     def __ge__(self, other):
-        return backend.numpy.greater_equal(self.value, other)
+        return backend.ops.numpy.greater_equal(self.value, other)
 
     def __add__(self, other):
-        return backend.numpy.add(self.value, other)
+        return backend.ops.numpy.add(self.value, other)
 
     def __radd__(self, other):
-        return backend.numpy.add(other, self.value)
+        return backend.ops.numpy.add(other, self.value)
 
     def __sub__(self, other):
-        return backend.numpy.subtract(self.value, other)
+        return backend.ops.numpy.subtract(self.value, other)
 
     def __rsub__(self, other):
-        return backend.numpy.subtract(other, self.value)
+        return backend.ops.numpy.subtract(other, self.value)
 
     def __mul__(self, other):
-        return backend.numpy.multiply(self.value, other)
+        return backend.ops.numpy.multiply(self.value, other)
 
     def __rmul__(self, other):
-        return backend.numpy.multiply(other, self.value)
+        return backend.ops.numpy.multiply(other, self.value)
 
     def __truediv__(self, other):
-        return backend.numpy.true_divide(self.value, other)
+        return backend.ops.numpy.true_divide(self.value, other)
 
     def __rtruediv__(self, other):
-        return backend.numpy.true_divide(other, self.value)
+        return backend.ops.numpy.true_divide(other, self.value)
 
     def __floordiv__(self, other):
-        return backend.numpy.floor_divide(self.value, other)
+        return backend.ops.numpy.floor_divide(self.value, other)
 
     def __rfloordiv__(self, other):
-        return backend.numpy.floor_divide(other, self.value)
+        return backend.ops.numpy.floor_divide(other, self.value)
 
     def __mod__(self, other):
-        return backend.numpy.mod(self.value, other)
+        return backend.ops.numpy.mod(self.value, other)
 
     def __rmod__(self, other):
-        return backend.numpy.mod(other, self.value)
+        return backend.ops.numpy.mod(other, self.value)
 
     def __pow__(self, other):
-        return backend.numpy.power(self.value, other)
+        return backend.ops.numpy.power(self.value, other)
 
     def __rpow__(self, other):
-        return backend.numpy.power(other, self.value)
+        return backend.ops.numpy.power(other, self.value)
 
     def __matmul__(self, other):
-        return backend.numpy.matmul(self.value, other)
+        return backend.ops.numpy.matmul(self.value, other)
 
     def __rmatmul__(self, other):
-        return backend.numpy.matmul(other, self.value)
+        return backend.ops.numpy.matmul(other, self.value)
 
     def __and__(self, other):
-        return backend.numpy.logical_and(self.value, other)
+        return backend.ops.numpy.logical_and(self.value, other)
 
     def __rand__(self, other):
-        return backend.numpy.logical_and(other, self.value)
+        return backend.ops.numpy.logical_and(other, self.value)
 
     def __or__(self, other):
-        return backend.numpy.logical_or(self.value, other)
+        return backend.ops.numpy.logical_or(self.value, other)
 
     def __ror__(self, other):
-        return backend.numpy.logical_or(other, self.value)
+        return backend.ops.numpy.logical_or(other, self.value)
 
     def __xor__(self, other):
-        return backend.numpy.logical_xor(self.value, other)
+        return backend.ops.numpy.logical_xor(self.value, other)
 
     def __rxor__(self, other):
-        return backend.numpy.logical_xor(other, self.value)
+        return backend.ops.numpy.logical_xor(other, self.value)
 
     def __round__(self, ndigits=None):
         decimals = ndigits or 0
-        return backend.numpy.round(self.value, decimals=decimals)
+        return backend.ops.numpy.round(self.value, decimals=decimals)
 
 
 def register_uninitialized_variable(variable):
@@ -562,19 +581,25 @@ def initialize_all_variables():
     ["keras.utils.standardize_dtype", "keras.backend.standardize_dtype"]
 )
 def standardize_dtype(dtype):
+    # Fast path: an already-canonical dtype string is by far the common case
+    # and needs none of the normalization below.
+    if isinstance(dtype, str) and dtype in dtypes.ALLOWED_DTYPES_SET:
+        return dtype
     if dtype is None:
         return config.floatx()
     dtype = dtypes.PYTHON_DTYPES_MAP.get(dtype, dtype)
     if hasattr(dtype, "name"):
-        dtype = dtype.name
+        dtype = dtype.name.lower()
     elif hasattr(dtype, "__name__"):
         dtype = dtype.__name__
     elif hasattr(dtype, "__str__") and (
-        "torch" in str(dtype) or "jax.numpy" in str(dtype)
+        "torch" in str(dtype)
+        or "jax.numpy" in str(dtype)
+        or "mlx" in str(dtype)
     ):
         dtype = str(dtype).split(".")[-1]
 
-    if dtype not in dtypes.ALLOWED_DTYPES:
+    if dtype not in dtypes.ALLOWED_DTYPES_SET:
         raise ValueError(f"Invalid dtype: {dtype}")
     return dtype
 
@@ -587,33 +612,66 @@ def standardize_shape(shape):
             raise ValueError(f"Cannot convert '{shape}' to a shape.")
         if config.backend() == "tensorflow":
             if isinstance(shape, tf.TensorShape):
+                if shape.rank is None:
+                    raise ValueError(
+                        "Tensors with unknown rank are not supported. "
+                        f"Received a tensor with shape: {shape}. This "
+                        "commonly happens with `tf.numpy_function` or "
+                        "`tf.py_function` in a `tf.data` pipeline, which "
+                        "discard static shape information. Specify the "
+                        "shape explicitly, e.g. with `tensor.set_shape(...)` "
+                        "or `tf.ensure_shape(tensor, shape)`."
+                    )
                 # `tf.TensorShape` may contain `Dimension` objects.
                 # We need to convert the items in it to either int or `None`
                 shape = shape.as_list()
-        shape = tuple(shape)
+
+    if config.backend() == "jax":
+        # Replace `_DimExpr` (dimension expression) with None
+        from jax import export as jax_export
+
+        shape = tuple(
+            None if jax_export.is_symbolic_dim(d) else d for d in shape
+        )
 
     if config.backend() == "torch":
-        # `shape` might be `torch.Size`. We need to convert the items in it to
-        # either int or `None`
-        shape = tuple(map(lambda x: int(x) if x is not None else None, shape))
+        # Replace symbolic dimensions with None to preserve dynamic shapes
+        # during torch.export tracing
+        import torch
 
-    for e in shape:
-        if e is None:
+        shape = tuple(None if isinstance(d, torch.SymInt) else d for d in shape)
+
+    # Handle dimensions that are not ints and not None, verify they're >= 0.
+    standardized_shape = []
+    for d in shape:
+        if d is None:
+            standardized_shape.append(d)
             continue
-        if config.backend() == "jax" and "_DimExpr" in str(type(e)):
-            # JAX2TF tracing uses JAX-native dimension expressions
-            continue
-        if not is_int_dtype(type(e)):
+
+        # Reject these even if they can be cast to int successfully.
+        if isinstance(d, (str, float)):
             raise ValueError(
                 f"Cannot convert '{shape}' to a shape. "
-                f"Found invalid entry '{e}' of type '{type(e)}'. "
+                f"Found invalid dimension '{d}' of type '{type(d)}'. "
             )
-        if e < 0:
+
+        try:
+            # Cast numpy scalars, tf constant tensors, etc.
+            d = int(d)
+        except Exception as e:
+            raise ValueError(
+                f"Cannot convert '{shape}' to a shape. "
+                f"Found invalid dimension '{d}' of type '{type(d)}'. "
+            ) from e
+        if d < 0:
             raise ValueError(
                 f"Cannot convert '{shape}' to a shape. "
                 "Negative dimensions are not allowed."
             )
-    return shape
+        standardized_shape.append(d)
+
+    # This also turns subclasses of `tuple` (e.g. `torch.Size`) to plain tuple.
+    return tuple(standardized_shape)
 
 
 def shape_equal(a_shape, b_shape):
@@ -665,7 +723,7 @@ class AutocastScope:
         from keras.src import backend
 
         if self.dtype is not None and is_float_dtype(value.dtype):
-            return backend.cast(value, dtype=self.dtype)
+            return backend.ops.cast(value, dtype=self.dtype)
         return value
 
     def __enter__(self):

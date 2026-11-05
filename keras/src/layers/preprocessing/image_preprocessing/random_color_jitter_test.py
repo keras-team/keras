@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from tensorflow import data as tf_data
 
 from keras.src import backend
@@ -8,7 +7,6 @@ from keras.src import testing
 
 
 class RandomColorJitterTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_layer(self):
         self.run_layer_test(
             layers.RandomColorJitter,
@@ -53,10 +51,10 @@ class RandomColorJitterTest(testing.TestCase):
         layer = layers.RandomColorJitter(
             brightness_factor=[0.5, 0.5], seed=seed
         )
-        output = backend.convert_to_numpy(layer(inputs))
+        output = backend.ops.convert_to_numpy(layer(inputs))
 
         layer = layers.RandomBrightness(factor=[0.5, 0.5], seed=seed)
-        sub_output = backend.convert_to_numpy(layer(inputs))
+        sub_output = backend.ops.convert_to_numpy(layer(inputs))
 
         self.assertAllClose(output, sub_output)
 

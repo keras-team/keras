@@ -22,7 +22,7 @@ class NamingUtilsTest(test_case.TestCase):
         name = "non_unique_name"
         naming.uniquify(name)
         unique_name = naming.uniquify(name)
-        self.assertEqual(unique_name, name + "_1")
+        self.assertEqual(unique_name, f"{name}_1")
 
     def test_to_snake_case_snake_case_name(self):
         name = "snake_case_name"

@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_color_example,
+)
 
 
 @keras_export("keras.layers.RandomInvert")
@@ -13,6 +16,9 @@ class RandomInvert(BaseImagePreprocessingLayer):
     colors inverted, where the pixel values are transformed to their
     complementary values. Images that are not selected for inversion
     remain unchanged.
+
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
 
     Args:
         factor: A single float or a tuple of two floats.
@@ -27,6 +33,10 @@ class RandomInvert(BaseImagePreprocessingLayer):
             represents the upper bound. Images passed to the layer should have
             values within `value_range`. Defaults to `(0, 255)`.
         seed: Integer. Used to create a random seed.
+
+    Example:
+
+    {{base_image_preprocessing_color_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -57,7 +67,7 @@ class RandomInvert(BaseImagePreprocessingLayer):
 
         seed = seed or self._get_seed_generator(self.backend._backend)
 
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         rank = len(images_shape)
         if rank == 3:
             batch_size = 1
@@ -88,9 +98,9 @@ class RandomInvert(BaseImagePreprocessingLayer):
 
     def transform_images(self, images, transformation, training=True):
         if training:
-            images = self.backend.cast(images, self.compute_dtype)
+            images = self.backend.ops.cast(images, self.compute_dtype)
             apply_inversion = transformation["apply_inversion"]
-            return self.backend.numpy.where(
+            return self.backend.ops.numpy.where(
                 apply_inversion[:, None, None, None],
                 self.value_range[1] - images,
                 images,
@@ -124,3 +134,12 @@ class RandomInvert(BaseImagePreprocessingLayer):
         }
         base_config = super().get_config()
         return {**base_config, **config}
+
+
+if RandomInvert.__doc__ is not None:
+    RandomInvert.__doc__ = RandomInvert.__doc__.replace(
+        "{{base_image_preprocessing_color_example}}",
+        base_image_preprocessing_color_example.replace(
+            "{LayerName}", "RandomInvert"
+        ),
+    )

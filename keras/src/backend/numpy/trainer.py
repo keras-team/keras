@@ -5,14 +5,15 @@ from keras.src import callbacks as callbacks_module
 from keras.src import tree
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
-from keras.src.backend.numpy.core import is_tensor
-from keras.src.trainers import trainer as base_trainer
+from keras.src.backend.numpy.ops.core import is_tensor
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
+from keras.src.trainers.trainer import BaseTrainer
 from keras.src.utils import traceback_utils
+from keras.src.utils.python_utils import pythonify_logs
 
 
-class NumpyTrainer(base_trainer.Trainer):
+class Trainer(BaseTrainer):
     def __init__(self):
         super().__init__()
         self.test_function = None
@@ -73,16 +74,12 @@ class NumpyTrainer(base_trainer.Trainer):
             return self.predict_step(data)
 
         def multi_predict_steps(data):
-            outputs = one_predict_step(data[:1])
-
-            for single_step_data in data[1:]:
-                step_outputs = one_predict_step([single_step_data])
-                outputs = tree.map_structure(
-                    lambda t1, t2: np.concatenate([t1, t2]),
-                    outputs,
-                    step_outputs,
-                )
-            return outputs
+            if len(data) == 1:
+                return one_predict_step(data[:1])
+            all_outputs = [one_predict_step([d]) for d in data]
+            return tree.map_structure(
+                lambda *args: np.concatenate(args, axis=0), *all_outputs
+            )
 
         if self.steps_per_execution > 1:
             predict_step = multi_predict_steps
@@ -211,11 +208,11 @@ class NumpyTrainer(base_trainer.Trainer):
         self.stop_predicting = False
         callbacks.on_predict_begin()
         outputs = None
-        for step, data in epoch_iterator:
-            callbacks.on_predict_batch_begin(step)
+        for begin_step, end_step, data in epoch_iterator:
+            callbacks.on_predict_batch_begin(begin_step)
             batch_outputs = self.predict_function(data)
             outputs = append_to_outputs(batch_outputs, outputs)
-            callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
+            callbacks.on_predict_batch_end(end_step, {"outputs": batch_outputs})
             if self.stop_predicting:
                 break
         callbacks.on_predict_end()
@@ -255,7 +252,7 @@ class NumpyTrainer(base_trainer.Trainer):
 
         if not all(layer.built for layer in self._flatten_layers()):
             # Build the model on one batch of data.
-            for _, data in epoch_iterator:
+            for _, _, data in epoch_iterator:
                 data_batch = data[0]
                 self._symbolic_build(data_batch)
                 break
@@ -276,13 +273,13 @@ class NumpyTrainer(base_trainer.Trainer):
         callbacks.on_test_begin()
         logs = {}
         self.reset_metrics()
-        for step, data in epoch_iterator:
-            callbacks.on_test_batch_begin(step)
+        for begin_step, end_step, data in epoch_iterator:
+            callbacks.on_test_batch_begin(begin_step)
             logs = self.test_function(data)
-            callbacks.on_test_batch_end(step, logs)
+            callbacks.on_test_batch_end(end_step, logs)
             if self.stop_evaluating:
                 break
-        logs = self._get_metrics_result_or_logs(logs)
+        logs = pythonify_logs(self._get_metrics_result_or_logs(logs))
         callbacks.on_test_end(logs)
 
         if return_dict:
@@ -317,7 +314,7 @@ class NumpyTrainer(base_trainer.Trainer):
         self.make_test_function()
 
         logs = self.test_function([data])
-        logs = tree.map_structure(lambda x: np.array(x), logs)
+        logs = pythonify_logs(logs)
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)
@@ -326,6 +323,6 @@ class NumpyTrainer(base_trainer.Trainer):
         self.make_predict_function()
         batch_outputs = self.predict_function([(x,)])
         batch_outputs = tree.map_structure(
-            backend.convert_to_numpy, batch_outputs
+            backend.ops.convert_to_numpy, batch_outputs
         )
         return batch_outputs

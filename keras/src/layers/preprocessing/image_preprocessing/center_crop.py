@@ -36,7 +36,7 @@ class CenterCrop(BaseImagePreprocessingLayer):
     If the input height/width is even and the target height/width is odd (or
     inversely), the input image is left-padded by 1 pixel.
 
-    **Note:** This layer is safe to use inside a `tf.data` pipeline
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
     (independently of which backend you're using).
 
     Args:
@@ -64,7 +64,7 @@ class CenterCrop(BaseImagePreprocessingLayer):
             images = data["images"]
         else:
             images = data
-        shape = self.backend.core.shape(images)
+        shape = self.backend.ops.shape(images)
         return {"input_shape": shape}
 
     def transform_labels(self, labels, transformation, training=True):
@@ -84,12 +84,12 @@ class CenterCrop(BaseImagePreprocessingLayer):
 
         def _get_clipped_bbox(bounding_boxes, h_end, h_start, w_end, w_start):
             bboxes = bounding_boxes["boxes"]
-            x1, y1, x2, y2 = self.backend.numpy.split(bboxes, 4, axis=-1)
-            x1 = self.backend.numpy.clip(x1, w_start, w_end) - w_start
-            y1 = self.backend.numpy.clip(y1, h_start, h_end) - h_start
-            x2 = self.backend.numpy.clip(x2, w_start, w_end) - w_start
-            y2 = self.backend.numpy.clip(y2, h_start, h_end) - h_start
-            bounding_boxes["boxes"] = self.backend.numpy.concatenate(
+            x1, y1, x2, y2 = self.backend.ops.numpy.split(bboxes, 4, axis=-1)
+            x1 = self.backend.ops.numpy.clip(x1, w_start, w_end) - w_start
+            y1 = self.backend.ops.numpy.clip(y1, h_start, h_end) - h_start
+            x2 = self.backend.ops.numpy.clip(x2, w_start, w_end) - w_start
+            y2 = self.backend.ops.numpy.clip(y2, h_start, h_end) - h_start
+            bounding_boxes["boxes"] = self.backend.ops.numpy.concatenate(
                 [x1, y1, x2, y2], axis=-1
             )
             return bounding_boxes
@@ -177,34 +177,38 @@ class CenterCrop(BaseImagePreprocessingLayer):
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
-        return self.transform_images(
-            segmentation_masks, transformation, training=training
-        )
+        # Segmentation masks hold discrete class indices. Use nearest-neighbor
+        # interpolation on the resize path so no new class values are invented,
+        # and keep the original (typically integer) dtype by not casting to
+        # `compute_dtype`.
+        masks = self.backend.ops.convert_to_tensor(segmentation_masks)
+        return self._center_crop(masks, interpolation="nearest")
 
     def transform_images(self, images, transformation=None, training=True):
-        inputs = self.backend.cast(images, self.compute_dtype)
+        images = self.backend.ops.cast(images, self.compute_dtype)
+        return self._center_crop(images, interpolation="bilinear")
+
+    def _center_crop(self, inputs, interpolation="bilinear"):
+        inputs_shape = self.backend.ops.shape(inputs)
+
         if self.data_format == "channels_first":
-            init_height = inputs.shape[-2]
-            init_width = inputs.shape[-1]
+            init_height = inputs_shape[-2]
+            init_width = inputs_shape[-1]
         else:
-            init_height = inputs.shape[-3]
-            init_width = inputs.shape[-2]
+            init_height = inputs_shape[-3]
+            init_width = inputs_shape[-2]
 
-        if init_height is None or init_width is None:
-            # Dynamic size case. TODO.
-            raise ValueError(
-                "At this time, CenterCrop can only "
-                "process images with a static spatial "
-                f"shape. Received: inputs.shape={inputs.shape}"
-            )
-
+        # All these operations work both with ints (static sizes) and scalar
+        # tensors (dynamic sizes).
         h_diff = init_height - self.height
         w_diff = init_width - self.width
 
-        h_start = int(h_diff / 2)
-        w_start = int(w_diff / 2)
+        h_start = h_diff // 2
+        w_start = w_diff // 2
 
-        if h_diff >= 0 and w_diff >= 0:
+        if (not isinstance(h_diff, int) or h_diff >= 0) and (
+            not isinstance(w_diff, int) or w_diff >= 0
+        ):
             if len(inputs.shape) == 4:
                 if self.data_format == "channels_first":
                     return inputs[
@@ -234,6 +238,7 @@ class CenterCrop(BaseImagePreprocessingLayer):
         return image_utils.smart_resize(
             inputs,
             [self.height, self.width],
+            interpolation=interpolation,
             data_format=self.data_format,
             backend_module=self.backend,
         )

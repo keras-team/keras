@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_transform_example,
+)
 from keras.src.random.seed_generator import SeedGenerator
 
 
@@ -13,6 +16,9 @@ class RandomElasticTransform(BaseImagePreprocessingLayer):
     simulating a physically realistic transformation. The magnitude of the
     distortion is controlled by the `scale` parameter, while the `factor`
     determines the probability of applying the transformation.
+
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
 
     Args:
         factor: A single float or a tuple of two floats.
@@ -59,6 +65,9 @@ class RandomElasticTransform(BaseImagePreprocessingLayer):
             preprocessing pipeline is set up.
         seed: Integer. Used to create a random seed.
 
+    Example:
+
+    {{base_image_preprocessing_transform_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -156,7 +165,7 @@ class RandomElasticTransform(BaseImagePreprocessingLayer):
         else:
             images = data
 
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         unbatched = len(images_shape) == 3
         if unbatched:
             batch_size = 1
@@ -203,61 +212,55 @@ class RandomElasticTransform(BaseImagePreprocessingLayer):
 
         return alpha, sigma
 
-    def transform_images(self, images, transformation, training=True):
-        images = self.backend.cast(images, self.compute_dtype)
-        if training and transformation is not None:
-            apply_transform = transformation["apply_transform"]
-            distortion_factor = transformation["distortion_factor"]
-            seed = transformation["seed"]
+    def _transform_images(self, images, transformation, interpolation):
+        if transformation is None:
+            return images
 
-            height, width = (
-                images.shape[self.height_axis],
-                images.shape[self.width_axis],
-            )
+        apply_transform = transformation["apply_transform"]
+        distortion_factor = transformation["distortion_factor"]
+        seed = transformation["seed"]
 
-            alpha, sigma = self.get_elastic_transform_params(
-                height, width, distortion_factor
-            )
+        height, width = (
+            images.shape[self.height_axis],
+            images.shape[self.width_axis],
+        )
 
-            transformed_images = self.backend.image.elastic_transform(
-                images,
-                alpha=alpha,
-                sigma=sigma,
-                interpolation=self.interpolation,
-                fill_mode=self.fill_mode,
-                fill_value=self.fill_value,
-                seed=seed,
-                data_format=self.data_format,
-            )
+        alpha, sigma = self.get_elastic_transform_params(
+            height, width, distortion_factor
+        )
 
-            apply_transform = (
-                apply_transform[:, None, None]
-                if len(images.shape) == 3
-                else apply_transform[:, None, None, None]
-            )
+        transformed_images = self.backend.ops.image.elastic_transform(
+            images,
+            alpha=alpha,
+            sigma=sigma,
+            interpolation=interpolation,
+            fill_mode=self.fill_mode,
+            fill_value=self.fill_value,
+            seed=seed,
+            data_format=self.data_format,
+        )
 
-            images = self.backend.numpy.where(
-                apply_transform,
-                transformed_images,
-                images,
-            )
+        apply_transform = (
+            apply_transform[:, None, None]
+            if len(images.shape) == 3
+            else apply_transform[:, None, None, None]
+        )
 
-            images = self.backend.numpy.clip(
-                images, self.value_range[0], self.value_range[1]
-            )
+        images = self.backend.ops.numpy.where(
+            apply_transform,
+            transformed_images,
+            images,
+        )
 
-            images = self.backend.cast(images, self.compute_dtype)
+        images = self.backend.ops.numpy.clip(
+            images, self.value_range[0], self.value_range[1]
+        )
+
+        images = self.backend.ops.cast(images, self.compute_dtype)
         return images
 
     def transform_labels(self, labels, transformation, training=True):
         return labels
-
-    def transform_segmentation_masks(
-        self, segmentation_masks, transformation, training=True
-    ):
-        return self.transform_images(
-            segmentation_masks, transformation, training=training
-        )
 
     def compute_output_shape(self, input_shape):
         return input_shape
@@ -274,3 +277,12 @@ class RandomElasticTransform(BaseImagePreprocessingLayer):
             "seed": self.seed,
         }
         return {**base_config, **config}
+
+
+if RandomElasticTransform.__doc__ is not None:
+    RandomElasticTransform.__doc__ = RandomElasticTransform.__doc__.replace(
+        "{{base_image_preprocessing_transform_example}}",
+        base_image_preprocessing_transform_example.replace(
+            "{LayerName}", "RandomElasticTransform"
+        ),
+    )

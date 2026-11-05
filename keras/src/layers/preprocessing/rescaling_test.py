@@ -1,5 +1,5 @@
+import grain
 import numpy as np
-import pytest
 from tensorflow import data as tf_data
 
 from keras.src import backend
@@ -8,7 +8,6 @@ from keras.src import testing
 
 
 class RescalingTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_rescaling_basics(self):
         self.run_layer_test(
             layers.Rescaling,
@@ -22,7 +21,6 @@ class RescalingTest(testing.TestCase):
             supports_masking=True,
         )
 
-    @pytest.mark.requires_trainable_backend
     def test_rescaling_dtypes(self):
         # int scale
         self.run_layer_test(
@@ -74,6 +72,21 @@ class RescalingTest(testing.TestCase):
         ds = tf_data.Dataset.from_tensor_slices(x).batch(3).map(layer)
         next(iter(ds)).numpy()
 
+    def test_grain_compatibility(self):
+        layer = layers.Rescaling(scale=1.0 / 255, offset=0.5)
+        x = np.random.random((3, 10, 10, 3)) * 255
+        ds = grain.MapDataset.source(x).to_iter_dataset().batch(3).map(layer)
+        output = next(iter(ds))
+
+        self.assertTrue(backend.ops.is_tensor(output))
+        # Ensure the device of the data is on CPU.
+        if backend.backend() == "tensorflow":
+            self.assertIn("CPU", str(output.device).upper())
+        elif backend.backend() == "jax":
+            self.assertIn("CPU", str(output.device).upper())
+        elif backend.backend() == "torch":
+            self.assertEqual("cpu", str(output.device))
+
     def test_rescaling_with_channels_first_and_vector_scale(self):
         config = backend.image_data_format()
         backend.set_image_data_format("channels_first")
@@ -84,7 +97,6 @@ class RescalingTest(testing.TestCase):
         layer(x)
         backend.set_image_data_format(config)
 
-    @pytest.mark.requires_trainable_backend
     def test_numpy_args(self):
         # https://github.com/keras-team/keras/issues/20072
         self.run_layer_test(

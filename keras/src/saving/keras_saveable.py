@@ -31,7 +31,7 @@ class KerasSaveable:
         import keras.src.saving.saving_lib as saving_lib
 
         buf = io.BytesIO()
-        saving_lib._save_model_to_fileobj(self, buf, "h5")
+        saving_lib._save_model_to_fileobj(self, buf)
         return (
             self._unpickle_model,
             (buf,),

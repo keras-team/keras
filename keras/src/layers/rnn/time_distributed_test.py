@@ -10,7 +10,6 @@ from keras.src.models import Sequential
 
 
 class TimeDistributedTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_basics(self):
         self.run_layer_test(
             layers.TimeDistributed,
@@ -19,7 +18,7 @@ class TimeDistributedTest(testing.TestCase):
             expected_output_shape=(3, 2, 1),
             expected_num_trainable_weights=1,
             expected_num_non_trainable_weights=0,
-            supports_masking=True,
+            supports_masking=False,
         )
 
     def test_build(self):
@@ -44,10 +43,10 @@ class TimeDistributedTest(testing.TestCase):
         layer = layers.TimeDistributed(layer=layer)
         output = layer(sequence)
         self.assertAllClose(
+            output,
             np.array(
                 [[[0.06], [0.22]], [[0.38], [0.53999996]], [[0.7], [0.86]]]
             ),
-            output,
         )
 
     def test_masking(self):
@@ -75,8 +74,7 @@ class TimeDistributedTest(testing.TestCase):
         mask = np.array([[False, True], [True, False], [True, True]])
         output = layer(sequence, mask=mask)
         self.assertAllClose(
-            np.array([[[0], [0.22]], [[0.38], [0]], [[0.7], [0.86]]]),
-            output,
+            output, np.array([[[0], [0.22]], [[0.38], [0]], [[0.7], [0.86]]])
         )
 
     @pytest.mark.requires_trainable_backend
@@ -99,3 +97,134 @@ class TimeDistributedTest(testing.TestCase):
         Y_train = np.random.randint(1, 2, size=(22, 20))
 
         model.fit(X_train, Y_train, epochs=1, batch_size=16)
+
+    def test_mask_validation_with_mismatched_timesteps(self):
+        """Test TimeDistributed raises ValueError for mask with wrong timesteps.
+
+        Regression test for: https://github.com/keras-team/keras/issues/22037
+        """
+        batch = 4
+        timesteps = 5
+        features = 3
+
+        td = layers.TimeDistributed(layers.Dense(units=5, activation="softmax"))
+        inputs = np.zeros((batch, timesteps, features))
+
+        # Mask with correct timesteps should work
+        mask_valid = np.ones((batch, timesteps), dtype=bool)
+        output = td(inputs, mask=mask_valid)
+        self.assertEqual(output.shape, (batch, timesteps, 5))
+
+        # Mask with mismatched timesteps should raise ValueError
+        mask_timemismatch = np.ones((batch, timesteps + 1), dtype=bool)
+        with self.assertRaisesRegex(
+            ValueError,
+            r"The `mask` passed to the `TimeDistributed` layer has a shape.*",
+        ):
+            td(inputs, mask=mask_timemismatch)
+
+    def test_mask_validation_with_mismatched_batch_size(self):
+        """
+        Test TimeDistributed raises ValueError for mask with wrong batch size.
+
+        This tests the batch size validation in eager/non-TF backends.
+        """
+        batch = 4
+        timesteps = 5
+        features = 3
+
+        td = layers.TimeDistributed(layers.Dense(units=5, activation="softmax"))
+        inputs = np.zeros((batch, timesteps, features))
+
+        # Mask with mismatched batch size should raise ValueError
+        mask_batchmismatch = np.ones((batch + 1, timesteps), dtype=bool)
+        with self.assertRaisesRegex(
+            ValueError,
+            r"The `mask` passed to the `TimeDistributed` layer has a shape.*",
+        ):
+            td(inputs, mask=mask_batchmismatch)
+
+    def test_mask_validation_with_correct_shape(self):
+        """
+        Test TimeDistributed accepts mask with correct shape.
+
+        Tests that the validation passes when mask shape is
+        (batch_size, timesteps).
+        """
+        batch = 4
+        timesteps = 5
+        features = 3
+
+        td = layers.TimeDistributed(layers.Dense(units=5, activation="softmax"))
+        inputs = np.zeros((batch, timesteps, features))
+
+        # Mask with correct shape (batch_size, timesteps, extra_dims)
+        mask_correct = np.ones((batch, timesteps, 1), dtype=bool)
+        output = td(inputs, mask=mask_correct)
+        self.assertEqual(output.shape, (batch, timesteps, 5))
+
+    def test_mask_validation_with_3d_mask(self):
+        """
+        Test TimeDistributed accepts 3D mask with correct leading dimensions.
+
+        This tests masks with additional dimensions beyond
+        (batch_size, timesteps).
+        """
+        batch = 4
+        timesteps = 5
+        features = 3
+
+        td = layers.TimeDistributed(layers.Dense(units=5, activation="softmax"))
+        inputs = np.zeros((batch, timesteps, features))
+
+        # 3D mask with correct batch and timestep dimensions
+        mask_3d = np.ones((batch, timesteps, 2), dtype=bool)
+        output = td(inputs, mask=mask_3d)
+        self.assertEqual(output.shape, (batch, timesteps, 5))
+
+        # 3D mask with mismatched timesteps should raise ValueError
+        mask_3d_mismatch = np.ones((batch, timesteps + 1, 2), dtype=bool)
+        with self.assertRaisesRegex(
+            ValueError,
+            r"The `mask` passed to the `TimeDistributed` layer has a shape.*",
+        ):
+            td(inputs, mask=mask_3d_mismatch)
+
+    def test_mask_validation_with_none_mask(self):
+        """Test TimeDistributed works correctly with None mask.
+
+        This tests that no validation error is raised when mask is None.
+        """
+        batch = 4
+        timesteps = 5
+        features = 3
+
+        td = layers.TimeDistributed(layers.Dense(units=5, activation="softmax"))
+        inputs = np.zeros((batch, timesteps, features))
+
+        # None mask should work without raising any error
+        output = td(inputs, mask=None)
+        self.assertEqual(output.shape, (batch, timesteps, 5))
+
+    def test_mask_validation_with_both_batch_and_timesteps_mismatched(self):
+        """
+        Test TimeDistributed raises ValueError when both batch and timesteps
+        mismatch.
+
+        This ensures the validation catches cases where multiple dimensions
+        are wrong.
+        """
+        batch = 4
+        timesteps = 5
+        features = 3
+
+        td = layers.TimeDistributed(layers.Dense(units=5, activation="softmax"))
+        inputs = np.zeros((batch, timesteps, features))
+
+        # Mask with both batch and timesteps mismatched
+        mask_both_mismatch = np.ones((batch + 1, timesteps + 1), dtype=bool)
+        with self.assertRaisesRegex(
+            ValueError,
+            r"The `mask` passed to the `TimeDistributed` layer has a shape.*",
+        ):
+            td(inputs, mask=mask_both_mismatch)

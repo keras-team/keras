@@ -1,9 +1,10 @@
-import random
-
 import keras.src.layers as layers
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
+)
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_transform_example,
 )
 from keras.src.random import SeedGenerator
 from keras.src.utils import backend_utils
@@ -16,6 +17,9 @@ class RandAugment(BaseImagePreprocessingLayer):
     This layer can be thought of as an all-in-one image augmentation layer. The
     policy implemented by this layer has been benchmarked extensively and is
     effective on a wide variety of datasets.
+
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
 
     References:
         - [RandAugment](https://arxiv.org/abs/1909.13719)
@@ -32,6 +36,9 @@ class RandAugment(BaseImagePreprocessingLayer):
             Options include `nearest`, `bilinear`. Default is `bilinear`.
         seed: Integer. Used to create a random seed.
 
+    Example:
+
+    {{base_image_preprocessing_transform_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -169,9 +176,15 @@ class RandAugment(BaseImagePreprocessingLayer):
                 augmentation_layer = getattr(self, layer_name)
                 augmentation_layer.backend.set_backend("tensorflow")
 
+        layer_idxes = self.backend.random.randint(
+            (self.num_ops,),
+            0,
+            len(self._AUGMENT_LAYERS),
+            seed=self._get_seed_generator(self.backend._backend),
+        )
+
         transformation = {}
-        random.shuffle(self._AUGMENT_LAYERS)
-        for layer_name in self._AUGMENT_LAYERS[: self.num_ops]:
+        for layer_name in self._AUGMENT_LAYERS:
             augmentation_layer = getattr(self, layer_name)
             transformation[layer_name] = (
                 augmentation_layer.get_random_transformation(
@@ -181,19 +194,27 @@ class RandAugment(BaseImagePreprocessingLayer):
                 )
             )
 
-        return transformation
+        return {
+            "transforms": transformation,
+            "layer_idxes": layer_idxes,
+        }
 
     def transform_images(self, images, transformation, training=True):
         if training:
-            images = self.backend.cast(images, self.compute_dtype)
+            images = self.backend.ops.cast(images, self.compute_dtype)
 
-            for layer_name, transformation_value in transformation.items():
-                augmentation_layer = getattr(self, layer_name)
-                images = augmentation_layer.transform_images(
-                    images, transformation_value
-                )
+            layer_idxes = transformation["layer_idxes"]
+            transforms = transformation["transforms"]
+            for i in range(self.num_ops):
+                for idx, (key, value) in enumerate(transforms.items()):
+                    augmentation_layer = getattr(self, key)
+                    images = self.backend.ops.numpy.where(
+                        layer_idxes[i] == idx,
+                        augmentation_layer.transform_images(images, value),
+                        images,
+                    )
 
-        images = self.backend.cast(images, self.compute_dtype)
+        images = self.backend.ops.cast(images, self.compute_dtype)
         return images
 
     def transform_labels(self, labels, transformation, training=True):
@@ -206,19 +227,48 @@ class RandAugment(BaseImagePreprocessingLayer):
         training=True,
     ):
         if training:
-            for layer_name, transformation_value in transformation.items():
-                augmentation_layer = getattr(self, layer_name)
-                bounding_boxes = augmentation_layer.transform_bounding_boxes(
-                    bounding_boxes, transformation_value, training=training
+            layer_idxes = transformation["layer_idxes"]
+            transforms = transformation["transforms"]
+            for idx, (key, value) in enumerate(transforms.items()):
+                augmentation_layer = getattr(self, key)
+
+                transformed_bounding_box = (
+                    augmentation_layer.transform_bounding_boxes(
+                        bounding_boxes.copy(), value
+                    )
                 )
+                for i in range(self.num_ops):
+                    bounding_boxes["boxes"] = self.backend.ops.numpy.where(
+                        layer_idxes[i] == idx,
+                        transformed_bounding_box["boxes"],
+                        bounding_boxes["boxes"],
+                    )
+
+                    bounding_boxes["labels"] = self.backend.ops.numpy.where(
+                        layer_idxes[i] == idx,
+                        transformed_bounding_box["labels"],
+                        bounding_boxes["labels"],
+                    )
+
         return bounding_boxes
 
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
-        return self.transform_images(
-            segmentation_masks, transformation, training=training
-        )
+        if training:
+            layer_idxes = transformation["layer_idxes"]
+            transforms = transformation["transforms"]
+            for i in range(self.num_ops):
+                for idx, (key, value) in enumerate(transforms.items()):
+                    augmentation_layer = getattr(self, key)
+                    segmentation_masks = self.backend.ops.numpy.where(
+                        layer_idxes[i] == idx,
+                        augmentation_layer.transform_segmentation_masks(
+                            segmentation_masks, value
+                        ),
+                        segmentation_masks,
+                    )
+        return segmentation_masks
 
     def compute_output_shape(self, input_shape):
         return input_shape
@@ -233,3 +283,12 @@ class RandAugment(BaseImagePreprocessingLayer):
         }
         base_config = super().get_config()
         return {**base_config, **config}
+
+
+if RandAugment.__doc__ is not None:
+    RandAugment.__doc__ = RandAugment.__doc__.replace(
+        "{{base_image_preprocessing_transform_example}}",
+        base_image_preprocessing_transform_example.replace(
+            "{LayerName}", "RandAugment"
+        ),
+    )

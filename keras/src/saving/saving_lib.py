@@ -16,28 +16,21 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.backend.common import global_state
-from keras.src.layers.layer import Layer
-from keras.src.losses.loss import Loss
-from keras.src.metrics.metric import Metric
-from keras.src.optimizers.optimizer import Optimizer
+from keras.src.backend.common import standardize_dtype
 from keras.src.saving.serialization_lib import ObjectSharingScope
 from keras.src.saving.serialization_lib import deserialize_keras_object
 from keras.src.saving.serialization_lib import serialize_keras_object
-from keras.src.trainers.compile_utils import CompileMetrics
 from keras.src.utils import dtype_utils
 from keras.src.utils import file_utils
 from keras.src.utils import io_utils
 from keras.src.utils import naming
 from keras.src.utils import plot_model
 from keras.src.utils.model_visualization import check_pydot
+from keras.src.utils.module_utils import h5py
 from keras.src.utils.summary_utils import readable_memory_size
 from keras.src.utils.summary_utils import weight_memory_size
 from keras.src.version import __version__ as keras_version
 
-try:
-    import h5py
-except ImportError:
-    h5py = None
 try:
     import psutil
 except ImportError:
@@ -51,8 +44,7 @@ except ImportError:
 _CONFIG_FILENAME = "config.json"
 _METADATA_FILENAME = "metadata.json"
 _VARS_FNAME = "model.weights"  # Will become e.g. "model.weights.h5"
-_VARS_FNAME_H5 = _VARS_FNAME + ".h5"
-_VARS_FNAME_NPZ = _VARS_FNAME + ".npz"
+_VARS_FNAME_H5 = f"{_VARS_FNAME}.h5"
 _ASSETS_DIRNAME = "assets"
 _MEMORY_UPPER_BOUND = 0.5  # 50%
 
@@ -74,15 +66,15 @@ For more details about the model architecture, check out
 [config.json](./config.json)."""
 
 
-def save_model(model, filepath, weights_format="h5", zipped=True):
+def save_model(model, filepath, zipped=True):
     """Save a zip-archive representing a Keras model to the given file or path.
 
     The zip-based archive contains the following structure:
 
     - JSON-based configuration file (config.json): Records of model, layer, and
         other saveables' configuration.
-    - H5-based saveable state files, found in respective directories, such as
-        model/states.npz, model/dense_layer/states.npz, etc.
+    - H5-based saveable state file (model.weights.h5), with groups for layers
+        and other saveables.
     - Metadata file.
 
     The states of Keras saveables (layers, optimizers, loss, and metrics) are
@@ -98,7 +90,7 @@ def save_model(model, filepath, weights_format="h5", zipped=True):
     container (list, tuple, or dict), and the container is referenced via a
     layer attribute.
     """
-    if weights_format == "h5" and h5py is None:
+    if h5py is None:
         raise ImportError("h5py must be installed in order to save a model.")
 
     if not model.built:
@@ -111,7 +103,7 @@ def save_model(model, filepath, weights_format="h5", zipped=True):
         )
 
     if isinstance(filepath, io.IOBase):
-        _save_model_to_fileobj(model, filepath, weights_format)
+        _save_model_to_fileobj(model, filepath)
         return
 
     filepath = str(filepath)
@@ -132,19 +124,19 @@ def save_model(model, filepath, weights_format="h5", zipped=True):
             f"model as zipped. Received: filepath={filepath}, zipped={zipped}"
         )
     if is_hf:
-        _upload_model_to_hf(model, filepath, weights_format)
+        _upload_model_to_hf(model, filepath)
     elif not zipped:
-        _save_model_to_dir(model, filepath, weights_format)
+        _save_model_to_dir(model, filepath)
     else:
         if file_utils.is_remote_path(filepath):
             # Remote path. Zip to local memory byte io and copy to remote
             zip_filepath = io.BytesIO()
-            _save_model_to_fileobj(model, zip_filepath, weights_format)
+            _save_model_to_fileobj(model, zip_filepath)
             with file_utils.File(filepath, "wb") as f:
                 f.write(zip_filepath.getvalue())
         else:
             with open(filepath, "wb") as f:
-                _save_model_to_fileobj(model, f, weights_format)
+                _save_model_to_fileobj(model, f)
 
 
 def _serialize_model_as_json(model):
@@ -160,7 +152,7 @@ def _serialize_model_as_json(model):
     return config_json, metadata_json
 
 
-def _save_model_to_dir(model, dirpath, weights_format):
+def _save_model_to_dir(model, dirpath):
     if not file_utils.exists(dirpath):
         file_utils.makedirs(dirpath)
     config_json, metadata_json = _serialize_model_as_json(model)
@@ -170,17 +162,10 @@ def _save_model_to_dir(model, dirpath, weights_format):
         f.write(config_json)
     weights_filepath = file_utils.join(dirpath, _VARS_FNAME_H5)
     assert_dirpath = file_utils.join(dirpath, _ASSETS_DIRNAME)
+    weights_store = None
+    asset_store = None
     try:
-        if weights_format == "h5":
-            weights_store = H5IOStore(weights_filepath, mode="w")
-        elif weights_format == "npz":
-            weights_store = NpzIOStore(weights_filepath, mode="w")
-        else:
-            raise ValueError(
-                "Unknown `weights_format` argument. "
-                "Expected 'h5' or 'npz'. "
-                f"Received: weights_format={weights_format}"
-            )
+        weights_store = H5IOStore(weights_filepath, mode="w")
         asset_store = DiskIOStore(assert_dirpath, mode="w")
         _save_state(
             model,
@@ -190,11 +175,13 @@ def _save_model_to_dir(model, dirpath, weights_format):
             visited_saveables=set(),
         )
     finally:
-        weights_store.close()
-        asset_store.close()
+        if weights_store is not None:
+            weights_store.close()
+        if asset_store is not None:
+            asset_store.close()
 
 
-def _save_model_to_fileobj(model, fileobj, weights_format):
+def _save_model_to_fileobj(model, fileobj):
     config_json, metadata_json = _serialize_model_as_json(model)
 
     with zipfile.ZipFile(fileobj, "w") as zf:
@@ -208,42 +195,27 @@ def _save_model_to_fileobj(model, fileobj, weights_format):
         asset_store = None
         write_zf = False
         try:
-            if weights_format == "h5":
-                try:
-                    if is_memory_sufficient(model):
-                        # Load the model weights into memory before writing
-                        # .keras if the system memory is sufficient.
-                        weights_store = H5IOStore(
-                            _VARS_FNAME_H5, archive=zf, mode="w"
-                        )
-                    else:
-                        # Try opening the .h5 file, then writing it to `zf` at
-                        # the end of the function call. This is more memory
-                        # efficient than writing the weights into memory first.
-                        working_dir = pathlib.Path(fileobj.name).parent
-                        weights_file_path = tempfile.NamedTemporaryFile(
-                            dir=working_dir
-                        )
-                        weights_store = H5IOStore(
-                            weights_file_path.name, mode="w"
-                        )
-                        write_zf = True
-                except:
-                    # If we can't use the local disk for any reason, write the
-                    # weights into memory first, which consumes more memory.
+            try:
+                if is_memory_sufficient(model):
+                    # Load the model weights into memory before writing
+                    # .keras if the system memory is sufficient.
                     weights_store = H5IOStore(
                         _VARS_FNAME_H5, archive=zf, mode="w"
                     )
-            elif weights_format == "npz":
-                weights_store = NpzIOStore(
-                    _VARS_FNAME_NPZ, archive=zf, mode="w"
-                )
-            else:
-                raise ValueError(
-                    "Unknown `weights_format` argument. "
-                    "Expected 'h5' or 'npz'. "
-                    f"Received: weights_format={weights_format}"
-                )
+                else:
+                    # Try opening the .h5 file, then writing it to `zf` at
+                    # the end of the function call. This is more memory
+                    # efficient than writing the weights into memory first.
+                    working_dir = pathlib.Path(fileobj.name).parent
+                    weights_file_path = tempfile.NamedTemporaryFile(
+                        dir=working_dir
+                    )
+                    weights_store = H5IOStore(weights_file_path.name, mode="w")
+                    write_zf = True
+            except:
+                # If we can't use the local disk for any reason, write the
+                # weights into memory first, which consumes more memory.
+                weights_store = H5IOStore(_VARS_FNAME_H5, archive=zf, mode="w")
 
             asset_store = DiskIOStore(_ASSETS_DIRNAME, archive=zf, mode="w")
 
@@ -271,7 +243,7 @@ def _save_model_to_fileobj(model, fileobj, weights_format):
                 weights_file_path.close()
 
 
-def _upload_model_to_hf(model, hf_path, weights_format):
+def _upload_model_to_hf(model, hf_path):
     if huggingface_hub is None:
         raise ImportError(
             "To save models to the Hugging Face Hub, "
@@ -294,7 +266,7 @@ def _upload_model_to_hf(model, hf_path, weights_format):
     repo_id = repo_url.repo_id
 
     with tempfile.TemporaryDirectory() as tmp_dir:
-        _save_model_to_dir(model, tmp_dir, weights_format)
+        _save_model_to_dir(model, tmp_dir)
 
         model_card = _MODEL_CARD_TEMPLATE
 
@@ -366,7 +338,7 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
                 "Invalid filename: expected a `.keras` extension. "
                 f"Received: filepath={filepath}"
             )
-        with open(filepath, "rb") as f:
+        with file_utils.File(filepath, "rb") as f:
             return _load_model_from_fileobj(
                 f, custom_objects, compile, safe_mode
             )
@@ -383,17 +355,14 @@ def _load_model_from_dir(dirpath, custom_objects, compile, safe_mode):
     model = _model_from_config(config_json, custom_objects, compile, safe_mode)
 
     all_filenames = file_utils.listdir(dirpath)
+    weights_store = None
+    asset_store = None
     try:
         if _VARS_FNAME_H5 in all_filenames:
             weights_file_path = file_utils.join(dirpath, _VARS_FNAME_H5)
             weights_store = H5IOStore(weights_file_path, mode="r")
-        elif _VARS_FNAME_NPZ in all_filenames:
-            weights_file_path = file_utils.join(dirpath, _VARS_FNAME_NPZ)
-            weights_store = NpzIOStore(weights_file_path, mode="r")
         else:
-            raise ValueError(
-                f"Expected a {_VARS_FNAME_H5} or {_VARS_FNAME_NPZ} file."
-            )
+            raise ValueError(f"Expected a {_VARS_FNAME_H5} file.")
         if len(all_filenames) > 3:
             asset_store = DiskIOStore(
                 file_utils.join(dirpath, _ASSETS_DIRNAME), mode="r"
@@ -415,7 +384,8 @@ def _load_model_from_dir(dirpath, custom_objects, compile, safe_mode):
         )
 
     finally:
-        weights_store.close()
+        if weights_store is not None:
+            weights_store.close()
         if asset_store:
             asset_store.close()
 
@@ -439,10 +409,74 @@ def _model_from_config(config_json, custom_objects, compile, safe_mode):
     return model
 
 
+# Guard against ZIP "decompression bomb" archive members (CWE-409): a member
+# can store almost nothing on disk yet declare an enormous uncompressed size,
+# forcing a huge allocation when it is read into memory. Keras writes archive
+# members uncompressed (stored, ratio ~1:1) and DEFLATE cannot exceed ~1032:1,
+# so a member that both exceeds the floor and expands to more than
+# `_ZIP_MEMBER_MAX_EXPANSION`x its on-disk size is a bomb, not a genuine
+# artifact (this leaves ample headroom for an incidentally recompressed file).
+# The 4 GiB floor matches the HDF5 dataset guard for CVE-2026-0897.
+_ZIP_MEMBER_BOMB_FLOOR_BYTES = 1 << 32  # 4 GiB
+_ZIP_MEMBER_MAX_EXPANSION = 100
+# Floor for the *cumulative* (whole-archive) guard below. A much lower floor
+# than the per-member one lets the cumulative guard also catch a single member
+# that declares just under the per-member floor, as well as the several
+# independent member reads on the load path that each stay under it.
+_ZIP_CUMULATIVE_BOMB_FLOOR_BYTES = 1 << 26  # 64 MiB
+
+
+def _reject_zip_bomb(archive, name):
+    """Raise if a ZIP member is a decompression bomb (see CWE-409)."""
+    info = archive.getinfo(name)
+    if (
+        info.file_size > _ZIP_MEMBER_BOMB_FLOOR_BYTES
+        and info.file_size > _ZIP_MEMBER_MAX_EXPANSION * info.compress_size
+    ):
+        raise ValueError(
+            f"Not allowed: ZIP member '{name}' declares "
+            f"{readable_memory_size(info.file_size)} but only "
+            f"{readable_memory_size(info.compress_size)} are stored on disk; "
+            "refusing to load a potential decompression bomb."
+        )
+
+
+def _reject_zip_archive_bomb(archive):
+    """Check ZIP directory metadata without opening or decompressing members.
+
+    Sum only members exceeding the expansion ratio, so ordinary weights cannot
+    hide highly compressed assets. The cumulative floor also bounds multiple
+    small members that individually stay below it. This check covers both
+    in-memory reads and asset extraction.
+    """
+    if not isinstance(archive, zipfile.ZipFile):
+        return
+    total_declared = 0
+    total_stored = 0
+    for info in archive.infolist():
+        if info.file_size > _ZIP_MEMBER_MAX_EXPANSION * info.compress_size:
+            total_declared += info.file_size
+            total_stored += info.compress_size
+    if total_declared > _ZIP_CUMULATIVE_BOMB_FLOOR_BYTES:
+        raise ValueError(
+            "Not allowed: compressed archive members declare "
+            f"{readable_memory_size(total_declared)} but only "
+            f"{readable_memory_size(total_stored)} are stored on disk; "
+            "refusing to load a potential decompression bomb."
+        )
+
+
+def _safe_zip_read(archive, name):
+    """Read a ZIP member into memory, rejecting bombs (see CWE-409)."""
+    _reject_zip_bomb(archive, name)
+    with archive.open(name, "r") as f:
+        return f.read()
+
+
 def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
     with zipfile.ZipFile(fileobj, "r") as zf:
-        with zf.open(_CONFIG_FILENAME, "r") as f:
-            config_json = f.read()
+        _reject_zip_archive_bomb(zf)
+        config_json = _safe_zip_read(zf, _CONFIG_FILENAME)
 
         model = _model_from_config(
             config_json, custom_objects, compile, safe_mode
@@ -454,6 +488,12 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
         asset_store = None
         try:
             if _VARS_FNAME_H5 in all_filenames:
+                # Reject a decompression-bomb weights member up front, outside
+                # the try/except below: the bare `except` falls back to reading
+                # the weights on the fly, so a check inside it would be
+                # swallowed and the bomb still read. Checking here covers the
+                # in-memory, extract-to-disk, and on-the-fly paths at once.
+                _reject_zip_bomb(zf, _VARS_FNAME_H5)
                 try:
                     if is_memory_sufficient(model):
                         # Load the entire file into memory if the system memory
@@ -479,12 +519,8 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
                     # weights from the zip archive on the fly, which is less
                     # efficient.
                     weights_store = H5IOStore(_VARS_FNAME_H5, zf, mode="r")
-            elif _VARS_FNAME_NPZ in all_filenames:
-                weights_store = NpzIOStore(_VARS_FNAME_NPZ, zf, mode="r")
             else:
-                raise ValueError(
-                    f"Expected a {_VARS_FNAME_H5} or {_VARS_FNAME_NPZ} file."
-                )
+                raise ValueError(f"Expected a {_VARS_FNAME_H5} file.")
 
             if len(all_filenames) > 3:
                 asset_store = DiskIOStore(_ASSETS_DIRNAME, archive=zf, mode="r")
@@ -568,7 +604,7 @@ def save_weights_only(
     finally:
         if tmp_dir is not None:
             file_utils.copy(filepath, remote_filepath)
-            shutil.rmtree(tmp_dir)
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 def load_weights_only(
@@ -586,6 +622,7 @@ def load_weights_only(
         )
 
     archive = None
+    weights_store = None
     tmp_dir = None
     filepath_str = str(filepath)
 
@@ -604,6 +641,7 @@ def load_weights_only(
             weights_store = ShardedH5IOStore(filepath, mode="r")
         elif filepath_str.endswith(".keras"):
             archive = zipfile.ZipFile(filepath, "r")
+            _reject_zip_archive_bomb(archive)
             weights_store = H5IOStore(_VARS_FNAME_H5, archive=archive, mode="r")
 
         failed_saveables = set()
@@ -622,15 +660,15 @@ def load_weights_only(
             failed_saveables=failed_saveables,
             error_msgs=error_msgs,
         )
-        weights_store.close()
-        if archive:
-            archive.close()
-
         if failed_saveables:
             _raise_loading_failure(error_msgs, warn_only=skip_mismatch)
     finally:
+        if weights_store is not None:
+            weights_store.close()
+        if archive is not None:
+            archive.close()
         if tmp_dir is not None:
-            shutil.rmtree(tmp_dir)
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 def _raise_loading_failure(error_msgs, warn_only=False):
@@ -669,7 +707,7 @@ def _write_to_zip_recursively(zipfile_to_save, system_path, zip_path):
 def _name_key(name):
     """Make sure that private attributes are visited last."""
     if name.startswith("_"):
-        return "~" + name
+        return f"~{name}"
     return name
 
 
@@ -712,10 +750,10 @@ def _save_state(
 ):
     from keras.src.saving.keras_saveable import KerasSaveable
 
-    if not isinstance(weights_store, (H5IOStore, ShardedH5IOStore, NpzIOStore)):
+    if not isinstance(weights_store, (H5IOStore, ShardedH5IOStore, type(None))):
         raise ValueError(
             "Expected `weights_store` to be an instance of "
-            "`H5IOStore`, `ShardedH5IOStore` or `NpzIOStore`. "
+            "`H5IOStore`, `ShardedH5IOStore`, or `None`. "
             f"Received: {weights_store} of type {type(weights_store)}"
         )
     if not isinstance(assets_store, (DiskIOStore, type(None))):
@@ -754,7 +792,7 @@ def _save_state(
                 ),
                 visited_saveables=visited_saveables,
             )
-        elif isinstance(child_obj, (list, dict, tuple, set)):
+        elif isinstance(child_obj, (list, dict, tuple)):
             _save_container_state(
                 child_obj,
                 weights_store,
@@ -778,10 +816,10 @@ def _load_state(
 ):
     from keras.src.saving.keras_saveable import KerasSaveable
 
-    if not isinstance(weights_store, (H5IOStore, ShardedH5IOStore, NpzIOStore)):
+    if not isinstance(weights_store, (H5IOStore, ShardedH5IOStore, type(None))):
         raise ValueError(
             "Expected `weights_store` to be an instance of "
-            "`H5IOStore`, `ShardedH5IOStore` or `NpzIOStore`. "
+            "`H5IOStore`, `ShardedH5IOStore`, or `None`. "
             f"Received: {weights_store} of type {type(weights_store)}"
         )
     if not isinstance(assets_store, (DiskIOStore, type(None))):
@@ -797,22 +835,25 @@ def _load_state(
     failure = False
 
     if hasattr(saveable, "load_own_variables") and weights_store:
+        store = weights_store.get(inner_path)
         if skip_mismatch or failed_saveables is not None:
             try:
-                saveable.load_own_variables(weights_store.get(inner_path))
+                saveable.load_own_variables(store)
             except Exception as e:
-                failed_saveables.add(id(saveable))
+                if failed_saveables is not None:
+                    failed_saveables.add(id(saveable))
                 error_msgs[id(saveable)] = saveable, e
                 failure = True
         else:
-            saveable.load_own_variables(weights_store.get(inner_path))
+            saveable.load_own_variables(store)
 
     if hasattr(saveable, "load_assets") and assets_store:
         if skip_mismatch or failed_saveables is not None:
             try:
                 saveable.load_assets(assets_store.get(inner_path))
             except Exception as e:
-                failed_saveables.add(id(saveable))
+                if failed_saveables is not None:
+                    failed_saveables.add(id(saveable))
                 error_msgs[id(saveable)] = saveable, e
                 failure = True
         else:
@@ -838,7 +879,7 @@ def _load_state(
                 failed_saveables=failed_saveables,
                 error_msgs=error_msgs,
             )
-        elif isinstance(child_obj, (list, dict, tuple, set)):
+        elif isinstance(child_obj, (list, dict, tuple)):
             _load_container_state(
                 child_obj,
                 weights_store,
@@ -860,15 +901,46 @@ def _load_state(
     if not failure:
         if visited_saveables is not None and newly_failed <= 0:
             visited_saveables.add(id(saveable))
-        if id(saveable) in failed_saveables:
+        if failed_saveables is not None and id(saveable) in failed_saveables:
             failed_saveables.remove(id(saveable))
             error_msgs.pop(id(saveable))
 
 
+def _get_unique_name(name, used_names):
+    if name in used_names:
+        used_names[name] += 1
+        return f"{name}_{used_names[name]}"
+    used_names[name] = 0
+    return name
+
+
+def _container_path_present(weights_store, assets_store, path):
+    """True if either store has anything under `path`.
+
+    Used to detect legacy files that predate the nested-container
+    recursion added in PR #22362 — older files don't contain the
+    `container*` groups the new loader expects.
+    """
+    return (weights_store is not None and weights_store.has_path(path)) or (
+        assets_store is not None and assets_store.has_path(path)
+    )
+
+
 def _save_container_state(
-    container, weights_store, assets_store, inner_path, visited_saveables
+    container,
+    weights_store,
+    assets_store,
+    inner_path,
+    visited_saveables,
+    visited_containers=None,
 ):
     from keras.src.saving.keras_saveable import KerasSaveable
+
+    if visited_containers is None:
+        visited_containers = set()
+    if id(container) in visited_containers:
+        return
+    visited_containers.add(id(container))
 
     used_names = {}
     if isinstance(container, dict):
@@ -879,18 +951,26 @@ def _save_container_state(
             # Do NOT address the saveable via `saveable.name`, since
             # names are usually autogenerated and thus not reproducible
             # (i.e. they may vary across two instances of the same model).
-            name = naming.to_snake_case(saveable.__class__.__name__)
-            if name in used_names:
-                used_names[name] += 1
-                name = f"{name}_{used_names[name]}"
-            else:
-                used_names[name] = 0
+            name = _get_unique_name(
+                naming.to_snake_case(saveable.__class__.__name__),
+                used_names,
+            )
             _save_state(
                 saveable,
                 weights_store,
                 assets_store,
                 inner_path=file_utils.join(inner_path, name).replace("\\", "/"),
                 visited_saveables=visited_saveables,
+            )
+        elif isinstance(saveable, (list, dict, tuple)):
+            name = _get_unique_name("container", used_names)
+            _save_container_state(
+                saveable,
+                weights_store,
+                assets_store,
+                inner_path=file_utils.join(inner_path, name).replace("\\", "/"),
+                visited_saveables=visited_saveables,
+                visited_containers=visited_containers,
             )
 
 
@@ -903,8 +983,15 @@ def _load_container_state(
     visited_saveables,
     failed_saveables,
     error_msgs,
+    visited_containers=None,
 ):
     from keras.src.saving.keras_saveable import KerasSaveable
+
+    if visited_containers is None:
+        visited_containers = set()
+    if id(container) in visited_containers:
+        return
+    visited_containers.add(id(container))
 
     used_names = {}
     if isinstance(container, dict):
@@ -912,12 +999,10 @@ def _load_container_state(
 
     for saveable in container:
         if isinstance(saveable, KerasSaveable):
-            name = naming.to_snake_case(saveable.__class__.__name__)
-            if name in used_names:
-                used_names[name] += 1
-                name = f"{name}_{used_names[name]}"
-            else:
-                used_names[name] = 0
+            name = _get_unique_name(
+                naming.to_snake_case(saveable.__class__.__name__),
+                used_names,
+            )
             _load_state(
                 saveable,
                 weights_store,
@@ -927,6 +1012,61 @@ def _load_container_state(
                 visited_saveables=visited_saveables,
                 failed_saveables=failed_saveables,
                 error_msgs=error_msgs,
+            )
+        elif isinstance(saveable, (list, dict, tuple)):
+            name = _get_unique_name("container", used_names)
+            nested_path = file_utils.join(inner_path, name).replace("\\", "/")
+            if not _container_path_present(
+                weights_store, assets_store, nested_path
+            ):
+                # The container's group is missing from the saved file.
+                # Try to load it recursively anyway with `skip_mismatch=True`,
+                # then warn only if doing so produced new failures — i.e. the
+                # container genuinely held an unvisited `KerasSaveable` that
+                # needed loading. This silently skips two benign cases:
+                #   - Containers of pure metadata (e.g. lists of strings in
+                #     `variable_serialization_spec`).
+                #   - Containers that mirror already-loaded saveables (e.g.
+                #     a Functional model's `_operations_by_depth` whose
+                #     items are also in the `layers` collection).
+                tracked_failures = set()
+                tracked_errors = {}
+                _load_container_state(
+                    saveable,
+                    weights_store,
+                    assets_store,
+                    inner_path=nested_path,
+                    skip_mismatch=True,
+                    visited_saveables=visited_saveables,
+                    failed_saveables=tracked_failures,
+                    error_msgs=tracked_errors,
+                    visited_containers=visited_containers,
+                )
+                if tracked_failures:
+                    # Legacy files saved before PR #22362 didn't write the
+                    # `container*` groups for nested containers — silently
+                    # skip so the model still loads (sublayers keep their
+                    # freshly-initialized weights).
+                    warnings.warn(
+                        f"Skipping nested container at '{nested_path}': no "
+                        "matching group found in the saved file. This "
+                        "usually means the file was saved with a Keras "
+                        "version that did not serialize sublayers nested "
+                        "inside containers. Affected layers will retain "
+                        "their freshly-initialized weights.",
+                        stacklevel=2,
+                    )
+                continue
+            _load_container_state(
+                saveable,
+                weights_store,
+                assets_store,
+                inner_path=nested_path,
+                skip_mismatch=skip_mismatch,
+                visited_saveables=visited_saveables,
+                failed_saveables=failed_saveables,
+                error_msgs=error_msgs,
+                visited_containers=visited_containers,
             )
 
 
@@ -946,9 +1086,11 @@ class DiskIOStore:
         self.archive = archive
         self.tmp_dir = None
         if self.archive:
+            if self.mode == "r":
+                _reject_zip_archive_bomb(self.archive)
             self.tmp_dir = get_temp_dir()
             if self.mode == "r":
-                self.archive.extractall(path=self.tmp_dir)
+                file_utils.extract_open_archive(self.archive, self.tmp_dir)
             self.working_dir = file_utils.join(
                 self.tmp_dir, self.root_path
             ).replace("\\", "/")
@@ -964,10 +1106,31 @@ class DiskIOStore:
                 ).replace("\\", "/")
                 file_utils.makedirs(self.working_dir)
 
+    def _full_path(self, path):
+        """Resolve `path` under the working dir, rejecting traversal."""
+        # Normalize separators first so a `\\` cannot bypass the check below.
+        path = path.replace("\\", "/")
+        if file_utils.is_remote_path(self.working_dir):
+            # `resolve_path` (realpath/abspath) would corrupt a remote prefix
+            # such as `gs://bucket`, so validate remote paths by string.
+            if path.startswith("/") or "://" in path or ".." in path.split("/"):
+                raise ValueError(
+                    f"Invalid asset path: '{path}' escapes the asset directory."
+                )
+            return file_utils.join(self.working_dir, path).replace("\\", "/")
+        resolved = file_utils.resolve_sub_path(
+            file_utils.resolve_path(self.working_dir), path
+        )
+        if resolved is None:
+            raise ValueError(
+                f"Invalid asset path: '{path}' escapes the asset directory."
+            )
+        return resolved.replace("\\", "/")
+
     def make(self, path):
         if not path:
             return self.working_dir
-        path = file_utils.join(self.working_dir, path).replace("\\", "/")
+        path = self._full_path(path)
         if not file_utils.exists(path):
             file_utils.makedirs(path)
         return path
@@ -975,10 +1138,19 @@ class DiskIOStore:
     def get(self, path):
         if not path:
             return self.working_dir
-        path = file_utils.join(self.working_dir, path).replace("\\", "/")
+        path = self._full_path(path)
         if file_utils.exists(path):
             return path
         return None
+
+    def has_path(self, path):
+        """Return True if `path` exists on disk under the store's root."""
+        if not path:
+            return file_utils.exists(self.working_dir)
+        try:
+            return file_utils.exists(self._full_path(path))
+        except ValueError:
+            return False
 
     def close(self):
         if self.mode == "w" and self.archive:
@@ -987,6 +1159,104 @@ class DiskIOStore:
             )
         if self.tmp_dir and file_utils.exists(self.tmp_dir):
             file_utils.rmtree(self.tmp_dir)
+
+
+def safe_get_h5_group(parent, name):
+    """Retrieve a Group within a given File or Group.
+
+    Args:
+        parent: the parent h5py.File or h5py.Group.
+        name: the name of the Group to retrieve.
+
+    Returns:
+        The child h5py.Group.
+    """
+    current = parent
+    for name_part in name.split("/"):
+        if not name_part:
+            raise ValueError(f"Invalid path in H5 file: {name}")
+
+        # Also handles the case when the group is an empty dict initially.
+        if name_part not in current:
+            raise KeyError(name)
+
+        if isinstance(current, dict):
+            group_type = None
+        else:
+            group_type = current.get(
+                name_part, default=None, getclass=True, getlink=True
+            )
+
+        if group_type in (h5py.ExternalLink, h5py.SoftLink):
+            raise ValueError(f"Not allowed: H5 file with {group_type.__name__}")
+
+        current = current[name_part]
+        if not isinstance(current, h5py.Group):
+            raise ValueError(
+                f"Invalid H5 file, expected Group but received {type(current)}"
+            )
+
+    return current
+
+
+# Guard against HDF5 "shape bomb" datasets: a dataset can declare an enormous
+# shape while storing almost nothing on disk (e.g. chunked + gzip-compressed
+# with only a fill value), which forces a huge allocation when it is read into
+# memory (CWE-789 / CWE-409). For datasets whose declared in-memory size is
+# above this floor, we require it to stay within `_H5_DATASET_MAX_EXPANSION` of
+# the bytes actually stored on disk. Genuine arrays (even compressed) satisfy
+# this; shape/decompression bombs, which store next to nothing, do not.
+_H5_DATASET_BOMB_FLOOR_BYTES = 1 << 32  # 4 GiB
+_H5_DATASET_MAX_EXPANSION = 1000
+
+
+def safe_get_h5_dataset(group, name):
+    """Retrieve a Dataset within a given Group.
+
+    Args:
+        group: the parent h5py.Group.
+        name: the name of the Dataset to retrieve.
+
+    Returns:
+        The child h5py.Dataset.
+    """
+    if "/" in name:
+        # Separate the dataset name from it's parent group.
+        group_name, name = name.rsplit("/", 1)
+        group = safe_get_h5_group(group, group_name)
+
+    # Also handles the case when the group is an empty dict initially.
+    if name not in group:
+        raise KeyError(name)
+
+    dataset_type = group.get(name, default=None, getclass=True, getlink=True)
+    if dataset_type in (h5py.ExternalLink, h5py.SoftLink):
+        raise ValueError(f"Not allowed: H5 file with {dataset_type.__name__}")
+
+    dataset = group[name]
+    if not isinstance(dataset, h5py.Dataset):
+        raise ValueError(
+            f"Invalid H5 file, expected Dataset, received {type(dataset)}"
+        )
+    if dataset.external:
+        raise ValueError(
+            f"Not allowed: H5 file with external Dataset: {dataset.external}"
+        )
+    if dataset.is_virtual:
+        raise ValueError("Not allowed: H5 file with virtual Dataset")
+    declared_bytes = math.prod(dataset.shape) * dataset.dtype.itemsize
+    stored_bytes = dataset.id.get_storage_size()
+    if (
+        declared_bytes > _H5_DATASET_BOMB_FLOOR_BYTES
+        and declared_bytes > _H5_DATASET_MAX_EXPANSION * stored_bytes
+    ):
+        raise ValueError(
+            f"Not allowed: H5 dataset '{name}' declares "
+            f"{readable_memory_size(declared_bytes)} but only "
+            f"{readable_memory_size(stored_bytes)} are stored on disk; "
+            "refusing to load a potential decompression/shape bomb."
+        )
+    return dataset
 
 
 class H5IOStore:
@@ -1040,15 +1310,20 @@ class H5IOStore:
         # will mistakenly using `__len__` to determine the value.
         return self.h5_file.__bool__()
 
-    def _get_h5_file(self, path_or_io):
+    def _get_h5_file(self, path_or_io, mode=None):
+        mode = mode or self.mode
+        if mode not in ("r", "w", "a"):
+            raise ValueError(
+                f"`mode` should be either 'r', 'w' or 'a'. Received: {mode}"
+            )
         if self.archive:
-            if self.mode == "w":
+            if mode == "w":
                 self.io_file = io.BytesIO()
             else:
                 self.io_file = self.archive.open(str(path_or_io), "r")
-            return h5py.File(self.io_file, mode=self.mode)
+            return h5py.File(self.io_file, mode=mode)
         else:
-            return h5py.File(path_or_io, mode=self.mode)
+            return h5py.File(path_or_io, mode=mode)
 
     def make(self, path, metadata=None):
         """Make a new H5 entry group.
@@ -1092,19 +1367,32 @@ class H5IOStore:
 
         self._h5_entry_path = path
         self._h5_entry_group = {}  # Defaults to an empty dict if not found.
+        self._h5_entry_initialized = True
+
         if not path:
             if "vars" in self.h5_file:
-                self._h5_entry_group = self.h5_file["vars"]
-        elif path in self.h5_file and "vars" in self.h5_file[path]:
-            self._h5_entry_group = self.h5_file[path]["vars"]
-        else:
-            # No hit. Fix for 2.13 compatibility.
-            if "_layer_checkpoint_dependencies" in self.h5_file:
-                path = path.replace("layers", "_layer_checkpoint_dependencies")
-                if path in self.h5_file and "vars" in self.h5_file[path]:
-                    self._h5_entry_group = self.h5_file[path]["vars"]
-        self._h5_entry_initialized = True
+                self._h5_entry_group = safe_get_h5_group(self.h5_file, "vars")
+            return self
+
+        if path in self.h5_file:
+            path_group = safe_get_h5_group(self.h5_file, path)
+            if "vars" in path_group:
+                self._h5_entry_group = safe_get_h5_group(path_group, "vars")
+                return self
+
+        # No hit. Fix for 2.13 compatibility.
+        if "_layer_checkpoint_dependencies" in self.h5_file:
+            path = path.replace("layers", "_layer_checkpoint_dependencies")
+            if path in self.h5_file:
+                path_group = safe_get_h5_group(self.h5_file, path)
+                if "vars" in path_group:
+                    self._h5_entry_group = safe_get_h5_group(path_group, "vars")
+
         return self
+
+    def has_path(self, path):
+        """Return True if a group exists at `path` in the H5 file."""
+        return path in self.h5_file
 
     def close(self):
         self.h5_file.close()
@@ -1134,37 +1422,33 @@ class H5IOStore:
     def keys(self):
         return self._h5_entry_group.keys()
 
-    def items(self):
-        return self._h5_entry_group.items()
-
-    def values(self):
-        return self._h5_entry_group.values()
-
     def __getitem__(self, key):
-        value = self._h5_entry_group[key]
+        value = safe_get_h5_dataset(self._h5_entry_group, key)
         if (
             hasattr(value, "attrs")
             and "dtype" in value.attrs
             and value.attrs["dtype"] == "bfloat16"
         ):
             value = np.array(value, dtype=ml_dtypes.bfloat16)
+        elif not isinstance(value, np.ndarray):
+            value = np.array(value)
         return value
 
     def __setitem__(self, key, value):
-        if self.mode != "w":
+        if self.mode not in ("w", "a"):
             raise ValueError("Setting a value is only allowed in write mode.")
         if not self._h5_entry_initialized:
             self._create_h5_group(self._h5_entry_path)
 
-        value = backend.convert_to_numpy(value)
-        if backend.standardize_dtype(value.dtype) == "bfloat16":
+        value = backend.ops.convert_to_numpy(value)
+        if standardize_dtype(value.dtype) == "bfloat16":
             ds = self._h5_entry_group.create_dataset(key, data=value)
             ds.attrs["dtype"] = "bfloat16"
         else:
             self._h5_entry_group[key] = value
 
     def __delitem__(self, key):
-        if self.mode != "w":
+        if self.mode not in ("w", "a"):
             raise ValueError("Deleting a value is only allowed in write mode.")
         del self._h5_entry_group[key]
 
@@ -1202,7 +1486,7 @@ class ShardedH5IOStore(H5IOStore):
         self.archive = archive
         self.io_file = None
 
-        self.max_shard_size = float(max_shard_size)
+        self.max_shard_size = float(max_shard_size) * 1024**3  # To bytes.
         self.base_name = self.path.stem.replace(".weights", "")
 
         if self.path.suffix != ".json":
@@ -1226,6 +1510,7 @@ class ShardedH5IOStore(H5IOStore):
         self.current_shard_size = 0
         self.total_shard_size = 0  # In bytes.
         self.current_shard_path = None
+        self.current_shard_filenames = []
         if self.mode == "w":
             self.sharding_config = {
                 "metadata": {
@@ -1236,12 +1521,33 @@ class ShardedH5IOStore(H5IOStore):
         else:
             if self.archive:
                 self.sharding_config = json.loads(
-                    self.archive.open(str(self.path), "r").read()
+                    _safe_zip_read(self.archive, str(self.path))
                 )
             else:
                 with open(self.path, "r") as map_file:
                     self.sharding_config = json.load(map_file)
         self.h5_file = self._create_new_shard_file()
+
+    def make(self, path, metadata=None):
+        """Make a new H5 entry group.
+
+        This method is only available in write mode. It defers the creation of
+        the H5 entry group until `__setitem__` is called, preventing the
+        creation of empty groups.
+
+        The information about the current shard is reset.
+
+        Args:
+            path: `str`. The variable path.
+            metadata: Optional `dict`. The metadata to save with the H5 entry
+                group. Defaults to `None`.
+        """
+        self.current_shard_filenames = []
+        if self.h5_file is not None:
+            self.current_shard_filenames.append(
+                pathlib.Path(self.h5_file.filename).name
+            )
+        return super().make(path, metadata)
 
     def get(self, path):
         """Get the H5 entry group.
@@ -1259,17 +1565,39 @@ class ShardedH5IOStore(H5IOStore):
 
         # If not found, check shard map and switch files.
         weight_map = self.sharding_config["weight_map"]
-        filename = weight_map.get(parsed_path) or weight_map.get(
-            "/" + parsed_path + "/vars"
+        filenames = weight_map.get(parsed_path) or weight_map.get(
+            f"/{parsed_path}/vars"
         )
+        if filenames is not None:
+            if not isinstance(filenames, list):
+                filenames = [filenames]
+            self.current_shard_filenames = filenames
+            filename = filenames[0]
+        else:
+            self.current_shard_filenames = []
+            filename = None
 
         if filename is not None and filename != self.current_shard_path.name:
             self.close()
-            self.h5_file = self._get_h5_file(self.path.with_name(filename))
+            self.current_shard_path = self.path.with_name(filename)
+            self.h5_file = self._get_h5_file(self.current_shard_path)
         return super().get(path)
 
+    def has_path(self, path):
+        """Return True if any shard has a group under `path`.
+
+        Resolves via the shard weight-map rather than the currently open
+        shard, so the answer is independent of which shard is active.
+        """
+        weight_map = self.sharding_config.get("weight_map", {})
+        leading = f"/{path}"
+        prefix = f"{leading}/"
+        return any(k == leading or k.startswith(prefix) for k in weight_map)
+
     def close(self):
-        self.h5_file.close()
+        if self.h5_file is not None:
+            self.h5_file.close()
+            self.h5_file = None
         if self.mode == "w":
             self.sharding_config["metadata"]["total_size"] = (
                 self.total_shard_size
@@ -1289,28 +1617,112 @@ class ShardedH5IOStore(H5IOStore):
     # Shard-specific methods.
 
     def _create_new_shard_file(self):
+        """Create a new shard file and return the H5 file object."""
         new_shard_path = (
             f"{self.base_name}_{self.current_shard_index:05}.weights.h5"
         )
         self.current_shard_index += 1
         self.current_shard_path = self.path.with_name(new_shard_path)
-        return self._get_h5_file(self.current_shard_path)
+        h5_file = self._get_h5_file(self.current_shard_path)
+        self.current_shard_filenames.append(pathlib.Path(h5_file.filename).name)
+        self._h5_entry_initialized = False
+        return h5_file
+
+    def _switch_h5_file(self, filename, mode):
+        """Switch to a different H5 file with the specified mode.
+
+        This is useful for retrieving information from all shards, such as the
+        total length, keys, and items.
+        """
+        if mode not in ("r", "a"):
+            raise ValueError(
+                f"`mode` should be either 'r' or 'a'. Received: {mode}"
+            )
+        self.close()
+        self.h5_file = self._get_h5_file(
+            self.path.with_name(filename), mode=mode
+        )
+        self._get_h5_group(self._h5_entry_path)
+
+    def _restore_h5_file(self):
+        """Ensure the current shard is the last one created."""
+        if (
+            pathlib.Path(self.h5_file.filename).name
+            != self.current_shard_path.name
+        ):
+            mode = "a" if self.mode == "w" else "r"
+            self._switch_h5_file(self.current_shard_path.name, mode=mode)
 
     # H5 entry level methods.
 
+    def _get_h5_group(self, path):
+        """Get the H5 entry group. If it doesn't exist, return an empty dict."""
+        try:
+            if not path:
+                self._h5_entry_group = safe_get_h5_group(self.h5_file, "vars")
+            else:
+                self._h5_entry_group = safe_get_h5_group(
+                    safe_get_h5_group(self.h5_file, path), "vars"
+                )
+            self._h5_entry_initialized = True
+        except KeyError:
+            self._h5_entry_group = {}
+            self._h5_entry_initialized = False
+
+    # Dict methods.
+
+    def __len__(self):
+        total_len = self._h5_entry_group.__len__()
+        for filename in self.current_shard_filenames:
+            if filename == self.current_shard_path.name:
+                continue
+            self._switch_h5_file(filename, mode="r")
+            total_len += self._h5_entry_group.__len__()
+        self._restore_h5_file()
+        return total_len
+
+    def keys(self):
+        keys = []
+        current_shard_keys = list(self._h5_entry_group.keys())
+        for filename in self.current_shard_filenames:
+            if filename == self.current_shard_path.name:
+                keys += current_shard_keys
+            else:
+                self._switch_h5_file(filename, mode="r")
+                keys += list(self._h5_entry_group.keys())
+        self._restore_h5_file()
+        return keys
+
+    def __getitem__(self, key):
+        if key in self._h5_entry_group:
+            return super().__getitem__(key)
+
+        for filename in self.current_shard_filenames:
+            if filename == self.current_shard_path.name:
+                continue
+            self._switch_h5_file(filename, mode="r")
+            if key in self._h5_entry_group:
+                item = super().__getitem__(key)
+                self._restore_h5_file()
+                return item
+        raise KeyError(
+            f"Key '{key}' not found in any of the shards: "
+            f"{self.current_shard_filenames}"
+        )
+
     def __setitem__(self, key, value):
+        self._restore_h5_file()
+
         # Accumulate `current_shard_size`.
-        value = backend.convert_to_numpy(value)
-        dtype = backend.standardize_dtype(value.dtype)
+        value = backend.ops.convert_to_numpy(value)
+        dtype = standardize_dtype(value.dtype)
         weight_counts = math.prod(value.shape)
         per_param_size = dtype_utils.dtype_size(dtype)
-        value_size = weight_counts * per_param_size / (8.0 * 1024**3)  # To GB.
-        self.total_shard_size += weight_counts * per_param_size / 8  # In bytes.
+        value_size = weight_counts * per_param_size / 8  # In bytes.
+        self.total_shard_size += value_size
         if value_size > self.max_shard_size:
-            value_size_str = readable_memory_size(value_size * 1024**3)
-            max_shard_size_str = readable_memory_size(
-                self.max_shard_size * 1024**3
-            )
+            value_size_str = readable_memory_size(value_size)
+            max_shard_size_str = readable_memory_size(self.max_shard_size)
             raise ValueError(
                 f"The size of {key} is {value_size_str} which "
                 f"exceeds the maximum shard size {max_shard_size_str}. You "
@@ -1323,66 +1735,53 @@ class ShardedH5IOStore(H5IOStore):
         if self.current_shard_size > self.max_shard_size:
             self.close()
             self.h5_file = self._create_new_shard_file()
-            self.make(self._h5_entry_path)
             self.current_shard_size = value_size
 
         super().__setitem__(key, value)
 
+        # Update the weight map.
         variable_path = self._h5_entry_group.name
-        if variable_path not in self.sharding_config["weight_map"]:
-            self.sharding_config["weight_map"][variable_path] = (
-                self.current_shard_path.name
-            )
-
-
-class NpzIOStore:
-    def __init__(self, root_path, archive=None, mode="r"):
-        """Numerical variable store backed by NumPy.savez/load.
-
-         If `archive` is specified, then `root_path` refers to the filename
-        inside the archive.
-
-        If `archive` is not specified, then `root_path` refers to the path of
-        the npz file on disk.
-        """
-        self.root_path = root_path
-        self.mode = mode
-        self.archive = archive
-        if mode == "w":
-            self.contents = {}
+        shard_filename = self.current_shard_path.name
+        weight_map = self.sharding_config["weight_map"]
+        if variable_path not in weight_map:
+            weight_map[variable_path] = shard_filename
         else:
-            if self.archive:
-                self.f = archive.open(root_path, mode="r")
-            else:
-                self.f = open(root_path, mode="rb")
-            self.contents = np.load(self.f)
+            if not isinstance(weight_map[variable_path], list):
+                weight_map[variable_path] = [weight_map[variable_path]]
+            if shard_filename not in weight_map[variable_path]:
+                weight_map[variable_path].append(shard_filename)
 
-    def make(self, path, metadata=None):
-        if not path:
-            self.contents["__root__"] = {}
-            return self.contents["__root__"]
-        self.contents[path] = {}
-        return self.contents[path]
+    def __delitem__(self, key):
+        if key in self._h5_entry_group:
+            super().__delitem__(key)
+            return
 
-    def get(self, path):
-        if not path:
-            if "__root__" in self.contents:
-                return dict(self.contents["__root__"])
-            return {}
-        if path in self.contents:
-            return self.contents[path].tolist()
-        return {}
+        for filename in self.current_shard_filenames:
+            if filename == self.current_shard_path.name:
+                continue
+            self._switch_h5_file(filename, mode="a")
+            if key in self._h5_entry_group:
+                super().__delitem__(key)
+                self._restore_h5_file()
+                return
+        raise KeyError(
+            f"Key '{key}' not found in any of the shards: "
+            f"{self.current_shard_filenames}"
+        )
 
-    def close(self):
-        if self.mode == "w":
-            if self.archive:
-                self.f = self.archive.open(
-                    self.root_path, mode="w", force_zip64=True
-                )
-            else:
-                self.f = open(self.root_path, mode="wb")
-            np.savez(self.f, **self.contents)
-        self.f.close()
+    def __contains__(self, item):
+        if item in self._h5_entry_group:
+            return True
+
+        for filename in self.current_shard_filenames:
+            if filename == self.current_shard_path.name:
+                continue
+            self._switch_h5_file(filename, mode="r")
+            if item in self._h5_entry_group:
+                self._restore_h5_file()
+                return True
+        self._restore_h5_file()
+        return False
 
 
 def get_temp_dir():
@@ -1404,32 +1803,60 @@ def get_attr_skipset(obj_type):
             "_self_unconditional_dependency_names",
         ]
     )
-    if obj_type == "Layer":
+    if obj_type == "Operation":
+        from keras.src.ops.operation import Operation
+
+        ref_obj = Operation()
+        skipset.update(dir(ref_obj))
+    elif obj_type == "Layer":
+        from keras.src.layers.layer import Layer
+
         ref_obj = Layer()
         skipset.update(dir(ref_obj))
     elif obj_type == "Functional":
+        from keras.src.layers.layer import Layer
+
         ref_obj = Layer()
         skipset.update(dir(ref_obj) + ["operations", "_operations"])
     elif obj_type == "Sequential":
+        from keras.src.layers.layer import Layer
+
         ref_obj = Layer()
         skipset.update(dir(ref_obj) + ["_functional"])
     elif obj_type == "Metric":
+        from keras.src.metrics.metric import Metric
+        from keras.src.trainers.compile_utils import CompileMetrics
+
         ref_obj_a = Metric()
         ref_obj_b = CompileMetrics([], [])
         skipset.update(dir(ref_obj_a) + dir(ref_obj_b))
     elif obj_type == "Optimizer":
+        from keras.src.optimizers.optimizer import Optimizer
+
         ref_obj = Optimizer(1.0)
         skipset.update(dir(ref_obj))
         skipset.remove("variables")
     elif obj_type == "Loss":
+        from keras.src.losses.loss import Loss
+
         ref_obj = Loss()
+        skipset.update(dir(ref_obj))
+    elif obj_type == "Cross":
+        from keras.src.layers.preprocessing.feature_space import Cross
+
+        ref_obj = Cross((), 1)
+        skipset.update(dir(ref_obj))
+    elif obj_type == "Feature":
+        from keras.src.layers.preprocessing.feature_space import Feature
+
+        ref_obj = Feature("int32", lambda x: x, "int")
         skipset.update(dir(ref_obj))
     else:
         raise ValueError(
             f"get_attr_skipset got invalid {obj_type=}. "
             "Accepted values for `obj_type` are "
-            "['Layer', 'Functional', 'Sequential', 'Metric', "
-            "'Optimizer', 'Loss']"
+            "['Operation', 'Layer', 'Functional', 'Sequential', 'Metric', "
+            "'Optimizer', 'Loss', 'Cross', 'Feature']"
         )
 
     global_state.set_global_attribute(
@@ -1453,3 +1880,137 @@ def is_memory_sufficient(model):
         weight_memory_size(model.variables)
         < available_memory * _MEMORY_UPPER_BOUND
     )
+
+
+def _split_path_components(path):
+    """Split a relative path into a list of individual components.
+
+    Uses ``os.path.split`` iteratively so the result is independent of
+    the platform path separator.
+
+    Example::
+
+        _split_path_components("a/b/c.txt") -> ["a", "b", "c.txt"]
+    """
+    parts = []
+    while True:
+        head, tail = os.path.split(path)
+        if tail:
+            parts.append(tail)
+        elif head:
+            parts.append(head)
+            break
+        else:
+            break
+        path = head
+    parts.reverse()
+    return parts
+
+
+def _write_nested_dict_to_dir(tree, base_dir):
+    """Recursively write a nested dict of numpy arrays to a directory tree.
+
+    Each dict key becomes a directory or filename. Leaf values (numpy
+    arrays) are written as binary files.
+
+    Args:
+        tree: A nested dictionary of numpy arrays.
+        base_dir: The base directory to write the assets to. Must be resolved
+            via `file_utils.resolve_path` first.
+    """
+    for key, value in tree.items():
+        if os.path.sep in key or (os.path.altsep and os.path.altsep in key):
+            raise ValueError(f"Invalid asset path: {key}")
+        child_path = file_utils.resolve_sub_path(base_dir, key)
+        if child_path is None:
+            raise ValueError(f"Invalid asset path: {key}")
+
+        if isinstance(value, dict):
+            os.makedirs(child_path, exist_ok=True)
+            _write_nested_dict_to_dir(value, child_path)
+        elif isinstance(value, np.ndarray):
+            with open(child_path, "wb") as f:
+                f.write(value.tobytes())
+
+
+def _save_assets_to_dict(model):
+    """Save model assets to a nested dictionary.
+
+    Collects assets (e.g. vocabulary files) from the model using the
+    Keras ``_save_state`` mechanism and returns them as a nested dictionary
+    that mirrors the directory hierarchy. Leaf values are numpy uint8
+    arrays containing file contents.
+
+    For example, a file at ``layer/sublayer/vocab.txt`` is stored as::
+
+        {"layer": {"sublayer": {"vocab.txt": np.array([...])}}}
+
+    Using a nested structure instead of flat path keys avoids
+    platform-specific path separator issues and zip-slip vulnerabilities.
+
+    Args:
+        model: The model whose assets should be collected.
+
+    Returns:
+        A nested dictionary of numpy uint8 arrays mirroring the asset
+        directory tree, or ``None`` if the model has no assets.
+    """
+    assets_store = DiskIOStore("assets", mode="w")
+    try:
+        _save_state(
+            model,
+            weights_store=None,
+            assets_store=assets_store,
+            inner_path="",
+            visited_saveables=set(),
+        )
+
+        assets_tree = {}
+        working_dir = assets_store.working_dir
+        for root, dirs, files in os.walk(working_dir):
+            for fname in files:
+                file_path = os.path.join(root, fname)
+                rel = os.path.relpath(file_path, working_dir)
+                parts = _split_path_components(rel)
+                with open(file_path, "rb") as f:
+                    data = np.frombuffer(f.read(), dtype=np.uint8)
+                node = assets_tree
+                for part in parts[:-1]:
+                    node = node.setdefault(part, {})
+                node[parts[-1]] = data
+
+        return assets_tree if assets_tree else None
+    finally:
+        assets_store.close()
+
+
+def _load_assets_from_dict(model, assets_dict):
+    """Load assets from a nested dictionary into the model.
+
+    Reconstructs the asset directory tree from a nested dictionary
+    produced by ``_save_assets_to_dict`` and loads the assets into
+    the model via the Keras ``_load_state`` mechanism.
+
+    Args:
+        model: The model to load assets into.
+        assets_dict: Nested dictionary mirroring the asset directory
+            tree, with numpy uint8 arrays as leaf values.
+    """
+    if not assets_dict:
+        return
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_dir = file_utils.resolve_path(tmp_dir)
+        _write_nested_dict_to_dir(assets_dict, tmp_dir)
+
+        assets_store = DiskIOStore(tmp_dir, mode="r")
+        _load_state(
+            model,
+            weights_store=None,
+            assets_store=assets_store,
+            inner_path="",
+            visited_saveables=set(),
+            failed_saveables=set(),
+            error_msgs={},
+        )
+        assets_store.close()

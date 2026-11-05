@@ -20,6 +20,9 @@ from keras.src.layers.attention.attention import Attention as Attention
 from keras.src.layers.attention.grouped_query_attention import (
     GroupedQueryAttention as GroupQueryAttention,
 )
+from keras.src.layers.attention.grouped_query_attention import (
+    GroupedQueryAttention as GroupedQueryAttention,
+)
 from keras.src.layers.attention.multi_head_attention import (
     MultiHeadAttention as MultiHeadAttention,
 )
@@ -73,6 +76,10 @@ from keras.src.layers.core.input_layer import Input as Input
 from keras.src.layers.core.input_layer import InputLayer as InputLayer
 from keras.src.layers.core.lambda_layer import Lambda as Lambda
 from keras.src.layers.core.masking import Masking as Masking
+from keras.src.layers.core.reversible_embedding import (
+    ReversibleEmbedding as ReversibleEmbedding,
+)
+from keras.src.layers.core.ternary_dense import TernaryDense as TernaryDense
 from keras.src.layers.core.wrapper import Wrapper as Wrapper
 from keras.src.layers.input_spec import InputSpec as InputSpec
 from keras.src.layers.layer import Layer as Layer
@@ -109,6 +116,24 @@ from keras.src.layers.normalization.spectral_normalization import (
 )
 from keras.src.layers.normalization.unit_normalization import (
     UnitNormalization as UnitNormalization,
+)
+from keras.src.layers.pooling.adaptive_average_pooling1d import (
+    AdaptiveAveragePooling1D as AdaptiveAveragePooling1D,
+)
+from keras.src.layers.pooling.adaptive_average_pooling2d import (
+    AdaptiveAveragePooling2D as AdaptiveAveragePooling2D,
+)
+from keras.src.layers.pooling.adaptive_average_pooling3d import (
+    AdaptiveAveragePooling3D as AdaptiveAveragePooling3D,
+)
+from keras.src.layers.pooling.adaptive_max_pooling1d import (
+    AdaptiveMaxPooling1D as AdaptiveMaxPooling1D,
+)
+from keras.src.layers.pooling.adaptive_max_pooling2d import (
+    AdaptiveMaxPooling2D as AdaptiveMaxPooling2D,
+)
+from keras.src.layers.pooling.adaptive_max_pooling3d import (
+    AdaptiveMaxPooling3D as AdaptiveMaxPooling3D,
 )
 from keras.src.layers.pooling.average_pooling1d import (
     AveragePooling1D as AveragePooling1D,
@@ -189,6 +214,9 @@ from keras.src.layers.preprocessing.image_preprocessing.auto_contrast import (
 from keras.src.layers.preprocessing.image_preprocessing.center_crop import (
     CenterCrop as CenterCrop,
 )
+from keras.src.layers.preprocessing.image_preprocessing.clahe import (
+    ContrastLimitedAdaptiveHistogramEqualization as ContrastLimitedAdaptiveHistogramEqualization,
+)
 from keras.src.layers.preprocessing.image_preprocessing.cut_mix import (
     CutMix as CutMix,
 )
@@ -200,6 +228,9 @@ from keras.src.layers.preprocessing.image_preprocessing.max_num_bounding_box imp
 )
 from keras.src.layers.preprocessing.image_preprocessing.mix_up import (
     MixUp as MixUp,
+)
+from keras.src.layers.preprocessing.image_preprocessing.mosaic import (
+    Mosaic as Mosaic,
 )
 from keras.src.layers.preprocessing.image_preprocessing.rand_augment import (
     RandAugment as RandAugment,

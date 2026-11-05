@@ -59,8 +59,8 @@ def sparse_union_indices_and_values(x1, x2_indices, x2_values=None):
     for these indices.
 
     Args:
-        x: a `tf.SparseTensor`.
-        indices: another set of indices in the `tf.SparseTensor` format.
+        x1: a `tf.SparseTensor`.
+        x2_indices: another set of indices in the `tf.SparseTensor` format.
     Returns: A tuple containing:
         - the indices for the union
         - `x1` values for the union indices (some zeros were added)
@@ -91,7 +91,7 @@ def indexed_slices_union_indices_and_values(x1, x2_indices, x2_values=None):
     Args:
         x1: the first `tf.IndexedSlices`.
         x2_indices: the indices for the second `tf.IndexedSlices`.
-        x2_value: (optional) the values for the second `tf.IndexedSlices`.
+        x2_values: (optional) the values for the second `tf.IndexedSlices`.
     Returns: A tuple containing:
         - the indices for the union
         - `x1` values for the union indices (some zeros were added)

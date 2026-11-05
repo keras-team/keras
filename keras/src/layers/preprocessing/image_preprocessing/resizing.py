@@ -1,5 +1,6 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.common import is_int_dtype
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
@@ -21,6 +22,9 @@ class Resizing(BaseImagePreprocessingLayer):
     format. Input pixel values can be of any range
     (e.g. `[0., 1.)` or `[0, 255]`).
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
     Input shape:
         3D (unbatched) or 4D (batched) tensor with shape:
         `(..., height, width, channels)`, in `"channels_last"` format,
@@ -31,9 +35,6 @@ class Resizing(BaseImagePreprocessingLayer):
         `(..., target_height, target_width, channels)`,
         or `(..., channels, target_height, target_width)`,
         in `"channels_first"` format.
-
-    **Note:** This layer is safe to use inside a `tf.data` pipeline
-    (independently of which backend you're using).
 
     Args:
         height: Integer, the height of the output shape.
@@ -66,6 +67,16 @@ class Resizing(BaseImagePreprocessingLayer):
             `~/.keras/keras.json`. If you never set it, then it will be
             `"channels_last"`.
         **kwargs: Base layer keyword arguments, such as `name` and `dtype`.
+
+    Example:
+
+    ```python
+    (x_train, y_train), _ = keras.datasets.cifar10.load_data()
+    image = x_train[0]
+    resizer = keras.layers.Resizing(128, 128)
+    resized_image = resizer(image)
+    print("original:", image.shape, "resized:", resized_image.shape)
+    ```
     """
 
     _USE_BASE_FACTOR = False
@@ -100,12 +111,12 @@ class Resizing(BaseImagePreprocessingLayer):
             self.height_axis = -3
             self.width_axis = -2
 
-    def transform_images(self, images, transformation=None, training=True):
+    def _transform_images(self, images, transformation, interpolation):
         size = (self.height, self.width)
-        resized = self.backend.image.resize(
+        resized = self.backend.ops.image.resize(
             images,
             size=size,
-            interpolation=self.interpolation,
+            interpolation=interpolation,
             antialias=self.antialias,
             data_format=self.data_format,
             crop_to_aspect_ratio=self.crop_to_aspect_ratio,
@@ -115,23 +126,30 @@ class Resizing(BaseImagePreprocessingLayer):
         )
         if resized.dtype == images.dtype:
             return resized
-        if backend.is_int_dtype(images.dtype):
-            resized = self.backend.numpy.round(resized)
+        if is_int_dtype(images.dtype):
+            resized = self.backend.ops.numpy.round(resized)
         return _saturate_cast(resized, images.dtype, self.backend)
+
+    def transform_images(self, images, transformation=None, training=True):
+        return self._transform_images(
+            images, transformation, self.interpolation
+        )
 
     def transform_segmentation_masks(
         self, segmentation_masks, transformation=None, training=True
     ):
-        return self.transform_images(segmentation_masks)
+        return self._transform_images(
+            segmentation_masks, transformation, "nearest"
+        )
 
     def transform_labels(self, labels, transformation=None, training=True):
         return labels
 
     def get_random_transformation(self, data, training=True, seed=None):
         if isinstance(data, dict):
-            input_shape = self.backend.shape(data["images"])
+            input_shape = self.backend.ops.shape(data["images"])
         else:
-            input_shape = self.backend.shape(data)
+            input_shape = self.backend.ops.shape(data)
 
         input_height, input_width = (
             input_shape[self.height_axis],
@@ -146,7 +164,7 @@ class Resizing(BaseImagePreprocessingLayer):
         transformation,
         training=True,
     ):
-        ops = self.backend
+        ops = self.backend.ops
         input_height, input_width = transformation
         mask_negative_1s = ops.numpy.all(bounding_boxes["boxes"] == -1, axis=-1)
         mask_zeros = ops.numpy.all(bounding_boxes["boxes"] == 0, axis=-1)
@@ -191,7 +209,7 @@ class Resizing(BaseImagePreprocessingLayer):
         return bounding_boxes
 
     def _transform_xyxy(self, boxes, input_height, input_width):
-        ops = self.backend
+        ops = self.backend.ops
         input_height = ops.cast(input_height, dtype=boxes.dtype)
         input_width = ops.cast(input_width, dtype=boxes.dtype)
 
@@ -212,7 +230,7 @@ class Resizing(BaseImagePreprocessingLayer):
         self, boxes, input_height, input_width
     ):
         """Transforms bounding boxes for padding to aspect ratio."""
-        ops = self.backend
+        ops = self.backend.ops
         height_ratio = ops.cast(self.height / input_height, dtype=boxes.dtype)
         width_ratio = ops.cast(self.width / input_width, dtype=boxes.dtype)
         min_aspect_ratio = ops.numpy.minimum(height_ratio, width_ratio)
@@ -232,7 +250,7 @@ class Resizing(BaseImagePreprocessingLayer):
         self, boxes, input_height, input_width
     ):
         """Transforms bounding boxes for cropping to aspect ratio."""
-        ops = self.backend
+        ops = self.backend.ops
         source_aspect_ratio = input_width / input_height
         target_aspect_ratio = self.width / self.height
         new_width = ops.numpy.where(
@@ -261,7 +279,7 @@ class Resizing(BaseImagePreprocessingLayer):
 
     def _transform_boxes_stretch(self, boxes, input_height, input_width):
         """Transforms bounding boxes by simple stretching."""
-        ops = self.backend
+        ops = self.backend.ops
         height_ratio = ops.cast(self.height / input_height, dtype=boxes.dtype)
         width_ratio = ops.cast(self.width / input_width, dtype=boxes.dtype)
         return ops.numpy.stack(

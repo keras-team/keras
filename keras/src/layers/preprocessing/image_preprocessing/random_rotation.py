@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_transform_example,
+)
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes import (
     converters,
 )
@@ -23,7 +26,7 @@ class RandomRotation(BaseImagePreprocessingLayer):
     of integer or floating point dtype.
     By default, the layer will output floats.
 
-    **Note:** This layer is safe to use inside a `tf.data` pipeline
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
     (independently of which backend you're using).
 
     Input shape:
@@ -75,6 +78,10 @@ class RandomRotation(BaseImagePreprocessingLayer):
             `image_data_format` value found in your Keras config file at
             `~/.keras/keras.json`. If you never set it, then it will be
             `"channels_last"`.
+
+    Example:
+
+    {{base_image_preprocessing_transform_example}}
     """
 
     _SUPPORTED_FILL_MODE = ("reflect", "wrap", "constant", "nearest")
@@ -109,18 +116,15 @@ class RandomRotation(BaseImagePreprocessingLayer):
                 f"{self._SUPPORTED_INTERPOLATION}."
             )
 
-    def transform_images(self, images, transformation, training=True):
-        images = self.backend.cast(images, self.compute_dtype)
-        if training:
-            return self.backend.image.affine_transform(
-                images=images,
-                transform=transformation["rotation_matrix"],
-                interpolation=self.interpolation,
-                fill_mode=self.fill_mode,
-                fill_value=self.fill_value,
-                data_format=self.data_format,
-            )
-        return images
+    def _transform_images(self, images, transformation, interpolation):
+        return self.backend.ops.image.affine_transform(
+            images=images,
+            transform=transformation["rotation_matrix"],
+            interpolation=interpolation,
+            fill_mode=self.fill_mode,
+            fill_value=self.fill_value,
+            data_format=self.data_format,
+        )
 
     def transform_labels(self, labels, transformation, training=True):
         return labels
@@ -132,7 +136,7 @@ class RandomRotation(BaseImagePreprocessingLayer):
         training=True,
     ):
         if training:
-            ops = self.backend
+            ops = self.backend.ops
             boxes = bounding_boxes["boxes"]
             height = transformation["image_height"]
             width = transformation["image_width"]
@@ -165,15 +169,8 @@ class RandomRotation(BaseImagePreprocessingLayer):
             )
         return bounding_boxes
 
-    def transform_segmentation_masks(
-        self, segmentation_masks, transformation, training=True
-    ):
-        return self.transform_images(
-            segmentation_masks, transformation, training=training
-        )
-
     def get_random_transformation(self, data, training=True, seed=None):
-        ops = self.backend
+        ops = self.backend.ops
         if not training:
             return None
         if isinstance(data, dict):
@@ -199,10 +196,10 @@ class RandomRotation(BaseImagePreprocessingLayer):
                 image_width = shape[2]
 
         if seed is None:
-            seed = self._get_seed_generator(ops._backend)
+            seed = self._get_seed_generator(self.backend._backend)
         lower = self.factor[0] * 360.0
         upper = self.factor[1] * 360.0
-        angle = ops.random.uniform(
+        angle = self.backend.random.uniform(
             shape=(batch_size,),
             minval=lower,
             maxval=upper,
@@ -222,7 +219,7 @@ class RandomRotation(BaseImagePreprocessingLayer):
             width=image_width,
         )
         if len(shape) == 3:
-            rotation_matrix = self.backend.numpy.squeeze(
+            rotation_matrix = self.backend.ops.numpy.squeeze(
                 rotation_matrix, axis=0
             )
         return {
@@ -247,3 +244,12 @@ class RandomRotation(BaseImagePreprocessingLayer):
         }
         base_config = super().get_config()
         return {**base_config, **config}
+
+
+if RandomRotation.__doc__ is not None:
+    RandomRotation.__doc__ = RandomRotation.__doc__.replace(
+        "{{base_image_preprocessing_transform_example}}",
+        base_image_preprocessing_transform_example.replace(
+            "{LayerName}", "RandomRotation"
+        ),
+    )

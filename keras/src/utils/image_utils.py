@@ -175,12 +175,24 @@ def save_img(path, x, data_format=None, file_format=None, scale=True, **kwargs):
         **kwargs: Additional keyword arguments passed to `PIL.Image.save()`.
     """
     data_format = backend.standardize_data_format(data_format)
+
+    # Infer format from path if not explicitly provided
+    if file_format is None and isinstance(path, (str, pathlib.Path)):
+        file_format = pathlib.Path(path).suffix[1:].lower()
+
+    # Normalize jpg → jpeg for Pillow compatibility
+    if file_format and file_format.lower() == "jpg":
+        file_format = "jpeg"
+
     img = array_to_img(x, data_format=data_format, scale=scale)
-    if img.mode == "RGBA" and (file_format == "jpg" or file_format == "jpeg"):
+
+    # Handle RGBA → RGB conversion for JPEG
+    if img.mode == "RGBA" and file_format == "jpeg":
         warnings.warn(
-            "The JPG format does not support RGBA images, converting to RGB."
+            "The JPEG format does not support RGBA images, converting to RGB."
         )
         img = img.convert("RGB")
+
     img.save(path, format=file_format, **kwargs)
 
 
@@ -222,6 +234,14 @@ def load_img(
 
     Returns:
         A PIL Image instance.
+
+    Note:
+        This function uses Pillow (`PIL.Image`) for decoding and therefore
+        inherits Pillow's decompression-bomb protection. Images whose pixel
+        count exceeds `PIL.Image.MAX_IMAGE_PIXELS` raise
+        `PIL.Image.DecompressionBombError`. To load larger images, raise or
+        disable that limit (see the
+        [Pillow documentation](https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.open)).
     """
     if pil_image is None:
         raise ImportError(
@@ -299,7 +319,7 @@ def smart_resize(
     size,
     interpolation="bilinear",
     data_format="channels_last",
-    backend_module=None,
+    **kwargs,
 ):
     """Resize images to a target size without aspect ratio distortion.
 
@@ -354,8 +374,6 @@ def smart_resize(
             `"lanczos3"`, `"lanczos5"`.
             Defaults to `"bilinear"`.
         data_format: `"channels_last"` or `"channels_first"`.
-        backend_module: Backend module to use (if different from the default
-            backend).
 
     Returns:
         Array with shape `(size[0], size[1], channels)`.
@@ -363,12 +381,17 @@ def smart_resize(
         and if it was a backend-native tensor,
         the output is a backend-native tensor.
     """
-    backend_module = backend_module or backend
+    backend_module = kwargs.pop("backend_module", None) or backend
+    if kwargs:
+        raise TypeError(
+            "smart_resize() got unexpected keyword arguments: "
+            f"{list(kwargs.keys())}"
+        )
     if len(size) != 2:
         raise ValueError(
             f"Expected `size` to be a tuple of 2 integers, but got: {size}."
         )
-    img = backend_module.convert_to_tensor(x)
+    img = backend_module.ops.convert_to_tensor(x)
     if len(img.shape) is not None:
         if len(img.shape) < 3 or len(img.shape) > 4:
             raise ValueError(
@@ -376,7 +399,7 @@ def smart_resize(
                 "channels)`, or `(batch_size, height, width, channels)`, but "
                 f"got input with incorrect rank, of shape {img.shape}."
             )
-    shape = backend_module.shape(img)
+    shape = backend_module.ops.shape(img)
     if data_format == "channels_last":
         height, width = shape[-3], shape[-2]
     else:
@@ -394,29 +417,30 @@ def smart_resize(
         crop_box_hstart = int(float(height - crop_height) / 2)
         crop_box_wstart = int(float(width - crop_width) / 2)
     else:
-        crop_height = backend_module.cast(
-            backend_module.cast(width * target_height, "float32")
+        crop_height = backend_module.ops.cast(
+            backend_module.ops.cast(width * target_height, "float32")
             / target_width,
             "int32",
         )
-        crop_height = backend_module.numpy.minimum(height, crop_height)
-        crop_height = backend_module.numpy.maximum(crop_height, 1)
-        crop_height = backend_module.cast(crop_height, "int32")
+        crop_height = backend_module.ops.numpy.minimum(height, crop_height)
+        crop_height = backend_module.ops.numpy.maximum(crop_height, 1)
+        crop_height = backend_module.ops.cast(crop_height, "int32")
 
-        crop_width = backend_module.cast(
-            backend_module.cast(height * target_width, "float32")
+        crop_width = backend_module.ops.cast(
+            backend_module.ops.cast(height * target_width, "float32")
             / target_height,
             "int32",
         )
-        crop_width = backend_module.numpy.minimum(width, crop_width)
-        crop_width = backend_module.numpy.maximum(crop_width, 1)
-        crop_width = backend_module.cast(crop_width, "int32")
+        crop_width = backend_module.ops.numpy.minimum(width, crop_width)
+        crop_width = backend_module.ops.numpy.maximum(crop_width, 1)
+        crop_width = backend_module.ops.cast(crop_width, "int32")
 
-        crop_box_hstart = backend_module.cast(
-            backend_module.cast(height - crop_height, "float32") / 2, "int32"
+        crop_box_hstart = backend_module.ops.cast(
+            backend_module.ops.cast(height - crop_height, "float32") / 2,
+            "int32",
         )
-        crop_box_wstart = backend_module.cast(
-            backend_module.cast(width - crop_width, "float32") / 2, "int32"
+        crop_box_wstart = backend_module.ops.cast(
+            backend_module.ops.cast(width - crop_width, "float32") / 2, "int32"
         )
 
     if data_format == "channels_last":
@@ -448,7 +472,7 @@ def smart_resize(
                 crop_box_wstart : crop_box_wstart + crop_width,
             ]
 
-    img = backend_module.image.resize(
+    img = backend_module.ops.image.resize(
         img, size=size, interpolation=interpolation, data_format=data_format
     )
 

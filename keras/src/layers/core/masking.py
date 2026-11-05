@@ -1,6 +1,6 @@
-from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend.common import set_keras_mask
 from keras.src.layers.layer import Layer
 from keras.src.saving.serialization_lib import deserialize_keras_object
 
@@ -62,9 +62,9 @@ class Masking(Layer):
             ops.not_equal(inputs, self.mask_value), axis=-1, keepdims=True
         )
         # Set masked outputs to 0
-        outputs = inputs * backend.cast(boolean_mask, dtype=inputs.dtype)
+        outputs = ops.where(boolean_mask, inputs, 0)
         # Compute the mask and outputs simultaneously.
-        backend.set_keras_mask(outputs, mask=ops.squeeze(boolean_mask, axis=-1))
+        set_keras_mask(outputs, mask=ops.squeeze(boolean_mask, axis=-1))
         return outputs
 
     def compute_output_shape(self, input_shape):

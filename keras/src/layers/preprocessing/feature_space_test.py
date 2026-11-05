@@ -8,6 +8,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend.common import standardize_dtype
 from keras.src.layers.preprocessing import feature_space
 from keras.src.saving import saving_api
 
@@ -191,14 +192,10 @@ class FeatureSpaceTest(testing.TestCase):
         self.assertIsInstance(out, dict)
         self.assertLen(out, 7)
         self.assertEqual(out["int_2"].shape, (1,))
-        self.assertTrue(
-            backend.standardize_dtype(out["int_2"].dtype).startswith("int")
-        )
+        self.assertTrue(standardize_dtype(out["int_2"].dtype).startswith("int"))
         self.assertEqual(out["int_1_X_int_2"].shape, (1,))
         self.assertTrue(
-            backend.standardize_dtype(out["int_1_X_int_2"].dtype).startswith(
-                "int"
-            )
+            standardize_dtype(out["int_1_X_int_2"].dtype).startswith("int")
         )
 
     def test_basic_usage(self):
@@ -322,17 +319,13 @@ class FeatureSpaceTest(testing.TestCase):
         self.assertLen(out, 10)
         self.assertEqual(out["string_1"].shape, (1,))
         self.assertTrue(
-            backend.standardize_dtype(out["string_1"].dtype).startswith("int")
+            standardize_dtype(out["string_1"].dtype).startswith("int")
         )
         self.assertEqual(out["int_2"].shape, (1,))
-        self.assertTrue(
-            backend.standardize_dtype(out["int_2"].dtype).startswith("int")
-        )
+        self.assertTrue(standardize_dtype(out["int_2"].dtype).startswith("int"))
         self.assertEqual(out["string_2_X_int_2"].shape, (1,))
         self.assertTrue(
-            backend.standardize_dtype(out["string_2_X_int_2"].dtype).startswith(
-                "int"
-            )
+            standardize_dtype(out["string_2_X_int_2"].dtype).startswith("int")
         )
 
     @pytest.mark.skipif(
@@ -638,3 +631,28 @@ class FeatureSpaceTest(testing.TestCase):
                 }
             )
             fs.get_encoded_features()
+
+    def test_adapt_with_dict(self):
+        fs = feature_space.FeatureSpace(
+            features={
+                "float_1": "float",
+                "float_2": "float_normalized",
+                "float_3": "float_discretized",
+                "string_1": "string_categorical",
+                "string_2": "string_hashed",
+                "int_1": "integer_categorical",
+                "int_2": "integer_hashed",
+                "int_3": "integer_categorical",
+            },
+            crosses=[("float_3", "string_1"), ("string_2", "int_2")],
+            output_mode="concat",
+        )
+        # Adapt with dict
+        train_data = self._get_train_data_dict(as_dataset=False)
+        fs.adapt(train_data)
+
+        # Build checks
+        data = {key: value[0] for key, value in train_data.items()}
+        out = fs(data)
+        out_dim = 195
+        self.assertEqual(out.shape, (out_dim,))

@@ -5,6 +5,7 @@ import json
 import numpy as np
 
 from keras.src.api_export import keras_export
+from keras.src.datasets import npz_utils
 from keras.src.utils.file_utils import get_file
 from keras.src.utils.python_utils import remove_long_seq
 
@@ -87,13 +88,17 @@ def load_data(
     )
     path = get_file(
         fname=path,
-        origin=origin_folder + "reuters.npz",
+        origin=f"{origin_folder}reuters.npz",
         file_hash=(  # noqa: E501
             "d6586e694ee56d7a4e65172e12b3e987c03096cb01eab99753921ef915959916"
         ),
     )
-    with np.load(path, allow_pickle=True) as f:
-        xs, labels = f["x"], f["y"]
+    # The Reuters arrays are ragged (`dtype=object`) sequences, so they are
+    # stored as pickle streams. Load them with a restricted unpickler that only
+    # allows numpy array reconstruction instead of
+    # `np.load(allow_pickle=True)`.
+    f = npz_utils.load_npz(path)
+    xs, labels = f["x"], f["y"]
 
     rng = np.random.RandomState(seed)
     indices = np.arange(len(xs))
@@ -156,7 +161,7 @@ def get_word_index(path="reuters_word_index.json"):
     )
     path = get_file(
         path,
-        origin=origin_folder + "reuters_word_index.json",
+        origin=f"{origin_folder}reuters_word_index.json",
         file_hash="4d44cc38712099c9e383dc6e5f11a921",
     )
     with open(path) as f:

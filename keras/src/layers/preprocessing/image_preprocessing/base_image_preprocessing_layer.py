@@ -1,13 +1,13 @@
 import math
 
 from keras.src.backend import config as backend_config
+from keras.src.layers.preprocessing.data_layer import DataLayer
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.validation import (  # noqa: E501
     densify_bounding_boxes,
 )
-from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
 
 
-class BaseImagePreprocessingLayer(TFDataLayer):
+class BaseImagePreprocessingLayer(DataLayer):
     _USE_BASE_FACTOR = True
     _FACTOR_BOUNDS = (-1, 1)
 
@@ -58,8 +58,16 @@ class BaseImagePreprocessingLayer(TFDataLayer):
     def get_random_transformation(self, data, training=True, seed=None):
         return None
 
-    def transform_images(self, images, transformation, training=True):
+    def _transform_images(self, images, transformation, interpolation):
         raise NotImplementedError()
+
+    def transform_images(self, images, transformation, training=True):
+        images = self.backend.ops.cast(images, self.compute_dtype)
+        if training:
+            images = self._transform_images(
+                images, transformation, self.interpolation
+            )
+        return images
 
     def transform_labels(self, labels, transformation, training=True):
         raise NotImplementedError()
@@ -75,21 +83,25 @@ class BaseImagePreprocessingLayer(TFDataLayer):
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
-        raise NotImplementedError()
+        if training:
+            segmentation_masks = self._transform_images(
+                segmentation_masks, transformation, "nearest"
+            )
+        return segmentation_masks
 
     def transform_single_image(self, image, transformation, training=True):
-        images = self.backend.numpy.expand_dims(image, axis=0)
+        images = self.backend.ops.numpy.expand_dims(image, axis=0)
         outputs = self.transform_images(
             images, transformation=transformation, training=training
         )
-        return self.backend.numpy.squeeze(outputs, axis=0)
+        return self.backend.ops.numpy.squeeze(outputs, axis=0)
 
     def transform_single_label(self, label, transformation, training=True):
-        labels = self.backend.numpy.expand_dims(label, axis=0)
+        labels = self.backend.ops.numpy.expand_dims(label, axis=0)
         outputs = self.transform_labels(
             labels, transformation=transformation, training=training
         )
-        return self.backend.numpy.squeeze(outputs, axis=0)
+        return self.backend.ops.numpy.squeeze(outputs, axis=0)
 
     def transform_single_bounding_box(
         self,
@@ -109,16 +121,16 @@ class BaseImagePreprocessingLayer(TFDataLayer):
     def transform_single_segmentation_mask(
         self, segmentation_mask, transformation, training=True
     ):
-        segmentation_masks = self.backend.numpy.expand_dims(
+        segmentation_masks = self.backend.ops.numpy.expand_dims(
             segmentation_mask, axis=0
         )
         outputs = self.transform_segmentation_masks(
             segmentation_masks, transformation=transformation, training=training
         )
-        return self.backend.numpy.squeeze(outputs, axis=0)
+        return self.backend.ops.numpy.squeeze(outputs, axis=0)
 
     def _is_batched(self, maybe_image_batch):
-        shape = self.backend.core.shape(maybe_image_batch)
+        shape = self.backend.ops.shape(maybe_image_batch)
         if len(shape) == 3:
             return False
         if len(shape) == 4:
@@ -134,13 +146,13 @@ class BaseImagePreprocessingLayer(TFDataLayer):
             is_batched = self._is_batched(data["images"])
             if is_batched:
                 data["images"] = self.transform_images(
-                    self.backend.convert_to_tensor(data["images"]),
+                    self.backend.ops.convert_to_tensor(data["images"]),
                     transformation=transformation,
                     training=training,
                 )
             else:
                 data["images"] = self.transform_single_image(
-                    self.backend.convert_to_tensor(data["images"]),
+                    self.backend.ops.convert_to_tensor(data["images"]),
                     transformation=transformation,
                     training=training,
                 )
@@ -174,13 +186,13 @@ class BaseImagePreprocessingLayer(TFDataLayer):
             if "labels" in data:
                 if is_batched:
                     data["labels"] = self.transform_labels(
-                        self.backend.convert_to_tensor(data["labels"]),
+                        self.backend.ops.convert_to_tensor(data["labels"]),
                         transformation=transformation,
                         training=training,
                     )
                 else:
                     data["labels"] = self.transform_single_label(
-                        self.backend.convert_to_tensor(data["labels"]),
+                        self.backend.ops.convert_to_tensor(data["labels"]),
                         transformation=transformation,
                         training=training,
                     )
@@ -206,12 +218,12 @@ class BaseImagePreprocessingLayer(TFDataLayer):
         # `data` is just images.
         if self._is_batched(data):
             return self.transform_images(
-                self.backend.convert_to_tensor(data),
+                self.backend.ops.convert_to_tensor(data),
                 transformation=transformation,
                 training=training,
             )
         return self.transform_single_image(
-            self.backend.convert_to_tensor(data),
+            self.backend.ops.convert_to_tensor(data),
             transformation=transformation,
             training=training,
         )
@@ -219,11 +231,11 @@ class BaseImagePreprocessingLayer(TFDataLayer):
     def _format_single_input_bounding_box(self, bounding_box):
         for key in bounding_box:
             if key == "labels":
-                bounding_box[key] = self.backend.numpy.expand_dims(
+                bounding_box[key] = self.backend.ops.numpy.expand_dims(
                     bounding_box[key], axis=0
                 )
             if key == "boxes":
-                bounding_box[key] = self.backend.numpy.expand_dims(
+                bounding_box[key] = self.backend.ops.numpy.expand_dims(
                     bounding_box[key], axis=0
                 )
 
@@ -232,11 +244,11 @@ class BaseImagePreprocessingLayer(TFDataLayer):
     def _format_single_output_bounding_box(self, bounding_boxes):
         for key in bounding_boxes:
             if key == "labels":
-                bounding_boxes[key] = self.backend.numpy.squeeze(
+                bounding_boxes[key] = self.backend.ops.numpy.squeeze(
                     bounding_boxes[key], axis=0
                 )
             if key == "boxes":
-                bounding_boxes[key] = self.backend.numpy.squeeze(
+                bounding_boxes[key] = self.backend.ops.numpy.squeeze(
                     bounding_boxes[key], axis=0
                 )
 
@@ -244,6 +256,7 @@ class BaseImagePreprocessingLayer(TFDataLayer):
 
     def get_config(self):
         config = super().get_config()
+        config.update({"data_format": self.data_format})
         if self.bounding_box_format is not None:
             config.update(
                 {
@@ -295,7 +308,7 @@ class BaseImagePreprocessingLayer(TFDataLayer):
         ):
             return images
 
-        images = self.backend.cast(images, dtype=dtype)
+        images = self.backend.ops.cast(images, dtype=dtype)
         original_min_value, original_max_value = self._unwrap_value_range(
             original_range, dtype=dtype
         )
@@ -313,8 +326,8 @@ class BaseImagePreprocessingLayer(TFDataLayer):
 
     def _unwrap_value_range(self, value_range, dtype="float32"):
         min_value, max_value = value_range
-        min_value = self.backend.cast(min_value, dtype=dtype)
-        max_value = self.backend.cast(max_value, dtype=dtype)
+        min_value = self.backend.ops.cast(min_value, dtype=dtype)
+        max_value = self.backend.ops.cast(max_value, dtype=dtype)
         return min_value, max_value
 
     def _compute_affine_matrix(
@@ -343,7 +356,7 @@ class BaseImagePreprocessingLayer(TFDataLayer):
         # b1 = sy * (shy * -sin(θ) + cos(θ))
         # b2 = ty + cy - cx * b0 - cy * b1
         """
-        ops = self.backend
+        ops = self.backend.ops
 
         degree_to_radian_factor = ops.convert_to_tensor(math.pi / 180.0)
 
@@ -383,3 +396,61 @@ class BaseImagePreprocessingLayer(TFDataLayer):
         )
 
         return affine_matrix
+
+
+base_image_preprocessing_transform_example = """
+```python
+layer = keras.layers.{LayerName}(bounding_box_format="xyxy")
+images = np.random.randint(0, 255, (4, 224, 224, 3), dtype="uint8")
+
+bounding_boxes = {
+    "boxes": np.array([
+        [[10, 20, 100, 150], [50, 60, 200, 250]],
+        [[15, 25, 110, 160], [55, 65, 210, 260]],
+        [[20, 30, 120, 170], [60, 70, 220, 270]],
+        [[25, 35, 130, 180], [65, 75, 230, 280]],
+    ], dtype="float32"),
+    "labels": np.array([[0, 1], [1, 2], [2, 3], [0, 3]], dtype="int32")
+}
+
+labels = keras.ops.one_hot(
+    np.array([0, 1, 2, 3]),
+    num_classes=4
+)
+
+segmentation_masks = np.random.randint(0, 3, (4, 224, 224, 1), dtype="uint8")
+
+output = layer(
+    {
+        "images": images,
+        "bounding_boxes": bounding_boxes,
+        "labels": labels,
+        "segmentation_masks": segmentation_masks
+    },
+    training=True
+)
+```
+"""
+
+base_image_preprocessing_color_example = """
+```python
+layer = keras.layers.{LayerName}(value_range=(0, 255))
+images = np.random.randint(0, 255, (8, 224, 224, 3), dtype="uint8")
+
+labels = keras.ops.one_hot(
+    np.array([0, 1, 2, 0, 1, 2, 0, 1]),
+    num_classes=3
+)
+
+segmentation_masks = np.random.randint(0, 3, (8, 224, 224, 1), dtype="uint8")
+
+output = layer(
+    {
+        "images": images,
+        "labels": labels,
+        "segmentation_masks": segmentation_masks
+    },
+    training=True
+)
+```
+"""

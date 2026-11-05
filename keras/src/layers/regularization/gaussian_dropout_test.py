@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from keras.src import backend
 from keras.src import layers
@@ -7,7 +6,6 @@ from keras.src import testing
 
 
 class GaussianDropoutTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_gaussian_dropout_basics(self):
         self.run_layer_test(
             layers.GaussianDropout,
@@ -30,7 +28,7 @@ class GaussianDropoutTest(testing.TestCase):
         layer = layers.GaussianDropout(0.3, seed=1337)
         outputs = layer(inputs, training=True)
         self.assertAllClose(
-            np.std(backend.convert_to_numpy(outputs)),
+            np.std(backend.ops.convert_to_numpy(outputs)),
             np.sqrt(0.3 / (1 - 0.3)),
             atol=0.02,
         )

@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from keras.src import backend
 from keras.src import initializers
@@ -7,8 +6,7 @@ from keras.src import layers
 from keras.src import testing
 
 
-class ConvLSTM1DTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
+class ConvLSTM3DTest(testing.TestCase):
     def test_basics(self):
         channels_last = backend.config.image_data_format() == "channels_last"
         self.run_layer_test(
@@ -22,7 +20,7 @@ class ConvLSTM1DTest(testing.TestCase):
             ),
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
-            supports_masking=True,
+            supports_masking=False,
         )
         self.run_layer_test(
             layers.ConvLSTM3D,
@@ -41,7 +39,7 @@ class ConvLSTM1DTest(testing.TestCase):
             ),
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
-            supports_masking=True,
+            supports_masking=False,
         )
         self.run_layer_test(
             layers.ConvLSTM3D,
@@ -59,7 +57,7 @@ class ConvLSTM1DTest(testing.TestCase):
             ),
             expected_num_trainable_weights=3,
             expected_num_non_trainable_weights=0,
-            supports_masking=True,
+            supports_masking=False,
         )
 
     def test_correctness(self):
@@ -102,6 +100,20 @@ class ConvLSTM1DTest(testing.TestCase):
         )
         output = layer(sequence)
         self.assertAllClose(
-            expected_output,
-            output,
+            output, expected_output, tpu_atol=1e-4, tpu_rtol=1e-4
         )
+
+    def test_symbolic_invalid_strides_dilation_rate(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            r"Specifying `strides > 1` is not compatible with "
+            r"`dilation_rate > 1`",
+        ):
+            layers.ConvLSTM3D(
+                filters=1,
+                kernel_size=1,
+                strides=2,
+                padding="same",
+                dilation_rate=(1, 2, 2),
+                return_state=True,
+            )

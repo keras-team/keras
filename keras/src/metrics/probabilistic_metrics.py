@@ -273,6 +273,8 @@ class SparseCategoricalCrossentropy(reduction_metrics.MeanMetricWrapper):
         from_logits: (Optional) Whether output is expected
             to be a logits tensor. By default, we consider that output
             encodes a probability distribution.
+        ignore_class: (Optional) Integer.
+            Class to ignore. If `None`, no class is ignored.
         axis: (Optional) Defaults to `-1`.
             The dimension along which entropy is computed.
 
@@ -316,6 +318,7 @@ class SparseCategoricalCrossentropy(reduction_metrics.MeanMetricWrapper):
         name="sparse_categorical_crossentropy",
         dtype=None,
         from_logits=False,
+        ignore_class=None,
         axis=-1,
     ):
         super().__init__(
@@ -323,9 +326,11 @@ class SparseCategoricalCrossentropy(reduction_metrics.MeanMetricWrapper):
             name=name,
             dtype=dtype,
             from_logits=from_logits,
+            ignore_class=ignore_class,
             axis=axis,
         )
         self.from_logits = from_logits
+        self.ignore_class = ignore_class
         self.axis = axis
         # Metric should be minimized during optimization.
         self._direction = "down"
@@ -335,5 +340,6 @@ class SparseCategoricalCrossentropy(reduction_metrics.MeanMetricWrapper):
             "name": self.name,
             "dtype": self.dtype,
             "from_logits": self.from_logits,
+            "ignore_class": self.ignore_class,
             "axis": self.axis,
         }

@@ -23,7 +23,10 @@ COMPLEX_TYPES = ("complex64", "complex128")
 # Ref: https://github.com/google/jax/issues/16705
 FLOAT8_TYPES = ("float8_e4m3fn", "float8_e5m2")
 
-# All supported dtypes in Keras
+# All supported dtypes in Keras. Kept as an ordered tuple: several test suites
+# build parametrized cases by iterating it, and pytest-xdist requires a
+# deterministic collection order across workers (a set/frozenset iterates in
+# hash-randomized order that differs per process).
 ALLOWED_DTYPES = (
     "float16",
     "float32",
@@ -44,6 +47,7 @@ ALLOWED_DTYPES = (
     "complex64",
     "complex128",
 )
+ALLOWED_DTYPES_SET = frozenset(ALLOWED_DTYPES)
 PYTHON_DTYPES_MAP = {
     bool: "bool",
     int: "int64" if config.backend() == "tensorflow" else "int32",
@@ -225,25 +229,20 @@ def _resolve_weak_type(dtype, precision="32"):
     if dtype_indicator == "b":
         return "bool"
     elif dtype_indicator == "i":
-        return "int" + precision
+        return f"int{precision}"
     elif dtype_indicator == "u":
-        return "uint" + precision
+        return f"uint{precision}"
     else:
-        return "float" + precision
+        return f"float{precision}"
 
 
-BIT64_TO_BIT16_DTYPE = {
-    "int32": "int16",
-    "int64": "int16",
-    "uint32": "uint16",
-    "uint64": "uint16",
-    "float32": "float16",
-    "float64": "float16",
-}
 BIT64_TO_BIT32_DTYPE = {
-    "int64": "int32",
+    # Since TF variables require int64 to be placed on the GPU, we exclusively
+    # enable the int64 dtype for TF.
+    "int64": "int64" if config.backend() == "tensorflow" else "int32",
     "uint64": "uint32",
-    "float64": "float32",
+    "float64": "float64" if config.backend() == "tensorflow" else "float32",
+    "complex128": "complex64",
 }
 
 
@@ -275,18 +274,36 @@ def _lattice_result_type(*args):
     precision = config.floatx()[-2:]
     if out_weak_type:
         out_dtype = _resolve_weak_type(out_dtype, precision=precision)
-    return out_dtype
+    return _cap_to_32bit(out_dtype, dtypes, weak_types)
+
+
+def _cap_to_32bit(out_dtype, dtypes, weak_types):
+    """Caps a 64-bit `out_dtype` to 32-bit, unless `x64_mode` keeps it.
+
+    The cap matches JAX's default behavior, which refuses 64-bit dtypes. In
+    `"explicit_x64"` a result stays 64-bit only if a strongly typed input is
+    64-bit. Python scalars (weak types) and 32-bit-only inputs never promote
+    to 64-bit, as with JAX's `jax_explicit_x64_dtypes="allow"`.
+    """
+    if config.x64_mode() == "explicit_x64" and any(
+        dtype in BIT64_TO_BIT32_DTYPE and not weak_type
+        for dtype, weak_type in zip(dtypes, weak_types)
+    ):
+        return out_dtype
+    return BIT64_TO_BIT32_DTYPE.get(out_dtype, out_dtype)
 
 
 @keras_export("keras.backend.result_type")
 def result_type(*dtypes):
     """Returns the type from applying the Keras type promotion rules.
 
-    In general, each argument is first parsed by `backend.standardize_dtype`,
-    and the resulting dtype is determined by the least upper bound of the type
-    promotion lattice.
+    In general, each argument is first parsed by `standardize_dtype` and the
+    resulting dtype is determined by the least upper bound of the type promotion
+    lattice.
 
     Note: This function attempts to match the result of `jnp.result_type`.
+    64-bit dtypes are capped to 32-bit unless `keras.config.set_x64_mode()`
+    says otherwise.
 
     Args:
         dtypes: Input dtypes.
@@ -323,3 +340,24 @@ def result_type(*dtypes):
     return _lattice_result_type(
         *(config.floatx() if arg is None else arg for arg in dtypes),
     )
+
+
+def promote_to_float_dtype(dtype):
+    """Returns the dtype to use for an operation that needs a float input.
+
+    Integer and bool dtypes are promoted to `config.floatx()`. Float dtypes are
+    returned unchanged, including `float64`, `bfloat16` and the `float8` types.
+
+    This only computes the dtype. Callers do the cast themselves, since `cast`
+    is backend specific.
+
+    Args:
+        dtype: The dtype of the input.
+
+    Returns:
+        The float dtype to cast the input to.
+    """
+    dtype = standardize_dtype(dtype)
+    if "int" in dtype or dtype == "bool":
+        return config.floatx()
+    return dtype

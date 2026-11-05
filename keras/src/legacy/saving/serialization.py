@@ -2,7 +2,6 @@
 
 import contextlib
 import inspect
-import json
 import threading
 import weakref
 
@@ -384,9 +383,11 @@ def class_and_config_for_serialized_keras_object(
                 custom_objects=custom_objects,
                 printable_module_name="config_item",
             )
-        # TODO(momernick): Should this also have 'module_objects'?
+        # Also consider looking up functions in `module_objects`.
         elif isinstance(item, str) and inspect.isfunction(
-            object_registration.get_registered_object(item, custom_objects)
+            object_registration.get_registered_object(
+                item, custom_objects, module_objects
+            )
         ):
             # Handle custom functions here. When saving functions, we only save
             # the function's name as a string. If we find a matching string in
@@ -398,7 +399,9 @@ def class_and_config_for_serialized_keras_object(
             # naming conflict with a custom object, since the config of an
             # object will always be a dict.
             deserialized_objects[key] = (
-                object_registration.get_registered_object(item, custom_objects)
+                object_registration.get_registered_object(
+                    item, custom_objects, module_objects
+                )
             )
     for key, item in deserialized_objects.items():
         cls_config[key] = deserialized_objects[key]
@@ -485,12 +488,6 @@ def deserialize_keras_object(
             arg_spec = inspect.getfullargspec(cls.from_config)
             custom_objects = custom_objects or {}
 
-            # TODO(nkovela): Swap find and replace args during Keras 3.0 release
-            # Replace keras refs with keras
-            cls_config = _find_replace_nested_dict(
-                cls_config, "keras.", "keras."
-            )
-
             if "custom_objects" in arg_spec.args:
                 deserialized_obj = cls.from_config(
                     cls_config,
@@ -565,10 +562,3 @@ def validate_config(config):
 def is_default(method):
     """Check if a method is decorated with the `default` wrapper."""
     return getattr(method, "_is_default", False)
-
-
-def _find_replace_nested_dict(config, find, replace):
-    dict_str = json.dumps(config)
-    dict_str = dict_str.replace(find, replace)
-    config = json.loads(dict_str)
-    return config

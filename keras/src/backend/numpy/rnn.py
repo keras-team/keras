@@ -208,8 +208,16 @@ def gru(*args, **kwargs):
     raise NotImplementedError
 
 
+def bidirectional_lstm(*args, **kwargs):
+    raise NotImplementedError
+
+
+def bidirectional_gru(*args, **kwargs):
+    raise NotImplementedError
+
+
 def unstack(x, axis=0):
-    return [x.take(i, axis) for i in range(x.shape[axis])]
+    return list(np.moveaxis(x, axis, 0))
 
 
 def numpy_scan(f, init, xs, reverse=False, mask=None):

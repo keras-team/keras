@@ -16,9 +16,7 @@ class Wrapper(Layer):
     """
 
     def __init__(self, layer, **kwargs):
-        try:
-            assert isinstance(layer, Layer)
-        except Exception:
+        if not isinstance(layer, Layer):
             raise ValueError(
                 f"Layer {layer} supplied to Wrapper isn't "
                 "a supported layer type. Please "

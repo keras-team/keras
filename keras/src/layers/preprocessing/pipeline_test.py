@@ -41,9 +41,6 @@ class PipelineTest(testing.TestCase):
             run_training_check=run_training_check,
         )
 
-    @pytest.mark.skipif(
-        backend.backend() == "numpy", reason="masking not working in numpy"
-    )
     def test_correctness(self):
         pipeline = layers.Pipeline([CanaryLayer(), CanaryLayer()])
         x = np.array([0])
@@ -90,3 +87,19 @@ class PipelineTest(testing.TestCase):
         restored_output = restored(x)
         self.assertEqual(tuple(output.shape), (2, 8, 9, 3))
         self.assertAllClose(output, restored_output)
+
+    def test_from_config_malformed_raises_value_error(self):
+        # A missing or non-list `layers` key should raise a clear ValueError
+        # instead of an opaque KeyError / TypeError.
+        with self.assertRaisesRegex(ValueError, "layers"):
+            layers.Pipeline.from_config({"name": "test"})
+        with self.assertRaisesRegex(ValueError, "layers"):
+            layers.Pipeline.from_config({"layers": None, "name": "test"})
+
+    def test_from_config_does_not_mutate_input(self):
+        pipeline = layers.Pipeline([layers.AutoContrast()])
+        config = pipeline.get_config()
+        serialized_layers = config["layers"]
+        layers.Pipeline.from_config(config)
+        # `from_config` must not deserialize the caller's config in place.
+        self.assertIs(config["layers"], serialized_layers)

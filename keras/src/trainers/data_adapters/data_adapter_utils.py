@@ -4,6 +4,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend.common import standardize_dtype
 
 NUM_BATCHES_FOR_TENSOR_SPEC = 2
 
@@ -101,7 +102,9 @@ def list_to_tuple(maybe_list):
 
 
 def check_data_cardinality(data):
-    num_samples = set(int(i.shape[0]) for i in tree.flatten(data))
+    num_samples = set(
+        int(i.shape[0]) for i in tree.flatten(data) if i is not None
+    )
     if len(num_samples) > 1:
         msg = (
             "Data cardinality is ambiguous. "
@@ -116,6 +119,29 @@ def check_data_cardinality(data):
 
 
 def class_weight_to_sample_weights(y, class_weight):
+    # Validate and normalize class_weight keys to integer class indices.
+    # Without this check, invalid keys are silently ignored, and string keys
+    # (e.g., "0") would fail to match integer lookups later, silently
+    # defaulting sample_weight to 1.0.
+    if not hasattr(class_weight, "items") or not hasattr(class_weight, "get"):
+        raise ValueError(
+            "`class_weight` must be a dict-like mapping of class indices "
+            f"to weights. Received: class_weight={class_weight} of type "
+            f"{type(class_weight)}."
+        )
+
+    cleaned_class_weight = {}
+    for key, val in class_weight.items():
+        try:
+            cleaned_class_weight[int(key)] = val
+        except (TypeError, ValueError):
+            raise ValueError(
+                "`class_weight` must be a dictionary with integer keys "
+                "representing class indices. Received an invalid key: "
+                f"{key!r} of type {type(key)}."
+            )
+    class_weight = cleaned_class_weight
+
     # Convert to numpy to ensure consistent handling of operations
     # (e.g., np.round()) across frameworks like TensorFlow, JAX, and PyTorch
 
@@ -133,18 +159,25 @@ def class_weight_to_sample_weights(y, class_weight):
     return sample_weight
 
 
-def get_tensor_spec(batches):
-    """Return the common tensor spec for a list of batches.
+def get_keras_tensor_spec(batches):
+    """Return the KerasTensor spec for a list of batches.
+
+    The spec is represented using `KerasTensor` which could handle dense, sparse
+    or ragged tensors.
 
     Args:
         batches: list of structures of tensors. The structures must be
             identical, but the shape at each leaf may be different.
-    Returns: the common tensor spec for all the batches.
+
+    Returns:
+        A nested structure of `KerasTensor`.
     """
-    from keras.src.utils.module_utils import tensorflow as tf
 
     def get_single_tensor_spec(*tensors):
         x = tensors[0]
+        if not hasattr(x, "shape"):
+            # Try to convert to a numpy array.
+            x = np.array(x)
         rank = len(x.shape)
         if rank < 1:
             raise ValueError(
@@ -164,26 +197,74 @@ def get_tensor_spec(batches):
         for dims in zip(*[list(x.shape) for x in tensors]):
             dims_set = set(dims)
             shape.append(dims_set.pop() if len(dims_set) == 1 else None)
-        shape[0] = None  # batch size may not be static
 
-        dtype = backend.standardize_dtype(x.dtype)
-        if isinstance(x, tf.RaggedTensor):
-            return tf.RaggedTensorSpec(
+        dtype = standardize_dtype(x.dtype)
+        if is_tensorflow_ragged(x):
+            return backend.KerasTensor(
                 shape=shape,
                 dtype=dtype,
+                ragged=True,
                 ragged_rank=x.ragged_rank,
                 row_splits_dtype=x.row_splits.dtype,
             )
-        if (
-            isinstance(x, tf.SparseTensor)
-            or is_scipy_sparse(x)
-            or is_jax_sparse(x)
-        ):
-            return tf.SparseTensorSpec(shape=shape, dtype=dtype)
+        if is_tensorflow_sparse(x) or is_scipy_sparse(x) or is_jax_sparse(x):
+            return backend.KerasTensor(shape=shape, dtype=dtype, sparse=True)
         else:
-            return tf.TensorSpec(shape=shape, dtype=dtype)
+            return backend.KerasTensor(shape=shape, dtype=dtype)
 
-    return tree.map_structure(get_single_tensor_spec, *batches)
+    return tree.map_structure(
+        get_single_tensor_spec, *batches, none_is_leaf=False
+    )
+
+
+def convert_to_tf_tensor_spec(keras_tensor, batch_axis_to_none=True):
+    """Convert a KerasTensor to a TensorSpec.
+
+    Args:
+        keras_tensor: A KerasTensor instance.
+        batch_axis_to_none: If `True`, the batch axis of the returned
+            tensor spec will be set to None. Defaults to `True`.
+    """
+    from keras.src.utils.module_utils import tensorflow as tf
+
+    if keras_tensor is None:
+        return tf.OptionalSpec(None)
+    if not isinstance(keras_tensor, backend.KerasTensor):
+        raise TypeError(
+            f"Expected a KerasTensor, but got {keras_tensor} of type "
+            f"{type(keras_tensor)}."
+        )
+    shape = list(keras_tensor.shape)
+    if batch_axis_to_none:
+        shape[0] = None
+    if keras_tensor.ragged:
+        return tf.RaggedTensorSpec(
+            shape=shape,
+            dtype=keras_tensor.dtype,
+            ragged_rank=keras_tensor.ragged_rank,
+            row_splits_dtype=keras_tensor.row_splits_dtype,
+        )
+    elif keras_tensor.sparse:
+        return tf.SparseTensorSpec(shape=shape, dtype=keras_tensor.dtype)
+    else:
+        return tf.TensorSpec(shape=shape, dtype=keras_tensor.dtype)
+
+
+def get_tensor_spec(batches):
+    """Return the common tensor spec for a list of batches.
+
+    The spec is represented using `tf.TensorSpec`, `tf.SparseTensorSpec` and
+    `tf.RaggedTensorSpec`.
+
+    Args:
+        batches: list of structures of tensors. The structures must be
+            identical, but the shape at each leaf may be different.
+
+    Returns:
+        A common tensor spec.
+    """
+    tensor_specs = get_keras_tensor_spec(batches)
+    return tree.map_structure(convert_to_tf_tensor_spec, tensor_specs)
 
 
 def get_jax_iterator(iterable):
@@ -201,29 +282,35 @@ def get_jax_iterator(iterable):
             return np.asarray(x)
 
     for batch in iterable:
-        yield tree.map_structure(convert_to_jax_compatible, batch)
+        yield tree.map_structure(
+            convert_to_jax_compatible, batch, none_is_leaf=False
+        )
 
 
 def get_numpy_iterator(iterable):
     def convert_to_numpy(x):
         if not isinstance(x, np.ndarray):
-            # Using `__array__` should handle `tf.Tensor`, `jax.np.ndarray`,
-            # `torch.Tensor`, as well as any other tensor-like object that
-            # has added numpy support.
-            if hasattr(x, "__array__"):
+            if backend.ops.is_tensor(x):
+                # The backend knows how to convert its own tensors, including
+                # the ones `__array__` cannot, e.g. a bfloat16 MLX array.
+                x = ops.convert_to_numpy(x)
+            elif hasattr(x, "__array__"):
+                # Using `__array__` should handle `tf.Tensor`,
+                # `jax.np.ndarray`, `torch.Tensor`, as well as any other
+                # tensor-like object that has added numpy support.
                 if is_torch_tensor(x):
                     x = x.cpu()
                 x = np.asarray(x)
         return x
 
     for batch in iterable:
-        yield tree.map_structure(convert_to_numpy, batch)
+        yield tree.map_structure(convert_to_numpy, batch, none_is_leaf=False)
 
 
 def get_torch_dataloader(iterable):
     import torch.utils.data as torch_data
 
-    from keras.src.backend.torch.core import convert_to_tensor
+    from keras.src.backend.torch.ops.core import convert_to_tensor
 
     class ConverterIterableDataset(torch_data.IterableDataset):
         def __init__(self, iterable):
@@ -231,7 +318,9 @@ def get_torch_dataloader(iterable):
 
         def __iter__(self):
             for batch in self.iterable:
-                yield tree.map_structure(convert_to_tensor, batch)
+                yield tree.map_structure(
+                    convert_to_tensor, batch, none_is_leaf=False
+                )
 
     dataset = ConverterIterableDataset(iterable)
     # `batch_size=None` indicates that we should not re-batch
@@ -271,7 +360,9 @@ def is_tensorflow_sparse(value):
 def is_jax_array(value):
     if hasattr(value, "__class__"):
         for parent in value.__class__.__mro__:
-            if parent.__name__ == "Array" and str(parent.__module__) == "jax":
+            if parent.__name__.endswith("Array") and str(
+                parent.__module__
+            ).startswith("jax"):
                 return True
     return is_jax_sparse(value)  # JAX sparse arrays do not extend jax.Array
 
@@ -292,6 +383,109 @@ def is_torch_tensor(value):
             ):
                 return True
     return False
+
+
+def is_pandas_data_frame(value):
+    return (
+        hasattr(value, "__class__")
+        and value.__class__.__name__ == "DataFrame"
+        and str(value.__class__.__module__).startswith("pandas")
+    )
+
+
+def is_pandas_series(value):
+    return (
+        hasattr(value, "__class__")
+        and value.__class__.__name__ == "Series"
+        and str(value.__class__.__module__).startswith("pandas")
+    )
+
+
+class DistributedBatchSampler:
+    """Sampler that shards a batch sampler.
+
+    This sampler is useful for sharding an existing batch sampler (an iterable
+    of batches) across multiple data shards.
+
+    This is intentionally a batch-level sharding helper for cases where the
+    underlying iterator already produces full batches. In `ArrayDataAdapter`, we
+    build batch samplers over the dataset and then may optionally shuffle within
+    each returned batch.
+
+    Args:
+        batch_sampler: An iterable of batches. For example, a
+            `torch.utils.data.BatchSampler` instance.
+        num_data_shards: Total number of data shards.
+        data_shard_id: ID of the current data shard.
+        drop_last: Whether to drop the last partial batch.
+    """
+
+    def __init__(
+        self, batch_sampler, num_data_shards, data_shard_id, drop_last=False
+    ):
+        """Initialize the DistributedBatchSampler.
+
+        Args:
+            batch_sampler: An iterable of batches.
+            num_data_shards: Total number of data shards.
+            data_shard_id: ID of the current data shard.
+            drop_last: Whether to drop the last partial batch.
+        """
+        if num_data_shards < 1:
+            raise ValueError(
+                f"num_data_shards must be >= 1. Received: {num_data_shards}"
+            )
+        if not (0 <= data_shard_id < num_data_shards):
+            raise ValueError(
+                f"data_shard_id must be in [0, {num_data_shards - 1}]. "
+                f"Received: {data_shard_id}"
+            )
+        self.batch_sampler = batch_sampler
+        self.num_data_shards = num_data_shards
+        self.data_shard_id = data_shard_id
+        self.drop_last = drop_last
+
+    def __iter__(self):
+        sampler_len = len(self.batch_sampler)
+
+        limit = (
+            (sampler_len // self.num_data_shards) * self.num_data_shards
+            if self.drop_last
+            else sampler_len
+        )
+
+        import torch
+
+        # Optimization: if the batch_sampler is a standard BatchSampler
+        # with an indexable sampler, we can skip indices efficiently.
+        if isinstance(self.batch_sampler, torch.utils.data.BatchSampler):
+            sampler = self.batch_sampler.sampler
+            if hasattr(sampler, "__getitem__") and not isinstance(
+                sampler, torch.utils.data.Sampler
+            ):
+                for i in range(self.data_shard_id, limit, self.num_data_shards):
+                    # Manual index-based access is more efficient than filtering
+                    # the iterator.
+                    yield sampler[
+                        i * self.batch_sampler.batch_size : (i + 1)
+                        * self.batch_sampler.batch_size
+                    ]
+                return
+
+        for i, batch in enumerate(self.batch_sampler):
+            if i >= limit:
+                break
+            if i % self.num_data_shards == self.data_shard_id:
+                yield batch
+
+    def __len__(self):
+        sampler_len = len(self.batch_sampler)
+
+        if self.drop_last:
+            return sampler_len // self.num_data_shards
+        return (
+            sampler_len - self.data_shard_id + self.num_data_shards - 1
+        ) // self.num_data_shards
 
 
 def is_scipy_sparse(x):
@@ -332,3 +526,49 @@ def jax_sparse_to_tf_sparse(x):
     from keras.src.utils.module_utils import tensorflow as tf
 
     return tf.SparseTensor(x.indices, x.data, x.shape)
+
+
+class PartialBatchList(list):
+    """Container for unstacked remainder batches from super_batch_iterator."""
+
+    pass
+
+
+def super_batch_iterator(iterator, super_batch, stack_fn=np.stack):
+    """Wraps an iterator to stack batches into super-batches along axis 0."""
+    while True:
+        batches = []
+        try:
+            for _ in range(super_batch):
+                batches.append(next(iterator))
+        except StopIteration:
+            pass
+
+        if not batches:
+            break
+
+        for leaf in tree.flatten(batches[0]):
+            if (
+                is_scipy_sparse(leaf)
+                or is_tensorflow_sparse(leaf)
+                or is_jax_sparse(leaf)
+            ):
+                raise ValueError(
+                    "`steps_per_execution > 1` is not supported with sparse "
+                    "tensors."
+                )
+
+        if len(batches) == super_batch:
+            try:
+
+                def _stack_leaf(*xs):
+                    if xs[0] is None:
+                        return None
+                    return stack_fn(xs)
+
+                yield tree.map_structure(_stack_leaf, *batches)
+                continue
+            except (ValueError, RuntimeError):
+                pass
+
+        yield PartialBatchList(batches)

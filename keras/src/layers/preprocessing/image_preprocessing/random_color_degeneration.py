@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_color_example,
+)
 from keras.src.random import SeedGenerator
 
 
@@ -12,6 +15,9 @@ class RandomColorDegeneration(BaseImagePreprocessingLayer):
     The sharpness operation first converts an image to gray scale, then back to
     color. It then takes a weighted average between original image and the
     degenerated image. This makes colors appear more dull.
+
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
 
     Args:
         factor: A tuple of two floats or a single float.
@@ -26,6 +32,10 @@ class RandomColorDegeneration(BaseImagePreprocessingLayer):
             passed float is sampled. In order to ensure the value is always the
             same, please pass a tuple with two identical floats: `(0.5, 0.5)`.
         seed: Integer. Used to create a random seed.
+
+    Example:
+
+    {{base_image_preprocessing_color_example}}
     """
 
     _VALUE_RANGE_VALIDATION_ERROR = (
@@ -64,7 +74,7 @@ class RandomColorDegeneration(BaseImagePreprocessingLayer):
             images = data["images"]
         else:
             images = data
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         rank = len(images_shape)
         if rank == 3:
             batch_size = 1
@@ -90,18 +100,18 @@ class RandomColorDegeneration(BaseImagePreprocessingLayer):
 
     def transform_images(self, images, transformation=None, training=True):
         if training:
-            images = self.backend.cast(images, self.compute_dtype)
-            factor = self.backend.cast(
+            images = self.backend.ops.cast(images, self.compute_dtype)
+            factor = self.backend.ops.cast(
                 transformation["factor"], self.compute_dtype
             )
-            degenerates = self.backend.image.rgb_to_grayscale(
+            degenerates = self.backend.ops.image.rgb_to_grayscale(
                 images, data_format=self.data_format
             )
             images = images + factor * (degenerates - images)
-            images = self.backend.numpy.clip(
+            images = self.backend.ops.numpy.clip(
                 images, self.value_range[0], self.value_range[1]
             )
-            images = self.backend.cast(images, self.compute_dtype)
+            images = self.backend.ops.cast(images, self.compute_dtype)
         return images
 
     def transform_labels(self, labels, transformation, training=True):
@@ -129,4 +139,26 @@ class RandomColorDegeneration(BaseImagePreprocessingLayer):
         return config
 
     def compute_output_shape(self, input_shape):
+        if len(input_shape) not in (3, 4):
+            raise ValueError(
+                "Invalid images rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). "
+                f"Received: input_shape={input_shape}"
+            )
+        channels_axis = -1 if self.data_format == "channels_last" else -3
+        channels = input_shape[channels_axis]
+        if channels is not None and channels != 3:
+            raise ValueError(
+                "Input images must have 3 channels, but received images with "
+                f"{channels} channels."
+            )
         return input_shape
+
+
+if RandomColorDegeneration.__doc__ is not None:
+    RandomColorDegeneration.__doc__ = RandomColorDegeneration.__doc__.replace(
+        "{{base_image_preprocessing_color_example}}",
+        base_image_preprocessing_color_example.replace(
+            "{LayerName}", "RandomColorDegeneration"
+        ),
+    )

@@ -1,13 +1,19 @@
+import os
 import pickle
 
 import numpy as np
-import pytest
+from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import dtype_policies
+from keras.src import layers
 from keras.src import losses as losses_module
+from keras.src import models
 from keras.src import ops
+from keras.src import saving
 from keras.src import testing
+from keras.src.backend.common import set_keras_mask
+from keras.src.backend.common import standardize_dtype
 from keras.src.losses.loss import Loss
 from keras.src.losses.loss import squeeze_or_expand_to_same_rank
 
@@ -19,14 +25,14 @@ class ExampleLoss(Loss):
 
 class LossTest(testing.TestCase):
     def setUp(self):
+        super().setUp()
         self._global_dtype_policy = dtype_policies.dtype_policy.dtype_policy()
         self._floatx = backend.floatx()
-        return super().setUp()
 
     def tearDown(self):
+        super().tearDown()
         dtype_policies.dtype_policy.set_dtype_policy(self._global_dtype_policy)
         backend.set_floatx(self._floatx)
-        return super().tearDown()
 
     def test_squeeze_or_expand(self):
         x1 = ops.ones((3,))
@@ -60,29 +66,25 @@ class LossTest(testing.TestCase):
         # No reduction
         loss_fn = ExampleLoss(reduction=None)
         loss = loss_fn(y_true, y_pred)
-        self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
+        self.assertEqual(standardize_dtype(loss.dtype), "float32")
         self.assertAllClose((y_true - y_pred) ** 2, loss)
 
         # sum
         loss_fn = ExampleLoss(reduction="sum")
         loss = loss_fn(y_true, y_pred)
-        self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
+        self.assertEqual(standardize_dtype(loss.dtype), "float32")
         self.assertAllClose(np.sum((y_true - y_pred) ** 2), loss)
 
         # sum_over_batch_size or mean
         loss_fn = ExampleLoss(reduction="sum_over_batch_size")
         loss = loss_fn(y_true, y_pred)
-        self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
+        self.assertEqual(standardize_dtype(loss.dtype), "float32")
         self.assertAllClose(np.sum((y_true - y_pred) ** 2) / 4, loss)
 
         # bad reduction
         with self.assertRaisesRegex(ValueError, "Invalid value for argument"):
             ExampleLoss(reduction="abc")
 
-    @pytest.mark.skipif(
-        backend.backend() == "numpy",
-        reason="Numpy backend does not support masking.",
-    )
     def test_mask(self):
         mask = np.array([True, False, True, True])
         y_true = np.array([1.0, 0.0, 1.0, 0.0])
@@ -94,20 +96,20 @@ class LossTest(testing.TestCase):
         mask = ops.convert_to_tensor(mask)
         y_true = ops.convert_to_tensor(y_true)
         y_pred = ops.convert_to_tensor(y_pred)
-        y_pred._keras_mask = mask
+        set_keras_mask(y_pred, mask)
 
         loss_fn = ExampleLoss()
         loss = loss_fn(y_true, y_pred)
-        self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
+        self.assertEqual(standardize_dtype(loss.dtype), "float32")
         self.assertAllClose(
             np.sum((masked_y_true - masked_y_pred) ** 2) / 3, loss
         )
 
         # Test edge case where everything is masked.
         mask = np.array([False, False, False, False])
-        y_pred._keras_mask = mask
+        set_keras_mask(y_pred, mask)
         loss = loss_fn(y_true, y_pred)
-        self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
+        self.assertEqual(standardize_dtype(loss.dtype), "float32")
         self.assertAllClose(loss, 0)  # No NaN.
 
     def test_sample_weight(self):
@@ -117,7 +119,7 @@ class LossTest(testing.TestCase):
 
         loss_fn = ExampleLoss()
         loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
-        self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
+        self.assertEqual(standardize_dtype(loss.dtype), "float32")
         self.assertAllClose(
             np.sum(sample_weight * (y_true - y_pred) ** 2) / 4, loss
         )
@@ -125,13 +127,9 @@ class LossTest(testing.TestCase):
         # Test edge case where every weight is 0.
         sample_weight = np.array([0.0, 0.0, 0.0, 0.0])
         loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
-        self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
+        self.assertEqual(standardize_dtype(loss.dtype), "float32")
         self.assertAllClose(loss, 0)  # No NaN.
 
-    @pytest.mark.skipif(
-        backend.backend() == "numpy",
-        reason="Numpy backend does not support masking.",
-    )
     def test_mask_and_sample_weight(self):
         sample_weight = np.array([0.4, 0.3, 0.2, 0.1])
         y_true = np.array([1.0, 0.0, 1.0, 0.0])
@@ -145,21 +143,17 @@ class LossTest(testing.TestCase):
         mask = ops.convert_to_tensor(mask)
         y_true = ops.convert_to_tensor(y_true)
         y_pred = ops.convert_to_tensor(y_pred)
-        y_pred._keras_mask = mask
+        set_keras_mask(y_pred, mask)
 
         loss_fn = ExampleLoss()
         loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
-        self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
+        self.assertEqual(standardize_dtype(loss.dtype), "float32")
         self.assertAllClose(
             np.sum(masked_sample_weight * (masked_y_true - masked_y_pred) ** 2)
             / 3,
             loss,
         )
 
-    @pytest.mark.skipif(
-        backend.backend() == "numpy",
-        reason="Numpy backend does not support masking.",
-    )
     def test_mask_and_sample_weight_rank2(self):
         # check loss of inputs with duplicate rows doesn't change
         sample_weight = np.array([0.4, 0.3, 0.2, 0.1])
@@ -170,7 +164,7 @@ class LossTest(testing.TestCase):
         mask = ops.convert_to_tensor(mask)
         y_true = ops.convert_to_tensor(y_true)
         y_pred = ops.convert_to_tensor(y_pred)
-        y_pred._keras_mask = mask
+        set_keras_mask(y_pred, mask)
 
         loss_fn = ExampleLoss()
         rank1_loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
@@ -180,51 +174,46 @@ class LossTest(testing.TestCase):
         y_true = ops.tile(ops.expand_dims(y_true, axis=0), (2, 1))
         y_pred = ops.tile(ops.expand_dims(y_pred, axis=0), (2, 1))
         sample_weight = ops.tile(ops.expand_dims(sample_weight, axis=0), (2, 1))
-        y_pred._keras_mask = mask
+        set_keras_mask(y_pred, mask)
         rank2_loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
         self.assertAllClose(rank1_loss, rank2_loss)
 
-    # @testing.parametrize(
-    #     "uprank", ["mask", "sample_weight", "y_true", "y_pred"])
-    # TODO: use parameterization decorator
-    @pytest.mark.skipif(
-        backend.backend() == "numpy",
-        reason="Numpy backend does not support masking.",
+    @parameterized.named_parameters(
+        ("mask", "mask"),
+        ("sample_weight", "sample_weight"),
+        ("ys", "ys"),
     )
-    def test_rank_adjustment(self):
-        for uprank in ["mask", "sample_weight", "ys"]:
-            sample_weight = np.array([0.4, 0.3, 0.2, 0.1])
-            y_true = np.array([1.0, 0.0, 1.0, 0.0])
-            y_pred = np.array([0.1, 0.2, 0.3, 0.4])
-            mask = np.array([True, False, True, True])
+    def test_rank_adjustment(self, uprank):
+        sample_weight = np.array([0.4, 0.3, 0.2, 0.1])
+        y_true = np.array([1.0, 0.0, 1.0, 0.0])
+        y_pred = np.array([0.1, 0.2, 0.3, 0.4])
+        mask = np.array([True, False, True, True])
 
-            if uprank == "mask":
-                mask = np.expand_dims(mask, -1)
-            elif uprank == "sample_weight":
-                sample_weight = np.expand_dims(sample_weight, -1)
-            elif uprank == "ys":
-                y_true = np.expand_dims(y_true, -1)
-                y_pred = np.expand_dims(y_pred, -1)
+        if uprank == "mask":
+            mask = np.expand_dims(mask, -1)
+        elif uprank == "sample_weight":
+            sample_weight = np.expand_dims(sample_weight, -1)
+        elif uprank == "ys":
+            y_true = np.expand_dims(y_true, -1)
+            y_pred = np.expand_dims(y_pred, -1)
 
-            masked_sample_weight = np.array([0.4, 0.2, 0.1])
-            masked_y_true = np.array([1.0, 1.0, 0.0])
-            masked_y_pred = np.array([0.1, 0.3, 0.4])
+        masked_sample_weight = np.array([0.4, 0.2, 0.1])
+        masked_y_true = np.array([1.0, 1.0, 0.0])
+        masked_y_pred = np.array([0.1, 0.3, 0.4])
 
-            mask = ops.convert_to_tensor(mask)
-            y_true = ops.convert_to_tensor(y_true)
-            y_pred = ops.convert_to_tensor(y_pred)
-            y_pred._keras_mask = mask
+        mask = ops.convert_to_tensor(mask)
+        y_true = ops.convert_to_tensor(y_true)
+        y_pred = ops.convert_to_tensor(y_pred)
+        set_keras_mask(y_pred, mask)
 
-            loss_fn = ExampleLoss()
-            loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
-            self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
-            self.assertAllClose(
-                np.sum(
-                    masked_sample_weight * (masked_y_true - masked_y_pred) ** 2
-                )
-                / 3,
-                loss,
-            )
+        loss_fn = ExampleLoss()
+        loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
+        self.assertEqual(standardize_dtype(loss.dtype), "float32")
+        self.assertAllClose(
+            np.sum(masked_sample_weight * (masked_y_true - masked_y_pred) ** 2)
+            / 3,
+            loss,
+        )
 
     def test_mixed_dtypes(self):
         sample_weight = np.array([0.4, 0.3, 0.2, 0.1], dtype="float64")
@@ -233,7 +222,7 @@ class LossTest(testing.TestCase):
 
         loss_fn = ExampleLoss()
         loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
-        self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
+        self.assertEqual(standardize_dtype(loss.dtype), "float32")
         self.assertAllClose(
             np.sum(sample_weight * (y_true - y_pred) ** 2) / 4,
             loss,
@@ -287,3 +276,50 @@ class LossTest(testing.TestCase):
         loss_fn = ExampleLoss()
         loss = loss_fn(y_true, y_pred)
         self.assertDType(loss, backend.floatx())
+
+    def test_get_config_and_from_config_dtype(self):
+        # Default dtype should not add dtype to config
+        loss_default = ExampleLoss()
+        config_default = loss_default.get_config()
+        self.assertNotIn("dtype", config_default)
+        restored_default = ExampleLoss.from_config(config_default)
+        self.assertEqual(restored_default.dtype, backend.floatx())
+
+        # Explicit string dtype should be saved in config and restored
+        loss_f16 = ExampleLoss(dtype="float16")
+        config_f16 = loss_f16.get_config()
+        self.assertEqual(config_f16.get("dtype"), "float16")
+        restored_f16 = ExampleLoss.from_config(config_f16)
+        self.assertEqual(restored_f16.dtype, "float16")
+
+        loss_bf16 = ExampleLoss(dtype="bfloat16")
+        config_bf16 = loss_bf16.get_config()
+        self.assertEqual(config_bf16.get("dtype"), "bfloat16")
+        restored_bf16 = ExampleLoss.from_config(config_bf16)
+        self.assertEqual(restored_bf16.dtype, "bfloat16")
+
+        # Explicit DTypePolicy should save serialized policy in config
+        loss_policy = ExampleLoss(
+            dtype=dtype_policies.DTypePolicy("mixed_float16")
+        )
+        config_policy = loss_policy.get_config()
+        self.assertEqual(
+            config_policy.get("dtype"),
+            dtype_policies.serialize(
+                dtype_policies.DTypePolicy("mixed_float16")
+            ),
+        )
+        restored_policy = ExampleLoss.from_config(config_policy)
+        self.assertEqual(restored_policy.dtype, "float16")
+
+    def test_model_save_and_load_preserves_loss_dtype(self):
+        model = models.Sequential([layers.Dense(1, input_shape=(2,))])
+        loss = losses_module.MeanSquaredError(dtype="bfloat16")
+        model.compile(optimizer="sgd", loss=loss)
+
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "loss_dtype_model.keras"
+        )
+        model.save(temp_filepath)
+        loaded_model = saving.load_model(temp_filepath)
+        self.assertEqual(loaded_model.loss.dtype, "bfloat16")

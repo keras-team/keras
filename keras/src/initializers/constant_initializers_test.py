@@ -1,7 +1,6 @@
 import numpy as np
 import scipy.signal
 
-from conftest import skip_if_backend
 from keras.src import backend
 from keras.src import initializers
 from keras.src import testing
@@ -14,7 +13,7 @@ class ConstantInitializersTest(testing.TestCase):
         initializer = initializers.Zeros()
         values = initializer(shape=shape)
         self.assertEqual(values.shape, shape)
-        np_values = backend.convert_to_numpy(values)
+        np_values = backend.ops.convert_to_numpy(values)
         self.assertAllClose(np_values, np.zeros(shape=shape))
 
         self.run_class_serialization_test(initializer)
@@ -25,7 +24,7 @@ class ConstantInitializersTest(testing.TestCase):
         initializer = initializers.Ones()
         values = initializer(shape=shape)
         self.assertEqual(values.shape, shape)
-        np_values = backend.convert_to_numpy(values)
+        np_values = backend.ops.convert_to_numpy(values)
         self.assertAllClose(np_values, np.ones(shape=shape))
 
         self.run_class_serialization_test(initializer)
@@ -37,7 +36,7 @@ class ConstantInitializersTest(testing.TestCase):
         initializer = initializers.Constant(value=constant_value)
         values = initializer(shape=shape)
         self.assertEqual(values.shape, shape)
-        np_values = backend.convert_to_numpy(values)
+        np_values = backend.ops.convert_to_numpy(values)
         self.assertAllClose(
             np_values, np.full(shape=shape, fill_value=constant_value)
         )
@@ -51,14 +50,13 @@ class ConstantInitializersTest(testing.TestCase):
         initializer = initializers.Constant(value=constant_value)
         values = initializer(shape=shape)
         self.assertEqual(values.shape, shape)
-        np_values = backend.convert_to_numpy(values)
+        np_values = backend.ops.convert_to_numpy(values)
         self.assertAllClose(
             np_values, np.full(shape=shape, fill_value=constant_value)
         )
 
         self.run_class_serialization_test(initializer)
 
-    @skip_if_backend("openvino", "openvino backend does not support `eye`")
     def test_identity_initializer(self):
         shape = (3, 3)
         gain = 2
@@ -66,31 +64,34 @@ class ConstantInitializersTest(testing.TestCase):
         initializer = initializers.Identity(gain=gain)
         values = initializer(shape=shape)
         self.assertEqual(values.shape, shape)
-        np_values = backend.convert_to_numpy(values)
+        np_values = backend.ops.convert_to_numpy(values)
         self.assertAllClose(np_values, np.eye(*shape) * gain)
 
         self.run_class_serialization_test(initializer)
+
+        # `run_class_serialization_test` compares config to config, so a
+        # `gain` missing from `get_config` matches on both sides. Check that
+        # the restored initializer produces the same matrix.
+        self.assertEqual(initializer.get_config()["gain"], gain)
+        revived = initializers.Identity.from_config(initializer.get_config())
+        self.assertAllClose(
+            backend.ops.convert_to_numpy(revived(shape=shape)), np_values
+        )
 
         # Test compatible class_name
         initializer = initializers.get("IdentityInitializer")
         self.assertIsInstance(initializer, initializers.Identity)
 
-    @skip_if_backend("openvino", "openvino backend does not support `arange`")
     def test_stft_initializer(self):
         shape = (256, 1, 513)
         time_range = np.arange(256).reshape((-1, 1, 1))
         freq_range = (np.arange(513) / 1024.0).reshape((1, 1, -1))
-        pi = np.arccos(np.float64(-1))
+        pi = np.arccos(np.float32(-1))
         args = -2 * pi * time_range * freq_range
-
-        tol_kwargs = {}
-        if backend.backend() == "jax":
-            # TODO(mostafa-mahmoud): investigate the cases
-            # of non-small error in jax and torch
-            tol_kwargs = {"atol": 1e-4, "rtol": 1e-6}
+        tol_kwargs = {"atol": 1e-4, "rtol": 1e-6}
 
         initializer = initializers.STFT("real", None)
-        values = backend.convert_to_numpy(initializer(shape))
+        values = backend.ops.convert_to_numpy(initializer(shape))
         self.assertAllClose(np.cos(args), values, atol=1e-4)
         self.run_class_serialization_test(initializer)
 
@@ -101,8 +102,8 @@ class ConstantInitializersTest(testing.TestCase):
             True,
         )
         window = scipy.signal.windows.get_window("hamming", 256, True)
-        window = window.astype("float64").reshape((-1, 1, 1))
-        values = backend.convert_to_numpy(initializer(shape, "float64"))
+        window = window.astype("float32").reshape((-1, 1, 1))
+        values = backend.ops.convert_to_numpy(initializer(shape, "float32"))
         self.assertAllClose(np.cos(args) * window, values, **tol_kwargs)
         self.run_class_serialization_test(initializer)
 
@@ -113,9 +114,9 @@ class ConstantInitializersTest(testing.TestCase):
             False,
         )
         window = scipy.signal.windows.get_window("tukey", 256, False)
-        window = window.astype("float64").reshape((-1, 1, 1))
+        window = window.astype("float32").reshape((-1, 1, 1))
         window = window / np.sqrt(np.sum(window**2))
-        values = backend.convert_to_numpy(initializer(shape, "float64"))
+        values = backend.ops.convert_to_numpy(initializer(shape, "float32"))
         self.assertAllClose(np.sin(args) * window, values, **tol_kwargs)
         self.run_class_serialization_test(initializer)
 
@@ -125,9 +126,9 @@ class ConstantInitializersTest(testing.TestCase):
             "spectrum",
         )
         window = np.arange(1, 257)
-        window = window.astype("float64").reshape((-1, 1, 1))
+        window = window.astype("float32").reshape((-1, 1, 1))
         window = window / np.sum(window)
-        values = backend.convert_to_numpy(initializer(shape, "float64"))
+        values = backend.ops.convert_to_numpy(initializer(shape, "float32"))
         self.assertAllClose(np.sin(args) * window, values, **tol_kwargs)
         self.run_class_serialization_test(initializer)
 

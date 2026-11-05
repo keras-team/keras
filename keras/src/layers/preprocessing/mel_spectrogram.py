@@ -1,5 +1,5 @@
 from keras.src.api_export import keras_export
-from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras.src.layers.preprocessing.data_layer import DataLayer
 
 # mel spectrum constants.
 _MEL_BREAK_FREQUENCY_HERTZ = 700.0
@@ -7,7 +7,7 @@ _MEL_HIGH_FREQUENCY_Q = 1127.0
 
 
 @keras_export("keras.layers.MelSpectrogram")
-class MelSpectrogram(TFDataLayer):
+class MelSpectrogram(DataLayer):
     """A preprocessing layer to convert raw audio signals to Mel spectrograms.
 
     This layer takes `float32`/`float64` single or batched audio signal as
@@ -24,9 +24,36 @@ class MelSpectrogram(TFDataLayer):
     speech and music processing tasks like speech recognition, speaker
     identification, and music genre classification.
 
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
     References:
     - [Spectrogram](https://en.wikipedia.org/wiki/Spectrogram),
     - [Mel scale](https://en.wikipedia.org/wiki/Mel_scale).
+
+    Args:
+        fft_length: Integer, size of the FFT window.
+        sequence_stride: Integer, number of samples between successive STFT
+            columns.
+        sequence_length: Integer, size of the window used for applying
+            `window` to each audio frame. If `None`, defaults to `fft_length`.
+        window: String, name of the window function to use. Available values
+            are `"hann"` and `"hamming"`. If `window` is a tensor, it will be
+            used directly as the window and its length must be
+            `sequence_length`. If `window` is `None`, no windowing is
+            used. Defaults to `"hann"`.
+        sampling_rate: Integer, sample rate of the input signal.
+        num_mel_bins: Integer, number of mel bins to generate.
+        min_freq: Float, minimum frequency of the mel bins.
+        max_freq: Float, maximum frequency of the mel bins.
+            If `None`, defaults to `sampling_rate / 2`.
+        power_to_db: If True, convert the power spectrogram to decibels.
+        top_db: Float, minimum negative cut-off `max(10 * log10(S)) - top_db`.
+        mag_exp: Float, exponent for the magnitude spectrogram.
+            1 for magnitude, 2 for power, etc. Default is 2.
+        ref_power: Float, the power is scaled relative to it
+            `10 * log10(S / ref_power)`.
+        min_power: Float, minimum value for power and `ref_power`.
 
     Examples:
 
@@ -55,29 +82,6 @@ class MelSpectrogram(TFDataLayer):
         2D (unbatched) or 3D (batched) tensor with
         shape:`(..., num_mel_bins, time)`.
 
-    Args:
-        fft_length: Integer, size of the FFT window.
-        sequence_stride: Integer, number of samples between successive STFT
-            columns.
-        sequence_length: Integer, size of the window used for applying
-            `window` to each audio frame. If `None`, defaults to `fft_length`.
-        window: String, name of the window function to use. Available values
-            are `"hann"` and `"hamming"`. If `window` is a tensor, it will be
-            used directly as the window and its length must be
-            `sequence_length`. If `window` is `None`, no windowing is
-            used. Defaults to `"hann"`.
-        sampling_rate: Integer, sample rate of the input signal.
-        num_mel_bins: Integer, number of mel bins to generate.
-        min_freq: Float, minimum frequency of the mel bins.
-        max_freq: Float, maximum frequency of the mel bins.
-            If `None`, defaults to `sampling_rate / 2`.
-        power_to_db: If True, convert the power spectrogram to decibels.
-        top_db: Float, minimum negative cut-off `max(10 * log10(S)) - top_db`.
-        mag_exp: Float, exponent for the magnitude spectrogram.
-            1 for magnitude, 2 for power, etc. Default is 2.
-        ref_power: Float, the power is scaled relative to it
-            `10 * log10(S / ref_power)`.
-        min_power: Float, minimum value for power and `ref_power`.
     """
 
     def __init__(
@@ -100,6 +104,12 @@ class MelSpectrogram(TFDataLayer):
         self.fft_length = fft_length
         self.sequence_stride = sequence_stride
         self.sequence_length = sequence_length or fft_length
+        if self.fft_length < self.sequence_length:
+            raise ValueError(
+                "`fft_length` must be greater than or equal to  "
+                f" `sequence_length`. Received: `sequence_length`="
+                f"{self.sequence_length}, `fft_length`={self.fft_length}."
+            )
         self.window = window
         self.sampling_rate = sampling_rate
         self.num_mel_bins = num_mel_bins
@@ -118,18 +128,18 @@ class MelSpectrogram(TFDataLayer):
             if self.compute_dtype not in ["float32", "float64"]
             else self.compute_dtype
         )  # jax, tf supports only "float32" and "float64" in stft
-        inputs = self.backend.convert_to_tensor(inputs, dtype=dtype)
+        inputs = self.backend.ops.convert_to_tensor(inputs, dtype=dtype)
         outputs = self._spectrogram(inputs)
         outputs = self._melscale(outputs)
         if self.power_to_db:
             outputs = self._dbscale(outputs)
         # swap time & freq axis to have shape of (..., num_mel_bins, time)
-        outputs = self.backend.numpy.swapaxes(outputs, -1, -2)
-        outputs = self.backend.cast(outputs, self.compute_dtype)
+        outputs = self.backend.ops.numpy.swapaxes(outputs, -1, -2)
+        outputs = self.backend.ops.cast(outputs, self.compute_dtype)
         return outputs
 
     def _spectrogram(self, inputs):
-        real, imag = self.backend.math.stft(
+        real, imag = self.backend.ops.math.stft(
             inputs,
             sequence_length=self.sequence_length,
             sequence_stride=self.sequence_stride,
@@ -138,38 +148,39 @@ class MelSpectrogram(TFDataLayer):
             center=True,
         )
         # abs of complex  = sqrt(real^2 + imag^2)
-        spec = self.backend.numpy.sqrt(
-            self.backend.numpy.add(
-                self.backend.numpy.square(real), self.backend.numpy.square(imag)
+        spec = self.backend.ops.numpy.sqrt(
+            self.backend.ops.numpy.add(
+                self.backend.ops.numpy.square(real),
+                self.backend.ops.numpy.square(imag),
             )
         )
-        spec = self.backend.numpy.power(spec, self.mag_exp)
+        spec = self.backend.ops.numpy.power(spec, self.mag_exp)
         return spec
 
     def _melscale(self, inputs):
         matrix = self.linear_to_mel_weight_matrix(
             num_mel_bins=self.num_mel_bins,
-            num_spectrogram_bins=self.backend.shape(inputs)[-1],
+            num_spectrogram_bins=self.backend.ops.shape(inputs)[-1],
             sampling_rate=self.sampling_rate,
             lower_edge_hertz=self.min_freq,
             upper_edge_hertz=self.max_freq,
         )
-        return self.backend.numpy.tensordot(inputs, matrix, axes=1)
+        return self.backend.ops.numpy.tensordot(inputs, matrix, axes=1)
 
     def _dbscale(self, inputs):
         log_spec = 10.0 * (
-            self.backend.numpy.log10(
-                self.backend.numpy.maximum(inputs, self.min_power)
+            self.backend.ops.numpy.log10(
+                self.backend.ops.numpy.maximum(inputs, self.min_power)
             )
         )
-        ref_value = self.backend.numpy.abs(
-            self.backend.convert_to_tensor(self.ref_power)
+        ref_value = self.backend.ops.numpy.abs(
+            self.backend.ops.convert_to_tensor(self.ref_power)
         )
-        log_spec -= 10.0 * self.backend.numpy.log10(
-            self.backend.numpy.maximum(ref_value, self.min_power)
+        log_spec -= 10.0 * self.backend.ops.numpy.log10(
+            self.backend.ops.numpy.maximum(ref_value, self.min_power)
         )
-        log_spec = self.backend.numpy.maximum(
-            log_spec, self.backend.numpy.max(log_spec) - self.top_db
+        log_spec = self.backend.ops.numpy.maximum(
+            log_spec, self.backend.ops.numpy.max(log_spec) - self.top_db
         )
         return log_spec
 
@@ -185,7 +196,7 @@ class MelSpectrogram(TFDataLayer):
             A tensor of the same shape and type of `frequencies_hertz`
             containing frequencies in the mel scale.
         """
-        return _MEL_HIGH_FREQUENCY_Q * self.backend.numpy.log(
+        return _MEL_HIGH_FREQUENCY_Q * self.backend.ops.numpy.log(
             1.0 + (frequencies_hertz / _MEL_BREAK_FREQUENCY_HERTZ)
         )
 
@@ -263,24 +274,24 @@ class MelSpectrogram(TFDataLayer):
 
         # This function can be constant folded by graph optimization since
         # there are no Tensor inputs.
-        sampling_rate = self.backend.cast(sampling_rate, dtype)
-        lower_edge_hertz = self.backend.convert_to_tensor(
+        sampling_rate = self.backend.ops.cast(sampling_rate, dtype)
+        lower_edge_hertz = self.backend.ops.convert_to_tensor(
             lower_edge_hertz,
             dtype,
         )
-        upper_edge_hertz = self.backend.convert_to_tensor(
+        upper_edge_hertz = self.backend.ops.convert_to_tensor(
             upper_edge_hertz,
             dtype,
         )
-        zero = self.backend.convert_to_tensor(0.0, dtype)
+        zero = self.backend.ops.convert_to_tensor(0.0, dtype)
 
         # HTK excludes the spectrogram DC bin.
         bands_to_zero = 1
         nyquist_hertz = sampling_rate / 2.0
-        linear_frequencies = self.backend.numpy.linspace(
+        linear_frequencies = self.backend.ops.numpy.linspace(
             zero, nyquist_hertz, num_spectrogram_bins
         )[bands_to_zero:]
-        spectrogram_bins_mel = self.backend.numpy.expand_dims(
+        spectrogram_bins_mel = self.backend.ops.numpy.expand_dims(
             self._hertz_to_mel(linear_frequencies), 1
         )
 
@@ -288,8 +299,8 @@ class MelSpectrogram(TFDataLayer):
         # center of each band is the lower and upper edge of the adjacent bands.
         # Accordingly, we divide [lower_edge_hertz, upper_edge_hertz] into
         # num_mel_bins + 2 pieces.
-        band_edges_mel = self.backend.math.extract_sequences(
-            self.backend.numpy.linspace(
+        band_edges_mel = self.backend.ops.math.extract_sequences(
+            self.backend.ops.numpy.linspace(
                 self._hertz_to_mel(lower_edge_hertz),
                 self._hertz_to_mel(upper_edge_hertz),
                 num_mel_bins + 2,
@@ -300,8 +311,8 @@ class MelSpectrogram(TFDataLayer):
 
         # Split the triples up and reshape them into [1, num_mel_bins] tensors.
         lower_edge_mel, center_mel, upper_edge_mel = tuple(
-            self.backend.numpy.reshape(t, [1, num_mel_bins])
-            for t in self.backend.numpy.split(band_edges_mel, 3, axis=1)
+            self.backend.ops.numpy.reshape(t, [1, num_mel_bins])
+            for t in self.backend.ops.numpy.split(band_edges_mel, 3, axis=1)
         )
 
         # Calculate lower and upper slopes for every spectrogram bin.
@@ -314,12 +325,12 @@ class MelSpectrogram(TFDataLayer):
         )
 
         # Intersect the line segments with each other and zero.
-        mel_weights_matrix = self.backend.numpy.maximum(
-            zero, self.backend.numpy.minimum(lower_slopes, upper_slopes)
+        mel_weights_matrix = self.backend.ops.numpy.maximum(
+            zero, self.backend.ops.numpy.minimum(lower_slopes, upper_slopes)
         )
 
         # Re-add the zeroed lower bins we sliced out above.
-        return self.backend.numpy.pad(
+        return self.backend.ops.numpy.pad(
             mel_weights_matrix,
             [[bands_to_zero, 0], [0, 0]],
         )

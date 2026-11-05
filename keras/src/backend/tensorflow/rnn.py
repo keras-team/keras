@@ -539,11 +539,21 @@ def _do_lstm_arguments_support_cudnn(
 
 
 def _has_fully_masked_sequence(mask):
-    # Cudnn kernel will error out if the input sequence contains any
-    # fully masked data. We walk around this issue by rerouting the computation
-    # to standard kernel, until the issue on cudnn side has been fixed.  For a
-    # fully masked sequence, it will contain all Falses. To make it easy to
-    # check, we inverse the boolean, check if any of the sequence has all True.
+    """Check if input sequence contains any fully masked data.
+
+    cuDNN kernel will error out if the input sequence contains any fully masked
+    data. We work around this issue by rerouting the computation to the
+    standard kernel until the issue on the cuDNN side has been fixed. For a
+    fully masked sequence, it will contain all `False` values. To make it easy
+    to check, we invert the boolean and check if any of the sequences has all
+    `True` values.
+
+    Args:
+        mask: The mask tensor.
+
+    Returns:
+        A boolean tensor, `True` if the mask contains a fully masked sequence.
+    """
     return tf.reduce_any(
         tf.reduce_all(tf.logical_not(tf.cast(mask, dtype="bool")), axis=1)
     )
@@ -778,7 +788,7 @@ def _cudnn_gru(
     return (
         last_output,
         outputs,
-        state,
+        [state],
     )
 
 
@@ -900,8 +910,8 @@ def _cudnn_lstm(
 
     if tf.sysconfig.get_build_info()["is_rocm_build"]:
         # ROCm MIOpen's weight sequence for LSTM is different from both
-        # canonical and Cudnn format
-        # MIOpen: [i, f, o, c] Cudnn/Canonical: [i, f, c, o]
+        # canonical and cuDNN format
+        # MIOpen: [i, f, o, c] cuDNN/Canonical: [i, f, c, o]
         # i is input gate weights.
         # f is forget gate weights.
         # o is output gate weights.
@@ -969,3 +979,11 @@ def _cudnn_lstm(
         outputs = tf.expand_dims(last_output, axis=0 if time_major else 1)
 
     return (last_output, outputs, [h, c])
+
+
+def bidirectional_lstm(*args, **kwargs):
+    raise NotImplementedError
+
+
+def bidirectional_gru(*args, **kwargs):
+    raise NotImplementedError

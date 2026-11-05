@@ -9,14 +9,14 @@ authors = [
 ]
 description = "Multi-backend Keras"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = {text = "Apache License 2.0"}
 dynamic = ["version"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3 :: Only",
     "Operating System :: Unix",
     "Operating System :: MacOS",
@@ -35,6 +35,11 @@ dependencies = [
     "packaging",
 ]
 # Run also: pip install -r requirements.txt
+
+[project.optional-dependencies]
+# Remote file access (e.g. saving to / loading from `gs://`) without
+# TensorFlow.
+gcs = ["etils[epath-gcs]"]
 
 [project.urls]
 Home = "https://keras.io/"
@@ -57,6 +62,7 @@ select = [
     "E",  # pycodestyle error
     "F",  # Pyflakes
     "I",  # isort
+    "S101",  # flake8-bandit / use of assert detected
 ]
 ignore = [
     "E722",  # do not use bare 'except'
@@ -68,7 +74,8 @@ ignore = [
 "**/__init__.py" = ["E501", "F401"]  # lines too long; imported but unused
 "**/random.py" = ["F401"]  # imported but unused
 "examples/*" = ["I", "E"]
-"guides/*" = ["I", "E", "F"]
+"guides/*" = ["I", "E", "F", "S"]
+"integration_tests/*" = ["S101"]  # use of assert detected
 
 [tool.ruff.lint.isort]
 force-single-line = true
@@ -99,6 +106,7 @@ exclude_lines = [
 ]
 omit = [
     "*/*_test.py",
+    "keras/api/*",
     "keras/src/legacy/*",
 ]
 
@@ -106,6 +114,6 @@ omit = [
 branch = true
 omit = [
     "*/*_test.py",
+    "keras/api/*",
     "keras/src/legacy/*",
 ]
-

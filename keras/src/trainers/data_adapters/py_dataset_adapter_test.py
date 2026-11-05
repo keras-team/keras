@@ -10,7 +10,9 @@ from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import testing
+from keras.src.distribution import distribution_lib as dist_lib
 from keras.src.testing.test_utils import named_product
+from keras.src.trainers.data_adapters import data_adapter_test_base
 from keras.src.trainers.data_adapters import py_dataset_adapter
 from keras.src.utils.rng_utils import set_random_seed
 
@@ -93,8 +95,11 @@ class ExceptionPyDataset(py_dataset_adapter.PyDataset):
         raise ValueError("Expected exception")
 
 
-@pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Flaky on GPU")
-class PyDatasetAdapterTest(testing.TestCase):
+@pytest.mark.skipif(
+    testing.tensorflow_uses_gpu() or testing.uses_tpu(),
+    reason="Flaky on TPU and GPU",
+)
+class PyDatasetAdapterTest(data_adapter_test_base.DataAdapterTest):
     @parameterized.named_parameters(
         named_product(
             [
@@ -151,10 +156,9 @@ class PyDatasetAdapterTest(testing.TestCase):
         CPU_DEVICES = {
             "tensorflow": "CPU:0",
             "jax": "cpu:0",
-            "torch": "cpu",
-            "numpy": "cpu",
         }
-        with backend.device(CPU_DEVICES[backend.backend()]):
+        cpu_device = CPU_DEVICES.get(backend.backend(), "cpu")
+        with backend.device(cpu_device):
             if dataset_type == "tf":
                 x, y = tf.constant(x), tf.constant(y)
             elif dataset_type == "jax":
@@ -174,10 +178,7 @@ class PyDatasetAdapterTest(testing.TestCase):
             py_dataset, shuffle=shuffle
         )
 
-        if backend.backend() == "numpy":
-            it = adapter.get_numpy_iterator()
-            expected_class = np.ndarray
-        elif backend.backend() == "tensorflow":
+        if backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.Tensor
         elif backend.backend() == "jax":
@@ -186,6 +187,9 @@ class PyDatasetAdapterTest(testing.TestCase):
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
+        else:
+            it = adapter.get_numpy_iterator()
+            expected_class = np.ndarray
 
         sample_order = []
         adapter.on_epoch_begin()
@@ -199,7 +203,7 @@ class PyDatasetAdapterTest(testing.TestCase):
             self.assertEqual(bx.shape, (16, 4))
             self.assertEqual(by.shape, (16, 2))
             for i in range(by.shape[0]):
-                sample_order.append(by[i, 0])
+                sample_order.append(backend.ops.convert_to_numpy(by[i, 0]))
             if infinite:
                 if len(sample_order) == 64:
                     adapter.on_epoch_end()
@@ -228,26 +232,26 @@ class PyDatasetAdapterTest(testing.TestCase):
         adapter = py_dataset_adapter.PyDatasetAdapter(
             py_dataset, shuffle=False, class_weight=class_w
         )
-        if backend.backend() == "numpy":
-            gen = adapter.get_numpy_iterator()
-        elif backend.backend() == "tensorflow":
+        if backend.backend() == "tensorflow":
             gen = adapter.get_tf_dataset()
         elif backend.backend() == "jax":
             gen = adapter.get_jax_iterator()
         elif backend.backend() == "torch":
             gen = adapter.get_torch_dataloader()
+        else:
+            gen = adapter.get_numpy_iterator()
 
         for index, batch in enumerate(gen):
             # Batch is a tuple of (x, y, class_weight)
             self.assertLen(batch, 3)
-            batch = [backend.convert_to_numpy(x) for x in batch]
+            batch = [backend.ops.convert_to_numpy(x) for x in batch]
             # Let's verify the data and class weights match for each element
             # of the batch (2 elements in each batch)
             for sub_elem in range(2):
                 self.assertAllEqual(batch[0][sub_elem], x[index * 2 + sub_elem])
-                self.assertEqual(batch[1][sub_elem], y[index * 2 + sub_elem])
+                self.assertAllEqual(batch[1][sub_elem], y[index * 2 + sub_elem])
                 class_key = np.int32(batch[1][sub_elem])
-                self.assertEqual(batch[2][sub_elem], class_w[class_key])
+                self.assertAllEqual(batch[2][sub_elem], class_w[class_key])
 
         self.assertEqual(index, 1)  # 2 batches
 
@@ -343,14 +347,14 @@ class PyDatasetAdapterTest(testing.TestCase):
             TestPyDataset(), shuffle=False
         )
 
-        if backend.backend() == "numpy":
-            it = adapter.get_numpy_iterator()
-        elif backend.backend() == "tensorflow":
+        if backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
         elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
+        else:
+            it = adapter.get_numpy_iterator()
 
         for i, batch in enumerate(it):
             self.assertEqual(len(batch), 2)
@@ -404,9 +408,7 @@ class PyDatasetAdapterTest(testing.TestCase):
         adapter = py_dataset_adapter.PyDatasetAdapter(dataset, shuffle=False)
 
         expected_exception_class = ValueError
-        if backend.backend() == "numpy":
-            it = adapter.get_numpy_iterator()
-        elif backend.backend() == "tensorflow":
+        if backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             # tf.data wraps the exception
             expected_exception_class = tf.errors.InvalidArgumentError
@@ -414,6 +416,8 @@ class PyDatasetAdapterTest(testing.TestCase):
             it = adapter.get_jax_iterator()
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
+        else:
+            it = adapter.get_numpy_iterator()
 
         it = iter(it)
         next(it)
@@ -451,3 +455,160 @@ class PyDatasetAdapterTest(testing.TestCase):
         for index, _ in enumerate(NoLenDataset()):
             if index >= 10:
                 break
+
+    @parameterized.named_parameters(
+        named_product(
+            [
+                {
+                    "testcase_name": "dataparallel",
+                    "dist_type": "dp",
+                    "num_processes": 4,
+                    "process_id": 1,
+                    "mesh_shape": (4,),
+                },
+                {
+                    "testcase_name": "modelparallel",
+                    "dist_type": "mp",
+                    "num_processes": 8,
+                    "process_id": 5,
+                    "mesh_shape": (2, 4),
+                },
+                {
+                    "testcase_name": "modelparallel_large_mesh",
+                    "dist_type": "mp",
+                    "num_processes": 4,
+                    "process_id": 2,
+                    "mesh_shape": (8, 2),
+                },
+            ],
+            shuffle=[False, True],
+        )
+    )
+    def test_sharding(
+        self,
+        dist_type,
+        num_processes,
+        process_id,
+        mesh_shape,
+        shuffle,
+    ):
+        if dist_type == "dp":
+            dist = dist_lib.DataParallel(devices=["cpu:0"] * num_processes)
+        else:
+            device_mesh = dist_lib.DeviceMesh(
+                shape=mesh_shape,
+                axis_names=("data", "model"),
+                devices=["cpu:0"] * np.prod(mesh_shape),
+            )
+            dist = dist_lib.ModelParallel(
+                device_mesh=device_mesh,
+                layout_map=dist_lib.LayoutMap(device_mesh),
+                batch_dim_name="data",
+            )
+        dist._num_processes = num_processes
+        dist._process_id = process_id
+        dist.auto_shard_dataset = True
+
+        expected_num_replicas = min(dist.num_model_replicas, num_processes)
+        expected_shard_id = dist.data_shard_id
+
+        x = np.array([[i] * 10 for i in range(100)], dtype="float32")
+        y = np.array([[i] for i in range(100)], dtype="float32")
+        py_dataset = ExamplePyDataset(x, y, batch_size=10)
+
+        with dist.scope():
+            adapter = py_dataset_adapter.PyDatasetAdapter(
+                py_dataset, shuffle=shuffle
+            )
+
+            it_methods = ["get_numpy_iterator"]
+            backend_it_method = {
+                "tensorflow": "get_tf_dataset",
+                "jax": "get_jax_iterator",
+                "torch": "get_torch_dataloader",
+            }.get(backend.backend())
+            if backend_it_method:
+                it_methods.append(backend_it_method)
+
+        self.assertEqual(adapter._num_data_shards, expected_num_replicas)
+        self.assertEqual(adapter._data_shard_id, expected_shard_id)
+
+        def get_order(it_fn):
+            order = []
+            for batch in it_fn():
+                bx = batch[0]
+                bx = backend.ops.convert_to_numpy(bx)
+                order.extend(bx[:, 0].tolist())
+            return order
+
+        for it_method in it_methods:
+            it_fn = getattr(adapter, it_method)
+            if not shuffle:
+                batches = list(it_fn())
+                expected_num_batches = (
+                    10 - expected_shard_id + expected_num_replicas - 1
+                ) // expected_num_replicas
+                self.assertEqual(len(batches), expected_num_batches)
+
+                for i, batch in enumerate(batches):
+                    bx, by = batch
+                    bx = backend.ops.convert_to_numpy(bx)
+                    by = backend.ops.convert_to_numpy(by)
+                    expected_batch_index = (
+                        expected_shard_id + i * expected_num_replicas
+                    )
+                    expected_first_sample_value = expected_batch_index * 10
+                    self.assertAllClose(
+                        bx[:, 0],
+                        np.arange(
+                            expected_first_sample_value,
+                            expected_first_sample_value + 10,
+                        ),
+                    )
+                    self.assertAllClose(
+                        by[:, 0],
+                        np.arange(
+                            expected_first_sample_value,
+                            expected_first_sample_value + 10,
+                        ),
+                    )
+            else:
+                # Same epoch should have same shuffle
+                adapter._epoch = 1
+                order1 = get_order(it_fn)
+                adapter._epoch = 1
+                order2 = get_order(it_fn)
+                self.assertAllClose(order1, order2)
+
+                # Different epochs should have different shuffle
+                adapter._epoch = 2
+                order3 = get_order(it_fn)
+                self.assertNotAllClose(order1, order3)
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="JAX only",
+    )
+    def test_get_jax_iterator_with_super_batch(self):
+        # Even batches: 4 batches with super_batch=2 -> 2 super-batches
+        x = np.ones((64, 4), dtype="float32")
+        y = np.ones((64, 2), dtype="float32")
+        dataset = ExamplePyDataset(x, y, batch_size=16)
+        adapter = py_dataset_adapter.PyDatasetAdapter(dataset)
+        self.verify_super_batched_iterator(
+            adapter.get_jax_iterator(super_batch=2),
+            expected_super_batches=2,
+            has_partial_batch=False,
+        )
+
+        # Uneven batches: 5 batches with super_batch=2 -> 2 super-batches +
+        # 1 partial batch list
+        x = np.ones((80, 4), dtype="float32")
+        y = np.ones((80, 2), dtype="float32")
+        dataset = ExamplePyDataset(x, y, batch_size=16)
+        adapter = py_dataset_adapter.PyDatasetAdapter(dataset)
+        self.verify_super_batched_iterator(
+            adapter.get_jax_iterator(super_batch=2),
+            expected_super_batches=2,
+            has_partial_batch=True,
+        )

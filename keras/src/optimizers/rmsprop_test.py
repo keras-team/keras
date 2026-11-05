@@ -17,6 +17,29 @@ class RMSpropTest(testing.TestCase):
         )
         self.run_class_serialization_test(optimizer)
 
+    def test_rho_rejects_out_of_range_values(self):
+        for bad in (-0.1, 1.1, 2.0):
+            with self.assertRaisesRegex(ValueError, "`rho` must be in"):
+                RMSprop(learning_rate=0.1, rho=bad)
+        # Boundary values are accepted.
+        RMSprop(learning_rate=0.1, rho=0.0)
+        RMSprop(learning_rate=0.1, rho=1.0)
+
+    def test_momentum_rejects_out_of_range_values(self):
+        for bad in (-0.1, 1.1, 2.0):
+            with self.assertRaisesRegex(ValueError, "`momentum` must be in"):
+                RMSprop(learning_rate=0.1, momentum=bad)
+        # Boundary values are accepted.
+        RMSprop(learning_rate=0.1, momentum=0.0)
+        RMSprop(learning_rate=0.1, momentum=1.0)
+
+    def test_epsilon_rejects_non_positive_values(self):
+        for bad in (0, -1e-7):
+            with self.assertRaisesRegex(ValueError, "must be positive"):
+                RMSprop(learning_rate=0.1, epsilon=bad)
+        # Boundary: a small positive epsilon is accepted.
+        RMSprop(learning_rate=0.1, epsilon=1e-12)
+
     def test_single_step(self):
         optimizer = RMSprop(learning_rate=0.5)
         grads = ops.array([1.0, 6.0, 7.0, 2.0])

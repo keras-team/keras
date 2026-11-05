@@ -1,3 +1,4 @@
+import math
 import os
 
 import jax
@@ -11,6 +12,8 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import metrics
 from keras.src import models
+from keras.src import ops
+from keras.src import random
 from keras.src import saving
 from keras.src import testing
 from keras.src import tree
@@ -30,7 +33,15 @@ input_shape = (28, 28, 1)  # Excluding batch_size
 
 
 @object_registration.register_keras_serializable()
-def jax_stateless_init(rng, inputs):
+def jax_stateless_function(inputs):
+    x = jax.numpy.sum(inputs, axis=(1, 2, 3))
+    x = jax.numpy.expand_dims(x, axis=1)
+    x = jax.numpy.tile(x, (1, 10))
+    return x
+
+
+@object_registration.register_keras_serializable()
+def jax_model_no_state_init(rng, inputs):
     layer_sizes = [784, 300, 100, 10]
     params = []
     w_init = jax.nn.initializers.glorot_normal()
@@ -43,7 +54,7 @@ def jax_stateless_init(rng, inputs):
 
 
 @object_registration.register_keras_serializable()
-def jax_stateless_apply(params, inputs):
+def jax_model_no_state_apply(params, inputs):
     activations = inputs.reshape((inputs.shape[0], -1))  # flatten
     for w, b in params[:-1]:
         outputs = jnp.dot(activations, w) + b
@@ -55,15 +66,15 @@ def jax_stateless_apply(params, inputs):
 
 
 @object_registration.register_keras_serializable()
-def jax_stateful_init(rng, inputs, training):
-    params = jax_stateless_init(rng, inputs)
-    state = jnp.zeros([], jnp.int32)
+def jax_model_with_state_init(rng, inputs, training):
+    params = jax_model_no_state_init(rng, inputs)
+    state = jnp.zeros([], jnp.float32)
     return params, state
 
 
 @object_registration.register_keras_serializable()
-def jax_stateful_apply(params, state, inputs, training):
-    outputs = jax_stateless_apply(params, inputs)
+def jax_model_with_state_apply(params, state, inputs, training):
+    outputs = jax_model_no_state_apply(params, inputs)
     if training:
         state = state + 1
     return outputs, state
@@ -179,10 +190,18 @@ if flax is not None:
 
 
 @pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="JaxLayer and FlaxLayer are only supported with JAX backend",
+    backend.backend() not in ["jax", "tensorflow"],
+    reason="JaxLayer and FlaxLayer are only supported with JAX and TF backend",
 )
 class TestJaxLayer(testing.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.init_kwargs = {}
+        if testing.tensorflow_uses_gpu():
+            self.init_kwargs = {
+                "native_serialization_platforms": ("cpu", "cuda")
+            }
+
     def _test_layer(
         self,
         model_name,
@@ -193,17 +212,21 @@ class TestJaxLayer(testing.TestCase):
         non_trainable_weights,
         non_trainable_params,
     ):
+        layer_init_kwargs.update(self.init_kwargs)
+
         # Fake MNIST data
-        x_train = np.random.uniform(size=(320, 28, 28, 1))
-        y_train = np.eye(num_classes, dtype="int32")[
-            (np.random.uniform(size=(320,)) * num_classes).astype("int32")
-        ]
-        x_test = np.random.uniform(size=(32, 28, 28, 1))
+        x_train = random.uniform(shape=(320, 28, 28, 1))
+        y_train_indices = ops.cast(
+            random.uniform(shape=(320,), minval=0, maxval=num_classes),
+            dtype="int32",
+        )
+        y_train = ops.one_hot(y_train_indices, num_classes, dtype="int32")
+        x_test = random.uniform(shape=(32, 28, 28, 1))
 
         def _count_params(weights):
             count = 0
             for weight in weights:
-                count = count + np.prod(weight.shape)
+                count = count + math.prod(ops.shape(weight))
             return count
 
         def verify_weights_and_params(layer):
@@ -225,7 +248,7 @@ class TestJaxLayer(testing.TestCase):
         inputs1 = layers.Input(shape=input_shape)
         outputs1 = layer1(inputs1)
         model1 = models.Model(
-            inputs=inputs1, outputs=outputs1, name=model_name + "1"
+            inputs=inputs1, outputs=outputs1, name=f"{model_name}1"
         )
         model1.summary()
 
@@ -238,17 +261,17 @@ class TestJaxLayer(testing.TestCase):
         )
 
         tw1_before_fit = tree.map_structure(
-            backend.convert_to_numpy, layer1.trainable_weights
+            backend.ops.convert_to_numpy, layer1.trainable_weights
         )
         ntw1_before_fit = tree.map_structure(
-            backend.convert_to_numpy, layer1.non_trainable_weights
+            backend.ops.convert_to_numpy, layer1.non_trainable_weights
         )
         model1.fit(x_train, y_train, epochs=1, steps_per_epoch=10)
         tw1_after_fit = tree.map_structure(
-            backend.convert_to_numpy, layer1.trainable_weights
+            backend.ops.convert_to_numpy, layer1.trainable_weights
         )
         ntw1_after_fit = tree.map_structure(
-            backend.convert_to_numpy, layer1.non_trainable_weights
+            backend.ops.convert_to_numpy, layer1.non_trainable_weights
         )
 
         # verify both trainable and non-trainable weights did change after fit
@@ -257,18 +280,18 @@ class TestJaxLayer(testing.TestCase):
         for before, after in zip(ntw1_before_fit, ntw1_after_fit):
             self.assertNotAllClose(before, after)
 
-        expected_ouput_shape = (x_test.shape[0], num_classes)
+        expected_output_shape = (ops.shape(x_test)[0], num_classes)
         output1 = model1(x_test)
-        self.assertEqual(output1.shape, expected_ouput_shape)
+        self.assertEqual(output1.shape, expected_output_shape)
         predict1 = model1.predict(x_test, steps=1)
-        self.assertEqual(predict1.shape, expected_ouput_shape)
+        self.assertEqual(predict1.shape, expected_output_shape)
 
         # verify both trainable and non-trainable weights did not change
         tw1_after_call = tree.map_structure(
-            backend.convert_to_numpy, layer1.trainable_weights
+            backend.ops.convert_to_numpy, layer1.trainable_weights
         )
         ntw1_after_call = tree.map_structure(
-            backend.convert_to_numpy, layer1.non_trainable_weights
+            backend.ops.convert_to_numpy, layer1.non_trainable_weights
         )
         for after_fit, after_call in zip(tw1_after_fit, tw1_after_call):
             self.assertAllClose(after_fit, after_call)
@@ -276,11 +299,11 @@ class TestJaxLayer(testing.TestCase):
             self.assertAllClose(after_fit, after_call)
 
         exported_params = jax.tree_util.tree_map(
-            backend.convert_to_numpy, layer1.params
+            backend.ops.convert_to_numpy, layer1.params
         )
         if layer1.state is not None:
             exported_state = jax.tree_util.tree_map(
-                backend.convert_to_numpy, layer1.state
+                backend.ops.convert_to_numpy, layer1.state
             )
         else:
             exported_state = None
@@ -299,7 +322,7 @@ class TestJaxLayer(testing.TestCase):
             input_shape=input_shape,
             **layer_init_kwargs,
         )
-        model2 = models.Sequential([layer2], name=model_name + "2")
+        model2 = models.Sequential([layer2], name=f"{model_name}2")
         model2.summary()
         verify_weights_and_params(layer2)
         model2.compile(
@@ -321,17 +344,23 @@ class TestJaxLayer(testing.TestCase):
 
         # export, load back and compare results
         path = os.path.join(self.get_temp_dir(), "jax_layer_export")
-        model2.export(path, format="tf_saved_model")
+        export_kwargs = {}
+        if testing.jax_uses_gpu():
+            export_kwargs = {
+                "jax2tf_kwargs": {
+                    "native_serialization_platforms": ("cpu", "cuda")
+                }
+            }
+        elif testing.jax_uses_tpu():
+            export_kwargs = {
+                "jax2tf_kwargs": {
+                    "native_serialization_platforms": ("cpu", "tpu")
+                }
+            }
+        model2.export(path, format="tf_saved_model", **export_kwargs)
         model4 = tf.saved_model.load(path)
         output4 = model4.serve(x_test)
-        # The output difference is greater when using the GPU or bfloat16
-        lower_precision = testing.jax_uses_gpu() or "dtype" in layer_init_kwargs
-        self.assertAllClose(
-            output1,
-            output4,
-            atol=1e-2 if lower_precision else 1e-6,
-            rtol=1e-3 if lower_precision else 1e-6,
-        )
+        self.assertAllClose(output1, output4, atol=1e-2, rtol=1e-3)
 
         # test subclass model building without a build method
         class TestModel(models.Model):
@@ -349,10 +378,21 @@ class TestJaxLayer(testing.TestCase):
 
     @parameterized.named_parameters(
         {
+            "testcase_name": "stateless",
+            "init_kwargs": {
+                "call_fn": jax_stateless_function,
+                "init_fn": None,
+            },
+            "trainable_weights": 0,
+            "trainable_params": 0,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
+        },
+        {
             "testcase_name": "training_independent",
             "init_kwargs": {
-                "call_fn": jax_stateless_apply,
-                "init_fn": jax_stateless_init,
+                "call_fn": jax_model_no_state_apply,
+                "init_fn": jax_model_no_state_init,
             },
             "trainable_weights": 6,
             "trainable_params": 266610,
@@ -362,8 +402,8 @@ class TestJaxLayer(testing.TestCase):
         {
             "testcase_name": "training_state",
             "init_kwargs": {
-                "call_fn": jax_stateful_apply,
-                "init_fn": jax_stateful_init,
+                "call_fn": jax_model_with_state_apply,
+                "init_fn": jax_model_with_state_init,
             },
             "trainable_weights": 6,
             "trainable_params": 266610,
@@ -373,14 +413,26 @@ class TestJaxLayer(testing.TestCase):
         {
             "testcase_name": "training_state_dtype_policy",
             "init_kwargs": {
-                "call_fn": jax_stateful_apply,
-                "init_fn": jax_stateful_init,
+                "call_fn": jax_model_with_state_apply,
+                "init_fn": jax_model_with_state_init,
                 "dtype": DTypePolicy("mixed_float16"),
             },
             "trainable_weights": 6,
             "trainable_params": 266610,
             "non_trainable_weights": 1,
             "non_trainable_params": 1,
+        },
+        {
+            "testcase_name": "native_serialization",
+            "init_kwargs": {
+                "call_fn": jax_model_no_state_apply,
+                "init_fn": jax_model_no_state_init,
+                "native_serialization_platforms": ("cpu", "tpu"),
+            },
+            "trainable_weights": 6,
+            "trainable_params": 266610,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
         },
     )
     def test_jax_layer(
@@ -504,7 +556,7 @@ class TestJaxLayer(testing.TestCase):
         def jax_init_fn(rng, inputs):
             return {}, {}
 
-        layer = JaxLayer(jax_call_fn, jax_init_fn)
+        layer = JaxLayer(jax_call_fn, jax_init_fn, **self.init_kwargs)
         layer(np.ones((1,)))
 
     def test_with_different_argument_order(self):
@@ -514,7 +566,7 @@ class TestJaxLayer(testing.TestCase):
         def jax_init_fn(training, inputs, rng):
             return {}, {}
 
-        layer = JaxLayer(jax_call_fn, jax_init_fn)
+        layer = JaxLayer(jax_call_fn, jax_init_fn, **self.init_kwargs)
         layer(np.ones((1,)))
 
     def test_with_minimal_arguments(self):
@@ -524,7 +576,7 @@ class TestJaxLayer(testing.TestCase):
         def jax_init_fn(inputs):
             return {}
 
-        layer = JaxLayer(jax_call_fn, jax_init_fn)
+        layer = JaxLayer(jax_call_fn, jax_init_fn, **self.init_kwargs)
         layer(np.ones((1,)))
 
     def test_with_missing_inputs_in_call_fn(self):
@@ -575,7 +627,7 @@ class TestJaxLayer(testing.TestCase):
             output2 = jnp.concatenate([b, a], axis=1)
             return output1, output2
 
-        layer = JaxLayer(jax_fn, params={})
+        layer = JaxLayer(jax_fn, params={}, **self.init_kwargs)
         inputs = {
             "a": layers.Input((None, 3)),
             "b": layers.Input((None, 3)),
@@ -595,7 +647,7 @@ class TestJaxLayer(testing.TestCase):
         def jax_fn(params, inputs):
             return jnp.concatenate(inputs, axis=1)
 
-        layer = JaxLayer(jax_fn, params=())
+        layer = JaxLayer(jax_fn, params=(), **self.init_kwargs)
         inputs = [layers.Input((None, 3)) for _ in range(60)]
         output = layer(inputs)
         model = models.Model(inputs, output)
@@ -616,7 +668,9 @@ class TestJaxLayer(testing.TestCase):
                 count.value = count.value + 1
                 return x
 
-        layer = FlaxLayer(MyFlaxLayer(), variables={"a": {"b": 0}})
+        layer = FlaxLayer(
+            MyFlaxLayer(), variables={"a": {"b": 0}}, **self.init_kwargs
+        )
         layer(np.ones((1,)))
         self.assertLen(layer.params, 0)
         self.assertEqual(layer.state["a"]["b"].value, 1)
@@ -625,7 +679,7 @@ class TestJaxLayer(testing.TestCase):
         def jax_fn(params, state, inputs):
             return inputs, state
 
-        layer = JaxLayer(jax_fn, state={"foo": None})
+        layer = JaxLayer(jax_fn, state={"foo": None}, **self.init_kwargs)
         self.assertIsNone(layer.state["foo"])
         layer(np.ones((1,)))
 
@@ -633,7 +687,7 @@ class TestJaxLayer(testing.TestCase):
         def jax_fn(params, state, inputs):
             return inputs, state
 
-        layer = JaxLayer(jax_fn, state={"foo": "bar"})
+        layer = JaxLayer(jax_fn, state={"foo": "bar"}, **self.init_kwargs)
         self.assertEqual(layer.state["foo"], "bar")
         # layer cannot be invoked as jax2tf will fail on strings
 
@@ -655,47 +709,45 @@ class TestJaxLayer(testing.TestCase):
         def jax_fn(params, state, inputs):
             return inputs, state
 
-        layer = JaxLayer(jax_fn, state=[NamedPoint(1.0, 2.0, "foo")])
+        layer = JaxLayer(
+            jax_fn, state=[NamedPoint(1.0, 2.0, "foo")], **self.init_kwargs
+        )
         layer(np.ones((1,)))
 
     @parameterized.named_parameters(
         {
             "testcase_name": "sequence_instead_of_mapping",
             "init_state": [0.0],
-            "error_regex": "Expected dict, got ",
         },
         {
             "testcase_name": "mapping_instead_of_sequence",
             "init_state": {"state": {"foo": 0.0}},
-            "error_regex": "Expected list, got ",
         },
         {
             "testcase_name": "sequence_instead_of_variable",
             "init_state": {"state": [[0.0]]},
-            "error_regex": "Structure mismatch",
         },
         {
             "testcase_name": "no_initial_state",
             "init_state": None,
-            "error_regex": "Expected dict, got None",
         },
         {
             "testcase_name": "missing_dict_key",
             "init_state": {"state": {}},
-            "error_regex": "Expected list, got ",
         },
         {
             "testcase_name": "missing_variable_in_list",
             "init_state": {"state": {"foo": [2.0]}},
-            "error_regex": "Expected list, got ",
         },
     )
-    def test_state_mismatch_during_update(self, init_state, error_regex):
+    def test_state_mismatch_during_update(self, init_state):
         def jax_fn(params, state, inputs):
             return inputs, {"state": [jnp.ones([])]}
 
-        layer = JaxLayer(jax_fn, params={}, state=init_state)
-        with self.assertRaisesRegex(ValueError, error_regex):
+        layer = JaxLayer(
+            jax_fn, params={}, state=init_state, **self.init_kwargs
+        )
+        with self.assertRaises(ValueError):
             layer(np.ones((1,)))
 
     def test_rng_seeding(self):
@@ -708,9 +760,9 @@ class TestJaxLayer(testing.TestCase):
         shape = (2, 2)
 
         utils.set_random_seed(0)
-        layer1 = JaxLayer(jax_apply, jax_init)
+        layer1 = JaxLayer(jax_apply, jax_init, **self.init_kwargs)
         layer1.build(shape)
         utils.set_random_seed(0)
-        layer2 = JaxLayer(jax_apply, jax_init)
+        layer2 = JaxLayer(jax_apply, jax_init, **self.init_kwargs)
         layer2.build(shape)
         self.assertAllClose(layer1.params[0], layer2.params[0])

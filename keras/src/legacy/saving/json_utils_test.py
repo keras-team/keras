@@ -16,9 +16,7 @@ class JsonUtilsTestAllBackends(testing.TestCase):
         string = json_utils.Encoder().encode(metadata)
         loaded = json_utils.decode(string)
 
-        self.assertEqual(set(loaded.keys()), {"key1", "key2"})
-        self.assertAllEqual(loaded["key1"], (3, 5))
-        self.assertAllEqual(loaded["key2"], [(1, (3, 4)), (1,)])
+        self.assertEqual(loaded, metadata)
 
     def test_encode_decode_enum(self):
         class Enum(enum.Enum):
@@ -28,13 +26,13 @@ class JsonUtilsTestAllBackends(testing.TestCase):
         config = {"key": Enum.CLASS_A, "key2": Enum.CLASS_B}
         string = json_utils.Encoder().encode(config)
         loaded = json_utils.decode(string)
-        self.assertAllEqual({"key": "a", "key2": "b"}, loaded)
+        self.assertEqual(loaded, {"key": "a", "key2": "b"})
 
     def test_encode_decode_bytes(self):
         b_string = b"abc"
         json_string = json_utils.Encoder().encode(b_string)
         loaded = json_utils.decode(json_string)
-        self.assertAllEqual(b_string, loaded)
+        self.assertEqual(loaded, b_string)
 
 
 @pytest.mark.skipif(
@@ -50,10 +48,7 @@ class JsonUtilsTestTF(testing.TestCase):
         string = json_utils.Encoder().encode(metadata)
         loaded = json_utils.decode(string)
 
-        self.assertEqual(set(loaded.keys()), {"key1", "key2"})
-        self.assertEqual(loaded["key1"].rank, None)
-        self.assertAllEqual(loaded["key2"][0].as_list(), [None])
-        self.assertAllEqual(loaded["key2"][1].as_list(), [3, None, 5])
+        self.assertEqual(loaded, metadata)
 
     def test_encode_decode_type_spec(self):
         spec = tf.TensorSpec((1, 5), tf.float32)

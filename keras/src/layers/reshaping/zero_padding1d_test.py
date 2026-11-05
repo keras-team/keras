@@ -18,11 +18,11 @@ class ZeroPadding1DTest(testing.TestCase):
         )
         if data_format == "channels_last":
             for index in [0, -1, -2]:
-                self.assertAllClose(outputs[:, index, :], 0.0)
+                self.assertAllClose(outputs[:, index, :], np.zeros((1, 3)))
             self.assertAllClose(outputs[:, 1:-2, :], inputs)
         else:
             for index in [0, -1, -2]:
-                self.assertAllClose(outputs[:, :, index], 0.0)
+                self.assertAllClose(outputs[:, :, index], np.zeros((1, 2)))
             self.assertAllClose(outputs[:, :, 1:-2], inputs)
 
     @parameterized.named_parameters(("one_tuple", (2, 2)), ("one_int", 2))
@@ -33,7 +33,7 @@ class ZeroPadding1DTest(testing.TestCase):
         )(inputs)
 
         for index in [0, 1, -1, -2]:
-            self.assertAllClose(outputs[:, index, :], 0.0)
+            self.assertAllClose(outputs[:, index, :], np.zeros((1, 3)))
         self.assertAllClose(outputs[:, 2:-2, :], inputs)
 
     def test_zero_padding_1d_with_dynamic_spatial_dim(self):

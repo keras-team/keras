@@ -194,16 +194,32 @@ def flatten_with_path(structure):
     return flattened
 
 
-def map_structure(func, *structures):
+def map_structure(func, *structures, none_is_leaf=True):
     if not callable(func):
         raise TypeError(
             f"`func` must be callable, got {func} of type {type(func)}"
         )
 
+    map_func = func
+    if not none_is_leaf:
+
+        def func_skipping_none(*args):
+            # Check if the reference entry (first one) is None
+            if args[0] is None:
+                if not all(s is None for s in args):
+                    raise ValueError(
+                        "Structure mismatch: some arguments are None, others "
+                        f"are not. Received arguments: {args}."
+                    )
+                return None
+            return func(*args)
+
+        map_func = func_skipping_none
+
     def func_traverse_wrapper(s):
         if is_nested(s):
             return None
-        ret = func(s)
+        ret = map_func(s)
         if ret is None:
             return dmtree.MAP_TO_NONE
         return ret
@@ -212,7 +228,7 @@ def map_structure(func, *structures):
         return traverse(func_traverse_wrapper, structures[0])
 
     with TypeErrorRemapping():
-        return dmtree.map_structure(func, *structures)
+        return dmtree.map_structure(map_func, *structures)
 
 
 def map_structure_up_to(shallow_structure, func, *structures):
@@ -231,11 +247,11 @@ def assert_same_structure(a, b):
     # Don't handle OrderedDict as a registered class, use the normal dict path
     # so that OrderedDict is equivalent to dict per optree behavior.
     a_registration = REGISTERED_CLASSES.get(type(a), None)
-    if isinstance(a, collections.OrderedDict):
+    if type(a) is collections.OrderedDict:
         a_registration = None
 
     b_registration = REGISTERED_CLASSES.get(type(b), None)
-    if isinstance(b, collections.OrderedDict):
+    if type(b) is collections.OrderedDict:
         b_registration = None
 
     if a_registration != b_registration:

@@ -1,36 +1,40 @@
 import hashlib
 import os
-import pathlib
-import shutil
 import tarfile
-import tempfile
 import urllib
+import urllib.parse
+import urllib.request
 import zipfile
 from unittest.mock import patch
 
+from absl.testing import parameterized
+
 from keras.src.testing import test_case
 from keras.src.utils import file_utils
+from keras.src.utils.module_utils import LazyModule
 
 
 class PathToStringTest(test_case.TestCase):
     def test_path_to_string_with_string_path(self):
-        path = "/path/to/file.txt"
+        path = os.path.join(os.path.sep, "path", "to", "file.txt")
         string_path = file_utils.path_to_string(path)
         self.assertEqual(string_path, path)
 
     def test_path_to_string_with_PathLike_object(self):
-        path = pathlib.Path("/path/to/file.txt")
+        path = os.path.join(os.path.sep, "path", "to", "file.txt")
         string_path = file_utils.path_to_string(path)
         self.assertEqual(string_path, str(path))
 
     def test_path_to_string_with_non_string_typed_path_object(self):
         class NonStringTypedPathObject:
             def __fspath__(self):
-                return "/path/to/file.txt"
+                return os.path.join(os.path.sep, "path", "to", "file.txt")
 
         path = NonStringTypedPathObject()
         string_path = file_utils.path_to_string(path)
-        self.assertEqual(string_path, "/path/to/file.txt")
+        self.assertEqual(
+            string_path, os.path.join(os.path.sep, "path", "to", "file.txt")
+        )
 
     def test_path_to_string_with_none_path(self):
         string_path = file_utils.path_to_string(None)
@@ -39,184 +43,205 @@ class PathToStringTest(test_case.TestCase):
 
 class ResolvePathTest(test_case.TestCase):
     def test_resolve_path_with_absolute_path(self):
-        path = "/path/to/file.txt"
+        path = os.path.join(os.path.sep, "path", "to", "file.txt")
         resolved_path = file_utils.resolve_path(path)
         self.assertEqual(resolved_path, os.path.realpath(os.path.abspath(path)))
 
     def test_resolve_path_with_relative_path(self):
-        path = "./file.txt"
+        path = os.path.join(".", "file.txt")
         resolved_path = file_utils.resolve_path(path)
         self.assertEqual(resolved_path, os.path.realpath(os.path.abspath(path)))
 
 
-class IsPathInDirTest(test_case.TestCase):
-    def test_is_path_in_dir_with_absolute_paths(self):
-        base_dir = "/path/to/base_dir"
-        path = "/path/to/base_dir/file.txt"
-        self.assertTrue(file_utils.is_path_in_dir(path, base_dir))
+class ResolveSubPathTest(test_case.TestCase):
+    def test_resolve_sub_path_with_absolute_paths(self):
+        base_dir = os.path.join(os.path.sep, "path", "to", "base_dir")
+        path = os.path.join(base_dir, "file.txt")
+        resolved_path = file_utils.resolve_sub_path(base_dir, path)
+        self.assertEqual(resolved_path, path)
+
+    def test_resolve_sub_path_with_subdir(self):
+        base_dir = os.path.join(os.path.sep, "path", "to", "base_dir")
+        path = os.path.join("subdir", "file.txt")
+        resolved_path = file_utils.resolve_sub_path(base_dir, path)
+        self.assertEqual(
+            resolved_path, os.path.realpath(os.path.join(base_dir, path))
+        )
+
+    def test_resolve_sub_path_with_same_dir(self):
+        base_dir = os.path.join(os.path.sep, "path", "to", "base_dir")
+        resolved_path = file_utils.resolve_sub_path(base_dir, ".")
+        self.assertEqual(resolved_path, os.path.realpath(base_dir))
+
+    def test_resolve_sub_path_with_path_traversal(self):
+        base_dir = os.path.join(os.path.sep, "path", "to", "base_dir")
+        path = os.path.join("..", "other_dir", "file.txt")
+        self.assertIsNone(file_utils.resolve_sub_path(base_dir, path))
+
+    def test_resolve_sub_path_with_prefix_confusion(self):
+        base_dir = os.path.join(os.path.sep, "path", "to", "base_dir")
+        path = os.path.join("..", "base_dir_other", "file.txt")
+        self.assertIsNone(file_utils.resolve_sub_path(base_dir, path))
 
 
 class IsLinkInDirTest(test_case.TestCase):
-    def setUp(self):
-        self._cleanup(os.path.join("test_path", "to", "base_dir"))
-        self._cleanup("./base_dir")
+    @parameterized.named_parameters(
+        [
+            {
+                "testcase_name": "hardlink_in",
+                "is_symlink": False,
+                "name": "file.txt",
+                "linkname": "file.txt",
+                "expected": True,
+            },
+            {
+                "testcase_name": "hardlink_target_out",
+                "is_symlink": False,
+                "name": "file.txt",
+                "linkname": "../file.txt",
+                "expected": False,
+            },
+            {
+                "testcase_name": "hardlink_name_out",
+                "is_symlink": False,
+                "name": "../file.txt",
+                "linkname": "file.txt",
+                "expected": False,
+            },
+            {
+                "testcase_name": "symlink_in",
+                "is_symlink": True,
+                "name": "folder/foo.txt",
+                "linkname": "../file.txt",
+                "expected": True,
+            },
+            {
+                "testcase_name": "symlink_dest_out",
+                "is_symlink": True,
+                "name": "../foo.txt",
+                "linkname": "file.txt",
+                "expected": False,
+            },
+            {
+                "testcase_name": "symlink_link_out",
+                "is_symlink": True,
+                "name": "folder/foo.txt",
+                "linkname": "../../file.txt",
+                "expected": False,
+            },
+        ]
+    )
+    def test_is_link_in_dir(self, is_symlink, name, linkname, expected):
+        base_dir = file_utils.resolve_path(self.get_temp_dir())
 
-    def _cleanup(self, base_dir):
-        if os.path.exists(base_dir):
-            shutil.rmtree(base_dir)
-
-    def test_is_link_in_dir_with_absolute_paths(self):
-        base_dir = os.path.join("test_path", "to", "base_dir")
-        link_path = os.path.join(base_dir, "symlink")
-        target_path = os.path.join(base_dir, "file.txt")
-
-        # Create the base_dir directory if it does not exist.
-        os.makedirs(base_dir, exist_ok=True)
-
-        # Create the file.txt file.
-        with open(target_path, "w") as f:
-            f.write("Hello, world!")
-
-        os.symlink(target_path, link_path)
-
-        # Creating a stat_result-like object with a name attribute
-        info = os.lstat(link_path)
+        # Creating a TarInfo-like object with a name attribute
         info = type(
-            "stat_with_name",
+            "TarInfo",
             (object,),
             {
-                "name": os.path.basename(link_path),
-                "linkname": os.readlink(link_path),
+                "name": name,
+                "linkname": linkname,
+                "issym": lambda: is_symlink,
+                "islnk": lambda: not is_symlink,
             },
         )
 
-        self.assertTrue(file_utils.is_link_in_dir(info, base_dir))
-
-    def test_is_link_in_dir_with_relative_paths(self):
-        base_dir = "./base_dir"
-        link_path = os.path.join(base_dir, "symlink")
-        target_path = os.path.join(base_dir, "file.txt")
-
-        # Create the base_dir directory if it does not exist.
-        os.makedirs(base_dir, exist_ok=True)
-
-        # Create the file.txt file.
-        with open(target_path, "w") as f:
-            f.write("Hello, world!")
-
-        os.symlink(target_path, link_path)
-
-        # Creating a stat_result-like object with a name attribute
-        info = os.lstat(link_path)
-        info = type(
-            "stat_with_name",
-            (object,),
-            {
-                "name": os.path.basename(link_path),
-                "linkname": os.readlink(link_path),
-            },
-        )
-
-        self.assertTrue(file_utils.is_link_in_dir(info, base_dir))
-
-    def tearDown(self):
-        self._cleanup(os.path.join("test_path", "to", "base_dir"))
-        self._cleanup("./base_dir")
+        self.assertEqual(file_utils.is_link_in_dir(info, base_dir), expected)
 
 
 class FilterSafePathsTest(test_case.TestCase):
     def setUp(self):
-        self.base_dir = os.path.join(os.getcwd(), "temp_dir")
-        os.makedirs(self.base_dir, exist_ok=True)
+        super().setUp()
+        self.base_dir = os.path.abspath(self.get_temp_dir())
         self.tar_path = os.path.join(self.base_dir, "test.tar")
-
-    def tearDown(self):
-        os.remove(self.tar_path)
-        shutil.rmtree(self.base_dir)
+        self.target_path = os.path.join(self.base_dir, "target.txt")
+        with open(self.target_path, "w") as f:
+            f.write("target")
+        self.symlink_path = os.path.join(self.base_dir, "symlink.txt")
+        os.symlink(self.target_path, self.symlink_path)
 
     def test_member_within_base_dir(self):
         """Test a member within the base directory."""
         with tarfile.open(self.tar_path, "w") as tar:
-            tar.add(__file__, arcname="safe_path.txt")
+            tar.add(self.target_path, arcname="safe_path.txt")
         with tarfile.open(self.tar_path, "r") as tar:
-            members = list(file_utils.filter_safe_paths(tar.getmembers()))
+            members = list(
+                file_utils.filter_safe_tarinfos(tar.getmembers(), self.base_dir)
+            )
             self.assertEqual(len(members), 1)
             self.assertEqual(members[0].name, "safe_path.txt")
 
     def test_symlink_within_base_dir(self):
         """Test a symlink pointing within the base directory."""
-        symlink_path = os.path.join(self.base_dir, "symlink.txt")
-        target_path = os.path.join(self.base_dir, "target.txt")
-        with open(target_path, "w") as f:
-            f.write("target")
-        os.symlink(target_path, symlink_path)
         with tarfile.open(self.tar_path, "w") as tar:
-            tar.add(symlink_path, arcname="symlink.txt")
+            tar.add(self.symlink_path, arcname="symlink.txt")
         with tarfile.open(self.tar_path, "r") as tar:
-            members = list(file_utils.filter_safe_paths(tar.getmembers()))
+            members = list(
+                file_utils.filter_safe_tarinfos(tar.getmembers(), self.base_dir)
+            )
             self.assertEqual(len(members), 1)
             self.assertEqual(members[0].name, "symlink.txt")
-        os.remove(symlink_path)
-        os.remove(target_path)
 
     def test_invalid_path_warning(self):
         """Test warning for an invalid path during archive extraction."""
-        invalid_path = os.path.join(os.getcwd(), "invalid.txt")
-        with open(invalid_path, "w") as f:
-            f.write("invalid")
         with tarfile.open(self.tar_path, "w") as tar:
             tar.add(
-                invalid_path, arcname="../../invalid.txt"
+                self.target_path, arcname="../../invalid.txt"
             )  # Path intended to be outside of base dir
         with tarfile.open(self.tar_path, "r") as tar:
             with patch("warnings.warn") as mock_warn:
-                _ = list(file_utils.filter_safe_paths(tar.getmembers()))
+                _ = list(
+                    file_utils.filter_safe_tarinfos(
+                        tar.getmembers(), self.base_dir
+                    )
+                )
                 warning_msg = (
                     "Skipping invalid path during archive extraction: "
                     "'../../invalid.txt'."
                 )
                 mock_warn.assert_called_with(warning_msg, stacklevel=2)
-        os.remove(invalid_path)
 
     def test_symbolic_link_in_base_dir(self):
         """symbolic link within the base directory is correctly processed."""
-        symlink_path = os.path.join(self.base_dir, "symlink.txt")
-        target_path = os.path.join(self.base_dir, "target.txt")
-
-        # Create a target file and then a symbolic link pointing to it.
-        with open(target_path, "w") as f:
-            f.write("target")
-        os.symlink(target_path, symlink_path)
-
         # Add the symbolic link to the tar archive.
         with tarfile.open(self.tar_path, "w") as tar:
-            tar.add(symlink_path, arcname="symlink.txt")
+            tar.add(self.symlink_path, arcname="symlink.txt")
 
         with tarfile.open(self.tar_path, "r") as tar:
-            members = list(file_utils.filter_safe_paths(tar.getmembers()))
+            members = list(
+                file_utils.filter_safe_tarinfos(tar.getmembers(), self.base_dir)
+            )
             self.assertEqual(len(members), 1)
             self.assertEqual(members[0].name, "symlink.txt")
             self.assertTrue(
                 members[0].issym()
             )  # Explicitly assert it's a symbolic link.
 
-        os.remove(symlink_path)
-        os.remove(target_path)
+    def test_file_routed_through_symlink_is_rejected(self):
+        """A member routed through an in-bounds symlink via `..` is rejected."""
+        os.symlink(".", os.path.join(self.base_dir, "link"))
+        with tarfile.open(self.tar_path, "w") as tar:
+            tar.add(
+                self.target_path,
+                arcname=os.path.join("link", "..", "escaped.txt"),
+            )
+        with tarfile.open(self.tar_path, "r") as tar:
+            members = list(
+                file_utils.filter_safe_tarinfos(tar.getmembers(), self.base_dir)
+            )
+            self.assertEqual(members, [])
 
 
 class ExtractArchiveTest(test_case.TestCase):
     def setUp(self):
+        super().setUp()
         """Create temporary directories and files for testing."""
-        self.temp_dir = tempfile.mkdtemp()
+        self.temp_dir = self.get_temp_dir()
         self.file_content = "Hello, world!"
 
         # Create sample files to be archived
         with open(os.path.join(self.temp_dir, "sample.txt"), "w") as f:
             f.write(self.file_content)
-
-    def tearDown(self):
-        """Clean up temporary directories."""
-        shutil.rmtree(self.temp_dir)
 
     def create_tar(self):
         archive_path = os.path.join(self.temp_dir, "sample.tar")
@@ -309,6 +334,7 @@ class ExtractArchiveTest(test_case.TestCase):
 
 class GetFileTest(test_case.TestCase):
     def setUp(self):
+        super().setUp()
         """Set up temporary directories and sample files."""
         self.temp_dir = self.get_temp_dir()
         self.file_path = os.path.join(self.temp_dir, "sample_file.txt")
@@ -451,6 +477,19 @@ class GetFileTest(test_case.TestCase):
         ):
             _ = file_utils.get_file("test.txt", origin, file_hash=hashval)
 
+    def test_get_file_with_unusable_origin_file_name(self):
+        """Test that an origin with no usable file name is rejected."""
+        cache_dir = self.get_temp_dir()
+        base = urllib.parse.urljoin(
+            "file://", urllib.request.pathname2url(os.path.abspath(cache_dir))
+        )
+
+        for origin in (f"{base}/", f"{base}/.", f"{base}/.."):
+            with self.assertRaisesRegex(
+                ValueError, "Can't parse the file name from the origin"
+            ):
+                _ = file_utils.get_file(origin=origin, cache_dir=cache_dir)
+
     def _create_tar_file(self, directory):
         """Helper function to create a tar file."""
         text_file_path = os.path.join(directory, "test.txt")
@@ -486,10 +525,7 @@ class GetFileTest(test_case.TestCase):
 
         hashval_md5 = file_utils.hash_file(file_path, algorithm="md5")
 
-        if archive_type:
-            extract = True
-        else:
-            extract = False
+        extract = bool(archive_type)
 
         path = file_utils.get_file(
             "test",
@@ -499,7 +535,7 @@ class GetFileTest(test_case.TestCase):
             cache_subdir=dest_dir,
         )
         if extract:
-            fpath = path + "_archive"
+            fpath = f"{path}_archive"
         else:
             fpath = path
 
@@ -561,6 +597,10 @@ class GetFileTest(test_case.TestCase):
         content = file_utils.listdir(self.temp_dir)
         self.assertIn("sample_file.txt", content)
 
+    def test_walk(self):
+        entries = list(file_utils.walk(self.temp_dir))
+        self.assertEqual(entries, [(self.temp_dir, [], ["sample_file.txt"])])
+
     def test_makedirs_and_rmtree(self):
         new_dir = os.path.join(self.temp_dir, "new_directory")
         file_utils.makedirs(new_dir)
@@ -603,13 +643,11 @@ class GetFileTest(test_case.TestCase):
 
 class HashFileTest(test_case.TestCase):
     def setUp(self):
+        super().setUp()
         self.test_content = b"Hello, World!"
-        self.temp_file = tempfile.NamedTemporaryFile(delete=False)
-        self.temp_file.write(self.test_content)
-        self.temp_file.close()
-
-    def tearDown(self):
-        os.remove(self.temp_file.name)
+        self.temp_file = os.path.join(self.get_temp_dir(), "test_file.txt")
+        with open(self.temp_file, "wb") as f:
+            f.write(self.test_content)
 
     def test_hash_file_sha256(self):
         """Test SHA256 hashing of a file."""
@@ -617,24 +655,23 @@ class HashFileTest(test_case.TestCase):
             "dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f"
         )
         calculated_sha256 = file_utils.hash_file(
-            self.temp_file.name, algorithm="sha256"
+            self.temp_file, algorithm="sha256"
         )
         self.assertEqual(expected_sha256, calculated_sha256)
 
     def test_hash_file_md5(self):
         """Test MD5 hashing of a file."""
         expected_md5 = "65a8e27d8879283831b664bd8b7f0ad4"
-        calculated_md5 = file_utils.hash_file(
-            self.temp_file.name, algorithm="md5"
-        )
+        calculated_md5 = file_utils.hash_file(self.temp_file, algorithm="md5")
         self.assertEqual(expected_md5, calculated_md5)
 
 
 class TestValidateFile(test_case.TestCase):
     def setUp(self):
-        self.tmp_file = tempfile.NamedTemporaryFile(delete=False)
-        self.tmp_file.write(b"Hello, World!")
-        self.tmp_file.close()
+        super().setUp()
+        self.temp_file = os.path.join(self.get_temp_dir(), "test_file.txt")
+        with open(self.temp_file, "wb") as f:
+            f.write(b"Hello, World!")
 
         self.sha256_hash = (
             "dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f"
@@ -644,40 +681,33 @@ class TestValidateFile(test_case.TestCase):
     def test_validate_file_sha256(self):
         """Validate SHA256 hash of a file."""
         self.assertTrue(
-            file_utils.validate_file(
-                self.tmp_file.name, self.sha256_hash, "sha256"
-            )
+            file_utils.validate_file(self.temp_file, self.sha256_hash, "sha256")
         )
 
     def test_validate_file_md5(self):
         """Validate MD5 hash of a file."""
         self.assertTrue(
-            file_utils.validate_file(self.tmp_file.name, self.md5_hash, "md5")
+            file_utils.validate_file(self.temp_file, self.md5_hash, "md5")
         )
 
     def test_validate_file_auto_sha256(self):
         """Auto-detect and validate SHA256 hash."""
         self.assertTrue(
-            file_utils.validate_file(
-                self.tmp_file.name, self.sha256_hash, "auto"
-            )
+            file_utils.validate_file(self.temp_file, self.sha256_hash, "auto")
         )
 
     def test_validate_file_auto_md5(self):
         """Auto-detect and validate MD5 hash."""
         self.assertTrue(
-            file_utils.validate_file(self.tmp_file.name, self.md5_hash, "auto")
+            file_utils.validate_file(self.temp_file, self.md5_hash, "auto")
         )
 
     def test_validate_file_wrong_hash(self):
         """Test validation with incorrect hash."""
         wrong_hash = "deadbeef" * 8
         self.assertFalse(
-            file_utils.validate_file(self.tmp_file.name, wrong_hash, "sha256")
+            file_utils.validate_file(self.temp_file, wrong_hash, "sha256")
         )
-
-    def tearDown(self):
-        os.remove(self.tmp_file.name)
 
 
 class ResolveHasherTest(test_case.TestCase):
@@ -735,6 +765,9 @@ class IsRemotePathTest(test_case.TestCase):
     def test_readahead_remote_path(self):
         self.assertTrue(file_utils.is_remote_path("/readahead/some/path"))
 
+    def test_namespace_remote_path(self):
+        self.assertTrue(file_utils.is_remote_path("/namespace/some/path"))
+
     def test_non_remote_paths(self):
         self.assertFalse(file_utils.is_remote_path("/local/path/to/file.txt"))
         self.assertFalse(
@@ -747,12 +780,68 @@ class IsRemotePathTest(test_case.TestCase):
         self.assertFalse(file_utils.is_remote_path("~/relative/path"))
 
 
-class TestRaiseIfNoGFile(test_case.TestCase):
-    def test_raise_if_no_gfile_raises_correct_message(self):
+class RemotePathTest(test_case.TestCase):
+    # A module that can never be imported, used to hide `gfile` / `epath`.
+    _UNAVAILABLE = LazyModule("keras_test_unavailable_module")
+
+    def test_is_remote_path_or_raise_raises_correct_message(self):
         path = "gs://bucket/some/file.txt"
         expected_error_msg = (
-            "Handling remote paths requires installing TensorFlow "
-            f".*Received path: {path}"
+            r"Handling remote paths requires installing etils\[epath\] "
+            r"\(e\.g\. `pip install keras\[gcs\]`\) or TensorFlow\. "
+            f"Received: path={path}"
         )
-        with self.assertRaisesRegex(ValueError, expected_error_msg):
-            file_utils._raise_if_no_gfile(path)
+        with (
+            patch.object(file_utils, "gfile", self._UNAVAILABLE),
+            patch.object(file_utils, "epath", self._UNAVAILABLE),
+        ):
+            with self.assertRaisesRegex(ValueError, expected_error_msg):
+                file_utils._is_remote_path_or_raise(path)
+            self.assertFalse(
+                file_utils._is_remote_path_or_raise("/local/path/file.txt")
+            )
+
+    def test_epath_remote_path(self):
+        root = self.get_temp_dir()
+        # Send local paths through the remote branch, and hide TensorFlow so
+        # that `epath` is used.
+        with (
+            patch.object(file_utils, "is_remote_path", lambda p: True),
+            patch.object(file_utils, "gfile", self._UNAVAILABLE),
+        ):
+            subdir = file_utils.join(root, "a", "b")
+            self.assertEqual(subdir, os.path.join(root, "a", "b"))
+            self.assertEqual(file_utils.join(subdir, ""), subdir + "/")
+            self.assertEqual(file_utils.join(subdir + "/"), subdir + "/")
+            file_utils.makedirs(subdir)
+            file_utils.makedirs(subdir)  # Tolerates an existing directory.
+            self.assertTrue(file_utils.isdir(subdir))
+
+            src = file_utils.join(subdir, "src.txt")
+            dst = file_utils.join(subdir, "dst.txt")
+            with file_utils.File(src, "w") as f:
+                f.write("new")
+            with file_utils.File(dst, "w") as f:
+                f.write("old")
+            file_utils.copy(src, dst)  # Overwrites.
+            with file_utils.File(dst, "r") as f:
+                self.assertEqual(f.read(), "new")
+            self.assertEqual(
+                sorted(file_utils.listdir(subdir)), ["dst.txt", "src.txt"]
+            )
+            parent = file_utils.join(root, "a")
+            self.assertEqual(
+                [
+                    (dirpath, dirs, sorted(files))
+                    for dirpath, dirs, files in file_utils.walk(parent)
+                ],
+                [
+                    (parent, ["b"], []),
+                    (subdir, [], ["dst.txt", "src.txt"]),
+                ],
+            )
+
+            file_utils.remove(dst)
+            self.assertFalse(file_utils.exists(dst))
+            file_utils.rmtree(parent)
+            self.assertFalse(file_utils.exists(subdir))

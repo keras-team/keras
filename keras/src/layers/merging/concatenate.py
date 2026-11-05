@@ -1,5 +1,6 @@
 import copy
 
+from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.merging.base_merge import Merge
@@ -99,7 +100,7 @@ class Concatenate(Merge):
                     raise ValueError(err_msg)
 
     def _merge_function(self, inputs):
-        return ops.concatenate(inputs, axis=self.axis)
+        return backend.ops.numpy.concatenate(inputs, axis=self.axis)
 
     def compute_output_shape(self, input_shape):
         if (not isinstance(input_shape, (tuple, list))) or (
@@ -145,12 +146,13 @@ class Concatenate(Merge):
                 # Input is unmasked. Append all 1s to masks,
                 masks.append(ops.ones_like(input_i, dtype="bool"))
             elif mask_i.ndim < input_i.ndim:
-                # Mask is smaller than the input, expand it
-                masks.append(
-                    ops.broadcast_to(
-                        ops.expand_dims(mask_i, axis=-1), ops.shape(input_i)
-                    )
+                # Broadcast mask shape to match in a way where we capture the
+                # input as a symbolic input in the op graph.
+                mask_i = ops.logical_or(
+                    ops.expand_dims(mask_i, axis=-1),
+                    ops.zeros_like(input_i, dtype="bool"),
                 )
+                masks.append(mask_i)
             else:
                 masks.append(mask_i)
         concatenated = ops.concatenate(masks, axis=self.axis)

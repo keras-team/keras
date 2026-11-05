@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from tensorflow import data as tf_data
 
 from keras.src import backend
@@ -7,8 +6,7 @@ from keras.src import layers
 from keras.src import testing
 
 
-class RandAugmentTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
+class AugMixTest(testing.TestCase):
     def test_layer(self):
         self.run_layer_test(
             layers.AugMix,
@@ -50,7 +48,7 @@ class RandAugmentTest(testing.TestCase):
         augmented_image = layer(input_data)
 
         self.assertNotAllClose(
-            backend.convert_to_numpy(augmented_image), input_data
+            backend.ops.convert_to_numpy(augmented_image), input_data
         )
 
     def test_tf_data_compatibility(self):

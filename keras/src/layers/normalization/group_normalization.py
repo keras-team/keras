@@ -79,8 +79,20 @@ class GroupNormalization(Layer):
         gamma_constraint=None,
         **kwargs,
     ):
+        if not isinstance(groups, int) or (groups <= 0 and groups != -1):
+            raise ValueError(
+                "Received an invalid value for argument `groups`, expected "
+                "a positive integer (or `-1` for instance normalization). "
+                f"Received: groups={groups}"
+            )
+        if epsilon is None or epsilon <= 0:
+            raise ValueError(
+                "Argument `epsilon` must be positive. "
+                f"Received: epsilon={epsilon}"
+            )
         super().__init__(**kwargs)
         self.supports_masking = True
+        self.autocast = False
         self.groups = groups
         self.axis = axis
         self.epsilon = epsilon
@@ -129,6 +141,7 @@ class GroupNormalization(Layer):
                 initializer=self.gamma_initializer,
                 regularizer=self.gamma_regularizer,
                 constraint=self.gamma_constraint,
+                autocast=False,
             )
         else:
             self.gamma = None
@@ -140,6 +153,7 @@ class GroupNormalization(Layer):
                 initializer=self.beta_initializer,
                 regularizer=self.beta_regularizer,
                 constraint=self.beta_constraint,
+                autocast=False,
             )
         else:
             self.beta = None
@@ -151,7 +165,8 @@ class GroupNormalization(Layer):
         normalized_inputs = self._apply_normalization(
             reshaped_inputs, inputs.shape
         )
-        return ops.reshape(normalized_inputs, ops.shape(inputs))
+        outputs = ops.reshape(normalized_inputs, ops.shape(inputs))
+        return ops.cast(outputs, self.compute_dtype)
 
     def _reshape_into_groups(self, inputs):
         input_shape = ops.shape(inputs)
@@ -190,13 +205,12 @@ class GroupNormalization(Layer):
             gamma = ops.cast(gamma, reshaped_inputs.dtype)
             inv = inv * gamma
 
-        res = -mean * inv
+        normalized_inputs = (reshaped_inputs - mean) * inv
         if self.center:
             beta = ops.reshape(self.beta, broadcast_shape)
             beta = ops.cast(beta, reshaped_inputs.dtype)
-            res = res + beta
+            normalized_inputs = normalized_inputs + beta
 
-        normalized_inputs = reshaped_inputs * inv + res
         normalized_inputs = ops.cast(normalized_inputs, inputs_dtype)
 
         return normalized_inputs

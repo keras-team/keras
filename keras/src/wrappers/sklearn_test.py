@@ -1,13 +1,15 @@
 """Tests using Scikit-Learn's bundled estimator_checks."""
 
+import unittest
 from contextlib import contextmanager
 
+import numpy as np
 import pytest
 import sklearn
 from packaging.version import parse as parse_version
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
-import keras
+from keras.src import backend
 from keras.src.backend import floatx
 from keras.src.backend import set_floatx
 from keras.src.layers import Dense
@@ -57,9 +59,9 @@ def wrapped_parametrize_with_checks(
     return parametrize_with_checks(estimators)
 
 
-def dynamic_model(X, y, loss, layers=[10]):
+def dynamic_model(X, y, loss, out_activation_function="softmax", layers=[10]):
     """Creates a basic MLP classifier dynamically choosing binary/multiclass
-    classification loss and ouput activations.
+    classification loss and output activations.
     """
     n_features_in = X.shape[1]
     inp = Input(shape=(n_features_in,))
@@ -69,7 +71,7 @@ def dynamic_model(X, y, loss, layers=[10]):
         hidden = Dense(layer_size, activation="relu")(hidden)
 
     n_outputs = y.shape[1] if len(y.shape) > 1 else 1
-    out = [Dense(n_outputs, activation="softmax")(hidden)]
+    out = [Dense(n_outputs, activation=out_activation_function)(hidden)]
     model = Model(inp, out)
     model.compile(loss=loss, optimizer="rmsprop")
 
@@ -107,6 +109,9 @@ EXPECTED_FAILED_CHECKS = {
         ),
         "check_supervised_y_2d": "This test assumes reproducibility in fit.",
         "check_fit_idempotent": "This test assumes reproducibility in fit.",
+        "check_classifiers_train": (
+            "decision_function can return both probabilities and logits"
+        ),
     },
     "SKLearnRegressor": {
         "check_parameters_default_constructible": (
@@ -151,10 +156,87 @@ def test_sklearn_estimator_checks(estimator, check):
     try:
         check(estimator)
     except Exception as exc:
-        if keras.config.backend() in ["numpy", "openvino"] and (
+        if not backend.SUPPORTS_GRADIENT and (
+            isinstance(exc, NotImplementedError)
+            or "NotImplementedError" in str(exc)
+        ):
+            pytest.xfail("Backend not implemented")
+        elif isinstance(exc, unittest.SkipTest):
+            # Workaround for https://github.com/pytest-dev/pytest/issues/13895
+            pytest.skip(str(exc))
+        else:
+            raise
+
+
+@pytest.mark.parametrize(
+    "estimator",
+    [
+        SKLearnClassifier(
+            model=dynamic_model,
+            model_kwargs={
+                "out_activation_function": "softmax",
+                "loss": "binary_crossentropy",
+            },
+            fit_kwargs={"epochs": 1},
+        ),
+        SKLearnClassifier(
+            model=dynamic_model,
+            model_kwargs={
+                "out_activation_function": "linear",
+                "loss": "binary_crossentropy",
+            },
+            fit_kwargs={"epochs": 1},
+        ),
+    ],
+)
+def test_sklearn_estimator_decision_function(estimator):
+    """Checks that the argmax of ``decision_function`` is the same as
+    ``predict`` for classifiers.
+    """
+    try:
+        X, y = sklearn.datasets.make_classification(
+            n_samples=10,
+            n_features=10,
+            n_informative=4,
+            n_classes=2,
+            random_state=42,
+        )
+        estimator.fit(X, y)
+        if (
+            estimator.decision_function(X[:1]).argmax(axis=-1)
+            != estimator.predict(X[:1]).flatten()
+        ):
+            raise AssertionError(
+                "decision_function and predict are inconsistent"
+            )
+    except Exception as exc:
+        if not backend.SUPPORTS_GRADIENT and (
             isinstance(exc, NotImplementedError)
             or "NotImplementedError" in str(exc)
         ):
             pytest.xfail("Backend not implemented")
         else:
             raise
+
+
+@pytest.mark.requires_trainable_backend
+def test_sklearn_classifier_warm_start_reuses_model_instance():
+    inputs = Input(shape=(4,))
+    outputs = Dense(2, activation="softmax")(inputs)
+    model = Model(inputs, outputs)
+    model.compile(loss="categorical_crossentropy", optimizer="sgd")
+
+    X = np.ones((4, 4))
+    y = np.array([1, 2, 1, 2])
+    estimator = SKLearnClassifier(model=model, warm_start=True)
+
+    estimator.fit(X, y, epochs=0, verbose=0)
+    first_model = estimator.model_
+
+    if first_model is not model:
+        raise AssertionError("Expected warm_start to use the original model.")
+
+    estimator.fit(X, y, epochs=0, verbose=0)
+
+    if estimator.model_ is not first_model:
+        raise AssertionError("Expected warm_start to reuse the fitted model.")

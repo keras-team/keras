@@ -6,16 +6,22 @@ import warnings
 
 from keras.src import tree
 from keras.src.backend.common.stateless_scope import StatelessScope
+from keras.src.export.saved_model_export_archive import (
+    BaseSavedModelExportArchive,
+)
 from keras.src.utils.module_utils import tensorflow as tf
 
 
-class JaxExportArchive:
-    def __init__(self):
+class SavedModelExportArchive(BaseSavedModelExportArchive):
+    """JAX backend implementation of SavedModel export archive."""
+
+    def _backend_init(self):
+        """JAX-specific initialization."""
         self._backend_variables = []
         self._backend_trainable_variables = []
         self._backend_non_trainable_variables = []
 
-    def _track_layer(self, layer):
+    def _backend_track_layer(self, layer):
         # Variables in the lists below are actually part of the trackables
         # that get saved, because the lists are created in __init__.
         trainable_variables = layer.trainable_variables
@@ -39,7 +45,7 @@ class JaxExportArchive:
             + self._backend_non_trainable_variables
         )
 
-    def add_endpoint(self, name, fn, input_signature=None, **kwargs):
+    def _backend_add_endpoint(self, name, fn, input_signature, **kwargs):
         jax2tf_kwargs = kwargs.pop("jax2tf_kwargs", None)
         # Use `copy.copy()` to avoid modification issues.
         jax2tf_kwargs = copy.copy(jax2tf_kwargs) or {}
@@ -159,7 +165,7 @@ class JaxExportArchive:
                     poly_shape.append("batch")
                 else:
                     poly_shape.append(next(dim_names))
-            return "(" + ", ".join(poly_shape) + ")"
+            return f"({', '.join(poly_shape)})"
 
         return tree.map_structure(convert_shape, struct)
 

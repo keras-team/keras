@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from absl.testing import parameterized
 
 from keras.src import layers
@@ -22,7 +21,6 @@ class SolarizationTest(testing.TestCase):
         output = layer(input)
         self.assertAllClose(output, expected_output)
 
-    @pytest.mark.requires_trainable_backend
     def test_layer(self):
         self.run_layer_test(
             layers.Solarization,

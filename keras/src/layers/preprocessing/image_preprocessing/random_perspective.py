@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_transform_example,
+)
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
     clip_to_image_size,
 )
@@ -19,6 +22,9 @@ class RandomPerspective(BaseImagePreprocessingLayer):
     This layer distorts the perspective of input images by shifting their
     corner points, simulating a 3D-like transformation. The amount of distortion
     is controlled by the `factor` and `scale` parameters.
+
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
 
     Args:
         factor: A float or a tuple of two floats.
@@ -40,6 +46,9 @@ class RandomPerspective(BaseImagePreprocessingLayer):
             boundaries when `fill_mode="constant"`.
         seed: Integer. Used to create a random seed.
 
+    Example:
+
+    {{base_image_preprocessing_transform_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -97,7 +106,7 @@ class RandomPerspective(BaseImagePreprocessingLayer):
         else:
             images = data
 
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         unbatched = len(images_shape) == 3
         if unbatched:
             batch_size = 1
@@ -133,7 +142,7 @@ class RandomPerspective(BaseImagePreprocessingLayer):
             dtype=self.compute_dtype,
         )
 
-        start_points = self.backend.convert_to_tensor(
+        start_points = self.backend.ops.convert_to_tensor(
             [
                 [
                     [0.0, 0.0],
@@ -145,10 +154,13 @@ class RandomPerspective(BaseImagePreprocessingLayer):
             dtype=self.compute_dtype,
         )
 
-        start_points = self.backend.numpy.repeat(
+        start_points = self.backend.ops.numpy.repeat(
             start_points, batch_size, axis=0
         )
         end_points = start_points + start_points * perspective_factor
+        end_points = self.backend.ops.numpy.where(
+            apply_perspective[:, None, None], end_points, start_points
+        )
 
         return {
             "apply_perspective": apply_perspective,
@@ -157,43 +169,36 @@ class RandomPerspective(BaseImagePreprocessingLayer):
             "input_shape": images_shape,
         }
 
-    def transform_images(self, images, transformation, training=True):
-        images = self.backend.cast(images, self.compute_dtype)
-        if training and transformation is not None:
-            images = self._perspective_inputs(images, transformation)
-            images = self.backend.cast(images, self.compute_dtype)
-        return images
-
-    def _perspective_inputs(self, inputs, transformation):
+    def _transform_images(self, images, transformation, interpolation):
         if transformation is None:
-            return inputs
+            return images
 
-        inputs_shape = self.backend.shape(inputs)
+        inputs_shape = self.backend.ops.shape(images)
         unbatched = len(inputs_shape) == 3
         if unbatched:
-            inputs = self.backend.numpy.expand_dims(inputs, axis=0)
+            images = self.backend.ops.numpy.expand_dims(images, axis=0)
 
         start_points = transformation["start_points"]
         end_points = transformation["end_points"]
 
-        outputs = self.backend.image.perspective_transform(
-            inputs,
+        outputs = self.backend.ops.image.perspective_transform(
+            images,
             start_points,
             end_points,
-            interpolation=self.interpolation,
+            interpolation=interpolation,
             fill_value=self.fill_value,
             data_format=self.data_format,
         )
 
         apply_perspective = transformation["apply_perspective"]
-        outputs = self.backend.numpy.where(
+        outputs = self.backend.ops.numpy.where(
             apply_perspective[:, None, None, None],
             outputs,
-            inputs,
+            images,
         )
 
         if unbatched:
-            outputs = self.backend.numpy.squeeze(outputs, axis=0)
+            outputs = self.backend.ops.numpy.squeeze(outputs, axis=0)
         return outputs
 
     def transform_bounding_boxes(
@@ -220,15 +225,17 @@ class RandomPerspective(BaseImagePreprocessingLayer):
             )
 
             boxes = bounding_boxes["boxes"]
-            x0, y0, x1, y1 = self.backend.numpy.split(boxes, 4, axis=-1)
+            x0, y0, x1, y1 = self.backend.ops.numpy.split(boxes, 4, axis=-1)
 
             start_points = transformation["start_points"]
             end_points = transformation["end_points"]
-            transform = self.backend.image.compute_homography_matrix(
+            transform = self.backend.ops.image.compute_homography_matrix(
                 start_points, end_points
             )
-            transform = self.backend.numpy.expand_dims(transform, axis=1)
-            transform = self.backend.cast(transform, dtype=self.compute_dtype)
+            transform = self.backend.ops.numpy.expand_dims(transform, axis=1)
+            transform = self.backend.ops.cast(
+                transform, dtype=self.compute_dtype
+            )
 
             corners = [
                 self._get_transformed_coordinates(x, y, transform)
@@ -236,32 +243,32 @@ class RandomPerspective(BaseImagePreprocessingLayer):
             ]
             x_corners, y_corners = zip(*corners)
 
-            xs = self.backend.numpy.stack(x_corners, axis=-1)
-            ys = self.backend.numpy.stack(y_corners, axis=-1)
+            xs = self.backend.ops.numpy.stack(x_corners, axis=-1)
+            ys = self.backend.ops.numpy.stack(y_corners, axis=-1)
 
             min_x, max_x = (
-                self.backend.numpy.min(xs, axis=-1),
-                self.backend.numpy.max(xs, axis=-1),
+                self.backend.ops.numpy.min(xs, axis=-1),
+                self.backend.ops.numpy.max(xs, axis=-1),
             )
             min_y, max_y = (
-                self.backend.numpy.min(ys, axis=-1),
-                self.backend.numpy.max(ys, axis=-1),
+                self.backend.ops.numpy.min(ys, axis=-1),
+                self.backend.ops.numpy.max(ys, axis=-1),
             )
 
-            min_x = self.backend.numpy.expand_dims(min_x, axis=-1)
-            max_x = self.backend.numpy.expand_dims(max_x, axis=-1)
-            min_y = self.backend.numpy.expand_dims(min_y, axis=-1)
-            max_y = self.backend.numpy.expand_dims(max_y, axis=-1)
+            min_x = self.backend.ops.numpy.expand_dims(min_x, axis=-1)
+            max_x = self.backend.ops.numpy.expand_dims(max_x, axis=-1)
+            min_y = self.backend.ops.numpy.expand_dims(min_y, axis=-1)
+            max_y = self.backend.ops.numpy.expand_dims(max_y, axis=-1)
 
-            boxes = self.backend.numpy.concatenate(
+            boxes = self.backend.ops.numpy.concatenate(
                 [min_x, min_y, max_x, max_y], axis=-1
             )
 
-            apply_perspective = self.backend.core.convert_to_tensor(
+            apply_perspective = self.backend.ops.convert_to_tensor(
                 transformation["apply_perspective"], dtype=boxes.dtype
             )
 
-            bounding_boxes["boxes"] = self.backend.numpy.where(
+            bounding_boxes["boxes"] = self.backend.ops.numpy.where(
                 apply_perspective[:, None, None],
                 boxes,
                 bounding_boxes["boxes"],
@@ -283,28 +290,32 @@ class RandomPerspective(BaseImagePreprocessingLayer):
     ):
         backend = self.backend
 
-        batch_size = backend.shape(transformation_matrix)[0]
+        batch_size = backend.ops.shape(transformation_matrix)[0]
 
-        homogeneous_transform = backend.numpy.concatenate(
-            [transformation_matrix, backend.numpy.ones((batch_size, 1, 1))],
+        homogeneous_transform = backend.ops.numpy.concatenate(
+            [transformation_matrix, backend.ops.numpy.ones((batch_size, 1, 1))],
             axis=-1,
         )
-        homogeneous_transform = backend.numpy.reshape(
+        homogeneous_transform = backend.ops.numpy.reshape(
             homogeneous_transform, (batch_size, 3, 3)
         )
 
-        inverse_transform = backend.linalg.inv(homogeneous_transform)
+        inverse_transform = backend.ops.linalg.inv(homogeneous_transform)
 
-        ones_column = backend.numpy.ones_like(x_coords)
-        homogeneous_coords = backend.numpy.concatenate(
+        ones_column = backend.ops.numpy.ones_like(x_coords)
+        homogeneous_coords = backend.ops.numpy.concatenate(
             [x_coords, y_coords, ones_column], axis=-1
         )
 
-        homogeneous_coords = backend.numpy.moveaxis(homogeneous_coords, -1, -2)
-        transformed_coords = backend.numpy.matmul(
+        homogeneous_coords = backend.ops.numpy.moveaxis(
+            homogeneous_coords, -1, -2
+        )
+        transformed_coords = backend.ops.numpy.matmul(
             inverse_transform, homogeneous_coords
         )
-        transformed_coords = backend.numpy.moveaxis(transformed_coords, -1, -2)
+        transformed_coords = backend.ops.numpy.moveaxis(
+            transformed_coords, -1, -2
+        )
 
         x_transformed = transformed_coords[..., 0] / transformed_coords[..., 2]
         y_transformed = transformed_coords[..., 1] / transformed_coords[..., 2]
@@ -313,13 +324,6 @@ class RandomPerspective(BaseImagePreprocessingLayer):
 
     def transform_labels(self, labels, transformation, training=True):
         return labels
-
-    def transform_segmentation_masks(
-        self, segmentation_masks, transformation, training=True
-    ):
-        return self.transform_images(
-            segmentation_masks, transformation, training=training
-        )
 
     def compute_output_shape(self, input_shape):
         return input_shape
@@ -334,3 +338,12 @@ class RandomPerspective(BaseImagePreprocessingLayer):
             "seed": self.seed,
         }
         return {**base_config, **config}
+
+
+if RandomPerspective.__doc__ is not None:
+    RandomPerspective.__doc__ = RandomPerspective.__doc__.replace(
+        "{{base_image_preprocessing_transform_example}}",
+        base_image_preprocessing_transform_example.replace(
+            "{LayerName}", "RandomPerspective"
+        ),
+    )

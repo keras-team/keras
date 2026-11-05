@@ -1,5 +1,5 @@
-from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.common import is_int_dtype
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
@@ -14,6 +14,9 @@ class Solarization(BaseImagePreprocessingLayer):
     When created without `threshold` parameter, the layer performs solarization
     to all values. When created with specified `threshold` the layer only
     augments pixels that are above the `threshold` value.
+
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
 
     Args:
         addition_factor: (Optional)  A tuple of two floats or a single float,
@@ -128,7 +131,7 @@ class Solarization(BaseImagePreprocessingLayer):
             images = data["images"]
         else:
             images = data
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         if len(images_shape) == 4:
             factor_shape = (images_shape[0], 1, 1, 1)
         else:
@@ -155,7 +158,7 @@ class Solarization(BaseImagePreprocessingLayer):
         }
 
     def transform_images(self, images, transformation, training=True):
-        images = self.backend.cast(images, self.compute_dtype)
+        images = self.backend.ops.cast(images, self.compute_dtype)
 
         if training:
             if transformation is None:
@@ -170,8 +173,8 @@ class Solarization(BaseImagePreprocessingLayer):
                 dtype=self.compute_dtype,
             )
             results = images + additions
-            results = self.backend.numpy.clip(results, 0, 255)
-            results = self.backend.numpy.where(
+            results = self.backend.ops.numpy.clip(results, 0, 255)
+            results = self.backend.ops.numpy.where(
                 results < thresholds, results, 255 - results
             )
             results = self._transform_value_range(
@@ -182,8 +185,8 @@ class Solarization(BaseImagePreprocessingLayer):
             )
             if results.dtype == images.dtype:
                 return results
-            if backend.is_int_dtype(images.dtype):
-                results = self.backend.numpy.round(results)
+            if is_int_dtype(images.dtype):
+                results = self.backend.ops.numpy.round(results)
             return _saturate_cast(results, images.dtype, self.backend)
         return images
 

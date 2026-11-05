@@ -1,12 +1,10 @@
 import numpy as np
-import pytest
 from absl.testing import parameterized
 
 from keras.src import layers
 from keras.src import testing
 
 
-@pytest.mark.requires_trainable_backend
 class GlobalAveragePoolingBasicTest(testing.TestCase):
     @parameterized.parameters(
         ("channels_last", False, (3, 5, 4), (3, 4)),

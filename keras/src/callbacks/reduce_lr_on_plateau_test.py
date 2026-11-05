@@ -12,6 +12,8 @@ from keras.src.utils import numerical_utils
 
 class ReduceLROnPlateauTest(testing.TestCase):
     def setUp(self):
+        super().setUp()
+
         (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
             train_samples=10,
             test_samples=10,
@@ -137,3 +139,23 @@ class ReduceLROnPlateauTest(testing.TestCase):
         # With a cooldown of 2 epochs, we should only reduce the LR every other
         # epoch, so after 4 epochs we will have reduced 2 times.
         self.assertAllClose(self.model.optimizer.learning_rate.value, 0.001)
+
+    @pytest.mark.requires_trainable_backend
+    def test_state_reset_across_fit_calls(self):
+        # `ReduceLROnPlateau` is reused across `model.fit()` calls, so
+        # `on_train_begin` -> `_reset` must clear all per-run state.
+        reduce_lr = callbacks.ReduceLROnPlateau(
+            patience=1, factor=0.1, monitor="loss", min_delta=0, cooldown=2
+        )
+        reduce_lr.set_model(self.model)
+        reduce_lr.on_train_begin()
+        # Drive some state from a first run.
+        reduce_lr.best = 0.5
+        reduce_lr.wait = 3
+        reduce_lr.cooldown_counter = 2
+        # New `model.fit()` -> `on_train_begin` should clear all per-run
+        # state.
+        reduce_lr.on_train_begin()
+        self.assertIsNone(reduce_lr.best)
+        self.assertEqual(reduce_lr.wait, 0)
+        self.assertEqual(reduce_lr.cooldown_counter, 0)

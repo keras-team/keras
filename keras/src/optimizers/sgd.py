@@ -1,4 +1,4 @@
-from keras.src import ops
+from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.optimizers import optimizer
 
@@ -54,7 +54,7 @@ class SGD(optimizer.Optimizer):
         ema_overwrite_frequency=None,
         loss_scale_factor=None,
         gradient_accumulation_steps=None,
-        name="SGD",
+        name=None,
         **kwargs,
     ):
         super().__init__(
@@ -83,7 +83,7 @@ class SGD(optimizer.Optimizer):
         is not 0.
 
         Args:
-          var_list: list of model variables to build SGD variables on.
+          variables: list of model variables to build SGD variables on.
         """
         if self.built:
             return
@@ -94,33 +94,36 @@ class SGD(optimizer.Optimizer):
 
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
-        learning_rate = ops.cast(learning_rate, variable.dtype)
-        gradient = ops.cast(gradient, variable.dtype)
+        learning_rate = backend.ops.cast(learning_rate, variable.dtype)
+        gradient = backend.ops.cast(gradient, variable.dtype)
         m = None
         if self.momentum != 0:
             m = self.momentums[self._get_variable_index(variable)]
 
         if m is not None:
-            momentum = ops.cast(self.momentum, variable.dtype)
+            momentum = backend.ops.cast(self.momentum, variable.dtype)
             self.assign(
                 m,
-                ops.subtract(
-                    ops.multiply(m, momentum),
-                    ops.multiply(gradient, learning_rate),
+                backend.ops.numpy.subtract(
+                    backend.ops.numpy.multiply(m, momentum),
+                    backend.ops.numpy.multiply(gradient, learning_rate),
                 ),
             )
             if self.nesterov:
                 self.assign_add(
                     variable,
-                    ops.subtract(
-                        ops.multiply(m, momentum),
-                        ops.multiply(gradient, learning_rate),
+                    backend.ops.numpy.subtract(
+                        backend.ops.numpy.multiply(m, momentum),
+                        backend.ops.numpy.multiply(gradient, learning_rate),
                     ),
                 )
             else:
                 self.assign_add(variable, m)
         else:
-            self.assign_sub(variable, ops.multiply(gradient, learning_rate))
+            self.assign_sub(
+                variable,
+                backend.ops.numpy.multiply(gradient, learning_rate),
+            )
 
     def get_config(self):
         config = super().get_config()
@@ -133,6 +136,7 @@ class SGD(optimizer.Optimizer):
         return config
 
 
-SGD.__doc__ = SGD.__doc__.replace(
-    "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
-)
+if SGD.__doc__ is not None:
+    SGD.__doc__ = SGD.__doc__.replace(
+        "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
+    )

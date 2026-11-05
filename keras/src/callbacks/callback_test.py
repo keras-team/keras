@@ -9,6 +9,8 @@ from keras.src.callbacks.callback import Callback
 class CallbackTest(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_model_state_is_current_on_epoch_end(self):
+        test_obj = self
+
         class TestModel(models.Model):
             def __init__(self):
                 super().__init__()
@@ -22,7 +24,7 @@ class CallbackTest(testing.TestCase):
 
         class CBK(Callback):
             def on_batch_end(self, batch, logs):
-                assert np.int32(self.model.iterations) == batch + 1
+                test_obj.assertEqual(int(self.model.iterations), batch + 1)
 
         model = TestModel()
         model.compile(optimizer="sgd", loss="mse")

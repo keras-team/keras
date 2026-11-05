@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from keras.src import layers
 from keras.src import ops
@@ -7,7 +6,6 @@ from keras.src import testing
 
 
 class LambdaTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_lambda_basics(self):
         self.run_layer_test(
             layers.Lambda,
@@ -81,6 +79,14 @@ class LambdaTest(testing.TestCase):
         layer = layers.Lambda.from_config(config, safe_mode=False)
         output = layer(2 * np.ones((2, 3)))
         self.assertAllClose(4 * np.ones((2, 3)), output)
+
+    def test_from_config_fails_closed_without_safe_mode_scope(self):
+        # Without an ambient `SafeModeScope` and without an explicit
+        # `safe_mode`, deserializing a lambda `function` must be refused by
+        # default rather than silently loading the marshalled bytecode.
+        config = layers.Lambda(lambda x: x**2).get_config()
+        with self.assertRaisesRegex(ValueError, "Lambda"):
+            layers.Lambda.from_config(config)
 
     def test_correctness_lambda_shape(self):
         layer = layers.Lambda(lambda x: x**2, output_shape=lambda x: x)

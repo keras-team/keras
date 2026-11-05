@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_color_example,
+)
 from keras.src.random import SeedGenerator
 
 
@@ -12,6 +15,12 @@ class RandomErasing(BaseImagePreprocessingLayer):
     Random Erasing is a data augmentation method where random patches of
     an image are erased (replaced by a constant value or noise)
     during training to improve generalization.
+
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
+
+    References:
+       - [Random Erasing paper](https://arxiv.org/abs/1708.04896).
 
     Args:
         factor: A single float or a tuple of two floats.
@@ -36,8 +45,9 @@ class RandomErasing(BaseImagePreprocessingLayer):
             preprocessing pipeline is set up.
         seed: Integer. Used to create a random seed.
 
-    References:
-       - [Random Erasing paper](https://arxiv.org/abs/1708.04896).
+    Example:
+
+    {{base_image_preprocessing_color_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -100,7 +110,7 @@ class RandomErasing(BaseImagePreprocessingLayer):
         return lower, upper
 
     def _compute_crop_bounds(self, batch_size, image_length, crop_ratio, seed):
-        crop_length = self.backend.cast(
+        crop_length = self.backend.ops.cast(
             crop_ratio * image_length, dtype=self.compute_dtype
         )
 
@@ -118,27 +128,27 @@ class RandomErasing(BaseImagePreprocessingLayer):
 
     def _generate_batch_mask(self, images_shape, box_corners):
         def _generate_grid_xy(image_height, image_width):
-            grid_y, grid_x = self.backend.numpy.meshgrid(
-                self.backend.numpy.arange(
+            grid_y, grid_x = self.backend.ops.numpy.meshgrid(
+                self.backend.ops.numpy.arange(
                     image_height, dtype=self.compute_dtype
                 ),
-                self.backend.numpy.arange(
+                self.backend.ops.numpy.arange(
                     image_width, dtype=self.compute_dtype
                 ),
                 indexing="ij",
             )
             if self.data_format == "channels_last":
-                grid_y = self.backend.cast(
+                grid_y = self.backend.ops.cast(
                     grid_y[None, :, :, None], dtype=self.compute_dtype
                 )
-                grid_x = self.backend.cast(
+                grid_x = self.backend.ops.cast(
                     grid_x[None, :, :, None], dtype=self.compute_dtype
                 )
             else:
-                grid_y = self.backend.cast(
+                grid_y = self.backend.ops.cast(
                     grid_y[None, None, :, :], dtype=self.compute_dtype
                 )
-                grid_x = self.backend.cast(
+                grid_x = self.backend.ops.cast(
                     grid_x[None, None, :, :], dtype=self.compute_dtype
                 )
             return grid_x, grid_y
@@ -159,7 +169,7 @@ class RandomErasing(BaseImagePreprocessingLayer):
         batch_masks = (
             (grid_x >= x0) & (grid_x < x1) & (grid_y >= y0) & (grid_y < y1)
         )
-        batch_masks = self.backend.numpy.repeat(
+        batch_masks = self.backend.ops.numpy.repeat(
             batch_masks, images_shape[self.channel_axis], axis=self.channel_axis
         )
 
@@ -184,19 +194,19 @@ class RandomErasing(BaseImagePreprocessingLayer):
             if isinstance(fill_value, (tuple, list)):
                 if len(fill_value) != 3:
                     raise ValueError(error_msg)
-                fill_value = self.backend.numpy.full_like(
+                fill_value = self.backend.ops.numpy.full_like(
                     images, fill_value, dtype=self.compute_dtype
                 )
             elif isinstance(fill_value, (int, float)):
                 fill_value = (
-                    self.backend.numpy.ones(
+                    self.backend.ops.numpy.ones(
                         images_shape, dtype=self.compute_dtype
                     )
                     * fill_value
                 )
             else:
                 raise ValueError(error_msg)
-        fill_value = self.backend.numpy.clip(
+        fill_value = self.backend.ops.numpy.clip(
             fill_value, self.value_range[0], self.value_range[1]
         )
         return fill_value
@@ -210,7 +220,7 @@ class RandomErasing(BaseImagePreprocessingLayer):
         else:
             images = data
 
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         rank = len(images_shape)
         if rank == 3:
             batch_size = 1
@@ -235,7 +245,7 @@ class RandomErasing(BaseImagePreprocessingLayer):
             seed=seed,
         )
 
-        mix_weight = self.backend.numpy.sqrt(mix_weight)
+        mix_weight = self.backend.ops.numpy.sqrt(mix_weight)
 
         x0, x1 = self._compute_crop_bounds(
             batch_size, image_width, mix_weight[:, 0], seed
@@ -274,24 +284,24 @@ class RandomErasing(BaseImagePreprocessingLayer):
 
     def transform_images(self, images, transformation=None, training=True):
         if training:
-            images = self.backend.cast(images, self.compute_dtype)
+            images = self.backend.ops.cast(images, self.compute_dtype)
             batch_masks = transformation["batch_masks"]
             apply_erasing = transformation["apply_erasing"]
             fill_value = transformation["fill_value"]
 
-            erased_images = self.backend.numpy.where(
+            erased_images = self.backend.ops.numpy.where(
                 batch_masks,
                 fill_value,
                 images,
             )
 
-            images = self.backend.numpy.where(
+            images = self.backend.ops.numpy.where(
                 apply_erasing[:, None, None, None],
                 erased_images,
                 images,
             )
 
-        images = self.backend.cast(images, self.compute_dtype)
+        images = self.backend.ops.cast(images, self.compute_dtype)
         return images
 
     def transform_labels(self, labels, transformation, training=True):
@@ -323,3 +333,12 @@ class RandomErasing(BaseImagePreprocessingLayer):
         }
         base_config = super().get_config()
         return {**base_config, **config}
+
+
+if RandomErasing.__doc__ is not None:
+    RandomErasing.__doc__ = RandomErasing.__doc__.replace(
+        "{{base_image_preprocessing_color_example}}",
+        base_image_preprocessing_color_example.replace(
+            "{LayerName}", "RandomErasing"
+        ),
+    )

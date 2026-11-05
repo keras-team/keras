@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_color_example,
+)
 from keras.src.random.seed_generator import SeedGenerator
 
 
@@ -21,7 +24,7 @@ class RandomContrast(BaseImagePreprocessingLayer):
     in integer or floating point dtype.
     By default, the layer will output floats.
 
-    **Note:** This layer is safe to use inside a `tf.data` pipeline
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
     (independently of which backend you're using).
 
     Input shape:
@@ -45,6 +48,10 @@ class RandomContrast(BaseImagePreprocessingLayer):
             typically either `[0, 1]` or `[0, 255]` depending on how your
             preprocessing pipeline is set up.
         seed: Integer. Used to create a random seed.
+
+    Example:
+
+    {{base_image_preprocessing_color_example}}
     """
 
     _FACTOR_BOUNDS = (0, 1)
@@ -61,7 +68,7 @@ class RandomContrast(BaseImagePreprocessingLayer):
             images = data["images"]
         else:
             images = data
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         rank = len(images_shape)
         if rank == 3:
             factor_shape = (1, 1, 1)
@@ -76,7 +83,9 @@ class RandomContrast(BaseImagePreprocessingLayer):
             )
 
         if not training:
-            return {"contrast_factor": self.backend.numpy.zeros(factor_shape)}
+            return {
+                "contrast_factor": self.backend.ops.numpy.zeros(factor_shape)
+            }
 
         if seed is None:
             seed = self._get_seed_generator(self.backend._backend)
@@ -92,12 +101,14 @@ class RandomContrast(BaseImagePreprocessingLayer):
 
     def transform_images(self, images, transformation, training=True):
         if training:
-            constrast_factor = transformation["contrast_factor"]
-            outputs = self._adjust_constrast(images, constrast_factor)
-            outputs = self.backend.numpy.clip(
+            contrast_factor = transformation["contrast_factor"]
+            outputs = self._adjust_contrast(images, contrast_factor)
+            outputs = self.backend.ops.numpy.clip(
                 outputs, self.value_range[0], self.value_range[1]
             )
-            self.backend.numpy.reshape(outputs, self.backend.shape(images))
+            self.backend.ops.numpy.reshape(
+                outputs, self.backend.ops.shape(images)
+            )
             return outputs
         return images
 
@@ -117,7 +128,7 @@ class RandomContrast(BaseImagePreprocessingLayer):
     ):
         return segmentation_masks
 
-    def _adjust_constrast(self, inputs, contrast_factor):
+    def _adjust_contrast(self, inputs, contrast_factor):
         if self.data_format == "channels_first":
             height_axis = -2
             width_axis = -1
@@ -125,11 +136,11 @@ class RandomContrast(BaseImagePreprocessingLayer):
             height_axis = -3
             width_axis = -2
         # reduce mean on height
-        inp_mean = self.backend.numpy.mean(
+        inp_mean = self.backend.ops.numpy.mean(
             inputs, axis=height_axis, keepdims=True
         )
         # reduce mean on width
-        inp_mean = self.backend.numpy.mean(
+        inp_mean = self.backend.ops.numpy.mean(
             inp_mean, axis=width_axis, keepdims=True
         )
 
@@ -147,3 +158,12 @@ class RandomContrast(BaseImagePreprocessingLayer):
         }
         base_config = super().get_config()
         return {**base_config, **config}
+
+
+if RandomContrast.__doc__ is not None:
+    RandomContrast.__doc__ = RandomContrast.__doc__.replace(
+        "{{base_image_preprocessing_color_example}}",
+        base_image_preprocessing_color_example.replace(
+            "{LayerName}", "RandomContrast"
+        ),
+    )

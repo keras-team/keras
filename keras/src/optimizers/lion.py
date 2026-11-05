@@ -1,4 +1,4 @@
-from keras.src import ops
+from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.optimizers import optimizer
 
@@ -55,7 +55,7 @@ class Lion(optimizer.Optimizer):
         ema_overwrite_frequency=None,
         loss_scale_factor=None,
         gradient_accumulation_steps=None,
-        name="lion",
+        name=None,
         **kwargs,
     ):
         super().__init__(
@@ -95,28 +95,29 @@ class Lion(optimizer.Optimizer):
 
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
-        lr = ops.cast(learning_rate, variable.dtype)
-        gradient = ops.cast(gradient, variable.dtype)
-        beta_1 = ops.cast(self.beta_1, variable.dtype)
-        beta_2 = ops.cast(self.beta_2, variable.dtype)
+        lr = backend.ops.cast(learning_rate, variable.dtype)
+        gradient = backend.ops.cast(gradient, variable.dtype)
+        beta_1 = backend.ops.cast(self.beta_1, variable.dtype)
+        beta_2 = backend.ops.cast(self.beta_2, variable.dtype)
         m = self._momentums[self._get_variable_index(variable)]
 
         self.assign_sub(
             variable,
-            ops.multiply(
+            backend.ops.numpy.multiply(
                 lr,
-                ops.sign(
-                    ops.add(
-                        ops.multiply(m, beta_1),
-                        ops.multiply(gradient, (1.0 - beta_1)),
+                backend.ops.numpy.sign(
+                    backend.ops.numpy.add(
+                        backend.ops.numpy.multiply(m, beta_1),
+                        backend.ops.numpy.multiply(gradient, (1.0 - beta_1)),
                     )
                 ),
             ),
         )
         self.assign(
             m,
-            ops.add(
-                ops.multiply(m, beta_2), ops.multiply(gradient, (1.0 - beta_2))
+            backend.ops.numpy.add(
+                backend.ops.numpy.multiply(m, beta_2),
+                backend.ops.numpy.multiply(gradient, (1.0 - beta_2)),
             ),
         )
 
@@ -131,6 +132,7 @@ class Lion(optimizer.Optimizer):
         return config
 
 
-Lion.__doc__ = Lion.__doc__.replace(
-    "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
-)
+if Lion.__doc__ is not None:
+    Lion.__doc__ = Lion.__doc__.replace(
+        "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
+    )

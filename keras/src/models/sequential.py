@@ -2,9 +2,9 @@ import copy
 import inspect
 import typing
 
-from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend.common import get_keras_mask
 from keras.src.backend.common import global_state
 from keras.src.backend.common import standardize_shape
 from keras.src.layers.core.input_layer import InputLayer
@@ -144,6 +144,8 @@ class Sequential(Model):
     def _maybe_rebuild(self):
         self.built = False
         self._functional = None
+        if not self._layers:
+            return
         if isinstance(self._layers[0], InputLayer) and len(self._layers) > 1:
             input_shape = self._layers[0].batch_shape
             self.build(input_shape)
@@ -202,24 +204,41 @@ class Sequential(Model):
                 positional_args = [
                     param
                     for param in signature.parameters.values()
+                    if param.kind
+                    in (
+                        inspect.Parameter.POSITIONAL_ONLY,
+                        inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    )
+                ]
+                required_positional_args = [
+                    param
+                    for param in positional_args
                     if param.default == inspect.Parameter.empty
                 ]
-                if len(positional_args) != 1:
+                if not positional_args:
                     raise ValueError(
-                        "Layers added to a Sequential model "
-                        "can only have a single positional argument, "
-                        f"the input tensor. Layer {layer.__class__.__name__} "
-                        f"has multiple positional arguments: {positional_args}"
+                        "Layers added to a Sequential model should "
+                        "have a single positional argument, the "
+                        "input tensor. Layer "
+                        f"{layer.__class__.__name__} has no "
+                        "positional arguments."
+                    )
+                if len(required_positional_args) > 1:
+                    raise ValueError(
+                        "Layers added to a Sequential model can "
+                        "only have a single required positional "
+                        "argument, the input tensor. Layer "
+                        f"{layer.__class__.__name__} has multiple "
+                        "required positional arguments: "
+                        f"{required_positional_args}"
                     )
                 raise e
         outputs = x
         self._functional = Functional(inputs=inputs, outputs=outputs)
 
-    def call(self, inputs, training=None, mask=None, **kwargs):
+    def call(self, inputs, training=None, mask=None):
         if self._functional:
-            return self._functional.call(
-                inputs, training=training, mask=mask, **kwargs
-            )
+            return self._functional.call(inputs, training=training, mask=mask)
 
         # Fallback: Just apply the layer sequence.
         # This typically happens if `inputs` is a nested struct.
@@ -228,20 +247,13 @@ class Sequential(Model):
             # `outputs` are the outputs of `layer` applied to `inputs`. At the
             # end of each iteration `inputs` is set to `outputs` to prepare for
             # the next layer.
-            layer_kwargs = {
-                k: kwargs[k]
-                # only inject if this layer’s signature actually has that arg
-                for k in getattr(layer, "_call_has_context_arg", {})
-                if k in kwargs
-            }
             if layer._call_has_mask_arg:
-                layer_kwargs["mask"] = mask
-            if layer._call_has_training_arg and training is not None:
-                layer_kwargs["training"] = training
-            outputs = layer(inputs, **layer_kwargs)
+                outputs = layer(inputs, mask=mask)
+            else:
+                outputs = layer(inputs)
             inputs = outputs
 
-            mask = tree.map_structure(backend.get_keras_mask, outputs)
+            mask = tree.map_structure(get_keras_mask, outputs)
         return outputs
 
     @property
@@ -334,7 +346,10 @@ class Sequential(Model):
 
     def get_config(self):
         serialize_fn = serialization_lib.serialize_keras_object
-        if global_state.get_global_attribute("use_legacy_config", False):
+        use_legacy_config = global_state.get_global_attribute(
+            "use_legacy_config", False
+        )
+        if use_legacy_config:
             # Legacy format serialization used for H5 and SavedModel formats
             serialize_fn = legacy_serialization.serialize_keras_object
         layer_configs = []
@@ -345,24 +360,28 @@ class Sequential(Model):
         config = Model.get_config(self)
         config["name"] = self.name
         config["layers"] = copy.deepcopy(layer_configs)
-        if self._functional is not None:
+        if use_legacy_config and self._functional is not None:
             config["build_input_shape"] = self._layers[0].batch_shape
         return config
 
     @classmethod
     def from_config(cls, config, custom_objects=None):
-        if "name" in config:
-            name = config["name"]
-            build_input_shape = config.get("build_input_shape")
-            layer_configs = config["layers"]
-        else:
-            name = None
-            layer_configs = config
-        model = cls(name=name)
+        if "layers" not in config:
+            raise ValueError(
+                "A Sequential model configuration must be a dictionary "
+                f"containing the 'layers' key. Received: config={config}"
+            )
+
+        kwargs = {k: v for k, v in config.items() if k in ("name", "trainable")}
+        model = cls(**kwargs)
+
+        layer_configs = config["layers"]
+        is_legacy = False
         for layer_config in layer_configs:
             if "module" not in layer_config:
                 # Legacy format deserialization (no "module" key)
                 # used for H5 and SavedModel formats
+                is_legacy = True
                 layer = saving_utils.model_from_config(
                     layer_config,
                     custom_objects=custom_objects,
@@ -372,12 +391,17 @@ class Sequential(Model):
                     layer_config,
                     custom_objects=custom_objects,
                 )
-            model.add(layer)
-        if (
-            not model._functional
-            and "build_input_shape" in locals()
-            and build_input_shape
-            and isinstance(build_input_shape, (tuple, list))
-        ):
-            model.build(build_input_shape)
+            # Do not build now, this will be done by `build_from_config`.
+            model.add(layer, rebuild=False)
+
+        if is_legacy:
+            build_input_shape = config.get("build_input_shape")
+            if (
+                not model._functional
+                and build_input_shape
+                and isinstance(build_input_shape, (tuple, list))
+            ):
+                model.build(build_input_shape)
+            else:
+                model._maybe_rebuild()
         return model

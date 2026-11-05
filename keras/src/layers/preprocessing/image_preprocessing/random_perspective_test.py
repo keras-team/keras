@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from absl.testing import parameterized
 from tensorflow import data as tf_data
 
@@ -9,7 +8,6 @@ from keras.src import testing
 
 
 class RandomPerspectiveTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_layer(self):
         self.run_layer_test(
             layers.RandomPerspective,
@@ -81,7 +79,7 @@ class RandomPerspectiveTest(testing.TestCase):
         }
         output = layer.transform_images(inputs, transformation)
 
-        self.assertAllClose(expected_output, output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(output, expected_output, atol=1e-4, rtol=1e-4)
 
     def test_tf_data_compatibility(self):
         data_format = backend.config.image_data_format()
@@ -173,7 +171,12 @@ class RandomPerspectiveTest(testing.TestCase):
         )
 
         self.assertAllClose(
-            output["boxes"], expected_boxes, atol=1e-3, rtol=1e-3
+            output["boxes"],
+            expected_boxes,
+            atol=1e-3,
+            rtol=1e-3,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
 
     @parameterized.named_parameters(

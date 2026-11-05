@@ -9,7 +9,6 @@ from keras.src import testing
 
 
 class SpectralNormalizationTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_basic_spectralnorm(self):
         self.run_layer_test(
             layers.SpectralNormalization,
@@ -35,7 +34,6 @@ class SpectralNormalizationTest(testing.TestCase):
             run_training_check=False,
         )
 
-    @pytest.mark.requires_trainable_backend
     def test_spectralnorm_higher_dim(self):
         self.run_layer_test(
             layers.SpectralNormalization,

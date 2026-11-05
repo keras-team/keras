@@ -4,7 +4,7 @@ from keras.src.callbacks.callback import Callback
 
 @keras_export("keras.callbacks.LambdaCallback")
 class LambdaCallback(Callback):
-    """Callback for creating simple, custom callbacks on-the-fly.
+    r"""Callback for creating simple, custom callbacks on-the-fly.
 
     This callback is constructed with anonymous functions that will be called
     at the appropriate time (during `Model.{fit | evaluate | predict}`).
@@ -14,8 +14,8 @@ class LambdaCallback(Callback):
       `epoch`, `logs`
     - `on_train_begin` and `on_train_end` expect one positional argument:
       `logs`
-    - `on_train_batch_begin` and `on_train_batch_end` expect two positional
-      arguments: `batch`, `logs`
+    - `on_train_batch_begin` and `on_train_batch_end` expect a positional
+      argument `batch` and a keyword argument `logs`
     - See `Callback` class definition for the full list of functions and their
       expected arguments.
 

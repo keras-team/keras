@@ -31,8 +31,7 @@ def plot_segmentation_mask_gallery(
         images: A 4D tensor or NumPy array of images. Shape should be
             `(batch_size, height, width, channels)`.
         num_classes: The number of segmentation classes.  Class indices should
-            start from `1`.  Class `0` will be treated as background and
-            ignored if `ignore_index` is not 0.
+            be in the range `[0, num_classes - 1]`.
         value_range: A tuple specifying the value range of the images
             (e.g., `(0, 255)` or `(0, 1)`). Defaults to `(0, 255)`.
         y_true: A 3D/4D tensor or NumPy array representing the ground truth
@@ -42,8 +41,8 @@ def plot_segmentation_mask_gallery(
             segmentation masks.  Shape should be the same as `y_true`.
             Defaults to `None`.
         color_mapping: A dictionary mapping class indices to RGB colors.
-            If `None`, a default color palette is used. Class indices start
-            from `1`. Defaults to `None`.
+            If `None`, a default color palette is used. Class indices should
+            be in the range `[0, num_classes - 1]`. Defaults to `None`.
         blend: Whether to blend the masks with the input image using the
             `alpha` value. If `False`, the masks are drawn directly on the
             images without blending. Defaults to `True`.

@@ -69,6 +69,10 @@ def _get_concrete_noise_shape(inputs, noise_shape):
 
 
 def dropout(inputs, rate, noise_shape=None, seed=None):
+    if rate == 1.0:
+        return jax.numpy.zeros_like(inputs)
+    if rate == 0.0:
+        return inputs
     seed = jax_draw_seed(seed)
     keep_prob = 1.0 - rate
     # The `noise_shape` may contain `None` so we need to convert it

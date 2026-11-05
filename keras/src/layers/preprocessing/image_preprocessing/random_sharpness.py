@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_color_example,
+)
 from keras.src.random import SeedGenerator
 
 
@@ -12,6 +15,9 @@ class RandomSharpness(BaseImagePreprocessingLayer):
     The sharpness operation first performs a blur, then blends between the
     original image and the processed image. This operation adjusts the clarity
     of the edges in an image, ranging from blurred to enhanced sharpness.
+
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
 
     Args:
         factor: A tuple of two floats or a single float.
@@ -29,6 +35,10 @@ class RandomSharpness(BaseImagePreprocessingLayer):
             typically either `[0, 1]` or `[0, 255]` depending on how your
             preprocessing pipeline is set up.
         seed: Integer. Used to create a random seed.
+
+    Example:
+
+    {{base_image_preprocessing_color_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -70,7 +80,7 @@ class RandomSharpness(BaseImagePreprocessingLayer):
             images = data["images"]
         else:
             images = data
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         rank = len(images_shape)
         if rank == 3:
             batch_size = 1
@@ -94,29 +104,31 @@ class RandomSharpness(BaseImagePreprocessingLayer):
         return {"factor": factor}
 
     def transform_images(self, images, transformation=None, training=True):
-        images = self.backend.cast(images, self.compute_dtype)
+        images = self.backend.ops.cast(images, self.compute_dtype)
         if training:
             if self.data_format == "channels_first":
-                images = self.backend.numpy.swapaxes(images, -3, -1)
+                images = self.backend.ops.numpy.swapaxes(images, -3, -1)
 
-            sharpness_factor = self.backend.cast(
+            sharpness_factor = self.backend.ops.cast(
                 transformation["factor"] * 2, dtype=self.compute_dtype
             )
-            sharpness_factor = self.backend.numpy.reshape(
+            sharpness_factor = self.backend.ops.numpy.reshape(
                 sharpness_factor, (-1, 1, 1, 1)
             )
 
-            num_channels = self.backend.shape(images)[-1]
+            num_channels = self.backend.ops.shape(images)[-1]
 
             a, b = 1.0 / 13.0, 5.0 / 13.0
-            kernel = self.backend.convert_to_tensor(
+            kernel = self.backend.ops.convert_to_tensor(
                 [[a, a, a], [a, b, a], [a, a, a]], dtype=self.compute_dtype
             )
-            kernel = self.backend.numpy.reshape(kernel, (3, 3, 1, 1))
-            kernel = self.backend.numpy.tile(kernel, [1, 1, num_channels, 1])
-            kernel = self.backend.cast(kernel, self.compute_dtype)
+            kernel = self.backend.ops.numpy.reshape(kernel, (3, 3, 1, 1))
+            kernel = self.backend.ops.numpy.tile(
+                kernel, [1, 1, num_channels, 1]
+            )
+            kernel = self.backend.ops.cast(kernel, self.compute_dtype)
 
-            smoothed_image = self.backend.nn.depthwise_conv(
+            smoothed_image = self.backend.ops.nn.depthwise_conv(
                 images,
                 kernel,
                 strides=1,
@@ -124,19 +136,19 @@ class RandomSharpness(BaseImagePreprocessingLayer):
                 data_format="channels_last",
             )
 
-            smoothed_image = self.backend.cast(
+            smoothed_image = self.backend.ops.cast(
                 smoothed_image, dtype=self.compute_dtype
             )
             images = images + (1.0 - sharpness_factor) * (
                 smoothed_image - images
             )
 
-            images = self.backend.numpy.clip(
+            images = self.backend.ops.numpy.clip(
                 images, self.value_range[0], self.value_range[1]
             )
 
             if self.data_format == "channels_first":
-                images = self.backend.numpy.swapaxes(images, -3, -1)
+                images = self.backend.ops.numpy.swapaxes(images, -3, -1)
 
         return images
 
@@ -166,3 +178,12 @@ class RandomSharpness(BaseImagePreprocessingLayer):
 
     def compute_output_shape(self, input_shape):
         return input_shape
+
+
+if RandomSharpness.__doc__ is not None:
+    RandomSharpness.__doc__ = RandomSharpness.__doc__.replace(
+        "{{base_image_preprocessing_color_example}}",
+        base_image_preprocessing_color_example.replace(
+            "{LayerName}", "RandomSharpness"
+        ),
+    )

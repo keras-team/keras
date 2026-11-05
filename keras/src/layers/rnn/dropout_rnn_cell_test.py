@@ -1,5 +1,3 @@
-import pytest
-
 from keras.src import backend
 from keras.src import layers
 from keras.src import ops
@@ -51,7 +49,6 @@ class DropoutRNNCellTest(testing.TestCase):
         layer = layers.RNN(cell)
         self.assertEqual(len(layer.non_trainable_variables), 1)
 
-    @pytest.mark.requires_trainable_backend
     def test_basics(self):
         self.run_layer_test(
             layers.RNN,
@@ -62,7 +59,7 @@ class DropoutRNNCellTest(testing.TestCase):
             expected_num_trainable_weights=2,
             expected_num_non_trainable_weights=0,
             expected_num_non_trainable_variables=1,
-            supports_masking=True,
+            supports_masking=False,
             run_mixed_precision_check=False,
         )
 
@@ -87,6 +84,6 @@ class DropoutRNNCellTest(testing.TestCase):
                 expected_num_trainable_weights=2,
                 expected_num_non_trainable_weights=0,
                 expected_num_non_trainable_variables=1,
-                supports_masking=True,
+                supports_masking=False,
                 run_mixed_precision_check=False,
             )

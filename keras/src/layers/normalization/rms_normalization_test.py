@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from keras.src import layers
 from keras.src import ops
@@ -7,7 +6,6 @@ from keras.src import testing
 
 
 class RMSNormalizationTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_ln_basics(self):
         self.run_layer_test(
             layers.RMSNormalization,
@@ -38,10 +36,12 @@ class RMSNormalizationTest(testing.TestCase):
         inputs = ops.convert_to_tensor(inputs)
 
         out = layer(inputs)
-        expected = (
-            inputs
-            * ops.rsqrt(ops.mean(ops.square(inputs), axis=-1, keepdims=True))
-            * layer.scale
+        expected = ops.multiply(
+            ops.multiply(
+                inputs,
+                ops.rsqrt(ops.mean(ops.square(inputs), axis=-1, keepdims=True)),
+            ),
+            layer.scale,
         )
 
         self.assertAllClose(out, expected, atol=1e-1)
@@ -67,3 +67,13 @@ class RMSNormalizationTest(testing.TestCase):
                 ]
             ],
         )
+
+    def test_unsorted_axis(self):
+        x = np.random.randn(2, 3, 4).astype("float32")
+        layer_sorted = layers.RMSNormalization(axis=[-2, -1])
+        layer_unsorted = layers.RMSNormalization(axis=[-1, -2])
+        out_sorted = layer_sorted(x)
+        out_unsorted = layer_unsorted(x)
+        self.assertEqual(out_sorted.shape, (2, 3, 4))
+        self.assertEqual(out_unsorted.shape, (2, 3, 4))
+        self.assertAllClose(out_sorted, out_unsorted)

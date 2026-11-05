@@ -67,18 +67,22 @@ def load_data(
         typically between 25,000 and 500,000 that represent
         the home prices in dollars.
     """
-    assert 0 <= test_split < 1
+    if not (0 <= test_split < 1):
+        raise ValueError(
+            f"Invalid `test_split` argument: {test_split}. "
+            "It must be between 0 and 1 (exclusive of 1)."
+        )
     origin_folder = (
         "https://storage.googleapis.com/tensorflow/tf-keras-datasets/"
     )
     path = get_file(
         path,
-        origin=origin_folder + "california_housing.npz",
+        origin=f"{origin_folder}california_housing.npz",
         file_hash=(  # noqa: E501
             "1a2e3a52e0398de6463aebe6f4a8da34fb21fbb6b934cf88c3425e766f2a1a6f"
         ),
     )
-    with np.load(path, allow_pickle=True) as f:
+    with np.load(path, allow_pickle=False) as f:
         x = f["x"]
         y = f["y"]
 

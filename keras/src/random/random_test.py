@@ -82,7 +82,17 @@ class RandomCorrectnessTest(testing.TestCase):
         self.assertGreaterEqual(ops.max(res), min)
         # Torch has incomplete dtype support for uints; will remap some dtypes.
         if keras.backend.backend() != "torch":
-            self.assertEqual(backend.standardize_dtype(res.dtype), dtype)
+            self.assertEqual(standardize_dtype(res.dtype), dtype)
+
+    def test_randint_wide_range(self):
+        # Every integer in a range wider than 2**24 can be drawn, not only
+        # those on a coarse float32 grid.
+        res = ops.convert_to_numpy(random.randint((1000,), 0, 2**30, seed=0))
+        self.assertGreaterEqual(res.min(), 0)
+        self.assertLess(res.max(), 2**30)
+        # Uniform draws cover about 250 of the 256 residues, a coarse float32
+        # grid covers far fewer.
+        self.assertGreater(len(np.unique(res % 256)), 128)
 
     @parameterized.parameters(
         {"seed": 10, "shape": (5,), "mean": 0, "stddev": 1},
@@ -105,11 +115,19 @@ class RandomCorrectnessTest(testing.TestCase):
         self.assertGreaterEqual(ops.max(res), mean - 2 * stddev)
 
     def test_dropout(self):
-        x = ops.ones((3, 5))
+        x = ops.ones((10, 10))
         self.assertAllClose(random.dropout(x, rate=0, seed=0), x)
-        x_res = random.dropout(x, rate=0.8, seed=0)
+        x_res = random.dropout(x, rate=0.5, seed=0)
         self.assertGreater(ops.max(x_res), ops.max(x))
-        self.assertGreater(ops.sum(x_res == 0), 2)
+        self.assertAllClose(ops.max(x_res), 2.0)
+        self.assertGreater(ops.cast(ops.sum(x_res == 0), "int32"), 2)
+        x_res = random.dropout(x, rate=1.0, seed=0)
+        self.assertAllClose(x_res, ops.zeros((10, 10)))
+
+        x = np.ones((10, 10), dtype="float32")
+        self.assertEqual(random.dropout(x, rate=0.5).shape, (10, 10))
+        self.assertEqual(random.dropout(x, rate=0.5, seed=0).shape, (10, 10))
+        self.assertAllClose(random.dropout(x, rate=1.0), np.zeros((10, 10)))
 
     def test_dropout_noise_shape(self):
         inputs = ops.ones((2, 3, 5, 7))
@@ -182,6 +200,13 @@ class RandomCorrectnessTest(testing.TestCase):
         self.assertAllClose(np.sum(x, axis=1), ops.sum(y, axis=1))
         self.assertNotAllClose(np.sum(x, axis=0), ops.sum(y, axis=0))
 
+        # Test axis=-1
+        y = random.shuffle(x, axis=-1, seed=0)
+
+        self.assertFalse(np.all(x == ops.convert_to_numpy(y)))
+        self.assertAllClose(np.sum(x, axis=-1), ops.sum(y, axis=-1))
+        self.assertNotAllClose(np.sum(x, axis=0), ops.sum(y, axis=0))
+
     @parameterized.parameters(
         {"seed": 10, "shape": (5, 2), "alpha": 2.0, "dtype": "float16"},
         {"seed": 10, "shape": (2,), "alpha": 1.5, "dtype": "float32"},
@@ -190,7 +215,7 @@ class RandomCorrectnessTest(testing.TestCase):
     def test_gamma(self, seed, shape, alpha, dtype):
         values = random.gamma(shape, alpha=alpha, seed=seed, dtype=dtype)
         self.assertEqual(ops.shape(values), shape)
-        self.assertEqual(backend.standardize_dtype(values.dtype), dtype)
+        self.assertEqual(standardize_dtype(values.dtype), dtype)
         self.assertGreater(np.min(ops.convert_to_numpy(values)), 0.0)
 
     @parameterized.parameters(
@@ -226,7 +251,7 @@ class RandomCorrectnessTest(testing.TestCase):
             dtype=dtype,
         )
         self.assertEqual(ops.shape(values), shape)
-        self.assertEqual(backend.standardize_dtype(values.dtype), dtype)
+        self.assertEqual(standardize_dtype(values.dtype), dtype)
 
         # The following test that ensures that the number of time
         # each event occurs doesn't exceed the total input count specified
@@ -234,7 +259,7 @@ class RandomCorrectnessTest(testing.TestCase):
         # Hence, we do an element wise comparison between `counts` array
         # and the (generated) `values` array.
         values_np = ops.convert_to_numpy(values)
-        assert np.greater_equal(np.array(counts), values_np).all()
+        self.assertTrue(np.greater_equal(np.array(counts), values_np).all())
 
         # Following test computes the probabilities of each event
         # by dividing number of times an event occurs (which is the generated
@@ -276,7 +301,7 @@ class RandomCorrectnessTest(testing.TestCase):
             shape=shape, alpha=alpha, beta=beta, seed=seed, dtype=dtype
         )
         self.assertEqual(ops.shape(values), shape)
-        self.assertEqual(backend.standardize_dtype(values.dtype), dtype)
+        self.assertEqual(standardize_dtype(values.dtype), dtype)
         values_np = ops.convert_to_numpy(values)
         self.assertGreaterEqual(np.min(values_np), b=0.0)
         self.assertLessEqual(np.max(values_np), b=1.0)
@@ -299,7 +324,7 @@ class RandomCorrectnessTest(testing.TestCase):
             )
         else:
             actual_mean = np.mean(values_np.flatten())
-            self.assertAlmostEqual(expected_mean, actual_mean, decimal=2)
+            self.assertAlmostEqual(actual_mean, expected_mean, decimal=2)
 
         # Variance check:
         # For a beta distributed random variable,
@@ -318,7 +343,7 @@ class RandomCorrectnessTest(testing.TestCase):
         else:
             actual_variance = np.var(values_np.flatten())
             self.assertAlmostEqual(
-                expected_variance, actual_variance, decimal=2
+                actual_variance, expected_variance, decimal=2
             )
 
 
@@ -326,10 +351,10 @@ class RandomBehaviorTest(testing.TestCase):
     def test_beta_tf_data_compatibility(self):
         import tensorflow as tf
 
-        from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+        from keras.src.layers.preprocessing.data_layer import DataLayer
         from keras.src.random.seed_generator import SeedGenerator
 
-        class BetaLayer(TFDataLayer):
+        class BetaLayer(DataLayer):
             def __init__(self, seed=None, **kwargs):
                 super().__init__(**kwargs)
                 self.seed = seed
@@ -341,7 +366,7 @@ class RandomBehaviorTest(testing.TestCase):
             def call(self, inputs):
                 seed_generator = self._get_seed_generator(self.backend._backend)
                 noise = self.backend.random.beta(
-                    self.backend.shape(inputs),
+                    self.backend.ops.shape(inputs),
                     alpha=0.5,
                     beta=0.5,
                     seed=seed_generator,
@@ -353,8 +378,7 @@ class RandomBehaviorTest(testing.TestCase):
         input_data = np.random.random([2, 4, 4, 3])
         ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
-            output = ops.convert_to_numpy(output)
-        self.assertEqual(output.shape, (2, 4, 4, 3))
+            self.assertEqual(output.shape, (2, 4, 4, 3))
 
     def test_categorical_errors(self):
         with self.assertRaises(ValueError):
@@ -440,26 +464,12 @@ class RandomBehaviorTest(testing.TestCase):
 
 
 class RandomDTypeTest(testing.TestCase):
-    INT_DTYPES = [x for x in dtypes.INT_TYPES if x != "uint64"]
-    FLOAT_DTYPES = dtypes.FLOAT_TYPES
+    """Test the dtype to verify that the behavior matches JAX."""
+
+    INT_DTYPES = [x for x in dtypes.INT_TYPES if x not in ("uint64", "int64")]
+    FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
     if backend.backend() == "torch":
-        # TODO: torch doesn't support uint16, uint32 and uint64
-        INT_DTYPES = [
-            x for x in INT_DTYPES if x not in ["uint16", "uint32", "uint64"]
-        ]
-
-    def setUp(self):
-        if backend.backend() == "jax":
-            from jax.experimental import enable_x64
-
-            self.jax_enable_x64 = enable_x64()
-            self.jax_enable_x64.__enter__()
-        return super().setUp()
-
-    def tearDown(self):
-        if backend.backend() == "jax":
-            self.jax_enable_x64.__exit__(None, None, None)
-        return super().tearDown()
+        INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_normal(self, dtype):

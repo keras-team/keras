@@ -2,11 +2,17 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_color_example,
+)
 
 
 @keras_export("keras.layers.RandomPosterization")
 class RandomPosterization(BaseImagePreprocessingLayer):
     """Reduces the number of bits for each color channel.
+
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
 
     References:
     - [AutoAugment: Learning Augmentation Policies from Data](https://arxiv.org/abs/1805.09501)
@@ -19,6 +25,10 @@ class RandomPosterization(BaseImagePreprocessingLayer):
             values within `value_range`. Defaults to `(0, 255)`.
         factor: integer, the number of bits to keep for each channel. Must be a
             value between 1-8.
+
+    Example:
+
+    {{base_image_preprocessing_color_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -60,7 +70,7 @@ class RandomPosterization(BaseImagePreprocessingLayer):
             images = data["images"]
         else:
             images = data
-        images_shape = self.backend.shape(images)
+        images_shape = self.backend.ops.shape(images)
         rank = len(images_shape)
         if rank == 3:
             batch_size = 1
@@ -85,7 +95,7 @@ class RandomPosterization(BaseImagePreprocessingLayer):
             )
         else:
             factor = (
-                self.backend.numpy.ones((batch_size,), dtype="uint8")
+                self.backend.ops.numpy.ones((batch_size,), dtype="uint8")
                 * self.factor[0]
             )
 
@@ -96,8 +106,8 @@ class RandomPosterization(BaseImagePreprocessingLayer):
         if training:
             shift_factor = transformation["shift_factor"]
 
-            shift_factor = self.backend.numpy.reshape(
-                shift_factor, self.backend.shape(shift_factor) + (1, 1, 1)
+            shift_factor = self.backend.ops.numpy.reshape(
+                shift_factor, self.backend.ops.shape(shift_factor) + (1, 1, 1)
             )
 
             images = self._transform_value_range(
@@ -107,12 +117,14 @@ class RandomPosterization(BaseImagePreprocessingLayer):
                 dtype=self.compute_dtype,
             )
 
-            images = self.backend.cast(images, "uint8")
-            images = self.backend.numpy.bitwise_left_shift(
-                self.backend.numpy.bitwise_right_shift(images, shift_factor),
+            images = self.backend.ops.cast(images, "uint8")
+            images = self.backend.ops.numpy.bitwise_left_shift(
+                self.backend.ops.numpy.bitwise_right_shift(
+                    images, shift_factor
+                ),
                 shift_factor,
             )
-            images = self.backend.cast(images, self.compute_dtype)
+            images = self.backend.ops.cast(images, self.compute_dtype)
 
             images = self._transform_value_range(
                 images,
@@ -149,3 +161,12 @@ class RandomPosterization(BaseImagePreprocessingLayer):
 
     def compute_output_shape(self, input_shape):
         return input_shape
+
+
+if RandomPosterization.__doc__ is not None:
+    RandomPosterization.__doc__ = RandomPosterization.__doc__.replace(
+        "{{base_image_preprocessing_color_example}}",
+        base_image_preprocessing_color_example.replace(
+            "{LayerName}", "RandomPosterization"
+        ),
+    )

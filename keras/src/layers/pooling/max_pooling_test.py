@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from absl.testing import parameterized
 from numpy.lib.stride_tricks import as_strided
 
@@ -133,7 +132,6 @@ def np_maxpool3d(x, pool_size, strides, padding, data_format):
     return out
 
 
-@pytest.mark.requires_trainable_backend
 class MaxPoolingBasicTest(testing.TestCase):
     @parameterized.parameters(
         (2, 1, "valid", "channels_last", (3, 5, 4), (3, 4, 4)),

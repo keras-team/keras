@@ -5,21 +5,10 @@ import numpy as np
 
 from keras.src import backend
 from keras.src import tree
+from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import standardize_dtype
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.utils.module_utils import tensorflow as tf
-
-try:
-    import pandas
-except ImportError:
-    pandas = None
-
-
-# Leave jax, tf, and torch arrays off this list. Instead we will use
-# `__array__` to detect these types. Doing so allows us to avoid importing a
-# backend framework we are not currently using just to do type-checking.
-ARRAY_TYPES = (np.ndarray,)
-if pandas:
-    ARRAY_TYPES = ARRAY_TYPES + (pandas.Series, pandas.DataFrame)
 
 
 class Sliceable:
@@ -117,9 +106,37 @@ class Sliceable:
         """
         return x
 
+    @classmethod
+    def convert_to_native_compatible(cls, x):
+        """Convert a tensor to something that the native backend can consume.
+
+        Only called after slicing using `__getitem__`.
+        Used to densify sparse tensors and ragged tensors.
+
+        Args:
+            x: the tensor to convert.
+        Returns: the converted tensor.
+        """
+        return x
+
 
 class NumpySliceable(Sliceable):
     pass
+
+
+class NativeArraySliceable(Sliceable):
+    def __getitem__(self, indices):
+        if isinstance(indices, np.ndarray):
+            indices = indices.tolist()
+        return self.array[indices]
+
+    @classmethod
+    def cast(cls, x, dtype):
+        return backend.ops.cast(x, dtype)
+
+    @classmethod
+    def convert_to_numpy(cls, x):
+        return backend.ops.convert_to_numpy(x)
 
 
 class TensorflowSliceable(Sliceable):
@@ -133,13 +150,13 @@ class TensorflowSliceable(Sliceable):
 
     @classmethod
     def cast(cls, x, dtype):
-        from keras.src.backend.tensorflow.core import cast
+        from keras.src.backend.tensorflow.ops.core import cast
 
         return cast(x, dtype)
 
     @classmethod
     def convert_to_numpy(cls, x):
-        from keras.src.backend.tensorflow.core import convert_to_numpy
+        from keras.src.backend.tensorflow.ops.core import convert_to_numpy
 
         return convert_to_numpy(x)
 
@@ -151,6 +168,10 @@ class TensorflowRaggedSliceable(TensorflowSliceable):
 
     @classmethod
     def convert_to_torch_compatible(cls, x):
+        return x.to_tensor()
+
+    @classmethod
+    def convert_to_native_compatible(cls, x):
         return x.to_tensor()
 
 
@@ -179,6 +200,12 @@ class TensorflowSparseSliceable(TensorflowSliceable):
 
         return tf_sparse.sparse_to_dense(x)
 
+    @classmethod
+    def convert_to_native_compatible(cls, x):
+        from keras.src.backend.tensorflow import sparse as tf_sparse
+
+        return tf_sparse.sparse_to_dense(x)
+
 
 class JaxSparseSliceable(Sliceable):
     def __getitem__(self, indices):
@@ -186,7 +213,7 @@ class JaxSparseSliceable(Sliceable):
 
     @classmethod
     def convert_to_numpy(cls, x):
-        from keras.src.backend.jax.core import convert_to_numpy
+        from keras.src.backend.jax.ops.core import convert_to_numpy
 
         return convert_to_numpy(x)
 
@@ -200,17 +227,21 @@ class JaxSparseSliceable(Sliceable):
     def convert_to_torch_compatible(cls, x):
         return x.todense()
 
+    @classmethod
+    def convert_to_native_compatible(cls, x):
+        return x.todense()
+
 
 class TorchSliceable(Sliceable):
     @classmethod
     def cast(cls, x, dtype):
-        from keras.src.backend.torch.core import cast
+        from keras.src.backend.torch.ops.core import cast
 
         return cast(x, dtype)
 
     @classmethod
     def convert_to_numpy(cls, x):
-        from keras.src.backend.torch.core import convert_to_numpy
+        from keras.src.backend.torch.ops.core import convert_to_numpy
 
         return convert_to_numpy(x)
 
@@ -233,6 +264,10 @@ class PandasSliceable(Sliceable):
 
     @classmethod
     def convert_to_torch_compatible(cls, x):
+        return cls.convert_to_numpy(x)
+
+    @classmethod
+    def convert_to_native_compatible(cls, x):
         return cls.convert_to_numpy(x)
 
 
@@ -270,6 +305,10 @@ class ScipySparseSliceable(Sliceable):
     def convert_to_torch_compatible(cls, x):
         return x.todense()
 
+    @classmethod
+    def convert_to_native_compatible(cls, x):
+        return x.todense()
+
 
 # `tf.SparseTensor` does not support indexing or `tf.gather`. The COO
 # representation it uses does not lend itself to indexing. We add some
@@ -295,7 +334,7 @@ def to_tensorflow_sparse_wrapper(sparse):
 
     row_ids = sparse.indices[:, 0]
     row_splits = tf.experimental.RowPartition.from_value_rowids(
-        row_ids
+        row_ids, nrows=sparse.dense_shape[0]
     ).row_splits()
 
     ragged_indices = tf.cast(
@@ -338,11 +377,14 @@ def slice_tensorflow_sparse_wrapper(sparse_wrapper, indices):
 def can_slice_array(x):
     return (
         x is None
-        or isinstance(x, ARRAY_TYPES)
+        or isinstance(x, np.ndarray)
         or data_adapter_utils.is_tensorflow_tensor(x)
         or data_adapter_utils.is_jax_array(x)
         or data_adapter_utils.is_torch_tensor(x)
         or data_adapter_utils.is_scipy_sparse(x)
+        or data_adapter_utils.is_pandas_data_frame(x)
+        or data_adapter_utils.is_pandas_series(x)
+        or backend.ops.is_tensor(x)
         or hasattr(x, "__array__")
     )
 
@@ -397,12 +439,14 @@ def convert_to_sliceable(arrays, target_backend=None):
                 sliceable_class = NumpySliceable
         elif data_adapter_utils.is_torch_tensor(x):
             sliceable_class = TorchSliceable
-        elif pandas is not None and isinstance(x, pandas.DataFrame):
+        elif data_adapter_utils.is_pandas_data_frame(x):
             sliceable_class = PandasDataFrameSliceable
-        elif pandas is not None and isinstance(x, pandas.Series):
+        elif data_adapter_utils.is_pandas_series(x):
             sliceable_class = PandasSeriesSliceable
         elif data_adapter_utils.is_scipy_sparse(x):
             sliceable_class = ScipySparseSliceable
+        elif backend.ops.is_tensor(x):
+            sliceable_class = NativeArraySliceable
         elif hasattr(x, "__array__"):
             x = np.asarray(x)
             sliceable_class = NumpySliceable
@@ -419,12 +463,12 @@ def convert_to_sliceable(arrays, target_backend=None):
         def is_non_floatx_float(dtype):
             return (
                 dtype is not object
-                and backend.is_float_dtype(dtype)
-                and not backend.standardize_dtype(dtype) == backend.floatx()
+                and is_float_dtype(dtype)
+                and not standardize_dtype(dtype) == backend.floatx()
             )
 
         cast_dtype = None
-        if pandas is not None and isinstance(x, pandas.DataFrame):
+        if data_adapter_utils.is_pandas_data_frame(x):
             if any(is_non_floatx_float(d) for d in x.dtypes.values):
                 cast_dtype = backend.floatx()
         else:

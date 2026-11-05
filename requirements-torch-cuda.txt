@@ -1,15 +1,17 @@
 # Tensorflow cpu-only version (needed for testing).
-tensorflow-cpu~=2.18.1
-tf2onnx
+tensorflow-cpu
 
 # Torch with cuda support.
-# - torch is pinned to a version that is compatible with torch-xla
-# - torch-xla is pinned to a version that supports GPU (2.6 doesn't)
---extra-index-url https://download.pytorch.org/whl/cu121
-torch==2.6.0
-torch-xla==2.6.0;sys_platform != 'darwin'
+# - torch is pinned to the newest release available on the cu130 index.
+# TODO(#24096): Unpin torch once the cu130 index catches up with PyPI.
+--extra-index-url https://download.pytorch.org/whl/cu130
+torch==2.14.*
+torch-xla;sys_platform != 'darwin'
 
 # Jax cpu-only version (needed for testing).
 jax[cpu]
 
 -r requirements-common.txt
+
+# LiteRT torch converter.
+litert-torch>=0.9.1

@@ -6,6 +6,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_color_example,
+)
 from keras.src.random.seed_generator import SeedGenerator
 from keras.src.utils import backend_utils
 
@@ -15,6 +18,9 @@ class RandomColorJitter(BaseImagePreprocessingLayer):
     """RandomColorJitter class randomly apply brightness, contrast, saturation
     and hue image processing operation sequentially and randomly on the
     input.
+
+    **Note:** This layer is safe to use inside a `tf.data` or `grain` pipeline
+    (independently of which backend you're using).
 
     Args:
         value_range: the range of values the incoming images will have.
@@ -57,6 +63,10 @@ class RandomColorJitter(BaseImagePreprocessingLayer):
             always the same, please pass a tuple with two identical
             floats: `(0.5, 0.5)`.
         seed: Integer. Used to create a random seed.
+
+    Example:
+
+    {{base_image_preprocessing_color_example}}
     """
 
     def __init__(
@@ -129,7 +139,7 @@ class RandomColorJitter(BaseImagePreprocessingLayer):
         if training:
             if backend_utils.in_tf_graph():
                 self.backend.set_backend("tensorflow")
-            images = self.backend.cast(images, self.compute_dtype)
+            images = self.backend.ops.cast(images, self.compute_dtype)
             if self.brightness_factor is not None:
                 if backend_utils.in_tf_graph():
                     self.random_brightness.backend.set_backend("tensorflow")
@@ -148,7 +158,7 @@ class RandomColorJitter(BaseImagePreprocessingLayer):
                 transformation = self.random_contrast.get_random_transformation(
                     images, seed=self._get_seed_generator(self.backend._backend)
                 )
-                transformation["contrast_factor"] = self.backend.cast(
+                transformation["contrast_factor"] = self.backend.ops.cast(
                     transformation["contrast_factor"], dtype=self.compute_dtype
                 )
                 images = self.random_contrast.transform_images(
@@ -175,7 +185,7 @@ class RandomColorJitter(BaseImagePreprocessingLayer):
                 images = self.random_hue.transform_images(
                     images, transformation
                 )
-            images = self.backend.cast(images, self.compute_dtype)
+            images = self.backend.ops.cast(images, self.compute_dtype)
         return images
 
     def transform_labels(self, labels, transformation, training=True):
@@ -208,3 +218,12 @@ class RandomColorJitter(BaseImagePreprocessingLayer):
         }
         base_config = super().get_config()
         return {**base_config, **config}
+
+
+if RandomColorJitter.__doc__ is not None:
+    RandomColorJitter.__doc__ = RandomColorJitter.__doc__.replace(
+        "{{base_image_preprocessing_color_example}}",
+        base_image_preprocessing_color_example.replace(
+            "{LayerName}", "RandomColorJitter"
+        ),
+    )

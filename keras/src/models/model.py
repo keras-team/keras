@@ -2,37 +2,40 @@ import inspect
 import json
 import typing
 import warnings
+from collections.abc import Callable
 
 from keras.src import backend
 from keras.src import utils
 from keras.src.api_export import keras_export
+from keras.src.layers.core.input_layer import InputLayer
 from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
+from keras.src.quantizers import strategy_registry
+from keras.src.quantizers.calibration_run import find_layers_in_block
+from keras.src.quantizers.quantization_config import validate_and_resolve_config
+from keras.src.quantizers.report import QuantizationReport
+from keras.src.quantizers.utils import should_quantize_layer
 from keras.src.saving import saving_api
-from keras.src.trainers import trainer as base_trainer
+from keras.src.utils import io_utils
 from keras.src.utils import summary_utils
 from keras.src.utils import traceback_utils
+from keras.src.utils.module_utils import get_pluggable_backend_module
 
 if backend.backend() == "tensorflow":
-    from keras.src.backend.tensorflow.trainer import (
-        TensorFlowTrainer as Trainer,
-    )
+    from keras.src.backend.tensorflow.trainer import Trainer
 elif backend.backend() == "jax":
-    from keras.src.backend.jax.trainer import JAXTrainer as Trainer
+    from keras.src.backend.jax.trainer import Trainer
 elif backend.backend() == "torch":
-    from keras.src.backend.torch.trainer import TorchTrainer as Trainer
+    from keras.src.backend.torch.trainer import Trainer
 elif backend.backend() == "numpy":
-    from keras.src.backend.numpy.trainer import NumpyTrainer as Trainer
-elif backend.backend() == "openvino":
-    from keras.src.backend.openvino.trainer import OpenVINOTrainer as Trainer
+    from keras.src.backend.numpy.trainer import Trainer
 else:
-    raise RuntimeError(
-        f"Backend '{backend.backend()}' must implement the Trainer class."
-    )
+    backend_trainer_module = get_pluggable_backend_module("src.trainer")
+    Trainer = getattr(backend_trainer_module, "Trainer")
 
 
 @keras_export(["keras.Model", "keras.models.Model"])
-class Model(Trainer, base_trainer.Trainer, Layer):
+class Model(Trainer, Layer):
     """A model grouping layers into an object with training/inference features.
 
     There are three ways to instantiate a `Model`:
@@ -420,45 +423,326 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             **kwargs,
         )
 
-    def quantize(self, mode, **kwargs):
+    def get_quantization_layer_structure(self, mode=None):
+        """Returns the quantization structure for the model.
+
+        This method is intended to be overridden by model authors to provide
+        topology information required for structure-aware quantization modes
+        like 'gptq'.
+
+        Args:
+            mode: The quantization mode.
+
+        Returns:
+            A dictionary describing the topology, e.g.:
+            `{'pre_block_layers': [list], 'sequential_blocks': [list]}`
+            or `None` if the mode does not require structure or is not
+            supported. `'pre_block_layers'` is a list of layers that
+            the inputs should be passed through, before being passed to
+            the sequential blocks. For example, inputs to an LLM must
+            first be passed through an embedding layer, followed by
+            the transformer. `'pre_block_layers'` may be left out, and
+            each value is a list or a tuple. A structure with any other
+            key is refused with a `ValueError`.
+        """
+        del mode  # Unused.
+        return None
+
+    def quantize(
+        self, mode=None, config=None, filters=None, verbose=True, **kwargs
+    ):
         """Quantize the weights of the model.
 
         Note that the model must be built first before calling this method.
-        `quantize` will recursively call `quantize(mode)` in all layers and
+        `quantize` will recursively call `quantize(...)` in all layers and
         will be skipped if the layer doesn't implement the function.
 
-        Args:
-            mode: The mode of the quantization. Only 'int8' is supported at this
-                time.
-        """
-        from keras.src.dtype_policies import QUANTIZATION_MODES
+        This method can be called by passing a `mode` string, which uses the
+        default configuration for that mode. Alternatively, a `config` object
+        can be passed to customize the behavior of the quantization (e.g. to
+        use specific quantizers for weights or activations).
 
+        For the `"gptq"` and `"awq"` modes, quantization is restricted to
+        the `Dense` and `EinsumDense` layers inside the structure's
+        `"sequential_blocks"` (provided via
+        `config.quantization_layer_structure` or the model's
+        `get_quantization_layer_structure(mode)` hook). All other layers
+        are left in their original precision.
+
+        The call collects a `QuantizationReport` describing which layers were
+        quantized and which were skipped (and why). The report is returned and
+        also stored on the model as `model._quantization_report`. A single
+        summary warning is emitted if any layers could not be quantized because
+        they do not support quantization. For a per-layer view of storage sizes,
+        call `model.quantization_summary()`.
+
+        Args:
+            mode: The mode of the quantization. Supported modes are:
+                `"int8"`, `"int4"`, `"float8"`, `"ternary"`, `"gptq"` and
+                `"awq"`. This is optional if `config` is provided. Passing a
+                bare string uses the default configuration for that mode,
+                which is identical to passing the corresponding config object
+                with default arguments (e.g. `quantize("int4")` matches
+                `quantize(config=Int4QuantizationConfig())`). The activation
+                (A) times weight (W) semantics of each mode are:
+
+                -   `"int8"`: **W8A8 dynamic**. Weights and activations are both
+                    quantized to `int8` and multiplied with a real integer
+                    GEMM; activation scales are computed dynamically per call.
+                -   `"int4"`: **W4A16 weight-only**, **grouped** with
+                    `block_size=128` by default. Only weights are quantized (to
+                    4 bits, packed two per `int8` byte); this is storage-only
+                    today (weights are dequantized to float before each
+                    matmul). Pass `Int4QuantizationConfig(block_size=-1)` for
+                    per-channel.
+                -   `"float8"`: **float8 QDQ** mixed-precision training scheme
+                    (not post-training compression); weights and activations
+                    are dynamically cast to `float8` during training.
+                -   `"ternary"`: **weight-only** BitNet b1.58 quantization of
+                    `Dense` layers. Weights are quantized to `{-1, 0, +1}`
+                    with one scalar scale and packed five per byte; this is
+                    storage-only today (weights are unpacked to float before
+                    each matmul).
+                -   `"gptq"`: **weight-only** post-training quantization to
+                    2, 3, 4 or 8 bits (`GPTQConfig.weight_bits`, 4 by
+                    default); requires a `GPTQConfig` passed via `config`.
+                -   `"awq"`: **W4A16 weight-only** post-training quantization;
+                    requires an `AWQConfig` passed via `config`.
+            config: The configuration object specifying additional
+                quantization options. This argument allows to configure
+                the weight and activation quantizers. It must be an instance of
+                `keras.quantizers.QuantizationConfig`.
+            filters: Optional filters to apply to the quantization. Can be a
+                regex string, a list of regex strings, or a callable. Only the
+                layers which match the filter conditions will be quantized.
+            verbose: Whether to print the quantization report. Defaults to
+                `True`.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            A `QuantizationReport` describing the outcome of the call.
+
+        Example:
+
+        Quantize a model to int8 with default configuration:
+
+        ```python
+        # Build the model
+        model = keras.Sequential([
+            keras.Input(shape=(10,)),
+            keras.layers.Dense(10),
+        ])
+        model.build((None, 10))
+
+        # Quantize with default int8 config
+        model.quantize("int8")
+        ```
+
+        Quantize a model to int8 with a custom configuration:
+
+        ```python
+        from keras.quantizers import Int8QuantizationConfig
+        from keras.quantizers import AbsMaxQuantizer
+
+        # Build the model
+        model = keras.Sequential([
+            keras.Input(shape=(10,)),
+            keras.layers.Dense(10),
+        ])
+        model.build((None, 10))
+
+        # Create a custom config
+        config = Int8QuantizationConfig(
+            weight_quantizer=AbsMaxQuantizer(
+                axis=0,
+                value_range=(-127, 127)
+            ),
+            activation_quantizer=AbsMaxQuantizer(
+                axis=-1,
+                value_range=(-127, 127)
+            ),
+        )
+
+        # Quantize with custom config
+        model.quantize(config=config)
+        ```
+        """
+        # Resolve `mode`/`config` into a concrete mode string and
+        # `QuantizationConfig`, and validate that the model can be quantized,
+        # before validating the remaining arguments (mirroring
+        # `Layer.quantize`'s validation order).
+        config = validate_and_resolve_config(mode, config)
+        mode = config.mode
+        self._check_quantize_args(mode, self.compute_dtype)
+
+        # Validate inputs.
         type_check = kwargs.pop("type_check", True)
         if kwargs:
             raise ValueError(
                 "Unrecognized keyword arguments "
                 f"passed to {self.__class__.__name__}: {kwargs}"
             )
-        if mode not in QUANTIZATION_MODES:
-            raise ValueError(
-                "Invalid quantization mode. "
-                f"Expected one of {QUANTIZATION_MODES}. Received: mode={mode}"
-            )
-        mode_changed = False
+
+        if filters is not None:
+            if not isinstance(filters, (str, Callable, list, tuple)):
+                raise ValueError(
+                    "The `filters` argument must be a regex string, a list of "
+                    "regex strings, or a callable. Received: "
+                    f"{type(filters)}"
+                )
+
+        # For structure-aware modes (`gptq`/`awq`), resolve and validate the
+        # layer structure *before* mutating any layer, and restrict
+        # quantization to the layers covered by the structure. Resolving it
+        # here (rather than after the mutation loop) guarantees that a
+        # missing/invalid structure leaves the model completely untouched
+        # instead of half-quantized (buffers allocated, dtype policies
+        # swapped). Only structure-covered layers are calibrated afterwards;
+        # quantizing any other layer would leave it uncalibrated, and its
+        # uninitialized quantized weights would silently replace the real
+        # ones when the model is saved and reloaded.
+        strategy = strategy_registry.get_strategy(mode)
+        structure = None
+        structure_layer_ids = None
+        if strategy.requires_layer_structure:
+            # 1. If quantization_layer_structure is provided inside the
+            # config, use that.
+            structure = config.quantization_layer_structure
+            # 2. If no layer structure is provided in the config, try to
+            # fetch it using the `get_quantization_layer_structure` hook.
+            if structure is None:
+                structure = self.get_quantization_layer_structure(mode)
+
+            if structure is None:
+                raise ValueError(
+                    f"For {mode=}, a valid quantization structure must be "
+                    "provided either via `config.quantization_layer_structure` "
+                    "or by overriding "
+                    "`model.get_quantization_layer_structure(mode)`. The "
+                    "structure should be a dictionary with keys "
+                    "'pre_block_layers' and 'sequential_blocks'."
+                )
+            structure_layer_ids = set()
+            for block in structure.get("sequential_blocks", []):
+                for sub_layer in find_layers_in_block(block).values():
+                    structure_layer_ids.add(id(sub_layer))
+
+        report = QuantizationReport(mode=mode)
+        graph_modified = False
         for layer in self._flatten_layers():
-            list_of_sublayers = list(layer._flatten_layers())
-            if len(list_of_sublayers) == 1:  # leaves of the model
-                try:
-                    layer.quantize(mode, type_check=type_check)
-                    mode_changed = True
-                except NotImplementedError as e:
-                    warnings.warn(str(e))
-        # We need to set these functions to `None` to remake them for changed
-        # call function
-        if mode_changed:
+            # Skip nested models: this walk already visits their layers
+            # directly (`_flatten_layers` is recursive), and calling
+            # `quantize` on a sub-model would recurse into a second full
+            # walk. Owning sub-layers does NOT make a layer unquantizable
+            # (e.g. `Dense` with a `Layer` activation), so this is an
+            # isinstance test, not a topology test; any other layer that
+            # cannot be quantized reports itself by raising
+            # `NotImplementedError` below.
+            if isinstance(layer, Model):
+                continue
+
+            # Input layers carry no weights; they are not a meaningful skip.
+            if isinstance(layer, InputLayer):
+                continue
+
+            path = layer.path or layer.name
+
+            # 1. For GPTQ/AWQ, layers outside the structure's sequential
+            # blocks are never calibrated, so they must not be quantized at
+            # all.
+            if (
+                structure_layer_ids is not None
+                and id(layer) not in structure_layer_ids
+            ):
+                report.add_skipped(
+                    path, QuantizationReport.SKIP_OUTSIDE_STRUCTURE
+                )
+                continue
+            # 2. Excluded by `filters`.
+            if not should_quantize_layer(layer, filters):
+                report.add_skipped(path, QuantizationReport.SKIP_FILTERED)
+                continue
+            # 3. Already quantized (e.g. a previously quantized layer).
+            if layer._is_quantized:
+                report.add_skipped(
+                    path, QuantizationReport.SKIP_ALREADY_QUANTIZED
+                )
+                continue
+            # 4. Attempt to quantize. Only `NotImplementedError` means the
+            # layer does not support quantization; any other exception is a
+            # real bug and is allowed to propagate.
+            try:
+                layer.quantize(mode, type_check=type_check, config=config)
+            except NotImplementedError:
+                report.add_skipped(path, QuantizationReport.SKIP_NO_SUPPORT)
+                continue
+            report.add_quantized(
+                path, layer.quantization_mode, layer._own_dtype_policy.name
+            )
+            graph_modified = True
+
+        # Structure-aware modes run their calibration pass here (a no-op
+        # for the other modes).
+        strategy.finalize_model_quantization(self, config, structure, filters)
+
+        # Emit a single summary warning in place of the previous per-layer
+        # warning storm (one `UserWarning` per non-quantizable leaf).
+        warning_message = report.summary_warning()
+        if warning_message is not None:
+            warnings.warn(warning_message, stacklevel=2)
+
+        if verbose:
+            io_utils.print_msg(report.render())
+
+        self._quantization_report = report
+
+        # If any layer was changed, we must rebuild the execution functions.
+        if graph_modified:
             self.train_function = None
             self.test_function = None
             self.predict_function = None
+            self._post_quantize(mode, **kwargs)
+
+        return report
+
+    def quantization_summary(self, verbose=True):
+        """Print a per-quantized-layer summary of the model.
+
+        For every quantized layer this reports the layer path, its own dtype
+        policy (its entry, for a layer that holds a `DTypePolicyMap`), the
+        storage dtype of its quantized weight, and the bytes the weight
+        stores: codes, scale, zero point, group index and input scales. A
+        mode that keeps the float weight (float8) reports that weight and
+        says so. It also prints totals comparing the quantized weight
+        storage against a float32 baseline.
+
+        Args:
+            verbose: Whether to print the summary. Defaults to `True`. The
+                summary string is always returned.
+
+        Returns:
+            The summary as a string.
+        """
+        return summary_utils.print_quantization_summary(self, verbose=verbose)
+
+    def _post_quantize(self, mode, **kwargs):
+        if backend.backend() == "torch":
+            # Local import: `sequential` imports this module.
+            from keras.src.models.sequential import Sequential
+
+            # We need to manually retrack `torch_params`.
+            # The reason is that after quantization, the removed variables are
+            # still referenced by `torch_params` and cannot be gc.
+            for layer in self._flatten_layers():
+                layer._track_variables()
+                # A `Sequential` runs its layers through the `Functional` in
+                # `_functional`, which `_flatten_layers` does not visit. Its
+                # `torch_params` also reference the removed variables.
+                if (
+                    isinstance(layer, Sequential)
+                    and layer._functional is not None
+                ):
+                    layer._functional._track_variables()
 
     def build_from_config(self, config):
         if not config:
@@ -538,8 +822,8 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             filepath: `str` or `pathlib.Path` object. The path to save the
                 artifact.
             format: `str`. The export format. Supported values:
-                `"tf_saved_model"` and `"onnx"`.  Defaults to
-                `"tf_saved_model"`.
+                `"tf_saved_model"`, `"onnx"`, `"openvino"`, `"litert"`,
+                and `"torch"`. Defaults to `"tf_saved_model"`.
             verbose: `bool`. Whether to print a message during export. Defaults
                 to `None`, which uses the default value set by different
                 backends and formats.
@@ -548,17 +832,53 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 `tf.TensorSpec`, `backend.KerasTensor`, or backend tensor. If
                 not provided, it will be automatically computed. Defaults to
                 `None`.
-            **kwargs: Additional keyword arguments:
-                - Specific to the JAX backend and `format="tf_saved_model"`:
-                    - `is_static`: Optional `bool`. Indicates whether `fn` is
-                        static. Set to `False` if `fn` involves state updates
-                        (e.g., RNG seeds and counters).
-                    - `jax2tf_kwargs`: Optional `dict`. Arguments for
-                        `jax2tf.convert`. See the documentation for
-                        [`jax2tf.convert`](
-                            https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md).
-                        If `native_serialization` and `polymorphic_shapes` are
-                        not provided, they will be automatically computed.
+                Note: With `format="litert"` and the PyTorch backend, dynamic
+                input shapes are not supported. Any dynamic dimensions (i.e.,
+                `None` in input shapes) will be automatically replaced with `1`
+                during export, which may cause runtime failures for other
+                shapes. You must explicitly pass a fixed static
+                `input_signature` matching your maximum runtime shape.
+            **kwargs: Additional keyword arguments.
+                - `is_static`: Optional `bool`. Specific to the JAX backend and
+                    `format="tf_saved_model"`. Indicates whether `fn` is static.
+                    Set to `False` if `fn` involves state updates (e.g., RNG
+                    seeds and counters).
+                - `jax2tf_kwargs`: Optional `dict`. Specific to the JAX backend
+                    and `format="tf_saved_model"`. Arguments for
+                    `jax2tf.convert`. See the documentation for
+                    [`jax2tf.convert`](
+                        https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md).
+                    If `native_serialization` and `polymorphic_shapes` are not
+                    provided, they will be automatically computed.
+                - `opset_version`: Optional `int`. Specific to `format="onnx"`.
+                    An integer value that specifies the ONNX opset version.
+                - LiteRT-specific options: Optional keyword arguments specific
+                    to `format="litert"`. These are passed directly to the
+                    TensorFlow Lite converter on the TensorFlow backend and
+                    include options like `optimizations`,
+                    `representative_dataset`, `experimental_new_quantizer`,
+                    `allow_custom_ops`, `enable_select_tf_ops`, etc. On the
+                    PyTorch backend, LiteRT export accepts `optimizations`
+                    plus the installed `litert_torch.convert()` keyword
+                    arguments such as `strict_export`, `dynamic_shapes` (note
+                    that standard ops do not support dynamic shapes, as noted
+                    below), `lightweight_conversion`, `enable_x64`,
+                    `runtime_constant_folding`, and `quant_config`.
+                - PyTorch export options: Optional keyword arguments specific
+                    to `format="torch"`. These are passed directly to
+                    `torch.export.export` and include `strict`,
+                    `dynamic_shapes`,
+                    `prefer_deferred_runtime_asserts_over_guards`, and
+                    `preserve_module_call_signature`.
+
+        **Note on LiteRT (TFLite) Export with PyTorch Backend:**
+        With the PyTorch backend, LiteRT export (`format="litert"`) does not
+        support dynamic input shapes. If no static signature is provided,
+        any dynamic dimensions (represented as `None`) are automatically
+        replaced with `1` during export. This can lead to runtime failures
+        for other shapes. You must explicitly specify a fixed static
+        `input_signature` (matching your maximum runtime dimensions) and pad
+        your inputs to this static shape at runtime.
 
         **Note:** This feature is currently supported only with TensorFlow, JAX
         and Torch backends.
@@ -593,16 +913,69 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         }
         predictions = ort_session.run(None, ort_inputs)
         ```
-        """
-        from keras.src.export import export_onnx
-        from keras.src.export import export_saved_model
 
-        available_formats = ("tf_saved_model", "onnx")
+        Here's how to export a LiteRT (TFLite) for inference.
+
+        ```python
+        # Export the model as a LiteRT artifact
+        model.export("path/to/location", format="litert")
+
+        # Load the artifact in a different process/environment
+        interpreter = tf.lite.Interpreter(model_path="path/to/location")
+        interpreter.allocate_tensors()
+        interpreter.set_tensor(
+            interpreter.get_input_details()[0]['index'], input_data
+        )
+        interpreter.invoke()
+        output_data = interpreter.get_tensor(
+            interpreter.get_output_details()[0]['index']
+        )
+        ```
+
+        Here's how to export a PyTorch ExportedProgram for inference.
+
+        ```python
+        # Export the model as a PyTorch ExportedProgram artifact
+        model.export("path/to/model.pt2", format="torch")
+
+        # Load the artifact in a different process/environment
+        import torch
+        loaded_program = torch.export.load("path/to/model.pt2")
+        predictions = loaded_program.module()(input_tensor)
+        ```
+        """
+        from keras.src.export import export_litert
+        from keras.src.export import export_onnx
+        from keras.src.export import export_openvino
+        from keras.src.export import export_saved_model
+        from keras.src.export import export_torch
+
+        available_formats = (
+            "tf_saved_model",
+            "onnx",
+            "openvino",
+            "litert",
+            "torch",
+        )
         if format not in available_formats:
             raise ValueError(
                 f"Unrecognized format={format}. Supported formats are: "
                 f"{list(available_formats)}."
             )
+
+        # Check if LiteRT export is available (requires TensorFlow or
+        # PyTorch backend)
+        if format == "litert" and backend.backend() not in (
+            "tensorflow",
+            "torch",
+        ):
+            raise ValueError(
+                "LiteRT export requires TensorFlow or PyTorch backend."
+            )
+
+        # Check if Torch export is available (requires PyTorch backend)
+        if format == "torch" and backend.backend() != "torch":
+            raise ValueError("Torch export requires PyTorch backend.")
 
         if format == "tf_saved_model":
             export_saved_model(
@@ -617,6 +990,30 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 self,
                 filepath,
                 verbose,
+                input_signature=input_signature,
+                **kwargs,
+            )
+        elif format == "openvino":
+            export_openvino(
+                self,
+                filepath,
+                verbose,
+                input_signature=input_signature,
+                **kwargs,
+            )
+        elif format == "litert":
+            export_litert(
+                self,
+                filepath,
+                verbose=verbose,
+                input_signature=input_signature,
+                **kwargs,
+            )
+        elif format == "torch":
+            export_torch(
+                self,
+                filepath,
+                verbose=verbose,
                 input_signature=input_signature,
                 **kwargs,
             )
@@ -820,13 +1217,18 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     self.non_trainable_variables, path_value_dict
                 )
             elif k == "optimizer_variables":
-                self._assign_variable_values(
-                    self.optimizer.variables, path_value_dict
-                )
+                if hasattr(self, "optimizer") and self.optimizer is not None:
+                    self._assign_variable_values(
+                        self.optimizer.variables, path_value_dict
+                    )
             elif k == "metrics_variables":
-                self._assign_variable_values(
-                    self.metrics_variables, path_value_dict
-                )
+                if (
+                    hasattr(self, "metrics_variables")
+                    and self.metrics_variables
+                ):
+                    self._assign_variable_values(
+                        self.metrics_variables, path_value_dict
+                    )
             else:
                 raise ValueError(f"Unknown variable name: {k}")
 
@@ -842,9 +1244,9 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         def _flatten(current_dict, prefix=""):
             for key, value in current_dict.items():
                 if isinstance(value, dict):
-                    _flatten(value, prefix + key + "/")
+                    _flatten(value, f"{prefix}{key}/")
                 else:
-                    flat_dict[prefix + key] = value
+                    flat_dict[f"{prefix}{key}"] = value
 
         _flatten(nested_dict)
         return flat_dict

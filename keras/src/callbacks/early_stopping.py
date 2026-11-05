@@ -75,6 +75,8 @@ class EarlyStopping(MonitorCallback):
         start_from_epoch=0,
     ):
         super().__init__(monitor, mode, min_delta=min_delta)
+        if patience < 0:
+            raise ValueError(f"`patience` must be >= 0, got {patience}")
         self.patience = patience
         self.verbose = verbose
         self.baseline = baseline
@@ -85,9 +87,10 @@ class EarlyStopping(MonitorCallback):
         self.start_from_epoch = start_from_epoch
 
     def on_train_begin(self, logs=None):
-        # Allow instances to be re-used
+        # Allow instances to be re-used across `model.fit()` calls.
         self.wait = 0
         self.stopped_epoch = 0
+        self.best = None
         self.best_weights = None
         self.best_epoch = 0
 

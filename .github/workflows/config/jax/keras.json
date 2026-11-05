@@ -2,5 +2,6 @@
     "floatx": "float32",
     "epsilon": 1e-07,
     "backend": "jax",
-    "image_data_format": "channels_last"
+    "image_data_format": "channels_last",
+    "nnx_enabled": false
 }

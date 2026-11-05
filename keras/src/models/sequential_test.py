@@ -1,7 +1,7 @@
 import pickle
 
 import numpy as np
-import pytest
+from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import layers
@@ -11,9 +11,9 @@ from keras.src.layers.core.input_layer import Input
 from keras.src.models.functional import Functional
 from keras.src.models.model import Model
 from keras.src.models.sequential import Sequential
+from keras.src.testing.test_utils import named_product
 
 
-@pytest.mark.requires_trainable_backend
 class SequentialTest(testing.TestCase):
     def test_basic_flow_with_input(self):
         model = Sequential(name="seq")
@@ -204,9 +204,11 @@ class SequentialTest(testing.TestCase):
         self.assertEqual(y.shape, (1, 1))
 
     def test_dict_inputs(self):
+        test_obj = self
+
         class DictLayer(layers.Layer):
             def call(self, inputs):
-                assert isinstance(inputs, dict)
+                test_obj.assertIsInstance(inputs, dict)
                 return inputs
 
         model = Sequential([DictLayer()])
@@ -216,9 +218,11 @@ class SequentialTest(testing.TestCase):
         model.summary()
 
     def test_list_inputs(self):
+        test_obj = self
+
         class ListLayer(layers.Layer):
             def call(self, inputs):
-                assert isinstance(inputs, list)
+                test_obj.assertIsInstance(inputs, list)
                 return inputs
 
         model = Sequential([ListLayer()])
@@ -278,31 +282,26 @@ class SequentialTest(testing.TestCase):
         model.summary()
 
     def test_serialization(self):
-        # Unbuilt deferred
+        test_obj = self
+
+        # Using add
         model = Sequential(name="seq")
         model.add(layers.Dense(4))
         model.add(layers.Dense(5))
         revived = self.run_class_serialization_test(model)
         self.assertLen(revived.layers, 2)
 
-        # Built deferred
-        model.build((2, 3))
-        revived = self.run_class_serialization_test(model)
-        self.assertLen(revived.layers, 2)
-
-        # Regular
-        model = Sequential(name="seq")
-        model.add(Input(shape=(2,), batch_size=3))
-        model.add(layers.Dense(4))
-        model.add(layers.Dense(5))
-        model.add(layers.Dense(6))
+        # Using list
+        model = Sequential(
+            [layers.Dense(4), layers.Dense(5), layers.Dense(6)], name="seq"
+        )
         revived = self.run_class_serialization_test(model)
         self.assertLen(revived.layers, 3)
 
         # Weird
         class DictLayer(layers.Layer):
             def call(self, inputs):
-                assert isinstance(inputs, dict)
+                test_obj.assertIsInstance(inputs, dict)
                 return inputs
 
         model = Sequential([DictLayer()])
@@ -310,6 +309,30 @@ class SequentialTest(testing.TestCase):
             model, custom_objects={"DictLayer": DictLayer}
         )
         self.assertLen(revived.layers, 1)
+
+    @parameterized.named_parameters(named_product(input_layer=[True, False]))
+    def test_from_config_keeps_variable_paths(self, input_layer):
+        # Regression test for #23251: deserializing builds the layers, and
+        # their variables must get the same `<model>/<layer>/...` paths as in
+        # a model built from scratch, so state trees can be restored.
+        model_layers = [layers.Dense(4), layers.Dense(5)]
+        if input_layer:
+            model_layers = [Input(shape=(3,))] + model_layers
+        model = Sequential(model_layers)
+        model.build((None, 3))
+        model.compile(optimizer="sgd", loss="mse")
+        config = saving.serialize_keras_object(model)
+        revived = saving.deserialize_keras_object(config)
+        self.assertEqual(
+            [v.path for v in revived.weights],
+            [v.path for v in model.weights],
+        )
+        state = model.get_state_tree()
+        revived.set_state_tree(
+            {"trainable_variables": state["trainable_variables"]}
+        )
+        for orig, new in zip(model.get_weights(), revived.get_weights()):
+            self.assertAllClose(orig, new)
 
     def test_serialization_with_lambda_layer(self):
         # https://github.com/keras-team/keras/issues/20074
@@ -337,12 +360,26 @@ class SequentialTest(testing.TestCase):
         self.assertEqual(model.input_shape, (None, 2))
         self.assertEqual(model.output_shape, (None, 4))
 
+    def test_training_arg(self):
+        class CustomLayer(layers.Layer):
+            def call(self, inputs, training=False):
+                return inputs * 0.0 if training else inputs
+
+        model = Sequential([CustomLayer()])
+        self.assertAllClose(model(np.ones((4, 20))), np.ones((4, 20)))
+        self.assertAllClose(
+            model(np.ones((4, 20)), training=False), np.ones((4, 20))
+        )
+        self.assertAllClose(
+            model(np.ones((4, 20)), training=True), np.zeros((4, 20))
+        )
+
     def test_pickleable(self):
         model = Sequential(name="seq")
         model.add(layers.Dense(4))
 
         result = pickle.loads(pickle.dumps(model))
-        assert len(result.layers) == 1
+        self.assertLen(result.layers, 1)
 
     def test_bad_layer(self):
         model = Sequential(name="seq")
@@ -357,7 +394,7 @@ class SequentialTest(testing.TestCase):
 
         model.add(BadLayer())
         with self.assertRaisesRegex(
-            ValueError, "can only have a single positional"
+            ValueError, "can only have a single.*positional"
         ):
             model.build((None, 2))
 

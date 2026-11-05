@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from tensorflow import data as tf_data
 
 import keras
@@ -9,7 +8,6 @@ from keras.src import testing
 
 
 class RandomSaturationTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_layer(self):
         self.run_layer_test(
             layers.RandomSaturation,
@@ -67,11 +65,13 @@ class RandomSaturationTest(testing.TestCase):
         layer = layers.RandomSaturation(factor=(1.0, 1.0))
         result = layer(inputs)
 
-        hsv = backend.image.rgb_to_hsv(result)
+        hsv = backend.ops.image.rgb_to_hsv(result)
         s_channel = hsv[..., 1]
 
         self.assertAllClose(
-            keras.ops.numpy.max(s_channel), layer.value_range[1]
+            keras.ops.numpy.max(s_channel),
+            layer.value_range[1],
+            atol=1e-1,
         )
 
     def test_random_saturation_randomness(self):

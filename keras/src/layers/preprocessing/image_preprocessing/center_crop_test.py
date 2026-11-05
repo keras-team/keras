@@ -1,10 +1,10 @@
 import numpy as np
-import pytest
 from absl.testing import parameterized
 from tensorflow import data as tf_data
 
 from keras.src import backend
 from keras.src import layers
+from keras.src import models
 from keras.src import testing
 
 
@@ -32,7 +32,6 @@ class CenterCropTest(testing.TestCase):
                 ..., h_start : h_start + h_new, w_start : w_start + w_new
             ]
 
-    @pytest.mark.requires_trainable_backend
     def test_center_crop_basics(self):
         self.run_layer_test(
             layers.CenterCrop,
@@ -93,7 +92,7 @@ class CenterCropTest(testing.TestCase):
             )
         else:
             ref_out = self.np_center_crop(img, size[0], size[1])
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(out, ref_out)
 
         # unbatched case
         if data_format == "channels_first":
@@ -121,7 +120,7 @@ class CenterCropTest(testing.TestCase):
                 size[0],
                 size[1],
             )
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(out, ref_out)
 
     @parameterized.parameters(
         [
@@ -144,7 +143,7 @@ class CenterCropTest(testing.TestCase):
         ref_out = layers.Resizing(
             size[0], size[1], data_format=data_format, crop_to_aspect_ratio=True
         )(img)
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(out, ref_out)
 
         # unbatched case
         if data_format == "channels_first":
@@ -159,7 +158,7 @@ class CenterCropTest(testing.TestCase):
         ref_out = layers.Resizing(
             size[0], size[1], data_format=data_format, crop_to_aspect_ratio=True
         )(img)
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(out, ref_out)
 
     def test_tf_data_compatibility(self):
         if backend.config.image_data_format() == "channels_last":
@@ -208,7 +207,7 @@ class CenterCropTest(testing.TestCase):
         ref_out = layers.Resizing(
             size[0], size[1], data_format=data_format, crop_to_aspect_ratio=True
         )(img)
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(out, ref_out)
 
     @parameterized.named_parameters(
         (
@@ -294,3 +293,33 @@ class CenterCropTest(testing.TestCase):
         output = next(iter(ds))
         expected_boxes = np.array(expected_boxes)
         self.assertAllClose(output["bounding_boxes"]["boxes"], expected_boxes)
+
+    def test_dynamic_spatial_dims(self):
+        if backend.config.image_data_format() == "channels_last":
+            large_input = (2, 25, 30, 3)
+            small_input = (2, 6, 7, 3)
+        else:
+            large_input = (2, 3, 25, 30)
+            small_input = (2, 3, 6, 7)
+
+        model = models.Sequential([layers.CenterCrop(10, 12)])
+
+        def generator():
+            yield (np.random.random(large_input).astype("float32"),)
+            yield (np.random.random(small_input).astype("float32"),)
+
+        model.predict(generator())
+
+    def test_segmentation_mask_preserves_dtype_and_classes(self):
+        # Masks hold discrete class indices; the resize fallback must use
+        # nearest-neighbor interpolation so no new classes appear, and the
+        # integer dtype must be preserved. See keras-team/keras#20857.
+        images = np.random.random((2, 8, 8, 3)).astype("float32")
+        masks = np.zeros((2, 8, 8, 1), dtype="uint8")
+        masks[:, :4] = 4  # only classes {0, 4}
+        # Target larger than input forces the resize path.
+        layer = layers.CenterCrop(16, 16)
+        out = layer({"images": images, "segmentation_masks": masks})
+        result = backend.ops.convert_to_numpy(out["segmentation_masks"])
+        self.assertEqual(result.dtype, np.uint8)
+        self.assertTrue(set(np.unique(result).tolist()).issubset({0, 4}))
