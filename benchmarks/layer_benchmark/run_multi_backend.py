@@ -17,9 +17,10 @@ def run_backend(backend, module, flags):
         cmd, env=env, stdout=subprocess.PIPE, text=True
     ) as proc:
         for line in proc.stdout:
-            print(line, end="")
             if _RESULT_PREFIX in line:
                 results.append(json.loads(line.split(_RESULT_PREFIX, 1)[1]))
+            else:
+                print(line, end="")
     return proc.returncode == 0, results
 
 
@@ -53,6 +54,7 @@ def main():
         default="jax,torch,tensorflow",
         help="Comma separated backends to run. Defaults to %(default)s.",
     )
+    parser.add_argument("--output_file", help="Write all results as JSON.")
     parser.add_argument(
         "module",
         help="Benchmark module to run, like "
@@ -71,6 +73,10 @@ def main():
             failed.append(backend)
 
     print_table(backends, results)
+    if args.output_file:
+        records = [r for b in backends for r in results[b]]
+        with open(args.output_file, "w") as f:
+            json.dump(records, f, indent=2)
     if failed:
         sys.exit(f"Failed backends: {', '.join(failed)}")
 
