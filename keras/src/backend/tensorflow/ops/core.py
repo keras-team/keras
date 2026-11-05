@@ -1,8 +1,8 @@
 import builtins
+import sys
 
 import numpy as np
 import tensorflow as tf
-from tensorflow import print  # noqa
 from tensorflow.compiler.tf2xla.python.xla import dynamic_update_slice
 
 from keras.src import tree
@@ -918,3 +918,12 @@ def grad(f, argnums=0):
         return tuple(grads)
 
     return grad_fn
+
+
+def print(*args, sep=" ", end="\n", file=None, flush=False):
+    return tf.print(
+        *args,
+        sep=sep,
+        end=end,
+        output_stream=sys.stdout if file is None else file,
+    )

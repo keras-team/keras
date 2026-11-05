@@ -1352,7 +1352,33 @@ def custom_gradient(f):
 
 
 @keras_export("keras.ops.print")
-def print(*args, **kwargs):
-    """Backend-specialised print function, oft handles tensors and
-    other backend-specific types."""
-    return backend.ops.core.print(*args, **kwargs)
+def print(*args, sep=" ", end="\n", file=None, flush=False):
+    """Print values or tensors to a stream, or to `sys.stdout` by default.
+
+    Note that you cannot use Python f-strings or `.format()` with symbolic or
+    traced tensors; pass strings and tensors as separate positional arguments
+    instead.
+
+    Args:
+        *args: Positional arguments (strings, scalars, tensors, or nested
+            structures) to print.
+        sep: String inserted between values, defaults to `" "`.
+        end: String appended after the last value, defaults to `"\n"`.
+        file: A file-like object (stream); defaults to `None`, which prints to
+            `sys.stdout`. On the TensorFlow backend, this is mapped to
+            `tf.print`'s `output_stream` argument (supporting `sys.stdout`,
+            `sys.stderr`, or `"file://<filepath>"`).
+        flush: Boolean, whether to forcibly flush the stream. Defaults to
+            `False`. Ignored on the TensorFlow backend.
+
+    Example:
+
+    ```python
+    x = keras.ops.array([1.0, 2.0])
+    y = keras.ops.array([3.0, 4.0])
+    keras.ops.print("x:", x, "y:", y)
+    ```
+    """
+    return backend.ops.core.print(
+        *args, sep=sep, end=end, file=file, flush=flush
+    )

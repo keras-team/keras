@@ -2254,3 +2254,101 @@ class CoreOpsGradUnsupportedTest(testing.TestCase):
     def test_grad_raises(self):
         with self.assertRaisesRegex(NotImplementedError, "not supported"):
             ops.grad(lambda x: x)(ops.array([1.0]))
+
+
+class CoreOpsPrintTest(testing.TestCase):
+    @pytest.fixture(autouse=True)
+    def _inject_capfd(self, capfd):
+        self.capfd = capfd
+
+    def test_print_basic_and_sep_end(self):
+        x = ops.array([1, 2])
+        y = ops.array([3, 4])
+        ops.print("x:", x, "y:", y)
+        out, _ = self.capfd.readouterr()
+        self.assertIn("x:", out)
+        self.assertIn("y:", out)
+        self.assertIn("1", out)
+        self.assertIn("2", out)
+        self.assertIn("3", out)
+        self.assertIn("4", out)
+
+        ops.print("hello", "world", sep=", ", end="!\n")
+        out, _ = self.capfd.readouterr()
+        self.assertEqual(out, "hello, world!\n")
+
+    def test_print_file_and_flush(self):
+        import io
+        import os
+        import sys
+
+        x = ops.array([1, 2])
+        if backend.backend() == "tensorflow":
+            ops.print("stderr_msg:", x, file=sys.stderr, flush=True)
+            _, err = self.capfd.readouterr()
+            self.assertIn("stderr_msg:", err)
+
+            file_path = os.path.join(self.get_temp_dir(), "tf_print_out.txt")
+            ops.print("file_msg:", x, file=f"file://{file_path}")
+            with open(file_path, "r") as f:
+                content = f.read()
+            self.assertIn("file_msg:", content)
+        else:
+            stream = io.StringIO()
+            ops.print(
+                "stream_msg:", x, sep="-", end="!\n", file=stream, flush=True
+            )
+            content = stream.getvalue()
+            self.assertTrue(content.startswith("stream_msg:-"))
+            self.assertTrue(content.endswith("!\n"))
+
+    def test_print_does_not_mutate_global_printoptions(self):
+        x = ops.array([1, 2, 3])
+        if backend.backend() == "numpy":
+            prev_threshold = np.get_printoptions()["threshold"]
+            try:
+                np.set_printoptions(threshold=100)
+                ops.print(x)
+                self.capfd.readouterr()
+                self.assertEqual(np.get_printoptions()["threshold"], 100)
+            finally:
+                np.set_printoptions(threshold=prev_threshold)
+        elif backend.backend() == "torch":
+            import torch
+
+            prev_threshold = torch._tensor_str.PRINT_OPTS.threshold
+            try:
+                torch.set_printoptions(threshold=100)
+                ops.print(x)
+                self.capfd.readouterr()
+                self.assertEqual(torch._tensor_str.PRINT_OPTS.threshold, 100)
+            finally:
+                torch.set_printoptions(threshold=prev_threshold)
+
+    def test_print_in_compiled_function(self):
+        x = ops.array([10, 20])
+        if backend.backend() == "jax":
+            import jax
+
+            @jax.jit
+            def compiled_fn(t):
+                ops.print("jax_jit:", t)
+                return t + 1
+
+            res = compiled_fn(x)
+            jax.block_until_ready(res)
+            out, _ = self.capfd.readouterr()
+            self.assertIn("jax_jit:", out)
+            self.assertIn("10", out)
+        elif backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            @tf.function
+            def compiled_fn(t):
+                ops.print("tf_fn:", t)
+                return t + 1
+
+            compiled_fn(x)
+            out, _ = self.capfd.readouterr()
+            self.assertIn("tf_fn:", out)
+            self.assertIn("10", out)

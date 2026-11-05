@@ -16,9 +16,6 @@ from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 
 
-_print = print
-
-
 class Variable(KerasVariable):
     def _initialize(self, value):
         self._value = value
@@ -499,8 +496,5 @@ def grad(f, argnums=0):
     raise NotImplementedError("`grad` is not supported with the numpy backend.")
 
 
-def print(*args, print_options=None, **kwargs):
-    np.set_printoptions(
-        **{"threshold": 1000} if print_options is None else print_options
-    )
-    return _print(*args, **kwargs)
+def print(*args, sep=" ", end="\n", file=None, flush=False):
+    return builtins.print(*args, sep=sep, end=end, file=file, flush=flush)

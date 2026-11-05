@@ -52,8 +52,6 @@ def deactivate_dtensor_promotion():
         mode.__exit__(None, None, None)
 
 
-_print = print
-
 # Some operators such as 'aten::_foreach_mul_.Scalar'
 # are not currently implemented for the MPS device.
 # check https://github.com/pytorch/pytorch/issues/77764.
@@ -1099,8 +1097,5 @@ def grad(f, argnums=0):
     return grad_fn
 
 
-def print(*args, print_options=None, **kwargs):
-    torch.set_printoptions(
-        **{"threshold": 1000} if print_options is None else print_options
-    )
-    return _print(*args, **kwargs)
+def print(*args, sep=" ", end="\n", file=None, flush=False):
+    return builtins.print(*args, sep=sep, end=end, file=file, flush=flush)

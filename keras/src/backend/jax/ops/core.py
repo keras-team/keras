@@ -1,7 +1,7 @@
+import builtins
 import contextlib
 import inspect
 import math as python_math
-from jax.debug import print  # noqa
 
 import jax
 import jax.experimental.sparse as jax_sparse
@@ -768,3 +768,25 @@ def grad(f, argnums=0):
         return jax.grad(scalar_f, argnums=jax_argnums)(*args, **kwargs)
 
     return grad_fn
+
+
+def print(*args, sep=" ", end="\n", file=None, flush=False):
+    flat_args = tree.flatten(args)
+    jax_args = []
+    static_args = {}
+    for i, arg in enumerate(flat_args):
+        if is_tensor(arg):
+            jax_args.append(arg)
+        else:
+            static_args[i] = arg
+
+    def _callback(*traced_args):
+        traced_iter = iter(traced_args)
+        resolved_flat = [
+            static_args[i] if i in static_args else next(traced_iter)
+            for i in range(len(flat_args))
+        ]
+        resolved_args = tree.pack_sequence_as(args, resolved_flat)
+        builtins.print(*resolved_args, sep=sep, end=end, file=file, flush=flush)
+
+    return jax.debug.callback(_callback, *jax_args)
