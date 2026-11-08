@@ -1163,6 +1163,19 @@ class CategoricalCrossentropyTest(testing.TestCase):
             losses.CategoricalCrossentropy(name="cce", axis=-1)
         )
 
+    def test_neg_inf_non_target_logits(self):
+        y_true = np.array([[1.0, 0.0, 0.0], [0.0, 0.9, 0.1]])
+        logits = np.array(
+            [[2.0, 1.0, -np.inf], [-np.inf, 0.5, 0.0]], dtype="float32"
+        )
+        loss = losses.categorical_crossentropy(y_true, logits, from_logits=True)
+        log_norm = np.log(np.exp(0.5) + 1.0)
+        expected = [
+            np.log(np.exp(2.0) + np.exp(1.0)) - 2.0,
+            0.9 * (log_norm - 0.5) + 0.1 * log_norm,
+        ]
+        self.assertAllClose(loss, expected, atol=1e-5)
+
     def test_all_correct_unweighted(self):
         y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype="int64")
         y_pred = np.array(

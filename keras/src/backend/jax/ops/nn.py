@@ -1000,6 +1000,8 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
 
     if from_logits:
         log_prob = jax.nn.log_softmax(output, axis=axis)
+        # A `-inf` logit gives `-inf` here, and `0 * -inf` is NaN.
+        log_prob = jnp.where(target != 0, log_prob, 0.0)
     else:
         output = output / jnp.sum(output, axis, keepdims=True)
         output = jnp.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
