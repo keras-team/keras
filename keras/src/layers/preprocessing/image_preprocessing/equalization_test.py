@@ -1,10 +1,10 @@
 import numpy as np
 from absl.testing import parameterized
-from tensorflow import data as tf_data
 
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 class EqualizationTest(testing.TestCase):
@@ -133,7 +133,7 @@ class EqualizationTest(testing.TestCase):
         layer = layers.Equalization(value_range=(0, 255))
         rng = np.random.default_rng(seed=42)
         input_data = rng.random((2, 8, 8, 3)) * 255
-        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
+        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
             output_array = output.numpy()
             self.assertAllInRange(output_array, 0, 255)
