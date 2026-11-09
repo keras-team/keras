@@ -5,10 +5,8 @@ import sys
 
 import numpy as np
 import pytest
-import tensorflow.summary as summary
-from tensorflow.compat.v1 import SummaryMetadata
-from tensorflow.core.util import event_pb2
-from tensorflow.python.lib.io import tf_record
+from tensorboard.backend.event_processing import event_file_loader
+from tensorboard.compat.proto import event_pb2
 
 from keras.src import backend
 from keras.src import callbacks
@@ -19,8 +17,7 @@ from keras.src import ops
 from keras.src import optimizers
 from keras.src import testing
 from keras.src.optimizers import schedules
-
-# Note: this file and tensorboard in general has a dependency on tensorflow
+from keras.src.utils.module_utils import tensorflow as tf
 
 # A summary that was emitted during a test. Fields:
 #   logdir: str. The logdir of the FileWriter to which the summary was
@@ -33,13 +30,15 @@ class _SummaryIterator:
     """Yields `Event` protocol buffers from a given path."""
 
     def __init__(self, path):
-        self._tf_record_iterator = tf_record.tf_record_iterator(path)
+        self._record_iterator = event_file_loader.RawEventFileLoader(
+            path
+        ).Load()
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        r = next(self._tf_record_iterator)
+        r = next(self._record_iterator)
         return event_pb2.Event.FromString(r)
 
     next = __next__
@@ -456,10 +455,10 @@ class TestTensorBoardV2(testing.TestCase):
         def scalar_v2_mock(name, data, step=None):
             """A reimplementation of the scalar plugin to avoid circular
             deps."""
-            metadata = SummaryMetadata()
+            metadata = tf.compat.v1.SummaryMetadata()
             # Should match value in tensorboard/plugins/scalar/metadata.py.
             metadata.plugin_data.plugin_name = "scalars"
-            with summary.experimental.summary_scope(
+            with tf.summary.experimental.summary_scope(
                 name, "scalar_summary", values=[data, step]
             ) as (tag, _):
                 tensor = backend.ops.convert_to_tensor(data, dtype="float32")
@@ -467,7 +466,7 @@ class TestTensorBoardV2(testing.TestCase):
                     # TODO: Use device scope after the API is added.
                     if tensor.is_cuda:
                         tensor = tensor.cpu()
-                summary.write(
+                tf.summary.write(
                     tag=tag,
                     tensor=tensor,
                     step=step,
