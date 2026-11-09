@@ -1,10 +1,10 @@
 import numpy as np
 from absl.testing import parameterized
-from tensorflow import data as tf_data
 
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 class RandomPerspectiveTest(testing.TestCase):
@@ -89,7 +89,7 @@ class RandomPerspectiveTest(testing.TestCase):
             input_data = np.random.random((2, 3, 8, 8))
         layer = layers.RandomPerspective(data_format=data_format)
 
-        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
+        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
             output.numpy()
 
@@ -240,7 +240,7 @@ class RandomPerspectiveTest(testing.TestCase):
 
         input_data = {"images": input_image, "bounding_boxes": bounding_boxes}
 
-        ds = tf_data.Dataset.from_tensor_slices(input_data)
+        ds = tf.data.Dataset.from_tensor_slices(input_data)
         layer = layers.RandomPerspective(
             data_format=data_format,
             seed=42,

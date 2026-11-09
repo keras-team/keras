@@ -1,13 +1,13 @@
 import numpy as np
 import pytest
 import scipy.signal
-import tensorflow as tf
 
 from keras import Input
 from keras import Sequential
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 class TestSpectrogram(testing.TestCase):
