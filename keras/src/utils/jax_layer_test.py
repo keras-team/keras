@@ -5,7 +5,6 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
-import tensorflow as tf
 from absl.testing import parameterized
 
 from keras.src import backend
@@ -22,6 +21,7 @@ from keras.src.dtype_policies.dtype_policy import DTypePolicy
 from keras.src.saving import object_registration
 from keras.src.utils.jax_layer import FlaxLayer
 from keras.src.utils.jax_layer import JaxLayer
+from keras.src.utils.module_utils import tensorflow as tf
 
 try:
     import flax

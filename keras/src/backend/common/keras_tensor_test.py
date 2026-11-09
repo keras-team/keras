@@ -2,12 +2,12 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 import numpy as np
-import tensorflow as tf
 
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
 from keras.src.backend.common import keras_tensor
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 class KerasTensorTest(testing.TestCase):

@@ -3,7 +3,6 @@ import jax.experimental.sparse as jax_sparse
 import numpy as np
 import pytest
 import scipy
-import tensorflow as tf
 import torch
 from absl.testing import parameterized
 
@@ -13,6 +12,7 @@ from keras.src.distribution import distribution_lib as dist_lib
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import array_data_adapter
 from keras.src.trainers.data_adapters import data_adapter_test_base
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 class TestArrayDataAdapter(data_adapter_test_base.DataAdapterTest):
