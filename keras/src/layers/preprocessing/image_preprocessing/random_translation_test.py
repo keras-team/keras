@@ -1,11 +1,11 @@
 import numpy as np
 from absl.testing import parameterized
-from tensorflow import data as tf_data
 
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
 from keras.src.utils import backend_utils
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 class RandomTranslationTest(testing.TestCase):
@@ -327,7 +327,7 @@ class RandomTranslationTest(testing.TestCase):
     def test_tf_data_compatibility(self):
         layer = layers.RandomTranslation(0.2, 0.1)
         input_data = np.random.random((1, 4, 4, 3))
-        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(1).map(layer)
+        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(1).map(layer)
         next(iter(ds)).numpy()
 
     @parameterized.named_parameters(
@@ -416,7 +416,7 @@ class RandomTranslationTest(testing.TestCase):
 
         input_data = {"images": input_image, "bounding_boxes": bounding_boxes}
 
-        ds = tf_data.Dataset.from_tensor_slices(input_data)
+        ds = tf.data.Dataset.from_tensor_slices(input_data)
         random_translation_layer = layers.RandomTranslation(
             height_factor=0.5,
             width_factor=0.5,

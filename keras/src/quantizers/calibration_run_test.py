@@ -499,9 +499,8 @@ class CalibrationRunTest(testing.TestCase):
             )
             for _ in range(2)
         ]
-        kwargs = {} if mode == "awq" else {"calibration_batch_size": 2}
         embedding, config = _blocks_config(
-            mode, blocks, num_samples=3, **kwargs
+            mode, blocks, num_samples=3, calibration_batch_size=2
         )
         inputs = layers.Input((config.sequence_length,), dtype="int32")
         x = embedding(inputs)
@@ -516,7 +515,7 @@ class CalibrationRunTest(testing.TestCase):
         strategy = strategy_registry.get_strategy(mode)
         structure = config.quantization_layer_structure
         run = CalibrationRun(strategy, config, structure)
-        self.assertEqual(run.batch_size, 2 if mode == "gptq" else 1)
+        self.assertEqual(run.batch_size, 2)
         self.assertEqual(len(run.dataloader), 3)
         with _spy_on_observe(mode) as observe:
             run.run()
@@ -624,14 +623,14 @@ class CalibrationRunModelTest(testing.TestCase):
         """The chained Dense layers form two stages. Each stage observes
         one sweep over the batches, the second after the first is
         quantized."""
-        batch_size = 3 if mode == "gptq" else 1
-        kwargs = {"calibration_batch_size": 3} if mode == "gptq" else {}
-        model, config = _tiny_model(mode, num_samples=4, **kwargs)
+        model, config = _tiny_model(
+            mode, num_samples=4, calibration_batch_size=3
+        )
         block = config.quantization_layer_structure["sequential_blocks"][0]
         with _spy_on_observe(mode) as observe:
             model.quantize(mode, config=config)
         observed = [call.args[0].layer for call in observe.call_args_list]
-        sweep = math.ceil(4 / batch_size)
+        sweep = math.ceil(4 / 3)
         self.assertEqual(
             observed, [block.layers[0]] * sweep + [block.layers[1]] * sweep
         )
@@ -678,14 +677,13 @@ class CalibrationRunModelTest(testing.TestCase):
         second = models.Sequential(
             [layers.Reshape((seq_len, embed_dim)), layers.Dense(embed_dim)]
         )
-        kwargs = {} if mode == "awq" else {"calibration_batch_size": 4}
         embedding, config = _blocks_config(
             mode,
             [first, second],
             num_samples=6,
             embed_dim=embed_dim,
+            calibration_batch_size=4,
             sequence_length=seq_len,
-            **kwargs,
         )
         inputs = layers.Input((seq_len,), dtype="int32")
         model = models.Model(inputs, second(first(embedding(inputs))))

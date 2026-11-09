@@ -1,0 +1,413 @@
+keras/src/backend/jax/jax_multi_process_distribution_test.py
+keras/src/backend/tensorflow/distribute_test.py
+keras/src/backend/tensorflow/name_scope_test.py
+keras/src/backend/tensorflow/optimizer_distribute_test.py
+keras/src/backend/tensorflow/saved_model_test.py
+keras/src/backend/torch/torch_multi_process_distribution_test.py
+keras/src/callbacks/swap_ema_weights_test.py
+keras/src/callbacks/tensorboard_test.py
+keras/src/distribution/distribution_lib_test.py
+keras/src/export/litert_torch_test.py
+keras/src/export/saved_model_test.py
+keras/src/export/tfsm_layer_test.py
+keras/src/layers/preprocessing/discretization_test.py
+keras/src/layers/preprocessing/feature_space_test.py
+keras/src/layers/preprocessing/hashed_crossing_test.py
+keras/src/layers/preprocessing/hashing_test.py
+keras/src/layers/preprocessing/image_preprocessing/bounding_boxes/validation_test.py
+keras/src/layers/preprocessing/image_preprocessing/rand_augment_test.py
+keras/src/layers/preprocessing/index_lookup_test.py
+keras/src/layers/preprocessing/integer_lookup_test.py
+keras/src/layers/preprocessing/normalization_test.py
+keras/src/layers/preprocessing/string_lookup_test.py
+keras/src/layers/preprocessing/text_vectorization_test.py
+keras/src/trainers/data_adapters/tf_dataset_adapter_test.py
+
+keras/src/backend/common/keras_tensor_test.py::KerasTensorTest::test_invalid_usage
+keras/src/callbacks/orbax_checkpoint_test.py::OrbaxCheckpointTest::test_checkpoint_with_assets0
+keras/src/callbacks/orbax_checkpoint_test.py::OrbaxCheckpointTest::test_checkpoint_with_assets1
+keras/src/export/openvino_test.py::ExportOpenVINOTest::test_model_with_input_structure_array
+keras/src/export/openvino_test.py::ExportOpenVINOTest::test_model_with_input_structure_dict
+keras/src/export/openvino_test.py::ExportOpenVINOTest::test_model_with_input_structure_tuple
+keras/src/export/openvino_test.py::ExportOpenVINOTest::test_model_with_multiple_inputs
+keras/src/export/openvino_test.py::ExportOpenVINOTest::test_standard_model_export_functional
+keras/src/export/openvino_test.py::ExportOpenVINOTest::test_standard_model_export_sequential
+keras/src/export/openvino_test.py::ExportOpenVINOTest::test_standard_model_export_subclass
+keras/src/layers/core/dense_test.py::DenseTest::test_dense_sparse
+keras/src/layers/preprocessing/category_encoding_test.py::CategoryEncodingTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/data_layer_test.py::DataLayerTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/aug_mix_test.py::AugMixTest::test_graph_issue
+keras/src/layers/preprocessing/image_preprocessing/aug_mix_test.py::AugMixTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/center_crop_test.py::CenterCropTest::test_center_crop_tf_data_bounding_boxes_normal
+keras/src/layers/preprocessing/image_preprocessing/center_crop_test.py::CenterCropTest::test_center_crop_tf_data_bounding_boxes_with_stretch
+keras/src/layers/preprocessing/image_preprocessing/center_crop_test.py::CenterCropTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/clahe_test.py::ContrastLimitedAdaptiveHistogramEqualizationTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/cut_mix_test.py::CutMixTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/equalization_test.py::EqualizationTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/max_num_bounding_box_test.py::MaxNumBoundingBoxesTest::test_output_shapes_with_tf_data
+keras/src/layers/preprocessing/image_preprocessing/mix_up_test.py::MixUpTest::test_mix_up_tf_data_bounding_boxes
+keras/src/layers/preprocessing/image_preprocessing/mix_up_test.py::MixUpTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/random_brightness_test.py::RandomBrightnessTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/random_color_degeneration_test.py::RandomColorDegenerationTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/random_color_jitter_test.py::RandomColorJitterTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/random_contrast_test.py::RandomContrastTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/random_crop_test.py::RandomCropTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/random_elastic_transform_test.py::RandomElasticTransformTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/random_erasing_test.py::RandomErasingTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/random_flip_test.py::RandomFlipTest::test_random_flip_tf_data_bounding_boxes_with_horizontal
+keras/src/layers/preprocessing/image_preprocessing/random_flip_test.py::RandomFlipTest::test_random_flip_tf_data_bounding_boxes_with_horizontal_and_vertical
+keras/src/layers/preprocessing/image_preprocessing/random_flip_test.py::RandomFlipTest::test_random_flip_tf_data_bounding_boxes_with_vertical
+keras/src/layers/preprocessing/image_preprocessing/random_flip_test.py::RandomFlipTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/random_gaussian_blur_test.py::RandomGaussianBlurTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/random_grayscale_test.py::RandomGrayscaleTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/random_hue_test.py::RandomHueTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/random_invert_test.py::RandomInvertTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/random_perspective_test.py::RandomPerspectiveTest::test_random_flip_tf_data_bounding_boxes_with_large_scale
+keras/src/layers/preprocessing/image_preprocessing/random_perspective_test.py::RandomPerspectiveTest::test_random_flip_tf_data_bounding_boxes_with_small_scale
+keras/src/layers/preprocessing/image_preprocessing/random_perspective_test.py::RandomPerspectiveTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/random_posterization_test.py::RandomPosterizationTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/random_rotation_test.py::RandomRotationTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/random_saturation_test.py::RandomSaturationTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/random_sharpness_test.py::RandomSharpnessTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/random_shear_test.py::RandomShearTest::test_random_shear_tf_data_bounding_boxes_with_x_shift
+keras/src/layers/preprocessing/image_preprocessing/random_shear_test.py::RandomShearTest::test_random_shear_tf_data_bounding_boxes_with_xy_shift
+keras/src/layers/preprocessing/image_preprocessing/random_shear_test.py::RandomShearTest::test_random_shear_tf_data_bounding_boxes_with_y_shift
+keras/src/layers/preprocessing/image_preprocessing/random_shear_test.py::RandomShearTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/random_translation_test.py::RandomTranslationTest::test_random_flip_tf_data_bounding_boxes_with_negative_shift
+keras/src/layers/preprocessing/image_preprocessing/random_translation_test.py::RandomTranslationTest::test_random_flip_tf_data_bounding_boxes_with_positive_shift
+keras/src/layers/preprocessing/image_preprocessing/random_translation_test.py::RandomTranslationTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/random_zoom_test.py::RandomZoomTest::test_random_flip_tf_data_bounding_boxes_with_zoom_in
+keras/src/layers/preprocessing/image_preprocessing/random_zoom_test.py::RandomZoomTest::test_random_flip_tf_data_bounding_boxes_with_zoom_out
+keras/src/layers/preprocessing/image_preprocessing/random_zoom_test.py::RandomZoomTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/image_preprocessing/resizing_test.py::ResizingTest::test_resize_tf_data_bounding_boxes_boxes_stretch
+keras/src/layers/preprocessing/image_preprocessing/resizing_test.py::ResizingTest::test_resize_tf_data_bounding_boxes_with_crop_to_aspect_ratio
+keras/src/layers/preprocessing/image_preprocessing/resizing_test.py::ResizingTest::test_resize_tf_data_bounding_boxes_with_pad_to_aspect_ratio
+keras/src/layers/preprocessing/image_preprocessing/resizing_test.py::ResizingTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/mel_spectrogram_test.py::MelSpectrogramTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/pipeline_test.py::PipelineTest::test_tf_data_compatibility
+keras/src/layers/preprocessing/rescaling_test.py::RescalingTest::test_tf_data_compatibility
+keras/src/ops/core_test.py::CoreOpsCorrectnessTest::test_shape_ragged
+keras/src/ops/image_test.py::ExtractPatches3DTest::test_ssim_vs_tensorflow
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_crop_images0
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_crop_images1
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_crop_images2
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_crop_images3
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_crop_images4
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_crop_images5
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_crop_images6
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_crop_images7
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(3, 3)_(1, 1)_1_same
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(3, 3)_(1, 1)_1_valid
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(3, 3)_(1, 1)_3_same
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(3, 3)_(1, 1)_3_valid
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(3, 3)_(2, 2)_1_same
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(3, 3)_(2, 2)_1_valid
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(3, 3)_(2, 2)_3_same
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(3, 3)_(2, 2)_3_valid
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(3, 3)_none_1_same
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(3, 3)_none_1_valid
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(3, 3)_none_3_same
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(3, 3)_none_3_valid
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(5, 5)_(1, 1)_1_same
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(5, 5)_(1, 1)_1_valid
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(5, 5)_(1, 1)_3_same
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(5, 5)_(1, 1)_3_valid
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(5, 5)_(2, 2)_1_same
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(5, 5)_(2, 2)_1_valid
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(5, 5)_(2, 2)_3_same
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(5, 5)_(2, 2)_3_valid
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(5, 5)_none_1_same
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(5, 5)_none_1_valid
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(5, 5)_none_3_same
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_extract_patches_(5, 5)_none_3_valid
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_hsv_to_rgb
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_map_coordinates_constant_padding
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_pad_images0
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_pad_images1
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_pad_images2
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_pad_images3
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_pad_images4
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_pad_images5
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_pad_images6
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_pad_images7
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bicubic_false_crop
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bicubic_false_none
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bicubic_false_pad
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bicubic_true_crop
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bicubic_true_none
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bicubic_true_pad
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bilinear_false_crop
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bilinear_false_none
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bilinear_false_pad
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bilinear_true_crop
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bilinear_true_none
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_bilinear_true_pad
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bicubic_false_float64
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bicubic_false_int16
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bicubic_false_int8
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bicubic_false_uint8
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bicubic_true_float64
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bicubic_true_int16
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bicubic_true_int8
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bicubic_true_uint8
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bilinear_false_float64
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bilinear_false_int16
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bilinear_false_int8
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bilinear_false_uint8
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bilinear_true_float64
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bilinear_true_int16
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bilinear_true_int8
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_bilinear_true_uint8
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_lanczos3_false_float64
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_lanczos3_false_int16
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_lanczos3_false_int8
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_lanczos3_false_uint8
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_lanczos3_true_float64
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_lanczos3_true_int16
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_lanczos3_true_int8
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_lanczos3_true_uint8
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_lanczos5_false_float64
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_lanczos5_false_int16
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_lanczos5_false_int8
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_lanczos5_false_uint8
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_lanczos5_true_float64
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_lanczos5_true_int16
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_lanczos5_true_int8
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_lanczos5_true_uint8
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_nearest_false_float64
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_nearest_false_int16
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_nearest_false_int8
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_nearest_false_uint8
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_nearest_true_float64
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_nearest_true_int16
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_nearest_true_int8
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_dtype_nearest_true_uint8
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_lanczos3_false_crop
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_lanczos3_false_none
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_lanczos3_false_pad
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_lanczos3_true_crop
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_lanczos3_true_none
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_lanczos3_true_pad
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_lanczos5_false_crop
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_lanczos5_false_none
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_lanczos5_false_pad
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_lanczos5_true_crop
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_lanczos5_true_none
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_lanczos5_true_pad
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_nearest_false_crop
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_nearest_false_none
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_nearest_false_pad
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_nearest_true_crop
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_nearest_true_none
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_resize_nearest_true_pad
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_rgb_to_grayscale
+keras/src/ops/image_test.py::ImageOpsCorrectnessTest::test_rgb_to_hsv
+keras/src/ops/image_test.py::ImageOpsStaticShapeTest::test_map_coordinates_float32
+keras/src/ops/image_test.py::ImageOpsStaticShapeTest::test_map_coordinates_manual_cast
+keras/src/ops/image_test.py::ImageOpsStaticShapeTest::test_map_coordinates_nearest
+keras/src/ops/image_test.py::ImageOpsStaticShapeTest::test_map_coordinates_uint8
+keras/src/optimizers/multi_optimizer_test.py::MultiOptimizerTest::test_tensorboard_logging_with_multi_optimizer
+keras/src/random/random_test.py::RandomBehaviorTest::test_beta_tf_data_compatibility
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_jax_float32_batch
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_jax_float32_false
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_jax_float32_true
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_jax_float64_batch
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_jax_float64_false
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_jax_float64_true
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_jax_sparse_float32_batch
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_jax_sparse_float32_false
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_jax_sparse_float32_true
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_jax_sparse_float64_batch
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_jax_sparse_float64_false
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_jax_sparse_float64_true
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_np_float32_batch
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_np_float32_false
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_np_float32_true
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_np_float64_batch
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_np_float64_false
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_np_float64_true
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_pandas_data_frame_float32_batch
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_pandas_data_frame_float32_false
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_pandas_data_frame_float32_true
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_pandas_data_frame_float64_batch
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_pandas_data_frame_float64_false
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_pandas_data_frame_float64_true
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_pandas_series_float32_batch
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_pandas_series_float32_false
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_pandas_series_float32_true
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_pandas_series_float64_batch
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_pandas_series_float64_false
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_pandas_series_float64_true
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_scipy_sparse_float32_batch
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_scipy_sparse_float32_false
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_scipy_sparse_float32_true
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_scipy_sparse_float64_batch
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_scipy_sparse_float64_false
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_scipy_sparse_float64_true
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_tf_float32_batch
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_tf_float32_false
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_tf_float32_true
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_tf_float64_batch
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_tf_float64_false
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_tf_float64_true
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_tf_ragged_float32_batch
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_tf_ragged_float32_false
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_tf_ragged_float32_true
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_tf_ragged_float64_batch
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_tf_ragged_float64_false
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_tf_ragged_float64_true
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_tf_sparse_float32_batch
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_tf_sparse_float32_false
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_tf_sparse_float32_true
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_tf_sparse_float64_batch
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_tf_sparse_float64_false
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_tf_sparse_float64_true
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_torch_float32_batch
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_torch_float32_false
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_torch_float32_true
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_torch_float64_batch
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_torch_float64_false
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_torch_float64_true
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_errors
+keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_multi_inputs_and_outputs
+keras/src/trainers/data_adapters/generator_data_adapter_test.py::GeneratorDataAdapterTest::test_basic_flow_no_weight_tf
+keras/src/trainers/data_adapters/generator_data_adapter_test.py::GeneratorDataAdapterTest::test_basic_flow_use_weight_tf
+keras/src/trainers/data_adapters/generator_data_adapter_test.py::GeneratorDataAdapterTest::test_sparse_tensors_tf
+keras/src/trainers/data_adapters/grain_dataset_adapter_test.py::GrainDatasetAdapterTest::test_multiple_calling_on_iterators
+keras/src/trainers/data_adapters/py_dataset_adapter_test.py::PyDatasetAdapterTest::test_basic_flow_single_tf_false_false
+keras/src/trainers/data_adapters/py_dataset_adapter_test.py::PyDatasetAdapterTest::test_basic_flow_single_tf_false_true
+keras/src/trainers/data_adapters/py_dataset_adapter_test.py::PyDatasetAdapterTest::test_basic_flow_single_tf_true_false
+keras/src/trainers/data_adapters/py_dataset_adapter_test.py::PyDatasetAdapterTest::test_basic_flow_single_tf_true_true
+keras/src/trainers/data_adapters/py_dataset_adapter_test.py::PyDatasetAdapterTest::test_dict_inputs
+keras/src/trainers/epoch_iterator_test.py::TestEpochIterator::test_unsupported_sample_weights_arg_tfdata
+keras/src/trainers/epoch_iterator_test.py::TestEpochIterator::test_unsupported_y_arg_tfdata
+keras/src/trainers/trainer_test.py::TestTrainer::test_evaluate_fixed_batch_dim_graph_matches_eager
+keras/src/trainers/trainer_test.py::TestTrainer::test_evaluate_sparse_tf_eager
+keras/src/trainers/trainer_test.py::TestTrainer::test_evaluate_sparse_tf_graph
+keras/src/trainers/trainer_test.py::TestTrainer::test_fit_sparse_tf_eager
+keras/src/trainers/trainer_test.py::TestTrainer::test_fit_sparse_tf_graph
+keras/src/trainers/trainer_test.py::TestTrainer::test_fit_with_data_adapter_tf_dataset
+keras/src/trainers/trainer_test.py::TestTrainer::test_fit_with_data_adapter_tf_dataset_infinite
+keras/src/trainers/trainer_test.py::TestTrainer::test_predict_preserve_order_1_eager
+keras/src/trainers/trainer_test.py::TestTrainer::test_predict_preserve_order_1_jit
+keras/src/trainers/trainer_test.py::TestTrainer::test_predict_preserve_order_1_non_jit
+keras/src/trainers/trainer_test.py::TestTrainer::test_predict_preserve_order_50_eager
+keras/src/trainers/trainer_test.py::TestTrainer::test_predict_preserve_order_50_jit
+keras/src/trainers/trainer_test.py::TestTrainer::test_predict_preserve_order_50_non_jit
+keras/src/trainers/trainer_test.py::TestTrainer::test_predict_sparse_tf_eager
+keras/src/trainers/trainer_test.py::TestTrainer::test_predict_sparse_tf_graph
+keras/src/trainers/trainer_test.py::TestTrainer::test_steps_per_execution_steps_count_unknown_dataset_size_101_eager
+keras/src/trainers/trainer_test.py::TestTrainer::test_steps_per_execution_steps_count_unknown_dataset_size_101_jit
+keras/src/trainers/trainer_test.py::TestTrainer::test_steps_per_execution_steps_count_unknown_dataset_size_101_non_jit
+keras/src/trainers/trainer_test.py::TestTrainer::test_steps_per_execution_steps_count_unknown_dataset_size_3_eager
+keras/src/trainers/trainer_test.py::TestTrainer::test_steps_per_execution_steps_count_unknown_dataset_size_3_jit
+keras/src/trainers/trainer_test.py::TestTrainer::test_steps_per_execution_steps_count_unknown_dataset_size_3_non_jit
+keras/src/trainers/trainer_test.py::TestTrainer::test_steps_per_execution_steps_per_epoch_unknown_data_size_match_eager
+keras/src/trainers/trainer_test.py::TestTrainer::test_steps_per_execution_steps_per_epoch_unknown_data_size_match_jit
+keras/src/trainers/trainer_test.py::TestTrainer::test_steps_per_execution_steps_per_epoch_unknown_data_size_match_non_jit
+keras/src/trainers/trainer_test.py::TestTrainer::test_steps_per_execution_steps_per_epoch_unknown_data_size_not_match_but_high_enough_eager
+keras/src/trainers/trainer_test.py::TestTrainer::test_steps_per_execution_steps_per_epoch_unknown_data_size_not_match_but_high_enough_jit
+keras/src/trainers/trainer_test.py::TestTrainer::test_steps_per_execution_steps_per_epoch_unknown_data_size_not_match_but_high_enough_non_jit
+keras/src/trainers/trainer_test.py::TestTrainer::test_steps_per_execution_steps_per_epoch_unknown_data_size_not_match_too_low_eager
+keras/src/trainers/trainer_test.py::TestTrainer::test_steps_per_execution_steps_per_epoch_unknown_data_size_not_match_too_low_jit
+keras/src/trainers/trainer_test.py::TestTrainer::test_steps_per_execution_steps_per_epoch_unknown_data_size_not_match_too_low_non_jit
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_binary_grain
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_binary_tf
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_errors
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_follow_links_grain
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_follow_links_tf
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_manual_labels_grain
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_manual_labels_tf
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_multiclass_grain
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_multiclass_tf
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_no_output_sequence_length_no_ragged_grain
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_no_output_sequence_length_no_ragged_tf
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_no_output_sequence_length_same_lengths_grain
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_no_output_sequence_length_same_lengths_tf
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_not_batched_grain
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_not_batched_tf
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_ragged
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_standalone_grain
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_standalone_tf
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_validation_split_grain
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_validation_split_tf
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_variable_length_label_modes_grain
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_variable_length_label_modes_tf
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_output_sequence_length_applied_after_resampling
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_sample_count_grain
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_sample_count_tf
+keras/src/utils/audio_dataset_utils_test.py::AudioDatasetFromDirectoryTest::test_static_shape_in_graph
+keras/src/utils/backend_utils_test.py::BackendUtilsTest::test_dynamic_backend_op_attribute_fallback_tensorflow
+keras/src/utils/backend_utils_test.py::BackendUtilsTest::test_dynamic_backend_tensorflow
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_list_(10, 10, 2)_none
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_list_(10, 10, 2)_tensorflow
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_list_(100, 2)_none
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_list_(100, 2)_tensorflow
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_list_(2,)_none
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_list_(2,)_tensorflow
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_nested_structures_dict
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_nested_structures_ordereddict
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_nested_structures_tuple
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_tensorflow_(10, 10, 2)_none
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_tensorflow_(10, 10, 2)_tensorflow
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_tensorflow_(10, 10, 2)_torch
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_tensorflow_(100, 2)_none
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_tensorflow_(100, 2)_tensorflow
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_tensorflow_(100, 2)_torch
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_tensorflow_(2,)_none
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_tensorflow_(2,)_tensorflow
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_tensorflow_(2,)_torch
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_torch_(10, 10, 2)_none
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_torch_(10, 10, 2)_tensorflow
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_torch_(100, 2)_none
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_torch_(100, 2)_tensorflow
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_torch_(2,)_none
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_torch_(2,)_tensorflow
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_tuple_(10, 10, 2)_none
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_tuple_(10, 10, 2)_tensorflow
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_tuple_(100, 2)_none
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_tuple_(100, 2)_tensorflow
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_tuple_(2,)_none
+keras/src/utils/dataset_utils_test.py::DatasetUtilsTest::test_split_dataset_tuple_(2,)_tensorflow
+keras/src/utils/image_dataset_utils_test.py::ImageDatasetFromDirectoryTest::test_image_dataset_from_directory_binary_tf
+keras/src/utils/image_dataset_utils_test.py::ImageDatasetFromDirectoryTest::test_image_dataset_from_directory_color_modes_tf
+keras/src/utils/image_dataset_utils_test.py::ImageDatasetFromDirectoryTest::test_image_dataset_from_directory_crop_to_aspect_ratio_tf
+keras/src/utils/image_dataset_utils_test.py::ImageDatasetFromDirectoryTest::test_image_dataset_from_directory_follow_links_tf
+keras/src/utils/image_dataset_utils_test.py::ImageDatasetFromDirectoryTest::test_image_dataset_from_directory_manual_labels_tf
+keras/src/utils/image_dataset_utils_test.py::ImageDatasetFromDirectoryTest::test_image_dataset_from_directory_multiclass_tf
+keras/src/utils/image_dataset_utils_test.py::ImageDatasetFromDirectoryTest::test_image_dataset_from_directory_no_labels_tf
+keras/src/utils/image_dataset_utils_test.py::ImageDatasetFromDirectoryTest::test_image_dataset_from_directory_not_batched_tf
+keras/src/utils/image_dataset_utils_test.py::ImageDatasetFromDirectoryTest::test_image_dataset_from_directory_pad_to_aspect_ratio_tf
+keras/src/utils/image_dataset_utils_test.py::ImageDatasetFromDirectoryTest::test_image_dataset_from_directory_shuffle_tf
+keras/src/utils/image_dataset_utils_test.py::ImageDatasetFromDirectoryTest::test_image_dataset_from_directory_shuffle_with_split_tf
+keras/src/utils/image_dataset_utils_test.py::ImageDatasetFromDirectoryTest::test_image_dataset_from_directory_validation_split_tf
+keras/src/utils/image_dataset_utils_test.py::ImageDatasetFromDirectoryTest::test_sample_count_tf
+keras/src/utils/image_dataset_utils_test.py::ImageDatasetFromDirectoryTest::test_static_shape_in_graph
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_flax_layer_training_independent_bound_method
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_flax_layer_training_rng_state_no_method
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_flax_layer_training_rng_unbound_method
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_flax_layer_training_rng_unbound_method_dtype_policy
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_jax_layer_native_serialization
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_jax_layer_stateless
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_jax_layer_training_independent
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_jax_layer_training_state
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_jax_layer_training_state_dtype_policy
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_rng_seeding
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_different_argument_order
+keras/src/utils/jax_layer_test.py::TestJaxLayer::test_with_training_in_call_fn_but_not_init_fn
+keras/src/utils/text_dataset_utils_test.py::TextDatasetFromDirectoryTest::test_sample_count_tf
+keras/src/utils/text_dataset_utils_test.py::TextDatasetFromDirectoryTest::test_text_dataset_from_directory_binary_tf
+keras/src/utils/text_dataset_utils_test.py::TextDatasetFromDirectoryTest::test_text_dataset_from_directory_follow_links_tf
+keras/src/utils/text_dataset_utils_test.py::TextDatasetFromDirectoryTest::test_text_dataset_from_directory_manual_labels_tf
+keras/src/utils/text_dataset_utils_test.py::TextDatasetFromDirectoryTest::test_text_dataset_from_directory_multiclass_tf
+keras/src/utils/text_dataset_utils_test.py::TextDatasetFromDirectoryTest::test_text_dataset_from_directory_not_batched_tf
+keras/src/utils/text_dataset_utils_test.py::TextDatasetFromDirectoryTest::test_text_dataset_from_directory_standalone_tf
+keras/src/utils/text_dataset_utils_test.py::TextDatasetFromDirectoryTest::test_text_dataset_from_directory_validation_split_tf
+keras/src/utils/timeseries_dataset_utils_test.py::TimeseriesDatasetTest::test_basics_tf
+keras/src/utils/timeseries_dataset_utils_test.py::TimeseriesDatasetTest::test_no_targets_tf
+keras/src/utils/timeseries_dataset_utils_test.py::TimeseriesDatasetTest::test_not_batched_tf
+keras/src/utils/timeseries_dataset_utils_test.py::TimeseriesDatasetTest::test_sampling_rate_tf
+keras/src/utils/timeseries_dataset_utils_test.py::TimeseriesDatasetTest::test_sequence_stride_tf
+keras/src/utils/timeseries_dataset_utils_test.py::TimeseriesDatasetTest::test_shuffle_tf
+keras/src/utils/timeseries_dataset_utils_test.py::TimeseriesDatasetTest::test_start_and_end_index_tf
+keras/src/utils/timeseries_dataset_utils_test.py::TimeseriesDatasetTest::test_timeseries_regression_tf

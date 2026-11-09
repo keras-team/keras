@@ -193,7 +193,11 @@ def heaviside(x1, x2):
     return tf.where(
         x1 < 0,
         tf.zeros_like(x1),
-        tf.where(x1 > 0, tf.ones_like(x1), x2),
+        tf.where(
+            x1 > 0,
+            tf.ones_like(x1),
+            tf.where(tf.math.is_nan(x1), x1, x2),
+        ),
     )
 
 
@@ -3403,48 +3407,22 @@ def tri(N, M=None, k=0, dtype=None):
 
 def tril(x, k=0):
     x = convert_to_tensor(x)
-
-    def _negative_k_branch():
-        shape = tf.shape(x)
-        rows, cols = shape[-2], shape[-1]
-        i, j = tf.meshgrid(tf.range(rows), tf.range(cols), indexing="ij")
-        mask = i >= j - k
-        return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
-
-    if isinstance(k, int):
-        if k >= 0:
-            return tf.linalg.band_part(x, -1, k)
-        return _negative_k_branch()
-
-    # when `k` is a tensor
-    return tf.cond(
-        tf.greater_equal(k, 0),
-        lambda: tf.linalg.band_part(x, -1, k),
-        _negative_k_branch,
-    )
+    # `tf.linalg.band_part` raises when the band width exceeds the matrix
+    # size, so build the mask explicitly. This works for any `k`.
+    k = tf.cast(k, "int32")
+    shape = tf.shape(x)
+    i = tf.range(shape[-2])[:, None]
+    j = tf.range(shape[-1])[None, :]
+    return tf.where(i >= j - k, x, tf.zeros_like(x))
 
 
 def triu(x, k=0):
     x = convert_to_tensor(x)
-
-    def _positive_k_branch():
-        shape = tf.shape(x)
-        rows, cols = shape[-2], shape[-1]
-        i, j = tf.meshgrid(tf.range(rows), tf.range(cols), indexing="ij")
-        mask = i <= j - k
-        return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
-
-    if isinstance(k, int):
-        if k <= 0:
-            return tf.linalg.band_part(x, -k, -1)
-        return _positive_k_branch()
-
-    # when `k` is a tensor
-    return tf.cond(
-        tf.less_equal(k, 0),
-        lambda: tf.linalg.band_part(x, -k, -1),
-        _positive_k_branch,
-    )
+    k = tf.cast(k, "int32")
+    shape = tf.shape(x)
+    i = tf.range(shape[-2])[:, None]
+    j = tf.range(shape[-1])[None, :]
+    return tf.where(i <= j - k, x, tf.zeros_like(x))
 
 
 def trunc(x):
@@ -3870,6 +3848,8 @@ def corrcoef(x):
 
     if tf.rank(x) == 0:
         return tf.constant(float("nan"), dtype=config.floatx())
+    if x.shape.rank == 1:
+        return tf.reshape(corrcoef(x[tf.newaxis, :]), [])
 
     mean = tf.reduce_mean(x, axis=-1, keepdims=True)
     x_centered = x - mean

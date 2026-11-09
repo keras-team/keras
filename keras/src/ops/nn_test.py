@@ -2546,6 +2546,23 @@ class NNOpsCorrectnessTest(testing.TestCase):
         )
         self.assertSparse(output_1d, sparse)
 
+        # Test 1D one-hot with out-of-range inputs
+        indices_1d = np.array([0, 4, 7, 3])
+        output_1d = knn.one_hot(indices_1d, 4, sparse=sparse)
+        self.assertAllClose(
+            output_1d,
+            np.array(
+                [
+                    [1, 0, 0, 0],
+                    [0, 0, 0, 0],
+                    [0, 0, 0, 0],
+                    [0, 0, 0, 1],
+                ],
+                dtype=np.float32,
+            ),
+        )
+        self.assertSparse(output_1d, sparse)
+
     def test_binary_crossentropy(self):
         # Test with from_logits=False
         target = np.array([[0.1], [0.9], [0.2], [1.0]])
@@ -2733,6 +2750,13 @@ class NNOpsCorrectnessTest(testing.TestCase):
 
         # Test 1D multi-hot with negative inputs
         indices_1d = np.array([0, -1, -1, 3])
+        expected_output_1d = np.array([1, 0, 0, 1])
+        output_1d = knn.multi_hot(indices_1d, 4, sparse=sparse)
+        self.assertAllClose(output_1d, expected_output_1d)
+        self.assertSparse(output_1d, sparse)
+
+        # Test 1D multi-hot with out-of-range inputs
+        indices_1d = np.array([0, 4, 7, 3])
         expected_output_1d = np.array([1, 0, 0, 1])
         output_1d = knn.multi_hot(indices_1d, 4, sparse=sparse)
         self.assertAllClose(output_1d, expected_output_1d)
@@ -3061,6 +3085,54 @@ class NNOpsCorrectnessTest(testing.TestCase):
         psnr_2 = knn.psnr(x3, x4, max_val)
         self.assertAlmostEqual(psnr_2, expected_psnr_2)
 
+    def _skip_if_flash_attention_unsupported(self, bias, mask):
+        if backend.backend() in ("tensorflow", "numpy"):
+            self.skipTest(
+                "Flash attention is not supported in tensorflow and numpy "
+                "backends."
+            )
+        elif backend.backend() == "torch":
+            import torch
+
+            if bias is not None:
+                self.skipTest(
+                    "Flash attention doesn't support `bias` in torch backend."
+                )
+            if mask is not None:
+                self.skipTest(
+                    "Flash attention doesn't support custom masks in torch "
+                    "backend."
+                )
+            if not torch.cuda.is_available():
+                self.skipTest(
+                    "Flash attention must be run on CUDA in torch backend."
+                )
+            cuda_compute_capability = tuple(
+                int(x) for x in torch.cuda.get_device_capability()
+            )
+            if cuda_compute_capability < (8, 0):
+                self.skipTest(
+                    "Flash attention must be run on CUDA compute "
+                    "capability >= 8.0 in torch backend."
+                )
+        elif backend.backend() == "jax":
+            import jax
+            from jax._src import xla_bridge
+
+            if "cuda" not in xla_bridge.get_backend().platform_version:
+                self.skipTest(
+                    "Flash attention must be run on CUDA in jax backend."
+                )
+            d, *_ = jax.local_devices(backend="gpu")
+            cuda_compute_capability = tuple(
+                int(x) for x in d.compute_capability.split(".")
+            )
+            if cuda_compute_capability < (8, 0):
+                self.skipTest(
+                    "Flash attention must be run on CUDA compute "
+                    "capability >= 8.0 in jax backend."
+                )
+
     @parameterized.named_parameters(
         named_product(
             bias=(None, True),
@@ -3096,53 +3168,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             )
 
         if flash_attention:
-            if backend.backend() in ("tensorflow", "numpy"):
-                self.skipTest(
-                    "Flash attention is not supported in tensorflow and numpy "
-                    "backends."
-                )
-            elif backend.backend() == "torch":
-                import torch
-
-                if bias is not None:
-                    self.skipTest(
-                        "Flash attention doesn't support `bias` in torch "
-                        "backend."
-                    )
-                if mask is not None:
-                    self.skipTest(
-                        "Flash attention doesn't support `mask=None` in torch "
-                        "backend."
-                    )
-                if not torch.cuda.is_available():
-                    self.skipTest(
-                        "Flash attention must be run on CUDA in torch backend."
-                    )
-                cuda_compute_capability = tuple(
-                    int(x) for x in torch.cuda.get_device_capability()
-                )
-                if cuda_compute_capability < (8, 0):
-                    self.skipTest(
-                        "Flash attention must be run on CUDA compute "
-                        "capability >= 8.0 in torch backend."
-                    )
-            elif backend.backend() == "jax":
-                import jax
-                from jax._src import xla_bridge
-
-                if "cuda" not in xla_bridge.get_backend().platform_version:
-                    self.skipTest(
-                        "Flash attention must be run on CUDA in jax backend."
-                    )
-                d, *_ = jax.local_devices(backend="gpu")
-                cuda_compute_capability = tuple(
-                    int(x) for x in d.compute_capability.split(".")
-                )
-                if cuda_compute_capability < (8, 0):
-                    self.skipTest(
-                        "Flash attention must be run on CUDA compute "
-                        "capability >= 8.0 in jax backend."
-                    )
+            self._skip_if_flash_attention_unsupported(bias, mask)
 
             # Flash attention only supports float16 and bfloat16. We multiply
             # 0.1 to avoid overflow.
@@ -3174,6 +3200,37 @@ class NNOpsCorrectnessTest(testing.TestCase):
         )
         self.assertAllClose(
             outputs, expected, atol=1e-3 if flash_attention else 1e-6
+        )
+
+    @parameterized.named_parameters(
+        named_product(flash_attention=(False, True))
+    )
+    def test_dot_product_attention_causal_different_lengths(
+        self, flash_attention
+    ):
+        if flash_attention:
+            self._skip_if_flash_attention_unsupported(None, None)
+        dtype = "float16" if flash_attention else "float32"
+        rng = np.random.RandomState(0)
+        query = rng.uniform(size=(2, 2, 4, 8)).astype(dtype)
+        key = rng.uniform(size=(2, 5, 4, 8)).astype(dtype)
+        value = rng.uniform(size=(2, 5, 4, 8)).astype(dtype)
+        # The causal mask is aligned to the top left, query `i` sees keys
+        # `0..i`.
+        outputs = knn.dot_product_attention(
+            query,
+            key,
+            value,
+            is_causal=True,
+            flash_attention=flash_attention,
+        )
+        expected = _dot_product_attention(query, key, value, is_causal=True)
+        self.assertAllClose(
+            outputs,
+            expected,
+            atol=1e-3 if flash_attention else 1e-6,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
 
     @parameterized.named_parameters(named_product(scale=(1.0, 10.0)))

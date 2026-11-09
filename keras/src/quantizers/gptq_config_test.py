@@ -1,3 +1,5 @@
+import numpy as np
+
 from keras.src import layers
 from keras.src import testing
 from keras.src.quantizers.gptq_config import GPTQConfig
@@ -21,14 +23,21 @@ class TestGPTQConfig(testing.TestCase):
             GPTQConfig(dataset=None, tokenizer=None, num_samples=-1)
 
     def test_invalid_calibration_batch_size(self):
-        with self.assertRaisesRegex(
-            ValueError, "calibration_batch_size must be a positive"
-        ):
-            GPTQConfig(dataset=None, tokenizer=None, calibration_batch_size=0)
-        with self.assertRaisesRegex(
-            ValueError, "calibration_batch_size must be a positive"
-        ):
-            GPTQConfig(dataset=None, tokenizer=None, calibration_batch_size=-4)
+        for value in (0, -4, 0.5, "8", True):
+            with self.assertRaisesRegex(
+                ValueError, "calibration_batch_size must be a positive"
+            ):
+                GPTQConfig(
+                    dataset=None, tokenizer=None, calibration_batch_size=value
+                )
+
+    def test_calibration_batch_size_accepts_integral_values(self):
+        for value, expected in ((2.0, 2), (np.int64(4), 4)):
+            config = GPTQConfig(
+                dataset=None, tokenizer=None, calibration_batch_size=value
+            )
+            self.assertIs(type(config.calibration_batch_size), int)
+            self.assertEqual(config.calibration_batch_size, expected)
 
     def test_calibration_batch_size_default_and_serialization(self):
         config = GPTQConfig(dataset=None, tokenizer=None)
