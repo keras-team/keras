@@ -82,7 +82,7 @@ class AugMixTest(testing.TestCase):
         input_data = np.random.random((10, 8, 8, 3))
         layer = layers.AugMix()
         ds = (
-            tf_data.Dataset.from_tensor_slices(input_data)
+            tf.data.Dataset.from_tensor_slices(input_data)
             .batch(2)
             .map(lambda x: layer.get_random_transformation(x)["layer_idxes"])
         )
