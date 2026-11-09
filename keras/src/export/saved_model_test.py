@@ -1251,7 +1251,7 @@ class ExportXLASavedModelTest(testing.TestCase):
     export entry points in `saved_model.py` and `Model.export()`.
     """
 
-    def _load_serve(self, filepath, signature="serve"):
+    def _load_serve(self, filepath, signature="serving_default"):
         # Reloads the exported function as `fn(params, inputs)` and the
         # Orbax checkpoint it references, as the XLA Serving Engine does.
         from keras.src.export import xla_saved_model_archive_test
@@ -1277,13 +1277,12 @@ class ExportXLASavedModelTest(testing.TestCase):
         self.assertTrue(
             os.path.isdir(os.path.join(temp_filepath, "checkpoint"))
         )
-        # Registered as "serve" and aliased as "serving_default".
-        for signature in ("serve", "serving_default"):
-            apply_fn, params = self._load_serve(temp_filepath, signature)
-            self.assertAllClose(
-                apply_fn(params, {"inputs": ref_input})["output_0"],
-                ref_output,
-            )
+        # The forward pass is registered as "serving_default", the signature
+        # the XLA Serving Engine uses when a request does not specify one.
+        apply_fn, params = self._load_serve(temp_filepath)
+        self.assertAllClose(
+            apply_fn(params, {"inputs": ref_input})["output_0"], ref_output
+        )
         # Test with a different batch size
         apply_fn, params = self._load_serve(temp_filepath)
         other_input = np.random.normal(size=(6, 10)).astype("float32")

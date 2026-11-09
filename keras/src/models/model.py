@@ -919,7 +919,7 @@ class Model(Trainer, Layer):
         runner = model_runner.ModelRunner(
             model_path="path/to/location", platform="cpu"
         )
-        predictions = runner.signature("serve").run(input_data)
+        predictions = runner.signature("serving_default").run(input_data)
         ```
 
         Here's how to export an ONNX for inference.

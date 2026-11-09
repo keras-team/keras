@@ -97,6 +97,18 @@ def load_endpoint(export_dir, signature):
     return apply_fn, params
 
 
+def exported_function_names(export_dir):
+    """Names of the exported (StableHLO) functions in the manifest."""
+    from xla_saved_model._src import core as xsm
+
+    manifest = xsm.load(export_dir)
+    return [
+        name
+        for name, obj in manifest.objects.items()
+        if obj.HasField("function")
+    ]
+
+
 def model_runner(export_dir):
     """Loads an exported model with the XLA Serving Engine C++ runtime.
 
@@ -159,13 +171,11 @@ class XLASavedModelArchiveTest(testing.TestCase):
         self.assertTrue(os.path.exists(os.path.join(export_dir, "manifest.pb")))
         self.assertTrue(os.path.isdir(os.path.join(export_dir, "checkpoint")))
 
-        for signature in ("serve", "serving_default"):
-            apply_fn, params = load_endpoint(export_dir, signature)
-            self.assertAllClose(
-                apply_fn(params, {"inputs": ref_input})["output_0"], ref_output
-            )
-        # Symbolic batch dimension: a different batch size also works.
         apply_fn, params = load_endpoint(export_dir, "serve")
+        self.assertAllClose(
+            apply_fn(params, {"inputs": ref_input})["output_0"], ref_output
+        )
+        # Symbolic batch dimension: a different batch size also works.
         other_input = np.random.normal(size=(5, 10)).astype("float32")
         self.assertAllClose(
             apply_fn(params, {"inputs": other_input})["output_0"],
@@ -301,11 +311,13 @@ class XLASavedModelArchiveTest(testing.TestCase):
         self.assertAllClose(
             apply_fn(params, {"inputs": ref_input})["output_0"], ref_training
         )
-        # The first endpoint is aliased as `serving_default`.
-        apply_fn, params = load_endpoint(export_dir, "serving_default")
-        self.assertAllClose(
-            apply_fn(params, {"inputs": ref_input})["output_0"],
-            model(ref_input, training=False),
+        # Only the registered endpoints are exported.
+        self.assertEqual(
+            sorted(exported_function_names(export_dir)),
+            [
+                "call_inference_keras_model_call_inference",
+                "call_training_keras_model_call_training",
+            ],
         )
         del ref_inference
 
@@ -569,8 +581,8 @@ class XLASavedModelArchiveTest(testing.TestCase):
             model(ref_input),
         )
 
-    def test_explicit_serving_default_endpoint(self):
-        # No alias is added when `serving_default` is registered manually.
+    def test_endpoint_names_are_exported_verbatim(self):
+        # Exactly one serving signature per registered endpoint, no extras.
         export_dir = self._export_dir()
         model = get_model("sequential")
         archive = saved_model.ExportArchive(format="xla_saved_model")
@@ -584,16 +596,9 @@ class XLASavedModelArchiveTest(testing.TestCase):
             platforms=["cpu"],
         )
         archive.write_out(export_dir, verbose=False)
-
-        from xla_saved_model._src import core as xsm
-
-        manifest = xsm.load(export_dir)
-        functions = [
-            name
-            for name, obj in manifest.objects.items()
-            if obj.HasField("function")
-        ]
-        self.assertEqual(functions, ["serving_default"])
+        self.assertEqual(
+            exported_function_names(export_dir), ["serving_default"]
+        )
 
     def test_untracked_owner_error(self):
         # Tracking a different model is not enough: the endpoint's own model
@@ -653,23 +658,22 @@ class XLASavedModelArchiveTest(testing.TestCase):
                 "runtime round-trip."
             )
         self.assertEqual(runner.ifrt_platform_name(), "cpu")
-        self.assertEqual(
-            sorted(runner.signature_names()), ["serve", "serving_default"]
-        )
+        # `model.export()` registers the forward pass as `serving_default`,
+        # the signature the XLA Serving Engine uses by default.
+        self.assertEqual(runner.signature_names(), ["serving_default"])
 
         for batch_size in (3, 5):
             ref_input = np.random.normal(size=(batch_size, 10)).astype(
                 "float32"
             )
             ref_output = np.asarray(model(ref_input))
-            for signature in ("serve", "serving_default"):
-                out = runner.signature(signature).run_with_dict_return(
-                    inputs=ref_input
-                )
-                self.assertEqual(list(out.keys()), ["output_0"])
-                self.assertEqual(out["output_0"].dtype, np.float32)
-                self.assertEqual(out["output_0"].shape, (batch_size, 1))
-                self.assertAllClose(out["output_0"], ref_output)
+            out = runner.signature("serving_default").run_with_dict_return(
+                inputs=ref_input
+            )
+            self.assertEqual(list(out.keys()), ["output_0"])
+            self.assertEqual(out["output_0"].dtype, np.float32)
+            self.assertEqual(out["output_0"].shape, (batch_size, 1))
+            self.assertAllClose(out["output_0"], ref_output)
 
     def test_load_and_run_multiple_endpoints_with_model_runner(self):
         export_dir = self._export_dir()
@@ -719,8 +723,7 @@ class XLASavedModelArchiveTest(testing.TestCase):
                 "runtime round-trip."
             )
         self.assertEqual(
-            sorted(runner.signature_names()),
-            ["serve", "serve_named", "serving_default"],
+            sorted(runner.signature_names()), ["serve", "serve_named"]
         )
         out = runner.signature("serve").run_with_dict_return(**ref_inputs)
         self.assertEqual(list(out.keys()), ["output_0"])
@@ -731,5 +734,5 @@ class XLASavedModelArchiveTest(testing.TestCase):
         self.assertAllClose(out["logits"], ref_output)
 
         # `run()` returns the outputs as a list, in output order.
-        (out,) = runner.signature("serving_default").run(**ref_inputs)
+        (out,) = runner.signature("serve").run(**ref_inputs)
         self.assertAllClose(out, ref_output)

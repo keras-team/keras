@@ -8,6 +8,7 @@ from keras.src.export.export_utils import get_input_signature
 from keras.src.export.saved_model_export_archive import (  # noqa: F401
     _list_variables_used_by_fns,
 )
+from keras.src.export.xla_saved_model_archive import DEFAULT_SERVING_SIGNATURE
 from keras.src.export.xla_saved_model_archive import XLASavedModelArchive
 from keras.src.utils.module_utils import get_pluggable_backend_module
 
@@ -115,8 +116,8 @@ def export_xla_saved_model(
     contains the StableHLO of the model's forward pass (captured with
     `jax.export`) and an Orbax checkpoint of its weights, and can be served
     on CPU, GPU or TPU without any Python. The forward pass is registered
-    under the serving signature `"serve"` (also aliased as
-    `"serving_default"`).
+    under the serving signature `"serving_default"`, which is the signature
+    the XLA Serving Engine uses when a request does not specify one.
 
     Args:
         filepath: `str` or `pathlib.Path` object. The path to save the artifact.
@@ -150,7 +151,10 @@ def export_xla_saved_model(
         input_signature = get_input_signature(model)
 
     export_archive.track_and_add_endpoint(
-        DEFAULT_ENDPOINT_NAME, model, input_signature, **kwargs
+        DEFAULT_SERVING_SIGNATURE,
+        model,
+        input_signature,
+        **kwargs,
     )
     export_archive.write_out(filepath, verbose=verbose)
 

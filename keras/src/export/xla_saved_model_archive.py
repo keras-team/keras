@@ -26,6 +26,7 @@ xla_saved_model = LazyModule(
 )
 
 DEFAULT_MODEL_NAME = "keras_model"
+# Signature the XLA Serving Engine uses when a request does not name one.
 DEFAULT_SERVING_SIGNATURE = "serving_default"
 # Orbax checkpoint of `add_variable_collection()` variables, relative to the
 # export directory. `assets.extra` is the XLA SavedModel directory for
@@ -373,11 +374,12 @@ class XLASavedModelArchive:
                 `xla_saved_model.save()` (e.g. `{"save_shlo_to_file": True}`).
             verbose: whether to print the exported endpoints.
 
-        **Note on serving**: all endpoints registered via `add_endpoint()`
-        are exported as serving signatures. In addition, the first endpoint
-        registered is also exported under the alias `"serving_default"`
-        (unless an endpoint with that name was registered manually), which is
-        the signature the XLA Serving Engine uses by default.
+        **Note on serving**: each endpoint registered via `add_endpoint()` is
+        exported as a serving signature of the same name, and nothing else is
+        added. The XLA Serving Engine uses `"serving_default"` when a request
+        does not specify a signature name, so name the main endpoint
+        `"serving_default"` (as `model.export()` does) if clients should not
+        have to set one.
         """
         from keras.src.utils import io_utils
 
@@ -392,12 +394,6 @@ class XLASavedModelArchive:
             )
         filepath = str(filepath)
 
-        signature_to_endpoint = {name: name for name in self._endpoint_names}
-        if DEFAULT_SERVING_SIGNATURE not in signature_to_endpoint:
-            signature_to_endpoint[DEFAULT_SERVING_SIGNATURE] = (
-                self._endpoint_names[0]
-            )
-
         model = xla_saved_model.JaxModel(
             apply_fn_bundle={
                 name: self._endpoints[name]["apply_fn_bundle"]
@@ -410,29 +406,29 @@ class XLASavedModelArchive:
         serving_configs = []
         warmup_examples = {}
         multiple_methods = len(self._endpoint_names) > 1
-        for signature, endpoint_name in signature_to_endpoint.items():
-            endpoint = self._endpoints[endpoint_name]
+        for name in self._endpoint_names:
+            endpoint = self._endpoints[name]
             orchestration = None
             if multiple_methods:
                 orchestration = xla_saved_model.serving_config.Orchestration(
                     model_calls=[
                         xla_saved_model.serving_config.ModelCall(
                             model_name=DEFAULT_MODEL_NAME,
-                            method_key=endpoint_name,
+                            method_key=name,
                             use_batching=endpoint["batch_options"] is not None,
                         )
                     ]
                 )
             serving_configs.append(
                 xla_saved_model.ServingConfig(
-                    serving_signature=signature,
+                    serving_signature=name,
                     input_signature=endpoint["input_signature"],
                     batch_options=endpoint["batch_options"],
                     orchestration=orchestration,
                 )
             )
             if endpoint["warmup_examples"] is not None:
-                warmup_examples[signature] = list(endpoint["warmup_examples"])
+                warmup_examples[name] = list(endpoint["warmup_examples"])
 
         xla_saved_model.save(
             model,
