@@ -1,5 +1,6 @@
 import collections
 import contextlib
+import io
 import os
 import random
 import sys
@@ -19,6 +20,7 @@ from keras.src import ops
 from keras.src import optimizers
 from keras.src import testing
 from keras.src.optimizers import schedules
+from keras.src.utils import file_utils
 
 # A summary that was emitted during a test. Fields:
 #   logdir: str. The logdir of the FileWriter to which the summary was
@@ -175,6 +177,110 @@ class TestTensorBoardV2(testing.TestCase):
         )
 
     @pytest.mark.requires_trainable_backend
+    def test_TensorBoard_evaluate(self):
+        model = self._get_model()
+        x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
+        logdir, train_dir, validation_dir = self._get_log_dirs()
+        tb_cbk = callbacks.TensorBoard(logdir)
+
+        model.predict(x, batch_size=2, callbacks=[tb_cbk])
+        predict_train_writer = tb_cbk._writers["train"]
+        model.evaluate(x, y, batch_size=2, callbacks=[tb_cbk])
+        self.assertIsNone(predict_train_writer.file_writer)
+
+        summary_file = list_summaries(logdir)
+        self.assertEqual(
+            summary_file.scalars,
+            {
+                _ObservedSummary(
+                    logdir=validation_dir,
+                    tag="evaluation_loss_vs_iterations",
+                ),
+            },
+        )
+        self.assertEqual(
+            summary_file.tensors,
+            {_ObservedSummary(logdir=train_dir, tag="keras")},
+        )
+
+    @pytest.mark.requires_trainable_backend
+    def test_TensorBoard_remote_log_dir(self):
+        class RemoteStream(io.IOBase):
+            def __init__(self, f):
+                self._f = f
+
+            def write(self, b):
+                return self._f.write(b)
+
+            def flush(self):
+                self._f.flush()
+
+            def close(self):
+                super().close()
+                self._f.close()
+
+        model = self._get_model()
+        x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
+        logdir, train_dir, validation_dir = self._get_log_dirs()
+        remote_logdir = "gs://bucket/tb"
+
+        def to_local(path):
+            self.assertTrue(path.startswith(remote_logdir), msg=path)
+            suffix = path[len(remote_logdir) :].strip("/")
+            return (
+                os.path.join(logdir, *suffix.split("/")) if suffix else logdir
+            )
+
+        tb_cbk = callbacks.TensorBoard(remote_logdir)
+        with (
+            mock.patch.object(
+                file_utils,
+                "exists",
+                side_effect=lambda path: os.path.exists(to_local(path)),
+            ),
+            mock.patch.object(
+                file_utils,
+                "makedirs",
+                side_effect=lambda path: os.makedirs(
+                    to_local(path), exist_ok=True
+                ),
+            ),
+            mock.patch.object(
+                file_utils,
+                "File",
+                side_effect=lambda path, mode="r": RemoteStream(
+                    open(to_local(path), mode)
+                ),
+            ),
+        ):
+            model.fit(
+                x,
+                y,
+                batch_size=2,
+                epochs=2,
+                validation_data=(x, y),
+                callbacks=[tb_cbk],
+            )
+
+        summary_file = list_summaries(logdir)
+        self.assertEqual(
+            summary_file.scalars,
+            {
+                _ObservedSummary(logdir=train_dir, tag="epoch_loss"),
+                _ObservedSummary(logdir=validation_dir, tag="epoch_loss"),
+                _ObservedSummary(logdir=train_dir, tag="epoch_learning_rate"),
+                _ObservedSummary(
+                    logdir=validation_dir,
+                    tag="evaluation_loss_vs_iterations",
+                ),
+            },
+        )
+        self.assertEqual(
+            summary_file.tensors,
+            {_ObservedSummary(logdir=train_dir, tag="keras")},
+        )
+
+    @pytest.mark.requires_trainable_backend
     def test_TensorBoard_across_invocations(self):
         """Regression test for summary writer resource use-after-free."""
         model = self._get_model()
@@ -191,6 +297,7 @@ class TestTensorBoardV2(testing.TestCase):
                 validation_data=(x, y),
                 callbacks=[tb_cbk],
             )
+        model.evaluate(x, y, batch_size=2, callbacks=[tb_cbk])
 
         summary_file = list_summaries(logdir)
         self.assertEqual(
@@ -493,11 +600,17 @@ class TestTensorBoardV2(testing.TestCase):
         logdir, train_dir, validation_dir = self._get_log_dirs()
         tb_cbk = callbacks.TensorBoard(logdir, update_freq=1, write_graph=False)
         x, y = np.ones((10, 5)), np.ones((10, 5))
-        with mock.patch.object(
-            callbacks.TensorBoard,
-            "summary",
-            new_callable=mock.PropertyMock,
-            return_value=summary,
+        with (
+            mock.patch.object(
+                callbacks.TensorBoard,
+                "summary",
+                new_callable=mock.PropertyMock,
+                return_value=summary,
+            ),
+            mock.patch(
+                "keras.src.callbacks.tensorboard.tensorflow",
+                new=mock.Mock(available=True),
+            ),
         ):
             model.fit(
                 x, y, batch_size=2, validation_data=(x, y), callbacks=[tb_cbk]

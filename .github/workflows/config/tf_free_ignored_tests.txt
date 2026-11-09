@@ -25,15 +25,7 @@ keras/src/trainers/data_adapters/tf_dataset_adapter_test.py
 keras/src/backend/common/keras_tensor_test.py::KerasTensorTest::test_invalid_usage
 keras/src/callbacks/orbax_checkpoint_test.py::OrbaxCheckpointTest::test_checkpoint_with_assets0
 keras/src/callbacks/orbax_checkpoint_test.py::OrbaxCheckpointTest::test_checkpoint_with_assets1
-keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_across_invocations
 keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_auto_trace
-keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_basic
-keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_batch_metrics
-keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_global_step
-keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_learning_rate_schedules
-keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_no_spurious_event_files
-keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_non_blocking
-keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_projector_callback
 keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_weight_histograms
 keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_weight_images
 keras/src/export/openvino_test.py::ExportOpenVINOTest::test_model_with_input_structure_array
@@ -216,7 +208,6 @@ keras/src/ops/image_test.py::ImageOpsStaticShapeTest::test_map_coordinates_float
 keras/src/ops/image_test.py::ImageOpsStaticShapeTest::test_map_coordinates_manual_cast
 keras/src/ops/image_test.py::ImageOpsStaticShapeTest::test_map_coordinates_nearest
 keras/src/ops/image_test.py::ImageOpsStaticShapeTest::test_map_coordinates_uint8
-keras/src/optimizers/multi_optimizer_test.py::MultiOptimizerTest::test_tensorboard_logging_with_multi_optimizer
 keras/src/random/random_test.py::RandomBehaviorTest::test_beta_tf_data_compatibility
 keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_jax_float32_batch
 keras/src/trainers/data_adapters/array_data_adapter_test.py::TestArrayDataAdapter::test_basic_flow_jax_float32_false
