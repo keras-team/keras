@@ -833,7 +833,7 @@ class Trainer(base_trainer.BaseTrainer):
             )
 
         def data():
-            yield _distribute_data((x, y, sample_weight))
+            yield _data_to_jax_arrays_on_devices((x, y, sample_weight))
 
         # Maybe build model
         self._symbolic_build(data_batch=next(data()))
@@ -882,7 +882,7 @@ class Trainer(base_trainer.BaseTrainer):
         self._assert_compile_called("test_on_batch")
 
         def data():
-            yield _distribute_data((x, y, sample_weight))
+            yield _data_to_jax_arrays_on_devices((x, y, sample_weight))
 
         # Maybe build model
         self._symbolic_build(data_batch=next(data()))
@@ -930,7 +930,7 @@ class Trainer(base_trainer.BaseTrainer):
         self._jax_state_synced = False
 
         def data():
-            yield (x,)
+            yield (_data_to_jax_arrays_on_devices(x),)
 
         batch_outputs, state = self.predict_function(state, data())
         trainable_variables, non_trainable_variables = state
@@ -1163,7 +1163,7 @@ def get_layout(d, distribution=None, is_super_batch=False):
     return base_layout.backend_layout
 
 
-def _distribute_data(data, layouts=None, is_super_batch=False):
+def _data_to_jax_arrays_on_devices(data, layouts=None, is_super_batch=False):
     distribution = distribution_lib.distribution()
 
     if distribution is not None:
@@ -1197,10 +1197,10 @@ class JAXEpochIterator(EpochIterator):
             for data in raw_iterator:
                 if isinstance(data, data_adapter_utils.PartialBatchList):
                     yield data_adapter_utils.PartialBatchList(
-                        [_distribute_data(b) for b in data]
+                        [_data_to_jax_arrays_on_devices(b) for b in data]
                     )
                 else:
-                    yield _distribute_data(
+                    yield _data_to_jax_arrays_on_devices(
                         data, is_super_batch=super_batch is not None
                     )
 
