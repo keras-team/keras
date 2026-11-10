@@ -1723,7 +1723,12 @@ def dot_product_attention(
     is_tpu = platform == "tpu"
 
     # Determine flash attention compatibility
-    if flash_attention is None:
+    depths_differ = key.shape[-1] != value.shape[-1]
+    if depths_differ:
+        # Neither the flash kernels nor `jax.nn.dot_product_attention` are
+        # used when the value depth differs from the key depth.
+        flash_attention = False
+    elif flash_attention is None:
         flash_attention = _can_use_flash_attention(query, key, value, bias)
     elif flash_attention is True:
         # Use `raise_error=True` to provide more details if the inputs failed to
@@ -1823,9 +1828,7 @@ def dot_product_attention(
 
     # JAX native dot_product_attention for GPU or fallback for TPU
     # `jax.nn.dot_product_attention` requires `depth_v == depth_k`.
-    if hasattr(jax.nn, "dot_product_attention") and (
-        key.shape[-1] == value.shape[-1]
-    ):
+    if hasattr(jax.nn, "dot_product_attention") and not depths_differ:
         impls = ["cudnn", "xla"] if flash_attention else ["xla"]
         for impl in impls:
             try:

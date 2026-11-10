@@ -1530,6 +1530,11 @@ class NNOpsStaticShapeTest(testing.TestCase):
         out = knn.dot_product_attention(query, key, value)
         self.assertEqual(out.shape, query.shape)
 
+        # The output has the depth of `value`.
+        value = KerasTensor([2, 4, 6, 5])
+        out = knn.dot_product_attention(query, key, value)
+        self.assertEqual(out.shape, (2, 3, 8, 5))
+
     def test_rms_normalization(self):
         x = KerasTensor([2, 8, 16])
         scale = KerasTensor([2, 8, 16])
@@ -3249,6 +3254,32 @@ class NNOpsCorrectnessTest(testing.TestCase):
             query, key, value, is_causal=is_causal
         )
         self.assertAllClose(outputs, expected, atol=1e-5)
+
+    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
+    @parameterized.named_parameters(named_product(flash_attention=(None, True)))
+    def test_dot_product_attention_value_depth_ignores_flash_attention(
+        self, flash_attention
+    ):
+        # Some GPUs accept a value depth different from the key depth in
+        # their flash attention kernels, but the other paths do not.
+        from unittest import mock
+
+        if backend.backend() != "jax":
+            self.skipTest("JAX only")
+        rng = np.random.RandomState(0)
+        query = rng.uniform(size=(2, 3, 4, 8)).astype("float16")
+        key = rng.uniform(size=(2, 3, 4, 8)).astype("float16")
+        value = rng.uniform(size=(2, 3, 4, 5)).astype("float16")
+        with mock.patch(
+            "keras.src.backend.jax.ops.nn._can_use_flash_attention",
+            return_value=True,
+        ):
+            outputs = knn.dot_product_attention(
+                query, key, value, flash_attention=flash_attention
+            )
+        self.assertEqual(outputs.shape, (2, 3, 4, 5))
+        expected = _dot_product_attention(query, key, value)
+        self.assertAllClose(outputs, expected, atol=1e-2)
 
     @parameterized.named_parameters(named_product(scale=(1.0, 10.0)))
     def test_rms_normalization(self, scale):

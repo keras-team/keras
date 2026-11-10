@@ -2881,7 +2881,8 @@ class DotProductAttention(Operation):
         scale=None,
     ):
         dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
-        return KerasTensor(query.shape, dtype=dtype)
+        output_shape = (*query.shape[:-1], value.shape[-1])
+        return KerasTensor(output_shape, dtype=dtype)
 
 
 @keras_export(
@@ -2921,7 +2922,8 @@ def dot_product_attention(
             query attention (GQA) is performed if `N` is a multiple of `K`. and
             multi-query attention (MQA) is performed if `K==1` (a special case
             of GQA).
-        value: The value array with the same shape of `key`.
+        value: The value array with the shape of `(B, S, K, Hv)`. `Hv` is
+            usually equal to `H` but may differ.
         bias: Optional bias array to be added to logits. The shape must be
             broadcastable to `(B, N, T, S)`.
         mask: Optional mask array used to filter out logits. It is a boolean
@@ -2940,7 +2942,8 @@ def dot_product_attention(
             only supported in JAX TPU backend. Defaults to None.
 
     Returns:
-        An array of the attention output with the same shape of `query`.
+        An array of the attention output with the shape of `(B, T, N, Hv)`,
+        which is the shape of `query` when `Hv == H`.
 
     Example:
 
