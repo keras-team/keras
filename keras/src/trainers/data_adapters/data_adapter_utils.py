@@ -564,6 +564,9 @@ def super_batch_iterator(iterator, super_batch, stack_fn=np.stack):
                 def _stack_leaf(*xs):
                     if xs[0] is None:
                         return None
+                    if isinstance(xs[0], np.ndarray):
+                        # `jnp.stack` would cut 64-bit NumPy arrays to 32-bit.
+                        return np.stack(xs)
                     return stack_fn(xs)
 
                 yield tree.map_structure(_stack_leaf, *batches)
