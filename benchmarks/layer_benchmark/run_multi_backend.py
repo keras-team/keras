@@ -6,7 +6,7 @@ import os
 import subprocess
 import sys
 
-RESULT_PREFIX = "BENCHMARK_RESULT:"
+_RESULT_PREFIX = "BENCHMARK_RESULT:"
 
 
 def run_backend(backend, module, flags):
@@ -18,8 +18,8 @@ def run_backend(backend, module, flags):
     ) as proc:
         for line in proc.stdout:
             print(line, end="")
-            if RESULT_PREFIX in line:
-                results.append(json.loads(line.split(RESULT_PREFIX, 1)[1]))
+            if _RESULT_PREFIX in line:
+                results.append(json.loads(line.split(_RESULT_PREFIX, 1)[1]))
     return proc.returncode == 0, results
 
 
@@ -33,21 +33,35 @@ def print_table(backends, results):
         print("No benchmark results collected.")
         return
     print("\nThroughput (samples/sec)\n")
-    print(f"{'Benchmark':<30}" + "".join(f"{b:>15}" for b in backends))
+    width = max(len(key) for key in rows) + 2
+    print(f"{'Benchmark':<{width}}" + "".join(f"{b:>15}" for b in backends))
     for key, values in rows.items():
         cells = "".join(
             f"{values[b]:>15.2f}" if b in values else f"{'n/a':>15}"
             for b in backends
         )
-        print(f"{key:<30}{cells}")
+        print(f"{key:<{width}}{cells}")
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--backends", default="jax,torch,tensorflow")
-    parser.add_argument("module")
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        epilog="Other flags are passed on to the benchmark module.",
+    )
+    parser.add_argument(
+        "--backends",
+        default="jax,torch,tensorflow",
+        help="Comma separated backends to run. Defaults to %(default)s.",
+    )
+    parser.add_argument(
+        "module",
+        help="Benchmark module to run, like "
+        "benchmarks.layer_benchmark.conv_benchmark.",
+    )
     args, flags = parser.parse_known_args()
     backends = [b.strip() for b in args.backends.split(",") if b.strip()]
+    if not backends:
+        parser.error("--backends must not be empty")
 
     results, failed = {}, []
     for backend in backends:
