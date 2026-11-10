@@ -270,6 +270,8 @@ class CheckInputDtypesTest(testing.TestCase):
         case.check_input_dtypes(("int8",), inputs, {})
         with self.assertRaisesRegex(AssertionError, r"\[-1, 6\] do not fit"):
             case.check_input_dtypes(("uint8",), inputs, {})
+        with self.assertRaisesRegex(AssertionError, "do not fit float16"):
+            case.check_input_dtypes(("float16",), (np.array([1e5]),), {})
 
     def test_skipped_dtype_has_reason(self):
         skipped = {backend.backend(): {"int8": "no int8 here"}}

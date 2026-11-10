@@ -1,6 +1,7 @@
 import functools
 import itertools
 
+import ml_dtypes
 import numpy as np
 from absl.testing import parameterized
 
@@ -189,7 +190,9 @@ class OpTest(TestCase):
         ):
             dtype_tolerance = max(
                 _TOLERANCES.get(standardize_dtype(output.dtype), 0),
-                _TOLERANCES.get(np.asarray(expected_output).dtype.name, 0),
+                _TOLERANCES.get(
+                    standardize_dtype(np.asarray(expected_output).dtype), 0
+                ),
             )
             self.assertAllClose(
                 output,
@@ -326,15 +329,12 @@ def _map_arrays(fn, inputs):
 
 
 def _fits(x, dtype):
-    """Whether the values of `x` are in the range of integer `dtype`.
-
-    `astype` wraps values outside the range, so a dtype test on such inputs
-    would compare noise with noise. Casts to bool and to floats are not
-    checked: `bool(x)` and rounding are the intended semantics.
-    """
-    if not np.issubdtype(dtype, np.integer):
+    """Whether the values of `x` are within the limits of `dtype`."""
+    kind = np.dtype(dtype).kind
+    if kind == "b":  # Every value casts to a bool.
         return True
-    info = np.iinfo(dtype)
+    # `ml_dtypes.finfo` also covers bfloat16, whose NumPy kind is "V".
+    info = np.iinfo(dtype) if kind in "iu" else ml_dtypes.finfo(dtype)
     return info.min <= x.min() and x.max() <= info.max
 
 
