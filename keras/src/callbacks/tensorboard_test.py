@@ -477,7 +477,6 @@ class TestTensorBoardV2(testing.TestCase):
 
         class LayerWithSummary(layers.Layer):
             def call(self, x):
-                # A custom summary goes to the current default writer.
                 if default_writers:
                     written.append(default_writers[-1].logdir)
                 return x
@@ -505,26 +504,6 @@ class TestTensorBoardV2(testing.TestCase):
             )
         self.assertEqual(set(written), {train_dir, validation_dir})
         summary.record_if.assert_called()
-
-    def _strip_to_only_final_name(self, summaries):
-        """Removes all leading names in a summary
-
-        Args:
-            summaries: A `set` of `_ObservedSummary` values.
-
-        Returns:
-            A new `set` of `_ObservedSummary` values striped of all
-            name except for the terminal one.
-
-        """
-        result = set()
-        for s in summaries:
-            if "/" not in s.tag:
-                result.add(s)
-            else:
-                new_tag = s.tag.split("/")[-1]
-                result.add(s._replace(tag=new_tag))
-        return result
 
     def _strip_layer_names(self, summaries, model_type):
         """Deduplicate summary names modulo layer prefix.
