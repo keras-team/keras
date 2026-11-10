@@ -3134,6 +3134,33 @@ class NNOpsCorrectnessTest(testing.TestCase):
                 )
 
     @parameterized.named_parameters(
+        named_product(num_kv_heads=(1, 2, 4), is_causal=(False, True))
+    )
+    def test_dot_product_attention_grouped_query(self, num_kv_heads, is_causal):
+        # `num_kv_heads` < `num_heads` is grouped-query attention; 1 is
+        # multi-query attention.
+        rng = np.random.RandomState(0)
+        query = rng.uniform(size=(2, 3, 4, 8)).astype("float32")
+        key = rng.uniform(size=(2, 5, num_kv_heads, 8)).astype("float32")
+        value = rng.uniform(size=(2, 5, num_kv_heads, 8)).astype("float32")
+        mask = rng.uniform(size=(2, 1, 3, 5)) > 0.2
+        mask[..., 0] = True
+        outputs = knn.dot_product_attention(
+            query, key, value, mask=mask, is_causal=is_causal
+        )
+        self.assertEqual(outputs.shape, (2, 3, 4, 8))
+        # Each key/value head serves a consecutive group of query heads.
+        groups = 4 // num_kv_heads
+        expected = _dot_product_attention(
+            query,
+            np.repeat(key, groups, axis=2),
+            np.repeat(value, groups, axis=2),
+            mask=mask,
+            is_causal=is_causal,
+        )
+        self.assertAllClose(outputs, expected, atol=1e-5)
+
+    @parameterized.named_parameters(
         named_product(
             bias=(None, True),
             scale=(None, 1.0),
