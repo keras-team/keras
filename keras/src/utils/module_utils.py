@@ -126,6 +126,16 @@ tf2onnx = LazyModule("tf2onnx")
 jax2onnx = LazyModule("jax2onnx", required_attr="to_onnx")
 grain = LazyModule("grain")
 litert = LazyModule("ai_edge_litert")
+xla_saved_model = LazyModule(
+    "xla_saved_model",
+    pip_name="xla-saved-model",
+    import_error_msg=(
+        "Exporting with `format='xla_saved_model'` requires the "
+        "`xla_saved_model` package. You can install it via "
+        "`pip install xla-saved-model` "
+        "(https://github.com/openxla/xla-serving)."
+    ),
+)
 ocp = OrbaxLazyModule(
     "orbax.checkpoint.v1",
     pip_name="orbax-checkpoint",

@@ -1,11 +1,10 @@
 import copy
 import inspect
-import itertools
-import string
 import warnings
 
 from keras.src import tree
 from keras.src.backend.common import StatelessScope
+from keras.src.export.export_utils import to_polymorphic_shape
 from keras.src.export.saved_model_export_archive import (
     BaseSavedModelExportArchive,
 )
@@ -57,7 +56,7 @@ class SavedModelExportArchive(BaseSavedModelExportArchive):
                 self._check_device_compatible()
             )
         if "polymorphic_shapes" not in jax2tf_kwargs:
-            jax2tf_kwargs["polymorphic_shapes"] = self._to_polymorphic_shape(
+            jax2tf_kwargs["polymorphic_shapes"] = to_polymorphic_shape(
                 input_signature
             )
 
@@ -133,41 +132,12 @@ class SavedModelExportArchive(BaseSavedModelExportArchive):
     def _convert_jax2tf_function(self, fn, input_signature, jax2tf_kwargs=None):
         from jax.experimental import jax2tf
 
-        variables_shapes = self._to_polymorphic_shape(
+        variables_shapes = to_polymorphic_shape(
             self._backend_variables, allow_none=False
         )
         input_shapes = list(jax2tf_kwargs["polymorphic_shapes"])
         jax2tf_kwargs["polymorphic_shapes"] = [variables_shapes] + input_shapes
         return jax2tf.convert(fn, **jax2tf_kwargs)
-
-    def _to_polymorphic_shape(self, struct, allow_none=True):
-        if allow_none:
-            # Generates unique names: a, b, ... z, aa, ab, ... az, ba, ... zz
-            # for unknown non-batch dims. Defined here to be scope per endpoint.
-            dim_names = itertools.chain(
-                string.ascii_lowercase,
-                itertools.starmap(
-                    lambda a, b: a + b,
-                    itertools.product(string.ascii_lowercase, repeat=2),
-                ),
-            )
-
-        def convert_shape(x):
-            poly_shape = []
-            for index, dim in enumerate(list(x.shape)):
-                if dim is not None:
-                    poly_shape.append(str(dim))
-                elif not allow_none:
-                    raise ValueError(
-                        f"Illegal None dimension in {x} with shape {x.shape}"
-                    )
-                elif index == 0:
-                    poly_shape.append("batch")
-                else:
-                    poly_shape.append(next(dim_names))
-            return f"({', '.join(poly_shape)})"
-
-        return tree.map_structure(convert_shape, struct)
 
     def _check_device_compatible(self):
         from jax import default_backend as jax_device

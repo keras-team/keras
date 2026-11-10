@@ -1004,8 +1004,11 @@ class Model(Trainer, Layer):
             raise ValueError("Torch export requires PyTorch backend.")
 
         # Check if XLA SavedModel export is available (requires JAX backend)
-        if format == "xla_saved_model" and backend.backend() != "jax":
-            raise ValueError("XLA SavedModel export requires JAX backend.")
+        if format == "xla_saved_model":
+            from keras.src.backend import config
+
+            if config.backend() != "jax":
+                raise ValueError("XLA SavedModel export requires JAX backend.")
 
         if format == "tf_saved_model":
             export_saved_model(

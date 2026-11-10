@@ -6,24 +6,18 @@ capture the StableHLO of each endpoint and an Orbax checkpoint for the
 weights, so it is only available with the JAX backend.
 """
 
-import itertools
+import os
 import re
-import string
 
 from keras.src import backend
 from keras.src import layers
 from keras.src import tree
+from keras.src.backend import config
+from keras.src.backend.common import StatelessScope
 from keras.src.export.export_utils import make_input_spec
-from keras.src.utils.module_utils import LazyModule
-
-xla_saved_model = LazyModule(
-    "xla_saved_model",
-    pip_name="xla-saved-model",
-    import_error_msg=(
-        "Exporting with `format='xla_saved_model'` requires the "
-        "`xla_saved_model` package from https://github.com/openxla/xla-serving."
-    ),
-)
+from keras.src.export.export_utils import to_polymorphic_shape
+from keras.src.utils import file_utils
+from keras.src.utils.module_utils import xla_saved_model
 
 DEFAULT_MODEL_NAME = "keras_model"
 # Signature the XLA Serving Engine uses when a request does not name one.
@@ -32,7 +26,6 @@ DEFAULT_SERVING_SIGNATURE = "serving_default"
 # export directory. `assets.extra` is the XLA SavedModel directory for
 # auxiliary files not referenced by the manifest (e.g. warmup requests).
 VARIABLE_COLLECTIONS_SUBDIR = "assets.extra/variable_collections"
-_BATCH_DIM_NAME = "batch"
 _AUTO_TENSOR_NAME = re.compile(r"keras_tensor(_\d+)?")
 
 _SUPPORTED_ENDPOINT_KWARGS = (
@@ -81,10 +74,10 @@ class XLASavedModelArchive:
     """
 
     def __init__(self):
-        if backend.backend() != "jax":
+        if config.backend() != "jax":
             raise NotImplementedError(
                 "`ExportArchive(format='xla_saved_model')` is only compatible "
-                f"with the JAX backend. Current backend: {backend.backend()}"
+                f"with the JAX backend. Current backend: {config.backend()}"
             )
         # Fail early with a helpful message if the package is missing.
         xla_saved_model.initialize()
@@ -221,11 +214,22 @@ class XLASavedModelArchive:
         names, is_single_dict = _get_input_names(spec_structure)
         polymorphic_shapes = kwargs.pop("polymorphic_shapes", None)
         if polymorphic_shapes is None:
-            polymorphic_shapes = _to_polymorphic_shapes(spec_structure)
+            polymorphic_shapes = to_polymorphic_shape(spec_structure)
         else:
             if not isinstance(polymorphic_shapes, (list, tuple)):
                 polymorphic_shapes = [polymorphic_shapes]
             tree.assert_same_structure(spec_structure, list(polymorphic_shapes))
+            # A `None` entry means "use the concrete shape of the spec", as in
+            # `jax.export.symbolic_args_specs`; such specs must be fully known.
+            polymorphic_shapes = tree.map_structure(
+                lambda spec, poly: (
+                    to_polymorphic_shape(spec, allow_none=False)
+                    if poly is None
+                    else poly
+                ),
+                spec_structure,
+                list(polymorphic_shapes),
+            )
 
         def to_serving_structure(structure):
             if is_single_dict:
@@ -256,7 +260,7 @@ class XLASavedModelArchive:
             # `params` is the flat list of variable values, in the order of
             # `self.variables` at `write_out()` time.
             state_mapping = zip(self.variables, params)
-            with backend.StatelessScope(state_mapping=state_mapping):
+            with StatelessScope(state_mapping=state_mapping):
                 return fn(*from_serving_structure(inputs))
 
         def apply_fn(params, inputs):
@@ -393,6 +397,15 @@ class XLASavedModelArchive:
                 f"`xla_saved_model.save()`. Received: {options}"
             )
         filepath = str(filepath)
+        if file_utils.is_remote_path(filepath):
+            # `xla_saved_model.save()` writes the manifest, orchestration and
+            # warmup files with `pathlib`/`os`, which do not understand remote
+            # filesystems, so a remote path would produce a broken artifact.
+            raise ValueError(
+                "Exporting an XLA SavedModel to a remote path is not "
+                f"supported. Received: filepath={filepath}. Export to a local "
+                "directory and copy it to the remote location."
+            )
 
         model = xla_saved_model.JaxModel(
             apply_fn_bundle={
@@ -505,8 +518,6 @@ class XLASavedModelArchive:
         Serving Engine loads at start-up, and these variables are not used by
         any endpoint.
         """
-        import os
-
         import orbax.checkpoint as ocp
 
         collections = {
@@ -514,6 +525,8 @@ class XLASavedModelArchive:
             for name, variables in self._variable_collections.items()
         }
         checkpointer = ocp.Checkpointer(ocp.StandardCheckpointHandler())
+        # `filepath` is local (see `write_out()`); Orbax requires an absolute
+        # path for local checkpoints.
         checkpointer.save(
             os.path.abspath(
                 os.path.join(filepath, VARIABLE_COLLECTIONS_SUBDIR)
@@ -566,35 +579,6 @@ def _get_input_names(spec_structure):
     return [f"input_{i}" for i in range(len(specs))], False
 
 
-def _to_polymorphic_shapes(spec_structure):
-    """Returns `jax.export` symbolic shape strings for a signature.
-
-    The leading `None` dimension is shared across all inputs as `"batch"`;
-    other `None` dimensions get a unique symbol each.
-    """
-    # Generates unique names: a, b, ... z, aa, ab, ... az, ba, ... zz
-    dim_names = itertools.chain(
-        string.ascii_lowercase,
-        itertools.starmap(
-            lambda a, b: a + b,
-            itertools.product(string.ascii_lowercase, repeat=2),
-        ),
-    )
-
-    def convert_shape(spec):
-        poly_shape = []
-        for index, dim in enumerate(spec.shape):
-            if dim is not None:
-                poly_shape.append(str(dim))
-            elif index == 0:
-                poly_shape.append(_BATCH_DIM_NAME)
-            else:
-                poly_shape.append(next(dim_names))
-        return ", ".join(poly_shape)
-
-    return tree.map_structure(convert_shape, spec_structure)
-
-
 def _to_serving_outputs(outputs):
     """Names the outputs of an endpoint for the serving layer.
 
@@ -615,7 +599,17 @@ def _symbolic_shape(shape, polymorphic_shape):
     integer dimensions are kept as ints and symbolic ones as strings, which
     is how `xla_saved_model` expects dynamic dimensions in
     `jax.ShapeDtypeStruct`. `shape` is only used to validate the rank.
+
+    `polymorphic_shape` is a `jax.export` shape string: a comma-separated
+    list of dimensions, optionally parenthesized, e.g. `"(batch, 10)"`,
+    `"b, 10"`, `"batch"` (rank 1) or `""`/`"()"` (rank 0). `None` entries are
+    resolved to concrete shapes by `add_endpoint()` before reaching here.
     """
+    if not isinstance(polymorphic_shape, str):
+        raise ValueError(
+            "Each entry of `polymorphic_shapes` must be a `jax.export` shape "
+            f"string such as '(batch, 10)'. Received: {polymorphic_shape!r}"
+        )
     symbols = [
         s.strip() for s in polymorphic_shape.strip().strip("()").split(",")
     ]
