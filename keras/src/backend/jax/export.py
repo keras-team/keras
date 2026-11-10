@@ -5,7 +5,7 @@ import string
 import warnings
 
 from keras.src import tree
-from keras.src.backend.common.stateless_scope import StatelessScope
+from keras.src.backend.common import StatelessScope
 from keras.src.export.saved_model_export_archive import (
     BaseSavedModelExportArchive,
 )

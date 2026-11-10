@@ -5,12 +5,12 @@ from functools import partial
 import jax
 import numpy as np
 
-from keras.src import backend
 from keras.src import callbacks as callbacks_module
 from keras.src import optimizers as optimizers_module
 from keras.src import tree
 from keras.src.backend import config
 from keras.src.backend import distribution_lib as jax_distribution_lib
+from keras.src.backend.common import StatelessScope
 from keras.src.backend.config import is_nnx_enabled
 from keras.src.distribution import distribution_lib
 from keras.src.trainers import trainer as base_trainer
@@ -182,7 +182,7 @@ class Trainer(base_trainer.BaseTrainer):
         if training and self.optimizer is not None:
             # Scale loss with a StatelessScope, to use an update scale variable.
             mapping = list(zip(self.optimizer.variables, optimizer_variables))
-            with backend.StatelessScope(state_mapping=mapping):
+            with StatelessScope(state_mapping=mapping):
                 loss = self.optimizer.scale_loss(loss)
         return loss, (
             unscaled_loss,
@@ -194,7 +194,7 @@ class Trainer(base_trainer.BaseTrainer):
     def _update_metrics_variables(
         self, metrics_variables, unscaled_loss, x, y, y_pred, sample_weight
     ):
-        with backend.StatelessScope(
+        with StatelessScope(
             state_mapping=[
                 (ref_v, v)
                 for ref_v, v in zip(self.metrics_variables, metrics_variables)
@@ -737,7 +737,7 @@ class Trainer(base_trainer.BaseTrainer):
                 if is_nnx_enabled():
                     self(x)
                 else:
-                    with backend.StatelessScope():
+                    with StatelessScope():
                         self(x)
                 break
             epoch_iterator.reset()
@@ -917,7 +917,7 @@ class Trainer(base_trainer.BaseTrainer):
     def predict_on_batch(self, x):
         if not all(layer.built for layer in self._flatten_layers()):
             # Build model
-            with backend.StatelessScope():
+            with StatelessScope():
                 self(x)
         self.make_predict_function()
 
