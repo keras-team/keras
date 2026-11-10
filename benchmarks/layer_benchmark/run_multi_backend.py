@@ -51,7 +51,7 @@ def main():
 
     results, failed = {}, []
     for backend in backends:
-        print(f"=== {backend} ===")
+        print(f"=== {backend} ===", flush=True)
         ok, results[backend] = run_backend(backend, args.module, flags)
         if not ok:
             failed.append(backend)
