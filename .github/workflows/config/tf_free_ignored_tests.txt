@@ -36,7 +36,6 @@ keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_non
 keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_projector_callback
 keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_weight_histograms
 keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_weight_images
-keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_custom_summary
 keras/src/export/openvino_test.py::ExportOpenVINOTest::test_model_with_input_structure_array
 keras/src/export/openvino_test.py::ExportOpenVINOTest::test_model_with_input_structure_dict
 keras/src/export/openvino_test.py::ExportOpenVINOTest::test_model_with_input_structure_tuple
