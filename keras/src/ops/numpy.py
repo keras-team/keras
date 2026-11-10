@@ -3033,7 +3033,7 @@ def dot(x1, x2):
 
 class Dstack(Operation):
     def call(self, xs):
-        return backend.ops.numpy.dstack(xs)
+        return _dstack(xs)
 
     def compute_output_spec(self, xs):
         dtypes_to_resolve = []
@@ -3102,7 +3102,30 @@ def dstack(xs):
     """
     if any_symbolic_tensors((xs,)):
         return Dstack().symbolic_call(xs)
-    return backend.ops.numpy.dstack(xs)
+    return _dstack(xs)
+
+
+def _dstack(xs):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "dstack"
+    ):
+        return backend.ops.numpy.dstack(xs)
+    xs = [
+        x if isinstance(x, (int, float)) else backend.ops.convert_to_tensor(x)
+        for x in xs
+    ]
+    dtype = dtypes.result_type(*[getattr(x, "dtype", type(x)) for x in xs])
+    xs_reshaped = []
+    for x in xs:
+        x = backend.ops.cast(x, dtype)
+        if len(x.shape) == 0:
+            x = backend.ops.numpy.expand_dims(x, axis=(0, 1, 2))
+        elif len(x.shape) == 1:
+            x = backend.ops.numpy.expand_dims(x, axis=(0, 2))
+        elif len(x.shape) == 2:
+            x = backend.ops.numpy.expand_dims(x, axis=2)
+        xs_reshaped.append(x)
+    return backend.ops.numpy.concatenate(xs_reshaped, axis=2)
 
 
 class Einsum(Operation):
@@ -3393,7 +3416,7 @@ class EmptyLike(Operation):
         self.dtype = dtype
 
     def call(self, x):
-        return backend.ops.numpy.empty_like(x, dtype=self.dtype)
+        return _empty_like(x, dtype=self.dtype)
 
     def compute_output_spec(self, x):
         dtype = standardize_dtype(x.dtype) if self.dtype is None else self.dtype
@@ -3423,7 +3446,15 @@ def empty_like(x, dtype=None):
     dtype = None if dtype is None else standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return EmptyLike(dtype=dtype).symbolic_call(x)
-    return backend.ops.numpy.empty_like(x, dtype=dtype)
+    return _empty_like(x, dtype=dtype)
+
+
+def _empty_like(x, dtype=None):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "empty_like"
+    ):
+        return backend.ops.numpy.empty_like(x, dtype=dtype)
+    return backend.ops.numpy.zeros_like(x, dtype=dtype)
 
 
 class Equal(Operation):
@@ -3481,7 +3512,7 @@ def exp(x):
 
 class Exp2(Operation):
     def call(self, x):
-        return backend.ops.numpy.exp2(x)
+        return _exp2(x)
 
     def compute_output_spec(self, x):
         dtype = standardize_dtype(x.dtype)
@@ -3502,7 +3533,19 @@ def exp2(x):
     """
     if any_symbolic_tensors((x,)):
         return Exp2().symbolic_call(x)
-    return backend.ops.numpy.exp2(x)
+    return _exp2(x)
+
+
+def _exp2(x):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "exp2"
+    ):
+        return backend.ops.numpy.exp2(x)
+    x = backend.ops.convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if "int" in dtype or dtype == "bool":
+        x = backend.ops.cast(x, config.floatx())
+    return backend.ops.numpy.power(2.0, x)
 
 
 class ExpandDims(Operation):
@@ -9182,7 +9225,7 @@ def divide(x1, x2):
 
 class DivideNoNan(Operation):
     def call(self, x1, x2):
-        return backend.ops.numpy.divide_no_nan(x1, x2)
+        return _divide_no_nan(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -9214,7 +9257,30 @@ def divide_no_nan(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return DivideNoNan().symbolic_call(x1, x2)
-    return backend.ops.numpy.divide_no_nan(x1, x2)
+    return _divide_no_nan(x1, x2)
+
+
+def _divide_no_nan(x1, x2):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "divide_no_nan"
+    ):
+        return backend.ops.numpy.divide_no_nan(x1, x2)
+    if not isinstance(x1, (int, float)):
+        x1 = backend.ops.convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = backend.ops.convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+        float,
+    )
+    x1 = backend.ops.cast(x1, dtype)
+    x2 = backend.ops.cast(x2, dtype)
+    x2_is_zero = backend.ops.numpy.equal(x2, 0)
+    safe_x2 = backend.ops.numpy.where(x2_is_zero, 1, x2)
+    return backend.ops.numpy.where(
+        x2_is_zero, 0, backend.ops.numpy.divide(x1, safe_x2)
+    )
 
 
 class TrueDivide(Operation):
@@ -9900,10 +9966,10 @@ def logical_xor(x1, x2):
 
 class Corrcoef(Operation):
     def call(self, x):
-        return backend.ops.numpy.corrcoef(x)
+        return _corrcoef(x)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(getattr(x, "dtype", backend.floatx()))
+        dtype = standardize_dtype(getattr(x, "dtype", config.floatx()))
         if dtype == "int64":
             dtype = "float64"
         else:
@@ -9932,7 +9998,22 @@ def corrcoef(x):
     """
     if any_symbolic_tensors((x,)):
         return Corrcoef().symbolic_call(x)
-    return backend.ops.numpy.corrcoef(x)
+    return _corrcoef(x)
+
+
+def _corrcoef(x):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "corrcoef"
+    ):
+        return backend.ops.numpy.corrcoef(x)
+    x_cov = _cov(x)
+    if len(x_cov.shape) == 0:
+        return backend.ops.numpy.divide(x_cov, x_cov)
+    stddev = backend.ops.numpy.sqrt(backend.ops.numpy.diagonal(x_cov))
+    x_corr = backend.ops.numpy.divide(
+        x_cov, backend.ops.numpy.outer(stddev, stddev)
+    )
+    return backend.ops.numpy.clip(x_corr, -1, 1)
 
 
 class Correlate(Operation):
@@ -9941,7 +10022,7 @@ class Correlate(Operation):
         self.mode = mode
 
     def call(self, x1, x2):
-        return backend.ops.numpy.correlate(x1, x2, mode=self.mode)
+        return _correlate(x1, x2, mode=self.mode)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -9975,7 +10056,7 @@ class Correlate(Operation):
         )
         if output_dtype == "int64":
             output_dtype = "float64"
-        elif output_dtype not in ["bfloat16", "float16", "float64"]:
+        elif "int" in output_dtype or output_dtype == "bool":
             output_dtype = "float32"
         return KerasTensor(output_shape, dtype=output_dtype)
 
@@ -10008,7 +10089,62 @@ def correlate(x1, x2, mode="valid"):
     """
     if any_symbolic_tensors((x1, x2)):
         return Correlate(mode=mode).symbolic_call(x1, x2)
-    return backend.ops.numpy.correlate(x1, x2, mode=mode)
+    return _correlate(x1, x2, mode=mode)
+
+
+def _correlate(x1, x2, mode="valid"):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "correlate"
+    ):
+        return backend.ops.numpy.correlate(x1, x2, mode=mode)
+    if mode not in ("valid", "same", "full"):
+        raise ValueError(
+            "`mode` must be either `valid`, `same`, or `full`. "
+            f"Received: mode={mode}"
+        )
+    x1 = backend.ops.convert_to_tensor(x1)
+    x2 = backend.ops.convert_to_tensor(x2)
+    if len(x1.shape) != 1 or len(x2.shape) != 1:
+        raise ValueError(
+            "`x1` and `x2` must be 1-dimensional tensors. "
+            f"Received: x1.shape={x1.shape}, x2.shape={x2.shape}"
+        )
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype == "int64":
+        dtype = "float64"
+    elif "int" in dtype or dtype == "bool":
+        dtype = "float32"
+    x1 = backend.ops.cast(x1, dtype)
+    x2 = backend.ops.cast(x2, dtype)
+    x1_len = backend.ops.shape(x1)[0]
+    x2_len = backend.ops.shape(x2)[0]
+    full_len = x1_len + x2_len - 1
+    x1 = backend.ops.numpy.pad(x1, [(x2_len - 1, x2_len - 1)])
+    indices = backend.ops.numpy.add(
+        backend.ops.numpy.expand_dims(
+            backend.ops.numpy.arange(full_len), axis=1
+        ),
+        backend.ops.numpy.arange(x2_len),
+    )
+    output = backend.ops.numpy.matmul(backend.ops.numpy.take(x1, indices), x2)
+    if mode == "full":
+        return output
+    len_diff = builtins.abs(x1_len - x2_len)
+    shorter_len = (x1_len + x2_len - len_diff) // 2
+    if mode == "valid":
+        start = shorter_len - 1
+        output_len = len_diff + 1
+    else:
+        start = backend.ops.numpy.where(
+            backend.ops.numpy.less(x1_len, x2_len),
+            shorter_len // 2,
+            (shorter_len - 1) // 2,
+        )
+        output_len = shorter_len + len_diff
+    return backend.ops.numpy.take(
+        output,
+        backend.ops.numpy.add(backend.ops.numpy.arange(output_len), start),
+    )
 
 
 class Select(Operation):

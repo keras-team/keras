@@ -1,3 +1,5 @@
+import numbers
+
 from keras.src.api_export import keras_export
 from keras.src.quantizers.quantization_config import QuantizationConfig
 
@@ -170,7 +172,12 @@ class GPTQConfig(QuantizationConfig):
             )
         if num_samples <= 0:
             raise ValueError("num_samples must be a positive integer.")
-        if calibration_batch_size <= 0:
+        if (
+            isinstance(calibration_batch_size, bool)
+            or not isinstance(calibration_batch_size, numbers.Real)
+            or not float(calibration_batch_size).is_integer()
+            or calibration_batch_size < 1
+        ):
             raise ValueError(
                 "calibration_batch_size must be a positive integer."
             )
@@ -187,7 +194,7 @@ class GPTQConfig(QuantizationConfig):
         self.dataset = dataset
         self.tokenizer = tokenizer
         self.num_samples = num_samples
-        self.calibration_batch_size = calibration_batch_size
+        self.calibration_batch_size = int(calibration_batch_size)
         self.per_channel = per_channel
         self.sequence_length = sequence_length
         self.hessian_damping = hessian_damping

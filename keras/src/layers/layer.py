@@ -33,9 +33,12 @@ from keras.src import utils
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend.common import AutocastScope
+from keras.src.backend.common import StatelessScope
 from keras.src.backend.common import get_autocast_scope
 from keras.src.backend.common import get_keras_mask
+from keras.src.backend.common import get_stateless_scope
 from keras.src.backend.common import global_state
+from keras.src.backend.common import in_stateless_scope
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import remat
 from keras.src.backend.common import set_keras_mask
@@ -246,6 +249,9 @@ class Layer(BackendLayer, Operation):
         def build_wrapper(*args, **kwargs):
             with obj._open_name_scope():
                 obj._path = current_path()
+                # Before any variable exists: the layer builds from its
+                # policy name and the config it holds, which must agree.
+                obj._check_config_matches_policy(obj.quantization_config)
                 original_build_method(*args, **kwargs)
             # Record build config.
             signature = inspect.signature(original_build_method)
@@ -630,6 +636,9 @@ class Layer(BackendLayer, Operation):
             else:
                 initializer = "zeros"
         initializer = initializers.get(initializer)
+        # Note: this should not be `self._open_name_scope()`, which is reserved
+        # for `__call__` and `build`. `_open_name_scope` captures the current
+        # path as `_parent_path`, which is incorrect within `__init__`.
         with backend.name_scope(self.name, caller=self):
             variable = backend.Variable(
                 initializer=initializer,
@@ -1239,7 +1248,7 @@ class Layer(BackendLayer, Operation):
         try:
             # Call in stateless scope
             losses = None
-            with backend.StatelessScope(
+            with StatelessScope(
                 state_mapping=mapping, collect_losses=return_losses
             ) as scope:
                 outputs = self._dispatch_call(*args, **kwargs)
@@ -1333,8 +1342,8 @@ class Layer(BackendLayer, Operation):
                     "`add_loss()` can only be called from inside `build()` or "
                     f"`call()`, on a tensor input. Received invalid value: {x}"
                 )
-        if backend.in_stateless_scope():
-            scope = backend.get_stateless_scope()
+        if in_stateless_scope():
+            scope = get_stateless_scope()
             if scope.collect_losses:
                 for x in losses:
                     scope.add_loss(x)
@@ -1343,9 +1352,9 @@ class Layer(BackendLayer, Operation):
             self._losses.extend(losses)
 
     def _get_own_losses(self):
-        if backend.in_stateless_scope():
+        if in_stateless_scope():
             losses = []
-            scope = backend.get_stateless_scope()
+            scope = get_stateless_scope()
             for loss in scope.losses:
                 if id(loss) in self._loss_ids:
                     losses.append(loss)
@@ -1358,11 +1367,11 @@ class Layer(BackendLayer, Operation):
         for variable in self.trainable_weights:
             if variable.regularizer is None:
                 continue
-            if backend.in_stateless_scope() and not in_symbolic_scope():
+            if in_stateless_scope() and not in_symbolic_scope():
                 # If in symbolic scope, we might get `None` from
                 # `get_current_value` in `backend.compute_output_spec`. So we
                 # assign `variable` instead.
-                v = backend.get_stateless_scope().get_current_value(variable)
+                v = get_stateless_scope().get_current_value(variable)
             else:
                 v = variable
             weight_regularization_losses.append(variable.regularizer(v))
@@ -1381,8 +1390,8 @@ class Layer(BackendLayer, Operation):
         return losses
 
     def _clear_losses(self):
-        if backend.in_stateless_scope():
-            scope = backend.get_stateless_scope()
+        if in_stateless_scope():
+            scope = get_stateless_scope()
             if scope.collect_losses:
                 # Filter by identity (id) rather than using list.remove(),
                 # which compares by value. Value comparison on JAX tracers
@@ -1390,7 +1399,10 @@ class Layer(BackendLayer, Operation):
                 scope.losses[:] = [
                     x for x in scope.losses if id(x) not in self._loss_ids
                 ]
-        self._losses.clear()
+        # Use slice assignment, not `list.clear()`. With `clear()`,
+        # `torch.compile` guards on the loss tensors of the previous call
+        # and recompiles on each call.
+        self._losses[:] = []
         self._loss_ids.clear()
         for layer in self._layers:
             layer._clear_losses()
@@ -1467,6 +1479,40 @@ class Layer(BackendLayer, Operation):
             self.quantization_config = config
         strategy.build(self, input_shape, config)
         self._is_quantized = True
+
+    def _check_config_matches_policy(self, config):
+        """Raises if `config` contradicts the layer's quantized dtype policy.
+
+        The policy name fixes a quantized layer's variables: a layer built
+        from the name alone, as a `DTypePolicyMap` reload builds it, must
+        hold the variables that a build from `config` creates. `config`
+        must have the policy's mode and every block size, bit width and
+        group size that the name states. A legacy bare `"int4"` name states
+        no block size, so `config` gives it.
+        """
+        if config is None:
+            return
+        policy = self._own_dtype_policy
+        if policy.quantization_mode is None:
+            return
+        if config.mode != policy.quantization_mode:
+            raise ValueError(
+                f"Contradictory arguments: dtype_policy='{policy.name}' but "
+                f"quantization_config.mode='{config.mode}'"
+            )
+        for name in ("block_size", "weight_bits", "group_size"):
+            if not (hasattr(policy, name) and hasattr(config, name)):
+                continue
+            # `None` and -1 both select per-channel quantization.
+            stated, given = (
+                -1 if value is None else value
+                for value in (getattr(policy, name), getattr(config, name))
+            )
+            if stated != given:
+                raise ValueError(
+                    f"Contradictory arguments: dtype_policy='{policy.name}' "
+                    f"but quantization_config.{name}={getattr(config, name)}"
+                )
 
     def quantize(self, mode=None, type_check=True, config=None):
         """Quantizes this layer in place.
@@ -1896,7 +1942,7 @@ class Layer(BackendLayer, Operation):
             # reached from `build_from_config`, not from `build` or
             # `__call__`, so the name scope is not open yet; open it here so
             # nested layers capture the same `path` as a from-code build.
-            with backend.name_scope(self.name):
+            with self._open_name_scope():
                 backend.compute_output_spec(self.call, input_tensors)
             # Mark this layer as built and capture the `path` of this layer.
             # We do this after so that it doesn't happen in case of failure of
@@ -1924,7 +1970,7 @@ class Layer(BackendLayer, Operation):
             # reached from `build_from_config`, not from `build` or
             # `__call__`, so the name scope is not open yet; open it here so
             # nested layers capture the same `path` as a from-code build.
-            with backend.name_scope(self.name):
+            with self._open_name_scope():
                 backend.compute_output_spec(self.call, **input_tensors)
             # Mark this layer as built and capture the `path` of this layer.
             # We do this after so that it doesn't happen in case of failure of
@@ -2076,6 +2122,14 @@ class Layer(BackendLayer, Operation):
         return {**base_config, **config}
 
     def _open_name_scope(self):
+        """Open a name scope for this layer and capture `_parent_path`.
+
+        This opens a name scope with the name of the layer deduped with `self`.
+        It also captures the current path in `_parent_path`, which is then
+        used by `name_scope`.
+
+        This should be used to wrap `__call__` and `build`, and nothing else.
+        """
         from keras.src.utils import jax_utils  # avoid circular imports
 
         if self._parent_path is None:

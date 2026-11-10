@@ -1,12 +1,12 @@
 import numpy as np
 import pytest
-import tensorflow as tf
 
 from keras.src import backend
 from keras.src import testing
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops.operation import Operation
 from keras.src.utils import traceback_utils
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 class FailLayer(Operation):

@@ -3,7 +3,6 @@ import os
 import numpy as np
 import pytest
 from absl.testing import parameterized
-from tensorflow import data as tf_data
 
 from keras.src import backend
 from keras.src import layers
@@ -14,6 +13,7 @@ from keras.src.backend.common import standardize_dtype
 from keras.src.saving import saving_api
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters.py_dataset_adapter import PyDataset
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 class DiscretizationTest(testing.TestCase):
@@ -165,7 +165,7 @@ class DiscretizationTest(testing.TestCase):
         )
         x = np.array([[-1.0, 0.0, 0.1, 0.2, 0.4, 0.5, 1.0, 1.2, 0.98]])
         self.assertAllClose(layer(x), np.array([[0, 1, 1, 1, 2, 3, 4, 4, 3]]))
-        ds = tf_data.Dataset.from_tensor_slices(x).batch(1).map(layer)
+        ds = tf.data.Dataset.from_tensor_slices(x).batch(1).map(layer)
         for output in ds.take(1):
             output = output.numpy()
         self.assertAllClose(output, np.array([[0, 1, 1, 1, 2, 3, 4, 4, 3]]))
@@ -176,7 +176,7 @@ class DiscretizationTest(testing.TestCase):
             np.random.random((32, 3)),
         )
         x = np.array([[0.0, 0.1, 0.3]])
-        ds = tf_data.Dataset.from_tensor_slices(x).batch(1).map(layer)
+        ds = tf.data.Dataset.from_tensor_slices(x).batch(1).map(layer)
         for output in ds.take(1):
             output.numpy()
 

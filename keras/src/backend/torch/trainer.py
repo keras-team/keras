@@ -13,6 +13,7 @@ from keras.src import callbacks as callbacks_module
 from keras.src import optimizers as optimizers_module
 from keras.src import tree
 from keras.src.backend import config
+from keras.src.backend.common import StatelessScope
 from keras.src.backend.torch.distribution_lib import distribute_data_input
 from keras.src.backend.torch.ops.core import convert_to_tensor
 from keras.src.backend.torch.ops.core import get_device
@@ -289,7 +290,7 @@ class Trainer(BaseTrainer):
                 reduced_vars.append(val)
 
         # The reduced values have no gradient, so neither do the results.
-        with backend.StatelessScope(
+        with StatelessScope(
             state_mapping=list(zip(self.metrics_variables, reduced_vars))
         ):
             results = super().get_metrics_result()

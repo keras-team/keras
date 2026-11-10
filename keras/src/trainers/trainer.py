@@ -7,6 +7,7 @@ from keras.src import metrics as metrics_module
 from keras.src import ops
 from keras.src import optimizers
 from keras.src import tree
+from keras.src.backend.common import StatelessScope
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.optimizers.loss_scale_optimizer import LossScaleOptimizer
@@ -454,7 +455,7 @@ class BaseTrainer:
             zip(self.non_trainable_variables, non_trainable_variables)
         )
         var_mapping.extend(zip(self.metrics_variables, metrics_variables))
-        with backend.StatelessScope(state_mapping=var_mapping) as scope:
+        with StatelessScope(state_mapping=var_mapping) as scope:
             # Note that this is needed for the regularization loss, which need
             # the latest value of train/non-trainable variables.
             loss = self._compute_loss(
