@@ -1486,6 +1486,24 @@ class MathDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_top_k(self, dtype):
+        import jax.lax as lax
+
+        x = knp.ones((2, 3), dtype=dtype)
+        x_jax = jnp.ones((2, 3), dtype=dtype)
+
+        expected_dtype = standardize_dtype(lax.top_k(x_jax, 2)[0].dtype)
+
+        self.assertEqual(
+            standardize_dtype(kmath.top_k(x, k=2)[0].dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(kmath.TopK(k=2).symbolic_call(x)[0].dtype),
+            expected_dtype,
+        )
+
 
 class ExtractSequencesOpTest(testing.TestCase):
     def test_extract_sequences_init_length_1_stride_1(self):
