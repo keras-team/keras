@@ -100,7 +100,7 @@ def rnn(
                 )
                 tiled_mask_t = _expand_mask(mask_t, output)
 
-                if not successive_outputs:
+                if zero_output_for_mask or not successive_outputs:
                     prev_output = jnp.zeros_like(output)
                 else:
                     prev_output = successive_outputs[-1]

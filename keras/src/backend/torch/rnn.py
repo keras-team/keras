@@ -92,7 +92,7 @@ def rnn(
         if mask is not None:
             mask_list = torch.unbind(mask)
             if go_backwards:
-                mask_list = torch.flip(mask_list, dims=mask_list.shape)
+                mask_list = mask_list[::-1]
 
             for i in range(time_steps):
                 inp = _get_input_tensor(i)
@@ -102,7 +102,7 @@ def rnn(
                 )
                 tiled_mask_t = _expand_mask(mask_t, output)
 
-                if not successive_outputs:
+                if zero_output_for_mask or not successive_outputs:
                     prev_output = torch.zeros_like(output)
                 else:
                     prev_output = successive_outputs[-1]
@@ -131,18 +131,6 @@ def rnn(
             last_output = successive_outputs[-1]
             new_states = successive_states[-1]
             outputs = torch.stack(successive_outputs)
-
-            if zero_output_for_mask:
-                last_output = torch.where(
-                    _expand_mask(mask_list[-1], last_output),
-                    last_output,
-                    torch.zeros_like(last_output),
-                )
-                outputs = torch.where(
-                    _expand_mask(mask, outputs, fixed_dim=2),
-                    outputs,
-                    torch.zeros_like(outputs),
-                )
 
         else:  # mask is None
             for i in range(time_steps):
