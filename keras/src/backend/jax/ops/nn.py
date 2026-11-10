@@ -1822,7 +1822,10 @@ def dot_product_attention(
                 flash_attention = False
 
     # JAX native dot_product_attention for GPU or fallback for TPU
-    if hasattr(jax.nn, "dot_product_attention"):
+    # `jax.nn.dot_product_attention` requires `depth_v == depth_k`.
+    if hasattr(jax.nn, "dot_product_attention") and (
+        key.shape[-1] == value.shape[-1]
+    ):
         impls = ["cudnn", "xla"] if flash_attention else ["xla"]
         for impl in impls:
             try:
@@ -1854,7 +1857,8 @@ def dot_product_attention(
 
     # Fallback to custom XLA implementation
     # This is the reference implementation from jax.nn.dot_product_attention
-    output_shape = query.shape
+    # The output has the depth of `value`, which can differ from `query`'s.
+    output_shape = (*query.shape[:-1], value.shape[-1])
     _, _, K, H = key.shape
     scale = (1.0 / jnp.sqrt(H)) if scale is None else scale
 

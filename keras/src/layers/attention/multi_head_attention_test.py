@@ -785,6 +785,20 @@ class MultiHeadAttentionTest(testing.TestCase):
             self.assertAllClose(output, expected_output, atol=1e-2)
             self.assertAllClose(scores, expected_score, atol=1e-2)
 
+    def test_value_dim_different_from_key_dim(self):
+        # The fused attention path is used when the attention scores are not
+        # requested; it must agree with the explicit path.
+        rng = np.random.RandomState(0)
+        query = rng.uniform(size=(2, 4, 8)).astype("float32")
+        value = rng.uniform(size=(2, 6, 8)).astype("float32")
+        layer = layers.MultiHeadAttention(
+            num_heads=2, key_dim=4, value_dim=3, output_shape=(5,)
+        )
+        fused = layer(query, value)
+        explicit, _ = layer(query, value, return_attention_scores=True)
+        self.assertEqual(fused.shape, (2, 4, 5))
+        self.assertAllClose(fused, explicit, atol=1e-5)
+
     def test_mha_constraints(self):
         query = np.array([[[1.0, 0.0], [0.0, 1.0]]])
         key = np.array([[[0.0, 1.0], [1.0, 0.0]]])

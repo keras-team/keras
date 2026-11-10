@@ -3233,6 +3233,23 @@ class NNOpsCorrectnessTest(testing.TestCase):
             tpu_rtol=1e-2,
         )
 
+    @parameterized.named_parameters(named_product(is_causal=(False, True)))
+    def test_dot_product_attention_value_depth_differs_from_key_depth(
+        self, is_causal
+    ):
+        rng = np.random.RandomState(0)
+        query = rng.uniform(size=(2, 3, 4, 8)).astype("float32")
+        key = rng.uniform(size=(2, 3, 4, 8)).astype("float32")
+        value = rng.uniform(size=(2, 3, 4, 5)).astype("float32")
+        outputs = knn.dot_product_attention(
+            query, key, value, is_causal=is_causal, flash_attention=False
+        )
+        self.assertEqual(outputs.shape, (2, 3, 4, 5))
+        expected = _dot_product_attention(
+            query, key, value, is_causal=is_causal
+        )
+        self.assertAllClose(outputs, expected, atol=1e-5)
+
     @parameterized.named_parameters(named_product(scale=(1.0, 10.0)))
     def test_rms_normalization(self, scale):
         x = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]], dtype="float32")
