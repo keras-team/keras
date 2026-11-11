@@ -204,7 +204,7 @@ def abs(x):
 
 class Fabs(Operation):
     def call(self, x):
-        return backend.ops.numpy.fabs(x)
+        return _fabs(x)
 
     def compute_output_spec(self, x):
         sparse = getattr(x, "sparse", False)
@@ -240,14 +240,23 @@ def fabs(x):
     """
     if any_symbolic_tensors((x,)):
         return Fabs().symbolic_call(x)
+    return _fabs(x)
 
+
+def _fabs(x):
     x = backend.ops.convert_to_tensor(x)
-    if "complex" in standardize_dtype(x.dtype):
+    dtype = standardize_dtype(x.dtype)
+    if "complex" in dtype:
         raise TypeError(
             f"fabs does not support complex inputs. Received: x.dtype={x.dtype}"
         )
-
-    return backend.ops.numpy.fabs(x)
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "fabs"
+    ):
+        return backend.ops.numpy.fabs(x)
+    if "int" in dtype or dtype == "bool":
+        x = backend.ops.cast(x, config.floatx())
+    return backend.ops.numpy.absolute(x)
 
 
 class Add(Operation):
