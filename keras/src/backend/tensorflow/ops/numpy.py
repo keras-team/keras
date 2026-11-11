@@ -1674,6 +1674,11 @@ def fliplr(x):
 
 def flipud(x):
     x = convert_to_tensor(x)
+    if x.shape.rank is not None and x.shape.rank < 1:
+        raise ValueError(
+            "`flipud` requires input with 1 or more dimensions. "
+            f"Received: x.shape={x.shape}"
+        )
     return tf.reverse(x, [0])
 
 

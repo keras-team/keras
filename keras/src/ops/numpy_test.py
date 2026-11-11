@@ -6660,7 +6660,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         with self.assertRaises((ValueError, RuntimeError)):
             knp.fliplr(np.array(1))
 
-    def test_flipud(self):
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_flipud(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         x = np.array([[1, 2, 3], [4, 5, 6]])
         self.assertAllClose(knp.flipud(x), np.flipud(x))
         self.assertAllClose(knp.Flipud()(x), np.flipud(x))
@@ -6668,6 +6671,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         # 1-D tensor
         x = np.array([1, 2, 3])
         self.assertAllClose(knp.flipud(x), np.flipud(x))
+
+        with self.assertRaises((ValueError, RuntimeError)):
+            knp.flipud(np.array(1))
 
     def test_floor(self):
         x = np.array([[1.1, 2.2, -3.3], [3.3, 2.2, -1.1]])
