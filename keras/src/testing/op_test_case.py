@@ -6,6 +6,8 @@ import numpy as np
 from absl.testing import parameterized
 
 from keras.src import backend
+from keras.src import layers
+from keras.src import models
 from keras.src import ops
 from keras.src import tree
 from keras.src.backend.common import KerasTensor
@@ -92,6 +94,9 @@ class OpTest(TestCase):
       then with one unknown dimension at a time.
     - `test_jit`: for every case, the op compiled by the backend's JIT gives
       `reference_fn`'s outputs. Skipped on backends without a JIT.
+    - `test_functional_model`: for every case, a functional `Model` built
+      from `Input`s shaped like the arrays and the op gives `reference_fn`'s
+      outputs.
 
     `UnaryOpTest`, `BinaryOpTest` and `ReductionOpTest` also set the standard
     inputs of their category and add one test per input dtype combination,
@@ -183,6 +188,10 @@ class OpTest(TestCase):
         for inputs, kwargs in self._cases().values():
             self.check_jit(inputs, kwargs)
 
+    def test_functional_model(self):
+        for inputs, kwargs in self._cases().values():
+            self.check_functional_model(inputs, kwargs)
+
     def assertOutputsClose(self, outputs, expected, msg):
         """Asserts `outputs` have the structure and values of `expected`.
 
@@ -225,6 +234,18 @@ class OpTest(TestCase):
             _jit(fn)(*tensors),
             self.reference_fn(*inputs, **kwargs),
             f"Compiled output differs for {_describe(inputs, kwargs)}",
+        )
+
+    def check_functional_model(self, inputs, kwargs):
+        """Checks the op inside a functional `Model` against `reference_fn`."""
+        arrays = _arrays(inputs)
+        if not arrays:
+            self.skipTest("No array inputs, so no model inputs")
+        model = _op_model(self.op, inputs, kwargs)
+        self.assertOutputsClose(
+            model(arrays),
+            self.reference_fn(*inputs, **kwargs),
+            f"Unexpected model output for {_describe(inputs, kwargs)}",
         )
 
     def check_symbolic(self, inputs, kwargs, symbolic_shapes=None):
@@ -388,6 +409,16 @@ def _jit(fn):
         torch._dynamo.reset()  # Every case compiles anew; the cache holds 8.
         return torch.compile(fn, fullgraph=True)
     raise ValueError(f"Unsupported backend for JIT: {backend.backend()}")
+
+
+def _op_model(op, inputs, kwargs):
+    """A functional `Model` applying `op` to `Input`s shaped like the arrays."""
+    model_inputs = [
+        layers.Input(batch_shape=x.shape, dtype=x.dtype)
+        for x in _arrays(inputs)
+    ]
+    outputs = op(*_with_arrays(inputs, model_inputs), **kwargs)
+    return models.Model(model_inputs, outputs)
 
 
 def _with_arrays(inputs, arrays):

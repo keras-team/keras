@@ -110,6 +110,7 @@ class OpTestTest(testing.TestCase):
             [
                 "test_eager",
                 "test_eager_class",
+                "test_functional_model",
                 "test_jit",
                 "test_symbolic_dynamic",
                 "test_symbolic_static",
@@ -192,6 +193,9 @@ class OpTestTest(testing.TestCase):
                     if no_jit
                     else "passed"
                 ),
+                "test_functional_model": (
+                    "skipped: No array inputs, so no model inputs"
+                ),
             },
         )
 
@@ -205,6 +209,14 @@ class OpTestTest(testing.TestCase):
             self.assertRegex(out["test_jit"], "^skipped: No JIT compiler")
         else:
             self.assertRegex(out["test_jit"], "^failed: ")
+
+    def test_op_model(self):
+        model = op_test_case._op_model(ops.add, (X, X[:1]), {})
+        self.assertLen(model.inputs, 2)
+        self.assertEqual(model.inputs[1].shape, (1, 3))
+        self.assertEqual(model.inputs[1].dtype, "int32")
+        self.assertEqual(model.output.shape, (2, 3))
+        self.assertAllClose(model([X, X[:1]]), X + X[:1])
 
     def test_disabled_dynamic_checks_are_skipped(self):
         class Case(testing.OpTest):
