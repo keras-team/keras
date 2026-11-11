@@ -2,7 +2,7 @@ import numpy as np
 
 from keras.src import layers
 from keras.src import testing
-from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.backend.common import KerasTensor
 
 
 class UpSamplingTest(testing.TestCase):

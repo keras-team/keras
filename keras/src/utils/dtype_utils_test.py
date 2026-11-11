@@ -1,4 +1,4 @@
-from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.backend.common import KerasTensor
 from keras.src.testing import test_case
 from keras.src.utils import dtype_utils
 

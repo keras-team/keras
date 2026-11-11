@@ -15,9 +15,9 @@ from keras.src import losses
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
-from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.torch.distributed_test_utils import (
     TorchDistributedTestMixin,
 )

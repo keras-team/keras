@@ -17,7 +17,7 @@ from keras.src import quantizers
 from keras.src import random
 from keras.src import saving
 from keras.src import testing
-from keras.src.backend.common import keras_tensor
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
 from keras.src.quantizers.awq_config import AWQConfig
 from keras.src.quantizers.gptq_config import GPTQConfig
@@ -162,8 +162,8 @@ class DenseTest(testing.TestCase):
     def test_dense_errors(self):
         with self.assertRaisesRegex(ValueError, "incompatible with the layer"):
             layer = layers.Dense(units=2, activation="relu")
-            layer(keras_tensor.KerasTensor((1, 2)))
-            layer(keras_tensor.KerasTensor((1, 3)))
+            layer(KerasTensor((1, 2)))
+            layer(KerasTensor((1, 3)))
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,

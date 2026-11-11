@@ -3,6 +3,7 @@ import collections
 import numpy as np
 
 from keras.src import backend
+from keras.src.backend.common import KerasTensor
 from keras.src.layers.layer import Layer
 from keras.src.saving import serialization_lib
 from keras.src.utils import argument_validation
@@ -648,7 +649,7 @@ class IndexLookup(Layer):
         else:
             output_dtype = backend.floatx()
         output_shape = self.compute_output_shape(inputs.shape)
-        return backend.KerasTensor(output_shape, dtype=output_dtype)
+        return KerasTensor(output_shape, dtype=output_dtype)
 
     def adapt(self, data, steps=None):
         self.reset_state()
