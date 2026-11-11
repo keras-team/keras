@@ -7,9 +7,9 @@ from keras.src import dtype_policies
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
+from keras.src.backend.common import in_symbolic_scope
 from keras.src.backend.common import remat
 from keras.src.backend.common.keras_tensor import any_symbolic_tensors
-from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.backend.config import is_nnx_enabled
 from keras.src.ops.node import Node
 from keras.src.saving.keras_saveable import KerasSaveable

@@ -16,7 +16,7 @@ from keras.src import ops
 from keras.src import optimizers
 from keras.src import testing
 from keras.src.backend import config
-from keras.src.backend.common.symbolic_scope import in_symbolic_scope
+from keras.src.backend.common import in_symbolic_scope
 from keras.src.callbacks.callback import Callback
 from keras.src.distribution.distribution_lib import DataParallel
 from keras.src.distribution.distribution_lib import DeviceMesh
