@@ -649,7 +649,7 @@ class SavingTest(testing.TestCase):
         )
         self.assertFalse(loaded_model.compiled)
 
-        if backend.backend() != "numpy":
+        if backend.SUPPORTS_GRADIENT:
             if model_type == "subclassed":
                 x = np.ones((4, 4), dtype="float32")
                 y = np.ones((4, 1), dtype="float32")
