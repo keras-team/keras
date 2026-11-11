@@ -3664,7 +3664,7 @@ def flip(x, axis=None):
 
 class Fliplr(Operation):
     def call(self, x):
-        return backend.ops.numpy.fliplr(x)
+        return _fliplr(x)
 
     def compute_output_spec(self, x):
         if len(x.shape) < 2:
@@ -3691,7 +3691,21 @@ def fliplr(x):
     """
     if any_symbolic_tensors((x,)):
         return Fliplr().symbolic_call(x)
-    return backend.ops.numpy.fliplr(x)
+    return _fliplr(x)
+
+
+def _fliplr(x):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "fliplr"
+    ):
+        return backend.ops.numpy.fliplr(x)
+    x = backend.ops.convert_to_tensor(x)
+    if len(x.shape) < 2:
+        raise ValueError(
+            "`fliplr` requires input with 2 or more dimensions. "
+            f"Received: x.shape={x.shape}"
+        )
+    return backend.ops.numpy.flip(x, axis=1)
 
 
 class Flipud(Operation):
