@@ -11,8 +11,6 @@ from keras.src.backend.common.dtypes import result_type
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.backend.common.keras_tensor import is_keras_tensor
-from keras.src.backend.common.symbolic_scope import SymbolicScope
-from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.backend.config import PLUGGABLE_BACKENDS
 from keras.src.backend.config import epsilon
 from keras.src.backend.config import floatx

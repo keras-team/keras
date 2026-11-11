@@ -39,6 +39,7 @@ from keras.src.backend.common import get_keras_mask
 from keras.src.backend.common import get_stateless_scope
 from keras.src.backend.common import global_state
 from keras.src.backend.common import in_stateless_scope
+from keras.src.backend.common import in_symbolic_scope
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import remat
 from keras.src.backend.common import set_keras_mask
@@ -47,7 +48,6 @@ from keras.src.backend.common import standardize_shape
 from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.backend.common.name_scope import current_path
 from keras.src.backend.common.remat import get_current_remat_mode
-from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.backend.config import is_nnx_enabled
 from keras.src.distribution import distribution_lib
 from keras.src.dtype_policies import DTypePolicyMap
