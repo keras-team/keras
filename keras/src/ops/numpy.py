@@ -6,9 +6,9 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
 from keras.src.backend import config
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import standardize_dtype
@@ -201,7 +201,7 @@ def abs(x):
 
 class Fabs(Operation):
     def call(self, x):
-        return backend.ops.numpy.fabs(x)
+        return _fabs(x)
 
     def compute_output_spec(self, x):
         sparse = getattr(x, "sparse", False)
@@ -237,14 +237,23 @@ def fabs(x):
     """
     if any_symbolic_tensors((x,)):
         return Fabs().symbolic_call(x)
+    return _fabs(x)
 
+
+def _fabs(x):
     x = backend.ops.convert_to_tensor(x)
-    if "complex" in standardize_dtype(x.dtype):
+    dtype = standardize_dtype(x.dtype)
+    if "complex" in dtype:
         raise TypeError(
             f"fabs does not support complex inputs. Received: x.dtype={x.dtype}"
         )
-
-    return backend.ops.numpy.fabs(x)
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "fabs"
+    ):
+        return backend.ops.numpy.fabs(x)
+    if "int" in dtype or dtype == "bool":
+        x = backend.ops.cast(x, config.floatx())
+    return backend.ops.numpy.absolute(x)
 
 
 class Add(Operation):

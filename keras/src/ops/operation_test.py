@@ -5,8 +5,8 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
-from keras.src.backend.common import keras_tensor
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common import KerasTensor
 from keras.src.ops import numpy as knp
 from keras.src.ops import operation
 from keras.src.utils import traceback_utils
@@ -19,7 +19,7 @@ class OpWithMultipleInputs(operation.Operation):
         return 3 * z + x + 2 * y
 
     def compute_output_spec(self, x, y, z=None):
-        return keras_tensor.KerasTensor(x.shape, x.dtype)
+        return KerasTensor(x.shape, x.dtype)
 
 
 class OpWithMultipleOutputs(operation.Operation):
@@ -28,8 +28,8 @@ class OpWithMultipleOutputs(operation.Operation):
 
     def compute_output_spec(self, x):
         return (
-            keras_tensor.KerasTensor(x.shape, x.dtype),
-            keras_tensor.KerasTensor(x.shape, x.dtype),
+            KerasTensor(x.shape, x.dtype),
+            KerasTensor(x.shape, x.dtype),
         )
 
 
@@ -43,7 +43,7 @@ class OpWithCustomConstructor(operation.Operation):
         return self.alpha * x + self.beta
 
     def compute_output_spec(self, x):
-        return keras_tensor.KerasTensor(x.shape, x.dtype)
+        return KerasTensor(x.shape, x.dtype)
 
 
 class OpWithCustomConstructorNoName(operation.Operation):
@@ -56,7 +56,7 @@ class OpWithCustomConstructorNoName(operation.Operation):
         return self.alpha * x + self.beta
 
     def compute_output_spec(self, x):
-        return keras_tensor.KerasTensor(x.shape, x.dtype)
+        return KerasTensor(x.shape, x.dtype)
 
 
 class OpWithKwargsInConstructor(operation.Operation):
@@ -69,7 +69,7 @@ class OpWithKwargsInConstructor(operation.Operation):
         return self.alpha * x + self.beta
 
     def compute_output_spec(self, x):
-        return keras_tensor.KerasTensor(x.shape, x.dtype)
+        return KerasTensor(x.shape, x.dtype)
 
 
 class OpWithRenamedKwargsInConstructor(operation.Operation):
@@ -84,7 +84,7 @@ class OpWithRenamedKwargsInConstructor(operation.Operation):
         return self.alpha * x + self.beta
 
     def compute_output_spec(self, x):
-        return keras_tensor.KerasTensor(x.shape, x.dtype)
+        return KerasTensor(x.shape, x.dtype)
 
 
 class OpWithArgsInConstructor(operation.Operation):
@@ -96,7 +96,7 @@ class OpWithArgsInConstructor(operation.Operation):
         return self.alpha * x + self.beta
 
     def compute_output_spec(self, x):
-        return keras_tensor.KerasTensor(x.shape, x.dtype)
+        return KerasTensor(x.shape, x.dtype)
 
 
 class OpWithCustomConstructorGetConfig(operation.Operation):
@@ -108,7 +108,7 @@ class OpWithCustomConstructorGetConfig(operation.Operation):
         return self.alpha * x
 
     def compute_output_spec(self, x):
-        return keras_tensor.KerasTensor(x.shape, x.dtype)
+        return KerasTensor(x.shape, x.dtype)
 
     def get_config(self):
         return {**super().get_config(), "alpha": self.alpha}
@@ -123,7 +123,7 @@ class OpWithKwargsInConstructorGetConfig(operation.Operation):
         return self.alpha * x
 
     def compute_output_spec(self, x):
-        return keras_tensor.KerasTensor(x.shape, x.dtype)
+        return KerasTensor(x.shape, x.dtype)
 
     def get_config(self):
         return {**super().get_config(), "alpha": self.alpha}
@@ -137,20 +137,20 @@ class OpWithQuantizedCall(operation.Operation):
         return x + 1
 
     def compute_output_spec(self, x):
-        return keras_tensor.KerasTensor(x.shape, x.dtype)
+        return KerasTensor(x.shape, x.dtype)
 
 
 class OperationTest(testing.TestCase):
     def test_symbolic_call(self):
-        x = keras_tensor.KerasTensor(shape=(2, 3), name="x")
-        y = keras_tensor.KerasTensor(shape=(2, 3), name="y")
-        z = keras_tensor.KerasTensor(shape=(2, 3), name="z")
+        x = KerasTensor(shape=(2, 3), name="x")
+        y = KerasTensor(shape=(2, 3), name="y")
+        z = KerasTensor(shape=(2, 3), name="z")
 
         # Positional arguments
         op = OpWithMultipleInputs(name="test_op")
         self.assertEqual(op.name, "test_op")
         out = op(x, y, z)
-        self.assertIsInstance(out, keras_tensor.KerasTensor)
+        self.assertIsInstance(out, KerasTensor)
         self.assertEqual(out.shape, (2, 3))
         self.assertEqual(len(op._inbound_nodes), 1)
         self.assertEqual(op.input, [x, y, z])
@@ -159,7 +159,7 @@ class OperationTest(testing.TestCase):
         # Keyword arguments
         op = OpWithMultipleInputs(name="test_op")
         out = op(x=x, y=y, z=z)
-        self.assertIsInstance(out, keras_tensor.KerasTensor)
+        self.assertIsInstance(out, KerasTensor)
         self.assertEqual(out.shape, (2, 3))
         self.assertEqual(len(op._inbound_nodes), 1)
         self.assertEqual(op.input, [x, y, z])
@@ -168,7 +168,7 @@ class OperationTest(testing.TestCase):
         # Mix
         op = OpWithMultipleInputs(name="test_op")
         out = op(x, y=y, z=z)
-        self.assertIsInstance(out, keras_tensor.KerasTensor)
+        self.assertIsInstance(out, KerasTensor)
         self.assertEqual(out.shape, (2, 3))
         self.assertEqual(len(op._inbound_nodes), 1)
         self.assertEqual(op.input, [x, y, z])
@@ -177,7 +177,7 @@ class OperationTest(testing.TestCase):
         # Test op reuse
         prev_out = out
         out = op(x, y=y, z=z)
-        self.assertIsInstance(out, keras_tensor.KerasTensor)
+        self.assertIsInstance(out, KerasTensor)
         self.assertEqual(out.shape, (2, 3))
         self.assertEqual(len(op._inbound_nodes), 2)
         self.assertEqual(op.output, prev_out)
@@ -187,8 +187,8 @@ class OperationTest(testing.TestCase):
         out = op(x)
         self.assertIsInstance(out, tuple)
         self.assertEqual(len(out), 2)
-        self.assertIsInstance(out[0], keras_tensor.KerasTensor)
-        self.assertIsInstance(out[1], keras_tensor.KerasTensor)
+        self.assertIsInstance(out[0], KerasTensor)
+        self.assertIsInstance(out[1], KerasTensor)
         self.assertEqual(out[0].shape, (2, 3))
         self.assertEqual(out[1].shape, (2, 3))
         self.assertEqual(len(op._inbound_nodes), 1)

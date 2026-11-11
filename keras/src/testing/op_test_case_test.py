@@ -7,7 +7,7 @@ import numpy as np
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
-from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.backend.common import KerasTensor
 from keras.src.ops.operation import Operation
 from keras.src.testing import op_test_case
 from keras.src.testing.op_test_case import X

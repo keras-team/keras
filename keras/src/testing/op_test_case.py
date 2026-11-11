@@ -7,8 +7,8 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import ops
 from keras.src import tree
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
-from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.testing.test_case import TestCase
 from keras.src.testing.test_utils import named_product
 

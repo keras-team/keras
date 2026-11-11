@@ -1,6 +1,7 @@
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend.common import KerasTensor
 
 
 @keras_export("keras.activations.relu")
@@ -70,7 +71,7 @@ class ReLU(ops.Operation):
         )
 
     def compute_output_spec(self, x):
-        return backend.KerasTensor(x.shape, x.dtype)
+        return KerasTensor(x.shape, x.dtype)
 
     @staticmethod
     def static_call(x, negative_slope=0.0, max_value=None, threshold=0.0):
@@ -614,7 +615,7 @@ class Mish(ops.Operation):
         return self.static_call(x)
 
     def compute_output_spec(self, x):
-        return backend.KerasTensor(x.shape, x.dtype)
+        return KerasTensor(x.shape, x.dtype)
 
     @staticmethod
     def static_call(x):
