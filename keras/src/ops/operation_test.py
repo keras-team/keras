@@ -5,8 +5,8 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
-from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import standardize_dtype
 from keras.src.ops import numpy as knp
 from keras.src.ops import operation
 from keras.src.utils import traceback_utils
@@ -426,9 +426,7 @@ class ElementwiseUnaryOperationTest(testing.TestCase):
         self.assertFalse(sym_out.sparse)
         self.assertFalse(sym_out.ragged)
 
-        sym_sparse_x = KerasTensor(
-            (2, 3), dtype="float32", sparse=True
-        )
+        sym_sparse_x = KerasTensor((2, 3), dtype="float32", sparse=True)
         sym_sparse_out = op(sym_sparse_x)
         self.assertTrue(sym_sparse_out.sparse)
         self.assertFalse(sym_sparse_out.ragged)
@@ -440,9 +438,7 @@ class ElementwiseUnaryOperationTest(testing.TestCase):
         dense_op = DummySigmoid()
         self.assertFalse(dense_op(sym_sparse_x).sparse)
 
-        sym_ragged_x = KerasTensor(
-            (2, None), dtype="float32", ragged=True
-        )
+        sym_ragged_x = KerasTensor((2, None), dtype="float32", ragged=True)
         sym_ragged_out = op(sym_ragged_x)
         self.assertFalse(sym_ragged_out.sparse)
         self.assertTrue(sym_ragged_out.ragged)
