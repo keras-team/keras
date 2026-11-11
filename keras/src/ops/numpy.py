@@ -240,23 +240,20 @@ def fabs(x):
     """
     if any_symbolic_tensors((x,)):
         return Fabs().symbolic_call(x)
-
-    x = backend.ops.convert_to_tensor(x)
-    if "complex" in standardize_dtype(x.dtype):
-        raise TypeError(
-            f"fabs does not support complex inputs. Received: x.dtype={x.dtype}"
-        )
-
     return _fabs(x)
 
 
 def _fabs(x):
+    x = backend.ops.convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if "complex" in dtype:
+        raise TypeError(
+            f"fabs does not support complex inputs. Received: x.dtype={x.dtype}"
+        )
     if not config._use_backend_agnostic_ops() and hasattr(
         backend.ops.numpy, "fabs"
     ):
         return backend.ops.numpy.fabs(x)
-    x = backend.ops.convert_to_tensor(x)
-    dtype = standardize_dtype(x.dtype)
     if "int" in dtype or dtype == "bool":
         x = backend.ops.cast(x, config.floatx())
     return backend.ops.numpy.absolute(x)
