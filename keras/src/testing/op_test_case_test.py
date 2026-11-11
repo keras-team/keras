@@ -70,6 +70,15 @@ class SquareInBfloat16(Square):
         return ops.cast(ops.square(x), "bfloat16")
 
 
+class DataDependent(Square):
+    """Branches on a value of `x`, which no compiler can trace."""
+
+    def call(self, x):
+        if float(ops.sum(x)) > 0:
+            return ops.square(x)
+        return x
+
+
 def methods_of(cls):
     return sorted(n for n in dir(cls) if n.startswith("test"))
 
@@ -101,6 +110,7 @@ class OpTestTest(testing.TestCase):
             [
                 "test_eager",
                 "test_eager_class",
+                "test_jit",
                 "test_symbolic_dynamic",
                 "test_symbolic_static",
             ],
@@ -164,6 +174,7 @@ class OpTestTest(testing.TestCase):
             op, reference_fn = ops.ones, np.ones
             inputs = ((2, 3),)
 
+        no_jit = backend.backend() in ("numpy", "openvino")
         self.assertEqual(
             outcomes(Ones),
             {
@@ -175,8 +186,25 @@ class OpTestTest(testing.TestCase):
                 "test_symbolic_dynamic": (
                     "skipped: No array inputs, so no symbolic path"
                 ),
+                "test_jit": (
+                    f"skipped: No JIT compiler on the {backend.backend()} "
+                    "backend"
+                    if no_jit
+                    else "passed"
+                ),
             },
         )
+
+    def test_data_dependent_op_fails_jit(self):
+        class Case(testing.OpTest):
+            op, reference_fn, inputs = DataDependent(), np.square, (X,)
+
+        out = outcomes(Case)
+        self.assertEqual(out["test_eager"], "passed")
+        if backend.backend() in ("numpy", "openvino"):
+            self.assertRegex(out["test_jit"], "^skipped: No JIT compiler")
+        else:
+            self.assertRegex(out["test_jit"], "^failed: ")
 
     def test_disabled_dynamic_checks_are_skipped(self):
         class Case(testing.OpTest):
