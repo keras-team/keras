@@ -34,6 +34,7 @@ from keras.src.api_export import keras_export
 from keras.src.backend.common import AutocastScope
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import StatelessScope
+from keras.src.backend.common import any_symbolic_tensors
 from keras.src.backend.common import get_autocast_scope
 from keras.src.backend.common import get_keras_mask
 from keras.src.backend.common import get_stateless_scope
@@ -45,7 +46,6 @@ from keras.src.backend.common import remat
 from keras.src.backend.common import set_keras_mask
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common import standardize_shape
-from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.backend.common.name_scope import current_path
 from keras.src.backend.common.remat import get_current_remat_mode
 from keras.src.backend.config import is_nnx_enabled
