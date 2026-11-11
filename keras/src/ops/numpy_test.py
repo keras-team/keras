@@ -3797,6 +3797,21 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.DivideNoNan()(x, y), expected_result)
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_divide_no_nan_no_warning_on_zero_division(
+        self, backend_agnostic_ops
+    ):
+        # A zero divisor must not raise/warn, matching the behavior of
+        # tf.math.divide_no_nan and the jax/torch backend implementations.
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        x = np.array([10.0, 5.0])
+        y = np.array([0.0, 2.0])
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            result = knp.divide_no_nan(x, y)
+        self.assertAllClose(result, np.array([0.0, 2.5]))
+
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     @pytest.mark.skipif(
         not backend.SUPPORTS_GRADIENT,
         reason="Backend does not support gradients.",
