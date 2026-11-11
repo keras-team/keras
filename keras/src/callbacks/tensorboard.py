@@ -456,6 +456,10 @@ class TensorBoard(Callback):
         if not self._called_in_fit:
             self._close_writers()
 
+    def on_predict_end(self, logs=None):
+        if not self._called_in_fit:
+            self._close_writers()
+
     def on_train_batch_begin(self, batch, logs=None):
         self._global_train_batch += 1
         if self.update_freq != "epoch":
@@ -604,6 +608,8 @@ class TensorBoard(Callback):
 
     def _log_weights(self, epoch):
         """Logs the weights of the Model to TensorBoard."""
+        if not tensorflow.available:
+            return
         with self._get_tf_writer(self._train_dir).as_default():
             for layer in self.model.layers:
                 for weight in layer.weights:

@@ -184,9 +184,8 @@ class TestTensorBoardV2(testing.TestCase):
         tb_cbk = callbacks.TensorBoard(logdir)
 
         model.predict(x, batch_size=2, callbacks=[tb_cbk])
-        predict_train_writer = tb_cbk._writers["train"]
+        self.assertEqual(tb_cbk._writers, {})
         model.evaluate(x, y, batch_size=2, callbacks=[tb_cbk])
-        self.assertIsNone(predict_train_writer.file_writer)
 
         summary_file = list_summaries(logdir)
         self.assertEqual(
@@ -456,6 +455,26 @@ class TestTensorBoardV2(testing.TestCase):
             self._strip_layer_names(summary_file.histograms, "sequential"),
             {_ObservedSummary(logdir=train_dir, tag="histogram")},
         )
+
+    @pytest.mark.requires_trainable_backend
+    def test_TensorBoard_weight_histograms_without_tensorflow(self):
+        model = self._get_model()
+        x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
+        logdir, train_dir, _ = self._get_log_dirs()
+        tb_cbk = callbacks.TensorBoard(logdir, histogram_freq=1)
+
+        with mock.patch(
+            "keras.src.callbacks.tensorboard.tensorflow",
+            new=mock.Mock(available=False),
+        ):
+            model.fit(x, y, batch_size=2, epochs=2, callbacks=[tb_cbk])
+        summary_file = list_summaries(logdir)
+
+        self.assertIn(
+            _ObservedSummary(logdir=train_dir, tag="epoch_loss"),
+            summary_file.scalars,
+        )
+        self.assertEqual(summary_file.histograms, set())
 
     @pytest.mark.requires_trainable_backend
     def test_TensorBoard_weight_images(self):
