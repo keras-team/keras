@@ -3800,8 +3800,6 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
     def test_divide_no_nan_no_warning_on_zero_division(
         self, backend_agnostic_ops
     ):
-        # A zero divisor must not raise/warn, matching the behavior of
-        # tf.math.divide_no_nan and the jax/torch backend implementations.
         backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
         self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         x = np.array([10.0, 5.0])
