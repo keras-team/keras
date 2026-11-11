@@ -3673,7 +3673,7 @@ def _fliplr(x):
 
 class Flipud(Operation):
     def call(self, x):
-        return backend.ops.numpy.flipud(x)
+        return _flipud(x)
 
     def compute_output_spec(self, x):
         if len(x.shape) < 1:
@@ -3700,7 +3700,21 @@ def flipud(x):
     """
     if any_symbolic_tensors((x,)):
         return Flipud().symbolic_call(x)
-    return backend.ops.numpy.flipud(x)
+    return _flipud(x)
+
+
+def _flipud(x):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "flipud"
+    ):
+        return backend.ops.numpy.flipud(x)
+    x = backend.ops.convert_to_tensor(x)
+    if len(x.shape) < 1:
+        raise ValueError(
+            "`flipud` requires input with 1 or more dimensions. "
+            f"Received: x.shape={x.shape}"
+        )
+    return backend.ops.numpy.flip(x, axis=0)
 
 
 class Floor(Operation):
