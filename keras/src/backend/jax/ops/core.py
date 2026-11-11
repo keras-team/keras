@@ -11,6 +11,7 @@ from jax import export as jax_export
 
 from keras.src import tree
 from keras.src.backend import config
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import StatelessScope
 from keras.src.backend.common import SymbolicScope
@@ -19,7 +20,6 @@ from keras.src.backend.common import global_state
 from keras.src.backend.common import in_stateless_scope
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import standardize_argnums
-from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.name_scope import name_scope as base_name_scope
 from keras.src.backend.jax import distribution_lib
 

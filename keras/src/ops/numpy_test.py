@@ -12,10 +12,10 @@ import keras
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_int_dtype
 from keras.src.backend.common import standardize_dtype
-from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import numpy as knp
 from keras.src.testing.op_test_case import X
 from keras.src.testing.op_test_case import named_dtype_combinations
@@ -5771,7 +5771,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         # The eager path delegates to the backend's own transpose
         # (TF gets an explicit check; JAX/Torch/NumPy already raise
         # clear errors of their own).
-        x = backend.KerasTensor((2, 3, 4))
+        x = KerasTensor((2, 3, 4))
         with self.assertRaisesRegex(
             ValueError, "valid permutation.*axes=\\[0, 0, 0\\]"
         ):
@@ -7416,8 +7416,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         # All five ops should reject out-of-range axis cleanly in the symbolic
         # path, instead of either silently returning a wrong shape or failing
         # with a backend-specific error at eager execution time.
-        a = backend.KerasTensor((3, 4))
-        idx = backend.KerasTensor((2,), dtype="int32")
+        a = KerasTensor((3, 4))
+        idx = KerasTensor((2,), dtype="int32")
         msg = "axis 10 is out of bounds"
         for fn in (
             lambda: knp.sort(a, axis=10),
@@ -8025,7 +8025,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(y, [0, 1, 2, 42, 16, 25])
 
         # Test with symbolic tensors
-        x = backend.KerasTensor((6,))
+        x = KerasTensor((6,))
         condlist = [x < 3, x > 3]
         choicelist = [x, x**2]
         y = knp.select(condlist, choicelist, 42)
@@ -8034,15 +8034,15 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         # A broader condition or later choice widens the inferred shape (it is
         # broadcast against every condition and choice, like `where`), not just
         # the first choice's shape.
-        x = backend.KerasTensor((2, 3))
-        row = backend.KerasTensor((3,))
+        x = KerasTensor((2, 3))
+        row = KerasTensor((3,))
         y = knp.select([x > 0], [row], 0)
         self.assertEqual(y.shape, (2, 3))
 
         # `default` is broadcast too: a broader default widens the shape.
-        cond = backend.KerasTensor((1,))
-        choice = backend.KerasTensor((1,))
-        default_value = backend.KerasTensor((2, 3))
+        cond = KerasTensor((1,))
+        choice = KerasTensor((1,))
+        default_value = KerasTensor((2, 3))
         y = knp.select([cond > 0], [choice], default_value)
         self.assertEqual(y.shape, (2, 3))
 
@@ -8052,12 +8052,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(out[0], 0)
         self.assertAllClose(out[0], 0)
 
-        x = backend.KerasTensor((3, 3))
+        x = KerasTensor((3, 3))
         out = knp.slogdet(x)
         self.assertEqual(out[0].shape, ())
         self.assertEqual(out[1].shape, ())
 
-        x = backend.KerasTensor((2, 4, 3, 3))
+        x = KerasTensor((2, 4, 3, 3))
         out = knp.slogdet(x)
         self.assertEqual(out[0].shape, (2, 4))
         self.assertEqual(out[1].shape, (2, 4))
@@ -8624,7 +8624,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.NanToNum(nan=2, posinf=3, neginf=4)(x), [1.0, 2.0, 3.0, 4.0]
         )
 
-        x = backend.KerasTensor((3, 4))
+        x = KerasTensor((3, 4))
         self.assertEqual(
             knp.NanToNum(nan=2, posinf=3, neginf=4)(x).shape, (3, 4)
         )

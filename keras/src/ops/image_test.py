@@ -9,9 +9,9 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import random as krandom
 from keras.src import testing
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
-from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import image as kimage
 from keras.src.ops import numpy as knp
 from keras.src.testing.test_utils import named_product

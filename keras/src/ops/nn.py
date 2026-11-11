@@ -4,10 +4,10 @@ import warnings
 
 from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
 from keras.src.backend import config
 from keras.src.backend import standardize_data_format
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import standardize_dtype
@@ -1249,7 +1249,7 @@ class AdaptiveMaxPool(Operation):
             )
         else:
             output_shape = (inputs.shape[0], inputs.shape[1]) + spatial_dims
-        return backend.KerasTensor(output_shape, dtype=inputs.dtype)
+        return KerasTensor(output_shape, dtype=inputs.dtype)
 
 
 @keras_export(["keras.ops.adaptive_max_pool", "keras.ops.nn.adaptive_max_pool"])
@@ -1424,7 +1424,7 @@ class AdaptiveAveragePool(Operation):
             )
         else:
             output_shape = (inputs.shape[0], inputs.shape[1]) + spatial_dims
-        return backend.KerasTensor(output_shape, dtype=inputs.dtype)
+        return KerasTensor(output_shape, dtype=inputs.dtype)
 
 
 @keras_export(
