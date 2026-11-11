@@ -29,7 +29,7 @@ onnxruntime
 # onnxscript==0.3.2 breaks LSTM model export.
 onnxscript!=0.3.2
 jax2onnx
-tf2onnx
+tf2onnx>=1.17.0
 grain
 # for orbax_checkpoint_test.py
 orbax-checkpoint
