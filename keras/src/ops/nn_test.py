@@ -3256,16 +3256,11 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(outputs, expected, atol=1e-5)
 
     @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
-    @parameterized.named_parameters(named_product(flash_attention=(None, True)))
-    def test_dot_product_attention_value_depth_ignores_flash_attention(
-        self, flash_attention
-    ):
+    def test_dot_product_attention_value_depth_skips_flash_attention(self):
         # Some GPUs accept a value depth different from the key depth in
         # their flash attention kernels, but the other paths do not.
         from unittest import mock
 
-        if backend.backend() != "jax":
-            self.skipTest("JAX only")
         rng = np.random.RandomState(0)
         query = rng.uniform(size=(2, 3, 4, 8)).astype("float16")
         key = rng.uniform(size=(2, 3, 4, 8)).astype("float16")
@@ -3274,12 +3269,17 @@ class NNOpsCorrectnessTest(testing.TestCase):
             "keras.src.backend.jax.ops.nn._can_use_flash_attention",
             return_value=True,
         ):
-            outputs = knn.dot_product_attention(
-                query, key, value, flash_attention=flash_attention
-            )
-        self.assertEqual(outputs.shape, (2, 3, 4, 5))
-        expected = _dot_product_attention(query, key, value)
-        self.assertAllClose(outputs, expected, atol=1e-2)
+            outputs = knn.dot_product_attention(query, key, value)
+            self.assertEqual(outputs.shape, (2, 3, 4, 5))
+            expected = _dot_product_attention(query, key, value)
+            self.assertAllClose(outputs, expected, atol=1e-2)
+
+            with self.assertRaisesRegex(
+                ValueError, "Flash attention is not supported"
+            ):
+                knn.dot_product_attention(
+                    query, key, value, flash_attention=True
+                )
 
     @parameterized.named_parameters(named_product(scale=(1.0, 10.0)))
     def test_rms_normalization(self, scale):
