@@ -15,6 +15,7 @@ from keras.src import random
 from keras.src import testing
 from keras.src import tree
 from keras.src.backend import config
+from keras.src.backend.common import KerasTensor
 from keras.src.export import saved_model
 from keras.src.export import xla_saved_model
 from keras.src.export import xla_saved_model_archive
@@ -954,7 +955,7 @@ class ExportXLASavedModelTest(testing.TestCase):
                 layers.InputSpec(
                     dtype="float32", shape=(None, 10), name="inputs"
                 ),
-                backend.KerasTensor((None, 10), dtype="float32", name="inputs"),
+                KerasTensor((None, 10), dtype="float32", name="inputs"),
                 "backend_tensor",
             ],
         )

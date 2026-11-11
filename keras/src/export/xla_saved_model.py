@@ -24,7 +24,7 @@ def export_xla_saved_model(
             `None`, which is `True`.
         input_signature: Optional. Specifies the shape and dtype of the model
             inputs. Can be a structure of `keras.InputSpec`, `tf.TensorSpec`,
-            `backend.KerasTensor`, or backend tensor. If not provided, it will
+            `KerasTensor`, or backend tensor. If not provided, it will
             be automatically computed. Defaults to `None`.
         **kwargs: Additional keyword arguments forwarded to
             `ExportArchive.add_endpoint()`, e.g. `platforms`,
