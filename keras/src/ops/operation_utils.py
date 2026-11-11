@@ -4,7 +4,7 @@ import numpy as np
 
 from keras.src import tree
 from keras.src.api_export import keras_export
-from keras.src.backend import KerasTensor
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
 

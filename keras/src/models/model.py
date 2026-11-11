@@ -831,9 +831,8 @@ class Model(Trainer, Layer):
                 backends and formats.
             input_signature: Optional. Specifies the shape and dtype of the
                 model inputs. Can be a structure of `keras.InputSpec`,
-                `tf.TensorSpec`, `backend.KerasTensor`, or backend tensor. If
-                not provided, it will be automatically computed. Defaults to
-                `None`.
+                `tf.TensorSpec`, `KerasTensor`, or backend tensor. If not
+                provided, it will be automatically computed. Defaults to `None`.
                 Note: With `format="litert"` and the PyTorch backend, dynamic
                 input shapes are not supported. Any dynamic dimensions (i.e.,
                 `None` in input shapes) will be automatically replaced with `1`

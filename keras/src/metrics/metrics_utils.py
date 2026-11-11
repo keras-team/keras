@@ -193,45 +193,50 @@ def _update_confusion_matrix_variables_optimized(
             imprecisions.  It will change how we handle the leading and tailing
             bucket.
     """
-    num_thresholds = ops.shape(thresholds)[0]
+    num_thresholds = backend.ops.shape(thresholds)[0]
 
     if sample_weights is None:
         sample_weights = 1.0
     else:
-        sample_weights = ops.broadcast_to(
-            ops.cast(sample_weights, dtype=y_pred.dtype), ops.shape(y_pred)
+        sample_weights = backend.ops.numpy.broadcast_to(
+            backend.ops.cast(sample_weights, dtype=y_pred.dtype),
+            backend.ops.shape(y_pred),
         )
         if not multi_label:
-            sample_weights = ops.reshape(sample_weights, [-1])
+            sample_weights = backend.ops.numpy.reshape(sample_weights, [-1])
     if label_weights is None:
         label_weights = 1.0
     else:
-        label_weights = ops.expand_dims(label_weights, 0)
-        label_weights = ops.broadcast_to(label_weights, ops.shape(y_pred))
+        label_weights = backend.ops.numpy.expand_dims(label_weights, 0)
+        label_weights = backend.ops.numpy.broadcast_to(
+            label_weights, backend.ops.shape(y_pred)
+        )
         if not multi_label:
-            label_weights = ops.reshape(label_weights, [-1])
-    weights = ops.cast(
-        ops.multiply(sample_weights, label_weights), y_true.dtype
+            label_weights = backend.ops.numpy.reshape(label_weights, [-1])
+    weights = backend.ops.cast(
+        backend.ops.numpy.multiply(sample_weights, label_weights), y_true.dtype
     )
 
     # We shouldn't need this, but in case there are predict value that is out of
     # the range of [0.0, 1.0]
-    y_pred = ops.clip(y_pred, x_min=0.0, x_max=1.0)
+    y_pred = backend.ops.numpy.clip(y_pred, x_min=0.0, x_max=1.0)
 
-    y_true = ops.cast(ops.cast(y_true, "bool"), y_true.dtype)
+    y_true = backend.ops.cast(backend.ops.cast(y_true, "bool"), y_true.dtype)
     if not multi_label:
-        y_true = ops.reshape(y_true, [-1])
-        y_pred = ops.reshape(y_pred, [-1])
+        y_true = backend.ops.numpy.reshape(y_true, [-1])
+        y_pred = backend.ops.numpy.reshape(y_pred, [-1])
 
-    true_labels = ops.multiply(y_true, weights)
-    false_labels = ops.multiply((1.0 - y_true), weights)
+    true_labels = backend.ops.numpy.multiply(y_true, weights)
+    false_labels = backend.ops.numpy.multiply((1.0 - y_true), weights)
 
     # Compute the bucket indices for each prediction value.
     # Since the predict value has to be strictly greater than the thresholds,
     # eg, buckets like [0, 0.5], (0.5, 1], and 0.5 belongs to first bucket.
     # We have to use math.ceil(val) - 1 for the bucket.
     bucket_indices = (
-        ops.ceil(y_pred * (ops.cast(num_thresholds, dtype=y_pred.dtype) - 1))
+        backend.ops.numpy.ceil(
+            y_pred * (backend.ops.cast(num_thresholds, dtype=y_pred.dtype) - 1)
+        )
         - 1
     )
 
@@ -239,25 +244,25 @@ def _update_confusion_matrix_variables_optimized(
         # In this case, the first bucket should actually take into account since
         # the any prediction between [0.0, 1.0] should be larger than the first
         # threshold. We change the bucket value from -1 to 0.
-        bucket_indices = ops.relu(bucket_indices)
+        bucket_indices = backend.ops.nn.relu(bucket_indices)
 
-    bucket_indices = ops.cast(bucket_indices, "int32")
+    bucket_indices = backend.ops.cast(bucket_indices, "int32")
 
     if multi_label:
         # We need to run bucket segment sum for each of the label class. In the
         # multi_label case, the rank of the label is 2. We first transpose it so
         # that the label dim becomes the first and we can parallel run though
         # them.
-        true_labels = ops.transpose(true_labels)
-        false_labels = ops.transpose(false_labels)
-        bucket_indices = ops.transpose(bucket_indices)
+        true_labels = backend.ops.numpy.transpose(true_labels)
+        false_labels = backend.ops.numpy.transpose(false_labels)
+        bucket_indices = backend.ops.numpy.transpose(bucket_indices)
 
         def gather_bucket(label_and_bucket_index):
             label, bucket_index = (
                 label_and_bucket_index[0],
                 label_and_bucket_index[1],
             )
-            return ops.segment_sum(
+            return backend.ops.math.segment_sum(
                 data=label,
                 segment_ids=bucket_index,
                 num_segments=num_thresholds,
@@ -270,21 +275,37 @@ def _update_confusion_matrix_variables_optimized(
         fp_bucket_v = backend.ops.vectorized_map(
             gather_bucket, (false_labels, bucket_indices)
         )
-        tp = ops.transpose(ops.flip(ops.cumsum(ops.flip(tp_bucket_v), axis=1)))
-        fp = ops.transpose(ops.flip(ops.cumsum(ops.flip(fp_bucket_v), axis=1)))
+        tp = backend.ops.numpy.transpose(
+            backend.ops.numpy.flip(
+                backend.ops.numpy.cumsum(
+                    backend.ops.numpy.flip(tp_bucket_v), axis=1
+                )
+            )
+        )
+        fp = backend.ops.numpy.transpose(
+            backend.ops.numpy.flip(
+                backend.ops.numpy.cumsum(
+                    backend.ops.numpy.flip(fp_bucket_v), axis=1
+                )
+            )
+        )
     else:
-        tp_bucket_v = ops.segment_sum(
+        tp_bucket_v = backend.ops.math.segment_sum(
             data=true_labels,
             segment_ids=bucket_indices,
             num_segments=num_thresholds,
         )
-        fp_bucket_v = ops.segment_sum(
+        fp_bucket_v = backend.ops.math.segment_sum(
             data=false_labels,
             segment_ids=bucket_indices,
             num_segments=num_thresholds,
         )
-        tp = ops.flip(ops.cumsum(ops.flip(tp_bucket_v)))
-        fp = ops.flip(ops.cumsum(ops.flip(fp_bucket_v)))
+        tp = backend.ops.numpy.flip(
+            backend.ops.numpy.cumsum(backend.ops.numpy.flip(tp_bucket_v))
+        )
+        fp = backend.ops.numpy.flip(
+            backend.ops.numpy.cumsum(backend.ops.numpy.flip(fp_bucket_v))
+        )
 
     # fn = sum(true_labels) - tp
     # tn = sum(false_labels) - fp
@@ -293,11 +314,11 @@ def _update_confusion_matrix_variables_optimized(
         or ConfusionMatrix.FALSE_NEGATIVES in variables_to_update
     ):
         if multi_label:
-            total_true_labels = ops.sum(true_labels, axis=1)
-            total_false_labels = ops.sum(false_labels, axis=1)
+            total_true_labels = backend.ops.numpy.sum(true_labels, axis=1)
+            total_false_labels = backend.ops.numpy.sum(false_labels, axis=1)
         else:
-            total_true_labels = ops.sum(true_labels)
-            total_false_labels = ops.sum(false_labels)
+            total_true_labels = backend.ops.numpy.sum(true_labels)
+            total_false_labels = backend.ops.numpy.sum(false_labels)
 
     if ConfusionMatrix.TRUE_POSITIVES in variables_to_update:
         variable = variables_to_update[ConfusionMatrix.TRUE_POSITIVES]
@@ -425,8 +446,8 @@ def update_confusion_matrix_variables(
 
     variable_dtype = list(variables_to_update.values())[0].dtype
 
-    y_true = ops.cast(y_true, dtype=variable_dtype)
-    y_pred = ops.cast(y_pred, dtype=variable_dtype)
+    y_true = backend.ops.cast(y_true, dtype=variable_dtype)
+    y_pred = backend.ops.cast(y_pred, dtype=variable_dtype)
 
     if thresholds_distributed_evenly:
         # Check whether the thresholds has any leading or tailing epsilon added
@@ -437,11 +458,11 @@ def update_confusion_matrix_variables(
         # details.
         thresholds_with_epsilon = thresholds[0] < 0.0 or thresholds[-1] > 1.0
 
-    thresholds = ops.convert_to_tensor(thresholds, dtype=variable_dtype)
-    num_thresholds = ops.shape(thresholds)[0]
+    thresholds = backend.ops.convert_to_tensor(thresholds, dtype=variable_dtype)
+    num_thresholds = backend.ops.shape(thresholds)[0]
 
     if multi_label:
-        one_thresh = ops.equal(
+        one_thresh = backend.ops.numpy.equal(
             np.array(1, dtype="int32"),
             len(thresholds.shape),
         )
@@ -459,8 +480,8 @@ def update_confusion_matrix_variables(
 
     y_pred, y_true = squeeze_or_expand_to_same_rank(y_pred, y_true)
     if sample_weight is not None:
-        sample_weight = ops.expand_dims(
-            ops.cast(sample_weight, dtype=variable_dtype), axis=-1
+        sample_weight = backend.ops.numpy.expand_dims(
+            backend.ops.cast(sample_weight, dtype=variable_dtype), axis=-1
         )
         _, sample_weight = squeeze_or_expand_to_same_rank(
             y_true, sample_weight, expand_rank_1=False
@@ -494,17 +515,20 @@ def update_confusion_matrix_variables(
         )
 
     if None in y_pred.shape:
-        pred_shape = ops.shape(y_pred)
+        pred_shape = backend.ops.shape(y_pred)
         num_predictions = pred_shape[0]
         if len(y_pred.shape) == 1:
             num_labels = 1
         else:
-            num_labels = ops.cast(
-                ops.prod(ops.array(pred_shape[1:]), axis=0), "int32"
+            num_labels = backend.ops.cast(
+                backend.ops.numpy.prod(
+                    backend.ops.numpy.array(pred_shape[1:]), axis=0
+                ),
+                "int32",
             )
-        thresh_label_tile = ops.where(one_thresh, num_labels, 1)
+        thresh_label_tile = backend.ops.numpy.where(one_thresh, num_labels, 1)
     else:
-        pred_shape = ops.shape(y_pred)
+        pred_shape = backend.ops.shape(y_pred)
         num_predictions = pred_shape[0]
         if len(y_pred.shape) == 1:
             num_labels = 1
@@ -514,12 +538,16 @@ def update_confusion_matrix_variables(
 
     # Reshape predictions and labels, adding a dim for thresholding.
     if multi_label:
-        predictions_extra_dim = ops.expand_dims(y_pred, 0)
-        labels_extra_dim = ops.expand_dims(ops.cast(y_true, dtype="bool"), 0)
+        predictions_extra_dim = backend.ops.numpy.expand_dims(y_pred, 0)
+        labels_extra_dim = backend.ops.numpy.expand_dims(
+            backend.ops.cast(y_true, dtype="bool"), 0
+        )
     else:
         # Flatten predictions and labels when not multilabel.
-        predictions_extra_dim = ops.reshape(y_pred, [1, -1])
-        labels_extra_dim = ops.reshape(ops.cast(y_true, dtype="bool"), [1, -1])
+        predictions_extra_dim = backend.ops.numpy.reshape(y_pred, [1, -1])
+        labels_extra_dim = backend.ops.numpy.reshape(
+            backend.ops.cast(y_true, dtype="bool"), [1, -1]
+        )
 
     # Tile the thresholds for every prediction.
     if multi_label:
@@ -531,51 +559,57 @@ def update_confusion_matrix_variables(
         thresh_tiles = [1, num_predictions * num_labels]
         data_tiles = [num_thresholds, 1]
 
-    thresh_tiled = ops.tile(
-        ops.reshape(thresholds, thresh_pretile_shape), thresh_tiles
+    thresh_tiled = backend.ops.numpy.tile(
+        backend.ops.numpy.reshape(thresholds, thresh_pretile_shape),
+        thresh_tiles,
     )
 
     # Tile the predictions for every threshold.
-    preds_tiled = ops.tile(predictions_extra_dim, data_tiles)
+    preds_tiled = backend.ops.numpy.tile(predictions_extra_dim, data_tiles)
 
     # Compare predictions and threshold.
-    pred_is_pos = ops.greater(preds_tiled, thresh_tiled)
+    pred_is_pos = backend.ops.numpy.greater(preds_tiled, thresh_tiled)
 
     # Tile labels by number of thresholds
-    label_is_pos = ops.tile(labels_extra_dim, data_tiles)
+    label_is_pos = backend.ops.numpy.tile(labels_extra_dim, data_tiles)
 
     if sample_weight is not None:
-        sample_weight = ops.broadcast_to(
-            ops.cast(sample_weight, dtype=y_pred.dtype), ops.shape(y_pred)
+        sample_weight = backend.ops.numpy.broadcast_to(
+            backend.ops.cast(sample_weight, dtype=y_pred.dtype),
+            backend.ops.shape(y_pred),
         )
-        weights_tiled = ops.tile(
-            ops.reshape(sample_weight, thresh_tiles), data_tiles
+        weights_tiled = backend.ops.numpy.tile(
+            backend.ops.numpy.reshape(sample_weight, thresh_tiles), data_tiles
         )
     else:
         weights_tiled = None
 
     if label_weights is not None and not multi_label:
-        label_weights = ops.expand_dims(label_weights, 0)
-        label_weights = ops.broadcast_to(label_weights, ops.shape(y_pred))
-        label_weights_tiled = ops.tile(
-            ops.reshape(label_weights, thresh_tiles), data_tiles
+        label_weights = backend.ops.numpy.expand_dims(label_weights, 0)
+        label_weights = backend.ops.numpy.broadcast_to(
+            label_weights, backend.ops.shape(y_pred)
+        )
+        label_weights_tiled = backend.ops.numpy.tile(
+            backend.ops.numpy.reshape(label_weights, thresh_tiles), data_tiles
         )
         if weights_tiled is None:
             weights_tiled = label_weights_tiled
         else:
-            weights_tiled = ops.multiply(weights_tiled, label_weights_tiled)
+            weights_tiled = backend.ops.numpy.multiply(
+                weights_tiled, label_weights_tiled
+            )
 
     def weighted_assign_add(label, pred, weights, var):
-        label_and_pred = ops.logical_and(label, pred)
+        label_and_pred = backend.ops.numpy.logical_and(label, pred)
         if weights is not None:
-            result = ops.where(
+            result = backend.ops.numpy.where(
                 label_and_pred,
-                ops.cast(weights, dtype=var.dtype),
+                backend.ops.cast(weights, dtype=var.dtype),
                 0,
             )
         else:
-            result = ops.cast(label_and_pred, dtype=var.dtype)
-        var.assign(var + ops.sum(result, 1))
+            result = backend.ops.cast(label_and_pred, dtype=var.dtype)
+        var.assign(var + backend.ops.numpy.sum(result, 1))
 
     loop_vars = {
         ConfusionMatrix.TRUE_POSITIVES: (label_is_pos, pred_is_pos),
@@ -585,11 +619,11 @@ def update_confusion_matrix_variables(
     update_fn = ConfusionMatrix.FALSE_NEGATIVES in variables_to_update
 
     if update_fn or update_tn:
-        pred_is_neg = ops.logical_not(pred_is_pos)
+        pred_is_neg = backend.ops.numpy.logical_not(pred_is_pos)
         loop_vars[ConfusionMatrix.FALSE_NEGATIVES] = (label_is_pos, pred_is_neg)
 
     if update_fp or update_tn:
-        label_is_neg = ops.logical_not(label_is_pos)
+        label_is_neg = backend.ops.numpy.logical_not(label_is_pos)
         loop_vars[ConfusionMatrix.FALSE_POSITIVES] = (label_is_neg, pred_is_pos)
         if update_tn:
             loop_vars[ConfusionMatrix.TRUE_NEGATIVES] = (
@@ -617,9 +651,10 @@ def _filter_top_k(x, k):
     Returns:
       tensor with same shape and dtype as x.
     """
-    _, top_k_idx = ops.top_k(x, k)
-    top_k_mask = ops.sum(
-        ops.one_hot(top_k_idx, ops.shape(x)[-1], axis=-1), axis=-2
+    _, top_k_idx = backend.ops.math.top_k(x, k)
+    top_k_mask = backend.ops.numpy.sum(
+        backend.ops.nn.one_hot(top_k_idx, backend.ops.shape(x)[-1], axis=-1),
+        axis=-2,
     )
     return x * top_k_mask + NEG_INF * (1 - top_k_mask)
 

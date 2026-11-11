@@ -1,7 +1,6 @@
 from keras.src import backend
 from keras.src import dtype_policies
 from keras.src import initializers
-from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend.common import StatelessScope
 from keras.src.saving.keras_saveable import KerasSaveable
@@ -113,7 +112,7 @@ class Metric(KerasSaveable):
         when a metric is evaluated during training.
         """
         for v in self.variables:
-            v.assign(ops.zeros(v.shape, dtype=v.dtype))
+            v.assign(backend.ops.numpy.zeros(v.shape, dtype=v.dtype))
 
     def update_state(self, *args, **kwargs):
         """Accumulate statistics for the metric."""

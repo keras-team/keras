@@ -31,23 +31,23 @@ from keras.src import regularizers
 from keras.src import tree
 from keras.src import utils
 from keras.src.api_export import keras_export
-from keras.src.backend import KerasTensor
 from keras.src.backend.common import AutocastScope
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import StatelessScope
+from keras.src.backend.common import any_symbolic_tensors
 from keras.src.backend.common import get_autocast_scope
 from keras.src.backend.common import get_keras_mask
 from keras.src.backend.common import get_stateless_scope
 from keras.src.backend.common import global_state
 from keras.src.backend.common import in_stateless_scope
+from keras.src.backend.common import in_symbolic_scope
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import remat
 from keras.src.backend.common import set_keras_mask
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common import standardize_shape
-from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.backend.common.name_scope import current_path
 from keras.src.backend.common.remat import get_current_remat_mode
-from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.backend.config import is_nnx_enabled
 from keras.src.distribution import distribution_lib
 from keras.src.dtype_policies import DTypePolicyMap
@@ -1934,7 +1934,7 @@ class Layer(BackendLayer, Operation):
     def _build_by_run_for_single_pos_arg(self, input_shape):
         # Case: all inputs are in the first arg (possibly nested).
         input_tensors = tree.map_shape_structure(
-            lambda s: backend.KerasTensor(s), input_shape
+            lambda s: KerasTensor(s), input_shape
         )
         try:
             # Because `build` is not defined, we trace `call` via
@@ -1961,7 +1961,7 @@ class Layer(BackendLayer, Operation):
         # Case: all input keyword arguments were plain tensors.
         input_tensors = {
             # We strip the `_shape` suffix to recover kwarg names.
-            utils.removesuffix(k, "_shape"): backend.KerasTensor(shape)
+            utils.removesuffix(k, "_shape"): KerasTensor(shape)
             for k, shape in shapes_dict.items()
         }
         try:
@@ -2252,7 +2252,7 @@ class Layer(BackendLayer, Operation):
 def is_backend_tensor_or_symbolic(x, allow_none=False):
     if allow_none and x is None:
         return True
-    return backend.ops.is_tensor(x) or isinstance(x, backend.KerasTensor)
+    return backend.ops.is_tensor(x) or isinstance(x, KerasTensor)
 
 
 class CallSpec:

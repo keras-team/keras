@@ -6,6 +6,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import tree
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common import standardize_shape
 from keras.src.utils.module_utils import tensorflow as tf
@@ -91,7 +92,7 @@ def make_input_spec(x):
                 f"The `shape` and `dtype` must be provided. Received: x={x}"
             )
         input_spec = x
-    elif isinstance(x, backend.KerasTensor):
+    elif isinstance(x, KerasTensor):
         shape = (None,) + standardize_shape(x.shape)[1:]
         dtype = standardize_dtype(x.dtype)
         input_spec = layers.InputSpec(dtype=dtype, shape=shape, name=x.name)
