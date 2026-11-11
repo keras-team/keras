@@ -7,6 +7,7 @@ from collections.abc import Callable
 from keras.src import backend
 from keras.src import utils
 from keras.src.api_export import keras_export
+from keras.src.backend import config as backend_config
 from keras.src.layers.core.input_layer import InputLayer
 from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
@@ -1004,11 +1005,8 @@ class Model(Trainer, Layer):
             raise ValueError("Torch export requires PyTorch backend.")
 
         # Check if XLA SavedModel export is available (requires JAX backend)
-        if format == "xla_saved_model":
-            from keras.src.backend import config
-
-            if config.backend() != "jax":
-                raise ValueError("XLA SavedModel export requires JAX backend.")
+        if format == "xla_saved_model" and backend_config.backend() != "jax":
+            raise ValueError("XLA SavedModel export requires JAX backend.")
 
         if format == "tf_saved_model":
             export_saved_model(

@@ -17,6 +17,7 @@ from keras.src.backend.common import StatelessScope
 from keras.src.export.export_utils import make_input_spec
 from keras.src.export.export_utils import to_polymorphic_shape
 from keras.src.utils import file_utils
+from keras.src.utils import io_utils
 from keras.src.utils.module_utils import xla_saved_model
 
 DEFAULT_MODEL_NAME = "keras_model"
@@ -84,7 +85,6 @@ class XLASavedModelArchive:
 
         self._endpoint_names = []
         self._endpoints = {}
-        self._tracked = []
         self._trainable_variables = []
         self._non_trainable_variables = []
         self._variable_collections = {}
@@ -121,7 +121,6 @@ class XLASavedModelArchive:
                 "The layer provided has not yet been built. "
                 "It must be built before export."
             )
-        self._tracked.append(resource)
         seen = set(id(v) for v in self.variables)
         for v in resource.trainable_variables:
             if id(v) not in seen:
@@ -288,8 +287,6 @@ class XLASavedModelArchive:
             "input_signature": serving_input_signature,
             "batch_options": kwargs.pop("batch_options", None),
             "warmup_examples": kwargs.pop("warmup_examples", None),
-            # Layer/model `fn` is a bound method of, if any (see
-            # `_check_endpoint_owners_are_tracked`).
             "owner": getattr(fn, "__self__", None),
         }
         self._endpoint_names.append(name)
@@ -385,8 +382,6 @@ class XLASavedModelArchive:
         `"serving_default"` (as `model.export()` does) if clients should not
         have to set one.
         """
-        from keras.src.utils import io_utils
-
         if not self._endpoint_names:
             raise ValueError(
                 "No endpoints have been set yet. Call add_endpoint()."
@@ -474,10 +469,6 @@ class XLASavedModelArchive:
         """
         self._check_endpoint_owners_are_tracked()
         if not self.variables:
-            # `xla_saved_model` requires a weights checkpoint: `params=None`
-            # produces an artifact the XLA Serving Engine refuses to load
-            # ("Object key for weight names ... not found in manifest") and
-            # an empty pytree cannot be saved by Orbax ("Found empty item").
             raise ValueError(
                 "No variables have been tracked. Call `track(model)` (or "
                 "`track_and_add_endpoint()`) before `write_out()`. The XLA "

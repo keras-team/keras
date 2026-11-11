@@ -1,8 +1,8 @@
 """Library for exporting XLA SavedModel artifacts for Keras models."""
 
 from keras.src.export.export_utils import get_input_signature
-from keras.src.export.saved_model import ExportArchive
 from keras.src.export.xla_saved_model_archive import DEFAULT_SERVING_SIGNATURE
+from keras.src.export.xla_saved_model_archive import XLASavedModelArchive
 
 
 def export_xla_saved_model(
@@ -45,7 +45,7 @@ def export_xla_saved_model(
     """
     if verbose is None:
         verbose = True
-    export_archive = ExportArchive(format="xla_saved_model")
+    export_archive = XLASavedModelArchive()
     if input_signature is None:
         input_signature = get_input_signature(model)
 
