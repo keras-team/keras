@@ -71,9 +71,10 @@ class RMSNormalization(Layer):
             The RMS-normalized tensor of the same shape (batch_size, input_dim),
             scaled by the learned `scale` parameter.
         """
-        return ops.rms_normalization(
+        outputs = ops.rms_normalization(
             x, scale=self.scale, axis=self.axis, epsilon=self.epsilon
         )
+        return ops.cast(outputs, self.compute_dtype)
 
     def compute_output_shape(self, input_shape):
         if isinstance(self.axis, int):
