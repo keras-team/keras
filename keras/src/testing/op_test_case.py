@@ -12,6 +12,7 @@ from keras.src import ops
 from keras.src import tree
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
+from keras.src.models.model import model_from_json
 from keras.src.testing.test_case import TestCase
 from keras.src.testing.test_utils import named_product
 
@@ -97,6 +98,9 @@ class OpTest(TestCase):
     - `test_functional_model`: for every case, a functional `Model` built
       from `Input`s shaped like the arrays and the op gives `reference_fn`'s
       outputs.
+    - `test_serialization`: for every case, the functional `Model` gives
+      `reference_fn`'s outputs after a `to_json` / `model_from_json` round
+      trip.
 
     `UnaryOpTest`, `BinaryOpTest` and `ReductionOpTest` also set the standard
     inputs of their category and add one test per input dtype combination,
@@ -192,6 +196,10 @@ class OpTest(TestCase):
         for inputs, kwargs in self._cases().values():
             self.check_functional_model(inputs, kwargs)
 
+    def test_serialization(self):
+        for inputs, kwargs in self._cases().values():
+            self.check_serialization(inputs, kwargs)
+
     def assertOutputsClose(self, outputs, expected, msg):
         """Asserts `outputs` have the structure and values of `expected`.
 
@@ -246,6 +254,19 @@ class OpTest(TestCase):
             model(arrays),
             self.reference_fn(*inputs, **kwargs),
             f"Unexpected model output for {_describe(inputs, kwargs)}",
+        )
+
+    def check_serialization(self, inputs, kwargs):
+        """Checks a functional `Model` of the op survives `to_json`."""
+        arrays = _arrays(inputs)
+        if not arrays:
+            self.skipTest("No array inputs, so no model inputs")
+        model = _op_model(self.op, inputs, kwargs)
+        revived = model_from_json(model.to_json())
+        self.assertOutputsClose(
+            revived(arrays),
+            self.reference_fn(*inputs, **kwargs),
+            f"Output changed by JSON for {_describe(inputs, kwargs)}",
         )
 
     def check_symbolic(self, inputs, kwargs, symbolic_shapes=None):
