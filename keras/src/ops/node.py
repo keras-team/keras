@@ -1,7 +1,7 @@
 import collections
 
 from keras.src import tree
-from keras.src.backend import KerasTensor
+from keras.src.backend.common import KerasTensor
 from keras.src.ops.symbolic_arguments import SymbolicArguments
 
 
@@ -137,7 +137,3 @@ class KerasHistory(
     # Added to maintain memory and performance characteristics of `namedtuple`
     # while subclassing.
     __slots__ = ()
-
-
-def is_keras_tensor(obj):
-    return hasattr(obj, "_keras_history")

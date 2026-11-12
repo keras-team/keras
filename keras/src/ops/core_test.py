@@ -14,9 +14,9 @@ from keras.src import optimizers
 from keras.src import random
 from keras.src import testing
 from keras.src import tree
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
-from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.remat import RematScope
 from keras.src.layers.core import input_layer
 from keras.src.ops import core

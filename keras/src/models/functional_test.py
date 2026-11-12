@@ -11,8 +11,8 @@ from keras.src import layers
 from keras.src import ops
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
-from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.dtype_policies import dtype_policy
 from keras.src.layers.core.input_layer import Input
 from keras.src.layers.input_spec import InputSpec

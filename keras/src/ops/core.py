@@ -4,11 +4,12 @@ import numpy as np
 from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
-from keras.src.backend import KerasTensor
-from keras.src.backend import any_symbolic_tensors
+from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import any_symbolic_tensors
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import slice_along_axis
+from keras.src.ops.operation import ElementwiseUnaryOperation
 from keras.src.ops.operation import Operation
 from keras.src.saving import serialization_lib
 from keras.src.utils import traceback_utils
@@ -668,12 +669,12 @@ def while_loop(
     )
 
 
-class StopGradient(Operation):
-    def call(self, variable):
-        return backend.ops.core.stop_gradient(variable)
+class StopGradient(ElementwiseUnaryOperation):
+    call_fn = backend.ops.core.stop_gradient
+    preserves_sparse = True
 
-    def compute_output_spec(self, variable):
-        return KerasTensor(variable.shape, dtype=variable.dtype)
+    def call(self, variable):
+        return self.call_fn(variable)
 
 
 @keras_export("keras.ops.stop_gradient")
@@ -860,7 +861,7 @@ class Cast(Operation):
         return backend.ops.core.cast(x, self.dtype)
 
     def compute_output_spec(self, x):
-        return backend.KerasTensor(shape=x.shape, dtype=self.dtype)
+        return KerasTensor(shape=x.shape, dtype=self.dtype)
 
 
 @keras_export("keras.ops.cast")
@@ -894,7 +895,7 @@ class SaturateCast(Operation):
         return _saturate_cast(x, self.dtype)
 
     def compute_output_spec(self, x):
-        return backend.KerasTensor(shape=x.shape, dtype=self.dtype)
+        return KerasTensor(shape=x.shape, dtype=self.dtype)
 
 
 @keras_export("keras.ops.saturate_cast")
@@ -1010,7 +1011,7 @@ class ConvertToTensor(Operation):
         ragged = (
             False if self.ragged is not None and not self.ragged else x.ragged
         )
-        return backend.KerasTensor(
+        return KerasTensor(
             shape=x.shape, dtype=dtype, sparse=sparse, ragged=ragged
         )
 

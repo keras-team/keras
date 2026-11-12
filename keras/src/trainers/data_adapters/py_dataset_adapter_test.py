@@ -4,7 +4,6 @@ import time
 import jax
 import numpy as np
 import pytest
-import tensorflow as tf
 import torch
 from absl.testing import parameterized
 
@@ -14,6 +13,7 @@ from keras.src.distribution import distribution_lib as dist_lib
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import data_adapter_test_base
 from keras.src.trainers.data_adapters import py_dataset_adapter
+from keras.src.utils.module_utils import tensorflow as tf
 from keras.src.utils.rng_utils import set_random_seed
 
 

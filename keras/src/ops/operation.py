@@ -6,10 +6,11 @@ from keras.src import backend
 from keras.src import dtype_policies
 from keras.src import tree
 from keras.src.api_export import keras_export
-from keras.src.backend import KerasTensor
+from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import any_symbolic_tensors
+from keras.src.backend.common import dtypes
+from keras.src.backend.common import in_symbolic_scope
 from keras.src.backend.common import remat
-from keras.src.backend.common.keras_tensor import any_symbolic_tensors
-from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.backend.config import is_nnx_enabled
 from keras.src.ops.node import Node
 from keras.src.saving.keras_saveable import KerasSaveable
@@ -371,12 +372,21 @@ class Operation(KerasSaveable):
     def __repr__(self):
         return f"<Operation name={self.name}>"
 
+    # TODO: expose a public accessor for the inputs and outputs of every
+    # call. `input` and `output` can only report the first one, so callers
+    # that need the others have to keep their own references.
     @property
     def input(self):
         """Retrieves the input tensor(s) of a symbolic operation.
 
         Only returns the tensor(s) corresponding to the *first time*
         the operation was called.
+
+        Note that for a layer called more than once (a shared layer),
+        this property returns the inputs of the first call only, even
+        though the layer has several inputs. There is no public accessor
+        for the inputs of the other calls. Keep a reference to the
+        inputs used in each call instead.
 
         Returns:
             Input tensor or list of input tensors.
@@ -389,6 +399,27 @@ class Operation(KerasSaveable):
 
         Only returns the tensor(s) corresponding to the *first time*
         the operation was called.
+
+        Note that for a layer called more than once (a shared layer),
+        this property returns the output of the first call only, silently
+        ignoring the later calls. There is no public accessor for the
+        outputs of the other calls.
+
+        To access the output of a specific call, keep a reference to the
+        tensor returned by that call:
+
+        ```python
+        inputs_a = keras.Input(shape=(3,))
+        inputs_b = keras.Input(shape=(3,))
+        shared = keras.layers.Dense(2)
+
+        outputs_a = shared(inputs_a)  # First call.
+        outputs_b = shared(inputs_b)  # Second call.
+
+        # `shared.output` is `outputs_a`, the first call's output, not
+        # `outputs_b`. Use the returned tensors directly instead.
+        model = keras.Model([inputs_a, inputs_b], [outputs_a, outputs_b])
+        ```
 
         Returns:
             Output tensor or list of output tensors.
@@ -447,3 +478,39 @@ class Operation(KerasSaveable):
     def _post_untrack_variable(self, variable):
         """Can be overridden for per backend post untrack actions."""
         pass
+
+
+class ElementwiseUnaryOperation(Operation):
+    """Base class for elementwise unary operations.
+
+    Subclasses must specify `call_fn` as a class attribute.
+    Optionally, subclasses may specify `output_dtype` (e.g., `"bool"` for
+    predicates) or `promote_to_float = True` (for ops promoting integer/bool
+    inputs to floating-point). If neither is specified, the output dtype
+    matches the input tensor's dtype.
+    """
+
+    call_fn = None
+    output_dtype = None
+    preserves_sparse = False
+    promote_to_float = False
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if cls.call_fn is None:
+            raise ValueError(f"Class '{cls.__name__}' must define `call_fn`.")
+        cls.call_fn = staticmethod(cls.call_fn)
+
+    def call(self, x):
+        return self.call_fn(x)
+
+    def compute_output_spec(self, x):
+        if self.output_dtype:
+            dtype = self.output_dtype
+        elif self.promote_to_float:
+            dtype = dtypes.promote_to_float_dtype(x.dtype)
+        else:
+            dtype = x.dtype
+        sparse = self.preserves_sparse and getattr(x, "sparse", False)
+        ragged = getattr(x, "ragged", False)
+        return KerasTensor(x.shape, dtype=dtype, sparse=sparse, ragged=ragged)

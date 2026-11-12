@@ -1,9 +1,9 @@
 import numpy as np
-from tensorflow import data as tf_data
 
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 class AugMixTest(testing.TestCase):
@@ -59,6 +59,36 @@ class AugMixTest(testing.TestCase):
             input_data = np.random.random((2, 3, 8, 8))
         layer = layers.AugMix(data_format=data_format)
 
-        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
+        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
             output.numpy()
+
+    def test_seed_reproducibility(self):
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            input_data = np.random.random((2, 8, 8, 3))
+        else:
+            input_data = np.random.random((2, 3, 8, 8))
+
+        first = layers.AugMix(seed=1234, data_format=data_format)(input_data)
+        second = layers.AugMix(seed=1234, data_format=data_format)(input_data)
+
+        self.assertAllClose(
+            backend.ops.convert_to_numpy(first),
+            backend.ops.convert_to_numpy(second),
+        )
+
+    def test_graph_issue(self):
+        input_data = np.random.random((10, 8, 8, 3))
+        layer = layers.AugMix()
+        ds = (
+            tf.data.Dataset.from_tensor_slices(input_data)
+            .batch(2)
+            .map(lambda x: layer.get_random_transformation(x)["layer_idxes"])
+        )
+
+        key_list = []
+        for output in ds:
+            key_list.append(backend.ops.convert_to_numpy(output))
+
+        self.assertGreater(len(np.unique(np.stack(key_list), axis=0)), 1)

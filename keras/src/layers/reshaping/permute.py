@@ -1,6 +1,6 @@
-from keras.src import ops
+from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.backend.common import KerasTensor
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 
@@ -56,7 +56,7 @@ class Permute(Layer):
         )
 
     def call(self, inputs):
-        return ops.transpose(inputs, axes=(0,) + self.dims)
+        return backend.ops.numpy.transpose(inputs, axes=(0,) + self.dims)
 
     def get_config(self):
         config = {"dims": self.dims}

@@ -19,7 +19,6 @@ from keras.src import ops
 from keras.src import testing
 from keras.src.saving import saving_lib
 from keras.src.utils import file_utils
-from keras.src.utils.module_utils import LazyModule
 
 
 @keras.saving.register_keras_serializable(package="my_custom_package")
@@ -59,6 +58,28 @@ class MyDense(keras.layers.Layer):
 
     def two(self):
         return 2
+
+
+@keras.saving.register_keras_serializable(package="my_custom_package")
+class DenseWithFailingFromConfig(keras.layers.Dense):
+    @classmethod
+    def from_config(cls, config):
+        raise ValueError("DenseWithFailingFromConfig.from_config raises")
+
+
+@keras.saving.register_keras_serializable(package="my_custom_package")
+class AddWeightInInitLayer(keras.layers.Layer):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.w = self.add_weight(
+            shape=(),
+            initializer="ones",
+            trainable=True,
+            name="weight",
+        )
+
+    def call(self, inputs):
+        return inputs + self.w
 
 
 ASSETS_DATA = "These are my assets"
@@ -129,6 +150,34 @@ class CustomModelX(keras.Model):
 
 
 @keras.saving.register_keras_serializable(package="my_custom_package")
+class ModelWithSerializedLayer(keras.Model):
+    def __init__(self, layer, **kwargs):
+        super().__init__(**kwargs)
+        self.nested_layer = layer
+
+    def build(self, input_shape):
+        self.nested_layer.build(input_shape)
+
+    def call(self, inputs):
+        return self.nested_layer(inputs)
+
+    def get_config(self):
+        config = super().get_config()
+        config["layer"] = saving_lib.serialize_keras_object(self.nested_layer)
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        try:
+            config["layer"] = saving_lib.deserialize_keras_object(
+                config["layer"]
+            )
+        except:
+            config["layer"] = DenseWithFailingFromConfig(1, name="dense")
+        return super().from_config(config)
+
+
+@keras.saving.register_keras_serializable(package="my_custom_package")
 class ModelWithKwargsCall(keras.Model):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -171,6 +220,26 @@ class CompileOverridingModel(keras.Model):
 class CompileOverridingSequential(keras.Sequential):
     def compile(self, *args, **kwargs):
         super().compile(*args, **kwargs)
+
+
+@keras.saving.register_keras_serializable(package="my_custom_package")
+class CompileAndConfigOverridingModel(keras.Model):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dense1 = MyDense(1)
+
+    def compile(self, *args, **kwargs):
+        super().compile(*args, **kwargs)
+
+    def get_compile_config(self):
+        return super().get_compile_config()
+
+    def compile_from_config(self, config):
+        config = keras.saving.deserialize_keras_object(config)
+        self.compile(**config)
+
+    def call(self, inputs):
+        return self.dense1(inputs)
 
 
 @keras.saving.register_keras_serializable(package="my_custom_package")
@@ -231,6 +300,33 @@ def _get_subclassed_model_with_nested(compile=True):
     return model
 
 
+def _get_subclassed_model_with_serialized_nested(compile=True):
+    model = ModelWithSerializedLayer(
+        keras.layers.Dense(1, name="dense"), name="model_with_serialized"
+    )
+    if compile:
+        model.compile(
+            optimizer="adam",
+            loss=my_mean_squared_error,
+            metrics=[keras.metrics.Hinge(), "mse"],
+        )
+    return model
+
+
+def _get_subclassed_model_with_nested_raising_from_config(compile=True):
+    model = ModelWithSerializedLayer(
+        DenseWithFailingFromConfig(1, name="dense"),
+        name="model_with_serialized_from_config_raises",
+    )
+    if compile:
+        model.compile(
+            optimizer="adam",
+            loss=my_mean_squared_error,
+            metrics=[keras.metrics.Hinge(), "mse"],
+        )
+    return model
+
+
 def _get_custom_sequential_model(compile=True):
     sequential_model = keras.Sequential(
         [MyDense(1), MyDense(1)], name="sequential"
@@ -279,6 +375,20 @@ def _get_basic_functional_model(compile=True):
     inputs = keras.Input(shape=(4,), batch_size=2)
     x = keras.layers.Dense(1, name="first_dense")(inputs)
     outputs = keras.layers.Dense(1, name="second_dense")(x)
+    functional_model = keras.Model(inputs, outputs)
+    if compile:
+        functional_model.compile(
+            optimizer="adam",
+            loss=my_mean_squared_error,
+            metrics=[keras.metrics.Hinge(), "mse"],
+        )
+    return functional_model
+
+
+def _get_functional_model_with_add_weight_in_init_layer(compile=True):
+    inputs = keras.Input(shape=(4,), batch_size=2)
+    x = AddWeightInInitLayer(name="add_weight_in_init")(inputs)
+    outputs = keras.layers.Dense(1, name="dense")(x)
     functional_model = keras.Model(inputs, outputs)
     if compile:
         functional_model.compile(
@@ -375,8 +485,20 @@ class SavingTest(testing.TestCase):
         ("subclassed", _get_subclassed_model),
         ("subclassed_with_nested", _get_subclassed_model_with_nested),
         ("subclassed_with_kwargs", _get_subclassed_model_with_kwargs),
+        (
+            "subclassed_with_serialized",
+            _get_subclassed_model_with_serialized_nested,
+        ),
+        (
+            "subclassed_model_with_nested_raising_from_config",
+            _get_subclassed_model_with_nested_raising_from_config,
+        ),
         ("basic_sequential", _get_basic_sequential_model),
         ("basic_functional", _get_basic_functional_model),
+        (
+            "functional_with_add_weight_in_init_layer",
+            _get_functional_model_with_add_weight_in_init_layer,
+        ),
         ("custom_sequential", _get_custom_sequential_model),
         ("custom_functional", _get_custom_functional_model),
         ("nested_functional", _get_nested_functional_model),
@@ -516,7 +638,7 @@ class SavingTest(testing.TestCase):
         model.save(temp_filepath)
 
         with mock.patch.object(warnings, "warn") as mock_warn:
-            saving_lib.load_model(temp_filepath)
+            loaded_model = saving_lib.load_model(temp_filepath)
         if not mock_warn.call_args_list:
             raise AssertionError("Did not warn.")
         self.assertIn(
@@ -524,12 +646,43 @@ class SavingTest(testing.TestCase):
             "because the model's `compile()` method is custom. ",
             mock_warn.call_args_list[0][0][0],
         )
+        self.assertFalse(loaded_model.compiled)
+
+        if backend.SUPPORTS_GRADIENT:
+            if model_type == "subclassed":
+                x = np.ones((4, 4), dtype="float32")
+                y = np.ones((4, 1), dtype="float32")
+            else:
+                x = np.ones((4, 2), dtype="int32")
+                y = np.ones((4, 2, 1), dtype="float32")
+
+            with self.assertRaisesRegex(
+                ValueError,
+                r"You must call `compile\(\)` before using the model",
+            ):
+                loaded_model.fit(x, y, verbose=0)
+
+            loaded_model.compile("sgd", "mse")
+            self.assertTrue(loaded_model.compiled)
+            loaded_model.fit(x, y, epochs=1, verbose=0)
 
     def test_compile_overridden_warnings_sequential(self):
         self._test_compile_overridden_warnings("sequential")
 
     def test_compile_overridden_warnings_subclassed(self):
         self._test_compile_overridden_warnings("subclassed")
+
+    def test_compile_overridden_with_compile_from_config(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
+        model = CompileAndConfigOverridingModel()
+        model.compile(optimizer="sgd", loss="mse")
+        model.save(temp_filepath)
+
+        with mock.patch.object(warnings, "warn") as mock_warn:
+            loaded_model = saving_lib.load_model(temp_filepath)
+
+        self.assertEqual(len(mock_warn.call_args_list), 0)
+        self.assertTrue(loaded_model.compiled)
 
     def test_metadata(self):
         temp_filepath = Path(
@@ -1553,24 +1706,17 @@ class SavingBattleTest(testing.TestCase):
             model.save_weights(temp_filepath)
             model.load_weights(temp_filepath)
 
-    def test_remote_path_saving_and_loading_with_epath(self):
-        # A local directory stands in for the remote location, and TensorFlow
-        # is hidden so that etils.epath is used.
+    def test_remote_path_saving_and_loading(self):
         remote_dir = os.path.join(self.get_temp_dir(), "remote")
         os.makedirs(remote_dir)
         filepath = os.path.join(remote_dir, "model.keras")
         model = _get_basic_functional_model()
         x = np.random.random((2, 4))
 
-        with (
-            mock.patch.object(
-                file_utils,
-                "is_remote_path",
-                lambda path: str(path).startswith(remote_dir),
-            ),
-            mock.patch.object(
-                file_utils, "gfile", LazyModule("keras_test_unavailable_module")
-            ),
+        with mock.patch.object(
+            file_utils,
+            "is_remote_path",
+            lambda path: str(path).startswith(remote_dir),
         ):
             saving_lib.save_model(model, filepath)
             new_model = saving_lib.load_model(filepath)

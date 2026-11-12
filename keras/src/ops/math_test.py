@@ -10,9 +10,9 @@ from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import testing
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
-from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import math as kmath
 from keras.src.ops import numpy as knp
 from keras.src.testing.test_utils import named_product
@@ -755,6 +755,12 @@ class MathOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(outputs[0], expected_values)
         self.assertAllClose(outputs[1], expected_indices)
 
+        # `nan` ranks highest.
+        x = np.array([1.0, np.nan, 3.0, np.inf, 2.0], dtype=np.float32)
+        values, indices = kmath.top_k(x, k=4)
+        self.assertAllClose(values, [np.nan, np.inf, 3, 2])
+        self.assertAllClose(indices, [1, 3, 2, 4])
+
     def check_stability(self, values, indices):
         """Helper function to check stability of top_k."""
         values_np = backend.ops.convert_to_numpy(values)
@@ -1477,6 +1483,24 @@ class MathDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(kmath.Rsqrt().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_top_k(self, dtype):
+        import jax.lax as lax
+
+        x = knp.ones((2, 3), dtype=dtype)
+        x_jax = jnp.ones((2, 3), dtype=dtype)
+
+        expected_dtype = standardize_dtype(lax.top_k(x_jax, 2)[0].dtype)
+
+        self.assertEqual(
+            standardize_dtype(kmath.top_k(x, k=2)[0].dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(kmath.TopK(k=2).symbolic_call(x)[0].dtype),
             expected_dtype,
         )
 

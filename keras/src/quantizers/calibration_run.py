@@ -284,8 +284,7 @@ class CalibrationRun:
             config.dataset,
             num_samples=config.num_samples,
         )
-        # AWQ calibrates one sample at a time; its config has no batch size.
-        self.batch_size = int(getattr(config, "calibration_batch_size", 1))
+        self.batch_size = config.calibration_batch_size
         # Layers whose statistics saw too few calibration tokens relative
         # to their input width, and layers that observed no input,
         # collected across all blocks for one warning each.
