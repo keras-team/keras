@@ -1470,11 +1470,7 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
     x_shape = shape_op(x)
 
     def _zeros():
-        lead = x_shape[:-2]
-        if not isinstance(lead, tf.Tensor):
-            lead = list(lead)
-        lead = tf.cast(lead, "int32")
-        return tf.zeros(tf.concat([lead, [0]], 0), dtype=x.dtype)
+        return tf.zeros(x_shape[:-2] + (0,), dtype=x.dtype)
 
     if isinstance(x_shape[-1], int) and isinstance(x_shape[-2], int):
         if offset <= -1 * x_shape[-2] or offset >= x_shape[-1]:
