@@ -3256,26 +3256,20 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(outputs, expected, atol=1e-5)
 
     @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
-    def test_dot_product_attention_value_depth_skips_flash_attention(self):
-        # Some GPUs accept a value depth different from the key depth in
-        # their flash attention kernels, but the other paths do not.
-        from unittest import mock
-
+    def test_dot_product_attention_value_depth_flash_attention(self):
         rng = np.random.RandomState(0)
         query = rng.uniform(size=(2, 3, 4, 8)).astype("float16")
         key = rng.uniform(size=(2, 3, 4, 8)).astype("float16")
         value = rng.uniform(size=(2, 3, 4, 5)).astype("float16")
-        with mock.patch(
-            "keras.src.backend.jax.ops.nn._can_use_flash_attention",
-            return_value=True,
-        ):
-            outputs = knn.dot_product_attention(query, key, value)
-            self.assertEqual(outputs.shape, (2, 3, 4, 5))
-            expected = _dot_product_attention(query, key, value)
-            self.assertAllClose(outputs, expected, atol=1e-2)
+        # The default `flash_attention=None` selects a path that works.
+        outputs = knn.dot_product_attention(query, key, value)
+        self.assertEqual(outputs.shape, (2, 3, 4, 5))
+        expected = _dot_product_attention(query, key, value)
+        self.assertAllClose(outputs, expected, atol=1e-2)
 
+        if not testing.jax_uses_tpu():
             with self.assertRaisesRegex(
-                ValueError, "Flash attention is not supported"
+                ValueError, "Flash attention is only supported on TPU"
             ):
                 knn.dot_product_attention(
                     query, key, value, flash_attention=True

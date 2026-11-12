@@ -1724,16 +1724,16 @@ def dot_product_attention(
 
     # Determine flash attention compatibility
     depths_differ = key.shape[-1] != value.shape[-1]
-    if depths_differ:
+    if depths_differ and not is_tpu:
         if flash_attention is True:
             raise ValueError(
-                "Flash attention is not supported when the value depth "
-                "differs from the key depth. Received: "
+                "Flash attention is only supported on TPU when the value "
+                "depth differs from the key depth. Received: "
                 f"key.shape[-1]={key.shape[-1]} and "
                 f"value.shape[-1]={value.shape[-1]}"
             )
-        # Neither the flash kernels nor `jax.nn.dot_product_attention` are
-        # used when the value depth differs from the key depth.
+        # `jax.nn.dot_product_attention`, which runs the cuDNN flash kernel,
+        # requires `depth_v == depth_k`. The TPU Splash kernel does not.
         flash_attention = False
     elif flash_attention is None:
         flash_attention = _can_use_flash_attention(query, key, value, bias)
