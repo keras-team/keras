@@ -7,6 +7,7 @@ from keras.src import regularizers
 from keras.src.api_export import keras_export
 from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.layers.layer import Layer
+from keras.src.utils import argument_validation
 
 
 @keras_export("keras.layers.LayerNormalization")
@@ -127,6 +128,7 @@ class LayerNormalization(Layer):
             )
 
         super().__init__(**kwargs)
+        axis = argument_validation.standardize_int(axis)
         if isinstance(axis, (list, tuple)):
             self.axis = list(axis)
         elif isinstance(axis, int):

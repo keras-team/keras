@@ -2323,6 +2323,11 @@ class EinsumDenseTest(testing.TestCase):
             rtol=1e-6,
         )
 
+    def test_numpy_integer_output_shape(self):
+        layer = layers.EinsumDense("ab,bc->ac", output_shape=np.int64(3))
+        self.assertEqual(layer.partial_output_shape, (3,))
+        self.assertIs(type(layer.partial_output_shape[0]), int)
+
 
 class EinsumDenseLoRATest(testing.TestCase):
     def test_float8_refuses_lora(self):

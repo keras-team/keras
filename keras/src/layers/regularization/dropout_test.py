@@ -107,3 +107,8 @@ class DropoutTest(testing.TestCase):
             "Expected all dimensions to be positive integers or None.",
         ):
             layers.Dropout(0.5, noise_shape=(20, 0, 10))
+
+    def test_numpy_integer_noise_shape(self):
+        layer = layers.Dropout(0.5, noise_shape=(np.int64(2), None))
+        self.assertEqual(layer.noise_shape, (2, None))
+        self.assertIs(type(layer.noise_shape[0]), int)

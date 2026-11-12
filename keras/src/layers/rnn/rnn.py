@@ -6,6 +6,7 @@ from keras.src.layers.layer import Layer
 from keras.src.layers.rnn.dropout_rnn_cell import DropoutRNNCell
 from keras.src.layers.rnn.stacked_rnn_cells import StackedRNNCells
 from keras.src.saving import serialization_lib
+from keras.src.utils import argument_validation
 from keras.src.utils import tracking
 
 
@@ -214,7 +215,9 @@ class RNN(Layer):
         self.states = None
         self._expected_batch_size = None
 
-        state_size = getattr(self.cell, "state_size", None)
+        state_size = argument_validation.standardize_int(
+            getattr(self.cell, "state_size", None)
+        )
         if state_size is None:
             raise ValueError(
                 "state_size must be specified as property on the RNN cell."
@@ -244,6 +247,7 @@ class RNN(Layer):
         output_size = getattr(self.cell, "output_size", None)
         if output_size is None:
             output_size = self.state_size[0]
+        output_size = argument_validation.standardize_int(output_size)
         if not isinstance(output_size, int):
             raise ValueError("output_size must be an integer.")
         if self.return_sequences:

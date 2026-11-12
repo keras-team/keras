@@ -1,6 +1,27 @@
 import numpy as np
 
 
+def standardize_int(value):
+    """Converts NumPy integers to Python integers.
+
+    A list or a tuple is converted element by element. Any other value is
+    returned unchanged. The caller validates the result, so a value that is
+    not an integer is rejected with the error of the caller.
+
+    Args:
+        value: The value of the argument to convert, e.g. `np.int64(2)` or
+            `(np.int64(1), np.int64(2))`.
+
+    Returns:
+        `value`, with each NumPy integer replaced with a Python `int`.
+    """
+    if isinstance(value, np.integer):
+        return int(value)
+    if type(value) in (list, tuple):
+        return type(value)(standardize_int(v) for v in value)
+    return value
+
+
 def standardize_tuple(value, n, name, allow_zero=False):
     """Transforms non-negative/positive integer/integers into an integer tuple.
 

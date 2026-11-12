@@ -10,6 +10,7 @@ from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.layers.rnn.dropout_rnn_cell import DropoutRNNCell
 from keras.src.layers.rnn.rnn import RNN
+from keras.src.utils import argument_validation
 
 
 @keras_export("keras.layers.LSTMCell")
@@ -106,6 +107,7 @@ class LSTMCell(Layer, DropoutRNNCell):
         seed=None,
         **kwargs,
     ):
+        units = argument_validation.standardize_int(units)
         if units <= 0:
             raise ValueError(
                 "Received an invalid value for argument `units`, "

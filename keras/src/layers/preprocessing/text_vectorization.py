@@ -292,6 +292,10 @@ class TextVectorization(Layer):
             arg_name="output_mode",
         )
 
+        ngrams = argument_validation.standardize_int(ngrams)
+        output_sequence_length = argument_validation.standardize_int(
+            output_sequence_length
+        )
         # 'ngrams' must be one of (None, int, tuple(int))
         if not (
             ngrams is None

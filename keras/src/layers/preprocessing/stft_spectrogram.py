@@ -7,6 +7,7 @@ from keras.src import layers
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend.common import standardize_dtype
+from keras.src.utils import argument_validation
 from keras.src.utils.module_utils import scipy
 
 
@@ -146,6 +147,9 @@ class STFTSpectrogram(layers.Layer):
         data_format=None,
         **kwargs,
     ):
+        frame_length = argument_validation.standardize_int(frame_length)
+        frame_step = argument_validation.standardize_int(frame_step)
+        fft_length = argument_validation.standardize_int(fft_length)
         if frame_step is not None and (
             frame_step > frame_length or frame_step < 1
         ):

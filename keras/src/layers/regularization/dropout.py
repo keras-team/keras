@@ -1,6 +1,7 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
+from keras.src.utils import argument_validation
 
 
 @keras_export("keras.layers.Dropout")
@@ -77,6 +78,7 @@ class Dropout(Layer):
                     f"Received: noise_shape={noise_shape}"
                 )
 
+        noise_shape = argument_validation.standardize_int(noise_shape)
         for i, dim in enumerate(noise_shape):
             if dim is not None:
                 if not isinstance(dim, int):

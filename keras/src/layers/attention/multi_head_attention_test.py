@@ -1047,3 +1047,26 @@ class MultiHeadAttentionTest(testing.TestCase):
         self.assertDType(layer._value_dense._kernel, "int8")
         self.assertDType(layer._gate_dense._kernel, "int8")
         self.assertDType(layer._output_dense._kernel, "int8")
+
+    def test_numpy_integer_arguments(self):
+        layer = layers.MultiHeadAttention(
+            num_heads=np.int64(2),
+            key_dim=np.int64(4),
+            value_dim=np.int64(6),
+            output_shape=np.int64(8),
+            attention_axes=np.int64(1),
+            sliding_window=np.int64(3),
+        )
+        config = layer.get_config()
+        for key, value in (
+            ("num_heads", 2),
+            ("key_dim", 4),
+            ("value_dim", 6),
+            ("sliding_window", 3),
+        ):
+            self.assertIs(type(config[key]), int)
+            self.assertEqual(config[key], value)
+        self.assertEqual(config["output_shape"], (8,))
+        self.assertIs(type(config["output_shape"][0]), int)
+        self.assertEqual(config["attention_axes"], (1,))
+        self.assertIs(type(config["attention_axes"][0]), int)

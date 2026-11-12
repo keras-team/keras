@@ -2,6 +2,7 @@ from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
+from keras.src.utils import argument_validation
 
 
 @keras_export("keras.layers.UpSampling1D")
@@ -42,6 +43,7 @@ class UpSampling1D(Layer):
 
     def __init__(self, size=2, **kwargs):
         super().__init__(**kwargs)
+        size = argument_validation.standardize_int(size)
         if not isinstance(size, int) or isinstance(size, bool):
             raise TypeError(
                 f"Expected an integer value for `size`, got {type(size)}."

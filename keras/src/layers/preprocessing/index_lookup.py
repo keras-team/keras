@@ -172,6 +172,7 @@ class IndexLookup(Layer):
                     "`salt` can only be used when `oov_method='farmhash'`. "
                     f"Received: oov_method={oov_method}"
                 )
+            salt = argument_validation.standardize_int(salt)
             if isinstance(salt, (tuple, list)) and len(salt) == 2:
                 salt = list(salt)
             elif isinstance(salt, int):

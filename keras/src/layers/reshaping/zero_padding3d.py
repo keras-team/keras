@@ -61,6 +61,7 @@ class ZeroPadding3D(Layer):
     ):
         super().__init__(**kwargs)
         self.data_format = backend.standardize_data_format(data_format)
+        padding = argument_validation.standardize_int(padding)
         if isinstance(padding, int):
             self.padding = (
                 (padding, padding),

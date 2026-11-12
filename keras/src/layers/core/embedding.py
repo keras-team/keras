@@ -9,6 +9,7 @@ from keras.src.backend.common import KerasTensor
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.geometry import LookupGeometry
 from keras.src.saving import serialization_lib
+from keras.src.utils import argument_validation
 
 
 @keras_export("keras.layers.Embedding")
@@ -92,6 +93,8 @@ class Embedding(Layer):
         quantization_config=None,
         **kwargs,
     ):
+        input_dim = argument_validation.standardize_int(input_dim)
+        output_dim = argument_validation.standardize_int(output_dim)
         if (
             not isinstance(input_dim, int)
             or isinstance(input_dim, bool)

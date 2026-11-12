@@ -192,3 +192,13 @@ class LayerNormalizationTest(testing.TestCase):
         self.assertEqual(out_sorted.shape, (2, 3, 4))
         self.assertEqual(out_unsorted.shape, (2, 3, 4))
         self.assertAllClose(out_sorted, out_unsorted)
+
+    def test_numpy_integer_axis(self):
+        layer = layers.LayerNormalization(axis=np.int64(-1))
+        self.assertIs(type(layer.axis), int)
+        self.assertEqual(layer.axis, -1)
+
+        layer = layers.LayerNormalization(axis=[np.int64(1), np.int64(2)])
+        self.assertEqual(layer.axis, [1, 2])
+        for axis in layer.axis:
+            self.assertIs(type(axis), int)

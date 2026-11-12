@@ -8,6 +8,7 @@ from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.geometry import ProjectionGeometry
 from keras.src.quantizers.quantizers import ternarize
+from keras.src.utils import argument_validation
 
 
 @keras_export("keras.layers.TernaryDense")
@@ -116,6 +117,7 @@ class TernaryDense(Layer):
         bias_constraint=None,
         **kwargs,
     ):
+        units = argument_validation.standardize_int(units)
         if not isinstance(units, int) or units <= 0:
             raise ValueError(
                 "Received an invalid value for `units`, expected a positive "

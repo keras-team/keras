@@ -8,6 +8,7 @@ from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.data_layer import DataLayer
 from keras.src.trainers.data_adapters.py_dataset_adapter import PyDataset
+from keras.src.utils import argument_validation
 from keras.src.utils.module_utils import tensorflow as tf
 from keras.src.utils.progbar import Progbar
 
@@ -112,6 +113,7 @@ class Normalization(DataLayer):
         self, axis=-1, mean=None, variance=None, invert=False, **kwargs
     ):
         super().__init__(**kwargs)
+        axis = argument_validation.standardize_int(axis)
         # Standardize `axis` to a tuple.
         if axis is None:
             axis = ()

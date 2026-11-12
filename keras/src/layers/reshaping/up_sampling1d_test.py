@@ -73,3 +73,8 @@ class UpSamplingTest(testing.TestCase):
                 TypeError, "Expected an integer value for `size`"
             ):
                 layers.UpSampling1D(size=size)
+
+    def test_numpy_integer_size(self):
+        layer = layers.UpSampling1D(size=np.int64(3))
+        self.assertIs(type(layer.size), int)
+        self.assertEqual(layer.size, 3)

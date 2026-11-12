@@ -453,3 +453,8 @@ class TernaryDenseTest(testing.TestCase):
         self.assertIsNotNone(layer.dtype_policy.quantization_mode)
         with self.assertRaisesRegex(ValueError, "already quantized"):
             layer.quantize("ternary")
+
+    def test_numpy_integer_units(self):
+        layer = layers.TernaryDense(np.int64(3))
+        self.assertIs(type(layer.units), int)
+        self.assertEqual(layer.units, 3)

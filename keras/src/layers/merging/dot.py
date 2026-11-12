@@ -1,6 +1,7 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.layers.merging.base_merge import Merge
+from keras.src.utils import argument_validation
 from keras.src.utils.numerical_utils import normalize
 
 
@@ -241,6 +242,7 @@ class Dot(Merge):
 
     def __init__(self, axes, normalize=False, **kwargs):
         super().__init__(**kwargs)
+        axes = argument_validation.standardize_int(axes)
         if not isinstance(axes, int):
             if not isinstance(axes, (list, tuple)):
                 raise TypeError(

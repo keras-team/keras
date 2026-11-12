@@ -56,6 +56,7 @@ class Cropping2D(Layer):
     def __init__(self, cropping=((0, 0), (0, 0)), data_format=None, **kwargs):
         super().__init__(**kwargs)
         self.data_format = backend.standardize_data_format(data_format)
+        cropping = argument_validation.standardize_int(cropping)
         if isinstance(cropping, int):
             if cropping < 0:
                 raise ValueError(

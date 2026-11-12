@@ -5,6 +5,7 @@ import numpy as np
 from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
+from keras.src.utils import argument_validation
 from keras.src.utils import jax_utils
 from keras.src.utils.naming import auto_name
 
@@ -72,6 +73,7 @@ class SeedGenerator:
         else:
             self.backend = backend
 
+        seed = argument_validation.standardize_int(seed)
         self._initial_seed = seed
         if seed is None:
             seed = make_default_seed()
@@ -147,6 +149,7 @@ def make_default_seed():
 
 
 def draw_seed(seed):
+    seed = argument_validation.standardize_int(seed)
     if isinstance(seed, SeedGenerator):
         return seed.next()
     elif isinstance(seed, int):

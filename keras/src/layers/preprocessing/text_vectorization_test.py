@@ -625,3 +625,19 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(_extract_batch(["hello", "world"]), ["hello", "world"])
         self.assertEqual(_extract_batch("single_str"), "single_str")
+
+    def test_numpy_integer_arguments(self):
+        layer = layers.TextVectorization(
+            ngrams=np.int64(2), output_sequence_length=np.int64(4)
+        )
+        config = layer.get_config()
+        self.assertIs(type(config["ngrams"]), int)
+        self.assertEqual(config["ngrams"], 2)
+        self.assertIs(type(config["output_sequence_length"]), int)
+        self.assertEqual(config["output_sequence_length"], 4)
+
+        layer = layers.TextVectorization(ngrams=(np.int64(1), np.int64(2)))
+        ngrams = layer.get_config()["ngrams"]
+        self.assertEqual(ngrams, (1, 2))
+        for n in ngrams:
+            self.assertIs(type(n), int)

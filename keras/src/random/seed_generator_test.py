@@ -111,3 +111,14 @@ class SeedGeneratorTest(testing.TestCase):
     def test_seed_generator_serialization(self):
         random_generator = seed_generator.SeedGenerator(seed=42, name="sg")
         self.run_class_serialization_test(random_generator)
+
+    def test_numpy_integer_seed(self):
+        gen = seed_generator.SeedGenerator(seed=np.int64(42))
+        self.assertIs(type(gen.get_config()["seed"]), int)
+        self.assertAllEqual(
+            gen.state, seed_generator.SeedGenerator(seed=42).state
+        )
+        self.assertAllEqual(
+            seed_generator.draw_seed(np.int64(42)),
+            seed_generator.draw_seed(42),
+        )

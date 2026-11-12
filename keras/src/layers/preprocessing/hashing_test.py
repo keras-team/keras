@@ -446,6 +446,12 @@ class HashingTest(testing.TestCase):
         ):
             layers.Hashing(num_bins=3, output_mode="int", sparse=True)
 
+    def test_numpy_integer_salt(self):
+        layer = layers.Hashing(num_bins=3, salt=np.int64(133))
+        self.assertEqual(layer.salt, [133, 133])
+        for value in layer.salt:
+            self.assertIs(type(value), int)
+
 
 # TODO: support tf.RaggedTensor.
 # def test_hash_ragged_string_input_farmhash(self):

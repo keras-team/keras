@@ -1,6 +1,7 @@
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
+from keras.src.utils import argument_validation
 
 
 @keras_export("keras.layers.UnitNormalization")
@@ -26,6 +27,7 @@ class UnitNormalization(Layer):
 
     def __init__(self, axis=-1, **kwargs):
         super().__init__(**kwargs)
+        axis = argument_validation.standardize_int(axis)
         if isinstance(axis, (list, tuple)):
             self.axis = list(axis)
         elif isinstance(axis, int):

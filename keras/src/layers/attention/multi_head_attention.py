@@ -16,6 +16,7 @@ from keras.src.layers.activations.softmax import Softmax
 from keras.src.layers.core.einsum_dense import EinsumDense
 from keras.src.layers.layer import Layer
 from keras.src.layers.regularization.dropout import Dropout
+from keras.src.utils import argument_validation
 
 
 @keras_export("keras.layers.MultiHeadAttention")
@@ -136,6 +137,12 @@ class MultiHeadAttention(Layer):
         seed=None,
         **kwargs,
     ):
+        num_heads = argument_validation.standardize_int(num_heads)
+        key_dim = argument_validation.standardize_int(key_dim)
+        value_dim = argument_validation.standardize_int(value_dim)
+        output_shape = argument_validation.standardize_int(output_shape)
+        attention_axes = argument_validation.standardize_int(attention_axes)
+        sliding_window = argument_validation.standardize_int(sliding_window)
         if not isinstance(num_heads, int) or num_heads <= 0:
             raise ValueError(
                 "Received an invalid value for argument `num_heads`, "

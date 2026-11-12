@@ -4,6 +4,7 @@ from keras.src.api_export import keras_export
 from keras.src.layers.pooling.base_adaptive_pooling import (
     BaseAdaptiveAveragePooling,
 )
+from keras.src.utils import argument_validation
 
 
 @keras_export("keras.layers.AdaptiveAveragePooling3D")
@@ -49,6 +50,7 @@ class AdaptiveAveragePooling3D(BaseAdaptiveAveragePooling):
     """
 
     def __init__(self, output_size, data_format=None, **kwargs):
+        output_size = argument_validation.standardize_int(output_size)
         if isinstance(output_size, int):
             output_size_tuple = (output_size, output_size, output_size)
         elif isinstance(output_size, (tuple, list)) and len(output_size) == 3:

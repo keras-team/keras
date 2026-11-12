@@ -70,6 +70,7 @@ class ZeroPadding2D(Layer):
     def __init__(self, padding=(1, 1), data_format=None, **kwargs):
         super().__init__(**kwargs)
         self.data_format = backend.standardize_data_format(data_format)
+        padding = argument_validation.standardize_int(padding)
         if isinstance(padding, int):
             self.padding = ((padding, padding), (padding, padding))
         elif hasattr(padding, "__len__"):

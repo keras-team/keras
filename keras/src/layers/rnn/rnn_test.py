@@ -490,3 +490,12 @@ class RNNTest(testing.TestCase):
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
+
+    def test_numpy_integer_state_size(self):
+        cell = OneStateRNNCell(5, state_size=np.int64(5))
+        layer = layers.RNN(cell)
+        self.assertEqual(layer.state_size, [5])
+        self.assertIs(type(layer.state_size[0]), int)
+        self.assertEqual(layer.compute_output_shape((2, 4, 3)), (2, 5))
+        output = layer(np.ones((2, 4, 3), dtype="float32"))
+        self.assertEqual(output.shape, (2, 5))

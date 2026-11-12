@@ -61,6 +61,7 @@ class Cropping3D(Layer):
     ):
         super().__init__(**kwargs)
         self.data_format = backend.standardize_data_format(data_format)
+        cropping = argument_validation.standardize_int(cropping)
         if isinstance(cropping, int):
             if cropping < 0:
                 raise ValueError(

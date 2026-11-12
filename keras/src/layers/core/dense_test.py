@@ -2122,3 +2122,8 @@ class DenseTest(testing.TestCase):
         # A forward pass runs without error.
         x = np.random.random((2, input_dim)).astype("float32")
         self.assertEqual(tuple(layer(x).shape), (2, output_dim))
+
+    def test_numpy_integer_units(self):
+        layer = layers.Dense(np.int64(3))
+        self.assertIs(type(layer.units), int)
+        self.assertEqual(layer.units, 3)

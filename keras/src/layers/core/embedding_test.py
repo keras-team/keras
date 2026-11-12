@@ -1152,3 +1152,9 @@ class EmbeddingTest(test_case.TestCase):
 
         x = np.array([[1, 2, 3], [4, 5, 6]], dtype="int32")
         self.assertEqual(tuple(layer(x).shape), (2, 3, output_dim))
+
+    def test_numpy_integer_dims(self):
+        layer = layers.Embedding(np.int64(10), np.int64(4))
+        self.assertIs(type(layer.input_dim), int)
+        self.assertIs(type(layer.output_dim), int)
+        self.assertEqual((layer.input_dim, layer.output_dim), (10, 4))

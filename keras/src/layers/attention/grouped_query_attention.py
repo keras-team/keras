@@ -11,6 +11,7 @@ from keras.src.layers.activations.softmax import Softmax
 from keras.src.layers.core.einsum_dense import EinsumDense
 from keras.src.layers.layer import Layer
 from keras.src.layers.regularization.dropout import Dropout
+from keras.src.utils import argument_validation
 
 
 @keras_export(
@@ -135,6 +136,7 @@ class GroupedQueryAttention(Layer):
         self.dropout = dropout
         self.use_bias = use_bias
         self.use_gate = use_gate
+        sliding_window = argument_validation.standardize_int(sliding_window)
         if sliding_window is not None and (
             not isinstance(sliding_window, int) or sliding_window <= 0
         ):

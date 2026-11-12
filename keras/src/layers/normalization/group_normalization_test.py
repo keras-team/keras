@@ -225,3 +225,8 @@ class GroupNormalizationTest(testing.TestCase):
             beta_initializer=initializers.Constant(5.0),
         )
         self.assertAllClose(layer(x), ops.full((2, 1, 4), 5.0))
+
+    def test_numpy_integer_groups(self):
+        layer = layers.GroupNormalization(groups=np.int64(2))
+        self.assertIs(type(layer.groups), int)
+        self.assertEqual(layer.groups, 2)

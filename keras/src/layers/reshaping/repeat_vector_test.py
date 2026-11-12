@@ -50,3 +50,8 @@ class FlattenTest(testing.TestCase):
                 ValueError, "should be a positive integer"
             ):
                 layers.RepeatVector(n=n)
+
+    def test_numpy_integer_n(self):
+        layer = layers.RepeatVector(n=np.int64(3))
+        self.assertIs(type(layer.n), int)
+        self.assertEqual(layer.n, 3)
