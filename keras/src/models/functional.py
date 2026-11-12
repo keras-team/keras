@@ -607,9 +607,14 @@ def functional_from_config(cls, config, custom_objects=None):
             node_data: List of layer configs
         """
         args, kwargs = deserialize_node(node_data, created_layers)
-        # Call layer on its inputs, thus creating the node
-        # and building the layer if needed.
-        layer(*args, **kwargs)
+        if not isinstance(layer, Layer):
+            # For ops, we use a symbolic call to create the node. We do not want
+            # to eagerly run ops that do not have any input.
+            layer.symbolic_call(*args, **kwargs)
+        else:
+            # Call layer on its inputs, thus creating the node and building the
+            # layer if needed.
+            layer(*args, **kwargs)
 
     def process_layer(layer_data):
         """Deserializes a layer and index its inbound nodes.
@@ -766,7 +771,7 @@ def unpack_singleton(x):
 
 
 def serialize_node(node, own_nodes=()):
-    if not node.input_tensors:
+    if node.is_input:
         # Does not need to be serialized.
         return
 

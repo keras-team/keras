@@ -18,8 +18,6 @@ class NodeTest(testing.TestCase):
         a_layer = DummyLayer()
         node = Node(a_layer, outputs=a, call_args=(), call_kwargs={})
 
-        self.assertEqual(node.is_input, True)
-
         self.assertEqual(node.output_tensors[0], a)
         self.assertEqual(node.output_tensors[0].shape, shape)
 
@@ -36,9 +34,6 @@ class NodeTest(testing.TestCase):
         args = (a,)
         b_layer = DummyLayer()
         node2 = Node(b_layer, outputs=b, call_args=args, call_kwargs=kwargs)
-
-        self.assertEqual(node1.is_input, True)
-        self.assertEqual(node2.is_input, False)
 
         self.assertEqual(node1.operation, a_layer)
         self.assertEqual(node2.operation, b_layer)

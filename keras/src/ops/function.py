@@ -195,7 +195,9 @@ class Function(Operation):
                 if not node.operation or node.is_input:
                     continue  # Input tensors already exist.
 
-                if any(id(x) not in tensor_dict for x in node.input_tensors):
+                if node.input_tensors and any(
+                    id(x) not in tensor_dict for x in node.input_tensors
+                ):
                     continue  # Node is not computable, try skipping.
 
                 args, kwargs = node.arguments.fill_in(tensor_dict)

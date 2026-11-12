@@ -16,6 +16,7 @@ from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import normalize_shift_and_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
+from keras.src.backend.common.functional_scope import in_functional_scope
 from keras.src.ops import operation_utils
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import broadcast_shapes
@@ -9781,6 +9782,20 @@ def sum(x, axis=None, keepdims=False):
     return backend.ops.numpy.sum(x, axis=axis, keepdims=keepdims)
 
 
+class Zeros(Operation):
+    def __init__(self, shape, dtype=None, *, name=None):
+        super().__init__(name=name)
+        self.shape = shape
+        self.dtype = dtype
+
+    def call(self):
+        return backend.ops.numpy.zeros(self.shape, self.dtype)
+
+    def compute_output_spec(self):
+        dtype = config.floatx() if self.dtype is None else self.dtype
+        return KerasTensor(self.shape, dtype=dtype)
+
+
 @keras_export(["keras.ops.zeros", "keras.ops.numpy.zeros"])
 def zeros(shape, dtype=None):
     """Return a new tensor of given shape and type, filled with zeros.
@@ -9792,7 +9807,23 @@ def zeros(shape, dtype=None):
     Returns:
         Tensor of zeros with the given shape and dtype.
     """
+    if in_functional_scope():
+        return Zeros(shape, dtype=dtype).symbolic_call()
     return backend.ops.numpy.zeros(shape, dtype=dtype)
+
+
+class Ones(Operation):
+    def __init__(self, shape, dtype=None, *, name=None):
+        super().__init__(name=name)
+        self.shape = shape
+        self.dtype = dtype
+
+    def call(self):
+        return backend.ops.numpy.ones(self.shape, self.dtype)
+
+    def compute_output_spec(self):
+        dtype = config.floatx() if self.dtype is None else self.dtype
+        return KerasTensor(self.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.ones", "keras.ops.numpy.ones"])
@@ -9806,7 +9837,28 @@ def ones(shape, dtype=None):
     Returns:
         Tensor of ones with the given shape and dtype.
     """
+    if in_functional_scope():
+        return Ones(shape, dtype=dtype).symbolic_call()
     return backend.ops.numpy.ones(shape, dtype=dtype)
+
+
+class Eye(Operation):
+    def __init__(self, N, M=None, k=0, dtype=None, *, name=None):
+        super().__init__(name=name)
+        self.N = N
+        self.M = M
+        self.k = k
+        self.dtype = dtype
+
+    def call(self):
+        return backend.ops.numpy.eye(
+            self.N, M=self.M, k=self.k, dtype=self.dtype
+        )
+
+    def compute_output_spec(self):
+        M = self.N if self.M is None else self.M
+        dtype = config.floatx() if self.dtype is None else self.dtype
+        return KerasTensor((self.N, M), dtype=dtype)
 
 
 @keras_export(["keras.ops.eye", "keras.ops.numpy.eye"])
@@ -9837,6 +9889,8 @@ def eye(N, M=None, k=0, dtype=None):
         raise TypeError(
             "Argument `M` must be an integer, an integer tensor, or `None`."
         )
+    if in_functional_scope():
+        return Eye(N, M=M, k=k, dtype=dtype).symbolic_call()
     return backend.ops.numpy.eye(N, M=M, k=k, dtype=dtype)
 
 

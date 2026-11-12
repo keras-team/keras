@@ -78,8 +78,10 @@ class Node:
                     operation=operation, node_index=node_index, tensor_index=i
                 )
 
-        # Whether this is a root node.
-        self.is_input = not self.arguments.keras_tensors
+        # Whether this is an input node.
+        from keras.src.layers.core.input_layer import InputLayer
+
+        self.is_input = isinstance(operation, InputLayer)
 
     def __repr__(self):
         return f"<Node operation={self.operation.name}, id={id(self)}>"
