@@ -1336,6 +1336,25 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         )
 
     @pytest.mark.requires_trainable_backend
+    def test_stop_gradient_non_tensor_input(self):
+        x = np.arange(3.0)
+        self.assertAllClose(ops.stop_gradient(x), x)
+
+    def test_vectorized_map_non_tensor_input(self):
+        x = np.arange(6.0).reshape(2, 3)
+        output = ops.vectorized_map(lambda v: v * 2, x)
+        self.assertAllClose(output, x * 2)
+
+        output = ops.vectorized_map(lambda xy: xy[0] + xy[1], (x, x))
+        self.assertAllClose(output, x * 2)
+
+    def test_unstack_non_tensor_input(self):
+        x = np.arange(6.0).reshape(2, 3)
+        out = ops.unstack(x, axis=1)
+        self.assertLen(out, 3)
+        for i, o in enumerate(out):
+            self.assertAllClose(o, x[:, i])
+
     def test_stop_gradient(self):
         class ExampleLayer(layers.Layer):
             def __init__(self):
