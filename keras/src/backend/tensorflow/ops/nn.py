@@ -6,6 +6,8 @@ import tensorflow as tf
 
 from keras.src import backend
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
@@ -50,7 +52,7 @@ def sigmoid(x):
 def sparse_sigmoid(x):
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return tf.where(
         x <= -1,
@@ -72,10 +74,18 @@ def softplus(x):
 
 
 def softsign(x):
+    x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tf.nn.softsign(x)
 
 
 def soft_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tf.where(
         x > threshold,
         x - threshold,
@@ -84,6 +94,10 @@ def soft_shrink(x, threshold=0.5):
 
 
 def sparse_plus(x):
+    x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tf.where(
         x <= -1,
         tf.zeros_like(x),
@@ -97,6 +111,9 @@ def silu(x):
 
 def squareplus(x, b=4):
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     b = convert_to_tensor(b, dtype=x.dtype)
     y = x + tf.sqrt(tf.square(x) + b)
     return y / 2
@@ -109,7 +126,7 @@ def log_sigmoid(x):
 def leaky_relu(x, negative_slope=0.2):
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return tf.nn.leaky_relu(x, alpha=negative_slope)
 
@@ -117,7 +134,7 @@ def leaky_relu(x, negative_slope=0.2):
 def hard_sigmoid(x):
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return relu6(x + tf.constant(3.0, x.dtype)) / tf.constant(6.0, x.dtype)
 
@@ -125,7 +142,7 @@ def hard_sigmoid(x):
 def hard_silu(x):
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != backend.standardize_dtype(x.dtype):
+    if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     return x * hard_sigmoid(x)
 
@@ -139,6 +156,10 @@ def elu(x, alpha=1.0):
 
 
 def selu(x):
+    x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tf.nn.selu(x)
 
 
@@ -170,6 +191,10 @@ def hard_tanh(x):
 
 
 def hard_shrink(x, threshold=0.5):
+    x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tf.where(tf.abs(x) > threshold, x, tf.zeros_like(x))
 
 
@@ -879,8 +904,13 @@ def conv(
     def _conv_xla():
         return _conv()
 
-    # Channels first "NCDHW" (3d convolutions) are broken on CPU without XLA.
-    needs_xla = data_format == "channels_first" and len(inputs.shape) == 5
+    # Channels first "NCW", NCHW" and "NCDHW" (1d, 2d and 3d convolutions) are
+    # broken on CPU without XLA.
+    needs_xla = (
+        data_format == "channels_first"
+        and len(inputs.shape) in (3, 4, 5)
+        and _cpu_only()  # fmt: skip
+    )
     # grouped convolutions are broken on CPU without XLA.
     if data_format == "channels_last":
         channels = inputs.shape[-1]
@@ -1286,7 +1316,7 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     if dtype is None:
         dtype = "float32"
     else:
-        dtype = backend.standardize_dtype(dtype)
+        dtype = standardize_dtype(dtype)
     axis = canonicalize_axis(axis, len(x.shape) + 1)
     if sparse:
         # We don't use `tf.sparse.bincount`, it doesn't handle negative indices
@@ -1295,10 +1325,10 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
         values = tf.reshape(x, (values_count,))
         # We deal with negative inputs by having zeros in the output although
         # it's useless. It makes shapes static.
-        values = tf.cast(tf.greater_equal(values, 0), dtype=dtype)
+        values = tf.cast((values >= 0) & (values < num_classes), dtype=dtype)
         indices = [tf.range(dim) for dim in x.shape]
         indices = tf.meshgrid(*indices, indexing="ij")
-        indices.insert(axis, tf.maximum(x, 0))  # Deal with negative indices
+        indices.insert(axis, tf.clip_by_value(x, 0, num_classes - 1))
         indices = [tf.reshape(a, (values_count, 1)) for a in indices]
         indices = [tf.cast(a, tf.int64) for a in indices]
         indices = tf.concat(indices, axis=1)
@@ -1318,7 +1348,7 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
 
 def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     reduction_axis = 1 if len(x.shape) > 1 else 0
-    if backend.standardize_dtype(dtype) == "bool":
+    if standardize_dtype(dtype) == "bool":
         if sparse:
             # `tf.sparse.reduce_max` doesn't work on bool and there is no
             # `tf.sparse.reduce_any`.
@@ -1547,7 +1577,7 @@ def binary_crossentropy(target, output, from_logits=False):
     """
     target = tf.convert_to_tensor(target)
     output = tf.convert_to_tensor(output)
-    if not backend.is_float_dtype(output.dtype):
+    if not is_float_dtype(output.dtype):
         output = tf.cast(output, backend.floatx())
     target = tf.cast(target, output.dtype)
 
@@ -1588,7 +1618,7 @@ def moments(x, axes, keepdims=False, synchronized=False):
     # workaround, we simply perform the operations on float32 and convert back
     # to float16
     need_cast = False
-    ori_dtype = backend.standardize_dtype(x.dtype)
+    ori_dtype = standardize_dtype(x.dtype)
     if ori_dtype in ("float16", "bfloat16"):
         need_cast = True
         x = cast(x, "float32")
@@ -1769,7 +1799,7 @@ def psnr(x1, x2, max_val):
 
 
 def _get_large_negative(dtype):
-    dtype = backend.standardize_dtype(dtype)
+    dtype = standardize_dtype(dtype)
     val = 65500.0 if dtype == "float16" else 3.38953e38
     return tf.constant(val * -0.7, dtype=dtype)
 

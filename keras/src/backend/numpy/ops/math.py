@@ -1,7 +1,7 @@
 import numpy as np
 
-from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.jax.ops.math import fft as jax_fft
 from keras.src.backend.jax.ops.math import fft2 as jax_fft2
 from keras.src.backend.numpy.ops.core import convert_to_tensor
@@ -318,16 +318,19 @@ def istft(
 
 
 def rsqrt(x):
+    x = convert_to_tensor(x)
     dtype = dtypes.result_type(x.dtype)
     return (1.0 / np.sqrt(x)).astype(dtype)
 
 
 def erf(x):
+    x = convert_to_tensor(x)
     dtype = dtypes.result_type(x.dtype)
     return scipy.special.erf(x).astype(dtype)
 
 
 def erfc(x):
+    x = convert_to_tensor(x)
     dtype = dtypes.result_type(x.dtype, float)
     return scipy.special.erfc(x).astype(dtype)
 

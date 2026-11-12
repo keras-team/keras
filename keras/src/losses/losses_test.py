@@ -1,3 +1,4 @@
+import inspect
 import re
 import warnings
 
@@ -6,8 +7,12 @@ import pytest
 from absl.testing import parameterized
 
 from keras.src import backend
+from keras.src import losses as losses_module
 from keras.src import ops
 from keras.src import testing
+from keras.src.api_export import REGISTERED_NAMES_TO_OBJS
+from keras.src.backend.common import get_keras_mask
+from keras.src.backend.common import set_keras_mask
 from keras.src.layers import Input
 from keras.src.losses import losses
 from keras.src.models import Functional
@@ -16,6 +21,9 @@ from keras.src.models import Functional
 class MeanSquaredErrorTest(testing.TestCase):
     def test_config(self):
         self.run_class_serialization_test(losses.MeanSquaredError(name="mymse"))
+        self.run_class_serialization_test(
+            losses.MeanSquaredError(name="mymse", dtype="bfloat16")
+        )
 
     def test_base_function_reduction(self):
         mse_fn = losses.mean_squared_error
@@ -1012,6 +1020,9 @@ class BinaryCrossentropyTest(testing.TestCase):
         self.run_class_serialization_test(
             losses.BinaryCrossentropy(name="bce", axis=-1)
         )
+        self.run_class_serialization_test(
+            losses.BinaryCrossentropy(name="bce", axis=-1, dtype="float16")
+        )
 
     def test_all_correct_unweighted(self):
         y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype="float32")
@@ -1873,7 +1884,7 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
         self.assertAllClose(output[0], reference[0])
         self.assertAllClose(output[2], reference[2])
         self.assertAllClose(output[1], 0.0)
-        self.assertAllClose(backend.get_keras_mask(output), [True, False, True])
+        self.assertAllClose(get_keras_mask(output), [True, False, True])
 
 
 class BinaryFocalCrossentropyTest(testing.TestCase):
@@ -2253,7 +2264,7 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
             y_true, y_pred, ignore_class=255
         )
         self.assertAllEqual(
-            backend.get_keras_mask(function_result), [True, False, True]
+            get_keras_mask(function_result), [True, False, True]
         )
         result = loss_obj(y_true, y_pred)
         expected_valid = losses.sparse_categorical_focal_crossentropy(
@@ -2293,9 +2304,7 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
             dtype="float32",
         )
         y_pred = ops.convert_to_tensor(y_pred_values)
-        backend.set_keras_mask(
-            y_pred, ops.convert_to_tensor([False, True, True])
-        )
+        set_keras_mask(y_pred, ops.convert_to_tensor([False, True, True]))
 
         result = losses.SparseCategoricalFocalCrossentropy(
             ignore_class=255, reduction=None
@@ -3016,3 +3025,19 @@ class CategoricalGeneralizedCrossEntropyTest(testing.TestCase):
             y_true, y_pred
         )
         self.assertDType(output, "bfloat16")
+
+
+class LossRegistryTest(testing.TestCase):
+    def test_get_all_public_losses(self):
+        not_objects = {"get", "serialize", "deserialize"}
+        for name, obj in REGISTERED_NAMES_TO_OBJS.items():
+            if (
+                name.startswith("keras.losses.")
+                and name.count(".") == 2
+                and name.rsplit(".", 1)[1] not in not_objects
+            ):
+                get_result = losses_module.get(name.rsplit(".", 1)[1])
+                if inspect.isclass(obj):
+                    self.assertIsInstance(get_result, obj)
+                else:
+                    self.assertIs(get_result, obj)

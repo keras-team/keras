@@ -3,14 +3,12 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.export.export_utils import get_input_signature
-from keras.src.export.neptune_model_export_archive import (
-    NeptuneModelExportArchive,
-)
 
 # Re-export for backward compatibility (used by tfsm_layer.py)
 from keras.src.export.saved_model_export_archive import (  # noqa: F401
     _list_variables_used_by_fns,
 )
+from keras.src.export.xla_saved_model_archive import XLASavedModelArchive
 from keras.src.utils.module_utils import get_pluggable_backend_module
 
 if backend.backend() == "tensorflow":
@@ -59,8 +57,8 @@ def export_saved_model(
             formats.
         input_signature: Optional. Specifies the shape and dtype of the model
             inputs. Can be a structure of `keras.InputSpec`, `tf.TensorSpec`,
-            `backend.KerasTensor`, or backend tensor. If not provided, it will
-            be automatically computed. Defaults to `None`.
+            `KerasTensor`, or backend tensor. If not provided, it will be
+            automatically computed. Defaults to `None`.
         **kwargs: Additional keyword arguments:
             - Specific to the JAX backend:
                 - `is_static`: Optional `bool`. Indicates whether `fn` is
@@ -177,8 +175,8 @@ class ExportArchive:
     def __new__(cls, format="saved_model", **kwargs):
         if format == "saved_model":
             return SavedModelExportArchive()
-        elif format == "neptune_model":
-            return NeptuneModelExportArchive()
+        elif format == "xla_saved_model":
+            return XLASavedModelArchive()
         else:
             raise ValueError(f"Unsupported format: {format}")
 
@@ -216,10 +214,10 @@ class ExportArchive:
                 and dtype of the inputs (see below).
             input_signature: Optional. Specifies the shape and dtype of `fn`.
                 Can be a structure of `keras.InputSpec`, `tf.TensorSpec`,
-                `backend.KerasTensor`, or backend tensor (see below for an
-                example showing a `Functional` model with 2 input arguments). If
-                not provided, `fn` must be a `tf.function` that has been called
-                at least once. Defaults to `None`.
+                `KerasTensor`, or backend tensor (see below for an example
+                showing a `Functional` model with 2 input arguments). If not
+                provided, `fn` must be a `tf.function` that has been called at
+                least once. Defaults to `None`.
             **kwargs: Additional keyword arguments:
                 - Specific to the JAX backend:
                     - `is_static`: Optional `bool`. Indicates whether `fn` is
@@ -358,10 +356,10 @@ class ExportArchive:
             resource: A trackable Keras resource, such as a layer or model.
             input_signature: Optional. Specifies the shape and dtype of `fn`.
                 Can be a structure of `keras.InputSpec`, `tf.TensorSpec`,
-                `backend.KerasTensor`, or backend tensor (see below for an
-                example showing a `Functional` model with 2 input arguments). If
-                not provided, `fn` must be a `tf.function` that has been called
-                at least once. Defaults to `None`.
+                `KerasTensor`, or backend tensor (see below for an example
+                showing a `Functional` model with 2 input arguments). If not
+                provided, `fn` must be a `tf.function` that has been called at
+                least once. Defaults to `None`.
             **kwargs: Additional keyword arguments:
                 - Specific to the JAX backend:
                     - `is_static`: Optional `bool`. Indicates whether `fn` is

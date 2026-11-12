@@ -12,8 +12,8 @@ from tensorflow.python.ops.math_ops import is_nan
 
 from keras.src import tree
 from keras.src.backend import config
-from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import normalize_shift_and_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
@@ -193,7 +193,11 @@ def heaviside(x1, x2):
     return tf.where(
         x1 < 0,
         tf.zeros_like(x1),
-        tf.where(x1 > 0, tf.ones_like(x1), x2),
+        tf.where(
+            x1 > 0,
+            tf.ones_like(x1),
+            tf.where(tf.math.is_nan(x1), x1, x2),
+        ),
     )
 
 
@@ -830,14 +834,6 @@ def any(x, axis=None, keepdims=False):
     return tf.reduce_any(x, axis=axis, keepdims=keepdims)
 
 
-def amax(x, axis=None, keepdims=False):
-    return max(x, axis=axis, keepdims=keepdims)
-
-
-def amin(x, axis=None, keepdims=False):
-    return min(x, axis=axis, keepdims=keepdims)
-
-
 def append(x1, x2, axis=None):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -1034,13 +1030,9 @@ def array(x, dtype=None):
 
 
 def view(x, dtype=None):
-    from keras.src import backend
-
     x = convert_to_tensor(x)
-    old_dtype = tf.as_dtype(backend.standardize_dtype(x.dtype))
-    new_dtype = tf.as_dtype(
-        backend.standardize_dtype(dtype if dtype else x.dtype)
-    )
+    old_dtype = tf.as_dtype(standardize_dtype(x.dtype))
+    new_dtype = tf.as_dtype(standardize_dtype(dtype if dtype else x.dtype))
 
     old_itemsize = old_dtype.size
     new_itemsize = new_dtype.size
@@ -1202,17 +1194,14 @@ def right_shift(x, y):
 
 def blackman(x):
     dtype = config.floatx()
-    x = tf.cast(x, dtype)
-    n = tf.range(x, dtype=dtype)
-    n_minus_1 = tf.cast(x - 1, dtype)
-    n_minus_1_safe = tf.where(
-        tf.equal(n_minus_1, 0), tf.ones_like(n_minus_1), n_minus_1
-    )
-    term1 = 0.42
-    term2 = -0.5 * tf.cos(2 * np.pi * n / n_minus_1_safe)
-    term3 = 0.08 * tf.cos(4 * np.pi * n / n_minus_1_safe)
-    window = term1 + term2 + term3
-    return tf.where(tf.equal(n_minus_1, 0), tf.ones_like(window), window)
+    compute_dtype = dtypes.result_type(dtype, "float32")
+
+    x = tf.cast(x, "int32")
+    n = tf.range(x, dtype=compute_dtype)
+    x_minus_1 = tf.cast(x - 1, compute_dtype)
+    phase = np.pi * (2 * n - x_minus_1) / tf.maximum(x_minus_1, 1.0)
+    window = 0.42 + 0.5 * tf.cos(phase) + 0.08 * tf.cos(2 * phase)
+    return tf.cast(window, dtype)
 
 
 def broadcast_to(x, shape):
@@ -1675,11 +1664,21 @@ def flip(x, axis=None):
 
 def fliplr(x):
     x = convert_to_tensor(x)
+    if x.shape.rank is not None and x.shape.rank < 2:
+        raise ValueError(
+            "`fliplr` requires input with 2 or more dimensions. "
+            f"Received: x.shape={x.shape}"
+        )
     return tf.reverse(x, [1])
 
 
 def flipud(x):
     x = convert_to_tensor(x)
+    if x.shape.rank is not None and x.shape.rank < 1:
+        raise ValueError(
+            "`flipud` requires input with 1 or more dimensions. "
+            f"Received: x.shape={x.shape}"
+        )
     return tf.reverse(x, [0])
 
 
@@ -2054,8 +2053,9 @@ def ldexp(x1, x2):
 
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, x1.dtype)
-    result = x1 * tf.pow(tf.constant(2.0, dtype=x1.dtype), x2)
-    return tf.cast(tf.where(tf.math.is_inf(x1) | (x1 == 0), x1, result), dtype)
+    pow_val = tf.pow(tf.constant(2.0, dtype=x1.dtype), x2)
+    result = tf.where(tf.math.is_inf(pow_val) & (x1 == 0), x1, x1 * pow_val)
+    return tf.cast(tf.where(tf.math.is_inf(x1), x1, result), dtype)
 
 
 def less(x1, x2):
@@ -2173,27 +2173,52 @@ def logaddexp(x1, x2):
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
-    delta = x1 - x2
+    amax = tf.maximum(x1, x2)
+    amin = tf.minimum(x1, x2)
+    finite_max = tf.math.is_finite(amax)
+    # Dummy center is 0 when amax is non-finite so exp/log stay finite.
+    safe_max = tf.stop_gradient(tf.where(finite_max, amax, tf.zeros_like(amax)))
+    # Unused branch: both operands = safe_max -> log(2) finite (WhereGrad).
+    use_lse = finite_max & tf.math.is_finite(amin)
+    x1_masked = tf.where(use_lse, x1, safe_max)
+    x2_masked = tf.where(use_lse, x2, safe_max)
+    lse = safe_max + tf.math.log(
+        tf.math.exp(x1_masked - safe_max) + tf.math.exp(x2_masked - safe_max)
+    )
+    # NaN in, NaN out; non-finite inputs resolve via amax (including inf pairs).
     return tf.where(
-        tf.math.is_nan(delta),
+        tf.math.is_nan(x1) | tf.math.is_nan(x2),
         x1 + x2,
-        tf.maximum(x1, x2) + tf.math.log1p(tf.math.exp(-tf.abs(delta))),
+        tf.where(use_lse, lse, amax),
     )
 
 
 def logaddexp2(x1, x2):
-    x1 = tf.convert_to_tensor(x1)
-    x2 = tf.convert_to_tensor(x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
-    delta = x1 - x2
+    amax = tf.maximum(x1, x2)
+    amin = tf.minimum(x1, x2)
+    finite_max = tf.math.is_finite(amax)
+    safe_max = tf.stop_gradient(tf.where(finite_max, amax, tf.zeros_like(amax)))
+    use_lse = finite_max & tf.math.is_finite(amin)
     log2 = tf.cast(tf.math.log(2.0), dtype)
+    x1_masked = tf.where(use_lse, x1, safe_max)
+    x2_masked = tf.where(use_lse, x2, safe_max)
+    lse = (
+        safe_max
+        + tf.math.log(
+            tf.math.exp((x1_masked - safe_max) * log2)
+            + tf.math.exp((x2_masked - safe_max) * log2)
+        )
+        / log2
+    )
     return tf.where(
-        tf.math.is_nan(delta),
+        tf.math.is_nan(x1) | tf.math.is_nan(x2),
         x1 + x2,
-        tf.maximum(x1, x2)
-        + tf.math.log1p(tf.math.exp(-tf.abs(delta) * log2)) / log2,
+        tf.where(use_lse, lse, amax),
     )
 
 
@@ -3392,48 +3417,22 @@ def tri(N, M=None, k=0, dtype=None):
 
 def tril(x, k=0):
     x = convert_to_tensor(x)
-
-    def _negative_k_branch():
-        shape = tf.shape(x)
-        rows, cols = shape[-2], shape[-1]
-        i, j = tf.meshgrid(tf.range(rows), tf.range(cols), indexing="ij")
-        mask = i >= j - k
-        return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
-
-    if isinstance(k, int):
-        if k >= 0:
-            return tf.linalg.band_part(x, -1, k)
-        return _negative_k_branch()
-
-    # when `k` is a tensor
-    return tf.cond(
-        tf.greater_equal(k, 0),
-        lambda: tf.linalg.band_part(x, -1, k),
-        _negative_k_branch,
-    )
+    # `tf.linalg.band_part` raises when the band width exceeds the matrix
+    # size, so build the mask explicitly. This works for any `k`.
+    k = tf.cast(k, "int32")
+    shape = tf.shape(x)
+    i = tf.range(shape[-2])[:, None]
+    j = tf.range(shape[-1])[None, :]
+    return tf.where(i >= j - k, x, tf.zeros_like(x))
 
 
 def triu(x, k=0):
     x = convert_to_tensor(x)
-
-    def _positive_k_branch():
-        shape = tf.shape(x)
-        rows, cols = shape[-2], shape[-1]
-        i, j = tf.meshgrid(tf.range(rows), tf.range(cols), indexing="ij")
-        mask = i <= j - k
-        return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
-
-    if isinstance(k, int):
-        if k <= 0:
-            return tf.linalg.band_part(x, -k, -1)
-        return _positive_k_branch()
-
-    # when `k` is a tensor
-    return tf.cond(
-        tf.less_equal(k, 0),
-        lambda: tf.linalg.band_part(x, -k, -1),
-        _positive_k_branch,
-    )
+    k = tf.cast(k, "int32")
+    shape = tf.shape(x)
+    i = tf.range(shape[-2])[:, None]
+    j = tf.range(shape[-1])[None, :]
+    return tf.where(i <= j - k, x, tf.zeros_like(x))
 
 
 def trunc(x):
@@ -3819,7 +3818,30 @@ def floor_divide(x1, x2):
     )
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
-    return tf.math.floordiv(x1, x2)
+    if "float" not in dtype:
+        return tf.math.floordiv(x1, x2)
+    # `tf.math.floordiv` takes the floor of the rounded quotient, which can
+    # reach the next whole number: in float32, 4.2 / 1.4 rounds to 3.0, so
+    # 4.2 // 1.4 gave 3 instead of 2. Divide the exact multiple
+    # `x1 - fmod(x1, x2)` instead, as NumPy and JAX do.
+    # `tf.truncatemod` has no float16 or bfloat16 kernel.
+    compute_dtype = "float32" if dtype in ("float16", "bfloat16") else dtype
+    x1 = tf.cast(x1, compute_dtype)
+    x2 = tf.cast(x2, compute_dtype)
+    mod = tf.truncatemod(x1, x2)
+    div = (x1 - mod) / x2
+    # `fmod` has the sign of `x1`; floor division rounds toward -inf.
+    div = tf.where(
+        tf.logical_and(
+            tf.not_equal(mod, 0),
+            tf.math.logical_xor(tf.less(mod, 0), tf.less(x2, 0)),
+        ),
+        div - 1,
+        div,
+    )
+    # A zero divisor gives `x1 / x2` (inf, -inf or nan), as before.
+    result = tf.where(tf.equal(x2, 0), x1 / x2, tf.round(div))
+    return tf.stop_gradient(tf.cast(result, dtype))
 
 
 def logical_xor(x1, x2):
@@ -3836,6 +3858,8 @@ def corrcoef(x):
 
     if tf.rank(x) == 0:
         return tf.constant(float("nan"), dtype=config.floatx())
+    if x.shape.rank == 1:
+        return tf.reshape(corrcoef(x[tf.newaxis, :]), [])
 
     mean = tf.reduce_mean(x, axis=-1, keepdims=True)
     x_centered = x - mean
@@ -3915,13 +3939,11 @@ def correlate(x1, x2, mode="valid"):
             if isinstance(n, int) and isinstance(m, int)
             else tf.maximum(n, m)
         )
-        start = (full_len - out_len) // 2
+        start = (full_len - out_len + tf.cast(tf.less(n, m), "int32")) // 2
         return tf.slice(full_corr, [start], [out_len])
     elif mode == "valid":
-        x1, x2 = _pack(x1, x2)
-        return tf.squeeze(
-            tf.nn.conv1d(x1, x2, stride=1, padding="VALID"), axis=[0, 2]
-        )
+        full_corr = _full_corr(x1, x2)
+        return full_corr[tf.minimum(n, m) - 1 : tf.maximum(n, m)]
     else:
         raise ValueError(
             f"Invalid mode: '{mode}'. Mode must be one of:"

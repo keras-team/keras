@@ -7,6 +7,9 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend.common import get_keras_mask
+from keras.src.backend.common import set_keras_mask
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.losses.loss import Loss
 from keras.src.losses.loss import reduce_weighted_values
@@ -1312,7 +1315,7 @@ class SparseCategoricalFocalCrossentropy(LossFunctionWrapper):
         # integer above 256. The generic Loss.__call__ casts both arguments to
         # the compute dtype, which can silently change a valid class ID or an
         # out-of-range ignore sentinel.
-        in_mask = backend.get_keras_mask(y_pred)
+        in_mask = get_keras_mask(y_pred)
 
         with backend.name_scope(self.name):
             y_pred = tree.map_structure(
@@ -1321,7 +1324,7 @@ class SparseCategoricalFocalCrossentropy(LossFunctionWrapper):
             y_true = tree.map_structure(ops.convert_to_tensor, y_true)
 
             loss_values = self.call(y_true, y_pred)
-            out_mask = backend.get_keras_mask(loss_values)
+            out_mask = get_keras_mask(loss_values)
 
             if in_mask is not None and out_mask is not None:
                 mask = in_mask & out_mask
@@ -1379,6 +1382,11 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
     Args:
         from_logits: Whether `y_pred` is expected to be a logits tensor. By
             default, we assume that `y_pred` encodes a probability distribution.
+        ignore_class: Optional integer. The ID of a class to be ignored during
+            loss computation. This is useful, for example, in segmentation
+            problems featuring a "void" class (commonly -1 or 255) in
+            segmentation maps. By default (`ignore_class=None`), all classes are
+            considered.
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`. Supported options are
             `"sum"`, `"sum_over_batch_size"`, `"mean"`,
@@ -2586,7 +2594,7 @@ def sparse_categorical_focal_crossentropy(
     # boundaries such as 256 classes with uint8 labels. Preserve int64 inputs
     # so very large invalid labels are identified before the gather, while using
     # int32 otherwise to remain compatible with JAX's default dtype mode.
-    if backend.standardize_dtype(y_true.dtype) != "int64":
+    if standardize_dtype(y_true.dtype) != "int64":
         y_true = ops.cast(y_true, "int32")
 
     valid_mask = None
@@ -2675,7 +2683,7 @@ def sparse_categorical_focal_crossentropy(
 
     if valid_mask is not None:
         loss = ops.where(valid_mask, loss, 0.0)
-        backend.set_keras_mask(loss, mask=valid_mask)
+        set_keras_mask(loss, mask=valid_mask)
 
     return loss
 
@@ -2773,7 +2781,7 @@ def sparse_categorical_crossentropy(
     if ignore_class is not None:
         valid_mask = ops.reshape(valid_mask, res_shape)
         res = ops.where(valid_mask, res, 0.0)
-        backend.set_keras_mask(res, mask=valid_mask)
+        set_keras_mask(res, mask=valid_mask)
 
     return res
 
@@ -3147,7 +3155,7 @@ def circle(
     )
 
     circle_loss = ops.softplus(p_loss + n_loss)
-    backend.set_keras_mask(circle_loss, circle_loss > 0)
+    set_keras_mask(circle_loss, circle_loss > 0)
     return circle_loss
 
 

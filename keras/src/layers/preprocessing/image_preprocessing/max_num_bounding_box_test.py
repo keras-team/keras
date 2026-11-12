@@ -1,9 +1,9 @@
 import numpy as np
-from tensorflow import data as tf_data
 
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 class MaxNumBoundingBoxesTest(testing.TestCase):
@@ -69,9 +69,27 @@ class MaxNumBoundingBoxesTest(testing.TestCase):
             max_number=40, bounding_box_format="xyxy"
         )
         input_data = {"images": input_image, "bounding_boxes": bounding_boxes}
-        ds = tf_data.Dataset.from_tensor_slices(input_data)
+        ds = tf.data.Dataset.from_tensor_slices(input_data)
         ds = ds.map(layer)
         ds = ds.batch(1)
         output = next(iter(ds))
         self.assertEqual(output["bounding_boxes"]["boxes"].shape, (1, 40, 4))
         self.assertEqual(output["bounding_boxes"]["labels"].shape, (1, 40))
+
+    def test_fill_value_in_config(self):
+        layer = layers.MaxNumBoundingBoxes(
+            max_number=4, fill_value=0, bounding_box_format="xyxy"
+        )
+        revived = layers.MaxNumBoundingBoxes.from_config(layer.get_config())
+        self.assertEqual(revived.fill_value, 0)
+
+        bounding_boxes = {
+            "boxes": np.array([[[1, 1, 2, 2]]]),
+            "labels": np.array([[5]]),
+        }
+        output = revived(
+            {"images": np.zeros((1, 8, 8, 3)), "bounding_boxes": bounding_boxes}
+        )
+        self.assertAllClose(
+            output["bounding_boxes"]["labels"], np.array([[5, 0, 0, 0]])
+        )

@@ -8,8 +8,8 @@ import zipfile
 import numpy as np
 import rich.console
 
-from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.common import KerasTensor
 from keras.src.saving import saving_lib
 from keras.src.saving.saving_lib import H5IOStore
 from keras.src.utils import naming
@@ -84,9 +84,9 @@ class KerasFileEditor:
                 raise
             # Reject a decompression-bomb weights member up front, mirroring
             # `saving_lib._load_model_from_fileobj`.
-            saving_lib._reject_zip_bomb(zf, f"{saving_lib._VARS_FNAME}.h5")
+            saving_lib._reject_zip_bomb(zf, saving_lib._VARS_FNAME_H5)
             weights_store = H5IOStore(
-                f"{saving_lib._VARS_FNAME}.h5",
+                saving_lib._VARS_FNAME_H5,
                 archive=zf,
                 mode="r",
             )
@@ -715,7 +715,7 @@ def get_weight_spec_of_saveable(saveable, spec, visited_saveables=None):
             keys = sorted(store.keys())
             for k in keys:
                 val = store[k]
-                spec[k] = backend.KerasTensor(shape=val.shape, dtype=val.dtype)
+                spec[k] = KerasTensor(shape=val.shape, dtype=val.dtype)
 
     visited_saveables.add(id(saveable))
 

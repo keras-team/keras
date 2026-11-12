@@ -10,19 +10,4 @@ permissions:
 
 jobs:
   zizmor:
-    name: GitHub Actions Security Analysis
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Install uv dependencies
-        # zizmor: ignore[impostor-commit, mismatched-version-comment]
-        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
-
-      - name: Run zizmor
-        run:  uvx zizmor --format=github .github
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    uses: keras-team/shared-workflows/.github/workflows/zizmor.yml@b181e0179b0d6a8aa1c19f6255c74ba83fa84845

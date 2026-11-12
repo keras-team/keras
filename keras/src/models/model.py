@@ -11,7 +11,7 @@ from keras.src.layers.core.input_layer import InputLayer
 from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
 from keras.src.quantizers import strategy_registry
-from keras.src.quantizers.gptq_core import find_layers_in_block
+from keras.src.quantizers.calibration_run import find_layers_in_block
 from keras.src.quantizers.quantization_config import validate_and_resolve_config
 from keras.src.quantizers.report import QuantizationReport
 from keras.src.quantizers.utils import should_quantize_layer
@@ -441,7 +441,9 @@ class Model(Trainer, Layer):
             the inputs should be passed through, before being passed to
             the sequential blocks. For example, inputs to an LLM must
             first be passed through an embedding layer, followed by
-            the transformer.
+            the transformer. `'pre_block_layers'` may be left out, and
+            each value is a list or a tuple. A structure with any other
+            key is refused with a `ValueError`.
         """
         del mode  # Unused.
         return None
@@ -827,9 +829,8 @@ class Model(Trainer, Layer):
                 backends and formats.
             input_signature: Optional. Specifies the shape and dtype of the
                 model inputs. Can be a structure of `keras.InputSpec`,
-                `tf.TensorSpec`, `backend.KerasTensor`, or backend tensor. If
-                not provided, it will be automatically computed. Defaults to
-                `None`.
+                `tf.TensorSpec`, `KerasTensor`, or backend tensor. If not
+                provided, it will be automatically computed. Defaults to `None`.
                 Note: With `format="litert"` and the PyTorch backend, dynamic
                 input shapes are not supported. Any dynamic dimensions (i.e.,
                 `None` in input shapes) will be automatically replaced with `1`

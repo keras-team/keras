@@ -1,3 +1,6 @@
+import numpy as np
+
+
 def standardize_tuple(value, n, name, allow_zero=False):
     """Transforms non-negative/positive integer/integers into an integer tuple.
 
@@ -17,8 +20,8 @@ def standardize_tuple(value, n, name, allow_zero=False):
         f"Received {name}={value}"
     )
 
-    if isinstance(value, int):
-        value_tuple = (value,) * n
+    if isinstance(value, (int, np.integer)):
+        value_tuple = (int(value),) * n
     else:
         try:
             value_tuple = tuple(value)
@@ -26,15 +29,17 @@ def standardize_tuple(value, n, name, allow_zero=False):
             raise ValueError(error_msg)
         if len(value_tuple) != n:
             raise ValueError(error_msg)
+        converted_values = []
         for single_value in value_tuple:
             try:
-                int(single_value)
+                converted_values.append(int(single_value))
             except (ValueError, TypeError):
                 error_msg += (
                     f"including element {single_value} of "
                     f"type {type(single_value)}"
                 )
                 raise ValueError(error_msg)
+        value_tuple = tuple(converted_values)
 
     if allow_zero:
         unqualified_values = {v for v in value_tuple if v < 0}

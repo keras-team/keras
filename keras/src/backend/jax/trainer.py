@@ -5,12 +5,12 @@ from functools import partial
 import jax
 import numpy as np
 
-from keras.src import backend
 from keras.src import callbacks as callbacks_module
 from keras.src import optimizers as optimizers_module
 from keras.src import tree
 from keras.src.backend import config
 from keras.src.backend import distribution_lib as jax_distribution_lib
+from keras.src.backend.common import StatelessScope
 from keras.src.backend.config import is_nnx_enabled
 from keras.src.distribution import distribution_lib
 from keras.src.trainers import trainer as base_trainer
@@ -182,7 +182,7 @@ class Trainer(base_trainer.BaseTrainer):
         if training and self.optimizer is not None:
             # Scale loss with a StatelessScope, to use an update scale variable.
             mapping = list(zip(self.optimizer.variables, optimizer_variables))
-            with backend.StatelessScope(state_mapping=mapping):
+            with StatelessScope(state_mapping=mapping):
                 loss = self.optimizer.scale_loss(loss)
         return loss, (
             unscaled_loss,
@@ -194,7 +194,7 @@ class Trainer(base_trainer.BaseTrainer):
     def _update_metrics_variables(
         self, metrics_variables, unscaled_loss, x, y, y_pred, sample_weight
     ):
-        with backend.StatelessScope(
+        with StatelessScope(
             state_mapping=[
                 (ref_v, v)
                 for ref_v, v in zip(self.metrics_variables, metrics_variables)
@@ -737,7 +737,7 @@ class Trainer(base_trainer.BaseTrainer):
                 if is_nnx_enabled():
                     self(x)
                 else:
-                    with backend.StatelessScope():
+                    with StatelessScope():
                         self(x)
                 break
             epoch_iterator.reset()
@@ -833,7 +833,7 @@ class Trainer(base_trainer.BaseTrainer):
             )
 
         def data():
-            yield _distribute_data((x, y, sample_weight))
+            yield _data_to_jax_arrays_on_devices((x, y, sample_weight))
 
         # Maybe build model
         self._symbolic_build(data_batch=next(data()))
@@ -882,7 +882,7 @@ class Trainer(base_trainer.BaseTrainer):
         self._assert_compile_called("test_on_batch")
 
         def data():
-            yield _distribute_data((x, y, sample_weight))
+            yield _data_to_jax_arrays_on_devices((x, y, sample_weight))
 
         # Maybe build model
         self._symbolic_build(data_batch=next(data()))
@@ -917,7 +917,7 @@ class Trainer(base_trainer.BaseTrainer):
     def predict_on_batch(self, x):
         if not all(layer.built for layer in self._flatten_layers()):
             # Build model
-            with backend.StatelessScope():
+            with StatelessScope():
                 self(x)
         self.make_predict_function()
 
@@ -930,7 +930,7 @@ class Trainer(base_trainer.BaseTrainer):
         self._jax_state_synced = False
 
         def data():
-            yield (x,)
+            yield (_data_to_jax_arrays_on_devices(x),)
 
         batch_outputs, state = self.predict_function(state, data())
         trainable_variables, non_trainable_variables = state
@@ -1163,7 +1163,8 @@ def get_layout(d, distribution=None, is_super_batch=False):
     return base_layout.backend_layout
 
 
-def _distribute_data(data, layouts=None, is_super_batch=False):
+def _data_to_jax_arrays_on_devices(data, layouts=None, is_super_batch=False):
+    data = _keep_64bit_dtypes(data)
     distribution = distribution_lib.distribution()
 
     if distribution is not None:
@@ -1179,6 +1180,27 @@ def _distribute_data(data, layouts=None, is_super_batch=False):
         return tree.map_structure(jax_dist_data_input, data, layouts)
 
     return tree.map_structure(jax.device_put, data)
+
+
+_64BIT_DTYPES = (np.int64, np.uint64, np.float64, np.complex128)
+
+
+def _keep_64bit_dtypes(data):
+    """Moves 64-bit NumPy arrays to JAX without cutting them to 32-bit.
+
+    Under `x64_mode="explicit_x64"`, JAX keeps a 64-bit dtype only when it is
+    named. `jax.device_put` and `jax.jit` would turn an `int64` NumPy array
+    into `int32` and wrap the values above 2**31.
+    """
+    if config.x64_mode() != "explicit_x64":
+        return data
+
+    def keep(x):
+        if isinstance(x, np.ndarray) and x.dtype in _64BIT_DTYPES:
+            return jax.numpy.asarray(x, x.dtype)
+        return x
+
+    return tree.map_structure(keep, data)
 
 
 class JAXEpochIterator(EpochIterator):
@@ -1197,10 +1219,10 @@ class JAXEpochIterator(EpochIterator):
             for data in raw_iterator:
                 if isinstance(data, data_adapter_utils.PartialBatchList):
                     yield data_adapter_utils.PartialBatchList(
-                        [_distribute_data(b) for b in data]
+                        [_data_to_jax_arrays_on_devices(b) for b in data]
                     )
                 else:
-                    yield _distribute_data(
+                    yield _data_to_jax_arrays_on_devices(
                         data, is_super_batch=super_batch is not None
                     )
 

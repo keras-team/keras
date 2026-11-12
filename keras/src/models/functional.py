@@ -3,10 +3,12 @@ import inspect
 import typing
 import warnings
 
-from keras.src import backend
 from keras.src import ops
 from keras.src import tree
+from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import get_keras_mask
 from keras.src.backend.common import global_state
+from keras.src.backend.common import set_keras_mask
 from keras.src.layers.core.input_layer import Input
 from keras.src.layers.core.input_layer import InputLayer
 from keras.src.layers.input_spec import InputSpec
@@ -139,7 +141,7 @@ class Functional(Function, Model):
     def __init__(self, inputs, outputs, name=None, **kwargs):
         if isinstance(inputs, dict):
             for k, v in inputs.items():
-                if isinstance(v, backend.KerasTensor) and k != v.name:
+                if isinstance(v, KerasTensor) and k != v.name:
                     warnings.warn(
                         "When providing `inputs` as a dict, all keys in the "
                         "dict must match the names of the corresponding "
@@ -152,14 +154,14 @@ class Functional(Function, Model):
         flat_inputs = tree.flatten(inputs)
         flat_outputs = tree.flatten(outputs)
         for x in flat_inputs:
-            if not isinstance(x, backend.KerasTensor):
+            if not isinstance(x, KerasTensor):
                 raise ValueError(
                     "All `inputs` values must be KerasTensors. Received: "
                     f"inputs={inputs} including invalid value {x} of "
                     f"type {type(x)}"
                 )
         for x in flat_outputs:
-            if not isinstance(x, backend.KerasTensor):
+            if not isinstance(x, KerasTensor):
                 raise ValueError(
                     "All `outputs` values must be KerasTensors. Received: "
                     f"outputs={outputs} including invalid value {x} of "
@@ -217,7 +219,7 @@ class Functional(Function, Model):
             masks = tree.flatten(mask)
             for x, mask in zip(inputs, masks):
                 if mask is not None:
-                    backend.set_keras_mask(x, mask)
+                    set_keras_mask(x, mask)
         outputs = self._run_through_graph(inputs)
         return unpack_singleton(outputs)
 
@@ -359,9 +361,9 @@ class Functional(Function, Model):
         for i in range(len(flat_inputs)):
             if hasattr(flat_inputs[i], "_keras_history"):
                 adjusted[i]._keras_history = flat_inputs[i]._keras_history
-            mask = backend.get_keras_mask(flat_inputs[i])
+            mask = get_keras_mask(flat_inputs[i])
             if mask is not None:
-                backend.set_keras_mask(adjusted[i], mask)
+                set_keras_mask(adjusted[i], mask)
         return adjusted
 
     def _standardize_inputs(self, inputs):
@@ -380,7 +382,7 @@ class Functional(Function, Model):
             # This is to avoid warning
             # when we have reconcilable dict/list structs
             if hasattr(self._inputs_struct, "__len__") and all(
-                isinstance(i, backend.KerasTensor) for i in self._inputs_struct
+                isinstance(i, KerasTensor) for i in self._inputs_struct
             ):
                 expected_keys = set(i.name for i in self._inputs_struct)
                 keys = set(inputs.keys())
@@ -388,7 +390,7 @@ class Functional(Function, Model):
                     inputs = [inputs[i.name] for i in self._inputs_struct]
                 else:
                     raise_exception = True
-            elif isinstance(self._inputs_struct, backend.KerasTensor):
+            elif isinstance(self._inputs_struct, KerasTensor):
                 if self._inputs_struct.name in inputs:
                     inputs = [inputs[self._inputs_struct.name]]
                 else:
@@ -461,8 +463,7 @@ class Functional(Function, Model):
 
         if isinstance(self._inputs_struct, dict):
             if all(
-                isinstance(x, backend.KerasTensor)
-                for x in self._inputs_struct.values()
+                isinstance(x, KerasTensor) for x in self._inputs_struct.values()
             ):
                 # Case where `_nested_inputs` is a plain dict of Inputs.
                 names = sorted(self._inputs_struct.keys())
@@ -474,7 +475,7 @@ class Functional(Function, Model):
         struct = self._inputs_struct
         if not isinstance(struct, (list, tuple)):
             struct = [struct]
-        if not all(isinstance(x, backend.KerasTensor) for x in struct):
+        if not all(isinstance(x, KerasTensor) for x in struct):
             # Anything nested inside the sequence, e.g. `[{"a": ...}]` or
             # `[[x, y], z]`. Flat specs cannot describe those, and comparing
             # them against the flattened inputs would reject extra dict keys
@@ -771,7 +772,7 @@ def serialize_node(node, own_nodes=()):
     def serialize_keras_tensor(x):
         # Serialize KerasTensor while converting
         # node indices to only include nodes relevant to `own_nodes`.
-        if isinstance(x, backend.KerasTensor):
+        if isinstance(x, KerasTensor):
             operation, node_index, tensor_index = x._keras_history
             irrelevant_node_count = 0
             for i, node in enumerate(operation._inbound_nodes[:node_index]):
@@ -845,7 +846,7 @@ def deserialize_node(node_data, created_layers):
     kwargs = serialization_lib.deserialize_keras_object(node_data["kwargs"])
 
     def convert_revived_tensor(x):
-        if isinstance(x, backend.KerasTensor):
+        if isinstance(x, KerasTensor):
             history = x._pre_serialization_keras_history
             if history is None:
                 return x
@@ -881,14 +882,14 @@ def is_input_keras_tensor(x):
 
 
 def clone_single_keras_tensor(x):
-    return backend.KerasTensor(
+    return KerasTensor(
         shape=x.shape, dtype=x.dtype, sparse=x.sparse, name=f"{x.name}_clone"
     )
 
 
 def clone_keras_tensors(tensors, kt_id_mapping):
     def swap(x):
-        if not isinstance(x, backend.KerasTensor):
+        if not isinstance(x, KerasTensor):
             return x
         if id(x) in kt_id_mapping:
             return kt_id_mapping[id(x)]

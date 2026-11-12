@@ -10,9 +10,9 @@ from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import testing
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
-from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import math as kmath
 from keras.src.ops import numpy as knp
 from keras.src.testing.test_utils import named_product
@@ -755,6 +755,12 @@ class MathOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(outputs[0], expected_values)
         self.assertAllClose(outputs[1], expected_indices)
 
+        # `nan` ranks highest.
+        x = np.array([1.0, np.nan, 3.0, np.inf, 2.0], dtype=np.float32)
+        values, indices = kmath.top_k(x, k=4)
+        self.assertAllClose(values, [np.nan, np.inf, 3, 2])
+        self.assertAllClose(indices, [1, 3, 2, 4])
+
     def check_stability(self, values, indices):
         """Helper function to check stability of top_k."""
         values_np = backend.ops.convert_to_numpy(values)
@@ -1242,50 +1248,42 @@ class MathOpsCorrectnessTest(testing.TestCase):
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_lgamma_operation_dtype(self, backend_agnostic_ops):
         backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        try:
-            for dtype in ("float32", "float64"):
-                sample_values = np.array(
-                    [1.0, 2.0, 3.0, 4.0, 5.0, 0.5, 1.5, 2.5, 3.5, 10.0],
-                    dtype=dtype,
-                )
-                expected_output = scipy.special.gammaln(sample_values)
-                output_from_lgamma_op = kmath.lgamma(sample_values)
-                self.assertAllClose(
-                    output_from_lgamma_op, expected_output, atol=1e-4
-                )
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
-
-    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
-    def test_lgamma_operation_edge_cases(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        try:
-            edge_values = np.array(
-                [-0.5, -1.5, -2.5, 1e-5, 50.0, 100.0, float("inf")],
-                dtype=np.float64,
-            )
-            expected_output = scipy.special.gammaln(edge_values)
-            output_from_edge_lgamma_op = kmath.lgamma(edge_values)
-            self.assertAllClose(
-                output_from_edge_lgamma_op, expected_output, atol=1e-4
-            )
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
-
-    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
-    def test_lgamma_operation_basic(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        try:
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        for dtype in ("float32", "float64"):
             sample_values = np.array(
-                [1.0, 2.0, 3.0, 4.0, 5.0, 0.5, 1.5, 2.5, 3.5, 10.0]
+                [1.0, 2.0, 3.0, 4.0, 5.0, 0.5, 1.5, 2.5, 3.5, 10.0],
+                dtype=dtype,
             )
             expected_output = scipy.special.gammaln(sample_values)
             output_from_lgamma_op = kmath.lgamma(sample_values)
             self.assertAllClose(
                 output_from_lgamma_op, expected_output, atol=1e-4
             )
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
+
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_lgamma_operation_edge_cases(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        edge_values = np.array(
+            [-0.5, -1.5, -2.5, 1e-5, 50.0, 100.0, float("inf")],
+            dtype=np.float64,
+        )
+        expected_output = scipy.special.gammaln(edge_values)
+        output_from_edge_lgamma_op = kmath.lgamma(edge_values)
+        self.assertAllClose(
+            output_from_edge_lgamma_op, expected_output, atol=1e-4
+        )
+
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_lgamma_operation_basic(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        sample_values = np.array(
+            [1.0, 2.0, 3.0, 4.0, 5.0, 0.5, 1.5, 2.5, 3.5, 10.0]
+        )
+        expected_output = scipy.special.gammaln(sample_values)
+        output_from_lgamma_op = kmath.lgamma(sample_values)
+        self.assertAllClose(output_from_lgamma_op, expected_output, atol=1e-4)
 
 
 class MathDtypeTest(testing.TestCase):
@@ -1442,16 +1440,14 @@ class MathDtypeTest(testing.TestCase):
         expected_dtype = standardize_dtype(lax.lgamma(x_jax).dtype)
 
         backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        try:
-            self.assertEqual(
-                standardize_dtype(kmath.lgamma(x).dtype), expected_dtype
-            )
-            self.assertEqual(
-                standardize_dtype(kmath.Lgamma().symbolic_call(x).dtype),
-                expected_dtype,
-            )
-        finally:
-            backend.config._set_use_backend_agnostic_ops(False)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        self.assertEqual(
+            standardize_dtype(kmath.lgamma(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(kmath.Lgamma().symbolic_call(x).dtype),
+            expected_dtype,
+        )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_logsumexp(self, dtype):
@@ -1487,6 +1483,24 @@ class MathDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(kmath.Rsqrt().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_top_k(self, dtype):
+        import jax.lax as lax
+
+        x = knp.ones((2, 3), dtype=dtype)
+        x_jax = jnp.ones((2, 3), dtype=dtype)
+
+        expected_dtype = standardize_dtype(lax.top_k(x_jax, 2)[0].dtype)
+
+        self.assertEqual(
+            standardize_dtype(kmath.top_k(x, k=2)[0].dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(kmath.TopK(k=2).symbolic_call(x)[0].dtype),
             expected_dtype,
         )
 

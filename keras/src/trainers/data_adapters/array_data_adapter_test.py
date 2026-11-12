@@ -3,15 +3,16 @@ import jax.experimental.sparse as jax_sparse
 import numpy as np
 import pytest
 import scipy
-import tensorflow as tf
 import torch
 from absl.testing import parameterized
 
 from keras.src import backend
+from keras.src.backend.common import standardize_dtype
 from keras.src.distribution import distribution_lib as dist_lib
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import array_data_adapter
 from keras.src.trainers.data_adapters import data_adapter_test_base
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 class TestArrayDataAdapter(data_adapter_test_base.DataAdapterTest):
@@ -109,10 +110,8 @@ class TestArrayDataAdapter(data_adapter_test_base.DataAdapterTest):
             bx, by = batch
             self.assertIsInstance(bx, expected_class)
             self.assertIsInstance(by, expected_class)
-            self.assertEqual(
-                backend.standardize_dtype(bx.dtype), backend.floatx()
-            )
-            self.assertEqual(backend.standardize_dtype(by.dtype), "int32")
+            self.assertEqual(standardize_dtype(bx.dtype), backend.floatx())
+            self.assertEqual(standardize_dtype(by.dtype), "int32")
             if i < 2:
                 self.assertEqual(bx.shape, (16, xdim1))
                 self.assertEqual(by.shape, (16, ydim1))

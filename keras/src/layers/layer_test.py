@@ -14,9 +14,14 @@ from keras.src import models
 from keras.src import ops
 from keras.src import random
 from keras.src import testing
+from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import get_keras_mask
 from keras.src.backend.common import global_state
+from keras.src.backend.common import set_keras_mask
 from keras.src.backend.common.remat import RematScope
 from keras.src.models import Model
+from keras.src.quantizers.geometry import ProjectionGeometry
+from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 
 
 class MockRemat:
@@ -49,7 +54,7 @@ class LayerTest(testing.TestCase):
 
         layer = TestLayer()
         self.assertEqual(
-            layer.compute_output_spec(backend.KerasTensor((2, 3))).shape, (2, 3)
+            layer.compute_output_spec(KerasTensor((2, 3))).shape, (2, 3)
         )
 
         # Case: tuple output
@@ -61,7 +66,7 @@ class LayerTest(testing.TestCase):
                 return (input_shape, input_shape)
 
         layer = TestLayer()
-        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        out = layer.compute_output_spec(KerasTensor((2, 3)))
         self.assertIsInstance(out, tuple)
         self.assertEqual(len(out), 2)
         self.assertEqual(out[0].shape, (2, 3))
@@ -76,7 +81,7 @@ class LayerTest(testing.TestCase):
                 return [input_shape, input_shape]
 
         layer = TestLayer()
-        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        out = layer.compute_output_spec(KerasTensor((2, 3)))
         self.assertIsInstance(out, list)
         self.assertEqual(len(out), 2)
         self.assertEqual(out[0].shape, (2, 3))
@@ -91,7 +96,7 @@ class LayerTest(testing.TestCase):
                 return {"1": input_shape, "2": input_shape}
 
         layer = TestLayer()
-        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        out = layer.compute_output_spec(KerasTensor((2, 3)))
         self.assertIsInstance(out, dict)
         self.assertEqual(len(out), 2)
         self.assertEqual(out["1"].shape, (2, 3))
@@ -110,7 +115,7 @@ class LayerTest(testing.TestCase):
                 )
 
         layer = TestLayer()
-        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        out = layer.compute_output_spec(KerasTensor((2, 3)))
         self.assertIsInstance(out, tuple)
         self.assertEqual(len(out), 3)
         self.assertEqual(out[0].shape, (2, 3))
@@ -135,7 +140,7 @@ class LayerTest(testing.TestCase):
                 }
 
         layer = TestLayer()
-        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        out = layer.compute_output_spec(KerasTensor((2, 3)))
         self.assertIsInstance(out, dict)
         self.assertEqual(len(out), 2)
         self.assertEqual(out["1"].shape, (2, 3))
@@ -151,7 +156,7 @@ class LayerTest(testing.TestCase):
                     return x
                 return x + 1
 
-        x = backend.KerasTensor(shape=(2, 3), name="x")
+        x = KerasTensor(shape=(2, 3), name="x")
         with self.assertRaisesRegex(
             ValueError, "Only input tensors may be passed as"
         ):
@@ -304,15 +309,17 @@ class LayerTest(testing.TestCase):
         self.assertLen(mock_remat.rematted_functions, 1)
         next(iter(mock_remat.rematted_functions.values())).assert_called()
 
-    def test_gptq_quantization_by_setting_dtype(self):
-        """Tests error being raised when dtype is set to GPTQ."""
+    @parameterized.named_parameters(("gptq", "gptq"), ("awq", "awq"))
+    def test_calibration_quantization_by_setting_dtype(self, mode):
+        """Tests error being raised when dtype is set to GPTQ or AWQ."""
         with self.assertRaisesRegex(
             ValueError,
-            "Implicitly enabling GPTQ quantization.*is not supported",
+            f"Implicitly enabling {mode.upper()} quantization.*is not "
+            "supported.*requires a calibration dataset",
         ):
             layer = layers.Dense(3)
             layer.build((2, 4))
-            layer.dtype_policy = "gptq/4/-1_from_float32"
+            layer.dtype_policy = f"{mode}/4/-1_from_float32"
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_GRADIENT,
@@ -576,7 +583,7 @@ class LayerTest(testing.TestCase):
                 return self.dense1(x)
 
         layer = LayerWithUnbuiltState(2)
-        layer(backend.KerasTensor((3, 4)))
+        layer(KerasTensor((3, 4)))
         self.assertLen(layer.weights, 2)
 
         class KwargsLayerWithUnbuiltState(layers.Layer):
@@ -589,11 +596,11 @@ class LayerTest(testing.TestCase):
                 return self.dense1(x1) + self.dense2(x2)
 
         layer = KwargsLayerWithUnbuiltState(2)
-        layer(backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4)))
+        layer(KerasTensor((3, 4)), KerasTensor((3, 4)))
         self.assertLen(layer.weights, 4)
 
         layer = KwargsLayerWithUnbuiltState(2)
-        layer(x1=backend.KerasTensor((3, 4)), x2=backend.KerasTensor((3, 4)))
+        layer(x1=KerasTensor((3, 4)), x2=KerasTensor((3, 4)))
         self.assertLen(layer.weights, 4)
 
         class DictLayerWithUnbuiltState(layers.Layer):
@@ -610,14 +617,14 @@ class LayerTest(testing.TestCase):
         layer = DictLayerWithUnbuiltState(2)
         layer(
             {
-                "x1": backend.KerasTensor((3, 4)),
-                "x2": backend.KerasTensor((3, 4)),
+                "x1": KerasTensor((3, 4)),
+                "x2": KerasTensor((3, 4)),
             }
         )
         self.assertLen(layer.weights, 2)
 
         layer = DictLayerWithUnbuiltState(2)
-        layer({"x1": backend.KerasTensor((3, 4)), "x2": None})
+        layer({"x1": KerasTensor((3, 4)), "x2": None})
         self.assertLen(layer.weights, 2)
 
         class ListLayerWithUnbuiltState(layers.Layer):
@@ -632,11 +639,11 @@ class LayerTest(testing.TestCase):
                 return result
 
         layer = ListLayerWithUnbuiltState(2)
-        layer([backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4))])
+        layer([KerasTensor((3, 4)), KerasTensor((3, 4))])
         self.assertLen(layer.weights, 2)
 
         layer = ListLayerWithUnbuiltState(2)
-        layer([backend.KerasTensor((3, 4)), None])
+        layer([KerasTensor((3, 4)), None])
         self.assertLen(layer.weights, 2)
 
     def test_activity_regularization(self):
@@ -704,6 +711,28 @@ class LayerTest(testing.TestCase):
         model(np.ones((1,)))
         self.assertLen(model.losses, 1)
         self.assertAllClose(model.losses[0], 1.0)
+
+    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
+    def test_add_loss_torch_compile_does_not_recompile(self):
+        import torch
+        from torch._dynamo.utils import counters
+
+        class LossLayer(layers.Layer):
+            def call(self, x):
+                self.add_loss(ops.sum(x))
+                return x
+
+        layer = LossLayer()
+        torch._dynamo.reset()
+        counters.clear()
+        compiled_layer = torch.compile(layer, backend="eager")
+        num_graphs = []
+        for value in (1.0, 2.0, 3.0, 4.0, 5.0, 6.0):
+            compiled_layer(ops.full((2,), value))
+            num_graphs.append(counters["stats"]["unique_graphs"])
+        # The first call locks the layer state, which causes one recompile.
+        # The later calls must reuse the same graph.
+        self.assertEqual(num_graphs[2:], [num_graphs[1]] * 4)
 
     def test_training_arg_value_resolution(self):
         # Check that even if `training` is not passed
@@ -951,10 +980,10 @@ class LayerTest(testing.TestCase):
 
         x = ops.zeros((1, 2), dtype="float32")
         mask = ops.array([True, False])
-        backend.set_keras_mask(x, mask)
+        set_keras_mask(x, mask)
         y = CustomLayer(dtype="float16")(x)
         self.assertAllEqual(
-            backend.get_keras_mask(y),
+            get_keras_mask(y),
             mask,
             msg="Masking is not propagated by Autocast",
         )
@@ -992,7 +1021,7 @@ class LayerTest(testing.TestCase):
         layer = BasicMaskedLayer()
         x = backend.ops.numpy.ones((4, 4))
         mask = backend.ops.numpy.ones((4,))
-        backend.set_keras_mask(x, mask)
+        set_keras_mask(x, mask)
         layer(x)
 
         layer(backend.ops.numpy.ones((4, 4)), mask=backend.ops.numpy.ones((4,)))
@@ -1012,10 +1041,10 @@ class LayerTest(testing.TestCase):
         layer = NestedInputMaskedLayer()
         x1 = backend.ops.numpy.ones((4, 4))
         mask1 = backend.ops.numpy.ones((4,))
-        backend.set_keras_mask(x1, mask1)
+        set_keras_mask(x1, mask1)
         x2 = backend.ops.numpy.ones((4, 4))
         mask2 = backend.ops.numpy.ones((4,))
-        backend.set_keras_mask(x2, mask2)
+        set_keras_mask(x2, mask2)
         layer([x1, x2])
 
         layer(
@@ -1052,13 +1081,13 @@ class LayerTest(testing.TestCase):
         layer = PositionalNestedInputsMaskedLayer()
         x1_1 = backend.ops.numpy.ones((4, 4))
         mask1 = backend.ops.numpy.ones((4,))
-        backend.set_keras_mask(x1_1, mask1)
+        set_keras_mask(x1_1, mask1)
         x1_2 = backend.ops.numpy.ones((4, 4))
         mask2 = backend.ops.numpy.ones((4,))
-        backend.set_keras_mask(x1_2, mask2)
+        set_keras_mask(x1_2, mask2)
         x2 = backend.ops.numpy.ones((4, 4))
         mask2 = backend.ops.numpy.ones((4,))
-        backend.set_keras_mask(x2, mask2)
+        set_keras_mask(x2, mask2)
         layer((x1_1, x1_2), x2)
         layer(x1=(x1_1, x1_2), x2=x2)
 
@@ -1069,15 +1098,15 @@ class LayerTest(testing.TestCase):
 
             def call(self, x, mask=None):
                 test_obj.assertIsNotNone(mask)
-                backend.set_keras_mask(x, None)  # Unset mask
+                set_keras_mask(x, None)  # Unset mask
                 return x
 
         layer = MaskUnsetDuringCallLayer()
         x = backend.ops.numpy.ones((4, 4))
         mask = backend.ops.numpy.ones((4,))
-        backend.set_keras_mask(x, mask)
+        set_keras_mask(x, mask)
         y = layer(x)
-        self.assertAllClose(backend.get_keras_mask(y), mask)
+        self.assertAllClose(get_keras_mask(y), mask)
 
     def test_masking_with_explicit_kwarg_propagation(self):
         """This test validates that an explicit `mask` kwarg is correctly
@@ -1097,7 +1126,7 @@ class LayerTest(testing.TestCase):
         layer = PassthroughMaskLayer()
         # Create an input tensor WITHOUT an attached mask.
         x = backend.ops.numpy.ones((4, 4))
-        self.assertIsNone(backend.get_keras_mask(x))
+        self.assertIsNone(get_keras_mask(x))
 
         # Create a mask to be passed explicitly.
         explicit_mask = backend.ops.numpy.array([True, True, False, False])
@@ -1110,7 +1139,7 @@ class LayerTest(testing.TestCase):
 
         # Assert that the output tensor 'y' now has the explicit mask attached
         # for propagation to the next layer.
-        self.assertAllClose(backend.get_keras_mask(y), explicit_mask)
+        self.assertAllClose(get_keras_mask(y), explicit_mask)
 
     def test_stateless_call(self):
         class TestLayer(layers.Layer):
@@ -1681,7 +1710,7 @@ class LayerTest(testing.TestCase):
 
         layer = TrainingLayer()
         output = layer(
-            backend.KerasTensor(
+            KerasTensor(
                 (4, 1),
             )
         )
@@ -1734,7 +1763,7 @@ class LayerTest(testing.TestCase):
                 self._tracker.lock()
 
         layer = TrainingLayer()
-        output = layer(backend.KerasTensor((4, 2)))
+        output = layer(KerasTensor((4, 2)))
 
         self.assertEqual(output.shape, (4, 2))
         self.assertEqual(len(layer.variables), 1)
@@ -2177,6 +2206,177 @@ class LayerTest(testing.TestCase):
             self.assertAllClose(y, x / np.sqrt(1.0 + 1e-3), atol=1e-3)
 
 
+class _LoraLessProjection(layers.Layer):
+    """A third-party projection that opts into quantization without LoRA."""
+
+    def __init__(self, units, **kwargs):
+        super().__init__(**kwargs)
+        self.units = units
+        self.activation = None
+
+    def build(self, input_shape):
+        self.kernel_shape = (input_shape[-1], self.units)
+        if self.quantization_mode:
+            self.quantized_build(
+                self.kernel_shape,
+                mode=self.quantization_mode,
+                config=self.quantization_config,
+            )
+        if not self._strategy_owns_weight_storage():
+            self._kernel = self.add_weight(
+                name="kernel", shape=self.kernel_shape
+            )
+        self.bias = None
+
+    def call(self, inputs):
+        return ops.matmul(inputs, self._kernel)
+
+    def _quantization_geometry(self):
+        return ProjectionGeometry(self)
+
+    @property
+    def variable_serialization_spec(self):
+        return {
+            None: ["kernel"],
+            "int8": ["kernel", "kernel_scale"],
+            "int4": ["kernel", "kernel_scale", "kernel_zero", "g_idx"],
+            "float8": [
+                "kernel",
+                "inputs_scale",
+                "inputs_amax_history",
+                "kernel_scale",
+                "kernel_amax_history",
+                "outputs_grad_scale",
+                "outputs_grad_amax_history",
+            ],
+        }
+
+    def save_own_variables(self, store):
+        self._save_serialized_variables(store, "kernel")
+
+    def load_own_variables(self, store):
+        self._load_serialized_variables(store, "kernel")
+
+
 class LoraLessQuantizationTest(testing.TestCase):
     def test_layer_does_not_enable_lora_by_default(self):
         self.assertFalse(layers.Layer().lora_enabled)
+
+    @parameterized.named_parameters(
+        ("int8", "int8", None),
+        ("int4_per_channel", "int4", -1),
+        ("int4_grouped", "int4", 4),
+    )
+    def test_quantize_call_and_round_trip(self, mode, block_size):
+        config = None
+        if mode == "int4":
+            config = Int4QuantizationConfig(block_size=block_size)
+        inputs = Input((8,))
+        layer = _LoraLessProjection(6)
+        model = Model(inputs, layer(inputs))
+        x = np.random.default_rng(0).standard_normal((3, 8)).astype("float32")
+        model.quantize(mode, config=config)
+        self.assertEqual(layer.quantization_mode, mode)
+        y = layer(x)
+
+        store = {}
+        layer.save_own_variables(store)
+        restored = _LoraLessProjection(6, dtype=layer.dtype_policy.name)
+        restored.build((None, 8))
+        restored.load_own_variables(store)
+        self.assertAllClose(restored(x), y)
+
+    def test_float8_quantize_and_call(self):
+        layer = _LoraLessProjection(6)
+        layer.build((None, 8))
+        layer.quantize("float8")
+        layer(np.ones((3, 8), dtype="float32"))
+
+
+class _DenseListingExtra(layers.Dense):
+    """A `Dense` whose spec lists a name that the layer may not define."""
+
+    @property
+    def variable_serialization_spec(self):
+        spec = super().variable_serialization_spec
+        return {mode: names + ["extra"] for mode, names in spec.items()}
+
+
+class SpecNameWithoutAttributeTest(testing.TestCase):
+    def _layer(self, extra_is_none=False):
+        layer = _DenseListingExtra(4)
+        layer.build((None, 3))
+        if extra_is_none:
+            layer.extra = None
+        return layer
+
+    def test_save_raises_for_a_spec_name_without_attribute(self):
+        layer = self._layer()
+        with self.assertRaisesRegex(
+            AttributeError, "lists 'extra' in its `variable_serialization_spec`"
+        ):
+            layer.save_own_variables({})
+
+    def test_load_raises_for_a_spec_name_without_attribute(self):
+        layer = self._layer()
+        store = {"0": np.ones((3, 4), "float32"), "1": np.ones((4,), "float32")}
+        with self.assertRaisesRegex(
+            AttributeError, "lists 'extra' in its `variable_serialization_spec`"
+        ):
+            layer.load_own_variables(store)
+
+    def test_spec_name_holding_none_is_skipped(self):
+        layer = self._layer(extra_is_none=True)
+        store = {}
+        layer.save_own_variables(store)
+        self.assertEqual(sorted(store), ["0", "1"])
+
+        restored = self._layer(extra_is_none=True)
+        restored.load_own_variables(store)
+        self.assertAllClose(restored.kernel, layer.kernel)
+        self.assertAllClose(restored.bias, layer.bias)
+
+
+def _int4_setter_case(kind, dtype=None):
+    if kind == "dense":
+        layer = layers.Dense(6, dtype=dtype)
+        layer.build((None, 256))
+        x = np.random.default_rng(0).standard_normal((2, 256))
+    elif kind == "einsum":
+        layer = layers.EinsumDense(
+            "ab,bcd->acd", output_shape=(8, 32), bias_axes="d", dtype=dtype
+        )
+        layer.build((None, 256))
+        x = np.random.default_rng(0).standard_normal((2, 256))
+    elif kind == "embedding":
+        layer = layers.Embedding(300, 16, dtype=dtype)
+        layer.build()
+        x = np.array([[1, 2, 299]])
+    else:
+        layer = layers.ReversibleEmbedding(300, 16, dtype=dtype)
+        layer.build()
+        x = np.array([[1, 2, 299]])
+    return layer, x
+
+
+class LegacyInt4PolicySetterTest(testing.TestCase):
+    @parameterized.named_parameters(
+        ("dense", "dense"),
+        ("einsum", "einsum"),
+        ("embedding", "embedding"),
+        ("reversible_embedding", "reversible_embedding"),
+    )
+    def test_bare_int4_policy_builds_what_the_name_builds(self, kind):
+        # The legacy bare "int4" name holds no block size, and a layer built
+        # from it is per-channel. Setting it on a built layer quantizes
+        # per-channel too, so a layer built from the name alone (a
+        # `DTypePolicyMap` reload) loads the store.
+        layer, x = _int4_setter_case(kind)
+        layer.dtype_policy = "int4_from_float32"
+        self.assertEqual(layer.dtype_policy.name, "int4_from_float32")
+        store = {}
+        layer.save_own_variables(store)
+
+        restored, _ = _int4_setter_case(kind, dtype="int4_from_float32")
+        restored.load_own_variables(store)
+        self.assertAllEqual(restored(x), layer(x))

@@ -1,4 +1,4 @@
-from keras.src.backend.common.symbolic_scope import in_symbolic_scope
+from keras.src.backend.common import in_symbolic_scope
 from keras.src.backend.config import is_nnx_enabled
 
 if is_nnx_enabled():
