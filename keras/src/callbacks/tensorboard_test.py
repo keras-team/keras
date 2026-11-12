@@ -567,6 +567,9 @@ class TestTensorBoardV2(testing.TestCase):
             )
 
     @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(
+        not tensorflow.available, reason="Custom summaries require TensorFlow."
+    )
     def test_custom_summary(self):
         default_writers = []
         written = []
