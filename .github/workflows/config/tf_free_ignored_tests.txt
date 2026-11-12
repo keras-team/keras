@@ -5,7 +5,6 @@ keras/src/backend/tensorflow/optimizer_distribute_test.py
 keras/src/backend/tensorflow/saved_model_test.py
 keras/src/backend/torch/torch_multi_process_distribution_test.py
 keras/src/callbacks/swap_ema_weights_test.py
-keras/src/callbacks/tensorboard_test.py
 keras/src/distribution/distribution_lib_test.py
 keras/src/export/litert_torch_test.py
 keras/src/export/saved_model_test.py
@@ -26,6 +25,17 @@ keras/src/trainers/data_adapters/tf_dataset_adapter_test.py
 keras/src/backend/common/keras_tensor_test.py::KerasTensorTest::test_invalid_usage
 keras/src/callbacks/orbax_checkpoint_test.py::OrbaxCheckpointTest::test_checkpoint_with_assets0
 keras/src/callbacks/orbax_checkpoint_test.py::OrbaxCheckpointTest::test_checkpoint_with_assets1
+keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_across_invocations
+keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_auto_trace
+keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_basic
+keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_batch_metrics
+keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_global_step
+keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_learning_rate_schedules
+keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_no_spurious_event_files
+keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_non_blocking
+keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_projector_callback
+keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_weight_histograms
+keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_weight_images
 keras/src/export/openvino_test.py::ExportOpenVINOTest::test_model_with_input_structure_array
 keras/src/export/openvino_test.py::ExportOpenVINOTest::test_model_with_input_structure_dict
 keras/src/export/openvino_test.py::ExportOpenVINOTest::test_model_with_input_structure_tuple

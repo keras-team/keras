@@ -1,11 +1,11 @@
 import numpy as np
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common.remat import RematScope
 from keras.src.quantizers.capture import calibration_scope
 from keras.src.utils import traceback_utils
@@ -120,7 +120,7 @@ class CalibrationScopeTest(testing.TestCase):
             # backend placeholders for shape inference.
             inputs = layers.Input((4,))
             models.Model(inputs, block(inputs))
-            block.compute_output_spec(backend.KerasTensor((2, 4)))
+            block.compute_output_spec(KerasTensor((2, 4)))
         self.assertEqual(seen, [])
 
     def test_one_capture_per_layer(self):

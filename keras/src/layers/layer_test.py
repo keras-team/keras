@@ -14,6 +14,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import random
 from keras.src import testing
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import get_keras_mask
 from keras.src.backend.common import global_state
 from keras.src.backend.common import set_keras_mask
@@ -53,7 +54,7 @@ class LayerTest(testing.TestCase):
 
         layer = TestLayer()
         self.assertEqual(
-            layer.compute_output_spec(backend.KerasTensor((2, 3))).shape, (2, 3)
+            layer.compute_output_spec(KerasTensor((2, 3))).shape, (2, 3)
         )
 
         # Case: tuple output
@@ -65,7 +66,7 @@ class LayerTest(testing.TestCase):
                 return (input_shape, input_shape)
 
         layer = TestLayer()
-        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        out = layer.compute_output_spec(KerasTensor((2, 3)))
         self.assertIsInstance(out, tuple)
         self.assertEqual(len(out), 2)
         self.assertEqual(out[0].shape, (2, 3))
@@ -80,7 +81,7 @@ class LayerTest(testing.TestCase):
                 return [input_shape, input_shape]
 
         layer = TestLayer()
-        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        out = layer.compute_output_spec(KerasTensor((2, 3)))
         self.assertIsInstance(out, list)
         self.assertEqual(len(out), 2)
         self.assertEqual(out[0].shape, (2, 3))
@@ -95,7 +96,7 @@ class LayerTest(testing.TestCase):
                 return {"1": input_shape, "2": input_shape}
 
         layer = TestLayer()
-        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        out = layer.compute_output_spec(KerasTensor((2, 3)))
         self.assertIsInstance(out, dict)
         self.assertEqual(len(out), 2)
         self.assertEqual(out["1"].shape, (2, 3))
@@ -114,7 +115,7 @@ class LayerTest(testing.TestCase):
                 )
 
         layer = TestLayer()
-        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        out = layer.compute_output_spec(KerasTensor((2, 3)))
         self.assertIsInstance(out, tuple)
         self.assertEqual(len(out), 3)
         self.assertEqual(out[0].shape, (2, 3))
@@ -139,7 +140,7 @@ class LayerTest(testing.TestCase):
                 }
 
         layer = TestLayer()
-        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        out = layer.compute_output_spec(KerasTensor((2, 3)))
         self.assertIsInstance(out, dict)
         self.assertEqual(len(out), 2)
         self.assertEqual(out["1"].shape, (2, 3))
@@ -155,7 +156,7 @@ class LayerTest(testing.TestCase):
                     return x
                 return x + 1
 
-        x = backend.KerasTensor(shape=(2, 3), name="x")
+        x = KerasTensor(shape=(2, 3), name="x")
         with self.assertRaisesRegex(
             ValueError, "Only input tensors may be passed as"
         ):
@@ -582,7 +583,7 @@ class LayerTest(testing.TestCase):
                 return self.dense1(x)
 
         layer = LayerWithUnbuiltState(2)
-        layer(backend.KerasTensor((3, 4)))
+        layer(KerasTensor((3, 4)))
         self.assertLen(layer.weights, 2)
 
         class KwargsLayerWithUnbuiltState(layers.Layer):
@@ -595,11 +596,11 @@ class LayerTest(testing.TestCase):
                 return self.dense1(x1) + self.dense2(x2)
 
         layer = KwargsLayerWithUnbuiltState(2)
-        layer(backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4)))
+        layer(KerasTensor((3, 4)), KerasTensor((3, 4)))
         self.assertLen(layer.weights, 4)
 
         layer = KwargsLayerWithUnbuiltState(2)
-        layer(x1=backend.KerasTensor((3, 4)), x2=backend.KerasTensor((3, 4)))
+        layer(x1=KerasTensor((3, 4)), x2=KerasTensor((3, 4)))
         self.assertLen(layer.weights, 4)
 
         class DictLayerWithUnbuiltState(layers.Layer):
@@ -616,14 +617,14 @@ class LayerTest(testing.TestCase):
         layer = DictLayerWithUnbuiltState(2)
         layer(
             {
-                "x1": backend.KerasTensor((3, 4)),
-                "x2": backend.KerasTensor((3, 4)),
+                "x1": KerasTensor((3, 4)),
+                "x2": KerasTensor((3, 4)),
             }
         )
         self.assertLen(layer.weights, 2)
 
         layer = DictLayerWithUnbuiltState(2)
-        layer({"x1": backend.KerasTensor((3, 4)), "x2": None})
+        layer({"x1": KerasTensor((3, 4)), "x2": None})
         self.assertLen(layer.weights, 2)
 
         class ListLayerWithUnbuiltState(layers.Layer):
@@ -638,11 +639,11 @@ class LayerTest(testing.TestCase):
                 return result
 
         layer = ListLayerWithUnbuiltState(2)
-        layer([backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4))])
+        layer([KerasTensor((3, 4)), KerasTensor((3, 4))])
         self.assertLen(layer.weights, 2)
 
         layer = ListLayerWithUnbuiltState(2)
-        layer([backend.KerasTensor((3, 4)), None])
+        layer([KerasTensor((3, 4)), None])
         self.assertLen(layer.weights, 2)
 
     def test_activity_regularization(self):
@@ -1709,7 +1710,7 @@ class LayerTest(testing.TestCase):
 
         layer = TrainingLayer()
         output = layer(
-            backend.KerasTensor(
+            KerasTensor(
                 (4, 1),
             )
         )
@@ -1762,7 +1763,7 @@ class LayerTest(testing.TestCase):
                 self._tracker.lock()
 
         layer = TrainingLayer()
-        output = layer(backend.KerasTensor((4, 2)))
+        output = layer(KerasTensor((4, 2)))
 
         self.assertEqual(output.shape, (4, 2))
         self.assertEqual(len(layer.variables), 1)

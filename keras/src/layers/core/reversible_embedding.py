@@ -3,7 +3,7 @@ import copy
 from keras.src import layers
 from keras.src import ops
 from keras.src.api_export import keras_export
-from keras.src.backend import KerasTensor
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import set_keras_mask
 from keras.src.quantizers.geometry import ReversibleLookupGeometry
 

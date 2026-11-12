@@ -19,7 +19,6 @@ from keras.src import ops
 from keras.src import testing
 from keras.src.saving import saving_lib
 from keras.src.utils import file_utils
-from keras.src.utils.module_utils import LazyModule
 
 
 @keras.saving.register_keras_serializable(package="my_custom_package")
@@ -221,6 +220,29 @@ class CompileOverridingModel(keras.Model):
 class CompileOverridingSequential(keras.Sequential):
     def compile(self, *args, **kwargs):
         super().compile(*args, **kwargs)
+
+
+@keras.saving.register_keras_serializable(package="my_custom_package")
+class CompileOverridingFunctional(keras.Model):
+    def compile(self, *args, **kwargs):
+        super().compile(*args, **kwargs)
+
+
+@keras.saving.register_keras_serializable(package="my_custom_package")
+class CompileAndConfigOverridingModel(keras.Model):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dense1 = MyDense(1)
+
+    def compile(self, *args, **kwargs):
+        super().compile(*args, **kwargs)
+
+    def compile_from_config(self, config):
+        config = keras.saving.deserialize_keras_object(config)
+        self.compile(**config)
+
+    def call(self, inputs):
+        return self.dense1(inputs)
 
 
 @keras.saving.register_keras_serializable(package="my_custom_package")
@@ -608,31 +630,72 @@ class SavingTest(testing.TestCase):
 
     def _test_compile_overridden_warnings(self, model_type):
         temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
-        model = (
-            CompileOverridingModel()
-            if model_type == "subclassed"
-            else CompileOverridingSequential(
+        if model_type == "subclassed":
+            model = CompileOverridingModel()
+        elif model_type == "functional":
+            inputs = keras.Input((4,))
+            model = CompileOverridingFunctional(inputs, MyDense(1)(inputs))
+        else:
+            model = CompileOverridingSequential(
                 [keras.layers.Embedding(4, 1), MyDense(1), MyDense(1)]
             )
-        )
         model.compile("sgd", "mse")
         model.save(temp_filepath)
 
-        with mock.patch.object(warnings, "warn") as mock_warn:
-            saving_lib.load_model(temp_filepath)
-        if not mock_warn.call_args_list:
-            raise AssertionError("Did not warn.")
-        self.assertIn(
-            "`compile()` was not called as part of model loading "
-            "because the model's `compile()` method is custom. ",
-            mock_warn.call_args_list[0][0][0],
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            loaded_model = saving_lib.load_model(temp_filepath)
+        self.assertTrue(
+            any(
+                "`compile()` was not called as part of model loading "
+                "because the model's `compile()` method is custom. "
+                in str(w.message)
+                for w in caught
+            )
         )
+        self.assertFalse(loaded_model.compiled)
+
+        if backend.SUPPORTS_GRADIENT:
+            if model_type in ("subclassed", "functional"):
+                x = np.ones((4, 4), dtype="float32")
+                y = np.ones((4, 1), dtype="float32")
+            else:
+                x = np.ones((4, 2), dtype="int32")
+                y = np.ones((4, 2, 1), dtype="float32")
+
+            with self.assertRaisesRegex(
+                ValueError,
+                r"You must call `compile\(\)` before using the model",
+            ):
+                loaded_model.fit(x, y, verbose=0)
+
+            loaded_model.compile("sgd", "mse")
+            self.assertTrue(loaded_model.compiled)
+            loaded_model.fit(x, y, epochs=1, verbose=0)
 
     def test_compile_overridden_warnings_sequential(self):
         self._test_compile_overridden_warnings("sequential")
 
     def test_compile_overridden_warnings_subclassed(self):
         self._test_compile_overridden_warnings("subclassed")
+
+    def test_compile_overridden_warnings_functional(self):
+        self._test_compile_overridden_warnings("functional")
+
+    def test_compile_overridden_with_compile_from_config(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
+        model = CompileAndConfigOverridingModel()
+        model.compile(optimizer="sgd", loss="mse")
+        model.save(temp_filepath)
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            loaded_model = saving_lib.load_model(temp_filepath)
+
+        self.assertFalse(
+            any("`compile()` was not called" in str(w.message) for w in caught)
+        )
+        self.assertTrue(loaded_model.compiled)
 
     def test_metadata(self):
         temp_filepath = Path(
@@ -1656,24 +1719,17 @@ class SavingBattleTest(testing.TestCase):
             model.save_weights(temp_filepath)
             model.load_weights(temp_filepath)
 
-    def test_remote_path_saving_and_loading_with_epath(self):
-        # A local directory stands in for the remote location, and TensorFlow
-        # is hidden so that etils.epath is used.
+    def test_remote_path_saving_and_loading(self):
         remote_dir = os.path.join(self.get_temp_dir(), "remote")
         os.makedirs(remote_dir)
         filepath = os.path.join(remote_dir, "model.keras")
         model = _get_basic_functional_model()
         x = np.random.random((2, 4))
 
-        with (
-            mock.patch.object(
-                file_utils,
-                "is_remote_path",
-                lambda path: str(path).startswith(remote_dir),
-            ),
-            mock.patch.object(
-                file_utils, "gfile", LazyModule("keras_test_unavailable_module")
-            ),
+        with mock.patch.object(
+            file_utils,
+            "is_remote_path",
+            lambda path: str(path).startswith(remote_dir),
         ):
             saving_lib.save_model(model, filepath)
             new_model = saving_lib.load_model(filepath)

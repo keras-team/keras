@@ -8,6 +8,7 @@ from keras.src import constraints
 from keras.src import initializers
 from keras.src import regularizers
 from keras.src.api_export import keras_export
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import get_keras_mask
 from keras.src.backend.common import set_keras_mask
 from keras.src.backend.config import is_flash_attention_enabled
@@ -886,13 +887,11 @@ class MultiHeadAttention(Layer):
         output_shape = self.compute_output_shape(
             query.shape, value.shape, key_shape
         )
-        output_spec = backend.KerasTensor(
-            output_shape, dtype=self.compute_dtype
-        )
+        output_spec = KerasTensor(output_shape, dtype=self.compute_dtype)
         if return_attention_scores:
             length = query.shape[1]
             attention_shape = (query.shape[0], self.num_heads, length, length)
-            return output_spec, backend.KerasTensor(
+            return output_spec, KerasTensor(
                 attention_shape, dtype=self.compute_dtype
             )
         return output_spec

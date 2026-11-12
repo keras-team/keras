@@ -7,7 +7,8 @@ import numpy as np
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
-from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import standardize_dtype
 from keras.src.ops.operation import Operation
 from keras.src.testing import op_test_case
 from keras.src.testing.op_test_case import X
@@ -51,6 +52,22 @@ class TupleOfOne(Square):
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype=x.dtype)
+
+
+class WrongForUint8(Square):
+    """Returns `x` itself, not its square, for uint8 inputs."""
+
+    def call(self, x):
+        if standardize_dtype(x.dtype) == "uint8":
+            return x
+        return ops.square(x)
+
+
+class SquareInBfloat16(Square):
+    """Squares in bfloat16, which rounds 27 ** 2 = 729 to 728."""
+
+    def call(self, x):
+        return ops.cast(ops.square(x), "bfloat16")
 
 
 def methods_of(cls):
@@ -133,6 +150,14 @@ class OpTestTest(testing.TestCase):
         case = SquareTest("test_eager")
         self.assertAllClose(case.op(X), case.reference_fn(X))
         self.assertAllClose(case.jax_fn(X), np.square(X))
+
+    def test_16_bit_outputs_use_their_dtype_tolerance(self):
+        case = SquareTest("test_eager")
+        inputs = (np.array([27], dtype="int32"),)
+        case.check_eager(SquareInBfloat16(), np.square, inputs, {})
+        with mock.patch.dict(op_test_case._TOLERANCES, clear=True):
+            with self.assertRaisesRegex(AssertionError, "Unexpected eager"):
+                case.check_eager(SquareInBfloat16(), np.square, inputs, {})
 
     def test_no_op_class_and_no_arrays(self):
         class Ones(testing.OpTest):
@@ -229,6 +254,24 @@ class CheckInputDtypesTest(testing.TestCase):
             outcomes(Case)["test_input_dtypes_uint8"],
             r"Output dtype differs from JAX for inputs uint8\[2, 3\]",
         )
+
+    def test_wrong_values_for_one_dtype_fail(self):
+        class Case(testing.UnaryOpTest):
+            op, reference_fn, jax_fn = WrongForUint8(), np.square, jnp.square
+
+        case = Case("test_eager")
+        case.check_input_dtypes(("int8",))
+        with self.assertRaisesRegex(AssertionError, "Unexpected eager output"):
+            case.check_input_dtypes(("uint8",))
+
+    def test_inputs_must_fit_the_dtype(self):
+        case = SquareTest("test_eager")
+        inputs = (np.array([-1, 6]),)
+        case.check_input_dtypes(("int8",), inputs, {})
+        with self.assertRaisesRegex(AssertionError, r"\[-1, 6\] do not fit"):
+            case.check_input_dtypes(("uint8",), inputs, {})
+        with self.assertRaisesRegex(AssertionError, "do not fit float16"):
+            case.check_input_dtypes(("float16",), (np.array([1e5]),), {})
 
     def test_skipped_dtype_has_reason(self):
         skipped = {backend.backend(): {"int8": "no int8 here"}}

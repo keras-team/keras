@@ -36,8 +36,8 @@ def export_onnx(
             formats.
         input_signature: Optional. Specifies the shape and dtype of the model
             inputs. Can be a structure of `keras.InputSpec`, `tf.TensorSpec`,
-            `backend.KerasTensor`, or backend tensor. If not provided, it will
-            be automatically computed. Defaults to `None`.
+            `KerasTensor`, or backend tensor. If not provided, it will be
+            automatically computed. Defaults to `None`.
         opset_version: Optional. An integer value that specifies the ONNX opset
             version. If not provided, the default version for the backend will
             be used. Defaults to `None`.

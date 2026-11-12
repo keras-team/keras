@@ -71,6 +71,9 @@ def softplus(x):
 
 def softsign(x):
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tnn.softsign(x)
 
 
@@ -101,6 +104,9 @@ def silu(x):
 
 def squareplus(x, b=4):
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     b = convert_to_tensor(b)
     y = x + torch.sqrt(x**2 + b)
     return y / 2
@@ -176,6 +182,9 @@ def hard_tanh(x):
 
 def hard_shrink(x, threshold=0.5):
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tnn.hardshrink(x, lambd=threshold)
 
 
@@ -306,6 +315,21 @@ def _apply_same_padding(
     return tnn.pad(inputs, pad=tuple(flattened_padding), mode=padding_mode), 0
 
 
+def _contiguous_with_optional_memory_format(tensor, memory_format=None):
+    """Return a contiguous tensor, optionally in `memory_format`.
+
+    Under `torch.vmap`, converting to `channels_last` / `channels_last_3d`
+    is NYI (#23587). Fall back to the default contiguous layout in that
+    case; dimension order is unchanged either way.
+    """
+    if memory_format is None:
+        return tensor.contiguous()
+    try:
+        return tensor.contiguous(memory_format=memory_format)
+    except RuntimeError:
+        return tensor.contiguous()
+
+
 def _transpose_spatial_inputs(inputs, channels_last_memory_format=False):
     """Transpose inputs from channels_last to channels_first format."""
     # Torch pooling does not support `channels_last` format, so
@@ -324,14 +348,14 @@ def _transpose_spatial_inputs(inputs, channels_last_memory_format=False):
         return torch.permute(inputs, (0, 2, 1)).contiguous()
     elif ndim == 2:  # 2D case
         inputs = torch.permute(inputs, (0, 3, 1, 2))
-        if channels_last_memory_format:
-            return inputs.contiguous(memory_format=torch.channels_last)
-        return inputs.contiguous()
+        mem_fmt = torch.channels_last if channels_last_memory_format else None
+        return _contiguous_with_optional_memory_format(inputs, mem_fmt)
     elif ndim == 3:  # 3D case
         inputs = torch.permute(inputs, (0, 4, 1, 2, 3))
-        if channels_last_memory_format:
-            return inputs.contiguous(memory_format=torch.channels_last_3d)
-        return inputs.contiguous()
+        mem_fmt = (
+            torch.channels_last_3d if channels_last_memory_format else None
+        )
+        return _contiguous_with_optional_memory_format(inputs, mem_fmt)
     raise ValueError(
         "Inputs must have ndim=3, 4 or 5, "
         "corresponding to 1D, 2D and 3D inputs. "
@@ -374,8 +398,17 @@ def _get_channels_last_memory_format(ndim):
 
 def _maybe_convert_to_channels_last(tensor):
     mem_fmt = _get_channels_last_memory_format(tensor.ndim)
-    if mem_fmt is not None and not tensor.is_contiguous(memory_format=mem_fmt):
-        return tensor.contiguous(memory_format=mem_fmt)
+    if mem_fmt is None:
+        return tensor
+    # Layout conversion is a performance hint only. Under `torch.vmap`,
+    # `is_contiguous(memory_format=channels_last*)` is NYI (#23587), and
+    # other tracing contexts can raise too — skip conversion then.
+    try:
+        is_contiguous = tensor.is_contiguous(memory_format=mem_fmt)
+    except RuntimeError:
+        return tensor
+    if not is_contiguous:
+        return _contiguous_with_optional_memory_format(tensor, mem_fmt)
     return tensor
 
 
@@ -1063,6 +1096,7 @@ def moments(x, axes, keepdims=False, synchronized=False):
         raise NotImplementedError(
             "Argument synchronized=True is not supported with PyTorch."
         )
+    axes = tuple(axes) if isinstance(axes, list) else axes
     x = convert_to_tensor(x)
     # The dynamic range of float16 is too limited for statistics. As a
     # workaround, we simply perform the operations on float32 and convert back
@@ -1074,14 +1108,7 @@ def moments(x, axes, keepdims=False, synchronized=False):
         x = cast(x, "float32")
 
     mean = torch.mean(x, dim=axes, keepdim=True)
-
-    # The variance is computed using $Var = E[|x|^2] - |E[x]|^2$, It is faster
-    # but less numerically stable.
-    # Note: stop_gradient does not change the gradient to the mean, because that
-    # gradient is zero.
-    variance = torch.mean(
-        torch.square(x), dim=axes, keepdim=True
-    ) - torch.square(mean)
+    variance = torch.var(x, dim=axes, keepdim=True, correction=0)
 
     if not keepdims:
         mean = torch.squeeze(mean, axes)

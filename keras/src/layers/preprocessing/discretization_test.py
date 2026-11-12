@@ -8,6 +8,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import testing
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import is_int_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.saving import saving_api
@@ -407,7 +408,7 @@ class DiscretizationTest(testing.TestCase):
         )
 
         # Create a KerasTensor input
-        input_tensor = backend.KerasTensor(shape=(None, 3, 4), dtype="float32")
+        input_tensor = KerasTensor(shape=(None, 3, 4), dtype="float32")
 
         # Test compute_output_spec
         output_spec = layer.compute_output_spec(input_tensor)

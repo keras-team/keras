@@ -31,20 +31,23 @@ from keras.src import regularizers
 from keras.src import tree
 from keras.src import utils
 from keras.src.api_export import keras_export
-from keras.src.backend import KerasTensor
 from keras.src.backend.common import AutocastScope
+from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import StatelessScope
+from keras.src.backend.common import any_symbolic_tensors
 from keras.src.backend.common import get_autocast_scope
 from keras.src.backend.common import get_keras_mask
+from keras.src.backend.common import get_stateless_scope
 from keras.src.backend.common import global_state
+from keras.src.backend.common import in_stateless_scope
+from keras.src.backend.common import in_symbolic_scope
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import remat
 from keras.src.backend.common import set_keras_mask
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common import standardize_shape
-from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.backend.common.name_scope import current_path
 from keras.src.backend.common.remat import get_current_remat_mode
-from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.backend.config import is_nnx_enabled
 from keras.src.distribution import distribution_lib
 from keras.src.dtype_policies import DTypePolicyMap
@@ -1245,7 +1248,7 @@ class Layer(BackendLayer, Operation):
         try:
             # Call in stateless scope
             losses = None
-            with backend.StatelessScope(
+            with StatelessScope(
                 state_mapping=mapping, collect_losses=return_losses
             ) as scope:
                 outputs = self._dispatch_call(*args, **kwargs)
@@ -1339,8 +1342,8 @@ class Layer(BackendLayer, Operation):
                     "`add_loss()` can only be called from inside `build()` or "
                     f"`call()`, on a tensor input. Received invalid value: {x}"
                 )
-        if backend.in_stateless_scope():
-            scope = backend.get_stateless_scope()
+        if in_stateless_scope():
+            scope = get_stateless_scope()
             if scope.collect_losses:
                 for x in losses:
                     scope.add_loss(x)
@@ -1349,9 +1352,9 @@ class Layer(BackendLayer, Operation):
             self._losses.extend(losses)
 
     def _get_own_losses(self):
-        if backend.in_stateless_scope():
+        if in_stateless_scope():
             losses = []
-            scope = backend.get_stateless_scope()
+            scope = get_stateless_scope()
             for loss in scope.losses:
                 if id(loss) in self._loss_ids:
                     losses.append(loss)
@@ -1364,11 +1367,11 @@ class Layer(BackendLayer, Operation):
         for variable in self.trainable_weights:
             if variable.regularizer is None:
                 continue
-            if backend.in_stateless_scope() and not in_symbolic_scope():
+            if in_stateless_scope() and not in_symbolic_scope():
                 # If in symbolic scope, we might get `None` from
                 # `get_current_value` in `backend.compute_output_spec`. So we
                 # assign `variable` instead.
-                v = backend.get_stateless_scope().get_current_value(variable)
+                v = get_stateless_scope().get_current_value(variable)
             else:
                 v = variable
             weight_regularization_losses.append(variable.regularizer(v))
@@ -1387,8 +1390,8 @@ class Layer(BackendLayer, Operation):
         return losses
 
     def _clear_losses(self):
-        if backend.in_stateless_scope():
-            scope = backend.get_stateless_scope()
+        if in_stateless_scope():
+            scope = get_stateless_scope()
             if scope.collect_losses:
                 # Filter by identity (id) rather than using list.remove(),
                 # which compares by value. Value comparison on JAX tracers
@@ -1931,7 +1934,7 @@ class Layer(BackendLayer, Operation):
     def _build_by_run_for_single_pos_arg(self, input_shape):
         # Case: all inputs are in the first arg (possibly nested).
         input_tensors = tree.map_shape_structure(
-            lambda s: backend.KerasTensor(s), input_shape
+            lambda s: KerasTensor(s), input_shape
         )
         try:
             # Because `build` is not defined, we trace `call` via
@@ -1958,7 +1961,7 @@ class Layer(BackendLayer, Operation):
         # Case: all input keyword arguments were plain tensors.
         input_tensors = {
             # We strip the `_shape` suffix to recover kwarg names.
-            utils.removesuffix(k, "_shape"): backend.KerasTensor(shape)
+            utils.removesuffix(k, "_shape"): KerasTensor(shape)
             for k, shape in shapes_dict.items()
         }
         try:
@@ -2249,7 +2252,7 @@ class Layer(BackendLayer, Operation):
 def is_backend_tensor_or_symbolic(x, allow_none=False):
     if allow_none and x is None:
         return True
-    return backend.ops.is_tensor(x) or isinstance(x, backend.KerasTensor)
+    return backend.ops.is_tensor(x) or isinstance(x, KerasTensor)
 
 
 class CallSpec:

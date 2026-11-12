@@ -1,14 +1,15 @@
 import functools
 import itertools
 
+import ml_dtypes
 import numpy as np
 from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import ops
 from keras.src import tree
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
-from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.testing.test_case import TestCase
 from keras.src.testing.test_utils import named_product
 
@@ -38,6 +39,10 @@ _SKIPPED_DTYPES = {
     },
     "tensorflow": {"uint32": "uint32 + int promotes to int64, unlike JAX"},
 }
+
+# Tolerance of the value checks when an output or its reference is a 16-bit
+# float, whose 8 (bfloat16) or 11 (float16) significant bits round early.
+_TOLERANCES = {"bfloat16": 1e-2, "float16": 1e-3}
 
 # Standard op test inputs: small non-negative ints fit every dtype. `Z`
 # broadcasts against `X`. 32-bit, as 64-bit dtypes are not covered yet.
@@ -89,9 +94,10 @@ class OpTest(TestCase):
     `UnaryOpTest`, `BinaryOpTest` and `ReductionOpTest` also set the standard
     inputs of their category and add one test per input dtype combination,
     `test_input_dtypes_<dtypes>`: with the arrays of the first case cast to
-    `dtypes`, the eager output dtypes equal `jax_fn`'s and the symbolic
-    output dtypes equal the eager ones. `BinaryOpTest` adds
-    `test_python_scalar_types_<dtype>_<side>` for a Python scalar operand.
+    `dtypes`, the eager outputs equal `reference_fn`'s, their dtypes equal
+    `jax_fn`'s and the symbolic output dtypes equal the eager ones.
+    `BinaryOpTest` adds `test_python_scalar_types_<dtype>_<side>` for a
+    Python scalar operand.
     Subclass one of them, or `OpTest` for an op that fits neither.
 
     Tensors under test go in `inputs`. `kwargs` are static arguments: they
@@ -170,7 +176,11 @@ class OpTest(TestCase):
                     raise
 
     def check_eager(self, op, reference_fn, inputs, kwargs):
-        """Checks the structure and values of the eager outputs."""
+        """Checks the structure and values of the eager outputs.
+
+        The tolerance is `atol` and `rtol`, or that of `_TOLERANCES` when an
+        output or its reference is a 16-bit float and it is looser.
+        """
         outputs = op(*_map_arrays(ops.convert_to_tensor, inputs), **kwargs)
         expected = reference_fn(*inputs, **kwargs)
         msg = f"Unexpected eager output for {_describe(inputs, kwargs)}"
@@ -178,8 +188,18 @@ class OpTest(TestCase):
         for output, expected_output in zip(
             tree.flatten(outputs), tree.flatten(expected)
         ):
+            dtype_tolerance = max(
+                _TOLERANCES.get(standardize_dtype(output.dtype), 0),
+                _TOLERANCES.get(
+                    standardize_dtype(np.asarray(expected_output).dtype), 0
+                ),
+            )
             self.assertAllClose(
-                output, expected_output, atol=self.atol, rtol=self.rtol, msg=msg
+                output,
+                expected_output,
+                atol=max(self.atol, dtype_tolerance),
+                rtol=max(self.rtol, dtype_tolerance),
+                msg=msg,
             )
 
     def check_symbolic(self, inputs, kwargs, symbolic_shapes=None):
@@ -216,11 +236,12 @@ class OpTest(TestCase):
                 self.fail(msg)
 
     def check_input_dtypes(self, dtypes, inputs=None, kwargs=None):
-        """Checks the output dtypes with the array inputs cast to `dtypes`.
+        """Checks the op with the array inputs cast to `dtypes`.
 
-        `inputs` and `kwargs` default to the first case. The eager output
-        dtypes must equal `jax_fn`'s, and the symbolic output dtypes must
-        equal the eager ones.
+        `inputs` and `kwargs` default to the first case. The inputs must fit
+        `dtypes`. The eager outputs must equal `reference_fn`'s, their dtypes
+        must equal `jax_fn`'s, and the symbolic output dtypes must equal the
+        eager ones.
         """
         if inputs is None:
             inputs, kwargs = self._first_case()
@@ -228,10 +249,14 @@ class OpTest(TestCase):
         for dtype in dtypes:
             if dtype in skipped:
                 self.skipTest(f"{dtype}: {skipped[dtype]}")
-        arrays = [
-            x.astype(d) for x, d in zip(_arrays(inputs), dtypes, strict=True)
-        ]
+        for x, dtype in zip(_arrays(inputs), dtypes, strict=True):
+            self.assertTrue(
+                _fits(x, dtype),
+                f"Input values in [{x.min()}, {x.max()}] do not fit {dtype}",
+            )
+        arrays = [x.astype(d) for x, d in zip(_arrays(inputs), dtypes)]
         inputs = _with_arrays(inputs, arrays)
+        self.check_eager(self.op, self.reference_fn, inputs, kwargs)
         import jax.numpy as jnp
 
         outputs = self.op(*_map_arrays(ops.convert_to_tensor, inputs), **kwargs)
@@ -301,6 +326,16 @@ def _arrays(inputs):
 def _map_arrays(fn, inputs):
     """Applies `fn` to the arrays among `inputs`; scalars pass through."""
     return tuple(fn(x) if isinstance(x, np.ndarray) else x for x in inputs)
+
+
+def _fits(x, dtype):
+    """Whether the values of `x` are within the limits of `dtype`."""
+    kind = np.dtype(dtype).kind
+    if kind == "b":  # Every value casts to a bool.
+        return True
+    # `ml_dtypes.finfo` also covers bfloat16, whose NumPy kind is "V".
+    info = np.iinfo(dtype) if kind in "iu" else ml_dtypes.finfo(dtype)
+    return info.min <= x.min() and x.max() <= info.max
 
 
 def _with_arrays(inputs, arrays):

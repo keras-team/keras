@@ -3,7 +3,7 @@ from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import testing
-from keras.src.backend import KerasTensor
+from keras.src.backend.common import KerasTensor
 from keras.src.utils import numerical_utils
 
 NUM_CLASSES = 5
