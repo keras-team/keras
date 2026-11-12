@@ -1189,7 +1189,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         ("mul", "mul"),
     )
     def test_scatter_update_does_not_modify_inputs(self, reduction):
-        inputs = np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+        inputs = ops.convert_to_tensor([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
         indices = [[0, 1], [2, 0]]
         updates = np.array([0.5, 7.0])
         core.scatter_update(inputs, indices, updates, reduction=reduction)
@@ -1350,7 +1350,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         )
 
     def test_slice_update_does_not_modify_inputs(self):
-        inputs = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+        inputs = ops.convert_to_tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
         start_indices = [1, 1]
         updates = np.array([[10, 11], [12, 13]])
         outputs = core.slice_update(inputs, start_indices, updates)
