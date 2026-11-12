@@ -5,6 +5,7 @@ from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import any_symbolic_tensors
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import is_int_dtype
+from keras.src.backend.common import standardize_dtype
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import compute_conv_output_shape
 
@@ -1304,8 +1305,8 @@ def _reconstruct_overlapping_patches(
     grid = tuple(shp[1 : n + 1])
 
     # Integer inputs are computed in float and cast back at the end.
-    dtype = backend.standardize_dtype(patches.dtype)
-    compute_dtype = dtype if "float" in dtype else "float32"
+    dtype = standardize_dtype(patches.dtype)
+    compute_dtype = dtype if is_float_dtype(dtype) else "float32"
     x = backend.ops.cast(patches, compute_dtype)
 
     # Fold channels into the batch axis so the identity kernel only spans

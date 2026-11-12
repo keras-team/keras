@@ -3134,6 +3134,42 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(tuple(out.shape), x.shape)
         self.assertAllClose(out, x, atol=1e-6)
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Dynamic shapes only exist in TensorFlow graph mode.",
+    )
+    def test_reconstruct_patches_overlapping_dynamic_grid_tf_function(self):
+        # Under tf.function with unknown spatial dims the patch grid is
+        # made of tensors, so the `padding="same"` crop offset is computed
+        # with backend ops instead of Python ints. Must match eager exactly.
+        for shape, size, strides in [
+            ((2, 19, 23, 3), (5, 5), (2, 3)),
+            ((1, 7, 10, 6, 1), (3, 4, 2), (2, 3, 1)),
+        ]:
+            n = len(size)
+            x = _bf16_exact(shape)
+            extract = (
+                kimage.extract_patches if n == 2 else kimage.extract_patches_3d
+            )
+            patches = extract(x, size=size, strides=strides, padding="same")
+            kwargs = dict(
+                size=size,
+                output_size=shape[1 : n + 1],
+                strides=strides,
+                padding="same",
+            )
+            signature = [
+                tf.TensorSpec([None] * (n + 1) + [patches.shape[-1]], "float32")
+            ]
+
+            @tf.function(input_signature=signature)
+            def reconstruct(p):
+                return kimage.reconstruct_patches(p, **kwargs)
+
+            out = reconstruct(tf.convert_to_tensor(patches))
+            self.assertEqual(tuple(out.shape), shape)
+            self.assertAllClose(out, x, atol=1e-6)
+
     def test_reconstruct_patches_overlapping_sum(self):
         # reduction="sum" adds overlapping values: on an all-ones image it
         # returns how many patches cover each pixel.
@@ -3250,12 +3286,12 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             axis=1,
         )
         out = kimage.reconstruct_patches(patches, size=(3, 3), strides=1)
-        self.assertEqual(backend.standardize_dtype(out.dtype), "int32")
+        self.assertEqual(standardize_dtype(out.dtype), "int32")
         self.assertAllClose(out, x)
         out = kimage.reconstruct_patches(
             patches, size=(3, 3), strides=1, reduction="sum"
         )
-        self.assertEqual(backend.standardize_dtype(out.dtype), "int32")
+        self.assertEqual(standardize_dtype(out.dtype), "int32")
         coverage = np.array([1, 2, 3, 3, 2, 1])
         counts = np.outer(coverage, coverage)[None, :, :, None]
         self.assertAllClose(out, x * counts)
