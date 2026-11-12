@@ -8,7 +8,6 @@ if backend() == "torch":
 
 from keras.src.api_export import keras_export
 from keras.src.backend.common.dtypes import result_type
-from keras.src.backend.common.keras_tensor import is_keras_tensor
 from keras.src.backend.config import PLUGGABLE_BACKENDS
 from keras.src.backend.config import epsilon
 from keras.src.backend.config import floatx

@@ -137,7 +137,3 @@ class KerasHistory(
     # Added to maintain memory and performance characteristics of `namedtuple`
     # while subclassing.
     __slots__ = ()
-
-
-def is_keras_tensor(obj):
-    return hasattr(obj, "_keras_history")

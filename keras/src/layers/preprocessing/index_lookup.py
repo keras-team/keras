@@ -4,6 +4,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import is_keras_tensor
 from keras.src.layers.layer import Layer
 from keras.src.saving import serialization_lib
 from keras.src.utils import argument_validation
@@ -872,7 +873,7 @@ class IndexLookup(Layer):
         # layer.call and then attempt to restore the table. We need the table to
         # be uninitialized for the restore to work, but calling the table
         # uninitialized would error.
-        if tf.executing_eagerly() and backend.is_keras_tensor(inputs):
+        if tf.executing_eagerly() and is_keras_tensor(inputs):
             lookups = tf.zeros_like(inputs, dtype=self._value_dtype)
         else:
             lookups = self.lookup_table.lookup(inputs)
