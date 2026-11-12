@@ -91,7 +91,7 @@ class OpTest(TestCase):
     - `test_symbolic_dynamic`: the same with every input dimension unknown,
       then with one unknown dimension at a time.
     - `test_jit`: for every case, the op compiled by the backend's JIT gives
-      the eager outputs. Skipped on backends without a JIT.
+      `reference_fn`'s outputs. Skipped on backends without a JIT.
 
     `UnaryOpTest`, `BinaryOpTest` and `ReductionOpTest` also set the standard
     inputs of their category and add one test per input dtype combination,
@@ -218,12 +218,12 @@ class OpTest(TestCase):
         )
 
     def check_jit(self, inputs, kwargs):
-        """Checks that the op compiled by the backend's JIT equals eager."""
+        """Checks the compiled op against `reference_fn`."""
         fn = _array_function(self.op, inputs, kwargs)
         tensors = [ops.convert_to_tensor(x) for x in _arrays(inputs)]
         self.assertOutputsClose(
             _jit(fn)(*tensors),
-            fn(*tensors),
+            self.reference_fn(*inputs, **kwargs),
             f"Compiled output differs for {_describe(inputs, kwargs)}",
         )
 
