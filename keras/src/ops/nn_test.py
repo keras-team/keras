@@ -3134,7 +3134,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
                 )
 
     @parameterized.named_parameters(
-        named_product(num_kv_heads=(2, 4), is_causal=(False, True))
+        named_product(num_kv_heads=(1, 2, 4), is_causal=(False, True))
     )
     def test_dot_product_attention_grouped_query(self, num_kv_heads, is_causal):
         # `num_kv_heads` < `num_heads` is grouped-query attention.
