@@ -103,7 +103,9 @@ def export_onnx(
         if parse_version(tf2onnx.__version__) < parse_version("1.17.0"):
             raise ImportError(
                 "ONNX export with the TensorFlow backend requires "
-                "`tf2onnx>=1.17.0`. You can install it via "
+                f"`tf2onnx>=1.17.0`, but found "
+                f"`tf2onnx=={tf2onnx.__version__}`. You can install a "
+                "compatible version via "
                 "`pip install 'tf2onnx>=1.17.0'`."
             )
 

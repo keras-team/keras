@@ -90,7 +90,11 @@ class ExportONNXTest(testing.TestCase):
         model(np.zeros((1, 10), dtype="float32"))
 
         with mock.patch.object(module_utils.tf2onnx, "__version__", "1.16.1"):
-            with self.assertRaisesRegex(ImportError, "tf2onnx>=1.17.0"):
+            with self.assertRaisesRegex(
+                ImportError,
+                r"requires `tf2onnx>=1\.17\.0`, but found "
+                r"`tf2onnx==1\.16\.1`",
+            ):
                 onnx.export_onnx(model, temp_filepath, verbose=False)
 
     @parameterized.named_parameters(
