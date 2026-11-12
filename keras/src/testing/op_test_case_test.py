@@ -3,6 +3,7 @@ from unittest import mock
 
 import jax.numpy as jnp
 import numpy as np
+import pytest
 
 from keras.src import backend
 from keras.src import ops
@@ -13,6 +14,7 @@ from keras.src.ops.operation import Operation
 from keras.src.testing import op_test_case
 from keras.src.testing.op_test_case import X
 from keras.src.testing.op_test_case import named_dtype_combinations
+from keras.src.testing.test_utils import x64_mode_scope
 
 
 class Square(Operation):
@@ -115,7 +117,7 @@ class OpTestTest(testing.TestCase):
                 "test_symbolic_static",
             ],
         )
-        self.assertLen([n for n in names if "input_dtypes" in n], 10)
+        self.assertLen([n for n in names if "input_dtypes" in n], 13)
         failed = {
             k: v for k, v in outcomes(SquareTest).items() if "failed" in v
         }
@@ -146,6 +148,9 @@ class OpTestTest(testing.TestCase):
         ):
             self.assertFalse(cls.__test__)
         self.assertTrue(SquareTest.__test__)
+
+    def test_op_test_marker(self):
+        self.assertEqual([m.name for m in SquareTest.pytestmark], ["op_test"])
 
     def test_override_by_name(self):
         class Case(SquareTest):
@@ -283,6 +288,23 @@ class CheckInputDtypesTest(testing.TestCase):
             r"Output dtype differs from JAX for inputs uint8\[2, 3\]",
         )
 
+    @pytest.mark.skipif(
+        backend.backend() == "tensorflow",
+        reason="TensorFlow does not follow `x64_mode` yet (#24040)",
+    )
+    def test_capped_op_fails_only_in_explicit_x64(self):
+        class Case(testing.UnaryOpTest):
+            op, reference_fn, jax_fn = CastsToInt32(), np.square, jnp.square
+
+        with x64_mode_scope("off"):
+            off = outcomes(Case)["test_input_dtypes_int64"]
+        with x64_mode_scope("explicit_x64"):
+            explicit = outcomes(Case)["test_input_dtypes_int64"]
+        self.assertNotIn("failed", off)  # Passed on JAX, skipped elsewhere.
+        self.assertRegex(
+            explicit, r"Output dtype differs from JAX for inputs int64\[2, 3\]"
+        )
+
     def test_wrong_values_for_one_dtype_fail(self):
         class Case(testing.UnaryOpTest):
             op, reference_fn, jax_fn = WrongForUint8(), np.square, jnp.square
@@ -364,10 +386,6 @@ class NamedDtypeCombinationsTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "Expected 2 dtype pools"):
             named_dtype_combinations(2, dtypes=[self.POOL] * 3)
 
-    def test_binary_pool_default(self):
-        is_torch = backend.backend() == "torch"
-        self.assertEqual(
-            "float64" in op_test_case.BINARY_INPUT_DTYPES, is_torch
-        )
-        self.assertLen(named_dtype_combinations(1), 10)
-        self.assertLen(named_dtype_combinations(2), 66 if is_torch else 55)
+    def test_default_pool(self):
+        self.assertLen(named_dtype_combinations(1), 13)
+        self.assertLen(named_dtype_combinations(2), 91)

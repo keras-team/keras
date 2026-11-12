@@ -31,6 +31,10 @@ def pytest_configure(config):
         "no_pytest_xdist: mark test that cannot run under pytest-xdist "
         "workers (e.g. tests that bind to a fixed port)",
     )
+    config.addinivalue_line(
+        "markers",
+        "op_test: mark the tests of an `OpTest` class (keras.src.testing)",
+    )
 
     # Disable CUDA TF32 to get higher numerical accuracy for correctness tests.
     if backend() == "jax":

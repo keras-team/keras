@@ -13935,6 +13935,15 @@ class CbrtTest(testing.UnaryOpTest):
         "negative": ((np.array([[-8, -1, 0], [1, 8, 27]], "float32"),), {}),
     }
 
+    @pytest.mark.skipif(
+        keras.config.x64_mode() == "explicit_x64"
+        and backend.backend() in ("jax", "numpy"),
+        reason="TODO: `Cbrt.compute_output_spec` returns uint64 while the "
+        "eager output is float64 (#24040).",
+    )
+    def test_input_dtypes_uint64(self):
+        self.check_input_dtypes(("uint64",))
+
 
 class AddTest(testing.BinaryOpTest):
     op, op_class = knp.add, knp.Add
