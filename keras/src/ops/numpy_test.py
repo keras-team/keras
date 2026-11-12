@@ -4326,7 +4326,10 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             np.full_like(x, np.ones([2, 3])),
         )
 
-    def test_gcd(self):
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_gcd(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
         self.assertAllClose(knp.gcd(x, y), np.gcd(x, y))
@@ -11222,10 +11225,16 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(INT_DTYPES, 2))
+        named_product(
+            BACKEND_AGNOSTIC_OPS,
+            dtypes=itertools.combinations(INT_DTYPES, 2),
+        )
     )
-    def test_gcd(self, dtypes):
+    def test_gcd(self, backend_agnostic_ops, dtypes):
         import jax.numpy as jnp
+
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
 
         dtype1, dtype2 = dtypes
         x1 = knp.ones((), dtype=dtype1)
