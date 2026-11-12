@@ -21,6 +21,7 @@ from keras.src import optimizers
 from keras.src import testing
 from keras.src.optimizers import schedules
 from keras.src.utils import file_utils
+from keras.src.utils.module_utils import tensorflow
 
 # A summary that was emitted during a test. Fields:
 #   logdir: str. The logdir of the FileWriter to which the summary was
@@ -202,6 +203,9 @@ class TestTensorBoardV2(testing.TestCase):
             {_ObservedSummary(logdir=train_dir, tag="keras")},
         )
 
+    @pytest.mark.skipif(
+        tensorflow.available, reason="Uses tensorboardX without TensorFlow."
+    )
     @pytest.mark.requires_trainable_backend
     def test_TensorBoard_remote_log_dir(self):
         class RemoteStream(io.IOBase):
@@ -456,25 +460,10 @@ class TestTensorBoardV2(testing.TestCase):
             {_ObservedSummary(logdir=train_dir, tag="histogram")},
         )
 
-    @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(tensorflow.available, reason="Requires no TensorFlow.")
     def test_TensorBoard_weight_histograms_without_tensorflow(self):
-        model = self._get_model()
-        x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
-        logdir, train_dir, _ = self._get_log_dirs()
-        tb_cbk = callbacks.TensorBoard(logdir, histogram_freq=1)
-
-        with mock.patch(
-            "keras.src.callbacks.tensorboard.tensorflow",
-            new=mock.Mock(available=False),
-        ):
-            model.fit(x, y, batch_size=2, epochs=2, callbacks=[tb_cbk])
-        summary_file = list_summaries(logdir)
-
-        self.assertIn(
-            _ObservedSummary(logdir=train_dir, tag="epoch_loss"),
-            summary_file.scalars,
-        )
-        self.assertEqual(summary_file.histograms, set())
+        with self.assertRaisesRegex(ImportError, "require TensorFlow"):
+            callbacks.TensorBoard(self.get_temp_dir(), histogram_freq=1)
 
     @pytest.mark.requires_trainable_backend
     def test_TensorBoard_weight_images(self):
@@ -619,17 +608,11 @@ class TestTensorBoardV2(testing.TestCase):
         logdir, train_dir, validation_dir = self._get_log_dirs()
         tb_cbk = callbacks.TensorBoard(logdir, update_freq=1, write_graph=False)
         x, y = np.ones((10, 5)), np.ones((10, 5))
-        with (
-            mock.patch.object(
-                callbacks.TensorBoard,
-                "summary",
-                new_callable=mock.PropertyMock,
-                return_value=summary,
-            ),
-            mock.patch(
-                "keras.src.callbacks.tensorboard.tensorflow",
-                new=mock.Mock(available=True),
-            ),
+        with mock.patch.object(
+            callbacks.TensorBoard,
+            "summary",
+            new_callable=mock.PropertyMock,
+            return_value=summary,
         ):
             model.fit(
                 x, y, batch_size=2, validation_data=(x, y), callbacks=[tb_cbk]

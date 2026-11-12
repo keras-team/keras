@@ -21,7 +21,8 @@ class TensorBoard(Callback):
     """Enable visualizations for TensorBoard.
 
     TensorBoard is a visualization tool for training logs. This callback
-    writes the logs with tensorboardX, which you can install with
+    writes the logs with `tf.summary` when TensorFlow is installed. Otherwise,
+    it writes them with tensorboardX, which you can install with
     `pip install tensorboardX`. Weight histograms, weight images, and custom
     `tf.summary` logs require TensorFlow.
 
@@ -57,8 +58,8 @@ class TensorBoard(Callback):
             weight histograms for the layers of the model. If set to 0,
             histograms won't be computed. Validation data (or split) must be
             specified for histogram visualizations.
-        write_graph:  (Not supported at this time)
-            Whether to visualize the graph in TensorBoard.
+        write_graph: Whether to visualize the graph in TensorBoard. The
+            train graph is only written with the TensorFlow backend.
             Note that the log file can become quite large
             when `write_graph` is set to `True`.
         write_images: whether to write model weights to visualize as image in
@@ -172,6 +173,12 @@ class TensorBoard(Callback):
     ):
         super().__init__()
 
+        if histogram_freq and not tensorflow.available:
+            raise ImportError(
+                "Weight histograms and images require TensorFlow. You can "
+                "install it via `pip install tensorflow`. Received: "
+                f"histogram_freq={histogram_freq} (must be 0)"
+            )
         self.log_dir = str(log_dir)
         self.histogram_freq = histogram_freq
         self.write_graph = write_graph
@@ -209,7 +216,6 @@ class TensorBoard(Callback):
         # Lazily initialized in order to avoid creating event files when
         # not needed.
         self._writers = {}
-        self._tf_writers = {}
 
         # Used to restore any existing `SummaryWriter` after training ends.
         self._prev_summary_state = []
@@ -252,6 +258,8 @@ class TensorBoard(Callback):
         return self._writers["val"]
 
     def _create_writer(self, log_dir):
+        if tensorflow.available:
+            return self.summary.create_file_writer(log_dir)
         if file_utils.is_remote_path(log_dir):
             tensorboardx.record_writer.register_writer_factory(
                 _FILE_UTILS_PREFIX, _FileUtilsWriterFactory()
@@ -260,17 +268,19 @@ class TensorBoard(Callback):
         suffix = f".{time.time_ns()}"
         return tensorboardx.SummaryWriter(log_dir, filename_suffix=suffix)
 
-    def _get_tf_writer(self, log_dir):
-        if log_dir not in self._tf_writers:
-            self._tf_writers[log_dir] = self.summary.create_file_writer(log_dir)
-        return self._tf_writers[log_dir]
+    def _write_scalar(self, writer, name, value, step):
+        if tensorflow.available:
+            with writer.as_default():
+                self.summary.scalar(name, value, step=step)
+        else:
+            writer.add_scalar(name, float(value), step)
 
     def _write_keras_model_train_graph(self):
         """Writes Keras model train_function graph to TensorBoard."""
         train_fn = self.model.train_function
         if not hasattr(train_fn, "function_spec"):
             return
-        with self._get_tf_writer(self._train_dir).as_default():
+        with self._train_writer.as_default():
             # TODO(b/243822285): Use _variable_creation_fn directly.
             if hasattr(train_fn, "_concrete_stateful_fn"):
                 self.summary.graph(train_fn._concrete_stateful_fn.graph)
@@ -326,7 +336,7 @@ class TensorBoard(Callback):
         with file_utils.File(path, "w") as f:
             f.write(config_pbtxt)
 
-    def _push_writer(self, log_dir, step):
+    def _push_writer(self, writer, step):
         """Sets the default writer for custom batch-level summaries."""
         if self.update_freq == "epoch" or not tensorflow.available:
             return
@@ -335,7 +345,7 @@ class TensorBoard(Callback):
             return step % self.update_freq == 0
 
         summary_context = (
-            self._get_tf_writer(log_dir).as_default(step),
+            writer.as_default(step),
             self.summary.record_if(should_record),
         )
         self._prev_summary_state.append(summary_context)
@@ -357,9 +367,6 @@ class TensorBoard(Callback):
         for writer in self._writers.values():
             writer.close()
         self._writers.clear()
-        for writer in self._tf_writers.values():
-            writer.close()
-        self._tf_writers.clear()
 
     def _init_profile_batch(self, profile_batch):
         """Validate profile_batch value and set the range of batches to profile.
@@ -427,7 +434,7 @@ class TensorBoard(Callback):
         self._called_in_fit = True
         self._global_train_batch = 0
         self._previous_epoch_iterations = 0
-        self._push_writer(self._train_dir, self._global_train_batch)
+        self._push_writer(self._train_writer, self._global_train_batch)
 
     def on_train_end(self, logs=None):
         self._called_in_fit = False
@@ -439,7 +446,7 @@ class TensorBoard(Callback):
         self._close_writers()
 
     def on_test_begin(self, logs=None):
-        self._push_writer(self._val_dir, self._global_test_batch)
+        self._push_writer(self._val_writer, self._global_test_batch)
 
     def on_test_end(self, logs=None):
         if (
@@ -449,8 +456,11 @@ class TensorBoard(Callback):
         ):
             step = int(ops.convert_to_numpy(self.model.optimizer.iterations))
             for name, value in logs.items():
-                self._val_writer.add_scalar(
-                    f"evaluation_{name}_vs_iterations", float(value), step
+                self._write_scalar(
+                    self._val_writer,
+                    f"evaluation_{name}_vs_iterations",
+                    value,
+                    step,
                 )
         self._pop_writer()
         if not self._called_in_fit:
@@ -464,7 +474,7 @@ class TensorBoard(Callback):
         self._global_train_batch += 1
         if self.update_freq != "epoch":
             self._pop_writer()
-            self._push_writer(self._train_dir, self._global_train_batch)
+            self._push_writer(self._train_writer, self._global_train_batch)
         if self.write_steps_per_second:
             self._batch_start_time = time.time()
         if not self._should_trace:
@@ -501,7 +511,7 @@ class TensorBoard(Callback):
         self._global_test_batch += 1
         if self.update_freq != "epoch":
             self._pop_writer()
-            self._push_writer(self._val_dir, self._global_test_batch)
+            self._push_writer(self._val_writer, self._global_test_batch)
 
     def on_epoch_begin(self, epoch, logs=None):
         # Keeps track of epoch for profiling.
@@ -532,7 +542,7 @@ class TensorBoard(Callback):
         if batch is None:
             batch = self._stop_batch
         if tensorflow.available:
-            with self._get_tf_writer(self._train_dir).as_default():
+            with self._train_writer.as_default():
                 # TODO(b/126388999): Remove step info in the summary name.
                 self.summary.trace_export(name="batch_%d" % batch, step=batch)
         self._stop_profiler()
@@ -572,7 +582,8 @@ class TensorBoard(Callback):
         """Writes batch metrics out as scalar summaries."""
         if self.write_steps_per_second:
             batch_run_time = time.time() - self._batch_start_time
-            self._train_writer.add_scalar(
+            self._write_scalar(
+                self._train_writer,
                 "batch_steps_per_second",
                 1.0 / batch_run_time,
                 self._global_train_batch,
@@ -580,8 +591,11 @@ class TensorBoard(Callback):
 
         if isinstance(logs, dict):
             for name, value in logs.items():
-                self._train_writer.add_scalar(
-                    f"batch_{name}", float(value), self._global_train_batch
+                self._write_scalar(
+                    self._train_writer,
+                    f"batch_{name}",
+                    value,
+                    self._global_train_batch,
                 )
 
     def _log_epoch_metrics(self, epoch, logs):
@@ -601,16 +615,16 @@ class TensorBoard(Callback):
             train_logs["steps_per_second"] = self._compute_steps_per_second()
 
         for name, value in train_logs.items():
-            self._train_writer.add_scalar(f"epoch_{name}", float(value), epoch)
+            self._write_scalar(
+                self._train_writer, f"epoch_{name}", value, epoch
+            )
         for name, value in val_logs.items():
             name = name[4:]  # Remove 'val_' prefix.
-            self._val_writer.add_scalar(f"epoch_{name}", float(value), epoch)
+            self._write_scalar(self._val_writer, f"epoch_{name}", value, epoch)
 
     def _log_weights(self, epoch):
         """Logs the weights of the Model to TensorBoard."""
-        if not tensorflow.available:
-            return
-        with self._get_tf_writer(self._train_dir).as_default():
+        with self._train_writer.as_default():
             for layer in self.model.layers:
                 for weight in layer.weights:
                     weight_name = weight.path.replace(":", "_")
@@ -626,7 +640,7 @@ class TensorBoard(Callback):
                         self._log_weight_as_image(
                             weight, image_weight_name, epoch
                         )
-            self._get_tf_writer(self._train_dir).flush()
+            self._train_writer.flush()
 
     def _log_weight_as_image(self, weight, weight_name, epoch):
         """Logs a weight as a TensorBoard image."""
@@ -730,7 +744,8 @@ def keras_model_summary(writer, name, data, step):
     fails to serialize as JSON, it ignores and returns False.
 
     Args:
-        writer: A tensorboardX `SummaryWriter` to write the summary to.
+        writer: A `tf.summary` writer, or a tensorboardX `SummaryWriter` when
+            TensorFlow is not installed.
         name: A name for this summary, used as the summary tag.
         data: A Keras Model to write.
         step: Integer step value for this summary.
@@ -738,7 +753,10 @@ def keras_model_summary(writer, name, data, step):
     Returns:
         True on success, or False if the model failed to serialize as JSON.
     """
-    summary_pb2 = tensorboardx.proto.summary_pb2
+    if tensorflow.available:
+        summary_pb2 = tensorflow.compat.v1
+    else:
+        summary_pb2 = tensorboardx.proto.summary_pb2
     summary_metadata = summary_pb2.SummaryMetadata()
     # Hard coding a plugin name. Please refer to go/tb-plugin-name-hardcode for
     # the rationale.
@@ -752,6 +770,19 @@ def keras_model_summary(writer, name, data, step):
         # An exception should not break a model code.
         warnings.warn(f"Model failed to serialize as JSON. Ignoring... {exc}")
         return False
+
+    if tensorflow.available:
+        summary = tensorflow.summary
+        with writer.as_default():
+            with summary.experimental.summary_scope(
+                name, "graph_keras_model", [data, step]
+            ) as (tag, _):
+                return summary.write(
+                    tag=tag,
+                    tensor=json_string,
+                    step=step,
+                    metadata=summary_metadata,
+                )
 
     tensor = tensorboardx.proto.tensor_pb2.TensorProto(
         dtype="DT_STRING", string_val=[json_string.encode()]
