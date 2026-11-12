@@ -1,5 +1,7 @@
 import warnings
 
+from packaging.version import parse as parse_version
+
 from keras.src import backend
 from keras.src import tree
 from keras.src.export.export_utils import convert_spec_to_tensor
@@ -7,7 +9,6 @@ from keras.src.export.export_utils import get_input_signature
 from keras.src.export.export_utils import make_tf_tensor_spec
 from keras.src.export.saved_model import DEFAULT_ENDPOINT_NAME
 from keras.src.export.saved_model import ExportArchive
-from keras.src.export.tf2onnx_lib import patch_tf2onnx
 from keras.src.utils import io_utils
 
 
@@ -99,13 +100,21 @@ def export_onnx(
     if backend.backend() == "tensorflow":
         from keras.src.utils.module_utils import tf2onnx
 
+        if parse_version(tf2onnx.__version__) < parse_version("1.17.0"):
+            raise ImportError(
+                "ONNX export with the TensorFlow backend requires "
+                f"`tf2onnx>=1.17.0`, but found "
+                f"`tf2onnx=={tf2onnx.__version__}`. You can install a "
+                "compatible version via "
+                "`pip install 'tf2onnx>=1.17.0'`."
+            )
+
         input_signature = tree.map_structure(
             make_tf_tensor_spec, input_signature
         )
         decorated_fn = get_concrete_fn(model, input_signature, **kwargs)
 
         # Use `tf2onnx` to convert the `decorated_fn` to the ONNX format.
-        patch_tf2onnx()  # TODO: Remove this once `tf2onnx` supports numpy 2.
         tf2onnx.convert.from_function(
             decorated_fn,
             input_signature,

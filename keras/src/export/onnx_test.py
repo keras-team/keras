@@ -1,6 +1,7 @@
 """Tests for ONNX exporting utilities."""
 
 import os
+from unittest import mock
 
 import numpy as np
 import onnxruntime
@@ -17,6 +18,7 @@ from keras.src.export import onnx
 from keras.src.layers.input_spec import InputSpec as InputSpec
 from keras.src.saving import saving_lib
 from keras.src.testing.test_utils import named_product
+from keras.src.utils import module_utils
 
 
 class CustomModel(models.Model):
@@ -78,6 +80,23 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
     ),
 )
 class ExportONNXTest(testing.TestCase):
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="The tf2onnx version check is specific to TensorFlow.",
+    )
+    def test_tf2onnx_minimum_version(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model = get_model()
+        model(np.zeros((1, 10), dtype="float32"))
+
+        with mock.patch.object(module_utils.tf2onnx, "__version__", "1.16.1"):
+            with self.assertRaisesRegex(
+                ImportError,
+                r"requires `tf2onnx>=1\.17\.0`, but found "
+                r"`tf2onnx==1\.16\.1`",
+            ):
+                onnx.export_onnx(model, temp_filepath, verbose=False)
+
     @parameterized.named_parameters(
         named_product(
             model_type=["sequential", "functional", "subclass", "lstm"]
