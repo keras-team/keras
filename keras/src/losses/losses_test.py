@@ -1176,6 +1176,11 @@ class CategoricalCrossentropyTest(testing.TestCase):
         ]
         self.assertAllClose(loss, expected, atol=1e-5)
 
+        loss = losses.categorical_crossentropy(
+            y_true, ops.cast(logits, "bfloat16"), from_logits=True
+        )
+        self.assertDType(loss, "bfloat16")
+
     def test_all_correct_unweighted(self):
         y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype="int64")
         y_pred = np.array(
