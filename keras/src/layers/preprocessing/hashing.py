@@ -1,5 +1,6 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.common import KerasTensor
 from keras.src.layers.layer import Layer
 from keras.src.utils import backend_utils
 from keras.src.utils import numerical_utils
@@ -276,12 +277,12 @@ class Hashing(Layer):
 
     def compute_output_spec(self, inputs):
         if self.output_mode == "int":
-            return backend.KerasTensor(shape=inputs.shape, dtype=self.dtype)
+            return KerasTensor(shape=inputs.shape, dtype=self.dtype)
         if len(inputs.shape) >= 1:
             base_shape = tuple(inputs.shape)[:-1]
         else:
             base_shape = ()
-        return backend.KerasTensor(
+        return KerasTensor(
             shape=base_shape + (self.num_bins,), dtype=self.dtype
         )
 

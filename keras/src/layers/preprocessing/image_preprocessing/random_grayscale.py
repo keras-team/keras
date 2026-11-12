@@ -1,5 +1,6 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.common import KerasTensor
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
@@ -104,7 +105,7 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
         return input_shape
 
     def compute_output_spec(self, inputs, **kwargs):
-        return backend.KerasTensor(
+        return KerasTensor(
             inputs.shape, dtype=inputs.dtype, sparse=inputs.sparse
         )
 

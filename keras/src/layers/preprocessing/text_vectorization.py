@@ -2,6 +2,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.common import KerasTensor
 from keras.src.layers.layer import Layer
 from keras.src.layers.preprocessing.index_lookup import listify_tensors
 from keras.src.layers.preprocessing.string_lookup import StringLookup
@@ -396,7 +397,7 @@ class TextVectorization(Layer):
             output_dtype = "int64"
         else:
             output_dtype = backend.floatx()
-        return backend.KerasTensor(output_shape, dtype=output_dtype)
+        return KerasTensor(output_shape, dtype=output_dtype)
 
     def adapt(self, data, batch_size=None, steps=None):
         """Computes a vocabulary of string terms from tokens in a dataset.
