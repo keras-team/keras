@@ -58,8 +58,7 @@ class TensorBoard(Callback):
             weight histograms for the layers of the model. If set to 0,
             histograms won't be computed. Validation data (or split) must be
             specified for histogram visualizations.
-        write_graph: Whether to visualize the graph in TensorBoard. The
-            train graph is only written with the TensorFlow backend.
+        write_graph: Whether to visualize the model graph in TensorBoard.
             Note that the log file can become quite large
             when `write_graph` is set to `True`.
         write_images: whether to write model weights to visualize as image in
