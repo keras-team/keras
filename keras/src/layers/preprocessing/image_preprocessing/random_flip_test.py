@@ -2,12 +2,12 @@ import unittest.mock
 
 import numpy as np
 from absl.testing import parameterized
-from tensorflow import data as tf_data
 
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
 from keras.src import utils
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 class MockedRandomFlip(layers.RandomFlip):
@@ -142,7 +142,7 @@ class RandomFlipTest(testing.TestCase):
         )
         input_data = np.array([[[2, 3, 4]], [[5, 6, 7]]])
         expected_output = np.array([[[5, 6, 7]], [[2, 3, 4]]])
-        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
+        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         output = next(iter(ds)).numpy()
         self.assertAllClose(output, expected_output)
         # Test 4D input: shape (2, 2, 1, 3)
@@ -167,7 +167,7 @@ class RandomFlipTest(testing.TestCase):
                 [[[5, 6, 7]], [[2, 3, 4]]],
             ]
         )
-        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
+        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         output = next(iter(ds)).numpy()
         self.assertAllClose(output, expected_output)
 
@@ -262,7 +262,7 @@ class RandomFlipTest(testing.TestCase):
 
         input_data = {"images": input_image, "bounding_boxes": bounding_boxes}
 
-        ds = tf_data.Dataset.from_tensor_slices(input_data)
+        ds = tf.data.Dataset.from_tensor_slices(input_data)
         random_flip_layer = layers.RandomFlip(
             mode,
             data_format=data_format,

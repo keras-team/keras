@@ -2,7 +2,6 @@ import warnings
 
 from keras.src import backend
 from keras.src import initializers
-from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.metrics.metric import Metric
 from keras.src.metrics.metrics_utils import confusion_matrix
@@ -89,19 +88,19 @@ class _IoUBase(Metric):
         """
 
         if not self.sparse_y_true:
-            y_true = ops.argmax(y_true, axis=self.axis)
+            y_true = backend.ops.numpy.argmax(y_true, axis=self.axis)
         if not self.sparse_y_pred:
-            y_pred = ops.argmax(y_pred, axis=self.axis)
+            y_pred = backend.ops.numpy.argmax(y_pred, axis=self.axis)
 
-        y_true = ops.convert_to_tensor(y_true, dtype=self.dtype)
-        y_pred = ops.convert_to_tensor(y_pred, dtype=self.dtype)
+        y_true = backend.ops.convert_to_tensor(y_true, dtype=self.dtype)
+        y_pred = backend.ops.convert_to_tensor(y_pred, dtype=self.dtype)
 
         # Flatten the input if its rank > 1.
         if len(y_pred.shape) > 1:
-            y_pred = ops.reshape(y_pred, [-1])
+            y_pred = backend.ops.numpy.reshape(y_pred, [-1])
 
         if len(y_true.shape) > 1:
-            y_true = ops.reshape(y_true, [-1])
+            y_true = backend.ops.numpy.reshape(y_true, [-1])
 
         if sample_weight is None:
             sample_weight = 1
@@ -116,47 +115,55 @@ class _IoUBase(Metric):
                     "This may result in an incorrect weight due to type casting"
                     " Consider using integer weights."
                 )
-        sample_weight = ops.convert_to_tensor(sample_weight, dtype=self.dtype)
+        sample_weight = backend.ops.convert_to_tensor(
+            sample_weight, dtype=self.dtype
+        )
 
         if len(sample_weight.shape) > 1:
-            sample_weight = ops.reshape(sample_weight, [-1])
+            sample_weight = backend.ops.numpy.reshape(sample_weight, [-1])
 
-        sample_weight = ops.broadcast_to(sample_weight, ops.shape(y_true))
+        sample_weight = backend.ops.numpy.broadcast_to(
+            sample_weight, backend.ops.shape(y_true)
+        )
 
         # Build a bounds mask to filter out-of-range class IDs
         # (>= num_classes or < 0) so they never reach the
         # confusion matrix. This is graph-safe (no Python ifs
         # on tensor values).
-        num_cls = ops.convert_to_tensor(self.num_classes, dtype=y_true.dtype)
-        bounds_mask = ops.logical_and(
-            ops.logical_and(
-                ops.greater_equal(y_true, 0),
-                ops.less(y_true, num_cls),
+        num_cls = backend.ops.convert_to_tensor(
+            self.num_classes, dtype=y_true.dtype
+        )
+        bounds_mask = backend.ops.numpy.logical_and(
+            backend.ops.numpy.logical_and(
+                backend.ops.numpy.greater_equal(y_true, 0),
+                backend.ops.numpy.less(y_true, num_cls),
             ),
-            ops.logical_and(
-                ops.greater_equal(y_pred, 0),
-                ops.less(y_pred, num_cls),
+            backend.ops.numpy.logical_and(
+                backend.ops.numpy.greater_equal(y_pred, 0),
+                backend.ops.numpy.less(y_pred, num_cls),
             ),
         )
 
         if self.ignore_class is not None:
-            ignore_class = ops.convert_to_tensor(
+            ignore_class = backend.ops.convert_to_tensor(
                 self.ignore_class, y_true.dtype
             )
-            bounds_mask = ops.logical_and(
+            bounds_mask = backend.ops.numpy.logical_and(
                 bounds_mask,
-                ops.not_equal(y_true, ignore_class),
+                backend.ops.numpy.not_equal(y_true, ignore_class),
             )
 
-        y_true = ops.where(bounds_mask, y_true, 0)
-        y_pred = ops.where(bounds_mask, y_pred, 0)
+        y_true = backend.ops.numpy.where(bounds_mask, y_true, 0)
+        y_pred = backend.ops.numpy.where(bounds_mask, y_pred, 0)
 
         if sample_weight is not None:
-            sample_weight = ops.where(bounds_mask, sample_weight, 0)
-            sample_weight = ops.cast(sample_weight, dtype=self.dtype)
+            sample_weight = backend.ops.numpy.where(
+                bounds_mask, sample_weight, 0
+            )
+            sample_weight = backend.ops.cast(sample_weight, dtype=self.dtype)
 
-        y_pred = ops.cast(y_pred, dtype=self.dtype)
-        y_true = ops.cast(y_true, dtype=self.dtype)
+        y_pred = backend.ops.cast(y_pred, dtype=self.dtype)
+        y_true = backend.ops.cast(y_true, dtype=self.dtype)
 
         current_cm = confusion_matrix(
             y_true,
@@ -170,7 +177,9 @@ class _IoUBase(Metric):
 
     def reset_state(self):
         self.total_cm.assign(
-            ops.zeros(self.total_cm.shape, dtype=self.total_cm.dtype)
+            backend.ops.numpy.zeros(
+                self.total_cm.shape, dtype=self.total_cm.dtype
+            )
         )
 
 
@@ -281,51 +290,53 @@ class IoU(_IoUBase):
 
     def result(self):
         """Compute the intersection-over-union via the confusion matrix."""
-        sum_over_row = ops.cast(
-            ops.sum(self.total_cm, axis=0), dtype=self.dtype
+        sum_over_row = backend.ops.cast(
+            backend.ops.numpy.sum(self.total_cm, axis=0), dtype=self.dtype
         )
-        sum_over_col = ops.cast(
-            ops.sum(self.total_cm, axis=1), dtype=self.dtype
+        sum_over_col = backend.ops.cast(
+            backend.ops.numpy.sum(self.total_cm, axis=1), dtype=self.dtype
         )
-        true_positives = ops.cast(ops.diag(self.total_cm), dtype=self.dtype)
+        true_positives = backend.ops.cast(
+            backend.ops.numpy.diag(self.total_cm), dtype=self.dtype
+        )
 
         # sum_over_row + sum_over_col =
         #     2 * true_positives + false_positives + false_negatives.
         denominator = sum_over_row + sum_over_col - true_positives
 
-        target_class_ids = ops.convert_to_tensor(
+        target_class_ids = backend.ops.convert_to_tensor(
             self.target_class_ids, dtype="int32"
         )
 
         # Only keep the target classes
-        true_positives = ops.take_along_axis(
+        true_positives = backend.ops.numpy.take_along_axis(
             true_positives, target_class_ids, axis=-1
         )
-        denominator = ops.take_along_axis(
+        denominator = backend.ops.numpy.take_along_axis(
             denominator, target_class_ids, axis=-1
         )
-        denominator = ops.cast(denominator, dtype="float32")
-        true_positives = ops.cast(true_positives, dtype="float32")
+        denominator = backend.ops.cast(denominator, dtype="float32")
+        true_positives = backend.ops.cast(true_positives, dtype="float32")
 
         # If the denominator is 0, we need to ignore the class.
-        valid_entries = ops.cast(
-            ops.greater(denominator, 1e-9), dtype="float32"
+        valid_entries = backend.ops.cast(
+            backend.ops.numpy.greater(denominator, 1e-9), dtype="float32"
         )
-        num_valid_entries = ops.sum(valid_entries)
+        num_valid_entries = backend.ops.numpy.sum(valid_entries)
 
-        iou = ops.divide(
+        iou = backend.ops.numpy.divide(
             true_positives,
             denominator + backend.epsilon(),
         )
         # Zero out IoU for absent classes so they
         # contribute 0.0, not ~1.0.
-        iou = ops.where(valid_entries, iou, 0.0)
+        iou = backend.ops.numpy.where(valid_entries, iou, 0.0)
 
         # `iou` holds one value per target class, so it is reduced over its
         # only dimension. `self.axis` refers to the class dimension of the
         # inputs and is only meaningful in `update_state`.
-        return ops.divide(
-            ops.sum(iou),
+        return backend.ops.numpy.divide(
+            backend.ops.numpy.sum(iou),
             num_valid_entries + backend.epsilon(),
         )
 
@@ -448,10 +459,10 @@ class BinaryIoU(IoU):
         Returns:
             Update op.
         """
-        y_true = ops.convert_to_tensor(y_true, dtype=self.dtype)
+        y_true = backend.ops.convert_to_tensor(y_true, dtype=self.dtype)
         # convert y_pred on float 32 and cast just after to dtype
-        y_pred = ops.convert_to_tensor(y_pred, dtype="float32")
-        y_pred = ops.cast(y_pred >= self.threshold, self.dtype)
+        y_pred = backend.ops.convert_to_tensor(y_pred, dtype="float32")
+        y_pred = backend.ops.cast(y_pred >= self.threshold, self.dtype)
         return super().update_state(y_true, y_pred, sample_weight)
 
     def get_config(self):

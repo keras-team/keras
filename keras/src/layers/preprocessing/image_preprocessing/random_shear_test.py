@@ -1,12 +1,12 @@
 import numpy as np
 from absl.testing import parameterized
-from tensorflow import data as tf_data
 
 import keras
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
 from keras.src.utils import backend_utils
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 class RandomShearTest(testing.TestCase):
@@ -25,6 +25,12 @@ class RandomShearTest(testing.TestCase):
             supports_masking=False,
             expected_output_shape=(8, 3, 4, 3),
         )
+
+    def test_config_with_float_factors(self):
+        # A float factor `f` is used as the range `(-f, f)`. `get_config()`
+        # must return a factor that the constructor accepts again.
+        layer = layers.RandomShear(x_factor=0.1, y_factor=0.2, seed=1)
+        self.run_class_serialization_test(layer)
 
     def test_random_posterization_inference(self):
         seed = 3481
@@ -71,7 +77,7 @@ class RandomShearTest(testing.TestCase):
             input_data = np.random.random((2, 3, 8, 8))
         layer = layers.RandomShear(1, 1)
 
-        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
+        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
             output.numpy()
 
@@ -171,7 +177,7 @@ class RandomShearTest(testing.TestCase):
 
         input_data = {"images": input_image, "bounding_boxes": bounding_boxes}
 
-        ds = tf_data.Dataset.from_tensor_slices(input_data)
+        ds = tf.data.Dataset.from_tensor_slices(input_data)
         layer = layers.RandomShear(
             x_factor=0.5,
             y_factor=0.5,

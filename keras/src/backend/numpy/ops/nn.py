@@ -76,6 +76,9 @@ def softplus(x):
 
 def softsign(x):
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return x / (np.array(1.0, x.dtype) + np.abs(x))
 
 
@@ -114,6 +117,9 @@ def silu(x):
 
 def squareplus(x, b=4):
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     b = convert_to_tensor(b, dtype=x.dtype)
     y = x + np.sqrt(x**2 + b)
     return y / 2
@@ -229,6 +235,9 @@ def hard_tanh(x):
 
 def hard_shrink(x, threshold=0.5):
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     threshold = np.asarray(threshold, x.dtype)
     return np.array(
         np.where(np.abs(x) > threshold, x, np.array(0.0, dtype=x.dtype)),
@@ -871,7 +880,7 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
 
     batch_size = x.shape[0]
     categorical = np.zeros((batch_size, num_classes), dtype=dtype)
-    valid_indices = x >= 0
+    valid_indices = (x >= 0) & (x < num_classes)
     categorical[np.arange(batch_size)[valid_indices], x[valid_indices]] = 1
 
     # First, reshape the array with the extra dimension at the end
@@ -991,10 +1000,7 @@ def moments(x, axes, keepdims=False, synchronized=False):
         x = cast(x, "float32")
 
     mean = np.mean(x, axes, keepdims=True)
-
-    # The variance is computed using $Var = E[|x|^2] - |E[x]|^2$, It is faster
-    # but less numerically stable.
-    variance = np.mean(np.square(x), axis=axes, keepdims=True) - np.square(mean)
+    variance = np.var(x, axis=axes, keepdims=True)
 
     if not keepdims:
         mean = np.squeeze(mean, axes)

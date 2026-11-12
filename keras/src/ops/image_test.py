@@ -4,18 +4,18 @@ import jax
 import numpy as np
 import pytest
 import scipy.ndimage
-import tensorflow as tf
 from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import random as krandom
 from keras.src import testing
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
-from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import image as kimage
 from keras.src.ops import numpy as knp
 from keras.src.testing.test_utils import named_product
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 def _bf16_exact(shape):
@@ -2292,9 +2292,9 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             input_shape
         )
         coordinates_dtype = "float32" if "int" in dtype else dtype
+        # Sample past both edges so every `fill_mode` is exercised.
         coordinates = [
-            (size - 1)
-            * np.random.uniform(size=coordinates_shape).astype(
+            np.random.uniform(-size, 2 * size, size=coordinates_shape).astype(
                 coordinates_dtype
             )
             for size in input_shape
