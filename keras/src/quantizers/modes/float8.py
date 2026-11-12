@@ -7,7 +7,6 @@ from keras.src.quantizers.float8_scaling import compute_float8_scale
 from keras.src.quantizers.float8_scaling import quantize_and_dequantize
 from keras.src.quantizers.quantization_config import Float8QuantizationConfig
 from keras.src.quantizers.strategy_registry import QuantizationStrategy
-from keras.src.quantizers.utils import device_constant
 
 
 class Float8Strategy(QuantizationStrategy):
@@ -97,7 +96,7 @@ class Float8Strategy(QuantizationStrategy):
                 new_scale = compute_float8_scale(
                     ops.max(amax_history, axis=0),
                     scale,
-                    device_constant(
+                    ops.cast(
                         float(ml_dtypes.finfo("float8_e4m3fn").max), "float32"
                     ),
                 )
@@ -128,7 +127,7 @@ class Float8Strategy(QuantizationStrategy):
                 new_scale = compute_float8_scale(
                     ops.max(amax_history, axis=0),
                     scale,
-                    device_constant(
+                    ops.cast(
                         float(ml_dtypes.finfo("float8_e5m2").max), "float32"
                     ),
                 )

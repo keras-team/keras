@@ -13,7 +13,6 @@ from keras.src import quantizers
 from keras.src import random
 from keras.src import testing
 from keras.src.quantizers import strategy_registry
-from keras.src.quantizers.quantization_test_utils import host_data_ops
 from keras.src.quantizers.quantizers import compute_quantization_parameters
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
@@ -21,6 +20,9 @@ from keras.src.quantizers.quantizers import quantize_with_sz_map
 from keras.src.quantizers.quantizers import quantize_with_zero_point
 from keras.src.quantizers.quantizers import ternarize
 from keras.src.testing.test_utils import named_product
+
+if backend.backend() == "torch":
+    from keras.src.backend.torch.test_utils import host_data_ops
 
 
 class QuantizersTest(testing.TestCase):
@@ -1148,10 +1150,7 @@ class TernarizeTest(testing.TestCase):
 class HostDataTest(testing.TestCase):
     """The helpers that quantized layers run on each call use no host data.
 
-    `host_data_ops` finds each op that makes a tensor from host data, on
-    every torch device, and each op that reads or returns a CPU tensor, on
-    a GPU or MPS device. Torch copies host data to the device on each
-    call, and a CUDA graph capture refuses the copy.
+    They pass Python numbers to ops. See `host_data_ops`.
     """
 
     @parameterized.named_parameters(
