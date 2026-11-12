@@ -174,7 +174,7 @@ class OpTestTest(testing.TestCase):
             op, reference_fn = ops.ones, np.ones
             inputs = ((2, 3),)
 
-        no_jit = backend.backend() in ("numpy", "openvino")
+        no_jit = backend.backend() not in ("jax", "torch", "tensorflow")
         self.assertEqual(
             outcomes(Ones),
             {
@@ -201,7 +201,7 @@ class OpTestTest(testing.TestCase):
 
         out = outcomes(Case)
         self.assertEqual(out["test_eager"], "passed")
-        if backend.backend() in ("numpy", "openvino"):
+        if backend.backend() not in ("jax", "torch", "tensorflow"):
             self.assertRegex(out["test_jit"], "^skipped: No JIT compiler")
         else:
             self.assertRegex(out["test_jit"], "^failed: ")

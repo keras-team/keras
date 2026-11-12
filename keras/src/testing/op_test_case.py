@@ -382,10 +382,12 @@ def _jit(fn):
         import tensorflow as tf
 
         return tf.function(fn, jit_compile=True)
-    import torch
+    if backend.backend() == "torch":
+        import torch
 
-    torch._dynamo.reset()  # Every case compiles anew; the cache holds 8.
-    return torch.compile(fn, fullgraph=True)
+        torch._dynamo.reset()  # Every case compiles anew; the cache holds 8.
+        return torch.compile(fn, fullgraph=True)
+    raise ValueError(f"Unsupported backend for JIT: {backend.backend()}")
 
 
 def _with_arrays(inputs, arrays):
