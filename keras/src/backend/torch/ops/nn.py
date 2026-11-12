@@ -604,6 +604,31 @@ def average_pool(
     return outputs
 
 
+def _adaptive_pool_needs_cpu(inputs, torch_output_size, check_divisible):
+    """Whether an adaptive pooling op must run on CPU.
+
+    The MPS device does not implement 3D adaptive pooling, and 1D/2D adaptive
+    average pooling only supports input sizes divisible by the output sizes.
+    See https://github.com/pytorch/pytorch/issues/96056.
+
+    TODO: Remove this fallback once PyTorch supports these cases on MPS.
+    """
+    if inputs.device.type != "mps":
+        return False
+    if inputs.ndim == 5:
+        return True
+    if not check_divisible:
+        return False
+    output_size = (
+        (torch_output_size,)
+        if isinstance(torch_output_size, int)
+        else torch_output_size
+    )
+    return any(
+        size % out != 0 for size, out in zip(inputs.shape[2:], output_size)
+    )
+
+
 def adaptive_average_pool(inputs, output_size, data_format=None):
     """Adaptive average pooling(1D/2D/3D) with channels_last support."""
     inputs = convert_to_tensor(inputs)
@@ -632,6 +657,13 @@ def adaptive_average_pool(inputs, output_size, data_format=None):
             size=inputs.shape, dtype=inputs.dtype, device="cpu"
         )
 
+    device = inputs.device
+    on_cpu = _adaptive_pool_needs_cpu(
+        inputs, torch_output_size, check_divisible=True
+    )
+    if on_cpu:
+        inputs = inputs.cpu()
+
     if num_spatial_dims == 1:
         outputs = tnn.adaptive_avg_pool1d(inputs, output_size=torch_output_size)
     elif num_spatial_dims == 2:
@@ -643,6 +675,9 @@ def adaptive_average_pool(inputs, output_size, data_format=None):
             "Inputs to adaptive average pooling must have ndim=3, 4 or 5, "
             f"Received input shape: {inputs.shape}."
         )
+
+    if on_cpu:
+        outputs = outputs.to(device)
 
     if orig_format == "channels_last":
         outputs = _transpose_spatial_outputs(outputs)
@@ -675,6 +710,13 @@ def adaptive_max_pool(inputs, output_size, data_format=None):
             size=inputs.shape, dtype=inputs.dtype, device="cpu"
         )
 
+    device = inputs.device
+    on_cpu = _adaptive_pool_needs_cpu(
+        inputs, torch_output_size, check_divisible=False
+    )
+    if on_cpu:
+        inputs = inputs.cpu()
+
     if num_spatial_dims == 1:
         res = tnn.adaptive_max_pool1d(inputs, output_size=torch_output_size)
     elif num_spatial_dims == 2:
@@ -688,6 +730,8 @@ def adaptive_max_pool(inputs, output_size, data_format=None):
         )
 
     outputs = res[0] if isinstance(res, tuple) else res
+    if on_cpu:
+        outputs = outputs.to(device)
 
     if orig_format == "channels_last":
         outputs = _transpose_spatial_outputs(outputs)

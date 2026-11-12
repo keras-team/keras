@@ -117,3 +117,18 @@ class AdaptivePooling1DLayerTest(testing.TestCase):
 
         outputs = layer(inputs)
         self.assertAllClose(outputs, expected, atol=1e-4)
+
+    def test_average_pooling1d_non_divisible_numerical(self):
+        """Input length that is not divisible by `output_size`."""
+        inputs = np.arange(2 * 3 * 10, dtype="float32").reshape((2, 3, 10))
+        output_size = 4
+        expected = np.zeros((2, 3, output_size), dtype="float32")
+        for i in range(output_size):
+            start = (i * 10) // output_size
+            end = -((-(i + 1) * 10) // output_size)
+            expected[:, :, i] = inputs[:, :, start:end].mean(axis=-1)
+
+        layer = layers.AdaptiveAveragePooling1D(
+            output_size=output_size, data_format="channels_first"
+        )
+        self.assertAllClose(layer(inputs), expected, atol=1e-4)
