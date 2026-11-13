@@ -1662,7 +1662,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = np.random.randint(1, 100 + 1)
         self.assertEqual(knp.hamming(x).shape[0], x)
 
-    def test_hanning(self):
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_hanning(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         x = np.random.randint(1, 100 + 1)
         self.assertEqual(knp.hanning(x).shape[0], x)
 
@@ -6024,11 +6027,17 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(out.shape[0], x)
         self.assertAllClose(out, expected)
 
-    def test_hanning(self):
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_hanning(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         x = np.random.randint(1, 100 + 1)
         self.assertAllClose(knp.hanning(x), np.hanning(x))
 
-    def test_hanning_length_1(self):
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_hanning_length_1(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         x = 1
         x_tensor = keras.ops.convert_to_tensor(x)
         expected = np.hanning(x)
@@ -9641,8 +9650,12 @@ class NumpyDtypeTest(testing.TestCase):
             standardize_dtype(knp.hamming(x).dtype), expected_dtype
         )
 
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_hanning(self, dtype):
+    @parameterized.named_parameters(
+        named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
+    )
+    def test_hanning(self, backend_agnostic_ops, dtype):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         x = knp.ones((), dtype=dtype)
         expected_dtype = backend.floatx()
 
