@@ -30,7 +30,7 @@ class TensorBoard(Callback):
     This callback logs events for TensorBoard, including:
 
     * Metrics summary plots
-    * Training graph visualization
+    * Model graph visualization
     * Weight histograms
     * Sampled profiling
 
@@ -60,8 +60,6 @@ class TensorBoard(Callback):
             histograms won't be computed. Validation data (or split) must be
             specified for histogram visualizations.
         write_graph: Whether to visualize the model graph in TensorBoard.
-            Note that the log file can become quite large
-            when `write_graph` is set to `True`.
         write_images: whether to write model weights to visualize as image in
             TensorBoard. Without TensorFlow, this requires Pillow
             (`pip install pillow`).
@@ -225,10 +223,8 @@ class TensorBoard(Callback):
         self._close_writers()
         self._called_in_fit = False
 
-        self._should_write_train_graph = False
         if self.write_graph:
             self._write_keras_model_summary()
-            self._should_write_train_graph = True
         if self.embeddings_freq:
             self._configure_embeddings()
 
@@ -292,20 +288,6 @@ class TensorBoard(Callback):
                 step,
                 dataformats="NHWC",
             )
-
-    def _write_keras_model_train_graph(self):
-        """Writes Keras model train_function graph to TensorBoard."""
-        train_fn = self.model.train_function
-        if not hasattr(train_fn, "function_spec"):
-            return
-        with self._train_writer.as_default():
-            # TODO(b/243822285): Use _variable_creation_fn directly.
-            if hasattr(train_fn, "_concrete_stateful_fn"):
-                self.summary.graph(train_fn._concrete_stateful_fn.graph)
-            else:
-                self.summary.graph(
-                    train_fn._concrete_variable_creation_fn.graph
-                )
 
     def _write_keras_model_summary(self):
         """Writes Keras graph network summary to TensorBoard."""
@@ -506,9 +488,6 @@ class TensorBoard(Callback):
             )
 
     def on_train_batch_end(self, batch, logs=None):
-        if self._should_write_train_graph:
-            self._write_keras_model_train_graph()
-            self._should_write_train_graph = False
         if (
             self.update_freq != "epoch"
             and self._global_train_batch % self.update_freq == 0
