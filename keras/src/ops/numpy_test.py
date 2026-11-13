@@ -4380,6 +4380,8 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             np.geomspace(start, stop, 4, endpoint=False),
         )
 
+        self.assertAllClose(knp.geomspace(1, 1000, 1), np.geomspace(1, 1000, 1))
+
     def test_greater(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
@@ -4656,6 +4658,10 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             np.linspace(0, 10, 5, endpoint=False),
         )
 
+        self.assertAllClose(
+            knp.linspace(start, stop, 1), np.linspace(start, stop, 1)
+        )
+
     def test_logical_and(self):
         x = np.array([[True, False], [True, True]])
         y = np.array([[False, False], [True, False]])
@@ -4719,6 +4725,10 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.Logspace(5, endpoint=False, base=10)(start, stop),
             np.logspace(start, stop, 5, endpoint=False, base=10),
+        )
+
+        self.assertAllClose(
+            knp.logspace(start, stop, 1), np.logspace(start, stop, 1)
         )
 
     def test_maximum(self):
