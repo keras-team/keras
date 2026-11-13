@@ -63,7 +63,8 @@ class TensorBoard(Callback):
             Note that the log file can become quite large
             when `write_graph` is set to `True`.
         write_images: whether to write model weights to visualize as image in
-            TensorBoard.
+            TensorBoard. Without TensorFlow, this requires Pillow
+            (`pip install pillow`).
         write_steps_per_second: whether to log the training steps per second
             into TensorBoard. This supports both epoch and batch frequency
             logging.
@@ -277,7 +278,8 @@ class TensorBoard(Callback):
         value = ops.convert_to_numpy(value)
         value = value[np.isfinite(value)]
         if value.size:
-            writer.add_histogram(name, value, step, bins=30)
+            bins = np.linspace(float(value.min()), float(value.max()), 31)
+            writer.add_histogram(name, value, step, bins=bins)
 
     def _write_image(self, writer, name, value, step):
         if tensorflow.available:
@@ -285,7 +287,10 @@ class TensorBoard(Callback):
                 self.summary.image(name, value, step=step)
         else:
             writer.add_images(
-                name, np.clip(value, 0, 1), step, dataformats="NHWC"
+                name,
+                np.clip(np.nan_to_num(value), 0, 1),
+                step,
+                dataformats="NHWC",
             )
 
     def _write_keras_model_train_graph(self):
@@ -646,8 +651,7 @@ class TensorBoard(Callback):
                     self._train_writer, histogram_weight_name, weight, epoch
                 )
                 if self.write_images:
-                    # Add a suffix to prevent summary tag name
-                    # collision.
+                    # Add a suffix to prevent summary tag name collision.
                     image_weight_name = f"{weight_name}/image"
                     self._log_weight_as_image(weight, image_weight_name, epoch)
         self._train_writer.flush()
