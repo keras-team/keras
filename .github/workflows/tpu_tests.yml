@@ -49,7 +49,23 @@ jobs:
           - backend: jax
             multi_device: false
             runner: linux-x86-ct6e-44-1tpu
-            name: Run tests on TPU
+            name: Run tests on TPU (shard 1)
+            shard: 1
+          - backend: jax
+            multi_device: false
+            runner: linux-x86-ct6e-44-1tpu
+            name: Run tests on TPU (shard 2)
+            shard: 2
+          - backend: jax
+            multi_device: false
+            runner: linux-x86-ct6e-44-1tpu
+            name: Run tests on TPU (shard 3)
+            shard: 3
+          - backend: jax
+            multi_device: false
+            runner: linux-x86-ct6e-44-1tpu
+            name: Run tests on TPU (shard 4)
+            shard: 4
           - backend: jax
             multi_device: true
             runner: linux-x86-ct5lp-112-4tpu
@@ -87,7 +103,10 @@ jobs:
 
       - name: Run Tests
         if: ${{ !matrix.multi_device }}
-        run: pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml
+        run: |
+          pytest keras --ignore keras/src/applications --cov=keras \
+            --cov-config=pyproject.toml --splits 4 \
+            --group ${{ matrix.shard }}
 
       - name: Run Multi-device Tests
         if: ${{ matrix.multi_device }}

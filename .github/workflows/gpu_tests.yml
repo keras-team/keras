@@ -46,8 +46,9 @@ jobs:
       fail-fast: false
       matrix:
         backend: [jax, tensorflow, torch]
+        shard: [1, 2, 3, 4]
 
-    name: Run tests on GPU
+    name: Run tests on GPU (${{ matrix.backend }}, shard ${{ matrix.shard }})
     runs-on: linux-x86-g2-32-l4-1gpu
     timeout-minutes: 240
 
@@ -93,7 +94,10 @@ jobs:
         run: python3 -c "import torch; print('Torch devices:', [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())]); assert torch.cuda.device_count() > 0"
 
       - name: Run Tests
-        run: pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml
+        run: |
+          pytest keras --ignore keras/src/applications --cov=keras \
+            --cov-config=pyproject.toml --splits 4 \
+            --group ${{ matrix.shard }}
 
       - name: Convert Coverage
         run: coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml

@@ -20,6 +20,7 @@ optree
 pytest
 pytest-cov
 pytest-xdist
+pytest-split
 packaging
 # for tree_test.py
 dm_tree
