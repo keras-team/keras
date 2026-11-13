@@ -1723,7 +1723,19 @@ def dot_product_attention(
     is_tpu = platform == "tpu"
 
     # Determine flash attention compatibility
-    if flash_attention is None:
+    depths_differ = key.shape[-1] != value.shape[-1]
+    if depths_differ and not is_tpu:
+        if flash_attention is True:
+            raise ValueError(
+                "Flash attention is only supported on TPU when the value "
+                "depth differs from the key depth. Received: "
+                f"key.shape[-1]={key.shape[-1]} and "
+                f"value.shape[-1]={value.shape[-1]}"
+            )
+        # `jax.nn.dot_product_attention`, which runs the cuDNN flash kernel,
+        # requires `depth_v == depth_k`. The TPU Splash kernel does not.
+        flash_attention = False
+    elif flash_attention is None:
         flash_attention = _can_use_flash_attention(query, key, value, bias)
     elif flash_attention is True:
         # Use `raise_error=True` to provide more details if the inputs failed to
@@ -1822,7 +1834,8 @@ def dot_product_attention(
                 flash_attention = False
 
     # JAX native dot_product_attention for GPU or fallback for TPU
-    if hasattr(jax.nn, "dot_product_attention"):
+    # `jax.nn.dot_product_attention` requires `depth_v == depth_k`.
+    if hasattr(jax.nn, "dot_product_attention") and not depths_differ:
         impls = ["cudnn", "xla"] if flash_attention else ["xla"]
         for impl in impls:
             try:
@@ -1854,7 +1867,8 @@ def dot_product_attention(
 
     # Fallback to custom XLA implementation
     # This is the reference implementation from jax.nn.dot_product_attention
-    output_shape = query.shape
+    # The output has the depth of `value`, which can differ from `query`'s.
+    output_shape = (*query.shape[:-1], value.shape[-1])
     _, _, K, H = key.shape
     scale = (1.0 / jnp.sqrt(H)) if scale is None else scale
 

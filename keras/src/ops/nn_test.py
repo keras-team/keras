@@ -1530,6 +1530,11 @@ class NNOpsStaticShapeTest(testing.TestCase):
         out = knn.dot_product_attention(query, key, value)
         self.assertEqual(out.shape, query.shape)
 
+        # The output has the depth of `value`.
+        value = KerasTensor([2, 4, 6, 5])
+        out = knn.dot_product_attention(query, key, value)
+        self.assertEqual(out.shape, (2, 3, 8, 5))
+
     def test_rms_normalization(self):
         x = KerasTensor([2, 8, 16])
         scale = KerasTensor([2, 8, 16])
@@ -3250,6 +3255,43 @@ class NNOpsCorrectnessTest(testing.TestCase):
             tpu_atol=1e-2,
             tpu_rtol=1e-2,
         )
+
+    @parameterized.named_parameters(named_product(is_causal=(False, True)))
+    def test_dot_product_attention_value_depth_differs_from_key_depth(
+        self, is_causal
+    ):
+        rng = np.random.RandomState(0)
+        query = rng.uniform(size=(2, 3, 4, 8)).astype("float32")
+        key = rng.uniform(size=(2, 3, 4, 8)).astype("float32")
+        value = rng.uniform(size=(2, 3, 4, 5)).astype("float32")
+        outputs = knn.dot_product_attention(
+            query, key, value, is_causal=is_causal, flash_attention=False
+        )
+        self.assertEqual(outputs.shape, (2, 3, 4, 5))
+        expected = _dot_product_attention(
+            query, key, value, is_causal=is_causal
+        )
+        self.assertAllClose(outputs, expected, atol=1e-5)
+
+    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
+    def test_dot_product_attention_value_depth_flash_attention(self):
+        rng = np.random.RandomState(0)
+        query = rng.uniform(size=(2, 3, 4, 8)).astype("float16")
+        key = rng.uniform(size=(2, 3, 4, 8)).astype("float16")
+        value = rng.uniform(size=(2, 3, 4, 5)).astype("float16")
+        # The default `flash_attention=None` selects a path that works.
+        outputs = knn.dot_product_attention(query, key, value)
+        self.assertEqual(outputs.shape, (2, 3, 4, 5))
+        expected = _dot_product_attention(query, key, value)
+        self.assertAllClose(outputs, expected, atol=1e-2)
+
+        if not testing.jax_uses_tpu():
+            with self.assertRaisesRegex(
+                ValueError, "Flash attention is only supported on TPU"
+            ):
+                knn.dot_product_attention(
+                    query, key, value, flash_attention=True
+                )
 
     @parameterized.named_parameters(named_product(scale=(1.0, 10.0)))
     def test_rms_normalization(self, scale):
