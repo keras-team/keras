@@ -1,9 +1,11 @@
 import numpy as np
+from absl.testing import parameterized
 
 from keras.src import layers
 from keras.src import ops
 from keras.src import random
 from keras.src import testing
+from keras.src.testing.test_utils import named_product
 
 
 class OneStateRNNCell(layers.Layer):
@@ -490,3 +492,46 @@ class RNNTest(testing.TestCase):
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
+
+    @parameterized.named_parameters(
+        named_product(
+            go_backwards=(False, True),
+            zero_output_for_mask=(False, True),
+            return_sequences=(False, True),
+        )
+    )
+    def test_masking_unroll_matches_scan(
+        self, go_backwards, zero_output_for_mask, return_sequences
+    ):
+        sequence = np.arange(24).reshape((2, 4, 3)).astype("float32")
+        mask = np.array([[True, True, True, False], [True, False, True, False]])
+        kwargs = dict(
+            return_sequences=return_sequences,
+            return_state=True,
+            go_backwards=go_backwards,
+            zero_output_for_mask=zero_output_for_mask,
+        )
+        expected = layers.RNN(OneStateRNNCell(2), unroll=False, **kwargs)(
+            sequence, mask=mask
+        )
+        outputs = layers.RNN(OneStateRNNCell(2), unroll=True, **kwargs)(
+            sequence, mask=mask
+        )
+        for output, expected_output in zip(outputs, expected):
+            self.assertAllClose(output, expected_output)
+
+    def test_bidirectional_masking_unroll(self):
+        sequence = np.arange(24).reshape((2, 4, 3)).astype("float32")
+        mask = np.array([[True, True, True, False], [True, True, False, False]])
+        outputs = []
+        for unroll in (False, True):
+            layer = layers.Bidirectional(
+                layers.RNN(
+                    OneStateRNNCell(2), return_sequences=True, unroll=unroll
+                )
+            )
+            outputs.append(layer(sequence, mask=mask))
+        self.assertAllClose(outputs[0], outputs[1])
+        # `Bidirectional` zeroes the output of the masked steps.
+        self.assertAllClose(outputs[1][0, 3], np.zeros(4))
+        self.assertAllClose(outputs[1][1, 2:], np.zeros((2, 4)))
