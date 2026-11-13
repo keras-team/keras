@@ -3974,7 +3974,7 @@ class Geomspace(Operation):
         self.axis = axis
 
     def call(self, start, stop):
-        return backend.ops.numpy.geomspace(
+        return _geomspace(
             start,
             stop,
             num=self.num,
@@ -4029,7 +4029,7 @@ def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
     dtype = None if dtype is None else standardize_dtype(dtype)
     if any_symbolic_tensors((start, stop)):
         return Geomspace(num, endpoint, dtype, axis)(start, stop)
-    return backend.ops.numpy.geomspace(
+    return _geomspace(
         start,
         stop,
         num=num,
@@ -4037,6 +4037,41 @@ def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
         dtype=dtype,
         axis=axis,
     )
+
+
+def _geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "geomspace"
+    ):
+        return backend.ops.numpy.geomspace(
+            start,
+            stop,
+            num=num,
+            endpoint=endpoint,
+            dtype=dtype,
+            axis=axis,
+        )
+    start = backend.ops.convert_to_tensor(start)
+    stop = backend.ops.convert_to_tensor(stop)
+    if dtype is None:
+        dtype = standardize_dtype(start.dtype)
+    dtype = result_type(dtype, float)
+    start = backend.ops.cast(start, dtype)
+    stop = backend.ops.cast(stop, dtype)
+    sign = backend.ops.numpy.sign(start)
+    result = backend.ops.numpy.logspace(
+        backend.ops.numpy.log10(backend.ops.numpy.divide(start, sign)),
+        backend.ops.numpy.log10(backend.ops.numpy.divide(stop, sign)),
+        num=num,
+        endpoint=endpoint,
+        base=10,
+        dtype=dtype,
+        axis=0,
+    )
+    result = backend.ops.numpy.multiply(sign, result)
+    if axis != 0:
+        result = backend.ops.numpy.moveaxis(result, 0, axis)
+    return result
 
 
 class Greater(Operation):
