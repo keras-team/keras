@@ -1482,9 +1482,12 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
         output, from_logits, "Softmax", "categorical_crossentropy"
     )
     if from_logits:
-        return tf.nn.softmax_cross_entropy_with_logits(
-            labels=target, logits=output, axis=axis
-        )
+        # `tf.nn.softmax_cross_entropy_with_logits` returns NaN when a class
+        # with a zero target has a `-inf` logit, because it multiplies
+        # `0 * -inf`. Mask those classes out instead.
+        log_prob = tf.nn.log_softmax(output, axis=axis)
+        log_prob = tf.where(target != 0, log_prob, tf.zeros_like(log_prob))
+        return -tf.reduce_sum(target * log_prob, axis)
 
     # Adjust the predictions so that the probability of
     # each class for every sample adds up to 1
