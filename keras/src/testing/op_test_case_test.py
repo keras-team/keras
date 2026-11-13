@@ -6,6 +6,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src import ops
+from keras.src import saving
 from keras.src import testing
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
@@ -79,6 +80,24 @@ class DataDependent(Square):
         return x
 
 
+@saving.register_keras_serializable(package="op_test_case_test")
+class NeedsTuple(Operation):
+    """Sums over `axis`, which must be a tuple: JSON turns it into a list."""
+
+    def __init__(self, axis):
+        super().__init__()
+        self.axis = axis
+
+    def call(self, x):
+        if not isinstance(self.axis, tuple):
+            raise TypeError(f"`axis` must be a tuple, got {type(self.axis)}")
+        return ops.sum(x, axis=self.axis)
+
+
+def needs_tuple(x, axis):
+    return NeedsTuple(axis)(x)
+
+
 def methods_of(cls):
     return sorted(n for n in dir(cls) if n.startswith("test"))
 
@@ -110,7 +129,9 @@ class OpTestTest(testing.TestCase):
             [
                 "test_eager",
                 "test_eager_class",
+                "test_functional_model",
                 "test_jit",
+                "test_serialization",
                 "test_symbolic_dynamic",
                 "test_symbolic_static",
             ],
@@ -192,6 +213,12 @@ class OpTestTest(testing.TestCase):
                     if no_jit
                     else "passed"
                 ),
+                "test_functional_model": (
+                    "skipped: No array inputs, so no model inputs"
+                ),
+                "test_serialization": (
+                    "skipped: No array inputs, so no model inputs"
+                ),
             },
         )
 
@@ -205,6 +232,24 @@ class OpTestTest(testing.TestCase):
             self.assertRegex(out["test_jit"], "^skipped: No JIT compiler")
         else:
             self.assertRegex(out["test_jit"], "^failed: ")
+
+    def test_tuple_argument_lost_in_json_fails(self):
+        class Case(testing.OpTest):
+            op, op_class, reference_fn = needs_tuple, NeedsTuple, np.sum
+            inputs, kwargs = (X,), {"axis": (0,)}
+
+        out = outcomes(Case)
+        self.assertEqual(out["test_eager"], "passed")
+        self.assertEqual(out["test_eager_class"], "passed")
+        self.assertRegex(out["test_serialization"], "^failed: ")
+
+    def test_op_model(self):
+        model = op_test_case._op_model(ops.add, (X, X[:1]), {})
+        self.assertLen(model.inputs, 2)
+        self.assertEqual(model.inputs[1].shape, (1, 3))
+        self.assertEqual(model.inputs[1].dtype, "int32")
+        self.assertEqual(model.output.shape, (2, 3))
+        self.assertAllClose(model([X, X[:1]]), X + X[:1])
 
     def test_disabled_dynamic_checks_are_skipped(self):
         class Case(testing.OpTest):
