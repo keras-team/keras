@@ -263,6 +263,7 @@ class OpTest(TestCase):
             self.skipTest("No array inputs, so no model inputs")
         model = _op_model(self.op, inputs, kwargs)
         revived = model_from_json(model.to_json())
+        self.assertEqual(revived.to_json(), model.to_json())
         self.assertOutputsClose(
             revived(arrays),
             self.reference_fn(*inputs, **kwargs),
