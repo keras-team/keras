@@ -395,12 +395,16 @@ class TestSpectrogram(testing.TestCase):
         audio = np.random.RandomState(41).uniform(-1, 1, size=(2, 256, 1))
         audio = audio.astype(self.DTYPE)
         expected = layers.STFTSpectrogram(
-            frame_length=32, frame_step=16, fft_length=64
+            frame_length=32,
+            frame_step=16,
+            fft_length=64,
+            data_format="channels_last",
         )(audio)
         layer = layers.STFTSpectrogram(
             frame_length=np.int64(32),
             frame_step=np.int64(16),
             fft_length=np.int64(64),
+            data_format="channels_last",
         )
         config = layer.get_config()
         for key in ("frame_length", "frame_step", "fft_length"):
