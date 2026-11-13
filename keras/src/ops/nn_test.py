@@ -4054,6 +4054,10 @@ class NNOpsBehaviorTest(testing.TestCase):
         ):
             knn.layer_normalization(x, rms_scaling=True)
 
+    def test_unfold_non_tensor_input(self):
+        x = np.arange(8, dtype="float32").reshape(1, 1, 2, 4)
+        self.assertAllClose(knn.unfold(x, 2), knn.unfold(ops.array(x), 2))
+
     def test_unfold(self):
         # test 1 kernel_size=2
         x = ops.arange(8, dtype="float32")
