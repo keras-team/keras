@@ -17,8 +17,8 @@ class ArrayLike:
     def __init__(self, values):
         self.values = values
 
-    def __array__(self):
-        return np.array(self.values)
+    def __array__(self, dtype=None):
+        return np.array(self.values, dtype=dtype)
 
 
 @pytest.mark.skipif(
