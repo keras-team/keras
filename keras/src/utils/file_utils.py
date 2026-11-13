@@ -639,7 +639,7 @@ def makedirs(path):
             return gfile.makedirs(path)
         # Match `gfile.makedirs`, which does not fail if `path` exists.
         return epath.Path(path).mkdir(parents=True, exist_ok=True)
-    return os.makedirs(path)
+    return os.makedirs(path, exist_ok=True)
 
 
 def getmtime(path):

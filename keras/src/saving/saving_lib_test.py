@@ -2,6 +2,10 @@
 
 import json
 import os
+import socket
+import subprocess
+import sys
+import textwrap
 import warnings
 import zipfile
 from io import BytesIO
@@ -1152,6 +1156,16 @@ class SavingAPITest(testing.TestCase):
         model = keras.saving.load_model(temp_filepath)
         self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
 
+    def test_model_api_endpoint_unzipped_existing_directory(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel")
+        model = _get_basic_functional_model(compile=False)
+        model.save(temp_filepath, zipped=False)
+        model.set_weights([w + 1 for w in model.get_weights()])
+        model.save(temp_filepath, zipped=False)
+        loaded_model = keras.saving.load_model(temp_filepath)
+        for w_ref, w in zip(model.variables, loaded_model.variables):
+            self.assertAllClose(w, w_ref)
+
     def test_model_api_errors(self):
         model = _get_basic_functional_model()
 
@@ -2281,3 +2295,89 @@ class SavingDiskIOStoreTest(testing.TestCase):
         for bad in ["../escape", "/abs", os.path.join("x", "..", "..", "y")]:
             with self.assertRaisesRegex(ValueError, "Invalid asset path"):
                 store._full_path(bad)
+
+
+# Runs in each process of a 2-process JAX job. Each process saves to a
+# directory that only it uses, like a disk local to its host.
+_SAVE_FROM_EACH_PROCESS = textwrap.dedent(
+    """
+    import os
+    import sys
+
+    import keras
+
+    process_id, port, directory = sys.argv[1:]
+    keras.distribution.initialize(
+        job_addresses=f"127.0.0.1:{port}",
+        num_processes=2,
+        process_id=int(process_id),
+    )
+    distribution = keras.distribution.DataParallel(auto_shard_dataset=False)
+    with distribution.scope():
+        model = keras.Sequential([keras.Input((4,)), keras.layers.Dense(2)])
+        model.save(os.path.join(directory, "model.keras"))
+        model.save_weights(os.path.join(directory, "model.weights.h5"))
+    """
+)
+
+
+@pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
+class MultiProcessSavingTest(testing.TestCase):
+    def test_jax_processes_write_their_own_saves(self):
+        # Only the PyTorch backend writes from process 0 alone. A JAX process
+        # can save to a path that the other processes cannot see.
+        # The processes import the Keras that runs this test. They keep the
+        # working directory of this process, so that a relative path in the
+        # environment, such as `KERAS_HOME` in CI, points to the same place.
+        python_path = [os.path.dirname(os.path.dirname(keras.__file__))]
+        if os.environ.get("PYTHONPATH"):
+            python_path.append(os.environ["PYTHONPATH"])
+        env = dict(
+            os.environ,
+            KERAS_BACKEND="jax",
+            JAX_PLATFORMS="cpu",
+            JAX_CPU_COLLECTIVES_IMPLEMENTATION="gloo",
+            XLA_FLAGS="--xla_force_host_platform_device_count=1",
+            PYTHONPATH=os.pathsep.join(python_path),
+        )
+        env.pop("JAX_NUM_CPU_DEVICES", None)
+        with socket.socket() as s:
+            s.bind(("127.0.0.1", 0))
+            port = str(s.getsockname()[1])
+
+        directories = []
+        processes = []
+        for process_id in range(2):
+            directory = os.path.join(self.get_temp_dir(), str(process_id))
+            os.makedirs(directory)
+            directories.append(directory)
+            processes.append(
+                subprocess.Popen(
+                    [
+                        sys.executable,
+                        "-c",
+                        _SAVE_FROM_EACH_PROCESS,
+                        str(process_id),
+                        port,
+                        directory,
+                    ],
+                    env=env,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                )
+            )
+        for process in processes:
+            try:
+                output, _ = process.communicate(timeout=120)
+            except subprocess.TimeoutExpired:
+                for p in processes:
+                    p.kill()
+                self.fail("A process of the JAX job did not finish.")
+            self.assertEqual(process.returncode, 0, msg=output[-2000:])
+
+        for directory in directories:
+            self.assertEqual(
+                sorted(os.listdir(directory)),
+                ["model.keras", "model.weights.h5"],
+            )

@@ -54,6 +54,14 @@ def save_model(model, filepath, overwrite=True, zipped=None, **kwargs):
     - The model's optimizer's state (if any)
 
     Thus models can be reinstantiated in the exact same state.
+
+    With the PyTorch backend, in a multi-process run, only process 0 writes
+    the saved model (except in the legacy `.h5` format), so the path must
+    be on a filesystem that all the processes share. The other processes
+    return without waiting for the write to finish. When variables are
+    sharded across processes, call `save_model()` on every process: each
+    process holds only its own shards, and gathering them is a collective
+    operation that all the processes must take part in.
     """
     include_optimizer = kwargs.pop("include_optimizer", True)
     save_format = kwargs.pop("save_format", False)

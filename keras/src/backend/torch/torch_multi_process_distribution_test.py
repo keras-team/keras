@@ -1,3 +1,4 @@
+import io
 import os
 import sys
 
@@ -10,6 +11,7 @@ from torch.distributed.tensor import DTensor
 from torch.distributed.tensor import Replicate
 from torch.distributed.tensor import Shard
 
+from keras.src import callbacks
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
@@ -18,6 +20,7 @@ from keras.src import testing
 from keras.src.backend import backend
 from keras.src.backend.torch import distribution_lib as torch_distribution_lib
 from keras.src.distribution import distribution_lib
+from keras.src.saving import saving_lib
 from keras.src.trainers.data_adapters import tf_dataset_adapter
 from keras.src.utils import rng_utils
 
@@ -121,6 +124,22 @@ class TorchMultiProcessDistributeTest(
         return models.Sequential(
             [layers.Input(shape=(8,)), layers.Dense(units)]
         )
+
+    def _shared_temp_dir(self):
+        """Returns a temporary directory that all the processes share."""
+        process_id = torch_distribution_lib.process_id()
+        paths = [self.get_temp_dir() if process_id == 0 else None]
+        torch.distributed.broadcast_object_list(paths, src=0)
+        # Process 0 removes the directory when its test ends, so every
+        # process waits for the others before that.
+        self.addCleanup(torch.distributed.barrier)
+        return paths[0]
+
+    def _assert_weights_equal(self, model, weights):
+        actual = model.get_weights()
+        self.assertEqual(len(actual), len(weights))
+        for a, b in zip(actual, weights):
+            self.assertAllClose(a, b)
 
     def test_list_device(self):
         devices = distribution_lib.list_devices()
@@ -496,6 +515,150 @@ class TorchMultiProcessDistributeTest(
             self.assertAllClose(outputs, x @ kernel + bias, atol=1e-5)
             outputs = model.predict_on_batch(x)
             self.assertAllClose(outputs, x @ kernel + bias, atol=1e-5)
+
+    def test_save_and_load_sharded_model_through_file_object(self):
+        num_processes = torch_distribution_lib.num_processes()
+        distribution = self._model_parallel((1, num_processes))
+        rng = np.random.default_rng(0)
+        x = rng.random((8, 8), dtype="float32")
+        y = rng.random((8, 4), dtype="float32")
+
+        with distribution.scope():
+            model = self._dense_model(4)
+            model.compile(optimizer="adam", loss="mse")
+            model.fit(x, y, batch_size=8, epochs=1, shuffle=False, verbose=0)
+            # The optimizer slots are sharded like the kernel they belong to.
+            self.assertTrue(
+                any(
+                    isinstance(v.value, DTensor)
+                    for v in model.optimizer.variables
+                )
+            )
+
+            buffer = io.BytesIO()
+            saving_lib.save_model(model, buffer)
+            buffer.seek(0)
+            reloaded = saving_lib.load_model(buffer)
+
+            self.assertEqual(
+                len(reloaded.optimizer.variables),
+                len(model.optimizer.variables),
+            )
+            for original, restored in zip(
+                model.weights + model.optimizer.variables,
+                reloaded.weights + reloaded.optimizer.variables,
+            ):
+                self.assertAllClose(
+                    original.numpy(), restored.numpy(), msg=original.path
+                )
+
+    def test_save_to_shared_path_sharded_model(self):
+        num_processes = torch_distribution_lib.num_processes()
+        distribution = self._model_parallel((1, num_processes))
+        directory = self._shared_temp_dir()
+        model_path = os.path.join(directory, "model.keras")
+        weights_path = os.path.join(directory, "model.weights.h5")
+        sharded_path = os.path.join(directory, "sharded.weights.json")
+
+        with distribution.scope():
+            model = self._dense_model(4)
+            weights = model.get_weights()
+
+            # Every process saves to the same paths.
+            model.save(model_path)
+            model.save_weights(weights_path)
+            model.save_weights(sharded_path, max_shard_size=1)
+            # The other processes do not wait for process 0 to write.
+            torch.distributed.barrier()
+
+            self._assert_weights_equal(
+                saving_lib.load_model(model_path), weights
+            )
+            for path in (weights_path, sharded_path):
+                restored = self._dense_model(4)
+                restored.load_weights(path)
+                self._assert_weights_equal(restored, weights)
+
+    def test_only_process_zero_writes(self):
+        num_processes = torch_distribution_lib.num_processes()
+        process_id = torch_distribution_lib.process_id()
+        distribution = self._model_parallel((1, num_processes))
+        # Every process saves to its own directory.
+        directory = self.get_temp_dir()
+
+        with distribution.scope():
+            model = self._dense_model(4)
+            model.save(os.path.join(directory, "model.keras"))
+            model.save_weights(os.path.join(directory, "model.weights.h5"))
+
+        written = ["model.keras", "model.weights.h5"] if process_id == 0 else []
+        self.assertEqual(sorted(os.listdir(directory)), written)
+
+    def test_model_checkpoint_shared_path_data_parallel(self):
+        distribution = distribution_lib.DataParallel(
+            devices=distribution_lib.list_devices(), auto_shard_dataset=False
+        )
+        directory = self._shared_temp_dir()
+        # The directory does not exist yet: every process creates it.
+        checkpoint_path = os.path.join(
+            directory, "checkpoints", "ckpt.weights.h5"
+        )
+        rng = np.random.default_rng(0)
+        x = rng.random((16, 8), dtype="float32")
+        y = rng.random((16, 4), dtype="float32")
+
+        with distribution.scope():
+            model = self._dense_model(4)
+            model.compile(optimizer="sgd", loss="mse")
+            model.fit(
+                x,
+                y,
+                batch_size=8,
+                epochs=2,
+                shuffle=False,
+                verbose=0,
+                callbacks=[
+                    callbacks.ModelCheckpoint(
+                        checkpoint_path, save_weights_only=True
+                    )
+                ],
+            )
+            # The other processes do not wait for process 0 to write.
+            torch.distributed.barrier()
+
+            restored = self._dense_model(4)
+            restored.load_weights(checkpoint_path)
+            self._assert_weights_equal(restored, model.get_weights())
+
+    def test_backup_and_restore_shared_dir_data_parallel(self):
+        distribution = distribution_lib.DataParallel(
+            devices=distribution_lib.list_devices(), auto_shard_dataset=False
+        )
+        directory = self._shared_temp_dir()
+        # The directory does not exist yet: every process creates it.
+        backup_dir = os.path.join(directory, "backup")
+        rng = np.random.default_rng(0)
+        x = rng.random((16, 8), dtype="float32")
+        y = rng.random((16, 4), dtype="float32")
+
+        with distribution.scope():
+            model = self._dense_model(4)
+            model.compile(optimizer="sgd", loss="mse")
+            # The other processes can end training while process 0 still
+            # writes the last backup.
+            model.fit(
+                x,
+                y,
+                batch_size=8,
+                epochs=2,
+                shuffle=False,
+                verbose=0,
+                callbacks=[callbacks.BackupAndRestore(backup_dir)],
+            )
+            torch.distributed.barrier()
+
+            # Process 0 deletes the backup when training ends.
+            self.assertFalse(os.path.exists(backup_dir))
 
 
 if __name__ == "__main__":
