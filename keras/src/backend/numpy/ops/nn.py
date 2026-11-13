@@ -1494,6 +1494,15 @@ def dot_product_attention(
     if bias is not None:
         bias = convert_to_tensor(bias, dtype=compute_dtype)
 
+    num_query_heads = query.shape[2]
+    num_kv_heads = key.shape[2]
+    if num_query_heads > num_kv_heads and num_kv_heads > 1:
+        # Grouped-query attention: share each key/value head between a group
+        # of query heads.
+        groups = num_query_heads // num_kv_heads
+        key = np.repeat(key, groups, axis=2)
+        value = np.repeat(value, groups, axis=2)
+
     _, _, _, H = key.shape
     scale = (1.0 / np.sqrt(H)) if scale is None else scale
     return _dot_product_attention_xla(
