@@ -18,6 +18,7 @@ from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
 from keras.src.utils import traceback_utils
+from keras.src.utils import tracking
 from keras.src.utils.python_utils import pythonify_logs
 
 if is_nnx_enabled():
@@ -131,6 +132,8 @@ class Trainer(base_trainer.BaseTrainer):
         self.test_function = None
         self.predict_function = None
         self._jax_state_synced = True
+        with tracking.DotNotTrackScope():
+            self._jax_state = {}
 
     def compute_loss_and_updates(
         self,
@@ -534,12 +537,16 @@ class Trainer(base_trainer.BaseTrainer):
 
                         # Setting _jax_state enables callbacks to force a state
                         # sync if they need to.
-                        self._jax_state = {
-                            "trainable_variables": trainable_variables,
-                            "non_trainable_variables": non_trainable_variables,
-                            "optimizer_variables": optimizer_variables,
-                            "metrics_variables": metrics_variables,
-                        }
+                        self._jax_state.update(
+                            {
+                                "trainable_variables": trainable_variables,
+                                "non_trainable_variables": (
+                                    non_trainable_variables
+                                ),
+                                "optimizer_variables": optimizer_variables,
+                                "metrics_variables": metrics_variables,
+                            }
+                        )
                         # Dispatch callbacks. This takes care of async dispatch.
                         callbacks.on_train_batch_end(end_step, logs)
 
@@ -608,7 +615,7 @@ class Trainer(base_trainer.BaseTrainer):
                 del self._eval_epoch_iterator
             if training_finished:
                 callbacks.on_train_end(logs=training_logs)
-            self._jax_state = None
+            self._jax_state.clear()
         return self.history
 
     @traceback_utils.filter_traceback
@@ -689,13 +696,15 @@ class Trainer(base_trainer.BaseTrainer):
 
                 # Setting _jax_state enables callbacks to force a state sync
                 # if they need to.
-                self._jax_state = {
-                    # I wouldn't recommend modifying non-trainable model state
-                    # during evaluate(), but it's allowed.
-                    "trainable_variables": trainable_variables,
-                    "non_trainable_variables": non_trainable_variables,
-                    "metrics_variables": metrics_variables,
-                }
+                self._jax_state.update(
+                    {
+                        # I wouldn't recommend modifying non-trainable model
+                        # state during evaluate(), but it's allowed.
+                        "trainable_variables": trainable_variables,
+                        "non_trainable_variables": non_trainable_variables,
+                        "metrics_variables": metrics_variables,
+                    }
+                )
 
                 # Dispatch callbacks. This takes care of async dispatch.
                 callbacks.on_test_batch_end(end_step, logs)
@@ -708,7 +717,7 @@ class Trainer(base_trainer.BaseTrainer):
 
         logs = pythonify_logs(self._get_metrics_result_or_logs(logs))
         callbacks.on_test_end(logs)
-        self._jax_state = None
+        self._jax_state.clear()
 
         if return_dict:
             return logs
@@ -790,12 +799,14 @@ class Trainer(base_trainer.BaseTrainer):
                     trainable_variables,
                     non_trainable_variables,
                 ) = state
-                self._jax_state = {
-                    "trainable_variables": trainable_variables,
-                    # I wouldn't recommend modifying non-trainable model state
-                    # during predict(), but it's allowed.
-                    "non_trainable_variables": non_trainable_variables,
-                }
+                self._jax_state.update(
+                    {
+                        "trainable_variables": trainable_variables,
+                        # I wouldn't recommend modifying non-trainable model
+                        # state during predict(), but it's allowed.
+                        "non_trainable_variables": non_trainable_variables,
+                    }
+                )
                 outputs = append_to_outputs(batch_outputs, outputs)
 
                 # Dispatch callbacks. This takes care of async dispatch.
@@ -808,7 +819,7 @@ class Trainer(base_trainer.BaseTrainer):
 
         self.state_sync()
         callbacks.on_predict_end()
-        self._jax_state = None
+        self._jax_state.clear()
         return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
 
     def train_on_batch(
@@ -858,13 +869,16 @@ class Trainer(base_trainer.BaseTrainer):
             optimizer_variables,
             metrics_variables,
         ) = state
-        self._jax_state = {
-            "trainable_variables": trainable_variables,
-            "non_trainable_variables": non_trainable_variables,
-            "optimizer_variables": optimizer_variables,
-            "metrics_variables": metrics_variables,
-        }
+        self._jax_state.update(
+            {
+                "trainable_variables": trainable_variables,
+                "non_trainable_variables": non_trainable_variables,
+                "optimizer_variables": optimizer_variables,
+                "metrics_variables": metrics_variables,
+            }
+        )
         self.state_sync()
+        self._jax_state.clear()
 
         # Format return values
         logs = pythonify_logs(logs)
@@ -901,12 +915,15 @@ class Trainer(base_trainer.BaseTrainer):
 
         # State sync
         trainable_variables, non_trainable_variables, metrics_variables = state
-        self._jax_state = {
-            "trainable_variables": trainable_variables,
-            "non_trainable_variables": non_trainable_variables,
-            "metrics_variables": metrics_variables,
-        }
+        self._jax_state.update(
+            {
+                "trainable_variables": trainable_variables,
+                "non_trainable_variables": non_trainable_variables,
+                "metrics_variables": metrics_variables,
+            }
+        )
         self.state_sync()
+        self._jax_state.clear()
 
         # Format return values.
         logs = pythonify_logs(logs)
@@ -934,11 +951,14 @@ class Trainer(base_trainer.BaseTrainer):
 
         batch_outputs, state = self.predict_function(state, data())
         trainable_variables, non_trainable_variables = state
-        self._jax_state = {
-            "trainable_variables": trainable_variables,
-            "non_trainable_variables": non_trainable_variables,
-        }
+        self._jax_state.update(
+            {
+                "trainable_variables": trainable_variables,
+                "non_trainable_variables": non_trainable_variables,
+            }
+        )
         self.state_sync()
+        self._jax_state.clear()
         batch_outputs = tree.map_structure(lambda x: np.array(x), batch_outputs)
         return batch_outputs
 
@@ -958,7 +978,7 @@ class Trainer(base_trainer.BaseTrainer):
         self._symbolic_build(data_batch=data_batch)
 
     def state_sync(self):
-        if not getattr(self, "_jax_state", None) or self._jax_state_synced:
+        if not self._jax_state or self._jax_state_synced:
             return
 
         trainable_variables = self._jax_state.get("trainable_variables", None)
