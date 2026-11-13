@@ -1611,7 +1611,9 @@ def divide_no_nan(x1, x2):
     x2 = convert_to_tensor(x2, dtype)
     # No need for the double-where trick since we don't calculate gradients in
     # numpy backend.
-    return np.where(x2 == 0, np.array(0, dtype=dtype), np.divide(x1, x2))
+    # Suppress the spurious divide-by-zero warning for discarded elements.
+    with np.errstate(divide="ignore", invalid="ignore"):
+        return np.where(x2 == 0, np.array(0, dtype=dtype), np.divide(x1, x2))
 
 
 def true_divide(x1, x2):
