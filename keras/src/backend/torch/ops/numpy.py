@@ -1333,7 +1333,8 @@ def linspace(
     if hasattr(start, "__len__") and hasattr(stop, "__len__"):
         start = convert_to_tensor(start, dtype=dtype)
         stop = convert_to_tensor(stop, dtype=dtype)
-        steps = torch.arange(num, dtype=dtype, device=get_device()) / (num - 1)
+        steps = torch.arange(num, dtype=dtype, device=get_device())
+        steps = steps / builtins.max(num - 1, 1)
 
         # reshape `steps` to allow for broadcasting
         for i in range(start.ndim):
@@ -1425,7 +1426,8 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     if hasattr(start, "__len__") and hasattr(stop, "__len__"):
         start = convert_to_tensor(start, dtype=dtype)
         stop = convert_to_tensor(stop, dtype=dtype)
-        steps = torch.arange(num, dtype=dtype, device=get_device()) / (num - 1)
+        steps = torch.arange(num, dtype=dtype, device=get_device())
+        steps = steps / builtins.max(num - 1, 1)
 
         # reshape `steps` to allow for broadcasting
         for i in range(start.ndim):
