@@ -1,7 +1,9 @@
 import importlib
 import os
+import re
 import subprocess
 import sys
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -16,6 +18,14 @@ REPO_ROOT = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 )
 CONFTEST_PATH = os.path.join(REPO_ROOT, "conftest.py")
+ALL_BACKENDS = sorted(
+    list(config.BUILT_IN_BACKENDS) + list(config.PLUGGABLE_BACKENDS)
+)
+
+
+def _exact(message):
+    """Returns a regex matching `message` as the whole exception text."""
+    return f"^{re.escape(message)}$"
 
 
 class LazyModuleTest(test_case.TestCase):
@@ -122,7 +132,11 @@ class UnofficialBackendTest(test_case.TestCase):
         env = os.environ.copy()
         env.pop("KERAS_ALLOW_UNOFFICIAL_BACKEND", None)
         env.update(extra_env)
-        env["PYTHONPATH"] = f"{self.temp_dir}{os.pathsep}{REPO_ROOT}"
+        pythonpath = f"{self.temp_dir}{os.pathsep}{REPO_ROOT}"
+        existing = env.get("PYTHONPATH", "")
+        env["PYTHONPATH"] = (
+            f"{pythonpath}{os.pathsep}{existing}" if existing else pythonpath
+        )
         proc = subprocess.run(
             [sys.executable, "-c", code],
             env=env,
@@ -144,10 +158,20 @@ class UnofficialBackendTest(test_case.TestCase):
     )
     def test_unofficial_backend_flag_off(self, val):
         self._set_allow_unofficial(val)
-        with self.assertRaisesRegex(ValueError, "Unsupported backend"):
-            module_utils.get_pluggable_backend_module(backend="dummy")
-        with self.assertRaisesRegex(ValueError, "Available backends are"):
-            backend_utils.DynamicBackend().set_backend("dummy")
+        # Messages are unchanged for identifiers and non-identifiers alike.
+        for name in ("dummy", "foo-bar"):
+            with self.assertRaisesRegex(
+                ValueError, _exact(f"Unsupported backend : {name}")
+            ):
+                module_utils.get_pluggable_backend_module(backend=name)
+            with self.assertRaisesRegex(
+                ValueError,
+                _exact(
+                    f"Available backends are ({ALL_BACKENDS}). "
+                    f"Received: backend={name}"
+                ),
+            ):
+                backend_utils.DynamicBackend().set_backend(name)
 
     @parameterized.named_parameters(
         ("true", "true"),
@@ -180,15 +204,34 @@ class UnofficialBackendTest(test_case.TestCase):
     def test_unofficial_backend_invalid_identifier(self, invalid_name):
         self._set_allow_unofficial("true")
         self.assertFalse(config.backend_is_pluggable(invalid_name))
-        with self.assertRaisesRegex(ValueError, "Unsupported backend"):
-            module_utils.get_pluggable_backend_module(backend=invalid_name)
-        with self.assertRaisesRegex(ValueError, "Available backends are"):
+
+        hint = (
+            ". When KERAS_ALLOW_UNOFFICIAL_BACKEND is set, the backend "
+            "name must be a valid Python identifier."
+        )
+        # An empty name means "use the current backend" in
+        # `get_pluggable_backend_module`, so it is only checked in
+        # `set_backend`.
+        if invalid_name:
+            with self.assertRaisesRegex(
+                ValueError,
+                _exact(f"Unsupported backend : {invalid_name}{hint}"),
+            ):
+                module_utils.get_pluggable_backend_module(backend=invalid_name)
+        with self.assertRaisesRegex(
+            ValueError,
+            _exact(
+                f"Available backends are ({ALL_BACKENDS}). "
+                f"Received: backend={invalid_name}{hint}"
+            ),
+        ):
             backend_utils.DynamicBackend().set_backend(invalid_name)
 
     def test_unofficial_backend_missing_package(self):
         self._set_allow_unofficial("true")
         with self.assertRaisesRegex(
-            ImportError, "pip install keras-dummy_missing"
+            ImportError,
+            _exact("The keras_dummy_missing package could not be imported."),
         ):
             module_utils.get_pluggable_backend_module(backend="dummy_missing")
         self.assertIsNone(
@@ -201,8 +244,30 @@ class UnofficialBackendTest(test_case.TestCase):
         self._set_allow_unofficial("true")
         self.assertFalse(config.backend_is_pluggable("jax"))
         self.assertFalse(config.backend_is_pluggable("tensorflow"))
-        with self.assertRaisesRegex(ValueError, "Unsupported backend"):
+        with self.assertRaisesRegex(
+            ValueError, _exact("Unsupported backend : jax")
+        ):
             module_utils.get_pluggable_backend_module(backend="jax")
+
+    def test_official_pluggable_backend_returns_true(self):
+        self.assertTrue(config.backend_is_pluggable("mlx"))
+
+    def test_official_pluggable_backend_missing(self):
+        # Simulate a missing `keras_mlx` whether or not it is installed.
+        with mock.patch.object(
+            importlib, "import_module", side_effect=ImportError
+        ):
+            with self.assertRaisesRegex(
+                ImportError,
+                _exact(
+                    "The mlx backend is not installed. "
+                    "You can install it via `pip install keras-mlx`"
+                ),
+            ):
+                module_utils.get_pluggable_backend_module(backend="mlx")
+
+    def test_backend_is_pluggable_unhashable_type(self):
+        self.assertFalse(config.backend_is_pluggable(["x"]))
 
     @pytest.mark.skipif(
         not os.path.exists(CONFTEST_PATH),

@@ -21,15 +21,50 @@ BUILT_IN_BACKENDS = frozenset(["jax", "numpy", "tensorflow", "torch"])
 PLUGGABLE_BACKENDS = frozenset(["mlx", "openvino", "paddle"])
 
 
+def is_unofficial_backend_allowed():
+    """Checks if unofficial pluggable backends are allowed via env var."""
+    env_val = os.environ.get("KERAS_ALLOW_UNOFFICIAL_BACKEND", "").lower()
+    return env_val in ("true", "1", "yes")
+
+
+def unofficial_backend_error_appendage(name):
+    """Returns the error message appendage for invalid backend names."""
+    if is_unofficial_backend_allowed() and (
+        not isinstance(name, str) or not name.isidentifier()
+    ):
+        return (
+            ". When KERAS_ALLOW_UNOFFICIAL_BACKEND is set, the backend "
+            "name must be a valid Python identifier."
+        )
+    return ""
+
+
 def backend_is_pluggable(name):
+    """Returns whether backend `name` is loaded from a `keras_<name>` package.
+
+    Official pluggable backends (`PLUGGABLE_BACKENDS`) always qualify and
+    built-in backends (`BUILT_IN_BACKENDS`) never do. Any other name only
+    qualifies when the `KERAS_ALLOW_UNOFFICIAL_BACKEND` environment variable
+    is set to `true`, `1` or `yes` (case-insensitive) and the name is a valid
+    Python identifier. The variable is read at call time and is unset by
+    default.
+
+    Args:
+        name: String, the backend name.
+
+    Returns:
+        `True` if the backend should be imported from the package
+        `keras_<name>`, `False` otherwise.
+    """
+    if not isinstance(name, str):
+        return False
     if name in PLUGGABLE_BACKENDS:
         return True
     if name in BUILT_IN_BACKENDS:
         return False
 
-    env_val = os.environ.get("KERAS_ALLOW_UNOFFICIAL_BACKEND", "").lower()
-    if env_val in ("true", "1", "yes"):
-        return isinstance(name, str) and name.isidentifier()
+    if is_unofficial_backend_allowed():
+        return name.isidentifier()
 
     return False
 
