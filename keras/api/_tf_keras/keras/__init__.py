@@ -35,6 +35,12 @@ from keras._tf_keras.keras import preprocessing as preprocessing
 from keras.src.backend import Variable as Variable
 from keras.src.backend import device as device
 from keras.src.backend import name_scope as name_scope
+from keras.src.backend.common.functional_scope import (
+    FunctionalScope as FunctionalScope,
+)
+from keras.src.backend.common.functional_scope import (
+    in_functional_scope as in_functional_scope,
+)
 from keras.src.backend.common.keras_tensor import KerasTensor as KerasTensor
 from keras.src.backend.common.remat import RematScope as RematScope
 from keras.src.backend.common.remat import remat as remat
