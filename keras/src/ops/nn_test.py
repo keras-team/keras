@@ -2737,6 +2737,22 @@ class NNOpsCorrectnessTest(testing.TestCase):
         )
         self.assertAllClose(result, [0.001822, 0.000459, 0.169846])
 
+    def test_crossentropy_small_probabilities(self):
+        # Probabilities below `epsilon()` must not be clipped, otherwise the
+        # loss is constant and its gradient is zero for confident mistakes.
+        output = np.array([[1e-20, 1.0, 0.0]], dtype="float32")
+        expected = -np.log(1e-20)
+        result = knn.categorical_crossentropy(
+            np.array([[1.0, 0.0, 0.0]], dtype="float32"), output
+        )
+        self.assertAllClose(result, [expected], rtol=1e-5)
+        result = knn.sparse_categorical_crossentropy(np.array([0]), output)
+        self.assertAllClose(result, [expected], rtol=1e-5)
+        result = knn.binary_crossentropy(
+            np.array([1.0], dtype="float32"), output[0, :1]
+        )
+        self.assertAllClose(result, [expected], rtol=1e-5)
+
     @parameterized.named_parameters(
         [
             {"testcase_name": "dense", "sparse": False},

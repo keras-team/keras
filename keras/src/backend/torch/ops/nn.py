@@ -18,6 +18,7 @@ from keras.src.backend.common.backend_utils import (
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_crops_for_torch,
 )
+from keras.src.backend.common.backend_utils import probability_floor
 from keras.src.backend.torch.ops.core import cast
 from keras.src.backend.torch.ops.core import convert_to_tensor
 from keras.src.backend.torch.ops.core import get_device
@@ -1005,7 +1006,11 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = tnn.log_softmax(output, dim=axis)
     else:
         output = output / torch.sum(output, dim=axis, keepdim=True)
-        output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        output = torch.clip(
+            output,
+            probability_floor(standardize_dtype(output.dtype)),
+            1.0 - backend.epsilon(),
+        )
         log_prob = torch.log(output)
     return -torch.sum(target * log_prob, dim=axis)
 
@@ -1050,7 +1055,11 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         result = tnn.cross_entropy(output, target, reduction="none")
     else:
         output = output / torch.sum(output, dim=1, keepdim=True)
-        output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        output = torch.clip(
+            output,
+            probability_floor(standardize_dtype(output.dtype)),
+            1.0 - backend.epsilon(),
+        )
         log_prob = torch.log(output)
         result = tnn.nll_loss(log_prob, target, reduction="none")
 
@@ -1080,7 +1089,11 @@ def binary_crossentropy(target, output, from_logits=False):
             output, target, reduction="none"
         )
 
-    output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+    output = torch.clip(
+        output,
+        probability_floor(standardize_dtype(output.dtype)),
+        1.0 - backend.epsilon(),
+    )
     # Before torch 2.10, the MPS `binary_cross_entropy` kernel squeezes every
     # size-1 dimension of its inputs but not of `grad_output`, so the backward
     # pass aborts or returns wrong gradients. Computing the loss on 1-D
