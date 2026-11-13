@@ -4330,8 +4330,8 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
     def test_gcd(self, backend_agnostic_ops):
         backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
         self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
-        x = np.array([[1, 2, 3], [3, 2, 1]])
-        y = np.array([[4, 5, 6], [3, 2, 1]])
+        x = np.array([[48, 18, 89, -12], [0, 7, 270, 5]])
+        y = np.array([[18, 48, 55, 18], [0, 13, 192, 0]])
         self.assertAllClose(knp.gcd(x, y), np.gcd(x, y))
         self.assertAllClose(knp.gcd(x, 2), np.gcd(x, 2))
         self.assertAllClose(knp.gcd(2, x), np.gcd(2, x))
