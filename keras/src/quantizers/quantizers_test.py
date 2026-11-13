@@ -12,6 +12,7 @@ from keras.src import ops
 from keras.src import quantizers
 from keras.src import random
 from keras.src import testing
+from keras.src import tree
 from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.quantizers import compute_quantization_parameters
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
@@ -22,7 +23,8 @@ from keras.src.quantizers.quantizers import ternarize
 from keras.src.testing.test_utils import named_product
 
 if backend.backend() == "torch":
-    from keras.src.backend.torch.test_utils import host_data_ops
+    from keras.src.backend.torch.test_utils import capture_cuda_graph
+    from keras.src.backend.torch.test_utils import skip_unless_cuda
 
 
 class QuantizersTest(testing.TestCase):
@@ -1145,67 +1147,49 @@ class TernarizeTest(testing.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "torch", reason="Records the torch dispatch."
+    backend.backend() != "torch", reason="Captures a torch CUDA graph."
 )
-class HostDataTest(testing.TestCase):
-    """The helpers that quantized layers run on each call use no host data.
+class CudaGraphCaptureTest(testing.TestCase):
+    """Quantized layer calls capture in a CUDA graph.
 
-    They pass Python numbers to ops. See `host_data_ops`.
+    The calls pass Python numbers to ops. A capture fails when an op copies
+    one from the host to the device.
     """
 
     @parameterized.named_parameters(
-        ("int4_int8", 4, "int8"),
-        ("int4_uint8", 4, "uint8"),
-        ("int2_int8", 2, "int8"),
-        ("int2_uint8", 2, "uint8"),
+        ("dense_int8", "dense", "int8", None),
+        ("dense_int4_per_channel", "dense", "int4", -1),
+        ("dense_int4_grouped", "dense", "int4", 8),
+        ("dense_ternary", "dense", "ternary", None),
+        ("dense_float8_training", "dense", "float8", None),
+        ("reversible_embedding_int4", "reversible_embedding", "int4", 8),
     )
-    def test_unpack_uses_no_host_data(self, bits, dtype):
-        packed = ops.convert_to_tensor(
-            np.arange(256, dtype="uint8").astype(dtype).reshape(16, 16)
-        )
-        unpack = quantizers.unpack_int4 if bits == 4 else quantizers.unpack_int2
-        # An odd length also trims the padding.
-        orig_len = 16 * (8 // bits) - 1
-        found = host_data_ops(
-            lambda: unpack(packed, orig_len, axis=0, dtype=dtype)
-        )
-        self.assertEqual(found, [])
-
-    def test_unpack_ternary_uses_no_host_data(self):
-        packed = ops.convert_to_tensor(
-            np.arange(243, dtype="uint8").reshape(27, 9)
-        )
-        found = host_data_ops(
-            lambda: quantizers.unpack_ternary(packed, 27 * 5 - 2, axis=0)
-        )
-        self.assertEqual(found, [])
-
-    @parameterized.named_parameters(
-        ("float32", "float32"), ("bfloat16", "bfloat16"), ("float16", "float16")
-    )
-    def test_activation_quantizer_uses_no_host_data(self, dtype):
-        # The int8 layers quantize their inputs with this quantizer.
-        values = ops.convert_to_tensor(
-            np.random.RandomState(0).randn(4, 32), dtype
-        )
-        found = host_data_ops(
-            lambda: quantizers.AbsMaxQuantizer()(values, axis=-1)
-        )
-        self.assertEqual(found, [])
-
-    def test_float8_training_step_uses_no_host_data(self):
-        # The forward and the backward pass update the scales and the amax
-        # histories.
-        if ops.convert_to_tensor(0).device.type == "mps":
-            self.skipTest("MPS has no float8 dtypes.")
-        layer = layers.Dense(8)
-        layer.build((None, 16))
-        layer.quantize("float8")
+    def test_quantized_call_captures(self, kind, mode, block_size):
+        skip_unless_cuda(self)
+        config = None
+        if block_size is not None:
+            config = quantizers.Int4QuantizationConfig(block_size=block_size)
         x = ops.convert_to_tensor(
             np.random.RandomState(0).randn(4, 16), "float32"
         )
+        if kind == "dense":
+            layer = layers.Dense(8)
+            layer.build((None, 16))
+            # The float8 forward updates the amax history in training.
+            training = mode == "float8"
 
-        def step():
-            ops.sum(layer(x, training=True)).backward()
+            def call():
+                return layer(x, training=training)
 
-        self.assertEqual(host_data_ops(step), [])
+        else:
+            layer = layers.ReversibleEmbedding(32, 16)
+            layer.build((None, 4))
+            ids = ops.convert_to_tensor(np.arange(8).reshape(2, 4), "int32")
+
+            def call():
+                return layer(ids), layer(x, reverse=True)
+
+        layer.quantize(mode, config=config)
+        eager, replayed = capture_cuda_graph(call)
+        for e, r in zip(tree.flatten(eager), tree.flatten(replayed)):
+            self.assertAllClose(r, e, atol=0, rtol=0)
