@@ -137,6 +137,15 @@ class PiecewiseConstantDecayTest(testing.TestCase):
         x_int64.assign(4)
         self.assertAllClose(decayed_lr(x_int64), 0.7, 1e-6)
 
+    def test_vector_step(self):
+        # Vector step should broadcast correctly (regression test for
+        # in-place += on 0-d result_value which failed on numpy/torch backends).
+        pcd = schedules.PiecewiseConstantDecay([100., 110.], [1., 0.5, 0.1])
+        steps = backend.ops.convert_to_tensor([0., 150.])
+        result = pcd(steps)
+        expected = backend.ops.convert_to_tensor([1., 0.1])
+        self.assertAllClose(result, expected)
+
 
 class LinearDecayTest(testing.TestCase):
     def test_config(self):
