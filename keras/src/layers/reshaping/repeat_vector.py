@@ -28,16 +28,7 @@ class RepeatVector(Layer):
 
     def __init__(self, n, **kwargs):
         super().__init__(**kwargs)
-        n = argument_validation.standardize_int(n)
-        if not isinstance(n, int) or isinstance(n, bool):
-            raise TypeError(
-                f"Expected an integer value for `n`, got {type(n)}."
-            )
-        if n <= 0:
-            raise ValueError(
-                f"Argument `n` should be a positive integer. Received: n={n}"
-            )
-        self.n = n
+        self.n = argument_validation.validate_int("n", n, min_value=1)
         self.input_spec = InputSpec(ndim=2)
 
     def compute_output_shape(self, input_shape):

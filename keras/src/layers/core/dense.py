@@ -92,12 +92,7 @@ class Dense(Layer):
         quantization_config=None,
         **kwargs,
     ):
-        units = argument_validation.standardize_int(units)
-        if not isinstance(units, int) or units <= 0:
-            raise ValueError(
-                "Received an invalid value for `units`, expected a positive "
-                f"integer. Received: units={units}"
-            )
+        units = argument_validation.validate_int("units", units, min_value=1)
 
         super().__init__(activity_regularizer=activity_regularizer, **kwargs)
         self.units = units

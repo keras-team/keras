@@ -78,33 +78,25 @@ class DropoutTest(testing.TestCase):
 
     def test_validate_noise_shape_non_iterable(self):
         with self.assertRaisesRegex(
-            ValueError,
-            "Invalid value received for argument `noise_shape`. "
-            "Expected a tuple or list of integers.",
+            TypeError, "Expected `noise_shape` to be a list or a tuple"
         ):
             layers.Dropout(0.5, noise_shape="Invalid")
 
     def test_validate_noise_shape_invalid_type(self):
         with self.assertRaisesRegex(
-            ValueError,
-            "Invalid value received for argument `noise_shape`. "
-            "Expected all elements to be integers or None.",
+            TypeError, r"Expected `noise_shape\[1\]` to be an integer"
         ):
             layers.Dropout(0.5, noise_shape=(20, 1.5, 10))
 
     def test_validate_noise_shape_negative_value(self):
         with self.assertRaisesRegex(
-            ValueError,
-            "Invalid value received for argument `noise_shape`. "
-            "Expected all dimensions to be positive integers or None.",
+            ValueError, r"Expected `noise_shape\[1\]` to be an integer >= 1"
         ):
             layers.Dropout(0.5, noise_shape=(20, -1, 10))
 
     def test_validate_noise_shape_zero_value(self):
         with self.assertRaisesRegex(
-            ValueError,
-            "Invalid value received for argument `noise_shape`. "
-            "Expected all dimensions to be positive integers or None.",
+            ValueError, r"Expected `noise_shape\[1\]` to be an integer >= 1"
         ):
             layers.Dropout(0.5, noise_shape=(20, 0, 10))
 

@@ -50,15 +50,15 @@ class AdaptiveMaxPooling2D(BaseAdaptiveMaxPooling):
     """
 
     def __init__(self, output_size, data_format=None, **kwargs):
-        output_size = argument_validation.standardize_int(output_size)
-        if isinstance(output_size, int):
-            output_size_tuple = (output_size, output_size)
-        elif isinstance(output_size, (tuple, list)) and len(output_size) == 2:
-            output_size_tuple = tuple(output_size)
-        else:
-            raise TypeError(
-                f"`output_size` must be an integer or (height, width) tuple. "
-                f"Received: {output_size} of type {type(output_size)}"
+        if isinstance(output_size, (list, tuple)):
+            output_size_tuple = tuple(
+                argument_validation.validate_int_sequence(
+                    "output_size", output_size, length=2
+                )
             )
+        else:
+            output_size_tuple = (
+                argument_validation.validate_int("output_size", output_size),
+            ) * 2
 
         super().__init__(output_size_tuple, data_format, **kwargs)

@@ -242,23 +242,12 @@ class Dot(Merge):
 
     def __init__(self, axes, normalize=False, **kwargs):
         super().__init__(**kwargs)
-        axes = argument_validation.standardize_int(axes)
-        if not isinstance(axes, int):
-            if not isinstance(axes, (list, tuple)):
-                raise TypeError(
-                    f"Invalid type for argument `axes`: it should be "
-                    f"a list or an int. Received: axes={axes}"
-                )
-            if len(axes) != 2:
-                raise ValueError(
-                    f"Invalid format for argument `axes`: it should contain "
-                    f"two elements. Received: axes={axes}"
-                )
-            if not isinstance(axes[0], int) or not isinstance(axes[1], int):
-                raise ValueError(
-                    f"Invalid format for argument `axes`: list elements should "
-                    f"be integers. Received: axes={axes}"
-                )
+        if isinstance(axes, (list, tuple)):
+            axes = argument_validation.validate_int_sequence(
+                "axes", axes, length=2
+            )
+        else:
+            axes = argument_validation.validate_int("axes", axes)
         self.axes = axes
         self.normalize = normalize
         self.supports_masking = True

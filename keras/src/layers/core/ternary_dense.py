@@ -117,12 +117,7 @@ class TernaryDense(Layer):
         bias_constraint=None,
         **kwargs,
     ):
-        units = argument_validation.standardize_int(units)
-        if not isinstance(units, int) or units <= 0:
-            raise ValueError(
-                "Received an invalid value for `units`, expected a positive "
-                f"integer. Received: units={units}"
-            )
+        units = argument_validation.validate_int("units", units, min_value=1)
         if threshold is not None and not isinstance(threshold, (int, float)):
             raise ValueError(
                 "Received an invalid value for `threshold`, expected a float "

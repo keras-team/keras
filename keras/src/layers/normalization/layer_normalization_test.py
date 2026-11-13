@@ -85,10 +85,13 @@ class LayerNormalizationTest(testing.TestCase):
 
     def test_invalid_axis(self):
         with self.assertRaisesRegex(
-            TypeError,
-            ("Expected an int or a list/tuple of ints for the argument 'axis'"),
+            TypeError, "Expected `axis` to be an integer"
         ):
             layers.LayerNormalization(axis={"axis": -1})
+        with self.assertRaisesRegex(
+            TypeError, r"Expected `axis\[1\]` to be an integer"
+        ):
+            layers.LayerNormalization(axis=[1, 2.0])
 
     def test_out_of_bounds_axis(self):
         # `build()` used to index `input_shape` directly, so an out-of-bounds

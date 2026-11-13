@@ -96,12 +96,7 @@ class SimpleRNNCell(Layer, DropoutRNNCell):
         seed=None,
         **kwargs,
     ):
-        units = argument_validation.standardize_int(units)
-        if units <= 0:
-            raise ValueError(
-                "Received an invalid value for argument `units`, "
-                f"expected a positive integer, got {units}."
-            )
+        units = argument_validation.validate_int("units", units, min_value=1)
         super().__init__(**kwargs)
         self.seed = seed
         self.seed_generator = backend.random.SeedGenerator(seed)

@@ -19,7 +19,7 @@ class SeedGeneratorTest(testing.TestCase):
         self.assertEqual(ops.convert_to_numpy(gen.state)[0], seed)
 
         with self.assertRaisesRegex(
-            ValueError, "Argument `seed` must be an integer"
+            TypeError, "Expected `seed` to be an integer or `None`"
         ):
             seed_generator.SeedGenerator(seed="invalid_seed")
 

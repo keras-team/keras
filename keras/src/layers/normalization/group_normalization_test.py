@@ -73,8 +73,13 @@ class GroupNormalizationTest(testing.TestCase):
             _ = layer(inputs)
 
     def test_groups_rejects_invalid_values(self):
-        for bad in (0, -2, 1.5, "32"):
+        for bad in (0, -2):
             with self.assertRaisesRegex(ValueError, "argument `groups`"):
+                layers.GroupNormalization(groups=bad)
+        for bad in (1.5, "32"):
+            with self.assertRaisesRegex(
+                TypeError, "Expected `groups` to be an integer"
+            ):
                 layers.GroupNormalization(groups=bad)
         # `-1` is the documented sentinel for instance normalization.
         layers.GroupNormalization(groups=-1)

@@ -128,16 +128,12 @@ class LayerNormalization(Layer):
             )
 
         super().__init__(**kwargs)
-        axis = argument_validation.standardize_int(axis)
         if isinstance(axis, (list, tuple)):
-            self.axis = list(axis)
-        elif isinstance(axis, int):
-            self.axis = axis
-        else:
-            raise TypeError(
-                "Expected an int or a list/tuple of ints for the "
-                "argument 'axis', but received: %r" % axis
+            self.axis = list(
+                argument_validation.validate_int_sequence("axis", axis)
             )
+        else:
+            self.axis = argument_validation.validate_int("axis", axis)
 
         self.epsilon = epsilon
         self.center = center

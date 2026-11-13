@@ -138,11 +138,16 @@ class EinsumDense(Layer):
     ):
         super().__init__(**kwargs)
         self.equation = equation
-        output_shape = argument_validation.standardize_int(output_shape)
-        if isinstance(output_shape, int):
-            self.partial_output_shape = (output_shape,)
+        if isinstance(output_shape, (list, tuple)):
+            self.partial_output_shape = tuple(
+                argument_validation.validate_int_sequence(
+                    "output_shape", output_shape, allow_none=True
+                )
+            )
         else:
-            self.partial_output_shape = tuple(output_shape)
+            self.partial_output_shape = (
+                argument_validation.validate_int("output_shape", output_shape),
+            )
         self.bias_axes = bias_axes
         self.activation = activations.get(activation)
         self.kernel_initializer = initializers.get(kernel_initializer)

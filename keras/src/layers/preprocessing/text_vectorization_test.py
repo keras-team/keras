@@ -582,7 +582,9 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         self.assertNotIn("unique_word", vocab)
 
     def test_invalid_ngrams(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            TypeError, "Expected `ngrams` to be an integer or `None`"
+        ):
             layers.TextVectorization(ngrams="invalid")
 
     def test_output_sequence_length_with_non_int_mode(self):

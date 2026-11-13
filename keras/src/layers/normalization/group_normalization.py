@@ -80,8 +80,8 @@ class GroupNormalization(Layer):
         gamma_constraint=None,
         **kwargs,
     ):
-        groups = argument_validation.standardize_int(groups)
-        if not isinstance(groups, int) or (groups <= 0 and groups != -1):
+        groups = argument_validation.validate_int("groups", groups)
+        if groups <= 0 and groups != -1:
             raise ValueError(
                 "Received an invalid value for argument `groups`, expected "
                 "a positive integer (or `-1` for instance normalization). "

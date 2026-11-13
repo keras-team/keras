@@ -147,9 +147,15 @@ class STFTSpectrogram(layers.Layer):
         data_format=None,
         **kwargs,
     ):
-        frame_length = argument_validation.standardize_int(frame_length)
-        frame_step = argument_validation.standardize_int(frame_step)
-        fft_length = argument_validation.standardize_int(fft_length)
+        frame_length = argument_validation.validate_int(
+            "frame_length", frame_length, min_value=1
+        )
+        frame_step = argument_validation.validate_int(
+            "frame_step", frame_step, allow_none=True
+        )
+        fft_length = argument_validation.validate_int(
+            "fft_length", fft_length, allow_none=True
+        )
         if frame_step is not None and (
             frame_step > frame_length or frame_step < 1
         ):

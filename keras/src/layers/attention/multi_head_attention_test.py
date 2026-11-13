@@ -398,12 +398,12 @@ class MultiHeadAttentionTest(testing.TestCase):
             )
 
     def test_invalid_scalar_args_rejected(self):
-        for bad in (0, -2, 1.5):
-            with self.assertRaisesRegex(ValueError, "argument `num_heads`"):
+        for bad, error in ((0, ValueError), (-2, ValueError), (1.5, TypeError)):
+            with self.assertRaisesRegex(error, "Expected `num_heads`"):
                 layers.MultiHeadAttention(num_heads=bad, key_dim=4)
-            with self.assertRaisesRegex(ValueError, "argument `key_dim`"):
+            with self.assertRaisesRegex(error, "Expected `key_dim`"):
                 layers.MultiHeadAttention(num_heads=4, key_dim=bad)
-            with self.assertRaisesRegex(ValueError, "argument `value_dim`"):
+            with self.assertRaisesRegex(error, "Expected `value_dim`"):
                 layers.MultiHeadAttention(num_heads=4, key_dim=4, value_dim=bad)
         # `value_dim=None` is the documented default (mirror `key_dim`).
         layers.MultiHeadAttention(num_heads=4, key_dim=4, value_dim=None)
@@ -994,7 +994,9 @@ class MultiHeadAttentionTest(testing.TestCase):
         self.assertEqual(output.shape, (2, 4, 8, 8))
 
     def test_multi_head_attention_output_shape_error(self):
-        with self.assertRaisesRegex(ValueError, r"Invalid `output_shape`"):
+        with self.assertRaisesRegex(
+            TypeError, "Expected `output_shape` to be an integer"
+        ):
             layers.MultiHeadAttention(num_heads=2, key_dim=16, output_shape=8.0)
 
     def test_quantize_int8(self):

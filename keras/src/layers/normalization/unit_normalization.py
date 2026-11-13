@@ -27,17 +27,12 @@ class UnitNormalization(Layer):
 
     def __init__(self, axis=-1, **kwargs):
         super().__init__(**kwargs)
-        axis = argument_validation.standardize_int(axis)
         if isinstance(axis, (list, tuple)):
-            self.axis = list(axis)
-        elif isinstance(axis, int):
-            self.axis = axis
-        else:
-            raise TypeError(
-                "Invalid value for `axis` argument: "
-                "expected an int or a list/tuple of ints. "
-                f"Received: axis={axis}"
+            self.axis = list(
+                argument_validation.validate_int_sequence("axis", axis)
             )
+        else:
+            self.axis = argument_validation.validate_int("axis", axis)
         self.supports_masking = True
 
         self._build_at_init()

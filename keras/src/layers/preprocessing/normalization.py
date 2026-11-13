@@ -113,14 +113,15 @@ class Normalization(DataLayer):
         self, axis=-1, mean=None, variance=None, invert=False, **kwargs
     ):
         super().__init__(**kwargs)
-        axis = argument_validation.standardize_int(axis)
         # Standardize `axis` to a tuple.
         if axis is None:
             axis = ()
-        elif isinstance(axis, int):
-            axis = (axis,)
+        elif isinstance(axis, (list, tuple)):
+            axis = tuple(
+                argument_validation.validate_int_sequence("axis", axis)
+            )
         else:
-            axis = tuple(axis)
+            axis = (argument_validation.validate_int("axis", axis),)
         self.axis = axis
 
         self.input_mean = mean

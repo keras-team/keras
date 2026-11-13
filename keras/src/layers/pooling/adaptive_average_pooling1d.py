@@ -48,20 +48,15 @@ class AdaptiveAveragePooling1D(BaseAdaptiveAveragePooling):
     """
 
     def __init__(self, output_size, data_format=None, **kwargs):
-        output_size = argument_validation.standardize_int(output_size)
-        if isinstance(output_size, int):
-            output_size = (output_size,)
-        elif isinstance(output_size, (tuple, list)):
-            if len(output_size) != 1:
-                raise ValueError(
-                    f"For 1D input, `output_size` tuple must have length 1. "
-                    f"Received: {output_size}"
+        if isinstance(output_size, (list, tuple)):
+            output_size = tuple(
+                argument_validation.validate_int_sequence(
+                    "output_size", output_size, length=1
                 )
-            output_size = tuple(output_size)
-        else:
-            raise TypeError(
-                f"`output_size` must be an integer or tuple of 1 integer. "
-                f"Received: {output_size} of type {type(output_size)}"
             )
+        else:
+            output_size = (
+                argument_validation.validate_int("output_size", output_size),
+            ) * 1
 
         super().__init__(output_size, data_format, **kwargs)

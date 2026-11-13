@@ -111,9 +111,13 @@ class TernaryDenseTest(testing.TestCase):
         self.assertEqual(restored.units, layer.units)
 
     def test_invalid_units(self):
-        with self.assertRaisesRegex(ValueError, "positive integer"):
+        with self.assertRaisesRegex(
+            ValueError, "`units` to be an integer >= 1"
+        ):
             layers.TernaryDense(0)
-        with self.assertRaisesRegex(ValueError, "positive integer"):
+        with self.assertRaisesRegex(
+            ValueError, "`units` to be an integer >= 1"
+        ):
             layers.TernaryDense(-4)
 
     def test_invalid_threshold(self):

@@ -31,11 +31,7 @@ class UnitNormalizationTest(testing.TestCase):
 
     def test_invalid_axis(self):
         with self.assertRaisesRegex(
-            TypeError,
-            (
-                "Invalid value for `axis` argument: expected an int or a "
-                "list/tuple of ints."
-            ),
+            TypeError, "Expected `axis` to be an integer"
         ):
             layers.UnitNormalization(axis={"axis": -1})
 

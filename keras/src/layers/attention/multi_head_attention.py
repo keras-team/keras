@@ -137,30 +137,15 @@ class MultiHeadAttention(Layer):
         seed=None,
         **kwargs,
     ):
-        num_heads = argument_validation.standardize_int(num_heads)
-        key_dim = argument_validation.standardize_int(key_dim)
-        value_dim = argument_validation.standardize_int(value_dim)
-        output_shape = argument_validation.standardize_int(output_shape)
-        attention_axes = argument_validation.standardize_int(attention_axes)
-        sliding_window = argument_validation.standardize_int(sliding_window)
-        if not isinstance(num_heads, int) or num_heads <= 0:
-            raise ValueError(
-                "Received an invalid value for argument `num_heads`, "
-                f"expected a positive integer. Received: num_heads={num_heads}"
-            )
-        if not isinstance(key_dim, int) or key_dim <= 0:
-            raise ValueError(
-                "Received an invalid value for argument `key_dim`, expected "
-                f"a positive integer. Received: key_dim={key_dim}"
-            )
-        if value_dim is not None and (
-            not isinstance(value_dim, int) or value_dim <= 0
-        ):
-            raise ValueError(
-                "Received an invalid value for argument `value_dim`, "
-                "expected a positive integer or `None`. Received: "
-                f"value_dim={value_dim}"
-            )
+        num_heads = argument_validation.validate_int(
+            "num_heads", num_heads, min_value=1
+        )
+        key_dim = argument_validation.validate_int(
+            "key_dim", key_dim, min_value=1
+        )
+        value_dim = argument_validation.validate_int(
+            "value_dim", value_dim, allow_none=True, min_value=1
+        )
         super().__init__(**kwargs)
         self.supports_masking = True
         self._num_heads = num_heads
@@ -170,15 +155,17 @@ class MultiHeadAttention(Layer):
         self._use_bias = use_bias
         self._use_gate = use_gate
         if output_shape:
-            if isinstance(output_shape, int):
-                output_shape = (output_shape,)
-            try:
-                output_shape = tuple(output_shape)
-            except:
-                raise ValueError(
-                    f"Invalid `output_shape`: {output_shape}. When "
-                    "specified, the `output_shape` should be of type tuple, "
-                    "list, or int."
+            if isinstance(output_shape, (list, tuple)):
+                output_shape = tuple(
+                    argument_validation.validate_int_sequence(
+                        "output_shape", output_shape
+                    )
+                )
+            else:
+                output_shape = (
+                    argument_validation.validate_int(
+                        "output_shape", output_shape
+                    ),
                 )
         self._output_shape = output_shape
         self._flash_attention = flash_attention or is_flash_attention_enabled()
@@ -189,22 +176,20 @@ class MultiHeadAttention(Layer):
         self._activity_regularizer = regularizers.get(activity_regularizer)
         self._kernel_constraint = constraints.get(kernel_constraint)
         self._bias_constraint = constraints.get(bias_constraint)
-        if isinstance(attention_axes, int):
-            attention_axes = (attention_axes,)
-        elif attention_axes and not isinstance(attention_axes, (list, tuple)):
-            raise ValueError(
-                "`attention_axes` must be an int, list, or tuple."
-                f"Received: attention_axes={attention_axes}"
+        if isinstance(attention_axes, (list, tuple)):
+            attention_axes = argument_validation.validate_int_sequence(
+                "attention_axes", attention_axes
+            )
+        elif attention_axes is not None:
+            attention_axes = (
+                argument_validation.validate_int(
+                    "attention_axes", attention_axes
+                ),
             )
         self._attention_axes = attention_axes
-        if sliding_window is not None and (
-            not isinstance(sliding_window, int) or sliding_window <= 0
-        ):
-            raise ValueError(
-                "`sliding_window` must be `None` or a positive integer. "
-                f"Received: sliding_window={sliding_window}"
-            )
-        self._sliding_window = sliding_window
+        self._sliding_window = argument_validation.validate_int(
+            "sliding_window", sliding_window, allow_none=True, min_value=1
+        )
         self.seed = seed
 
         self._inverse_sqrt_key_dim = 1.0 / math.sqrt(float(self._key_dim))
