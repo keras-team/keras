@@ -13,6 +13,7 @@ ml-dtypes
 protobuf
 tensorboard
 tensorboard-plugin-profile
+tensorboardX
 rich
 build
 optree

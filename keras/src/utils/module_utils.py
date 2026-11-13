@@ -136,6 +136,7 @@ xla_saved_model = LazyModule(
         "(https://github.com/openxla/xla-serving)."
     ),
 )
+tensorboardx = LazyModule("tensorboardX")
 ocp = OrbaxLazyModule(
     "orbax.checkpoint.v1",
     pip_name="orbax-checkpoint",
