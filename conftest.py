@@ -11,8 +11,8 @@ import os  # noqa: E402
 import pytest  # noqa: E402
 
 from keras.src.backend import SUPPORTS_GRADIENT  # noqa: E402
-from keras.src.backend.config import PLUGGABLE_BACKENDS
 from keras.src.backend.config import backend  # noqa: E402
+from keras.src.backend.config import backend_is_pluggable
 from keras.src.utils import module_utils
 from keras.src.utils.module_utils import get_pluggable_backend_module
 
@@ -52,7 +52,7 @@ def pytest_collection_modifyitems(config, items):
     has_multiple_devices = False
 
     backend_skipped_tests = set()
-    if backend() in PLUGGABLE_BACKENDS:
+    if backend_is_pluggable(backend()):
         backend_module_file = get_pluggable_backend_module().__file__
         exclusions_path = os.path.join(
             # Remove `src/__init__.py`.

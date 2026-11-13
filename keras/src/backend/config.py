@@ -20,6 +20,20 @@ BUILT_IN_BACKENDS = frozenset(["jax", "numpy", "tensorflow", "torch"])
 
 PLUGGABLE_BACKENDS = frozenset(["mlx", "openvino", "paddle"])
 
+
+def backend_is_pluggable(name):
+    if name in PLUGGABLE_BACKENDS:
+        return True
+    if name in BUILT_IN_BACKENDS:
+        return False
+
+    env_val = os.environ.get("KERAS_ALLOW_UNOFFICIAL_BACKEND", "").lower()
+    if env_val in ("true", "1", "yes"):
+        return isinstance(name, str) and name.isidentifier()
+
+    return False
+
+
 # Whether NNX is enabled.
 _NNX_ENABLED = False
 

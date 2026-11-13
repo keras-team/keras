@@ -1,7 +1,7 @@
 import importlib
 
-from keras.src.backend.config import PLUGGABLE_BACKENDS
 from keras.src.backend.config import backend as current_backend
+from keras.src.backend.config import backend_is_pluggable
 
 
 def get_pluggable_backend_module(
@@ -9,7 +9,7 @@ def get_pluggable_backend_module(
 ):
     if not backend:
         backend = current_backend()
-    if backend not in PLUGGABLE_BACKENDS:
+    if not backend_is_pluggable(backend):
         raise ValueError(f"Unsupported backend : {backend}")
 
     backend_module_name = (
