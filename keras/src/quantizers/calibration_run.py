@@ -17,8 +17,6 @@ from absl import logging
 from keras.src import backend
 from keras.src import ops
 from keras.src import utils as keras_utils
-from keras.src.layers import Dense
-from keras.src.layers import EinsumDense
 from keras.src.quantizers.capture import calibration_scope
 
 
@@ -268,14 +266,17 @@ class CalibrationRun:
             num_samples=config.num_samples,
         )
         self.batch_size = config.calibration_batch_size
-        # The run covers the `Dense` and `EinsumDense` layers of the
-        # blocks. A quantizable layer may own sub-layers (a `Layer`
-        # activation), so this does not filter leaves.
+        # A block layer is covered when it declares support for the mode
+        # as `Layer.quantize` reads it, so a third-party layer that lists
+        # the mode in its `variable_serialization_spec` is covered, as
+        # `Dense` and `EinsumDense` are. A quantizable layer may own
+        # sub-layers (a `Layer` activation), so this does not filter
+        # leaves.
         self._covered = {
             id(layer)
             for block in self.blocks
             for layer in block._flatten_layers()
-            if isinstance(layer, (Dense, EinsumDense))
+            if layer._supports_quantization_mode(strategy)
         }
         # The float layers the walk handed over, and the ones swapped so
         # far.
@@ -288,7 +289,7 @@ class CalibrationRun:
         self.unreached = []
 
     def covers(self, layer):
-        """Whether `layer` is a `Dense` or `EinsumDense` of a block."""
+        """Whether `layer` is a block layer that supports the mode."""
         return id(layer) in self._covered
 
     def add(self, layer, type_check=True):

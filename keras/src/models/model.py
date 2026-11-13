@@ -463,12 +463,14 @@ class Model(Trainer, Layer):
         use specific quantizers for weights or activations).
 
         For the `"gptq"` and `"awq"` modes, quantization is restricted to
-        the `Dense` and `EinsumDense` layers inside the structure's
-        `"sequential_blocks"` (provided via
-        `config.quantization_layer_structure` or the model's
-        `get_quantization_layer_structure(mode)` hook). All other layers
-        are left in their original precision. These modes are run only
-        here: each layer stays float until the calibration has its
+        the layers inside the structure's `"sequential_blocks"` (provided
+        via `config.quantization_layer_structure` or the model's
+        `get_quantization_layer_structure(mode)` hook) that list the mode
+        in their `variable_serialization_spec`: `Dense`, `EinsumDense` and
+        custom layers that opt in (a custom layer also needs a `kernel`
+        property, which the calibrator reads the float weight through). All
+        other layers are left in their original precision. These modes are
+        run only here: each layer stays float until the calibration has its
         statistics, and is then quantized in one step.
 
         The call collects a `QuantizationReport` describing which layers were

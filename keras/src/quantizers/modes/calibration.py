@@ -16,6 +16,7 @@ from keras.src.dtype_policies.dtype_policy import AWQDTypePolicy
 from keras.src.dtype_policies.dtype_policy import GPTQDTypePolicy
 from keras.src.quantizers.awq import AWQCalibrator
 from keras.src.quantizers.awq_config import AWQConfig
+from keras.src.quantizers.calibration_run import CalibrationRun
 from keras.src.quantizers.gptq import GPTQCalibrator
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.modes.common import apply_bias_activation
@@ -44,6 +45,20 @@ class CalibrationStrategy(QuantizationStrategy):
             f"`model.quantize('{self.name}', config=...)` with a "
             "quantization layer structure that covers the layer."
         )
+
+    def check_quantizable(self, layer):
+        super().check_quantizable(layer)
+        # The calibrator reads the float weight through the layer's
+        # `kernel` property, so a layer without one is refused before it
+        # changes. The check is on the class: the swap deletes `_kernel`,
+        # and an instance attribute `kernel` would still hold that float
+        # variable, where a property reads the quantized weight.
+        if not hasattr(type(layer), "kernel"):
+            raise NotImplementedError(
+                f"{self.name.upper()} reads the float weight of layer "
+                f"'{layer.name}' through a `kernel` property, which "
+                f"`{layer.__class__.__name__}` does not define."
+            )
 
     # --- Config and policy-string surface ---------------------------------
 
@@ -117,10 +132,6 @@ class CalibrationStrategy(QuantizationStrategy):
                 "structure should be a dictionary with keys "
                 "'pre_block_layers' and 'sequential_blocks'."
             )
-        # Imported here to avoid an import cycle: `calibration_run` imports
-        # the layers, which import the strategies.
-        from keras.src.quantizers.calibration_run import CalibrationRun
-
         return CalibrationRun(self, config, structure)
 
     # --- Variables --------------------------------------------------------

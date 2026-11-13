@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
+from keras.src import activations
 from keras.src import backend
 from keras.src import layers
 from keras.src import models
@@ -18,6 +19,7 @@ from keras.src.quantizers.calibration_run import CalibrationRun
 from keras.src.quantizers.calibration_run import _execution_stages
 from keras.src.quantizers.calibration_run import get_dataloader
 from keras.src.quantizers.capture import calibration_scope
+from keras.src.quantizers.geometry import ProjectionGeometry
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.quantization_test_utils import assert_calibrated
 from keras.src.quantizers.quantization_test_utils import assert_float
@@ -26,6 +28,7 @@ from keras.src.quantizers.quantization_test_utils import calibration_config
 from keras.src.quantizers.quantization_test_utils import calibration_statistic
 from keras.src.quantizers.quantization_test_utils import tiny_calibration_model
 from keras.src.quantizers.quantization_test_utils import token_dataset
+from keras.src.quantizers.report import QuantizationReport
 from keras.src.testing.test_utils import named_product
 from keras.src.utils.rng_utils import set_random_seed
 
@@ -221,6 +224,91 @@ class PathlessDense(layers.Dense):
     def _quantization_geometry(self):
         # A subclass is quantizable only by its own declaration.
         return super()._quantization_geometry()
+
+
+class RecipeOnlyProjection(layers.Layer):
+    """A projection layer written to the quantization protocol only.
+
+    It is not a `Dense`: it defines a geometry, lists the modes in its
+    `variable_serialization_spec`, and runs the quantized build sequence.
+    It has no `kernel` property.
+    """
+
+    def __init__(self, units, activation=None, **kwargs):
+        super().__init__(**kwargs)
+        self.units = units
+        self.activation = activations.get(activation)
+
+    def build(self, input_shape):
+        self.kernel_shape = (input_shape[-1], self.units)
+        if self.quantization_mode:
+            self.quantized_build(
+                self.kernel_shape,
+                mode=self.quantization_mode,
+                config=self.quantization_config,
+            )
+        if not self._strategy_owns_weight_storage():
+            self._kernel = self.add_weight(
+                name="kernel", shape=self.kernel_shape
+            )
+        self.bias = self.add_weight(
+            name="bias", shape=(self.units,), initializer="zeros"
+        )
+
+    def call(self, inputs):
+        outputs = ops.add(ops.matmul(inputs, self._kernel), self.bias)
+        return self.activation(outputs)
+
+    def compute_output_shape(self, input_shape):
+        return tuple(input_shape[:-1]) + (self.units,)
+
+    def _quantization_geometry(self):
+        return ProjectionGeometry(self)
+
+    @property
+    def variable_serialization_spec(self):
+        return {
+            None: ["kernel", "bias"],
+            "gptq": [
+                "bias",
+                "quantized_kernel",
+                "kernel_scale",
+                "kernel_zero",
+                "g_idx",
+            ],
+            "awq": [
+                "bias",
+                "quantized_kernel",
+                "kernel_scale",
+                "kernel_zero",
+                "awq_scales",
+                "g_idx",
+            ],
+        }
+
+    def save_own_variables(self, store):
+        self._save_serialized_variables(store, "kernel")
+
+    def load_own_variables(self, store):
+        self._load_serialized_variables(store, "kernel")
+
+
+class KernelPropertyProjection(RecipeOnlyProjection):
+    """`RecipeOnlyProjection` with a `kernel` property.
+
+    The calibrator reads the float weight through the property.
+    """
+
+    @property
+    def kernel(self):
+        quantized_weight = self._quantized_weight()
+        if quantized_weight is None:
+            return self._kernel
+        return quantized_weight.unpack()
+
+    def _quantization_geometry(self):
+        # A subclass is quantizable only by its own declaration.
+        return ProjectionGeometry(self)
 
 
 class SamePathBlock(layers.Layer):
@@ -921,6 +1009,47 @@ class CalibrationRunModelTest(testing.TestCase):
             [layer.path for layer in float_layers],
         )
         self.assertAllClose(model(x), reference(x))
+
+    @parameterized.named_parameters(("gptq", "gptq"), ("awq", "awq"))
+    def test_third_party_projection_in_a_block_is_calibrated(self, mode):
+        # A layer that lists the mode in its `variable_serialization_spec`
+        # is calibrated like the `Dense` next to it, and a model built
+        # under the calibrated policies loads its weights.
+        custom = KernelPropertyProjection(16, activation="relu")
+        dense = layers.Dense(8)
+        model, config = _tiny_model(mode, block_layers=[custom, dense])
+        report = model.quantize(mode, config=config)
+        self.assertIn(custom.path, [path for path, *_ in report.quantized])
+        assert_calibrated(self, custom, mode)
+
+        filepath = os.path.join(self.get_temp_dir(), "custom.weights.h5")
+        model.save_weights(filepath)
+        twin, _ = _tiny_model(
+            mode,
+            block_layers=[
+                KernelPropertyProjection(
+                    16, activation="relu", dtype=custom.dtype_policy.name
+                ),
+                layers.Dense(8, dtype=dense.dtype_policy.name),
+            ],
+        )
+        twin.load_weights(filepath)
+        x = config.dataset[0]
+        self.assertAllClose(twin(x), model(x))
+
+    @parameterized.named_parameters(("gptq", "gptq"), ("awq", "awq"))
+    def test_a_layer_without_a_kernel_property_is_skipped(self, mode):
+        # The calibrator reads the float weight through `kernel`, so the
+        # walk skips a layer without one, and the run calibrates the rest.
+        custom = RecipeOnlyProjection(16)
+        dense = layers.Dense(8)
+        model, config = _tiny_model(mode, block_layers=[custom, dense])
+        report = model.quantize(mode, config=config)
+        self.assertIn(
+            (custom.path, QuantizationReport.SKIP_NO_SUPPORT), report.skipped
+        )
+        assert_float(self, custom)
+        assert_calibrated(self, dense, mode)
 
     @parameterized.named_parameters(("gptq", "gptq"), ("awq", "awq"))
     def test_layers_that_share_a_path_are_both_calibrated(self, mode):
