@@ -1181,6 +1181,20 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             np.array([[0, 20], [10, 0]]),
         )
 
+    @parameterized.named_parameters(
+        ("none", None),
+        ("add", "add"),
+        ("max", "max"),
+        ("min", "min"),
+        ("mul", "mul"),
+    )
+    def test_scatter_update_does_not_modify_inputs(self, reduction):
+        inputs = ops.convert_to_tensor([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+        indices = [[0, 1], [2, 0]]
+        updates = np.array([0.5, 7.0])
+        core.scatter_update(inputs, indices, updates, reduction=reduction)
+        self.assertAllClose(inputs, [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+
     def test_scatter_update_with_reduction(self):
         # Test add reduction with duplicate indices
         inputs = np.zeros((4,))
@@ -1334,6 +1348,14 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             core.SliceUpdate()(inputs, start_indices, updates),
             np.array([[1, 2, 3], [4, 10, 11], [7, 12, 13]]),
         )
+
+    def test_slice_update_does_not_modify_inputs(self):
+        inputs = ops.convert_to_tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+        start_indices = [1, 1]
+        updates = np.array([[10, 11], [12, 13]])
+        outputs = core.slice_update(inputs, start_indices, updates)
+        self.assertAllClose(inputs, [[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+        self.assertAllClose(outputs, [[1, 2, 3], [4, 10, 11], [7, 12, 13]])
 
     @pytest.mark.requires_trainable_backend
     def test_stop_gradient(self):

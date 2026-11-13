@@ -360,6 +360,8 @@ def scatter(indices, values, shape):
 
 
 def scatter_update(inputs, indices, updates, reduction=None):
+    # Update a copy: `inputs` must not be modified, as on other backends.
+    inputs = np.copy(inputs)
     indices = np.array(indices)
     indices = np.transpose(indices)
     idx = tuple(indices)
@@ -399,6 +401,7 @@ def slice(inputs, start_indices, shape):
 
 
 def slice_update(inputs, start_indices, updates):
+    inputs = np.copy(inputs)
     # Generate list of indices arrays for each dimension
     indices = [
         np.arange(start, start + length)
