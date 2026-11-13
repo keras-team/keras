@@ -80,7 +80,7 @@ class GlobalAveragePooling1D(BaseGlobalPooling):
             mask_count = ops.sum(
                 float_mask, axis=steps_axis, keepdims=self.keepdims
             )
-            mask_count = ops.where(mask_count == 0, 1, mask_count)
+            mask_count = ops.where(ops.equal(mask_count, 0), 1, mask_count)
             return (
                 ops.sum(inputs, axis=steps_axis, keepdims=self.keepdims)
                 / mask_count
