@@ -161,7 +161,7 @@ class KerasTensor:
             "You cannot convert it to a float."
         )
 
-    def __array__(self):
+    def __array__(self, dtype=None):
         raise ValueError(
             "A KerasTensor is symbolic: it's a placeholder for a shape "
             "an a dtype. It doesn't have any actual numerical value. "
