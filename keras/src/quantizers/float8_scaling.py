@@ -24,7 +24,8 @@ def compute_float8_amax_history(x, amax_history):
     amax_update = ops.cast(ops.max(ops.abs(x)), amax_history.dtype)
     new_amax_history = ops.scatter_update(
         ops.roll(amax_history, shift=-1),
-        [[0]],
+        # The index `[[0]]`, made on the device: a list is host data.
+        ops.zeros((1, 1), "int32"),
         ops.reshape(amax_update, [1]),
     )
     return new_amax_history

@@ -3,12 +3,16 @@ import itertools
 import math
 
 import numpy as np
+import pytest
 from absl.testing import parameterized
 
+from keras.src import backend
+from keras.src import layers
 from keras.src import ops
 from keras.src import quantizers
 from keras.src import random
 from keras.src import testing
+from keras.src import tree
 from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.quantizers import compute_quantization_parameters
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
@@ -17,6 +21,10 @@ from keras.src.quantizers.quantizers import quantize_with_sz_map
 from keras.src.quantizers.quantizers import quantize_with_zero_point
 from keras.src.quantizers.quantizers import ternarize
 from keras.src.testing.test_utils import named_product
+
+if backend.backend() == "torch":
+    from keras.src.backend.torch.test_utils import capture_cuda_graph
+    from keras.src.backend.torch.test_utils import skip_unless_cuda
 
 
 class QuantizersTest(testing.TestCase):
@@ -1136,3 +1144,52 @@ class TernarizeTest(testing.TestCase):
         self.assertAllClose(scale, beta, rtol=1e-5)
         expected = np.sign(exact) * (np.abs(exact) > 0.5 * beta)
         self.assertAllClose(np.asarray(codes, "float32"), expected)
+
+
+@pytest.mark.skipif(
+    backend.backend() != "torch", reason="Captures a torch CUDA graph."
+)
+class CudaGraphCaptureTest(testing.TestCase):
+    """Quantized layer calls capture in a CUDA graph.
+
+    The calls pass Python numbers to ops. A capture fails when an op copies
+    one from the host to the device.
+    """
+
+    @parameterized.named_parameters(
+        ("dense_int8", "dense", "int8", None),
+        ("dense_int4_per_channel", "dense", "int4", -1),
+        ("dense_int4_grouped", "dense", "int4", 8),
+        ("dense_ternary", "dense", "ternary", None),
+        ("dense_float8_training", "dense", "float8", None),
+        ("reversible_embedding_int4", "reversible_embedding", "int4", 8),
+    )
+    def test_quantized_call_captures(self, kind, mode, block_size):
+        skip_unless_cuda(self)
+        config = None
+        if block_size is not None:
+            config = quantizers.Int4QuantizationConfig(block_size=block_size)
+        x = ops.convert_to_tensor(
+            np.random.RandomState(0).randn(4, 16), "float32"
+        )
+        if kind == "dense":
+            layer = layers.Dense(8)
+            layer.build((None, 16))
+            # The float8 forward updates the amax history in training.
+            training = mode == "float8"
+
+            def call():
+                return layer(x, training=training)
+
+        else:
+            layer = layers.ReversibleEmbedding(32, 16)
+            layer.build((None, 4))
+            ids = ops.convert_to_tensor(np.arange(8).reshape(2, 4), "int32")
+
+            def call():
+                return layer(ids), layer(x, reverse=True)
+
+        layer.quantize(mode, config=config)
+        eager, replayed = capture_cuda_graph(call)
+        for e, r in zip(tree.flatten(eager), tree.flatten(replayed)):
+            self.assertAllClose(r, e, atol=0, rtol=0)

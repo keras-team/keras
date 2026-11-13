@@ -28,11 +28,15 @@ from keras.src.backend.torch.ops.core import Variable
 from keras.src.backend.torch.ops.core import convert_to_tensor
 from keras.src.backend.torch.ops.core import get_device
 from keras.src.backend.torch.ops.core import slice as torch_slice
+from keras.src.backend.torch.ops.core import to_torch_dtype
+from keras.src.backend.torch.test_utils import capture_cuda_graph
+from keras.src.backend.torch.test_utils import skip_unless_cuda
 from keras.src.distribution.distribution_lib import DataParallel
 from keras.src.distribution.distribution_lib import DeviceMesh
 from keras.src.distribution.distribution_lib import LayoutMap
 from keras.src.distribution.distribution_lib import ModelParallel
 from keras.src.distribution.distribution_lib import set_distribution
+from keras.src.testing.test_utils import named_product
 
 
 def _get_backed_symint(hint=2):
@@ -120,6 +124,54 @@ class TorchCoreTest(testing.TestCase):
             _get_backed_symint(5),
             torch.float32,
             dtype="float32",
+        )
+
+    @parameterized.named_parameters(
+        ("convert_to_tensor", lambda x: convert_to_tensor(1.5)),
+        ("convert_to_tensor_int8", lambda x: convert_to_tensor(3, "int8")),
+        ("convert_to_tensor_bool", lambda x: convert_to_tensor(True)),
+        ("cast", lambda x: ops.cast(2.0, "bfloat16")),
+        ("full", lambda x: ops.full((2, 3), 1.5)),
+        ("full_like", lambda x: ops.full_like(x, 7)),
+        ("add", lambda x: ops.add(x, 1.0)),
+        ("clip", lambda x: ops.clip(x, -1, 1)),
+    )
+    def test_python_number_ops_capture_in_cuda_graph(self, fn):
+        # A Python number is filled on the device. A copy from the host
+        # would make the capture fail.
+        skip_unless_cuda(self)
+        x = convert_to_tensor(np.arange(6, dtype="float32").reshape(2, 3))
+        eager, replayed = capture_cuda_graph(lambda: fn(x))
+        self.assertAllEqual(replayed, eager)
+
+    @parameterized.named_parameters(
+        named_product(
+            value=(0, -1, 127, 255, 2**31, 1e-7, -0.0, 1.7, 448.0, 7e4)
+            + (1e39, -1e39, float("inf"), float("nan"), True, False),
+            dtype=("float32", "bfloat16", "float16", "int8", "uint8")
+            + ("int32", "int64", "bool"),
+        )
+    )
+    def test_python_number_converts_as_torch_as_tensor_does(self, value, dtype):
+        # The fill on the device gives the values of `torch.as_tensor`,
+        # which also saturates a float out of the range of the dtype.
+        def as_bytes(t):
+            t = t.cpu().reshape(-1)
+            return t if t.dtype == torch.bool else t.view(torch.uint8)
+
+        torch_dtype = to_torch_dtype(dtype)
+        try:
+            expected = torch.as_tensor(value, dtype=torch_dtype)
+        except (RuntimeError, OverflowError) as e:
+            with self.assertRaises(type(e)):
+                convert_to_tensor(value, dtype)
+            return
+        result = convert_to_tensor(value, dtype)
+        self.assertEqual(result.dtype, torch_dtype)
+        self.assertTrue(torch.equal(as_bytes(result), as_bytes(expected)))
+        filled = ops.full((2,), value, dtype)
+        self.assertTrue(
+            torch.equal(as_bytes(filled), as_bytes(expected).repeat(2))
         )
 
     def _get_other_device(self):

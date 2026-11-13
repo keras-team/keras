@@ -357,6 +357,39 @@ class Variable(KerasVariable):
             return False
 
 
+def full_from_python_number(shape, value, dtype):
+    """Returns a `shape` tensor of the Python number `value`.
+
+    The tensor is filled on the device. `torch.as_tensor` makes the tensor
+    on the host and copies it to the device, which is slow on a GPU and
+    which a CUDA graph capture refuses.
+
+    Args:
+        shape: The shape of the tensor.
+        value: A Python number.
+        dtype: The torch dtype of the tensor.
+    """
+    if (
+        isinstance(value, float)
+        and value == 0
+        and np.signbit(value)
+        and dtype.is_floating_point
+    ):
+        # MPS fills a zero with a memset, which drops the sign of -0.0.
+        return torch.zeros(shape, dtype=dtype, device=get_device()).neg_()
+    try:
+        return torch.full(shape, value, dtype=dtype, device=get_device())
+    except RuntimeError:
+        # `torch.full` refuses a value out of the range of `dtype`, where
+        # `torch.as_tensor` saturates it (`1e39` is `inf` in float32).
+        return torch.full(
+            shape,
+            torch.as_tensor(value, dtype=dtype),
+            dtype=dtype,
+            device=get_device(),
+        )
+
+
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if sparse:
         raise ValueError("`sparse=True` is not supported with torch backend")
@@ -398,7 +431,7 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
             dt = to_torch_dtype(floatx())
         else:
             dt = torch.complex64
-        return torch.as_tensor(x, dtype=dt, device=get_device())
+        return full_from_python_number((), x, dt)
     if isinstance(x, (torch.SymInt, torch.SymFloat)):
         # Scalar symbolic values from torch.export can't go through numpy.
         dt = to_torch_dtype(dtype) if dtype is not None else None

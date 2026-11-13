@@ -14,6 +14,7 @@ from keras.src.backend.common.backend_utils import vectorize_impl
 from keras.src.backend.common.variables import standardize_dtype
 from keras.src.backend.torch.ops.core import cast
 from keras.src.backend.torch.ops.core import convert_to_tensor
+from keras.src.backend.torch.ops.core import full_from_python_number
 from keras.src.backend.torch.ops.core import get_device
 from keras.src.backend.torch.ops.core import is_tensor
 from keras.src.backend.torch.ops.core import to_torch_dtype
@@ -1080,6 +1081,9 @@ def floor(x):
 
 def full(shape, fill_value, dtype=None):
     dtype = to_torch_dtype(dtype)
+    if isinstance(fill_value, (bool, int, float, complex)):
+        # A tensor `fill_value` would be read back to the host.
+        return full_from_python_number(shape, fill_value, dtype)
     fill_value = convert_to_tensor(fill_value, dtype=dtype)
     if len(fill_value.shape) > 0:
         # `torch.full` only supports scala `fill_value`.
