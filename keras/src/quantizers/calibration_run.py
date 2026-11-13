@@ -20,7 +20,6 @@ from keras.src import utils as keras_utils
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
 from keras.src.quantizers.capture import calibration_scope
-from keras.src.quantizers.utils import should_quantize_layer
 
 
 def calibration_no_grad_scope():
@@ -111,25 +110,6 @@ def get_dataloader(tokenizer, sequence_length, dataset, num_samples=128):
         all_tokens, sequence_length
     )
     return windows[starts][:, None, :]
-
-
-def find_layers_in_block(block):
-    """
-    Finds all Dense and EinsumDense layers in a transformer block.
-
-    Args:
-        block: A Keras layer representing a transformer block.
-    Returns:
-        A dict mapping layer paths to the corresponding Dense or EinsumDense
-    """
-    found_layers = {}
-    for sub_layer in block._flatten_layers():
-        # A quantizable layer may own sub-layers (e.g. a `Layer`
-        # activation), so no leaf filtering here — collect every Dense/
-        # EinsumDense reachable inside the block.
-        if isinstance(sub_layer, (Dense, EinsumDense)):
-            found_layers[sub_layer.path] = sub_layer
-    return found_layers
 
 
 def _execution_stages(block, layers, batch):
@@ -235,21 +215,26 @@ def _read_layer_structure(structure):
 class CalibrationRun:
     """One calibration pass of a model's sequential blocks over a dataset.
 
-    `Model.quantize` resolves the layer structure and the mode's
-    `CalibrationStrategy` creates the run for it (`calibrate`). The
-    constructor checks the blocks, the dataset and the tokenizer, and
-    builds the dataloader.
+    The mode's `CalibrationStrategy` creates the run for `Model.quantize`
+    (`model_run`) before any layer changes. The constructor checks the
+    blocks, the dataset and the tokenizer, and builds the dataloader, so
+    a missing structure, dataset or tokenizer refuses the call while the
+    model is untouched. The walk of `Model.quantize` asks the run whether
+    it `covers` each layer and hands it the float layers to quantize
+    (`add`).
 
     `run()` materializes the activations behind the prefix layers once,
     then walks the blocks in order. For each block it groups the layers
-    this mode left pending into execution-order stages ("true
-    sequential"). For each stage in turn it builds a calibrator per
-    layer, from the run's config, passes the block's inputs through the
-    block to them, and quantizes the stage's layers, so a later stage
-    observes the quantized output of the stages before it. It then runs
-    the calibrated block to produce the next block's inputs, up to the
-    last block with a pending layer. The activations are kept as the
-    batches the blocks run on. A run with no pending layer does nothing.
+    it was handed into execution-order stages ("true sequential"). For
+    each stage in turn it builds a calibrator per layer, from the run's
+    config, passes the block's inputs through the block to them, and
+    quantizes the stage's layers, so a later stage observes the quantized
+    output of the stages before it. A calibrator's write-back swaps its
+    float layer for the quantized one in one step. The run then runs the
+    calibrated block to produce the next block's inputs, up to the last
+    block with a layer to calibrate. The activations are kept as the
+    batches the blocks run on. `quantized` lists the layers swapped so
+    far, also when `run()` raises.
 
     Args:
         strategy: The `CalibrationStrategy` of the mode. It supplies the
@@ -259,13 +244,11 @@ class CalibrationRun:
             and the batch size of the run.
         structure: Dict with keys `"pre_block_layers"` and
             `"sequential_blocks"`.
-        filters: Optional filters that exclude layers from quantization.
     """
 
-    def __init__(self, strategy, config, structure, filters=None):
+    def __init__(self, strategy, config, structure):
         self.strategy = strategy
         self.config = config
-        self.filters = filters
         self.pre_block_layers, self.blocks = _read_layer_structure(structure)
         if not self.blocks:
             raise ValueError(
@@ -285,20 +268,43 @@ class CalibrationRun:
             num_samples=config.num_samples,
         )
         self.batch_size = config.calibration_batch_size
+        # The run covers the `Dense` and `EinsumDense` layers of the
+        # blocks. A quantizable layer may own sub-layers (a `Layer`
+        # activation), so this does not filter leaves.
+        self._covered = {
+            id(layer)
+            for block in self.blocks
+            for layer in block._flatten_layers()
+            if isinstance(layer, (Dense, EinsumDense))
+        }
+        # The float layers the walk handed over, and the ones swapped so
+        # far.
+        self._targets = set()
+        self.quantized = []
         # Layers whose statistics saw too few calibration tokens relative
         # to their input width, and layers that observed no input,
         # collected across all blocks for one warning each.
         self.undersampled = []
         self.unreached = []
 
+    def covers(self, layer):
+        """Whether `layer` is a `Dense` or `EinsumDense` of a block."""
+        return id(layer) in self._covered
+
+    def add(self, layer, type_check=True):
+        """Queues a float `layer`, or raises as `Layer.quantize` would."""
+        layer._check_quantizable(self.config, type_check)
+        self._targets.add(id(layer))
+
     def run(self):
         """Calibrates and quantizes every block, in order."""
-        pending = [self._pending_layers(block) for block in self.blocks]
-        if not any(pending):
-            logging.info("No layers are pending calibration. Skipping.")
+        float_layers = [self._float_layers(block) for block in self.blocks]
+        if not any(float_layers):
+            logging.info("No layers to calibrate. Skipping.")
             return
-        # The blocks after the last one with a pending layer need no inputs.
-        last = max(i for i, layers in enumerate(pending) if layers)
+        # The blocks after the last one with a layer to calibrate need no
+        # inputs.
+        last = max(i for i, layers in enumerate(float_layers) if layers)
         logging.info("Starting model quantization...")
         with calibration_no_grad_scope():
             inputs = self._prefix_outputs(self.dataloader)
@@ -330,33 +336,36 @@ class CalibrationRun:
             for start in range(0, len(outputs), self.batch_size)
         ]
 
-    def _pending_layers(self, block):
-        # Only the layers this mode left pending: a layer quantized in
-        # another mode, or already calibrated, has no float kernel to solve.
-        return {
-            name: layer
-            for name, layer in find_layers_in_block(block).items()
-            if layer.quantization_mode == self.strategy.name
-            and layer.calibration_pending
-            and should_quantize_layer(layer, self.filters)
-        }
+    def _float_layers(self, block):
+        # The layers the walk handed over that are still float, by
+        # identity: two layers can share a path. A layer that two blocks
+        # share is solved in the first.
+        return [
+            layer
+            for layer in block._flatten_layers()
+            if id(layer) in self._targets and not layer._is_quantized
+        ]
 
     def _calibrator(self, layer):
+        # The run's config: the swap builds the variables from it, so the
+        # solve and the packing agree.
         return self.strategy.calibrator_cls(layer, self.config)
 
     def _calibrate_block(self, block_idx, block, inputs):
-        layers = self._pending_layers(block)
+        layers = self._float_layers(block)
         if not layers:
             logging.info(
                 f"  No quantizable layers found in block {block_idx}. Skipping."
             )
             return
-        logging.info(f"Found layers: {list(layers)}")
+        logging.info(
+            f"Found layers: {[layer.path or layer.name for layer in layers]}"
+        )
         # Quantize the block's layers in execution-order stages ("true
         # sequential", as in reference GPTQ): a stage observes the block
         # after the stages before it are quantized, so its solves are
         # computed against the activations the layers see at inference.
-        stages = _execution_stages(block, list(layers.values()), inputs[0])
+        stages = _execution_stages(block, layers, inputs[0])
         for stage in stages:
             self._calibrate_stage(block, stage, inputs)
 
@@ -368,13 +377,15 @@ class CalibrationRun:
             for batch in inputs:
                 block(batch)
         for calibrator in calibrators:
-            name = calibrator.layer.path
+            # A layer whose `build` never ran has no path.
+            name = calibrator.layer.path or calibrator.layer.name
             if calibrator.num_samples:
                 self._tally_undersampling(name, calibrator)
             else:
                 self.unreached.append(name)
             logging.info(f"Quantizing {name}...")
             calibrator.quantize()
+            self.quantized.append(calibrator.layer)
 
     def _tally_undersampling(self, name, calibrator):
         threshold = calibrator.warn_tokens_per_row
