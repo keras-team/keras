@@ -78,9 +78,10 @@ def calibrate_on_random_rows(layer, config, num_rows=16):
 
 
 def assert_calibrated(test, layer, mode):
-    """`layer` holds `mode`'s codes and no float kernel."""
+    """`layer` holds `mode`'s codes, no float kernel and no config."""
     test.assertEqual(layer.quantization_mode, mode)
     test.assertFalse(hasattr(layer, "_kernel"))
+    test.assertIsNone(layer.quantization_config)
 
 
 def assert_float(test, layer):

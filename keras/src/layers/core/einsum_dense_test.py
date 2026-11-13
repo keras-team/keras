@@ -1266,6 +1266,7 @@ class EinsumDenseTest(testing.TestCase):
             ),
         )
         config = layer.get_config()
+        self.assertIsNone(config["quantization_config"])
         new_layer = layers.EinsumDense.from_config(config)
         new_layer.build((None, 3))
         self.assertEqual(new_layer.quantization_mode, "gptq")
@@ -1287,6 +1288,7 @@ class EinsumDenseTest(testing.TestCase):
             ),
         )
         layer_config = layer.get_config()
+        self.assertIsNone(layer_config["quantization_config"])
         new_layer = layers.EinsumDense.from_config(layer_config)
         new_layer.build((None, 3))
         self.assertEqual(new_layer.quantization_mode, "awq")

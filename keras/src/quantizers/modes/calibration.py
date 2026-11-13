@@ -72,25 +72,26 @@ class CalibrationStrategy(QuantizationStrategy):
         return config.dtype_policy_string()
 
     def resolve_group_size(self, layer, config):
-        """Determine the group size from the config or the dtype policy."""
-        return self._resolve_from_config_or_policy(layer, config, "group_size")
+        """Determine the group size from the dtype policy or the config."""
+        return self._resolve_from_policy_or_config(layer, config, "group_size")
 
     def resolve_weight_bits(self, layer, config):
-        """Determine the weight bits from the config or the dtype policy."""
-        return self._resolve_from_config_or_policy(layer, config, "weight_bits")
+        """Determine the weight bits from the dtype policy or the config."""
+        return self._resolve_from_policy_or_config(layer, config, "weight_bits")
 
-    def _resolve_from_config_or_policy(self, layer, config, attr):
-        """Resolves a hyperparameter with config-over-policy precedence.
+    def _resolve_from_policy_or_config(self, layer, config, attr):
+        """Resolves a storage parameter with policy-over-config precedence.
 
-        The config argument is usually available when quantizing the layer
-        via the `quantize` method. If the layer was deserialized from a
-        saved model, the value comes from the mode's dtype policy.
+        A layer of this mode holds no config, so its policy name gives the
+        bit width and the group size. Only the swap of a calibrated float
+        layer, whose policy names no mode yet, reads them from the config
+        of the run.
         """
-        if isinstance(config, self.config_cls):
-            return getattr(config, attr)
         policy = layer._own_dtype_policy
         if policy.quantization_mode == self.name:
             return getattr(policy, attr)
+        if isinstance(config, self.config_cls):
+            return getattr(config, attr)
         raise ValueError(
             f"For {self.name.upper()} quantization, the {attr} must be "
             "specified either through a `dtype_policy` of type "
@@ -136,6 +137,11 @@ class CalibrationStrategy(QuantizationStrategy):
         the mode's policy loads them from a checkpoint.
         """
         geometry = self.require_geometry(layer)
+        # The layer keeps no config: its policy names the bit width and the
+        # group size, and the rest of a config describes a calibration run.
+        # This also drops a config deserialized with the layer.
+        layer.quantization_config = None
+
         rows, columns = geometry.calibration_rows_columns(input_shape)
 
         bits = self.resolve_weight_bits(layer, config)
@@ -248,9 +254,8 @@ class CalibrationStrategy(QuantizationStrategy):
 
     def quantized_weight(self, layer):
         geometry = self.require_geometry(layer)
-        config = layer.quantization_config
-        bits = self.resolve_weight_bits(layer, config)
-        group_size = self.resolve_group_size(layer, config)
+        bits = self.resolve_weight_bits(layer, None)
+        group_size = self.resolve_group_size(layer, None)
         # The group parameters are stored as `[n_groups, out]`, so their
         # axes give the unpacked column count the packed codes stand for
         # and, with the group index, the row count.
