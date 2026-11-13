@@ -148,7 +148,7 @@ class TestTensorBoardV2(testing.TestCase):
         return model
 
     @pytest.mark.requires_trainable_backend
-    def test_TensorBoard_basic(self):
+    def test_tensorboard_basic(self):
         model = self._get_model()
         x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
         logdir, train_dir, validation_dir = self._get_log_dirs()
@@ -178,7 +178,7 @@ class TestTensorBoardV2(testing.TestCase):
         )
 
     @pytest.mark.requires_trainable_backend
-    def test_TensorBoard_evaluate(self):
+    def test_tensorboard_evaluate(self):
         model = self._get_model()
         x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
         logdir, train_dir, validation_dir = self._get_log_dirs()
@@ -207,7 +207,7 @@ class TestTensorBoardV2(testing.TestCase):
         tensorflow.available, reason="Uses tensorboardX without TensorFlow."
     )
     @pytest.mark.requires_trainable_backend
-    def test_TensorBoard_remote_log_dir(self):
+    def test_tensorboard_remote_log_dir(self):
         class RemoteStream(io.IOBase):
             def __init__(self, f):
                 self._f = f
@@ -284,7 +284,7 @@ class TestTensorBoardV2(testing.TestCase):
         )
 
     @pytest.mark.requires_trainable_backend
-    def test_TensorBoard_across_invocations(self):
+    def test_tensorboard_across_invocations(self):
         """Regression test for summary writer resource use-after-free."""
         model = self._get_model()
         x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
@@ -317,7 +317,7 @@ class TestTensorBoardV2(testing.TestCase):
         )
 
     @pytest.mark.requires_trainable_backend
-    def test_TensorBoard_no_spurious_event_files(self):
+    def test_tensorboard_no_spurious_event_files(self):
         model = self._get_model()
         x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
         logdir, train_dir, _ = self._get_log_dirs()
@@ -331,7 +331,7 @@ class TestTensorBoardV2(testing.TestCase):
         self.assertEqual(events_file_run_basenames, {"train"})
 
     @pytest.mark.requires_trainable_backend
-    def test_TensorBoard_batch_metrics(self):
+    def test_tensorboard_batch_metrics(self):
         model = self._get_model()
         x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
         logdir, train_dir, validation_dir = self._get_log_dirs()
@@ -362,7 +362,7 @@ class TestTensorBoardV2(testing.TestCase):
         )
 
     @pytest.mark.requires_trainable_backend
-    def test_TensorBoard_learning_rate_schedules(self):
+    def test_tensorboard_learning_rate_schedules(self):
         model = self._get_model(compile_model=False)
         opt = optimizers.SGD(schedules.CosineDecay(0.01, 1))
         model.compile(opt, "mse")
@@ -387,7 +387,7 @@ class TestTensorBoardV2(testing.TestCase):
         )
 
     @pytest.mark.requires_trainable_backend
-    def test_TensorBoard_global_step(self):
+    def test_tensorboard_global_step(self):
         model = self._get_model(compile_model=False)
         opt = optimizers.SGD(schedules.CosineDecay(0.01, 1))
         model.compile(opt, "mse")
@@ -427,7 +427,7 @@ class TestTensorBoardV2(testing.TestCase):
         )
 
     @pytest.mark.requires_trainable_backend
-    def test_TensorBoard_weight_histograms(self):
+    def test_tensorboard_weight_histograms(self):
         model = self._get_model()
         x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
         logdir, train_dir, validation_dir = self._get_log_dirs()
@@ -461,12 +461,12 @@ class TestTensorBoardV2(testing.TestCase):
         )
 
     @pytest.mark.skipif(tensorflow.available, reason="Requires no TensorFlow.")
-    def test_TensorBoard_weight_histograms_without_tensorflow(self):
+    def test_tensorboard_weight_histograms_without_tensorflow(self):
         with self.assertRaisesRegex(ImportError, "require TensorFlow"):
             callbacks.TensorBoard(self.get_temp_dir(), histogram_freq=1)
 
     @pytest.mark.requires_trainable_backend
-    def test_TensorBoard_weight_images(self):
+    def test_tensorboard_weight_images(self):
         if backend.config.image_data_format() == "channels_last":
             input_shape = (10, 10, 1)
             x_shape = (10, 10, 10, 1)
@@ -525,7 +525,7 @@ class TestTensorBoardV2(testing.TestCase):
         )
 
     @pytest.mark.requires_trainable_backend
-    def test_TensorBoard_projector_callback(self):
+    def test_tensorboard_projector_callback(self):
         model = models.Sequential(
             [
                 layers.Input((10,)),
@@ -675,7 +675,7 @@ class TestTensorBoardV2(testing.TestCase):
         reason="Torch backend requires blocking numpy conversion.",
     )
     @pytest.mark.requires_trainable_backend
-    def test_TensorBoard_non_blocking(self):
+    def test_tensorboard_non_blocking(self):
         logdir, _, _ = self._get_log_dirs()
         model = models.Sequential([layers.Dense(1)])
         model.optimizer = optimizers.Adam()
@@ -755,7 +755,7 @@ class TestTensorBoardV2(testing.TestCase):
                     if "input" not in layer.name:
                         self.assertIn(layer.name, graph_def_str)
 
-    def test_TensorBoard_write_sequential_model_no_input_shape(self):
+    def test_tensorboard_write_sequential_model_no_input_shape(self):
         # TODO: Requires to_json implementation in trainer
         # model = models.Sequential(
         #     [
@@ -768,7 +768,7 @@ class TestTensorBoardV2(testing.TestCase):
         # self.fitModelAndAssertKerasModelWritten(model)
         pass
 
-    def test_TensorBoard_write_sequential_model_with_input_shape(self):
+    def test_tensorboard_write_sequential_model_with_input_shape(self):
         # TODO: Requires to_json implementation in trainer
         # model = models.Sequential(
         #     [
@@ -782,7 +782,7 @@ class TestTensorBoardV2(testing.TestCase):
         # self.fitModelAndAssertKerasModelWritten(model)
         pass
 
-    def test_TensorBoard_write_model(self):
+    def test_tensorboard_write_model(self):
         # TODO: Requires to_json implementation in trainer
         # See https://github.com/keras-team/keras/blob/ \
         # a8d4a7f1ffc9de3c5932828a107e4e95e8803fb4/ \
@@ -801,7 +801,7 @@ class TestTensorBoardV2(testing.TestCase):
         backend.backend() not in ("jax", "tensorflow"),
         reason="The profiling test can only run with TF and JAX backends.",
     )
-    def test_TensorBoard_auto_trace(self):
+    def test_tensorboard_auto_trace(self):
         logdir, train_dir, validation_dir = self._get_log_dirs()
         model = models.Sequential(
             [

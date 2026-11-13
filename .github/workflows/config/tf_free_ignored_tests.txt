@@ -25,9 +25,9 @@ keras/src/trainers/data_adapters/tf_dataset_adapter_test.py
 keras/src/backend/common/keras_tensor_test.py::KerasTensorTest::test_invalid_usage
 keras/src/callbacks/orbax_checkpoint_test.py::OrbaxCheckpointTest::test_checkpoint_with_assets0
 keras/src/callbacks/orbax_checkpoint_test.py::OrbaxCheckpointTest::test_checkpoint_with_assets1
-keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_auto_trace
-keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_weight_histograms
-keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_TensorBoard_weight_images
+keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_tensorboard_auto_trace
+keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_tensorboard_weight_histograms
+keras/src/callbacks/tensorboard_test.py::TestTensorBoardV2::test_tensorboard_weight_images
 keras/src/export/openvino_test.py::ExportOpenVINOTest::test_model_with_input_structure_array
 keras/src/export/openvino_test.py::ExportOpenVINOTest::test_model_with_input_structure_dict
 keras/src/export/openvino_test.py::ExportOpenVINOTest::test_model_with_input_structure_tuple
