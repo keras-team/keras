@@ -10,6 +10,7 @@ from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import any_symbolic_tensors
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
@@ -2463,7 +2464,7 @@ class CTCLoss(Operation):
         self._check_shape_first_dim(
             "output_length", output_length.shape, "output", output.shape
         )
-        dtype = backend.result_type(output.dtype, "float32")
+        dtype = result_type(output.dtype, "float32")
         return KerasTensor((target.shape[0],), dtype=dtype)
 
 
@@ -2533,7 +2534,7 @@ class CTCDecode(Operation):
             top_paths = 1
         else:
             top_paths = self.top_paths
-        dtype = backend.result_type(inputs.dtype, "float32")
+        dtype = result_type(inputs.dtype, "float32")
         return (
             KerasTensor(
                 (top_paths, inputs_shape[0], inputs_shape[1]), dtype="int32"
@@ -2811,7 +2812,7 @@ class DotProductAttention(Operation):
         mask=None,
         scale=None,
     ):
-        dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
+        dtype = result_type(query.dtype, key.dtype, value.dtype)
         return KerasTensor(query.shape, dtype=dtype)
 
 
@@ -2983,7 +2984,7 @@ def _rms_normalization(x, scale=None, axis=-1, epsilon=None):
     original_dtype = standardize_dtype(x.dtype)
     # Computes in at least float32 precision for stability in half precision
     # training.
-    compute_dtype = backend.result_type(x.dtype, "float32")
+    compute_dtype = result_type(x.dtype, "float32")
 
     x = backend.ops.convert_to_tensor(x, dtype=compute_dtype)
     if scale is not None:
@@ -3099,7 +3100,7 @@ def _layer_normalization(
     original_dtype = standardize_dtype(x.dtype)
     # Computes in at least float32 precision for stability in half precision
     # training.
-    compute_dtype = backend.result_type(x.dtype, "float32")
+    compute_dtype = result_type(x.dtype, "float32")
 
     x = backend.ops.convert_to_tensor(x, dtype=compute_dtype)
     if gamma is not None:

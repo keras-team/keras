@@ -12,6 +12,7 @@ from keras.src.backend.common import any_symbolic_tensors
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import is_int_dtype
+from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
@@ -3994,7 +3995,7 @@ class Geomspace(Operation):
             if self.dtype is not None
             else standardize_dtype(getattr(start, "dtype", type(start)))
         )
-        dtype = backend.result_type(dtype, float)
+        dtype = result_type(dtype, float)
         return KerasTensor(output_shape, dtype=dtype)
 
 
@@ -4777,7 +4778,7 @@ class Linspace(Operation):
             if self.dtype is not None
             else standardize_dtype(getattr(start, "dtype", type(start)))
         )
-        dtype = backend.result_type(dtype, float)
+        dtype = result_type(dtype, float)
         if self.retstep:
             return (KerasTensor(output_shape, dtype=dtype), None)
         return KerasTensor(output_shape, dtype=dtype)
@@ -5150,7 +5151,7 @@ class Logspace(Operation):
             if self.dtype is not None
             else standardize_dtype(getattr(start, "dtype", type(start)))
         )
-        dtype = backend.result_type(dtype, float)
+        dtype = result_type(dtype, float)
         return KerasTensor(output_shape, dtype=dtype)
 
 
@@ -6826,7 +6827,7 @@ class Nanstd(Operation):
         return _nanstd(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        output_dtype = backend.result_type(getattr(x, "dtype", type(x)), float)
+        output_dtype = result_type(getattr(x, "dtype", type(x)), float)
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
             dtype=output_dtype,
@@ -6958,7 +6959,7 @@ class Nanvar(Operation):
         return _nanvar(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        output_dtype = backend.result_type(getattr(x, "dtype", type(x)), float)
+        output_dtype = result_type(getattr(x, "dtype", type(x)), float)
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
             dtype=output_dtype,
@@ -7006,7 +7007,7 @@ def _nanvar(x, axis=None, keepdims=False):
     ):
         return backend.ops.numpy.nanvar(x, axis=axis, keepdims=keepdims)
     x = backend.ops.convert_to_tensor(x)
-    dtype = backend.result_type(x.dtype, float)
+    dtype = result_type(x.dtype, float)
     x = backend.ops.cast(x, dtype)
     nan_mask = backend.ops.numpy.isnan(x)
     mean = _nanmean(x, axis=axis, keepdims=True)
@@ -7220,7 +7221,7 @@ class Outer(Operation):
         else:
             x2_flatten_shape = python_math.prod(x2_shape)
         output_shape = (x1_flatten_shape, x2_flatten_shape)
-        output_dtype = backend.result_type(
+        output_dtype = result_type(
             getattr(x1, "dtype", type(x1)),
             getattr(x2, "dtype", type(x2)),
         )
@@ -9615,7 +9616,7 @@ class Trapezoid(Operation):
         out_shape = list(y.shape)
         if self.axis is not None and len(out_shape) > 0:
             out_shape.pop(self.axis % len(out_shape))
-        dtype = backend.result_type(getattr(y, "dtype", type(y)), float)
+        dtype = result_type(getattr(y, "dtype", type(y)), float)
         return KerasTensor(tuple(out_shape), dtype=dtype)
 
 
@@ -9768,7 +9769,7 @@ class Var(Operation):
         return backend.ops.numpy.var(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        output_dtype = backend.result_type(getattr(x, "dtype", type(x)), float)
+        output_dtype = result_type(getattr(x, "dtype", type(x)), float)
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
             dtype=output_dtype,

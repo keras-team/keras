@@ -7,6 +7,7 @@ from jax import lax
 from keras.src import backend
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
@@ -1049,7 +1050,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     log_epsilon = -1e5
 
     # Ensure that the dtype promotion behavior matches that of `tf.nn.ctc_loss`
-    dtype = backend.result_type(output.dtype, "float32")
+    dtype = result_type(output.dtype, "float32")
     output = output.astype(dtype)
 
     def _lengths_to_paddings(lengths, max_length):
@@ -1366,7 +1367,7 @@ def ctc_decode(
     mask_index=0,
 ):
     inputs = convert_to_tensor(inputs)
-    dtype = backend.result_type(inputs.dtype, "float32")
+    dtype = result_type(inputs.dtype, "float32")
     inputs = cast(inputs, dtype)
 
     if strategy == "greedy":
@@ -1487,7 +1488,7 @@ def dot_product_attention(
             f"Received: query.shape={query.shape}, key.shape={key.shape}, "
             f"value.shape={value.shape}."
         )
-    compute_dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
+    compute_dtype = result_type(query.dtype, key.dtype, value.dtype)
     query = cast(query, compute_dtype)
     key = cast(key, compute_dtype)
     value = cast(value, compute_dtype)
