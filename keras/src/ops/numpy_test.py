@@ -4357,6 +4357,9 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             knp.Geomspace(num=4, endpoint=False)(1, 1000),
             np.geomspace(1, 1000, 4, endpoint=False),
         )
+        self.assertAllClose(
+            knp.geomspace(-1, -1000, 4), np.geomspace(-1, -1000, 4)
+        )
 
         start = np.array([1.0, 2.0, 3.0])
         stop = np.array([1000.0, 2000.0, 3000.0])

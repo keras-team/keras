@@ -4055,7 +4055,7 @@ def _geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
     stop = backend.ops.convert_to_tensor(stop)
     if dtype is None:
         dtype = standardize_dtype(start.dtype)
-    dtype = backend.result_type(dtype, float)
+    dtype = result_type(dtype, float)
     start = backend.ops.cast(start, dtype)
     stop = backend.ops.cast(stop, dtype)
     sign = backend.ops.numpy.sign(start)
