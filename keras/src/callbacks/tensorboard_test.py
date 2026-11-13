@@ -460,11 +460,6 @@ class TestTensorBoardV2(testing.TestCase):
             {_ObservedSummary(logdir=train_dir, tag="histogram")},
         )
 
-    @pytest.mark.skipif(tensorflow.available, reason="Requires no TensorFlow.")
-    def test_tensorboard_weight_histograms_without_tensorflow(self):
-        with self.assertRaisesRegex(ImportError, "require TensorFlow"):
-            callbacks.TensorBoard(self.get_temp_dir(), histogram_freq=1)
-
     @pytest.mark.requires_trainable_backend
     def test_tensorboard_weight_images(self):
         if backend.config.image_data_format() == "channels_last":

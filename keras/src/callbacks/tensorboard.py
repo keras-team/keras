@@ -4,6 +4,8 @@ import sys
 import time
 import warnings
 
+import numpy as np
+
 from keras.src import backend
 from keras.src import ops
 from keras.src import tree
@@ -23,8 +25,7 @@ class TensorBoard(Callback):
     TensorBoard is a visualization tool for training logs. This callback
     writes the logs with `tf.summary` when TensorFlow is installed. Otherwise,
     it writes them with tensorboardX, which you can install with
-    `pip install tensorboardX`. Weight histograms, weight images, and custom
-    `tf.summary` logs require TensorFlow.
+    `pip install tensorboardX`. Custom `tf.summary` logs require TensorFlow.
 
     This callback logs events for TensorBoard, including:
 
@@ -62,7 +63,8 @@ class TensorBoard(Callback):
             Note that the log file can become quite large
             when `write_graph` is set to `True`.
         write_images: whether to write model weights to visualize as image in
-            TensorBoard.
+            TensorBoard. Without TensorFlow, this requires Pillow
+            (`pip install pillow`).
         write_steps_per_second: whether to log the training steps per second
             into TensorBoard. This supports both epoch and batch frequency
             logging.
@@ -172,12 +174,6 @@ class TensorBoard(Callback):
     ):
         super().__init__()
 
-        if histogram_freq and not tensorflow.available:
-            raise ImportError(
-                "Weight histograms and images require TensorFlow. You can "
-                "install it via `pip install tensorflow`. Received: "
-                f"histogram_freq={histogram_freq} (must be 0)"
-            )
         self.log_dir = str(log_dir)
         self.histogram_freq = histogram_freq
         self.write_graph = write_graph
@@ -273,6 +269,29 @@ class TensorBoard(Callback):
                 self.summary.scalar(name, value, step=step)
         else:
             writer.add_scalar(name, float(value), step)
+
+    def _write_histogram(self, writer, name, value, step):
+        if tensorflow.available:
+            with writer.as_default():
+                self.summary.histogram(name, value, step=step)
+            return
+        value = ops.convert_to_numpy(value)
+        value = value[np.isfinite(value)]
+        if value.size:
+            bins = np.linspace(float(value.min()), float(value.max()), 31)
+            writer.add_histogram(name, value, step, bins=bins)
+
+    def _write_image(self, writer, name, value, step):
+        if tensorflow.available:
+            with writer.as_default():
+                self.summary.image(name, value, step=step)
+        else:
+            writer.add_images(
+                name,
+                np.clip(np.nan_to_num(value), 0, 1),
+                step,
+                dataformats="NHWC",
+            )
 
     def _write_keras_model_train_graph(self):
         """Writes Keras model train_function graph to TensorBoard."""
@@ -623,23 +642,19 @@ class TensorBoard(Callback):
 
     def _log_weights(self, epoch):
         """Logs the weights of the Model to TensorBoard."""
-        with self._train_writer.as_default():
-            for layer in self.model.layers:
-                for weight in layer.weights:
-                    weight_name = weight.path.replace(":", "_")
+        for layer in self.model.layers:
+            for weight in layer.weights:
+                weight_name = weight.path.replace(":", "_")
+                # Add a suffix to prevent summary tag name collision.
+                histogram_weight_name = f"{weight_name}/histogram"
+                self._write_histogram(
+                    self._train_writer, histogram_weight_name, weight, epoch
+                )
+                if self.write_images:
                     # Add a suffix to prevent summary tag name collision.
-                    histogram_weight_name = f"{weight_name}/histogram"
-                    self.summary.histogram(
-                        histogram_weight_name, weight, step=epoch
-                    )
-                    if self.write_images:
-                        # Add a suffix to prevent summary tag name
-                        # collision.
-                        image_weight_name = f"{weight_name}/image"
-                        self._log_weight_as_image(
-                            weight, image_weight_name, epoch
-                        )
-            self._train_writer.flush()
+                    image_weight_name = f"{weight_name}/image"
+                    self._log_weight_as_image(weight, image_weight_name, epoch)
+        self._train_writer.flush()
 
     def _log_weight_as_image(self, weight, weight_name, epoch):
         """Logs a weight as a TensorBoard image."""
@@ -664,7 +679,7 @@ class TensorBoard(Callback):
         shape = w_img.shape
         # Not possible to handle 3D convnets etc.
         if len(shape) == 4 and shape[-1] in [1, 3, 4]:
-            self.summary.image(weight_name, w_img, step=epoch)
+            self._write_image(self._train_writer, weight_name, w_img, epoch)
 
     def _log_embeddings(self, epoch):
         embeddings_ckpt = os.path.join(
