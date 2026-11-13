@@ -61,13 +61,7 @@ class ZeroPadding3D(Layer):
     ):
         super().__init__(**kwargs)
         self.data_format = backend.standardize_data_format(data_format)
-        if isinstance(padding, int):
-            self.padding = (
-                (padding, padding),
-                (padding, padding),
-                (padding, padding),
-            )
-        elif hasattr(padding, "__len__"):
+        if hasattr(padding, "__len__"):
             if len(padding) != 3:
                 raise ValueError(
                     f"`padding` should have 3 elements. Received: {padding}."
@@ -83,14 +77,13 @@ class ZeroPadding3D(Layer):
             )
             self.padding = (dim1_padding, dim2_padding, dim3_padding)
         else:
-            raise ValueError(
-                "`padding` should be either an int, a tuple of 3 ints "
-                "(symmetric_dim1_pad, symmetric_dim2_pad, symmetric_dim3_pad), "
-                "or a tuple of 3 tuples of 2 ints "
-                "((left_dim1_pad, right_dim1_pad),"
-                " (left_dim2_pad, right_dim2_pad),"
-                " (left_dim3_pad, right_dim2_pad)). "
-                f"Received: padding={padding}."
+            padding = argument_validation.validate_int(
+                "padding", padding, min_value=0
+            )
+            self.padding = (
+                (padding, padding),
+                (padding, padding),
+                (padding, padding),
             )
         self.input_spec = InputSpec(ndim=5)
 

@@ -111,9 +111,13 @@ class TernaryDenseTest(testing.TestCase):
         self.assertEqual(restored.units, layer.units)
 
     def test_invalid_units(self):
-        with self.assertRaisesRegex(ValueError, "positive integer"):
+        with self.assertRaisesRegex(
+            ValueError, "`units` to be an integer >= 1"
+        ):
             layers.TernaryDense(0)
-        with self.assertRaisesRegex(ValueError, "positive integer"):
+        with self.assertRaisesRegex(
+            ValueError, "`units` to be an integer >= 1"
+        ):
             layers.TernaryDense(-4)
 
     def test_invalid_threshold(self):
@@ -453,3 +457,8 @@ class TernaryDenseTest(testing.TestCase):
         self.assertIsNotNone(layer.dtype_policy.quantization_mode)
         with self.assertRaisesRegex(ValueError, "already quantized"):
             layer.quantize("ternary")
+
+    def test_numpy_integer_units(self):
+        layer = layers.TernaryDense(np.int64(3))
+        self.assertIs(type(layer.units), int)
+        self.assertEqual(layer.units, 3)

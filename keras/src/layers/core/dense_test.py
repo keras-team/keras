@@ -123,14 +123,14 @@ class DenseTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        ("zero", 0),
-        ("negative", -3),
-        ("float", 2.5),
-        ("none", None),
-        ("string", "64"),
+        ("zero", 0, ValueError),
+        ("negative", -3, ValueError),
+        ("float", 2.5, TypeError),
+        ("none", None, TypeError),
+        ("string", "64", TypeError),
     )
-    def test_dense_invalid_units_raises(self, units):
-        with self.assertRaisesRegex(ValueError, "positive integer"):
+    def test_dense_invalid_units_raises(self, units, error):
+        with self.assertRaisesRegex(error, "Expected `units` to be an integer"):
             layers.Dense(units)
 
     def test_dense_correctness(self):
@@ -2096,3 +2096,8 @@ class DenseTest(testing.TestCase):
         # A forward pass runs without error.
         x = np.random.random((2, input_dim)).astype("float32")
         self.assertEqual(tuple(layer(x).shape), (2, output_dim))
+
+    def test_numpy_integer_units(self):
+        layer = layers.Dense(np.int64(3))
+        self.assertIs(type(layer.units), int)
+        self.assertEqual(layer.units, 3)

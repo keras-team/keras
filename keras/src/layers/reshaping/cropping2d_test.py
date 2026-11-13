@@ -131,3 +131,10 @@ class Cropping2DTest(testing.TestCase):
                 cropping=cropping, data_format=data_format
             )
             _ = layer(inputs)
+
+    def test_numpy_integer_cropping(self):
+        layer = layers.Cropping2D(cropping=np.int64(2))
+        self.assertEqual(layer.cropping, ((2, 2), (2, 2)))
+        for pair in layer.cropping:
+            for v in pair:
+                self.assertIs(type(v), int)

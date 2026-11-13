@@ -5,6 +5,7 @@ import numpy as np
 from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
+from keras.src.utils import argument_validation
 from keras.src.utils import jax_utils
 from keras.src.utils.naming import auto_name
 
@@ -72,14 +73,10 @@ class SeedGenerator:
         else:
             self.backend = backend
 
+        seed = argument_validation.validate_int("seed", seed, allow_none=True)
         self._initial_seed = seed
         if seed is None:
             seed = make_default_seed()
-
-        if not isinstance(seed, int):
-            raise ValueError(
-                f"Argument `seed` must be an integer. Received: seed={seed}"
-            )
 
         def seed_initializer(*args, **kwargs):
             dtype = kwargs.get("dtype", None)
@@ -149,7 +146,8 @@ def make_default_seed():
 def draw_seed(seed):
     if isinstance(seed, SeedGenerator):
         return seed.next()
-    elif isinstance(seed, int):
+    elif isinstance(seed, (int, np.integer)):
+        seed = int(seed)
         dtype = backend.ops.random_seed_dtype()
         # Seeds are conceptually uint32 values but some backends declare
         # their seed dtype as a signed type (e.g. "int32"). np.array(x,

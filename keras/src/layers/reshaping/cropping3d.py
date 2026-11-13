@@ -61,18 +61,7 @@ class Cropping3D(Layer):
     ):
         super().__init__(**kwargs)
         self.data_format = backend.standardize_data_format(data_format)
-        if isinstance(cropping, int):
-            if cropping < 0:
-                raise ValueError(
-                    "`cropping` cannot be negative. "
-                    f"Received: cropping={cropping}."
-                )
-            self.cropping = (
-                (cropping, cropping),
-                (cropping, cropping),
-                (cropping, cropping),
-            )
-        elif hasattr(cropping, "__len__"):
+        if hasattr(cropping, "__len__"):
             if len(cropping) != 3:
                 raise ValueError(
                     f"`cropping` should have 3 elements. Received: {cropping}."
@@ -88,15 +77,13 @@ class Cropping3D(Layer):
             )
             self.cropping = (dim1_cropping, dim2_cropping, dim3_cropping)
         else:
-            raise ValueError(
-                "`cropping` should be either an int, a tuple of 3 ints "
-                "(symmetric_dim1_crop, symmetric_dim2_crop, "
-                "symmetric_dim3_crop), "
-                "or a tuple of 3 tuples of 2 ints "
-                "((left_dim1_crop, right_dim1_crop),"
-                " (left_dim2_crop, right_dim2_crop),"
-                " (left_dim3_crop, right_dim2_crop)). "
-                f"Received: {cropping}."
+            cropping = argument_validation.validate_int(
+                "cropping", cropping, min_value=0
+            )
+            self.cropping = (
+                (cropping, cropping),
+                (cropping, cropping),
+                (cropping, cropping),
             )
         self.input_spec = InputSpec(ndim=5)
 

@@ -2,6 +2,7 @@ from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
+from keras.src.utils import argument_validation
 
 
 @keras_export("keras.layers.RepeatVector")
@@ -27,15 +28,7 @@ class RepeatVector(Layer):
 
     def __init__(self, n, **kwargs):
         super().__init__(**kwargs)
-        if not isinstance(n, int) or isinstance(n, bool):
-            raise TypeError(
-                f"Expected an integer value for `n`, got {type(n)}."
-            )
-        if n <= 0:
-            raise ValueError(
-                f"Argument `n` should be a positive integer. Received: n={n}"
-            )
-        self.n = n
+        self.n = argument_validation.validate_int("n", n, min_value=1)
         self.input_spec = InputSpec(ndim=2)
 
     def compute_output_shape(self, input_shape):

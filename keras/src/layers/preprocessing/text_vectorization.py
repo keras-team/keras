@@ -293,27 +293,22 @@ class TextVectorization(Layer):
         )
 
         # 'ngrams' must be one of (None, int, tuple(int))
-        if not (
-            ngrams is None
-            or isinstance(ngrams, int)
-            or isinstance(ngrams, tuple)
-            and all(isinstance(item, int) for item in ngrams)
-        ):
-            raise ValueError(
-                "`ngrams` must be None, an integer, or a tuple of "
-                f"integers. Received: ngrams={ngrams}"
+        if isinstance(ngrams, (list, tuple)):
+            ngrams = tuple(
+                argument_validation.validate_int_sequence("ngrams", ngrams)
+            )
+        else:
+            ngrams = argument_validation.validate_int(
+                "ngrams", ngrams, allow_none=True
             )
 
         # 'output_sequence_length' must be one of (None, int) and is only
         # set if output_mode is "int"".
-        if output_mode == "int" and not (
-            isinstance(output_sequence_length, int)
-            or (output_sequence_length is None)
-        ):
-            raise ValueError(
-                "`output_sequence_length` must be either None or an "
-                "integer when `output_mode` is 'int'. Received: "
-                f"output_sequence_length={output_sequence_length}"
+        if output_mode == "int":
+            output_sequence_length = argument_validation.validate_int(
+                "output_sequence_length",
+                output_sequence_length,
+                allow_none=True,
             )
 
         if output_mode != "int" and output_sequence_length is not None:

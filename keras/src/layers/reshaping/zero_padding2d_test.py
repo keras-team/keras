@@ -112,3 +112,10 @@ class ZeroPadding2DTest(testing.TestCase):
             "trainable": layer.trainable,
         }
         self.assertEqual(layer.get_config(), expected_config)
+
+    def test_numpy_integer_padding(self):
+        layer = layers.ZeroPadding2D(padding=np.int64(2))
+        self.assertEqual(layer.padding, ((2, 2), (2, 2)))
+        for pair in layer.padding:
+            for v in pair:
+                self.assertIs(type(v), int)

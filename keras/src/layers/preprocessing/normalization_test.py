@@ -469,3 +469,8 @@ class NormalizationTest(testing.TestCase):
         layer = layers.Normalization()
         layer.adapt(ListBatchDataset())
         self.assertTrue(layer.built)
+
+    def test_numpy_integer_axis(self):
+        layer = layers.Normalization(axis=np.int64(-1))
+        self.assertEqual(layer.axis, (-1,))
+        self.assertIs(type(layer.axis[0]), int)

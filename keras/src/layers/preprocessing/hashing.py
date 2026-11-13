@@ -2,6 +2,7 @@ from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend.common import KerasTensor
 from keras.src.layers.layer import Layer
+from keras.src.utils import argument_validation
 from keras.src.utils import backend_utils
 from keras.src.utils import numerical_utils
 from keras.src.utils import tf_utils
@@ -196,16 +197,15 @@ class Hashing(Layer):
         self.sparse = sparse
         self.salt = None
         if salt is not None:
-            if isinstance(salt, (tuple, list)) and len(salt) == 2:
-                self.salt = list(salt)
-            elif isinstance(salt, int):
-                self.salt = [salt, salt]
-            else:
-                raise ValueError(
-                    "The `salt` argument for `Hashing` can only be a tuple of "
-                    "size 2 integers, or a single integer. "
-                    f"Received: salt={salt}."
+            if isinstance(salt, (tuple, list)):
+                self.salt = list(
+                    argument_validation.validate_int_sequence(
+                        "salt", salt, length=2
+                    )
                 )
+            else:
+                salt = argument_validation.validate_int("salt", salt)
+                self.salt = [salt, salt]
         self._convert_input_args = False
         self._allow_non_tensor_positional_args = True
         self.supports_jit = False

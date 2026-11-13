@@ -4,6 +4,7 @@ from keras.src.api_export import keras_export
 from keras.src.layers.pooling.base_adaptive_pooling import (
     BaseAdaptiveMaxPooling,
 )
+from keras.src.utils import argument_validation
 
 
 @keras_export("keras.layers.AdaptiveMaxPooling3D")
@@ -49,15 +50,15 @@ class AdaptiveMaxPooling3D(BaseAdaptiveMaxPooling):
     """
 
     def __init__(self, output_size, data_format=None, **kwargs):
-        if isinstance(output_size, int):
-            output_size_tuple = (output_size, output_size, output_size)
-        elif isinstance(output_size, (tuple, list)) and len(output_size) == 3:
-            output_size_tuple = tuple(output_size)
-        else:
-            raise TypeError(
-                f"`output_size` must be an integer or "
-                f"(depth, height, width) tuple. "
-                f"Received: {output_size} of type {type(output_size)}"
+        if isinstance(output_size, (list, tuple)):
+            output_size_tuple = tuple(
+                argument_validation.validate_int_sequence(
+                    "output_size", output_size, length=3
+                )
             )
+        else:
+            output_size_tuple = (
+                argument_validation.validate_int("output_size", output_size),
+            ) * 3
 
         super().__init__(output_size_tuple, data_format, **kwargs)

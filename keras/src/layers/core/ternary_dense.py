@@ -8,6 +8,7 @@ from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.geometry import ProjectionGeometry
 from keras.src.quantizers.quantizers import ternarize
+from keras.src.utils import argument_validation
 
 
 @keras_export("keras.layers.TernaryDense")
@@ -116,11 +117,7 @@ class TernaryDense(Layer):
         bias_constraint=None,
         **kwargs,
     ):
-        if not isinstance(units, int) or units <= 0:
-            raise ValueError(
-                "Received an invalid value for `units`, expected a positive "
-                f"integer. Received: units={units}"
-            )
+        units = argument_validation.validate_int("units", units, min_value=1)
         if threshold is not None and not isinstance(threshold, (int, float)):
             raise ValueError(
                 "Received an invalid value for `threshold`, expected a float "

@@ -7,6 +7,7 @@ from keras.src import regularizers
 from keras.src.api_export import keras_export
 from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.layers.layer import Layer
+from keras.src.utils import argument_validation
 
 
 @keras_export("keras.layers.LayerNormalization")
@@ -128,14 +129,11 @@ class LayerNormalization(Layer):
 
         super().__init__(**kwargs)
         if isinstance(axis, (list, tuple)):
-            self.axis = list(axis)
-        elif isinstance(axis, int):
-            self.axis = axis
-        else:
-            raise TypeError(
-                "Expected an int or a list/tuple of ints for the "
-                "argument 'axis', but received: %r" % axis
+            self.axis = list(
+                argument_validation.validate_int_sequence("axis", axis)
             )
+        else:
+            self.axis = argument_validation.validate_int("axis", axis)
 
         self.epsilon = epsilon
         self.center = center

@@ -172,16 +172,15 @@ class IndexLookup(Layer):
                     "`salt` can only be used when `oov_method='farmhash'`. "
                     f"Received: oov_method={oov_method}"
                 )
-            if isinstance(salt, (tuple, list)) and len(salt) == 2:
-                salt = list(salt)
-            elif isinstance(salt, int):
-                salt = [salt, salt]
-            else:
-                raise ValueError(
-                    "The `salt` argument for `IndexLookup` can only be a tuple "
-                    "of 2 integers, or a single integer. "
-                    f"Received: salt={salt}."
+            if isinstance(salt, (tuple, list)):
+                salt = list(
+                    argument_validation.validate_int_sequence(
+                        "salt", salt, length=2
+                    )
                 )
+            else:
+                salt = argument_validation.validate_int("salt", salt)
+                salt = [salt, salt]
 
         # Support deprecated names for output_modes.
         if output_mode == "binary":
