@@ -30,7 +30,7 @@ class TensorBoard(Callback):
     This callback logs events for TensorBoard, including:
 
     * Metrics summary plots
-    * Training graph visualization
+    * Model graph visualization
     * Weight histograms
     * Sampled profiling
 
@@ -60,8 +60,6 @@ class TensorBoard(Callback):
             histograms won't be computed. Validation data (or split) must be
             specified for histogram visualizations.
         write_graph: Whether to visualize the model graph in TensorBoard.
-            Note that the log file can become quite large
-            when `write_graph` is set to `True`.
         write_images: whether to write model weights to visualize as image in
             TensorBoard. Without TensorFlow, this requires Pillow
             (`pip install pillow`).
