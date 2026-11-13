@@ -7,6 +7,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import result_type
 from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
 from keras.src.testing.test_utils import x64_mode_scope
@@ -56,14 +57,14 @@ class DtypesTest(test_case.TestCase):
 
         tensors = [ops.ones((1,), dtype=dtype) for dtype in dtypes]
         jax_tensors = [jnp.ones((1,), dtype=dtype) for dtype in dtypes]
-        out = backend.result_type(*(x.dtype for x in tensors))
+        out = result_type(*(x.dtype for x in tensors))
         self.assertEqual(out, jnp.result_type(*jax_tensors).name)
 
     def assert_scalar_result_type_matches_jax(self, dtype, scalar_type):
         """Checks `result_type` against `jnp.result_type` for a scalar type."""
         import jax.numpy as jnp
 
-        out = backend.result_type(dtype, scalar_type)
+        out = result_type(dtype, scalar_type)
         self.assertEqual(out, jnp.result_type(dtype, scalar_type).name)
 
     @parameterized.named_parameters(
@@ -116,7 +117,7 @@ class DtypesTest(test_case.TestCase):
         # https://github.com/keras-team/keras/issues/21677
         x1 = ops.ones((1,), dtype="int64")
         x2 = ops.ones((1,), dtype=dtype)
-        out = backend.result_type(x1.dtype, x2.dtype)
+        out = result_type(x1.dtype, x2.dtype)
         self.assertEqual(out, "int64")
 
     @parameterized.named_parameters(
@@ -143,16 +144,16 @@ class DtypesTest(test_case.TestCase):
         # https://github.com/keras-team/keras/issues/21677
         x1 = ops.ones((1,), dtype="float64")
         x2 = ops.ones((1,), dtype=dtype)
-        out = backend.result_type(x1.dtype, x2.dtype)
+        out = result_type(x1.dtype, x2.dtype)
         self.assertEqual(out, "float64")
 
     def test_result_type_with_none(self):
         import jax.numpy as jnp
 
-        self.assertEqual(backend.result_type(None), jnp.result_type(None).name)
+        self.assertEqual(result_type(None), jnp.result_type(None).name)
 
     def test_result_type_empty_list(self):
-        self.assertEqual(backend.result_type(), "float32")
+        self.assertEqual(result_type(), "float32")
 
     def test_respect_weak_type_for_bool(self):
         self.assertEqual(dtypes._respect_weak_type("bool", True), "bool")
@@ -317,8 +318,8 @@ class DtypesTest(test_case.TestCase):
         with self.assertRaisesRegex(
             ValueError, "There is no implicit conversions from float8 dtypes"
         ):
-            dtypes.result_type("float8_e4m3fn", "bfloat16")
+            result_type("float8_e4m3fn", "bfloat16")
         with self.assertRaisesRegex(
             ValueError, "There is no implicit conversions from float8 dtypes"
         ):
-            dtypes.result_type("float8_e5m2", "bfloat16")
+            result_type("float8_e5m2", "bfloat16")

@@ -5,6 +5,7 @@ import jax.numpy as jnp
 
 from keras.src import backend
 from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.jax.ops.core import convert_to_tensor
 from keras.src.random.seed_generator import draw_seed
@@ -65,7 +66,7 @@ def rgb_to_grayscale(images, data_format=None):
         return images
     # Convert to floats
     original_dtype = images.dtype
-    compute_dtype = backend.result_type(images.dtype, float)
+    compute_dtype = result_type(images.dtype, float)
     images = images.astype(compute_dtype)
 
     # Ref: tf.image.rgb_to_grayscale

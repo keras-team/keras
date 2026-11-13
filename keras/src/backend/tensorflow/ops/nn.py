@@ -7,6 +7,7 @@ import tensorflow as tf
 from keras.src import backend
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
@@ -1704,7 +1705,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     # or bfloat16. Additionally, it will raise an error when the input is
     # float64. As a result, we perform the casting externally and add support
     # for float64.
-    result_dtype = backend.result_type(output.dtype, "float32")
+    result_dtype = result_type(output.dtype, "float32")
     compute_dtype = "float32" if result_dtype == "float64" else result_dtype
     output = tf.cast(output, compute_dtype)
     loss = tf.nn.ctc_loss(
@@ -1732,7 +1733,7 @@ def ctc_decode(
     num_samples, num_steps = input_shape[0], input_shape[1]
     inputs = tf.transpose(inputs, (1, 0, 2))
 
-    dtype = backend.result_type(inputs.dtype, "float32")
+    dtype = result_type(inputs.dtype, "float32")
     inputs = tf.cast(inputs, dtype)
 
     sequence_lengths = convert_to_tensor(sequence_lengths, dtype="int32")
@@ -1826,7 +1827,7 @@ def _apply_masks(logits, mask, is_causal):
 
 
 def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
-    logits_dtype = backend.result_type(query.dtype, "float32")
+    logits_dtype = result_type(query.dtype, "float32")
     logits = tf.einsum("BTNH,BSNH->BNTS", query, key, optimize="optimal")
     logits = tf.cast(logits, logits_dtype)
     logits = tf.multiply(logits, tf.cast(scale, logits.dtype))
@@ -1837,7 +1838,7 @@ def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
     padded_logits = _apply_masks(logits, mask, is_causal)
 
     # Softmax is always carried out in high precision.
-    probs_dtype = backend.result_type(padded_logits.dtype, "float32")
+    probs_dtype = result_type(padded_logits.dtype, "float32")
     probs = tf.cast(
         tf.nn.softmax(tf.cast(padded_logits, probs_dtype), axis=-1), key.dtype
     )
@@ -1874,7 +1875,7 @@ def dot_product_attention(
             f"Received: query.shape={query.shape}, key.shape={key.shape}, "
             f"value.shape={value.shape}."
         )
-    compute_dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
+    compute_dtype = result_type(query.dtype, key.dtype, value.dtype)
     query = cast(query, compute_dtype)
     key = cast(key, compute_dtype)
     value = cast(value, compute_dtype)

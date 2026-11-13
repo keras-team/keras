@@ -8,6 +8,7 @@ from torch.distributed.tensor import Replicate
 from keras.src import backend
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
@@ -1167,7 +1168,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     output_length = convert_to_tensor(output_length)
 
     # Ensure that the dtype promotion behavior matches that of `tf.nn.ctc_loss`
-    dtype = backend.result_type(output.dtype, "float32")
+    dtype = result_type(output.dtype, "float32")
     output = cast(output, dtype)
 
     output = torch.transpose(output, 1, 0)
@@ -1464,7 +1465,7 @@ def ctc_decode(
     mask_index=0,
 ):
     inputs = convert_to_tensor(inputs)
-    dtype = backend.result_type(inputs.dtype, "float32")
+    dtype = result_type(inputs.dtype, "float32")
     inputs = cast(inputs, dtype)
 
     if strategy == "greedy":
@@ -1611,7 +1612,7 @@ def dot_product_attention(
         raise ValueError(
             "Only one of `bias` and `mask` can be provided. Received both."
         )
-    compute_dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
+    compute_dtype = result_type(query.dtype, key.dtype, value.dtype)
     query = cast(query, compute_dtype)
     key = cast(key, compute_dtype)
     value = cast(value, compute_dtype)

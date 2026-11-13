@@ -15,6 +15,7 @@ from keras.src import testing
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_int_dtype
+from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
 from keras.src.ops import numpy as knp
 from keras.src.testing.op_test_case import X
@@ -10920,7 +10921,7 @@ class NumpyDtypeTest(testing.TestCase):
         rng = np.random.default_rng(0)
         x1 = knp.array(rng.integers(-4, 5, size=(2, 5, 8)), dtype=dtype1)
         x2 = knp.array(rng.integers(-4, 5, size=(8, 4, 16)), dtype=dtype2)
-        expected_dtype = backend.result_type(dtype1, dtype2)
+        expected_dtype = result_type(dtype1, dtype2)
 
         result = knp.einsum(subscripts, x1, x2)
         self.assertEqual(standardize_dtype(result.dtype), expected_dtype)

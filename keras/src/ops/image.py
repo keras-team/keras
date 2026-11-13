@@ -5,6 +5,7 @@ from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import any_symbolic_tensors
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import is_int_dtype
+from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import compute_conv_output_shape
@@ -2997,7 +2998,7 @@ def _ssim(
 
     # Ensure float dtype for computation
     original_dtype = image1.dtype
-    compute_dtype = backend.result_type(image1.dtype, float)
+    compute_dtype = result_type(image1.dtype, float)
     image1 = ops.cast(image1, compute_dtype)
     image2 = ops.cast(image2, compute_dtype)
 

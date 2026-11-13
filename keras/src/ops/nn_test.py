@@ -17,6 +17,7 @@ from keras.src import ops
 from keras.src import testing
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.torch.distributed_test_utils import (
     TorchDistributedTestMixin,
@@ -3869,7 +3870,7 @@ class NNOpsDtypeTest(testing.TestCase):
             [[[0.4, 0.8, 0.4], [0.2, 0.8, 0.3], [0.9, 0.4, 0.5]]], dtype=dtype
         )
         sequence_length = knp.array([3])
-        expected_dtype = backend.result_type(dtype, "float32")
+        expected_dtype = result_type(dtype, "float32")
 
         # Test strategy="greedy"
         decoded, scores = knn.ctc_decode(
@@ -3908,7 +3909,7 @@ class NNOpsDtypeTest(testing.TestCase):
         query = knp.ones((2, 3, 3, 8), dtype=query_dtype)
         key = knp.ones((2, 3, 3, 8), dtype=key_value_dtype)
         value = knp.ones((2, 3, 3, 8), dtype=key_value_dtype)
-        expected_dtype = backend.result_type(*dtypes)
+        expected_dtype = result_type(*dtypes)
 
         self.assertDType(
             knn.dot_product_attention(query, key, value), expected_dtype
