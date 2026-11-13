@@ -138,12 +138,16 @@ class PiecewiseConstantDecayTest(testing.TestCase):
         self.assertAllClose(decayed_lr(x_int64), 0.7, 1e-6)
 
     def test_vector_step(self):
-        # Vector step should broadcast correctly (regression test for
-        # in-place += on 0-d result_value which failed on numpy/torch backends).
-        pcd = schedules.PiecewiseConstantDecay([100., 110.], [1., 0.5, 0.1])
-        steps = backend.ops.convert_to_tensor([0., 150.])
+        # Vector steps must broadcast across every range, including the exact
+        # boundary values (boundaries are inclusive on the right).
+        pcd = schedules.PiecewiseConstantDecay([100.0, 110.0], [1.0, 0.5, 0.1])
+        steps = backend.ops.convert_to_tensor(
+            [0.0, 99.0, 100.0, 101.0, 110.0, 111.0, 150.0]
+        )
         result = pcd(steps)
-        expected = backend.ops.convert_to_tensor([1., 0.1])
+        expected = backend.ops.convert_to_tensor(
+            [1.0, 1.0, 1.0, 0.5, 0.5, 0.1, 0.1]
+        )
         self.assertAllClose(result, expected)
 
 
