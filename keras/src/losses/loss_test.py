@@ -177,6 +177,34 @@ class LossTest(testing.TestCase):
         set_keras_mask(y_pred, mask)
         rank2_loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
         self.assertAllClose(rank1_loss, rank2_loss)
+    def test_mask_does_not_mutate_sample_weight(self):
+        # https://github.com/keras-team/keras/issues/24245
+        # `apply_mask()` used to multiply `sample_weight` in place, which
+        # mutated caller-owned tensors on backends where `cast()` returns its
+        # input unchanged when dtype/device already match (e.g. torch).
+        y_true = np.array([1.0, 0.0, 1.0, 0.0], dtype="float32")
+        y_pred = np.array([0.1, 0.2, 0.3, 0.4], dtype="float32")
+        mask = np.array([True, False, True, True])
+        sample_weight = np.array([0.4, 0.3, 0.2, 0.1], dtype="float32")
+
+        y_pred = ops.convert_to_tensor(y_pred, dtype="float32")
+        set_keras_mask(y_pred, ops.convert_to_tensor(mask))
+        sample_weight = ops.convert_to_tensor(sample_weight, dtype="float32")
+        # `ops.convert_to_numpy()` may share memory with the tensor, so take a
+        # real copy to snapshot the pre-call state.
+        before = np.array(ops.convert_to_numpy(sample_weight), copy=True)
+
+        loss_fn = ExampleLoss()
+        loss1 = loss_fn(y_true, y_pred, sample_weight=sample_weight)
+        loss2 = loss_fn(y_true, y_pred, sample_weight=sample_weight)
+        after = np.array(ops.convert_to_numpy(sample_weight), copy=True)
+
+        # The caller-owned tensor must be left untouched, and repeated calls
+        # with the same inputs must produce the same loss.
+        self.assertAllClose(before, after)
+        self.assertAllClose(loss1, loss2)
+        # Masked mean: sum(sw * err^2 over valid) / 3 == 0.438 / 3.
+        self.assertAllClose(loss1, 0.146)
 
     @parameterized.named_parameters(
         ("mask", "mask"),
