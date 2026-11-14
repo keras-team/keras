@@ -1403,7 +1403,26 @@ def hamming(x):
             f"Hamming operation does not support symbolic tensors. "
             f"Received input x = {x} of type {type(x)}"
         )
-    return backend.ops.numpy.hamming(x)
+    return _hamming(x)
+
+
+def _hamming(x):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "hamming"
+    ):
+        return backend.ops.numpy.hamming(x)
+    dtype = config.floatx()
+    compute_dtype = result_type(dtype, "float32")
+    x = backend.ops.cast(x, "int32")
+    n = backend.ops.numpy.arange(x, dtype=compute_dtype)
+    x_minus_1 = backend.ops.cast(x - 1, compute_dtype)
+    phase = (
+        python_math.pi
+        * (2 * n - x_minus_1)
+        / backend.ops.numpy.maximum(x_minus_1, 1.0)
+    )
+    window = 0.54 + 0.46 * backend.ops.numpy.cos(phase)
+    return backend.ops.cast(window, dtype)
 
 
 @keras_export(["keras.ops.hanning", "keras.ops.numpy.hanning"])
