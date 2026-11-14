@@ -1,47 +1,20 @@
+## Code Review Guardrails (High-Signal & Anti-False-Positive Rules)
+
+When performing code reviews on pull requests in `keras-team/keras`, strictly adhere to these top-level rules before applying any guideline below:
+
+1. **Check End-to-End Consistency Without Critiquing Untouched Code**:
+   - **DO check**: When a PR updates a contract (such as changing `compute_output_spec` dtype/shape promotion, decoupling a component from an optional dependency, or adding an argument to `Layer.add_weight`), verify that sibling methods, helpers, and public aliases (`_<op>()` fallback, `call()`, `Layer.add_variable`, lifecycle hooks) stay synchronized, and flag genuine spelling typos in newly added identifiers/docstrings/tests.
+   - **Do NOT flag**: Untouched context lines, moved/renamed code, or pre-existing logic adjacent to a `+`/`-` line. Never widen `start_line..end_line` across a diff hunk just to critique pre-existing code when the PR only made a narrow fix, rename, or migration nearby.
+2. **Verify Imports & Base Classes Before Claiming `NameError` or `AttributeError`**: Large files like `keras/src/ops/numpy.py` define imports thousands of lines above the diff, and unchanged `*_test.py` files plus `keras/src/testing/test_case.py` and `test_utils.py` are omitted from auxiliary `<FILES>` context (`keras.src.testing.TestCase` defines `assertAllClose`, `assertNotAllClose`, `assertAllEqual`, `assertSparse`, `run_layer_test`, and `get_temp_dir`). **Do NOT flag** unverified `NameError` or missing-method/attribute claims unless verified against full file imports and base classes.
+3. **Catch Real Bugs, Not Speculative Defensive Boilerplate**: Check for uninitialized/`None` attributes dereferenced across control-flow paths, `issubclass(x, ...)` without `inspect.isclass(x)` when `x` can be a function/callable, and reading private `_*` attributes on user-supplied objects instead of public attributes or `getattr`. **Do NOT flag** hypothetical `None` returns from standard constructors/factories, extra runtime checks contradicting a hook's documented signature, state rollback on objects discarded upon an unhandled exception, `RuntimeWarning` wrappers in tests (`pyproject.toml` ignores `RuntimeWarning`), auto-filling mandatory user arguments, expanding an API's contract beyond its docstring, English i18n string nags, or micro-optimizations/caching outside per-step hot paths (`Layer.__call__`, `convert_to_tensor`, dtype resolution) such as trace-time helpers, one-time setup, host data loading, or standalone benchmark scripts.
+4. **Skip Checks Enforced by CI**: Pre-commit and CI run `ruff check` (`E`, `F`, `I`, `S101`), `ruff format --check`, `shell/api_gen.sh`, and `zizmor`. **Do NOT flag** formatting, line length, import sorting, `assert` (`S101`), or unused imports (`F401`).
+5. **Respect Existing Repo Patterns**: Before suggesting review comments (like asking users to add boilerplate or specific patterns), actively check for existing design patterns across the repository. Do not suggest adding useless code or structures that contradict or fall outside the established Keras repo coding style.
+
+---
+
 # Keras API design guidelines
 
-These guidelines are meant to help focus design discussions and help us create delightful developer experiences.
-
-These are meant as guidelines, not rules: each decision should be debated in its own unique context.
-
-Some text remixed from external references:
-
-- [User experience design for APIs](https://blog.keras.io/user-experience-design-for-apis.html)
-- [Notes to Myself on Software Engineering](https://medium.com/s/story/notes-to-myself-on-software-engineering-c890f16f4e4d)
-
----
-
-## Design end-to-end workflows, not individual functions and classes.
-
-When developing APIs, start by designing end-to-end workflows, and only sketch out specific function/class signatures at the end.
-
-- The goal is to arrive at workflows that feel like they are purposefully designed and well-optimized, rather than cobbled together to route around the features provided by the API. The workflows should come first, before atomic features. **Features only exist to support a workflow.** No feature should exist to provide a capability "just in case", "because we can".
-- **Every design review document should prominently feature a code example of one or two end-to-end workflows showing the canonical use-case for the new API.**
-- Every time we discuss choices surrounding a specific API feature, we should start by asking: **in what workflows will this be used?** Then we should make the choice that makes the most sense with respect to these workflows. We should not make API design decisions about features in isolation.
-- This implies that we will often ask the question: **do users really need to configure this parameter?**, and in many cases, the answer will be "no", rather than being "yes" by default.
-
----
-
-## Carefully weigh whether a new feature should be included.
-
-It's okay to say no: just because someone asks for a feature doesn't mean we should do it. Every feature has a cost that goes beyond the initial CL: maintenance cost, documentation cost, and cognitive cost for our users (a sprawling API surface is a major usability issue).
-
-In particular, in the Keras API, every new feature has to be maintained in perpetuity.
-
-As such, our criteria for adding a new feature in the API is the following:
-
-- **It should be broadly useful to our users**, rather than a niche feature that is only relevant to a specific vertical of researchers. Niche features should be maintained independently by those who need them (e.g. by extending the API via subclassing), as third-party add-on packages.
-- **It should be widely recognized as a machine learning best practice.** We will not add new layers/etc that were recently published to ArXiv.org, even in case of claims of increased accuracy/etc. We only add new objects that are already commonly used in the machine learning community. Presumably, a new technique that does result in meaningful gains would be broadly adopted after a few months anyway (like ResNet), and that's when we would be adding it to the core API. SIG-addons maintains a repository of significantly more volatile and independently maintained code to which the barriers to entry are lower.
-- **It should have an owner committed to maintaining it in the long term.** In particular, the code should be maintainable by multiple people on the team, not just by one technical guru.
-
-In addition, when saying yes to a request for supporting a new use case, remember that **literally adding what the user/team requested is often not the optimal choice**. Users are focused on their own specific use case, and we must counter this with a holistic and principled vision of the whole project (see: designing end-to-end workflows, not atomic functions/classes). Often, the right answer is to extend an existing feature. **Find the natural place to integrate the new feature in existing APIs.**
-
-### Examples:
-
-- We should not have added the self-normalizing activation function to the API. It was added before passing the test of time, and that technique has shown later not to reach broad adoption. **Note that citation count is not a good metric of adoption**; that paper has a high citation count.
-- We should not move to core an API that has debuted somewhere on GitHub or TF-Addons but has failed to gain more than a few users after a few months.
-
----
+These guidelines apply when a PR introduces or modifies a public `@keras_export` API (**Do NOT flag** argument counts or names dictated by NumPy/JAX/PyTorch/ONNX specs or existing base-class signatures).
 
 ## Seek to minimize cognitive load for our users.
 
@@ -49,7 +22,6 @@ Always seek to minimize the cognitive load imposed on our users in the course of
 
 At a high level:
 
-- **Automate everything that can be automated.**
 - **Minimize the actions & choices required from the user.** Make sure default values for arguments are sensible and reflect best practices (so that users usually wouldn't have to manually configure these). Don't expose options that are not important or do not match real use cases, "just in case".
 - **Design simple and consistent workflows that reflect simple and consistent mental models.**
 
@@ -67,7 +39,7 @@ In particular, naming is important and difficult:
 
 - **The meaning of an argument should be clear from its name and should not require knowledge that only the implementers have.** In particular, argument names should only involve recognized terms of art ("L1 norm" is a term of art), and should not involve implementation-related vocabulary (e.g. "fused batchnorm").
 - **Avoid `OverlyLongAndSpecificNamingPatterns`.** If you find yourself with argument names with involve more than 3 subparts (e.g. "squared_operator_norm"), reconsider. Argument names should be intuitive and easy to remember.
-- Avoid overly generic names (`x`, `variable`, `parameter`).
+- Avoid overly generic names (e.g. `variable`, `parameter` on high-level APIs; **Do NOT flag** `x` in `keras.ops` or math/tensor functions).
 - **Make sure you are consistent in your naming choices.** Naming consistency means both **internal naming consistency** (don't call `dim` what is called `axis` in other places, don't call `ndims` what is called `ndim` elsewhere) and **consistency with established conventions for the problem domain (terms of art)**. Before settling on a name, make sure to look up existing names used by domain experts (or other APIs). In our case, argument names should be consistent with the broader scientific Python conventions, in particular NumPy.
 
 Note that Keras uses the following naming rules:
@@ -78,37 +50,6 @@ Note that Keras uses the following naming rules:
 - Following Python conventions, classes use capitalized parts (e.g. `ClassName`) and functions and methods use snake case (e.g. `function_name`).
 - If an argument name has a numerical suffix (e.g. `alpha_1`), we put an underscore before the suffix in snake case. The capitalized equivalent would be e.g. `Alpha1`.
 - We used fully spelled-out names, e.g. `attention_scores` and not `attn_scores`. There are a couple standardized exceptions to this rule, in particular `dim` for "dimension" and `num` for "number". These are sufficiently common that they are not ambiguous to a first-time reader.
-
-### Example:
-
-```python
-MyConstructor(
-    per_variable_sparsity_config=["layer_1/kernel:0.8", "layer_2/kernel:1.5"]
-)
-```
-
-What's wrong with this?
-
-- Overly long argument name
-- Too much cognitive load involved in preparing an appropriate argument value
-- Preparing an argument value requires internal implementation knowledge
-- Reliance on TF variable names (subject to changes at any time, thus breaking this code)
-- Nested config adding indirection
-- Incorrect typing (float values being passing as strings)
-
-Possible alternative:
-
-```
-obj = MyConstructor()
-obj.configure_sparsity(some_layer.kernel, value=0.8)
-obj.configure_sparsity(some_other_layer.kernel, value=1.5)
-```
-
-What's nice about this?
-
-- Object-based variable references.
-- Modular, simple action, with a clear name.
-- Plain Python types.
 
 ---
 
@@ -137,18 +78,13 @@ For instance, the optimizer API or the layers API should not contain arguments f
 Documentation and error messages are an integral part of the API. Good docs and helpful error messages are key to a delightful user experience.
 
 - **Catch user errors early and anticipate common mistakes.** Do user input validation as soon as possible. Actively keep track of common mistakes that people make (by screening GitHub and StackOverflow), and either solve them by simplifying our API, adding targeted error messages for these mistakes, or having a "solutions to common issues" page in our docs. Consider adding automated fallback behaviors (e.g. casting a wrongly-typed input) instead of raising errors, when applicable. Be nice to our users.
-- **Provide detailed feedback messages upon user error.** Error messages should be contextual, informative, and actionable. Every error message that transparently provides the user with the solution to their problem means one less support ticket, multiplied by how many times users run into the same issue. A good error message should answer:
+- **Provide detailed feedback messages upon user error.** To validate user-facing input, always use `ValueError` (not `AttributeError`/`TypeError` or silent fallback). Error messages should be contextual, informative, and actionable. Every error message that transparently provides the user with the solution to their problem means one less support ticket, multiplied by how many times users run into the same issue. A good error message should answer:
     - What happened, in what context? (Include all relevant hyperparameters, e.g., `strides`, `padding`, `pool_size`, not just the input shape. Always include the *received* values like `original_shape` or `output_mode`).
     - What did the software expect? (Explicitly mention the expected vs. actual path or value for complex models).
     - How can the user fix it?
-- **Use plain Python representations in error messages.** Shapes and sizes should be represented as Python tuples (e.g., `(2, 2)`) rather than raw NumPy array representations (e.g., `[2 2]`). Use `.name` attributes for objects instead of raw object strings.
+- **Use plain Python representations in error messages.** Shapes and sizes should be represented as Python tuples (e.g., `(2, 2)`) rather than raw NumPy array representations (e.g., `[2 2]`). Use `.name` attributes for objects instead of raw object strings. (**Do NOT** nitpick wording or demand a rigid `"Received: arg=..."` format when a `ValueError` message already clearly states the invalid input, **Do NOT** ask to wrap `TensorShape` in `tuple()`, and **Do NOT** demand extra user-input validation inside internal backend fast paths.)
 - **A docstring should answer the question: what is this about, and why & how should I use it?** It should assume as little context as possible, and it shouldn't mention specialized terms without first introducing them (for example, "num_blocks: Number of blocks in the kernel" is not a good argument description if this is the first time you mention "blocks" in your docstring).
-- **Show, don't tell: your documentation should not talk about how the software works, it should show how to use it.** Show code examples for end-to-end workflows; show code examples for each and every common use case and key feature of your API. **All docstrings should include code examples.**
-- **Deliberately design the user onboarding process for your feature.** How are complete newcomers going to find out the best way to solve their use case with your tool? Have an answer ready. Make sure your onboarding material closely maps to what your users care about: don't teach newcomers how your framework is implemented, teach them how they can use it to solve their own problems. After shipping a CL and writing good docstrings, make sure to create a Colab guide / tutorial showcasing the target workflow, and post it on the docs website.
-- The feature is not ready until:
-    - 1) Users know about it
-    - 2) They know how to use it
-    - 3) They're actually using it to solve the corresponding problem.
+- **Show, don't tell: your documentation should not talk about how the software works, it should show how to use it.** Show code examples for end-to-end workflows; show code examples for each and every common use case and key feature of your API. **All public `@keras_export` docstrings should include code examples** (**Do NOT flag** missing `Examples:` on internal helpers, backend functions, private methods, or `Operation` subclasses).
 
 Note that Keras uses the following rules for writing docstrings:
 
@@ -167,43 +103,6 @@ Note that Keras uses the following rules for writing docstrings:
         - e.g. warnings about edge cases or compatibility issues.
         - e.g. pointers to further guides and tutorials.
 
-### Error messages: a case study
-
-The following would be a very poor error message:
-
-```
-AssertionError: '1 != 3'
-```
-
-In general, to validate user input, always use `ValueError` and avoid `assert`.
-
-Also bad:
-
-```
-ValueError: 'Invalid target shape (600, 1).'
-```
-
-The following is better, but still not sufficient, because it does not tell the user what they passed, and does not quite say how to fix it:
-
-```
-ValueError: 'categorical_crossentropy requires target.shape[1] == classes'
-```
-
-Now, here's a good example, that says **what was passed**, **what was expected**, and **how to fix the issue**:
-
-```
-ValueError: '''You are passing a target array of shape (600, 1) while using as loss `categorical_crossentropy`.
-`categorical_crossentropy` expects targets to be binary matrices (1s and 0s) of shape (samples, classes).
-If your targets are integer classes, you can convert them to the expected format via:
-
----
-from keras.utils import to_categorical
-y_binary = to_categorical(y_int)
----
-
-Alternatively, you can use the loss function `sparse_categorical_crossentropy` instead, which does expect integer targets.
-```
-
 ---
 
 ## Implementation Best Practices (Multi-Backend & Symbolic Tensors)
@@ -212,16 +111,17 @@ Keras supports multiple backends (JAX, TensorFlow, PyTorch) and uses symbolic ex
 
 ### Multi-Backend Compatibility
 
-- **Prefer `backend.ops.convert_to_tensor` over backend-specific methods**: Use `backend.ops.convert_to_tensor(x)` instead of direct calls like `torch.as_tensor(x)`. This ensures proper handling of various input types, including Keras objects such as variables, and consistent detection of the dtype.
-- **Backend-Agnostic Shape Handling**: Prefer using `backend.ops.shape(inputs)` (or a passed `backend_module.ops.shape(inputs)`) over the `.shape` property. This ensures consistency across JAX, TF, and Torch, especially for symbolic tensors.
+- **Prefer `convert_to_tensor` over backend-specific methods**: Use `ops.convert_to_tensor(x)` (or `backend.ops.convert_to_tensor(x)` inside `keras/src/ops/`, or the backend's own `convert_to_tensor`) instead of direct calls like `torch.as_tensor(x)` on user inputs. This ensures proper handling of various input types, including Keras objects such as variables, and consistent detection of the dtype. Outside `keras/src/ops/`, **both** `ops.*` and `backend.ops.*` are valid—**Do NOT** ask authors to switch one to the other, and **Do NOT flag** internal backend constant constructors like `torch.tensor(..., dtype=..., device=...)`.
+- **Backend-Agnostic Shape Handling**: In shared code (`keras/src/ops/`, layers, metrics) and `keras/src/backend/tensorflow/**`, prefer using `ops.shape(inputs)` (or `backend.ops.shape(inputs)` inside `keras/src/ops/`, `tf.shape(inputs)` in `backend/tensorflow/`) over `.shape` when an axis length is used in runtime tensor computation, padding, or slicing (`reshape`, `broadcast_to`, `split`, `conv` padding), because `x.shape[i]` is `None` on symbolic TensorFlow tensors (note TensorFlow's `ops.shape(x)` keeps static dims as Python ints and only returns tensors for unknown dims, so **Do NOT flag** `ops.shape(x)[axis]` as losing static shapes, and never branch with Python `if`/`else` on a TensorFlow dynamic tensor dim from `ops.shape(x)[i]`).
 - **Support Dynamic Dimensions**:
     - Use `len(shape)` or `ops.ndim(x)` to access shapes in a backend-agnostic way.
-    - Use `isinstance(d, int)` to detect that a dimension is static and not dynamic. `None` is not the only representation for dynamic dimensions.
-    - Use plain Python operators (e.g. `+`, `*`, `//`) to perform math on the dimensions of a shape, not Keras ops. This works seamlessly for static dimensions, symbolic dimensions (JAX, Torch) and tensor dimensions (TensorFlow). For instance, `math.prod(shape)` is the correct way to determine the size of an array.
+    - Use `isinstance(d, int)` to detect that a dimension from `ops.shape(x)` or a layer `input_shape` tuple is static and not dynamic. `None` is not the only representation for dynamic dimensions.
+    - Use plain Python operators (e.g. `+`, `-`, `*`, `//`, `builtins.abs`) to perform math on the dimensions of a shape, not Keras ops. This works seamlessly for static dimensions, symbolic dimensions (JAX, Torch) and tensor dimensions (TensorFlow). For instance, `math.prod(shape)` is the correct way to determine the size of an array.
+    - **Do NOT flag `x.shape`, `x.ndim`, or `is not None` when**: (1) inside `keras/src/backend/{jax,torch,numpy}/**` (where `.shape` dimensions are concrete integers and JAX ops like `jnp.repeat` require static integer sizes—never claim `.shape` arithmetic or comparisons fail under tracing/export there), (2) checking rank (`len(x.shape)` or `x.ndim`) or reading `KerasTensor.shape` inside `compute_output_spec`, `compute_output_shape`, or `build(self, input_shape)`, or (3) guarding an optional static bounds check (`size = x.shape[axis]; if size is not None:`).
 
 ### Backend-Agnostic Implementation for New Ops
 
-Applies when a PR adds an op under `keras/src/ops/`. Every op must have 
+Applies **only** when a PR adds a new op or adds a backend-agnostic fallback `_<op>()` to an existing op under `keras/src/ops/`. Every op must have
 an implementation written purely with other Keras ops, in addition to any
 backend-specific fast path.
 
@@ -244,10 +144,11 @@ Flag the following in the diff:
   `try`/`finally` block and suggest `self.addCleanup` instead.
 - **Public `ops` API in the fallback**: inside `keras/src/ops/`, the fallback
   must call backend ops directly — `backend.ops.<op>` for core ops (e.g.
-  `backend.ops.cast`) and `backend.ops.<module>.<op>` otherwise (e.g.
-  `backend.ops.numpy.sqrt`), or the dependency's `_<dep>()` helper if it has
-  one. Flag calls to the public `ops.<op>` / `keras.ops` API. Never suggest
-  replacing `backend.ops.*` with `ops.*`.
+  `backend.ops.cast`, `backend.ops.convert_to_tensor`, `backend.ops.shape` — note `backend.ops.cast` accepts Python scalars too) and `backend.ops.<module>.<op>` otherwise (e.g.
+  `backend.ops.numpy.sqrt`, `backend.ops.numpy.where`, `backend.ops.numpy.equal`), or the dependency's `_<dep>()` helper if it has
+  one (e.g. `_divide_no_nan`). Flag calls to the public `ops.<op>` / `keras.ops` API. Never suggest
+  replacing `backend.ops.*` with `ops.*`, and never suggest non-existent flat names like `backend.ops.divide_no_nan`, `backend.ops.equal`, or `backend.convert_to_numpy`. Both `config.<fn>()` (`from keras.src.backend import config`, including `config._use_backend_agnostic_ops()`) and `backend.<fn>()` (`backend.backend()`, `backend.floatx()`, `backend.epsilon()`) are valid; `standardize_dtype`, `standardize_shape`, `is_int_dtype`, and `is_float_dtype` live in `keras.src.backend.common` (not `keras.src.backend`).
+- **Do NOT flag on existing-op fallbacks**: when adding a fallback `_<op>()` to an **existing** op, do NOT ask to add new test methods, new dtype cases, or extra `Operation()(x)` assertions not already present in the existing test.
 
 When flagging, cite "Backend-agnostic implementation for new ops" in
 `CONTRIBUTING.md` and point to `vsplit`/`_vsplit` in `keras/src/ops/numpy.py`
@@ -255,49 +156,48 @@ as the reference implementation.
 
 ### Optimization & Numeric Stability
 
-- **Division by Zero**: Use `ops.divide_no_nan` for mask weight calculations or any situation where a zero divisor is possible.
-- **Arithmetic Masking**: Use `ops.where(mask, x, 0)` or `backend.ops.numpy.where(mask, x, 0)` instead of multiplication `x * mask` to clear values outside of a mask to save memory on intermediary values.
+- **Division by Zero**: Use `ops.divide_no_nan` (or `_divide_no_nan` / `backend.ops.numpy.divide_no_nan` inside `keras/src/ops/`) for mask weight calculations or any situation where a zero divisor is possible.
+- **Arithmetic Masking**: Use `ops.where(mask, x, 0)` or `backend.ops.numpy.where(mask, x, 0)` instead of multiplication `x * mask` to clear values outside of a boolean mask to save memory on intermediary values (**Do NOT flag** `x * mask` for continuous weights, and never simplify the gradient-safe "double `where`" pattern `safe_x2 = where(equal(x2, 0), 1, x2)` into a single `where`, which causes `0 * inf = NaN` gradients).
 
 ### API Design & Validation
 
-- **Early Validation**: Perform axis canonicalization (using `canonicalize_axis` or `canonicalize_axes`) early to catch errors: in `compute_output_spec` for symbolic inputs and in the backend implementation of the op for eager inputs, if the backend native op doesn't validate the axis. Validate axis uniqueness *after* canonicalization.
+- **Early Validation**: Perform axis canonicalization (using `canonicalize_axis` or `canonicalize_axes`) early to catch errors: in `compute_output_spec` for symbolic inputs and in the backend implementation of the op for eager inputs, if the backend native op doesn't validate the axis (**Do NOT** demand `canonicalize_axis` inside a backend op when the native op or tuple indexing already validates negative axes). Validate axis uniqueness *after* canonicalization. In `keras/src/backend/numpy/`, normalize `list` `axis` to `tuple` (`np.var`/`np.squeeze` raise `TypeError` on a list); PyTorch ops (`torch.sum`, `torch.mean`, `torch.var`, `torch.squeeze`) accept a list `dim`, so **Do NOT flag** list `dim` in `keras/src/backend/torch/`. Conversely, in `Layer` classes, normalize static axis/reduction attributes (`TrackedList` -> `tuple`) **once in `__init__` or `build()`**, never via per-call `list(...)`/`tuple(...)` conversions inside `Layer.call()`.
 
 ### Testing
 
 - **Maximize Test Coverage**: Use specific test marks (like `@pytest.mark.requires_trainable_backend`) only when strictly necessary. Ensure training-related components are tested with a full `model.fit()` loop.
-- **Verify Error Clarity**: Use `self.assertRaisesRegex` to verify that the error message contains the expected guidance.
+- **Verify Error Clarity**: Use `self.assertRaisesRegex` to verify that the error message contains the expected guidance (**Do NOT** require `assertRaisesRegex` in shared multi-backend op tests when native backend error messages differ).
 - **Avoid Dynamic Shapes**: In layers, metrics, and losses avoid operations that have an output with a dynamic shape where possible as they are not compilable with JAX. This includes `ops.nonzero`, `ops.unique` without a `size`.
 
 ---
 
 ## Conventions from maintainer reviews
 
-Flag violations even when the surrounding code doesn't follow these guidelines.
+Enforce these guidelines on newly added or modified code even when older code elsewhere in the file doesn't follow them, **but do NOT flag** untouched context lines, moved/renamed code, or pre-existing logic adjacent to a `+`/`-` line.
 
 ### Scope of a pull request
 
-- **One concern per PR**: Flag changes unrelated to the stated goal, such as drive-by refactors, reformatting of untouched lines, files from another PR, or stray debug scripts. Ask the author to revert them or open a separate PR. Breaking changes always go in their own PR.
+- **One concern per PR**: Flag changes unrelated to the stated goal, such as drive-by refactors, reformatting of untouched lines, files from another PR, or stray debug scripts. Ask the author to revert them or open a separate PR. Breaking changes always go in their own PR. (**Do NOT** flag a modified test in `*_test.py` as unrelated when unchanged lines of the test file are omitted from context.)
 - **Fix the root cause in the right place**: A bug in one backend's implementation is fixed in that backend, not worked around in shared code. Disabling the feature is not a fix.
 - **Performance changes need evidence**: Ask for measured speedups, and compile-time cost if relevant, in the PR description. Push back on micro-optimizations that make core code like `Layer.__call__` harder to read without a measurable gain.
 - **Tutorials and demos go to keras-io**: Notebooks, guides and demo scripts don't belong in this repo. Ask for a Colab link in the PR description instead.
-- **Description matches the change**: The PR title and description should cover every change made, and link the issue being fixed.
 
 ### Simplicity
 
-- **Remove dead and redundant code**: Flag unused imports, parameters and helpers; branches that only re-pass default values; checks the caller already did; `hasattr` or `getattr(self, "_x", None)` for attributes always set in `__init__`; overrides that repeat what the superclass already does; and caches without a measured benefit.
-- **Reuse existing utilities**: Before accepting a new helper, check for an existing one (e.g. `canonicalize_axis`/`canonicalize_axes` instead of `axis % ndim`, `to_tuple_or_list`, `backend.convert_to_numpy`, the `tree` API for nested structures, `serialization_lib`). When the same logic appears twice, factor it into one helper.
+- **Remove dead and redundant code**: Flag unused parameters and helpers; branches that only re-pass default values; checks the caller already did; `hasattr` or `getattr(self, "_x", None)` for attributes always set in `__init__`; overrides that repeat what the superclass already does (**Do NOT flag** dummy test subclasses overriding `super()` to test serialization/override detection); and caches without a measured benefit.
+- **Reuse existing utilities**: Before accepting a new helper, check for an existing one (e.g. `canonicalize_axis`/`canonicalize_axes` instead of `axis % ndim`, `standardize_tuple`/`to_tuple_or_list`, `ops.convert_to_numpy`, the `tree` API for nested structures, `serialization_lib`). When the same logic appears twice, factor it into one helper.
 - **Readable control flow**: Prefer early `return`/`continue`, named intermediate values and at most one level of nesting. Avoid unexplained arithmetic constants and expressions spread over many lines.
 - **No broad `try`/`except`**: Don't catch broad exceptions or use `try`/`except` for control flow when an explicit check is possible. It hides real errors.
 - **Keep hot paths cheap**: In code that runs on every op or every layer call (`convert_to_tensor`, `Layer.__call__`, dtype resolution), flag redundant conversions and copies (a no-op `np.asarray`, a `convert_to_tensor` whose result is discarded, converting the same value twice). Do cheap early-exit checks before expensive conversions.
 
 ### Imports
 
-- **Import from `keras.src`**: Never `import keras` inside the library or its unit tests, because it can cause circular imports.
-- **Imports at the top of the module**: Flag function-local imports unless they are needed to break a circular import.
+- **Import from `keras.src`**: Never `import keras` inside the library or its unit tests, because it can cause circular imports (**Do NOT flag** `integration_tests/**` or tests explicitly verifying public `keras.*` API exports like `ops_test.py`).
+- **Imports at the top of the module**: Flag function-local imports unless they are needed to break a circular import (**Do NOT flag** `module_utils` `LazyModule` or local imports of backend/optional packages like `jax`, `torch`, `tensorflow`, `scipy`, `onnx`, `orbax`, `pil`, `pandas` in shared tests, exporters, callbacks, or adapters).
 
 ### Comments, docstrings and naming
 
-- **Comments describe the code, not the PR**: Flag comments that mention "previously", the old behavior, the bug history, issue links, or how the bug was found. That context belongs in the commit message and can be found with `git blame`. Ask to cut long explanatory comments to one line, or remove them when the code is self-explanatory. Don't add file-level comments, and don't remove useful existing comments.
+- **Comments describe the code, not the PR**: Flag comments that mention "previously", the old behavior, the bug history, issue links, or how the bug was found. That context belongs in the commit message and can be found with `git blame`. Ask to cut long explanatory comments to one line, or remove them when the code is self-explanatory. Don't add file-level comments, and don't remove useful existing comments (**Do NOT flag** concise "why" comments explaining non-obvious workarounds or invariants, or intentional removal of obsolete comments).
 - **No comments in unit tests**: Unless what the test exercises is really not obvious.
 - **Docstrings match the behavior**: Flag docstrings that describe features that weren't implemented or make claims the code doesn't back up. Document new arguments the same way sibling classes do, including the default value, and update the docstring when a contract changes.
 - **Accurate and consistent names**: Names must not overclaim (e.g. `fused_*` when fusion isn't guaranteed) and must reuse the term already used for the same concept nearby, internal names included (e.g. `num_processes`/`process_id`, not `world_size`/`rank`). Method names start with a verb. Keep wording neutral (no `victim`/`attacker` in tests).
@@ -305,41 +205,32 @@ Flag violations even when the surrounding code doesn't follow these guidelines.
 ### Multi-backend code and ops
 
 - **Validation goes in the backend implementations**: Input validation, argument normalization and `convert_to_tensor` must not live only in the public function in `keras/src/ops/`. Keras internals call `backend.*` directly and skip it. Likewise, validation placed only in `compute_output_spec` is skipped for eager inputs, because `compute_output_spec` is only called on symbolic inputs. The symbolic and eager paths must agree on shapes, dtypes and errors.
-- **Same behavior on every backend**: When a fix or feature lands in one backend, ask for it in all backends (including NumPy), or for a reason why not. When backends disagree, JAX is the reference.
-- **No backend-specific code in shared code**: Layers, losses, metrics and trainers must not branch on `backend.backend()`. Use an op or a hook that a backend can override. Never hardcode a list of backend names; use capability flags such as `backend.SUPPORTS_GRADIENT` so that pluggable backends keep working.
-- **Ops run natively**: An op implementation must not forward to NumPy or SciPy. Ops must work on backend tensors, on GPU/TPU, and under compilation.
-- **Keras ops for tensor comparisons**: On tensors, use `ops.less`, `ops.greater`, `ops.equal`, etc. instead of `<`, `>`, `==`.
+- **Same behavior on every backend**: When a fix or feature lands in one backend, ask for it in all backends (including NumPy), or for a reason why not (**Do NOT flag** a bugfix in a single backend when other backends already pass the shared test). When backends disagree, JAX is the reference.
+- **No backend-specific code in shared code**: Layers, losses, metrics and trainers must not branch on `backend.backend()`. Use an op or a hook that a backend can override. Never hardcode a list of backend names; use capability flags such as `backend.SUPPORTS_GRADIENT` so that pluggable backends keep working (**Do NOT flag** backend dispatch in `keras/src/backend/**`, `keras/src/export/**`, `keras/src/saving/**`, `keras/src/trainers/data_adapters/**`, `keras/src/distribute/**`, or `keras/src/callbacks/tensorboard.py`).
+- **Ops run natively**: An op implementation must not forward to NumPy or SciPy. Ops must work on backend tensors, on GPU/TPU, and under compilation (**Do NOT flag** NumPy in `keras/src/backend/numpy/**`, in tests, or on static shapes and Python values).
+- **Keras ops for tensor comparisons**: On tensors, use `ops.less`, `ops.greater`, `ops.equal`, etc. (or `backend.ops.numpy.<op>` inside `keras/src/ops/`) instead of `<`, `>`, `==` (**Do NOT flag** Python comparisons on scalars, `axis`, `ndim`, `len(...)`, static shape ints, dtype strings, or NumPy arrays in `*_test.py`).
 - **Plain Python for shapes**: Do not use Keras ops to manipulate shapes and dimensions. Instead, use plain Python operators (`+`, `*`) and `math.prod`. This handles both ints and symbolic dimensions properly.
-- **`ops.shape(x)` in backend-independent code**: Use `ops.shape(x)` instead of `x.shape` in backend-independent code to support dynamic / symbolic dimensions.
+- **`ops.shape(x)` in backend-independent code**: Use `ops.shape(x)` instead of `x.shape` in backend-independent code when an axis length may be dynamic / symbolic (see the **Do NOT flag** cases under `Support Dynamic Dimensions` above).
 
 ### Dtypes
 
-- **Only promote integer and bool inputs**: When an op needs a float input, cast only integer and bool dtypes. Leave float inputs in their dtype: don't upcast `bfloat16`/`float16` to `float32`, and don't downcast `float64`. Follow the promotion pattern of similar ops.
-- **Dtype tests cover the edge dtypes**: Dtype tests should include `bfloat16`, `float64`, integer and bool inputs, not only `FLOAT_DTYPES`.
+- **Only promote integer and bool inputs**: When an op needs a float input, cast only integer and bool dtypes (`"int" in dtype or dtype == "bool"` or `dtypes.promote_to_float_dtype(dtype)`—never write `dtype not in (...)` or `np.dtype(dtype).kind == "f"`, since `ml_dtypes.bfloat16` has `kind == "V"`, and note `ml_dtypes.finfo` supports `bfloat16`). Leave float inputs in their dtype: don't upcast `bfloat16`/`float16` to `float32`, and don't downcast `float64`. Follow the promotion pattern of similar ops. **Do NOT flag weak Python scalars or `float` in `dtypes.result_type`**: Python `int` and `float` (`0`, `1`, `2.0`, `float`) are **weak types** in `dtypes.result_type` and tensor ops (`result_type("float16", float) == "float16"`, `power(2.0, x)` keeps `bfloat16`)—never suggest replacing `float` with `"float32"` in `result_type`, and never call `convert_to_tensor` on Python `(int, float)` scalars before `result_type`.
+- **Dtype tests cover the edge dtypes**: Dtype tests for new ops or dtype changes should include `bfloat16`, `float64`, integer and bool inputs, not only `FLOAT_DTYPES` (except when only adding a `_<op>()` fallback to an existing op).
 
 ### Tests
 
-- **Tests must be able to fail**: Check values, not just shapes and types. A test that only checks `assertIsNotNone` or that the code doesn't raise is not enough. Use non-trivial inputs (not just `0`). Ask whether the new test would pass on the code before the fix. Every bug fix and every new branch needs a test that exercises it.
+- **Tests must be able to fail**: Check values, not just shapes and types. A test that only checks `assertIsNotNone` or that the code doesn't raise is not enough. Use non-trivial inputs (not just `0`). Ask whether the new test would pass on the code before the fix. Every bug fix and every new branch needs a test that exercises it (**Do NOT flag** missing tests for docs-only, comment-only, `.gemini/`, or `.github/` changes).
 - **No redundant tests**: Flag tests that duplicate existing coverage, e.g. the multi-backend tests in `keras/src/ops/*_test.py`. When an existing test misses a case, augment that test instead of adding a new one.
-- **No new test files or classes**: You almost never need to add a new test file or a new test class. There should be a `_test.py` file for the module you modified.
+- **No new test files or classes**: You almost never need to add a new test file or a new test class. There should be a `_test.py` file for the module you modified (a new `foo_test.py` for a brand-new `foo.py` and separate `test_*_invalid_*` error methods are fine).
 - **Extend and parameterize existing tests**: Add cases to the existing test or its parameterization (e.g. `NNOpsDtypeTest`) instead of new test functions. Use `absl.testing.parameterized` (`named_parameters`, `product`, `testing.named_product`) instead of loops, `self.subTest`, copy-pasted variants or `pytest.mark.parametrize`.
 - **Shared tests stay shared**: A test with nothing backend-specific goes in the shared test module, without a backend `skipif`, even if the bug fixed was backend-specific. Shared test helpers go in `test_utils`, not in another `_test.py` module.
-- **Skip properly, or not at all**: Use `@pytest.mark.skipif` on the test or class, not `self.skipTest`. Exclude a test for a backend in that backend's `excluded_tests.txt`, not an `if backend.backend() == ...` check inside a test. Don't skip a test to hide a failure on one backend; fix the backend. Don't guard dependencies listed in the requirements files with `pytest.importorskip` or `try`/`except ImportError`.
+- **Skip properly, or not at all**: Use `@pytest.mark.skipif` on the test or class, not `self.skipTest`. Exclude a test for a backend in that backend's `excluded_tests.txt`, not an `if backend.backend() == ...` check inside a test. Don't skip a test to hide a failure on one backend; fix the backend. Don't guard dependencies listed in the requirements files with `pytest.importorskip` or `try`/`except ImportError` (except optional TensorFlow via `module_utils.tensorflow` and `.github/workflows/config/tf_free_ignored_tests.txt`).
 - **Prefer real objects over mocks**: Mock only what can't be done for real. Test with real arrays, real packages and real distributions, and don't build impossible situations with mocks.
 - **No leaked global state**: Restore any global config a test changes (image data format, distribution, environment variables, flags) with `self.addCleanup`. Never modify `sys.modules` or the import system, or call `os.environ.clear()`. Call `super().setUp()` first.
 - **Write files only to the temp dir**: Assume the current folder is read-only. Only write files under `self.get_temp_dir()`, which automatically cleans up the directory.
 
-### Compatibility and serialization
+### Compatibility, serialization and TensorFlow decoupling
 
 - **No silent breaking changes**: Flag changes to public method names, exception types, default numerics, `keras_export` names or their order, and the saved-model format. Renames need a backward-compatible alias. Intentional breaking changes need a release-notes entry under "Breaking changes".
 - **Serialization**: `get_config` returns what the user passed, not resolved values. Use `serialization_lib`. Save/load round trips must be idempotent.
-
----
-
-When performing code reviews on pull requests, you must strictly adhere to the following principles in addition to the API design guidelines above:
-
-1. **Question the Necessity of Changes**: Do not assume that the pull request changes are strictly necessary. Critically review the proposed changes to ensure they add real value. Point out any code that is solving a non-existent problem or adding unnecessary complexity.
-2. **Call out "AI Slop"**: Actively look for and identify "AI slop"—generic, overly verbose, or hallucinated code that lacks context or violates best practices. If you suspect the code is AI slop, explicitly call it out.
-3. **Poke Holes in the Implementation**: Your goal is to critically test the logic. Actively search for and point out failing edge cases, race conditions, or unhandled exceptions in the implementation.
-4. **Demand Robustness**: Do not accept fragile code. If the proposed code is not robust enough or lacks proper error handling, explicitly tell the author why the current approach is brittle and what must be done to reinforce it. Robustness means handling realistic inputs and edge cases correctly, not adding defensive checks for impossible states or catch-all exception handling.
-5. **Respect Existing Repo Patterns**: Before suggesting review comments (like asking users to add boilerplate or specific patterns), actively check for existing design patterns across the repository. Do not suggest adding useless code or structures that contradict or fall outside the established Keras repo coding style.
+- **TensorFlow decoupling**: Flag new `import tensorflow`, `tf.*`, or `tensorflow.python.*` usage **outside**: (1) `keras/src/backend/tensorflow/**`, (2) `tf.data` handling in `data_adapters/` and `keras/src/utils/*dataset_utils.py`, (3) `keras/src/export/{saved_model,saved_model_export_archive,tfsm_layer,litert,tf2onnx_lib,xla_saved_model_archive}.py` and `keras/src/legacy/saving/**`, and (4) TF-specific tests, including lazy `from keras.src.utils.module_utils import tensorflow as tf` in `*_test.py` (+ `.github/workflows/config/tf_free_ignored_tests.txt`). Outside these paths, the lazy `module_utils` TensorFlow import is still a TensorFlow dependency; when adding a TF-free path, ensure all methods reachable without TensorFlow guard any remaining `tf.*` calls.
