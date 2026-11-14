@@ -9,7 +9,6 @@ from keras.src import backend
 from keras.src import testing
 from keras.src.utils import file_utils
 from keras.src.utils import text_dataset_utils
-from keras.src.utils.module_utils import LazyModule
 
 
 class TextDatasetFromDirectoryTest(testing.TestCase):
@@ -409,12 +408,7 @@ class TextDatasetFromDirectoryTest(testing.TestCase):
         directory = self._prepare_directory(
             num_classes=2, count=8, nested_dirs=True
         )
-        with (
-            mock.patch.object(file_utils, "is_remote_path", lambda path: True),
-            mock.patch.object(
-                file_utils, "gfile", LazyModule("keras_test_unavailable_module")
-            ),
-        ):
+        with mock.patch.object(file_utils, "is_remote_path", lambda path: True):
             dataset = text_dataset_utils.text_dataset_from_directory(
                 directory,
                 batch_size=8,

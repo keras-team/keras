@@ -2,6 +2,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.common import KerasTensor
 from keras.src.layers.preprocessing.data_layer import DataLayer
 from keras.src.utils import argument_validation
 from keras.src.utils import numerical_utils
@@ -276,7 +277,7 @@ class Discretization(DataLayer):
 
     def compute_output_spec(self, inputs):
         output_shape = self.compute_output_shape(inputs.shape)
-        return backend.KerasTensor(shape=output_shape, dtype=self.output_dtype)
+        return KerasTensor(shape=output_shape, dtype=self.output_dtype)
 
     def load_own_variables(self, store):
         if len(store) == 1:

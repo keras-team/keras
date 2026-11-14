@@ -299,8 +299,8 @@ class GPTQCalibrator(Calibrator):
     """GPTQ calibrator for one layer: the Hessian of its inputs.
 
     Args:
-        layer: A layer with a projection geometry (`Dense`, `EinsumDense`)
-            that supports the `gptq` mode.
+        layer: A float layer with a projection geometry (`Dense`,
+            `EinsumDense`) that supports the `gptq` mode.
         config: `GPTQConfig` instance with quantization parameters.
     """
 

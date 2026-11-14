@@ -1,6 +1,6 @@
 from keras.src import testing
 from keras.src import tree
-from keras.src.backend import KerasTensor
+from keras.src.backend.common import KerasTensor
 from keras.src.ops.symbolic_arguments import SymbolicArguments
 
 

@@ -10,10 +10,10 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import tree
 from keras.src import utils
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.global_state import clear_session
-from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.losses.loss import Loss
 from keras.src.models import Model
 from keras.src.utils import traceback_utils

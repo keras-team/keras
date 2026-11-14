@@ -14,7 +14,6 @@ from keras.src.models import Sequential
 from keras.src.testing import test_utils
 from keras.src.utils import file_utils
 from keras.src.utils import numerical_utils
-from keras.src.utils.module_utils import LazyModule
 
 try:
     import h5py
@@ -594,12 +593,7 @@ class ModelCheckpointTest(testing.TestCase):
             os.utime(path, (mtime, mtime))
 
         cbk = callbacks.ModelCheckpoint(os.path.join(test_dir, "x.keras"))
-        with (
-            mock.patch.object(file_utils, "is_remote_path", lambda path: True),
-            mock.patch.object(
-                file_utils, "gfile", LazyModule("keras_test_unavailable_module")
-            ),
-        ):
+        with mock.patch.object(file_utils, "is_remote_path", lambda path: True):
             self.assertEqual(
                 cbk._get_most_recently_modified_file_matching_pattern(
                     os.path.join(test_dir, "epoch{epoch:02d}.keras")

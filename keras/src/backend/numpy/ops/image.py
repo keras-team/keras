@@ -3,6 +3,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.numpy.ops.core import convert_to_tensor
 from keras.src.random.seed_generator import draw_seed
@@ -64,7 +65,7 @@ def rgb_to_grayscale(images, data_format=None):
         return images.copy()
     # Convert to floats
     original_dtype = images.dtype
-    compute_dtype = backend.result_type(images.dtype, float)
+    compute_dtype = result_type(images.dtype, float)
     images = images.astype(compute_dtype)
 
     # Ref: tf.image.rgb_to_grayscale
@@ -592,7 +593,7 @@ def affine_transform(
 
     # `scipy.ndimage.map_coordinates` lacks support for float16 and bfloat16.
     input_dtype = standardize_dtype(images.dtype)
-    compute_dtype = backend.result_type(input_dtype, "float32")
+    compute_dtype = result_type(input_dtype, "float32")
     images = images.astype(compute_dtype)
     transform = transform.astype(compute_dtype)
 
@@ -774,11 +775,11 @@ def perspective_transform(
 def compute_homography_matrix(start_points, end_points):
     start_points = convert_to_tensor(start_points)
     end_points = convert_to_tensor(end_points)
-    dtype = backend.result_type(start_points.dtype, end_points.dtype, float)
+    dtype = result_type(start_points.dtype, end_points.dtype, float)
     # `np.linalg.solve` lacks support for float16 and bfloat16. Build the
     # coefficient matrix in float32 so low-precision start/end points do not
     # create an ill-conditioned (or singular) homography due to rounding.
-    compute_dtype = backend.result_type(dtype, "float32")
+    compute_dtype = result_type(dtype, "float32")
     start_points = start_points.astype(compute_dtype)
     end_points = end_points.astype(compute_dtype)
 
@@ -1008,7 +1009,7 @@ def gaussian_blur(
     sigma = convert_to_tensor(sigma)
     input_dtype = standardize_dtype(images.dtype)
     # `scipy.signal.convolve2d` lacks support for float16 and bfloat16.
-    compute_dtype = backend.result_type(input_dtype, "float32")
+    compute_dtype = result_type(input_dtype, "float32")
     images = images.astype(compute_dtype)
     sigma = sigma.astype(compute_dtype)
 
@@ -1206,7 +1207,7 @@ def scale_and_translate(
     scale = convert_to_tensor(scale)
     translation = convert_to_tensor(translation)
     kernel = _kernels[method]
-    dtype = backend.result_type(scale.dtype, translation.dtype)
+    dtype = result_type(scale.dtype, translation.dtype)
     scale = scale.astype(dtype)
     translation = translation.astype(dtype)
     return _scale_and_translate(

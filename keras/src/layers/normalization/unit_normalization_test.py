@@ -31,11 +31,7 @@ class UnitNormalizationTest(testing.TestCase):
 
     def test_invalid_axis(self):
         with self.assertRaisesRegex(
-            TypeError,
-            (
-                "Invalid value for `axis` argument: expected an int or a "
-                "list/tuple of ints."
-            ),
+            TypeError, "Expected `axis` to be an integer"
         ):
             layers.UnitNormalization(axis={"axis": -1})
 
@@ -59,3 +55,13 @@ class UnitNormalizationTest(testing.TestCase):
         self.assertAllClose(squared_l2_norm(outputs[1, :, 0]), 1.0)
         self.assertAllClose(squared_l2_norm(outputs[0, :, 1]), 1.0)
         self.assertAllClose(squared_l2_norm(outputs[1, :, 1]), 1.0)
+
+    def test_numpy_integer_axis(self):
+        layer = layers.UnitNormalization(axis=np.int64(-1))
+        self.assertIs(type(layer.axis), int)
+        self.assertEqual(layer.axis, -1)
+
+        layer = layers.UnitNormalization(axis=[np.int64(1), np.int64(2)])
+        self.assertEqual(layer.axis, [1, 2])
+        for axis in layer.axis:
+            self.assertIs(type(axis), int)

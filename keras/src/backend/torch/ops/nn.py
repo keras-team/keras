@@ -8,6 +8,7 @@ from torch.distributed.tensor import Replicate
 from keras.src import backend
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
@@ -71,6 +72,9 @@ def softplus(x):
 
 def softsign(x):
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tnn.softsign(x)
 
 
@@ -101,6 +105,9 @@ def silu(x):
 
 def squareplus(x, b=4):
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     b = convert_to_tensor(b)
     y = x + torch.sqrt(x**2 + b)
     return y / 2
@@ -176,6 +183,9 @@ def hard_tanh(x):
 
 def hard_shrink(x, threshold=0.5):
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return tnn.hardshrink(x, lambd=threshold)
 
 
@@ -1087,6 +1097,7 @@ def moments(x, axes, keepdims=False, synchronized=False):
         raise NotImplementedError(
             "Argument synchronized=True is not supported with PyTorch."
         )
+    axes = tuple(axes) if isinstance(axes, list) else axes
     x = convert_to_tensor(x)
     # The dynamic range of float16 is too limited for statistics. As a
     # workaround, we simply perform the operations on float32 and convert back
@@ -1098,14 +1109,7 @@ def moments(x, axes, keepdims=False, synchronized=False):
         x = cast(x, "float32")
 
     mean = torch.mean(x, dim=axes, keepdim=True)
-
-    # The variance is computed using $Var = E[|x|^2] - |E[x]|^2$, It is faster
-    # but less numerically stable.
-    # Note: stop_gradient does not change the gradient to the mean, because that
-    # gradient is zero.
-    variance = torch.mean(
-        torch.square(x), dim=axes, keepdim=True
-    ) - torch.square(mean)
+    variance = torch.var(x, dim=axes, keepdim=True, correction=0)
 
     if not keepdims:
         mean = torch.squeeze(mean, axes)
@@ -1164,7 +1168,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     output_length = convert_to_tensor(output_length)
 
     # Ensure that the dtype promotion behavior matches that of `tf.nn.ctc_loss`
-    dtype = backend.result_type(output.dtype, "float32")
+    dtype = result_type(output.dtype, "float32")
     output = cast(output, dtype)
 
     output = torch.transpose(output, 1, 0)
@@ -1461,7 +1465,7 @@ def ctc_decode(
     mask_index=0,
 ):
     inputs = convert_to_tensor(inputs)
-    dtype = backend.result_type(inputs.dtype, "float32")
+    dtype = result_type(inputs.dtype, "float32")
     inputs = cast(inputs, dtype)
 
     if strategy == "greedy":
@@ -1608,7 +1612,7 @@ def dot_product_attention(
         raise ValueError(
             "Only one of `bias` and `mask` can be provided. Received both."
         )
-    compute_dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
+    compute_dtype = result_type(query.dtype, key.dtype, value.dtype)
     query = cast(query, compute_dtype)
     key = cast(key, compute_dtype)
     value = cast(value, compute_dtype)

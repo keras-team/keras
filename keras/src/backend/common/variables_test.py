@@ -8,6 +8,7 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import initializers
 from keras.src import ops
+from keras.src.backend.common import StatelessScope
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common import standardize_shape
@@ -23,7 +24,7 @@ class VariableInitializationTest(test_case.TestCase):
 
     def test_deferred_initialization(self):
         """Tests deferred initialization of variables."""
-        with backend.StatelessScope():
+        with StatelessScope():
             v = backend.Variable(
                 initializer=initializers.RandomNormal(), shape=(2, 2)
             )
@@ -33,7 +34,7 @@ class VariableInitializationTest(test_case.TestCase):
         self.assertEqual(v._value.shape, (2, 2))
 
         with self.assertRaisesRegex(ValueError, "while in a stateless scope"):
-            with backend.StatelessScope():
+            with StatelessScope():
                 v = backend.Variable(initializer=0)
 
     def test_variable_initialization_with_numpy_array(self):
@@ -155,7 +156,7 @@ class VariablePropertiesTest(test_case.TestCase):
 
     def test_deferred_assignment(self):
         """Tests deferred assignment to variables."""
-        with backend.StatelessScope() as scope:
+        with StatelessScope() as scope:
             v = backend.Variable(
                 initializer=initializers.RandomNormal(), shape=(2, 2)
             )
@@ -578,7 +579,7 @@ class VariableNumpyValueAndAssignmentTest(test_case.TestCase):
 
     def test_deferred_initialize_within_stateless_scope(self):
         """Test deferred init within a stateless scope."""
-        with backend.StatelessScope():
+        with StatelessScope():
             v = backend.Variable(
                 initializer=initializers.RandomNormal(), shape=(2, 2)
             )
@@ -622,8 +623,8 @@ class VariableDtypeShapeNdimRepr(test_case.TestCase):
         )
         self.assertEqual(repr(v), expected_repr)
 
-        # Test with `backend.StatelessScope()`
-        with backend.StatelessScope():
+        # Test with `StatelessScope()`
+        with StatelessScope():
             v = backend.Variable(
                 initializer="zeros", shape=(3,), name="test_var"
             )

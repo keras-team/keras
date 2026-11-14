@@ -320,3 +320,10 @@ class SimpleRNNTest(testing.TestCase):
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
+
+    def test_numpy_integer_units(self):
+        layer = layers.SimpleRNN(np.int64(3))
+        self.assertIs(type(layer.units), int)
+        self.assertEqual(layer.units, 3)
+        output = layer(np.ones((2, 4, 5), dtype="float32"))
+        self.assertEqual(output.shape, (2, 3))

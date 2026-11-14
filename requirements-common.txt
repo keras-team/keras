@@ -13,12 +13,14 @@ ml-dtypes
 protobuf
 tensorboard
 tensorboard-plugin-profile
+tensorboardX
 rich
 build
 optree
 pytest
 pytest-cov
 pytest-xdist
+pytest-split
 packaging
 # for tree_test.py
 dm_tree
@@ -29,9 +31,14 @@ onnxruntime
 # onnxscript==0.3.2 breaks LSTM model export.
 onnxscript!=0.3.2
 jax2onnx
-tf2onnx
+tf2onnx>=1.17.0
 grain
 # for orbax_checkpoint_test.py
 orbax-checkpoint
 # for remote file access
 etils[epath]
+# for xla_saved_model_archive_test.py (XLA Serving Engine export)
+xla-saved-model>=0.0.13
+# Optional C++ runtime used by the serving round-trip tests; binary wheels are
+# only published for Python >= 3.12 on x86_64 Linux.
+xla-saved-model-runner>=0.0.13; python_version >= "3.12" and sys_platform == "linux" and platform_machine == "x86_64"

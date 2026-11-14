@@ -1,8 +1,8 @@
 from keras.src import backend
 from keras.src import ops
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import get_keras_mask
 from keras.src.backend.common import set_keras_mask
-from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.layers.layer import Layer
 
 

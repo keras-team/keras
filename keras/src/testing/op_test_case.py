@@ -1,14 +1,18 @@
 import functools
 import itertools
 
+import ml_dtypes
 import numpy as np
 from absl.testing import parameterized
 
 from keras.src import backend
+from keras.src import layers
+from keras.src import models
 from keras.src import ops
 from keras.src import tree
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
-from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.models.model import model_from_json
 from keras.src.testing.test_case import TestCase
 from keras.src.testing.test_utils import named_product
 
@@ -38,6 +42,10 @@ _SKIPPED_DTYPES = {
     },
     "tensorflow": {"uint32": "uint32 + int promotes to int64, unlike JAX"},
 }
+
+# Tolerance of the value checks when an output or its reference is a 16-bit
+# float, whose 8 (bfloat16) or 11 (float16) significant bits round early.
+_TOLERANCES = {"bfloat16": 1e-2, "float16": 1e-3}
 
 # Standard op test inputs: small non-negative ints fit every dtype. `Z`
 # broadcasts against `X`. 32-bit, as 64-bit dtypes are not covered yet.
@@ -85,13 +93,22 @@ class OpTest(TestCase):
       structure, dtypes and shapes of the eager outputs.
     - `test_symbolic_dynamic`: the same with every input dimension unknown,
       then with one unknown dimension at a time.
+    - `test_jit`: for every case, the op compiled by the backend's JIT gives
+      `reference_fn`'s outputs. Skipped on backends without a JIT.
+    - `test_functional_model`: for every case, a functional `Model` built
+      from `Input`s shaped like the arrays and the op gives `reference_fn`'s
+      outputs.
+    - `test_serialization`: for every case, the functional `Model` gives
+      `reference_fn`'s outputs after a `to_json` / `model_from_json` round
+      trip.
 
     `UnaryOpTest`, `BinaryOpTest` and `ReductionOpTest` also set the standard
     inputs of their category and add one test per input dtype combination,
     `test_input_dtypes_<dtypes>`: with the arrays of the first case cast to
-    `dtypes`, the eager output dtypes equal `jax_fn`'s and the symbolic
-    output dtypes equal the eager ones. `BinaryOpTest` adds
-    `test_python_scalar_types_<dtype>_<side>` for a Python scalar operand.
+    `dtypes`, the eager outputs equal `reference_fn`'s, their dtypes equal
+    `jax_fn`'s and the symbolic output dtypes equal the eager ones.
+    `BinaryOpTest` adds `test_python_scalar_types_<dtype>_<side>` for a
+    Python scalar operand.
     Subclass one of them, or `OpTest` for an op that fits neither.
 
     Tensors under test go in `inputs`. `kwargs` are static arguments: they
@@ -169,18 +186,89 @@ class OpTest(TestCase):
                     e.add_note(f"Symbolic input shapes: {symbolic_shapes}")
                     raise
 
-    def check_eager(self, op, reference_fn, inputs, kwargs):
-        """Checks the structure and values of the eager outputs."""
-        outputs = op(*_map_arrays(ops.convert_to_tensor, inputs), **kwargs)
-        expected = reference_fn(*inputs, **kwargs)
-        msg = f"Unexpected eager output for {_describe(inputs, kwargs)}"
+    def test_jit(self):
+        if backend.backend() not in ("jax", "tensorflow", "torch"):
+            self.skipTest(f"No JIT compiler on the {backend.backend()} backend")
+        for inputs, kwargs in self._cases().values():
+            self.check_jit(inputs, kwargs)
+
+    def test_functional_model(self):
+        for inputs, kwargs in self._cases().values():
+            self.check_functional_model(inputs, kwargs)
+
+    def test_serialization(self):
+        for inputs, kwargs in self._cases().values():
+            self.check_serialization(inputs, kwargs)
+
+    def assertOutputsClose(self, outputs, expected, msg):
+        """Asserts `outputs` have the structure and values of `expected`.
+
+        The tolerance is `atol` and `rtol`, or that of `_TOLERANCES` when an
+        output or its reference is a 16-bit float and it is looser.
+        """
         tree.assert_same_structure(outputs, expected)
         for output, expected_output in zip(
             tree.flatten(outputs), tree.flatten(expected)
         ):
-            self.assertAllClose(
-                output, expected_output, atol=self.atol, rtol=self.rtol, msg=msg
+            dtype_tolerance = max(
+                _TOLERANCES.get(standardize_dtype(output.dtype), 0),
+                _TOLERANCES.get(
+                    standardize_dtype(np.asarray(expected_output).dtype), 0
+                ),
             )
+            self.assertAllClose(
+                output,
+                expected_output,
+                atol=max(self.atol, dtype_tolerance),
+                rtol=max(self.rtol, dtype_tolerance),
+                msg=msg,
+            )
+
+    def check_eager(self, op, reference_fn, inputs, kwargs):
+        """Checks the structure and values of the eager outputs."""
+        outputs = op(*_map_arrays(ops.convert_to_tensor, inputs), **kwargs)
+        expected = reference_fn(*inputs, **kwargs)
+        self.assertOutputsClose(
+            outputs,
+            expected,
+            f"Unexpected eager output for {_describe(inputs, kwargs)}",
+        )
+
+    def check_jit(self, inputs, kwargs):
+        """Checks the compiled op against `reference_fn`."""
+        fn = _array_function(self.op, inputs, kwargs)
+        tensors = [ops.convert_to_tensor(x) for x in _arrays(inputs)]
+        self.assertOutputsClose(
+            _jit(fn)(*tensors),
+            self.reference_fn(*inputs, **kwargs),
+            f"Compiled output differs for {_describe(inputs, kwargs)}",
+        )
+
+    def check_functional_model(self, inputs, kwargs):
+        """Checks the op inside a functional `Model` against `reference_fn`."""
+        arrays = _arrays(inputs)
+        if not arrays:
+            self.skipTest("No array inputs, so no model inputs")
+        model = _op_model(self.op, inputs, kwargs)
+        self.assertOutputsClose(
+            model(arrays),
+            self.reference_fn(*inputs, **kwargs),
+            f"Unexpected model output for {_describe(inputs, kwargs)}",
+        )
+
+    def check_serialization(self, inputs, kwargs):
+        """Checks a functional `Model` of the op survives `to_json`."""
+        arrays = _arrays(inputs)
+        if not arrays:
+            self.skipTest("No array inputs, so no model inputs")
+        model = _op_model(self.op, inputs, kwargs)
+        revived = model_from_json(model.to_json())
+        self.assertEqual(revived.to_json(), model.to_json())
+        self.assertOutputsClose(
+            revived(arrays),
+            self.reference_fn(*inputs, **kwargs),
+            f"Output changed by JSON for {_describe(inputs, kwargs)}",
+        )
 
     def check_symbolic(self, inputs, kwargs, symbolic_shapes=None):
         """Checks the symbolic outputs against the eager ones.
@@ -216,11 +304,12 @@ class OpTest(TestCase):
                 self.fail(msg)
 
     def check_input_dtypes(self, dtypes, inputs=None, kwargs=None):
-        """Checks the output dtypes with the array inputs cast to `dtypes`.
+        """Checks the op with the array inputs cast to `dtypes`.
 
-        `inputs` and `kwargs` default to the first case. The eager output
-        dtypes must equal `jax_fn`'s, and the symbolic output dtypes must
-        equal the eager ones.
+        `inputs` and `kwargs` default to the first case. The inputs must fit
+        `dtypes`. The eager outputs must equal `reference_fn`'s, their dtypes
+        must equal `jax_fn`'s, and the symbolic output dtypes must equal the
+        eager ones.
         """
         if inputs is None:
             inputs, kwargs = self._first_case()
@@ -228,10 +317,14 @@ class OpTest(TestCase):
         for dtype in dtypes:
             if dtype in skipped:
                 self.skipTest(f"{dtype}: {skipped[dtype]}")
-        arrays = [
-            x.astype(d) for x, d in zip(_arrays(inputs), dtypes, strict=True)
-        ]
+        for x, dtype in zip(_arrays(inputs), dtypes, strict=True):
+            self.assertTrue(
+                _fits(x, dtype),
+                f"Input values in [{x.min()}, {x.max()}] do not fit {dtype}",
+            )
+        arrays = [x.astype(d) for x, d in zip(_arrays(inputs), dtypes)]
         inputs = _with_arrays(inputs, arrays)
+        self.check_eager(self.op, self.reference_fn, inputs, kwargs)
         import jax.numpy as jnp
 
         outputs = self.op(*_map_arrays(ops.convert_to_tensor, inputs), **kwargs)
@@ -301,6 +394,53 @@ def _arrays(inputs):
 def _map_arrays(fn, inputs):
     """Applies `fn` to the arrays among `inputs`; scalars pass through."""
     return tuple(fn(x) if isinstance(x, np.ndarray) else x for x in inputs)
+
+
+def _fits(x, dtype):
+    """Whether the values of `x` are within the limits of `dtype`."""
+    kind = np.dtype(dtype).kind
+    if kind == "b":  # Every value casts to a bool.
+        return True
+    # `ml_dtypes.finfo` also covers bfloat16, whose NumPy kind is "V".
+    info = np.iinfo(dtype) if kind in "iu" else ml_dtypes.finfo(dtype)
+    return info.min <= x.min() and x.max() <= info.max
+
+
+def _array_function(op, inputs, kwargs):
+    """`op` as a function of the arrays among `inputs`; the rest is fixed."""
+
+    def fn(*arrays):
+        return op(*_with_arrays(inputs, arrays), **kwargs)
+
+    return fn
+
+
+def _jit(fn):
+    """`fn` compiled by the backend's JIT, with no fallback to eager."""
+    if backend.backend() == "jax":
+        import jax
+
+        return jax.jit(fn)
+    if backend.backend() == "tensorflow":
+        import tensorflow as tf
+
+        return tf.function(fn, jit_compile=True)
+    if backend.backend() == "torch":
+        import torch
+
+        torch._dynamo.reset()  # Every case compiles anew; the cache holds 8.
+        return torch.compile(fn, fullgraph=True)
+    raise ValueError(f"Unsupported backend for JIT: {backend.backend()}")
+
+
+def _op_model(op, inputs, kwargs):
+    """A functional `Model` applying `op` to `Input`s shaped like the arrays."""
+    model_inputs = [
+        layers.Input(batch_shape=x.shape, dtype=x.dtype)
+        for x in _arrays(inputs)
+    ]
+    outputs = op(*_with_arrays(inputs, model_inputs), **kwargs)
+    return models.Model(model_inputs, outputs)
 
 
 def _with_arrays(inputs, arrays):

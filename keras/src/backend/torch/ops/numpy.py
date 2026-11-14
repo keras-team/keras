@@ -4,8 +4,8 @@ import math
 import numpy as np
 import torch
 
-from keras.src.backend import KerasTensor
 from keras.src.backend import config
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import normalize_shift_and_axis
@@ -14,6 +14,7 @@ from keras.src.backend.common.backend_utils import vectorize_impl
 from keras.src.backend.common.variables import standardize_dtype
 from keras.src.backend.torch.ops.core import cast
 from keras.src.backend.torch.ops.core import convert_to_tensor
+from keras.src.backend.torch.ops.core import full_from_python_number
 from keras.src.backend.torch.ops.core import get_device
 from keras.src.backend.torch.ops.core import is_tensor
 from keras.src.backend.torch.ops.core import to_torch_dtype
@@ -1080,6 +1081,9 @@ def floor(x):
 
 def full(shape, fill_value, dtype=None):
     dtype = to_torch_dtype(dtype)
+    if isinstance(fill_value, (bool, int, float, complex)):
+        # A tensor `fill_value` would be read back to the host.
+        return full_from_python_number(shape, fill_value, dtype)
     fill_value = convert_to_tensor(fill_value, dtype=dtype)
     if len(fill_value.shape) > 0:
         # `torch.full` only supports scala `fill_value`.
@@ -1329,7 +1333,8 @@ def linspace(
     if hasattr(start, "__len__") and hasattr(stop, "__len__"):
         start = convert_to_tensor(start, dtype=dtype)
         stop = convert_to_tensor(stop, dtype=dtype)
-        steps = torch.arange(num, dtype=dtype, device=get_device()) / (num - 1)
+        steps = torch.arange(num, dtype=dtype, device=get_device())
+        steps = steps / builtins.max(num - 1, 1)
 
         # reshape `steps` to allow for broadcasting
         for i in range(start.ndim):
@@ -1421,7 +1426,8 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     if hasattr(start, "__len__") and hasattr(stop, "__len__"):
         start = convert_to_tensor(start, dtype=dtype)
         stop = convert_to_tensor(stop, dtype=dtype)
-        steps = torch.arange(num, dtype=dtype, device=get_device()) / (num - 1)
+        steps = torch.arange(num, dtype=dtype, device=get_device())
+        steps = steps / builtins.max(num - 1, 1)
 
         # reshape `steps` to allow for broadcasting
         for i in range(start.ndim):
@@ -1987,17 +1993,6 @@ def repeat(x, repeats, axis=None):
         new_shape = list(shape)
         new_shape[axis] = shape[axis] * repeats
         return x.reshape(new_shape)
-
-    # When repeats is a list/tuple of ints, pass it directly to
-    # repeat_interleave without converting to a tensor. The output
-    # size (sum(repeats)) is statically known, so torch.export can
-    # infer shapes without introducing unbacked symbols.
-    if (
-        isinstance(repeats, (list, tuple))
-        and all(isinstance(r, int) for r in repeats)
-        and axis is not None
-    ):
-        return torch.repeat_interleave(x, repeats, dim=axis)
 
     repeats = convert_to_tensor(repeats, dtype=int)
 

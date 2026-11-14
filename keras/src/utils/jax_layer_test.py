@@ -17,6 +17,7 @@ from keras.src import saving
 from keras.src import testing
 from keras.src import tree
 from keras.src import utils
+from keras.src.backend.common import StatelessScope
 from keras.src.dtype_policies.dtype_policy import DTypePolicy
 from keras.src.saving import object_registration
 from keras.src.utils.jax_layer import FlaxLayer
@@ -794,7 +795,7 @@ class TestJaxLayer(testing.TestCase):
         def jax_call_fn(params, inputs):
             return jnp.dot(inputs, params["w"])
 
-        with backend.StatelessScope(initialize_variables=False):
+        with StatelessScope(initialize_variables=False):
             w = backend.Variable(initializer="ones", shape=(3, 2))
             layer = JaxLayer(jax_call_fn, params={"w": w}, **self.init_kwargs)
 

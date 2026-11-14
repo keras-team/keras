@@ -238,15 +238,15 @@ class HashingTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "cannot be `None`"):
             _ = layers.Hashing(num_bins=-1)
         with self.assertRaisesRegex(
-            ValueError, "can only be a tuple of size 2"
+            TypeError, "Expected `salt` to be an integer"
         ):
             _ = layers.Hashing(num_bins=2, salt="string")
         with self.assertRaisesRegex(
-            ValueError, "can only be a tuple of size 2"
+            ValueError, "Expected `salt` to have 2 elements"
         ):
             _ = layers.Hashing(num_bins=2, salt=[1])
         with self.assertRaisesRegex(
-            ValueError, "can only be a tuple of size 2"
+            ValueError, "Expected `salt` to have 2 elements"
         ):
             _ = layers.Hashing(num_bins=1, salt=[133, 137, 177])
 
@@ -445,6 +445,12 @@ class HashingTest(testing.TestCase):
             ValueError, "`sparse` may only be true if `output_mode` is"
         ):
             layers.Hashing(num_bins=3, output_mode="int", sparse=True)
+
+    def test_numpy_integer_salt(self):
+        layer = layers.Hashing(num_bins=3, salt=np.int64(133))
+        self.assertEqual(layer.salt, [133, 133])
+        for value in layer.salt:
+            self.assertIs(type(value), int)
 
 
 # TODO: support tf.RaggedTensor.

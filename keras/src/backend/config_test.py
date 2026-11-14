@@ -6,6 +6,7 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import testing
 from keras.src.backend import config
+from keras.src.backend.common import result_type
 from keras.src.testing.test_utils import x64_mode_scope
 
 X64_SUPPORTED = backend.backend() in config._X64_BACKENDS
@@ -72,7 +73,7 @@ class X64ModeTest(testing.TestCase):
                 config.set_x64_mode(mode)
             # Keras keeps its own mode and does not follow JAX's flags.
             self.assertEqual(config.x64_mode(), mode)
-            self.assertEqual(backend.result_type("int64", "int64"), expected)
+            self.assertEqual(result_type("int64", "int64"), expected)
         finally:
             jax.config.update(flag, previous)
             config.set_x64_mode("off")

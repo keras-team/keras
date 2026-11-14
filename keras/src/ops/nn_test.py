@@ -15,9 +15,10 @@ from keras.src import losses
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
-from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.torch.distributed_test_utils import (
     TorchDistributedTestMixin,
 )
@@ -1620,6 +1621,10 @@ class NNOpsCorrectnessTest(testing.TestCase):
     def test_softsign(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(knn.softsign(x), [-0.5, 0, 0.5, 0.6666667, 0.75])
+        # Bool input is promoted to float. The numpy backend previously kept
+        # the `1.0` constant as bool, so `True` mapped to 1 instead of 0.5.
+        x_bool = np.array([True, False])
+        self.assertAllClose(knn.softsign(x_bool), [0.5, 0.0])
 
     def test_silu(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
@@ -1739,6 +1744,10 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.hard_shrink(x),
             [0.0, 0.0, 1.0, 2.0, 3.0],
         )
+        # Bool input is promoted to float. The numpy backend previously cast
+        # the `0.5` threshold to bool, which zeroed every `True`.
+        x_bool = np.array([True, False])
+        self.assertAllClose(knn.hard_shrink(x_bool), [1.0, 0.0])
 
     def test_threshold(self):
         x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
@@ -1753,6 +1762,10 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.squareplus(x),
             [0.780776, 1.0, 1.618034, 2.414214, 3.302776],
         )
+        # Bool input is promoted to float. The numpy backend previously cast
+        # `b=4` to bool, so it computed with `b=1`.
+        x_bool = np.array([True, False])
+        self.assertAllClose(knn.squareplus(x_bool), [1.618034, 1.0])
 
     def test_soft_shrink(self):
         x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)
@@ -2796,6 +2809,12 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(mean, expected_mean, atol=1e-5, rtol=1e-5)
         self.assertAllClose(variance, expected_variance, atol=1e-5, rtol=1e-5)
 
+        # Test a large mean relative to the spread of the values
+        x = np.array([10000, 10001, 10002, 10003], dtype=np.float32)
+        mean, variance = knn.moments(x, axes=[0])
+        self.assertAllClose(mean, 10001.5, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(variance, 1.25, atol=1e-5, rtol=1e-5)
+
         # Test float16 which causes overflow
         x = np.array(
             [-741.0, 353.2, 1099.0, -1807.0, 502.8, -83.4, 333.5, -130.9],
@@ -3537,7 +3556,9 @@ class NNOpsDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @parameterized.named_parameters(
+        named_product(dtype=FLOAT_DTYPES + INT_DTYPES + ["bool"])
+    )
     def test_squareplus(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -3816,7 +3837,9 @@ class NNOpsDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @parameterized.named_parameters(
+        named_product(dtype=FLOAT_DTYPES + INT_DTYPES + ["bool"])
+    )
     def test_softsign(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -3889,7 +3912,7 @@ class NNOpsDtypeTest(testing.TestCase):
             [[[0.4, 0.8, 0.4], [0.2, 0.8, 0.3], [0.9, 0.4, 0.5]]], dtype=dtype
         )
         sequence_length = knp.array([3])
-        expected_dtype = backend.result_type(dtype, "float32")
+        expected_dtype = result_type(dtype, "float32")
 
         # Test strategy="greedy"
         decoded, scores = knn.ctc_decode(
@@ -3928,7 +3951,7 @@ class NNOpsDtypeTest(testing.TestCase):
         query = knp.ones((2, 3, 3, 8), dtype=query_dtype)
         key = knp.ones((2, 3, 3, 8), dtype=key_value_dtype)
         value = knp.ones((2, 3, 3, 8), dtype=key_value_dtype)
-        expected_dtype = backend.result_type(*dtypes)
+        expected_dtype = result_type(*dtypes)
 
         self.assertDType(
             knn.dot_product_attention(query, key, value), expected_dtype

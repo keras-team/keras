@@ -3,6 +3,7 @@ from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
 from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import is_keras_tensor
 from keras.src.backend.common import standardize_dtype
 
 
@@ -287,7 +288,7 @@ class DTypePolicy:
             if self._should_cast(x, autocast, dtype):
                 x = backend.ops.cast(x, dtype=dtype)
             return x
-        elif backend.is_keras_tensor(x):
+        elif is_keras_tensor(x):
             if self._should_cast(x, autocast, dtype):
                 x = ops.cast(x, dtype=dtype)
             return x
