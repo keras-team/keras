@@ -4347,7 +4347,10 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Gcd()(x, 2), np.gcd(x, 2))
         self.assertAllClose(knp.Gcd()(2, x), np.gcd(2, x))
 
-    def test_geomspace(self):
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_geomspace(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         self.assertAllClose(knp.geomspace(1, 1000, 4), np.geomspace(1, 1000, 4))
         self.assertAllClose(
             knp.geomspace(1, 1000, 4, endpoint=False),
@@ -4359,6 +4362,9 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.Geomspace(num=4, endpoint=False)(1, 1000),
             np.geomspace(1, 1000, 4, endpoint=False),
+        )
+        self.assertAllClose(
+            knp.geomspace(-1, -1000, 4), np.geomspace(-1, -1000, 4)
         )
 
         start = np.array([1.0, 2.0, 3.0])
@@ -11884,6 +11890,7 @@ class NumpyDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(
         named_product(
+            BACKEND_AGNOSTIC_OPS,
             start_and_stop=[
                 [1, 1000],
                 [0.5, 10.5],
@@ -11896,9 +11903,11 @@ class NumpyDtypeTest(testing.TestCase):
             dtype=FLOAT_DTYPES + [None],
         )
     )
-    def test_geomspace(self, start_and_stop, num, dtype):
+    def test_geomspace(self, backend_agnostic_ops, start_and_stop, num, dtype):
         import jax.numpy as jnp
 
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         start, stop = start_and_stop
         expected_dtype = standardize_dtype(
             jnp.geomspace(start, stop, num, dtype=dtype).dtype
