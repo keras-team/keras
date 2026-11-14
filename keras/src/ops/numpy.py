@@ -1429,7 +1429,26 @@ def hanning(x):
             f"Hanning operation does not support symbolic tensors. "
             f"Received input x = {x} of type {type(x)}"
         )
-    return backend.ops.numpy.hanning(x)
+    return _hanning(x)
+
+
+def _hanning(x):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "hanning"
+    ):
+        return backend.ops.numpy.hanning(x)
+    dtype = config.floatx()
+    compute_dtype = result_type(dtype, "float32")
+    x = backend.ops.cast(x, "int32")
+    n = backend.ops.numpy.arange(x, dtype=compute_dtype)
+    x_minus_1 = backend.ops.cast(x - 1, compute_dtype)
+    phase = (
+        python_math.pi
+        * (2 * n - x_minus_1)
+        / backend.ops.numpy.maximum(x_minus_1, 1.0)
+    )
+    window = 0.5 + 0.5 * backend.ops.numpy.cos(phase)
+    return backend.ops.cast(window, dtype)
 
 
 class Heaviside(Operation):
