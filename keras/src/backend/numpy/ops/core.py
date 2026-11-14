@@ -494,3 +494,7 @@ def remat(f):
 
 def grad(f, argnums=0):
     raise NotImplementedError("`grad` is not supported with the numpy backend.")
+
+
+def print(*args, sep=" ", end="\n", file=None, flush=False):
+    return builtins.print(*args, sep=sep, end=end, file=file, flush=flush)
