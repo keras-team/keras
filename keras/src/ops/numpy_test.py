@@ -14084,7 +14084,7 @@ class SqueezeTest(testing.UnaryOpTest):
     # With unknown dimensions, the op can't tell which axes have size 1.
     run_dynamic_shape_checks = False
     cases = {
-        name: ((np.ones(shape),), kwargs)
+        name: ((np.ones(shape, dtype="float32"),), kwargs)
         for name, shape, kwargs in (
             ("no_op", [2, 3], {}),
             ("all", [1, 3, 1, 5], {}),
