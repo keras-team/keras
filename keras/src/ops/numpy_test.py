@@ -8766,6 +8766,25 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             )
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_argpartition_kth_out_of_range(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        x = np.array([[3, 4, 2, 1], [1, 3, 4, 2]])
+        with self.assertRaises(ValueError):
+            knp.argpartition(x, 4)
+        with self.assertRaises(ValueError):
+            knp.argpartition(x, -5)
+        with self.assertRaises(ValueError):
+            knp.argpartition(x, 2, axis=0)
+        with self.assertRaises(ValueError):
+            knp.argpartition(x, 8, axis=None)
+
+        result = backend.ops.convert_to_numpy(knp.argpartition(x, -1))
+        self.assertAllClose(
+            np.take_along_axis(x, result, axis=-1)[:, -1], np.max(x, axis=-1)
+        )
+
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_angle(self, backend_agnostic_ops):
         backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
         self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)

@@ -3961,6 +3961,16 @@ def slogdet(x):
 
 
 def argpartition(x, kth, axis=-1):
+    x = convert_to_tensor(x)
+    if axis is None:
+        x = tf.reshape(x, [-1])
+        axis = -1
+    size = x.shape[axis]
+    if size is not None and not -size <= kth < size:
+        raise ValueError(
+            f"kth must be in the range [-{size}, {size}) for an axis of size "
+            f"{size}. Received: kth={kth}"
+        )
     # A full sort is a valid partition for every `kth`.
     return argsort(x, axis=axis)
 
