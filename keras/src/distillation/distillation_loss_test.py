@@ -87,6 +87,54 @@ class TestLogitsDistillation(TestCase):
         self.assertTrue(np.all(np.isfinite(matched_grad)))
         self.assertAllClose(matched_grad, np.zeros_like(teacher), atol=1e-6)
 
+    @parameterized.named_parameters(
+        ("positive_axis_logits", 1, True),
+        ("negative_axis_logits", -2, True),
+        ("last_axis_logits", -1, True),
+        ("positive_axis_probs", 1, False),
+        ("negative_axis_probs", -2, False),
+        ("last_axis_probs", -1, False),
+    )
+    def test_categorical_crossentropy_axis(self, axis, from_logits):
+        temperature = 2.0
+        teacher = np.array([[[5.0, -3.0], [0.0, 4.0], [1.0, 2.0]]], "float32")
+        student = np.array([[[0.0, 2.0], [3.0, 1.0], [-1.0, 4.0]]], "float32")
+        distillation_loss = LogitsDistillation(
+            temperature=temperature,
+            loss=keras.losses.CategoricalCrossentropy(
+                axis=axis, from_logits=from_logits
+            ),
+        )
+
+        def log_softmax(x):
+            shifted = x - x.max(axis=axis, keepdims=True)
+            return shifted - np.log(
+                np.exp(shifted).sum(axis=axis, keepdims=True)
+            )
+
+        teacher_probs = np.exp(log_softmax(teacher / temperature))
+        student_log_probs = log_softmax(student / temperature)
+        expected_loss = (
+            -(temperature**2)
+            * np.sum(teacher_probs * student_log_probs, axis=axis).mean()
+        )
+        loss = distillation_loss.compute_loss(teacher, student)
+        self.assertAllClose(loss, expected_loss, atol=1e-5, rtol=1e-5)
+
+        # Average over all positions outside the class axis.
+        num_predictions = teacher.size // teacher.shape[axis]
+        expected_grad = (
+            temperature
+            * (np.exp(student_log_probs) - teacher_probs)
+            / num_predictions
+        )
+        student_gradient = keras.ops.grad(
+            lambda s: distillation_loss.compute_loss(teacher, s)
+        )
+        grad = keras.ops.convert_to_numpy(student_gradient(student))
+        self.assertTrue(np.all(np.isfinite(grad)))
+        self.assertAllClose(grad, expected_grad, atol=1e-5, rtol=1e-5)
+
     def test_logits_distillation_multi_output(self):
         temperature = 3.0
         teacher = np.array([[5.0, 0.0, -3.0]], "float32")
@@ -181,6 +229,48 @@ class TestEndToEndDistillation(TestCase):
 
         self.teacher(self.x[:2])
         self.student(self.x[:2])
+
+    @parameterized.named_parameters(
+        ("from_logits", True),
+        ("from_probs", False),
+    )
+    def test_distiller_categorical_axis(self, from_logits):
+        def make_model(logits, name):
+            inputs = keras.Input((1,))
+            outputs = keras.layers.Dense(
+                6,
+                kernel_initializer="zeros",
+                bias_initializer=keras.initializers.Constant(logits),
+            )(inputs)
+            outputs = keras.layers.Reshape((3, 2))(outputs)
+            return keras.Model(inputs, outputs, name=name)
+
+        teacher = make_model([5.0, -3.0, 0.0, 4.0, 1.0, 2.0], "teacher")
+        student = make_model([0.0, 2.0, 3.0, 1.0, -1.0, 4.0], "student")
+        distiller = Distiller(
+            teacher=teacher,
+            student=student,
+            distillation_losses=LogitsDistillation(
+                temperature=2.0,
+                loss=keras.losses.CategoricalCrossentropy(
+                    axis=1, from_logits=from_logits
+                ),
+            ),
+            student_loss_weight=0.0,
+        )
+        distiller.compile(optimizer="sgd", loss="mse", jit_compile=False)
+        results = distiller.evaluate(
+            np.zeros((2, 1), "float32"),
+            np.zeros((2, 3, 2), "float32"),
+            batch_size=2,
+            verbose=0,
+            return_dict=True,
+        )
+        # Mean crossentropy over the two positions, scaled by temperature^2.
+        self.assertAllClose(results["loss"], 6.6393418, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(
+            results["distillation_loss"], 6.6393418, atol=1e-5, rtol=1e-5
+        )
 
     def test_logits_distillation_end_to_end(self):
         """Test end-to-end logits distillation with real models."""

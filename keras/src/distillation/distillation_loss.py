@@ -409,7 +409,10 @@ class LogitsDistillation(DistillationLoss):
                 loss = loss_fn(teacher_probs, student_probs)
             elif fn is categorical_crossentropy:
                 # Crossentropy needs teacher probabilities as the target.
-                teacher_probs = backend.ops.nn.softmax(teacher_logits, axis=-1)
+                axis = getattr(loss_fn, "axis", -1)
+                teacher_probs = backend.ops.nn.softmax(
+                    teacher_logits, axis=axis
+                )
                 if loss_fn is fn:
                     loss = loss_fn(
                         teacher_probs, student_logits, from_logits=True
@@ -418,7 +421,7 @@ class LogitsDistillation(DistillationLoss):
                     loss = loss_fn(teacher_probs, student_logits)
                 else:
                     student_probs = backend.ops.nn.softmax(
-                        student_logits, axis=-1
+                        student_logits, axis=axis
                     )
                     loss = loss_fn(teacher_probs, student_probs)
             else:
