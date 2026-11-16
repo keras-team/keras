@@ -742,10 +742,10 @@ def cbrt(x):
     x = convert_to_tensor(x)
 
     dtype = standardize_dtype(x.dtype)
-    if dtype == "bool":
-        x = cast(x, "int32")
-    elif dtype == "int64":
+    if dtype == "int64":
         x = cast(x, "float64")
+    elif dtype not in ("bfloat16", "float16", "float32", "float64"):
+        x = cast(x, config.floatx())
 
     return torch.sign(x) * torch.abs(x) ** (1.0 / 3.0)
 
