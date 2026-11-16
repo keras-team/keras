@@ -836,9 +836,13 @@ class IndexLookupLayerTest(testing.TestCase):
         layer = layers.IndexLookup(salt=99, **base_kwargs)
         self.assertEqual(layer.salt, [99, 99])
         # invalid formats
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            TypeError, "Expected `salt` to be an integer"
+        ):
             layers.IndexLookup(salt="bad", **base_kwargs)
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            ValueError, "Expected `salt` to have 2 elements"
+        ):
             layers.IndexLookup(salt=[1, 2, 3], **base_kwargs)
 
     def test_salt_requires_farmhash(self):

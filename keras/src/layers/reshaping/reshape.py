@@ -1,6 +1,6 @@
-from keras.src import ops
+from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.backend.common import KerasTensor
 from keras.src.layers.layer import Layer
 from keras.src.ops import operation_utils
 from keras.src.ops.operation_utils import validate_reshape_shape
@@ -65,8 +65,9 @@ class Reshape(Layer):
         potentially_resolved_target_shape = tuple(
             -1 if d is None else d for d in potentially_resolved_target_shape
         )
-        return ops.reshape(
-            inputs, (ops.shape(inputs)[0],) + potentially_resolved_target_shape
+        return backend.ops.numpy.reshape(
+            inputs,
+            (backend.ops.shape(inputs)[0],) + potentially_resolved_target_shape,
         )
 
     def get_config(self):

@@ -1,10 +1,10 @@
 import numpy as np
 import pytest
-from tensorflow import data as tf_data
 
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 class CanaryLayer(layers.Layer):
@@ -65,7 +65,7 @@ class PipelineTest(testing.TestCase):
             ]
         )
         input_data = np.random.random(input_shape)
-        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
+        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
             output = output.numpy()
         self.assertEqual(tuple(output.shape), output_shape)

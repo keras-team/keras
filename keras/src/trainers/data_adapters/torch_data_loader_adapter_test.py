@@ -2,7 +2,6 @@ import math
 
 import numpy as np
 import pytest
-import tensorflow as tf
 import torch
 from absl.testing import parameterized
 
@@ -13,6 +12,7 @@ from keras.src.trainers.data_adapters import data_adapter_test_base
 from keras.src.trainers.data_adapters.torch_data_loader_adapter import (
     TorchDataLoaderAdapter,
 )
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 class TestIterableDataset(torch.utils.data.IterableDataset):

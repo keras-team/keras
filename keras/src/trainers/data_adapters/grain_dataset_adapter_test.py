@@ -1,7 +1,6 @@
 import grain
 import numpy as np
 import pytest
-import tensorflow as tf
 import torch
 from absl.testing import parameterized
 
@@ -9,6 +8,7 @@ from keras.src import backend
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import data_adapter_test_base
 from keras.src.trainers.data_adapters import grain_dataset_adapter
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 class Range2DSource(grain.sources.RandomAccessDataSource):

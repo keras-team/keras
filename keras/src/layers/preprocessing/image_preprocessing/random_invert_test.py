@@ -1,9 +1,9 @@
 import numpy as np
-from tensorflow import data as tf_data
 
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 class RandomInvertTest(testing.TestCase):
@@ -61,6 +61,6 @@ class RandomInvertTest(testing.TestCase):
             factor=0.5, value_range=[0, 1], data_format=data_format, seed=1337
         )
 
-        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
+        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
             output.numpy()

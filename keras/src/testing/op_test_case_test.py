@@ -6,8 +6,10 @@ import numpy as np
 
 from keras.src import backend
 from keras.src import ops
+from keras.src import saving
 from keras.src import testing
-from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import standardize_dtype
 from keras.src.ops.operation import Operation
 from keras.src.testing import op_test_case
 from keras.src.testing.op_test_case import X
@@ -53,6 +55,49 @@ class TupleOfOne(Square):
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
+class WrongForUint8(Square):
+    """Returns `x` itself, not its square, for uint8 inputs."""
+
+    def call(self, x):
+        if standardize_dtype(x.dtype) == "uint8":
+            return x
+        return ops.square(x)
+
+
+class SquareInBfloat16(Square):
+    """Squares in bfloat16, which rounds 27 ** 2 = 729 to 728."""
+
+    def call(self, x):
+        return ops.cast(ops.square(x), "bfloat16")
+
+
+class DataDependent(Square):
+    """Branches on a value of `x`, which no compiler can trace."""
+
+    def call(self, x):
+        if float(ops.sum(x)) > 0:
+            return ops.square(x)
+        return x
+
+
+@saving.register_keras_serializable(package="op_test_case_test")
+class NeedsTuple(Operation):
+    """Sums over `axis`, which must be a tuple: JSON turns it into a list."""
+
+    def __init__(self, axis):
+        super().__init__()
+        self.axis = axis
+
+    def call(self, x):
+        if not isinstance(self.axis, tuple):
+            raise TypeError(f"`axis` must be a tuple, got {type(self.axis)}")
+        return ops.sum(x, axis=self.axis)
+
+
+def needs_tuple(x, axis):
+    return NeedsTuple(axis)(x)
+
+
 def methods_of(cls):
     return sorted(n for n in dir(cls) if n.startswith("test"))
 
@@ -84,6 +129,9 @@ class OpTestTest(testing.TestCase):
             [
                 "test_eager",
                 "test_eager_class",
+                "test_functional_model",
+                "test_jit",
+                "test_serialization",
                 "test_symbolic_dynamic",
                 "test_symbolic_static",
             ],
@@ -134,11 +182,20 @@ class OpTestTest(testing.TestCase):
         self.assertAllClose(case.op(X), case.reference_fn(X))
         self.assertAllClose(case.jax_fn(X), np.square(X))
 
+    def test_16_bit_outputs_use_their_dtype_tolerance(self):
+        case = SquareTest("test_eager")
+        inputs = (np.array([27], dtype="int32"),)
+        case.check_eager(SquareInBfloat16(), np.square, inputs, {})
+        with mock.patch.dict(op_test_case._TOLERANCES, clear=True):
+            with self.assertRaisesRegex(AssertionError, "Unexpected eager"):
+                case.check_eager(SquareInBfloat16(), np.square, inputs, {})
+
     def test_no_op_class_and_no_arrays(self):
         class Ones(testing.OpTest):
             op, reference_fn = ops.ones, np.ones
             inputs = ((2, 3),)
 
+        no_jit = backend.backend() not in ("jax", "torch", "tensorflow")
         self.assertEqual(
             outcomes(Ones),
             {
@@ -150,8 +207,49 @@ class OpTestTest(testing.TestCase):
                 "test_symbolic_dynamic": (
                     "skipped: No array inputs, so no symbolic path"
                 ),
+                "test_jit": (
+                    f"skipped: No JIT compiler on the {backend.backend()} "
+                    "backend"
+                    if no_jit
+                    else "passed"
+                ),
+                "test_functional_model": (
+                    "skipped: No array inputs, so no model inputs"
+                ),
+                "test_serialization": (
+                    "skipped: No array inputs, so no model inputs"
+                ),
             },
         )
+
+    def test_data_dependent_op_fails_jit(self):
+        class Case(testing.OpTest):
+            op, reference_fn, inputs = DataDependent(), np.square, (X,)
+
+        out = outcomes(Case)
+        self.assertEqual(out["test_eager"], "passed")
+        if backend.backend() not in ("jax", "torch", "tensorflow"):
+            self.assertRegex(out["test_jit"], "^skipped: No JIT compiler")
+        else:
+            self.assertRegex(out["test_jit"], "^failed: ")
+
+    def test_tuple_argument_lost_in_json_fails(self):
+        class Case(testing.OpTest):
+            op, op_class, reference_fn = needs_tuple, NeedsTuple, np.sum
+            inputs, kwargs = (X,), {"axis": (0,)}
+
+        out = outcomes(Case)
+        self.assertEqual(out["test_eager"], "passed")
+        self.assertEqual(out["test_eager_class"], "passed")
+        self.assertRegex(out["test_serialization"], "^failed: ")
+
+    def test_op_model(self):
+        model = op_test_case._op_model(ops.add, (X, X[:1]), {})
+        self.assertLen(model.inputs, 2)
+        self.assertEqual(model.inputs[1].shape, (1, 3))
+        self.assertEqual(model.inputs[1].dtype, "int32")
+        self.assertEqual(model.output.shape, (2, 3))
+        self.assertAllClose(model([X, X[:1]]), X + X[:1])
 
     def test_disabled_dynamic_checks_are_skipped(self):
         class Case(testing.OpTest):
@@ -229,6 +327,24 @@ class CheckInputDtypesTest(testing.TestCase):
             outcomes(Case)["test_input_dtypes_uint8"],
             r"Output dtype differs from JAX for inputs uint8\[2, 3\]",
         )
+
+    def test_wrong_values_for_one_dtype_fail(self):
+        class Case(testing.UnaryOpTest):
+            op, reference_fn, jax_fn = WrongForUint8(), np.square, jnp.square
+
+        case = Case("test_eager")
+        case.check_input_dtypes(("int8",))
+        with self.assertRaisesRegex(AssertionError, "Unexpected eager output"):
+            case.check_input_dtypes(("uint8",))
+
+    def test_inputs_must_fit_the_dtype(self):
+        case = SquareTest("test_eager")
+        inputs = (np.array([-1, 6]),)
+        case.check_input_dtypes(("int8",), inputs, {})
+        with self.assertRaisesRegex(AssertionError, r"\[-1, 6\] do not fit"):
+            case.check_input_dtypes(("uint8",), inputs, {})
+        with self.assertRaisesRegex(AssertionError, "do not fit float16"):
+            case.check_input_dtypes(("float16",), (np.array([1e5]),), {})
 
     def test_skipped_dtype_has_reason(self):
         skipped = {backend.backend(): {"int8": "no int8 here"}}

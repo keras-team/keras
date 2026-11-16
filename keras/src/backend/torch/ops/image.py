@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from keras.src import backend
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import is_int_dtype
+from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.torch.ops.core import cast
 from keras.src.backend.torch.ops.core import convert_to_tensor
@@ -608,9 +609,9 @@ def perspective_transform(
 def compute_homography_matrix(start_points, end_points):
     start_points = convert_to_tensor(start_points)
     end_points = convert_to_tensor(end_points)
-    dtype = backend.result_type(start_points.dtype, end_points.dtype, float)
+    dtype = result_type(start_points.dtype, end_points.dtype, float)
     # `torch.linalg.solve` requires float32.
-    compute_dtype = backend.result_type(dtype, "float32")
+    compute_dtype = result_type(dtype, "float32")
     start_points = cast(start_points, dtype)
     end_points = cast(end_points, dtype)
 
@@ -1137,7 +1138,7 @@ _kernels = {
 def _compute_weight_mat(
     input_size, output_size, scale, translation, kernel, antialias
 ):
-    dtype = to_torch_dtype(backend.result_type(scale.dtype, translation.dtype))
+    dtype = to_torch_dtype(result_type(scale.dtype, translation.dtype))
     inv_scale = 1.0 / scale
     kernel_scale = (
         torch.maximum(
@@ -1234,7 +1235,7 @@ def scale_and_translate(
     scale = convert_to_tensor(scale)
     translation = convert_to_tensor(translation)
     kernel = _kernels[method]
-    dtype = backend.result_type(scale.dtype, translation.dtype)
+    dtype = result_type(scale.dtype, translation.dtype)
     scale = cast(scale, dtype)
     translation = cast(translation, dtype)
     return _scale_and_translate(

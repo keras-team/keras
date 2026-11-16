@@ -1,6 +1,7 @@
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
+from keras.src.utils import argument_validation
 
 
 @keras_export("keras.layers.UnitNormalization")
@@ -27,15 +28,11 @@ class UnitNormalization(Layer):
     def __init__(self, axis=-1, **kwargs):
         super().__init__(**kwargs)
         if isinstance(axis, (list, tuple)):
-            self.axis = list(axis)
-        elif isinstance(axis, int):
-            self.axis = axis
-        else:
-            raise TypeError(
-                "Invalid value for `axis` argument: "
-                "expected an int or a list/tuple of ints. "
-                f"Received: axis={axis}"
+            self.axis = list(
+                argument_validation.validate_int_sequence("axis", axis)
             )
+        else:
+            self.axis = argument_validation.validate_int("axis", axis)
         self.supports_masking = True
 
         self._build_at_init()

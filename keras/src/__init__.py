@@ -11,7 +11,7 @@ from keras.src import optimizers
 from keras.src import regularizers
 from keras.src import utils
 from keras.src import visualization
-from keras.src.backend import KerasTensor
+from keras.src.backend.common import KerasTensor
 from keras.src.layers import Input
 from keras.src.layers import Layer
 from keras.src.models import Functional

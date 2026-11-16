@@ -1,14 +1,14 @@
-from keras.src import backend
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend.common import KerasTensor
 from keras.src.layers.core import input_layer
 from keras.src.ops import operation_utils
 
 
 class OperationUtilsTest(testing.TestCase):
     def test_get_source_inputs(self):
-        x1 = backend.KerasTensor(shape=(2,))
-        x2 = backend.KerasTensor(shape=(2,))
+        x1 = KerasTensor(shape=(2,))
+        x2 = KerasTensor(shape=(2,))
         x = x1 + x2
         x += 2
         x = ops.square(x)
@@ -204,14 +204,14 @@ class OperationUtilsTest(testing.TestCase):
     def test_compute_reshape_output_shape_symbolic_tensors(self):
         # Entire newshape is a KerasTensor
         input_shape = (2, 10)
-        shape_tensor = backend.KerasTensor((2,), dtype="int32")
+        shape_tensor = KerasTensor((2,), dtype="int32")
         output_shape = operation_utils.compute_reshape_output_shape(
             input_shape, newshape=shape_tensor, newshape_arg_name="newshape"
         )
         self.assertEqual(output_shape, (None, None))
 
         # Tuple containing a KerasTensor and -1
-        dim_tensor = backend.KerasTensor((), dtype="int32")
+        dim_tensor = KerasTensor((), dtype="int32")
         output_shape2 = operation_utils.compute_reshape_output_shape(
             input_shape, newshape=(-1, dim_tensor), newshape_arg_name="newshape"
         )

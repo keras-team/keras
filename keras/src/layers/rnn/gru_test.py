@@ -512,3 +512,10 @@ class GRUTest(testing.TestCase):
                 "exercise the cuDNN path from #23462."
             ),
         )
+
+    def test_numpy_integer_units(self):
+        layer = layers.GRU(np.int64(3))
+        self.assertIs(type(layer.units), int)
+        self.assertEqual(layer.units, 3)
+        output = layer(np.ones((2, 4, 5), dtype="float32"))
+        self.assertEqual(output.shape, (2, 3))

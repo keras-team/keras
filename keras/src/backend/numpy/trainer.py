@@ -3,8 +3,8 @@ import numpy as np
 from keras.src import backend
 from keras.src import callbacks as callbacks_module
 from keras.src import tree
+from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
-from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.numpy.ops.core import is_tensor
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
@@ -231,6 +231,7 @@ class Trainer(BaseTrainer):
         return_dict=False,
         **kwargs,
     ):
+        self._assert_compile_called("evaluate")
         # TODO: respect compiled trainable state
         use_cached_eval_dataset = kwargs.pop("_use_cached_eval_dataset", False)
         if kwargs:

@@ -1,6 +1,6 @@
 import torch
 
-from keras.src.backend.common.stateless_scope import in_stateless_scope
+from keras.src.backend.common import in_stateless_scope
 from keras.src.ops.operation import Operation
 
 

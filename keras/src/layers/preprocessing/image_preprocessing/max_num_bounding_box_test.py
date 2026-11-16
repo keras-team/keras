@@ -1,9 +1,9 @@
 import numpy as np
-from tensorflow import data as tf_data
 
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 class MaxNumBoundingBoxesTest(testing.TestCase):
@@ -69,7 +69,7 @@ class MaxNumBoundingBoxesTest(testing.TestCase):
             max_number=40, bounding_box_format="xyxy"
         )
         input_data = {"images": input_image, "bounding_boxes": bounding_boxes}
-        ds = tf_data.Dataset.from_tensor_slices(input_data)
+        ds = tf.data.Dataset.from_tensor_slices(input_data)
         ds = ds.map(layer)
         ds = ds.batch(1)
         output = next(iter(ds))

@@ -193,7 +193,11 @@ def heaviside(x1, x2):
     return tf.where(
         x1 < 0,
         tf.zeros_like(x1),
-        tf.where(x1 > 0, tf.ones_like(x1), x2),
+        tf.where(
+            x1 > 0,
+            tf.ones_like(x1),
+            tf.where(tf.math.is_nan(x1), x1, x2),
+        ),
     )
 
 
@@ -1466,21 +1470,24 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
     x_shape = shape_op(x)
 
     def _zeros():
-        return tf.zeros(tf.concat([x_shape[:-1], [0]], 0), dtype=x.dtype)
+        return tf.zeros(x_shape[:-2] + (0,), dtype=x.dtype)
 
     if isinstance(x_shape[-1], int) and isinstance(x_shape[-2], int):
         if offset <= -1 * x_shape[-2] or offset >= x_shape[-1]:
-            x = _zeros()
-    else:
-        x = tf.cond(
-            tf.logical_or(
-                tf.less_equal(offset, -1 * x_shape[-2]),
-                tf.greater_equal(offset, x_shape[-1]),
-            ),
-            lambda: _zeros(),
-            lambda: x,
-        )
-    return tf.linalg.diag_part(x, k=offset)
+            return _zeros()
+        return tf.linalg.diag_part(x, k=offset)
+    return tf.cond(
+        tf.logical_or(
+            tf.less_equal(offset, -1 * x_shape[-2]),
+            tf.greater_equal(offset, x_shape[-1]),
+        ),
+        _zeros,
+        # Clamp `k` so that XLA can also compile the branch not taken.
+        lambda: tf.linalg.diag_part(
+            x,
+            k=tf.clip_by_value(offset, 1 - x_shape[-2], x_shape[-1] - 1),
+        ),
+    )
 
 
 def diff(a, n=1, axis=-1):
@@ -1660,11 +1667,21 @@ def flip(x, axis=None):
 
 def fliplr(x):
     x = convert_to_tensor(x)
+    if x.shape.rank is not None and x.shape.rank < 2:
+        raise ValueError(
+            "`fliplr` requires input with 2 or more dimensions. "
+            f"Received: x.shape={x.shape}"
+        )
     return tf.reverse(x, [1])
 
 
 def flipud(x):
     x = convert_to_tensor(x)
+    if x.shape.rank is not None and x.shape.rank < 1:
+        raise ValueError(
+            "`flipud` requires input with 1 or more dimensions. "
+            f"Received: x.shape={x.shape}"
+        )
     return tf.reverse(x, [0])
 
 
@@ -3403,48 +3420,22 @@ def tri(N, M=None, k=0, dtype=None):
 
 def tril(x, k=0):
     x = convert_to_tensor(x)
-
-    def _negative_k_branch():
-        shape = tf.shape(x)
-        rows, cols = shape[-2], shape[-1]
-        i, j = tf.meshgrid(tf.range(rows), tf.range(cols), indexing="ij")
-        mask = i >= j - k
-        return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
-
-    if isinstance(k, int):
-        if k >= 0:
-            return tf.linalg.band_part(x, -1, k)
-        return _negative_k_branch()
-
-    # when `k` is a tensor
-    return tf.cond(
-        tf.greater_equal(k, 0),
-        lambda: tf.linalg.band_part(x, -1, k),
-        _negative_k_branch,
-    )
+    # `tf.linalg.band_part` raises when the band width exceeds the matrix
+    # size, so build the mask explicitly. This works for any `k`.
+    k = tf.cast(k, "int32")
+    shape = tf.shape(x)
+    i = tf.range(shape[-2])[:, None]
+    j = tf.range(shape[-1])[None, :]
+    return tf.where(i >= j - k, x, tf.zeros_like(x))
 
 
 def triu(x, k=0):
     x = convert_to_tensor(x)
-
-    def _positive_k_branch():
-        shape = tf.shape(x)
-        rows, cols = shape[-2], shape[-1]
-        i, j = tf.meshgrid(tf.range(rows), tf.range(cols), indexing="ij")
-        mask = i <= j - k
-        return tf.where(tf.broadcast_to(mask, shape), x, tf.zeros_like(x))
-
-    if isinstance(k, int):
-        if k <= 0:
-            return tf.linalg.band_part(x, -k, -1)
-        return _positive_k_branch()
-
-    # when `k` is a tensor
-    return tf.cond(
-        tf.less_equal(k, 0),
-        lambda: tf.linalg.band_part(x, -k, -1),
-        _positive_k_branch,
-    )
+    k = tf.cast(k, "int32")
+    shape = tf.shape(x)
+    i = tf.range(shape[-2])[:, None]
+    j = tf.range(shape[-1])[None, :]
+    return tf.where(i <= j - k, x, tf.zeros_like(x))
 
 
 def trunc(x):
@@ -3809,14 +3800,11 @@ def eye(N, M=None, k=0, dtype=None):
     M = N if M is None else M
     if isinstance(k, int) and k == 0:
         return tf.eye(N, M, dtype=dtype)
-    # Create a smaller square eye and pad appropriately.
-    return tf.pad(
-        tf.eye(tf.minimum(M - k, N + k), dtype=dtype),
-        paddings=(
-            (tf.maximum(-k, 0), tf.maximum(N - M + k, 0)),
-            (tf.maximum(k, 0), tf.maximum(M - N - k, 0)),
-        ),
-    )
+    # Build the (shifted) diagonal from a mask, which also holds when
+    # `abs(k)` is larger than the matrix.
+    i = tf.range(N, dtype="int64")[:, None]
+    j = tf.range(M, dtype="int64")[None, :]
+    return tf.cast(tf.equal(j - i, tf.cast(k, "int64")), dtype)
 
 
 def floor_divide(x1, x2):

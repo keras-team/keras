@@ -2,13 +2,13 @@ import grain
 import numpy as np
 import pytest
 from absl.testing import parameterized
-from tensorflow import data as tf_data
 
 from keras.src import Sequential
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
 from keras.src.testing.test_utils import named_product
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 class ResizingTest(testing.TestCase):
@@ -152,7 +152,7 @@ class ResizingTest(testing.TestCase):
             output_shape = (2, 3, 8, 9)
         layer = layers.Resizing(8, 9)
         input_data = np.random.random(input_shape)
-        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
+        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         output = next(iter(ds)).numpy()
         self.assertEqual(tuple(output.shape), output_shape)
 
@@ -200,7 +200,7 @@ class ResizingTest(testing.TestCase):
         layer = layers.Resizing(8, 9)
         input_data = np.random.random(input_shape)
         ds = (
-            tf_data.Dataset.from_tensor_slices(input_data)
+            tf.data.Dataset.from_tensor_slices(input_data)
             .batch(2)
             .map(Sequential([layer]))
         )
@@ -307,7 +307,7 @@ class ResizingTest(testing.TestCase):
 
         input_data = {"images": input_image, "bounding_boxes": bounding_boxes}
 
-        ds = tf_data.Dataset.from_tensor_slices(input_data)
+        ds = tf.data.Dataset.from_tensor_slices(input_data)
         resizing_layer = layers.Resizing(
             height=20,
             width=20,
