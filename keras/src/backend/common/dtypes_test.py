@@ -330,5 +330,7 @@ class DtypesTest(test_case.TestCase):
         try:
             self.assertEqual(result_type(float), "bfloat16")
             self.assertEqual(result_type("int32", float), "bfloat16")
+            self.assertEqual(dtypes.promote_to_float_dtype("int32"), "bfloat16")
+            self.assertEqual(dtypes.promote_to_float_dtype("int64"), "float64")
         finally:
             config.set_floatx(default)
