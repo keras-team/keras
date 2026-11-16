@@ -1708,6 +1708,7 @@ def var(x, axis=None, keepdims=False):
 
 def sum(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
+    x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
     # follow jax's rule
     if dtype in ("bool", "int8", "int16"):
