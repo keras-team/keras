@@ -1647,6 +1647,21 @@ class NNOpsCorrectnessTest(testing.TestCase):
         x_int = np.array([-1, 0, 1, 2, 3], dtype="int32")
         self.assertAllClose(knn.leaky_relu(x_int), [-0.2, 0, 1, 2, 3])
 
+    @parameterized.named_parameters(
+        ("slope_zero", 0.0),
+        ("slope_one", 1.0),
+        ("slope_above_one", 2.5),
+    )
+    def test_leaky_relu_negative_slope(self, negative_slope):
+        # `LeakyReLU` accepts any `negative_slope >= 0`. The numpy backend
+        # computed `maximum(x, slope * x)`, which also scales the positive
+        # inputs once the slope is above 1.
+        x = np.array([-2, -0.5, 0, 0.5, 2], dtype=np.float32)
+        self.assertAllClose(
+            knn.leaky_relu(x, negative_slope=negative_slope),
+            np.where(x >= 0, x, negative_slope * x),
+        )
+
     def test_hard_sigmoid(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
         self.assertAllClose(

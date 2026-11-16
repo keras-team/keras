@@ -138,7 +138,9 @@ def leaky_relu(x, negative_slope=0.2):
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
     if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
-    return np.maximum(x, np.array(negative_slope, x.dtype) * x)
+    # `maximum(x, slope * x)` is only right for `slope <= 1`: for a larger
+    # slope it scales the positive inputs too.
+    return np.where(x >= 0, x, np.array(negative_slope, x.dtype) * x)
 
 
 def hard_sigmoid(x):
