@@ -1,3 +1,5 @@
+import functools
+
 import numpy as np
 
 from keras.src import backend
@@ -577,16 +579,10 @@ def initialize_all_variables():
     global_state.set_global_attribute("uninitialized_variables", [])
 
 
-@keras_export(
-    ["keras.utils.standardize_dtype", "keras.backend.standardize_dtype"]
-)
-def standardize_dtype(dtype):
-    # Fast path: an already-canonical dtype string is by far the common case
-    # and needs none of the normalization below.
-    if isinstance(dtype, str) and dtype in dtypes.ALLOWED_DTYPES_SET:
-        return dtype
-    if dtype is None:
-        return config.floatx()
+# `typed=True` keeps `tf.float32` apart from `1`, which hashes and compares
+# equal to it.
+@functools.lru_cache(maxsize=512, typed=True)
+def _standardize_dtype(dtype):
     dtype = dtypes.PYTHON_DTYPES_MAP.get(dtype, dtype)
     if hasattr(dtype, "name"):
         dtype = dtype.name.lower()
@@ -602,6 +598,19 @@ def standardize_dtype(dtype):
     if dtype not in dtypes.ALLOWED_DTYPES_SET:
         raise ValueError(f"Invalid dtype: {dtype}")
     return dtype
+
+
+@keras_export(
+    ["keras.utils.standardize_dtype", "keras.backend.standardize_dtype"]
+)
+def standardize_dtype(dtype):
+    # Fast path: an already-canonical dtype string is by far the common case
+    # and needs none of the normalization below.
+    if isinstance(dtype, str) and dtype in dtypes.ALLOWED_DTYPES_SET:
+        return dtype
+    if dtype is None:
+        return config.floatx()
+    return _standardize_dtype(dtype)
 
 
 def standardize_shape(shape):

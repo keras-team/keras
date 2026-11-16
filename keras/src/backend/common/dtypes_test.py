@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+import numpy as np
 import pytest
 from absl.testing import parameterized
 
@@ -154,6 +155,44 @@ class DtypesTest(test_case.TestCase):
 
     def test_result_type_empty_list(self):
         self.assertEqual(result_type(), "float32")
+
+    def test_result_type_respects_floatx(self):
+        self.addCleanup(backend.set_floatx, backend.floatx())
+        backend.set_floatx("float32")
+        self.assertEqual(result_type(float), "float32")
+        self.assertEqual(result_type(None), "float32")
+        backend.set_floatx("float16")
+        self.assertEqual(result_type(float), "float16")
+        self.assertEqual(result_type(None), "float16")
+
+    @pytest.mark.skipif(not X64_SUPPORTED, reason="Unsupported backend.")
+    def test_result_type_respects_x64_mode(self):
+        self.assertEqual(result_type("float64", "int32"), "float32")
+        with x64_mode_scope("explicit_x64"):
+            self.assertEqual(result_type("float64", "int32"), "float64")
+        self.assertEqual(result_type("float64", "int32"), "float32")
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="TensorFlow only"
+    )
+    def test_result_type_does_not_confuse_tf_dtype_with_int(self):
+        # `tf.float32` hashes and compares equal to `1`, which is not a dtype.
+        import tensorflow as tf
+
+        self.assertEqual(result_type(tf.float32), "float32")
+        with self.assertRaises(ValueError):
+            result_type(1)
+
+    def test_result_type_unhashable_argument(self):
+        with self.assertRaises(ValueError):
+            result_type(np.array([1, 2]))
+        with self.assertRaises(TypeError):
+            result_type([1, 2])
+        with self.assertRaises(TypeError):
+            result_type("float32", [1])
+        # Arguments are checked in order, the invalid string comes first.
+        with self.assertRaises(ValueError):
+            result_type("not_a_dtype", [1])
 
     def test_respect_weak_type_for_bool(self):
         self.assertEqual(dtypes._respect_weak_type("bool", True), "bool")
