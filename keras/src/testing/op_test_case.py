@@ -101,6 +101,8 @@ class OpTest(TestCase):
     - `test_serialization`: for every case, the functional `Model` gives
       `reference_fn`'s outputs after a `to_json` / `model_from_json` round
       trip.
+    - `test_input_variants`: for every case, the op accepts NumPy arrays,
+      `Variable`s and Python lists and gives `reference_fn`'s outputs.
 
     `UnaryOpTest`, `BinaryOpTest` and `ReductionOpTest` also set the standard
     inputs of their category and add one test per input dtype combination,
@@ -200,6 +202,10 @@ class OpTest(TestCase):
         for inputs, kwargs in self._cases().values():
             self.check_serialization(inputs, kwargs)
 
+    def test_input_variants(self):
+        for inputs, kwargs in self._cases().values():
+            self.check_input_variants(inputs, kwargs)
+
     def assertOutputsClose(self, outputs, expected, msg):
         """Asserts `outputs` have the structure and values of `expected`.
 
@@ -269,6 +275,20 @@ class OpTest(TestCase):
             self.reference_fn(*inputs, **kwargs),
             f"Output changed by JSON for {_describe(inputs, kwargs)}",
         )
+
+    def check_input_variants(self, inputs, kwargs):
+        """Checks the op on NumPy arrays, `Variable`s and Python lists."""
+        if not _arrays(inputs):
+            self.skipTest("No array inputs, so no input variants")
+        expected = self.reference_fn(*inputs, **kwargs)
+        for variant in (np.asarray, _as_variable, np.ndarray.tolist):
+            variant_inputs = _map_arrays(variant, inputs)
+            self.assertOutputsClose(
+                self.op(*variant_inputs, **kwargs),
+                expected,
+                f"Unexpected output for {variant.__name__} inputs, "
+                f"{_describe(inputs, kwargs)}",
+            )
 
     def check_symbolic(self, inputs, kwargs, symbolic_shapes=None):
         """Checks the symbolic outputs against the eager ones.
@@ -441,6 +461,11 @@ def _op_model(op, inputs, kwargs):
     ]
     outputs = op(*_with_arrays(inputs, model_inputs), **kwargs)
     return models.Model(model_inputs, outputs)
+
+
+def _as_variable(x):
+    """`x` as a `Variable`, non-trainable so torch accepts integer dtypes."""
+    return backend.Variable(x, trainable=False)
 
 
 def _with_arrays(inputs, arrays):

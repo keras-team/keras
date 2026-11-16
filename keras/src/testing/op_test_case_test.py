@@ -98,6 +98,15 @@ def needs_tuple(x, axis):
     return NeedsTuple(axis)(x)
 
 
+class RejectsList(Square):
+    """Rejects a Python list, as an op that reads `x.dtype` first does."""
+
+    def __call__(self, x):
+        if isinstance(x, list):
+            raise TypeError("Expected an array or tensor, got a list")
+        return super().__call__(x)
+
+
 def methods_of(cls):
     return sorted(n for n in dir(cls) if n.startswith("test"))
 
@@ -130,6 +139,7 @@ class OpTestTest(testing.TestCase):
                 "test_eager",
                 "test_eager_class",
                 "test_functional_model",
+                "test_input_variants",
                 "test_jit",
                 "test_serialization",
                 "test_symbolic_dynamic",
@@ -219,6 +229,9 @@ class OpTestTest(testing.TestCase):
                 "test_serialization": (
                     "skipped: No array inputs, so no model inputs"
                 ),
+                "test_input_variants": (
+                    "skipped: No array inputs, so no input variants"
+                ),
             },
         )
 
@@ -242,6 +255,17 @@ class OpTestTest(testing.TestCase):
         self.assertEqual(out["test_eager"], "passed")
         self.assertEqual(out["test_eager_class"], "passed")
         self.assertRegex(out["test_serialization"], "^failed: ")
+
+    def test_list_rejected_fails_input_variants(self):
+        class Case(testing.OpTest):
+            op, reference_fn, inputs = RejectsList(), np.square, (X,)
+
+        out = outcomes(Case)
+        self.assertEqual(out["test_eager"], "passed")
+        self.assertRegex(
+            out["test_input_variants"],
+            "^failed: TypeError: Expected an array or tensor, got a list",
+        )
 
     def test_op_model(self):
         model = op_test_case._op_model(ops.add, (X, X[:1]), {})
