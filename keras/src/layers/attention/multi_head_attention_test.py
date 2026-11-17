@@ -1141,7 +1141,7 @@ class MultiHeadAttentionTest(testing.TestCase):
         self.assertIsNotNone(get_keras_mask(res_out))
         self.assertAllClose(get_keras_mask(res_out), expected_q_mask)
 
-        pooled = layers.GlobalAveragePooling1D()(res)
+        pooled = layers.GlobalAveragePooling1D(data_format="channels_last")(res)
         pool_model = models.Model(inp, pooled)
         self.assertAllClose(
             pool_model(np.array([[1, 2, 0, 0]])),
