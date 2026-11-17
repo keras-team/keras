@@ -137,9 +137,7 @@ def abs(x):
 
 def fabs(x):
     x = convert_to_tensor(x)
-    dtype = standardize_dtype(x.dtype)
-    if "int" in dtype or dtype == "bool":
-        x = x.astype(config.floatx())
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
     return np.fabs(x)
 
 
@@ -194,50 +192,35 @@ def arange(start, stop=None, step=None, dtype=None):
 
 def arccos(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.arccos(x)
 
 
 def arccosh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.arccosh(x)
 
 
 def arcsin(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.arcsin(x)
 
 
 def arcsinh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.arcsinh(x)
 
 
 def arctan(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.arctan(x)
 
@@ -253,10 +236,7 @@ def arctan2(x1, x2):
 
 def arctanh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.arctanh(x)
 
@@ -465,10 +445,7 @@ def cbrt(x):
 
 def ceil(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.ceil(x)
 
@@ -513,20 +490,14 @@ def copysign(x1, x2):
 
 def cos(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.cos(x)
 
 
 def cosh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.cosh(x)
 
@@ -600,27 +571,13 @@ def cumsum(x, axis=None, dtype=None):
 
 def deg2rad(x):
     x = convert_to_tensor(x)
-
-    if x.dtype in ["int64", "float64"]:
-        dtype = "float64"
-    elif x.dtype in ["bfloat16", "float16"]:
-        dtype = x.dtype
-    else:
-        dtype = config.floatx()
-
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return np.deg2rad(x).astype(dtype)
 
 
 def rad2deg(x):
     x = convert_to_tensor(x)
-
-    if x.dtype in ["int64", "float64"]:
-        dtype = "float64"
-    elif x.dtype in ["bfloat16", "float16"]:
-        dtype = x.dtype
-    else:
-        dtype = config.floatx()
-
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return np.rad2deg(x).astype(dtype)
 
 
@@ -680,17 +637,13 @@ def equal(x1, x2):
 
 def exp(x):
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    if "int" in ori_dtype or ori_dtype == "bool":
-        x = x.astype(config.floatx())
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
     return np.exp(x)
 
 
 def exp2(x):
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    if "int" in ori_dtype or ori_dtype == "bool":
-        x = x.astype(config.floatx())
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
     return np.exp2(x)
 
 
@@ -701,9 +654,7 @@ def expand_dims(x, axis):
 
 def expm1(x):
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    if "int" in ori_dtype or ori_dtype == "bool":
-        x = x.astype(config.floatx())
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
     return np.expm1(x)
 
 
@@ -722,11 +673,7 @@ def flipud(x):
 
 def floor(x):
     x = convert_to_tensor(x)
-    dtype = (
-        config.floatx()
-        if standardize_dtype(x.dtype) == "int64"
-        else dtypes.result_type(x.dtype, float)
-    )
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.floor(x)
 
@@ -802,12 +749,7 @@ def imag(x):
 
 def i0(x):
     x = convert_to_tensor(x)
-    dtype = (
-        "float64"
-        if standardize_dtype(x.dtype) in ["int64", "float64"]
-        else dtypes.result_type(x.dtype, float)
-    )
-    x = x.astype(dtype)
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype))
     return np.i0(x)
 
 
@@ -907,41 +849,25 @@ def linspace(
 
 def log(x):
     x = convert_to_tensor(x)
-    dtype = (
-        config.floatx()
-        if standardize_dtype(x.dtype) == "int64"
-        else dtypes.result_type(x.dtype, float)
-    )
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return np.log(x, dtype=dtype)
 
 
 def log10(x):
     x = convert_to_tensor(x)
-    dtype = (
-        config.floatx()
-        if standardize_dtype(x.dtype) == "int64"
-        else dtypes.result_type(x.dtype, float)
-    )
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return np.log10(x, dtype=dtype)
 
 
 def log1p(x):
     x = convert_to_tensor(x)
-    dtype = (
-        config.floatx()
-        if standardize_dtype(x.dtype) == "int64"
-        else dtypes.result_type(x.dtype, float)
-    )
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return np.log1p(x, dtype=dtype)
 
 
 def log2(x):
     x = convert_to_tensor(x)
-    dtype = (
-        config.floatx()
-        if standardize_dtype(x.dtype) == "int64"
-        else dtypes.result_type(x.dtype, float)
-    )
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return np.log2(x, dtype=dtype)
 
 
@@ -1331,6 +1257,8 @@ def real(x):
 
 
 def reciprocal(x):
+    x = convert_to_tensor(x)
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
     return np.reciprocal(x)
 
 
@@ -1372,30 +1300,21 @@ def signbit(x):
 
 def sin(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.sin(x)
 
 
 def sinc(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.sinc(x).astype(dtype)
 
 
 def sinh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.sinh(x)
 
@@ -1453,20 +1372,14 @@ def take_along_axis(x, indices, axis=None):
 
 def tan(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.tan(x)
 
 
 def tanh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = x.astype(dtype)
     return np.tanh(x)
 
@@ -1655,11 +1568,7 @@ def square(x):
 def sqrt(x):
     x = convert_to_tensor(x)
     # upcast to float64 for int64 which matches JAX's behavior
-    dtype = (
-        config.floatx()
-        if standardize_dtype(x.dtype) == "int64"
-        else dtypes.result_type(x.dtype, float)
-    )
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return np.sqrt(x, dtype=dtype)
 
 

@@ -347,9 +347,10 @@ def result_type(*dtypes):
 def promote_to_float_dtype(dtype):
     """Returns the dtype to use for an operation that needs a float input.
 
-    Integer and bool dtypes are promoted to `config.floatx()`, except `int64`
-    which promotes to `float64`. Float dtypes are returned unchanged, including
-    `float64`, `bfloat16` and the `float8` types.
+    Under `keras.config.x64_mode()` `"off"`, a 64-bit dtype first becomes its
+    32-bit counterpart. Then `int64` and `uint64` promote to `float64`, as in
+    JAX, other integer and bool dtypes to `config.floatx()`, and float dtypes
+    are returned unchanged, including `bfloat16` and the `float8` types.
 
     This only computes the dtype. Callers do the cast themselves, since `cast`
     is backend specific.
@@ -361,7 +362,9 @@ def promote_to_float_dtype(dtype):
         The float dtype to cast the input to.
     """
     dtype = standardize_dtype(dtype)
-    if dtype == "int64":
+    if config.x64_mode() == "off":
+        dtype = BIT64_TO_BIT32_DTYPE.get(dtype, dtype)
+    if dtype in ("int64", "uint64"):
         return "float64"
     if "int" in dtype or dtype == "bool":
         return config.floatx()
