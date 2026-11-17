@@ -2125,6 +2125,13 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         ):
             kimage.resize(x, size=invalid_size)
 
+    def test_affine_transform_does_not_mutate_transform(self):
+        x = np.random.uniform(size=(2, 10, 10, 3)).astype("float32")
+        transform_values = np.random.uniform(size=(2, 8)).astype("float32")
+        transform = backend.ops.convert_to_tensor(transform_values.copy())
+        kimage.affine_transform(x, transform)
+        self.assertAllClose(transform_values, transform)
+
     @parameterized.named_parameters(
         named_product(
             interpolation=["bilinear", "nearest"],

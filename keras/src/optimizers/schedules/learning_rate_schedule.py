@@ -279,12 +279,16 @@ class PiecewiseConstantDecay(LearningRateSchedule):
             step_less_than_first_boundary = backend.ops.cast(
                 step <= boundaries[0], result_dtype
             )
-            result_value += step_less_than_first_boundary * values[0]
+            result_value = (
+                result_value + step_less_than_first_boundary * values[0]
+            )
 
             step_greater_than_last_boundary = backend.ops.cast(
                 step > boundaries[-1], result_dtype
             )
-            result_value += step_greater_than_last_boundary * values[-1]
+            result_value = (
+                result_value + step_greater_than_last_boundary * values[-1]
+            )
 
             for low, high, value in zip(
                 boundaries[:-1], boundaries[1:], values[1:-1]
@@ -293,7 +297,7 @@ class PiecewiseConstantDecay(LearningRateSchedule):
                 step_in_range = backend.ops.cast(
                     (step > low) & (step <= high), result_dtype
                 )
-                result_value += step_in_range * value
+                result_value = result_value + step_in_range * value
 
             return result_value
 
@@ -892,7 +896,7 @@ class CosineDecayRestarts(LearningRateSchedule):
 
                 else:
                     i_restart = backend.ops.numpy.floor(completed_fraction)
-                    completed_fraction -= i_restart
+                    completed_fraction = completed_fraction - i_restart
 
                 return i_restart, completed_fraction
 

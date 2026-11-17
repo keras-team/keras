@@ -624,6 +624,7 @@ def affine_transform(
     a2 = transform[:, 2].copy()
     b1 = transform[:, 4].copy()
     b2 = transform[:, 5].copy()
+    transform = transform.copy()
     transform[:, 0] = b1
     transform[:, 2] = b2
     transform[:, 4] = a0
@@ -639,7 +640,7 @@ def affine_transform(
     # transform the indices
     coordinates = np.einsum("Bhwij, Bjk -> Bhwik", indices, transform)
     coordinates = np.moveaxis(coordinates, source=-1, destination=1)
-    coordinates += np.reshape(offset, (*offset.shape, 1, 1, 1))
+    coordinates = coordinates + np.reshape(offset, (*offset.shape, 1, 1, 1))
 
     # apply affine transformation
     affined = np.stack(

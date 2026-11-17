@@ -70,6 +70,17 @@ class TestImageNetUtils(testing.TestCase):
         self.assertNotEqual(xint.astype("float").max(), xint2.max())
 
     @parameterized.named_parameters(
+        ("mode_torch", "torch"), ("mode_tf", "tf"), ("mode_caffe", "caffe")
+    )
+    def test_preprocess_input_does_not_mutate_tensor(self, mode):
+        if backend.backend() == "numpy":
+            self.skipTest("NumPy inputs are preprocessed in place.")
+        x_values = np.random.uniform(0, 255, (2, 10, 10, 3)).astype("float32")
+        x = backend.ops.convert_to_tensor(x_values.copy())
+        utils.preprocess_input(x, "channels_last", mode=mode)
+        self.assertAllClose(x_values, x)
+
+    @parameterized.named_parameters(
         [
             {"testcase_name": "mode_torch", "mode": "torch"},
             {"testcase_name": "mode_tf", "mode": "tf"},
