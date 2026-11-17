@@ -7,6 +7,7 @@ from jax import lax
 from keras.src import backend
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
@@ -76,6 +77,9 @@ def softplus(x):
 
 def softsign(x):
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return x / (np.array(1.0, x.dtype) + np.abs(x))
 
 
@@ -114,6 +118,9 @@ def silu(x):
 
 def squareplus(x, b=4):
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     b = convert_to_tensor(b, dtype=x.dtype)
     y = x + np.sqrt(x**2 + b)
     return y / 2
@@ -229,6 +236,9 @@ def hard_tanh(x):
 
 def hard_shrink(x, threshold=0.5):
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     threshold = np.asarray(threshold, x.dtype)
     return np.array(
         np.where(np.abs(x) > threshold, x, np.array(0.0, dtype=x.dtype)),
@@ -871,7 +881,7 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
 
     batch_size = x.shape[0]
     categorical = np.zeros((batch_size, num_classes), dtype=dtype)
-    valid_indices = x >= 0
+    valid_indices = (x >= 0) & (x < num_classes)
     categorical[np.arange(batch_size)[valid_indices], x[valid_indices]] = 1
 
     # First, reshape the array with the extra dimension at the end
@@ -991,10 +1001,7 @@ def moments(x, axes, keepdims=False, synchronized=False):
         x = cast(x, "float32")
 
     mean = np.mean(x, axes, keepdims=True)
-
-    # The variance is computed using $Var = E[|x|^2] - |E[x]|^2$, It is faster
-    # but less numerically stable.
-    variance = np.mean(np.square(x), axis=axes, keepdims=True) - np.square(mean)
+    variance = np.var(x, axis=axes, keepdims=True)
 
     if not keepdims:
         mean = np.squeeze(mean, axes)
@@ -1043,7 +1050,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     log_epsilon = -1e5
 
     # Ensure that the dtype promotion behavior matches that of `tf.nn.ctc_loss`
-    dtype = backend.result_type(output.dtype, "float32")
+    dtype = result_type(output.dtype, "float32")
     output = output.astype(dtype)
 
     def _lengths_to_paddings(lengths, max_length):
@@ -1360,7 +1367,7 @@ def ctc_decode(
     mask_index=0,
 ):
     inputs = convert_to_tensor(inputs)
-    dtype = backend.result_type(inputs.dtype, "float32")
+    dtype = result_type(inputs.dtype, "float32")
     inputs = cast(inputs, dtype)
 
     if strategy == "greedy":
@@ -1481,7 +1488,7 @@ def dot_product_attention(
             f"Received: query.shape={query.shape}, key.shape={key.shape}, "
             f"value.shape={value.shape}."
         )
-    compute_dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
+    compute_dtype = result_type(query.dtype, key.dtype, value.dtype)
     query = cast(query, compute_dtype)
     key = cast(key, compute_dtype)
     value = cast(value, compute_dtype)

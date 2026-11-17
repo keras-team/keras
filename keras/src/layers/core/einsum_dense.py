@@ -15,6 +15,7 @@ from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.geometry import EinsumProjectionGeometry
 from keras.src.saving import serialization_lib
+from keras.src.utils import argument_validation
 
 
 @keras_export("keras.layers.EinsumDense")
@@ -137,10 +138,16 @@ class EinsumDense(Layer):
     ):
         super().__init__(**kwargs)
         self.equation = equation
-        if isinstance(output_shape, int):
-            self.partial_output_shape = (output_shape,)
+        if isinstance(output_shape, (list, tuple)):
+            self.partial_output_shape = tuple(
+                argument_validation.validate_int_sequence(
+                    "output_shape", output_shape, allow_none=True
+                )
+            )
         else:
-            self.partial_output_shape = tuple(output_shape)
+            self.partial_output_shape = (
+                argument_validation.validate_int("output_shape", output_shape),
+            )
         self.bias_axes = bias_axes
         self.activation = activations.get(activation)
         self.kernel_initializer = initializers.get(kernel_initializer)

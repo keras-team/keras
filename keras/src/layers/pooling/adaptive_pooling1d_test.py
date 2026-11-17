@@ -117,3 +117,12 @@ class AdaptivePooling1DLayerTest(testing.TestCase):
 
         outputs = layer(inputs)
         self.assertAllClose(outputs, expected, atol=1e-4)
+
+    def test_numpy_integer_output_size(self):
+        for layer_cls in (
+            layers.AdaptiveAveragePooling1D,
+            layers.AdaptiveMaxPooling1D,
+        ):
+            layer = layer_cls(output_size=np.int64(3))
+            self.assertEqual(layer.output_size, (3,))
+            self.assertIs(type(layer.output_size[0]), int)

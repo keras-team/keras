@@ -1,10 +1,10 @@
 import numpy as np
 from absl.testing import parameterized
-from tensorflow import data as tf_data
 
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.utils.module_utils import tensorflow as tf
 
 TEST_CASES = [{"testcase_name": "dense", "sparse": False}]
 if backend.SUPPORTS_SPARSE_TENSORS:
@@ -266,7 +266,7 @@ class CategoryEncodingTest(testing.TestCase):
                 [0, 1, 0, 0],
             ]
         )
-        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(4).map(layer)
+        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(4).map(layer)
         for output in ds.take(1):
             output = output.numpy()
         self.assertAllClose(output, expected_output)

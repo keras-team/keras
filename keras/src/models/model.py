@@ -7,11 +7,11 @@ from collections.abc import Callable
 from keras.src import backend
 from keras.src import utils
 from keras.src.api_export import keras_export
+from keras.src.backend import config as backend_config
 from keras.src.layers.core.input_layer import InputLayer
 from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
 from keras.src.quantizers import strategy_registry
-from keras.src.quantizers.calibration_run import find_layers_in_block
 from keras.src.quantizers.quantization_config import validate_and_resolve_config
 from keras.src.quantizers.report import QuantizationReport
 from keras.src.quantizers.utils import should_quantize_layer
@@ -441,7 +441,9 @@ class Model(Trainer, Layer):
             the inputs should be passed through, before being passed to
             the sequential blocks. For example, inputs to an LLM must
             first be passed through an embedding layer, followed by
-            the transformer.
+            the transformer. `'pre_block_layers'` may be left out, and
+            each value is a list or a tuple. A structure with any other
+            key is refused with a `ValueError`.
         """
         del mode  # Unused.
         return None
@@ -461,11 +463,15 @@ class Model(Trainer, Layer):
         use specific quantizers for weights or activations).
 
         For the `"gptq"` and `"awq"` modes, quantization is restricted to
-        the `Dense` and `EinsumDense` layers inside the structure's
-        `"sequential_blocks"` (provided via
-        `config.quantization_layer_structure` or the model's
-        `get_quantization_layer_structure(mode)` hook). All other layers
-        are left in their original precision.
+        the layers inside the structure's `"sequential_blocks"` (provided
+        via `config.quantization_layer_structure` or the model's
+        `get_quantization_layer_structure(mode)` hook) that list the mode
+        in their `variable_serialization_spec`: `Dense`, `EinsumDense` and
+        custom layers that opt in (a custom layer also needs a `kernel`
+        property, which the calibrator reads the float weight through). All
+        other layers are left in their original precision. These modes are
+        run only here: each layer stays float until the calibration has its
+        statistics, and is then quantized in one step.
 
         The call collects a `QuantizationReport` describing which layers were
         quantized and which were skipped (and why). The report is returned and
@@ -473,6 +479,12 @@ class Model(Trainer, Layer):
         summary warning is emitted if any layers could not be quantized because
         they do not support quantization. For a per-layer view of storage sizes,
         call `model.quantization_summary()`.
+
+        An error other than `NotImplementedError` from `layer.quantize`,
+        `run.add` or the calibration stops the call. The layers quantized
+        before it stay quantized, `model._quantization_report` lists them,
+        and the compiled functions are reset when at least one layer
+        changed.
 
         Args:
             mode: The mode of the quantization. Supported modes are:
@@ -589,99 +601,85 @@ class Model(Trainer, Layer):
                     f"{type(filters)}"
                 )
 
-        # For structure-aware modes (`gptq`/`awq`), resolve and validate the
-        # layer structure *before* mutating any layer, and restrict
-        # quantization to the layers covered by the structure. Resolving it
-        # here (rather than after the mutation loop) guarantees that a
-        # missing/invalid structure leaves the model completely untouched
-        # instead of half-quantized (buffers allocated, dtype policies
-        # swapped). Only structure-covered layers are calibrated afterwards;
-        # quantizing any other layer would leave it uncalibrated, and its
-        # uninitialized quantized weights would silently replace the real
-        # ones when the model is saved and reloaded.
+        # A mode that calibrates (`gptq`/`awq`) creates its run before any
+        # layer changes, so a missing structure, dataset or tokenizer
+        # leaves the model untouched. The walk hands the run the float
+        # layers its blocks cover, and the run quantizes each one in one
+        # step once it has the layer's statistics.
         strategy = strategy_registry.get_strategy(mode)
-        structure = None
-        structure_layer_ids = None
-        if strategy.requires_layer_structure:
-            # 1. If quantization_layer_structure is provided inside the
-            # config, use that.
-            structure = config.quantization_layer_structure
-            # 2. If no layer structure is provided in the config, try to
-            # fetch it using the `get_quantization_layer_structure` hook.
-            if structure is None:
-                structure = self.get_quantization_layer_structure(mode)
-
-            if structure is None:
-                raise ValueError(
-                    f"For {mode=}, a valid quantization structure must be "
-                    "provided either via `config.quantization_layer_structure` "
-                    "or by overriding "
-                    "`model.get_quantization_layer_structure(mode)`. The "
-                    "structure should be a dictionary with keys "
-                    "'pre_block_layers' and 'sequential_blocks'."
-                )
-            structure_layer_ids = set()
-            for block in structure.get("sequential_blocks", []):
-                for sub_layer in find_layers_in_block(block).values():
-                    structure_layer_ids.add(id(sub_layer))
+        run = strategy.model_run(self, config)
 
         report = QuantizationReport(mode=mode)
-        graph_modified = False
-        for layer in self._flatten_layers():
-            # Skip nested models: this walk already visits their layers
-            # directly (`_flatten_layers` is recursive), and calling
-            # `quantize` on a sub-model would recurse into a second full
-            # walk. Owning sub-layers does NOT make a layer unquantizable
-            # (e.g. `Dense` with a `Layer` activation), so this is an
-            # isinstance test, not a topology test; any other layer that
-            # cannot be quantized reports itself by raising
-            # `NotImplementedError` below.
-            if isinstance(layer, Model):
-                continue
+        quantized = [] if run is None else run.quantized
+        try:
+            for layer in self._flatten_layers():
+                # Skip nested models: this walk already visits their layers
+                # directly (`_flatten_layers` is recursive), and calling
+                # `quantize` on a sub-model would recurse into a second full
+                # walk. Owning sub-layers does NOT make a layer
+                # unquantizable (e.g. `Dense` with a `Layer` activation), so
+                # this is an isinstance test, not a topology test; any other
+                # layer that cannot be quantized reports itself by raising
+                # `NotImplementedError` below.
+                if isinstance(layer, Model):
+                    continue
 
-            # Input layers carry no weights; they are not a meaningful skip.
-            if isinstance(layer, InputLayer):
-                continue
+                # Input layers carry no weights; they are not a meaningful
+                # skip.
+                if isinstance(layer, InputLayer):
+                    continue
 
-            path = layer.path or layer.name
+                path = layer.path or layer.name
 
-            # 1. For GPTQ/AWQ, layers outside the structure's sequential
-            # blocks are never calibrated, so they must not be quantized at
-            # all.
-            if (
-                structure_layer_ids is not None
-                and id(layer) not in structure_layer_ids
-            ):
-                report.add_skipped(
-                    path, QuantizationReport.SKIP_OUTSIDE_STRUCTURE
+                # 1. For GPTQ/AWQ, layers outside the structure's sequential
+                # blocks are never calibrated, so they must not be quantized
+                # at all.
+                if run is not None and not run.covers(layer):
+                    report.add_skipped(
+                        path, QuantizationReport.SKIP_OUTSIDE_STRUCTURE
+                    )
+                    continue
+                # 2. Excluded by `filters`.
+                if not should_quantize_layer(layer, filters):
+                    report.add_skipped(path, QuantizationReport.SKIP_FILTERED)
+                    continue
+                # 3. Already quantized (e.g. a previously quantized layer).
+                if layer._is_quantized:
+                    report.add_skipped(
+                        path, QuantizationReport.SKIP_ALREADY_QUANTIZED
+                    )
+                    continue
+                # 4. Attempt to quantize, or hand the layer to the run. Only
+                # `NotImplementedError` means the layer does not support
+                # quantization; any other exception is a real bug and is
+                # allowed to propagate.
+                try:
+                    if run is None:
+                        layer.quantize(
+                            mode, type_check=type_check, config=config
+                        )
+                        quantized.append(layer)
+                    else:
+                        run.add(layer, type_check)
+                except NotImplementedError:
+                    report.add_skipped(path, QuantizationReport.SKIP_NO_SUPPORT)
+            if run is not None:
+                run.run()
+        finally:
+            for layer in quantized:
+                report.add_quantized(
+                    layer.path or layer.name,
+                    layer.quantization_mode,
+                    layer._own_dtype_policy.name,
                 )
-                continue
-            # 2. Excluded by `filters`.
-            if not should_quantize_layer(layer, filters):
-                report.add_skipped(path, QuantizationReport.SKIP_FILTERED)
-                continue
-            # 3. Already quantized (e.g. a previously quantized layer).
-            if layer._is_quantized:
-                report.add_skipped(
-                    path, QuantizationReport.SKIP_ALREADY_QUANTIZED
-                )
-                continue
-            # 4. Attempt to quantize. Only `NotImplementedError` means the
-            # layer does not support quantization; any other exception is a
-            # real bug and is allowed to propagate.
-            try:
-                layer.quantize(mode, type_check=type_check, config=config)
-            except NotImplementedError:
-                report.add_skipped(path, QuantizationReport.SKIP_NO_SUPPORT)
-                continue
-            report.add_quantized(
-                path, layer.quantization_mode, layer._own_dtype_policy.name
-            )
-            graph_modified = True
-
-        # Structure-aware modes run their calibration pass here (a no-op
-        # for the other modes).
-        strategy.finalize_model_quantization(self, config, structure, filters)
+            self._quantization_report = report
+            # If any layer was changed, also by a walk or a run that
+            # raised, we must rebuild the execution functions.
+            if quantized:
+                self.train_function = None
+                self.test_function = None
+                self.predict_function = None
+                self._post_quantize(mode, **kwargs)
 
         # Emit a single summary warning in place of the previous per-layer
         # warning storm (one `UserWarning` per non-quantizable leaf).
@@ -691,15 +689,6 @@ class Model(Trainer, Layer):
 
         if verbose:
             io_utils.print_msg(report.render())
-
-        self._quantization_report = report
-
-        # If any layer was changed, we must rebuild the execution functions.
-        if graph_modified:
-            self.train_function = None
-            self.test_function = None
-            self.predict_function = None
-            self._post_quantize(mode, **kwargs)
 
         return report
 
@@ -820,16 +809,16 @@ class Model(Trainer, Layer):
             filepath: `str` or `pathlib.Path` object. The path to save the
                 artifact.
             format: `str`. The export format. Supported values:
-                `"tf_saved_model"`, `"onnx"`, `"openvino"`, `"litert"`,
-                and `"torch"`. Defaults to `"tf_saved_model"`.
+                `"tf_saved_model"`, `"xla_saved_model"`, `"onnx"`,
+                `"openvino"`, `"litert"`, and `"torch"`. Defaults to
+                `"tf_saved_model"`.
             verbose: `bool`. Whether to print a message during export. Defaults
                 to `None`, which uses the default value set by different
                 backends and formats.
             input_signature: Optional. Specifies the shape and dtype of the
                 model inputs. Can be a structure of `keras.InputSpec`,
-                `tf.TensorSpec`, `backend.KerasTensor`, or backend tensor. If
-                not provided, it will be automatically computed. Defaults to
-                `None`.
+                `tf.TensorSpec`, `KerasTensor`, or backend tensor. If not
+                provided, it will be automatically computed. Defaults to `None`.
                 Note: With `format="litert"` and the PyTorch backend, dynamic
                 input shapes are not supported. Any dynamic dimensions (i.e.,
                 `None` in input shapes) will be automatically replaced with `1`
@@ -848,6 +837,12 @@ class Model(Trainer, Layer):
                         https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md).
                     If `native_serialization` and `polymorphic_shapes` are not
                     provided, they will be automatically computed.
+                - XLA SavedModel options: Optional keyword arguments specific
+                    to `format="xla_saved_model"` (JAX backend only), forwarded
+                    to `ExportArchive.add_endpoint()`: `platforms` (e.g.
+                    `["cpu", "cuda", "tpu"]`), `jax_export_kwargs`,
+                    `polymorphic_shapes`, `polymorphic_constraints`,
+                    `batch_options` and `warmup_examples`.
                 - `opset_version`: Optional `int`. Specific to `format="onnx"`.
                     An integer value that specifies the ONNX opset version.
                 - LiteRT-specific options: Optional keyword arguments specific
@@ -896,6 +891,23 @@ class Model(Trainer, Layer):
         # Load the artifact in a different process/environment
         reloaded_artifact = tf.saved_model.load("path/to/location")
         predictions = reloaded_artifact.serve(input_data)
+        ```
+
+        Here's how to export an XLA SavedModel for the XLA Serving Engine
+        (JAX backend only).
+
+        ```python
+        # Export the model as an XLA SavedModel artifact
+        model.export(
+            "path/to/location", format="xla_saved_model", platforms=["cpu"]
+        )
+
+        # Serve it with the XLA Serving Engine, or run it in-process:
+        from xla_saved_model_runner import model_runner
+        runner = model_runner.ModelRunner(
+            model_path="path/to/location", platform="cpu"
+        )
+        predictions = runner.signature("serving_default").run(input_data)
         ```
 
         Here's how to export an ONNX for inference.
@@ -947,9 +959,11 @@ class Model(Trainer, Layer):
         from keras.src.export import export_openvino
         from keras.src.export import export_saved_model
         from keras.src.export import export_torch
+        from keras.src.export import export_xla_saved_model
 
         available_formats = (
             "tf_saved_model",
+            "xla_saved_model",
             "onnx",
             "openvino",
             "litert",
@@ -975,8 +989,20 @@ class Model(Trainer, Layer):
         if format == "torch" and backend.backend() != "torch":
             raise ValueError("Torch export requires PyTorch backend.")
 
+        # Check if XLA SavedModel export is available (requires JAX backend)
+        if format == "xla_saved_model" and backend_config.backend() != "jax":
+            raise ValueError("XLA SavedModel export requires JAX backend.")
+
         if format == "tf_saved_model":
             export_saved_model(
+                self,
+                filepath,
+                verbose,
+                input_signature=input_signature,
+                **kwargs,
+            )
+        elif format == "xla_saved_model":
+            export_xla_saved_model(
                 self,
                 filepath,
                 verbose,

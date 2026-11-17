@@ -1,10 +1,10 @@
 import numpy as np
 from absl.testing import parameterized
-from tensorflow import data as tf_data
 
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 class ContrastLimitedAdaptiveHistogramEqualizationTest(testing.TestCase):
@@ -86,7 +86,7 @@ class ContrastLimitedAdaptiveHistogramEqualizationTest(testing.TestCase):
             value_range=(0, 255), data_format="channels_last"
         )
         input_data = np.random.random((2, 16, 16, 3)) * 255
-        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
+        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
             output_array = output.numpy()
             self.assertAllInRange(output_array, 0, 255)

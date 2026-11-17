@@ -11,8 +11,9 @@ import os  # noqa: E402
 import pytest  # noqa: E402
 
 from keras.src.backend import SUPPORTS_GRADIENT  # noqa: E402
-from keras.src.backend.config import PLUGGABLE_BACKENDS
 from keras.src.backend.config import backend  # noqa: E402
+from keras.src.backend.config import backend_is_pluggable
+from keras.src.utils import module_utils
 from keras.src.utils.module_utils import get_pluggable_backend_module
 
 
@@ -29,6 +30,10 @@ def pytest_configure(config):
         "markers",
         "no_pytest_xdist: mark test that cannot run under pytest-xdist "
         "workers (e.g. tests that bind to a fixed port)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "op_test: mark the tests of an `OpTest` class (keras.src.testing)",
     )
 
     # Disable CUDA TF32 to get higher numerical accuracy for correctness tests.
@@ -51,7 +56,7 @@ def pytest_collection_modifyitems(config, items):
     has_multiple_devices = False
 
     backend_skipped_tests = set()
-    if backend() in PLUGGABLE_BACKENDS:
+    if backend_is_pluggable(backend()):
         backend_module_file = get_pluggable_backend_module().__file__
         exclusions_path = os.path.join(
             # Remove `src/__init__.py`.
@@ -60,14 +65,16 @@ def pytest_collection_modifyitems(config, items):
         )
         # An installed backend package has no exclusion list.
         if os.path.exists(exclusions_path):
-            with open(exclusions_path, "r") as file:
-                # Exclude empty lines and comments.
-                backend_skipped_tests = {
-                    stripped
-                    for line in file.readlines()
-                    if (stripped := line.strip())
-                    and not stripped.startswith("#")
-                }
+            backend_skipped_tests = read_test_list(exclusions_path)
+
+    tf_free_skipped_tests = set()
+    if not module_utils.tensorflow.available:
+        tf_free_skipped_tests = read_test_list(
+            os.path.join(
+                os.path.dirname(__file__),
+                ".github/workflows/config/tf_free_ignored_tests.txt",
+            )
+        )
 
     if backend() == "jax":
         import jax
@@ -112,6 +119,18 @@ def pytest_collection_modifyitems(config, items):
                     f"Not supported operation by {backend()} backend",
                 )
             )
+        if item.nodeid in tf_free_skipped_tests:
+            item.add_marker(pytest.mark.skip(reason="Requires TensorFlow"))
+
+
+def read_test_list(path):
+    with open(path, "r") as file:
+        # Exclude empty lines and comments.
+        return {
+            stripped
+            for line in file.readlines()
+            if (stripped := line.strip()) and not stripped.startswith("#")
+        }
 
 
 def skip_if_backend(given_backend, reason):

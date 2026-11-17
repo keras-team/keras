@@ -56,14 +56,7 @@ class Cropping2D(Layer):
     def __init__(self, cropping=((0, 0), (0, 0)), data_format=None, **kwargs):
         super().__init__(**kwargs)
         self.data_format = backend.standardize_data_format(data_format)
-        if isinstance(cropping, int):
-            if cropping < 0:
-                raise ValueError(
-                    "`cropping` cannot be negative. "
-                    f"Received: cropping={cropping}."
-                )
-            self.cropping = ((cropping, cropping), (cropping, cropping))
-        elif hasattr(cropping, "__len__"):
+        if hasattr(cropping, "__len__"):
             if len(cropping) != 2:
                 raise ValueError(
                     "`cropping` should have two elements. "
@@ -77,13 +70,10 @@ class Cropping2D(Layer):
             )
             self.cropping = (height_cropping, width_cropping)
         else:
-            raise ValueError(
-                "`cropping` should be either an int, a tuple of 2 ints "
-                "(symmetric_height_crop, symmetric_width_crop), "
-                "or a tuple of 2 tuples of 2 ints "
-                "((top_crop, bottom_crop), (left_crop, right_crop)). "
-                f"Received: cropping={cropping}."
+            cropping = argument_validation.validate_int(
+                "cropping", cropping, min_value=0
             )
+            self.cropping = ((cropping, cropping), (cropping, cropping))
         self.input_spec = InputSpec(ndim=4)
 
     def compute_output_shape(self, input_shape):

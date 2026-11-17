@@ -5,6 +5,7 @@ import jax.numpy as jnp
 
 from keras.src import backend
 from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.jax.ops.core import convert_to_tensor
 from keras.src.random.seed_generator import draw_seed
@@ -65,7 +66,7 @@ def rgb_to_grayscale(images, data_format=None):
         return images
     # Convert to floats
     original_dtype = images.dtype
-    compute_dtype = backend.result_type(images.dtype, float)
+    compute_dtype = result_type(images.dtype, float)
     images = images.astype(compute_dtype)
 
     # Ref: tf.image.rgb_to_grayscale
@@ -565,11 +566,13 @@ def perspective_transform(
     if data_format == "channels_first":
         images = jnp.transpose(images, (0, 2, 3, 1))
 
-    _, height, width, _ = images.shape
+    batch_size, height, width, _ = images.shape
     transforms = compute_homography_matrix(
         jnp.asarray(start_points, dtype="float32"),
         jnp.asarray(end_points, dtype="float32"),
     )
+    if transforms.shape[0] == 1 and batch_size > 1:
+        transforms = jnp.repeat(transforms, batch_size, axis=0)
 
     x, y = jnp.meshgrid(jnp.arange(width), jnp.arange(height), indexing="xy")
     grid = jnp.stack([x.ravel(), y.ravel(), jnp.ones_like(x).ravel()], axis=0)

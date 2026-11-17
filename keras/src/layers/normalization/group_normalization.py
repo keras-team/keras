@@ -1,11 +1,12 @@
-from keras.src import backend
 from keras.src import constraints
 from keras.src import initializers
 from keras.src import ops
 from keras.src import regularizers
 from keras.src.api_export import keras_export
+from keras.src.backend.common import result_type
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
+from keras.src.utils import argument_validation
 
 
 @keras_export("keras.layers.GroupNormalization")
@@ -79,7 +80,8 @@ class GroupNormalization(Layer):
         gamma_constraint=None,
         **kwargs,
     ):
-        if not isinstance(groups, int) or (groups <= 0 and groups != -1):
+        groups = argument_validation.validate_int("groups", groups)
+        if groups <= 0 and groups != -1:
             raise ValueError(
                 "Received an invalid value for argument `groups`, expected "
                 "a positive integer (or `-1` for instance normalization). "
@@ -183,7 +185,7 @@ class GroupNormalization(Layer):
 
     def _apply_normalization(self, reshaped_inputs, input_shape):
         inputs_dtype = reshaped_inputs.dtype
-        compute_dtype = backend.result_type(inputs_dtype, "float32")
+        compute_dtype = result_type(inputs_dtype, "float32")
         # GN is prone to overflow with float16/bfloat16 inputs, so we upcast to
         # float32 for the subsequent computations.
         reshaped_inputs = ops.cast(reshaped_inputs, compute_dtype)

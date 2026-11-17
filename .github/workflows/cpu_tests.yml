@@ -134,11 +134,15 @@ jobs:
 
       - name: Run Tests
         if: ${{ matrix.nnx_enabled == false }}
-        run: pytest keras -n 12 --dist loadfile --ignore keras/src/applications --ignore keras/src/wrappers --cov=keras --cov-config=pyproject.toml
+        run: pytest keras -n 8 --dist loadfile --ignore keras/src/applications --ignore keras/src/wrappers --cov=keras --cov-config=pyproject.toml
 
       - name: Run Tests Incompatible with pytest-xdist
         if: ${{ matrix.nnx_enabled == false }}
         run: pytest keras -m no_pytest_xdist -v --cov=keras --cov-config=pyproject.toml --cov-append
+
+      - name: Run Op Tests in explicit_x64 Mode
+        if: ${{ matrix.backend != 'tensorflow' && matrix.nnx_enabled == false }}
+        run: KERAS_X64_MODE=explicit_x64 pytest keras/src/ops -m op_test --cov=keras --cov-config=pyproject.toml --cov-append
 
       - name: Run Multi-Device Tests
         if: ${{ matrix.backend == 'jax' }}

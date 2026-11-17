@@ -1,7 +1,8 @@
-from keras.src import ops
+from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
+from keras.src.utils import argument_validation
 
 
 @keras_export("keras.layers.UpSampling1D")
@@ -42,16 +43,7 @@ class UpSampling1D(Layer):
 
     def __init__(self, size=2, **kwargs):
         super().__init__(**kwargs)
-        if not isinstance(size, int) or isinstance(size, bool):
-            raise TypeError(
-                f"Expected an integer value for `size`, got {type(size)}."
-            )
-        if size <= 0:
-            raise ValueError(
-                "Argument `size` should be a positive integer. "
-                f"Received: size={size}"
-            )
-        self.size = size
+        self.size = argument_validation.validate_int("size", size, min_value=1)
         self.input_spec = InputSpec(ndim=3)
 
     def compute_output_shape(self, input_shape):
@@ -61,7 +53,7 @@ class UpSampling1D(Layer):
         return [input_shape[0], size, input_shape[2]]
 
     def call(self, inputs):
-        return ops.repeat(x=inputs, repeats=self.size, axis=1)
+        return backend.ops.numpy.repeat(x=inputs, repeats=self.size, axis=1)
 
     def get_config(self):
         config = {"size": self.size}

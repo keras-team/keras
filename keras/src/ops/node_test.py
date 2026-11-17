@@ -2,7 +2,7 @@ import numpy as np
 
 from keras.src import Layer
 from keras.src import testing
-from keras.src.backend import KerasTensor
+from keras.src.backend.common import KerasTensor
 from keras.src.ops.node import Node
 
 

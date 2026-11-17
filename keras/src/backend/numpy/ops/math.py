@@ -101,6 +101,8 @@ def in_top_k(targets, predictions, k):
 def logsumexp(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     dtype = dtypes.result_type(x.dtype, float)
+    if standardize_dtype(x.dtype) == "bfloat16":
+        x = x.astype("float32")
     return scipy.special.logsumexp(x, axis=axis, keepdims=keepdims).astype(
         dtype
     )
@@ -318,16 +320,19 @@ def istft(
 
 
 def rsqrt(x):
+    x = convert_to_tensor(x)
     dtype = dtypes.result_type(x.dtype)
     return (1.0 / np.sqrt(x)).astype(dtype)
 
 
 def erf(x):
+    x = convert_to_tensor(x)
     dtype = dtypes.result_type(x.dtype)
     return scipy.special.erf(x).astype(dtype)
 
 
 def erfc(x):
+    x = convert_to_tensor(x)
     dtype = dtypes.result_type(x.dtype, float)
     return scipy.special.erfc(x).astype(dtype)
 

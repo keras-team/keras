@@ -8,6 +8,7 @@ import tensorflow as tf
 from keras.src import backend
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import is_int_dtype
+from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.tensorflow.ops.core import convert_to_tensor
 from keras.src.backend.tensorflow.ops.numpy import moveaxis
@@ -70,7 +71,7 @@ def rgb_to_grayscale(images, data_format=None):
         return tf.identity(images)
     # Convert to floats
     original_dtype = images.dtype
-    compute_dtype = backend.result_type(images.dtype, float)
+    compute_dtype = result_type(images.dtype, float)
     images = tf.cast(images, compute_dtype)
 
     # Ref: tf.image.rgb_to_grayscale
@@ -702,17 +703,15 @@ def map_coordinates(
             return tf.clip_by_value(coords, 0, size - 1), tf.ones_like(
                 coords, dtype=tf.bool
             )
-        elif fill_mode in ["mirror", "reflect"]:
-            coords = tf.abs(coords)
-            size_2 = size * 2
-            mod = tf.math.mod(coords, size_2)
-            under = mod < size
-            over = ~under
-            # reflect mode is same as mirror for under
-            coords = tf.where(under, mod, size_2 - mod)
-            # for reflect mode, adjust the over case
-            if fill_mode == "reflect":
-                coords = tf.where(over, coords - 1, coords)
+        elif fill_mode == "mirror":
+            # Period is `2 * (size - 1)`; a size-1 axis maps to index 0.
+            if isinstance(size, int) and size == 1:
+                coords = tf.zeros_like(coords)
+            else:
+                coords = _mirror_index_fixer(coords, size)
+            return coords, tf.ones_like(coords, dtype=tf.bool)
+        elif fill_mode == "reflect":
+            coords = _reflect_index_fixer(coords, size)
             return coords, tf.ones_like(coords, dtype=tf.bool)
         elif fill_mode == "wrap":
             coords = tf.math.mod(coords, size)
@@ -990,7 +989,7 @@ _kernels = {
 def _compute_weight_mat(
     input_size, output_size, scale, translation, kernel, antialias
 ):
-    dtype = backend.result_type(scale.dtype, translation.dtype)
+    dtype = result_type(scale.dtype, translation.dtype)
     inv_scale = 1.0 / scale
     kernel_scale = tf.maximum(inv_scale, 1.0) if antialias else 1.0
     sample_f = (
@@ -1079,7 +1078,7 @@ def scale_and_translate(
     scale = convert_to_tensor(scale)
     translation = convert_to_tensor(translation)
     kernel = _kernels[method]
-    dtype = backend.result_type(scale.dtype, translation.dtype)
+    dtype = result_type(scale.dtype, translation.dtype)
     scale = tf.cast(scale, dtype)
     translation = tf.cast(translation, dtype)
     return _scale_and_translate(

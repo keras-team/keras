@@ -1,13 +1,13 @@
 import numpy as np
 import pytest
 import scipy.signal
-import tensorflow as tf
 
 from keras import Input
 from keras import Sequential
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 class TestSpectrogram(testing.TestCase):
@@ -390,3 +390,23 @@ class TestSpectrogram(testing.TestCase):
             layers.STFTSpectrogram()(
                 np.random.randint(0, 255, size=(2, 16000, 1))
             )
+
+    def test_numpy_integer_arguments(self):
+        audio = np.random.RandomState(41).uniform(-1, 1, size=(2, 256, 1))
+        audio = audio.astype(self.DTYPE)
+        expected = layers.STFTSpectrogram(
+            frame_length=32,
+            frame_step=16,
+            fft_length=64,
+            data_format="channels_last",
+        )(audio)
+        layer = layers.STFTSpectrogram(
+            frame_length=np.int64(32),
+            frame_step=np.int64(16),
+            fft_length=np.int64(64),
+            data_format="channels_last",
+        )
+        config = layer.get_config()
+        for key in ("frame_length", "frame_step", "fft_length"):
+            self.assertIs(type(config[key]), int)
+        self.assertAllClose(layer(audio), expected)

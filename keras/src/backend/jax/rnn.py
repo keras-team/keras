@@ -4,7 +4,8 @@ from jax import lax
 from jax import numpy as jnp
 
 from keras.src import tree
-from keras.src.backend.common import stateless_scope
+from keras.src.backend.common import StatelessScope
+from keras.src.backend.common import in_stateless_scope
 
 
 def rnn(
@@ -186,11 +187,11 @@ def rnn(
 
             scan_xs = inputs
 
-        if stateless_scope.in_stateless_scope():
+        if in_stateless_scope():
             # Reuse the existing parent stateless scope.
             scope = contextlib.nullcontext()
         else:
-            scope = stateless_scope.StatelessScope()
+            scope = StatelessScope()
         with scope:
             # We must use a stateless scope because `scan` will involve
             # JAX tracing -- any variable update at this stage would

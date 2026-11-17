@@ -1,11 +1,11 @@
 import numpy as np
 from absl.testing import parameterized
-from tensorflow import data as tf_data
 
 from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import testing
+from keras.src.utils.module_utils import tensorflow as tf
 
 
 class CenterCropTest(testing.TestCase):
@@ -169,7 +169,7 @@ class CenterCropTest(testing.TestCase):
             output_shape = (2, 3, 8, 9)
         layer = layers.CenterCrop(8, 9)
         input_data = np.random.random(input_shape)
-        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
+        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         output = next(iter(ds)).numpy()
         self.assertEqual(tuple(output.shape), output_shape)
 
@@ -283,7 +283,7 @@ class CenterCropTest(testing.TestCase):
 
         input_data = {"images": input_image, "bounding_boxes": bounding_boxes}
 
-        ds = tf_data.Dataset.from_tensor_slices(input_data)
+        ds = tf.data.Dataset.from_tensor_slices(input_data)
         center_crop_layer = layers.CenterCrop(
             height=height,
             width=width,

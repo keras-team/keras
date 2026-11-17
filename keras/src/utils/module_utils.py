@@ -2,6 +2,8 @@ import importlib
 
 from keras.src.backend.config import PLUGGABLE_BACKENDS
 from keras.src.backend.config import backend as current_backend
+from keras.src.backend.config import backend_is_pluggable
+from keras.src.backend.config import unofficial_backend_error_appendage
 
 
 def get_pluggable_backend_module(
@@ -9,8 +11,11 @@ def get_pluggable_backend_module(
 ):
     if not backend:
         backend = current_backend()
-    if backend not in PLUGGABLE_BACKENDS:
-        raise ValueError(f"Unsupported backend : {backend}")
+    if not backend_is_pluggable(backend):
+        raise ValueError(
+            f"Unsupported backend : {backend}"
+            f"{unofficial_backend_error_appendage(backend)}"
+        )
 
     backend_module_name = (
         f"keras_{backend}.{module_name}" if module_name else f"keras_{backend}"
@@ -20,9 +25,13 @@ def get_pluggable_backend_module(
     except (ImportError, AttributeError) as e:
         if allow_missing:
             return None
+        if backend in PLUGGABLE_BACKENDS:
+            raise ImportError(
+                f"The {backend} backend is not installed. "
+                f"You can install it via `pip install keras-{backend}`"
+            ) from e
         raise ImportError(
-            f"The {backend} backend is not installed. "
-            f"You can install it via `pip install keras-{backend}`"
+            f"The keras_{backend} package could not be imported."
         ) from e
 
 
@@ -126,6 +135,17 @@ tf2onnx = LazyModule("tf2onnx")
 jax2onnx = LazyModule("jax2onnx", required_attr="to_onnx")
 grain = LazyModule("grain")
 litert = LazyModule("ai_edge_litert")
+xla_saved_model = LazyModule(
+    "xla_saved_model",
+    pip_name="xla-saved-model",
+    import_error_msg=(
+        "Exporting with `format='xla_saved_model'` requires the "
+        "`xla_saved_model` package. You can install it via "
+        "`pip install xla-saved-model` "
+        "(https://github.com/openxla/xla-serving)."
+    ),
+)
+tensorboardx = LazyModule("tensorboardX")
 ocp = OrbaxLazyModule(
     "orbax.checkpoint.v1",
     pip_name="orbax-checkpoint",

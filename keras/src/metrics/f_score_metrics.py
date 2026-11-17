@@ -1,6 +1,5 @@
 from keras.src import backend
 from keras.src import initializers
-from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.metrics.metric import Metric
 
@@ -156,29 +155,29 @@ class FBetaScore(Metric):
         self._built = True
 
     def update_state(self, y_true, y_pred, sample_weight=None):
-        y_true = ops.convert_to_tensor(y_true, dtype=self.dtype)
-        y_pred = ops.convert_to_tensor(y_pred, dtype=self.dtype)
+        y_true = backend.ops.convert_to_tensor(y_true, dtype=self.dtype)
+        y_pred = backend.ops.convert_to_tensor(y_pred, dtype=self.dtype)
         if not self._built:
             self._build(y_true.shape, y_pred.shape)
 
         if self.threshold is None:
-            threshold = ops.max(y_pred, axis=-1, keepdims=True)
+            threshold = backend.ops.numpy.max(y_pred, axis=-1, keepdims=True)
             # make sure [0, 0, 0] doesn't become [1, 1, 1]
             # Use abs(x) > eps, instead of x != 0 to check for zero
-            y_pred = ops.logical_and(
-                y_pred >= threshold, ops.abs(y_pred) > 1e-9
+            y_pred = backend.ops.numpy.logical_and(
+                y_pred >= threshold, backend.ops.numpy.abs(y_pred) > 1e-9
             )
         else:
             y_pred = y_pred > self.threshold
 
-        y_pred = ops.cast(y_pred, dtype=self.dtype)
-        y_true = ops.cast(y_true, dtype=self.dtype)
+        y_pred = backend.ops.cast(y_pred, dtype=self.dtype)
+        y_true = backend.ops.cast(y_true, dtype=self.dtype)
         if sample_weight is not None:
-            sample_weight = ops.convert_to_tensor(
+            sample_weight = backend.ops.convert_to_tensor(
                 sample_weight, dtype=self.dtype
             )
             if len(sample_weight.shape) < len(y_true.shape):
-                sample_weight = ops.expand_dims(
+                sample_weight = backend.ops.numpy.expand_dims(
                     sample_weight,
                     axis=list(
                         range(len(sample_weight.shape), len(y_true.shape))
@@ -187,8 +186,8 @@ class FBetaScore(Metric):
 
         def _weighted_sum(val, sample_weight):
             if sample_weight is not None:
-                val = ops.multiply(val, sample_weight)
-            return ops.sum(val, axis=self.axis)
+                val = backend.ops.numpy.multiply(val, sample_weight)
+            return backend.ops.numpy.sum(val, axis=self.axis)
 
         self.true_positives.assign(
             self.true_positives + _weighted_sum(y_pred * y_true, sample_weight)
@@ -206,32 +205,35 @@ class FBetaScore(Metric):
         )
 
     def result(self):
-        precision = ops.divide(
+        precision = backend.ops.numpy.divide(
             self.true_positives,
             self.true_positives + self.false_positives + backend.epsilon(),
         )
-        recall = ops.divide(
+        recall = backend.ops.numpy.divide(
             self.true_positives,
             self.true_positives + self.false_negatives + backend.epsilon(),
         )
 
-        precision = ops.convert_to_tensor(precision, dtype=self.dtype)
-        recall = ops.convert_to_tensor(recall, dtype=self.dtype)
+        precision = backend.ops.convert_to_tensor(precision, dtype=self.dtype)
+        recall = backend.ops.convert_to_tensor(recall, dtype=self.dtype)
 
         mul_value = precision * recall
         add_value = ((self.beta**2) * precision) + recall
-        mean = ops.divide(mul_value, add_value + backend.epsilon())
+        mean = backend.ops.numpy.divide(
+            mul_value, add_value + backend.epsilon()
+        )
         f1_score = mean * (1 + (self.beta**2))
 
         if self.average == "weighted":
-            weights = ops.divide(
+            weights = backend.ops.numpy.divide(
                 self.intermediate_weights,
-                ops.sum(self.intermediate_weights) + backend.epsilon(),
+                backend.ops.numpy.sum(self.intermediate_weights)
+                + backend.epsilon(),
             )
-            f1_score = ops.sum(f1_score * weights)
+            f1_score = backend.ops.numpy.sum(f1_score * weights)
 
         elif self.average is not None:  # [micro, macro]
-            f1_score = ops.mean(f1_score)
+            f1_score = backend.ops.numpy.mean(f1_score)
 
         return f1_score
 
@@ -251,7 +253,7 @@ class FBetaScore(Metric):
 
     def reset_state(self):
         for v in self.variables:
-            v.assign(ops.zeros(v.shape, dtype=v.dtype))
+            v.assign(backend.ops.numpy.zeros(v.shape, dtype=v.dtype))
 
 
 @keras_export("keras.metrics.F1Score")

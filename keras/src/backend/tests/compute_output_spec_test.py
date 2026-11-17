@@ -4,7 +4,7 @@ import pytest
 
 from keras.src import backend
 from keras.src import ops
-from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.backend.common import KerasTensor
 
 
 def single_arg_test_fn(x):

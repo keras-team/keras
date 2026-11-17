@@ -597,6 +597,10 @@ class GetFileTest(test_case.TestCase):
         content = file_utils.listdir(self.temp_dir)
         self.assertIn("sample_file.txt", content)
 
+    def test_walk(self):
+        entries = list(file_utils.walk(self.temp_dir))
+        self.assertEqual(entries, [(self.temp_dir, [], ["sample_file.txt"])])
+
     def test_makedirs_and_rmtree(self):
         new_dir = os.path.join(self.temp_dir, "new_directory")
         file_utils.makedirs(new_dir)
@@ -797,16 +801,13 @@ class RemotePathTest(test_case.TestCase):
                 file_utils._is_remote_path_or_raise("/local/path/file.txt")
             )
 
-    def test_epath_remote_path(self):
+    def test_remote_path(self):
         root = self.get_temp_dir()
-        # Send local paths through the remote branch, and hide TensorFlow so
-        # that `epath` is used.
-        with (
-            patch.object(file_utils, "is_remote_path", lambda p: True),
-            patch.object(file_utils, "gfile", self._UNAVAILABLE),
-        ):
+        with patch.object(file_utils, "is_remote_path", lambda p: True):
             subdir = file_utils.join(root, "a", "b")
             self.assertEqual(subdir, os.path.join(root, "a", "b"))
+            self.assertEqual(file_utils.join(subdir, ""), subdir + "/")
+            self.assertEqual(file_utils.join(subdir + "/"), subdir + "/")
             file_utils.makedirs(subdir)
             file_utils.makedirs(subdir)  # Tolerates an existing directory.
             self.assertTrue(file_utils.isdir(subdir))
@@ -823,8 +824,19 @@ class RemotePathTest(test_case.TestCase):
             self.assertEqual(
                 sorted(file_utils.listdir(subdir)), ["dst.txt", "src.txt"]
             )
+            parent = file_utils.join(root, "a")
+            self.assertEqual(
+                [
+                    (dirpath, dirs, sorted(files))
+                    for dirpath, dirs, files in file_utils.walk(parent)
+                ],
+                [
+                    (parent, ["b"], []),
+                    (subdir, [], ["dst.txt", "src.txt"]),
+                ],
+            )
 
             file_utils.remove(dst)
             self.assertFalse(file_utils.exists(dst))
-            file_utils.rmtree(file_utils.join(root, "a"))
+            file_utils.rmtree(parent)
             self.assertFalse(file_utils.exists(subdir))

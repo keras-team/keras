@@ -456,3 +456,13 @@ class MergingLayersTest(testing.TestCase):
 
         self.assertSparse(layer([x1, x3]))
         self.assertAllClose(layer([x1, x3]), np_op(x1_np, x3_np, **init_kwargs))
+
+    def test_dot_numpy_integer_axes(self):
+        layer = layers.Dot(axes=np.int64(1))
+        self.assertIs(type(layer.axes), int)
+        self.assertEqual(layer.axes, 1)
+
+        layer = layers.Dot(axes=(np.int64(1), np.int64(2)))
+        self.assertEqual(layer.axes, (1, 2))
+        for axis in layer.axes:
+            self.assertIs(type(axis), int)

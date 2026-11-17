@@ -5,7 +5,7 @@ from keras.src import backend
 from keras.src import losses as losses_module
 from keras.src import metrics as metrics_module
 from keras.src import tree
-from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.backend.common import KerasTensor
 from keras.src.losses import loss as loss_module
 from keras.src.utils.naming import get_object_name
 from keras.src.utils.tracking import Tracker

@@ -670,3 +670,13 @@ class GroupedQueryAttentionTest(testing.TestCase):
             " attention scores.",
         ):
             layer(query=query, value=value, return_attention_scores=True)
+
+    def test_numpy_integer_sliding_window(self):
+        layer = layers.GroupedQueryAttention(
+            head_dim=2,
+            num_query_heads=2,
+            num_key_value_heads=2,
+            sliding_window=np.int64(3),
+        )
+        self.assertIs(type(layer.sliding_window), int)
+        self.assertEqual(layer.sliding_window, 3)

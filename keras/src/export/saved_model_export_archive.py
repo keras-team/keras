@@ -171,10 +171,10 @@ class BaseSavedModelExportArchive:
             resource: A trackable Keras resource, such as a layer or model.
             input_signature: Optional. Specifies the shape and dtype of `fn`.
                 Can be a structure of `keras.InputSpec`, `tf.TensorSpec`,
-                `backend.KerasTensor`, or backend tensor (see below for an
-                example showing a `Functional` model with 2 input arguments). If
-                not provided, `fn` must be a `tf.function` that has been called
-                at least once. Defaults to `None`.
+                `KerasTensor`, or backend tensor (see below for an example
+                showing a `Functional` model with 2 input arguments). If not
+                provided, `fn` must be a `tf.function` that has been called at
+                least once. Defaults to `None`.
             **kwargs: Additional keyword arguments:
                 - Specific to the JAX backend:
                     - `is_static`: Optional `bool`. Indicates whether `fn` is

@@ -3,10 +3,10 @@
 GPTQ and AWQ allocate the same family of variables, run the same
 dequantize-and-contract forward pass, and speak the same three-part policy
 grammar. They differ in the code bit-width (which fixes how the kernel is
-packed), in the dtype policy class, in the calibrator class, in the driver
-that calibrates a model and in one extra AWQ variable of input scales that
-the quantized weight divides out. `GPTQStrategy` and `AWQStrategy`, at the
-end of this module, declare these differences.
+packed), in the calibrator class, and in one extra AWQ variable of input
+scales that the quantized weight divides out. `GPTQStrategy` and
+`AWQStrategy`, at the end of this module, declare these differences as
+class attributes.
 """
 
 import math
@@ -14,7 +14,10 @@ import math
 from keras.src import ops
 from keras.src.dtype_policies.dtype_policy import AWQDTypePolicy
 from keras.src.dtype_policies.dtype_policy import GPTQDTypePolicy
+from keras.src.quantizers.awq import AWQCalibrator
 from keras.src.quantizers.awq_config import AWQConfig
+from keras.src.quantizers.calibration_run import CalibrationRun
+from keras.src.quantizers.gptq import GPTQCalibrator
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.modes.common import apply_bias_activation
 from keras.src.quantizers.quantized_weight import Int2Quads
@@ -30,18 +33,32 @@ class CalibrationStrategy(QuantizationStrategy):
 
     geometry_families = ("projection",)
     requires_config = True
-    requires_layer_structure = True
     # The mode's dedicated dtype policy class.
     policy_cls = None
 
     def quantize(self, layer, config):
-        # The quantized values arrive later, so this only allocates the
-        # mode's variables from the layer's current weight shape.
-        geometry = self.require_geometry(layer)
-        layer.quantized_build(geometry.weight_shape, self.name, config)
-        # A live float layer keeps its float kernel as the weight until
-        # `write_back` installs the calibrated codes.
-        layer.calibration_pending = True
+        del config
+        raise ValueError(
+            f"{self.name.upper()} computes the quantized weight of layer "
+            f"'{layer.name}' from calibration data, so the layer cannot be "
+            "quantized on its own. Use "
+            f"`model.quantize('{self.name}', config=...)` with a "
+            "quantization layer structure that covers the layer."
+        )
+
+    def check_quantizable(self, layer):
+        super().check_quantizable(layer)
+        # The calibrator reads the float weight through the layer's
+        # `kernel` property, so a layer without one is refused before it
+        # changes. The check is on the class: the swap deletes `_kernel`,
+        # and an instance attribute `kernel` would still hold that float
+        # variable, where a property reads the quantized weight.
+        if not hasattr(type(layer), "kernel"):
+            raise NotImplementedError(
+                f"{self.name.upper()} reads the float weight of layer "
+                f"'{layer.name}' through a `kernel` property, which "
+                f"`{layer.__class__.__name__}` does not define."
+            )
 
     # --- Config and policy-string surface ---------------------------------
 
@@ -55,8 +72,8 @@ class CalibrationStrategy(QuantizationStrategy):
             f"`dtype_policy` to '{policy.name}' is not supported. "
             f"{name} requires a calibration dataset and a config object "
             f"(`{self.config_cls.__name__}`).\n\n"
-            f"Please use the `.quantize('{self.name}', config=...)` method "
-            "on the layer or model instead."
+            f"Please use `model.quantize('{self.name}', config=...)` "
+            "instead."
         )
 
     def _missing_config_error(self):
@@ -70,31 +87,52 @@ class CalibrationStrategy(QuantizationStrategy):
         return config.dtype_policy_string()
 
     def resolve_group_size(self, layer, config):
-        """Determine the group size from the config or the dtype policy."""
-        return self._resolve_from_config_or_policy(layer, config, "group_size")
+        """Determine the group size from the dtype policy or the config."""
+        return self._resolve_from_policy_or_config(layer, config, "group_size")
 
     def resolve_weight_bits(self, layer, config):
-        """Determine the weight bits from the config or the dtype policy."""
-        return self._resolve_from_config_or_policy(layer, config, "weight_bits")
+        """Determine the weight bits from the dtype policy or the config."""
+        return self._resolve_from_policy_or_config(layer, config, "weight_bits")
 
-    def _resolve_from_config_or_policy(self, layer, config, attr):
-        """Resolves a hyperparameter with config-over-policy precedence.
+    def _resolve_from_policy_or_config(self, layer, config, attr):
+        """Resolves a storage parameter with policy-over-config precedence.
 
-        The config argument is usually available when quantizing the layer
-        via the `quantize` method. If the layer was deserialized from a
-        saved model, the value comes from the mode's dtype policy.
+        A layer of this mode holds no config, so its policy name gives the
+        bit width and the group size. Only the swap of a calibrated float
+        layer, whose policy names no mode yet, reads them from the config
+        of the run.
         """
-        if isinstance(config, self.config_cls):
-            return getattr(config, attr)
         policy = layer._own_dtype_policy
         if policy.quantization_mode == self.name:
             return getattr(policy, attr)
+        if isinstance(config, self.config_cls):
+            return getattr(config, attr)
         raise ValueError(
             f"For {self.name.upper()} quantization, the {attr} must be "
             "specified either through a `dtype_policy` of type "
             f"`{self.policy_cls.__name__}` or the `config` argument. "
             f"Received: dtype_policy={policy!r}"
         )
+
+    # --- Calibration run --------------------------------------------------
+
+    # The `Calibrator` class that solves this mode for one layer.
+    calibrator_cls = None
+
+    def model_run(self, model, config):
+        structure = config.quantization_layer_structure
+        if structure is None:
+            structure = model.get_quantization_layer_structure(self.name)
+        if structure is None:
+            raise ValueError(
+                f"For mode='{self.name}', a valid quantization structure "
+                "must be provided either via "
+                "`config.quantization_layer_structure` or by overriding "
+                "`model.get_quantization_layer_structure(mode)`. The "
+                "structure should be a dictionary with keys "
+                "'pre_block_layers' and 'sequential_blocks'."
+            )
+        return CalibrationRun(self, config, structure)
 
     # --- Variables --------------------------------------------------------
 
@@ -106,14 +144,14 @@ class CalibrationStrategy(QuantizationStrategy):
     def build(self, layer, input_shape, config):
         """Allocates the quantized kernel and quantization parameters.
 
-        The variables hold uninitialized values until the calibration pass
-        (run by `Model.quantize`) writes the quantized weights back.
+        `write_back` assigns them from a calibration; a layer built under
+        the mode's policy loads them from a checkpoint.
         """
         geometry = self.require_geometry(layer)
-        # Allocation alone leaves nothing pending: a layer built under a
-        # calibration policy loads its codes from a checkpoint. `quantize`
-        # marks a live float layer pending after this returns.
-        layer.calibration_pending = False
+        # The layer keeps no config: its policy names the bit width and the
+        # group size, and the rest of a config describes a calibration run.
+        # This also drops a config deserialized with the layer.
+        layer.quantization_config = None
 
         rows, columns = geometry.calibration_rows_columns(input_shape)
 
@@ -174,46 +212,43 @@ class CalibrationStrategy(QuantizationStrategy):
     # --- Calibration state ------------------------------------------------
 
     def write_back(
-        self, layer, codes, scale, zero_point, g_idx, input_scales=None
+        self,
+        layer,
+        config,
+        codes,
+        scale,
+        zero_point,
+        g_idx,
+        input_scales=None,
     ):
-        """Installs the calibrated values and retires the float kernel.
+        """Swaps a float layer's kernel for its calibrated values.
 
+        `config` is the config of the run that computed the values. The
+        swap builds the mode's variables from it, assigns the values,
+        deletes the float kernel and names the policy after `config`.
         `codes` are the unpacked codes in the kernel's `[in, out]`
         orientation; they are packed here as `build` lays out the variable.
         `input_scales` go to the `input_scales_name` variable of a mode
         that has one.
         """
-        bits = self.resolve_weight_bits(layer, layer.quantization_config)
-        codes = ops.cast(codes, layer.quantized_kernel.dtype)
-        codes = self._get_pack_layout(bits, codes.shape[-1]).pack(codes)
-        del layer._kernel
-        layer.quantized_kernel.assign(codes)
-        layer.kernel_scale.assign(scale)
-        layer.kernel_zero.assign(zero_point)
-        layer.g_idx.assign(g_idx)
-        if self.input_scales_name is not None:
-            getattr(layer, self.input_scales_name).assign(input_scales)
-        layer.calibration_pending = False
 
-    def check_saveable(self, layer):
-        if layer.calibration_pending:
-            raise ValueError(
-                f"Cannot save layer '{layer.name}' because it is quantized "
-                f"with mode '{self.name}' but has never been calibrated. Its "
-                "quantized weights are uninitialized, so saving would "
-                "produce a corrupted model. Run calibration first, e.g. via "
-                "`model.quantize(...)` with a quantization layer structure "
-                "that covers this layer, or exclude the layer from "
-                "quantization with `filters`."
+        def swap(layer, config):
+            geometry = self.require_geometry(layer)
+            layer.quantized_build(geometry.weight_shape, self.name, config)
+            bits = self.resolve_weight_bits(layer, config)
+            packed = self._get_pack_layout(bits, codes.shape[-1]).pack(
+                ops.cast(codes, layer.quantized_kernel.dtype)
             )
-
-    def variables_loaded(self, layer):
-        # A stored calibration checkpoint is always calibrated: loading
-        # completes the transition and retires the float kernel a live
-        # `quantize()` left in place.
-        if layer.calibration_pending:
+            layer.quantized_kernel.assign(packed)
+            layer.kernel_scale.assign(scale)
+            layer.kernel_zero.assign(zero_point)
+            layer.g_idx.assign(g_idx)
+            if self.input_scales_name is not None:
+                getattr(layer, self.input_scales_name).assign(input_scales)
+            # Last, so a swap that raises keeps the float kernel.
             del layer._kernel
-            layer.calibration_pending = False
+
+        layer._swap_quantized(self, config, swap)
 
     @staticmethod
     def _get_pack_layout(bits, columns):
@@ -229,14 +264,9 @@ class CalibrationStrategy(QuantizationStrategy):
     # --- Quantized weight view --------------------------------------------
 
     def quantized_weight(self, layer):
-        if layer.calibration_pending:
-            # The codes are uninitialized; the float kernel is still the
-            # layer's weight.
-            return None
         geometry = self.require_geometry(layer)
-        config = layer.quantization_config
-        bits = self.resolve_weight_bits(layer, config)
-        group_size = self.resolve_group_size(layer, config)
+        bits = self.resolve_weight_bits(layer, None)
+        group_size = self.resolve_group_size(layer, None)
         # The group parameters are stored as `[n_groups, out]`, so their
         # axes give the unpacked column count the packed codes stand for
         # and, with the group index, the row count.
@@ -268,12 +298,7 @@ class CalibrationStrategy(QuantizationStrategy):
 
     def call(self, layer, inputs, training=False):
         geometry = self.require_geometry(layer)
-        quantized_weight = self.quantized_weight(layer)
-        W = (
-            layer._kernel
-            if quantized_weight is None
-            else quantized_weight.dequantize(layer.compute_dtype)
-        )
+        W = self.quantized_weight(layer).dequantize(layer.compute_dtype)
         y = geometry.contract(inputs, W)
         return apply_bias_activation(layer, y)
 
@@ -288,12 +313,7 @@ class GPTQStrategy(CalibrationStrategy):
     name = "gptq"
     config_cls = GPTQConfig
     policy_cls = GPTQDTypePolicy
-
-    def finalize_model_quantization(self, model, config, structure, filters):
-        from keras.src.quantizers.calibration_run import gptq_quantize
-
-        del model
-        gptq_quantize(config, structure, filters=filters)
+    calibrator_cls = GPTQCalibrator
 
 
 class AWQStrategy(CalibrationStrategy):
@@ -306,11 +326,6 @@ class AWQStrategy(CalibrationStrategy):
     name = "awq"
     config_cls = AWQConfig
     policy_cls = AWQDTypePolicy
+    calibrator_cls = AWQCalibrator
     # Per-input-row scales from the activation magnitudes.
     input_scales_name = "awq_scales"
-
-    def finalize_model_quantization(self, model, config, structure, filters):
-        from keras.src.quantizers.awq_core import awq_quantize
-
-        del model
-        awq_quantize(config, structure, filters=filters)

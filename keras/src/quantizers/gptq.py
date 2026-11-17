@@ -299,8 +299,8 @@ class GPTQCalibrator(Calibrator):
     """GPTQ calibrator for one layer: the Hessian of its inputs.
 
     Args:
-        layer: A layer with a projection geometry (`Dense`, `EinsumDense`)
-            that supports the `gptq` mode.
+        layer: A float layer with a projection geometry (`Dense`,
+            `EinsumDense`) that supports the `gptq` mode.
         config: `GPTQConfig` instance with quantization parameters.
     """
 
@@ -329,7 +329,7 @@ class GPTQCalibrator(Calibrator):
 
         Args:
             layers: List of `(name, tokens, rows)` for every undersampled
-                layer, as tallied by the calibration driver.
+                layer, as tallied by `CalibrationRun`.
         """
         worst = min(tokens / rows for _, tokens, rows in layers)
         examples = ", ".join(

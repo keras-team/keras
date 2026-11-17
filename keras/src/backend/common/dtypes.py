@@ -274,6 +274,8 @@ def _lattice_result_type(*args):
     precision = config.floatx()[-2:]
     if out_weak_type:
         out_dtype = _resolve_weak_type(out_dtype, precision=precision)
+        if out_dtype == "float16" and config.floatx() == "bfloat16":
+            out_dtype = "bfloat16"
     return _cap_to_32bit(out_dtype, dtypes, weak_types)
 
 
@@ -345,8 +347,9 @@ def result_type(*dtypes):
 def promote_to_float_dtype(dtype):
     """Returns the dtype to use for an operation that needs a float input.
 
-    Integer and bool dtypes are promoted to `config.floatx()`. Float dtypes are
-    returned unchanged, including `float64`, `bfloat16` and the `float8` types.
+    Integer and bool dtypes are promoted to `config.floatx()`, except `int64`
+    which promotes to `float64`. Float dtypes are returned unchanged, including
+    `float64`, `bfloat16` and the `float8` types.
 
     This only computes the dtype. Callers do the cast themselves, since `cast`
     is backend specific.
@@ -358,6 +361,8 @@ def promote_to_float_dtype(dtype):
         The float dtype to cast the input to.
     """
     dtype = standardize_dtype(dtype)
+    if dtype == "int64":
+        return "float64"
     if "int" in dtype or dtype == "bool":
         return config.floatx()
     return dtype
