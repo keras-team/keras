@@ -266,3 +266,9 @@ class DtypesTest(test_case.TestCase):
             ValueError, "There is no implicit conversions from float8 dtypes"
         ):
             result_type("float8_e5m2", "bfloat16")
+
+    def test_standardize_int(self):
+        # TensorFlow keeps int32 variables on the CPU.
+        expected = "int64" if backend.backend() == "tensorflow" else "int32"
+        self.assertEqual(dtypes.standardize_dtype(int), expected)
+        self.assertEqual(dtypes.standardize_dtype("int"), expected)

@@ -172,7 +172,8 @@ def set_x64_mode(mode):
               gives an `int32` tensor.
             - `"explicit_x64"` (default and only mode on TensorFlow): a 64-bit
               input gives a 64-bit output. Inputs that are all 32-bit, Python
-              scalars and default dtypes stay 32-bit. This mirrors JAX's
+              scalars and default dtypes stay 32-bit (except `dtype=int`,
+              which is `int64` on TensorFlow). This mirrors JAX's
               `jax_explicit_x64_dtypes="allow"`, which Keras turns on for you
               on the JAX backend.
             - `"enable_x64"`: not supported yet.
