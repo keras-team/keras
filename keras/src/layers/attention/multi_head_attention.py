@@ -626,6 +626,10 @@ class MultiHeadAttention(Layer):
         key_keras_mask = get_keras_mask(key)
         if query_mask is None:
             query_mask = query_keras_mask
+        if value_mask is None:
+            value_mask = value_keras_mask
+        if key_mask is None and key is not value:
+            key_mask = key_keras_mask
 
         # When causal masking is the only mask source, route through the
         # backend's native causal kernel by passing `is_causal=True` rather

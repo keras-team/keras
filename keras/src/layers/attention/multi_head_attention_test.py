@@ -1162,3 +1162,48 @@ class MultiHeadAttentionTest(testing.TestCase):
             cross_model([q_tokens, np.array([[1, 2, 3]])])
         )
         self.assertAllClose(scores_2[..., 2:], np.zeros_like(scores_2[..., 2:]))
+
+    def test_direct_call_uses_attached_keras_masks(self):
+        layer = layers.MultiHeadAttention(num_heads=2, key_dim=4)
+        emb = layers.Embedding(8, 8, mask_zero=True)
+        masked_q = emb(np.array([[1, 2, 0, 0]]))
+        masked_v = emb(np.array([[3, 4, 0, 5]]))
+        masked_k = emb(np.array([[2, 1, 3, 0]]))
+        layer.build(masked_q.shape, masked_v.shape, masked_k.shape)
+
+        out_self, scores_self = layer.call(
+            masked_q, masked_v, return_attention_scores=True
+        )
+        scores_self_np = ops.convert_to_numpy(scores_self)
+        self.assertAllClose(get_keras_mask(out_self), get_keras_mask(masked_q))
+        self.assertAllClose(
+            scores_self_np[..., 2:, :],
+            np.zeros_like(scores_self_np[..., 2:, :]),
+        )
+        self.assertAllClose(
+            scores_self_np[..., :, 2],
+            np.zeros_like(scores_self_np[..., :, 2]),
+        )
+
+        _, scores_cross = layer.call(
+            masked_q, masked_v, key=masked_k, return_attention_scores=True
+        )
+        scores_cross_np = ops.convert_to_numpy(scores_cross)
+        self.assertAllClose(
+            scores_cross_np[..., :, 2:],
+            np.zeros_like(scores_cross_np[..., :, 2:]),
+        )
+
+        override_v_mask = np.array([[True, False, True, True]])
+        _, scores_override = layer.call(
+            masked_q,
+            masked_v,
+            value_mask=override_v_mask,
+            return_attention_scores=True,
+        )
+        scores_override_np = ops.convert_to_numpy(scores_override)
+        self.assertAllClose(
+            scores_override_np[..., :2, 1],
+            np.zeros_like(scores_override_np[..., :2, 1]),
+        )
+        self.assertGreater(scores_override_np[0, 0, 0, 2], 0.0)
