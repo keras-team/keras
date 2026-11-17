@@ -225,7 +225,7 @@ def apply_mask(sample_weight, mask, dtype, reduction):
             float_mask, sample_weight = squeeze_or_expand_to_same_rank(
                 float_mask, sample_weight
             )
-            sample_weight *= float_mask
+            sample_weight = sample_weight * float_mask
         else:
             sample_weight = float_mask
     return sample_weight
