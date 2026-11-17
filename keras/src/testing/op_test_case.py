@@ -14,6 +14,7 @@ from keras.src import ops
 from keras.src import tree
 from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.models.model import model_from_json
 from keras.src.testing.test_case import TestCase
@@ -359,11 +360,11 @@ class OpTest(TestCase):
             self.check_eager(self.op, self.reference_fn, inputs, kwargs)
             if _arrays(inputs):
                 self.check_symbolic(inputs, kwargs)
-            if not any(_is_float(x.dtype) for x in _arrays(inputs)):
+            if not any(is_float_dtype(x.dtype) for x in _arrays(inputs)):
                 outputs = self.op(
                     *_map_arrays(_to_tensor_with_dtype, inputs), **kwargs
                 )
-                for dtype in filter(_is_float, _dtypes_of(outputs)):
+                for dtype in filter(is_float_dtype, _dtypes_of(outputs)):
                     self.assertEqual(
                         dtype,
                         floatx,
@@ -586,10 +587,6 @@ def _with_arrays(inputs, arrays):
 
 def _dtypes_of(outputs):
     return [standardize_dtype(x.dtype) for x in tree.flatten(outputs)]
-
-
-def _is_float(dtype):
-    return "float" in standardize_dtype(dtype)
 
 
 def _symbolic_matches(symbolic, eager):
