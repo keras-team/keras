@@ -3803,8 +3803,10 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         expected_result = np.array(
             [[1, 0, 0], [0, 0, 0], [np.inf, -np.inf, np.nan]]
         )
-        self.assertAllClose(knp.divide_no_nan(x, y), expected_result)
-        self.assertAllClose(knp.DivideNoNan()(x, y), expected_result)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", RuntimeWarning)
+            self.assertAllClose(knp.divide_no_nan(x, y), expected_result)
+            self.assertAllClose(knp.DivideNoNan()(x, y), expected_result)
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     @pytest.mark.skipif(
