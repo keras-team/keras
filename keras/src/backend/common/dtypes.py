@@ -50,12 +50,12 @@ ALLOWED_DTYPES = (
 ALLOWED_DTYPES_SET = frozenset(ALLOWED_DTYPES)
 PYTHON_DTYPES_MAP = {
     bool: "bool",
-    int: "int64" if config.backend() == "tensorflow" else "int32",
+    int: "int32",
     float: "float32",
     str: "string",
     # special case for string value
-    "int": "int64" if config.backend() == "tensorflow" else "int32",
-    complex: "complex128" if config.backend() == "tensorflow" else "complex64",
+    "int": "int32",
+    complex: "complex64",
 }
 
 # We adapted the type promotion lattice from JAX. Ref:
@@ -237,11 +237,9 @@ def _resolve_weak_type(dtype, precision="32"):
 
 
 BIT64_TO_BIT32_DTYPE = {
-    # Since TF variables require int64 to be placed on the GPU, we exclusively
-    # enable the int64 dtype for TF.
-    "int64": "int64" if config.backend() == "tensorflow" else "int32",
+    "int64": "int32",
     "uint64": "uint32",
-    "float64": "float64" if config.backend() == "tensorflow" else "float32",
+    "float64": "float32",
     "complex128": "complex64",
 }
 

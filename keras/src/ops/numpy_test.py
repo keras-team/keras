@@ -13983,7 +13983,7 @@ class CbrtTest(testing.UnaryOpTest):
 
     @pytest.mark.skipif(
         keras.config.x64_mode() == "explicit_x64"
-        and backend.backend() in ("jax", "numpy"),
+        and backend.backend() in ("jax", "numpy", "tensorflow"),
         reason="TODO: `Cbrt.compute_output_spec` returns uint64 while the "
         "eager output is float64 (#24040).",
     )

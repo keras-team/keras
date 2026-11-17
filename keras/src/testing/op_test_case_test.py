@@ -359,7 +359,7 @@ class CheckInputDtypesTest(testing.TestCase):
 
     @pytest.mark.skipif(
         backend.backend() == "tensorflow",
-        reason="TensorFlow does not follow `x64_mode` yet (#24040)",
+        reason="TensorFlow has no `x64_mode='off'`",
     )
     def test_capped_op_fails_only_in_explicit_x64(self):
         class Case(testing.UnaryOpTest):
