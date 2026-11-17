@@ -18,6 +18,9 @@ from keras.src.backend.common import is_int_dtype
 from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
 from keras.src.ops import numpy as knp
+from keras.src.testing.op_test_case import BinaryOpTest
+from keras.src.testing.op_test_case import ReductionOpTest
+from keras.src.testing.op_test_case import UnaryOpTest
 from keras.src.testing.op_test_case import X
 from keras.src.testing.op_test_case import named_dtype_combinations
 from keras.src.testing.test_utils import named_product
@@ -13979,12 +13982,12 @@ class RepeatTest(testing.TestCase):
         self.assertAllClose(model.predict(x), expected)
 
 
-class SquareTest(testing.UnaryOpTest):
+class SquareTest(UnaryOpTest):
     op, op_class = knp.square, knp.Square
     reference_fn, jax_fn = np.square, jnp.square
 
 
-class CbrtTest(testing.UnaryOpTest):
+class CbrtTest(UnaryOpTest):
     op, op_class = knp.cbrt, knp.Cbrt
     reference_fn, jax_fn = np.cbrt, jnp.cbrt
     cases = {  # The first case feeds the dtype tests: non-negative.
@@ -14002,7 +14005,7 @@ class CbrtTest(testing.UnaryOpTest):
         self.check_input_dtypes(("uint64",))
 
 
-class AddTest(testing.BinaryOpTest):
+class AddTest(BinaryOpTest):
     op, op_class = knp.add, knp.Add
     reference_fn, jax_fn = np.add, jnp.add
 
@@ -14065,7 +14068,7 @@ class AddTest(testing.BinaryOpTest):
         )
 
 
-class PowerTest(testing.BinaryOpTest):
+class PowerTest(BinaryOpTest):
     op, op_class = knp.power, knp.Power
     reference_fn, jax_fn = np.power, jnp.power
 
@@ -14085,7 +14088,7 @@ class PowerTest(testing.BinaryOpTest):
             knp.power(KerasTensor((2, 3)), KerasTensor((2, 3, 4)))
 
 
-class SumTest(testing.ReductionOpTest):
+class SumTest(ReductionOpTest):
     op, op_class = knp.sum, knp.Sum
     reference_fn, jax_fn = np.sum, jnp.sum
 
@@ -14098,7 +14101,7 @@ class SumTest(testing.ReductionOpTest):
         self.check_input_dtypes(("uint8",))
 
 
-class SqueezeTest(testing.UnaryOpTest):
+class SqueezeTest(UnaryOpTest):
     op, op_class = knp.squeeze, knp.Squeeze
     reference_fn, jax_fn = np.squeeze, jnp.squeeze
     # With unknown dimensions, the op can't tell which axes have size 1.
