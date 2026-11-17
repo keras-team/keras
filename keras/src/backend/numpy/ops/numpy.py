@@ -459,13 +459,7 @@ def broadcast_to(x, shape):
 
 def cbrt(x):
     x = convert_to_tensor(x)
-
-    dtype = standardize_dtype(x.dtype)
-    if dtype in ["bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"]:
-        dtype = config.floatx()
-    elif dtype == "int64":
-        dtype = "float64"
-
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return np.cbrt(x).astype(dtype)
 
 

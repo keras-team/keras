@@ -740,13 +740,9 @@ def broadcast_to(x, shape):
 
 def cbrt(x):
     x = convert_to_tensor(x)
-
-    dtype = standardize_dtype(x.dtype)
-    if dtype == "bool":
-        x = cast(x, "int32")
-    elif dtype == "int64":
-        x = cast(x, "float64")
-
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return torch.sign(x) * torch.abs(x) ** (1.0 / 3.0)
 
 
@@ -1271,7 +1267,9 @@ def isreal(x):
 def kron(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    return torch.kron(x1, x2)
+    # `torch.kron` raises for non-contiguous inputs, e.g. a transpose
+    # (https://github.com/pytorch/pytorch/issues/54135).
+    return torch.kron(x1.contiguous(), x2.contiguous())
 
 
 def lcm(x1, x2):
@@ -2271,8 +2269,9 @@ def vdot(x1, x2):
     if get_device() == "cpu" and compute_dtype == "float16":
         compute_dtype = "float32"
 
-    x1 = cast(x1, compute_dtype)
-    x2 = cast(x2, compute_dtype)
+    # `torch.vdot` only accepts 1-D tensors. As `np.vdot`, flatten the inputs.
+    x1 = torch.flatten(cast(x1, compute_dtype))
+    x2 = torch.flatten(cast(x2, compute_dtype))
     return cast(torch.vdot(x1, x2), result_dtype)
 
 

@@ -154,6 +154,46 @@ class LossTest(testing.TestCase):
             loss,
         )
 
+    @parameterized.product(
+        reduction=(
+            "sum_over_batch_size",
+            "mean",
+            "sum",
+            "mean_with_sample_weight",
+            None,
+            "none",
+        ),
+        sample_weight_shape=((2, 2), (2, 1), (2, 2, 1)),
+    )
+    def test_mask_does_not_mutate_sample_weight(
+        self, reduction, sample_weight_shape
+    ):
+        sample_weight_values = np.array([[2, 5], [3, 7]], dtype="float32")
+        if sample_weight_shape == (2, 1):
+            sample_weight_values = sample_weight_values[:, :1]
+        sample_weight_values = sample_weight_values.reshape(sample_weight_shape)
+        sample_weight = ops.convert_to_tensor(sample_weight_values.copy())
+        y_true = ops.convert_to_tensor([[1, 4], [3, 2]], dtype="float32")
+        y_pred = ops.zeros((2, 2))
+        mask = ops.convert_to_tensor([[True, False], [True, False]])
+        set_keras_mask(y_pred, mask)
+
+        expected_loss = {
+            "sum_over_batch_size": 14.5,
+            "mean": 14.5,
+            "sum": 29,
+            "mean_with_sample_weight": 5.8,
+            None: [[2, 0], [27, 0]],
+            "none": [[2, 0], [27, 0]],
+        }[reduction]
+        loss_fn = ExampleLoss(reduction=reduction)
+
+        # Reuse the caller-owned tensor as a data loader would.
+        for _ in range(3):
+            loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
+            self.assertAllClose(expected_loss, loss)
+            self.assertAllClose(sample_weight_values, sample_weight)
+
     def test_mask_and_sample_weight_rank2(self):
         # check loss of inputs with duplicate rows doesn't change
         sample_weight = np.array([0.4, 0.3, 0.2, 0.1])

@@ -127,7 +127,7 @@ def outcomes(cls):
     return out
 
 
-class SquareTest(testing.UnaryOpTest):
+class SquareTest(op_test_case.UnaryOpTest):
     op, op_class = ops.square, Square
     reference_fn, jax_fn = np.square, jnp.square
 
@@ -154,7 +154,7 @@ class OpTestTest(testing.TestCase):
         }
         self.assertEqual(failed, {})
 
-        class Add(testing.BinaryOpTest):
+        class Add(op_test_case.BinaryOpTest):
             op, reference_fn, jax_fn = ops.add, np.add, jnp.add
 
         names = methods_of(Add)
@@ -164,7 +164,7 @@ class OpTestTest(testing.TestCase):
         )
         self.assertIn("test_python_scalar_types_int8_left", names)
 
-        class Sum(testing.ReductionOpTest):
+        class Sum(op_test_case.ReductionOpTest):
             op, reference_fn, jax_fn = ops.sum, np.sum, jnp.sum
 
         self.assertLen(Sum.cases, 12)
@@ -172,10 +172,10 @@ class OpTestTest(testing.TestCase):
 
     def test_base_classes_are_not_collected(self):
         for cls in (
-            testing.OpTest,
-            testing.UnaryOpTest,
-            testing.BinaryOpTest,
-            testing.ReductionOpTest,
+            op_test_case.OpTest,
+            op_test_case.UnaryOpTest,
+            op_test_case.BinaryOpTest,
+            op_test_case.ReductionOpTest,
         ):
             self.assertFalse(cls.__test__)
         self.assertTrue(SquareTest.__test__)
@@ -206,7 +206,7 @@ class OpTestTest(testing.TestCase):
                 case.check_eager(SquareInBfloat16(), np.square, inputs, {})
 
     def test_no_op_class_and_no_arrays(self):
-        class Ones(testing.OpTest):
+        class Ones(op_test_case.OpTest):
             op, reference_fn = ops.ones, np.ones
             inputs = ((2, 3),)
 
@@ -241,7 +241,7 @@ class OpTestTest(testing.TestCase):
         )
 
     def test_data_dependent_op_fails_jit(self):
-        class Case(testing.OpTest):
+        class Case(op_test_case.OpTest):
             op, reference_fn, inputs = DataDependent(), np.square, (X,)
 
         out = outcomes(Case)
@@ -252,7 +252,7 @@ class OpTestTest(testing.TestCase):
             self.assertRegex(out["test_jit"], "^failed: ")
 
     def test_tuple_argument_lost_in_json_fails(self):
-        class Case(testing.OpTest):
+        class Case(op_test_case.OpTest):
             op, op_class, reference_fn = needs_tuple, NeedsTuple, np.sum
             inputs, kwargs = (X,), {"axis": (0,)}
 
@@ -262,7 +262,7 @@ class OpTestTest(testing.TestCase):
         self.assertRegex(out["test_serialization"], "^failed: ")
 
     def test_list_rejected_fails_input_variants(self):
-        class Case(testing.OpTest):
+        class Case(op_test_case.OpTest):
             op, reference_fn, inputs = RejectsList(), np.square, (X,)
 
         out = outcomes(Case)
@@ -281,7 +281,7 @@ class OpTestTest(testing.TestCase):
         self.assertAllClose(model([X, X[:1]]), X + X[:1])
 
     def test_disabled_dynamic_checks_are_skipped(self):
-        class Case(testing.OpTest):
+        class Case(op_test_case.OpTest):
             op, reference_fn = NeedsStaticShape(), np.square
             inputs = (X,)
             run_dynamic_shape_checks = False
@@ -293,7 +293,7 @@ class OpTestTest(testing.TestCase):
         )
 
     def test_wrong_symbolic_rank_fails(self):
-        class Case(testing.OpTest):
+        class Case(op_test_case.OpTest):
             op, op_class = WrongRank(), WrongRank
             reference_fn = np.square
             inputs = (X,)
@@ -328,7 +328,7 @@ class OpTestTest(testing.TestCase):
         )
 
     def test_structure_mismatch_fails(self):
-        class Case(testing.OpTest):
+        class Case(op_test_case.OpTest):
             op, reference_fn = TupleOfOne(), np.square
             inputs = (X,)
 
@@ -337,7 +337,7 @@ class OpTestTest(testing.TestCase):
         self.assertRegex(out["test_symbolic_static"], "^failed: ")
 
     def test_symbolic_dtype_mismatch_fails(self):
-        class Case(testing.OpTest):
+        class Case(op_test_case.OpTest):
             op, reference_fn = WrongDtype(), np.square
             inputs = (X,)
 
@@ -349,7 +349,7 @@ class OpTestTest(testing.TestCase):
 
 class CheckInputDtypesTest(testing.TestCase):
     def test_dtype_mismatch_vs_jax_fails(self):
-        class Case(testing.UnaryOpTest):
+        class Case(op_test_case.UnaryOpTest):
             op, reference_fn, jax_fn = CastsToInt32(), np.square, jnp.square
 
         self.assertRegex(
@@ -362,7 +362,7 @@ class CheckInputDtypesTest(testing.TestCase):
         reason="TensorFlow has no `x64_mode='off'`",
     )
     def test_capped_op_fails_only_in_explicit_x64(self):
-        class Case(testing.UnaryOpTest):
+        class Case(op_test_case.UnaryOpTest):
             op, reference_fn, jax_fn = CastsToInt32(), np.square, jnp.square
 
         with x64_mode_scope("off"):
@@ -375,7 +375,7 @@ class CheckInputDtypesTest(testing.TestCase):
         )
 
     def test_wrong_values_for_one_dtype_fail(self):
-        class Case(testing.UnaryOpTest):
+        class Case(op_test_case.UnaryOpTest):
             op, reference_fn, jax_fn = WrongForUint8(), np.square, jnp.square
 
         case = Case("test_eager")
@@ -406,7 +406,7 @@ class CheckInputDtypesTest(testing.TestCase):
             case.check_input_dtypes(("int8",), (X, X), {})
 
     def test_python_scalar_input(self):
-        class Add(testing.BinaryOpTest):
+        class Add(op_test_case.BinaryOpTest):
             op, reference_fn, jax_fn = ops.add, np.add, jnp.add
 
         out = outcomes(Add)

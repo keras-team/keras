@@ -272,3 +272,14 @@ class DtypesTest(test_case.TestCase):
         expected = "int64" if backend.backend() == "tensorflow" else "int32"
         self.assertEqual(dtypes.standardize_dtype(int), expected)
         self.assertEqual(dtypes.standardize_dtype("int"), expected)
+
+    def test_result_type_weak_float_under_bfloat16_floatx(self):
+        default = config.floatx()
+        config.set_floatx("bfloat16")
+        try:
+            self.assertEqual(result_type(float), "bfloat16")
+            self.assertEqual(result_type("int32", float), "bfloat16")
+            self.assertEqual(dtypes.promote_to_float_dtype("int32"), "bfloat16")
+            self.assertEqual(dtypes.promote_to_float_dtype("int64"), "float64")
+        finally:
+            config.set_floatx(default)

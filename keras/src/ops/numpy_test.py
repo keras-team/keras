@@ -18,6 +18,9 @@ from keras.src.backend.common import is_int_dtype
 from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
 from keras.src.ops import numpy as knp
+from keras.src.testing.op_test_case import BinaryOpTest
+from keras.src.testing.op_test_case import ReductionOpTest
+from keras.src.testing.op_test_case import UnaryOpTest
 from keras.src.testing.op_test_case import X
 from keras.src.testing.op_test_case import named_dtype_combinations
 from keras.src.testing.test_utils import named_product
@@ -4544,6 +4547,9 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.kron(x, y), np.kron(x, y))
         self.assertAllClose(knp.Kron()(x, y), np.kron(x, y))
 
+        x = np.arange(6.0).reshape(2, 3)
+        self.assertAllClose(knp.kron(x, x.T), np.kron(x, x.T))
+
     def test_lcm(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
@@ -5486,6 +5492,14 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         y = np.array([4.0, 5.0, 6.0])
         self.assertAllClose(knp.vdot(x, y), np.vdot(x, y))
         self.assertAllClose(knp.Vdot()(x, y), np.vdot(x, y))
+
+        x = np.arange(6.0).reshape(2, 3)
+        y = np.arange(6.0, 12.0).reshape(3, 2)
+        self.assertAllClose(knp.vdot(x, y), np.vdot(x, y))
+        self.assertAllClose(knp.Vdot()(x, y), np.vdot(x, y))
+
+        x, y = np.array(2.0), np.array(3.0)
+        self.assertAllClose(knp.vdot(x, y), np.vdot(x, y))
 
     def test_inner(self):
         x = np.array([1.0, 2.0, 3.0])
@@ -13968,12 +13982,12 @@ class RepeatTest(testing.TestCase):
         self.assertAllClose(model.predict(x), expected)
 
 
-class SquareTest(testing.UnaryOpTest):
+class SquareTest(UnaryOpTest):
     op, op_class = knp.square, knp.Square
     reference_fn, jax_fn = np.square, jnp.square
 
 
-class CbrtTest(testing.UnaryOpTest):
+class CbrtTest(UnaryOpTest):
     op, op_class = knp.cbrt, knp.Cbrt
     reference_fn, jax_fn = np.cbrt, jnp.cbrt
     cases = {  # The first case feeds the dtype tests: non-negative.
@@ -13991,7 +14005,7 @@ class CbrtTest(testing.UnaryOpTest):
         self.check_input_dtypes(("uint64",))
 
 
-class AddTest(testing.BinaryOpTest):
+class AddTest(BinaryOpTest):
     op, op_class = knp.add, knp.Add
     reference_fn, jax_fn = np.add, jnp.add
 
@@ -14054,7 +14068,7 @@ class AddTest(testing.BinaryOpTest):
         )
 
 
-class PowerTest(testing.BinaryOpTest):
+class PowerTest(BinaryOpTest):
     op, op_class = knp.power, knp.Power
     reference_fn, jax_fn = np.power, jnp.power
 
@@ -14074,7 +14088,7 @@ class PowerTest(testing.BinaryOpTest):
             knp.power(KerasTensor((2, 3)), KerasTensor((2, 3, 4)))
 
 
-class SumTest(testing.ReductionOpTest):
+class SumTest(ReductionOpTest):
     op, op_class = knp.sum, knp.Sum
     reference_fn, jax_fn = np.sum, jnp.sum
 
@@ -14087,7 +14101,7 @@ class SumTest(testing.ReductionOpTest):
         self.check_input_dtypes(("uint8",))
 
 
-class SqueezeTest(testing.UnaryOpTest):
+class SqueezeTest(UnaryOpTest):
     op, op_class = knp.squeeze, knp.Squeeze
     reference_fn, jax_fn = np.squeeze, jnp.squeeze
     # With unknown dimensions, the op can't tell which axes have size 1.
