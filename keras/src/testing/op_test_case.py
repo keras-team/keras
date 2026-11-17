@@ -125,6 +125,8 @@ class OpTest(TestCase):
     - `test_dtype_argument`: for every case, `dtype=` is honored as a `str`,
       NumPy, `ml_dtypes` and backend dtype. Skipped when the op has no `dtype`
       parameter.
+    - `test_tf_graph`: for every case, the op inside `tf.function` with every
+      input dimension unknown gives `reference_fn`'s outputs. TensorFlow only.
 
     `UnaryOpTest`, `BinaryOpTest` and `ReductionOpTest` also set the standard
     inputs of their category and add one test per input dtype combination,
@@ -236,6 +238,12 @@ class OpTest(TestCase):
         for inputs, kwargs in self._cases().values():
             self.check_dtype_argument(inputs, kwargs)
 
+    def test_tf_graph(self):
+        if backend.backend() != "tensorflow":
+            self.skipTest("TensorFlow only")
+        for inputs, kwargs in self._cases().values():
+            self.check_tf_graph(inputs, kwargs)
+
     def assertOutputsClose(self, outputs, expected, msg):
         """Asserts `outputs` have the structure and values of `expected`.
 
@@ -335,6 +343,25 @@ class OpTest(TestCase):
                 self.assertDType(out, dtype)
             if _arrays(inputs):
                 self.check_symbolic(inputs, {**kwargs, "dtype": dtype})
+
+    def check_tf_graph(self, inputs, kwargs):
+        """Checks the op in `tf.function` with every input dimension unknown."""
+        import tensorflow as tf
+
+        arrays = _arrays(inputs)
+        if not arrays:
+            self.skipTest("No array inputs, so no unknown dimensions")
+        fn = _array_function(self.op, inputs, kwargs)
+        tensors = [_to_tensor_with_dtype(x) for x in arrays]
+        signature = [
+            tf.TensorSpec((None,) * len(t.shape), t.dtype) for t in tensors
+        ]
+        compiled = tf.function(fn, input_signature=signature)
+        self.assertOutputsClose(
+            compiled(*tensors),
+            self.reference_fn(*inputs, **kwargs),
+            f"TF graph output differs for {_describe(inputs, kwargs)}",
+        )
 
     def check_symbolic(self, inputs, kwargs, symbolic_shapes=None):
         """Checks the symbolic outputs against the eager ones.

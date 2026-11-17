@@ -36,6 +36,11 @@ class WrongDtype(Square):
 
 
 class NeedsStaticShape(Square):
+    def call(self, x):
+        if None in x.shape:
+            raise ValueError("Needs a static shape")
+        return super().call(x)
+
     def compute_output_spec(self, x):
         if None in x.shape:
             raise ValueError("Needs a static shape")
@@ -154,6 +159,7 @@ class OpTestTest(testing.TestCase):
                 "test_serialization",
                 "test_symbolic_dynamic",
                 "test_symbolic_static",
+                "test_tf_graph",
             ],
         )
         self.assertLen([n for n in names if "input_dtypes" in n], 13)
@@ -246,6 +252,11 @@ class OpTestTest(testing.TestCase):
                     "skipped: No array inputs, so no input variants"
                 ),
                 "test_dtype_argument": "passed",
+                "test_tf_graph": (
+                    "skipped: No array inputs, so no unknown dimensions"
+                    if backend.backend() == "tensorflow"
+                    else "skipped: TensorFlow only"
+                ),
             },
         )
 
@@ -297,6 +308,21 @@ class OpTestTest(testing.TestCase):
             AssertionError, "Received: x.dtype=int32 and dtype=float16"
         ):
             Case("test_eager").check_dtype_argument((X,), {})
+
+    def test_static_shape_required_fails_tf_graph(self):
+        class Case(op_test_case.OpTest):
+            op, reference_fn, inputs = NeedsStaticShape(), np.square, (X,)
+
+        out = outcomes(Case)
+        self.assertEqual(out["test_eager"], "passed")
+        if backend.backend() == "tensorflow":
+            self.assertEqual(out["test_jit"], "passed")
+            self.assertRegex(
+                out["test_tf_graph"],
+                "ValueError: Needs a static shape",
+            )
+        else:
+            self.assertEqual(out["test_tf_graph"], "skipped: TensorFlow only")
 
     def test_op_model(self):
         model = op_test_case._op_model(ops.add, (X, X[:1]), {})
