@@ -27,8 +27,10 @@ class Variable(KerasVariable):
         return convert_to_tensor(value, dtype=dtype)
 
     # Overload native accessor.
-    def __array__(self):
-        return self.value
+    def __array__(self, dtype=None, *, copy=None):
+        if copy is not None:
+            return self.value.__array__(dtype, copy=copy)
+        return self.value.__array__(dtype)
 
 
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):

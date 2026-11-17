@@ -3,6 +3,7 @@ import itertools
 
 import ml_dtypes
 import numpy as np
+import pytest
 from absl.testing import parameterized
 
 from keras.src import backend
@@ -10,28 +11,29 @@ from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
 from keras.src.models.model import model_from_json
 from keras.src.testing.test_case import TestCase
+from keras.src.testing.test_utils import jax_x64_scope
 from keras.src.testing.test_utils import named_product
 
-# Input dtypes of the dtype tests. No 64-bit dtypes yet; torch also tests
-# float64 for multi-input ops, as the old `NumpyDtypeTest` did.
+# Input dtypes of the dtype tests, the same in every `x64_mode`.
 DEFAULT_INPUT_DTYPES = (
     "bool",
     "int8",
     "int16",
     "int32",
+    "int64",
     "uint8",
     "uint16",
     "uint32",
+    "uint64",
     "bfloat16",
     "float16",
     "float32",
-)
-BINARY_INPUT_DTYPES = DEFAULT_INPUT_DTYPES + (
-    ("float64",) if backend.backend() == "torch" else ()
+    "float64",
 )
 
 # Input dtypes the dtype tests skip per backend, with the reason.
@@ -39,8 +41,26 @@ _SKIPPED_DTYPES = {
     "torch": {
         "uint16": "Not supported by the torch backend",
         "uint32": "Not supported by the torch backend",
+        "uint64": "Not supported by the torch backend",
     },
-    "tensorflow": {"uint32": "uint32 + int promotes to int64, unlike JAX"},
+    "tensorflow": {
+        "uint32": "uint32 + int promotes to int64, unlike JAX",
+        "int64": "TensorFlow does not follow `x64_mode` yet (#24040)",
+        "uint64": "TensorFlow does not follow `x64_mode` yet (#24040)",
+        "float64": "TensorFlow does not follow `x64_mode` yet (#24040)",
+    },
+}
+
+# Also skipped in `off`: NumPy and torch keep 64-bit inputs but cap only some
+# results to 32 bits, so eager, symbolic and JAX disagree (#24040).
+_OFF_REASON = "In `off`, 64-bit results are capped unevenly (#24040)"
+_SKIPPED_DTYPES_IN_OFF = {
+    "numpy": {
+        "int64": _OFF_REASON,
+        "uint64": _OFF_REASON,
+        "float64": _OFF_REASON,
+    },
+    "torch": {"int64": _OFF_REASON, "float64": _OFF_REASON},
 }
 
 # Tolerance of the value checks when an output or its reference is a 16-bit
@@ -48,7 +68,7 @@ _SKIPPED_DTYPES = {
 _TOLERANCES = {"bfloat16": 1e-2, "float16": 1e-3}
 
 # Standard op test inputs: small non-negative ints fit every dtype. `Z`
-# broadcasts against `X`. 32-bit, as 64-bit dtypes are not covered yet.
+# broadcasts against `X`.
 X = np.array([[1, 2, 3], [3, 2, 1]], dtype="int32")
 Y = np.array([[4, 5, 6], [3, 2, 1]], dtype="int32")
 Z = np.array([[[1, 2, 3], [3, 2, 1]]], dtype="int32")
@@ -57,16 +77,14 @@ Z = np.array([[[1, 2, 3], [3, 2, 1]]], dtype="int32")
 def named_dtype_combinations(num_inputs, ordered=False, dtypes=None):
     """Returns `(name, dtypes)` pairs of input dtype combinations.
 
-    `dtypes` is one pool shared by all inputs (default: the pools above),
-    giving unordered combinations with same-dtype pairs, or every ordered
-    combination if `ordered`; or a list of one pool per input, giving their
-    product. Names are the joined dtypes, e.g. `"int8_uint32"`. The pairs
-    are valid `named_parameters` entries.
+    `dtypes` is one pool shared by all inputs (default:
+    `DEFAULT_INPUT_DTYPES`), giving unordered combinations with same-dtype
+    pairs, or every ordered combination if `ordered`; or a list of one pool
+    per input, giving their product. Names are the joined dtypes, e.g.
+    `"int8_uint32"`. The pairs are valid `named_parameters` entries.
     """
     if dtypes is None:
-        dtypes = (
-            DEFAULT_INPUT_DTYPES if num_inputs == 1 else BINARY_INPUT_DTYPES
-        )
+        dtypes = DEFAULT_INPUT_DTYPES
     if isinstance(dtypes[0], str):
         if ordered:
             combos = itertools.product(dtypes, repeat=num_inputs)
@@ -101,6 +119,8 @@ class OpTest(TestCase):
     - `test_serialization`: for every case, the functional `Model` gives
       `reference_fn`'s outputs after a `to_json` / `model_from_json` round
       trip.
+    - `test_input_variants`: for every case, the op accepts NumPy arrays,
+      `Variable`s and Python lists and gives `reference_fn`'s outputs.
 
     `UnaryOpTest`, `BinaryOpTest` and `ReductionOpTest` also set the standard
     inputs of their category and add one test per input dtype combination,
@@ -109,7 +129,8 @@ class OpTest(TestCase):
     `jax_fn`'s and the symbolic output dtypes equal the eager ones.
     `BinaryOpTest` adds `test_python_scalar_types_<dtype>_<side>` for a
     Python scalar operand.
-    Subclass one of them, or `OpTest` for an op that fits neither.
+    Subclass one of them, or `OpTest` for an op that fits neither. Every
+    test of a subclass carries the `op_test` mark: `pytest -m op_test`.
 
     Tensors under test go in `inputs`. `kwargs` are static arguments: they
     are passed unchanged to the op and to both references. A test defined
@@ -130,6 +151,7 @@ class OpTest(TestCase):
     """
 
     __test__ = False  # Not collected by pytest; subclasses that set `op` are.
+    pytestmark = [pytest.mark.op_test]
     op = None
     op_class = None
     reference_fn = None
@@ -200,6 +222,10 @@ class OpTest(TestCase):
         for inputs, kwargs in self._cases().values():
             self.check_serialization(inputs, kwargs)
 
+    def test_input_variants(self):
+        for inputs, kwargs in self._cases().values():
+            self.check_input_variants(inputs, kwargs)
+
     def assertOutputsClose(self, outputs, expected, msg):
         """Asserts `outputs` have the structure and values of `expected`.
 
@@ -226,7 +252,7 @@ class OpTest(TestCase):
 
     def check_eager(self, op, reference_fn, inputs, kwargs):
         """Checks the structure and values of the eager outputs."""
-        outputs = op(*_map_arrays(ops.convert_to_tensor, inputs), **kwargs)
+        outputs = op(*_map_arrays(_to_tensor_with_dtype, inputs), **kwargs)
         expected = reference_fn(*inputs, **kwargs)
         self.assertOutputsClose(
             outputs,
@@ -237,7 +263,7 @@ class OpTest(TestCase):
     def check_jit(self, inputs, kwargs):
         """Checks the compiled op against `reference_fn`."""
         fn = _array_function(self.op, inputs, kwargs)
-        tensors = [ops.convert_to_tensor(x) for x in _arrays(inputs)]
+        tensors = [_to_tensor_with_dtype(x) for x in _arrays(inputs)]
         self.assertOutputsClose(
             _jit(fn)(*tensors),
             self.reference_fn(*inputs, **kwargs),
@@ -270,6 +296,20 @@ class OpTest(TestCase):
             f"Output changed by JSON for {_describe(inputs, kwargs)}",
         )
 
+    def check_input_variants(self, inputs, kwargs):
+        """Checks the op on NumPy arrays, `Variable`s and Python lists."""
+        if not _arrays(inputs):
+            self.skipTest("No array inputs, so no input variants")
+        expected = self.reference_fn(*inputs, **kwargs)
+        for variant in (np.asarray, _as_variable, np.ndarray.tolist):
+            variant_inputs = _map_arrays(variant, inputs)
+            self.assertOutputsClose(
+                self.op(*variant_inputs, **kwargs),
+                expected,
+                f"Unexpected output for {variant.__name__} inputs, "
+                f"{_describe(inputs, kwargs)}",
+            )
+
     def check_symbolic(self, inputs, kwargs, symbolic_shapes=None):
         """Checks the symbolic outputs against the eager ones.
 
@@ -283,7 +323,7 @@ class OpTest(TestCase):
             self.skipTest("No array inputs, so no symbolic path")
         if symbolic_shapes is None:
             symbolic_shapes = [x.shape for x in arrays]
-        tensors = [ops.convert_to_tensor(x) for x in arrays]
+        tensors = [_to_tensor_with_dtype(x) for x in arrays]
         keras_tensors = [  # With the dtypes Keras gave the arrays.
             KerasTensor(shape, dtype=standardize_dtype(t.dtype))
             for shape, t in zip(symbolic_shapes, tensors, strict=True)
@@ -308,12 +348,16 @@ class OpTest(TestCase):
 
         `inputs` and `kwargs` default to the first case. The inputs must fit
         `dtypes`. The eager outputs must equal `reference_fn`'s, their dtypes
-        must equal `jax_fn`'s, and the symbolic output dtypes must equal the
-        eager ones.
+        must equal `jax_fn`'s, run in the JAX mode matching
+        `keras.config.x64_mode()`, and the symbolic output dtypes must equal
+        the eager ones.
         """
         if inputs is None:
             inputs, kwargs = self._first_case()
-        skipped = _SKIPPED_DTYPES.get(backend.backend(), {})
+        backend_name = backend.backend()
+        skipped = _SKIPPED_DTYPES.get(backend_name, {})
+        if config.x64_mode() == "off":
+            skipped = skipped | _SKIPPED_DTYPES_IN_OFF.get(backend_name, {})
         for dtype in dtypes:
             if dtype in skipped:
                 self.skipTest(f"{dtype}: {skipped[dtype]}")
@@ -325,10 +369,11 @@ class OpTest(TestCase):
         arrays = [x.astype(d) for x, d in zip(_arrays(inputs), dtypes)]
         inputs = _with_arrays(inputs, arrays)
         self.check_eager(self.op, self.reference_fn, inputs, kwargs)
-        import jax.numpy as jnp
-
-        outputs = self.op(*_map_arrays(ops.convert_to_tensor, inputs), **kwargs)
-        jax_outputs = self.jax_fn(*_map_arrays(jnp.asarray, inputs), **kwargs)
+        outputs = self.op(*_map_arrays(_to_tensor_with_dtype, inputs), **kwargs)
+        with jax_x64_scope(config.x64_mode()):
+            jax_outputs = self.jax_fn(
+                *_map_arrays(_to_jax_array_with_dtype, inputs), **kwargs
+            )
         self.assertEqual(
             _dtypes_of(outputs),
             _dtypes_of(jax_outputs),
@@ -396,6 +441,18 @@ def _map_arrays(fn, inputs):
     return tuple(fn(x) if isinstance(x, np.ndarray) else x for x in inputs)
 
 
+def _to_tensor_with_dtype(x):
+    """`x` as a tensor of its own dtype, named so JAX keeps 64 bits."""
+    return ops.convert_to_tensor(x, dtype=standardize_dtype(x.dtype))
+
+
+def _to_jax_array_with_dtype(x):
+    """`x` as a JAX array of its own dtype, named so JAX keeps 64 bits."""
+    import jax.numpy as jnp
+
+    return jnp.asarray(x, dtype=x.dtype)
+
+
 def _fits(x, dtype):
     """Whether the values of `x` are within the limits of `dtype`."""
     kind = np.dtype(dtype).kind
@@ -441,6 +498,11 @@ def _op_model(op, inputs, kwargs):
     ]
     outputs = op(*_with_arrays(inputs, model_inputs), **kwargs)
     return models.Model(model_inputs, outputs)
+
+
+def _as_variable(x):
+    """`x` as a `Variable`, non-trainable so torch accepts integer dtypes."""
+    return backend.Variable(x, trainable=False)
 
 
 def _with_arrays(inputs, arrays):

@@ -740,13 +740,9 @@ def broadcast_to(x, shape):
 
 def cbrt(x):
     x = convert_to_tensor(x)
-
-    dtype = standardize_dtype(x.dtype)
-    if dtype == "bool":
-        x = cast(x, "int32")
-    elif dtype == "int64":
-        x = cast(x, "float64")
-
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return torch.sign(x) * torch.abs(x) ** (1.0 / 3.0)
 
 

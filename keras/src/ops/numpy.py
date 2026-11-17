@@ -1956,20 +1956,7 @@ class Cbrt(Operation):
         return _cbrt(x)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(x.dtype)
-        if dtype in [
-            "bool",
-            "int8",
-            "int16",
-            "int32",
-            "uint8",
-            "uint16",
-            "uint32",
-        ]:
-            dtype = backend.floatx()
-        elif dtype == "int64":
-            dtype = "float64"
-
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -1997,11 +1984,7 @@ def _cbrt(x):
     ):
         return backend.ops.numpy.cbrt(x)
     x = backend.ops.convert_to_tensor(x)
-    dtype = standardize_dtype(x.dtype)
-    if dtype in ("bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"):
-        dtype = backend.floatx()
-    elif dtype == "int64":
-        dtype = "float64"
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = backend.ops.cast(x, dtype)
     y = backend.ops.numpy.sign(x) * backend.ops.numpy.power(
         backend.ops.numpy.absolute(x), 1.0 / 3.0
