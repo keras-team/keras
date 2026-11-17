@@ -289,7 +289,7 @@ class Variable(KerasVariable):
         }
         return func(*args, **kwargs)
 
-    def __array__(self, dtype=None):
+    def __array__(self, dtype=None, *, copy=None):
         value = convert_to_numpy(self.value)
         if dtype:
             return value.astype(dtype)
