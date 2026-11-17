@@ -4544,6 +4544,9 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.kron(x, y), np.kron(x, y))
         self.assertAllClose(knp.Kron()(x, y), np.kron(x, y))
 
+        x = np.arange(6.0).reshape(2, 3)
+        self.assertAllClose(knp.kron(x, x.T), np.kron(x, x.T))
+
     def test_lcm(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
@@ -5486,6 +5489,14 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         y = np.array([4.0, 5.0, 6.0])
         self.assertAllClose(knp.vdot(x, y), np.vdot(x, y))
         self.assertAllClose(knp.Vdot()(x, y), np.vdot(x, y))
+
+        x = np.arange(6.0).reshape(2, 3)
+        y = np.arange(6.0, 12.0).reshape(3, 2)
+        self.assertAllClose(knp.vdot(x, y), np.vdot(x, y))
+        self.assertAllClose(knp.Vdot()(x, y), np.vdot(x, y))
+
+        x, y = np.array(2.0), np.array(3.0)
+        self.assertAllClose(knp.vdot(x, y), np.vdot(x, y))
 
     def test_inner(self):
         x = np.array([1.0, 2.0, 3.0])
