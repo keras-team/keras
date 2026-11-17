@@ -125,14 +125,18 @@ class OpTest(TestCase):
     - `test_dtype_argument`: for every case, `dtype=` is honored as a `str`,
       NumPy, `ml_dtypes` and backend dtype. Skipped when the op has no `dtype`
       parameter.
+    - `test_floatx_bfloat16`, `test_floatx_float16`: for every case, under a
+      non-default `floatx`, the eager outputs equal `reference_fn`'s, the
+      symbolic outputs match the eager ones, and without float inputs, float
+      outputs have dtype `floatx`.
 
     `UnaryOpTest`, `BinaryOpTest` and `ReductionOpTest` also set the standard
     inputs of their category and add one test per input dtype combination,
     `test_input_dtypes_<dtypes>`: with the arrays of the first case cast to
     `dtypes`, the eager outputs equal `reference_fn`'s, their dtypes equal
     `jax_fn`'s and the symbolic output dtypes equal the eager ones.
-    `BinaryOpTest` adds `test_python_scalar_types_<dtype>_<side>` for a
-    Python scalar operand.
+    `BinaryOpTest` adds `test_python_scalar_types_<dtype>_<side>` and
+    `test_floatx_python_float_<floatx>` for a Python scalar operand.
     Subclass one of them, or `OpTest` for an op that fits neither. Every
     test of a subclass carries the `op_test` mark: `pytest -m op_test`.
 
@@ -236,6 +240,13 @@ class OpTest(TestCase):
         for inputs, kwargs in self._cases().values():
             self.check_dtype_argument(inputs, kwargs)
 
+    @parameterized.named_parameters(
+        ("bfloat16", "bfloat16"), ("float16", "float16")
+    )
+    def test_floatx(self, floatx):
+        for inputs, kwargs in self._cases().values():
+            self.check_floatx(floatx, inputs, kwargs)
+
     def assertOutputsClose(self, outputs, expected, msg):
         """Asserts `outputs` have the structure and values of `expected`.
 
@@ -336,6 +347,32 @@ class OpTest(TestCase):
             if _arrays(inputs):
                 self.check_symbolic(inputs, {**kwargs, "dtype": dtype})
 
+    def check_floatx(self, floatx, inputs, kwargs):
+        """Checks the op under a non-default `floatx`.
+
+        The eager outputs must equal `reference_fn`'s and the symbolic ones.
+        Without float array inputs, float outputs must have dtype `floatx`.
+        """
+        default = backend.floatx()
+        backend.set_floatx(floatx)
+        try:
+            self.check_eager(self.op, self.reference_fn, inputs, kwargs)
+            if _arrays(inputs):
+                self.check_symbolic(inputs, kwargs)
+            if not any(_is_float(x.dtype) for x in _arrays(inputs)):
+                outputs = self.op(
+                    *_map_arrays(_to_tensor_with_dtype, inputs), **kwargs
+                )
+                for dtype in filter(_is_float, _dtypes_of(outputs)):
+                    self.assertEqual(
+                        dtype,
+                        floatx,
+                        f"Float output under floatx={floatx} for "
+                        f"{_describe(inputs, kwargs)}",
+                    )
+        finally:
+            backend.set_floatx(default)
+
     def check_symbolic(self, inputs, kwargs, symbolic_shapes=None):
         """Checks the symbolic outputs against the eager ones.
 
@@ -435,6 +472,14 @@ class BinaryOpTest(OpTest):
         for scalar in (1, 1.0):
             inputs = (scalar, x) if scalar_side == "left" else (x, scalar)
             self.check_input_dtypes((dtype,), inputs, kwargs)
+
+    @parameterized.named_parameters(
+        ("bfloat16", "bfloat16"), ("float16", "float16")
+    )
+    def test_floatx_python_float(self, floatx):
+        (x, _), kwargs = self._first_case()
+        for inputs in ((x, 1.0), (1.0, x)):
+            self.check_floatx(floatx, inputs, kwargs)
 
 
 class ReductionOpTest(UnaryOpTest):
@@ -541,6 +586,10 @@ def _with_arrays(inputs, arrays):
 
 def _dtypes_of(outputs):
     return [standardize_dtype(x.dtype) for x in tree.flatten(outputs)]
+
+
+def _is_float(dtype):
+    return "float" in standardize_dtype(dtype)
 
 
 def _symbolic_matches(symbolic, eager):

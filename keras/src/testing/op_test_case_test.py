@@ -116,6 +116,16 @@ class IgnoresDtype(Square):
         return super().__call__(x)
 
 
+class IgnoresFloatx(Square):
+    """Promotes to `float32`, ignoring `backend.floatx()`."""
+
+    def call(self, x):
+        return ops.cast(ops.square(x), "float32")
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype="float32")
+
+
 def methods_of(cls):
     return sorted(n for n in dir(cls) if n.startswith("test"))
 
@@ -148,6 +158,8 @@ class OpTestTest(testing.TestCase):
                 "test_dtype_argument",
                 "test_eager",
                 "test_eager_class",
+                "test_floatx_bfloat16",
+                "test_floatx_float16",
                 "test_functional_model",
                 "test_input_variants",
                 "test_jit",
@@ -171,6 +183,7 @@ class OpTestTest(testing.TestCase):
             len(named_dtype_combinations(2)),
         )
         self.assertIn("test_python_scalar_types_int8_left", names)
+        self.assertIn("test_floatx_python_float_bfloat16", names)
 
         class Sum(op_test_case.ReductionOpTest):
             op, reference_fn, jax_fn = ops.sum, np.sum, jnp.sum
@@ -246,6 +259,8 @@ class OpTestTest(testing.TestCase):
                     "skipped: No array inputs, so no input variants"
                 ),
                 "test_dtype_argument": "passed",
+                "test_floatx_bfloat16": "passed",
+                "test_floatx_float16": "passed",
             },
         )
 
@@ -297,6 +312,21 @@ class OpTestTest(testing.TestCase):
             AssertionError, "Received: x.dtype=int32 and dtype=float16"
         ):
             Case("test_eager").check_dtype_argument((X,), {})
+
+    def test_floatx_ignored_fails(self):
+        class Case(op_test_case.OpTest):
+            op, reference_fn, inputs = IgnoresFloatx(), np.square, (X,)
+
+        out = outcomes(Case)
+        self.assertEqual(out["test_eager"], "passed")
+        self.assertEqual(out["test_symbolic_static"], "passed")
+        self.assertRegex(out["test_floatx_bfloat16"], "^failed: ")
+        self.assertRegex(out["test_floatx_float16"], "^failed: ")
+        with self.assertRaisesRegex(
+            AssertionError, "Float output under floatx=bfloat16"
+        ):
+            Case("test_eager").check_floatx("bfloat16", (X,), {})
+        self.assertEqual(backend.floatx(), "float32")
 
     def test_op_model(self):
         model = op_test_case._op_model(ops.add, (X, X[:1]), {})
