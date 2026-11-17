@@ -109,6 +109,13 @@ class RejectsList(Square):
         return super().__call__(x)
 
 
+class IgnoresDtype(Square):
+    """Accepts `dtype=`, but ignores it and returns the input dtype."""
+
+    def __call__(self, x, dtype=None):
+        return super().__call__(x)
+
+
 def methods_of(cls):
     return sorted(n for n in dir(cls) if n.startswith("test"))
 
@@ -138,6 +145,7 @@ class OpTestTest(testing.TestCase):
         self.assertEqual(
             [n for n in names if "input_dtypes" not in n],
             [
+                "test_dtype_argument",
                 "test_eager",
                 "test_eager_class",
                 "test_functional_model",
@@ -237,6 +245,7 @@ class OpTestTest(testing.TestCase):
                 "test_input_variants": (
                     "skipped: No array inputs, so no input variants"
                 ),
+                "test_dtype_argument": "passed",
             },
         )
 
@@ -271,6 +280,23 @@ class OpTestTest(testing.TestCase):
             out["test_input_variants"],
             "^failed: TypeError: Expected an array or tensor, got a list",
         )
+
+    def test_dtype_argument_ignored_fails(self):
+        self.assertEqual(
+            outcomes(SquareTest)["test_dtype_argument"],
+            "skipped: No `dtype` argument",
+        )
+
+        class Case(op_test_case.OpTest):
+            op, reference_fn, inputs = IgnoresDtype(), np.square, (X,)
+
+        out = outcomes(Case)
+        self.assertEqual(out["test_eager"], "passed")
+        self.assertRegex(out["test_dtype_argument"], "^failed: ")
+        with self.assertRaisesRegex(
+            AssertionError, "Received: x.dtype=int32 and dtype=float16"
+        ):
+            Case("test_eager").check_dtype_argument((X,), {})
 
     def test_op_model(self):
         model = op_test_case._op_model(ops.add, (X, X[:1]), {})
