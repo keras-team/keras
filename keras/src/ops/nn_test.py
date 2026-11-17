@@ -1653,9 +1653,6 @@ class NNOpsCorrectnessTest(testing.TestCase):
         ("slope_above_one", 2.5),
     )
     def test_leaky_relu_negative_slope(self, negative_slope):
-        # `LeakyReLU` accepts any `negative_slope >= 0`. The numpy backend
-        # computed `maximum(x, slope * x)`, which also scales the positive
-        # inputs once the slope is above 1.
         x = np.array([-2, -0.5, 0, 0.5, 2], dtype=np.float32)
         self.assertAllClose(
             knn.leaky_relu(x, negative_slope=negative_slope),
