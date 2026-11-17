@@ -50,7 +50,7 @@ ALLOWED_DTYPES = (
 ALLOWED_DTYPES_SET = frozenset(ALLOWED_DTYPES)
 PYTHON_DTYPES_MAP = {
     bool: "bool",
-    # tensorflow doesn't support int32 on GPU
+    # TensorFlow keeps int32 variables on the CPU, so `int` is int64 there.
     int: "int64" if config.backend() == "tensorflow" else "int32",
     float: "float32",
     str: "string",
