@@ -1994,7 +1994,16 @@ class Layer(BackendLayer, Operation):
             for k, v in self.__dict__.items()
             if k != skip_name and k not in self._UNTRACK_ALIAS_SCAN_EXCLUSIONS
         }
-        return any(leaf is obj for leaf in tree.flatten(others))
+        # On the torch backend, torch.nn.Module keeps Module-valued
+        # attributes in `_modules` instead of `__dict__`, so aliases hiding
+        # there have to be looked up separately (minus the attribute being
+        # deleted, whose own entry is about to go away).
+        modules = {
+            k: v
+            for k, v in getattr(self, "_modules", {}).items()
+            if k != skip_name
+        }
+        return any(leaf is obj for leaf in tree.flatten((others, modules)))
 
     def _untrack(self, obj, skip_name):
         """Untracks `obj` unless another attribute still references it.
@@ -2020,26 +2029,25 @@ class Layer(BackendLayer, Operation):
 
     def __delattr__(self, name):
         obj = getattr(self, name)
-        if isinstance(obj, backend.Variable):
-            import gc
-
-            # It will take a short amount of time for the corresponding buffer
-            # to be actually removed from the device.
-            # https://stackoverflow.com/a/74631949
-            self._untrack_variable(obj)
+        # Only attributes that were stored on assignment were tracked: they
+        # live in `__dict__`, except on the torch backend, where
+        # torch.nn.Module keeps Module-valued attributes in `_modules`.
+        # Properties such as `weights` or `layers` also return layers or
+        # containers, but deleting them falls through to the default
+        # behavior.
+        if name in self.__dict__ or (
+            hasattr(self, "_modules") and name in self._modules
+        ):
+            self._untrack(obj, name)
             super().__delattr__(name)
-            gc.collect()
+            if isinstance(obj, backend.Variable):
+                import gc
+
+                # It will take a short amount of time for the corresponding
+                # buffer to be actually removed from the device.
+                # https://stackoverflow.com/a/74631949
+                gc.collect()
         else:
-            # Only attributes that were stored on assignment were tracked:
-            # they live in `__dict__`, except on the torch backend, where
-            # torch.nn.Module keeps Module-valued attributes in `_modules`.
-            # Properties such as `weights` or `layers` also return
-            # containers, but deleting them falls through to the default
-            # behavior.
-            if name in self.__dict__ or (
-                hasattr(self, "_modules") and name in self._modules
-            ):
-                self._untrack(obj, name)
             super().__delattr__(name)
 
     def _check_super_called(self):
