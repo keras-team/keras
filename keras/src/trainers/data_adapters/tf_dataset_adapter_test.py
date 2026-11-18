@@ -48,6 +48,11 @@ class TestTFDatasetAdapter(data_adapter_test_base.DataAdapterTest):
             self.assertIsInstance(by, expected_class)
             self.assertEqual(bx.dtype, by.dtype)
             self.assertContainsExactSubsequence(str(bx.dtype), "float32")
+            # Verify we're reusing the underlying tf tensors, not copying.
+            if isinstance(bx, np.ndarray):
+                self.assertFalse(bx.flags.owndata)
+            if isinstance(by, np.ndarray):
+                self.assertFalse(by.flags.owndata)
             if i < 2:
                 self.assertEqual(bx.shape, (16, 4))
                 self.assertEqual(by.shape, (16, 2))

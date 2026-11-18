@@ -1,3 +1,5 @@
+import numpy as np
+
 from keras.src import tree
 from keras.src.backend import config
 from keras.src.trainers.data_adapters import data_adapter_utils
@@ -90,10 +92,21 @@ class TFDatasetAdapter(DataAdapter):
 
     def get_numpy_iterator(self):
         from keras.src.backend.tensorflow.ops.core import convert_to_numpy
+        from keras.src.utils.module_utils import tensorflow as tf
+
+        def convert_to_numpy_no_copy(x):
+            if isinstance(x, tf.Tensor) and x.dtype != tf.bfloat16:
+                try:
+                    # Note that `convert_to_numpy` always copies by design.
+                    return np.asarray(x)
+                except:
+                    # Unsupported dtype or tensor type, use `convert_to_numpy`.
+                    pass
+            return convert_to_numpy(x)
 
         for batch in self._dataset:
             yield tree.map_structure(
-                convert_to_numpy, batch, none_is_leaf=False
+                convert_to_numpy_no_copy, batch, none_is_leaf=False
             )
 
     def get_jax_iterator(self, super_batch=None):
@@ -104,6 +117,13 @@ class TFDatasetAdapter(DataAdapter):
             if isinstance(x, tf.SparseTensor):
                 return data_adapter_utils.tf_sparse_to_jax_sparse(x)
             # We use numpy as an intermediary because it is faster.
+            if isinstance(x, tf.Tensor) and x.dtype != tf.bfloat16:
+                try:
+                    # Note that `convert_to_numpy` always copies by design.
+                    return np.asarray(x)
+                except:
+                    # Unsupported dtype or tensor type, use `convert_to_numpy`.
+                    pass
             return convert_to_numpy(x)
 
         if super_batch and self.batch_size is not None:
