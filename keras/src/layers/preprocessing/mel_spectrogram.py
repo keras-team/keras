@@ -176,7 +176,7 @@ class MelSpectrogram(DataLayer):
         ref_value = self.backend.ops.numpy.abs(
             self.backend.ops.convert_to_tensor(self.ref_power)
         )
-        log_spec -= 10.0 * self.backend.ops.numpy.log10(
+        log_spec = log_spec - 10.0 * self.backend.ops.numpy.log10(
             self.backend.ops.numpy.maximum(ref_value, self.min_power)
         )
         log_spec = self.backend.ops.numpy.maximum(
