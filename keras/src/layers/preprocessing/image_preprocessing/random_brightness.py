@@ -123,7 +123,7 @@ class RandomBrightness(BaseImagePreprocessingLayer):
         if training:
             rgb_delta = transformation["rgb_delta"]
             rgb_delta = self.backend.ops.cast(rgb_delta, images.dtype)
-            images += rgb_delta
+            images = images + rgb_delta
             return self.backend.ops.numpy.clip(
                 images, self.value_range[0], self.value_range[1]
             )

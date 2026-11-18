@@ -2,10 +2,9 @@
 
 import math
 
-import keras
-from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes import (
     converters,
 )
@@ -153,7 +152,7 @@ def compute_iou(
     boxes1_area = ops.expand_dims(boxes1_area, axis=-1)
     boxes2_area = ops.expand_dims(boxes2_area, axis=boxes2_axis)
     union_area = boxes1_area + boxes2_area - intersect_area
-    res = ops.divide(intersect_area, union_area + backend.epsilon())
+    res = ops.divide(intersect_area, union_area + config.epsilon())
 
     if boxes1_rank == 2:
         perm = [1, 0]
@@ -234,9 +233,9 @@ def compute_ciou(boxes1, boxes2, bounding_box_format, image_shape=None):
     x_min2, y_min2, x_max2, y_max2 = ops.split(boxes2[..., :4], 4, axis=-1)
 
     width_1 = x_max1 - x_min1
-    height_1 = y_max1 - y_min1 + keras.backend.epsilon()
+    height_1 = y_max1 - y_min1 + config.epsilon()
     width_2 = x_max2 - x_min2
-    height_2 = y_max2 - y_min2 + keras.backend.epsilon()
+    height_2 = y_max2 - y_min2 + config.epsilon()
 
     intersection_area = ops.maximum(
         ops.minimum(x_max1, x_max2) - ops.maximum(x_min1, x_min2), 0
@@ -247,17 +246,17 @@ def compute_ciou(boxes1, boxes2, bounding_box_format, image_shape=None):
         width_1 * height_1
         + width_2 * height_2
         - intersection_area
-        + keras.backend.epsilon()
+        + config.epsilon()
     )
     iou = ops.squeeze(
-        ops.divide(intersection_area, union_area + keras.backend.epsilon()),
+        ops.divide(intersection_area, union_area + config.epsilon()),
         axis=-1,
     )
 
     convex_width = ops.maximum(x_max1, x_max2) - ops.minimum(x_min1, x_min2)
     convex_height = ops.maximum(y_max1, y_max2) - ops.minimum(y_min1, y_min2)
     convex_diagonal_squared = ops.squeeze(
-        convex_width**2 + convex_height**2 + keras.backend.epsilon(),
+        convex_width**2 + convex_height**2 + config.epsilon(),
         axis=-1,
     )
     centers_distance_squared = ops.squeeze(
@@ -274,7 +273,7 @@ def compute_ciou(boxes1, boxes2, bounding_box_format, image_shape=None):
         ),
         axis=-1,
     )
-    alpha = v / (v - iou + (1 + keras.backend.epsilon()))
+    alpha = v / (v - iou + (1 + config.epsilon()))
 
     return iou - (
         centers_distance_squared / convex_diagonal_squared + v * alpha

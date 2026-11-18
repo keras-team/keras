@@ -114,11 +114,28 @@ class RejectsList(Square):
         return super().__call__(x)
 
 
+class NanGradient(Square):
+    """Adds `sqrt` of an exact zero: the value is 0, its gradient is nan."""
+
+    def call(self, x):
+        return ops.add(ops.square(x), ops.sqrt(x - x))
+
+
 class IgnoresDtype(Square):
     """Accepts `dtype=`, but ignores it and returns the input dtype."""
 
     def __call__(self, x, dtype=None):
         return super().__call__(x)
+
+
+class IgnoresFloatx(Square):
+    """Promotes to `float32`, ignoring `backend.floatx()`."""
+
+    def call(self, x):
+        return ops.cast(ops.square(x), "float32")
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype="float32")
 
 
 def methods_of(cls):
@@ -153,7 +170,10 @@ class OpTestTest(testing.TestCase):
                 "test_dtype_argument",
                 "test_eager",
                 "test_eager_class",
+                "test_floatx_bfloat16",
+                "test_floatx_float16",
                 "test_functional_model",
+                "test_gradients",
                 "test_input_variants",
                 "test_jit",
                 "test_serialization",
@@ -177,6 +197,7 @@ class OpTestTest(testing.TestCase):
             len(named_dtype_combinations(2)),
         )
         self.assertIn("test_python_scalar_types_int8_left", names)
+        self.assertIn("test_floatx_python_float_bfloat16", names)
 
         class Sum(op_test_case.ReductionOpTest):
             op, reference_fn, jax_fn = ops.sum, np.sum, jnp.sum
@@ -251,12 +272,20 @@ class OpTestTest(testing.TestCase):
                 "test_input_variants": (
                     "skipped: No array inputs, so no input variants"
                 ),
+                "test_gradients": (
+                    "skipped: No array inputs, so no gradients"
+                    if backend.SUPPORTS_GRADIENT
+                    else f"skipped: No gradients on the {backend.backend()} "
+                    "backend"
+                ),
                 "test_dtype_argument": "passed",
                 "test_tf_graph": (
                     "skipped: No array inputs, so no unknown dimensions"
                     if backend.backend() == "tensorflow"
                     else "skipped: TensorFlow only"
                 ),
+                "test_floatx_bfloat16": "passed",
+                "test_floatx_float16": "passed",
             },
         )
 
@@ -292,6 +321,22 @@ class OpTestTest(testing.TestCase):
             "^failed: TypeError: Expected an array or tensor, got a list",
         )
 
+    def test_nan_gradient_fails(self):
+        class Case(op_test_case.OpTest):
+            op, reference_fn, inputs = NanGradient(), np.square, (X,)
+
+        out = outcomes(Case)
+        self.assertEqual(out["test_eager"], "passed")
+        if not backend.SUPPORTS_GRADIENT:
+            self.assertRegex(out["test_gradients"], "^skipped: No gradients")
+            return
+        self.assertRegex(out["test_gradients"], "^failed: ")
+        with self.assertRaisesRegex(
+            AssertionError,
+            r"Non-finite gradient of input 0 for inputs float32\[2, 3\]",
+        ):
+            Case("test_eager").check_gradients((X,), {})
+
     def test_dtype_argument_ignored_fails(self):
         self.assertEqual(
             outcomes(SquareTest)["test_dtype_argument"],
@@ -323,6 +368,21 @@ class OpTestTest(testing.TestCase):
             )
         else:
             self.assertEqual(out["test_tf_graph"], "skipped: TensorFlow only")
+
+    def test_floatx_ignored_fails(self):
+        class Case(op_test_case.OpTest):
+            op, reference_fn, inputs = IgnoresFloatx(), np.square, (X,)
+
+        out = outcomes(Case)
+        self.assertEqual(out["test_eager"], "passed")
+        self.assertEqual(out["test_symbolic_static"], "passed")
+        self.assertRegex(out["test_floatx_bfloat16"], "^failed: ")
+        self.assertRegex(out["test_floatx_float16"], "^failed: ")
+        with self.assertRaisesRegex(
+            AssertionError, "Float output under floatx=bfloat16"
+        ):
+            Case("test_eager").check_floatx("bfloat16", (X,), {})
+        self.assertEqual(backend.floatx(), "float32")
 
     def test_op_model(self):
         model = op_test_case._op_model(ops.add, (X, X[:1]), {})
@@ -411,7 +471,7 @@ class CheckInputDtypesTest(testing.TestCase):
 
     @pytest.mark.skipif(
         backend.backend() == "tensorflow",
-        reason="TensorFlow does not follow `x64_mode` yet (#24040)",
+        reason="TensorFlow has no `x64_mode='off'`",
     )
     def test_capped_op_fails_only_in_explicit_x64(self):
         class Case(op_test_case.UnaryOpTest):

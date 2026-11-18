@@ -5,6 +5,7 @@ import numpy as np
 from jax import lax
 
 from keras.src import backend
+from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import result_type
@@ -928,7 +929,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = log_softmax(output, axis=axis)
     else:
         output = output / np.sum(output, axis, keepdims=True)
-        output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        output = np.clip(output, config.epsilon(), 1.0 - config.epsilon())
         log_prob = np.log(output)
     return -np.sum(target * log_prob, axis=axis)
 
@@ -955,7 +956,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = log_softmax(output, axis=axis)
     else:
         output = output / np.sum(output, axis, keepdims=True)
-        output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        output = np.clip(output, config.epsilon(), 1.0 - config.epsilon())
         log_prob = np.log(output)
     target = one_hot(target, output.shape[axis], axis=axis)
     return -np.sum(target * log_prob, axis=axis)
@@ -979,9 +980,9 @@ def binary_crossentropy(target, output, from_logits=False):
     if from_logits:
         output = sigmoid(output)
 
-    output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+    output = np.clip(output, config.epsilon(), 1.0 - config.epsilon())
     bce = target * np.log(output)
-    bce += (1.0 - target) * np.log(1.0 - output)
+    bce = bce + (1.0 - target) * np.log(1.0 - output)
     return (-bce).astype(dtype)
 
 
@@ -1440,7 +1441,7 @@ def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
         value = value.astype("float32")
     logits = np.einsum("BTNH,BSNH->BNTS", query, key)
     logits = logits.astype(logits_dtype)
-    logits *= np.array(scale, dtype=logits.dtype)
+    logits = logits * np.array(scale, dtype=logits.dtype)
 
     if bias is not None:
         logits = (logits + bias).astype(logits.dtype)

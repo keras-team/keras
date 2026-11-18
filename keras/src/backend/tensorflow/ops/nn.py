@@ -5,6 +5,7 @@ import warnings
 import tensorflow as tf
 
 from keras.src import backend
+from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import result_type
@@ -1494,9 +1495,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     output = output / tf.reduce_sum(output, axis, keepdims=True)
 
     # Compute cross entropy from probabilities.
-    output = tf.clip_by_value(
-        output, backend.epsilon(), 1.0 - backend.epsilon()
-    )
+    output = tf.clip_by_value(output, config.epsilon(), 1.0 - config.epsilon())
     return -tf.reduce_sum(target * tf.math.log(output), axis)
 
 
@@ -1553,7 +1552,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
 
     if not from_logits:
         output = tf.clip_by_value(
-            output, backend.epsilon(), 1 - backend.epsilon()
+            output, config.epsilon(), 1 - config.epsilon()
         )
         output = tf.math.log(output)
 
@@ -1606,9 +1605,7 @@ def binary_crossentropy(target, output, from_logits=False):
         )
 
     # Compute cross entropy from probabilities.
-    output = tf.clip_by_value(
-        output, backend.epsilon(), 1.0 - backend.epsilon()
-    )
+    output = tf.clip_by_value(output, config.epsilon(), 1.0 - config.epsilon())
     bce = target * tf.math.log(output)
     bce += (1 - target) * tf.math.log(1 - output)
     return -bce

@@ -14,6 +14,7 @@ from keras.src import ops
 from keras.src import tree
 from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
+from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import standardize_dtype
 from keras.src.models.model import model_from_json
 from keras.src.testing.test_case import TestCase
@@ -43,12 +44,6 @@ _SKIPPED_DTYPES = {
         "uint16": "Not supported by the torch backend",
         "uint32": "Not supported by the torch backend",
         "uint64": "Not supported by the torch backend",
-    },
-    "tensorflow": {
-        "uint32": "uint32 + int promotes to int64, unlike JAX",
-        "int64": "TensorFlow does not follow `x64_mode` yet (#24040)",
-        "uint64": "TensorFlow does not follow `x64_mode` yet (#24040)",
-        "float64": "TensorFlow does not follow `x64_mode` yet (#24040)",
     },
 }
 
@@ -122,19 +117,26 @@ class OpTest(TestCase):
       trip.
     - `test_input_variants`: for every case, the op accepts NumPy arrays,
       `Variable`s and Python lists and gives `reference_fn`'s outputs.
+    - `test_gradients`: the gradients of the first case's summed output with
+      respect to its arrays, cast to float32, are finite. Skipped on
+      backends without autodiff.
     - `test_dtype_argument`: for every case, `dtype=` is honored as a `str`,
       NumPy, `ml_dtypes` and backend dtype. Skipped when the op has no `dtype`
       parameter.
     - `test_tf_graph`: for every case, the op inside `tf.function` with every
       input dimension unknown gives `reference_fn`'s outputs. TensorFlow only.
+    - `test_floatx_bfloat16`, `test_floatx_float16`: for every case, under a
+      non-default `floatx`, the eager outputs equal `reference_fn`'s, the
+      symbolic outputs match the eager ones, and without float inputs, float
+      outputs have dtype `floatx`.
 
     `UnaryOpTest`, `BinaryOpTest` and `ReductionOpTest` also set the standard
     inputs of their category and add one test per input dtype combination,
     `test_input_dtypes_<dtypes>`: with the arrays of the first case cast to
     `dtypes`, the eager outputs equal `reference_fn`'s, their dtypes equal
     `jax_fn`'s and the symbolic output dtypes equal the eager ones.
-    `BinaryOpTest` adds `test_python_scalar_types_<dtype>_<side>` for a
-    Python scalar operand.
+    `BinaryOpTest` adds `test_python_scalar_types_<dtype>_<side>` and
+    `test_floatx_python_float_<floatx>` for a Python scalar operand.
     Subclass one of them, or `OpTest` for an op that fits neither. Every
     test of a subclass carries the `op_test` mark: `pytest -m op_test`.
 
@@ -232,6 +234,11 @@ class OpTest(TestCase):
         for inputs, kwargs in self._cases().values():
             self.check_input_variants(inputs, kwargs)
 
+    def test_gradients(self):
+        if not backend.SUPPORTS_GRADIENT:
+            self.skipTest(f"No gradients on the {backend.backend()} backend")
+        self.check_gradients(*self._first_case())
+
     def test_dtype_argument(self):
         if "dtype" not in inspect.signature(self.op).parameters:
             self.skipTest("No `dtype` argument")
@@ -243,6 +250,13 @@ class OpTest(TestCase):
             self.skipTest("TensorFlow only")
         for inputs, kwargs in self._cases().values():
             self.check_tf_graph(inputs, kwargs)
+
+    @parameterized.named_parameters(
+        ("bfloat16", "bfloat16"), ("float16", "float16")
+    )
+    def test_floatx(self, floatx):
+        for inputs, kwargs in self._cases().values():
+            self.check_floatx(floatx, inputs, kwargs)
 
     def assertOutputsClose(self, outputs, expected, msg):
         """Asserts `outputs` have the structure and values of `expected`.
@@ -328,6 +342,31 @@ class OpTest(TestCase):
                 f"{_describe(inputs, kwargs)}",
             )
 
+    def check_gradients(self, inputs, kwargs):
+        """Checks the gradients with respect to the arrays are finite.
+
+        The arrays are cast to float32 and the summed output is
+        differentiated with respect to each of them.
+        """
+        arrays = [x.astype("float32") for x in _arrays(inputs)]
+        if not arrays:
+            self.skipTest("No array inputs, so no gradients")
+        inputs = _with_arrays(inputs, arrays)
+        fn = _array_function(self.op, inputs, kwargs)
+        tensors = [_to_tensor_with_dtype(x) for x in arrays]
+        if not any(map(is_float_dtype, _dtypes_of(fn(*tensors)))):
+            self.skipTest("No float outputs, so no gradients")
+        grads = ops.grad(fn, argnums=tuple(range(len(arrays))))(*tensors)
+        for i, grad in enumerate(grads):
+            grad = ops.convert_to_numpy(grad)
+            self.assertTrue(
+                np.isfinite(grad).all(),
+                f"Non-finite gradient of input {i} for "
+                f"{_describe(inputs, kwargs)}: {grad.tolist()}. If the op is "
+                "not differentiable there, put a differentiable case first: "
+                "`test_gradients` uses the first case.",
+            )
+
     def check_dtype_argument(self, inputs, kwargs):
         """Checks `dtype=` as a str, NumPy, `ml_dtypes` and backend dtype."""
         tensors = _map_arrays(_to_tensor_with_dtype, inputs)
@@ -362,6 +401,32 @@ class OpTest(TestCase):
             self.reference_fn(*inputs, **kwargs),
             f"TF graph output differs for {_describe(inputs, kwargs)}",
         )
+
+    def check_floatx(self, floatx, inputs, kwargs):
+        """Checks the op under a non-default `floatx`.
+
+        The eager outputs must equal `reference_fn`'s and the symbolic ones.
+        Without float array inputs, float outputs must have dtype `floatx`.
+        """
+        default = backend.floatx()
+        backend.set_floatx(floatx)
+        try:
+            self.check_eager(self.op, self.reference_fn, inputs, kwargs)
+            if _arrays(inputs):
+                self.check_symbolic(inputs, kwargs)
+            if not any(is_float_dtype(x.dtype) for x in _arrays(inputs)):
+                outputs = self.op(
+                    *_map_arrays(_to_tensor_with_dtype, inputs), **kwargs
+                )
+                for dtype in filter(is_float_dtype, _dtypes_of(outputs)):
+                    self.assertEqual(
+                        dtype,
+                        floatx,
+                        f"Float output under floatx={floatx} for "
+                        f"{_describe(inputs, kwargs)}",
+                    )
+        finally:
+            backend.set_floatx(default)
 
     def check_symbolic(self, inputs, kwargs, symbolic_shapes=None):
         """Checks the symbolic outputs against the eager ones.
@@ -462,6 +527,14 @@ class BinaryOpTest(OpTest):
         for scalar in (1, 1.0):
             inputs = (scalar, x) if scalar_side == "left" else (x, scalar)
             self.check_input_dtypes((dtype,), inputs, kwargs)
+
+    @parameterized.named_parameters(
+        ("bfloat16", "bfloat16"), ("float16", "float16")
+    )
+    def test_floatx_python_float(self, floatx):
+        (x, _), kwargs = self._first_case()
+        for inputs in ((x, 1.0), (1.0, x)):
+            self.check_floatx(floatx, inputs, kwargs)
 
 
 class ReductionOpTest(UnaryOpTest):

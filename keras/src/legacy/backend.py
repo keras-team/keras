@@ -7,6 +7,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.utils.module_utils import tensorflow as tf
 
 py_any = any
@@ -271,12 +272,12 @@ def binary_crossentropy(target, output, from_logits=False):
             labels=target, logits=output
         )
 
-    epsilon_ = tf.convert_to_tensor(backend.epsilon(), output.dtype)
+    epsilon_ = tf.convert_to_tensor(config.epsilon(), output.dtype)
     output = tf.clip_by_value(output, epsilon_, 1.0 - epsilon_)
 
     # Compute cross entropy from probabilities.
-    bce = target * tf.math.log(output + backend.epsilon())
-    bce += (1 - target) * tf.math.log(1 - output + backend.epsilon())
+    bce = target * tf.math.log(output + config.epsilon())
+    bce += (1 - target) * tf.math.log(1 - output + config.epsilon())
     return -bce
 
 
@@ -345,7 +346,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     output = output / tf.reduce_sum(output, axis, True)
 
     # Compute cross entropy from probabilities.
-    epsilon_ = tf.convert_to_tensor(backend.epsilon(), output.dtype)
+    epsilon_ = tf.convert_to_tensor(config.epsilon(), output.dtype)
     output = tf.clip_by_value(output, epsilon_, 1.0 - epsilon_)
     return -tf.reduce_sum(target * tf.math.log(output), axis)
 
@@ -373,7 +374,7 @@ def categorical_focal_crossentropy(
     # computed correctly.
     output = output / tf.reduce_sum(output, axis=axis, keepdims=True)
 
-    epsilon_ = tf.convert_to_tensor(backend.epsilon(), output.dtype)
+    epsilon_ = tf.convert_to_tensor(config.epsilon(), output.dtype)
     output = tf.clip_by_value(output, epsilon_, 1.0 - epsilon_)
 
     # Calculate cross entropy
@@ -648,7 +649,7 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
     )
 
     y_pred = tf.math.log(
-        tf.transpose(y_pred, perm=[1, 0, 2]) + backend.epsilon()
+        tf.transpose(y_pred, perm=[1, 0, 2]) + config.epsilon()
     )
 
     return tf.expand_dims(
@@ -706,7 +707,7 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1):
     input_shape = tf.shape(y_pred)
     num_samples, num_steps = input_shape[0], input_shape[1]
     y_pred = tf.math.log(
-        tf.transpose(y_pred, perm=[1, 0, 2]) + backend.epsilon()
+        tf.transpose(y_pred, perm=[1, 0, 2]) + config.epsilon()
     )
     input_length = tf.cast(input_length, tf.int32)
 
@@ -1947,7 +1948,7 @@ def sparse_categorical_crossentropy(
     target = cast(target, "int64")
 
     if not from_logits:
-        epsilon_ = tf.convert_to_tensor(backend.epsilon(), output.dtype)
+        epsilon_ = tf.convert_to_tensor(config.epsilon(), output.dtype)
         output = tf.clip_by_value(output, epsilon_, 1 - epsilon_)
         output = tf.math.log(output)
 

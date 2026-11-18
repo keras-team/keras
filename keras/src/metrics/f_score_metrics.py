@@ -1,6 +1,7 @@
 from keras.src import backend
 from keras.src import initializers
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.metrics.metric import Metric
 
 
@@ -207,11 +208,11 @@ class FBetaScore(Metric):
     def result(self):
         precision = backend.ops.numpy.divide(
             self.true_positives,
-            self.true_positives + self.false_positives + backend.epsilon(),
+            self.true_positives + self.false_positives + config.epsilon(),
         )
         recall = backend.ops.numpy.divide(
             self.true_positives,
-            self.true_positives + self.false_negatives + backend.epsilon(),
+            self.true_positives + self.false_negatives + config.epsilon(),
         )
 
         precision = backend.ops.convert_to_tensor(precision, dtype=self.dtype)
@@ -219,16 +220,14 @@ class FBetaScore(Metric):
 
         mul_value = precision * recall
         add_value = ((self.beta**2) * precision) + recall
-        mean = backend.ops.numpy.divide(
-            mul_value, add_value + backend.epsilon()
-        )
+        mean = backend.ops.numpy.divide(mul_value, add_value + config.epsilon())
         f1_score = mean * (1 + (self.beta**2))
 
         if self.average == "weighted":
             weights = backend.ops.numpy.divide(
                 self.intermediate_weights,
                 backend.ops.numpy.sum(self.intermediate_weights)
-                + backend.epsilon(),
+                + config.epsilon(),
             )
             f1_score = backend.ops.numpy.sum(f1_score * weights)
 

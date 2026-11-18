@@ -3,6 +3,7 @@ import warnings
 from keras.src import backend
 from keras.src import initializers
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.metrics.metric import Metric
 from keras.src.metrics.metrics_utils import confusion_matrix
 
@@ -326,7 +327,7 @@ class IoU(_IoUBase):
 
         iou = backend.ops.numpy.divide(
             true_positives,
-            denominator + backend.epsilon(),
+            denominator + config.epsilon(),
         )
         # Zero out IoU for absent classes so they
         # contribute 0.0, not ~1.0.
@@ -337,7 +338,7 @@ class IoU(_IoUBase):
         # inputs and is only meaningful in `update_state`.
         return backend.ops.numpy.divide(
             backend.ops.numpy.sum(iou),
-            num_valid_entries + backend.epsilon(),
+            num_valid_entries + config.epsilon(),
         )
 
     def get_config(self):

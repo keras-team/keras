@@ -16,6 +16,7 @@ from jax.experimental.pallas.ops.tpu.splash_attention import (
 )
 
 from keras.src import backend
+from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import result_type
@@ -1003,7 +1004,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = jax.nn.log_softmax(output, axis=axis)
     else:
         output = output / jnp.sum(output, axis, keepdims=True)
-        output = jnp.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        output = jnp.clip(output, config.epsilon(), 1.0 - config.epsilon())
         log_prob = jnp.log(output)
     return -jnp.sum(target * log_prob, axis=axis)
 
@@ -1030,7 +1031,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = jax.nn.log_softmax(output, axis=axis)
     else:
         output = output / jnp.sum(output, axis, keepdims=True)
-        output = jnp.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        output = jnp.clip(output, config.epsilon(), 1.0 - config.epsilon())
         log_prob = jnp.log(output)
     target = jnn.one_hot(target, output.shape[axis], axis=axis)
     return -jnp.sum(target * log_prob, axis=axis)
@@ -1055,7 +1056,7 @@ def binary_crossentropy(target, output, from_logits=False):
         log_neg_logits = jax.nn.log_sigmoid(-output)
         return -1.0 * target * log_logits - (1.0 - target) * log_neg_logits
 
-    output = jnp.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+    output = jnp.clip(output, config.epsilon(), 1.0 - config.epsilon())
     bce = target * jnp.log(output)
     bce += (1.0 - target) * jnp.log(1.0 - output)
     return -bce
