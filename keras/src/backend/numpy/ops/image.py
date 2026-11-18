@@ -609,6 +609,8 @@ def affine_transform(
         images = np.transpose(images, (0, 2, 3, 1))
 
     batch_size = images.shape[0]
+    if transform.shape[0] == 1 and batch_size > 1:
+        transform = np.tile(transform, (batch_size, 1))
 
     # get indices
     meshgrid = np.meshgrid(

@@ -463,6 +463,8 @@ def affine_transform(
         images = jnp.transpose(images, (0, 2, 3, 1))
 
     batch_size = images.shape[0]
+    if transform.shape[0] == 1 and batch_size > 1:
+        transform = jnp.repeat(transform, batch_size, axis=0)
 
     # get indices
     meshgrid = jnp.meshgrid(
