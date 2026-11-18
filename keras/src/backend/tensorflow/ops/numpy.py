@@ -2941,9 +2941,19 @@ def roll(x, shift, axis=None):
         # `tf.roll` requires `shift` and `axis` to have the same length,
         # while numpy broadcasts them against each other.
         if tf.is_tensor(shift) or tf.is_tensor(axis):
-            shape = tf.broadcast_dynamic_shape(tf.shape(shift), tf.shape(axis))
-            shifts = tf.broadcast_to(shift, shape)
-            axes = tf.broadcast_to(axis, shape)
+            # `tf.roll` only accepts int32/int64 `shift` and `axis`.
+            shifts = tf.cast(shift, "int32")
+            axes = tf.cast(axis, "int32")
+            try:
+                tf.broadcast_static_shape(shifts.shape, axes.shape)
+            except ValueError:
+                raise ValueError(
+                    "`shift` and `axis` must be broadcastable to the same "
+                    f"length. Received: shift={shift}, axis={axis}"
+                )
+            shape = tf.broadcast_dynamic_shape(tf.shape(shifts), tf.shape(axes))
+            shifts = tf.broadcast_to(shifts, shape)
+            axes = tf.broadcast_to(axes, shape)
         else:
             shifts, axes = normalize_shift_and_axis(shift, axis)
         return tf.roll(x, shift=shifts, axis=axes)

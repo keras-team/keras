@@ -7416,6 +7416,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.roll(x, ops.convert_to_tensor(1), axis=[0, 1]),
             np.roll(x, 1, axis=[0, 1]),
         )
+        self.assertAllClose(
+            knp.roll(x, ops.convert_to_tensor(1, "int8"), axis=0),
+            np.roll(x, 1, axis=0),
+        )
+        with self.assertRaises(ValueError):
+            knp.roll(x, ops.convert_to_tensor([1, 2]), axis=[0, 1, 1])
         self.assertAllClose(knp.Roll(1)(x), np.roll(x, 1))
         self.assertAllClose(knp.Roll(1, axis=1)(x), np.roll(x, 1, axis=1))
         self.assertAllClose(knp.Roll(-1, axis=0)(x), np.roll(x, -1, axis=0))
