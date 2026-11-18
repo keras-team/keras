@@ -7,6 +7,7 @@ from keras.src import metrics as metrics_module
 from keras.src import ops
 from keras.src import optimizers
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import StatelessScope
 from keras.src.backend.common import is_float_dtype
@@ -252,6 +253,13 @@ class BaseTrainer:
             warnings.warn(
                 "Model doesn't support `jit_compile=True`. "
                 "Proceeding with `jit_compile=False`."
+            )
+            self._jit_compile = False
+        elif value and _uses_multi_replica_tf_distribute(self):
+            warnings.warn(
+                "`jit_compile=True` is not supported with a multi-replica "
+                "`tf.distribute` strategy. Proceeding with "
+                "`jit_compile=False`."
             )
             self._jit_compile = False
         else:
@@ -1250,3 +1258,14 @@ def model_supports_jit(model):
                 return False
         return True
     return False
+
+
+def _uses_multi_replica_tf_distribute(model):
+    if config.backend() != "tensorflow" or not model._distribute_strategy:
+        return False
+    from keras.src.utils.module_utils import tensorflow as tf
+
+    strategy = model._distribute_strategy
+    return strategy.num_replicas_in_sync > 1 and not isinstance(
+        strategy, tf.distribute.TPUStrategy
+    )
