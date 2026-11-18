@@ -3,9 +3,9 @@ import math
 import ml_dtypes
 import numpy as np
 
-from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import standardize_axis_for_numpy
 
@@ -66,7 +66,7 @@ def abs_max_quantize(
     axis,
     value_range=(-127, 127),
     dtype="int8",
-    epsilon=backend.epsilon(),
+    epsilon=config.epsilon(),
     to_numpy=False,
 ):
     """
@@ -120,7 +120,7 @@ def abs_max_quantize_grouped_with_zero_point(
     block_size,
     value_range=(-8, 7),
     dtype="int8",
-    epsilon=backend.epsilon(),
+    epsilon=config.epsilon(),
     to_numpy=False,
 ):
     """Quantizes a 2D tensor using grouped asymmetric quantization with
@@ -297,7 +297,7 @@ class AbsMaxQuantizer(Quantizer):
         self,
         axis=None,  # Deprecated, provide axis in __call__ instead.
         value_range=(-127, 127),
-        epsilon=backend.epsilon(),
+        epsilon=config.epsilon(),
         output_dtype="int8",
     ):
         Quantizer.__init__(self, output_dtype=output_dtype)

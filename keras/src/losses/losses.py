@@ -7,6 +7,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import get_keras_mask
 from keras.src.backend.common import set_keras_mask
 from keras.src.backend.common import standardize_dtype
@@ -2043,7 +2044,7 @@ def mean_absolute_percentage_error(y_true, y_pred):
     ```
 
     Division by zero is prevented by dividing by `maximum(y_true, epsilon)`
-    where `epsilon = keras.backend.epsilon()`
+    where `epsilon = keras.config.epsilon()`
     (default to `1e-7`).
 
     Args:
@@ -2062,7 +2063,7 @@ def mean_absolute_percentage_error(y_true, y_pred):
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
-    epsilon = ops.convert_to_tensor(backend.epsilon(), dtype=y_pred.dtype)
+    epsilon = ops.convert_to_tensor(config.epsilon(), dtype=y_pred.dtype)
     y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
     diff = ops.abs((y_true - y_pred) / ops.maximum(ops.abs(y_true), epsilon))
     return 100.0 * ops.mean(diff, axis=-1)
@@ -2089,7 +2090,7 @@ def mean_squared_logarithmic_error(y_true, y_pred):
     ```
 
     Note that `y_pred` and `y_true` cannot be less or equal to 0. Negative
-    values and 0 values will be replaced with `keras.backend.epsilon()`
+    values and 0 values will be replaced with `keras.config.epsilon()`
     (default to `1e-7`).
 
     Args:
@@ -2106,7 +2107,7 @@ def mean_squared_logarithmic_error(y_true, y_pred):
     >>> y_pred = np.random.random(size=(2, 3))
     >>> loss = keras.losses.mean_squared_logarithmic_error(y_true, y_pred)
     """
-    epsilon = ops.convert_to_tensor(backend.epsilon())
+    epsilon = ops.convert_to_tensor(config.epsilon())
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     y_true, y_pred = squeeze_or_expand_to_same_rank(y_true, y_pred)
@@ -2298,8 +2299,8 @@ def kl_divergence(y_true, y_pred):
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, y_pred.dtype)
-    y_true = ops.clip(y_true, backend.epsilon(), 1)
-    y_pred = ops.clip(y_pred, backend.epsilon(), 1)
+    y_true = ops.clip(y_true, config.epsilon(), 1)
+    y_pred = ops.clip(y_pred, config.epsilon(), 1)
     return ops.sum(y_true * ops.log(y_true / y_pred), axis=-1)
 
 
@@ -2338,7 +2339,7 @@ def poisson(y_true, y_pred):
     """
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
-    epsilon = ops.convert_to_tensor(backend.epsilon(), dtype=y_pred.dtype)
+    epsilon = ops.convert_to_tensor(config.epsilon(), dtype=y_pred.dtype)
     return ops.mean(y_pred - y_true * ops.log(y_pred + epsilon), axis=-1)
 
 
@@ -2494,7 +2495,7 @@ def categorical_focal_crossentropy(
     # This is needed to ensure that the cross entropy is
     # computed correctly.
     output = y_pred / ops.sum(y_pred, axis=axis, keepdims=True)
-    output = ops.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+    output = ops.clip(output, config.epsilon(), 1.0 - config.epsilon())
 
     # Calculate cross entropy
     cce = -y_true * ops.log(output)
@@ -2623,7 +2624,7 @@ def sparse_categorical_focal_crossentropy(
         y_pred = ops.softmax(y_pred, axis=axis)
 
     output = y_pred / ops.sum(y_pred, axis=axis, keepdims=True)
-    output = ops.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+    output = ops.clip(output, config.epsilon(), 1.0 - config.epsilon())
     true_class_prob = ops.take_along_axis(
         output, ops.expand_dims(safe_y_true, axis=axis), axis=axis
     )
@@ -2771,7 +2772,7 @@ def sparse_categorical_crossentropy(
             probs = ops.divide(
                 y_pred, ops.sum(y_pred, axis=axis, keepdims=True)
             )
-            probs = ops.clip(probs, backend.epsilon(), 1.0 - backend.epsilon())
+            probs = ops.clip(probs, config.epsilon(), 1.0 - config.epsilon())
             uniform_res = ops.negative(ops.mean(ops.log(probs), axis=axis))
         res = ops.add(
             ops.multiply(1.0 - label_smoothing, res),
@@ -3023,7 +3024,7 @@ def dice(y_true, y_pred, axis=None):
         2.0 * intersection,
         ops.sum(y_true, axis=axis)
         + ops.sum(y_pred, axis=axis)
-        + backend.epsilon(),
+        + config.epsilon(),
     )
 
     return 1 - dice
@@ -3065,7 +3066,7 @@ def tversky(y_true, y_pred, alpha=0.5, beta=0.5, axis=None):
 
     tversky = ops.divide(
         intersection,
-        intersection + fp * alpha + fn * beta + backend.epsilon(),
+        intersection + fp * alpha + fn * beta + config.epsilon(),
     )
 
     return 1 - tversky
