@@ -4,6 +4,7 @@ from keras.src import initializers
 from keras.src import ops
 from keras.src import regularizers
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import result_type
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
@@ -462,7 +463,7 @@ class BatchNormalization(Layer):
             self._reduction_axes,
             keepdims=True,
         )
-        mean = masked_input_sum / (sum_of_weights + backend.epsilon())
+        mean = masked_input_sum / (sum_of_weights + config.epsilon())
         # Explicit del to free large intermediates in eager mode (e.g. Torch).
         # No effect under jit/tf.function, but harmless.
         del masked_inputs, masked_input_sum
@@ -476,7 +477,7 @@ class BatchNormalization(Layer):
             keepdims=True,
         )
         del squared_difference
-        variance = weighted_distsq / (sum_of_weights + backend.epsilon())
+        variance = weighted_distsq / (sum_of_weights + config.epsilon())
         del weighted_distsq
 
         return ops.squeeze(mean), ops.squeeze(variance)

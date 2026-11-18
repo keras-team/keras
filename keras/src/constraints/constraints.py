@@ -1,6 +1,7 @@
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 
 
 @keras_export("keras.constraints.Constraint")
@@ -110,9 +111,7 @@ class MaxNorm(Constraint):
         w = backend.ops.convert_to_tensor(w)
         norms = ops.sqrt(ops.sum(ops.square(w), axis=self.axis, keepdims=True))
         desired = ops.clip(norms, 0, self.max_value)
-        return ops.cast(w, norms.dtype) * (
-            desired / (backend.epsilon() + norms)
-        )
+        return ops.cast(w, norms.dtype) * (desired / (config.epsilon() + norms))
 
     def get_config(self):
         return {"max_value": self.max_value, "axis": self.axis}
@@ -151,7 +150,7 @@ class UnitNorm(Constraint):
     def __call__(self, w):
         w = backend.ops.convert_to_tensor(w)
         norms = ops.sqrt(ops.sum(ops.square(w), axis=self.axis, keepdims=True))
-        return ops.cast(w, norms.dtype) / (backend.epsilon() + norms)
+        return ops.cast(w, norms.dtype) / (config.epsilon() + norms)
 
     def get_config(self):
         return {"axis": self.axis}
@@ -202,9 +201,7 @@ class MinMaxNorm(Constraint):
             self.rate * ops.clip(norms, self.min_value, self.max_value)
             + (1 - self.rate) * norms
         )
-        return ops.cast(w, norms.dtype) * (
-            desired / (backend.epsilon() + norms)
-        )
+        return ops.cast(w, norms.dtype) * (desired / (config.epsilon() + norms))
 
     def get_config(self):
         return {

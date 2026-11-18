@@ -6,6 +6,7 @@ from keras.src import initializers
 from keras.src import layers
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import standardize_dtype
 from keras.src.utils import argument_validation
 from keras.src.utils.module_utils import scipy
@@ -340,13 +341,13 @@ class STFTSpectrogram(layers.Layer):
                 )
             )
         linear_stft = self._adjust_shapes(
-            ops.sqrt(ops.maximum(power, backend.epsilon()))
+            ops.sqrt(ops.maximum(power, config.epsilon()))
         )
 
         if self.mode == "magnitude":
             return linear_stft
         else:
-            return ops.log(ops.maximum(linear_stft, backend.epsilon()))
+            return ops.log(ops.maximum(linear_stft, config.epsilon()))
 
     def compute_output_shape(self, input_shape):
         if self.data_format == "channels_last":

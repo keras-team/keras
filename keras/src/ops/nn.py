@@ -2646,7 +2646,7 @@ def normalize(x, axis=-1, order=2, epsilon=None):
         order: The exponent value in the norm formulation.
             Defaults to 2.
         epsilon: A lower bound value for the norm.
-            Defaults to `backend.epsilon()`.
+            Defaults to `config.epsilon()`.
 
     Returns:
         The normalized array.
@@ -2676,7 +2676,7 @@ def _normalize(x, axis=-1, order=2, epsilon=None):
     if len(x.shape) == 0:
         x = backend.ops.numpy.expand_dims(x, axis=0)
     if epsilon is None:
-        epsilon = backend.epsilon()
+        epsilon = config.epsilon()
     if 2 == order:
         # A special case: L2 normalization with `x * rsqrt(...)`
         # instead of `x / sqrt(...)`. Clamp the squared norm before the
@@ -2961,7 +2961,7 @@ def rms_normalization(x, scale=None, axis=-1, epsilon=None):
         axis: The axis or axes along which to perform normalization. Defaults
             to `-1`.
         epsilon: A lower bound value for the norm. Defaults to
-            `backend.epsilon()`.
+            `config.epsilon()`.
 
     Returns:
         The normalized array.
@@ -2980,7 +2980,7 @@ def rms_normalization(x, scale=None, axis=-1, epsilon=None):
 
 def _rms_normalization(x, scale=None, axis=-1, epsilon=None):
     if epsilon is None:
-        epsilon = backend.epsilon()
+        epsilon = config.epsilon()
     original_dtype = standardize_dtype(x.dtype)
     # Computes in at least float32 precision for stability in half precision
     # training.
@@ -3057,7 +3057,7 @@ def layer_normalization(
         axis: The axis or axes along which to perform normalization. Default to
             `-1`.
         epsilon: A lower bound value for the norm.
-            Defaults to `backend.epsilon()`.
+            Defaults to `config.epsilon()`.
 
     Returns:
         The normalized array.
@@ -3096,7 +3096,7 @@ def _layer_normalization(
     x, gamma=None, beta=None, axis=-1, epsilon=None, rms_scaling=False
 ):
     if epsilon is None:
-        epsilon = backend.epsilon()
+        epsilon = config.epsilon()
     original_dtype = standardize_dtype(x.dtype)
     # Computes in at least float32 precision for stability in half precision
     # training.
