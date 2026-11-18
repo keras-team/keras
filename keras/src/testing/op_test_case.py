@@ -1,4 +1,5 @@
 import functools
+import inspect
 import itertools
 
 import ml_dtypes
@@ -115,6 +116,9 @@ class OpTest(TestCase):
       trip.
     - `test_input_variants`: for every case, the op accepts NumPy arrays,
       `Variable`s and Python lists and gives `reference_fn`'s outputs.
+    - `test_dtype_argument`: for every case, `dtype=` is honored as a `str`,
+      NumPy, `ml_dtypes` and backend dtype. Skipped when the op has no `dtype`
+      parameter.
 
     `UnaryOpTest`, `BinaryOpTest` and `ReductionOpTest` also set the standard
     inputs of their category and add one test per input dtype combination,
@@ -220,6 +224,12 @@ class OpTest(TestCase):
         for inputs, kwargs in self._cases().values():
             self.check_input_variants(inputs, kwargs)
 
+    def test_dtype_argument(self):
+        if "dtype" not in inspect.signature(self.op).parameters:
+            self.skipTest("No `dtype` argument")
+        for inputs, kwargs in self._cases().values():
+            self.check_dtype_argument(inputs, kwargs)
+
     def assertOutputsClose(self, outputs, expected, msg):
         """Asserts `outputs` have the structure and values of `expected`.
 
@@ -303,6 +313,22 @@ class OpTest(TestCase):
                 f"Unexpected output for {variant.__name__} inputs, "
                 f"{_describe(inputs, kwargs)}",
             )
+
+    def check_dtype_argument(self, inputs, kwargs):
+        """Checks `dtype=` as a str, NumPy, `ml_dtypes` and backend dtype."""
+        tensors = _map_arrays(_to_tensor_with_dtype, inputs)
+        backend_float16 = ops.convert_to_tensor(0, dtype="float16").dtype
+        for dtype in (
+            "float16",
+            np.float16,
+            ml_dtypes.bfloat16,
+            backend_float16,
+        ):
+            outputs = self.op(*tensors, **kwargs, dtype=dtype)
+            for out in tree.flatten(outputs):
+                self.assertDType(out, dtype)
+            if _arrays(inputs):
+                self.check_symbolic(inputs, {**kwargs, "dtype": dtype})
 
     def check_symbolic(self, inputs, kwargs, symbolic_shapes=None):
         """Checks the symbolic outputs against the eager ones.

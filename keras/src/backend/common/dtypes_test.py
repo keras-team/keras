@@ -280,6 +280,22 @@ class DtypesTest(test_case.TestCase):
             self.assertEqual(result_type(float), "bfloat16")
             self.assertEqual(result_type("int32", float), "bfloat16")
             self.assertEqual(dtypes.promote_to_float_dtype("int32"), "bfloat16")
-            self.assertEqual(dtypes.promote_to_float_dtype("int64"), "float64")
         finally:
             config.set_floatx(default)
+
+    @parameterized.named_parameters(
+        ("int32", "int32", "float32", "float32"),
+        ("int64", "int64", "float32", "float64"),
+        ("uint64", "uint64", "float32", "float64"),
+        ("float16", "float16", "float16", "float16"),
+        ("float64", "float64", "float32", "float64"),
+    )
+    @pytest.mark.skipif(
+        not X64_SUPPORTED or backend.backend() == "tensorflow",
+        reason="Needs `off` and `explicit_x64`.",
+    )
+    def test_promote_to_float_dtype(self, dtype, off, explicit_x64):
+        with x64_mode_scope("off"):
+            self.assertEqual(dtypes.promote_to_float_dtype(dtype), off)
+        with x64_mode_scope("explicit_x64"):
+            self.assertEqual(dtypes.promote_to_float_dtype(dtype), explicit_x64)
