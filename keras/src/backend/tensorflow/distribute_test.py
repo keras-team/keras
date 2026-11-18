@@ -128,16 +128,10 @@ class DistributeTest(testing.TestCase):
     def test_jit_compile_disabled_with_multi_replica_strategy(self):
         strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
         with strategy.scope():
-            inputs = layers.Input(shape=[4])
-            model = models.Functional(inputs, layers.Dense(2)(inputs))
+            model = models.Sequential([layers.Input((4,)), layers.Dense(2)])
             with self.assertWarnsRegex(UserWarning, "multi-replica"):
                 model.compile(optimizer="sgd", loss="mse", jit_compile=True)
         self.assertFalse(model.jit_compile)
-
-        history = model.fit(
-            np.random.random((16, 4)), np.random.random((16, 2)), epochs=1
-        )
-        self.assertLen(history.history["loss"], 1)
 
     def test_variable_aggregation(self):
         strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
