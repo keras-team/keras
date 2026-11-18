@@ -665,6 +665,7 @@ class VariableDtypeShapeNdimRepr(test_case.TestCase):
         ("dtype", "int32", None),
         ("dtype_no_op", "float32", None),
         ("copy", None, True),
+        ("no_copy", None, False),
     )
     def test_variable_array(self, dtype, copy):
         """Test converting a variable to an array."""
@@ -680,6 +681,8 @@ class VariableDtypeShapeNdimRepr(test_case.TestCase):
             self.assertEqual(np_v.dtype, dtype)
         if copy:
             self.assertIsNot(np_v, v._value)
+            np_v[0] = 0
+            self.assertAllClose(v, np.array([1, 2, 3]))
 
 
 class VariableOpsCorrectnessTest(test_case.TestCase):

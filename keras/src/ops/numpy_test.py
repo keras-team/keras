@@ -2431,10 +2431,6 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.split(x, [1, 3], axis=1)[1].shape, (None, 2, 3))
         self.assertEqual(knp.split(x, [1, 3], axis=1)[2].shape, (None, 0, 3))
 
-    def test_sqrt(self):
-        x = KerasTensor((None, 3))
-        self.assertEqual(knp.sqrt(x).shape, (None, 3))
-
     def test_stack(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((None, 3))
@@ -3296,10 +3292,6 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(splits[1].shape, (3, 3, 2))
         self.assertEqual(splits[2].shape, (3, 3, 2))
 
-    def test_sqrt(self):
-        x = KerasTensor((2, 3))
-        self.assertEqual(knp.sqrt(x).shape, (2, 3))
-
     def test_stack(self):
         x = KerasTensor((2, 3))
         y = KerasTensor((2, 3))
@@ -3803,8 +3795,10 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         expected_result = np.array(
             [[1, 0, 0], [0, 0, 0], [np.inf, -np.inf, np.nan]]
         )
-        self.assertAllClose(knp.divide_no_nan(x, y), expected_result)
-        self.assertAllClose(knp.DivideNoNan()(x, y), expected_result)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", RuntimeWarning)
+            self.assertAllClose(knp.divide_no_nan(x, y), expected_result)
+            self.assertAllClose(knp.DivideNoNan()(x, y), expected_result)
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     @pytest.mark.skipif(
@@ -7710,26 +7704,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.dsplit(x_kr, indices_kr), np.dsplit(x, indices_np)
         ):
             self.assertAllClose(split_knp, split_np)
-
-    def test_sqrt(self):
-        x = np.array([[1, 4, 9], [16, 25, 36]], dtype="float32")
-        ref_y = np.sqrt(x)
-        y = knp.sqrt(x)
-        self.assertEqual(standardize_dtype(y.dtype), "float32")
-        self.assertAllClose(y, ref_y)
-        y = knp.Sqrt()(x)
-        self.assertEqual(standardize_dtype(y.dtype), "float32")
-        self.assertAllClose(y, ref_y)
-
-    def test_sqrt_int32(self):
-        x = np.array([[1, 4, 9], [16, 25, 36]], dtype="int32")
-        ref_y = np.sqrt(x)
-        y = knp.sqrt(x)
-        self.assertEqual(standardize_dtype(y.dtype), "float32")
-        self.assertAllClose(y, ref_y)
-        y = knp.Sqrt()(x)
-        self.assertEqual(standardize_dtype(y.dtype), "float32")
-        self.assertAllClose(y, ref_y)
 
     def test_stack(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -13211,22 +13185,6 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_sqrt(self, dtype):
-        import jax.numpy as jnp
-
-        x1 = knp.ones((1,), dtype=dtype)
-        x1_jax = jnp.ones((1,), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.sqrt(x1_jax).dtype)
-        if dtype == "int64":
-            expected_dtype = backend.floatx()
-
-        self.assertEqual(standardize_dtype(knp.sqrt(x1).dtype), expected_dtype)
-        self.assertEqual(
-            standardize_dtype(knp.Sqrt().symbolic_call(x1).dtype),
-            expected_dtype,
-        )
-
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
     )
@@ -13995,14 +13953,10 @@ class CbrtTest(UnaryOpTest):
         "negative": ((np.array([[-8, -1, 0], [1, 8, 27]], "float32"),), {}),
     }
 
-    @pytest.mark.skipif(
-        keras.config.x64_mode() == "explicit_x64"
-        and backend.backend() in ("jax", "numpy"),
-        reason="TODO: `Cbrt.compute_output_spec` returns uint64 while the "
-        "eager output is float64 (#24040).",
-    )
-    def test_input_dtypes_uint64(self):
-        self.check_input_dtypes(("uint64",))
+
+class SqrtTest(UnaryOpTest):
+    op, op_class = knp.sqrt, knp.Sqrt
+    reference_fn, jax_fn = np.sqrt, jnp.sqrt
 
 
 class AddTest(BinaryOpTest):

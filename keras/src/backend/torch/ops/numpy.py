@@ -405,9 +405,7 @@ def abs(x):
 
 def fabs(x):
     x = convert_to_tensor(x)
-    dtype = standardize_dtype(x.dtype)
-    if "int" in dtype or dtype == "bool":
-        x = cast(x, config.floatx())
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.abs(x)
 
 
@@ -469,26 +467,31 @@ def arange(start, stop=None, step=None, dtype=None):
 
 def arccos(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.arccos(x)
 
 
 def arccosh(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.arccosh(x)
 
 
 def arcsin(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.arcsin(x)
 
 
 def arcsinh(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.arcsinh(x)
 
 
 def arctan(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.arctan(x)
 
 
@@ -505,6 +508,7 @@ def arctan2(x1, x2):
 
 def arctanh(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.arctanh(x)
 
 
@@ -757,10 +761,7 @@ def ceil(x):
     elif get_device() == "cpu" and ori_dtype == "float16":
         x = cast(x, config.floatx())
 
-    if ori_dtype == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(ori_dtype, float)
+    dtype = dtypes.promote_to_float_dtype(ori_dtype)
     return cast(torch.ceil(x), dtype=dtype)
 
 
@@ -813,11 +814,13 @@ def copysign(x1, x2):
 
 def cos(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.cos(x)
 
 
 def cosh(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.cosh(x)
 
 
@@ -919,19 +922,13 @@ def cumsum(x, axis=None, dtype=None):
 
 def deg2rad(x):
     x = convert_to_tensor(x)
-
-    if standardize_dtype(x.dtype) == "int64":
-        return cast(torch.deg2rad(x), "float64")
-
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.deg2rad(x)
 
 
 def rad2deg(x):
     x = convert_to_tensor(x)
-
-    if standardize_dtype(x.dtype) == "int64":
-        return cast(torch.rad2deg(x), "float64")
-
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.rad2deg(x)
 
 
@@ -1014,17 +1011,13 @@ def equal(x1, x2):
 
 def exp(x):
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    if "int" in ori_dtype or ori_dtype == "bool":
-        x = cast(x, config.floatx())
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.exp(x)
 
 
 def exp2(x):
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    if "int" in ori_dtype or ori_dtype == "bool":
-        x = cast(x, config.floatx())
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.exp2(x)
 
 
@@ -1040,9 +1033,7 @@ def expand_dims(x, axis):
 
 def expm1(x):
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    if "int" in ori_dtype or ori_dtype == "bool":
-        x = cast(x, config.floatx())
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.expm1(x)
 
 
@@ -1066,11 +1057,7 @@ def flipud(x):
 
 def floor(x):
     x = convert_to_tensor(x)
-    dtype = (
-        config.floatx()
-        if standardize_dtype(x.dtype) == "int64"
-        else dtypes.result_type(x.dtype, float)
-    )
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = cast(x, dtype)
     return torch.floor(x)
 
@@ -1184,12 +1171,7 @@ def imag(x):
 
 def i0(x):
     x = convert_to_tensor(x)
-    dtype = standardize_dtype(x.dtype)
-    if dtype in ["int64", "float64"]:
-        dtype = "float64"
-    elif dtype not in ["bfloat16", "float16"]:
-        dtype = config.floatx()
-    x = cast(x, dtype)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.i0(x)
 
 
@@ -1355,21 +1337,25 @@ def linspace(
 
 def log(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.log(x)
 
 
 def log10(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.log10(x)
 
 
 def log1p(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.log1p(x)
 
 
 def log2(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.log2(x)
 
 
@@ -1959,6 +1945,7 @@ def real(x):
 
 def reciprocal(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.reciprocal(x)
 
 
@@ -2043,16 +2030,19 @@ def signbit(x):
 
 def sin(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.sin(x)
 
 
 def sinc(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.sinc(x)
 
 
 def sinh(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.sinh(x)
 
 
@@ -2172,11 +2162,13 @@ def take_along_axis(x, indices, axis=None):
 
 def tan(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.tan(x)
 
 
 def tanh(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.tanh(x)
 
 
@@ -2373,8 +2365,7 @@ def square(x):
 
 def sqrt(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        x = cast(x, config.floatx())
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.sqrt(x)
 
 
