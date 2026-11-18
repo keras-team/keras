@@ -105,7 +105,8 @@ def _environment():
         except importlib.metadata.PackageNotFoundError:
             pass
     try:
-        device = keras.distribution.list_devices()[0]
+        devices = keras.distribution.list_devices()
+        device = devices[0] if devices else None
     except AttributeError:
         # Backends without a distribution_lib, like numpy.
         device = None

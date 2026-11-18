@@ -18,9 +18,12 @@ def run_backend(backend, module, flags):
     ) as proc:
         for line in proc.stdout:
             if _RESULT_PREFIX in line:
-                results.append(json.loads(line.split(_RESULT_PREFIX, 1)[1]))
-            else:
-                print(line, end="")
+                try:
+                    results.append(json.loads(line.split(_RESULT_PREFIX, 1)[1]))
+                    continue
+                except json.JSONDecodeError:
+                    pass
+            print(line, end="")
     return proc.returncode == 0, results
 
 
