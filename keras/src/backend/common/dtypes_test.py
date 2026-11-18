@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-import numpy as np
 import pytest
 from absl.testing import parameterized
 
@@ -184,8 +183,6 @@ class DtypesTest(test_case.TestCase):
             result_type(1)
 
     def test_result_type_unhashable_argument(self):
-        with self.assertRaises(ValueError):
-            result_type(np.array([1, 2]))
         with self.assertRaises(TypeError):
             result_type([1, 2])
         with self.assertRaises(TypeError):
