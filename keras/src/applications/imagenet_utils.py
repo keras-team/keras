@@ -35,9 +35,9 @@ PREPROCESS_INPUT_DOC = """
         x: A floating point `numpy.array` or a backend-native tensor,
             3D or 4D with 3 color
             channels, with values in the range [0, 255].
-            The preprocessed data are written over the input data
-        if the data types are compatible. To avoid this
-        behaviour, `numpy.copy(x)` can be used.
+            NumPy array inputs are overwritten with the preprocessed data
+            if the data types are compatible. To avoid this, pass
+            `numpy.copy(x)` instead.
         data_format: Optional data format of the image tensor/array. None, means
         the global setting `keras.backend.image_data_format()` is used
         (unless you changed it, it uses "channels_last").{mode}
@@ -254,11 +254,11 @@ def _preprocess_tensor_input(x, data_format, mode):
     ndim = len(x.shape)
 
     if mode == "tf":
-        x /= 127.5
-        x -= 1.0
+        x = x / 127.5
+        x = x - 1.0
         return x
     elif mode == "torch":
-        x /= 255.0
+        x = x / 255.0
         mean = [0.485, 0.456, 0.406]
         std = [0.229, 0.224, 0.225]
     else:
@@ -284,12 +284,12 @@ def _preprocess_tensor_input(x, data_format, mode):
             mean_tensor = ops.reshape(mean_tensor, (1, 3) + (1,) * (ndim - 2))
     else:
         mean_tensor = ops.reshape(mean_tensor, (1,) * (ndim - 1) + (3,))
-    x += mean_tensor
+    x = x + mean_tensor
     if std is not None:
         std_tensor = ops.convert_to_tensor(np.array(std), dtype=x.dtype)
         if data_format == "channels_first":
             std_tensor = ops.reshape(std_tensor, (-1, 1, 1))
-        x /= std_tensor
+        x = x / std_tensor
     return x
 
 

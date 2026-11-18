@@ -123,6 +123,9 @@ class OpTest(TestCase):
       trip.
     - `test_input_variants`: for every case, the op accepts NumPy arrays,
       `Variable`s and Python lists and gives `reference_fn`'s outputs.
+    - `test_gradients`: the gradients of the first case's summed output with
+      respect to its arrays, cast to float32, are finite. Skipped on
+      backends without autodiff.
     - `test_dtype_argument`: for every case, `dtype=` is honored as a `str`,
       NumPy, `ml_dtypes` and backend dtype. Skipped when the op has no `dtype`
       parameter.
@@ -235,6 +238,11 @@ class OpTest(TestCase):
         for inputs, kwargs in self._cases().values():
             self.check_input_variants(inputs, kwargs)
 
+    def test_gradients(self):
+        if not backend.SUPPORTS_GRADIENT:
+            self.skipTest(f"No gradients on the {backend.backend()} backend")
+        self.check_gradients(*self._first_case())
+
     def test_dtype_argument(self):
         if "dtype" not in inspect.signature(self.op).parameters:
             self.skipTest("No `dtype` argument")
@@ -330,6 +338,31 @@ class OpTest(TestCase):
                 expected,
                 f"Unexpected output for {variant.__name__} inputs, "
                 f"{_describe(inputs, kwargs)}",
+            )
+
+    def check_gradients(self, inputs, kwargs):
+        """Checks the gradients with respect to the arrays are finite.
+
+        The arrays are cast to float32 and the summed output is
+        differentiated with respect to each of them.
+        """
+        arrays = [x.astype("float32") for x in _arrays(inputs)]
+        if not arrays:
+            self.skipTest("No array inputs, so no gradients")
+        inputs = _with_arrays(inputs, arrays)
+        fn = _array_function(self.op, inputs, kwargs)
+        tensors = [_to_tensor_with_dtype(x) for x in arrays]
+        if not any(map(is_float_dtype, _dtypes_of(fn(*tensors)))):
+            self.skipTest("No float outputs, so no gradients")
+        grads = ops.grad(fn, argnums=tuple(range(len(arrays))))(*tensors)
+        for i, grad in enumerate(grads):
+            grad = ops.convert_to_numpy(grad)
+            self.assertTrue(
+                np.isfinite(grad).all(),
+                f"Non-finite gradient of input {i} for "
+                f"{_describe(inputs, kwargs)}: {grad.tolist()}. If the op is "
+                "not differentiable there, put a differentiable case first: "
+                "`test_gradients` uses the first case.",
             )
 
     def check_dtype_argument(self, inputs, kwargs):

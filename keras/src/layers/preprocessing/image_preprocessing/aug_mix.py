@@ -324,7 +324,9 @@ class AugMix(BaseImagePreprocessingLayer):
                         layer_idxes[idx][depth],
                         "transform_images",
                     )
-                aug_images += copied_images * chain_mixing_weights[idx]
+                aug_images = (
+                    aug_images + copied_images * chain_mixing_weights[idx]
+                )
             images = weight_sample * images + (1 - weight_sample) * aug_images
 
             images = self.backend.ops.numpy.clip(
@@ -368,7 +370,7 @@ class AugMix(BaseImagePreprocessingLayer):
                         layer_idxes[idx][depth],
                         "transform_segmentation_masks",
                     )
-                aug_masks += copied_masks * chain_mixing_weights[idx]
+                aug_masks = aug_masks + copied_masks * chain_mixing_weights[idx]
             segmentation_masks = (
                 weight_sample * segmentation_masks
                 + (1 - weight_sample) * aug_masks

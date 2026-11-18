@@ -458,6 +458,7 @@ def affine_transform(
     a2 = transform[:, 2].clone()
     b1 = transform[:, 4].clone()
     b2 = transform[:, 5].clone()
+    transform = transform.clone()
     transform[:, 0] = b1
     transform[:, 2] = b2
     transform[:, 4] = a0
@@ -475,7 +476,9 @@ def affine_transform(
     # transform the indices
     coordinates = torch.einsum("Bhwij, Bjk -> Bhwik", indices, transform)
     coordinates = torch.moveaxis(coordinates, source=-1, destination=1)
-    coordinates += torch.reshape(offset, shape=(*offset.shape, 1, 1, 1))
+    coordinates = coordinates + torch.reshape(
+        offset, shape=(*offset.shape, 1, 1, 1)
+    )
 
     # Note: torch.stack is faster than torch.vmap when the batch size is small.
     affined = torch.stack(

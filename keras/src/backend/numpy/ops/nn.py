@@ -981,7 +981,7 @@ def binary_crossentropy(target, output, from_logits=False):
 
     output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
     bce = target * np.log(output)
-    bce += (1.0 - target) * np.log(1.0 - output)
+    bce = bce + (1.0 - target) * np.log(1.0 - output)
     return (-bce).astype(dtype)
 
 
@@ -1440,7 +1440,7 @@ def _dot_product_attention_xla(query, key, value, bias, mask, is_causal, scale):
         value = value.astype("float32")
     logits = np.einsum("BTNH,BSNH->BNTS", query, key)
     logits = logits.astype(logits_dtype)
-    logits *= np.array(scale, dtype=logits.dtype)
+    logits = logits * np.array(scale, dtype=logits.dtype)
 
     if bias is not None:
         logits = (logits + bias).astype(logits.dtype)

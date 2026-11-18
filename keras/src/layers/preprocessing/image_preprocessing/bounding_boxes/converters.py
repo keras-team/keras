@@ -340,7 +340,7 @@ def encode_box_to_deltas(
         axis=-1,
     )
     if variance is not None:
-        boxes_delta /= variance
+        boxes_delta = boxes_delta / variance
     return boxes_delta
 
 
