@@ -4,7 +4,10 @@ import operator
 import re
 import warnings
 
+import ml_dtypes
+
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.backend.common.keras_tensor import KerasTensor
 
 
@@ -740,3 +743,14 @@ def empty_scan_ys_spec(compute_output_spec, f, init, xs):
         )
     _, ys_spec = compute_output_spec(f, init_spec, xs_spec)
     return ys_spec
+
+
+def probability_floor(dtype):
+    """Lower bound for probabilities in crossentropy computed from them.
+
+    Clipping at `epsilon()` makes the loss constant and its gradient zero
+    once the probability of the true class drops below `1e-7`. The smallest
+    normal number of the dtype keeps both exact far below that. float16 keeps
+    `epsilon()`, since its smallest normal number is larger.
+    """
+    return min(config.epsilon(), float(ml_dtypes.finfo(dtype).tiny))

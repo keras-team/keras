@@ -20,6 +20,7 @@ from keras.src.backend.common.backend_utils import (
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_padding_args_for_jax,
 )
+from keras.src.backend.common.backend_utils import probability_floor
 from keras.src.backend.numpy.ops.core import cast
 from keras.src.backend.numpy.ops.core import convert_to_tensor
 from keras.src.backend.numpy.ops.core import is_tensor
@@ -928,7 +929,11 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = log_softmax(output, axis=axis)
     else:
         output = output / np.sum(output, axis, keepdims=True)
-        output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        output = np.clip(
+            output,
+            probability_floor(standardize_dtype(output.dtype)),
+            1.0 - backend.epsilon(),
+        )
         log_prob = np.log(output)
     return -np.sum(target * log_prob, axis=axis)
 
@@ -955,7 +960,11 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         log_prob = log_softmax(output, axis=axis)
     else:
         output = output / np.sum(output, axis, keepdims=True)
-        output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+        output = np.clip(
+            output,
+            probability_floor(standardize_dtype(output.dtype)),
+            1.0 - backend.epsilon(),
+        )
         log_prob = np.log(output)
     target = one_hot(target, output.shape[axis], axis=axis)
     return -np.sum(target * log_prob, axis=axis)
@@ -979,7 +988,11 @@ def binary_crossentropy(target, output, from_logits=False):
     if from_logits:
         output = sigmoid(output)
 
-    output = np.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+    output = np.clip(
+        output,
+        probability_floor(standardize_dtype(output.dtype)),
+        1.0 - backend.epsilon(),
+    )
     bce = target * np.log(output)
     bce += (1.0 - target) * np.log(1.0 - output)
     return (-bce).astype(dtype)
