@@ -849,26 +849,26 @@ def linspace(
 
 def log(x):
     x = convert_to_tensor(x)
-    dtype = dtypes.promote_to_float_dtype(x.dtype)
-    return np.log(x, dtype=dtype)
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
+    return np.log(x)
 
 
 def log10(x):
     x = convert_to_tensor(x)
-    dtype = dtypes.promote_to_float_dtype(x.dtype)
-    return np.log10(x, dtype=dtype)
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
+    return np.log10(x)
 
 
 def log1p(x):
     x = convert_to_tensor(x)
-    dtype = dtypes.promote_to_float_dtype(x.dtype)
-    return np.log1p(x, dtype=dtype)
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
+    return np.log1p(x)
 
 
 def log2(x):
     x = convert_to_tensor(x)
-    dtype = dtypes.promote_to_float_dtype(x.dtype)
-    return np.log2(x, dtype=dtype)
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
+    return np.log2(x)
 
 
 def logaddexp(x1, x2):
@@ -1567,9 +1567,8 @@ def square(x):
 
 def sqrt(x):
     x = convert_to_tensor(x)
-    # upcast to float64 for int64 which matches JAX's behavior
-    dtype = dtypes.promote_to_float_dtype(x.dtype)
-    return np.sqrt(x, dtype=dtype)
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
+    return np.sqrt(x)
 
 
 def squeeze(x, axis=None):
