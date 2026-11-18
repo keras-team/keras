@@ -6,6 +6,7 @@ import keras
 from keras.src import backend
 from keras.src import testing
 from keras.src.applications import imagenet_utils as utils
+from keras.src.backend import config
 from keras.src.dtype_policies.dtype_policy import set_dtype_policy
 
 
@@ -72,9 +73,11 @@ class TestImageNetUtils(testing.TestCase):
     @parameterized.named_parameters(
         ("mode_torch", "torch"), ("mode_tf", "tf"), ("mode_caffe", "caffe")
     )
+    @pytest.mark.skipif(
+        config.backend() == "numpy",
+        reason="NumPy inputs are preprocessed in place.",
+    )
     def test_preprocess_input_does_not_mutate_tensor(self, mode):
-        if backend.backend() == "numpy":
-            self.skipTest("NumPy inputs are preprocessed in place.")
         x_values = np.random.uniform(0, 255, (2, 10, 10, 3)).astype("float32")
         x = backend.ops.convert_to_tensor(x_values.copy())
         utils.preprocess_input(x, "channels_last", mode=mode)
