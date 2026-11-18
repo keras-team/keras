@@ -109,6 +109,13 @@ class RejectsList(Square):
         return super().__call__(x)
 
 
+class NanGradient(Square):
+    """Adds `sqrt` of an exact zero: the value is 0, its gradient is nan."""
+
+    def call(self, x):
+        return ops.add(ops.square(x), ops.sqrt(x - x))
+
+
 class IgnoresDtype(Square):
     """Accepts `dtype=`, but ignores it and returns the input dtype."""
 
@@ -149,6 +156,7 @@ class OpTestTest(testing.TestCase):
                 "test_eager",
                 "test_eager_class",
                 "test_functional_model",
+                "test_gradients",
                 "test_input_variants",
                 "test_jit",
                 "test_serialization",
@@ -245,6 +253,12 @@ class OpTestTest(testing.TestCase):
                 "test_input_variants": (
                     "skipped: No array inputs, so no input variants"
                 ),
+                "test_gradients": (
+                    "skipped: No array inputs, so no gradients"
+                    if backend.SUPPORTS_GRADIENT
+                    else f"skipped: No gradients on the {backend.backend()} "
+                    "backend"
+                ),
                 "test_dtype_argument": "passed",
             },
         )
@@ -280,6 +294,22 @@ class OpTestTest(testing.TestCase):
             out["test_input_variants"],
             "^failed: TypeError: Expected an array or tensor, got a list",
         )
+
+    def test_nan_gradient_fails(self):
+        class Case(op_test_case.OpTest):
+            op, reference_fn, inputs = NanGradient(), np.square, (X,)
+
+        out = outcomes(Case)
+        self.assertEqual(out["test_eager"], "passed")
+        if not backend.SUPPORTS_GRADIENT:
+            self.assertRegex(out["test_gradients"], "^skipped: No gradients")
+            return
+        self.assertRegex(out["test_gradients"], "^failed: ")
+        with self.assertRaisesRegex(
+            AssertionError,
+            r"Non-finite gradient of input 0 for inputs float32\[2, 3\]",
+        ):
+            Case("test_eager").check_gradients((X,), {})
 
     def test_dtype_argument_ignored_fails(self):
         self.assertEqual(
