@@ -45,12 +45,6 @@ _SKIPPED_DTYPES = {
         "uint32": "Not supported by the torch backend",
         "uint64": "Not supported by the torch backend",
     },
-    "tensorflow": {
-        "uint32": "uint32 + int promotes to int64, unlike JAX",
-        "int64": "TensorFlow does not follow `x64_mode` yet (#24040)",
-        "uint64": "TensorFlow does not follow `x64_mode` yet (#24040)",
-        "float64": "TensorFlow does not follow `x64_mode` yet (#24040)",
-    },
 }
 
 # Also skipped in `off`: NumPy and torch keep 64-bit inputs but cap only some
