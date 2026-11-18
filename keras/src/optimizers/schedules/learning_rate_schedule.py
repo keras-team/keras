@@ -270,30 +270,19 @@ class PiecewiseConstantDecay(LearningRateSchedule):
                     boundaries[i] = b
 
             result_dtype = values[0].dtype
-            result_value = backend.ops.numpy.array(0, dtype=result_dtype)
+            values = [backend.ops.cast(v, result_dtype) for v in values]
 
-            # For each range between boundaries, we check whether the step is
-            # within that range, cast the resulting boolean to a number,
-            # and multiply the result by the corresponding value for the range.
-            # Taking the sum of these yields a piecewise constant function.
-            step_less_than_first_boundary = backend.ops.cast(
-                step <= boundaries[0], result_dtype
-            )
-            result_value += step_less_than_first_boundary * values[0]
-
-            step_greater_than_last_boundary = backend.ops.cast(
-                step > boundaries[-1], result_dtype
-            )
-            result_value += step_greater_than_last_boundary * values[-1]
-
-            for low, high, value in zip(
-                boundaries[:-1], boundaries[1:], values[1:-1]
+            # Start from the value of the last range (step > boundaries[-1])
+            # and select earlier values from the largest boundary downwards,
+            # so the smallest matching boundary wins. This broadcasts
+            # correctly for scalar and vector `step`.
+            result_value = values[-1]
+            for boundary, value in zip(
+                reversed(boundaries), reversed(values[:-1])
             ):
-                # Need to bind v here; can do this with lambda v=v: ...
-                step_in_range = backend.ops.cast(
-                    (step > low) & (step <= high), result_dtype
+                result_value = backend.ops.numpy.where(
+                    step <= boundary, value, result_value
                 )
-                result_value += step_in_range * value
 
             return result_value
 

@@ -137,6 +137,19 @@ class PiecewiseConstantDecayTest(testing.TestCase):
         x_int64.assign(4)
         self.assertAllClose(decayed_lr(x_int64), 0.7, 1e-6)
 
+    def test_vector_step(self):
+        # Vector steps must broadcast across every range, including the exact
+        # boundary values (boundaries are inclusive on the right).
+        pcd = schedules.PiecewiseConstantDecay([100.0, 110.0], [1.0, 0.5, 0.1])
+        steps = backend.ops.convert_to_tensor(
+            [0.0, 99.0, 100.0, 101.0, 110.0, 111.0, 150.0]
+        )
+        result = pcd(steps)
+        expected = backend.ops.convert_to_tensor(
+            [1.0, 1.0, 1.0, 0.5, 0.5, 0.1, 0.1]
+        )
+        self.assertAllClose(result, expected)
+
 
 class LinearDecayTest(testing.TestCase):
     def test_config(self):
