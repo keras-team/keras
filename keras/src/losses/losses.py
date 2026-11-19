@@ -99,7 +99,7 @@ class MeanSquaredError(LossFunctionWrapper):
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
@@ -148,7 +148,7 @@ class MeanAbsoluteError(LossFunctionWrapper):
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
@@ -197,7 +197,7 @@ class MeanAbsolutePercentageError(LossFunctionWrapper):
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
@@ -249,7 +249,7 @@ class MeanSquaredLogarithmicError(LossFunctionWrapper):
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
@@ -302,7 +302,7 @@ class CosineSimilarity(LossFunctionWrapper):
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
@@ -359,7 +359,7 @@ class Huber(LossFunctionWrapper):
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
@@ -414,7 +414,7 @@ class LogCosh(LossFunctionWrapper):
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
@@ -456,7 +456,7 @@ class Hinge(LossFunctionWrapper):
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
@@ -498,7 +498,7 @@ class SquaredHinge(LossFunctionWrapper):
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
@@ -538,7 +538,7 @@ class CategoricalHinge(LossFunctionWrapper):
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
@@ -583,7 +583,7 @@ class KLDivergence(LossFunctionWrapper):
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
@@ -621,7 +621,7 @@ class Poisson(LossFunctionWrapper):
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
@@ -671,7 +671,7 @@ class BinaryCrossentropy(LossFunctionWrapper):
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
@@ -815,7 +815,7 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
@@ -980,7 +980,7 @@ class CategoricalCrossentropy(LossFunctionWrapper):
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
@@ -1125,7 +1125,7 @@ class CategoricalFocalCrossentropy(LossFunctionWrapper):
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
@@ -1250,7 +1250,7 @@ class SparseCategoricalFocalCrossentropy(LossFunctionWrapper):
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to a different value (via
             `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is provided,
             then the `compute_dtype` will be utilized.
@@ -1404,7 +1404,7 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
             `0.9 + 0.1 / num_classes` for target labels. Defaults to `0.0`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
@@ -1484,7 +1484,7 @@ class CTC(LossFunctionWrapper):
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
@@ -1519,7 +1519,7 @@ class Dice(LossFunctionWrapper):
         axis: Tuple for which dimensions the loss is calculated. Defaults to
             `None`.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
@@ -1596,7 +1596,7 @@ class Tversky(LossFunctionWrapper):
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
@@ -1671,7 +1671,7 @@ class Circle(LossFunctionWrapper):
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
@@ -1765,7 +1765,7 @@ class CategoricalGeneralizedCrossEntropy(LossFunctionWrapper):
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.

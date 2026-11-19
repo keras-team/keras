@@ -7,6 +7,7 @@ from keras.src import activations
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.utils import file_utils
 
 CLASS_INDEX = None
@@ -179,7 +180,7 @@ def _preprocess_numpy_input(x, data_format, mode):
         Preprocessed Numpy array.
     """
     if not issubclass(x.dtype.type, np.floating):
-        x = x.astype(backend.floatx(), copy=False)
+        x = x.astype(config.floatx(), copy=False)
 
     if mode == "tf":
         x /= 127.5

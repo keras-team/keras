@@ -1064,7 +1064,7 @@ def binary_crossentropy(target, output, from_logits=False):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
     if not is_float_dtype(output.dtype):
-        output = cast(output, backend.floatx())
+        output = cast(output, config.floatx())
     target = cast(target, output.dtype)
 
     if target.shape != output.shape:

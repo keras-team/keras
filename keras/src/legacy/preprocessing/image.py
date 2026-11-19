@@ -11,6 +11,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.trainers.data_adapters.py_dataset_adapter import PyDataset
 from keras.src.utils import image_utils
 from keras.src.utils import io_utils
@@ -426,7 +427,7 @@ class DirectoryIterator(BatchFromFilesMixin, Iterator):
         if data_format is None:
             data_format = backend.image_data_format()
         if dtype is None:
-            dtype = backend.floatx()
+            dtype = config.floatx()
         super().set_processing_attrs(
             image_data_generator,
             target_size,
@@ -543,7 +544,7 @@ class NumpyArrayIterator(Iterator):
         if data_format is None:
             data_format = backend.image_data_format()
         if dtype is None:
-            dtype = backend.floatx()
+            dtype = config.floatx()
         self.dtype = dtype
         if isinstance(x, tuple) or isinstance(x, list):
             if not isinstance(x[1], list):
@@ -978,7 +979,7 @@ class ImageDataGenerator:
         if data_format is None:
             data_format = backend.image_data_format()
         if dtype is None:
-            dtype = backend.floatx()
+            dtype = config.floatx()
 
         self.featurewise_center = featurewise_center
         self.samplewise_center = samplewise_center
