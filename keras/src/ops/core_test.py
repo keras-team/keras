@@ -14,6 +14,7 @@ from keras.src import optimizers
 from keras.src import random
 from keras.src import testing
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
@@ -1664,21 +1665,21 @@ class CoreOpsDtypeTest(testing.TestCase):
         self.assertDType(core.Cast(dtype).symbolic_call(x), dtype)
 
     @parameterized.parameters(
-        ((), None, backend.floatx()),
-        ([], None, backend.floatx()),
+        ((), None, config.floatx()),
+        ([], None, config.floatx()),
         (bool(0), None, "bool"),
         (int(0), None, "int32"),
-        (float(0), None, backend.floatx()),
+        (float(0), None, config.floatx()),
         (1, "bool", "bool"),
         (1.0, "int32", "int32"),
         (1.0, "float32", "float32"),
         ([False, True, False], None, "bool"),
         ([1, 2, 3], None, "int32"),
-        ([1.0, 2.0, 3.0], None, backend.floatx()),
-        ([1, 2.0, 3], None, backend.floatx()),
+        ([1.0, 2.0, 3.0], None, config.floatx()),
+        ([1, 2.0, 3], None, config.floatx()),
         ([[False], [True], [False]], None, "bool"),
         ([[1], [2], [3]], None, "int32"),
-        ([[1], [2.0], [3]], None, backend.floatx()),
+        ([[1], [2.0], [3]], None, config.floatx()),
         *[
             (np.array(0, dtype=dtype), None, dtype)
             for dtype in ALL_DTYPES
@@ -1695,7 +1696,7 @@ class CoreOpsDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_convert_to_numpy(self, dtype):
-        expected_dtype = backend.floatx() if dtype is None else dtype
+        expected_dtype = config.floatx() if dtype is None else dtype
 
         x = ops.array([1.0, 2.0, 3.0], dtype=dtype)
         self.assertDType(ops.convert_to_numpy(x), expected_dtype)
@@ -1748,7 +1749,7 @@ class ConvertToTensorFloatxTest(testing.TestCase):
 
     def setUp(self):
         super().setUp()
-        self._floatx = backend.floatx()
+        self._floatx = config.floatx()
 
     def tearDown(self):
         super().tearDown()

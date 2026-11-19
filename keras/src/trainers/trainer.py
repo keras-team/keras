@@ -7,6 +7,7 @@ from keras.src import metrics as metrics_module
 from keras.src import ops
 from keras.src import optimizers
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import StatelessScope
 from keras.src.backend.common import is_float_dtype
@@ -437,7 +438,7 @@ class BaseTrainer:
             necessary.
         """
         if not is_float_dtype(loss.dtype):
-            loss = ops.cast(loss, dtype=backend.floatx())
+            loss = ops.cast(loss, dtype=config.floatx())
         return ops.sum(loss)
 
     def stateless_compute_loss(

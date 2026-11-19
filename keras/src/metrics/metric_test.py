@@ -48,7 +48,7 @@ class MetricTest(testing.TestCase):
     def setUp(self):
         super().setUp()
         self._global_dtype_policy = dtype_policies.dtype_policy.dtype_policy()
-        self._floatx = backend.floatx()
+        self._floatx = config.floatx()
 
     def tearDown(self):
         super().tearDown()
@@ -255,4 +255,4 @@ class MetricTest(testing.TestCase):
         metric = ExampleMetric()
         metric.update_state(y_true, y_pred)
         result = metric.result()
-        self.assertDType(result, backend.floatx())
+        self.assertDType(result, config.floatx())

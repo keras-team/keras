@@ -1933,7 +1933,7 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
         x,
         num_classes,
         axis=axis,
-        dtype=dtype or backend.floatx(),
+        dtype=dtype or config.floatx(),
         sparse=sparse,
     )
 
@@ -1957,7 +1957,7 @@ class BinaryCrossentropy(Operation):
             )
         dtype = standardize_dtype(output.dtype)
         if not is_float_dtype(dtype):
-            dtype = backend.floatx()
+            dtype = config.floatx()
         return KerasTensor(output.shape, dtype=dtype)
 
 
@@ -2202,7 +2202,7 @@ class MultiHot(Operation):
         super().__init__(name=name)
         self.num_classes = num_classes
         self.axis = axis
-        self.dtype = dtype or backend.floatx()
+        self.dtype = dtype or config.floatx()
         self.sparse = sparse
 
     def call(self, inputs):
@@ -3163,8 +3163,8 @@ class Polar(Operation):
     def compute_output_spec(self, abs_, angle):
         dtype = standardize_dtype(
             dtypes.result_type(
-                getattr(abs_, "dtype", backend.floatx()),
-                getattr(angle, "dtype", backend.floatx()),
+                getattr(abs_, "dtype", config.floatx()),
+                getattr(angle, "dtype", config.floatx()),
             )
         )
         # `polar` combines two real tensors into a complex one, so the output

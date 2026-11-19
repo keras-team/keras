@@ -210,7 +210,7 @@ def _respect_weak_type(dtype, weak_type):
 
 @functools.lru_cache(maxsize=None)
 def _resolve_weak_type(dtype, precision="32"):
-    """Resolve weak type by the precision of `backend.floatx()`."""
+    """Resolve weak type by the precision of `config.floatx()`."""
     extended_allowed_dtypes = set(ALLOWED_DTYPES).union(WEAK_TYPES)
     if dtype not in extended_allowed_dtypes:
         raise ValueError(

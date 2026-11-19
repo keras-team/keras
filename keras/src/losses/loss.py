@@ -3,6 +3,7 @@ from keras.src import dtype_policies
 from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import get_keras_mask
 from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils.naming import auto_name
@@ -25,7 +26,7 @@ class Loss(KerasSaveable):
             perform no aggregation. Defaults to `"sum_over_batch_size"`.
         name: Optional name for the loss instance.
         dtype: The dtype of the loss's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
@@ -48,7 +49,7 @@ class Loss(KerasSaveable):
         self.name = name or auto_name(self.__class__.__name__)
         self.reduction = standardize_reduction(reduction)
         self._initial_dtype = dtype
-        self._dtype_policy = dtype_policies.get(dtype or backend.floatx())
+        self._dtype_policy = dtype_policies.get(dtype or config.floatx())
         self._dtype = self._dtype_policy.compute_dtype
 
     @property

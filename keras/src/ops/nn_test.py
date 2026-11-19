@@ -15,6 +15,7 @@ from keras.src import losses
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import result_type
@@ -1403,7 +1404,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         )
         out = knn.multi_hot(unbatched_input, 5, -1)
         self.assertEqual(out.shape, (5,))
-        self.assertEqual(out.dtype, backend.floatx())
+        self.assertEqual(out.dtype, config.floatx())
         self.assertEqual(knn.multi_hot(unbatched_input, 5, 0).shape, (5,))
         self.assertEqual(knn.multi_hot(x, 5).shape, (2, 1, 5))
         self.assertEqual(knn.multi_hot(x, 5, 1).shape, (2, 3, 1))
@@ -2660,7 +2661,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         symbolic = knn.binary_crossentropy(
             KerasTensor((4,), "float32"), KerasTensor((4,), output_dtype)
         )
-        self.assertEqual(symbolic.dtype, backend.floatx())
+        self.assertEqual(symbolic.dtype, config.floatx())
 
     @parameterized.product(
         target_dtype=["int32", "bool", "float32"],

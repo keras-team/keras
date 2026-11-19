@@ -4,6 +4,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
 
@@ -147,7 +148,7 @@ def class_weight_to_sample_weights(y, class_weight):
     # (e.g., np.round()) across frameworks like TensorFlow, JAX, and PyTorch
 
     y_numpy = ops.convert_to_numpy(y)
-    sample_weight = np.ones(shape=(y_numpy.shape[0],), dtype=backend.floatx())
+    sample_weight = np.ones(shape=(y_numpy.shape[0],), dtype=config.floatx())
     if len(y_numpy.shape) > 1:
         if y_numpy.shape[-1] != 1:
             y_numpy = np.argmax(y_numpy, axis=-1)

@@ -1,5 +1,6 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.optimizers import optimizer
 
 
@@ -84,7 +85,7 @@ class Nadam(optimizer.Optimizer):
         if var_list:
             dtype = var_list[0].dtype
         else:
-            dtype = backend.floatx()
+            dtype = config.floatx()
         super().build(var_list)
         self._momentums, self._velocities = self.add_optimizer_variables(
             var_list, ["momentum", "velocity"]

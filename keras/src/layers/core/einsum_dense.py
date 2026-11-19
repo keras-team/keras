@@ -14,6 +14,7 @@ from keras.src.initializers.random_initializers import VarianceScaling
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.geometry import EinsumProjectionGeometry
+from keras.src.quantizers.geometry import KernelAxes
 from keras.src.saving import serialization_lib
 from keras.src.utils import argument_validation
 
@@ -576,43 +577,14 @@ def _analyze_einsum_string(equation, bias_axes, input_shape, output_shape):
             the `equation`.
     """
 
-    dot_replaced_string = re.sub(r"\.\.\.", "0", equation)
-
-    # This is the case where no ellipses are present in the string.
-    split_string = re.match(
-        "([a-zA-Z]+),([a-zA-Z]+)->([a-zA-Z]+)", dot_replaced_string
-    )
-    if split_string:
-        _check_input_ndim(
-            equation, input_shape, split_string.group(1), exact=True
-        )
-        return _analyze_split_string(
-            split_string, bias_axes, input_shape, output_shape
-        )
-
-    # This is the case where ellipses are present on the left.
-    split_string = re.match(
-        "0([a-zA-Z]+),([a-zA-Z]+)->0([a-zA-Z]+)", dot_replaced_string
-    )
-    if split_string:
-        _check_input_ndim(equation, input_shape, split_string.group(1))
-        return _analyze_split_string(
-            split_string, bias_axes, input_shape, output_shape, left_elided=True
-        )
-
-    # This is the case where ellipses are present on the right.
-    split_string = re.match(
-        "([a-zA-Z]{2,})0,([a-zA-Z]+)->([a-zA-Z]+)0", dot_replaced_string
-    )
-    if split_string:
-        _check_input_ndim(equation, input_shape, split_string.group(1))
-        return _analyze_split_string(
-            split_string, bias_axes, input_shape, output_shape
-        )
-
-    raise ValueError(
-        f"Invalid einsum equation '{equation}'. Equations must be in the form "
-        "[X],[Y]->[Z], ...[X],[Y]->...[Z], or [X]...,[Y]->[Z]...."
+    *specs, ellipsis = _split_equation(equation)
+    _check_input_ndim(equation, input_shape, specs[0], exact=ellipsis is None)
+    return _analyze_split_string(
+        specs,
+        bias_axes,
+        input_shape,
+        output_shape,
+        left_elided=ellipsis == "left",
     )
 
 
@@ -680,8 +652,7 @@ def _analyze_split_string(
     and calculates the required shapes for the kernel and bias weights.
 
     Args:
-        split_string: A regex match object containing the input, weight, and
-            output specifications.
+        split_string: The input, weight and output specifications.
         bias_axes: A string indicating which output axes to apply a bias to.
         input_shape: The shape of the input tensor.
         output_shape: The user-specified partial shape of the output tensor.
@@ -698,9 +669,7 @@ def _analyze_split_string(
         ValueError: If there are inconsistencies between the input and output
             shapes or if the equation specifications are invalid.
     """
-    input_spec = split_string.group(1)
-    weight_spec = split_string.group(2)
-    output_spec = split_string.group(3)
+    input_spec, weight_spec, output_spec = split_string
     elided = len(input_shape) - len(input_spec)
 
     if isinstance(output_shape, int):
@@ -814,7 +783,9 @@ class EinsumAxes:
 
     Every axis fact the quantization modes read derives from the three
     label strings. An input or kernel axis is reduced (contracted) when
-    its label is not in the output.
+    its label is not in the output. `kernel_axes` gives the roles of the
+    kernel's axes, and `input_axes` finds the input axes with the same
+    labels.
     """
 
     inputs: str
@@ -841,6 +812,27 @@ class EinsumAxes:
         """The input axes the equation contracts."""
         return tuple(
             i for i, label in enumerate(self.inputs) if label not in self.output
+        )
+
+    @property
+    def kernel_axes(self):
+        """The roles of the kernel's axes, as a `KernelAxes`."""
+        roles = {"contracted": [], "free": [], "batch": []}
+        for i, label in enumerate(self.kernel):
+            if label not in self.output:
+                roles["contracted"].append(i)
+            elif label in self.inputs:
+                roles["batch"].append(i)
+            else:
+                roles["free"].append(i)
+        return KernelAxes(**roles)
+
+    def input_axes(self, kernel_axes):
+        """The input axes with the labels of `kernel_axes`, in their order."""
+        return tuple(
+            self.inputs.index(self.kernel[i])
+            for i in kernel_axes
+            if self.kernel[i] in self.inputs
         )
 
     @property

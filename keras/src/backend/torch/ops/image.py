@@ -468,7 +468,7 @@ def affine_transform(
     transform = torch.nn.functional.pad(
         transform, pad=[0, 1, 0, 0], mode="constant", value=1
     )
-    transform = torch.reshape(transform, (batch_size, 3, 3))
+    transform = torch.reshape(transform, (-1, 3, 3))
     offset = transform[:, 0:2, 2].clone()
     offset = torch.nn.functional.pad(offset, pad=[0, 1, 0, 0])
     transform[:, 0:2, 2] = 0

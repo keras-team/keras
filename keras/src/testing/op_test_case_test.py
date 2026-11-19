@@ -9,6 +9,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
 from keras.src.ops.operation import Operation
@@ -36,6 +37,11 @@ class WrongDtype(Square):
 
 
 class NeedsStaticShape(Square):
+    def call(self, x):
+        if None in x.shape:
+            raise ValueError("Needs a static shape")
+        return super().call(x)
+
     def compute_output_spec(self, x):
         if None in x.shape:
             raise ValueError("Needs a static shape")
@@ -124,7 +130,7 @@ class IgnoresDtype(Square):
 
 
 class IgnoresFloatx(Square):
-    """Promotes to `float32`, ignoring `backend.floatx()`."""
+    """Promotes to `float32`, ignoring `config.floatx()`."""
 
     def call(self, x):
         return ops.cast(ops.square(x), "float32")
@@ -174,6 +180,7 @@ class OpTestTest(testing.TestCase):
                 "test_serialization",
                 "test_symbolic_dynamic",
                 "test_symbolic_static",
+                "test_tf_graph",
             ],
         )
         self.assertLen([n for n in names if "input_dtypes" in n], 13)
@@ -273,6 +280,11 @@ class OpTestTest(testing.TestCase):
                     "backend"
                 ),
                 "test_dtype_argument": "passed",
+                "test_tf_graph": (
+                    "skipped: No array inputs, so no unknown dimensions"
+                    if backend.backend() == "tensorflow"
+                    else "skipped: TensorFlow only"
+                ),
                 "test_floatx_bfloat16": "passed",
                 "test_floatx_float16": "passed",
             },
@@ -343,6 +355,21 @@ class OpTestTest(testing.TestCase):
         ):
             Case("test_eager").check_dtype_argument((X,), {})
 
+    def test_static_shape_required_fails_tf_graph(self):
+        class Case(op_test_case.OpTest):
+            op, reference_fn, inputs = NeedsStaticShape(), np.square, (X,)
+
+        out = outcomes(Case)
+        self.assertEqual(out["test_eager"], "passed")
+        if backend.backend() == "tensorflow":
+            self.assertEqual(out["test_jit"], "passed")
+            self.assertRegex(
+                out["test_tf_graph"],
+                "ValueError: Needs a static shape",
+            )
+        else:
+            self.assertEqual(out["test_tf_graph"], "skipped: TensorFlow only")
+
     def test_floatx_ignored_fails(self):
         class Case(op_test_case.OpTest):
             op, reference_fn, inputs = IgnoresFloatx(), np.square, (X,)
@@ -356,7 +383,7 @@ class OpTestTest(testing.TestCase):
             AssertionError, "Float output under floatx=bfloat16"
         ):
             Case("test_eager").check_floatx("bfloat16", (X,), {})
-        self.assertEqual(backend.floatx(), "float32")
+        self.assertEqual(config.floatx(), "float32")
 
     def test_op_model(self):
         model = op_test_case._op_model(ops.add, (X, X[:1]), {})

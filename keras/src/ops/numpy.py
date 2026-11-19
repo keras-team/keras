@@ -439,9 +439,9 @@ class Angle(Operation):
         return _angle(x)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(getattr(x, "dtype", backend.floatx()))
+        dtype = standardize_dtype(getattr(x, "dtype", config.floatx()))
         if dtype == "int64":
-            dtype = backend.floatx()
+            dtype = config.floatx()
         else:
             dtype = dtypes.result_type(dtype, float)
         return KerasTensor(x.shape, dtype=dtype)
@@ -481,7 +481,7 @@ def _angle(x):
         x_real = backend.ops.numpy.real(x)
     else:
         if dtype == "int64":
-            dtype = backend.floatx()
+            dtype = config.floatx()
         else:
             dtype = dtypes.result_type(dtype, float)
         x_real = backend.ops.cast(x, dtype)
@@ -716,7 +716,7 @@ class Arccos(Operation):
 
     def compute_output_spec(self, x):
         dtype = dtypes.promote_to_float_dtype(
-            getattr(x, "dtype", backend.floatx())
+            getattr(x, "dtype", config.floatx())
         )
         return KerasTensor(x.shape, dtype=dtype)
 
@@ -750,7 +750,7 @@ class Arccosh(Operation):
 
     def compute_output_spec(self, x):
         dtype = dtypes.promote_to_float_dtype(
-            getattr(x, "dtype", backend.floatx())
+            getattr(x, "dtype", config.floatx())
         )
         return KerasTensor(x.shape, dtype=dtype)
 
@@ -781,7 +781,7 @@ class Arcsin(Operation):
 
     def compute_output_spec(self, x):
         dtype = dtypes.promote_to_float_dtype(
-            getattr(x, "dtype", backend.floatx())
+            getattr(x, "dtype", config.floatx())
         )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
@@ -814,7 +814,7 @@ class Arcsinh(Operation):
 
     def compute_output_spec(self, x):
         dtype = dtypes.promote_to_float_dtype(
-            getattr(x, "dtype", backend.floatx())
+            getattr(x, "dtype", config.floatx())
         )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
@@ -846,7 +846,7 @@ class Arctan(Operation):
 
     def compute_output_spec(self, x):
         dtype = dtypes.promote_to_float_dtype(
-            getattr(x, "dtype", backend.floatx())
+            getattr(x, "dtype", config.floatx())
         )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
@@ -881,8 +881,8 @@ class Arctan2(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         outputs_shape = broadcast_shapes(x1_shape, x2_shape)
-        x1_dtype = standardize_dtype(getattr(x1, "dtype", backend.floatx()))
-        x2_dtype = standardize_dtype(getattr(x2, "dtype", backend.floatx()))
+        x1_dtype = standardize_dtype(getattr(x1, "dtype", config.floatx()))
+        x2_dtype = standardize_dtype(getattr(x2, "dtype", config.floatx()))
         dtype = dtypes.result_type(x1_dtype, x2_dtype, float)
         return KerasTensor(outputs_shape, dtype=dtype)
 
@@ -937,7 +937,7 @@ class Arctanh(Operation):
 
     def compute_output_spec(self, x):
         dtype = dtypes.promote_to_float_dtype(
-            getattr(x, "dtype", backend.floatx())
+            getattr(x, "dtype", config.floatx())
         )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
@@ -1465,7 +1465,7 @@ class Heaviside(Operation):
     def compute_output_spec(self, x1, x2):
         dtype = dtypes.result_type(x1.dtype, x2.dtype)
         if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
-            dtype = backend.floatx()
+            dtype = config.floatx()
         elif dtype == "int64":
             dtype = "float64"
         return KerasTensor(broadcast_shapes(x1.shape, x2.shape), dtype=dtype)
@@ -2221,7 +2221,7 @@ class Cos(Operation):
 
     def compute_output_spec(self, x):
         dtype = dtypes.promote_to_float_dtype(
-            getattr(x, "dtype", backend.floatx())
+            getattr(x, "dtype", config.floatx())
         )
         return KerasTensor(x.shape, dtype=dtype)
 
@@ -2247,7 +2247,7 @@ class Cosh(Operation):
 
     def compute_output_spec(self, x):
         dtype = dtypes.promote_to_float_dtype(
-            getattr(x, "dtype", backend.floatx())
+            getattr(x, "dtype", config.floatx())
         )
         return KerasTensor(x.shape, dtype=dtype)
 
@@ -3744,7 +3744,7 @@ class Full(Operation):
         return backend.ops.numpy.full(self.shape, fill_value, dtype=self.dtype)
 
     def compute_output_spec(self, fill_value):
-        dtype = backend.floatx() if self.dtype is None else self.dtype
+        dtype = config.floatx() if self.dtype is None else self.dtype
         return KerasTensor(self.shape, dtype=dtype)
 
 
@@ -4247,7 +4247,7 @@ class Hypot(Operation):
     def compute_output_spec(self, x1, x2):
         dtype = dtypes.result_type(x1.dtype, x2.dtype)
         if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
-            dtype = backend.floatx()
+            dtype = config.floatx()
         elif dtype == "int64":
             dtype = "float64"
         return KerasTensor(broadcast_shapes(x1.shape, x2.shape), dtype=dtype)
@@ -6169,7 +6169,7 @@ class Nanmax(Operation):
         return _nanmax(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
+        dtype = dtypes.result_type(getattr(x, "dtype", config.floatx()))
 
         if backend.backend() == "torch" and dtype == "uint32":
             dtype = "int32"
@@ -6390,7 +6390,7 @@ class Nanmin(Operation):
         return _nanmin(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
+        dtype = dtypes.result_type(getattr(x, "dtype", config.floatx()))
 
         if backend.backend() == "torch" and dtype == "uint32":
             dtype = "int32"
@@ -6728,7 +6728,7 @@ def _nanquantile(x, q, axis=None, method="linear", keepdims=False):
         )
     x = backend.ops.convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
-        dtype = backend.floatx()
+        dtype = config.floatx()
     else:
         dtype = dtypes.result_type(x.dtype, float)
     x = backend.ops.cast(x, dtype)
@@ -6877,7 +6877,7 @@ class Nansum(Operation):
         return _nansum(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
+        dtype = dtypes.result_type(getattr(x, "dtype", config.floatx()))
 
         if dtype in ("bool", "int8", "int16"):
             dtype = "int32"
@@ -8019,7 +8019,7 @@ class Sin(Operation):
 
     def compute_output_spec(self, x):
         dtype = dtypes.promote_to_float_dtype(
-            getattr(x, "dtype", backend.floatx())
+            getattr(x, "dtype", config.floatx())
         )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
@@ -8046,7 +8046,7 @@ class Sinc(Operation):
 
     def compute_output_spec(self, x):
         dtype = dtypes.promote_to_float_dtype(
-            getattr(x, "dtype", backend.floatx())
+            getattr(x, "dtype", config.floatx())
         )
         return KerasTensor(x.shape, dtype=dtype)
 
@@ -8081,7 +8081,7 @@ class Sinh(Operation):
 
     def compute_output_spec(self, x):
         dtype = dtypes.promote_to_float_dtype(
-            getattr(x, "dtype", backend.floatx())
+            getattr(x, "dtype", config.floatx())
         )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
@@ -8462,7 +8462,7 @@ class Tan(Operation):
 
     def compute_output_spec(self, x):
         dtype = dtypes.promote_to_float_dtype(
-            getattr(x, "dtype", backend.floatx())
+            getattr(x, "dtype", config.floatx())
         )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
@@ -8489,7 +8489,7 @@ class Tanh(Operation):
 
     def compute_output_spec(self, x):
         dtype = dtypes.promote_to_float_dtype(
-            getattr(x, "dtype", backend.floatx())
+            getattr(x, "dtype", config.floatx())
         )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
@@ -9774,7 +9774,7 @@ class Sum(Operation):
         return backend.ops.numpy.sum(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
+        dtype = dtypes.result_type(getattr(x, "dtype", config.floatx()))
         # follow jax's rule
         if dtype in ("bool", "int8", "int16"):
             dtype = "int32"
