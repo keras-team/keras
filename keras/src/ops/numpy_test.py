@@ -1453,14 +1453,6 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
 
 
 class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
-    def test_mean(self):
-        x = KerasTensor((None, 3))
-        self.assertEqual(knp.mean(x).shape, ())
-
-        x = KerasTensor((None, 3, 3))
-        self.assertEqual(knp.mean(x, axis=1).shape, (None, 3))
-        self.assertEqual(knp.mean(x, axis=1, keepdims=True).shape, (None, 1, 3))
-
     def test_all(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.all(x).shape, ())
@@ -2597,10 +2589,6 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
 
 
 class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
-    def test_mean(self):
-        x = KerasTensor((2, 3))
-        self.assertEqual(knp.mean(x).shape, ())
-
     def test_all(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.all(x).shape, ())
@@ -5557,40 +5545,6 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 
 
 class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
-    def test_mean(self):
-        x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(knp.mean(x), np.mean(x))
-        self.assertAllClose(knp.mean(x, axis=()), np.mean(x, axis=()))
-        self.assertAllClose(knp.mean(x, axis=1), np.mean(x, axis=1))
-        self.assertAllClose(knp.mean(x, axis=(1,)), np.mean(x, axis=(1,)))
-        self.assertAllClose(
-            knp.mean(x, axis=1, keepdims=True),
-            np.mean(x, axis=1, keepdims=True),
-        )
-
-        self.assertAllClose(
-            knp.mean(x, axis=None, keepdims=True),
-            np.mean(x, axis=None, keepdims=True),
-        )
-
-        self.assertAllClose(knp.Mean()(x), np.mean(x))
-        self.assertAllClose(knp.Mean(axis=1)(x), np.mean(x, axis=1))
-        self.assertAllClose(
-            knp.Mean(axis=1, keepdims=True)(x),
-            np.mean(x, axis=1, keepdims=True),
-        )
-
-        # Test overflow.
-        # 65504 is 0b1111111111100000.
-        # Fills all of the 10 fraction bits + 1 implicit bit of float16.
-        x = np.array([65504, 65504, 65504], dtype="float16")
-        self.assertAllClose(knp.mean(x), np.mean(x))
-
-        # 65280 is 0b1111111100000000.
-        # Fills all of the 7 fraction bits + 1 implicit bit of bfloat16.
-        x = np.array([65280, 65280, 65280], dtype="bfloat16")
-        self.assertAllClose(knp.mean(x), np.mean(x))
-
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_array_split(self, backend_agnostic_ops):
         backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
@@ -9867,19 +9821,6 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertDType(knp.Multiply().symbolic_call(x, 1.0), expected_dtype)
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_mean(self, dtype):
-        import jax.numpy as jnp
-
-        x = knp.ones((1,), dtype=dtype)
-        x_jax = jnp.ones((1,), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.mean(x_jax).dtype)
-        if dtype == "int64":
-            expected_dtype = "float32"
-
-        self.assertEqual(standardize_dtype(knp.mean(x).dtype), expected_dtype)
-        self.assertEqual(knp.Mean().symbolic_call(x).dtype, expected_dtype)
-
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_max(self, dtype):
         import jax.numpy as jnp
 
@@ -13230,6 +13171,8 @@ class NumpyDtypeTest(testing.TestCase):
     )
     def test_std_complex_symbolic_dtype(self, input_dtype, expected_dtype):
         x = KerasTensor((None, 2), dtype=input_dtype)
+        if keras.config.x64_mode() == "off":  # complex128 acts as complex64.
+            expected_dtype = "float32"
         self.assertEqual(knp.std(x, axis=-1).dtype, expected_dtype)
 
     def test_std_complex_functional_output_dtype(self):
@@ -14062,6 +14005,23 @@ class SumTest(ReductionOpTest):
     )
     def test_input_dtypes_uint8(self):
         self.check_input_dtypes(("uint8",))
+
+
+class MeanTest(ReductionOpTest):
+    op, op_class = knp.mean, knp.Mean
+    reference_fn, jax_fn = np.mean, jnp.mean
+    cases = {
+        **ReductionOpTest.cases,
+        # An integer input still gives a float output when no axis is reduced.
+        "no_axis_int": ((X.astype("int32"),), {"axis": ()}),
+    }
+
+    def test_low_precision_overflow(self):
+        # Each value fills its dtype's significand, so summing three of them
+        # in that dtype overflows (float16) or rounds (bfloat16).
+        for dtype, value in (("float16", 65504), ("bfloat16", 65280)):
+            x = np.full((3,), value, dtype)
+            self.assertAllClose(knp.mean(x), np.mean(x))
 
 
 class SqueezeTest(UnaryOpTest):
