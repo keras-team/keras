@@ -1261,11 +1261,11 @@ def model_supports_jit(model):
 
 
 def _uses_multi_replica_tf_distribute(model):
-    if config.backend() != "tensorflow" or not model._distribute_strategy:
+    if config.backend() != "tensorflow":
         return False
     from keras.src.utils.module_utils import tensorflow as tf
 
-    strategy = model._distribute_strategy
+    strategy = model.distribute_strategy
     return strategy.num_replicas_in_sync > 1 and not isinstance(
         strategy, tf.distribute.TPUStrategy
     )
