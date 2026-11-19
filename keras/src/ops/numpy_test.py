@@ -3402,6 +3402,18 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         y = KerasTensor(())
         self.assertEqual(knp.vstack([x, y]).shape, (2, 1))
 
+        # The shape check applies to the promoted rows, not to the raw
+        # inputs: a 1-D input is `(1, n)` once promoted, so it cannot be
+        # stacked with a `(n, m)` input.
+        with self.assertRaisesRegex(
+            ValueError, "Every value in `xs` must have the same shape"
+        ):
+            knp.vstack([KerasTensor((3,)), KerasTensor((3, 4))])
+        with self.assertRaisesRegex(
+            ValueError, "Every value in `xs` must have the same shape"
+        ):
+            knp.vstack([KerasTensor((2, 3)), KerasTensor((2, 4))])
+
     def test_dstack(self):
         x = KerasTensor((3,))
         y = KerasTensor((3,))
