@@ -321,7 +321,10 @@ class GPTQCalibrator(Calibrator):
             per_channel=config.per_channel,
             group_size=config.group_size,
         )
-        self.hessian = ops.zeros((self.rows, self.rows), dtype="float32")
+        # One Hessian per problem of the contraction view.
+        self.hessian = ops.zeros(
+            self._per_problem((self.rows, self.rows)), dtype="float32"
+        )
 
     @classmethod
     def undersampling_warning(cls, layers):
@@ -350,17 +353,17 @@ class GPTQCalibrator(Calibrator):
 
     def observe(self, inputs):
         """Updates the running mean of the Hessian `2 X^T X / N`."""
-        x = self._flatten_inputs(inputs)
-        num_new_samples = int(ops.shape(x)[0])
+        x = self._inputs_view(inputs)
+        num_new_samples = int(ops.shape(x)[-2])
         num_prev_samples = self.num_samples
         total_samples = num_prev_samples + num_new_samples
 
-        # gram_matrix: [features, features]
-        gram_matrix = ops.matmul(ops.transpose(x), x)
+        # gram_matrix: [features, features], per problem
+        gram_matrix = ops.matmul(ops.swapaxes(x, -1, -2), x)
         # Ensures numerical stability and symmetry in case of large floating
         # point activations.
         gram_matrix = ops.divide(
-            ops.add(gram_matrix, ops.transpose(gram_matrix)), 2.0
+            ops.add(gram_matrix, ops.swapaxes(gram_matrix, -1, -2)), 2.0
         )
 
         # Decay previous mean and add current per-sample contribution
@@ -377,13 +380,14 @@ class GPTQCalibrator(Calibrator):
 
         self.num_samples = total_samples
 
-    def _solve(self, weights):
+    def _solve(self, weights, index):
+        hessian = self._problem(self.hessian, index)
         # Dampen the Hessian for Stability
-        hessian_diagonal = ops.diagonal(self.hessian)
+        hessian_diagonal = ops.diagonal(hessian)
         dead_diagonal = ops.equal(hessian_diagonal, 0.0)
         hessian_diagonal = ops.where(dead_diagonal, 1.0, hessian_diagonal)
         hessian_matrix = ops.add(
-            self.hessian,
+            hessian,
             ops.diag(
                 ops.where(dead_diagonal, 1.0, ops.zeros_like(hessian_diagonal))
             ),

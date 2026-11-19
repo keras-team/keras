@@ -59,6 +59,9 @@ class CalibrationStrategy(QuantizationStrategy):
                 f"'{layer.name}' through a `kernel` property, which "
                 f"`{layer.__class__.__name__}` does not define."
             )
+        # A layer whose contraction has no view is refused before it
+        # changes, as a layer without support is.
+        self.require_geometry(layer).contraction_view()
 
     # --- Config and policy-string surface ---------------------------------
 
@@ -153,18 +156,25 @@ class CalibrationStrategy(QuantizationStrategy):
         # This also drops a config deserialized with the layer.
         layer.quantization_config = None
 
-        rows, columns = geometry.calibration_rows_columns(input_shape)
+        view = geometry.contraction_view()
+        rows = view.batch * view.rows
+        columns = view.columns
 
         bits = self.resolve_weight_bits(layer, config)
         kernel_columns = self._get_pack_layout(bits, columns).packed_length(
             columns
         )
         group_size = self.resolve_group_size(layer, config)
-        n_groups = 1 if group_size == -1 else math.ceil(rows / group_size)
+        n_groups = view.batch * (
+            1 if group_size == -1 else math.ceil(view.rows / group_size)
+        )
 
-        # Stored in the kernel's own `[in, out]` orientation and packed
-        # along the output axis, like the int4 layout, so the forward pass
-        # unpacks and dequantizes without a transpose.
+        # Stored as the view's `(batch * rows, columns)` matrix in `[in,
+        # out]` orientation (the view's axis order, which may permute the
+        # kernel's), packed along the output axis like the int4 layout, so
+        # the forward pass unpacks and dequantizes without a transpose of
+        # its own. The problems of a batch axis stack along the rows, each
+        # with its own groups.
         layer.quantized_kernel = layer.add_weight(
             name="kernel",
             shape=(rows, kernel_columns),
@@ -267,26 +277,24 @@ class CalibrationStrategy(QuantizationStrategy):
         geometry = self.require_geometry(layer)
         bits = self.resolve_weight_bits(layer, None)
         group_size = self.resolve_group_size(layer, None)
-        # The group parameters are stored as `[n_groups, out]`, so their
-        # axes give the unpacked column count the packed codes stand for
-        # and, with the group index, the row count.
-        columns = int(layer.kernel_scale.shape[1])
-        rows = int(layer.g_idx.shape[0])
+        view = geometry.contraction_view()
         return QuantizedWeight(
             codes=layer.quantized_kernel,
             scale=layer.kernel_scale,
             zero_point=layer.kernel_zero,
             g_idx=layer.g_idx,
-            layout=self._get_pack_layout(bits, columns),
+            layout=self._get_pack_layout(bits, view.columns),
             scheme=WeightScheme(
                 code_range=(0, 2**bits - 1),
                 scale_form="multiplier",
                 has_zero_point=True,
-                # `-1` means one group spanning every input row.
-                group_size=rows if group_size == -1 else group_size,
+                # `-1` means one group spanning every input row of a
+                # problem.
+                group_size=view.rows if group_size == -1 else group_size,
             ),
             shape=geometry.weight_shape,
             axis=0,
+            permutation=view.kernel_permutation,
             input_scales=(
                 getattr(layer, self.input_scales_name)
                 if self.input_scales_name is not None

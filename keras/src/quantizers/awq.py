@@ -15,9 +15,9 @@ from keras.src.quantizers.quantizers import quantize_with_sz_map
 from keras.src.quantizers.quantizers import quantize_with_zero_point
 
 # Maximum number of activation rows stashed per layer for the AutoAWQ-style
-# clipping search. Bounds calibration memory; a few hundred rows is enough to
-# estimate per-group reconstruction error (matches AutoAWQ's ``n_sample_token``
-# default of 512).
+# clipping search (per problem, for a kernel with a batch axis). Bounds
+# calibration memory; a few hundred rows is enough to estimate per-group
+# reconstruction error (matches AutoAWQ's `n_sample_token` default of 512).
 MAX_CLIP_SAMPLE_ROWS = 512
 
 
@@ -420,21 +420,23 @@ class AWQCalibrator(Calibrator):
     def __init__(self, layer, config):
         super().__init__(layer, config)
         # Running per-channel mean of |x|, as in the reference AWQ
-        # implementations.
-        self.activation_magnitudes = ops.zeros((self.rows,), dtype="float32")
+        # implementations, per problem of the contraction view.
+        self.activation_magnitudes = ops.zeros(
+            self._per_problem((self.rows,)), dtype="float32"
+        )
         # Bounded stash of raw activation rows for the clipping search.
         self._clip_samples = []
         self._clip_sample_rows = 0
 
     def observe(self, inputs):
         """Updates the running mean of `|x|` and the clipping sample."""
-        x = self._flatten_inputs(inputs)
-        num_new_samples = int(ops.shape(x)[0])
+        x = self._inputs_view(inputs)
+        num_new_samples = int(ops.shape(x)[-2])
         total_samples = self.num_samples + num_new_samples
 
         # Running per-channel mean of |x| via a stable weighted update:
         #   mean <- mean + (batch_mean - mean) * n / (count + n)
-        batch_mean = ops.mean(ops.abs(x), axis=0)
+        batch_mean = ops.mean(ops.abs(x), axis=-2)
         delta = ops.subtract(batch_mean, self.activation_magnitudes)
         self.activation_magnitudes = ops.add(
             self.activation_magnitudes,
@@ -451,16 +453,18 @@ class AWQCalibrator(Calibrator):
             )
             # A copy: on torch a slice is a view that would keep the whole
             # batch alive.
-            self._clip_samples.append(ops.copy(x[:take]))
+            self._clip_samples.append(ops.copy(x[..., :take, :]))
             self._clip_sample_rows += take
 
-    def _solve(self, weights):
+    def _solve(self, weights, index):
         activation_sample = None
         if self._clip_samples:
-            activation_sample = ops.concatenate(self._clip_samples, axis=0)
+            activation_sample = ops.concatenate(
+                [self._problem(s, index) for s in self._clip_samples], axis=0
+            )
         codes, scale, zero, awq_scales, g_idx = awq_quantize_matrix(
             weights,
-            self.activation_magnitudes,
+            self._problem(self.activation_magnitudes, index),
             num_grid_points=self.config.num_grid_points,
             group_size=self.config.group_size,
             apply_clip=activation_sample is not None,
