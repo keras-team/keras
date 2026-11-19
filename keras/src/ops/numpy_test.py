@@ -25,6 +25,7 @@ from keras.src.testing.op_test_case import UnaryOpTest
 from keras.src.testing.op_test_case import X
 from keras.src.testing.op_test_case import named_dtype_combinations
 from keras.src.testing.test_utils import named_product
+from keras.src.testing.test_utils import x64_mode_scope
 
 BACKEND_AGNOSTIC_OPS = [
     {"testcase_name": "backend_specific", "backend_agnostic_ops": False},
@@ -13172,9 +13173,12 @@ class NumpyDtypeTest(testing.TestCase):
     )
     def test_std_complex_symbolic_dtype(self, input_dtype, expected_dtype):
         x = KerasTensor((None, 2), dtype=input_dtype)
-        if keras.config.x64_mode() == "off":  # complex128 acts as complex64.
-            expected_dtype = "float32"
-        self.assertEqual(knp.std(x, axis=-1).dtype, expected_dtype)
+        if backend.backend() != "tensorflow":
+            with x64_mode_scope("off"):
+                self.assertEqual(knp.std(x, axis=-1).dtype, "float32")
+        if backend.backend() in backend.config._X64_BACKENDS:
+            with x64_mode_scope("explicit_x64"):
+                self.assertEqual(knp.std(x, axis=-1).dtype, expected_dtype)
 
     def test_std_complex_functional_output_dtype(self):
         if backend.backend() == "openvino":
