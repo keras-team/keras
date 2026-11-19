@@ -2212,6 +2212,32 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(out, ref_out, atol=1e-2, tpu_atol=10, tpu_rtol=10)
 
+        transform = np.random.uniform(size=(6)).astype("float32")
+        transform = np.pad(transform, (0, 2))  # makes c0, c1 always 0
+        out = kimage.affine_transform(
+            x,
+            transform,
+            interpolation=interpolation,
+            fill_mode=fill_mode,
+        )
+        coordinates = _compute_affine_transform_coordinates(
+            x, np.tile(transform, (x.shape[0], 1))
+        )
+        ref_out = np.stack(
+            [
+                _fixed_map_coordinates(
+                    x[i],
+                    coordinates[i],
+                    order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
+                    fill_mode=fill_mode,
+                )
+                for i in range(x.shape[0])
+            ],
+            axis=0,
+        )
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(out, ref_out, atol=1e-2, tpu_atol=10, tpu_rtol=10)
+
         # Test channels_first
         backend.set_image_data_format("channels_first")
         x = np.random.uniform(size=(3, 50, 50)).astype("float32") * 255
