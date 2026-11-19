@@ -335,7 +335,7 @@ class ConvLSTMCell(Layer, DropoutRNNCell):
             else:
                 bias_shape = (1, self.filters) + (1,) * self.rank
             bias = ops.reshape(b, bias_shape)
-            conv_out += bias
+            conv_out = conv_out + bias
         return conv_out
 
     def recurrent_conv(self, x, w):

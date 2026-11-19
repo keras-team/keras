@@ -6,6 +6,7 @@ import numpy as np
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.optimizers.nadam import Nadam
 
 
@@ -22,7 +23,7 @@ class NadamTest(testing.TestCase):
     def test_build_with_empty_var_list(self):
         optimizer = Nadam()
         optimizer.build([])
-        self.assertEqual(optimizer._u_product.dtype, backend.floatx())
+        self.assertEqual(optimizer._u_product.dtype, config.floatx())
 
     def test_single_step(self):
         optimizer = Nadam(learning_rate=0.5)

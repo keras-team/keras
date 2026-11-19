@@ -766,7 +766,7 @@ class Orthogonal(RandomInitializer):
         q, r = ops.qr(a)
         # Make Q uniform
         d = ops.diag(r)
-        q *= ops.sign(d)
+        q = q * ops.sign(d)
         if num_rows < num_cols:
             q = ops.transpose(q)
         return self.gain * ops.reshape(q, shape)

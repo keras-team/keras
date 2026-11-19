@@ -7,6 +7,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.utils.module_utils import tensorflow as tf
 
 py_any = any
@@ -271,12 +272,12 @@ def binary_crossentropy(target, output, from_logits=False):
             labels=target, logits=output
         )
 
-    epsilon_ = tf.convert_to_tensor(backend.epsilon(), output.dtype)
+    epsilon_ = tf.convert_to_tensor(config.epsilon(), output.dtype)
     output = tf.clip_by_value(output, epsilon_, 1.0 - epsilon_)
 
     # Compute cross entropy from probabilities.
-    bce = target * tf.math.log(output + backend.epsilon())
-    bce += (1 - target) * tf.math.log(1 - output + backend.epsilon())
+    bce = target * tf.math.log(output + config.epsilon())
+    bce += (1 - target) * tf.math.log(1 - output + config.epsilon())
     return -bce
 
 
@@ -322,8 +323,8 @@ def cast(x, dtype):
 def cast_to_floatx(x):
     """DEPRECATED."""
     if isinstance(x, (tf.Tensor, tf.Variable, tf.SparseTensor)):
-        return tf.cast(x, dtype=backend.floatx())
-    return np.asarray(x, dtype=backend.floatx())
+        return tf.cast(x, dtype=config.floatx())
+    return np.asarray(x, dtype=config.floatx())
 
 
 @keras_export("keras._legacy.backend.categorical_crossentropy")
@@ -345,7 +346,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     output = output / tf.reduce_sum(output, axis, True)
 
     # Compute cross entropy from probabilities.
-    epsilon_ = tf.convert_to_tensor(backend.epsilon(), output.dtype)
+    epsilon_ = tf.convert_to_tensor(config.epsilon(), output.dtype)
     output = tf.clip_by_value(output, epsilon_, 1.0 - epsilon_)
     return -tf.reduce_sum(target * tf.math.log(output), axis)
 
@@ -373,7 +374,7 @@ def categorical_focal_crossentropy(
     # computed correctly.
     output = output / tf.reduce_sum(output, axis=axis, keepdims=True)
 
-    epsilon_ = tf.convert_to_tensor(backend.epsilon(), output.dtype)
+    epsilon_ = tf.convert_to_tensor(config.epsilon(), output.dtype)
     output = tf.clip_by_value(output, epsilon_, 1.0 - epsilon_)
 
     # Calculate cross entropy
@@ -426,7 +427,7 @@ def concatenate(tensors, axis=-1):
 def constant(value, dtype=None, shape=None, name=None):
     """DEPRECATED."""
     if dtype is None:
-        dtype = backend.floatx()
+        dtype = config.floatx()
 
     return tf.constant(value, dtype=dtype, shape=shape, name=name)
 
@@ -648,7 +649,7 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
     )
 
     y_pred = tf.math.log(
-        tf.transpose(y_pred, perm=[1, 0, 2]) + backend.epsilon()
+        tf.transpose(y_pred, perm=[1, 0, 2]) + config.epsilon()
     )
 
     return tf.expand_dims(
@@ -706,7 +707,7 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1):
     input_shape = tf.shape(y_pred)
     num_samples, num_steps = input_shape[0], input_shape[1]
     y_pred = tf.math.log(
-        tf.transpose(y_pred, perm=[1, 0, 2]) + backend.epsilon()
+        tf.transpose(y_pred, perm=[1, 0, 2]) + config.epsilon()
     )
     input_length = tf.cast(input_length, tf.int32)
 
@@ -859,7 +860,7 @@ def expand_dims(x, axis=-1):
 def eye(size, dtype=None, name=None):
     """DEPRECATED."""
     if dtype is None:
-        dtype = backend.floatx()
+        dtype = config.floatx()
     tf_dtype = tf.as_dtype(dtype)
     return variable(tf.eye(size, dtype=tf_dtype), dtype, name)
 
@@ -1008,7 +1009,7 @@ def maximum(x, y):
 def mean(x, axis=None, keepdims=False):
     """DEPRECATED."""
     if x.dtype.base_dtype == tf.bool:
-        x = tf.cast(x, backend.floatx())
+        x = tf.cast(x, config.floatx())
     return tf.reduce_mean(x, axis, keepdims)
 
 
@@ -1061,7 +1062,7 @@ def ones(shape, dtype=None, name=None):
     """DEPRECATED."""
     with tf.init_scope():
         if dtype is None:
-            dtype = backend.floatx()
+            dtype = config.floatx()
         tf_dtype = tf.as_dtype(dtype)
         v = tf.ones(shape=shape, dtype=tf_dtype, name=name)
         if py_all(v.shape.as_list()):
@@ -1181,7 +1182,7 @@ def prod(x, axis=None, keepdims=False):
 def random_bernoulli(shape, p=0.0, dtype=None, seed=None):
     """DEPRECATED."""
     if dtype is None:
-        dtype = backend.floatx()
+        dtype = config.floatx()
     if seed is None:
         seed = np.random.randint(10e6)
     return tf.where(
@@ -1195,7 +1196,7 @@ def random_bernoulli(shape, p=0.0, dtype=None, seed=None):
 def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     """DEPRECATED."""
     if dtype is None:
-        dtype = backend.floatx()
+        dtype = config.floatx()
     if seed is None:
         seed = np.random.randint(10e6)
     return tf.random.normal(
@@ -1209,7 +1210,7 @@ def random_normal_variable(
 ):
     """DEPRECATED."""
     if dtype is None:
-        dtype = backend.floatx()
+        dtype = config.floatx()
     tf_dtype = tf.as_dtype(dtype)
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
@@ -1224,7 +1225,7 @@ def random_normal_variable(
 def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     """DEPRECATED."""
     if dtype is None:
-        dtype = backend.floatx()
+        dtype = config.floatx()
     if seed is None:
         seed = np.random.randint(10e6)
     return tf.random.uniform(
@@ -1236,7 +1237,7 @@ def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
 def random_uniform_variable(shape, low, high, dtype=None, name=None, seed=None):
     """DEPRECATED."""
     if dtype is None:
-        dtype = backend.floatx()
+        dtype = config.floatx()
     tf_dtype = tf.as_dtype(dtype)
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
@@ -1259,7 +1260,7 @@ def relu(x, alpha=0.0, max_value=None, threshold=0.0):
     # While x can be a tensor or variable, we also see cases where
     # numpy arrays, lists, tuples are passed as well.
     # lists, tuples do not have 'dtype' attribute.
-    dtype = getattr(x, "dtype", backend.floatx())
+    dtype = getattr(x, "dtype", config.floatx())
     if alpha != 0.0:
         if max_value is None and threshold == 0:
             return tf.nn.leaky_relu(x, alpha=alpha)
@@ -1947,7 +1948,7 @@ def sparse_categorical_crossentropy(
     target = cast(target, "int64")
 
     if not from_logits:
-        epsilon_ = tf.convert_to_tensor(backend.epsilon(), output.dtype)
+        epsilon_ = tf.convert_to_tensor(config.epsilon(), output.dtype)
         output = tf.clip_by_value(output, epsilon_, 1 - epsilon_)
         output = tf.math.log(output)
 
@@ -2096,7 +2097,7 @@ def stack(x, axis=0):
 def std(x, axis=None, keepdims=False):
     """DEPRECATED."""
     if x.dtype.base_dtype == tf.bool:
-        x = tf.cast(x, backend.floatx())
+        x = tf.cast(x, config.floatx())
     return tf.math.reduce_std(x, axis=axis, keepdims=keepdims)
 
 
@@ -2213,7 +2214,7 @@ def transpose(x):
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     """DEPRECATED."""
     if dtype is None:
-        dtype = backend.floatx()
+        dtype = config.floatx()
     if seed is None:
         seed = np.random.randint(10e6)
     return tf.random.truncated_normal(
@@ -2243,7 +2244,7 @@ def update_sub(x, decrement):
 def var(x, axis=None, keepdims=False):
     """DEPRECATED."""
     if x.dtype.base_dtype == tf.bool:
-        x = tf.cast(x, backend.floatx())
+        x = tf.cast(x, config.floatx())
     return tf.math.reduce_variance(x, axis=axis, keepdims=keepdims)
 
 
@@ -2251,7 +2252,7 @@ def var(x, axis=None, keepdims=False):
 def variable(value, dtype=None, name=None, constraint=None):
     """DEPRECATED."""
     if dtype is None:
-        dtype = backend.floatx()
+        dtype = config.floatx()
     if hasattr(value, "tocoo"):
         sparse_coo = value.tocoo()
         indices = np.concatenate(
@@ -2279,7 +2280,7 @@ def zeros(shape, dtype=None, name=None):
     """DEPRECATED."""
     with tf.init_scope():
         if dtype is None:
-            dtype = backend.floatx()
+            dtype = config.floatx()
         tf_dtype = tf.as_dtype(dtype)
         v = tf.zeros(shape=shape, dtype=tf_dtype, name=name)
         if py_all(v.shape.as_list()):

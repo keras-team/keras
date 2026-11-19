@@ -660,10 +660,29 @@ class VariableDtypeShapeNdimRepr(test_case.TestCase):
             np.array([1.0, 2.0, 3.0]),
         )
 
-    def test_variable_array(self):
+    @parameterized.named_parameters(
+        ("default", None, None),
+        ("dtype", "int32", None),
+        ("dtype_no_op", "float32", None),
+        ("copy", None, True),
+        ("no_copy", None, False),
+    )
+    def test_variable_array(self, dtype, copy):
         """Test converting a variable to an array."""
-        v = backend.Variable(initializer=np.array([1.0, 2.0, 3.0]))
-        self.assertAllClose(v.__array__(), np.array([1.0, 2.0, 3.0]))
+        v = backend.Variable(initializer=np.array([1, 2, 3], dtype="float32"))
+
+        if copy is not None:
+            np_v = v.__array__(dtype=dtype, copy=copy)
+        else:
+            np_v = v.__array__(dtype=dtype)
+
+        self.assertAllClose(np_v, np.array([1, 2, 3]))
+        if dtype is not None:
+            self.assertEqual(np_v.dtype, dtype)
+        if copy:
+            self.assertIsNot(np_v, v._value)
+            np_v[0] = 0
+            self.assertAllClose(v, np.array([1, 2, 3]))
 
 
 class VariableOpsCorrectnessTest(test_case.TestCase):

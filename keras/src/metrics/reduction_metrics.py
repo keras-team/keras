@@ -2,13 +2,14 @@ from keras.src import backend
 from keras.src import initializers
 from keras.src import losses
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import get_keras_mask
 from keras.src.metrics.metric import Metric
 from keras.src.saving import serialization_lib
 
 
 def reduce_to_samplewise_values(values, sample_weight, reduce_fn, dtype):
-    dtype = dtype or backend.floatx()
+    dtype = dtype or config.floatx()
     mask = get_keras_mask(values)
     values = backend.ops.cast(values, dtype=dtype)
     if sample_weight is not None:

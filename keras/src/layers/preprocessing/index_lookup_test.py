@@ -10,6 +10,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.saving import saving_api
 from keras.src.trainers.data_adapters import py_dataset_adapter
 
@@ -343,7 +344,7 @@ class IndexLookupLayerTest(testing.TestCase):
         symbolic_input = layers.Input(shape=(3, 4), dtype="int32")
         output_spec = layer.compute_output_spec(symbolic_input)
         self.assertEqual(output_spec.shape, (None, 3, 4, 4))
-        self.assertEqual(output_spec.dtype, backend.floatx())
+        self.assertEqual(output_spec.dtype, config.floatx())
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",

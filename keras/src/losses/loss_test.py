@@ -12,6 +12,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import set_keras_mask
 from keras.src.backend.common import standardize_dtype
 from keras.src.losses.loss import Loss
@@ -27,7 +28,7 @@ class LossTest(testing.TestCase):
     def setUp(self):
         super().setUp()
         self._global_dtype_policy = dtype_policies.dtype_policy.dtype_policy()
-        self._floatx = backend.floatx()
+        self._floatx = config.floatx()
 
     def tearDown(self):
         super().tearDown()
@@ -154,6 +155,46 @@ class LossTest(testing.TestCase):
             loss,
         )
 
+    @parameterized.product(
+        reduction=(
+            "sum_over_batch_size",
+            "mean",
+            "sum",
+            "mean_with_sample_weight",
+            None,
+            "none",
+        ),
+        sample_weight_shape=((2, 2), (2, 1), (2, 2, 1)),
+    )
+    def test_mask_does_not_mutate_sample_weight(
+        self, reduction, sample_weight_shape
+    ):
+        sample_weight_values = np.array([[2, 5], [3, 7]], dtype="float32")
+        if sample_weight_shape == (2, 1):
+            sample_weight_values = sample_weight_values[:, :1]
+        sample_weight_values = sample_weight_values.reshape(sample_weight_shape)
+        sample_weight = ops.convert_to_tensor(sample_weight_values.copy())
+        y_true = ops.convert_to_tensor([[1, 4], [3, 2]], dtype="float32")
+        y_pred = ops.zeros((2, 2))
+        mask = ops.convert_to_tensor([[True, False], [True, False]])
+        set_keras_mask(y_pred, mask)
+
+        expected_loss = {
+            "sum_over_batch_size": 14.5,
+            "mean": 14.5,
+            "sum": 29,
+            "mean_with_sample_weight": 5.8,
+            None: [[2, 0], [27, 0]],
+            "none": [[2, 0], [27, 0]],
+        }[reduction]
+        loss_fn = ExampleLoss(reduction=reduction)
+
+        # Reuse the caller-owned tensor as a data loader would.
+        for _ in range(3):
+            loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
+            self.assertAllClose(expected_loss, loss)
+            self.assertAllClose(sample_weight_values, sample_weight)
+
     def test_mask_and_sample_weight_rank2(self):
         # check loss of inputs with duplicate rows doesn't change
         sample_weight = np.array([0.4, 0.3, 0.2, 0.1])
@@ -275,7 +316,7 @@ class LossTest(testing.TestCase):
         backend.set_floatx("float16")
         loss_fn = ExampleLoss()
         loss = loss_fn(y_true, y_pred)
-        self.assertDType(loss, backend.floatx())
+        self.assertDType(loss, config.floatx())
 
     def test_get_config_and_from_config_dtype(self):
         # Default dtype should not add dtype to config
@@ -283,7 +324,7 @@ class LossTest(testing.TestCase):
         config_default = loss_default.get_config()
         self.assertNotIn("dtype", config_default)
         restored_default = ExampleLoss.from_config(config_default)
-        self.assertEqual(restored_default.dtype, backend.floatx())
+        self.assertEqual(restored_default.dtype, config.floatx())
 
         # Explicit string dtype should be saved in config and restored
         loss_f16 = ExampleLoss(dtype="float16")

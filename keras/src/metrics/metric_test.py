@@ -8,6 +8,7 @@ from keras.src import initializers
 from keras.src import metrics as metrics_module
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.metrics.metric import Metric
 
 
@@ -35,7 +36,7 @@ class ExampleMetric(Metric):
     def result(self):
         _sum = ops.cast(self.sum, dtype=self.dtype)
         _total = ops.cast(self.total, dtype=self.dtype)
-        _epsilon = ops.cast(backend.epsilon(), dtype=self.dtype)
+        _epsilon = ops.cast(config.epsilon(), dtype=self.dtype)
         return _sum / (_total + _epsilon)
 
     def reset_state(self):
@@ -47,7 +48,7 @@ class MetricTest(testing.TestCase):
     def setUp(self):
         super().setUp()
         self._global_dtype_policy = dtype_policies.dtype_policy.dtype_policy()
-        self._floatx = backend.floatx()
+        self._floatx = config.floatx()
 
     def tearDown(self):
         super().tearDown()
@@ -254,4 +255,4 @@ class MetricTest(testing.TestCase):
         metric = ExampleMetric()
         metric.update_state(y_true, y_pred)
         result = metric.result()
-        self.assertDType(result, backend.floatx())
+        self.assertDType(result, config.floatx())

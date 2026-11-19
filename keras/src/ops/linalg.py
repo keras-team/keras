@@ -1,6 +1,7 @@
 from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import any_symbolic_tensors
 from keras.src.backend.common import standardize_dtype
@@ -299,7 +300,7 @@ class Norm(Operation):
     def compute_output_spec(self, x):
         output_dtype = standardize_dtype(x.dtype)
         if "int" in output_dtype or output_dtype == "bool":
-            output_dtype = backend.floatx()
+            output_dtype = config.floatx()
         if self.axis is None:
             num_axes = len(x.shape)
         elif isinstance(self.axis, int):

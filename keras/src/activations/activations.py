@@ -108,7 +108,7 @@ class ReLU(ops.Operation):
             x = backend.ops.numpy.clip(x, min_value, max_value)
 
         if negative_slope != 0.0:
-            x -= negative_slope * negative_part
+            x = x - ops.cast(negative_slope * negative_part, dtype=x.dtype)
         return x
 
 
