@@ -463,8 +463,6 @@ def affine_transform(
         images = jnp.transpose(images, (0, 2, 3, 1))
 
     batch_size = images.shape[0]
-    if transform.shape[0] == 1 and batch_size > 1:
-        transform = jnp.repeat(transform, batch_size, axis=0)
 
     # get indices
     meshgrid = jnp.meshgrid(
@@ -489,7 +487,7 @@ def affine_transform(
     transform = jnp.pad(
         transform, pad_width=[[0, 0], [0, 1]], constant_values=1
     )
-    transform = jnp.reshape(transform, (batch_size, 3, 3))
+    transform = jnp.reshape(transform, (-1, 3, 3))
     offset = transform[:, 0:2, 2]
     offset = jnp.pad(offset, pad_width=[[0, 0], [0, 1]])
     transform = transform.at[:, 0:2, 2].set(0)
