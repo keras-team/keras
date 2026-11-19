@@ -127,8 +127,8 @@ class DistributeTest(testing.TestCase):
 
     def test_jit_compile_disabled_with_multi_replica_strategy(self):
         strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
+        model = models.Sequential([layers.Dense(2)])
         with strategy.scope():
-            model = models.Sequential([layers.Input((4,)), layers.Dense(2)])
             with self.assertWarnsRegex(UserWarning, "multi-replica"):
                 model.compile(optimizer="sgd", loss="mse", jit_compile=True)
         self.assertFalse(model.jit_compile)
