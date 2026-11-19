@@ -14017,11 +14017,14 @@ class MeanTest(ReductionOpTest):
     }
 
     def test_low_precision_overflow(self):
-        # Each value fills its dtype's significand, so summing three of them
-        # in that dtype overflows (float16) or rounds (bfloat16).
-        for dtype, value in (("float16", 65504), ("bfloat16", 65280)):
-            x = np.full((3,), value, dtype)
-            self.assertAllClose(knp.mean(x), np.mean(x))
+        # Summing in float16 overflows; summing many bfloat16 values loses
+        # precision unless accumulated in float32.
+        for dtype, value, count in (
+            ("float16", 65504, 3),
+            ("bfloat16", 65280, 1000),
+        ):
+            x = np.full((count,), value, dtype)
+            self.assertAllClose(knp.mean(x), np.array(value, dtype))
 
 
 class SqueezeTest(UnaryOpTest):

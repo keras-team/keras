@@ -104,7 +104,10 @@ def mean(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
     result_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    return np.mean(x, axis=axis, keepdims=keepdims).astype(result_dtype)
+    compute_dtype = dtypes.result_type(result_dtype, "float32")
+    return np.mean(x, axis=axis, keepdims=keepdims, dtype=compute_dtype).astype(
+        result_dtype
+    )
 
 
 def max(x, axis=None, keepdims=False, initial=None):
