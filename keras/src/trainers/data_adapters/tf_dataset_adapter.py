@@ -1,5 +1,5 @@
-from keras.src import backend
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.data_adapters.data_adapter import DataAdapter
 
@@ -173,7 +173,7 @@ def make_class_weight_map_fn(class_weight):
     """
     from keras.src.utils.module_utils import tensorflow as tf
 
-    class_weight_dtype = tf.as_dtype(backend.floatx())
+    class_weight_dtype = tf.as_dtype(config.floatx())
     class_weight_clean = {
         int(key): float(value) for key, value in class_weight.items()
     }

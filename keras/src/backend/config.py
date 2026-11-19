@@ -80,11 +80,12 @@ _MAX_STEPS_PER_EPOCH = None
 # backend-specific implementation available.
 _USE_BACKEND_AGNOSTIC_OPS = False
 
-# How Keras handles 64-bit dtypes, see `set_x64_mode()`.
-_X64_MODE = "off"
+# How Keras handles 64-bit dtypes, see `set_x64_mode()`. Set at import from
+# the config, or to the backend's default.
+_X64_MODE = None
 _X64_MODES = ("off", "explicit_x64", "enable_x64")
 # TODO: Add mlx and paddle, and let pluggable backends declare support.
-_X64_BACKENDS = frozenset(["jax", "numpy", "torch"])
+_X64_BACKENDS = frozenset(["jax", "numpy", "tensorflow", "torch"])
 
 
 @keras_export(["keras.config.floatx", "keras.backend.floatx"])
@@ -151,7 +152,7 @@ def x64_mode():
 
     Example:
 
-    >>> keras.config.x64_mode()
+    >>> keras.config.x64_mode()  # On JAX, NumPy or PyTorch.
     'off'
 
     """
@@ -166,20 +167,23 @@ def set_x64_mode(mode):
 
     Args:
         mode: One of:
-            - `"off"` (default): the result dtype of every op is capped to
-              32-bit, e.g. adding two `int64` tensors gives an `int32` tensor.
-            - `"explicit_x64"`: a 64-bit input gives a 64-bit output. Inputs
-              that are all 32-bit, Python scalars and default dtypes stay
-              32-bit. This mirrors JAX's `jax_explicit_x64_dtypes="allow"`,
-              which Keras turns on for you on the JAX backend.
+            - `"off"` (default on JAX, NumPy and PyTorch): the result dtype of
+              every op is capped to 32-bit, e.g. adding two `int64` tensors
+              gives an `int32` tensor.
+            - `"explicit_x64"` (default and only mode on TensorFlow): a 64-bit
+              input gives a 64-bit output. Inputs that are all 32-bit, Python
+              scalars and default dtypes stay 32-bit (except `dtype=int`,
+              which is `int64` on TensorFlow). This mirrors JAX's
+              `jax_explicit_x64_dtypes="allow"`, which Keras turns on for you
+              on the JAX backend.
             - `"enable_x64"`: not supported yet.
 
     The mode can also be set with the `KERAS_X64_MODE` environment variable
     or the `"x64_mode"` field of `~/.keras/keras.json`. Set it before
-    creating tensors or models. Supported on the `jax`, `numpy` and `torch`
-    backends. On the JAX backend, Keras turns on the matching JAX flag. If
-    JAX's own 64-bit flags are already on and don't match `mode`, Keras
-    warns and keeps `mode`.
+    creating tensors or models. Supported on the `jax`, `numpy`, `tensorflow`
+    and `torch` backends. On the JAX backend, Keras turns on the matching JAX
+    flag. If JAX's own 64-bit flags are already on and don't match `mode`,
+    Keras warns and keeps `mode`.
 
     Example:
 
@@ -208,6 +212,11 @@ def _validate_x64_mode(mode):
     if mode == "enable_x64":
         raise ValueError(
             "`x64_mode='enable_x64'` is not supported yet. Use 'explicit_x64'."
+        )
+    if mode == "off" and backend() == "tensorflow":
+        raise ValueError(
+            "`x64_mode='off'` is not supported on the tensorflow backend, "
+            "which keeps 64-bit dtypes. Use 'explicit_x64'."
         )
     if mode != "off" and backend() not in _X64_BACKENDS:
         raise ValueError(
@@ -640,6 +649,8 @@ set_nnx_enabled(_NNX_ENABLED)
 
 if os.environ.get("KERAS_X64_MODE"):
     _X64_MODE = os.environ["KERAS_X64_MODE"]
+if _X64_MODE is None:
+    _X64_MODE = "explicit_x64" if backend() == "tensorflow" else "off"
 
 set_x64_mode(_X64_MODE)  # Validates the configured mode and syncs JAX.
 

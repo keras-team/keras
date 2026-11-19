@@ -1,6 +1,6 @@
-from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.losses.loss import squeeze_or_expand_to_same_rank
 from keras.src.metrics import reduction_metrics
 
@@ -89,7 +89,7 @@ def concordance_correlation(y_true, y_pred, axis=-1):
     covar = (y_true - y_pred_mean) * (y_pred - y_pred_mean)
     norm = y_true_var + y_pred_var + ops.square(y_true_mean - y_pred_mean)
 
-    return ops.mean(2 * covar / (norm + backend.epsilon()), axis=axis)
+    return ops.mean(2 * covar / (norm + config.epsilon()), axis=axis)
 
 
 @keras_export("keras.metrics.PearsonCorrelation")

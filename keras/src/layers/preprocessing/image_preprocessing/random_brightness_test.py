@@ -50,6 +50,15 @@ class RandomBrightnessTest(testing.TestCase):
         self.assertTrue(np.amax(diff) <= 0)
         self.assertTrue(np.mean(diff) < 0)
 
+    def test_does_not_mutate_input(self):
+        inputs_values = np.random.uniform(0, 255, (2, 8, 8, 3)).astype(
+            "float32"
+        )
+        inputs = backend.ops.convert_to_tensor(inputs_values.copy())
+        layer = layers.RandomBrightness([0.1, 1.0])
+        layer(inputs)
+        self.assertAllClose(inputs_values, inputs)
+
     def test_tf_data_compatibility(self):
         layer = layers.RandomBrightness(factor=0.5, seed=1337)
         input_data = np.random.random((2, 8, 8, 3))

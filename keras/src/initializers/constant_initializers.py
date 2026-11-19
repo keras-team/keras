@@ -67,7 +67,7 @@ class Zeros(Initializer):
         Args:
             shape: Shape of the tensor.
             dtype: Optional dtype of the tensor. Only numeric or boolean dtypes
-                are supported. If not specified, `keras.backend.floatx()`
+                are supported. If not specified, `keras.config.floatx()`
                 is used, which default to `float32` unless you configured it
                 otherwise (via `keras.backend.set_floatx(float_dtype)`).
         """
@@ -98,7 +98,7 @@ class Ones(Initializer):
         Args:
             shape: Shape of the tensor.
             dtype: Optional dtype of the tensor. Only numeric or boolean dtypes
-                are supported. If not specified, `keras.backend.floatx()`
+                are supported. If not specified, `keras.config.floatx()`
                 is used, which default to `float32` unless you configured it
                 otherwise (via `keras.backend.set_floatx(float_dtype)`).
         """
@@ -141,7 +141,7 @@ class Identity(Initializer):
         Args:
             shape: Shape of the tensor.
             dtype: Optional dtype of the tensor. Only numeric or boolean dtypes
-                are supported. If not specified, `keras.backend.floatx()`
+                are supported. If not specified, `keras.config.floatx()`
                 is used, which default to `float32` unless you configured it
                 otherwise (via `keras.backend.set_floatx(float_dtype)`).
         """
@@ -228,7 +228,7 @@ class STFT(Initializer):
         Args:
             shape: Shape of the tensor.
             dtype: Optional dtype of the tensor. Only numeric or boolean dtypes
-                are supported. If not specified, `keras.backend.floatx()`
+                are supported. If not specified, `keras.config.floatx()`
                 is used, which default to `float32` unless you configured it
                 otherwise (via `keras.backend.set_floatx(float_dtype)`).
         """

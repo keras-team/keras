@@ -49,8 +49,16 @@ def rot90(array, k=1, axes=(0, 1)):
 
 @sparse.elementwise_binary_union(linear=True, use_sparsify=True)
 def add(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
     return jnp.add(x1, x2)
 
 
@@ -380,6 +388,7 @@ def abs(x):
 
 def fabs(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.fabs(x)
 
 
@@ -429,10 +438,7 @@ def arange(start, stop=None, step=None, dtype=None):
 @sparse.densifying_unary
 def arccos(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = cast(x, dtype)
     return jnp.arccos(x)
 
@@ -440,10 +446,7 @@ def arccos(x):
 @sparse.densifying_unary
 def arccosh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = cast(x, dtype)
     return jnp.arccosh(x)
 
@@ -451,10 +454,7 @@ def arccosh(x):
 @sparse.elementwise_unary(linear=False)
 def arcsin(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = cast(x, dtype)
     return jnp.arcsin(x)
 
@@ -462,10 +462,7 @@ def arcsin(x):
 @sparse.elementwise_unary(linear=False)
 def arcsinh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = cast(x, dtype)
     return jnp.arcsinh(x)
 
@@ -473,10 +470,7 @@ def arcsinh(x):
 @sparse.elementwise_unary(linear=False)
 def arctan(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = cast(x, dtype)
     return jnp.arctan(x)
 
@@ -493,10 +487,7 @@ def arctan2(x1, x2):
 @sparse.elementwise_unary(linear=False)
 def arctanh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = cast(x, dtype)
     return jnp.arctanh(x)
 
@@ -621,16 +612,16 @@ def broadcast_to(x, shape):
 
 def cbrt(x):
     x = convert_to_tensor(x)
+    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    if float_dtype != standardize_dtype(x.dtype):
+        x = cast(x, float_dtype)
     return jnp.cbrt(x)
 
 
 @sparse.elementwise_unary(linear=False)
 def ceil(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = cast(x, dtype)
     return jnp.ceil(x)
 
@@ -686,10 +677,7 @@ def copysign(x1, x2):
 @sparse.densifying_unary
 def cos(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = cast(x, dtype)
     return jnp.cos(x)
 
@@ -697,10 +685,7 @@ def cos(x):
 @sparse.densifying_unary
 def cosh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = cast(x, dtype)
     return jnp.cosh(x)
 
@@ -770,11 +755,13 @@ def cumsum(x, axis=None, dtype=None):
 
 def deg2rad(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.deg2rad(x)
 
 
 def rad2deg(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.rad2deg(x)
 
 
@@ -838,18 +825,14 @@ def equal(x1, x2):
 @sparse.densifying_unary
 def exp(x):
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    if "int" in ori_dtype or ori_dtype == "bool":
-        x = cast(x, config.floatx())
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.exp(x)
 
 
 @sparse.densifying_unary
 def exp2(x):
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    if "int" in ori_dtype or ori_dtype == "bool":
-        x = cast(x, config.floatx())
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.exp2(x)
 
 
@@ -872,9 +855,7 @@ def expand_dims(x, axis):
 @sparse.elementwise_unary(linear=False)
 def expm1(x):
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    if "int" in ori_dtype or ori_dtype == "bool":
-        x = cast(x, config.floatx())
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.expm1(x)
 
 
@@ -895,10 +876,7 @@ def flipud(x):
 @sparse.elementwise_unary(linear=False)
 def floor(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = cast(x, dtype)
     return jnp.floor(x)
 
@@ -958,12 +936,7 @@ def imag(x):
 
 def i0(x):
     x = convert_to_tensor(x)
-    dtype = standardize_dtype(x.dtype)
-    if dtype in ["int64", "float64"]:
-        dtype = "float64"
-    elif dtype not in ["bfloat16", "float16"]:
-        dtype = config.floatx()
-    x = cast(x, dtype)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.i0(x)
 
 
@@ -1072,32 +1045,28 @@ def linspace(
 @sparse.densifying_unary
 def log(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        x = cast(x, config.floatx())
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.log(x)
 
 
 @sparse.densifying_unary
 def log10(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        x = cast(x, config.floatx())
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.log10(x)
 
 
 @sparse.elementwise_unary(linear=False)
 def log1p(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        x = cast(x, config.floatx())
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.log1p(x)
 
 
 @sparse.densifying_unary
 def log2(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        x = cast(x, config.floatx())
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.log2(x)
 
 
@@ -1384,6 +1353,7 @@ def real(x):
 @sparse.densifying_unary
 def reciprocal(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.reciprocal(x)
 
 
@@ -1441,20 +1411,14 @@ def signbit(x):
 @sparse.elementwise_unary(linear=False)
 def sin(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = cast(x, dtype)
     return jnp.sin(x)
 
 
 def sinc(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = cast(x, dtype)
     return jnp.sinc(x)
 
@@ -1462,10 +1426,7 @@ def sinc(x):
 @sparse.elementwise_unary(linear=False)
 def sinh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = cast(x, dtype)
     return jnp.sinh(x)
 
@@ -1521,10 +1482,7 @@ def take_along_axis(x, indices, axis=None):
 @sparse.elementwise_unary(linear=False)
 def tan(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = cast(x, dtype)
     return jnp.tan(x)
 
@@ -1532,10 +1490,7 @@ def tan(x):
 @sparse.elementwise_unary(linear=False)
 def tanh(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = cast(x, dtype)
     return jnp.tanh(x)
 
@@ -1645,8 +1600,16 @@ def true_divide(x1, x2):
 
 
 def power(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
     return jnp.power(x1, x2)
 
 
@@ -1677,8 +1640,7 @@ def square(x):
 @sparse.elementwise_unary(linear=False)
 def sqrt(x):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        x = cast(x, config.floatx())
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.sqrt(x)
 
 

@@ -2,6 +2,7 @@ from keras.src import backend
 from keras.src import dtype_policies
 from keras.src import initializers
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import StatelessScope
 from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils.naming import auto_name
@@ -15,7 +16,7 @@ class Metric(KerasSaveable):
     Args:
         name: Optional name for the metric instance.
         dtype: The dtype of the metric's computations. Defaults to `None`, which
-            means using `keras.backend.floatx()`. `keras.backend.floatx()` is a
+            means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
@@ -91,7 +92,7 @@ class Metric(KerasSaveable):
 
     def __init__(self, dtype=None, name=None):
         self.name = name or auto_name(self.__class__.__name__)
-        self._dtype_policy = dtype_policies.get(dtype or backend.floatx())
+        self._dtype_policy = dtype_policies.get(dtype or config.floatx())
         self._dtype = self._dtype_policy.compute_dtype
         self._metrics = []
         self._variables = []
