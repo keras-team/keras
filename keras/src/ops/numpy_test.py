@@ -13173,9 +13173,8 @@ class NumpyDtypeTest(testing.TestCase):
     )
     def test_std_complex_symbolic_dtype(self, input_dtype, expected_dtype):
         x = KerasTensor((None, 2), dtype=input_dtype)
-        if backend.backend() != "tensorflow":
-            with x64_mode_scope("off"):
-                self.assertEqual(knp.std(x, axis=-1).dtype, "float32")
+        if backend.config.x64_mode() == "off":
+            self.assertEqual(knp.std(x, axis=-1).dtype, "float32")
         if backend.backend() in backend.config._X64_BACKENDS:
             with x64_mode_scope("explicit_x64"):
                 self.assertEqual(knp.std(x, axis=-1).dtype, expected_dtype)

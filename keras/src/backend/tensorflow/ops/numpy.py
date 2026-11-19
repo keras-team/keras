@@ -3744,8 +3744,8 @@ def corrcoef(x):
     x = convert_to_tensor(x)
     x = tf.cast(x, dtypes.promote_to_float_dtype(x.dtype))
 
-    if tf.rank(x) == 0:
-        return tf.constant(float("nan"), dtype=config.floatx())
+    if x.shape.rank == 0:
+        return tf.constant(float("nan"), dtype=x.dtype)
     if x.shape.rank == 1:
         return tf.reshape(corrcoef(x[tf.newaxis, :]), [])
 
