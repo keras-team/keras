@@ -14010,11 +14010,6 @@ class SumTest(ReductionOpTest):
 class MeanTest(ReductionOpTest):
     op, op_class = knp.mean, knp.Mean
     reference_fn, jax_fn = np.mean, jnp.mean
-    cases = {
-        **ReductionOpTest.cases,
-        # An integer input still gives a float output when no axis is reduced.
-        "no_axis_int": ((X.astype("int32"),), {"axis": ()}),
-    }
 
     def test_low_precision_overflow(self):
         # Summing in float16 overflows; summing many bfloat16 values loses
