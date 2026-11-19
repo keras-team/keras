@@ -323,7 +323,11 @@ def _squareplus(x, b=4):
         return backend.ops.nn.squareplus(x, b)
     x = backend.ops.convert_to_tensor(x)
     b = backend.ops.convert_to_tensor(b, dtype=x.dtype)
-    y = (x + backend.ops.numpy.sqrt(backend.ops.numpy.square(x) + b)) / 2.0
+    # `hypot` avoids the overflow of `x**2`, and the `x < 0` branch avoids
+    # the cancellation in `x + sqrt(x**2 + b)`.
+    bnp = backend.ops.numpy
+    sqz = bnp.hypot(x, bnp.sqrt(b))
+    y = bnp.where(x < 0, b / (sqz - bnp.minimum(x, 0)), x + sqz) / 2.0
     return backend.ops.cast(y, dtype=x.dtype)
 
 
