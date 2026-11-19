@@ -1,5 +1,3 @@
-# flake8: noqa
-
 import numpy as np
 
 from keras.src import backend

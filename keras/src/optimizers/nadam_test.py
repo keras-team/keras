@@ -1,6 +1,3 @@
-# flake8: noqa
-
-
 import numpy as np
 
 from keras.src import backend
@@ -69,6 +66,7 @@ class NadamTest(testing.TestCase):
         first_grads = ops.full((10,), 0.01)
 
         # fmt: off
+        # ruff: disable[E501]
         golden = np.array(
             [[0.4281, 0.4281, 0.4281, 0.4281, 0.4281, 0.4281, 0.4281, 0.4281, 0.4281, 0.4281],
             [-0.1738, -0.1731, -0.1726, -0.1723, -0.1721, -0.172, -0.1719, -0.1718, -0.1718, -0.1717],
@@ -76,6 +74,7 @@ class NadamTest(testing.TestCase):
             [-1.2335, -1.2322, -1.2313, -1.2309, -1.2306, -1.2304, -1.2302, -1.2301, -1.23, -1.2299],
             [-1.7492, -1.7478, -1.7469, -1.7464, -1.7461, -1.7459, -1.7457, -1.7456, -1.7455, -1.7454]]
         )
+        # ruff: enable[E501]
         # fmt: on
 
         optimizer.apply_gradients(zip([first_grads], [x]))

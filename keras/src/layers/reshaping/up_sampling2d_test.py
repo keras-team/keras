@@ -1,13 +1,11 @@
-# flake8: noqa
 import numpy as np
-import pytest
 from absl.testing import parameterized
 
+from keras.backend import set_image_data_format
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
 from keras.src.backend import config
-from keras.backend import set_image_data_format
 
 
 class UpSampling2dTest(testing.TestCase):
