@@ -3563,7 +3563,7 @@ def squeeze(x, axis=None):
     static_shape = x.shape.as_list()
     if axis is not None:
         for a in axis:
-            if static_shape[a] != 1:
+            if static_shape[a] not in (1, None):
                 raise ValueError(
                     f"Cannot squeeze axis={a}, because the dimension is not 1."
                 )
