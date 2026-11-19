@@ -6,11 +6,11 @@ import pytest
 from absl.testing import parameterized
 
 from keras.src import applications
-from keras.src import backend
 from keras.src import layers
 from keras.src import ops
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
 from keras.src.dtype_policies import dtype_policy
@@ -818,7 +818,7 @@ class FunctionalTest(testing.TestCase):
 
     def test_for_functional_in_sequential(self):
         # Test for a v3.4.1 regression.
-        if backend.image_data_format() == "channels_first":
+        if config.image_data_format() == "channels_first":
             image_size = (3, 100, 100)
         else:
             image_size = (100, 100, 3)
@@ -830,8 +830,8 @@ class FunctionalTest(testing.TestCase):
         model.add(base_model)
         model.add(layers.GlobalAveragePooling2D())
         model.add(layers.Dense(7, activation="softmax"))
-        config = model.get_config()
-        model = Sequential.from_config(config)
+        model_config = model.get_config()
+        model = Sequential.from_config(model_config)
 
     def test_add_loss(self):
         # TODO
@@ -968,7 +968,7 @@ class FunctionalTest(testing.TestCase):
             dtype_policy.set_dtype_policy(original_dtype_policy)
 
     def test_invalid_config_deserialization_loop(self):
-        config = {
+        model_config = {
             "name": "infinite_loop_model",
             "layers": [
                 {
@@ -998,10 +998,10 @@ class FunctionalTest(testing.TestCase):
             "output_layers": [["node_b", 0, 0]],
         }
         with self.assertRaisesRegex(ValueError, "loop"):
-            Functional.from_config(config)
+            Functional.from_config(model_config)
 
     def test_invalid_config_deserialization_missing_node(self):
-        config = {
+        model_config = {
             "name": "infinite_loop_model",
             "layers": [
                 {
@@ -1025,4 +1025,4 @@ class FunctionalTest(testing.TestCase):
             "output_layers": [["node_a", 0, 0]],
         }
         with self.assertRaisesRegex(ValueError, "Missing node: node_b"):
-            Functional.from_config(config)
+            Functional.from_config(model_config)

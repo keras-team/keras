@@ -9,7 +9,6 @@ import warnings
 
 import numpy as np
 
-from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend import config
 from keras.src.trainers.data_adapters.py_dataset_adapter import PyDataset
@@ -425,7 +424,7 @@ class DirectoryIterator(BatchFromFilesMixin, Iterator):
         dtype=None,
     ):
         if data_format is None:
-            data_format = backend.image_data_format()
+            data_format = config.image_data_format()
         if dtype is None:
             dtype = config.floatx()
         super().set_processing_attrs(
@@ -542,7 +541,7 @@ class NumpyArrayIterator(Iterator):
         dtype=None,
     ):
         if data_format is None:
-            data_format = backend.image_data_format()
+            data_format = config.image_data_format()
         if dtype is None:
             dtype = config.floatx()
         self.dtype = dtype
@@ -977,7 +976,7 @@ class ImageDataGenerator:
         dtype=None,
     ):
         if data_format is None:
-            data_format = backend.image_data_format()
+            data_format = config.image_data_format()
         if dtype is None:
             dtype = config.floatx()
 

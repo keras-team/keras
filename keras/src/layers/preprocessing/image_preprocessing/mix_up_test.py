@@ -3,6 +3,7 @@ import numpy as np
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -72,7 +73,7 @@ class MixUpTest(testing.TestCase):
             output.numpy()
 
     def test_mix_up_bounding_boxes(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             image_shape = (10, 8, 3)
         else:
@@ -109,7 +110,7 @@ class MixUpTest(testing.TestCase):
         self.assertAllClose(output["boxes"], expected_boxes)
 
     def test_mix_up_tf_data_bounding_boxes(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             image_shape = (1, 10, 8, 3)
         else:

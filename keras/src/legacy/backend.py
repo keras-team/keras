@@ -5,7 +5,6 @@ import math
 
 import numpy as np
 
-from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend import config
 from keras.src.utils.module_utils import tensorflow as tf
@@ -239,7 +238,7 @@ def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
 def bias_add(x, bias, data_format=None):
     """DEPRECATED."""
     if data_format is None:
-        data_format = backend.image_data_format()
+        data_format = config.image_data_format()
     if data_format not in {"channels_first", "channels_last"}:
         raise ValueError(f"Unknown data_format: {data_format}")
     bias_shape = bias.shape
@@ -472,7 +471,7 @@ def conv1d(
 ):
     """DEPRECATED."""
     if data_format is None:
-        data_format = backend.image_data_format()
+        data_format = config.image_data_format()
     if data_format not in {"channels_first", "channels_last"}:
         raise ValueError(f"Unknown data_format: {data_format}")
 
@@ -509,7 +508,7 @@ def conv2d(
 ):
     """DEPRECATED."""
     if data_format is None:
-        data_format = backend.image_data_format()
+        data_format = config.image_data_format()
     if data_format not in {"channels_first", "channels_last"}:
         raise ValueError(f"Unknown data_format: {data_format}")
 
@@ -540,7 +539,7 @@ def conv2d_transpose(
 ):
     """DEPRECATED."""
     if data_format is None:
-        data_format = backend.image_data_format()
+        data_format = config.image_data_format()
     if data_format not in {"channels_first", "channels_last"}:
         raise ValueError(f"Unknown data_format: {data_format}")
 
@@ -608,7 +607,7 @@ def conv3d(
 ):
     """DEPRECATED."""
     if data_format is None:
-        data_format = backend.image_data_format()
+        data_format = config.image_data_format()
     if data_format not in {"channels_first", "channels_last"}:
         raise ValueError(f"Unknown data_format: {data_format}")
 
@@ -752,7 +751,7 @@ def depthwise_conv2d(
 ):
     """DEPRECATED."""
     if data_format is None:
-        data_format = backend.image_data_format()
+        data_format = config.image_data_format()
     if data_format not in {"channels_first", "channels_last"}:
         raise ValueError(f"Unknown data_format: {data_format}")
 
@@ -1093,7 +1092,7 @@ def pool2d(
 ):
     """DEPRECATED."""
     if data_format is None:
-        data_format = backend.image_data_format()
+        data_format = config.image_data_format()
     if data_format not in {"channels_first", "channels_last"}:
         raise ValueError(f"Unknown data_format: {data_format}")
     if len(pool_size) != 2:
@@ -1137,7 +1136,7 @@ def pool3d(
 ):
     """DEPRECATED."""
     if data_format is None:
-        data_format = backend.image_data_format()
+        data_format = config.image_data_format()
     if data_format not in {"channels_first", "channels_last"}:
         raise ValueError(f"Unknown data_format: {data_format}")
 
@@ -1843,7 +1842,7 @@ def separable_conv2d(
 ):
     """DEPRECATED."""
     if data_format is None:
-        data_format = backend.image_data_format()
+        data_format = config.image_data_format()
     if data_format not in {"channels_first", "channels_last"}:
         raise ValueError(f"Unknown data_format: {data_format}")
     if len(strides) != 2:
@@ -2019,7 +2018,7 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
             f"Received: padding={padding}"
         )
     if data_format is None:
-        data_format = backend.image_data_format()
+        data_format = config.image_data_format()
     if data_format not in {"channels_first", "channels_last"}:
         raise ValueError(f"Unknown data_format: {data_format}")
 
@@ -2044,7 +2043,7 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
             f"Received: padding={padding}"
         )
     if data_format is None:
-        data_format = backend.image_data_format()
+        data_format = config.image_data_format()
     if data_format not in {"channels_first", "channels_last"}:
         raise ValueError(f"Unknown data_format: {data_format}")
 

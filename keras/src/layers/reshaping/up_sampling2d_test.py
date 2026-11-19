@@ -6,13 +6,14 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 from keras.backend import set_image_data_format
 
 
 class UpSampling2dTest(testing.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.original_image_data_format = backend.image_data_format()
+        cls.original_image_data_format = config.image_data_format()
 
     @classmethod
     def tearDownClass(cls):
@@ -133,7 +134,7 @@ class UpSampling2dTest(testing.TestCase):
                [ 9., 10., 11.]]]]
         )
         # fmt: on
-        if backend.config.image_data_format() == "channels_first":
+        if config.image_data_format() == "channels_first":
             expected_output = expected_output.transpose((0, 3, 1, 2))
             x = x.transpose((0, 3, 1, 2))
         self.assertAllClose(

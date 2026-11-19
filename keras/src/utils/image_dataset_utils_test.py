@@ -4,8 +4,8 @@ from unittest import mock
 import numpy as np
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.utils import file_utils
 from keras.src.utils import image_dataset_utils
 from keras.src.utils import image_utils
@@ -23,7 +23,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
                 img = np.random.randint(0, 256, size=(height, width, 4))
             else:
                 img = np.random.randint(0, 256, size=(height, width, 3))
-            if backend.config.image_data_format() == "channels_first":
+            if config.image_data_format() == "channels_first":
                 img = np.transpose(img, (2, 0, 1))
             img = image_utils.array_to_img(img)
             imgs.append(img)
@@ -90,7 +90,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             labels=None,
             format=format,
         )
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             output_shape = [5, 18, 18, 3]
         else:
             output_shape = [5, 3, 18, 18]
@@ -121,7 +121,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             label_mode="int",
             format=format,
         )
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             output_shape = [8, 18, 18, 3]
         else:
             output_shape = [8, 3, 18, 18]
@@ -166,7 +166,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             directory, batch_size=8, image_size=(18, 18), label_mode="int"
         )
         test_obj = self
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             output_shape = [None, 18, 18, 3]
         else:
             output_shape = [None, 3, 18, 18]
@@ -210,7 +210,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             label_mode=None,
             format=format,
         )
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             output_shape = [8, 18, 18, 3]
         else:
             output_shape = [8, 3, 18, 18]
@@ -271,7 +271,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             color_mode="rgba",
             format=format,
         )
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             output_shape = [8, 18, 18, 4]
         else:
             output_shape = [8, 4, 18, 18]
@@ -290,7 +290,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             color_mode="grayscale",
             format=format,
         )
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             output_shape = [8, 18, 18, 1]
         else:
             output_shape = [8, 1, 18, 18]
@@ -316,7 +316,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             train_output_shape = [8, 18, 18, 3]
             val_output_shape = [2, 18, 18, 3]
         else:
@@ -382,7 +382,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             shuffle=False,
             format=format,
         )
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             output_shape = [18, 18, 3]
         else:
             output_shape = [3, 18, 18]
@@ -453,7 +453,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             crop_to_aspect_ratio=True,
             format=format,
         )
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             output_shape = [5, 18, 18, 3]
         else:
             output_shape = [5, 3, 18, 18]
@@ -474,7 +474,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             pad_to_aspect_ratio=True,
             format=format,
         )
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             output_shape = [5, 18, 18, 3]
         else:
             output_shape = [5, 3, 18, 18]

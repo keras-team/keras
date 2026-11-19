@@ -1,7 +1,7 @@
-from keras.src import backend
 from keras.src import layers
 from keras.src.api_export import keras_export
 from keras.src.applications import imagenet_utils
+from keras.src.backend import config
 from keras.src.backend.common import is_keras_tensor
 from keras.src.layers.layer import Layer
 from keras.src.models import Functional
@@ -115,7 +115,7 @@ def InceptionResNetV2(
         input_shape,
         default_size=299,
         min_size=75,
-        data_format=backend.image_data_format(),
+        data_format=config.image_data_format(),
         require_flatten=include_top,
         weights=weights,
     )
@@ -147,7 +147,7 @@ def InceptionResNetV2(
     branch_pool = layers.AveragePooling2D(3, strides=1, padding="same")(x)
     branch_pool = conv2d_bn(branch_pool, 64, 1)
     branches = [branch_0, branch_1, branch_2, branch_pool]
-    channel_axis = 1 if backend.image_data_format() == "channels_first" else 3
+    channel_axis = 1 if config.image_data_format() == "channels_first" else 3
     x = layers.Concatenate(axis=channel_axis, name="mixed_5b")(branches)
 
     # 10x block35 (Inception-ResNet-A block): 35 x 35 x 320
@@ -281,7 +281,7 @@ def conv2d_bn(
         name=name,
     )(x)
     if not use_bias:
-        bn_axis = 1 if backend.image_data_format() == "channels_first" else 3
+        bn_axis = 1 if config.image_data_format() == "channels_first" else 3
         bn_name = None if name is None else f"{name}_bn"
         x = layers.BatchNormalization(axis=bn_axis, scale=False, name=bn_name)(
             x
@@ -358,7 +358,7 @@ def inception_resnet_block(x, scale, block_type, block_idx, activation="relu"):
         )
 
     block_name = f"{block_type}_{block_idx}"
-    channel_axis = 1 if backend.image_data_format() == "channels_first" else 3
+    channel_axis = 1 if config.image_data_format() == "channels_first" else 3
     mixed = layers.Concatenate(axis=channel_axis, name=f"{block_name}_mixed")(
         branches
     )

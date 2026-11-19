@@ -19,6 +19,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import optimizers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.optimizers import schedules
 from keras.src.utils import file_utils
 from keras.src.utils.module_utils import tensorflow
@@ -462,7 +463,7 @@ class TestTensorBoardV2(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_tensorboard_weight_images(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (10, 10, 1)
             x_shape = (10, 10, 10, 1)
         else:

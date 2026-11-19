@@ -4,6 +4,7 @@ import pytest
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -52,7 +53,7 @@ class PipelineTest(testing.TestCase):
         self.assertTrue(pipeline.layers[1].received_mask)
 
     def test_tf_data_compatibility(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (2, 10, 12, 3)
             output_shape = (2, 8, 9, 3)
         else:

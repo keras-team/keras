@@ -3,6 +3,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.layers.preprocessing.data_layer import DataLayer
 from keras.src.random import SeedGenerator
 from keras.src.utils.module_utils import tensorflow as tf
@@ -62,7 +63,7 @@ class DataLayerTest(testing.TestCase):
         )
 
     def test_tf_data_compatibility(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_data = np.random.random((2, 8, 8, 3)).astype("float32")
         else:
@@ -75,7 +76,7 @@ class DataLayerTest(testing.TestCase):
             self.assertEqual(list(output.shape), list(input_data.shape))
 
     def test_grain_compatibility(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_data = np.random.random((2, 8, 8, 3)).astype("float32")
         else:

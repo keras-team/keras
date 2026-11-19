@@ -21,6 +21,7 @@ from keras.src.applications import resnet_v2
 from keras.src.applications import vgg16
 from keras.src.applications import vgg19
 from keras.src.applications import xception
+from keras.src.backend import config
 from keras.src.layers import Conv2D
 from keras.src.layers import Input
 from keras.src.saving import serialization_lib
@@ -123,7 +124,7 @@ def _get_elephant(target_size):
 class ApplicationsTest(testing.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.original_image_data_format = backend.image_data_format()
+        cls.original_image_data_format = config.image_data_format()
 
     @classmethod
     def tearDownClass(cls):
