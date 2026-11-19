@@ -381,7 +381,7 @@ class OpTest(TestCase):
         The eager outputs must equal `reference_fn`'s and the symbolic ones.
         Without float array inputs, float outputs must have dtype `floatx`.
         """
-        default = backend.floatx()
+        default = config.floatx()
         backend.set_floatx(floatx)
         try:
             self.check_eager(self.op, self.reference_fn, inputs, kwargs)

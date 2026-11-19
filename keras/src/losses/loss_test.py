@@ -12,6 +12,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import set_keras_mask
 from keras.src.backend.common import standardize_dtype
 from keras.src.losses.loss import Loss
@@ -27,7 +28,7 @@ class LossTest(testing.TestCase):
     def setUp(self):
         super().setUp()
         self._global_dtype_policy = dtype_policies.dtype_policy.dtype_policy()
-        self._floatx = backend.floatx()
+        self._floatx = config.floatx()
 
     def tearDown(self):
         super().tearDown()
@@ -315,7 +316,7 @@ class LossTest(testing.TestCase):
         backend.set_floatx("float16")
         loss_fn = ExampleLoss()
         loss = loss_fn(y_true, y_pred)
-        self.assertDType(loss, backend.floatx())
+        self.assertDType(loss, config.floatx())
 
     def test_get_config_and_from_config_dtype(self):
         # Default dtype should not add dtype to config
@@ -323,7 +324,7 @@ class LossTest(testing.TestCase):
         config_default = loss_default.get_config()
         self.assertNotIn("dtype", config_default)
         restored_default = ExampleLoss.from_config(config_default)
-        self.assertEqual(restored_default.dtype, backend.floatx())
+        self.assertEqual(restored_default.dtype, config.floatx())
 
         # Explicit string dtype should be saved in config and restored
         loss_f16 = ExampleLoss(dtype="float16")

@@ -966,7 +966,7 @@ def binary_crossentropy(target, output, from_logits=False):
     target = np.array(target)
     output = np.array(output)
     if not is_float_dtype(output.dtype):
-        output = cast(output, backend.floatx())
+        output = cast(output, config.floatx())
     target = cast(target, output.dtype)
     dtype = output.dtype
 

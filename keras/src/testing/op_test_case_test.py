@@ -9,6 +9,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
 from keras.src.ops.operation import Operation
@@ -124,7 +125,7 @@ class IgnoresDtype(Square):
 
 
 class IgnoresFloatx(Square):
-    """Promotes to `float32`, ignoring `backend.floatx()`."""
+    """Promotes to `float32`, ignoring `config.floatx()`."""
 
     def call(self, x):
         return ops.cast(ops.square(x), "float32")
@@ -356,7 +357,7 @@ class OpTestTest(testing.TestCase):
             AssertionError, "Float output under floatx=bfloat16"
         ):
             Case("test_eager").check_floatx("bfloat16", (X,), {})
-        self.assertEqual(backend.floatx(), "float32")
+        self.assertEqual(config.floatx(), "float32")
 
     def test_op_model(self):
         model = op_test_case._op_model(ops.add, (X, X[:1]), {})
