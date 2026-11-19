@@ -1762,10 +1762,8 @@ class NNOpsCorrectnessTest(testing.TestCase):
         # `b=4` to bool, so it computed with `b=1`.
         x_bool = np.array([True, False])
         self.assertAllClose(knn.squareplus(x_bool), [1.618034, 1.0])
-
-    def test_squareplus_large_inputs(self):
-        # `x**2` overflows float16 for `|x| > 256`, and for very negative
-        # `x` the sum `x + sqrt(x**2 + b)` cancels to zero.
+        # Large inputs: `x**2` overflows float16 for `|x| > 256`, and for very
+        # negative `x` the sum `x + sqrt(x**2 + b)` cancels to zero.
         x = np.array([-300.0, -100.0, 100.0, 300.0], dtype="float16")
         out = knn.squareplus(x)
         self.assertEqual(standardize_dtype(out.dtype), "float16")

@@ -23,6 +23,7 @@ from keras.src.backend.common.backend_utils import (
 )
 from keras.src.backend.tensorflow.ops.core import cast
 from keras.src.backend.tensorflow.ops.core import convert_to_tensor
+from keras.src.backend.tensorflow.ops.numpy import hypot
 
 
 @functools.lru_cache(maxsize=None)
@@ -112,8 +113,6 @@ def silu(x):
 
 
 def squareplus(x, b=4):
-    from keras.src.backend.tensorflow.ops.numpy import hypot
-
     x = convert_to_tensor(x)
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
     if float_dtype != standardize_dtype(x.dtype):
