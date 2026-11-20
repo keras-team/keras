@@ -1,7 +1,7 @@
-from keras.src import backend
 from keras.src import layers
 from keras.src.api_export import keras_export
 from keras.src.applications import imagenet_utils
+from keras.src.backend import config
 from keras.src.backend.common import is_keras_tensor
 from keras.src.models import Functional
 from keras.src.ops import operation_utils
@@ -60,7 +60,7 @@ def transition_block(x, reduction, name):
     Returns:
         Output tensor for the block.
     """
-    bn_axis = 3 if backend.image_data_format() == "channels_last" else 1
+    bn_axis = 3 if config.image_data_format() == "channels_last" else 1
     x = layers.BatchNormalization(
         axis=bn_axis, epsilon=1.001e-5, name=f"{name}_bn"
     )(x)
@@ -86,7 +86,7 @@ def conv_block(x, growth_rate, name):
     Returns:
         Output tensor for the block.
     """
-    bn_axis = 3 if backend.image_data_format() == "channels_last" else 1
+    bn_axis = 3 if config.image_data_format() == "channels_last" else 1
     x1 = layers.BatchNormalization(
         axis=bn_axis, epsilon=1.001e-5, name=f"{name}_0_bn"
     )(x)
@@ -183,7 +183,7 @@ def DenseNet(
     Returns:
         A model instance.
     """
-    if backend.image_data_format() == "channels_first":
+    if config.image_data_format() == "channels_first":
         raise ValueError(
             "DenseNet does not support the `channels_first` image data "
             "format. Switch to `channels_last` by editing your local "
@@ -208,7 +208,7 @@ def DenseNet(
         input_shape,
         default_size=224,
         min_size=32,
-        data_format=backend.image_data_format(),
+        data_format=config.image_data_format(),
         require_flatten=include_top,
         weights=weights,
     )
@@ -221,7 +221,7 @@ def DenseNet(
         else:
             img_input = input_tensor
 
-    bn_axis = 3 if backend.image_data_format() == "channels_last" else 1
+    bn_axis = 3 if config.image_data_format() == "channels_last" else 1
 
     x = layers.ZeroPadding2D(padding=((3, 3), (3, 3)))(img_input)
     x = layers.Conv2D(64, 7, strides=2, use_bias=False, name="conv1_conv")(x)

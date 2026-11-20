@@ -4,7 +4,6 @@ import warnings
 import numpy as np
 
 from keras.src import activations
-from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend import config
@@ -40,7 +39,7 @@ PREPROCESS_INPUT_DOC = """
             if the data types are compatible. To avoid this, pass
             `numpy.copy(x)` instead.
         data_format: Optional data format of the image tensor/array. None, means
-        the global setting `keras.backend.image_data_format()` is used
+        the global setting `keras.config.image_data_format()` is used
         (unless you changed it, it uses "channels_last").{mode}
         Defaults to `None`.
 
@@ -94,7 +93,7 @@ def preprocess_input(x, data_format=None, mode="caffe"):
         )
 
     if data_format is None:
-        data_format = backend.image_data_format()
+        data_format = config.image_data_format()
     elif data_format not in {"channels_first", "channels_last"}:
         raise ValueError(
             "Expected data_format to be one of `channels_first` or "
@@ -424,7 +423,7 @@ def correct_pad(inputs, kernel_size):
     Returns:
       A tuple.
     """
-    img_dim = 2 if backend.image_data_format() == "channels_first" else 1
+    img_dim = 2 if config.image_data_format() == "channels_first" else 1
     input_size = inputs.shape[img_dim : (img_dim + 2)]
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)

@@ -9,6 +9,7 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import random as krandom
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
@@ -35,7 +36,7 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
     def setUp(self):
         super().setUp()
         # Defaults to channels_last
-        self.data_format = backend.image_data_format()
+        self.data_format = config.image_data_format()
         backend.set_image_data_format("channels_last")
 
     def tearDown(self):
@@ -354,7 +355,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
     def setUp(self):
         super().setUp()
         # Defaults to channels_last
-        self.data_format = backend.image_data_format()
+        self.data_format = config.image_data_format()
         backend.set_image_data_format("channels_last")
 
     def tearDown(self):
@@ -1614,7 +1615,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
     def setUp(self):
         super().setUp()
         # Defaults to channels_last
-        self.data_format = backend.image_data_format()
+        self.data_format = config.image_data_format()
         backend.set_image_data_format("channels_last")
 
     def tearDown(self):
@@ -3342,7 +3343,7 @@ class ImageOpsDtypeTest(testing.TestCase):
     def setUp(self):
         super().setUp()
         # Defaults to channels_last
-        self.data_format = backend.image_data_format()
+        self.data_format = config.image_data_format()
         backend.set_image_data_format("channels_last")
 
     def tearDown(self):
@@ -3515,7 +3516,7 @@ class ImageOpsBehaviorTests(testing.TestCase):
     def setUp(self):
         super().setUp()
         # Defaults to channels_last
-        self.data_format = backend.image_data_format()
+        self.data_format = config.image_data_format()
         backend.set_image_data_format("channels_last")
 
     def tearDown(self):
@@ -4181,7 +4182,7 @@ class ExtractPatches3DTest(testing.TestCase):
     def setUp(self):
         super().setUp()
         # Defaults to channels_last
-        self.data_format = backend.image_data_format()
+        self.data_format = config.image_data_format()
         backend.set_image_data_format("channels_last")
 
     def tearDown(self):

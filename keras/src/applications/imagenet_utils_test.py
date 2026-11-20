@@ -92,7 +92,7 @@ class TestImageNetUtils(testing.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     def test_preprocess_input_symbolic(self, mode):
-        backend_data_format = backend.image_data_format()
+        backend_data_format = config.image_data_format()
         # Test image batch
         if backend_data_format == "channels_last":
             x = np.random.uniform(0, 255, (2, 10, 10, 3))

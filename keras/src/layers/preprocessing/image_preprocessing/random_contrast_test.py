@@ -3,6 +3,7 @@ import numpy as np
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -36,7 +37,7 @@ class RandomContrastTest(testing.TestCase):
         seed = 9809
         np.random.seed(seed)
 
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             inputs = np.random.random((12, 8, 16, 3))
             height_axis = -3
@@ -69,7 +70,7 @@ class RandomContrastTest(testing.TestCase):
         seed = 9809
         np.random.seed(seed)
 
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             inputs = np.random.random((12, 8, 16, 3))
             height_axis = -3

@@ -7,6 +7,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 
 
 class FlattenTest(testing.TestCase):
@@ -58,7 +59,7 @@ class FlattenTest(testing.TestCase):
             input_sparse=True,
             expected_output=(
                 expected_output_channels_last
-                if backend.config.image_data_format() == "channels_last"
+                if config.image_data_format() == "channels_last"
                 else expected_output_channels_first
             ),
             expected_output_sparse=sparse,

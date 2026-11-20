@@ -232,7 +232,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
             knn.sparsemax(x, axis=3)
 
     def test_max_pool(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_shape = (None, 8, 3)
         else:
@@ -275,7 +275,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         )
 
     def test_average_pool(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_shape = (None, 8, 3)
         else:
@@ -447,7 +447,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         self.assertSparse(out, sparse)
 
     def test_conv(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         # Test 1D conv.
         if data_format == "channels_last":
             input_shape = (None, 20, 3)
@@ -583,7 +583,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         )
 
     def test_depthwise_conv(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         # Test 1D depthwise conv.
         if data_format == "channels_last":
             input_shape = (None, 20, 3)
@@ -663,7 +663,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         )
 
     def test_separable_conv(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         # Test 1D separable conv.
         if data_format == "channels_last":
             input_shape = (None, 20, 3)
@@ -731,7 +731,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         )
 
     def test_conv_transpose(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_shape = (None, 4, 3)
         else:
@@ -1026,7 +1026,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knn.sparsemax(x).shape, (1, 2, 3))
 
     def test_max_pool(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_shape = (1, 8, 3)
         else:
@@ -1060,7 +1060,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         )
 
     def test_average_pool(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_shape = (1, 8, 3)
         else:
@@ -1094,7 +1094,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         )
 
     def test_conv(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         # Test 1D conv.
         if data_format == "channels_last":
             input_shape = (2, 20, 3)
@@ -1174,7 +1174,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         )
 
     def test_depthwise_conv(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         # Test 1D depthwise conv.
         if data_format == "channels_last":
             input_shape = (2, 20, 3)
@@ -1222,7 +1222,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         )
 
     def test_separable_conv(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         # Test 1D max pooling.
         if data_format == "channels_last":
             input_shape = (2, 20, 3)
@@ -1278,7 +1278,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         )
 
     def test_conv_input_channel_validation(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_shape = (2, 10, 3)
         else:
@@ -1324,7 +1324,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         )
 
     def test_conv_transpose(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_shape = (2, 4, 3)
         else:
@@ -1372,7 +1372,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         )
 
     def test_conv_transpose_input_channel_validation(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_shape = (2, 4, 3)
         else:
@@ -1907,7 +1907,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knn.sparsemax(x), [0.0, 0.25, 0.75])
 
     def test_max_pool(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         # Test 1D max pooling.
         if data_format == "channels_last":
             input_shape = (2, 20, 3)
@@ -1965,7 +1965,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(y_cf.shape, (2, 3, 32, 32))
 
     def test_average_pool_valid_padding(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         # Test 1D average pooling.
         if data_format == "channels_last":
             input_shape = (2, 20, 3)
@@ -1989,7 +1989,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         )
 
     def test_average_pool_same_padding(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         # Test 1D average pooling.
         if data_format == "channels_last":
             input_shape = (2, 20, 3)
@@ -2155,7 +2155,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.product(strides=(1, 2), dilation_rate=(1, (2, 1)))
     def test_conv_2d_group_2(self, strides, dilation_rate):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (2, 10, 10, 4)
         else:
             input_shape = (2, 4, 10, 10)
@@ -2174,7 +2174,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             bias_weights=np.zeros((6,)),
             strides=strides,
             padding="same",
-            data_format=backend.config.image_data_format(),
+            data_format=config.image_data_format(),
             dilation_rate=dilation_rate,
             groups=1,
         )
@@ -2417,7 +2417,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.product(padding=("valid", "same"))
     def test_conv_transpose_1d(self, padding):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (2, 4, 3)
         else:
             input_shape = (2, 3, 4)
@@ -2431,14 +2431,14 @@ class NNOpsCorrectnessTest(testing.TestCase):
             strides=2,
             output_padding=None,
             padding=padding,
-            data_format=backend.config.image_data_format(),
+            data_format=config.image_data_format(),
             dilation_rate=1,
         )
         self.assertAllClose(outputs, expected)
 
     @parameterized.product(strides=(2, (2, 2)), padding=("valid", "same"))
     def test_conv_transpose_2d(self, strides, padding):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (2, 4, 4, 3)
         else:
             input_shape = (2, 3, 4, 4)
@@ -2455,13 +2455,13 @@ class NNOpsCorrectnessTest(testing.TestCase):
             strides=strides,
             output_padding=None,
             padding=padding,
-            data_format=backend.config.image_data_format(),
+            data_format=config.image_data_format(),
             dilation_rate=1,
         )
         self.assertAllClose(outputs, expected)
 
     def test_conv_transpose_functional_model(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_shape = (4, 4, 3)
             kernel_shape = (2, 2, 5, 3)
