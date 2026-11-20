@@ -6001,8 +6001,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_blackman_low_precision_floatx(self, backend_agnostic_ops, floatx):
         backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
         self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
-        self.addCleanup(backend.set_floatx, config.floatx())
-        backend.set_floatx(floatx)
+        self.addCleanup(config.set_floatx, config.floatx())
+        config.set_floatx(floatx)
         x = 4097
         out = knp.blackman(x)
         self.assertEqual(out.shape[0], x)

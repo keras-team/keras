@@ -4,7 +4,6 @@ import pickle
 import numpy as np
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import dtype_policies
 from keras.src import layers
 from keras.src import losses as losses_module
@@ -33,7 +32,7 @@ class LossTest(testing.TestCase):
     def tearDown(self):
         super().tearDown()
         dtype_policies.dtype_policy.set_dtype_policy(self._global_dtype_policy)
-        backend.set_floatx(self._floatx)
+        config.set_floatx(self._floatx)
 
     def test_squeeze_or_expand(self):
         x1 = ops.ones((3,))
@@ -313,7 +312,7 @@ class LossTest(testing.TestCase):
         loss = loss_fn(y_true, y_pred)
         self.assertDType(loss, "float32")
 
-        backend.set_floatx("float16")
+        config.set_floatx("float16")
         loss_fn = ExampleLoss()
         loss = loss_fn(y_true, y_pred)
         self.assertDType(loss, config.floatx())

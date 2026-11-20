@@ -409,7 +409,7 @@ class OpTest(TestCase):
         Without float array inputs, float outputs must have dtype `floatx`.
         """
         default = config.floatx()
-        backend.set_floatx(floatx)
+        config.set_floatx(floatx)
         try:
             self.check_eager(self.op, self.reference_fn, inputs, kwargs)
             if _arrays(inputs):
@@ -426,7 +426,7 @@ class OpTest(TestCase):
                         f"{_describe(inputs, kwargs)}",
                     )
         finally:
-            backend.set_floatx(default)
+            config.set_floatx(default)
 
     def check_symbolic(self, inputs, kwargs, symbolic_shapes=None):
         """Checks the symbolic outputs against the eager ones.
