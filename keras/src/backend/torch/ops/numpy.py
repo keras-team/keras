@@ -514,7 +514,9 @@ def argmax(x, axis=None, keepdims=False):
     if standardize_dtype(x.dtype) == "bool":
         x = cast(x, "uint8")
 
-    return cast(torch.argmax(x, dim=axis, keepdim=keepdims), dtype="int32")
+    return cast(
+        torch.argmax(x, dim=axis, keepdim=keepdims), dtypes.default_int_dtype()
+    )
 
 
 def argmin(x, axis=None, keepdims=False):
@@ -524,7 +526,9 @@ def argmin(x, axis=None, keepdims=False):
     if standardize_dtype(x.dtype) == "bool":
         x = cast(x, "uint8")
 
-    return cast(torch.argmin(x, dim=axis, keepdim=keepdims), dtype="int32")
+    return cast(
+        torch.argmin(x, dim=axis, keepdim=keepdims), dtypes.default_int_dtype()
+    )
 
 
 def argsort(x, axis=-1):
@@ -537,7 +541,9 @@ def argsort(x, axis=-1):
     if axis is None:
         axis = -1
         x = x.reshape(-1)
-    indices = cast(torch.argsort(x, dim=axis, stable=True), dtype="int32")
+    indices = cast(
+        torch.argsort(x, dim=axis, stable=True), dtypes.default_int_dtype()
+    )
     if indices.ndim == 0:
         return indices.unsqueeze(0)
     return indices
@@ -659,7 +665,7 @@ def bincount(x, weights=None, minlength=0, sparse=False):
         dtypes_to_resolve.append(weights.dtype)
         dtype = dtypes.result_type(*dtypes_to_resolve)
     else:
-        dtype = "int32"
+        dtype = dtypes.default_int_dtype()
     if len(x.shape) == 2:
         if weights is None:
 
@@ -825,8 +831,8 @@ def count_nonzero(x, axis=None):
     x = convert_to_tensor(x)
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
-        return cast(torch.ne(x, 0), "int32")
-    return cast(torch.count_nonzero(x, dim=axis).T, "int32")
+        return cast(torch.ne(x, 0), dtypes.default_int_dtype())
+    return cast(torch.count_nonzero(x, dim=axis).T, dtypes.default_int_dtype())
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
@@ -890,7 +896,7 @@ def cumprod(x, axis=None, dtype=None):
         axis = 0
     dtype = dtypes.result_type(dtype or x.dtype)
     if dtype == "bool":
-        dtype = "int32"
+        dtype = dtypes.default_int_dtype()
     # TODO: torch.cumprod doesn't support float16 with cpu
     elif get_device() == "cpu" and dtype == "float16":
         return cast(
@@ -907,7 +913,7 @@ def cumsum(x, axis=None, dtype=None):
         axis = 0
     dtype = dtypes.result_type(dtype or x.dtype)
     if dtype == "bool":
-        dtype = "int32"
+        dtype = dtypes.default_int_dtype()
     # TODO: torch.cumsum doesn't support float16 with cpu
     elif get_device() == "cpu" and dtype == "float16":
         return cast(
@@ -1533,7 +1539,7 @@ def nanargmax(x, axis=None, keepdims=False):
 
     return torch.where(
         torch.isnan(x).all(dim=axis, keepdim=keepdims),
-        torch.tensor(-1, dtype=torch.int32, device=get_device()),
+        -1,
         argmax(x_clean, axis=axis, keepdims=keepdims),
     )
 
@@ -1548,7 +1554,7 @@ def nanargmin(x, axis=None, keepdims=False):
 
     return torch.where(
         torch.isnan(x).all(dim=axis, keepdim=keepdims),
-        torch.tensor(-1, dtype=torch.int32, device=get_device()),
+        -1,
         argmin(x_clean, axis=axis, keepdims=keepdims),
     )
 
@@ -1691,10 +1697,7 @@ def nansum(x, axis=None, keepdims=False):
     if isinstance(x, (list, tuple)):
         x = stack(x)
     x = convert_to_tensor(x)
-    dtype = standardize_dtype(x.dtype)
-
-    if dtype in ("bool", "uint8", "int8", "int16"):
-        dtype = "int32"
+    dtype = dtypes.accumulator_dtype(x.dtype)
 
     if axis == () or axis == []:
         return cast(torch.nan_to_num(x, nan=0), dtype)
@@ -1737,7 +1740,7 @@ def ndim(x):
 
 def nonzero(x):
     x = convert_to_tensor(x)
-    return cast(torch.nonzero(x).T, "int32")
+    return cast(torch.nonzero(x).T, dtypes.default_int_dtype())
 
 
 def not_equal(x1, x2):
@@ -1834,14 +1837,7 @@ def percentile(x, q, axis=None, method="linear", keepdims=False):
 def prod(x, axis=None, keepdims=False, dtype=None):
     x = convert_to_tensor(x)
     if dtype is None:
-        dtype = dtypes.result_type(x.dtype)
-        if dtype == "bool":
-            dtype = "int32"
-        elif dtype in ("int8", "int16"):
-            dtype = "int32"
-        # TODO: torch.prod doesn't support uint32
-        elif dtype == "uint8":
-            dtype = "int32"
+        dtype = dtypes.accumulator_dtype(dtypes.result_type(x.dtype))
     compute_dtype = dtype
     # TODO: torch.prod doesn't support float16 with cpu
     if get_device() == "cpu" and compute_dtype == "float16":
@@ -1864,7 +1860,7 @@ def prod(x, axis=None, keepdims=False, dtype=None):
             ),
             dtype,
         )
-    return x
+    return cast(x, dtype)  # `axis=()` reduces nothing but still casts.
 
 
 def ptp(x, axis=None, keepdims=False):
@@ -2214,10 +2210,7 @@ def tile(x, repeats):
 
 def trace(x, offset=0, axis1=0, axis2=1):
     x = convert_to_tensor(x)
-    dtype = standardize_dtype(x.dtype)
-    if dtype in ("bool", "int8", "int16", "uint8"):
-        # Torch backend doesn't support uint32 dtype.
-        dtype = "int32"
+    dtype = dtypes.accumulator_dtype(x.dtype)
     return torch.sum(
         torch.diagonal(x, offset, axis1, axis2),
         dim=-1,
@@ -2420,11 +2413,7 @@ def sum(x, axis=None, keepdims=False):
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
         return x
-    dtype = standardize_dtype(x.dtype)
-    # follow jax's rule
-    # TODO: torch doesn't support uint32
-    if dtype in ("bool", "uint8", "int8", "int16"):
-        dtype = "int32"
+    dtype = dtypes.accumulator_dtype(x.dtype)
     return cast(torch.sum(x, dim=axis, keepdim=keepdims), dtype)
 
 

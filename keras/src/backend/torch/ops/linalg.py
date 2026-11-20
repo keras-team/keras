@@ -97,7 +97,9 @@ def matrix_rank(x, tol=None):
     x = convert_to_tensor(x)
     # `torch.linalg.matrix_rank` uses `atol` for the absolute threshold
     # that numpy's `tol` also represents.
-    return torch.linalg.matrix_rank(x, atol=tol).to(torch.int32)
+    return cast(
+        torch.linalg.matrix_rank(x, atol=tol), dtypes.default_int_dtype()
+    )
 
 
 def matrix_power(a, n):

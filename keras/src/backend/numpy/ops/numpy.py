@@ -244,13 +244,17 @@ def argmax(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     dtype = standardize_dtype(x.dtype)
     if "float" not in dtype or x.ndim == 0:
-        return np.argmax(x, axis=axis, keepdims=keepdims).astype("int32")
+        return np.argmax(x, axis=axis, keepdims=keepdims).astype(
+            dtypes.default_int_dtype()
+        )
 
     dtype = dtypes.result_type(dtype, "float32")
     x = x.astype(dtype)
     is_negative_zero = (x == 0.0) & np.signbit(x)
     x = np.where(is_negative_zero, -np.finfo(x.dtype).tiny, x)
-    return np.argmax(x, axis=axis, keepdims=keepdims).astype("int32")
+    return np.argmax(x, axis=axis, keepdims=keepdims).astype(
+        dtypes.default_int_dtype()
+    )
 
 
 def argmin(x, axis=None, keepdims=False):
@@ -258,18 +262,22 @@ def argmin(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     dtype = standardize_dtype(x.dtype)
     if "float" not in dtype or x.ndim == 0:
-        return np.argmin(x, axis=axis, keepdims=keepdims).astype("int32")
+        return np.argmin(x, axis=axis, keepdims=keepdims).astype(
+            dtypes.default_int_dtype()
+        )
 
     dtype = dtypes.result_type(dtype, "float32")
     x = x.astype(dtype)
     is_negative_zero = (x == 0.0) & np.signbit(x)
     x = np.where(is_negative_zero, -np.finfo(x.dtype).tiny, x)
-    return np.argmin(x, axis=axis, keepdims=keepdims).astype("int32")
+    return np.argmin(x, axis=axis, keepdims=keepdims).astype(
+        dtypes.default_int_dtype()
+    )
 
 
 def argsort(x, axis=-1):
     axis = standardize_axis_for_numpy(axis)
-    return np.argsort(x, axis=axis).astype("int32")
+    return np.argsort(x, axis=axis).astype(dtypes.default_int_dtype())
 
 
 def array(x, dtype=None):
@@ -343,7 +351,7 @@ def bincount(x, weights=None, minlength=0, sparse=False):
         dtypes_to_resolve.append(weights.dtype)
         dtype = dtypes.result_type(*dtypes_to_resolve)
     else:
-        dtype = "int32"
+        dtype = dtypes.default_int_dtype()
     if len(x.shape) == 2:
         if weights is None:
 
@@ -506,7 +514,9 @@ def count_nonzero(x, axis=None):
     axis = standardize_axis_for_numpy(axis)
     # np.count_nonzero will return python int when axis=None, so we need
     # to convert_to_tensor
-    return convert_to_tensor(np.count_nonzero(x, axis=axis)).astype("int32")
+    return convert_to_tensor(np.count_nonzero(x, axis=axis)).astype(
+        dtypes.default_int_dtype()
+    )
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
@@ -557,7 +567,7 @@ def cumprod(x, axis=None, dtype=None):
     axis = standardize_axis_for_numpy(axis)
     dtype = dtypes.result_type(dtype or x.dtype)
     if dtype == "bool":
-        dtype = "int32"
+        dtype = dtypes.default_int_dtype()
     return np.cumprod(x, axis=axis, dtype=dtype)
 
 
@@ -565,7 +575,7 @@ def cumsum(x, axis=None, dtype=None):
     axis = standardize_axis_for_numpy(axis)
     dtype = dtypes.result_type(dtype or x.dtype)
     if dtype == "bool":
-        dtype = "int32"
+        dtype = dtypes.default_int_dtype()
     return np.cumsum(x, axis=axis, dtype=dtype)
 
 
@@ -1025,7 +1035,7 @@ def nanargmax(x, axis=None, keepdims=False):
         -1,
         np.nanargmax(
             np.where(nan_mask, -np.inf, x), axis=axis, keepdims=keepdims
-        ).astype("int32"),
+        ).astype(dtypes.default_int_dtype()),
     )
 
 
@@ -1040,7 +1050,7 @@ def nanargmin(x, axis=None, keepdims=False):
         -1,
         np.nanargmin(
             np.where(nan_mask, np.inf, x), axis=axis, keepdims=keepdims
-        ).astype("int32"),
+        ).astype(dtypes.default_int_dtype()),
     )
 
 
@@ -1048,7 +1058,7 @@ def nancumsum(x, axis=None, dtype=None):
     axis = standardize_axis_for_numpy(axis)
     dtype = dtypes.result_type(dtype or x.dtype)
     if dtype == "bool":
-        dtype = "int32"
+        dtype = dtypes.default_int_dtype()
     return np.nancumsum(x, axis=axis, dtype=dtype)
 
 
@@ -1056,7 +1066,7 @@ def nancumprod(x, axis=None, dtype=None):
     axis = standardize_axis_for_numpy(axis)
     dtype = dtypes.result_type(dtype or x.dtype)
     if dtype == "bool":
-        dtype = "int32"
+        dtype = dtypes.default_int_dtype()
     return np.nancumprod(x, axis=axis, dtype=dtype)
 
 
@@ -1097,11 +1107,7 @@ def nanprod(x, axis=None, keepdims=False):
 
     x = convert_to_tensor(x)
 
-    dtype = dtypes.result_type(x.dtype)
-    if dtype in ("bool", "int8", "int16"):
-        dtype = "int32"
-    elif dtype in ("uint8", "uint16"):
-        dtype = "uint32"
+    dtype = dtypes.accumulator_dtype(dtypes.result_type(x.dtype))
     return np.nanprod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
@@ -1128,12 +1134,7 @@ def nanstd(x, axis=None, keepdims=False):
 
 def nansum(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
-    dtype = standardize_dtype(x.dtype)
-
-    if dtype in ("bool", "int8", "int16"):
-        dtype = "int32"
-    elif dtype in ("uint8", "uint16"):
-        dtype = "uint32"
+    dtype = dtypes.accumulator_dtype(x.dtype)
     return np.nansum(x, axis=axis, keepdims=keepdims).astype(dtype)
 
 
@@ -1156,7 +1157,9 @@ def ndim(x):
 
 
 def nonzero(x):
-    return tuple(indices.astype("int32") for indices in np.nonzero(x))
+    return tuple(
+        indices.astype(dtypes.default_int_dtype()) for indices in np.nonzero(x)
+    )
 
 
 def not_equal(x1, x2):
@@ -1209,11 +1212,7 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
     if dtype is None:
-        dtype = dtypes.result_type(x.dtype)
-        if dtype in ("bool", "int8", "int16"):
-            dtype = "int32"
-        elif dtype in ("uint8", "uint16"):
-            dtype = "uint32"
+        dtype = dtypes.accumulator_dtype(dtypes.result_type(x.dtype))
     return np.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
@@ -1398,11 +1397,7 @@ def trace(x, offset=0, axis1=0, axis2=1):
     axis1 = standardize_axis_for_numpy(axis1)
     axis2 = standardize_axis_for_numpy(axis2)
     x = convert_to_tensor(x)
-    dtype = standardize_dtype(x.dtype)
-    if dtype in ("bool", "int8", "int16"):
-        dtype = "int32"
-    elif dtype in ("uint8", "uint16"):
-        dtype = "uint32"
+    dtype = dtypes.accumulator_dtype(x.dtype)
     return np.trace(x, offset=offset, axis1=axis1, axis2=axis2, dtype=dtype)
 
 
@@ -1603,12 +1598,7 @@ def var(x, axis=None, keepdims=False):
 def sum(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
-    dtype = standardize_dtype(x.dtype)
-    # follow jax's rule
-    if dtype in ("bool", "int8", "int16"):
-        dtype = "int32"
-    elif dtype in ("uint8", "uint16"):
-        dtype = "uint32"
+    dtype = dtypes.accumulator_dtype(x.dtype)
     return np.sum(x, axis=axis, keepdims=keepdims).astype(dtype)
 
 

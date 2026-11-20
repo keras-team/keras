@@ -689,7 +689,7 @@ def cosh(x):
 
 
 def count_nonzero(x, axis=None):
-    return cast(jnp.count_nonzero(x, axis=axis), "int32")
+    return cast(jnp.count_nonzero(x, axis=axis), dtypes.default_int_dtype())
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):

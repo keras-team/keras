@@ -4,6 +4,7 @@ from keras.src.api_export import keras_export
 from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import any_symbolic_tensors
+from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import reduce_shape
@@ -703,7 +704,7 @@ class MatrixRank(Operation):
 
     def compute_output_spec(self, x):
         _assert_2d(x)
-        return KerasTensor(x.shape[:-2], dtype="int32")
+        return KerasTensor(x.shape[:-2], dtype=dtypes.default_int_dtype())
 
 
 @keras_export(["keras.ops.matrix_rank", "keras.ops.linalg.matrix_rank"])
