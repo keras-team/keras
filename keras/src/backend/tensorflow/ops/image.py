@@ -10,6 +10,7 @@ from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import is_int_dtype
 from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.dtypes import promote_to_float_dtype
 from keras.src.backend.tensorflow.ops.core import convert_to_tensor
 from keras.src.backend.tensorflow.ops.numpy import moveaxis
 from keras.src.random.seed_generator import draw_seed
@@ -71,7 +72,7 @@ def rgb_to_grayscale(images, data_format=None):
         return tf.identity(images)
     # Convert to floats
     original_dtype = images.dtype
-    compute_dtype = result_type(images.dtype, float)
+    compute_dtype = promote_to_float_dtype(images.dtype)
     images = tf.cast(images, compute_dtype)
 
     # Ref: tf.image.rgb_to_grayscale

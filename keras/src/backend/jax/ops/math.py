@@ -3,7 +3,9 @@ import math
 import jax
 import jax.numpy as jnp
 
+from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.jax.ops.core import cast
 from keras.src.backend.jax.ops.core import convert_to_tensor
 from keras.src.utils.module_utils import scipy
 
@@ -78,12 +80,16 @@ def in_top_k(targets, predictions, k):
 
 def logsumexp(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jax.scipy.special.logsumexp(x, axis=axis, keepdims=keepdims)
 
 
 def cdist(x, y):
     x = jnp.asarray(x)
     y = jnp.asarray(y)
+    dtype = dtypes.promote_to_float_dtype(dtypes.result_type(x.dtype, y.dtype))
+    x = cast(x, dtype)
+    y = cast(y, dtype)
     if x.ndim < 2 or y.ndim < 2:
         raise ValueError("`cdist` inputs must have rank >= 2")
     if x.shape[-1] != y.shape[-1]:
@@ -299,6 +305,7 @@ def erf(x):
 
 def erfc(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jax.scipy.special.erfc(x)
 
 
@@ -319,9 +326,15 @@ def logdet(x):
 def gammainc(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
     return jax.scipy.special.gammainc(x1, x2)
 
 
 def lgamma(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jax.scipy.special.gammaln(x)

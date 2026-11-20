@@ -101,6 +101,7 @@ def in_top_k(targets, predictions, k):
 
 def logsumexp(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     axis = tuple(range(x.dim())) if axis is None else axis
     return torch.logsumexp(x, dim=axis, keepdim=keepdims)
 
@@ -108,6 +109,9 @@ def logsumexp(x, axis=None, keepdims=False):
 def cdist(x, y):
     x = convert_to_tensor(x)
     y = convert_to_tensor(y)
+    dtype = dtypes.promote_to_float_dtype(dtypes.result_type(x.dtype, y.dtype))
+    x = cast(x, dtype)
+    y = cast(y, dtype)
     if x.ndim < 2 or y.ndim < 2:
         raise ValueError("`cdist` inputs must have rank >= 2")
     if x.shape[-1] != y.shape[-1]:
@@ -420,6 +424,7 @@ def erf(x):
 
 def erfc(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.erfc(x)
 
 
@@ -436,7 +441,9 @@ def logdet(x):
 def gammainc(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
 
     compute_dtype = dtype
     if standardize_dtype(dtype) in ("float16", "bfloat16"):
@@ -448,7 +455,7 @@ def gammainc(x1, x2):
 
 def lgamma(x):
     x = convert_to_tensor(x)
-    dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     compute_dtype = dtype
     if standardize_dtype(dtype) in ("float16", "bfloat16"):
         compute_dtype = "float32"
