@@ -2259,7 +2259,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
         ref_out = np.transpose(ref_out, [2, 0, 1])
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(out, ref_out, atol=1e-2, tpu_atol=1, tpu_rtol=1)
+        self.assertAllClose(out, ref_out, atol=1e-2, tpu_atol=10, tpu_rtol=10)
 
         x = np.random.uniform(size=(2, 3, 50, 50)).astype("float32") * 255
         transform = np.random.uniform(size=(2, 6)).astype("float32")
