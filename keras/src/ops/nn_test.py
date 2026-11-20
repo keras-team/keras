@@ -1762,6 +1762,18 @@ class NNOpsCorrectnessTest(testing.TestCase):
         # `b=4` to bool, so it computed with `b=1`.
         x_bool = np.array([True, False])
         self.assertAllClose(knn.squareplus(x_bool), [1.618034, 1.0])
+        # Large inputs: `x**2` overflows float16 for `|x| > 256`, and for very
+        # negative `x` the sum `x + sqrt(x**2 + b)` cancels to zero.
+        x = np.array([-300.0, -100.0, 100.0, 300.0], dtype="float16")
+        out = knn.squareplus(x)
+        self.assertEqual(standardize_dtype(out.dtype), "float16")
+        self.assertAllClose(
+            out, [3.334e-3, 1e-2, 100.0, 300.0], rtol=1e-3, atol=0
+        )
+        x = np.array([-1e20, -np.inf, 1e20, np.inf], dtype="float32")
+        self.assertAllClose(
+            knn.squareplus(x), [1e-20, 0.0, 1e20, np.inf], rtol=1e-6, atol=0
+        )
 
     def test_soft_shrink(self):
         x = np.array([-0.5, 0, 1, 2, 3], dtype=np.float32)

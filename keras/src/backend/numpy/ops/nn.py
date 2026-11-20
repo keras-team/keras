@@ -123,7 +123,11 @@ def squareplus(x, b=4):
     if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     b = convert_to_tensor(b, dtype=x.dtype)
-    y = x + np.sqrt(x**2 + b)
+    # `hypot` avoids the overflow of `x**2`, and the `x < 0` branch avoids
+    # the cancellation in `x + sqrt(x**2 + b)`.
+    sqz = np.hypot(x, np.sqrt(b))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        y = np.where(x < 0, b / (sqz - np.minimum(x, 0)), x + sqz)
     return y / 2
 
 
