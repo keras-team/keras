@@ -1319,6 +1319,8 @@ def linspace(
 
         # increments from `start` to `stop` in each dimension
         linspace = start[None] + steps * (stop - start)[None]
+        if endpoint and num > 1:
+            linspace[-1] = stop
     else:
         linspace = torch.linspace(
             start=start,
@@ -1416,6 +1418,8 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
         # increments from `start` to `stop` in each dimension
         linspace = start[None] + steps * (stop - start)[None]
+        if endpoint and num > 1:
+            linspace[-1] = stop
         logspace = base**linspace
     else:
         compute_dtype = dtype
