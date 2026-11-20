@@ -35,14 +35,84 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools
-          pip install twine
           pip install -r requirements.txt --progress-bar off --upgrade
       - name: Build wheel file
         run: |
           python pip_build.py --nightly
-      - name: Publish to PyPI
+      - name: Extract nightly package version
+        id: pkg_version
+        run: |
+          set -euo pipefail
+          PKG_VER=$(python3 - <<'PY'
+          import email, glob, tarfile, zipfile
+          files = sorted(glob.glob("dist/*.whl") + glob.glob("dist/*.tar.gz"))
+          assert files, "No distributions found in dist/"
+          f = files[0]
+          if f.endswith(".whl"):
+            with zipfile.ZipFile(f) as zf:
+              meta = [n for n in zf.namelist() if n.endswith(".dist-info/METADATA")][0]
+              raw = zf.read(meta).decode("utf-8")
+          else:
+            with tarfile.open(f) as tf:
+              info = [m for m in tf.getmembers() if m.name.endswith("/PKG-INFO") or m.name == "PKG-INFO"][0]
+              raw = tf.extractfile(info).read().decode("utf-8")
+          print(email.message_from_string(raw)["Version"].strip())
+          PY
+          )
+          echo "pkg_ver=${PKG_VER}" >> "$GITHUB_OUTPUT"
+      - name: Authenticate to Google Cloud (OSS Exit Gate)
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: 'projects/305452601764/locations/global/workloadIdentityPools/builders/providers/github'
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+      - name: Clean up previous staging attempt for this version (if any)
+        env:
+          PKG_VER: ${{ steps.pkg_version.outputs.pkg_ver }}
+        run: |
+          set -euo pipefail
+          set +e
+          gcloud artifacts versions describe "${PKG_VER}" \
+            --package="keras-nightly" \
+            --project="oss-exit-gate-prod" \
+            --location="us" \
+            --repository="keras--pypi" >/dev/null 2>describe.err
+          DESC_RC=$?
+          set -e
+          if [ "${DESC_RC}" -eq 0 ]; then
+            gcloud artifacts versions delete "${PKG_VER}" \
+              --package="keras-nightly" \
+              --project="oss-exit-gate-prod" \
+              --location="us" \
+              --repository="keras--pypi" \
+              --quiet
+          elif ! grep -Eqi "NOT_FOUND|not.found|404" describe.err; then
+            cat describe.err >&2
+            exit "${DESC_RC}"
+          fi
+          rm -f describe.err
+      - name: Stage keras-nightly to OSS Exit Gate
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
           packages-dir: dist/
+          repository-url: https://us-python.pkg.dev/oss-exit-gate-prod/keras--pypi/
+          user: oauth2accesstoken
+          password: ${{ steps.auth.outputs.auth_token }}
+          attestations: false
           verbose: true
-
+      - name: Upload OSS Exit Gate manifest
+        env:
+          PKG_VER: ${{ steps.pkg_version.outputs.pkg_ver }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          jq -n --arg ver "${PKG_VER}" '{
+            publish_all: false,
+            publishing_groups: [{
+              packages: [{name: "keras-nightly", version: $ver}]
+            }]
+          }' > manifest.json
+          gcloud storage cp manifest.json \
+            "gs://oss-exit-gate-prod-projects-bucket/keras/pypi/manifests/manifest-nightly-${PKG_VER}-${RUN_ID}-${RUN_ATTEMPT}.json"
