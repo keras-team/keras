@@ -76,17 +76,13 @@ def softplus(x):
 
 def softsign(x):
     x = convert_to_tensor(x)
-    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != standardize_dtype(x.dtype):
-        x = cast(x, float_dtype)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnn.soft_sign(x)
 
 
 def soft_shrink(x, threshold=0.5):
     x = convert_to_tensor(x)
-    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != standardize_dtype(x.dtype):
-        x = cast(x, float_dtype)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.where(
         x > threshold,
         x - threshold,
@@ -96,9 +92,7 @@ def soft_shrink(x, threshold=0.5):
 
 def sparse_plus(x):
     x = convert_to_tensor(x)
-    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != standardize_dtype(x.dtype):
-        x = cast(x, float_dtype)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnn.sparse_plus(x)
 
 
@@ -109,9 +103,7 @@ def silu(x):
 
 def squareplus(x, b=4):
     x = convert_to_tensor(x)
-    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != standardize_dtype(x.dtype):
-        x = cast(x, float_dtype)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnn.squareplus(x, b=b)
 
 
@@ -155,9 +147,7 @@ def elu(x, alpha=1.0):
 
 def selu(x):
     x = convert_to_tensor(x)
-    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != standardize_dtype(x.dtype):
-        x = cast(x, float_dtype)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnn.selu(x)
 
 
@@ -184,9 +174,7 @@ def hard_tanh(x):
 
 def hard_shrink(x, threshold=0.5):
     x = convert_to_tensor(x)
-    float_dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if float_dtype != standardize_dtype(x.dtype):
-        x = cast(x, float_dtype)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.where(jnp.abs(x) > threshold, x, 0.0)
 
 

@@ -2675,9 +2675,7 @@ def _normalize(x, axis=-1, order=2, epsilon=None):
             f"Argument `order` must be an int >= 1. Received: order={order}"
         )
     x = backend.ops.convert_to_tensor(x)
-    dtype = dtypes.promote_to_float_dtype(x.dtype)
-    if standardize_dtype(x.dtype) != dtype:
-        x = backend.ops.cast(x, dtype)
+    x = backend.ops.cast(x, dtypes.promote_to_float_dtype(x.dtype))
     if len(x.shape) == 0:
         x = backend.ops.numpy.expand_dims(x, axis=0)
     if epsilon is None:
