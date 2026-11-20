@@ -1,8 +1,4 @@
-# flake8: noqa
-
-
 import numpy as np
-from unittest import mock
 
 from keras.src import backend
 from keras.src import testing
@@ -47,6 +43,7 @@ class FtrlTest(testing.TestCase):
         first_grads = np.full((10,), 0.01)
 
         # fmt: off
+        # ruff: disable[E501]
         golden = np.array(
             [[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             [-0.0034, -0.0077, -0.0118, -0.0157, -0.0194, -0.023, -0.0263, -0.0294, -0.0325, -0.0354],
@@ -54,6 +51,7 @@ class FtrlTest(testing.TestCase):
             [-0.0121, -0.0246, -0.0363, -0.0472, -0.0573, -0.0668, -0.0757, -0.0842, -0.0922, -0.0999],
             [-0.0164, -0.0328, -0.0481, -0.0623, -0.0753, -0.0875, -0.099, -0.1098, -0.1201, -0.1299]]
         )
+        # ruff: enable[E501]
         # fmt: on
 
         optimizer.apply_gradients(zip([first_grads], [x]))
@@ -77,7 +75,8 @@ class FtrlTest(testing.TestCase):
         invalid_value = -0.1
         with self.assertRaisesRegex(
             ValueError,
-            f"^`initial_accumulator_value` needs to be positive or zero. Received: initial_accumulator_value={invalid_value}.$",
+            "^`initial_accumulator_value` needs to be positive or zero. "
+            f"Received: initial_accumulator_value={invalid_value}.$",
         ):
             Ftrl(initial_accumulator_value=invalid_value)
 
@@ -85,7 +84,8 @@ class FtrlTest(testing.TestCase):
         invalid_value = 0.1
         with self.assertRaisesRegex(
             ValueError,
-            f"^`learning_rate_power` needs to be negative or zero. Received: learning_rate_power={invalid_value}.$",
+            "^`learning_rate_power` needs to be negative or zero. "
+            f"Received: learning_rate_power={invalid_value}.$",
         ):
             Ftrl(learning_rate_power=invalid_value)
 
@@ -93,7 +93,8 @@ class FtrlTest(testing.TestCase):
         invalid_value = -0.1
         with self.assertRaisesRegex(
             ValueError,
-            f"^`l1_regularization_strength` needs to be positive or zero. Received: l1_regularization_strength={invalid_value}.$",
+            "^`l1_regularization_strength` needs to be positive or zero. "
+            f"Received: l1_regularization_strength={invalid_value}.$",
         ):
             Ftrl(l1_regularization_strength=invalid_value)
 
@@ -101,7 +102,8 @@ class FtrlTest(testing.TestCase):
         invalid_value = -0.1
         with self.assertRaisesRegex(
             ValueError,
-            f"^`l2_regularization_strength` needs to be positive or zero. Received: l2_regularization_strength={invalid_value}.$",
+            "^`l2_regularization_strength` needs to be positive or zero. "
+            f"Received: l2_regularization_strength={invalid_value}.$",
         ):
             Ftrl(l2_regularization_strength=invalid_value)
 
@@ -109,6 +111,8 @@ class FtrlTest(testing.TestCase):
         invalid_value = -0.1
         with self.assertRaisesRegex(
             ValueError,
-            f"^`l2_shrinkage_regularization_strength` needs to be positive or zero. Received: l2_shrinkage_regularization_strength={invalid_value}.$",
+            "^`l2_shrinkage_regularization_strength` needs to be positive or "
+            "zero. "
+            f"Received: l2_shrinkage_regularization_strength={invalid_value}.$",
         ):
             Ftrl(l2_shrinkage_regularization_strength=invalid_value)

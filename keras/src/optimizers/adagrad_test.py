@@ -1,6 +1,3 @@
-# flake8: noqa
-
-
 import numpy as np
 
 from keras.src import backend
@@ -65,6 +62,7 @@ class AdagradTest(testing.TestCase):
         first_grads = ops.full((10,), 0.01)
 
         # fmt: off
+        # ruff: disable[E501]
         golden = np.array(
             [[0.9963, 0.9963, 0.9963, 0.9963, 0.9963, 0.9963, 0.9963, 0.9963, 0.9963, 0.9963],
             [0.9604, 0.9278, 0.9003, 0.8784, 0.8615, 0.8487, 0.8388, 0.8313, 0.8255, 0.8209],
@@ -72,6 +70,7 @@ class AdagradTest(testing.TestCase):
             [0.8903, 0.8012, 0.7342, 0.6862, 0.6521, 0.6277, 0.6099, 0.5967, 0.5867, 0.579],
             [0.856, 0.7422, 0.6604, 0.6037, 0.5644, 0.5367, 0.5168, 0.5021, 0.491, 0.4825]]
         )
+        # ruff: enable[E501]
         # fmt: on
 
         optimizer.apply_gradients(zip([first_grads], [x]))

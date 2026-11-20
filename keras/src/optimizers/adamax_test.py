@@ -1,6 +1,3 @@
-# flake8: noqa
-
-
 import numpy as np
 
 from keras.src import backend
@@ -58,6 +55,7 @@ class AdamaxTest(testing.TestCase):
         first_grads = ops.full((10,), 0.01)
 
         # fmt: off
+        # ruff: disable[E501]
         golden = np.array(
             [[0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8],
             [0.6827, 0.6873, 0.6888, 0.6896, 0.6901, 0.6904, 0.6906, 0.6908, 0.6909, 0.691],
@@ -65,6 +63,7 @@ class AdamaxTest(testing.TestCase):
             [0.368, 0.3773, 0.3804, 0.382, 0.3829, 0.3835, 0.384, 0.3843, 0.3846, 0.3848],
             [0.1933, 0.204, 0.2076, 0.2094, 0.2105, 0.2112, 0.2117, 0.2121, 0.2124, 0.2126]]
         )
+        # ruff: enable[E501]
         # fmt: on
 
         optimizer.apply_gradients(zip([first_grads], [x]))
