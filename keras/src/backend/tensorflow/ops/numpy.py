@@ -1896,31 +1896,21 @@ def isreal(x):
 
 
 def kron(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
-    x1 = tf.cast(x1, dtype)
-    x2 = tf.cast(x2, dtype)
-
-    ndim_x1 = tf.rank(x1)
-    ndim_x2 = tf.rank(x2)
-
-    def expand_front(x, num):
-        for _ in range(num):
-            x = tf.expand_dims(x, axis=0)
-        return x
-
-    x1 = tf.cond(
-        ndim_x1 < ndim_x2,
-        lambda: expand_front(x1, ndim_x2 - ndim_x1),
-        lambda: x1,
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
     )
-    x2 = tf.cond(
-        ndim_x2 < ndim_x1,
-        lambda: expand_front(x2, ndim_x1 - ndim_x2),
-        lambda: x2,
-    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
+    # The input of lower rank gets leading dimensions of 1.
+    for _ in range(len(x2.shape) - len(x1.shape)):
+        x1 = tf.expand_dims(x1, axis=0)
+    for _ in range(len(x1.shape) - len(x2.shape)):
+        x2 = tf.expand_dims(x2, axis=0)
 
     x1_reshaped = tf.reshape(
         x1,
