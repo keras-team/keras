@@ -1,10 +1,21 @@
+import io
+import os
+import warnings
+import zipfile
+
+import h5py
 import numpy as np
+import pytest
 from absl.testing import parameterized
 
 from keras.src import backend
+from keras.src import layers
+from keras.src import models
 from keras.src import ops
+from keras.src import saving
 from keras.src import testing
 from keras.src.backend import config
+from keras.src.optimizers.adam import Adam
 from keras.src.optimizers.loss_scale_optimizer import LossScaleOptimizer
 from keras.src.optimizers.sgd import SGD
 
@@ -281,3 +292,118 @@ class LossScaleOptimizerTest(testing.TestCase):
             "dynamic_growth_steps": 2,
         }
         LossScaleOptimizer.from_config(config)
+
+    def test_save_and_load_own_variables(self):
+        inner_optimizer = Adam(learning_rate=0.01)
+        optimizer = LossScaleOptimizer(
+            inner_optimizer, initial_scale=128.0, dynamic_growth_steps=4
+        )
+        var = backend.Variable([1.0, 2.0])
+        optimizer.build([var])
+        optimizer.step_counter.assign(3)
+        optimizer.dynamic_scale.assign(64.0)
+
+        store = {}
+        optimizer.save_own_variables(store)
+        self.assertLen(store, len(optimizer._variables))
+
+        restored = LossScaleOptimizer(
+            Adam(learning_rate=0.01),
+            initial_scale=128.0,
+            dynamic_growth_steps=4,
+        )
+        restored.build([backend.Variable([1.0, 2.0])])
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            restored.load_own_variables(store)
+        self.assertEmpty(caught)
+        self.assertEqual(int(restored.step_counter.numpy()), 3)
+        self.assertAllClose(restored.dynamic_scale.numpy(), 64.0)
+
+    def test_load_own_variables_legacy_store(self):
+        inner_optimizer = Adam(learning_rate=0.01)
+        optimizer = LossScaleOptimizer(
+            inner_optimizer, initial_scale=128.0, dynamic_growth_steps=4
+        )
+        var = backend.Variable([1.0, 2.0])
+        optimizer.build([var])
+        optimizer.step_counter.assign(2)
+        optimizer.dynamic_scale.assign(32.0)
+        inner_optimizer._iterations.assign(5)
+
+        legacy_store = {
+            str(i): v.numpy() for i, v in enumerate(optimizer.variables)
+        }
+        self.assertLen(legacy_store, len(optimizer.variables))
+
+        restored = LossScaleOptimizer(
+            Adam(learning_rate=0.01),
+            initial_scale=128.0,
+            dynamic_growth_steps=4,
+        )
+        restored.build([backend.Variable([1.0, 2.0])])
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            restored.load_own_variables(legacy_store)
+        self.assertEmpty(caught)
+        self.assertEqual(int(restored.step_counter.numpy()), 2)
+        self.assertAllClose(restored.dynamic_scale.numpy(), 32.0)
+        self.assertEqual(int(restored.iterations.numpy()), 5)
+
+    @pytest.mark.requires_trainable_backend
+    def test_model_save_does_not_duplicate_inner_optimizer_variables(self):
+        model = models.Sequential([layers.Input(shape=(4,)), layers.Dense(2)])
+        optimizer = LossScaleOptimizer(
+            Adam(learning_rate=0.01),
+            initial_scale=16.0,
+            dynamic_growth_steps=2,
+        )
+        model.compile(optimizer=optimizer, loss="mse")
+        x = np.ones((2, 4), dtype=np.float32)
+        y = np.ones((2, 2), dtype=np.float32)
+        model.train_on_batch(x, y)
+        model.train_on_batch(x, y)
+        model.train_on_batch(x, y)
+
+        filepath = os.path.join(self.get_temp_dir(), "lso_model.keras")
+        model.save(filepath)
+
+        with zipfile.ZipFile(filepath, "r") as archive:
+            weights_bytes = io.BytesIO(archive.read("model.weights.h5"))
+        with h5py.File(weights_bytes, "r") as weights:
+            optimizer_datasets = []
+            weights.visititems(
+                lambda path, item: (
+                    optimizer_datasets.append(path)
+                    if isinstance(item, h5py.Dataset)
+                    and path.startswith("optimizer/")
+                    else None
+                )
+            )
+
+        own_paths = [
+            p for p in optimizer_datasets if p.startswith("optimizer/vars/")
+        ]
+        inner_paths = [
+            p
+            for p in optimizer_datasets
+            if p.startswith("optimizer/inner_optimizer/vars/")
+        ]
+        self.assertLen(own_paths, len(model.optimizer._variables))
+        self.assertLen(
+            inner_paths, len(model.optimizer.inner_optimizer._variables)
+        )
+        self.assertLen(
+            optimizer_datasets,
+            len(model.optimizer._variables)
+            + len(model.optimizer.inner_optimizer._variables),
+        )
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            reloaded = saving.load_model(filepath)
+        self.assertEmpty(caught)
+        for orig_var, loaded_var in zip(
+            model.optimizer.variables, reloaded.optimizer.variables
+        ):
+            self.assertAllClose(orig_var.numpy(), loaded_var.numpy())
