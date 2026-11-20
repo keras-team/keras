@@ -89,8 +89,14 @@ class Operation(KerasSaveable):
         return call_fn(*args, **kwargs)
 
     def symbolic_call(self, *args, **kwargs):
-        # Perform shape/dtype inference.
-        outputs = self.compute_output_spec(*args, **kwargs)
+        # Perform shape/dtype inference. In `off`, the spec sees each 64-bit
+        # input as its 32-bit counterpart, which is what JAX computes with.
+        spec_args, spec_kwargs = args, kwargs
+        if backend.config.x64_mode() == "off":
+            spec_args, spec_kwargs = tree.map_structure(
+                _as_32bit, (args, kwargs)
+            )
+        outputs = self.compute_output_spec(*spec_args, **spec_kwargs)
         # Record a new node in the operations graph.
         # The Node wires itself to inbound and outbound ops.  The
         # Node constructor updates this op's self._inbound_nodes,
@@ -514,3 +520,15 @@ class ElementwiseUnaryOperation(Operation):
         sparse = self.preserves_sparse and getattr(x, "sparse", False)
         ragged = getattr(x, "ragged", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse, ragged=ragged)
+
+
+def _as_32bit(x):
+    """Returns the 32-bit counterpart of a 64-bit `KerasTensor`, else `x`."""
+    if isinstance(x, KerasTensor) and x.dtype in dtypes.BIT64_TO_BIT32_DTYPE:
+        return KerasTensor(
+            x.shape,
+            dtype=dtypes.BIT64_TO_BIT32_DTYPE[x.dtype],
+            sparse=x.sparse,
+            ragged=x.ragged,
+        )
+    return x

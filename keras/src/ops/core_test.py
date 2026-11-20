@@ -23,6 +23,7 @@ from keras.src.layers.core import input_layer
 from keras.src.ops import core
 from keras.src.saving import object_registration
 from keras.src.testing.test_utils import named_product
+from keras.src.testing.test_utils import x64_mode_scope
 from keras.src.utils import traceback_utils
 
 
@@ -1723,6 +1724,18 @@ class CoreOpsDtypeTest(testing.TestCase):
         x = backend.Variable(np.ones((2, 3), dtype="float32"))
 
         self.assertDType(ops.convert_to_tensor(x, dtype=dtype), dtype)
+
+    @pytest.mark.skipif(
+        backend.backend() not in ("numpy", "torch"),
+        reason="Only NumPy and PyTorch hold 64-bit tensors in `off`.",
+    )
+    def test_convert_to_tensor_with_64bit_input_in_off(self):
+        with x64_mode_scope("off"):
+            x = ops.convert_to_tensor(np.ones((2,)), dtype="int64")
+            variable = backend.Variable(x, dtype="int64", trainable=False)
+            for value in (x, variable, np.ones((2,), dtype="int64")):
+                self.assertDType(ops.convert_to_tensor(value), "int32")
+                self.assertDType(ops.convert_to_tensor(value, "int64"), "int64")
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_saturate_cast(self, dtype):

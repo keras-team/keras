@@ -4579,21 +4579,19 @@ class Kron(Operation):
         return backend.ops.numpy.kron(x1, x2)
 
     def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-
-        def _mul_shape_dim(a, b):
-            if a is None or b is None:
-                return None
-            return a * b
-
+        # As in NumPy, the input of lower rank gets leading dimensions of 1.
+        x1_shape = tuple(getattr(x1, "shape", ()))
+        x2_shape = tuple(getattr(x2, "shape", ()))
+        ndim = builtins.max(len(x1_shape), len(x2_shape))
+        x1_shape = (1,) * (ndim - len(x1_shape)) + x1_shape
+        x2_shape = (1,) * (ndim - len(x2_shape)) + x2_shape
         output_shape = tuple(
-            _mul_shape_dim(a, b) for a, b in zip(x1_shape, x2_shape)
+            None if a is None or b is None else a * b
+            for a, b in zip(x1_shape, x2_shape)
         )
-
-        x1_type = standardize_dtype(getattr(x1, "dtype", type(x1)))
-        x2_type = standardize_dtype(getattr(x2, "dtype", type(x2)))
-        dtype = dtypes.result_type(x1_type, x2_type)
+        dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)), getattr(x2, "dtype", type(x2))
+        )
         return KerasTensor(output_shape, dtype=dtype)
 
 

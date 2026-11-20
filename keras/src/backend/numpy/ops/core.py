@@ -13,7 +13,9 @@ from keras.src.backend.common import SymbolicScope
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import empty_scan_ys_spec
 from keras.src.backend.common.backend_utils import slice_along_axis
+from keras.src.backend.common.dtypes import BIT64_TO_BIT32_DTYPE
 from keras.src.backend.common.dtypes import result_type
+from keras.src.backend.config import x64_mode
 
 
 class Variable(KerasVariable):
@@ -41,6 +43,9 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if dtype is not None:
         dtype = standardize_dtype(dtype)
     if isinstance(x, Variable):
+        if dtype is None and x64_mode() == "off":
+            # In `off`, a 64-bit input acts as its 32-bit counterpart.
+            dtype = BIT64_TO_BIT32_DTYPE.get(x.dtype)
         if dtype and dtype != x.dtype:
             return x.value.astype(dtype)
         return x.value

@@ -10,6 +10,7 @@ from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
 from keras.src.ops import numpy as knp
 from keras.src.ops import operation
+from keras.src.testing.test_utils import x64_mode_scope
 from keras.src.utils import traceback_utils
 
 
@@ -407,6 +408,21 @@ class OperationTest(testing.TestCase):
             ValueError, "must be a string and cannot contain character `/`."
         ):
             OpWithMultipleOutputs(name="test/op")
+
+    @pytest.mark.skipif(
+        backend.backend() == "tensorflow",
+        reason="TensorFlow has no `x64_mode='off'`",
+    )
+    def test_symbolic_call_with_64bit_inputs(self):
+        x = KerasTensor((2,), dtype="int64")
+        with x64_mode_scope("off"):
+            y = knp.square(x)
+        self.assertEqual(y.dtype, "int32")
+        # The graph keeps the original input.
+        node = y._keras_history.operation._inbound_nodes[0]
+        self.assertIs(node.arguments.keras_tensors[0], x)
+        with x64_mode_scope("explicit_x64"):
+            self.assertEqual(knp.square(x).dtype, "int64")
 
 
 class ElementwiseUnaryOperationTest(testing.TestCase):
