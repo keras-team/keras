@@ -33,7 +33,7 @@ TORCH_INT_TYPES = (
 _INT8_CHUNKED_MIN_ROWS = {"cpu": 8, "mps": 32}
 
 
-def convert_to_tensors_of_same_dtype(x1, x2, *additional_dtypes):
+def convert_to_tensors_of_same_dtype(x1, x2, promote_to_float=False):
     if not hasattr(x1, "dtype") and not isinstance(
         x1, (bool, int, float, complex)
     ):
@@ -45,8 +45,9 @@ def convert_to_tensors_of_same_dtype(x1, x2, *additional_dtypes):
     dtype = dtypes.result_type(
         getattr(x1, "dtype", type(x1)),
         getattr(x2, "dtype", type(x2)),
-        *additional_dtypes,
     )
+    if promote_to_float:
+        dtype = dtypes.promote_to_float_dtype(dtype)
     return convert_to_tensor(x1, dtype), convert_to_tensor(x2, dtype), dtype
 
 
@@ -491,7 +492,9 @@ def arctan(x):
 
 
 def arctan2(x1, x2):
-    x1, x2, result_dtype = convert_to_tensors_of_same_dtype(x1, x2, float)
+    x1, x2, result_dtype = convert_to_tensors_of_same_dtype(
+        x1, x2, promote_to_float=True
+    )
     compute_dtype = result_dtype
     # TODO: torch.arctan2 doesn't support float16 with cpu
     if get_device() == "cpu" and compute_dtype == "float16":
@@ -631,11 +634,9 @@ def heaviside(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
 
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
-    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
-        dtype = config.floatx()
-    elif dtype == "int64":
-        dtype = "float64"
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
 
     x1 = cast(x1, dtype)
     x2 = cast(x2, dtype)
@@ -803,7 +804,9 @@ def copy(x):
 def copysign(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     x1 = cast(x1, dtype)
     x2 = cast(x2, dtype)
     return torch.copysign(x1, x2)
@@ -1136,15 +1139,7 @@ def hsplit(x, indices_or_sections):
 
 
 def hypot(x1, x2):
-    x1, x2, dtype = convert_to_tensors_of_same_dtype(x1, x2)
-    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
-        dtype = config.floatx()
-    elif dtype == "int64":
-        dtype = "float64"
-
-    x1 = cast(x1, dtype)
-    x2 = cast(x2, dtype)
-
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2, promote_to_float=True)
     return torch.hypot(x1, x2)
 
 
@@ -1260,7 +1255,7 @@ def lcm(x1, x2):
 def ldexp(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x1.dtype)
 
     if standardize_dtype(x2.dtype) not in dtypes.INT_TYPES:
         raise TypeError(
@@ -1268,7 +1263,7 @@ def ldexp(x1, x2):
             f"Received: x2 dtype={x2.dtype}"
         )
 
-    return cast(torch.ldexp(x1, x2), dtype)
+    return torch.ldexp(cast(x1, dtype), x2)
 
 
 def less(x1, x2):
@@ -1359,7 +1354,9 @@ def log2(x):
 
 
 def logaddexp(x1, x2):
-    x1, x2, dtype = convert_to_tensors_of_same_dtype(x1, x2, float)
+    x1, x2, dtype = convert_to_tensors_of_same_dtype(
+        x1, x2, promote_to_float=True
+    )
 
     # TODO: torch.logaddexp doesn't support float16 with cpu
     if get_device() == "cpu" and dtype == "float16":
@@ -1370,7 +1367,7 @@ def logaddexp(x1, x2):
 
 
 def logaddexp2(x1, x2):
-    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2, float)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2, promote_to_float=True)
     return torch.logaddexp2(x1, x2)
 
 
@@ -2310,12 +2307,12 @@ def where(condition, x1=None, x2=None):
 
 
 def divide(x1, x2):
-    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2, float)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2, promote_to_float=True)
     return torch.divide(x1, x2)
 
 
 def divide_no_nan(x1, x2):
-    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2, float)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2, promote_to_float=True)
     safe_x2 = torch.where(x2 == 0, torch.ones_like(x2), x2)
     return torch.where(x2 == 0, 0, torch.divide(x1, safe_x2))
 
@@ -2332,7 +2329,9 @@ def power(x1, x2):
 def float_power(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     # `torch.float_power` always computes in float64, which the MPS device
     # does not support, so raise the operands to a float dtype instead.
     x1 = cast(x1, dtype)
@@ -2349,7 +2348,9 @@ def nextafter(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
 
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     x1 = cast(x1, dtype)
     x2 = cast(x2, dtype)
     return torch.nextafter(x1, x2)
@@ -2473,13 +2474,10 @@ def correlate(x1, x2, mode="valid"):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
 
-    dtype = dtypes.result_type(
-        getattr(x1, "dtype", type(x1)),
-        getattr(x2, "dtype", type(x2)),
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
     )
-    if dtype == "int64":
-        dtype = "float64"
-    elif dtype not in ["bfloat16", "float16", "float64"]:
+    if "complex" in dtype:  # Unsupported: the imaginary part is discarded.
         dtype = "float32"
 
     x1 = cast(x1, dtype)

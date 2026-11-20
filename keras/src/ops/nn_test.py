@@ -3951,6 +3951,18 @@ class NNOpsDtypeTest(testing.TestCase):
             knn.LayerNorm().symbolic_call(inputs, gamma, beta), expected_dtype
         )
 
+    @parameterized.named_parameters(
+        named_product(dtype=FLOAT_DTYPES + INT_DTYPES, order=(1, 2))
+    )
+    def test_normalize(self, dtype, order):
+        x = knp.ones((2, 3), dtype=dtype)
+        expected_dtype = config.floatx() if "int" in dtype else dtype
+
+        self.assertDType(knn.normalize(x, order=order), expected_dtype)
+        self.assertDType(
+            knn.Normalize(order=order).symbolic_call(x), expected_dtype
+        )
+
 
 class NNOpsBehaviorTest(testing.TestCase):
     def test_logit_recovery_binary_crossentropy(self):
