@@ -3041,7 +3041,7 @@ class LayerNorm(Operation):
     ]
 )
 def layer_normalization(
-    x, gamma=None, beta=None, axis=-1, epsilon=None, **kwargs
+    x, gamma=None, beta=None, axis=-1, epsilon=None, *, rms_scaling=False
 ):
     """Layer normalization layer (Ba et al., 2016).
 
@@ -3058,6 +3058,8 @@ def layer_normalization(
             `-1`.
         epsilon: A lower bound value for the norm.
             Defaults to `config.epsilon()`.
+        rms_scaling: Deprecated. Please use `keras.ops.rms_normalization` /
+            `keras.ops.nn.rms_normalization` instead. Defaults to `False`.
 
     Returns:
         The normalized array.
@@ -3068,7 +3070,6 @@ def layer_normalization(
     >>> keras.ops.layer_normalization(x)
     array([-1.4142135, -0.70710677, 0.0, 0.7071067, 1.4142135])
     """
-    rms_scaling = kwargs.pop("rms_scaling", False)
     if rms_scaling:
         warnings.warn(
             "You passed `rms_scaling=True`, which is deprecated. This argument "
