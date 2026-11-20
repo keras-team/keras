@@ -320,6 +320,15 @@ class LossScaleOptimizerTest(testing.TestCase):
         self.assertEqual(int(restored.step_counter.numpy()), 3)
         self.assertAllClose(restored.dynamic_scale.numpy(), 64.0)
 
+        unbuilt = LossScaleOptimizer(Adam(learning_rate=0.01))
+        with warnings.catch_warnings(record=True) as unbuilt_warnings:
+            warnings.simplefilter("always")
+            unbuilt.load_own_variables(store)
+        self.assertLen(unbuilt_warnings, 1)
+        self.assertIn(
+            "has not been called/built yet", str(unbuilt_warnings[0].message)
+        )
+
     def test_load_own_variables_legacy_store(self):
         inner_optimizer = Adam(learning_rate=0.01)
         optimizer = LossScaleOptimizer(

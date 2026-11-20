@@ -765,7 +765,7 @@ class BaseOptimizer(KerasSaveable):
         """Set the state of this optimizer object."""
         if len(store.keys()) == len(self._variables):
             variables = self._variables
-        elif len(store.keys()) == len(self.variables):
+        elif self.built and len(store.keys()) == len(self.variables):
             variables = self.variables
         else:
             msg = (
@@ -773,7 +773,7 @@ class BaseOptimizer(KerasSaveable):
                 f"because it has {len(self._variables)} variables whereas "
                 f"the saved optimizer has {len(store.keys())} variables. "
             )
-            if len(self._variables) == 0:
+            if not self.built:
                 msg += (
                     "This is likely because the optimizer has not been "
                     "called/built yet."
