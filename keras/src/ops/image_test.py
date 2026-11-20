@@ -2133,6 +2133,22 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         kimage.affine_transform(x, transform)
         self.assertAllClose(transform_values, transform)
 
+    def test_affine_transform_channels_are_independent(self):
+        if backend.backend() not in ("tensorflow", "torch"):
+            self.skipTest(
+                f"In {backend.backend()} backend, affine_transform "
+                "interpolates along the channel axis, so a non-finite value "
+                "in one channel leaks into the neighboring channel"
+            )
+        x = np.random.uniform(size=(2, 10, 10, 3)).astype("float32")
+        x[..., 2] = np.inf
+        # Identity transform: the output must be equal to the input.
+        transform = np.tile(
+            np.array([[1, 0, 0, 0, 1, 0, 0, 0]], dtype="float32"), (2, 1)
+        )
+        output = kimage.affine_transform(x, transform, fill_mode="nearest")
+        self.assertAllClose(output[..., :2], x[..., :2])
+
     @parameterized.named_parameters(
         named_product(
             interpolation=["bilinear", "nearest"],
