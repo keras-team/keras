@@ -2924,6 +2924,38 @@ class TestTrainer(testing.TestCase):
         )
         self.assertLessEqual(tracing_count[0], 2)
 
+    @pytest.mark.requires_trainable_backend
+    def test_no_tracking_during_fit(self):
+        """Verify there is no tracking in the inner step loop during `fit`."""
+
+        class TrackingDetectorCallback(Callback):
+            def __init__(self, track_fn):
+                self.track_fn = track_fn
+                self.fail_tracking = False
+
+            def on_epoch_begin(self, epoch, logs=None):
+                self.fail_tracking = True
+
+            def on_epoch_end(self, epoch, logs=None):
+                self.fail_tracking = False
+
+            def track(self, attr):
+                if self.fail_tracking and not isinstance(attr, bool):
+                    raise AssertionError("Tracking detected")
+                return self.track_fn(attr)
+
+        model = models.Sequential([layers.Dense(1, input_shape=(16,))])
+        callback = TrackingDetectorCallback(model._tracker.track)
+        model.compile(loss="mse", optimizer="adam")
+
+        inputs = np.random.normal(size=(8, 16)).astype("float32")
+        labels = np.random.normal(size=(8, 1)).astype("float32")
+        with mock.patch.object(model._tracker, "track", autospec=True) as track:
+            track.side_effect = callback.track
+            model.fit(
+                x=inputs, y=labels, epochs=2, verbose=0, callbacks=[callback]
+            )
+
 
 class JAXTrainerCorrectnessTest(test_case.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(
