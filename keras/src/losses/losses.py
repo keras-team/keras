@@ -101,7 +101,7 @@ class MeanSquaredError(LossFunctionWrapper):
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            (via `keras.config.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
 
     Examples:
@@ -150,7 +150,7 @@ class MeanAbsoluteError(LossFunctionWrapper):
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            (via `keras.config.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
 
     Examples:
@@ -199,7 +199,7 @@ class MeanAbsolutePercentageError(LossFunctionWrapper):
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            (via `keras.config.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
 
     Examples:
@@ -251,7 +251,7 @@ class MeanSquaredLogarithmicError(LossFunctionWrapper):
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            (via `keras.config.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
     """
 
@@ -304,7 +304,7 @@ class CosineSimilarity(LossFunctionWrapper):
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            (via `keras.config.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
     """
 
@@ -361,7 +361,7 @@ class Huber(LossFunctionWrapper):
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            (via `keras.config.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
     """
 
@@ -416,7 +416,7 @@ class LogCosh(LossFunctionWrapper):
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            (via `keras.config.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
     """
 
@@ -458,7 +458,7 @@ class Hinge(LossFunctionWrapper):
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            (via `keras.config.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
     """
 
@@ -500,7 +500,7 @@ class SquaredHinge(LossFunctionWrapper):
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            (via `keras.config.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
     """
 
@@ -540,7 +540,7 @@ class CategoricalHinge(LossFunctionWrapper):
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            (via `keras.config.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
     """
 
@@ -585,7 +585,7 @@ class KLDivergence(LossFunctionWrapper):
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            (via `keras.config.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
     """
 
@@ -623,7 +623,7 @@ class Poisson(LossFunctionWrapper):
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            (via `keras.config.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
     """
 
@@ -673,7 +673,7 @@ class BinaryCrossentropy(LossFunctionWrapper):
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            (via `keras.config.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
 
     Examples:
@@ -817,7 +817,7 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            (via `keras.config.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
 
     Examples:
@@ -982,7 +982,7 @@ class CategoricalCrossentropy(LossFunctionWrapper):
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            (via `keras.config.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
 
     Examples:
@@ -1127,7 +1127,7 @@ class CategoricalFocalCrossentropy(LossFunctionWrapper):
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            (via `keras.config.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
 
     Examples:
@@ -1252,7 +1252,7 @@ class SparseCategoricalFocalCrossentropy(LossFunctionWrapper):
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to a different value (via
-            `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is provided,
+            `keras.config.set_floatx()`). If a `keras.DTypePolicy` is provided,
             then the `compute_dtype` will be utilized.
 
     Examples:
@@ -1406,7 +1406,7 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            (via `keras.config.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
 
     Examples:
@@ -1486,7 +1486,7 @@ class CTC(LossFunctionWrapper):
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            (via `keras.config.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
     """
 
@@ -1521,7 +1521,7 @@ class Dice(LossFunctionWrapper):
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            (via `keras.config.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
 
     Returns:
@@ -1598,7 +1598,7 @@ class Tversky(LossFunctionWrapper):
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            (via `keras.config.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
 
     Returns:
@@ -1673,7 +1673,7 @@ class Circle(LossFunctionWrapper):
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            (via `keras.config.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
 
     Examples:
@@ -1767,7 +1767,7 @@ class CategoricalGeneralizedCrossEntropy(LossFunctionWrapper):
         dtype: The dtype of the loss's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            (via `keras.config.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
 
     Example:

@@ -53,7 +53,7 @@ class MetricTest(testing.TestCase):
     def tearDown(self):
         super().tearDown()
         dtype_policies.dtype_policy.set_dtype_policy(self._global_dtype_policy)
-        backend.set_floatx(self._floatx)
+        config.set_floatx(self._floatx)
 
     def test_end_to_end_flow(self):
         metric = ExampleMetric(name="mse")
@@ -251,7 +251,7 @@ class MetricTest(testing.TestCase):
         result = metric.result()
         self.assertDType(result, "float32")
 
-        backend.set_floatx("float16")
+        config.set_floatx("float16")
         metric = ExampleMetric()
         metric.update_state(y_true, y_pred)
         result = metric.result()

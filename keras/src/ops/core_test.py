@@ -1753,14 +1753,14 @@ class ConvertToTensorFloatxTest(testing.TestCase):
 
     def tearDown(self):
         super().tearDown()
-        backend.set_floatx(self._floatx)
+        config.set_floatx(self._floatx)
 
     @parameterized.named_parameters(
         named_product(floatx=["float32", "bfloat16"])
     )
     def test_preserves_input_dtype(self, floatx):
         """An input that already carries a dtype keeps it."""
-        backend.set_floatx(floatx)
+        config.set_floatx(floatx)
         for dtype in self.PRESERVED_DTYPES:
             x = np.ones((2,), dtype=dtype)
             self.assertDType(
@@ -1774,7 +1774,7 @@ class ConvertToTensorFloatxTest(testing.TestCase):
     )
     def test_explicit_bfloat16_is_honored(self, floatx):
         """An explicit `dtype="bfloat16"` still works, for any input type."""
-        backend.set_floatx(floatx)
+        config.set_floatx(floatx)
         for x in (
             np.ones((2,), dtype="int32"),
             np.ones((2,), dtype="float32"),
@@ -1801,7 +1801,7 @@ class ConvertToTensorFloatxTest(testing.TestCase):
         `floatx` precision via `_lattice_result_type`), so only the kind
         of the dtype is asserted.
         """
-        backend.set_floatx(floatx)
+        config.set_floatx(floatx)
         for x in ([1, 2, 3], 3, (1, 2)):
             dtype = standardize_dtype(ops.convert_to_tensor(x).dtype)
             self.assertIn(
@@ -1813,7 +1813,7 @@ class ConvertToTensorFloatxTest(testing.TestCase):
 
     def test_integer_indices_survive_bfloat16_floatx(self):
         """Downstream ops that require integer inputs keep working."""
-        backend.set_floatx("bfloat16")
+        config.set_floatx("bfloat16")
         table = np.arange(12, dtype="float32").reshape(4, 3)
         indices = np.array([1, 2], dtype="int32")
 

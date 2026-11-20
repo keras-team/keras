@@ -18,7 +18,7 @@ class Metric(KerasSaveable):
         dtype: The dtype of the metric's computations. Defaults to `None`, which
             means using `keras.config.floatx()`. `keras.config.floatx()` is a
             `"float32"` unless set to different value
-            (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
+            (via `keras.config.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
 
     Example:
