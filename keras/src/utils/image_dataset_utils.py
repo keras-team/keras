@@ -4,7 +4,6 @@ import pathlib
 import numpy as np
 
 from keras.src.api_export import keras_export
-from keras.src.backend.config import standardize_data_format
 from keras.src.utils import dataset_utils
 from keras.src.utils import file_utils
 from keras.src.utils import image_utils
@@ -187,6 +186,8 @@ def image_dataset_from_directory(
     - if `color_mode` is `"rgba"`,
         there are 4 channels in the image tensors.
     """
+
+    from keras.src.backend.common import standardize_data_format
 
     if labels not in ("inferred", None):
         if not isinstance(labels, (list, tuple)):

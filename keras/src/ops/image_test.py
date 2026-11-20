@@ -12,6 +12,7 @@ from keras.src import testing
 from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import standardize_data_format
 from keras.src.backend.common import standardize_dtype
 from keras.src.ops import image as kimage
 from keras.src.ops import numpy as knp
@@ -1215,7 +1216,7 @@ def _perspective_transform_numpy(
     fill_value=0,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
 
     need_squeeze = False
     if len(images.shape) == 3:
@@ -1373,7 +1374,7 @@ def elastic_transform_np(
     seed=None,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
 
     images = np.asarray(images)
     input_dtype = images.dtype

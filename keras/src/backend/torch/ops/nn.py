@@ -5,11 +5,11 @@ import torch.nn.functional as tnn
 from torch.distributed.tensor import DTensor
 from torch.distributed.tensor import Replicate
 
-from keras.src import backend
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import result_type
+from keras.src.backend.common import standardize_data_format
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
@@ -442,7 +442,7 @@ def max_pool(
     else:
         strides = standardize_tuple(strides, num_spatial_dims, "strides")
 
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(
             inputs, channels_last_memory_format=True
@@ -507,7 +507,7 @@ def average_pool(
         else standardize_tuple(strides, num_spatial_dims, "strides")
     )
 
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     orig_format = data_format
 
     if data_format == "channels_last":
@@ -611,7 +611,7 @@ def adaptive_average_pool(inputs, output_size, data_format=None):
     inputs = convert_to_tensor(inputs)
     num_spatial_dims = inputs.ndim - 2
 
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     orig_format = data_format
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(
@@ -656,7 +656,7 @@ def adaptive_max_pool(inputs, output_size, data_format=None):
     inputs = convert_to_tensor(inputs)
     num_spatial_dims = inputs.ndim - 2
 
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     orig_format = data_format
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(inputs)
@@ -710,7 +710,7 @@ def conv(
     num_spatial_dims = inputs.ndim - 2
     strides = standardize_tuple(strides, num_spatial_dims, "strides")
 
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     # Fast path for pointwise channels_last conv: matmul avoids the
     # channels_first transpose and torch conv dispatch.
     if (
@@ -802,7 +802,7 @@ def depthwise_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     check_conv_input_channels(inputs, kernel, data_format)
@@ -821,7 +821,7 @@ def separable_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
     depthwise_kernel = convert_to_tensor(depthwise_kernel)
     pointwise_kernel = convert_to_tensor(pointwise_kernel)
@@ -858,7 +858,7 @@ def conv_transpose(
     num_spatial_dims = inputs.ndim - 2
     strides = standardize_tuple(strides, num_spatial_dims, "strides")
 
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     check_conv_transpose_input_channels(inputs, kernel, data_format)
 
     # Torch's `conv_transpose*d` only takes a symmetric `padding` plus a
