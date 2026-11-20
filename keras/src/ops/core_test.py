@@ -1010,6 +1010,19 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         # Check that the values are the same
         self.assertAllClose(y, np.clip(x, 0, 255).astype("uint8"))
 
+    def test_saturate_cast_float32_to_32bit_int(self):
+        # The maximum values of `int32` and `uint32` cannot be represented
+        # exactly in `float32`. The clipping limit must be rounded towards
+        # zero, otherwise large values overflow when cast.
+        x = np.array([3e9, -3e9, 5.0], dtype="float32")
+        y = ops.saturate_cast(x, "int32")
+        self.assertDType(y, "int32")
+        self.assertAllEqual(y, np.array([2147483520, -2147483648, 5]))
+
+        x = np.array([5e9, -1.0, 7.0], dtype="float32")
+        y = ops.saturate_cast(x, "uint32")
+        self.assertAllEqual(y, np.array([4294967040, 0, 7]))
+
     def test_scan(self):
         # Test cumsum
         def cumsum(carry, xs):
