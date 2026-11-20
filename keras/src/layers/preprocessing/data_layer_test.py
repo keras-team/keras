@@ -1,9 +1,9 @@
 import grain
 import numpy as np
 
-from keras.src import backend
 from keras.src import testing
 from keras.src.backend import config
+from keras.src.backend.common import standardize_data_format
 from keras.src.layers.preprocessing.data_layer import DataLayer
 from keras.src.random import SeedGenerator
 from keras.src.utils.module_utils import tensorflow as tf
@@ -12,7 +12,7 @@ from keras.src.utils.module_utils import tensorflow as tf
 class RandomRGBToHSVLayer(DataLayer):
     def __init__(self, data_format=None, seed=None, **kwargs):
         super().__init__(**kwargs)
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
         self.seed = seed
         self.generator = SeedGenerator(seed)
 

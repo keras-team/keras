@@ -443,16 +443,13 @@ def set_nnx_enabled(value):
 
 
 def standardize_data_format(data_format):
-    if data_format is None:
-        return image_data_format()
-    data_format = str(data_format).lower()
-    if data_format not in {"channels_first", "channels_last"}:
-        raise ValueError(
-            "The `data_format` argument must be one of "
-            "{'channels_first', 'channels_last'}. "
-            f"Received: data_format={data_format}"
-        )
-    return data_format
+    """For backwards compatibility until pluggable backends are moved.
+
+    https://github.com/keras-team/keras/issues/23979
+    """
+    from keras.src.backend.common import standardize_data_format as std_format
+
+    return std_format(data_format)
 
 
 # Set Keras base dir path given KERAS_HOME env variable, if applicable.

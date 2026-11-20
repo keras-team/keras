@@ -5,6 +5,7 @@ from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.backend.common.keras_tensor import is_keras_tensor
 from keras.src.backend.common.masking import get_keras_mask
 from keras.src.backend.common.masking import set_keras_mask
+from keras.src.backend.common.standardization import standardize_data_format
 from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.backend.common.stateless_scope import get_stateless_scope
 from keras.src.backend.common.stateless_scope import in_stateless_scope
