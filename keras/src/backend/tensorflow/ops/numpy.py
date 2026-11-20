@@ -224,7 +224,7 @@ def bincount(x, weights=None, minlength=0, sparse=False):
             else:
                 weights = tf.cast(weights, tf.float32)
     else:
-        dtype = "int32"
+        dtype = dtypes.default_int_dtype()
     if sparse or isinstance(x, tf.SparseTensor):
         output = tf.sparse.bincount(
             x,
@@ -938,7 +938,7 @@ def argmax(x, axis=None, keepdims=False):
         _x = x
         if axis is None:
             x = tf.reshape(x, [-1])
-        y = tf.argmax(x, axis=axis, output_type="int32")
+        y = tf.argmax(x, axis=axis, output_type=dtypes.default_int_dtype())
         if keepdims:
             y = _keepdims(_x, y, axis)
         return y
@@ -954,7 +954,7 @@ def argmax(x, axis=None, keepdims=False):
     _x = x
     if axis is None:
         x = tf.reshape(x, [-1])
-    y = tf.argmax(x, axis=axis, output_type="int32")
+    y = tf.argmax(x, axis=axis, output_type=dtypes.default_int_dtype())
     if keepdims:
         y = _keepdims(_x, y, axis)
     return y
@@ -967,7 +967,7 @@ def argmin(x, axis=None, keepdims=False):
         _x = x
         if axis is None:
             x = tf.reshape(x, [-1])
-        y = tf.argmin(x, axis=axis, output_type="int32")
+        y = tf.argmin(x, axis=axis, output_type=dtypes.default_int_dtype())
         if keepdims:
             y = _keepdims(_x, y, axis)
         return y
@@ -983,7 +983,7 @@ def argmin(x, axis=None, keepdims=False):
     _x = x
     if axis is None:
         x = tf.reshape(x, [-1])
-    y = tf.argmin(x, axis=axis, output_type="int32")
+    y = tf.argmin(x, axis=axis, output_type=dtypes.default_int_dtype())
     if keepdims:
         y = _keepdims(_x, y, axis)
     return y
@@ -996,7 +996,7 @@ def argsort(x, axis=-1):
 
     x_shape = x.shape
     if x_shape.rank == 0:
-        return tf.cast([0], "int32")
+        return tf.cast([0], dtypes.default_int_dtype())
 
     if axis is None:
         x = tf.reshape(x, [-1])
@@ -1279,7 +1279,7 @@ def cosh(x):
 
 
 def count_nonzero(x, axis=None):
-    return tf.math.count_nonzero(x, axis=axis, dtype="int32")
+    return tf.math.count_nonzero(x, axis=axis, dtype=dtypes.default_int_dtype())
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
@@ -1349,7 +1349,7 @@ def cumprod(x, axis=None, dtype=None):
     x = convert_to_tensor(x, dtype=dtype)
     # tf.math.cumprod doesn't support bool
     if standardize_dtype(x.dtype) == "bool":
-        x = tf.cast(x, "int32")
+        x = tf.cast(x, dtypes.default_int_dtype())
     if axis is None:
         x = tf.reshape(x, [-1])
         axis = 0
@@ -1360,7 +1360,7 @@ def cumsum(x, axis=None, dtype=None):
     x = convert_to_tensor(x, dtype=dtype)
     # tf.math.cumprod doesn't support bool
     if standardize_dtype(x.dtype) == "bool":
-        x = tf.cast(x, "int32")
+        x = tf.cast(x, dtypes.default_int_dtype())
     if axis is None:
         x = tf.reshape(x, [-1])
         axis = 0
@@ -2347,7 +2347,7 @@ def nanargmax(x, axis=None, keepdims=False):
 
     return tf.where(
         tf.reduce_all(nan_mask, axis=axis, keepdims=keepdims),
-        tf.constant(-1, dtype=tf.int32),
+        tf.constant(-1, dtype=dtypes.default_int_dtype()),
         argmax(
             tf.where(nan_mask, tf.constant(float("-inf"), dtype=x.dtype), x),
             axis=axis,
@@ -2366,7 +2366,7 @@ def nanargmin(x, axis=None, keepdims=False):
 
     return tf.where(
         tf.reduce_all(nan_mask, axis=axis, keepdims=keepdims),
-        tf.constant(-1, dtype=tf.int32),
+        tf.constant(-1, dtype=dtypes.default_int_dtype()),
         argmin(
             tf.where(nan_mask, tf.constant(float("inf"), dtype=x.dtype), x),
             axis=axis,
@@ -2548,10 +2548,7 @@ def nansum(x, axis=None, keepdims=False):
         tf.math.is_nan(cast(x, config.floatx())), tf.zeros((), dtype=dtype), x
     )
 
-    if dtype in ("bool", "int8", "int16"):
-        dtype = "int32"
-    elif dtype in ("uint8", "uint16"):
-        dtype = "uint32"
+    dtype = dtypes.accumulator_dtype(dtype)
     x_clean = cast(x_clean, dtype)
 
     return tf.reduce_sum(x_clean, axis=axis, keepdims=keepdims)
@@ -2614,7 +2611,9 @@ def ndim(x):
 def nonzero(x):
     x = convert_to_tensor(x)
     result = tf.unstack(tf.where(tf.cast(x, "bool")), x.shape.rank, axis=1)
-    return tree.map_structure(lambda indices: tf.cast(indices, "int32"), result)
+    return tree.map_structure(
+        lambda indices: tf.cast(indices, dtypes.default_int_dtype()), result
+    )
 
 
 def not_equal(x1, x2):
@@ -2672,14 +2671,8 @@ def percentile(x, q, axis=None, method="linear", keepdims=False):
 def prod(x, axis=None, keepdims=False, dtype=None):
     x = convert_to_tensor(x)
     if dtype is None:
-        dtype = dtypes.result_type(x.dtype)
-        if dtype == "bool":
-            dtype = "int32"
-        elif dtype in ("int8", "int16"):
-            dtype = "int32"
-        elif dtype in ("uint8", "uint16"):
-            dtype = "uint32"
-        x = tf.cast(x, dtype)
+        dtype = dtypes.accumulator_dtype(dtypes.result_type(x.dtype))
+    x = tf.cast(x, dtype)
     return tf.reduce_prod(x, axis=axis, keepdims=keepdims)
 
 
@@ -3278,11 +3271,7 @@ def tile(x, repeats):
 
 def trace(x, offset=0, axis1=0, axis2=1):
     x = convert_to_tensor(x)
-    dtype = standardize_dtype(x.dtype)
-    if dtype in ("bool", "int8", "int16"):
-        dtype = "int32"
-    elif dtype in ("uint8", "uint16"):
-        dtype = "uint32"
+    dtype = dtypes.accumulator_dtype(x.dtype)
     x = tf.cast(x, dtype)
     x_shape = tf.shape(x)
     x = moveaxis(x, (axis1, axis2), (-2, -1))
@@ -3681,12 +3670,7 @@ def var(x, axis=None, keepdims=False):
 
 def sum(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    dtype = standardize_dtype(x.dtype)
-    # follow jax's rule
-    if dtype in ("bool", "int8", "int16"):
-        dtype = "int32"
-    elif dtype in ("uint8", "uint16"):
-        dtype = "uint32"
+    dtype = dtypes.accumulator_dtype(x.dtype)
     x = cast(x, dtype)
     if isinstance(x, tf.SparseTensor):
         return tf.sparse.reduce_sum(
