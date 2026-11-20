@@ -373,6 +373,73 @@ class EinsumDenseTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
+        (
+            "plain_unknown_shared_axis",
+            "abc,cd->abd",
+            (None, 64),
+            (2, 32, 8),
+            (2, 32, 64),
+        ),
+        (
+            "plain_known_shared_axis",
+            "abc,cd->abd",
+            (32, 64),
+            (2, 32, 8),
+            (2, 32, 64),
+        ),
+        (
+            "left_elided_unknown_shared_axis",
+            "...abc,cd->...abd",
+            (None, None, 64),
+            (2, 5, 32, 8),
+            (2, 5, 32, 64),
+        ),
+        (
+            "left_elided_known_shared_axis",
+            "...abc,cd->...abd",
+            (None, 32, 64),
+            (2, 5, 32, 8),
+            (2, 5, 32, 64),
+        ),
+        ("scalar_output_shape", "ab,bc->ac", 64, (2, 32), (2, 64)),
+    )
+    def test_unknown_output_shape_dims_are_inferred_from_input(
+        self, equation, output_shape, input_shape, expected_output_shape
+    ):
+        # An axis shared with the input that is left as `None` in
+        # `output_shape` is determined by the input, so `None` must not
+        # survive into the reported output shape. This is what made
+        # `compute_output_shape` disagree with an actual call.
+        layer = layers.EinsumDense(equation, output_shape=output_shape)
+        self.assertEqual(
+            layer.compute_output_shape(input_shape), expected_output_shape
+        )
+        # The inferred shape must survive `build()`: the kernel cannot be
+        # created from a partially-unknown shape.
+        layer.build(input_shape)
+        self.assertTrue(layer.built)
+        self.assertNotIn(None, layer.kernel.shape)
+        # And it must match both a real call and the symbolic output.
+        x = np.random.random(input_shape)
+        self.assertEqual(tuple(layer(x).shape), expected_output_shape)
+        symbolic = layer(layers.Input(shape=input_shape[1:]))
+        self.assertEqual(
+            tuple(symbolic.shape), (None,) + expected_output_shape[1:]
+        )
+
+    def test_mismatched_shared_axis_still_raises(self):
+        # Filling in unknown dims must not weaken the existing validation.
+        layer = layers.EinsumDense("abc,cd->abd", output_shape=(16, 64))
+        message = re.escape(
+            "Input shape and output shape do not match at shared "
+            "dimension 'b'. Input shape is 32, and output shape is 16."
+        )
+        with self.assertRaisesRegex(ValueError, message):
+            layer.compute_output_shape((2, 32, 8))
+        with self.assertRaisesRegex(ValueError, message):
+            layer(layers.Input(shape=(32, 8)))
+
+    @parameterized.named_parameters(
         # Fewer axes than the equation has input labels.
         ("plain_too_short", "ab,bc->ac", 4, (None,), "ndim=2"),
         ("left_elided_too_short", "...ab,bc->...ac", 4, (None,), "min_ndim=2"),
