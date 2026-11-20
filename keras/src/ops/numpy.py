@@ -1403,7 +1403,7 @@ def _hamming(x):
         return backend.ops.numpy.hamming(x)
     dtype = config.floatx()
     compute_dtype = result_type(dtype, "float32")
-    x = backend.ops.cast(x, "int32")
+    x = backend.ops.cast(x, "int32") if backend.ops.is_tensor(x) else int(x)
     n = backend.ops.numpy.arange(x, dtype=compute_dtype)
     x_minus_1 = backend.ops.cast(x - 1, compute_dtype)
     phase = (
@@ -1448,7 +1448,7 @@ def _hanning(x):
         return backend.ops.numpy.hanning(x)
     dtype = config.floatx()
     compute_dtype = result_type(dtype, "float32")
-    x = backend.ops.cast(x, "int32")
+    x = backend.ops.cast(x, "int32") if backend.ops.is_tensor(x) else int(x)
     n = backend.ops.numpy.arange(x, dtype=compute_dtype)
     x_minus_1 = backend.ops.cast(x - 1, compute_dtype)
     phase = (
@@ -1880,7 +1880,7 @@ def _blackman(x):
         return backend.ops.numpy.blackman(x)
     dtype = config.floatx()
     compute_dtype = dtypes.result_type(dtype, "float32")
-    x = backend.ops.cast(x, "int32")
+    x = backend.ops.cast(x, "int32") if backend.ops.is_tensor(x) else int(x)
     n = backend.ops.numpy.arange(x, dtype=compute_dtype)
     x_minus_1 = backend.ops.cast(x - 1, compute_dtype)
     phase = (
