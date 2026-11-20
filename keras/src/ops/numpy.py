@@ -10317,7 +10317,7 @@ class Histogram(Operation):
         x = backend.ops.convert_to_tensor(x)
         if len(x.shape) > 1:
             raise ValueError("Input tensor must be 1-dimensional")
-        return backend.ops.numpy.histogram(x, bins=self.bins, range=self.range)
+        return _histogram(x, bins=self.bins, range=self.range)
 
     def compute_output_spec(self, x):
         return (
@@ -10382,7 +10382,44 @@ def histogram(x, bins=10, range=None):
             "Input tensor must be 1-dimensional. "
             f"Received: input.shape={x.shape}"
         )
-    return backend.ops.numpy.histogram(x, bins=bins, range=range)
+    return _histogram(x, bins=bins, range=range)
+
+
+def _histogram(x, bins=10, range=None):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "histogram"
+    ):
+        return backend.ops.numpy.histogram(x, bins=bins, range=range)
+    x = backend.ops.convert_to_tensor(x)
+    dtype = result_type(x.dtype, float)
+    x = backend.ops.cast(x, dtype)
+    if range is None:
+        min_val = backend.ops.numpy.min(x)
+        max_val = backend.ops.numpy.max(x)
+    else:
+        min_val = backend.ops.convert_to_tensor(range[0], dtype=dtype)
+        max_val = backend.ops.convert_to_tensor(range[1], dtype=dtype)
+    is_constant = backend.ops.numpy.equal(min_val, max_val)
+    min_val = backend.ops.numpy.where(
+        is_constant, backend.ops.numpy.subtract(min_val, 0.5), min_val
+    )
+    max_val = backend.ops.numpy.where(
+        is_constant, backend.ops.numpy.add(max_val, 0.5), max_val
+    )
+    bin_edges = backend.ops.numpy.linspace(
+        min_val, max_val, bins + 1, dtype=dtype
+    )
+    bin_indices = backend.ops.numpy.searchsorted(bin_edges, x, side="right")
+    bin_indices = backend.ops.numpy.where(
+        backend.ops.numpy.equal(x, bin_edges[-1]), bins, bin_indices
+    )
+    # Slot 0 is below the range and slot bins + 1 is above it or NaN.
+    bin_counts = backend.ops.scatter(
+        backend.ops.numpy.expand_dims(bin_indices, -1),
+        backend.ops.numpy.ones_like(x),
+        (bins + 2,),
+    )
+    return bin_counts[1:-1], bin_edges
 
 
 class ArraySplit(Operation):
