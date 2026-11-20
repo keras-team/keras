@@ -12,6 +12,7 @@ from keras.src.backend.common import is_int_dtype
 from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_data_format
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.dtypes import promote_to_float_dtype
 from keras.src.backend.torch.ops.core import cast
 from keras.src.backend.torch.ops.core import convert_to_tensor
 from keras.src.backend.torch.ops.core import get_device
@@ -612,7 +613,9 @@ def perspective_transform(
 def compute_homography_matrix(start_points, end_points):
     start_points = convert_to_tensor(start_points)
     end_points = convert_to_tensor(end_points)
-    dtype = result_type(start_points.dtype, end_points.dtype, float)
+    dtype = promote_to_float_dtype(
+        result_type(start_points.dtype, end_points.dtype)
+    )
     # `torch.linalg.solve` requires float32.
     compute_dtype = result_type(dtype, "float32")
     start_points = cast(start_points, dtype)

@@ -2620,7 +2620,9 @@ class Normalize(Operation):
     def compute_output_spec(self, x):
         if self.axis is not None:
             canonicalize_axes(self.axis, len(x.shape))
-        return KerasTensor(shape=x.shape)
+        return KerasTensor(
+            shape=x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
+        )
 
     def call(self, x):
         return _normalize(
@@ -2673,6 +2675,7 @@ def _normalize(x, axis=-1, order=2, epsilon=None):
             f"Argument `order` must be an int >= 1. Received: order={order}"
         )
     x = backend.ops.convert_to_tensor(x)
+    x = backend.ops.cast(x, dtypes.promote_to_float_dtype(x.dtype))
     if len(x.shape) == 0:
         x = backend.ops.numpy.expand_dims(x, axis=0)
     if epsilon is None:

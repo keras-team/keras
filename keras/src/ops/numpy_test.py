@@ -159,11 +159,6 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.float_power(x, y).shape, (2, 3))
 
-    def test_divide(self):
-        x = KerasTensor((None, 3))
-        y = KerasTensor((2, None))
-        self.assertEqual(knp.divide(x, y).shape, (2, 3))
-
     def test_divide_no_nan(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
@@ -786,19 +781,6 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 3))
         y = KerasTensor((1, 3))
         self.assertEqual(knp.float_power(x, y).shape, (2, 3))
-
-    def test_divide(self):
-        x = KerasTensor((2, 3))
-        y = KerasTensor((2, 3))
-        self.assertEqual(knp.divide(x, y).shape, (2, 3))
-
-        x = KerasTensor((2, 3))
-        self.assertEqual(knp.divide(x, 2).shape, (2, 3))
-
-        with self.assertRaises(ValueError):
-            x = KerasTensor((2, 3))
-            y = KerasTensor((2, 3, 4))
-            knp.divide(x, y)
 
     def test_divide_no_nan(self):
         x = KerasTensor((2, 3))
@@ -3710,16 +3692,6 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         y = np.array([[-1, -2, -3], [-1, -2, -3]])
         self.assertAllClose(knp.float_power(x, y), np.float_power(x, y))
         self.assertAllClose(knp.FloatPower()(x, y), np.float_power(x, y))
-
-    def test_divide(self):
-        x = np.array([[1, 2, 3], [3, 2, 1]])
-        y = np.array([[4, 5, 6], [3, 2, 1]])
-        z = np.array([[[1, 2, 3], [3, 2, 1]]])
-        self.assertAllClose(knp.divide(x, y), np.divide(x, y))
-        self.assertAllClose(knp.divide(x, z), np.divide(x, z))
-
-        self.assertAllClose(knp.Divide()(x, y), np.divide(x, y))
-        self.assertAllClose(knp.Divide()(x, z), np.divide(x, z))
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_divide_no_nan(self, backend_agnostic_ops):
@@ -10598,7 +10570,7 @@ class NumpyDtypeTest(testing.TestCase):
             dtypes=itertools.combinations(BINARY_DTYPES, 2),
         )
     )
-    def test_divide(self, backend_agnostic_ops, dtypes):
+    def test_divide_no_nan(self, backend_agnostic_ops, dtypes):
         backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
         self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
         import jax.numpy as jnp
@@ -10610,31 +10582,10 @@ class NumpyDtypeTest(testing.TestCase):
         x2_jax = jnp.ones((1,), dtype=dtype2)
         expected_dtype = standardize_dtype(jnp.divide(x1_jax, x2_jax).dtype)
 
-        self.assertDType(knp.divide(x1, x2), expected_dtype)
-        self.assertDType(knp.Divide().symbolic_call(x1, x2), expected_dtype)
         self.assertDType(knp.divide_no_nan(x1, x2), expected_dtype)
         self.assertDType(
             knp.DivideNoNan().symbolic_call(x1, x2), expected_dtype
         )
-
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_divide_python_types(self, dtype):
-        import jax.numpy as jnp
-
-        x = knp.ones((), dtype=dtype)
-        x_jax = jnp.ones((), dtype=dtype)
-
-        # python int
-        expected_dtype = standardize_dtype(jnp.divide(x_jax, 1).dtype)
-
-        self.assertDType(knp.divide(x, 1), expected_dtype)
-        self.assertDType(knp.Divide().symbolic_call(x, 1), expected_dtype)
-
-        # python float
-        expected_dtype = standardize_dtype(jnp.divide(x_jax, 1.0).dtype)
-
-        self.assertDType(knp.divide(x, 1.0), expected_dtype)
-        self.assertDType(knp.Divide().symbolic_call(x, 1.0), expected_dtype)
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
@@ -13738,15 +13689,6 @@ class CbrtTest(UnaryOpTest):
         "negative": ((np.array([[-8, -1, 0], [1, 8, 27]], "float32"),), {}),
     }
 
-    @pytest.mark.skipif(
-        keras.config.x64_mode() == "explicit_x64"
-        and backend.backend() in ("jax", "numpy", "tensorflow"),
-        reason="TODO: `Cbrt.compute_output_spec` returns uint64 while the "
-        "eager output is float64 (#24040).",
-    )
-    def test_input_dtypes_uint64(self):
-        self.check_input_dtypes(("uint64",))
-
 
 class SqrtTest(UnaryOpTest):
     op, op_class = knp.sqrt, knp.Sqrt
@@ -13834,6 +13776,15 @@ class PowerTest(BinaryOpTest):
     def test_incompatible_shapes(self):
         with self.assertRaises(ValueError):
             knp.power(KerasTensor((2, 3)), KerasTensor((2, 3, 4)))
+
+
+class DivideTest(BinaryOpTest):
+    op, op_class = knp.divide, knp.Divide
+    reference_fn, jax_fn = np.divide, jnp.divide
+
+    def test_incompatible_shapes(self):
+        with self.assertRaises(ValueError):
+            knp.divide(KerasTensor((2, 3)), KerasTensor((2, 3, 4)))
 
 
 class SumTest(ReductionOpTest):

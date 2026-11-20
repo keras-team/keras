@@ -5,6 +5,7 @@ from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_data_format
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.dtypes import promote_to_float_dtype
 from keras.src.backend.numpy.ops.core import convert_to_tensor
 from keras.src.random.seed_generator import draw_seed
 from keras.src.utils.module_utils import scipy
@@ -65,7 +66,7 @@ def rgb_to_grayscale(images, data_format=None):
         return images.copy()
     # Convert to floats
     original_dtype = images.dtype
-    compute_dtype = result_type(images.dtype, float)
+    compute_dtype = promote_to_float_dtype(images.dtype)
     images = images.astype(compute_dtype)
 
     # Ref: tf.image.rgb_to_grayscale
@@ -776,7 +777,9 @@ def perspective_transform(
 def compute_homography_matrix(start_points, end_points):
     start_points = convert_to_tensor(start_points)
     end_points = convert_to_tensor(end_points)
-    dtype = result_type(start_points.dtype, end_points.dtype, float)
+    dtype = promote_to_float_dtype(
+        result_type(start_points.dtype, end_points.dtype)
+    )
     # `np.linalg.solve` lacks support for float16 and bfloat16. Build the
     # coefficient matrix in float32 so low-precision start/end points do not
     # create an ill-conditioned (or singular) homography due to rounding.

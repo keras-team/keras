@@ -1,8 +1,6 @@
 import torch
 
-from keras.src.backend import config
 from keras.src.backend.common import dtypes
-from keras.src.backend.common import standardize_dtype
 from keras.src.backend.torch.ops.core import cast
 from keras.src.backend.torch.ops.core import convert_to_tensor
 
@@ -39,11 +37,7 @@ def lu_factor(x):
 
 def norm(x, ord=None, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
-    x = cast(x, dtype)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.linalg.norm(x, ord=ord, dim=axis, keepdim=keepdims)
 
 
