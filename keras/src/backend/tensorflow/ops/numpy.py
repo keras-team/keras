@@ -746,8 +746,7 @@ def mean(x, axis=None, keepdims=False):
             return tf.reduce_mean(t, axis=axis, keepdims=keepdims)
 
         return xla_reduce_mean(x)
-    if "int" in dtype or dtype == "bool":
-        x = tf.cast(x, config.floatx())
+    x = tf.cast(x, dtypes.promote_to_float_dtype(dtype))
     return tf.reduce_mean(x, axis=axis, keepdims=keepdims)
 
 
@@ -1054,7 +1053,7 @@ def average(x, axis=None, weights=None):
     x = convert_to_tensor(x)
 
     if weights is None:  # Treat all weights as 1
-        dtype = dtypes.result_type(x.dtype, float)
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
         x = tf.cast(x, dtype)
         avg = tf.reduce_mean(x, axis=axis)
     else:
@@ -1084,7 +1083,9 @@ def average(x, axis=None, weights=None):
                 "Shape of weights must be consistent with shape of a "
                 "along specified axis."
             )
-        dtype = dtypes.result_type(x.dtype, weights.dtype, float)
+        dtype = dtypes.promote_to_float_dtype(
+            dtypes.result_type(x.dtype, weights.dtype)
+        )
         x = tf.cast(x, dtype)
         weights = tf.cast(weights, dtype)
 
@@ -2403,15 +2404,13 @@ def nanmax(x, axis=None, keepdims=False):
 def nanmean(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
 
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     if axis == () or axis == []:
-        return x
+        return tf.cast(x, dtype)
 
     if not x.dtype.is_floating:
-        return tf.reduce_mean(
-            tf.cast(x, "float32"), axis=axis, keepdims=keepdims
-        )
+        return tf.reduce_mean(tf.cast(x, dtype), axis=axis, keepdims=keepdims)
 
-    dtype = dtypes.result_type(standardize_dtype(x.dtype), float)
     total_sum = cast(nansum(x, axis=axis, keepdims=keepdims), dtype)
     normalizer = tf.reduce_sum(
         cast(~tf.math.is_nan(x), dtype),
@@ -2425,7 +2424,7 @@ def nanmedian(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
 
     if axis == () or axis == []:
-        return x
+        return tf.cast(x, dtypes.promote_to_float_dtype(x.dtype))
 
     return nanquantile(x, q=0.5, axis=axis, keepdims=keepdims)
 
@@ -2468,6 +2467,7 @@ def nanprod(x, axis=None, keepdims=False):
 
 def nanquantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
+    x = tf.cast(x, dtypes.promote_to_float_dtype(x.dtype))
     q = convert_to_tensor(q, dtype=config.floatx())
 
     def _nanquantile_1d(v):
@@ -2555,7 +2555,7 @@ def nansum(x, axis=None, keepdims=False):
 
 def nanvar(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    result_dtype = dtypes.result_type(x.dtype, float)
+    result_dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, result_dtype)
 
     mean = nanmean(x, axis=axis, keepdims=True)
@@ -2798,7 +2798,7 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
     q = convert_to_tensor(q)
     axis = to_tuple_or_list(axis)
-    compute_dtype = dtypes.result_type(x.dtype, float)
+    compute_dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = tf.cast(x, compute_dtype)
     return _quantile(x, q, axis=axis, method=method, keepdims=keepdims)
 
@@ -3018,9 +3018,7 @@ def stack(x, axis=0):
 
 def std(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    if "int" in ori_dtype or ori_dtype == "bool":
-        x = tf.cast(x, config.floatx())
+    x = tf.cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return tf.math.reduce_std(x, axis=axis, keepdims=keepdims)
 
 
@@ -3621,7 +3619,7 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
         return tf.transpose(tensor, perm=perm)
 
     y = convert_to_tensor(y)
-    dtype = dtypes.result_type(y.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(y.dtype)
     y = tf.cast(y, dtype)
 
     if x is None:
@@ -3662,8 +3660,8 @@ def vander(x, N=None, increasing=False):
 
 def var(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    compute_dtype = dtypes.result_type(x.dtype, "float32")
-    result_dtype = dtypes.result_type(x.dtype, float)
+    result_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    compute_dtype = dtypes.result_type(result_dtype, "float32")
     x = tf.cast(x, compute_dtype)
     return tf.cast(
         tf.math.reduce_variance(x, axis=axis, keepdims=keepdims),
@@ -3743,13 +3741,11 @@ def logical_xor(x1, x2):
 
 
 def corrcoef(x):
-    dtype = x.dtype
-    if dtype in ["bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"]:
-        dtype = config.floatx()
-    x = convert_to_tensor(x, dtype)
+    x = convert_to_tensor(x)
+    x = tf.cast(x, dtypes.promote_to_float_dtype(x.dtype))
 
-    if tf.rank(x) == 0:
-        return tf.constant(float("nan"), dtype=config.floatx())
+    if x.shape.rank == 0:
+        return tf.constant(float("nan"), dtype=x.dtype)
     if x.shape.rank == 1:
         return tf.reshape(corrcoef(x[tf.newaxis, :]), [])
 
@@ -4064,12 +4060,7 @@ def cov(x):
             f"Received: x.shape={x.shape}"
         )
 
-    dtype = standardize_dtype(x.dtype)
-    if dtype in ["bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"]:
-        dtype = config.floatx()
-    elif dtype == "int64":
-        dtype = "float64"
-    x = cast(x, dtype)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
 
     # A 0D input has no observations to vary over, as in `np.cov`.
     if len(x.shape) == 0:

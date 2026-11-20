@@ -323,14 +323,10 @@ def multiply(x1, x2):
 
 def mean(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
+    result_dtype = dtypes.promote_to_float_dtype(x.dtype)
     # `jnp.mean` does not handle low precision (e.g., float16) overflow
-    # correctly, so we compute with float32 and cast back to the original type.
-    compute_dtype = dtypes.result_type(x.dtype, "float32")
-    if "int" in ori_dtype or ori_dtype == "bool":
-        result_dtype = compute_dtype
-    else:
-        result_dtype = ori_dtype
+    # correctly, so we compute with float32 and cast back to the result type.
+    compute_dtype = dtypes.result_type(result_dtype, "float32")
     if isinstance(x, jax_sparse.BCOO):
         if axis is None:
             axis = tuple(range(len(x.shape)))
@@ -540,11 +536,13 @@ def view(x, dtype=None):
 
 def average(x, axis=None, weights=None):
     x = convert_to_tensor(x)
-    dtypes_to_resolve = [x.dtype, float]
+    dtypes_to_resolve = [x.dtype]
     if weights is not None:
         weights = convert_to_tensor(weights)
         dtypes_to_resolve.append(weights.dtype)
-    dtype = dtypes.result_type(*dtypes_to_resolve)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(*dtypes_to_resolve)
+    )
     x = cast(x, dtype)
     if weights is not None:
         weights = cast(weights, dtype)
@@ -1135,8 +1133,7 @@ def median(x, axis=None, keepdims=False):
     if isinstance(axis, list):
         axis = tuple(axis)
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        x = cast(x, config.floatx())
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
 
     result = jnp.median(x, axis=axis, keepdims=keepdims)
 
@@ -1212,11 +1209,13 @@ def nanmax(x, axis=None, keepdims=False):
 
 def nanmean(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.nanmean(x, axis=axis, keepdims=keepdims)
 
 
 def nanmedian(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.nanmedian(x, axis=axis, keepdims=keepdims)
 
 
@@ -1227,6 +1226,7 @@ def nanmin(x, axis=None, keepdims=False):
 
 def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     q = convert_to_tensor(q)
     return jnp.nanpercentile(x, q, axis=axis, method=method, keepdims=keepdims)
 
@@ -1238,12 +1238,14 @@ def nanprod(x, axis=None, keepdims=False):
 
 def nanquantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     q = convert_to_tensor(q)
     return jnp.nanquantile(x, q, axis=axis, method=method, keepdims=keepdims)
 
 
 def nanstd(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.nanstd(x, axis=axis, keepdims=keepdims)
 
 
@@ -1254,6 +1256,7 @@ def nansum(x, axis=None, keepdims=False):
 
 def nanvar(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.nanvar(x, axis=axis, keepdims=keepdims)
 
 
@@ -1304,6 +1307,7 @@ def pad(x, pad_width, mode="constant", constant_values=None):
 
 def percentile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     q = convert_to_tensor(q)
     return jnp.percentile(x, q, axis=axis, method=method, keepdims=keepdims)
 
@@ -1321,8 +1325,7 @@ def ptp(x, axis=None, keepdims=False):
 def quantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
     q = convert_to_tensor(q)
-    if standardize_dtype(x.dtype) == "int64":
-        x = cast(x, config.floatx())
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
 
     result = jnp.quantile(x, q, axis=axis, method=method, keepdims=keepdims)
 
@@ -1457,8 +1460,7 @@ def stack(x, axis=0):
 
 def std(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        x = cast(x, config.floatx())
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.std(x, axis=axis, keepdims=keepdims)
 
 
@@ -1671,6 +1673,7 @@ def transpose(x, axes=None):
 
 def trapezoid(y, x=None, dx=1.0, axis=-1):
     y = convert_to_tensor(y)
+    y = cast(y, dtypes.promote_to_float_dtype(y.dtype))
     if x is not None:
         x = convert_to_tensor(x)
     dx = convert_to_tensor(dx)
@@ -1686,8 +1689,8 @@ def var(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     # `jnp.var` does not handle low precision (e.g., float16) overflow
     # correctly, so we compute with float32 and cast back to the original type.
-    compute_dtype = dtypes.result_type(x.dtype, "float32")
-    result_dtype = dtypes.result_type(x.dtype, float)
+    result_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    compute_dtype = dtypes.result_type(result_dtype, "float32")
     return cast(
         jnp.var(x, axis=axis, keepdims=keepdims, dtype=compute_dtype),
         result_dtype,
@@ -1738,6 +1741,7 @@ def logical_xor(x1, x2):
 
 def corrcoef(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.corrcoef(x)
 
 
@@ -1803,4 +1807,5 @@ def column_stack(xs):
 
 def cov(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnp.cov(x)

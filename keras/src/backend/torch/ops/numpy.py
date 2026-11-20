@@ -311,18 +311,13 @@ def mean(x, axis=None, keepdims=False):
     if isinstance(x, (list, tuple)):
         x = stack(x)
     x = convert_to_tensor(x)
+    # torch.mean only supports floating point inputs
+    result_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    compute_dtype = dtypes.result_type(result_dtype, "float32")
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
-        return x
+        return cast(x, result_dtype)
     axis = to_tuple_or_list(axis)  # see [NB] below
-
-    ori_dtype = standardize_dtype(x.dtype)
-    # torch.mean only supports floating point inputs
-    compute_dtype = dtypes.result_type(x.dtype, "float32")
-    if "int" in ori_dtype or ori_dtype == "bool":
-        result_dtype = compute_dtype
-    else:
-        result_dtype = ori_dtype
 
     # [NB] the python torch op torch.mean() is generated into
     # `torch._C._VariableFunctions.pyi`, and the method
@@ -562,7 +557,7 @@ def view(x, dtype=None):
 
 def average(x, axis=None, weights=None):
     x = convert_to_tensor(x)
-    dtypes_to_resolve = [x.dtype, float]
+    dtypes_to_resolve = [x.dtype]
     if weights is not None:
         weights = convert_to_tensor(weights)
         if len(weights.shape) == 1 and len(x.shape) > 1:
@@ -591,7 +586,9 @@ def average(x, axis=None, weights=None):
                 "along specified axis."
             )
         dtypes_to_resolve.append(weights.dtype)
-    dtype = dtypes.result_type(*dtypes_to_resolve)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(*dtypes_to_resolve)
+    )
     x = cast(x, dtype)
     if weights is not None:
         weights = cast(weights, dtype)
@@ -1582,19 +1579,19 @@ def nanmax(x, axis=None, keepdims=False):
 
 def nanmean(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
 
     if axis == () or axis == []:
         return x
 
-    dtype = dtypes.result_type(standardize_dtype(x.dtype), float)
-    return torch.nanmean(cast(x, dtype), dim=axis, keepdim=keepdims)
+    return torch.nanmean(x, dim=axis, keepdim=keepdims)
 
 
 def nanmedian(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
 
     if axis == () or axis == []:
-        return x
+        return cast(x, dtypes.promote_to_float_dtype(x.dtype))
 
     return nanquantile(x, q=0.5, axis=axis, keepdims=keepdims)
 
@@ -1647,8 +1644,8 @@ def nanquantile(x, q, axis=None, method="linear", keepdims=False):
     q = convert_to_tensor(q)
     axis = to_tuple_or_list(axis)
 
-    compute_dtype = dtypes.result_type(x.dtype, "float32")
-    result_dtype = dtypes.result_type(x.dtype, float)
+    result_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    compute_dtype = dtypes.result_type(result_dtype, "float32")
 
     x = cast(x, compute_dtype)
     if x.dtype != q.dtype:
@@ -1703,7 +1700,7 @@ def nansum(x, axis=None, keepdims=False):
 def nanvar(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
 
-    result_dtype = dtypes.result_type(x.dtype, float)
+    result_dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = cast(x, result_dtype)
 
     if axis == () or axis == []:
@@ -1886,8 +1883,8 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
     q = convert_to_tensor(q)
     axis = to_tuple_or_list(axis)
 
-    compute_dtype = dtypes.result_type(x.dtype, "float32")
-    result_dtype = dtypes.result_type(x.dtype, float)
+    result_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    compute_dtype = dtypes.result_type(result_dtype, "float32")
 
     x = cast(x, compute_dtype)
     # q must be same dtype as x
@@ -2108,9 +2105,7 @@ def stack(x, axis=0):
 
 def std(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    ori_dtype = standardize_dtype(x.dtype)
-    if "int" in ori_dtype or ori_dtype == "bool":
-        x = cast(x, "float32")
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     # Remove Bessel correction to align with numpy
     return torch.std(x, dim=axis, keepdim=keepdims, unbiased=False)
 
@@ -2385,8 +2380,7 @@ def transpose(x, axes=None):
 
 def trapezoid(y, x=None, dx=1.0, axis=-1):
     y = convert_to_tensor(y)
-    if standardize_dtype(y.dtype) == "bool":
-        y = cast(y, config.floatx())
+    y = cast(y, dtypes.promote_to_float_dtype(y.dtype))
     if x is not None:
         x = convert_to_tensor(x)
         return torch.trapz(y, x=x, dim=axis)
@@ -2403,8 +2397,8 @@ def vander(x, N=None, increasing=False):
 
 def var(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    compute_dtype = dtypes.result_type(x.dtype, "float32")
-    result_dtype = dtypes.result_type(x.dtype, float)
+    result_dtype = dtypes.promote_to_float_dtype(x.dtype)
+    compute_dtype = dtypes.result_type(result_dtype, "float32")
     if axis == [] or axis == ():
         # Torch handles the empty axis case differently from numpy.
         return zeros_like(x, result_dtype)
@@ -2462,11 +2456,7 @@ def logical_xor(x1, x2):
 def corrcoef(x):
     x = convert_to_tensor(x)
 
-    if standardize_dtype(x.dtype) == "bool":
-        x = cast(x, config.floatx())
-    elif standardize_dtype(x.dtype) == "int64":
-        x = cast(x, "float64")
-
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.corrcoef(x)
 
 
@@ -2679,9 +2669,5 @@ def cov(x):
             f"Received: x.shape={tuple(x.shape)}"
         )
 
-    if standardize_dtype(x.dtype) == "bool":
-        x = cast(x, config.floatx())
-    elif standardize_dtype(x.dtype) == "int64":
-        x = cast(x, "float64")
-
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.cov(x)
