@@ -1571,9 +1571,6 @@ def bincount(x, weights=None, minlength=0, sparse=False):
 class BitwiseAnd(ElementwiseBinaryOperation):
     call_fn = backend.ops.numpy.bitwise_and
 
-    def call(self, x, y):
-        return self.call_fn(x, y)
-
 
 @keras_export(["keras.ops.bitwise_and", "keras.ops.numpy.bitwise_and"])
 def bitwise_and(x, y):
@@ -1643,9 +1640,6 @@ def bitwise_not(x):
 
 class BitwiseOr(ElementwiseBinaryOperation):
     call_fn = backend.ops.numpy.bitwise_or
-
-    def call(self, x, y):
-        return self.call_fn(x, y)
 
 
 @keras_export(["keras.ops.bitwise_or", "keras.ops.numpy.bitwise_or"])
