@@ -4498,16 +4498,20 @@ class SoftmaxTest(UnaryOpTest):
     }
 
     def test_input_dtypes_bool(self):
-        self.skipTest("`jax.nn.softmax` rejects bool inputs.")
+        self.skipTest("JAX's softmax functions reject bool inputs.")
+
+    @pytest.mark.skipif(
+        config.x64_mode() == "explicit_x64" and jax.__version_info__ < (0, 11),
+        reason="Before JAX 0.11, `jnp.max`, which JAX's softmax functions "
+        "use, raises for int64 inputs in `explicit_x64`.",
+    )
+    def test_input_dtypes_int64(self):
+        self.check_input_dtypes(("int64",))
 
 
-class LogSoftmaxTest(UnaryOpTest):
+class LogSoftmaxTest(SoftmaxTest):
     op, op_class = knn.log_softmax, knn.LogSoftmax
     reference_fn, jax_fn = np_log_softmax, jax.nn.log_softmax
-    cases = SoftmaxTest.cases
-
-    def test_input_dtypes_bool(self):
-        self.skipTest("`jax.nn.log_softmax` rejects bool inputs.")
 
     def test_invalid_axis(self):
         with self.assertRaises(ValueError):
