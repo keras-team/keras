@@ -379,6 +379,8 @@ class VariablePropertiesTest(test_case.TestCase):
         x = backend.ops.convert_to_tensor(np.zeros(()), dtype)
         actual = standardize_dtype(x.dtype)
         self.assertEqual(actual, dtype)
+        # The second call is served from the cache.
+        self.assertEqual(standardize_dtype(x.dtype), dtype)
 
     def test_standardize_dtype_with_torch_dtype(self):
         """Tests dtype standardization with PyTorch dtypes."""
@@ -386,6 +388,17 @@ class VariablePropertiesTest(test_case.TestCase):
 
         x = torch.randn(4, 4)
         standardize_dtype(x.dtype)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="TensorFlow only"
+    )
+    def test_standardize_dtype_does_not_confuse_tf_dtype_with_int(self):
+        # `tf.float32` hashes and compares equal to `1`, which is not a dtype.
+        import tensorflow as tf
+
+        self.assertEqual(standardize_dtype(tf.float32), "float32")
+        with self.assertRaises(ValueError):
+            standardize_dtype(1)
 
     def test_name_validation(self):
         """Tests validation of variable names."""
