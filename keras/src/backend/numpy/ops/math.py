@@ -321,13 +321,13 @@ def istft(
 
 def rsqrt(x):
     x = convert_to_tensor(x)
-    dtype = dtypes.result_type(x.dtype)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return (1.0 / np.sqrt(x)).astype(dtype)
 
 
 def erf(x):
     x = convert_to_tensor(x)
-    dtype = dtypes.result_type(x.dtype)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return scipy.special.erf(x).astype(dtype)
 
 
@@ -339,7 +339,7 @@ def erfc(x):
 
 def erfinv(x):
     x = convert_to_tensor(x)
-    dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     return scipy.special.erfinv(x).astype(dtype)
 
 
