@@ -8664,6 +8664,52 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertTrue(np.all(flat_x[result[:1]] <= kth_value))
         self.assertTrue(np.all(flat_x[result[2:]] >= kth_value))
 
+        x = np.array(
+            [
+                [0.7, -0.2, 0.5, -0.9],
+                [0.1, 0.4, -0.3, 0.2],
+                [-0.6, 0.8, 0.3, -0.1],
+            ]
+        )
+        for axis in (0, 1):
+            result = backend.ops.convert_to_numpy(
+                knp.argpartition(x, 1, axis=axis)
+            )
+            partitioned = np.take_along_axis(x, result, axis=axis)
+            self.assertAllClose(
+                np.sort(partitioned, axis=axis), np.sort(x, axis=axis)
+            )
+            kth_value = np.take(np.sort(x, axis=axis), [1], axis=axis)
+            self.assertAllClose(np.take(partitioned, [1], axis=axis), kth_value)
+            self.assertTrue(
+                np.all(np.take(partitioned, [0], axis=axis) <= kth_value)
+            )
+            self.assertTrue(
+                np.all(
+                    np.take(partitioned, range(2, x.shape[axis]), axis=axis)
+                    >= kth_value
+                )
+            )
+
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_argpartition_kth_out_of_range(self, backend_agnostic_ops):
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        x = np.array([[3, 4, 2, 1], [1, 3, 4, 2]])
+        with self.assertRaises(ValueError):
+            knp.argpartition(x, 4)
+        with self.assertRaises(ValueError):
+            knp.argpartition(x, -5)
+        with self.assertRaises(ValueError):
+            knp.argpartition(x, 2, axis=0)
+        with self.assertRaises(ValueError):
+            knp.argpartition(x, 8, axis=None)
+
+        result = backend.ops.convert_to_numpy(knp.argpartition(x, -1))
+        self.assertAllClose(
+            np.take_along_axis(x, result, axis=-1)[:, -1], np.max(x, axis=-1)
+        )
+
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_angle(self, backend_agnostic_ops):
         backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
