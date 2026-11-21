@@ -37,6 +37,7 @@ def relu6(x):
 
 def sigmoid(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return tnn.sigmoid(x)
 
 
@@ -197,6 +198,7 @@ def threshold(x, threshold, default_value):
 
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     dtype = standardize_dtype(x.dtype)
     # TODO: tnn.softmax doesn't support float16 using cpu
     if get_device() == "cpu" and dtype == "float16":
@@ -214,6 +216,7 @@ def softmax(x, axis=-1):
 
 def log_softmax(x, axis=-1):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     dtype = standardize_dtype(x.dtype)
     # TODO: tnn.log_softmax doesn't support float16 using cpu
     if get_device() == "cpu" and dtype == "float16":

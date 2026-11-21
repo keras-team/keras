@@ -48,6 +48,7 @@ def relu6(x):
 
 def sigmoid(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnn.sigmoid(x)
 
 
@@ -185,11 +186,13 @@ def threshold(x, threshold, default_value):
 
 def softmax(x, axis=-1):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnn.softmax(x, axis=axis)
 
 
 def log_softmax(x, axis=-1):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return jnn.log_softmax(x, axis=axis)
 
 
