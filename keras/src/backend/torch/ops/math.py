@@ -414,11 +414,13 @@ def istft(
 
 def rsqrt(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.rsqrt(x)
 
 
 def erf(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.erf(x)
 
 
@@ -430,6 +432,7 @@ def erfc(x):
 
 def erfinv(x):
     x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return torch.erfinv(x)
 
 
