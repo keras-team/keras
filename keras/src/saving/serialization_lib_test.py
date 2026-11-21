@@ -642,6 +642,54 @@ class SerializationLibTest(testing.TestCase):
             )
             self.assertIs(obj, keras.metrics.kl_divergence)
 
+    def test_global_state_and_dataset_apis_rejected(self):
+        for module, name in (
+            ("keras.config", "set_floatx"),
+            ("keras.config", "set_max_epochs"),
+            ("keras.datasets.mnist", "load_data"),
+            ("keras.distribution", "initialize"),
+            ("keras.legacy.saving", "deserialize_keras_object"),
+            ("keras.utils", "set_random_seed"),
+        ):
+            with self.assertRaisesRegex(ValueError, "not a modeling function"):
+                serialization_lib.deserialize_keras_object(
+                    {
+                        "class_name": "function",
+                        "module": module,
+                        "registered_name": name,
+                        "config": name,
+                    }
+                )
+
+    def test_lambda_node_cannot_call_global_state_api(self):
+        # A `Lambda` node whose `inputs` is a constant runs its function
+        # while the model is being rebuilt from config.
+        inputs = keras.Input((2,), name="x")
+        model = keras.Model(inputs, keras.layers.Dense(1, name="d")(inputs))
+        config = serialization_lib.serialize_keras_object(model)
+        config["config"]["layers"].append(
+            {
+                "module": "keras.layers",
+                "class_name": "Lambda",
+                "config": {
+                    "name": "set_epochs",
+                    "function": {
+                        "module": "keras.config",
+                        "class_name": "function",
+                        "config": "set_max_epochs",
+                        "registered_name": "set_max_epochs",
+                    },
+                    "arguments": {},
+                },
+                "registered_name": None,
+                "name": "set_epochs",
+                "inbound_nodes": [{"args": [], "kwargs": {"inputs": 1}}],
+            }
+        )
+        with self.assertRaisesRegex(ValueError, "not a modeling function"):
+            serialization_lib.deserialize_keras_object(config)
+        self.assertIsNone(keras.config.max_epochs())
+
     def test_registered_custom_object_still_resolves(self):
         layer = MyDense(units=4)
         config = serialization_lib.serialize_keras_object(layer)
