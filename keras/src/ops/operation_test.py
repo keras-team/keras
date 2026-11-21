@@ -515,3 +515,160 @@ class ElementwiseUnaryOperationTest(testing.TestCase):
                 sparse_2x2 = ops.one_hot([0, 1], 2, dtype=dt, sparse=True)
                 out = cls()(sparse_2x2)
                 self.assertSparse(out)
+
+
+class ElementwiseBinaryOperationTest(testing.TestCase):
+    def test_elementwise_binary_operation_arithmetic(self):
+        class DummyAdd(operation.ElementwiseBinaryOperation):
+            call_fn = backend.ops.numpy.add
+
+        op = DummyAdd()
+        x1 = np.array([1.0, 2.0], dtype="float32")
+        x2 = np.array([3.0, 4.0], dtype="float32")
+        out = op(x1, x2)
+        self.assertAllClose(out, [4.0, 6.0])
+
+        sym_x1 = KerasTensor((1, 3), dtype="float32")
+        sym_x2 = KerasTensor((2, 1), dtype="float32")
+        sym_out = op(sym_x1, sym_x2)
+        self.assertEqual(sym_out.shape, (2, 3))
+        self.assertEqual(sym_out.dtype, "float32")
+        self.assertFalse(sym_out.sparse)
+        self.assertFalse(sym_out.ragged)
+
+    def test_elementwise_binary_operation_comparison(self):
+        class DummyEqual(operation.ElementwiseBinaryOperation):
+            call_fn = backend.ops.numpy.equal
+            output_dtype = "bool"
+
+        op = DummyEqual()
+        sym_x1 = KerasTensor((2, 3), dtype="int32")
+        sym_x2 = KerasTensor((2, 3), dtype="int32")
+        sym_out = op(sym_x1, sym_x2)
+        self.assertEqual(sym_out.shape, (2, 3))
+        self.assertEqual(sym_out.dtype, "bool")
+
+    def test_elementwise_binary_operation_promote_to_float(self):
+        class DummyDivide(operation.ElementwiseBinaryOperation):
+            call_fn = backend.ops.numpy.divide
+            promote_to_float = True
+
+        op = DummyDivide()
+        sym_x1 = KerasTensor((2, 3), dtype="int32")
+        sym_x2 = KerasTensor((1, 3), dtype="int32")
+        sym_out = op(sym_x1, sym_x2)
+        self.assertEqual(sym_out.shape, (2, 3))
+        self.assertEqual(sym_out.dtype, config.floatx())
+
+    def test_elementwise_binary_operation_sparse(self):
+        class DummyAdd(operation.ElementwiseBinaryOperation):
+            call_fn = backend.ops.numpy.add
+            output_sparse_fn = lambda x1_sparse, x2_sparse: (
+                x1_sparse and x2_sparse
+            )
+
+        class DummyMultiply(operation.ElementwiseBinaryOperation):
+            call_fn = backend.ops.numpy.multiply
+            output_sparse_fn = lambda x1_sparse, x2_sparse: (
+                x1_sparse or x2_sparse
+            )
+
+        class DummyDivide(operation.ElementwiseBinaryOperation):
+            call_fn = backend.ops.numpy.divide
+            promote_to_float = True
+            output_sparse_fn = lambda x1_sparse, x2_sparse: (
+                x1_sparse and not x2_sparse
+            )
+
+        class DummyEqual(operation.ElementwiseBinaryOperation):
+            call_fn = backend.ops.numpy.equal
+            output_dtype = "bool"
+
+        sp = KerasTensor((2, 3), dtype="float32", sparse=True)
+        dn = KerasTensor((2, 3), dtype="float32", sparse=False)
+
+        self.assertTrue(DummyAdd()(sp, sp).sparse)
+        self.assertFalse(DummyAdd()(sp, dn).sparse)
+
+        self.assertTrue(DummyMultiply()(sp, dn).sparse)
+        self.assertTrue(DummyMultiply()(dn, sp).sparse)
+        self.assertFalse(DummyMultiply()(dn, dn).sparse)
+
+        self.assertTrue(DummyDivide()(sp, dn).sparse)
+        self.assertFalse(DummyDivide()(sp, sp).sparse)
+        self.assertFalse(DummyDivide()(dn, sp).sparse)
+
+        self.assertFalse(DummyEqual()(sp, sp).sparse)
+
+    def test_elementwise_binary_operation_ragged(self):
+        class DummyMultiply(operation.ElementwiseBinaryOperation):
+            call_fn = backend.ops.numpy.multiply
+            output_sparse_fn = lambda x1_sparse, x2_sparse: (
+                x1_sparse or x2_sparse
+            )
+
+        op = DummyMultiply()
+        sym_x1 = KerasTensor((2, None), dtype="float32", ragged=True)
+        sym_x2 = KerasTensor((), dtype="float32", sparse=True)
+        sym_out = op(sym_x1, sym_x2)
+        self.assertTrue(sym_out.ragged)
+        self.assertFalse(sym_out.sparse)
+
+    def test_elementwise_binary_operation_missing_call_fn(self):
+        with self.assertRaisesRegex(ValueError, "must define `call_fn`"):
+
+            class MissingFnOp(operation.ElementwiseBinaryOperation):
+                pass
+
+    def test_subclasses_match_eager(self):
+        int_only_ops = {
+            "BitwiseAnd",
+            "BitwiseOr",
+            "BitwiseXor",
+            "BitwiseLeftShift",
+            "LeftShift",
+            "BitwiseRightShift",
+            "RightShift",
+            "Gcd",
+            "Lcm",
+        }
+        for cls in operation.ElementwiseBinaryOperation.__subclasses__():
+            if not cls.__module__.startswith(
+                "keras.src.ops."
+            ) or cls.__module__.endswith("_test"):
+                continue
+            op = cls()
+            dt1 = "int32" if cls.__name__ in int_only_ops else "float32"
+            dt2 = (
+                "int32"
+                if cls.__name__ in int_only_ops or cls.__name__ == "Ldexp"
+                else "float32"
+            )
+            for s1, s2 in (((), ()), ((3,), (1,)), ((2, 1), (1, 3))):
+                out = op(ops.ones(s1, dtype=dt1), ops.ones(s2, dtype=dt2))
+                sym = op(KerasTensor(s1, dtype=dt1), KerasTensor(s2, dtype=dt2))
+                self.assertEqual(
+                    tuple(sym.shape), tuple(out.shape), cls.__name__
+                )
+                self.assertEqual(
+                    sym.dtype, standardize_dtype(out.dtype), cls.__name__
+                )
+
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_SPARSE_TENSORS,
+        reason="Backend does not support sparse tensors.",
+    )
+    def test_output_sparse_fn_matches_backend(self):
+        sparse_2x2 = ops.one_hot([0, 1], 2, dtype="float32", sparse=True)
+        dense_2x2 = ops.ones((2, 2), dtype="float32")
+        for cls in operation.ElementwiseBinaryOperation.__subclasses__():
+            if not cls.__module__.startswith(
+                "keras.src.ops."
+            ) or cls.__module__.endswith("_test"):
+                continue
+            for s1, s2 in ((True, True), (True, False), (False, True)):
+                if cls.output_sparse_fn(s1, s2):
+                    x1 = sparse_2x2 if s1 else dense_2x2
+                    x2 = sparse_2x2 if s2 else dense_2x2
+                    out = cls()(x1, x2)
+                    self.assertSparse(out)
