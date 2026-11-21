@@ -45,6 +45,8 @@ def relu6(x):
 
 
 def sigmoid(x):
+    x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     logits = x
     output = tf.nn.sigmoid(x)
     output._keras_logits = logits
@@ -205,6 +207,8 @@ def threshold(x, threshold, default_value):
 
 
 def softmax(x, axis=-1):
+    x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     logits = x
     if axis is None:
         # Unlike numpy, tf will handle axis=None as axis=-1.
@@ -219,6 +223,8 @@ def softmax(x, axis=-1):
 
 
 def log_softmax(x, axis=-1):
+    x = convert_to_tensor(x)
+    x = cast(x, dtypes.promote_to_float_dtype(x.dtype))
     if axis is None:
         # Unlike numpy, tf will handle axis=None as axis=-1.
         # We need this workaround for the reduction on every dim.
