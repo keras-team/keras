@@ -1,3 +1,9 @@
+import io
+import os
+import warnings
+import zipfile
+
+import h5py
 import numpy as np
 import pytest
 
@@ -6,6 +12,7 @@ from keras.src import callbacks
 from keras.src import layers
 from keras.src import models
 from keras.src import optimizers
+from keras.src import saving
 from keras.src import testing
 
 
@@ -694,3 +701,57 @@ class MultiOptimizerTest(testing.TestCase):
             "MultiOptimizer cannot be used inside an MultiOptimizer.",
         ):
             multi_opt.build([w2])
+
+    @pytest.mark.requires_trainable_backend
+    def test_model_save_does_not_duplicate_sub_optimizer_variables(self):
+        opt_map = optimizers.OptimizerMap(
+            default_optimizer=optimizers.Adam(learning_rate=0.01),
+            optimizer_map={
+                ".*dense_1/.*": optimizers.SGD(learning_rate=0.05, momentum=0.9)
+            },
+        )
+        model = models.Sequential(
+            [
+                layers.Input(shape=(4,)),
+                layers.Dense(2, name="dense_1"),
+                layers.Dense(2, name="dense_2"),
+            ]
+        )
+        model.compile(optimizer=optimizers.MultiOptimizer(opt_map), loss="mse")
+        x = np.ones((2, 4), dtype=np.float32)
+        y = np.ones((2, 2), dtype=np.float32)
+        model.train_on_batch(x, y)
+
+        filepath = os.path.join(self.get_temp_dir(), "multi_opt_model.keras")
+        model.save(filepath)
+
+        with zipfile.ZipFile(filepath, "r") as archive:
+            weights_bytes = io.BytesIO(archive.read("model.weights.h5"))
+        with h5py.File(weights_bytes, "r") as weights:
+            optimizer_datasets = []
+            weights.visititems(
+                lambda path, item: (
+                    optimizer_datasets.append(path)
+                    if isinstance(item, h5py.Dataset)
+                    and path.startswith("optimizer/")
+                    else None
+                )
+            )
+
+        own_paths = [
+            p for p in optimizer_datasets if p.startswith("optimizer/vars/")
+        ]
+        self.assertLen(own_paths, len(model.optimizer._variables))
+        expected_total = len(model.optimizer._variables) + sum(
+            len(opt._variables) for opt in model.optimizer.optimizers
+        )
+        self.assertLen(optimizer_datasets, expected_total)
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            reloaded = saving.load_model(filepath)
+        self.assertEmpty(caught)
+        for orig_var, loaded_var in zip(
+            model.optimizer.variables, reloaded.optimizer.variables
+        ):
+            self.assertAllClose(orig_var.numpy(), loaded_var.numpy())

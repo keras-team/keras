@@ -758,25 +758,29 @@ class BaseOptimizer(KerasSaveable):
 
     def save_own_variables(self, store):
         """Get the state of this optimizer object."""
-        for i, variable in enumerate(self.variables):
+        for i, variable in enumerate(self._variables):
             store[str(i)] = variable.numpy()
 
     def load_own_variables(self, store):
         """Set the state of this optimizer object."""
-        if len(store.keys()) != len(self.variables):
+        if len(store.keys()) == len(self._variables):
+            variables = self._variables
+        elif self.built and len(store.keys()) == len(self.variables):
+            variables = self.variables
+        else:
             msg = (
                 f"Skipping variable loading for optimizer '{self.name}', "
-                f"because it has {len(self.variables)} variables whereas "
+                f"because it has {len(self._variables)} variables whereas "
                 f"the saved optimizer has {len(store.keys())} variables. "
             )
-            if len(self.variables) == 0:
+            if not self.built:
                 msg += (
                     "This is likely because the optimizer has not been "
                     "called/built yet."
                 )
             warnings.warn(msg, stacklevel=2)
             return
-        for i, variable in enumerate(self.variables):
+        for i, variable in enumerate(variables):
             variable.assign(store[str(i)])
 
     def _get_current_learning_rate(self):
