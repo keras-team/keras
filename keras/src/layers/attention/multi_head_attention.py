@@ -621,10 +621,15 @@ class MultiHeadAttention(Layer):
 
         # Delete the masks because the masks are handled at the level of the
         # layer
-        query_mask = get_keras_mask(query)
-        set_keras_mask(query, None)
-        set_keras_mask(value, None)
-        set_keras_mask(key, None)
+        query_keras_mask = get_keras_mask(query)
+        value_keras_mask = get_keras_mask(value)
+        key_keras_mask = get_keras_mask(key)
+        if query_mask is None:
+            query_mask = query_keras_mask
+        if value_mask is None:
+            value_mask = value_keras_mask
+        if key_mask is None and key is not value:
+            key_mask = key_keras_mask
 
         # When causal masking is the only mask source, route through the
         # backend's native causal kernel by passing `is_causal=True` rather
@@ -656,18 +661,33 @@ class MultiHeadAttention(Layer):
         #   N = `num_attention_heads`
         #   H = `size_per_head`
 
-        # `gate` = [B, T, N, H]
-        if self._use_gate:
-            gate = self._gate_dense(query)
+        orig_query, orig_value, orig_key = query, value, key
+        if query_keras_mask is not None:
+            set_keras_mask(orig_query, None)
+        if value_keras_mask is not None:
+            set_keras_mask(orig_value, None)
+        if key_keras_mask is not None:
+            set_keras_mask(orig_key, None)
+        try:
+            # `gate` = [B, T, N, H]
+            if self._use_gate:
+                gate = self._gate_dense(query)
 
-        # `query` = [B, T, N, H]
-        query = self._query_dense(query)
+            # `query` = [B, T, N, H]
+            query = self._query_dense(query)
 
-        # `key` = [B, S, N, H]
-        key = self._key_dense(key)
+            # `key` = [B, S, N, H]
+            key = self._key_dense(key)
 
-        # `value` = [B, S, N, H]
-        value = self._value_dense(value)
+            # `value` = [B, S, N, H]
+            value = self._value_dense(value)
+        finally:
+            if query_keras_mask is not None:
+                set_keras_mask(orig_query, query_keras_mask)
+            if value_keras_mask is not None:
+                set_keras_mask(orig_value, value_keras_mask)
+            if key_keras_mask is not None:
+                set_keras_mask(orig_key, key_keras_mask)
         # Only pass `use_causal_mask` when active so subclasses that override
         # `_compute_attention` with the previous signature still work.
         extra_attention_kwargs = (

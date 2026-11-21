@@ -1072,3 +1072,138 @@ class MultiHeadAttentionTest(testing.TestCase):
         self.assertIs(type(config["output_shape"][0]), int)
         self.assertEqual(config["attention_axes"], (1,))
         self.assertIs(type(config["attention_axes"][0]), int)
+
+    def test_explicit_query_mask(self):
+        layer = layers.MultiHeadAttention(num_heads=2, key_dim=4)
+        query = np.random.RandomState(0).randn(2, 4, 8).astype("float32")
+        value = np.random.RandomState(1).randn(2, 3, 8).astype("float32")
+        query_mask = np.array(
+            [[True, True, False, False], [True, False, False, False]]
+        )
+        value_mask = np.array([[True, True, False], [True, True, True]])
+
+        output, scores = layer(
+            query=query,
+            value=value,
+            query_mask=query_mask,
+            value_mask=value_mask,
+            return_attention_scores=True,
+        )
+        self.assertAllClose(get_keras_mask(output), query_mask)
+        scores_np = ops.convert_to_numpy(scores)
+        self.assertAllClose(scores_np[0, :, 2:, :], np.zeros((2, 2, 3)))
+        self.assertAllClose(scores_np[1, :, 1:, :], np.zeros((2, 3, 3)))
+
+        causal = np.tril(np.ones((4, 4), dtype="bool"))[None]
+        merged = query_mask[:, :, None] & causal
+        out_causal = layer(
+            query=query,
+            value=query,
+            query_mask=query_mask,
+            use_causal_mask=True,
+        )
+        out_merged = layer(
+            query=query,
+            value=query,
+            attention_mask=merged,
+            use_causal_mask=False,
+        )
+        self.assertAllClose(out_causal, out_merged, atol=1e-5)
+
+    def test_input_keras_masks_preserved(self):
+        layer = layers.MultiHeadAttention(num_heads=2, key_dim=4)
+        q_tokens = np.array([[1, 2, 0, 0]])
+        v_tokens = np.array([[3, 4, 0]])
+        k_tokens = np.array([[2, 1, 0]])
+        emb = layers.Embedding(8, 8, mask_zero=True)
+        masked_q = emb(q_tokens)
+        masked_v = emb(v_tokens)
+        masked_k = emb(k_tokens)
+        expected_q_mask = ops.convert_to_numpy(get_keras_mask(masked_q))
+        expected_v_mask = ops.convert_to_numpy(get_keras_mask(masked_v))
+        expected_k_mask = ops.convert_to_numpy(get_keras_mask(masked_k))
+
+        with warnings.catch_warnings(record=True) as warning_logs:
+            warnings.simplefilter("always")
+            _ = layer(query=masked_q, value=masked_v, key=masked_k)
+            self.assertLen(warning_logs, 0)
+
+        self.assertAllClose(get_keras_mask(masked_q), expected_q_mask)
+        self.assertAllClose(get_keras_mask(masked_v), expected_v_mask)
+        self.assertAllClose(get_keras_mask(masked_k), expected_k_mask)
+
+        inp = layers.Input(shape=(None,), dtype="int32")
+        x = layers.Embedding(8, 8, mask_zero=True)(inp)
+        attn = layers.MultiHeadAttention(num_heads=2, key_dim=4)(x, x)
+        res = layers.Add()([x, attn])
+        res_model = models.Model(inp, res)
+        res_out = res_model(q_tokens)
+        self.assertIsNotNone(get_keras_mask(res_out))
+        self.assertAllClose(get_keras_mask(res_out), expected_q_mask)
+
+        pooled = layers.GlobalAveragePooling1D(data_format="channels_last")(res)
+        pool_model = models.Model(inp, pooled)
+        self.assertAllClose(
+            pool_model(np.array([[1, 2, 0, 0]])),
+            pool_model(np.array([[1, 2]])),
+            atol=1e-5,
+        )
+
+        enc_in = layers.Input(shape=(4,), dtype="int32")
+        dec_in = layers.Input(shape=(3,), dtype="int32")
+        enc_emb = layers.Embedding(8, 8, mask_zero=True)(enc_in)
+        dec_emb = layers.Embedding(8, 8, mask_zero=True)(dec_in)
+        d1 = layers.MultiHeadAttention(num_heads=2, key_dim=4)(dec_emb, enc_emb)
+        _, s2 = layers.MultiHeadAttention(num_heads=2, key_dim=4)(
+            d1, enc_emb, return_attention_scores=True
+        )
+        cross_model = models.Model([enc_in, dec_in], s2)
+        scores_2 = ops.convert_to_numpy(
+            cross_model([q_tokens, np.array([[1, 2, 3]])])
+        )
+        self.assertAllClose(scores_2[..., 2:], np.zeros_like(scores_2[..., 2:]))
+
+    def test_direct_call_uses_attached_keras_masks(self):
+        layer = layers.MultiHeadAttention(num_heads=2, key_dim=4)
+        emb = layers.Embedding(8, 8, mask_zero=True)
+        masked_q = emb(np.array([[1, 2, 0, 0]]))
+        masked_v = emb(np.array([[3, 4, 0, 5]]))
+        masked_k = emb(np.array([[2, 1, 3, 0]]))
+        layer.build(masked_q.shape, masked_v.shape, masked_k.shape)
+
+        out_self, scores_self = layer.call(
+            masked_q, masked_v, return_attention_scores=True
+        )
+        scores_self_np = ops.convert_to_numpy(scores_self)
+        self.assertAllClose(get_keras_mask(out_self), get_keras_mask(masked_q))
+        self.assertAllClose(
+            scores_self_np[..., 2:, :],
+            np.zeros_like(scores_self_np[..., 2:, :]),
+        )
+        self.assertAllClose(
+            scores_self_np[..., :, 2],
+            np.zeros_like(scores_self_np[..., :, 2]),
+        )
+
+        _, scores_cross = layer.call(
+            masked_q, masked_v, key=masked_k, return_attention_scores=True
+        )
+        scores_cross_np = ops.convert_to_numpy(scores_cross)
+        self.assertAllClose(
+            scores_cross_np[..., :, 2:],
+            np.zeros_like(scores_cross_np[..., :, 2:]),
+        )
+
+        override_v_mask = np.array([[True, False, True, True]])
+        _, scores_override = layer.call(
+            masked_q,
+            masked_v,
+            value_mask=override_v_mask,
+            return_attention_scores=True,
+        )
+        scores_override_np = ops.convert_to_numpy(scores_override)
+        self.assertAllClose(
+            scores_override_np[..., :2, 1],
+            np.zeros_like(scores_override_np[..., :2, 1]),
+        )
+        self.assertGreater(scores_override_np[0, 0, 0, 2], 0.0)
