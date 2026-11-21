@@ -26,6 +26,16 @@ class AdamTest(testing.TestCase):
         optimizer.apply_gradients(zip([grads], [vars]))
         self.assertAllClose(vars, [0.5, 1.5, 2.5, 3.5], rtol=1e-4, atol=1e-4)
 
+    def test_single_step_bfloat16(self):
+        # beta_2=0.999 rounds to 1.0 in bfloat16, which made the update zero.
+        optimizer = Adam(learning_rate=0.5)
+        grads = ops.array([1.0, 6.0, 7.0, 2.0], dtype="bfloat16")
+        vars = backend.Variable([1.0, 2.0, 3.0, 4.0], dtype="bfloat16")
+        optimizer.apply_gradients(zip([grads], [vars]))
+        self.assertAllClose(
+            ops.cast(vars, "float32"), [0.5, 1.5, 2.5, 3.5], atol=2e-2
+        )
+
     def test_weight_decay(self):
         grads, var1, var2, var3 = (
             ops.zeros(()),
