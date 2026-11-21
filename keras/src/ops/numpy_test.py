@@ -2009,7 +2009,7 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.meshgrid(x, y)[0].shape, (None, None))
         self.assertEqual(knp.meshgrid(x, y)[1].shape, (None, None))
 
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(ValueError, "but received kk"):
             knp.meshgrid(x, y, indexing="kk")
 
     def test_moveaxis(self):
