@@ -1665,9 +1665,6 @@ def bitwise_or(x, y):
 class BitwiseXor(ElementwiseBinaryOperation):
     call_fn = backend.ops.numpy.bitwise_xor
 
-    def call(self, x, y):
-        return self.call_fn(x, y)
-
 
 @keras_export(["keras.ops.bitwise_xor", "keras.ops.numpy.bitwise_xor"])
 def bitwise_xor(x, y):
@@ -1691,9 +1688,6 @@ def bitwise_xor(x, y):
 
 class BitwiseLeftShift(ElementwiseBinaryOperation):
     call_fn = backend.ops.numpy.bitwise_left_shift
-
-    def call(self, x, y):
-        return self.call_fn(x, y)
 
 
 @keras_export(
@@ -1721,9 +1715,6 @@ def bitwise_left_shift(x, y):
 class LeftShift(ElementwiseBinaryOperation):
     call_fn = backend.ops.numpy.left_shift
 
-    def call(self, x, y):
-        return self.call_fn(x, y)
-
 
 @keras_export(["keras.ops.left_shift", "keras.ops.numpy.left_shift"])
 def left_shift(x, y):
@@ -1747,9 +1738,6 @@ def left_shift(x, y):
 
 class BitwiseRightShift(ElementwiseBinaryOperation):
     call_fn = backend.ops.numpy.bitwise_right_shift
-
-    def call(self, x, y):
-        return self.call_fn(x, y)
 
 
 @keras_export(
@@ -1776,9 +1764,6 @@ def bitwise_right_shift(x, y):
 
 class RightShift(ElementwiseBinaryOperation):
     call_fn = backend.ops.numpy.right_shift
-
-    def call(self, x, y):
-        return self.call_fn(x, y)
 
 
 @keras_export(["keras.ops.right_shift", "keras.ops.numpy.right_shift"])
