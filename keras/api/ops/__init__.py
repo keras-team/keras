@@ -19,6 +19,7 @@ from keras.src.ops.core import fori_loop as fori_loop
 from keras.src.ops.core import grad as grad
 from keras.src.ops.core import is_tensor as is_tensor
 from keras.src.ops.core import map as map
+from keras.src.ops.core import print as print
 from keras.src.ops.core import saturate_cast as saturate_cast
 from keras.src.ops.core import scan as scan
 from keras.src.ops.core import scatter as scatter
