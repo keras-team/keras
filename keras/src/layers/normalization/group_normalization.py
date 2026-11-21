@@ -196,6 +196,15 @@ class GroupNormalization(Layer):
         group_reduction_axes.pop(axis)
 
         broadcast_shape = self._create_broadcast_shape(input_shape)
+        # Center before computing moments to reduce cancellation for inputs
+        # with a large mean and small variance, including in the backward pass.
+        initial_mean, initial_variance = ops.moments(
+            reshaped_inputs, axes=group_reduction_axes, keepdims=True
+        )
+        # Skip the shift for nonfinite variance: another mean reduction of
+        # large centered values could overflow and introduce NaN gradients.
+        shift = ops.where(ops.isfinite(initial_variance), initial_mean, 0.0)
+        reshaped_inputs = reshaped_inputs - shift
         mean, variance = ops.moments(
             reshaped_inputs, axes=group_reduction_axes, keepdims=True
         )
