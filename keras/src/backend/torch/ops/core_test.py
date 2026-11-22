@@ -198,9 +198,11 @@ class TorchCoreTest(testing.TestCase):
         self.assertEqual(result.dtype, torch.bfloat16)
         self.assertEqual(tuple(result.shape), (0, 3))
 
+    @pytest.mark.skipif(
+        "cpu" not in get_device(),
+        reason="Memory can only be shared with NumPy on CPU.",
+    )
     def test_convert_to_tensor_bfloat16_ndarray_shares_memory(self):
-        if "cpu" not in get_device():
-            self.skipTest("Memory can only be shared with NumPy on CPU.")
         x = self._bfloat16_array()
         result = convert_to_tensor(x)
         self.assertEqual(result.data_ptr(), x.ctypes.data)
