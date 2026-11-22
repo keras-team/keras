@@ -1,6 +1,5 @@
 from keras.src import backend
 from keras.src import layers
-from keras.src import ops
 from keras.src.api_export import keras_export
 
 
@@ -44,7 +43,7 @@ class GaussianNoise(layers.Layer):
     def call(self, inputs, training=False):
         if training and self.stddev > 0:
             return inputs + backend.random.normal(
-                shape=ops.shape(inputs),
+                shape=backend.ops.shape(inputs),
                 mean=0.0,
                 stddev=self.stddev,
                 dtype=self.compute_dtype,

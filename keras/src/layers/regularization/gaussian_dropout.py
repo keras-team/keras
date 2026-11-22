@@ -2,7 +2,6 @@ import math
 
 from keras.src import backend
 from keras.src import layers
-from keras.src import ops
 from keras.src.api_export import keras_export
 
 
@@ -44,7 +43,7 @@ class GaussianDropout(layers.Layer):
         if training and self.rate > 0:
             stddev = math.sqrt(self.rate / (1.0 - self.rate))
             return inputs * backend.random.normal(
-                shape=ops.shape(inputs),
+                shape=backend.ops.shape(inputs),
                 mean=1.0,
                 stddev=stddev,
                 dtype=self.compute_dtype,

@@ -1,5 +1,4 @@
 from keras.src import backend
-from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend.common import standardize_data_format
 from keras.src.layers.input_spec import InputSpec
@@ -65,7 +64,7 @@ class SpatialDropout1D(BaseSpatialDropout):
         self.input_spec = InputSpec(ndim=3)
 
     def _get_noise_shape(self, inputs):
-        input_shape = ops.shape(inputs)
+        input_shape = backend.ops.shape(inputs)
         return (input_shape[0], 1, input_shape[2])
 
 
@@ -117,7 +116,7 @@ class SpatialDropout2D(BaseSpatialDropout):
         self.input_spec = InputSpec(ndim=4)
 
     def _get_noise_shape(self, inputs):
-        input_shape = ops.shape(inputs)
+        input_shape = backend.ops.shape(inputs)
         if self.data_format == "channels_first":
             return (input_shape[0], input_shape[1], 1, 1)
         elif self.data_format == "channels_last":
@@ -179,7 +178,7 @@ class SpatialDropout3D(BaseSpatialDropout):
         self.input_spec = InputSpec(ndim=5)
 
     def _get_noise_shape(self, inputs):
-        input_shape = ops.shape(inputs)
+        input_shape = backend.ops.shape(inputs)
         if self.data_format == "channels_first":
             return (input_shape[0], input_shape[1], 1, 1, 1)
         elif self.data_format == "channels_last":
