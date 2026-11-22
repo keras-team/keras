@@ -250,9 +250,14 @@ class Variable(KerasVariable):
             # Reuse same parameter
             self._value = value
         else:
+            value = convert_to_tensor(value, dtype=self._dtype)
+            if value.dtype == torch.bfloat16 and value.device.type == "cpu":
+                # `convert_to_tensor` shares memory with bfloat16 NumPy
+                # arrays on CPU. The variable must own its value so that
+                # in-place updates do not write to the source array.
+                value = value.clone()
             self._value = torch.nn.Parameter(
-                convert_to_tensor(value, dtype=self._dtype),
-                requires_grad=self.trainable,
+                value, requires_grad=self.trainable
             ).to(get_device())
 
     def _direct_assign(self, value):
@@ -454,15 +459,23 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
             dt = to_torch_dtype(dtype) if dtype is not None else None
             return torch.as_tensor(x, dtype=dt, device=get_device())
     elif not isinstance(x, (bool, int, float)):
-        x = np.array(x)
+        # bfloat16 ndarrays are converted without a copy further down.
+        if type(x) is not np.ndarray or x.dtype != ml_dtypes.bfloat16:
+            x = np.array(x)
     if isinstance(x, np.ndarray):
         if x.dtype == np.uint32:
             # Torch backend does not support uint32.
             x = x.astype(np.int64)
         if standardize_dtype(x.dtype) == "bfloat16":
-            # Torch backend does not support converting bfloat16 ndarray.
-            x = x.astype(np.float32)
-            dtype = "bfloat16"
+            # Torch does not support converting bfloat16 ndarrays. Instead of
+            # going through float32, reinterpret the bits as uint16 and view
+            # them as bfloat16, which shares memory with `x` on CPU.
+            if not x.flags.writeable or any(s < 0 for s in x.strides):
+                # `torch.from_numpy` does not support negative strides and
+                # warns about non-writable arrays.
+                x = np.array(x)
+            x = torch.from_numpy(x.view(np.uint16)).view(torch.bfloat16)
+            return convert_to_tensor(x, dtype=dtype)
         dtype = dtype or x.dtype
     if dtype is None:
         dtype = result_type(
