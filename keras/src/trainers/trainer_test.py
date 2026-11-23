@@ -1,3 +1,4 @@
+import warnings
 from unittest import mock
 
 import jax
@@ -2232,6 +2233,51 @@ class TestTrainer(testing.TestCase):
         out2 = model.predict_on_batch(np.ones((2, 20)))
         out3 = model.predict_on_batch(np.ones((2, 20)))
         self.assertNotAllClose(out2, out3)
+
+    @pytest.mark.requires_trainable_backend
+    def test_warns_when_trainable_changes_after_compile(self):
+        def trainable_warnings(fn, *args):
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                fn(*args)
+            return [w for w in caught if "`trainable` state" in str(w.message)]
+
+        class BuildsLayers(models.Model):
+            def build(self, input_shape):
+                self.dense = layers.Dense(1)
+                self.dense.build(input_shape)
+
+            def call(self, x):
+                return self.dense(x)
+
+        x = np.ones((4, 2))
+        y = np.ones((4, 1))
+        # Both models create layers after `compile()`.
+        for model in (
+            models.Sequential([layers.Dense(3), layers.Dense(1)]),
+            BuildsLayers(),
+        ):
+            model.compile(optimizer="sgd", loss="mse")
+            for _ in range(2):
+                self.assertEmpty(trainable_warnings(model.fit, x, y))
+            self.assertEmpty(trainable_warnings(model.train_on_batch, x, y))
+
+        layer = model.dense
+        layer.trainable = False
+        check = model._assert_compile_called
+        self.assertEmpty(trainable_warnings(check, "evaluate"))
+        self.assertEmpty(trainable_warnings(check, "test_on_batch"))
+        caught = trainable_warnings(check, "fit")
+        self.assertLen(caught, 1)
+        self.assertIn(layer.name, str(caught[0].message))
+        self.assertEmpty(trainable_warnings(check, "fit"))
+
+        layer.trainable = True
+        self.assertLen(trainable_warnings(check, "train_on_batch"), 1)
+
+        layer.trainable = False
+        model.compile(optimizer="sgd", loss="mse")
+        self.assertEmpty(trainable_warnings(check, "fit"))
 
     @pytest.mark.requires_trainable_backend
     def test_recompile(self):

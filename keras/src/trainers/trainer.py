@@ -1096,12 +1096,13 @@ class BaseTrainer:
         current_state = {
             layer: layer.trainable for layer in self._flatten_layers()
         }
-        changed_layers = []
-        for layer, trainable in current_state.items():
-            if layer not in self._compiled_trainable_state:
-                changed_layers.append(layer.name)
-            elif trainable != self._compiled_trainable_state[layer]:
-                changed_layers.append(layer.name)
+        # Skip layers created after `compile()` so that a model built in
+        # `fit()` does not warn.
+        changed_layers = [
+            layer.name
+            for layer, trainable in current_state.items()
+            if self._compiled_trainable_state.get(layer, trainable) != trainable
+        ]
 
         if changed_layers:
             warnings.warn(
@@ -1114,7 +1115,8 @@ class BaseTrainer:
                 f"Changed layers: {changed_layers}",
                 stacklevel=2,
             )
-            # Update the state so we only warn once per compile
+        if current_state != self._compiled_trainable_state:
+            # Record new layers and warn only once per change.
             self._compiled_trainable_state = current_state
 
     def _assert_compile_called(self, method_name=None):
@@ -1125,6 +1127,8 @@ class BaseTrainer:
             else:
                 msg += f"calling `{method_name}()`."
             raise ValueError(msg)
+        # `trainable` has no effect on evaluation.
+        if method_name in ("fit", "train_on_batch"):
             self._warn_if_trainable_state_changed()
 
     def _get_unbuilt_components(self):
