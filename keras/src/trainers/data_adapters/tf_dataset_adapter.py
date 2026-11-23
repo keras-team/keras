@@ -1,7 +1,23 @@
+import numpy as np
+
 from keras.src import tree
 from keras.src.backend import config
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.data_adapters.data_adapter import DataAdapter
+
+
+def _tf_to_numpy_no_copy(x):
+    from keras.src.backend.tensorflow.ops.core import convert_to_numpy
+    from keras.src.utils.module_utils import tensorflow as tf
+
+    if isinstance(x, tf.Tensor) and x.dtype != tf.bfloat16:
+        try:
+            # Note that `convert_to_numpy` always copies by design.
+            return np.asarray(x)
+        except Exception:
+            # Unsupported dtype or tensor type, use `convert_to_numpy`.
+            pass
+    return convert_to_numpy(x)
 
 
 class TFDatasetAdapter(DataAdapter):
@@ -89,22 +105,19 @@ class TFDatasetAdapter(DataAdapter):
         return dataset.prefetch(tf.data.AUTOTUNE)
 
     def get_numpy_iterator(self):
-        from keras.src.backend.tensorflow.ops.core import convert_to_numpy
-
         for batch in self._dataset:
             yield tree.map_structure(
-                convert_to_numpy, batch, none_is_leaf=False
+                _tf_to_numpy_no_copy, batch, none_is_leaf=False
             )
 
     def get_jax_iterator(self, super_batch=None):
-        from keras.src.backend.tensorflow.ops.core import convert_to_numpy
         from keras.src.utils.module_utils import tensorflow as tf
 
         def convert_to_jax(x):
             if isinstance(x, tf.SparseTensor):
                 return data_adapter_utils.tf_sparse_to_jax_sparse(x)
             # We use numpy as an intermediary because it is faster.
-            return convert_to_numpy(x)
+            return _tf_to_numpy_no_copy(x)
 
         if super_batch and self.batch_size is not None:
             ds = self._dataset.batch(super_batch).prefetch(tf.data.AUTOTUNE)
