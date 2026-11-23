@@ -20,9 +20,12 @@ from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
 from keras.src.ops import numpy as knp
 from keras.src.testing.op_test_case import BinaryOpTest
+from keras.src.testing.op_test_case import CreationOpTest
 from keras.src.testing.op_test_case import ReductionOpTest
 from keras.src.testing.op_test_case import UnaryOpTest
 from keras.src.testing.op_test_case import X
+from keras.src.testing.op_test_case import Y
+from keras.src.testing.op_test_case import Z
 from keras.src.testing.op_test_case import named_dtype_combinations
 from keras.src.testing.test_utils import named_product
 from keras.src.testing.test_utils import x64_mode_scope
@@ -1528,30 +1531,6 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.arctanh(x).shape, (None, 3))
 
-    def test_argmax(self):
-        x = KerasTensor((None, 3))
-        self.assertEqual(knp.argmax(x).shape, ())
-        self.assertEqual(knp.argmax(x, keepdims=True).shape, (1, 1))
-        self.assertEqual(knp.argmax(x, axis=0, keepdims=True).shape, (1, 3))
-        self.assertEqual(knp.argmax(x, axis=1, keepdims=True).shape, (None, 1))
-
-        x = KerasTensor((None, 3, 3))
-        self.assertEqual(knp.argmax(x, axis=1).shape, (None, 3))
-        self.assertEqual(knp.argmax(x, keepdims=True).shape, (1, 1, 1))
-        self.assertEqual(knp.argmax(x, axis=0, keepdims=True).shape, (1, 3, 3))
-        self.assertEqual(
-            knp.argmax(x, axis=1, keepdims=True).shape, (None, 1, 3)
-        )
-
-    @pytest.mark.skipif(
-        testing.jax_uses_tpu(), reason="JAX TPU doesn't support this"
-    )
-    def test_argmax_negative_zero(self):
-        input_data = np.array(
-            [-1.0, -0.0, 1.401298464324817e-45], dtype=np.float32
-        )
-        self.assertEqual(knp.argmax(input_data), 2)
-
     @pytest.mark.skipif(
         testing.jax_uses_tpu(), reason="JAX TPU doesn't support this"
     )
@@ -1582,13 +1561,6 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(
             knp.argmin(x, axis=1, keepdims=True).shape, (None, 1, 3)
         )
-
-    def test_argsort(self):
-        x = KerasTensor((None, 3))
-        self.assertEqual(knp.argsort(x).shape, (None, 3))
-
-        x = KerasTensor((None, 3, 3))
-        self.assertEqual(knp.argsort(x, axis=1).shape, (None, 3, 3))
 
     def test_array(self):
         x = KerasTensor((None, 3))
@@ -2289,12 +2261,6 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
             knp.pad(x, ((1, 2), (3, 4), (5, 6))).shape, (None, 10, 14)
         )
 
-    def test_prod(self):
-        x = KerasTensor((None, 3))
-        self.assertEqual(knp.prod(x).shape, ())
-        self.assertEqual(knp.prod(x, axis=0).shape, (3,))
-        self.assertEqual(knp.prod(x, axis=1, keepdims=True).shape, (None, 1))
-
     def test_ptp(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.ptp(x).shape, ())
@@ -2642,24 +2608,12 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.arctanh(x).shape, (2, 3))
 
-    def test_argmax(self):
-        x = KerasTensor((2, 3))
-        self.assertEqual(knp.argmax(x).shape, ())
-        self.assertEqual(knp.argmax(x, axis=0).shape, (3,))
-        self.assertEqual(knp.argmax(x, axis=1).shape, (2,))
-        self.assertEqual(knp.argmax(x, keepdims=True).shape, (1, 1))
-
     def test_argmin(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.argmin(x).shape, ())
         self.assertEqual(knp.argmin(x, axis=0).shape, (3,))
         self.assertEqual(knp.argmin(x, axis=1).shape, (2,))
         self.assertEqual(knp.argmin(x, keepdims=True).shape, (1, 1))
-
-    def test_argsort(self):
-        x = KerasTensor((2, 3))
-        self.assertEqual(knp.argsort(x).shape, (2, 3))
-        self.assertEqual(knp.argsort(x, axis=None).shape, (6,))
 
     def test_array(self):
         x = KerasTensor((2, 3))
@@ -3090,12 +3044,6 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             x = KerasTensor((2, 3))
             knp.pad(x, ((1, 2), (3, 4), (5, 6)))
-
-    def test_prod(self):
-        x = KerasTensor((2, 3))
-        self.assertEqual(knp.prod(x).shape, ())
-        self.assertEqual(knp.prod(x, axis=0).shape, (3,))
-        self.assertEqual(knp.prod(x, axis=1).shape, (2,))
 
     def test_ptp(self):
         x = KerasTensor((2, 3))
@@ -5798,26 +5746,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(knp.Arctanh()(x), np.arctanh(x))
 
-    def test_argmax(self):
-        x = np.array([[1, 2, 3], [3, 2, 1], [4, 5, 6]])
-        self.assertAllClose(knp.argmax(x), np.argmax(x))
-        self.assertAllClose(knp.argmax(x, axis=1), np.argmax(x, axis=1))
-        self.assertAllClose(
-            knp.argmax(x, axis=1, keepdims=True),
-            np.argmax(x, axis=1, keepdims=True),
-        )
-        self.assertAllClose(
-            knp.argmax(x, keepdims=True), np.argmax(x, keepdims=True)
-        )
-
-        self.assertAllClose(knp.Argmax()(x), np.argmax(x))
-        self.assertAllClose(knp.Argmax(axis=1)(x), np.argmax(x, axis=1))
-
-        self.assertAllClose(knp.Argmax()(x), np.argmax(x))
-        self.assertAllClose(
-            knp.Argmax(keepdims=True)(x), np.argmax(x, keepdims=True)
-        )
-
     def test_argmin(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.argmin(x), np.argmin(x))
@@ -5831,20 +5759,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.Argmin(keepdims=True)(x), np.argmin(x, keepdims=True)
         )
-
-    def test_argsort(self):
-        x = np.array([[1, 2, 3], [4, 5, 6]])
-        self.assertAllClose(knp.argsort(x), np.argsort(x))
-        self.assertAllClose(knp.argsort(x, axis=1), np.argsort(x, axis=1))
-        self.assertAllClose(knp.argsort(x, axis=None), np.argsort(x, axis=None))
-
-        self.assertAllClose(knp.Argsort()(x), np.argsort(x))
-        self.assertAllClose(knp.Argsort(axis=1)(x), np.argsort(x, axis=1))
-        self.assertAllClose(knp.Argsort(axis=None)(x), np.argsort(x, axis=None))
-
-        x = np.array(1)  # rank == 0
-        self.assertAllClose(knp.argsort(x), np.argsort(x))
-        self.assertAllClose(knp.Argsort()(x), np.argsort(x))
 
     def test_array(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -7126,34 +7040,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
                 ),
                 np.pad(x, pad_width, mode=mode, **kwargs),
             )
-
-    def test_prod(self):
-        x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(knp.prod(x), np.prod(x))
-        self.assertAllClose(knp.prod(x, axis=()), np.prod(x, axis=()))
-        self.assertAllClose(knp.prod(x, axis=1), np.prod(x, axis=1))
-        self.assertAllClose(knp.prod(x, axis=(1,)), np.prod(x, axis=(1,)))
-        self.assertAllClose(
-            knp.prod(x, axis=1, keepdims=True),
-            np.prod(x, axis=1, keepdims=True),
-        )
-        self.assertAllClose(
-            knp.prod(x, axis=None, keepdims=True),
-            np.prod(x, axis=None, keepdims=True),
-        )
-
-        # Multi-axis test
-        x = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
-        self.assertAllClose(knp.prod(x, axis=(0, 1)), np.prod(x, axis=(0, 1)))
-        self.assertAllClose(knp.prod(x, axis=(0, 2)), np.prod(x, axis=(0, 2)))
-        self.assertAllClose(knp.prod(x, axis=(1, 2)), np.prod(x, axis=(1, 2)))
-
-        self.assertAllClose(knp.Prod()(x), np.prod(x))
-        self.assertAllClose(knp.Prod(axis=1)(x), np.prod(x, axis=1))
-        self.assertAllClose(
-            knp.Prod(axis=1, keepdims=True)(x),
-            np.prod(x, axis=1, keepdims=True),
-        )
 
     def test_ptp(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -8890,9 +8776,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
 
 class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
-    def test_ones(self):
-        self.assertAllClose(knp.ones([2, 3]), np.ones([2, 3]))
-
     def test_zeros(self):
         self.assertAllClose(knp.zeros([2, 3]), np.zeros([2, 3]))
 
@@ -8962,20 +8845,6 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
             knp.eye(v)
         with self.assertRaises(TypeError):
             knp.eye(knp.array(3, dtype="bfloat16"))
-
-    def test_arange(self):
-        self.assertAllClose(knp.arange(3), np.arange(3))
-        self.assertAllClose(knp.arange(3, 7), np.arange(3, 7))
-        self.assertAllClose(knp.arange(3, 7, 2), np.arange(3, 7, 2))
-
-        self.assertAllClose(knp.Arange()(3), np.arange(3))
-        self.assertAllClose(knp.Arange()(3, 7), np.arange(3, 7))
-        self.assertAllClose(knp.Arange()(3, 7, 2), np.arange(3, 7, 2))
-
-        self.assertEqual(standardize_dtype(knp.arange(3).dtype), "int32")
-        with warnings.catch_warnings(record=True) as record:
-            knp.arange(3, dtype="int")
-        self.assertEqual(len(record), 0)
 
     def test_full(self):
         self.assertAllClose(knp.full([2, 3], 0), np.full([2, 3], 0))
@@ -9828,17 +9697,6 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_ones(self, dtype):
-        import jax.numpy as jnp
-
-        expected_dtype = standardize_dtype(jnp.ones([2, 3], dtype=dtype).dtype)
-
-        self.assertEqual(
-            standardize_dtype(knp.ones([2, 3], dtype=dtype).dtype),
-            expected_dtype,
-        )
-
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_zeros(self, dtype):
         import jax.numpy as jnp
 
@@ -9933,24 +9791,6 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_argmax(self, dtype):
-        import jax.numpy as jnp
-
-        if dtype == "bool":
-            value = [[True, False, True], [False, True, False]]
-        else:
-            value = [[1, 2, 3], [3, 2, 1]]
-        x = knp.array(value, dtype=dtype)
-        x_jax = jnp.array(value, dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.argmax(x_jax).dtype)
-
-        self.assertEqual(standardize_dtype(knp.argmax(x).dtype), expected_dtype)
-        self.assertEqual(
-            standardize_dtype(knp.Argmax().symbolic_call(x).dtype),
-            expected_dtype,
-        )
-
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_argmin(self, dtype):
         import jax.numpy as jnp
 
@@ -9988,58 +9828,6 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Argpartition(1).symbolic_call(x).dtype),
-            expected_dtype,
-        )
-
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_argsort(self, dtype):
-        import jax.numpy as jnp
-
-        if dtype == "bool":
-            value = [[True, False, True], [False, True, False]]
-        else:
-            value = [[1, 2, 3], [4, 5, 6]]
-        x = knp.array(value, dtype=dtype)
-        x_jax = jnp.array(value, dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.argsort(x_jax).dtype)
-
-        self.assertEqual(
-            standardize_dtype(knp.argsort(x).dtype), expected_dtype
-        )
-        self.assertEqual(
-            standardize_dtype(knp.Argsort().symbolic_call(x).dtype),
-            expected_dtype,
-        )
-
-    @parameterized.parameters(
-        (10, None, None, None),  # stop
-        (2, 10, None, None),  # start, stop
-        (10, None, 2, None),  # stop, step
-        (0, 10, 2, None),  # start, stop, step
-        (0, 10, 0.5, None),
-        (10.0, None, 1, None),
-        (0, 10.0, 1, None),
-        (0.0, 10, 1, None),
-        (10, None, 1, "float32"),
-        (10, None, 1, "int32"),
-        (10, None, 1, "int16"),
-        (10, None, 1, "float16"),
-    )
-    def test_arange(self, start, stop, step, dtype):
-        import jax.numpy as jnp
-
-        expected_dtype = standardize_dtype(
-            jnp.arange(start, stop, step, dtype).dtype
-        )
-
-        self.assertEqual(
-            standardize_dtype(knp.arange(start, stop, step, dtype).dtype),
-            expected_dtype,
-        )
-        self.assertEqual(
-            standardize_dtype(
-                knp.Arange(dtype).symbolic_call(start, stop, step).dtype
-            ),
             expected_dtype,
         )
 
@@ -12696,25 +12484,6 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_prod(self, dtype):
-        import jax.numpy as jnp
-
-        x = knp.ones((1, 1, 1), dtype=dtype)
-        x_jax = jnp.ones((1, 1, 1), dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.prod(x_jax).dtype)
-        # TODO: torch doesn't support uint32
-        if backend.backend() == "torch" and expected_dtype == "uint32":
-            expected_dtype = "int32"
-
-        self.assertEqual(
-            standardize_dtype(knp.prod(x).dtype),
-            expected_dtype,
-        )
-        self.assertEqual(
-            standardize_dtype(knp.Prod().symbolic_call(x).dtype), expected_dtype
-        )
-
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_ptp(self, dtype):
         import jax.numpy as jnp
 
@@ -13985,6 +13754,101 @@ class MeanTest(ReductionOpTest):
         ):
             x = np.full((count,), value, dtype)
             self.assertAllClose(knp.mean(x), np.array(value, dtype))
+
+
+class ProdTest(ReductionOpTest):
+    op, op_class = knp.prod, knp.Prod
+    reference_fn, jax_fn = np.prod, jnp.prod
+    cases = {
+        **ReductionOpTest.cases,
+        "rank3_axes02": ((Z,), {"axis": (0, 2)}),
+        "rank3_axes12": ((Z,), {"axis": (1, 2)}),
+    }
+
+    @pytest.mark.skipif(
+        backend.backend() == "torch",
+        reason="`Prod.compute_output_spec` returns int32 on torch, which has "
+        "no uint32; JAX returns uint32.",
+    )
+    def test_input_dtypes_uint8(self):
+        self.check_input_dtypes(("uint8",))
+
+
+class ArgmaxTest(UnaryOpTest):
+    op, op_class = knp.argmax, knp.Argmax
+    reference_fn, jax_fn = np.argmax, jnp.argmax
+    cases = {
+        "all": ((X,), {}),
+        "all_keepdims": ((X,), {"keepdims": True}),
+        "axis0": ((X,), {"axis": 0}),
+        "axis1_keepdims": ((X,), {"axis": 1, "keepdims": True}),
+        "last": ((X,), {"axis": -1}),
+        "rank3": ((Z,), {"axis": 1}),
+    }
+
+    @parameterized.named_parameters(named_dtype_combinations(1))
+    def test_input_dtypes(self, dtypes):
+        if config.x64_mode() == "explicit_x64" and dtypes[0] in (
+            "int64",
+            "uint64",
+            "float64",
+        ):
+            self.skipTest(
+                "In `explicit_x64`, `jnp.argmax` raises for 64-bit inputs "
+                "(#24040)."
+            )
+        self.check_input_dtypes(dtypes)
+
+    @pytest.mark.skipif(
+        testing.jax_uses_tpu(), reason="JAX TPU doesn't support this"
+    )
+    def test_negative_zero(self):
+        x = np.array([-1.0, -0.0, 1.401298464324817e-45], dtype="float32")
+        self.assertEqual(knp.argmax(x), 2)
+
+
+class ArgsortTest(UnaryOpTest):
+    op, op_class = knp.argsort, knp.Argsort
+    reference_fn, jax_fn = np.argsort, jnp.argsort
+    # `Y` has no ties, which NumPy's default sort may order either way.
+    cases = {
+        "last": ((Y,), {}),
+        "axis0": ((Y,), {"axis": 0}),
+        "flat": ((Y,), {"axis": None}),
+    }
+
+    def test_scalar(self):
+        # TODO: make this a case once `Argsort.compute_output_spec` accepts
+        # scalars.
+        x = np.array(1, dtype="int32")
+        self.assertAllClose(knp.argsort(x), np.argsort(x))
+        self.assertAllClose(knp.Argsort()(x), np.argsort(x))
+
+
+class ArangeTest(CreationOpTest):
+    op, op_class = knp.arange, knp.Arange
+    reference_fn, jax_fn = np.arange, jnp.arange
+    cases = {
+        "stop": ((10,), {}),
+        "start_stop": ((2, 10), {}),
+        "stop_step": ((10, None, 2), {}),
+        "start_stop_step": ((0, 10, 2), {}),
+        "float_step": ((0, 10, 0.5), {}),
+        "float_stop_only": ((10.0, None, 1), {}),
+        "float_stop": ((0, 10.0, 1), {}),
+        "float_start": ((0.0, 10, 1), {}),
+    }
+
+    def test_int_dtype_does_not_warn(self):
+        with warnings.catch_warnings(record=True) as record:
+            knp.arange(3, dtype="int")
+        self.assertEqual(len(record), 0)
+
+
+class OnesTest(CreationOpTest):
+    op = knp.ones
+    reference_fn, jax_fn = np.ones, jnp.ones
+    inputs = ((2, 3),)
 
 
 class SqueezeTest(UnaryOpTest):

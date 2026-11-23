@@ -299,3 +299,38 @@ class DtypesTest(test_case.TestCase):
             self.assertEqual(dtypes.promote_to_float_dtype(dtype), off)
         with x64_mode_scope("explicit_x64"):
             self.assertEqual(dtypes.promote_to_float_dtype(dtype), explicit_x64)
+
+    def test_default_int_dtype(self):
+        self.assertEqual(dtypes.default_int_dtype(), "int32")
+        # `set_x64_mode` rejects "enable_x64" until it is supported.
+        with patch.object(config, "_X64_MODE", "enable_x64"):
+            self.assertEqual(dtypes.default_int_dtype(), "int64")
+
+    @parameterized.named_parameters(
+        ("bool", "bool", "int32", "int64"),
+        ("int8", "int8", "int32", "int64"),
+        ("int16", "int16", "int32", "int64"),
+        ("int32", "int32", "int32", "int64"),
+        ("uint8", "uint8", "uint32", "uint64"),
+        ("uint16", "uint16", "uint32", "uint64"),
+        ("uint32", "uint32", "uint32", "uint64"),
+        ("int64", "int64", "int64", "int64"),
+        ("uint64", "uint64", "uint64", "uint64"),
+        ("float32", "float32", "float32", "float32"),
+    )
+    def test_accumulator_dtype(self, dtype, expected, expected_enable_x64):
+        if backend.backend() == "torch" and expected == "uint32":
+            # PyTorch accumulates unsigned integers in the signed default.
+            expected, expected_enable_x64 = "int32", "int64"
+        self.assertEqual(dtypes.accumulator_dtype(dtype), expected)
+        with patch.object(config, "_X64_MODE", "enable_x64"):
+            self.assertEqual(
+                dtypes.accumulator_dtype(dtype), expected_enable_x64
+            )
+
+    def test_default_float_dtype(self):
+        self.assertEqual(dtypes.default_float_dtype(), config.floatx())
+        with patch.object(config, "_FLOATX", "float16"):
+            self.assertEqual(dtypes.default_float_dtype(), "float16")
+        with patch.object(config, "_X64_MODE", "enable_x64"):
+            self.assertEqual(dtypes.default_float_dtype(), "float64")

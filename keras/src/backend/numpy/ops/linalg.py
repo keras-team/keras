@@ -107,7 +107,7 @@ def matrix_rank(x, tol=None):
             "Expected input to have rank >= 2. "
             f"Received input with shape {x.shape}."
         )
-    return np.linalg.matrix_rank(x, tol=tol).astype("int32")
+    return np.linalg.matrix_rank(x, tol=tol).astype(dtypes.default_int_dtype())
 
 
 def matrix_power(a, n):

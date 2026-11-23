@@ -64,17 +64,17 @@ def add(x1, x2):
 
 def bartlett(x):
     x = convert_to_tensor(x)
-    return cast(jnp.bartlett(x), config.floatx())
+    return cast(jnp.bartlett(x), dtypes.default_float_dtype())
 
 
 def hamming(x):
     x = convert_to_tensor(x)
-    return cast(jnp.hamming(x), config.floatx())
+    return cast(jnp.hamming(x), dtypes.default_float_dtype())
 
 
 def hanning(x):
     x = convert_to_tensor(x)
-    return cast(jnp.hanning(x), config.floatx())
+    return cast(jnp.hanning(x), dtypes.default_float_dtype())
 
 
 def heaviside(x1, x2):
@@ -101,7 +101,7 @@ def hypot(x1, x2):
 
 def kaiser(x, beta):
     x = convert_to_tensor(x)
-    return cast(jnp.kaiser(x, beta), config.floatx())
+    return cast(jnp.kaiser(x, beta), dtypes.default_float_dtype())
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
@@ -373,12 +373,12 @@ def max(x, axis=None, keepdims=False, initial=None):
 
 
 def ones(shape, dtype=None):
-    dtype = dtype or config.floatx()
+    dtype = dtype or dtypes.default_float_dtype()
     return jnp.ones(shape, dtype=dtype)
 
 
 def zeros(shape, dtype=None):
-    dtype = dtype or config.floatx()
+    dtype = dtype or dtypes.default_float_dtype()
     return jnp.zeros(shape, dtype=dtype)
 
 
@@ -612,7 +612,7 @@ def right_shift(x, y):
 
 def blackman(x):
     x = convert_to_tensor(x)
-    return cast(jnp.blackman(x), config.floatx())
+    return cast(jnp.blackman(x), dtypes.default_float_dtype())
 
 
 def broadcast_to(x, shape):
@@ -706,7 +706,7 @@ def cosh(x):
 
 
 def count_nonzero(x, axis=None):
-    return cast(jnp.count_nonzero(x, axis=axis), "int32")
+    return cast(jnp.count_nonzero(x, axis=axis), dtypes.default_int_dtype())
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
@@ -823,7 +823,7 @@ def dstack(xs):
 
 
 def empty(shape, dtype=None):
-    dtype = dtype or config.floatx()
+    dtype = dtype or dtypes.default_float_dtype()
     return jnp.empty(shape, dtype=dtype)
 
 
@@ -897,7 +897,7 @@ def floor(x):
 
 
 def full(shape, fill_value, dtype=None):
-    dtype = dtype or config.floatx()
+    dtype = dtype or dtypes.default_float_dtype()
     return jnp.full(shape, fill_value, dtype=dtype)
 
 
@@ -939,7 +939,7 @@ def hsplit(x, indices_or_sections):
 
 
 def identity(n, dtype=None):
-    dtype = dtype or config.floatx()
+    dtype = dtype or dtypes.default_float_dtype()
     return jnp.identity(n, dtype=dtype)
 
 
@@ -1551,7 +1551,7 @@ def trace(x, offset=0, axis1=0, axis2=1):
 
 
 def tri(N, M=None, k=0, dtype=None):
-    dtype = dtype or config.floatx()
+    dtype = dtype or dtypes.default_float_dtype()
     return jnp.tri(N, M=M, k=k, dtype=dtype)
 
 
@@ -1769,7 +1769,7 @@ def sum(x, axis=None, keepdims=False):
 
 
 def eye(N, M=None, k=0, dtype=None):
-    dtype = dtype or config.floatx()
+    dtype = dtype or dtypes.default_float_dtype()
     return jnp.eye(N, M=M, k=k, dtype=dtype)
 
 

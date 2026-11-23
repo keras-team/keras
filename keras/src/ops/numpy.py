@@ -979,7 +979,7 @@ class Argmax(Operation):
     def compute_output_spec(self, x):
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
-            dtype="int32",
+            dtype=dtypes.default_int_dtype(),
         )
 
 
@@ -1029,7 +1029,7 @@ class Argmin(Operation):
     def compute_output_spec(self, x):
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
-            dtype="int32",
+            dtype=dtypes.default_int_dtype(),
         )
 
 
@@ -1074,12 +1074,13 @@ class Argsort(Operation):
         return backend.ops.numpy.argsort(x, axis=self.axis)
 
     def compute_output_spec(self, x):
+        dtype = dtypes.default_int_dtype()
         if self.axis is None:
             if None in x.shape:
-                return KerasTensor((None,), dtype="int32")
-            return KerasTensor((python_math.prod(x.shape),), dtype="int32")
+                return KerasTensor((None,), dtype=dtype)
+            return KerasTensor((python_math.prod(x.shape),), dtype=dtype)
         canonicalize_axis(self.axis, len(x.shape))
-        return KerasTensor(x.shape, dtype="int32")
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.argsort", "keras.ops.numpy.argsort"])
@@ -1401,7 +1402,7 @@ def _hamming(x):
         backend.ops.numpy, "hamming"
     ):
         return backend.ops.numpy.hamming(x)
-    dtype = config.floatx()
+    dtype = dtypes.default_float_dtype()
     compute_dtype = result_type(dtype, "float32")
     x = backend.ops.cast(x, "int32")
     n = backend.ops.numpy.arange(x, dtype=compute_dtype)
@@ -1446,7 +1447,7 @@ def _hanning(x):
         backend.ops.numpy, "hanning"
     ):
         return backend.ops.numpy.hanning(x)
-    dtype = config.floatx()
+    dtype = dtypes.default_float_dtype()
     compute_dtype = result_type(dtype, "float32")
     x = backend.ops.cast(x, "int32")
     n = backend.ops.numpy.arange(x, dtype=compute_dtype)
@@ -1547,7 +1548,7 @@ class Bincount(Operation):
             dtypes_to_resolve.append(weights.dtype)
             dtype = dtypes.result_type(*dtypes_to_resolve)
         else:
-            dtype = "int32"
+            dtype = dtypes.default_int_dtype()
         x_sparse = getattr(x, "sparse", False)
         return KerasTensor(
             list(x.shape[:-1]) + [None],
@@ -1878,7 +1879,7 @@ def _blackman(x):
         backend.ops.numpy, "blackman"
     ):
         return backend.ops.numpy.blackman(x)
-    dtype = config.floatx()
+    dtype = dtypes.default_float_dtype()
     compute_dtype = dtypes.result_type(dtype, "float32")
     x = backend.ops.cast(x, "int32")
     n = backend.ops.numpy.arange(x, dtype=compute_dtype)
@@ -2285,7 +2286,7 @@ class CountNonzero(Operation):
     def compute_output_spec(self, x):
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis),
-            dtype="int32",
+            dtype=dtypes.default_int_dtype(),
         )
 
 
@@ -2445,7 +2446,7 @@ class Cumprod(Operation):
             standardize_dtype(x.dtype) if self.dtype is None else self.dtype
         )
         if output_dtype == "bool":
-            output_dtype = "int32"
+            output_dtype = dtypes.default_int_dtype()
         return KerasTensor(output_shape, output_dtype)
 
 
@@ -2490,7 +2491,7 @@ class Cumsum(Operation):
             standardize_dtype(x.dtype) if self.dtype is None else self.dtype
         )
         if output_dtype == "bool":
-            output_dtype = "int32"
+            output_dtype = dtypes.default_int_dtype()
         return KerasTensor(output_shape, output_dtype)
 
 
@@ -3748,7 +3749,7 @@ class Full(Operation):
         return backend.ops.numpy.full(self.shape, fill_value, dtype=self.dtype)
 
     def compute_output_spec(self, fill_value):
-        dtype = config.floatx() if self.dtype is None else self.dtype
+        dtype = self.dtype or dtypes.default_float_dtype()
         return KerasTensor(self.shape, dtype=dtype)
 
 
@@ -5873,7 +5874,7 @@ class Nanargmax(Operation):
         axis = [self.axis] if self.axis is not None else None
         return KerasTensor(
             reduce_shape(x.shape, axis=axis, keepdims=self.keepdims),
-            dtype="int32",
+            dtype=dtypes.default_int_dtype(),
         )
 
 
@@ -5952,7 +5953,7 @@ class Nanargmin(Operation):
         axis = [self.axis] if self.axis is not None else None
         return KerasTensor(
             reduce_shape(x.shape, axis=axis, keepdims=self.keepdims),
-            dtype="int32",
+            dtype=dtypes.default_int_dtype(),
         )
 
 
@@ -6041,7 +6042,7 @@ class Nancumsum(Operation):
         )
 
         if output_dtype == "bool":
-            output_dtype = "int32"
+            output_dtype = dtypes.default_int_dtype()
 
         return KerasTensor(output_shape, output_dtype)
 
@@ -6113,7 +6114,7 @@ class Nancumprod(Operation):
         )
 
         if output_dtype == "bool":
-            output_dtype = "int32"
+            output_dtype = dtypes.default_int_dtype()
 
         return KerasTensor(output_shape, output_dtype)
 
@@ -6570,17 +6571,7 @@ class Nanprod(Operation):
         return _nanprod(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(x.dtype)
-
-        if dtype == "bool":
-            dtype = "int32"
-        elif dtype in ("int8", "int16"):
-            dtype = "int32"
-        elif dtype in ("uint8", "uint16"):
-            dtype = "uint32"
-
-        if backend.backend() == "torch" and dtype == "uint32":
-            dtype = "int32"
+        dtype = dtypes.accumulator_dtype(x.dtype)
 
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
@@ -6879,13 +6870,8 @@ class Nansum(Operation):
     def compute_output_spec(self, x):
         dtype = dtypes.result_type(getattr(x, "dtype", config.floatx()))
 
-        if dtype in ("bool", "int8", "int16"):
-            dtype = "int32"
-        elif dtype in ("uint8", "uint16"):
-            dtype = "uint32"
+        dtype = dtypes.accumulator_dtype(dtype)
 
-        if backend.backend() == "torch" and dtype == "uint32":
-            dtype = "int32"
         sparse = getattr(x, "sparse", False)
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
@@ -7081,8 +7067,9 @@ class Nonzero(Operation):
         return backend.ops.numpy.nonzero(x)
 
     def compute_output_spec(self, x):
+        dtype = dtypes.default_int_dtype()
         return tuple(
-            [KerasTensor((None,), dtype="int32") for _ in range(len(x.shape))]
+            [KerasTensor((None,), dtype=dtype) for _ in range(len(x.shape))]
         )
 
 
@@ -7440,19 +7427,13 @@ class Prod(Operation):
         )
 
     def compute_output_spec(self, x):
-        if self.dtype is not None:
-            dtype = self.dtype
+        if self.dtype is None:
+            dtype = dtypes.accumulator_dtype(x.dtype)
         else:
-            dtype = standardize_dtype(x.dtype)
-            if dtype == "bool":
+            dtype = self.dtype
+            # TODO: torch doesn't support uint32
+            if backend.backend() == "torch" and dtype == "uint32":
                 dtype = "int32"
-            elif dtype in ("int8", "int16"):
-                dtype = "int32"
-            elif dtype in ("uint8", "uint16"):
-                dtype = "uint32"
-        # TODO: torch doesn't support uint32
-        if backend.backend() == "torch" and dtype == "uint32":
-            dtype = "int32"
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
             dtype=dtype,
@@ -8657,14 +8638,7 @@ class Trace(Operation):
         x_shape[axis1] = -1
         x_shape[axis2] = -1
         output_shape = [d for d in x_shape if d != -1]
-        output_dtype = standardize_dtype(x.dtype)
-        if output_dtype in ("bool", "int8", "int16"):
-            output_dtype = "int32"
-        elif output_dtype in ("uint8", "uint16"):
-            output_dtype = "uint32"
-        if output_dtype == "uint32" and backend.backend() == "torch":
-            # Torch backend doesn't support uint32 dtype.
-            output_dtype = "int32"
+        output_dtype = dtypes.accumulator_dtype(x.dtype)
         return KerasTensor(output_shape, dtype=output_dtype)
 
 
@@ -9786,13 +9760,7 @@ class Sum(Operation):
     def compute_output_spec(self, x):
         dtype = dtypes.result_type(getattr(x, "dtype", config.floatx()))
         # follow jax's rule
-        if dtype in ("bool", "int8", "int16"):
-            dtype = "int32"
-        elif dtype in ("uint8", "uint16"):
-            dtype = "uint32"
-        # TODO: torch doesn't support uint32
-        if backend.backend() == "torch" and dtype == "uint32":
-            dtype = "int32"
+        dtype = dtypes.accumulator_dtype(dtype)
         sparse = getattr(x, "sparse", False)
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
@@ -10552,11 +10520,12 @@ class Unique(Operation):
             values_shape[axis] = u_dim
 
         outputs = [KerasTensor(tuple(values_shape), dtype=x.dtype)]
+        index_dtype = dtypes.default_int_dtype()
 
         # Indices of first occurrences shape is 1D
         # with length matching the unique values
         if self.return_index:
-            outputs.append(KerasTensor((u_dim,), dtype="int32"))
+            outputs.append(KerasTensor((u_dim,), dtype=index_dtype))
 
         # Inverse indices shape matches the original input size along axis
         if self.return_inverse:
@@ -10565,11 +10534,11 @@ class Unique(Operation):
             else:
                 axis = canonicalize_axis(self.axis, len(input_shape))
                 inv_shape = (input_shape[axis],)
-            outputs.append(KerasTensor(tuple(inv_shape), dtype="int32"))
+            outputs.append(KerasTensor(tuple(inv_shape), dtype=index_dtype))
 
         # Counts shape is 1D with length matching the unique values
         if self.return_counts:
-            outputs.append(KerasTensor((u_dim,), dtype="int32"))
+            outputs.append(KerasTensor((u_dim,), dtype=index_dtype))
 
         if len(outputs) == 1:
             return outputs[0]
