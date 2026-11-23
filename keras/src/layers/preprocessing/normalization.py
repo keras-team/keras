@@ -424,16 +424,20 @@ class Normalization(DataLayer):
         self.adapt_variance.assign(total_var)
         self.finalize_state()
 
+    def _adapted_mean_and_variance(self):
+        mean = ops.reshape(self.adapt_mean, self._broadcast_shape)
+        variance = ops.reshape(self.adapt_variance, self._broadcast_shape)
+        return (
+            ops.cast(mean, self.compute_dtype),
+            ops.cast(variance, self.compute_dtype),
+        )
+
     def finalize_state(self):
         if self.input_mean is not None or not self.built:
             return
 
-        # In the adapt case, we make constant tensors for mean and variance with
-        # proper broadcast shape and dtype each time `finalize_state` is called.
-        self.mean = ops.reshape(self.adapt_mean, self._broadcast_shape)
-        self.mean = ops.cast(self.mean, self.compute_dtype)
-        self.variance = ops.reshape(self.adapt_variance, self._broadcast_shape)
-        self.variance = ops.cast(self.variance, self.compute_dtype)
+        # Public attributes. `call()` reads the variables.
+        self.mean, self.variance = self._adapted_mean_and_variance()
 
     def call(self, inputs):
         # This layer can be called in tf.data
@@ -448,10 +452,15 @@ class Normalization(DataLayer):
         inputs = self.backend.ops.convert_to_tensor(
             inputs, dtype=self.compute_dtype
         )
+        if self.input_mean is None:
+            # Read the variables so a compiled step sees a later `adapt()`.
+            mean, variance = self._adapted_mean_and_variance()
+        else:
+            mean, variance = self.mean, self.variance
         # Ensure the weights are in the correct backend. Without this, it is
         # possible to cause breakage when using this layer in tf.data.
-        mean = self.convert_weight(self.mean)
-        variance = self.convert_weight(self.variance)
+        mean = self.convert_weight(mean)
+        variance = self.convert_weight(variance)
         if self.invert:
             return self.backend.ops.numpy.add(
                 mean,
