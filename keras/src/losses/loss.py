@@ -181,6 +181,11 @@ def reduce_weighted_values(
         sample_weight = ops.convert_to_tensor(sample_weight, dtype=dtype)
     if mask is not None:
         mask = ops.convert_to_tensor(mask, dtype=dtype)
+        # Losses like `ctc` return one value per sequence for a per-step
+        # mask. A sequence counts if any of its steps is unmasked.
+        extra_axes = tuple(range(len(values.shape), len(mask.shape)))
+        if extra_axes:
+            mask = ops.any(mask, axis=extra_axes)
 
     # Merge mask and sample weight into sample weight.
     sample_weight = apply_mask(
