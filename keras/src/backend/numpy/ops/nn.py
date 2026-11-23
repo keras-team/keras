@@ -43,6 +43,7 @@ def relu6(x):
 
 def sigmoid(x):
     x = convert_to_tensor(x)
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
     return np.array(1.0, x.dtype) / (np.array(1.0, x.dtype) + np.exp(-x))
 
 
@@ -253,11 +254,15 @@ def threshold(x, threshold, default_value):
 
 
 def softmax(x, axis=-1):
+    x = convert_to_tensor(x)
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
     exp_x = np.exp(x - np.max(x, axis=axis, keepdims=True))
     return exp_x / np.sum(exp_x, axis=axis, keepdims=True)
 
 
 def log_softmax(x, axis=-1):
+    x = convert_to_tensor(x)
+    x = x.astype(dtypes.promote_to_float_dtype(x.dtype), copy=False)
     max_x = np.max(x, axis=axis, keepdims=True)
     logsumexp = np.log(np.exp(x - max_x).sum(axis=axis, keepdims=True))
     return x - max_x - logsumexp
