@@ -368,14 +368,14 @@ def max(x, axis=None, keepdims=False, initial=None):
 
 
 def ones(shape, dtype=None):
-    dtype = to_torch_dtype(dtype or config.floatx())
+    dtype = to_torch_dtype(dtype or dtypes.default_float_dtype())
     if isinstance(shape, int):
         shape = (shape,)
     return torch.ones(size=shape, dtype=dtype, device=get_device())
 
 
 def zeros(shape, dtype=None):
-    dtype = to_torch_dtype(dtype or config.floatx())
+    dtype = to_torch_dtype(dtype or dtypes.default_float_dtype())
     if isinstance(shape, int):
         shape = (shape,)
     return torch.zeros(size=shape, dtype=dtype, device=get_device())
@@ -1000,7 +1000,7 @@ def dstack(xs):
 
 
 def empty(shape, dtype=None):
-    dtype = to_torch_dtype(dtype or config.floatx())
+    dtype = to_torch_dtype(dtype or dtypes.default_float_dtype())
     return torch.empty(size=shape, dtype=dtype, device=get_device())
 
 
@@ -1069,7 +1069,7 @@ def floor(x):
 
 
 def full(shape, fill_value, dtype=None):
-    dtype = to_torch_dtype(dtype)
+    dtype = to_torch_dtype(dtype or dtypes.default_float_dtype())
     if isinstance(fill_value, (bool, int, float, complex)):
         # A tensor `fill_value` would be read back to the host.
         return full_from_python_number(shape, fill_value, dtype)
@@ -1150,7 +1150,7 @@ def hypot(x1, x2):
 
 
 def identity(n, dtype=None):
-    dtype = to_torch_dtype(dtype or config.floatx())
+    dtype = to_torch_dtype(dtype or dtypes.default_float_dtype())
 
     # TODO: torch.eye doesn't support bfloat16 with cpu
     if get_device() == "cpu" and dtype == torch.bfloat16:
@@ -2216,7 +2216,7 @@ def trace(x, offset=0, axis1=0, axis2=1):
 
 
 def tri(N, M=None, k=0, dtype=None):
-    dtype = to_torch_dtype(dtype or config.floatx())
+    dtype = to_torch_dtype(dtype or dtypes.default_float_dtype())
     M = M or N
     x = torch.ones((N, M), dtype=dtype, device=get_device())
     return torch.tril(x, diagonal=k)
@@ -2419,7 +2419,7 @@ def sum(x, axis=None, keepdims=False):
 
 
 def eye(N, M=None, k=0, dtype=None):
-    dtype = to_torch_dtype(dtype or config.floatx())
+    dtype = to_torch_dtype(dtype or dtypes.default_float_dtype())
     M = N if M is None else M
     k = 0 if k is None else k
     if k == 0:

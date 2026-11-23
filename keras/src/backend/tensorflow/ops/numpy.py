@@ -153,7 +153,7 @@ def add(x1, x2):
 
 
 def bartlett(x):
-    x = convert_to_tensor(x, dtype=config.floatx())
+    x = convert_to_tensor(x, dtype=dtypes.default_float_dtype())
     if x == 0:
         return tf.constant([])
     if x == 1:
@@ -779,12 +779,12 @@ def max(x, axis=None, keepdims=False, initial=None):
 
 
 def ones(shape, dtype=None):
-    dtype = dtype or config.floatx()
+    dtype = dtype or dtypes.default_float_dtype()
     return tf.ones(shape, dtype=dtype)
 
 
 def zeros(shape, dtype=None):
-    dtype = dtype or config.floatx()
+    dtype = dtype or dtypes.default_float_dtype()
     return tf.zeros(shape, dtype=dtype)
 
 
@@ -1174,7 +1174,7 @@ def right_shift(x, y):
 
 
 def blackman(x):
-    dtype = config.floatx()
+    dtype = dtypes.default_float_dtype()
     compute_dtype = dtypes.result_type(dtype, "float32")
 
     x = tf.cast(x, "int32")
@@ -1534,7 +1534,7 @@ def dstack(xs):
 
 
 def empty(shape, dtype=None):
-    dtype = dtype or config.floatx()
+    dtype = dtype or dtypes.default_float_dtype()
     return tf.zeros(shape, dtype=dtype)
 
 
@@ -1632,7 +1632,7 @@ def floor(x):
 
 
 def full(shape, fill_value, dtype=None):
-    dtype = dtype or config.floatx()
+    dtype = dtype or dtypes.default_float_dtype()
     fill_value = convert_to_tensor(fill_value, dtype)
     return tf.broadcast_to(fill_value, shape)
 
@@ -1684,8 +1684,9 @@ def gcd(x1, x2):
 def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
     start = convert_to_tensor(start)
     stop = convert_to_tensor(stop)
-    log_start = tf.math.log(tf.cast(tf.abs(start), dtype or config.floatx()))
-    log_stop = tf.math.log(tf.cast(tf.abs(stop), dtype or config.floatx()))
+    float_dtype = dtype or dtypes.default_float_dtype()
+    log_start = tf.math.log(tf.cast(tf.abs(start), float_dtype))
+    log_stop = tf.math.log(tf.cast(tf.abs(stop), float_dtype))
     log_base = tf.math.log(tf.constant(10.0, dtype=log_start.dtype))
     result = logspace(
         log_start / log_base,
@@ -3286,7 +3287,7 @@ def trace(x, offset=0, axis1=0, axis2=1):
 
 def tri(N, M=None, k=0, dtype=None):
     M = M if M is not None else N
-    dtype = standardize_dtype(dtype or config.floatx())
+    dtype = standardize_dtype(dtype or dtypes.default_float_dtype())
     if k < 0:
         lower = -k - 1
         if lower > N:
@@ -3680,7 +3681,7 @@ def sum(x, axis=None, keepdims=False):
 
 
 def eye(N, M=None, k=0, dtype=None):
-    dtype = dtype or config.floatx()
+    dtype = dtype or dtypes.default_float_dtype()
     M = N if M is None else M
     if isinstance(k, int) and k == 0:
         return tf.eye(N, M, dtype=dtype)

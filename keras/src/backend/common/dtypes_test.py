@@ -327,3 +327,10 @@ class DtypesTest(test_case.TestCase):
             self.assertEqual(
                 dtypes.accumulator_dtype(dtype), expected_enable_x64
             )
+
+    def test_default_float_dtype(self):
+        self.assertEqual(dtypes.default_float_dtype(), config.floatx())
+        with patch.object(config, "_FLOATX", "float16"):
+            self.assertEqual(dtypes.default_float_dtype(), "float16")
+        with patch.object(config, "_X64_MODE", "enable_x64"):
+            self.assertEqual(dtypes.default_float_dtype(), "float64")

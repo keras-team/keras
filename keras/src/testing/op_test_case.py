@@ -137,6 +137,8 @@ class OpTest(TestCase):
     `jax_fn`'s and the symbolic output dtypes equal the eager ones.
     `BinaryOpTest` adds `test_python_scalar_types_<dtype>_<side>` and
     `test_floatx_python_float_<floatx>` for a Python scalar operand.
+    `CreationOpTest`, for an op without array inputs, adds one
+    `test_input_dtypes` that checks every case.
     Subclass one of them, or `OpTest` for an op that fits neither. Every
     test of a subclass carries the `op_test` mark: `pytest -m op_test`.
 
@@ -434,21 +436,27 @@ class OpTest(TestCase):
         `symbolic_shapes` has one shape per array input, with `None` for the
         unknown dimensions; by default the arrays' shapes. The symbolic
         outputs must have the structure and dtypes of the eager outputs, and
-        their known dimensions.
+        their known dimensions. Without array inputs, the symbolic outputs
+        come from `op_class`'s `compute_output_spec`.
         """
         arrays = _arrays(inputs)
-        if not arrays:
+        if arrays:
+            if symbolic_shapes is None:
+                symbolic_shapes = [x.shape for x in arrays]
+            tensors = [_to_tensor_with_dtype(x) for x in arrays]
+            keras_tensors = [  # With the dtypes Keras gave the arrays.
+                KerasTensor(shape, dtype=standardize_dtype(t.dtype))
+                for shape, t in zip(symbolic_shapes, tensors, strict=True)
+            ]
+            symbolic_inputs = _with_arrays(inputs, keras_tensors)
+            symbolic = self.op(*symbolic_inputs, **kwargs)
+            eager = self.op(*_with_arrays(inputs, tensors), **kwargs)
+        elif self.op_class is not None:  # No tensor to trace: ask the spec.
+            symbolic_inputs = inputs
+            symbolic = self.op_class(**kwargs).compute_output_spec(*inputs)
+            eager = self.op(*inputs, **kwargs)
+        else:
             self.skipTest("No array inputs, so no symbolic path")
-        if symbolic_shapes is None:
-            symbolic_shapes = [x.shape for x in arrays]
-        tensors = [_to_tensor_with_dtype(x) for x in arrays]
-        keras_tensors = [  # With the dtypes Keras gave the arrays.
-            KerasTensor(shape, dtype=standardize_dtype(t.dtype))
-            for shape, t in zip(symbolic_shapes, tensors, strict=True)
-        ]
-        symbolic_inputs = _with_arrays(inputs, keras_tensors)
-        symbolic = self.op(*symbolic_inputs, **kwargs)
-        eager = self.op(*_with_arrays(inputs, tensors), **kwargs)
         msg = (
             f"Output differs: symbolic={_format_specs(symbolic)}, "
             f"eager={_format_specs(eager)} "
@@ -497,7 +505,8 @@ class OpTest(TestCase):
             _dtypes_of(jax_outputs),
             f"Output dtype differs from JAX for {_describe(inputs, kwargs)}",
         )
-        self.check_symbolic(inputs, kwargs)
+        if _arrays(inputs) or self.op_class is not None:  # Else no spec.
+            self.check_symbolic(inputs, kwargs)
 
 
 class UnaryOpTest(OpTest):
@@ -555,6 +564,15 @@ class ReductionOpTest(UnaryOpTest):
         ]
         for keepdims in (False, True)
     }
+
+
+class CreationOpTest(OpTest):
+    """`OpTest` of an op without array inputs, e.g. `arange`."""
+
+    def test_input_dtypes(self):
+        # The Python arguments of each case set its output dtype.
+        for inputs, kwargs in self._cases().values():
+            self.check_input_dtypes((), inputs, kwargs)
 
 
 def _arrays(inputs):

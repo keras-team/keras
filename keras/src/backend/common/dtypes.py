@@ -400,3 +400,12 @@ def accumulator_dtype(dtype):
             return default_int_dtype()
         return f"u{default_int_dtype()}"
     return dtype
+
+
+def default_float_dtype():
+    """Returns the default float dtype: `float64` in `enable_x64`, else floatx.
+
+    Ops that create floats without a `dtype`, such as `ones`, use it, as in
+    JAX.
+    """
+    return "float64" if config.x64_mode() == "enable_x64" else config.floatx()

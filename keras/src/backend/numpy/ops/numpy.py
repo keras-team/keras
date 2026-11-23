@@ -116,12 +116,12 @@ def max(x, axis=None, keepdims=False, initial=None):
 
 
 def ones(shape, dtype=None):
-    dtype = dtype or config.floatx()
+    dtype = dtype or dtypes.default_float_dtype()
     return np.ones(shape, dtype=dtype)
 
 
 def zeros(shape, dtype=None):
-    dtype = dtype or config.floatx()
+    dtype = dtype or dtypes.default_float_dtype()
     return np.zeros(shape, dtype=dtype)
 
 
@@ -312,17 +312,17 @@ def average(x, axis=None, weights=None):
 
 def bartlett(x):
     x = convert_to_tensor(x)
-    return np.bartlett(x).astype(config.floatx())
+    return np.bartlett(x).astype(dtypes.default_float_dtype())
 
 
 def hamming(x):
     x = convert_to_tensor(x)
-    return np.hamming(x).astype(config.floatx())
+    return np.hamming(x).astype(dtypes.default_float_dtype())
 
 
 def hanning(x):
     x = convert_to_tensor(x)
-    return np.hanning(x).astype(config.floatx())
+    return np.hanning(x).astype(dtypes.default_float_dtype())
 
 
 def heaviside(x1, x2):
@@ -338,7 +338,7 @@ def heaviside(x1, x2):
 
 def kaiser(x, beta):
     x = convert_to_tensor(x)
-    return np.kaiser(x, beta).astype(config.floatx())
+    return np.kaiser(x, beta).astype(dtypes.default_float_dtype())
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
@@ -438,7 +438,7 @@ def right_shift(x, y):
 
 def blackman(x):
     x = convert_to_tensor(x)
-    return np.blackman(x).astype(config.floatx())
+    return np.blackman(x).astype(dtypes.default_float_dtype())
 
 
 def broadcast_to(x, shape):
@@ -635,7 +635,7 @@ def dstack(xs):
 
 
 def empty(shape, dtype=None):
-    dtype = dtype or config.floatx()
+    dtype = dtype or dtypes.default_float_dtype()
     return np.empty(shape, dtype=dtype)
 
 
@@ -691,7 +691,7 @@ def floor(x):
 
 
 def full(shape, fill_value, dtype=None):
-    dtype = dtype or config.floatx()
+    dtype = dtype or dtypes.default_float_dtype()
     return np.full(shape, fill_value, dtype=dtype)
 
 
@@ -708,7 +708,7 @@ def gcd(x1, x2):
 
 
 def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
-    dtype = dtype or config.floatx()
+    dtype = dtype or dtypes.default_float_dtype()
     return np.geomspace(
         start, stop, num=num, endpoint=endpoint, dtype=dtype, axis=axis
     )
@@ -749,7 +749,7 @@ def hypot(x1, x2):
 
 
 def identity(n, dtype=None):
-    dtype = dtype or config.floatx()
+    dtype = dtype or dtypes.default_float_dtype()
     return np.identity(n, dtype=dtype)
 
 
@@ -1406,7 +1406,7 @@ def trace(x, offset=0, axis1=0, axis2=1):
 
 
 def tri(N, M=None, k=0, dtype=None):
-    dtype = dtype or config.floatx()
+    dtype = dtype or dtypes.default_float_dtype()
     return np.tri(N, M=M, k=k, dtype=dtype)
 
 
@@ -1613,7 +1613,7 @@ def sum(x, axis=None, keepdims=False):
 
 
 def eye(N, M=None, k=0, dtype=None):
-    dtype = dtype or config.floatx()
+    dtype = dtype or dtypes.default_float_dtype()
     return np.eye(N, M=M, k=k, dtype=dtype)
 
 

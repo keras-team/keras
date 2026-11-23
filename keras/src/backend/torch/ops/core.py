@@ -14,6 +14,7 @@ from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import StatelessScope
 from keras.src.backend.common import SymbolicScope
+from keras.src.backend.common import dtypes
 from keras.src.backend.common import get_stateless_scope
 from keras.src.backend.common import global_state
 from keras.src.backend.common import in_stateless_scope
@@ -22,7 +23,6 @@ from keras.src.backend.common.backend_utils import empty_scan_ys_spec
 from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.backend.common.backend_utils import standardize_argnums
 from keras.src.backend.common.dtypes import result_type
-from keras.src.backend.config import floatx
 
 
 # The promotion mode lives only on the torch dispatch stack, which is per
@@ -426,9 +426,11 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         elif isinstance(x, bool):
             dt = torch.bool
         elif isinstance(x, int):
-            dt = torch.int64 if x < -(2**31) or x >= 2**31 else torch.int32
+            dt = to_torch_dtype(dtypes.default_int_dtype())
+            if x < -(2**31) or x >= 2**31:
+                dt = torch.int64
         elif isinstance(x, float):
-            dt = to_torch_dtype(floatx())
+            dt = to_torch_dtype(dtypes.default_float_dtype())
         else:
             dt = torch.complex64
         return full_from_python_number((), x, dt)

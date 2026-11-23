@@ -1402,7 +1402,7 @@ def _hamming(x):
         backend.ops.numpy, "hamming"
     ):
         return backend.ops.numpy.hamming(x)
-    dtype = config.floatx()
+    dtype = dtypes.default_float_dtype()
     compute_dtype = result_type(dtype, "float32")
     x = backend.ops.cast(x, "int32")
     n = backend.ops.numpy.arange(x, dtype=compute_dtype)
@@ -1447,7 +1447,7 @@ def _hanning(x):
         backend.ops.numpy, "hanning"
     ):
         return backend.ops.numpy.hanning(x)
-    dtype = config.floatx()
+    dtype = dtypes.default_float_dtype()
     compute_dtype = result_type(dtype, "float32")
     x = backend.ops.cast(x, "int32")
     n = backend.ops.numpy.arange(x, dtype=compute_dtype)
@@ -1879,7 +1879,7 @@ def _blackman(x):
         backend.ops.numpy, "blackman"
     ):
         return backend.ops.numpy.blackman(x)
-    dtype = config.floatx()
+    dtype = dtypes.default_float_dtype()
     compute_dtype = dtypes.result_type(dtype, "float32")
     x = backend.ops.cast(x, "int32")
     n = backend.ops.numpy.arange(x, dtype=compute_dtype)
@@ -3749,7 +3749,7 @@ class Full(Operation):
         return backend.ops.numpy.full(self.shape, fill_value, dtype=self.dtype)
 
     def compute_output_spec(self, fill_value):
-        dtype = config.floatx() if self.dtype is None else self.dtype
+        dtype = self.dtype or dtypes.default_float_dtype()
         return KerasTensor(self.shape, dtype=dtype)
 
 

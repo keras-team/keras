@@ -12,6 +12,7 @@ from keras.src import testing
 from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
+from keras.src.ops import numpy as knp
 from keras.src.ops.operation import Operation
 from keras.src.testing import op_test_case
 from keras.src.testing.op_test_case import X
@@ -139,6 +140,13 @@ class IgnoresFloatx(Square):
         return KerasTensor(x.shape, dtype="float32")
 
 
+class Float32Arange(knp.Arange):
+    """Claims a float32 output, while `arange(3)` returns int32."""
+
+    def compute_output_spec(self, start, stop=None, step=None):
+        return KerasTensor((start,), dtype="float32")
+
+
 def methods_of(cls):
     return sorted(n for n in dir(cls) if n.startswith("test"))
 
@@ -212,6 +220,7 @@ class OpTestTest(testing.TestCase):
             op_test_case.UnaryOpTest,
             op_test_case.BinaryOpTest,
             op_test_case.ReductionOpTest,
+            op_test_case.CreationOpTest,
         ):
             self.assertFalse(cls.__test__)
         self.assertTrue(SquareTest.__test__)
@@ -525,6 +534,21 @@ class CheckInputDtypesTest(testing.TestCase):
         out = outcomes(Add)
         self.assertEqual(out["test_python_scalar_types_int8_left"], "passed")
         self.assertEqual(out["test_python_scalar_types_int8_right"], "passed")
+
+    def test_creation_op_input_dtypes(self):
+        class ArangeTest(op_test_case.CreationOpTest):
+            op, op_class = knp.arange, knp.Arange
+            reference_fn, jax_fn = np.arange, jnp.arange
+            inputs = (3,)
+
+        class WrongSpecTest(ArangeTest):
+            op_class = Float32Arange
+
+        self.assertEqual(outcomes(ArangeTest)["test_input_dtypes"], "passed")
+        self.assertRegex(
+            outcomes(WrongSpecTest)["test_input_dtypes"],
+            r"Output differs: symbolic=float32\[3\], eager=int32\[3\]",
+        )
 
 
 class NamedDtypeCombinationsTest(testing.TestCase):

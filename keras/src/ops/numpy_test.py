@@ -20,6 +20,7 @@ from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
 from keras.src.ops import numpy as knp
 from keras.src.testing.op_test_case import BinaryOpTest
+from keras.src.testing.op_test_case import CreationOpTest
 from keras.src.testing.op_test_case import ReductionOpTest
 from keras.src.testing.op_test_case import UnaryOpTest
 from keras.src.testing.op_test_case import X
@@ -8775,9 +8776,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
 
 class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
-    def test_ones(self):
-        self.assertAllClose(knp.ones([2, 3]), np.ones([2, 3]))
-
     def test_zeros(self):
         self.assertAllClose(knp.zeros([2, 3]), np.zeros([2, 3]))
 
@@ -8847,20 +8845,6 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
             knp.eye(v)
         with self.assertRaises(TypeError):
             knp.eye(knp.array(3, dtype="bfloat16"))
-
-    def test_arange(self):
-        self.assertAllClose(knp.arange(3), np.arange(3))
-        self.assertAllClose(knp.arange(3, 7), np.arange(3, 7))
-        self.assertAllClose(knp.arange(3, 7, 2), np.arange(3, 7, 2))
-
-        self.assertAllClose(knp.Arange()(3), np.arange(3))
-        self.assertAllClose(knp.Arange()(3, 7), np.arange(3, 7))
-        self.assertAllClose(knp.Arange()(3, 7, 2), np.arange(3, 7, 2))
-
-        self.assertEqual(standardize_dtype(knp.arange(3).dtype), "int32")
-        with warnings.catch_warnings(record=True) as record:
-            knp.arange(3, dtype="int")
-        self.assertEqual(len(record), 0)
 
     def test_full(self):
         self.assertAllClose(knp.full([2, 3], 0), np.full([2, 3], 0))
@@ -9713,17 +9697,6 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_ones(self, dtype):
-        import jax.numpy as jnp
-
-        expected_dtype = standardize_dtype(jnp.ones([2, 3], dtype=dtype).dtype)
-
-        self.assertEqual(
-            standardize_dtype(knp.ones([2, 3], dtype=dtype).dtype),
-            expected_dtype,
-        )
-
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_zeros(self, dtype):
         import jax.numpy as jnp
 
@@ -9855,38 +9828,6 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Argpartition(1).symbolic_call(x).dtype),
-            expected_dtype,
-        )
-
-    @parameterized.parameters(
-        (10, None, None, None),  # stop
-        (2, 10, None, None),  # start, stop
-        (10, None, 2, None),  # stop, step
-        (0, 10, 2, None),  # start, stop, step
-        (0, 10, 0.5, None),
-        (10.0, None, 1, None),
-        (0, 10.0, 1, None),
-        (0.0, 10, 1, None),
-        (10, None, 1, "float32"),
-        (10, None, 1, "int32"),
-        (10, None, 1, "int16"),
-        (10, None, 1, "float16"),
-    )
-    def test_arange(self, start, stop, step, dtype):
-        import jax.numpy as jnp
-
-        expected_dtype = standardize_dtype(
-            jnp.arange(start, stop, step, dtype).dtype
-        )
-
-        self.assertEqual(
-            standardize_dtype(knp.arange(start, stop, step, dtype).dtype),
-            expected_dtype,
-        )
-        self.assertEqual(
-            standardize_dtype(
-                knp.Arange(dtype).symbolic_call(start, stop, step).dtype
-            ),
             expected_dtype,
         )
 
@@ -13882,6 +13823,32 @@ class ArgsortTest(UnaryOpTest):
         x = np.array(1, dtype="int32")
         self.assertAllClose(knp.argsort(x), np.argsort(x))
         self.assertAllClose(knp.Argsort()(x), np.argsort(x))
+
+
+class ArangeTest(CreationOpTest):
+    op, op_class = knp.arange, knp.Arange
+    reference_fn, jax_fn = np.arange, jnp.arange
+    cases = {
+        "stop": ((10,), {}),
+        "start_stop": ((2, 10), {}),
+        "stop_step": ((10, None, 2), {}),
+        "start_stop_step": ((0, 10, 2), {}),
+        "float_step": ((0, 10, 0.5), {}),
+        "float_stop_only": ((10.0, None, 1), {}),
+        "float_stop": ((0, 10.0, 1), {}),
+        "float_start": ((0.0, 10, 1), {}),
+    }
+
+    def test_int_dtype_does_not_warn(self):
+        with warnings.catch_warnings(record=True) as record:
+            knp.arange(3, dtype="int")
+        self.assertEqual(len(record), 0)
+
+
+class OnesTest(CreationOpTest):
+    op = knp.ones
+    reference_fn, jax_fn = np.ones, jnp.ones
+    inputs = ((2, 3),)
 
 
 class SqueezeTest(UnaryOpTest):
