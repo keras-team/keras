@@ -374,6 +374,23 @@ class LSTMTest(testing.TestCase):
             tpu_rtol=1e-3,
         )
 
+    def test_mask_propagation_stacked(self):
+        # Padding must not change the output of stacked masked LSTMs.
+        init = {
+            "kernel_initializer": initializers.Constant(0.01),
+            "recurrent_initializer": initializers.Constant(0.02),
+        }
+        embedding = layers.Embedding(
+            10, 4, embeddings_initializer="ones", mask_zero=True
+        )
+        first = layers.LSTM(3, return_sequences=True, **init)
+        second = layers.LSTM(2, **init)
+
+        def run(tokens):
+            return second(first(embedding(np.array(tokens))))
+
+        self.assertAllClose(run([[3, 5, 7]]), run([[3, 5, 7, 0, 0, 0]]))
+
     @pytest.mark.skipif(
         backend.backend() != "torch",
         reason="Reproduces torch stateful LSTM backward (#23462).",
