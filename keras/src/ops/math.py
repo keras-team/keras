@@ -1155,6 +1155,7 @@ def istft(
 
 class Rsqrt(ElementwiseUnaryOperation):
     call_fn = backend.ops.math.rsqrt
+    promote_to_float = True
 
 
 @keras_export("keras.ops.rsqrt")
@@ -1180,6 +1181,7 @@ def rsqrt(x):
 
 class Erf(ElementwiseUnaryOperation):
     call_fn = backend.ops.math.erf
+    promote_to_float = True
 
 
 @keras_export("keras.ops.erf")
@@ -1235,6 +1237,7 @@ def erfc(x):
 
 class Erfinv(ElementwiseUnaryOperation):
     call_fn = backend.ops.math.erfinv
+    promote_to_float = True
 
 
 @keras_export("keras.ops.erfinv")
