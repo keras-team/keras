@@ -96,7 +96,8 @@ def _empty_batch_like_numpy(example):
 def vectorized_map(function, elements):
     if not isinstance(elements, (list, tuple)):
         elements = convert_to_tensor(elements)
-        if leading_batch_size(elements) == 0:
+        batch_size = leading_batch_size(elements)
+        if isinstance(batch_size, int) and batch_size == 0:
             sample = sample_batch_element(
                 elements, lambda shape, dtype, _: np.zeros(shape, dtype=dtype)
             )
@@ -115,7 +116,7 @@ def vectorized_map(function, elements):
                     f"batch size {batch_size}, but element at index {i} has "
                     f"batch size {x.shape[0]}."
                 )
-        if batch_size == 0:
+        if isinstance(batch_size, int) and batch_size == 0:
             sample = [np.zeros(x.shape[1:], dtype=x.dtype) for x in elements]
             return _empty_batch_like_numpy(function(sample))
         output_store = [function(list(x)) for x in zip(*elements)]
@@ -186,7 +187,8 @@ def compute_output_spec(fn, *args, **kwargs):
 
 def map(f, xs):
     xs = tree.map_structure(convert_to_tensor, xs)
-    if leading_batch_size(xs) == 0:
+    batch_size = leading_batch_size(xs)
+    if isinstance(batch_size, int) and batch_size == 0:
         sample = sample_batch_element(
             xs, lambda shape, dtype, _: np.zeros(shape, dtype=dtype)
         )

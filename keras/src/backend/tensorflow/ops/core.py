@@ -276,13 +276,22 @@ def map(f, xs):
 
     # `xs[0]` is invalid for a size-0 leading axis; build a dummy element
     # instead so the empty batch still returns an empty stacked output.
-    if leading_batch_size(xs) == 0:
+    # Only take this path for a statically known empty batch (`int`), not
+    # dynamic/`None` dims.
+    batch_size = leading_batch_size(xs)
+    if isinstance(batch_size, int) and batch_size == 0:
         sample = sample_batch_element(
             xs, lambda shape, dtype, _: tf.zeros(shape, dtype=dtype)
         )
         return empty_batch_like(
             f(sample),
-            lambda y: tf.zeros((0,) + tuple(y.shape), dtype=y.dtype),
+            lambda y: tf.zeros(
+                tf.concat(
+                    [tf.constant([0], dtype=tf.int32), tf.shape(y)],
+                    axis=0,
+                ),
+                dtype=y.dtype,
+            ),
         )
 
     def get_fn_output_signature(x):

@@ -624,8 +624,10 @@ def cond(pred, true_fn, false_fn):
 def vectorized_map(function, elements):
     elements = tree.map_structure(convert_to_tensor, elements)
     # `torch.vmap` indexes batch dim 0; size-0 batches need an empty result
-    # shaped from one dummy element instead.
-    if leading_batch_size(elements) == 0:
+    # shaped from one dummy element instead. Only branch on a statically
+    # known empty batch so SymInt dynamic dims do not graph-break.
+    batch_size = leading_batch_size(elements)
+    if isinstance(batch_size, int) and batch_size == 0:
         sample = sample_batch_element(
             elements,
             lambda shape, dtype, t: torch.zeros(
@@ -645,7 +647,8 @@ def map(f, xs):
     xs = tree.map_structure(convert_to_tensor, xs)
     # Avoid scanning with an empty carry over a size-0 batch: that path still
     # assumes a non-empty structure when stacking outputs.
-    if leading_batch_size(xs) == 0:
+    batch_size = leading_batch_size(xs)
+    if isinstance(batch_size, int) and batch_size == 0:
         sample = sample_batch_element(
             xs,
             lambda shape, dtype, t: torch.zeros(

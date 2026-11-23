@@ -744,7 +744,10 @@ def empty_scan_ys_spec(compute_output_spec, f, init, xs):
 
 def leading_batch_size(xs):
     """Return the static leading batch size of a tensor or nested tensors."""
-    return tree.flatten(xs)[0].shape[0]
+    flat = tree.flatten(xs)
+    if not flat:
+        return None
+    return flat[0].shape[0]
 
 
 def sample_batch_element(xs, make_zeros):
