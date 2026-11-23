@@ -2262,22 +2262,22 @@ class TestTrainer(testing.TestCase):
                 self.assertEmpty(trainable_warnings(model.fit, x, y))
             self.assertEmpty(trainable_warnings(model.train_on_batch, x, y))
 
-        layer = model.dense
-        layer.trainable = False
-        check = model._assert_compile_called
-        self.assertEmpty(trainable_warnings(check, "evaluate"))
-        self.assertEmpty(trainable_warnings(check, "test_on_batch"))
-        caught = trainable_warnings(check, "fit")
-        self.assertLen(caught, 1)
-        self.assertIn(layer.name, str(caught[0].message))
-        self.assertEmpty(trainable_warnings(check, "fit"))
+            layer = model.layers[-1]
+            layer.trainable = False
+            check = model._assert_compile_called
+            self.assertEmpty(trainable_warnings(check, "evaluate"))
+            self.assertEmpty(trainable_warnings(check, "test_on_batch"))
+            caught = trainable_warnings(check, "fit")
+            self.assertLen(caught, 1)
+            self.assertIn(layer.name, str(caught[0].message))
+            self.assertEmpty(trainable_warnings(check, "fit"))
 
-        layer.trainable = True
-        self.assertLen(trainable_warnings(check, "train_on_batch"), 1)
+            layer.trainable = True
+            self.assertLen(trainable_warnings(check, "train_on_batch"), 1)
 
-        layer.trainable = False
-        model.compile(optimizer="sgd", loss="mse")
-        self.assertEmpty(trainable_warnings(check, "fit"))
+            layer.trainable = False
+            model.compile(optimizer="sgd", loss="mse")
+            self.assertEmpty(trainable_warnings(check, "fit"))
 
     @pytest.mark.requires_trainable_backend
     def test_recompile(self):
