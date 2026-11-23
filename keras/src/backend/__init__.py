@@ -7,7 +7,6 @@ if backend() == "torch":
     import torch
 
 from keras.src.api_export import keras_export
-from keras.src.backend.config import set_image_data_format
 from keras.src.utils.module_utils import get_pluggable_backend_module
 
 # Import backend functions.
