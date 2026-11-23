@@ -11,7 +11,10 @@ from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import StatelessScope
 from keras.src.backend.common import SymbolicScope
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.backend_utils import empty_batch_like
 from keras.src.backend.common.backend_utils import empty_scan_ys_spec
+from keras.src.backend.common.backend_utils import leading_batch_size
+from keras.src.backend.common.backend_utils import sample_batch_element
 from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.backend.common.dtypes import result_type
 
@@ -81,12 +84,28 @@ def cond(pred, true_fn, false_fn):
     return false_fn()
 
 
+def _empty_batch_like_numpy(example):
+    return empty_batch_like(
+        example,
+        lambda y: np.zeros(
+            (0, *np.shape(y)), dtype=np.asarray(y).dtype
+        ),
+    )
+
+
 def vectorized_map(function, elements):
     if not isinstance(elements, (list, tuple)):
+        elements = convert_to_tensor(elements)
+        if leading_batch_size(elements) == 0:
+            sample = sample_batch_element(
+                elements, lambda shape, dtype, _: np.zeros(shape, dtype=dtype)
+            )
+            return _empty_batch_like_numpy(function(sample))
         return np.stack([function(x) for x in elements])
     else:
         if not elements:
             raise ValueError("`elements` cannot be empty.")
+        elements = [convert_to_tensor(x) for x in elements]
         batch_size = elements[0].shape[0]
         for i, x in enumerate(elements):
             if x.shape[0] != batch_size:
@@ -96,6 +115,9 @@ def vectorized_map(function, elements):
                     f"batch size {batch_size}, but element at index {i} has "
                     f"batch size {x.shape[0]}."
                 )
+        if batch_size == 0:
+            sample = [np.zeros(x.shape[1:], dtype=x.dtype) for x in elements]
+            return _empty_batch_like_numpy(function(sample))
         output_store = [function(list(x)) for x in zip(*elements)]
         return np.stack(output_store)
 
@@ -163,6 +185,13 @@ def compute_output_spec(fn, *args, **kwargs):
 
 
 def map(f, xs):
+    xs = tree.map_structure(convert_to_tensor, xs)
+    if leading_batch_size(xs) == 0:
+        sample = sample_batch_element(
+            xs, lambda shape, dtype, _: np.zeros(shape, dtype=dtype)
+        )
+        return _empty_batch_like_numpy(f(sample))
+
     def g(_, x):
         return (), f(x)
 

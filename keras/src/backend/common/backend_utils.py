@@ -740,3 +740,21 @@ def empty_scan_ys_spec(compute_output_spec, f, init, xs):
         )
     _, ys_spec = compute_output_spec(f, init_spec, xs_spec)
     return ys_spec
+
+
+def leading_batch_size(xs):
+    """Return the static leading batch size of a tensor or nested tensors."""
+    return tree.flatten(xs)[0].shape[0]
+
+
+def sample_batch_element(xs, make_zeros):
+    """Build a dummy per-element sample for a size-0 batch of `xs`."""
+    return tree.map_structure(
+        lambda t: make_zeros(t.shape[1:], t.dtype, t),
+        xs,
+    )
+
+
+def empty_batch_like(example, make_empty):
+    """Prefix a leading size-0 axis onto each leaf of `example`."""
+    return tree.map_structure(make_empty, example)

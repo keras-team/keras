@@ -18,7 +18,10 @@ from keras.src.backend.common import get_stateless_scope
 from keras.src.backend.common import global_state
 from keras.src.backend.common import in_stateless_scope
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.backend_utils import empty_batch_like
 from keras.src.backend.common.backend_utils import empty_scan_ys_spec
+from keras.src.backend.common.backend_utils import leading_batch_size
+from keras.src.backend.common.backend_utils import sample_batch_element
 from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.backend.common.backend_utils import standardize_argnums
 from keras.src.backend.common.dtypes import result_type
@@ -620,10 +623,42 @@ def cond(pred, true_fn, false_fn):
 
 def vectorized_map(function, elements):
     elements = tree.map_structure(convert_to_tensor, elements)
+    # `torch.vmap` indexes batch dim 0; size-0 batches need an empty result
+    # shaped from one dummy element instead.
+    if leading_batch_size(elements) == 0:
+        sample = sample_batch_element(
+            elements,
+            lambda shape, dtype, t: torch.zeros(
+                shape, dtype=dtype, device=t.device
+            ),
+        )
+        return empty_batch_like(
+            function(sample),
+            lambda y: torch.zeros(
+                (0, *y.shape), dtype=y.dtype, device=y.device
+            ),
+        )
     return torch.vmap(function)(elements)
 
 
 def map(f, xs):
+    xs = tree.map_structure(convert_to_tensor, xs)
+    # Avoid scanning with an empty carry over a size-0 batch: that path still
+    # assumes a non-empty structure when stacking outputs.
+    if leading_batch_size(xs) == 0:
+        sample = sample_batch_element(
+            xs,
+            lambda shape, dtype, t: torch.zeros(
+                shape, dtype=dtype, device=t.device
+            ),
+        )
+        return empty_batch_like(
+            f(sample),
+            lambda y: torch.zeros(
+                (0, *y.shape), dtype=y.dtype, device=y.device
+            ),
+        )
+
     def g(_, x):
         return (), f(x)
 

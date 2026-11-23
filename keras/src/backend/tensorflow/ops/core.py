@@ -13,6 +13,9 @@ from keras.src.backend.common import global_state
 from keras.src.backend.common import in_stateless_scope
 from keras.src.backend.common import is_int_dtype
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.backend_utils import empty_batch_like
+from keras.src.backend.common.backend_utils import leading_batch_size
+from keras.src.backend.common.backend_utils import sample_batch_element
 from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.backend.common.backend_utils import standardize_argnums
 from keras.src.backend.common.name_scope import name_scope as base_name_scope
@@ -270,6 +273,17 @@ def vectorized_map(function, elements):
 
 def map(f, xs):
     xs = tree.map_structure(convert_to_tensor, xs)
+
+    # `xs[0]` is invalid for a size-0 leading axis; build a dummy element
+    # instead so the empty batch still returns an empty stacked output.
+    if leading_batch_size(xs) == 0:
+        sample = sample_batch_element(
+            xs, lambda shape, dtype, _: tf.zeros(shape, dtype=dtype)
+        )
+        return empty_batch_like(
+            f(sample),
+            lambda y: tf.zeros((0,) + tuple(y.shape), dtype=y.dtype),
+        )
 
     def get_fn_output_signature(x):
         out = f(x)
