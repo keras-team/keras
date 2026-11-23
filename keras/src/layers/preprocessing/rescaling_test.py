@@ -90,8 +90,8 @@ class RescalingTest(testing.TestCase):
 
     def test_rescaling_with_channels_first_and_vector_scale(self):
         image_data_format = config.image_data_format()
-        self.addCleanup(backend.set_image_data_format, image_data_format)
-        backend.set_image_data_format("channels_first")
+        self.addCleanup(config.set_image_data_format, image_data_format)
+        config.set_image_data_format("channels_first")
         layer = layers.Rescaling(
             scale=[1.0 / 255, 1.5 / 255, 2.0 / 255], offset=0.5
         )
