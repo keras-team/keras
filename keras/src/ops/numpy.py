@@ -10391,7 +10391,7 @@ def _histogram(x, bins=10, range=None):
     ):
         return backend.ops.numpy.histogram(x, bins=bins, range=range)
     x = backend.ops.convert_to_tensor(x)
-    dtype = result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = backend.ops.cast(x, dtype)
     if range is None:
         min_val = backend.ops.numpy.min(x)
@@ -10413,7 +10413,6 @@ def _histogram(x, bins=10, range=None):
     bin_indices = backend.ops.numpy.where(
         backend.ops.numpy.equal(x, bin_edges[-1]), bins, bin_indices
     )
-    # Slot 0 is below the range and slot bins + 1 is above it or NaN.
     bin_counts = backend.ops.scatter(
         backend.ops.numpy.expand_dims(bin_indices, -1),
         backend.ops.numpy.ones_like(x),
