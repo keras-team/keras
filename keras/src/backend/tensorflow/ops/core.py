@@ -797,7 +797,7 @@ def slice_update(inputs, start_indices, updates):
         )
     else:
         starts = tf.convert_to_tensor(start_indices)
-        dims = tf.cast(tf.shape(inputs), starts.dtype)
+        dims = tf.cast(tf.shape(inputs)[: tf.size(starts)], starts.dtype)
         start_indices = tf.where(starts < 0, starts + dims, starts)
     return dynamic_update_slice(inputs, updates, start_indices)
 

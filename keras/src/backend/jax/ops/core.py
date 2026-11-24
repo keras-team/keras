@@ -630,7 +630,7 @@ def slice_update(inputs, start_indices, updates):
         )
     else:
         starts = jnp.asarray(start_indices)
-        dims = jnp.asarray(inputs.shape[: starts.shape[0]], dtype=starts.dtype)
+        dims = jnp.asarray(inputs.shape[: starts.size], dtype=starts.dtype)
         start_indices = jnp.where(starts < 0, starts + dims, starts)
     return jax.lax.dynamic_update_slice(inputs, updates, start_indices)
 

@@ -756,6 +756,7 @@ def normalize_slice_start_indices(start_indices, input_shape):
         if (
             isinstance(start, numbers.Integral)
             and int(start) < 0
+            and i < len(input_shape)
             and isinstance(input_shape[i], int)
         ):
             start = int(start) + input_shape[i]
