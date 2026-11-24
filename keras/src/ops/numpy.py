@@ -979,7 +979,7 @@ class Argmax(Operation):
     def compute_output_spec(self, x):
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
-            dtype=dtypes.default_int_dtype(),
+            dtype=dtypes.implicit_int_dtype(),
         )
 
 
@@ -1029,7 +1029,7 @@ class Argmin(Operation):
     def compute_output_spec(self, x):
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
-            dtype=dtypes.default_int_dtype(),
+            dtype=dtypes.implicit_int_dtype(),
         )
 
 
@@ -1074,7 +1074,7 @@ class Argsort(Operation):
         return backend.ops.numpy.argsort(x, axis=self.axis)
 
     def compute_output_spec(self, x):
-        dtype = dtypes.default_int_dtype()
+        dtype = dtypes.implicit_int_dtype()
         if self.axis is None:
             if None in x.shape:
                 return KerasTensor((None,), dtype=dtype)
@@ -1402,7 +1402,7 @@ def _hamming(x):
         backend.ops.numpy, "hamming"
     ):
         return backend.ops.numpy.hamming(x)
-    dtype = dtypes.default_float_dtype()
+    dtype = dtypes.implicit_float_dtype()
     compute_dtype = result_type(dtype, "float32")
     x = backend.ops.cast(x, "int32")
     n = backend.ops.numpy.arange(x, dtype=compute_dtype)
@@ -1447,7 +1447,7 @@ def _hanning(x):
         backend.ops.numpy, "hanning"
     ):
         return backend.ops.numpy.hanning(x)
-    dtype = dtypes.default_float_dtype()
+    dtype = dtypes.implicit_float_dtype()
     compute_dtype = result_type(dtype, "float32")
     x = backend.ops.cast(x, "int32")
     n = backend.ops.numpy.arange(x, dtype=compute_dtype)
@@ -1548,7 +1548,7 @@ class Bincount(Operation):
             dtypes_to_resolve.append(weights.dtype)
             dtype = dtypes.result_type(*dtypes_to_resolve)
         else:
-            dtype = dtypes.default_int_dtype()
+            dtype = dtypes.implicit_int_dtype()
         x_sparse = getattr(x, "sparse", False)
         return KerasTensor(
             list(x.shape[:-1]) + [None],
@@ -1879,7 +1879,7 @@ def _blackman(x):
         backend.ops.numpy, "blackman"
     ):
         return backend.ops.numpy.blackman(x)
-    dtype = dtypes.default_float_dtype()
+    dtype = dtypes.implicit_float_dtype()
     compute_dtype = dtypes.result_type(dtype, "float32")
     x = backend.ops.cast(x, "int32")
     n = backend.ops.numpy.arange(x, dtype=compute_dtype)
@@ -2286,7 +2286,7 @@ class CountNonzero(Operation):
     def compute_output_spec(self, x):
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis),
-            dtype=dtypes.default_int_dtype(),
+            dtype=dtypes.implicit_int_dtype(),
         )
 
 
@@ -2446,7 +2446,7 @@ class Cumprod(Operation):
             standardize_dtype(x.dtype) if self.dtype is None else self.dtype
         )
         if output_dtype == "bool":
-            output_dtype = dtypes.default_int_dtype()
+            output_dtype = dtypes.implicit_int_dtype()
         return KerasTensor(output_shape, output_dtype)
 
 
@@ -2491,7 +2491,7 @@ class Cumsum(Operation):
             standardize_dtype(x.dtype) if self.dtype is None else self.dtype
         )
         if output_dtype == "bool":
-            output_dtype = dtypes.default_int_dtype()
+            output_dtype = dtypes.implicit_int_dtype()
         return KerasTensor(output_shape, output_dtype)
 
 
@@ -3749,7 +3749,7 @@ class Full(Operation):
         return backend.ops.numpy.full(self.shape, fill_value, dtype=self.dtype)
 
     def compute_output_spec(self, fill_value):
-        dtype = self.dtype or dtypes.default_float_dtype()
+        dtype = self.dtype or dtypes.implicit_float_dtype()
         return KerasTensor(self.shape, dtype=dtype)
 
 
@@ -5874,7 +5874,7 @@ class Nanargmax(Operation):
         axis = [self.axis] if self.axis is not None else None
         return KerasTensor(
             reduce_shape(x.shape, axis=axis, keepdims=self.keepdims),
-            dtype=dtypes.default_int_dtype(),
+            dtype=dtypes.implicit_int_dtype(),
         )
 
 
@@ -5953,7 +5953,7 @@ class Nanargmin(Operation):
         axis = [self.axis] if self.axis is not None else None
         return KerasTensor(
             reduce_shape(x.shape, axis=axis, keepdims=self.keepdims),
-            dtype=dtypes.default_int_dtype(),
+            dtype=dtypes.implicit_int_dtype(),
         )
 
 
@@ -6042,7 +6042,7 @@ class Nancumsum(Operation):
         )
 
         if output_dtype == "bool":
-            output_dtype = dtypes.default_int_dtype()
+            output_dtype = dtypes.implicit_int_dtype()
 
         return KerasTensor(output_shape, output_dtype)
 
@@ -6114,7 +6114,7 @@ class Nancumprod(Operation):
         )
 
         if output_dtype == "bool":
-            output_dtype = dtypes.default_int_dtype()
+            output_dtype = dtypes.implicit_int_dtype()
 
         return KerasTensor(output_shape, output_dtype)
 
@@ -7067,7 +7067,7 @@ class Nonzero(Operation):
         return backend.ops.numpy.nonzero(x)
 
     def compute_output_spec(self, x):
-        dtype = dtypes.default_int_dtype()
+        dtype = dtypes.implicit_int_dtype()
         return tuple(
             [KerasTensor((None,), dtype=dtype) for _ in range(len(x.shape))]
         )
@@ -10520,7 +10520,7 @@ class Unique(Operation):
             values_shape[axis] = u_dim
 
         outputs = [KerasTensor(tuple(values_shape), dtype=x.dtype)]
-        index_dtype = dtypes.default_int_dtype()
+        index_dtype = dtypes.implicit_int_dtype()
 
         # Indices of first occurrences shape is 1D
         # with length matching the unique values

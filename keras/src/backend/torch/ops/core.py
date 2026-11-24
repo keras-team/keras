@@ -426,11 +426,11 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         elif isinstance(x, bool):
             dt = torch.bool
         elif isinstance(x, int):
-            dt = to_torch_dtype(dtypes.default_int_dtype())
+            dt = to_torch_dtype(dtypes.implicit_int_dtype())
             if x < -(2**31) or x >= 2**31:
                 dt = torch.int64
         elif isinstance(x, float):
-            dt = to_torch_dtype(dtypes.default_float_dtype())
+            dt = to_torch_dtype(dtypes.implicit_float_dtype())
         else:
             dt = torch.complex64
         return full_from_python_number((), x, dt)

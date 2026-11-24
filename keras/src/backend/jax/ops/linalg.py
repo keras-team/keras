@@ -105,7 +105,9 @@ def matrix_rank(x, tol=None):
             "Expected input to have rank >= 2. "
             f"Received input with shape {x.shape}."
         )
-    return jnp.linalg.matrix_rank(x, tol=tol).astype(dtypes.default_int_dtype())
+    return jnp.linalg.matrix_rank(x, tol=tol).astype(
+        dtypes.implicit_int_dtype()
+    )
 
 
 def matrix_power(a, n):

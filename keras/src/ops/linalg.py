@@ -701,7 +701,7 @@ class MatrixRank(Operation):
 
     def compute_output_spec(self, x):
         _assert_2d(x)
-        return KerasTensor(x.shape[:-2], dtype=dtypes.default_int_dtype())
+        return KerasTensor(x.shape[:-2], dtype=dtypes.implicit_int_dtype())
 
 
 @keras_export(["keras.ops.matrix_rank", "keras.ops.linalg.matrix_rank"])

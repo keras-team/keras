@@ -370,10 +370,11 @@ def promote_to_float_dtype(dtype):
     return dtype
 
 
-def default_int_dtype():
-    """Returns the default integer dtype: `int64` in `enable_x64`, else `int32`.
+def implicit_int_dtype():
+    """Returns the integer dtype for ops that aren't given one.
 
-    Index outputs, such as `argmax`'s, use it, as in JAX.
+    It is `int64` in `enable_x64` and `int32` otherwise, as in JAX. Index
+    outputs, such as `argmax`'s, use it.
     """
     return "int64" if config.x64_mode() == "enable_x64" else "int32"
 
@@ -381,10 +382,10 @@ def default_int_dtype():
 def accumulator_dtype(dtype):
     """Returns the dtype in which sums and products of `dtype` accumulate.
 
-    As in JAX, bool and integers narrower than the default integer widen to
+    As in JAX, bool and integers narrower than `implicit_int_dtype()` widen to
     it, keeping their signedness. PyTorch has no wide unsigned kernels, so it
-    accumulates unsigned integers in the signed default integer. Other dtypes
-    are returned unchanged.
+    accumulates unsigned integers in the signed `implicit_int_dtype()`. Other
+    dtypes are returned unchanged.
 
     Args:
         dtype: The dtype of the input.
@@ -394,18 +395,19 @@ def accumulator_dtype(dtype):
     """
     dtype = standardize_dtype(dtype)
     if dtype in ("bool", "int8", "int16", "int32"):
-        return default_int_dtype()
+        return implicit_int_dtype()
     if dtype in ("uint8", "uint16", "uint32"):
         if config.backend() == "torch":
-            return default_int_dtype()
-        return f"u{default_int_dtype()}"
+            return implicit_int_dtype()
+        return f"u{implicit_int_dtype()}"
     return dtype
 
 
-def default_float_dtype():
-    """Returns the default float dtype: `float64` in `enable_x64`, else floatx.
+def implicit_float_dtype():
+    """Returns the float dtype for ops that aren't given one.
 
-    Ops that create floats without a `dtype`, such as `ones`, use it, as in
-    JAX.
+    It is `float64` in `enable_x64`, as in JAX, and `config.floatx()`
+    otherwise. Ops that create floats without a `dtype`, such as `ones`, use
+    it. Weights don't: they follow the dtype policy.
     """
     return "float64" if config.x64_mode() == "enable_x64" else config.floatx()

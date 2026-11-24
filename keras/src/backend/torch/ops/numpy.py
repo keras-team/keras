@@ -368,14 +368,14 @@ def max(x, axis=None, keepdims=False, initial=None):
 
 
 def ones(shape, dtype=None):
-    dtype = to_torch_dtype(dtype or dtypes.default_float_dtype())
+    dtype = to_torch_dtype(dtype or dtypes.implicit_float_dtype())
     if isinstance(shape, int):
         shape = (shape,)
     return torch.ones(size=shape, dtype=dtype, device=get_device())
 
 
 def zeros(shape, dtype=None):
-    dtype = to_torch_dtype(dtype or dtypes.default_float_dtype())
+    dtype = to_torch_dtype(dtype or dtypes.implicit_float_dtype())
     if isinstance(shape, int):
         shape = (shape,)
     return torch.zeros(size=shape, dtype=dtype, device=get_device())
@@ -518,7 +518,7 @@ def argmax(x, axis=None, keepdims=False):
         x = cast(x, "uint8")
 
     return cast(
-        torch.argmax(x, dim=axis, keepdim=keepdims), dtypes.default_int_dtype()
+        torch.argmax(x, dim=axis, keepdim=keepdims), dtypes.implicit_int_dtype()
     )
 
 
@@ -530,7 +530,7 @@ def argmin(x, axis=None, keepdims=False):
         x = cast(x, "uint8")
 
     return cast(
-        torch.argmin(x, dim=axis, keepdim=keepdims), dtypes.default_int_dtype()
+        torch.argmin(x, dim=axis, keepdim=keepdims), dtypes.implicit_int_dtype()
     )
 
 
@@ -545,7 +545,7 @@ def argsort(x, axis=-1):
         axis = -1
         x = x.reshape(-1)
     indices = cast(
-        torch.argsort(x, dim=axis, stable=True), dtypes.default_int_dtype()
+        torch.argsort(x, dim=axis, stable=True), dtypes.implicit_int_dtype()
     )
     if indices.ndim == 0:
         return indices.unsqueeze(0)
@@ -666,7 +666,7 @@ def bincount(x, weights=None, minlength=0, sparse=False):
         dtypes_to_resolve.append(weights.dtype)
         dtype = dtypes.result_type(*dtypes_to_resolve)
     else:
-        dtype = dtypes.default_int_dtype()
+        dtype = dtypes.implicit_int_dtype()
     if len(x.shape) == 2:
         if weights is None:
 
@@ -834,8 +834,8 @@ def count_nonzero(x, axis=None):
     x = convert_to_tensor(x)
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
-        return cast(torch.ne(x, 0), dtypes.default_int_dtype())
-    return cast(torch.count_nonzero(x, dim=axis).T, dtypes.default_int_dtype())
+        return cast(torch.ne(x, 0), dtypes.implicit_int_dtype())
+    return cast(torch.count_nonzero(x, dim=axis).T, dtypes.implicit_int_dtype())
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
@@ -899,7 +899,7 @@ def cumprod(x, axis=None, dtype=None):
         axis = 0
     dtype = dtypes.result_type(dtype or x.dtype)
     if dtype == "bool":
-        dtype = dtypes.default_int_dtype()
+        dtype = dtypes.implicit_int_dtype()
     # TODO: torch.cumprod doesn't support float16 with cpu
     elif get_device() == "cpu" and dtype == "float16":
         return cast(
@@ -916,7 +916,7 @@ def cumsum(x, axis=None, dtype=None):
         axis = 0
     dtype = dtypes.result_type(dtype or x.dtype)
     if dtype == "bool":
-        dtype = dtypes.default_int_dtype()
+        dtype = dtypes.implicit_int_dtype()
     # TODO: torch.cumsum doesn't support float16 with cpu
     elif get_device() == "cpu" and dtype == "float16":
         return cast(
@@ -1000,7 +1000,7 @@ def dstack(xs):
 
 
 def empty(shape, dtype=None):
-    dtype = to_torch_dtype(dtype or dtypes.default_float_dtype())
+    dtype = to_torch_dtype(dtype or dtypes.implicit_float_dtype())
     return torch.empty(size=shape, dtype=dtype, device=get_device())
 
 
@@ -1069,7 +1069,7 @@ def floor(x):
 
 
 def full(shape, fill_value, dtype=None):
-    dtype = to_torch_dtype(dtype or dtypes.default_float_dtype())
+    dtype = to_torch_dtype(dtype or dtypes.implicit_float_dtype())
     if isinstance(fill_value, (bool, int, float, complex)):
         # A tensor `fill_value` would be read back to the host.
         return full_from_python_number(shape, fill_value, dtype)
@@ -1150,7 +1150,7 @@ def hypot(x1, x2):
 
 
 def identity(n, dtype=None):
-    dtype = to_torch_dtype(dtype or dtypes.default_float_dtype())
+    dtype = to_torch_dtype(dtype or dtypes.implicit_float_dtype())
 
     # TODO: torch.eye doesn't support bfloat16 with cpu
     if get_device() == "cpu" and dtype == torch.bfloat16:
@@ -1737,7 +1737,7 @@ def ndim(x):
 
 def nonzero(x):
     x = convert_to_tensor(x)
-    return cast(torch.nonzero(x).T, dtypes.default_int_dtype())
+    return cast(torch.nonzero(x).T, dtypes.implicit_int_dtype())
 
 
 def not_equal(x1, x2):
@@ -2216,7 +2216,7 @@ def trace(x, offset=0, axis1=0, axis2=1):
 
 
 def tri(N, M=None, k=0, dtype=None):
-    dtype = to_torch_dtype(dtype or dtypes.default_float_dtype())
+    dtype = to_torch_dtype(dtype or dtypes.implicit_float_dtype())
     M = M or N
     x = torch.ones((N, M), dtype=dtype, device=get_device())
     return torch.tril(x, diagonal=k)
@@ -2419,7 +2419,7 @@ def sum(x, axis=None, keepdims=False):
 
 
 def eye(N, M=None, k=0, dtype=None):
-    dtype = to_torch_dtype(dtype or dtypes.default_float_dtype())
+    dtype = to_torch_dtype(dtype or dtypes.implicit_float_dtype())
     M = N if M is None else M
     k = 0 if k is None else k
     if k == 0:

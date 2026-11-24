@@ -116,12 +116,12 @@ def max(x, axis=None, keepdims=False, initial=None):
 
 
 def ones(shape, dtype=None):
-    dtype = dtype or dtypes.default_float_dtype()
+    dtype = dtype or dtypes.implicit_float_dtype()
     return np.ones(shape, dtype=dtype)
 
 
 def zeros(shape, dtype=None):
-    dtype = dtype or dtypes.default_float_dtype()
+    dtype = dtype or dtypes.implicit_float_dtype()
     return np.zeros(shape, dtype=dtype)
 
 
@@ -247,7 +247,7 @@ def argmax(x, axis=None, keepdims=False):
     dtype = standardize_dtype(x.dtype)
     if "float" not in dtype or x.ndim == 0:
         return np.argmax(x, axis=axis, keepdims=keepdims).astype(
-            dtypes.default_int_dtype()
+            dtypes.implicit_int_dtype()
         )
 
     dtype = dtypes.result_type(dtype, "float32")
@@ -255,7 +255,7 @@ def argmax(x, axis=None, keepdims=False):
     is_negative_zero = (x == 0.0) & np.signbit(x)
     x = np.where(is_negative_zero, -np.finfo(x.dtype).tiny, x)
     return np.argmax(x, axis=axis, keepdims=keepdims).astype(
-        dtypes.default_int_dtype()
+        dtypes.implicit_int_dtype()
     )
 
 
@@ -265,7 +265,7 @@ def argmin(x, axis=None, keepdims=False):
     dtype = standardize_dtype(x.dtype)
     if "float" not in dtype or x.ndim == 0:
         return np.argmin(x, axis=axis, keepdims=keepdims).astype(
-            dtypes.default_int_dtype()
+            dtypes.implicit_int_dtype()
         )
 
     dtype = dtypes.result_type(dtype, "float32")
@@ -273,13 +273,13 @@ def argmin(x, axis=None, keepdims=False):
     is_negative_zero = (x == 0.0) & np.signbit(x)
     x = np.where(is_negative_zero, -np.finfo(x.dtype).tiny, x)
     return np.argmin(x, axis=axis, keepdims=keepdims).astype(
-        dtypes.default_int_dtype()
+        dtypes.implicit_int_dtype()
     )
 
 
 def argsort(x, axis=-1):
     axis = standardize_axis_for_numpy(axis)
-    return np.argsort(x, axis=axis).astype(dtypes.default_int_dtype())
+    return np.argsort(x, axis=axis).astype(dtypes.implicit_int_dtype())
 
 
 def array(x, dtype=None):
@@ -312,17 +312,17 @@ def average(x, axis=None, weights=None):
 
 def bartlett(x):
     x = convert_to_tensor(x)
-    return np.bartlett(x).astype(dtypes.default_float_dtype())
+    return np.bartlett(x).astype(dtypes.implicit_float_dtype())
 
 
 def hamming(x):
     x = convert_to_tensor(x)
-    return np.hamming(x).astype(dtypes.default_float_dtype())
+    return np.hamming(x).astype(dtypes.implicit_float_dtype())
 
 
 def hanning(x):
     x = convert_to_tensor(x)
-    return np.hanning(x).astype(dtypes.default_float_dtype())
+    return np.hanning(x).astype(dtypes.implicit_float_dtype())
 
 
 def heaviside(x1, x2):
@@ -338,7 +338,7 @@ def heaviside(x1, x2):
 
 def kaiser(x, beta):
     x = convert_to_tensor(x)
-    return np.kaiser(x, beta).astype(dtypes.default_float_dtype())
+    return np.kaiser(x, beta).astype(dtypes.implicit_float_dtype())
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
@@ -351,7 +351,7 @@ def bincount(x, weights=None, minlength=0, sparse=False):
         dtypes_to_resolve.append(weights.dtype)
         dtype = dtypes.result_type(*dtypes_to_resolve)
     else:
-        dtype = dtypes.default_int_dtype()
+        dtype = dtypes.implicit_int_dtype()
     if len(x.shape) == 2:
         if weights is None:
 
@@ -438,7 +438,7 @@ def right_shift(x, y):
 
 def blackman(x):
     x = convert_to_tensor(x)
-    return np.blackman(x).astype(dtypes.default_float_dtype())
+    return np.blackman(x).astype(dtypes.implicit_float_dtype())
 
 
 def broadcast_to(x, shape):
@@ -517,7 +517,7 @@ def count_nonzero(x, axis=None):
     # np.count_nonzero will return python int when axis=None, so we need
     # to convert_to_tensor
     return convert_to_tensor(np.count_nonzero(x, axis=axis)).astype(
-        dtypes.default_int_dtype()
+        dtypes.implicit_int_dtype()
     )
 
 
@@ -569,7 +569,7 @@ def cumprod(x, axis=None, dtype=None):
     axis = standardize_axis_for_numpy(axis)
     dtype = dtypes.result_type(dtype or x.dtype)
     if dtype == "bool":
-        dtype = dtypes.default_int_dtype()
+        dtype = dtypes.implicit_int_dtype()
     return np.cumprod(x, axis=axis, dtype=dtype)
 
 
@@ -577,7 +577,7 @@ def cumsum(x, axis=None, dtype=None):
     axis = standardize_axis_for_numpy(axis)
     dtype = dtypes.result_type(dtype or x.dtype)
     if dtype == "bool":
-        dtype = dtypes.default_int_dtype()
+        dtype = dtypes.implicit_int_dtype()
     return np.cumsum(x, axis=axis, dtype=dtype)
 
 
@@ -635,7 +635,7 @@ def dstack(xs):
 
 
 def empty(shape, dtype=None):
-    dtype = dtype or dtypes.default_float_dtype()
+    dtype = dtype or dtypes.implicit_float_dtype()
     return np.empty(shape, dtype=dtype)
 
 
@@ -691,7 +691,7 @@ def floor(x):
 
 
 def full(shape, fill_value, dtype=None):
-    dtype = dtype or dtypes.default_float_dtype()
+    dtype = dtype or dtypes.implicit_float_dtype()
     return np.full(shape, fill_value, dtype=dtype)
 
 
@@ -708,7 +708,7 @@ def gcd(x1, x2):
 
 
 def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
-    dtype = dtype or dtypes.default_float_dtype()
+    dtype = dtype or dtypes.implicit_float_dtype()
     return np.geomspace(
         start, stop, num=num, endpoint=endpoint, dtype=dtype, axis=axis
     )
@@ -749,7 +749,7 @@ def hypot(x1, x2):
 
 
 def identity(n, dtype=None):
-    dtype = dtype or dtypes.default_float_dtype()
+    dtype = dtype or dtypes.implicit_float_dtype()
     return np.identity(n, dtype=dtype)
 
 
@@ -1039,7 +1039,7 @@ def nanargmax(x, axis=None, keepdims=False):
         -1,
         np.nanargmax(
             np.where(nan_mask, -np.inf, x), axis=axis, keepdims=keepdims
-        ).astype(dtypes.default_int_dtype()),
+        ).astype(dtypes.implicit_int_dtype()),
     )
 
 
@@ -1054,7 +1054,7 @@ def nanargmin(x, axis=None, keepdims=False):
         -1,
         np.nanargmin(
             np.where(nan_mask, np.inf, x), axis=axis, keepdims=keepdims
-        ).astype(dtypes.default_int_dtype()),
+        ).astype(dtypes.implicit_int_dtype()),
     )
 
 
@@ -1062,7 +1062,7 @@ def nancumsum(x, axis=None, dtype=None):
     axis = standardize_axis_for_numpy(axis)
     dtype = dtypes.result_type(dtype or x.dtype)
     if dtype == "bool":
-        dtype = dtypes.default_int_dtype()
+        dtype = dtypes.implicit_int_dtype()
     return np.nancumsum(x, axis=axis, dtype=dtype)
 
 
@@ -1070,7 +1070,7 @@ def nancumprod(x, axis=None, dtype=None):
     axis = standardize_axis_for_numpy(axis)
     dtype = dtypes.result_type(dtype or x.dtype)
     if dtype == "bool":
-        dtype = dtypes.default_int_dtype()
+        dtype = dtypes.implicit_int_dtype()
     return np.nancumprod(x, axis=axis, dtype=dtype)
 
 
@@ -1162,7 +1162,7 @@ def ndim(x):
 
 def nonzero(x):
     return tuple(
-        indices.astype(dtypes.default_int_dtype()) for indices in np.nonzero(x)
+        indices.astype(dtypes.implicit_int_dtype()) for indices in np.nonzero(x)
     )
 
 
@@ -1406,7 +1406,7 @@ def trace(x, offset=0, axis1=0, axis2=1):
 
 
 def tri(N, M=None, k=0, dtype=None):
-    dtype = dtype or dtypes.default_float_dtype()
+    dtype = dtype or dtypes.implicit_float_dtype()
     return np.tri(N, M=M, k=k, dtype=dtype)
 
 
@@ -1613,7 +1613,7 @@ def sum(x, axis=None, keepdims=False):
 
 
 def eye(N, M=None, k=0, dtype=None):
-    dtype = dtype or dtypes.default_float_dtype()
+    dtype = dtype or dtypes.implicit_float_dtype()
     return np.eye(N, M=M, k=k, dtype=dtype)
 
 

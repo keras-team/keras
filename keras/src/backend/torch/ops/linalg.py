@@ -92,7 +92,7 @@ def matrix_rank(x, tol=None):
     # `torch.linalg.matrix_rank` uses `atol` for the absolute threshold
     # that numpy's `tol` also represents.
     return cast(
-        torch.linalg.matrix_rank(x, atol=tol), dtypes.default_int_dtype()
+        torch.linalg.matrix_rank(x, atol=tol), dtypes.implicit_int_dtype()
     )
 
 
