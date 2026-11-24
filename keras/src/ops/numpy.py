@@ -3497,7 +3497,9 @@ def _exp2(x):
         return backend.ops.numpy.exp2(x)
     x = backend.ops.convert_to_tensor(x)
     x = backend.ops.cast(x, dtypes.promote_to_float_dtype(x.dtype))
-    return backend.ops.numpy.power(2.0, x)
+    return backend.ops.numpy.exp(
+        backend.ops.numpy.multiply(x, python_math.log(2.0))
+    )
 
 
 class Exp2(ElementwiseUnaryOperation):
