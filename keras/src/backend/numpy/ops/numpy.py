@@ -1244,6 +1244,7 @@ def ravel(x):
 
 
 def unravel_index(indices, shape):
+    indices = convert_to_tensor(indices)
     dtype = dtypes.result_type(indices.dtype)
     return tuple(
         indices.astype(dtype) for indices in np.unravel_index(indices, shape)
