@@ -1,4 +1,3 @@
-from keras.src import backend
 from keras.src import constraints
 from keras.src import initializers
 from keras.src import ops
@@ -183,7 +182,7 @@ class BatchNormalization(Layer):
         super().__init__(**kwargs)
         self.axis = int(axis)
 
-        if synchronized and backend.backend() != "tensorflow":
+        if synchronized and config.backend() != "tensorflow":
             raise ValueError(
                 "Argument synchronized=True is only supported "
                 "with the TensorFlow backend."

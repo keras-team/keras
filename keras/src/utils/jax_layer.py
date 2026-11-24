@@ -8,6 +8,7 @@ import numpy as np
 from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common.variables import standardize_dtype
 from keras.src.layers.layer import Layer
@@ -18,7 +19,7 @@ from keras.src.utils import tracking
 from keras.src.utils.module_utils import jax
 from keras.src.utils.module_utils import tensorflow as tf
 
-if backend.backend() == "tensorflow":
+if config.backend() == "tensorflow":
     tf_no_automatic_dependency_tracking = (
         tf.__internal__.tracking.no_automatic_dependency_tracking
     )
@@ -29,7 +30,7 @@ else:
 
 
 def _convert_to_jax_key(tensor):
-    if backend.backend() == "tensorflow":
+    if config.backend() == "tensorflow":
         return tf.bitcast(tensor, tf.uint32)[0]
     return tensor
 
@@ -244,10 +245,10 @@ class JaxLayer(Layer):
         native_serialization_platforms=None,
         **kwargs,
     ):
-        if backend.backend() not in ["jax", "tensorflow"]:
+        if config.backend() not in ["jax", "tensorflow"]:
             raise ValueError(
                 f"{self.__class__.__name__} is only supported with the JAX or"
-                f" Tensorflow backend. Current backend: {backend.backend()}"
+                f" Tensorflow backend. Current backend: {config.backend()}"
             )
 
         super().__init__(**kwargs)
@@ -533,7 +534,7 @@ class JaxLayer(Layer):
             return jax.numpy.ones(shape)
 
         init_inputs = tree.map_shape_structure(create_input, input_shape)
-        if backend.backend() == "jax" and jax_utils.is_in_jax_tracing_scope(
+        if config.backend() == "jax" and jax_utils.is_in_jax_tracing_scope(
             tree.flatten(init_inputs)[0]
         ):
             raise ValueError("'JaxLayer' cannot be built in a tracing scope")
@@ -571,7 +572,7 @@ class JaxLayer(Layer):
         ):
             self._initialize_weights(input_shape)
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             polymorphic_shapes = []
             for argument in self.call_fn_arguments:
                 if argument == "inputs":
@@ -640,7 +641,7 @@ class JaxLayer(Layer):
             elif argument_name == "inputs":
                 call_args.append(inputs)
             elif argument_name == "training":
-                if backend.backend() == "jax":
+                if config.backend() == "jax":
                     call_args.append(training)
 
         def assign_state_to_variable(value, variable):
@@ -663,9 +664,9 @@ class JaxLayer(Layer):
             else:
                 return fn(*call_args)
 
-        if backend.backend() == "jax":
+        if config.backend() == "jax":
             return call_with_fn(self.call_fn)
-        elif backend.backend() == "tensorflow":
+        elif config.backend() == "tensorflow":
             if training and self.jax2tf_training_true_fn is not None:
                 return call_with_fn(self.jax2tf_training_true_fn)
             else:

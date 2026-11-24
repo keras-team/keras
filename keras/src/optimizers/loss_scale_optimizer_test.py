@@ -4,17 +4,18 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.optimizers.loss_scale_optimizer import LossScaleOptimizer
 from keras.src.optimizers.sgd import SGD
 
 
 class LossScaleOptimizerTest(testing.TestCase):
     def _skip_test_for_stateless(self, stateless):
-        if not stateless and backend.backend() == "jax":
+        if not stateless and config.backend() == "jax":
             self.skipTest(
                 "LossScaleOptimizer must use stateless_apply with JAX."
             )
-        if stateless and backend.backend() == "tensorflow":
+        if stateless and config.backend() == "tensorflow":
             self.skipTest(
                 "stateless_apply is not supported with the TF backend."
             )

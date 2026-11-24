@@ -4,12 +4,12 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.export import openvino
 from keras.src.saving import saving_lib
 from keras.src.testing.test_utils import named_product
@@ -73,7 +73,7 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
 
 @pytest.mark.skipif(ov is None, reason="OpenVINO is not installed")
 @pytest.mark.skipif(
-    backend.backend() not in ("tensorflow", "openvino", "jax", "torch"),
+    config.backend() not in ("tensorflow", "openvino", "jax", "torch"),
     reason=(
         "`export_openvino` only currently supports"
         "the tensorflow, jax, torch and openvino backends."

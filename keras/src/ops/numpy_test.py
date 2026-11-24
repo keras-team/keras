@@ -3527,7 +3527,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(ops.convert_to_numpy(dx), x_np / h_np)
         self.assertAllClose(ops.convert_to_numpy(dy), y_np / h_np)
 
-        if backend.backend() in ("tensorflow", "jax"):
+        if config.backend() in ("tensorflow", "jax"):
             # Second-order gradients including when one component is zero.
             x2_np = np.array([0.0, 3.0, 3.0], dtype="float32")
             y2_np = np.array([3.0, 0.0, -4.0], dtype="float32")
@@ -3547,7 +3547,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
                 ops.convert_to_numpy(dyy_b), [1.0 / 3.0 + 1.0 / 4.0] * 3
             )
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             dxx_all = ops.grad(ops.grad(knp.hypot, argnums=0), argnums=0)(x, y)
             dyy_all = ops.grad(ops.grad(knp.hypot, argnums=1), argnums=1)(x, y)
             self.assertAllClose(
@@ -3622,7 +3622,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
     )
     def test_matmul_sparse(self, dtype, x_shape, y_shape, x_sparse, y_sparse):
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             if x_sparse and y_sparse and dtype in ("float16", "int32"):
@@ -3632,7 +3632,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
                 )
 
             dense_to_sparse = tf.sparse.from_dense
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             if (
@@ -3688,7 +3688,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         )
     )
     def test_matmul_int8(self, x_shape, values):
-        if backend.backend() == "tensorflow" and len(x_shape) == 1:
+        if config.backend() == "tensorflow" and len(x_shape) == 1:
             pytest.skip("TensorFlow returns int8 for a rank-1 int8 `matmul`")
         y_shape = (x_shape[-1], 256)
         if values == "random":
@@ -4126,8 +4126,8 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Einsum(",ijk")(5, y), np.einsum(",ijk", 5, y))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
-        reason=f"{backend.backend()} doesn't implement custom ops for einsum.",
+        config.backend() != "tensorflow",
+        reason=f"{config.backend()} doesn't implement custom ops for einsum.",
     )
     def test_einsum_custom_ops_for_tensorflow(self):
         subscripts = "a,b->ab"
@@ -5184,7 +5184,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Only test tensorflow backend",
     )
     def test_percentile_in_tf_function(self):
@@ -5243,7 +5243,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             )
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Only test tensorflow backend",
     )
     def test_quantile_in_tf_function(self):
@@ -5325,11 +5325,11 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         rng = np.random.default_rng(0)
         x = (4 * rng.standard_normal((3, 4, 5))).astype(dtype)
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             indices = tf.SparseTensor([[0, 0], [1, 2]], [-1, 2], (2, 3))
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             indices = jax_sparse.BCOO(([-1, 2], [[0, 0], [1, 2]]), shape=(2, 3))
@@ -5366,7 +5366,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         rng = np.random.default_rng(0)
         x = (4 * rng.standard_normal((3, 4, 5))).astype(dtype)
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             indices = tf.ragged.constant([[2], [0, -1, 1]])
@@ -6065,12 +6065,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         if sparse_input:
             indices = np.array([[1], [3], [5], [7], [9], [11], [13], [15]])
 
-            if backend.backend() == "tensorflow":
+            if config.backend() == "tensorflow":
                 import tensorflow as tf
 
                 x = tf.SparseTensor(indices, x, (16,))
                 weights = tf.SparseTensor(indices, weights, (16,))
-            elif backend.backend() == "jax":
+            elif config.backend() == "jax":
                 from jax.experimental import sparse as jax_sparse
 
                 x = jax_sparse.BCOO((x, indices), shape=(16,))
@@ -6235,12 +6235,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         reason="Backend does not support sparse tensors.",
     )
     def test_concatenate_sparse(self, axis):
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             x = tf.SparseTensor([[0, 0], [1, 2]], [1.0, 2.0], (2, 3))
             y = tf.SparseTensor([[0, 0], [1, 1]], [4.0, 5.0], (2, 3))
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             x = jax_sparse.BCOO(([1.0, 2.0], [[0, 0], [1, 2]]), shape=(2, 3))
@@ -6281,7 +6281,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_COMPLEX_DTYPES,
-        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+        reason=f"{config.backend()} backend doesn't support complex dtypes.",
     )
     def test_conjugate(self):
         x = np.array([[1 + 2j, 2 + 3j], [3 + 4j, 4 + 5j]])
@@ -6290,7 +6290,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_COMPLEX_DTYPES,
-        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+        reason=f"{config.backend()} backend doesn't support complex dtypes.",
     )
     def test_conj(self):
         x = np.array([[1 + 2j, 2 + 3j], [3 + 4j, 4 + 5j]])
@@ -6699,7 +6699,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_COMPLEX_DTYPES,
-        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+        reason=f"{config.backend()} backend doesn't support complex dtypes.",
     )
     def test_imag(self):
         x = np.array([[1 + 1j, 2 + 2j, 3 + 3j], [3 + 3j, 2 + 2j, 1 + 1j]])
@@ -6737,7 +6737,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_COMPLEX_DTYPES,
-        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+        reason=f"{config.backend()} backend doesn't support complex dtypes.",
     )
     def test_isreal(self):
         x = np.array([1 + 1j, 1 + 0j, 4.5, 3, 2, 2j], dtype=complex)
@@ -6963,7 +6963,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         ):
             self.assertAllClose(mg_knp, mg_np)
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             # Arguments to `jax.numpy.meshgrid` must be 1D now.
             x = np.ones([1, 2, 3])
             y = np.ones([4, 5, 6, 6])
@@ -7009,7 +7009,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(knp.ndim(x), np.ndim(x))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Only test tensorflow backend",
     )
     def test_ndim_tf_ragged(self):
@@ -7094,7 +7094,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
 
         # 5D (pad arbitrary dimensions)
-        if backend.backend() == "torch" and mode != "constant":
+        if config.backend() == "torch" and mode != "constant":
             self.skipTest(
                 "reflect and symmetric padding for arbitrary dimensions "
                 "are not supported by torch"
@@ -7222,7 +7222,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_COMPLEX_DTYPES,
-        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+        reason=f"{config.backend()} backend doesn't support complex dtypes.",
     )
     def test_real(self):
         x = np.array([[1, 2, 3 - 3j], [3, 2, 1 + 5j]])
@@ -7473,7 +7473,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             self.assertAllClose(split_knp, split_np)
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Only test tensorflow backend",
     )
     def test_split_with_jit_in_tf(self):
@@ -7736,7 +7736,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             self.assertAllClose(knp.tril(x, k), np.tril(x, k))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Only test tensorflow backend",
     )
     def test_tril_triu_with_tensor_k_in_tf(self):
@@ -7772,7 +7772,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(result2, np.tril(np.ones((2, 2)), k=-1))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Only test tensorflow backend",
     )
     def test_tril_with_jit_in_tf(self):
@@ -7828,7 +7828,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(result2, np.triu(np.ones((2, 2)), k=-1))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Only test tensorflow backend",
     )
     def test_triu_with_jit_in_tf(self):
@@ -8936,7 +8936,7 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.product(k=[5, -5], jit_compile=[False, True])
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Only test tensorflow backend",
     )
     def test_out_of_range_offset_dynamic_shape(self, k, jit_compile):
@@ -9018,11 +9018,11 @@ def create_sparse_tensor(x, indices_from=None, start=0, delta=2):
         flat_indices = np.arange(start, size, delta)
         indices = np.stack(np.where(np.ones_like(x)), axis=1)[flat_indices]
 
-    if backend.backend() == "tensorflow":
+    if config.backend() == "tensorflow":
         import tensorflow as tf
 
         return tf.SparseTensor(indices, tf.gather_nd(x, indices), x.shape)
-    elif backend.backend() == "jax":
+    elif config.backend() == "jax":
         import jax
         import jax.experimental.sparse as jax_sparse
 
@@ -9033,13 +9033,13 @@ def create_sparse_tensor(x, indices_from=None, start=0, delta=2):
 def create_indexed_slices(x, indices_from=None, start=0, delta=2):
     indices = np.arange(start, x.shape[0], delta)
 
-    if backend.backend() == "tensorflow":
+    if config.backend() == "tensorflow":
         import tensorflow as tf
 
         if indices_from is not None:
             indices = indices_from.indices
         return tf.IndexedSlices(tf.gather(x, indices), indices, x.shape)
-    elif backend.backend() == "jax":
+    elif config.backend() == "jax":
         import jax
         import jax.experimental.sparse as jax_sparse
 
@@ -9535,10 +9535,10 @@ class NumpyDtypeTest(testing.TestCase):
     INT_DTYPES = [x for x in dtypes.INT_TYPES if x not in ("uint64", "int64")]
     FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
 
-    if backend.backend() == "torch":
+    if config.backend() == "torch":
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint16", "uint32")]
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
-    elif backend.backend() == "tensorflow":
+    elif config.backend() == "tensorflow":
         # TODO(hongyu): Re-enable uint32 tests once we determine how to handle
         # dtypes.result_type(uint32, int*) -> int64 promotion.
         # Since TF variables require int64 to be placed on the GPU, we
@@ -9548,7 +9548,7 @@ class NumpyDtypeTest(testing.TestCase):
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint32",)]
 
     BINARY_DTYPES = ALL_DTYPES + (
-        ["float64"] if backend.backend() == "torch" else []
+        ["float64"] if config.backend() == "torch" else []
     )
 
     @parameterized.named_parameters(
@@ -9632,7 +9632,7 @@ class NumpyDtypeTest(testing.TestCase):
     def test_bincount(self, dtype):
         import jax.numpy as jnp
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             if tf.test.is_gpu_available():
@@ -10874,8 +10874,8 @@ class NumpyDtypeTest(testing.TestCase):
         )
     )
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
-        reason=f"{backend.backend()} doesn't implement custom ops for einsum.",
+        config.backend() != "tensorflow",
+        reason=f"{config.backend()} doesn't implement custom ops for einsum.",
     )
     def test_einsum_custom_ops_for_tensorflow(self, dtypes):
         import jax.numpy as jnp
@@ -12266,7 +12266,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.nanmax(x_jax).dtype)
 
-        if backend.backend() == "torch" and expected_dtype == "uint32":
+        if config.backend() == "torch" and expected_dtype == "uint32":
             expected_dtype = "int32"
 
         self.assertEqual(standardize_dtype(knp.nanmax(x).dtype), expected_dtype)
@@ -12287,7 +12287,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.nanmean(x_jax).dtype)
 
-        if backend.backend() == "torch" and expected_dtype == "uint32":
+        if config.backend() == "torch" and expected_dtype == "uint32":
             expected_dtype = "int32"
 
         self.assertEqual(
@@ -12310,7 +12310,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.nanmedian(x_jax).dtype)
 
-        if backend.backend() == "torch" and expected_dtype == "uint32":
+        if config.backend() == "torch" and expected_dtype == "uint32":
             expected_dtype = "int32"
 
         self.assertEqual(
@@ -12333,7 +12333,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.nanmin(x_jax).dtype)
 
-        if backend.backend() == "torch" and expected_dtype == "uint32":
+        if config.backend() == "torch" and expected_dtype == "uint32":
             expected_dtype = "int32"
 
         self.assertEqual(standardize_dtype(knp.nanmin(x).dtype), expected_dtype)
@@ -12378,7 +12378,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1, 1, 1), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.nanprod(x_jax).dtype)
 
-        if backend.backend() == "torch" and expected_dtype == "uint32":
+        if config.backend() == "torch" and expected_dtype == "uint32":
             expected_dtype = "int32"
 
         self.assertEqual(
@@ -12426,7 +12426,7 @@ class NumpyDtypeTest(testing.TestCase):
 
         expected_dtype = standardize_dtype(jnp.nanstd(x_jax).dtype)
 
-        if backend.backend() == "torch" and expected_dtype == "uint32":
+        if config.backend() == "torch" and expected_dtype == "uint32":
             expected_dtype = "int32"
 
         self.assertEqual(
@@ -12451,7 +12451,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.nansum(x_jax).dtype)
 
-        if backend.backend() == "torch" and expected_dtype == "uint32":
+        if config.backend() == "torch" and expected_dtype == "uint32":
             expected_dtype = "int32"
 
         self.assertEqual(standardize_dtype(knp.nansum(x).dtype), expected_dtype)
@@ -12473,7 +12473,7 @@ class NumpyDtypeTest(testing.TestCase):
 
         expected_dtype = standardize_dtype(jnp.nanvar(x_jax).dtype)
 
-        if backend.backend() == "torch" and expected_dtype == "uint32":
+        if config.backend() == "torch" and expected_dtype == "uint32":
             expected_dtype = "int32"
 
         self.assertEqual(standardize_dtype(knp.nanvar(x).dtype), expected_dtype)
@@ -12703,7 +12703,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1, 1, 1), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.prod(x_jax).dtype)
         # TODO: torch doesn't support uint32
-        if backend.backend() == "torch" and expected_dtype == "uint32":
+        if config.backend() == "torch" and expected_dtype == "uint32":
             expected_dtype = "int32"
 
         self.assertEqual(
@@ -13136,12 +13136,12 @@ class NumpyDtypeTest(testing.TestCase):
         x = KerasTensor((None, 2), dtype=input_dtype)
         if backend.config.x64_mode() == "off":
             self.assertEqual(knp.std(x, axis=-1).dtype, "float32")
-        if backend.backend() in backend.config._X64_BACKENDS:
+        if config.backend() in backend.config._X64_BACKENDS:
             with x64_mode_scope("explicit_x64"):
                 self.assertEqual(knp.std(x, axis=-1).dtype, expected_dtype)
 
     def test_std_complex_functional_output_dtype(self):
-        if backend.backend() == "openvino":
+        if config.backend() == "openvino":
             self.skipTest("OpenVINO does not support complex tensors")
         inputs = keras.Input(shape=(2,), dtype="complex64")
         model = keras.Model(inputs, knp.std(inputs, axis=-1))
@@ -13293,7 +13293,7 @@ class NumpyDtypeTest(testing.TestCase):
         # for bool inputs
         if dtype == "bool":
             expected_dtype = "int32"
-        if dtype == "uint8" and backend.backend() == "torch":
+        if dtype == "uint8" and config.backend() == "torch":
             # Torch backend doesn't support uint32 dtype.
             expected_dtype = "int32"
 
@@ -13763,7 +13763,7 @@ class HistogramTest(testing.TestCase):
         ("jit_compile_true", True),
     )
     @pytest.mark.skipif(
-        backend.backend() == "numpy",
+        config.backend() == "numpy",
         reason=(
             "`predict` errors out with 'autodetected range of [nan, nan] is "
             "not finite' on the NumPy backend. To be fixed."
@@ -13872,7 +13872,7 @@ class AddTest(BinaryOpTest):
     reference_fn, jax_fn = np.add, jnp.add
 
     @pytest.mark.skipif(
-        backend.backend() == "tensorflow",
+        config.backend() == "tensorflow",
         reason="TODO: `tf.add` has no bool kernel.",
     )
     def test_input_dtypes_bool_bool(self):
@@ -13887,7 +13887,7 @@ class AddTest(BinaryOpTest):
         reason="Backend does not support ragged tensors.",
     )
     def test_ragged(self):
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             x = tf.ragged.constant(
@@ -13912,7 +13912,7 @@ class AddTest(BinaryOpTest):
         self.assertAllClose(knp.add(z, x), np.add(z, x_np) * x_mask_np)
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Backend does not support strings.",
     )
     def test_strings(self):
@@ -13964,7 +13964,7 @@ class SumTest(ReductionOpTest):
     reference_fn, jax_fn = np.sum, jnp.sum
 
     @pytest.mark.skipif(
-        backend.backend() == "torch",
+        config.backend() == "torch",
         reason="`Sum.compute_output_spec` returns int32 on torch, which has no "
         "uint32; JAX returns uint32.",
     )

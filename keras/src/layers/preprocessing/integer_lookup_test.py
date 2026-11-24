@@ -7,6 +7,7 @@ from tensorflow import data as tf_data
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 
 
 class IntegerLookupTest(testing.TestCase):
@@ -216,7 +217,7 @@ class IntegerLookupTest(testing.TestCase):
             layers.IntegerLookup(num_oov_indices=-1)
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="sparse=True only supported on TensorFlow",
     )
     def test_sparse_output(self):

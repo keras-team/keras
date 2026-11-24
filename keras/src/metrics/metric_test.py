@@ -107,7 +107,7 @@ class MetricTest(testing.TestCase):
             result, np.sum((y_true - y_pred) ** 2) / num_samples
         )
 
-        if backend.backend() == "jax":
+        if config.backend() == "jax":
             # Check no side effects.
             import jax
 

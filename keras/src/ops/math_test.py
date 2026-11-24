@@ -11,6 +11,7 @@ from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
@@ -409,7 +410,7 @@ class MathOpsStaticShapeTest(testing.TestCase):
 
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     @pytest.mark.skipif(
-        backend.backend() == "jax",
+        config.backend() == "jax",
         reason="JAX does not support `num_segments=None`.",
     )
     def test_segment_reduce(self, segment_reduce_op):
@@ -594,7 +595,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
             num_segments = np.max(segment_ids).item() + 1
         expected_shape = (num_segments,) + data_dims
         if segment_reduce_op == kmath.segment_max:
-            if backend.backend() == "tensorflow":
+            if config.backend() == "tensorflow":
                 empty_fill_value = -np.finfo(np.float32).max
             else:
                 empty_fill_value = -np.inf
@@ -625,7 +626,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
         sorted_indices=(True, False),
     )
     @pytest.mark.skipif(
-        backend.backend() == "jax",
+        config.backend() == "jax",
         reason="JAX does not support `num_segments=None`.",
     )
     def test_segment_reduce(
@@ -689,7 +690,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
         contains_neg1_in_indices,
         sorted_indices,
     ):
-        if backend.backend() == "tensorflow" and sorted_indices:
+        if config.backend() == "tensorflow" and sorted_indices:
             pytest.skip(
                 "Num segments and sorted_indices=True doesn't work for "
                 "tensorflow."
@@ -1050,7 +1051,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
             window=window,
             center=center,
         )
-        if backend.backend() in ("numpy", "jax", "torch"):
+        if config.backend() in ("numpy", "jax", "torch"):
             # these backends have different implementation for the boundary of
             # the output, so we need to truncate 5% before assertAllClose
             truncated_len = int(output.shape[-1] * 0.05)
@@ -1082,7 +1083,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
             window=window,
             center=center,
         )
-        if backend.backend() in ("numpy", "jax", "torch"):
+        if config.backend() in ("numpy", "jax", "torch"):
             # these backends have different implementation for the boundary of
             # the output, so we need to truncate 5% before assertAllClose
             truncated_len = int(output.shape[-1] * 0.05)
@@ -1270,7 +1271,7 @@ class MathDtypeTest(testing.TestCase):
     INT_DTYPES = [x for x in dtypes.INT_TYPES if x not in ("uint64", "int64")]
     FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
 
-    if backend.backend() == "torch":
+    if config.backend() == "torch":
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint16", "uint32")]
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
 
@@ -1559,9 +1560,9 @@ class SegmentProdTest(testing.TestCase):
         self.assertAllClose(output, expected_output)
 
     @pytest.mark.skipif(
-        backend.backend() == "tensorflow",
+        config.backend() == "tensorflow",
         reason="Argument `num_segments` cannot be set when sorted is True "
-        f"when using the {backend.backend()}",
+        f"when using the {config.backend()}",
     )
     def test_segment_prod_call_sorted(self):
         data = np.array([[1, 4, 7], [2, 5, 8], [3, 6, 9]], dtype=np.float32)
@@ -1577,9 +1578,9 @@ class SegmentProdTest(testing.TestCase):
         self.assertAllClose(output, expected_output)
 
     @pytest.mark.skipif(
-        backend.backend() == "jax",
+        config.backend() == "jax",
         reason="Argument `num_segments` must be set "
-        f"when using the {backend.backend()}",
+        f"when using the {config.backend()}",
     )
     def test_segment_prod_call_sorted_without_num_segments(self):
         data = np.array([[1, 4, 7], [2, 5, 8], [3, 6, 9]], dtype=np.float32)
@@ -1898,7 +1899,7 @@ class ISTFTTest(testing.TestCase):
 class TestMathErrors(testing.TestCase):
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     @pytest.mark.skipif(
-        backend.backend() != "jax", reason="Testing Jax errors only"
+        config.backend() != "jax", reason="Testing Jax errors only"
     )
     def test_segment_reduce_no_num_segments(self, segment_reduce_op):
         data = jnp.array([1, 2, 3, 4])
@@ -1911,7 +1912,7 @@ class TestMathErrors(testing.TestCase):
 
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="Tensorflow error only"
+        config.backend() != "tensorflow", reason="Tensorflow error only"
     )
     def test_segment_reduce_sort_and_num_segments(self, segment_reduce_op):
         data = np.array([1, 2, 3, 4])

@@ -2,7 +2,6 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import testing
 from keras.src.backend import config
@@ -410,10 +409,7 @@ class ConvTransposeBasicTest(testing.TestCase):
         input_shape,
         output_shape,
     ):
-        if (
-            data_format == "channels_first"
-            and backend.backend() == "tensorflow"
-        ):
+        if data_format == "channels_first" and config.backend() == "tensorflow":
             pytest.skip("channels_first unsupported on CPU with TF")
 
         self.run_layer_test(

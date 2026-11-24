@@ -5,6 +5,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import random
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import standardize_dtype
 from keras.src.random import seed_generator
 
@@ -93,7 +94,7 @@ class SeedGeneratorTest(testing.TestCase):
             seed_generator.SeedGenerator(invalid_arg="unexpected_value")
 
     @pytest.mark.skipif(
-        backend.backend() != "jax", reason="This test requires the JAX backend"
+        config.backend() != "jax", reason="This test requires the JAX backend"
     )
     def test_jax_tracing_with_global_seed_generator(self):
         import jax

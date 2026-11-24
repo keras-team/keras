@@ -2,10 +2,10 @@ import threading
 
 from absl import logging
 
-from keras.src import backend
 from keras.src import losses
 from keras.src import metrics as metrics_module
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.legacy.saving import serialization
 from keras.src.saving import object_registration
 
@@ -107,7 +107,7 @@ def model_metadata(model, include_optimizer=True, require_config=True):
 
     metadata = dict(
         keras_version=str(keras_version),
-        backend=backend.backend(),
+        backend=config.backend(),
         model_config=model_config,
     )
     if getattr(model, "optimizer", False) and include_optimizer:

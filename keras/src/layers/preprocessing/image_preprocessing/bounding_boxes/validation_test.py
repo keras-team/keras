@@ -1,7 +1,7 @@
 import pytest
 import tensorflow as tf
 
-from keras.src import backend
+from keras.src.backend import config
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes import (
     validation,
 )
@@ -9,7 +9,7 @@ from keras.src.testing import test_case
 
 
 @pytest.mark.skipif(
-    backend.backend() != "tensorflow",
+    config.backend() != "tensorflow",
     reason="The test targets TensorFlow-specific ragged tensors.",
 )
 class DensifyBoundingBoxesTest(test_case.TestCase):

@@ -81,7 +81,7 @@ class TestArrayDataAdapter(data_adapter_test_base.DataAdapterTest):
         self.assertEqual(adapter.has_partial_batch, True)
         self.assertEqual(adapter.partial_batch_size, 2)
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             if array_type == "tf_ragged":
                 expected_class = tf.RaggedTensor
@@ -91,13 +91,13 @@ class TestArrayDataAdapter(data_adapter_test_base.DataAdapterTest):
                 expected_class = tf.SparseTensor
             else:
                 expected_class = tf.Tensor
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             it = adapter.get_jax_iterator()
             if array_type in ("tf_sparse", "jax_sparse", "scipy_sparse"):
                 expected_class = jax_sparse.JAXSparse
             else:
                 expected_class = np.ndarray
-        elif backend.backend() == "torch":
+        elif config.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
         else:
@@ -143,7 +143,7 @@ class TestArrayDataAdapter(data_adapter_test_base.DataAdapterTest):
         else:
             self.assertAllClose(x_order, list(range(34)))
 
-    @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
+    @pytest.mark.skipif(config.backend() != "tensorflow", reason="tf only")
     def test_tf_sparse_trailing_empty_rows(self):
         x = tf.SparseTensor(
             indices=[[0, 0], [1, 2]],
@@ -427,7 +427,7 @@ class TestArrayDataAdapter(data_adapter_test_base.DataAdapterTest):
                 "tensorflow": "get_tf_dataset",
                 "jax": "get_jax_iterator",
                 "torch": "get_torch_dataloader",
-            }.get(backend.backend())
+            }.get(config.backend())
             if backend_it_method:
                 it_methods.append(backend_it_method)
 
@@ -486,7 +486,7 @@ class TestArrayDataAdapter(data_adapter_test_base.DataAdapterTest):
                 order3 = get_order(it_fn)
                 self.assertNotAllClose(order1, order3)
 
-    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
+    @pytest.mark.skipif(config.backend() != "jax", reason="JAX only")
     def test_get_jax_iterator_with_super_batch(self):
         # Even batches: 4 batches with super_batch=2 -> 2 super-batches
         x = np.ones((64, 4), dtype="float32")

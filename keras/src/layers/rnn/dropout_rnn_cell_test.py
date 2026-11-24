@@ -2,6 +2,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.layers.rnn.dropout_rnn_cell import DropoutRNNCell
 
 
@@ -65,7 +66,7 @@ class DropoutRNNCellTest(testing.TestCase):
 
         # manually set dtype to mixed_float16 to run mixed precision check
         run_mixed_precision_check = True
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             import torch
 
             run_mixed_precision_check = torch.cuda.is_available()

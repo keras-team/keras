@@ -1767,7 +1767,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_COMPLEX_DTYPES,
-        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+        reason=f"{config.backend()} backend doesn't support complex dtypes.",
     )
     def test_polar_corectness(self):
         abs_ = np.array([1, 2], dtype="float32")
@@ -2011,7 +2011,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         )
         self.assertAllClose(outputs, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
 
-    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only")
+    @pytest.mark.skipif(config.backend() != "torch", reason="Torch only")
     def test_torch_channels_last_pointwise_conv_direct_path(self):
         from keras.src.backend.torch.ops import nn as torch_nn
 
@@ -2106,7 +2106,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         )
 
         # Test for tracing error on tensorflow backend.
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             @tf.function
@@ -2715,7 +2715,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(variance, expected_variance, atol=1e-5, rtol=1e-5)
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="synchronized=True only implemented for TF backend",
     )
     def test_moments_sync(self):
@@ -2745,7 +2745,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.product(dtype=["float16", "float32"])
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="synchronized=True only implemented for TF backend",
     )
     def test_moments_sync_with_distribution_strategy(self, dtype):
@@ -2996,12 +2996,12 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAlmostEqual(psnr_2, expected_psnr_2)
 
     def _skip_if_flash_attention_unsupported(self, bias, mask):
-        if backend.backend() in ("tensorflow", "numpy"):
+        if config.backend() in ("tensorflow", "numpy"):
             self.skipTest(
                 "Flash attention is not supported in tensorflow and numpy "
                 "backends."
             )
-        elif backend.backend() == "torch":
+        elif config.backend() == "torch":
             import torch
 
             if bias is not None:
@@ -3025,7 +3025,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
                     "Flash attention must be run on CUDA compute "
                     "capability >= 8.0 in torch backend."
                 )
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             import jax
             from jax._src import xla_bridge
 
@@ -3068,7 +3068,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             mask = mask[None, None, ...]
             mask = np.tile(mask, (2, 4, 1, 1))
         if bias is not None:
-            if backend.backend() == "torch" and mask is not None:
+            if config.backend() == "torch" and mask is not None:
                 self.skipTest(
                     "torch does not support `mask` and `bias` with "
                     "`dot_product_attention`"
@@ -3207,9 +3207,9 @@ class NNOpsDtypeTest(testing.TestCase):
 
     FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
     INT_DTYPES = [x for x in dtypes.INT_TYPES if x not in ("uint64", "int64")]
-    if backend.backend() == "torch":
+    if config.backend() == "torch":
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
-    elif backend.backend() == "tensorflow":
+    elif config.backend() == "tensorflow":
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint32",)]
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
@@ -3654,7 +3654,7 @@ class NNOpsDtypeTest(testing.TestCase):
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_COMPLEX_DTYPES,
-        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+        reason=f"{config.backend()} backend doesn't support complex dtypes.",
     )
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_polar(self, dtype):
@@ -4386,7 +4386,7 @@ class NNOpsBehaviorTest(testing.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() == "numpy",
+    config.backend() == "numpy",
     reason="Key/Value broadcasting is not supported on the numpy backend.",
 )
 class DotProductAttentionGQATest(testing.TestCase):
@@ -4417,7 +4417,7 @@ class DotProductAttentionGQATest(testing.TestCase):
 
 @pytest.mark.no_pytest_xdist
 class TorchNNDistributedTest(TorchDistributedTestMixin, testing.TestCase):
-    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only")
+    @pytest.mark.skipif(config.backend() != "torch", reason="Torch only")
     def test_dot_product_attention_dtensor(self):
         import torch
 

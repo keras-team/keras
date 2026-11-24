@@ -11,6 +11,7 @@ from keras.src import losses as losses_module
 from keras.src import ops
 from keras.src import testing
 from keras.src.api_export import REGISTERED_NAMES_TO_OBJS
+from keras.src.backend import config
 from keras.src.backend.common import get_keras_mask
 from keras.src.backend.common import set_keras_mask
 from keras.src.layers import Input
@@ -1144,7 +1145,7 @@ class BinaryCrossentropyTest(testing.TestCase):
             cce_obj(y_true, y_pred)
 
     @pytest.mark.skipif(
-        backend.backend() == "torch",
+        config.backend() == "torch",
         reason="Torch doesn't support bfloat16 for BinaryCrossentropy",
     )
     def test_dtype_arg(self):
@@ -1520,7 +1521,7 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
             ]
         )
         y_pred_reshaped = np.moveaxis(y_pred, source=2, destination=0)
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             expected_message = (
                 "Only axis=-1 is currently supported. Received: axis=0"
             )
@@ -1530,7 +1531,7 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
                 losses.SparseCategoricalCrossentropy(axis=0)(
                     y_true, y_pred_reshaped
                 )
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             expected_message = (
                 "Arguments `target` and `output` "
                 "must have the same shape up until"
@@ -1543,13 +1544,13 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
                 losses.SparseCategoricalCrossentropy(axis=0)(
                     y_true, y_pred_reshaped
                 )
-        elif backend.backend() == "torch":
+        elif config.backend() == "torch":
             output = losses.SparseCategoricalCrossentropy(axis=0)(
                 y_true, y_pred_reshaped
             )
             self.assertAllClose(output, 0.0)
 
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             y_true = np.array(
                 [[0, 1, 1, 0], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 1]]
             )
@@ -1578,7 +1579,7 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
             self.assertAllClose(output, expected.sum() / 16.0)
 
     @pytest.mark.skipif(
-        backend.backend() != "torch",
+        config.backend() != "torch",
         reason="Channels-first axis only supported on Torch.",
     )
     def test_squeezes_singleton_class_dim_on_user_axis(self):
@@ -1696,7 +1697,7 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
             ]
         )
         y_pred_reshaped = np.moveaxis(y_pred, source=2, destination=0)
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             expected_message = (
                 "Only axis=-1 is currently supported. Received: axis=0"
             )
@@ -1706,7 +1707,7 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
                 losses.SparseCategoricalCrossentropy(axis=0)(
                     y_true, y_pred_reshaped
                 )
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             expected_message = (
                 "Arguments `target` and `output` "
                 "must have the same shape up until"
@@ -1719,13 +1720,13 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
                 losses.SparseCategoricalCrossentropy(axis=0)(
                     y_true, y_pred_reshaped
                 )
-        elif backend.backend() == "torch":
+        elif config.backend() == "torch":
             output = losses.SparseCategoricalCrossentropy(axis=0)(
                 y_true, y_pred_reshaped
             )
             self.assertAllClose(output, 0.0)
 
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             y_true = np.array(
                 [[0, 1, 2, 0], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 1]]
             )
@@ -1980,7 +1981,7 @@ class BinaryFocalCrossentropyTest(testing.TestCase):
         self.assertAllClose(loss, (0.515547, 0.020513))
 
     @pytest.mark.skipif(
-        backend.backend() == "torch",
+        config.backend() == "torch",
         reason="Torch doesn't support bfloat16 for BinaryFocalCrossentropy",
     )
     def test_dtype_arg(self):
@@ -2381,7 +2382,7 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
         ("int32_max", np.iinfo("int32").max),
         *(
             ()
-            if backend.backend() in ("jax", "numpy")
+            if config.backend() in ("jax", "numpy")
             else (("int64_max", np.iinfo("int64").max),)
         ),
     )
@@ -2443,7 +2444,7 @@ class SparseCategoricalFocalCrossentropyTest(testing.TestCase):
         ("int32_max", np.iinfo("int32").max),
         *(
             ()
-            if backend.backend() in ("jax", "numpy")
+            if config.backend() in ("jax", "numpy")
             else (("int64_max", np.iinfo("int64").max),)
         ),
     )

@@ -3,18 +3,17 @@ import warnings
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import testing
 from keras.src.backend import config
 from keras.src.backend.common import result_type
 from keras.src.testing.test_utils import x64_mode_scope
 
-X64_SUPPORTED = backend.backend() in config._X64_BACKENDS
+X64_SUPPORTED = config.backend() in config._X64_BACKENDS
 
 
 class X64ModeTest(testing.TestCase):
     def test_default_mode(self):
-        is_tf = backend.backend() == "tensorflow"
+        is_tf = config.backend() == "tensorflow"
         self.assertEqual(config.x64_mode(), "explicit_x64" if is_tf else "off")
 
     @pytest.mark.skipif(not X64_SUPPORTED, reason="Unsupported backend.")
@@ -25,7 +24,7 @@ class X64ModeTest(testing.TestCase):
         self.assertEqual(config.x64_mode(), default)
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="TensorFlow only."
+        config.backend() != "tensorflow", reason="TensorFlow only."
     )
     def test_off_raises_on_tensorflow(self):
         with self.assertRaisesRegex(ValueError, "not supported on the tensor"):
@@ -46,7 +45,7 @@ class X64ModeTest(testing.TestCase):
             config.set_x64_mode("explicit_x64")
         self.assertEqual(config.x64_mode(), "off")
 
-    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only.")
+    @pytest.mark.skipif(config.backend() != "jax", reason="JAX only.")
     def test_explicit_x64_sets_jax_flag(self):
         import jax
 
@@ -58,7 +57,7 @@ class X64ModeTest(testing.TestCase):
             jax.config.update("jax_explicit_x64_dtypes", previous)
             config.set_x64_mode("off")
 
-    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only.")
+    @pytest.mark.skipif(config.backend() != "jax", reason="JAX only.")
     def test_matching_jax_flag_does_not_warn(self):
         with warnings.catch_warnings():
             warnings.filterwarnings("error", message=".*does not match")
@@ -72,7 +71,7 @@ class X64ModeTest(testing.TestCase):
         ("enable_off", "jax_enable_x64", True, "off", "int32"),
         ("enable_explicit", "jax_enable_x64", True, "explicit_x64", "int64"),
     )
-    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only.")
+    @pytest.mark.skipif(config.backend() != "jax", reason="JAX only.")
     def test_mismatched_jax_flag_warns(self, flag, value, mode, expected):
         import jax
 

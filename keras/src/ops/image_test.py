@@ -937,7 +937,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         image_uint8 = tf.ones((1, 1, 3), dtype=tf.uint8)
         coordinates = tf.convert_to_tensor([-1.0, 0.0, 0.0])[..., None, None]
 
-        if backend.backend() != "tensorflow":
+        if config.backend() != "tensorflow":
             pytest.skip("Skipping test because the backend is not TensorFlow.")
 
         out = kimage.map_coordinates(
@@ -949,7 +949,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         image_float32 = tf.ones((1, 1, 3), dtype=tf.float32)
         coordinates = tf.convert_to_tensor([-1.0, 0.0, 0.0])[..., None, None]
 
-        if backend.backend() != "tensorflow":
+        if config.backend() != "tensorflow":
             pytest.skip("Skipping test because the backend is not TensorFlow.")
 
         out = kimage.map_coordinates(
@@ -961,7 +961,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         image_uint8 = tf.ones((1, 1, 3), dtype=tf.uint8)
         coordinates = tf.convert_to_tensor([-1.0, 0.0, 0.0])[..., None, None]
 
-        if backend.backend() != "tensorflow":
+        if config.backend() != "tensorflow":
             pytest.skip("Skipping test because the backend is not TensorFlow.")
 
         out = kimage.map_coordinates(
@@ -974,7 +974,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         coordinates = tf.convert_to_tensor([-1.0, 0.0, 0.0])[..., None, None]
         image_uint8_casted = tf.cast(image_uint8, dtype=tf.float32)
 
-        if backend.backend() != "tensorflow":
+        if config.backend() != "tensorflow":
             pytest.skip("Skipping test because the backend is not TensorFlow.")
 
         out = tf.cast(
@@ -1726,7 +1726,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(out, ref_out.numpy())
 
     def _skip_resize_if_unsupported(self, interpolation, antialias):
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             if interpolation == "bicubic" and antialias is False:
                 self.skipTest(
                     "Resizing with Bicubic interpolation in "
@@ -1859,7 +1859,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
                 antialias=antialias,
             )
             expected = "float64"
-            if backend.backend() == "jax" and not jax.config.jax_enable_x64:
+            if config.backend() == "jax" and not jax.config.jax_enable_x64:
                 expected = "float32"
             self.assertEqual(standardize_dtype(out.dtype), expected)
 
@@ -1943,7 +1943,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
                     [196, 197, 197, 198],
                     [255, 255, 255, 255],
                 ]
-                if "torch" == backend.backend()
+                if "torch" == config.backend()
                 # Resize without `round` and `saturate_cast` - differences in
                 # 16 points
                 # [
@@ -2141,12 +2141,12 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
     )
     def test_affine_transform(self, interpolation, fill_mode):
-        if backend.backend() == "tensorflow" and fill_mode == "mirror":
+        if config.backend() == "tensorflow" and fill_mode == "mirror":
             self.skipTest(
                 "In tensorflow backend, applying affine_transform with "
                 "fill_mode=mirror is not supported"
             )
-        if backend.backend() == "tensorflow" and fill_mode == "wrap":
+        if config.backend() == "tensorflow" and fill_mode == "wrap":
             self.skipTest(
                 "In tensorflow backend, the numerical results of applying "
                 "affine_transform with fill_mode=wrap is inconsistent with"
@@ -2164,9 +2164,9 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         # TODO: `nearest` interpolation in jax and torch causes random index
         # shifting, resulting in significant differences in output which leads
         # to failure
-        if backend.backend() in ("jax", "torch") and interpolation == "nearest":
+        if config.backend() in ("jax", "torch") and interpolation == "nearest":
             self.skipTest(
-                f"In {backend.backend()} backend, "
+                f"In {config.backend()} backend, "
                 f"interpolation={interpolation} causes index shifting and "
                 "leads test failure"
             )
@@ -2330,7 +2330,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(patches_out, patches_ref, atol=1e-2)
 
         # Test channels_first
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             # tensorflow doesn't support channels_first in
             # `kimage.extract_patches`
             return
@@ -2755,10 +2755,10 @@ class ImageOpsCorrectnessTest(testing.TestCase):
     def test_gaussian_blur_even_kernel_size(self):
         """Test gaussian_blur with even kernel sizes"""
         # This test is specific to the numpy backend fix
-        if backend.backend() != "numpy":
+        if config.backend() != "numpy":
             self.skipTest(
                 "Test is specific to numpy backend, current backend: "
-                f"{backend.backend()}"
+                f"{config.backend()}"
             )
 
         config.set_image_data_format("channels_last")
@@ -2910,7 +2910,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(np.var(out), np.var(ref_out), atol=1e-2, rtol=1e-2)
 
     def test_map_coordinates_mirror_size_one_axis(self):
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             self.skipTest("tensorflow `mirror` fails on a size 1 axis")
         input = np.array([[5.0]], dtype="float32")
         coordinates = [
@@ -3170,7 +3170,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(out, x, atol=1e-6)
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Dynamic shapes only exist in TensorFlow graph mode.",
     )
     def test_reconstruct_patches_overlapping_dynamic_grid_tf_function(self):
@@ -3338,7 +3338,7 @@ class ImageOpsDtypeTest(testing.TestCase):
     INT_DTYPES = [x for x in dtypes.INT_TYPES if x not in ("uint64", "int64")]
     FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
 
-    if backend.backend() == "torch":
+    if config.backend() == "torch":
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
 
     def setUp(self):

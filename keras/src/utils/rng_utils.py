@@ -2,8 +2,8 @@ import random
 
 import numpy as np
 
-from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import global_state
 from keras.src.utils.module_utils import tensorflow as tf
 
@@ -65,7 +65,7 @@ def set_random_seed(seed):
     np.random.seed(seed)
     if tf.available:
         tf.random.set_seed(seed)
-    if backend.backend() == "torch":
+    if config.backend() == "torch":
         import torch
 
         torch.manual_seed(seed)

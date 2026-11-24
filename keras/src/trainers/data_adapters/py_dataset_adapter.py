@@ -11,6 +11,7 @@ from contextlib import closing
 import numpy as np
 
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.distribution import distribution_lib
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.data_adapters.data_adapter import DataAdapter
@@ -404,11 +405,9 @@ def _get_mp_context():
     if _MP_CONTEXT is not None:
         return _MP_CONTEXT
 
-    from keras.src.backend import backend
-
     mp_module = multiprocessing
     use_spawn = False
-    if backend() == "torch":
+    if config.backend() == "torch":
         import torch
         import torch.multiprocessing as torch_mp
 

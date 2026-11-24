@@ -6,6 +6,7 @@ from keras.src import ops
 from keras.src import regularizers
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.layers.rnn.dropout_rnn_cell import DropoutRNNCell
@@ -531,7 +532,7 @@ class GRU(RNN):
             )
         self.use_cudnn = use_cudnn
         if (
-            backend.backend() == "tensorflow"
+            config.backend() == "tensorflow"
             and backend.rnn.cudnn_ok(
                 cell.activation,
                 cell.recurrent_activation,
@@ -557,7 +558,7 @@ class GRU(RNN):
                     # which would mutate storage autograd still needs. The
                     # generic RNN loop already clones inside step(); this
                     # path bypasses that copy.
-                    if self.stateful and backend.backend() == "torch":
+                    if self.stateful and config.backend() == "torch":
                         initial_state = ops.copy(initial_state)
                     if training and self.dropout:
                         dp_mask = self.cell.get_dropout_mask(sequences[:, 0, :])
@@ -588,7 +589,7 @@ class GRU(RNN):
                     )
                     # We disable jit_compile for the model in this case,
                     # since cuDNN ops aren't XLA compatible.
-                    if backend.backend() == "tensorflow":
+                    if config.backend() == "tensorflow":
                         self.supports_jit = False
                     return out
                 except NotImplementedError:

@@ -2,6 +2,7 @@ import pytest
 
 from keras.src import backend
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 
 
@@ -26,7 +27,7 @@ class ComputeOutputSpecTest(testing.TestCase):
         self.assertEqual(out.shape, (2, None, 2))
 
     @pytest.mark.skipif(
-        backend.backend() != "torch", reason="Only applicable for torch"
+        config.backend() != "torch", reason="Only applicable for torch"
     )
     def test_torch_meta_device_incompatible_ops(self):
         class Container:

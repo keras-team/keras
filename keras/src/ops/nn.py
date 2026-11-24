@@ -2873,7 +2873,7 @@ def dot_product_attention(
     (2, 4, 8, 16)
     """
     if attn_logits_soft_cap is not None:
-        if backend.backend() == "jax":
+        if config.backend() == "jax":
             import jax
 
             if jax.devices()[0].platform != "tpu":

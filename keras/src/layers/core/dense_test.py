@@ -17,6 +17,7 @@ from keras.src import quantizers
 from keras.src import random
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
 from keras.src.quantizers.awq_config import AWQConfig
@@ -195,16 +196,16 @@ class DenseTest(testing.TestCase):
         inputs = np.random.random((10, 10)).astype("float32")
         inputs = np.multiply(inputs, inputs >= 0.8)
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             inputs = tf.sparse.from_dense(inputs)
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             inputs = jax_sparse.BCOO.fromdense(inputs)
         else:
-            self.fail(f"Sparse is unsupported with backend {backend.backend()}")
+            self.fail(f"Sparse is unsupported with backend {config.backend()}")
 
         layer = layers.Dense(units=10)
         outputs = layer(inputs)
@@ -222,7 +223,7 @@ class DenseTest(testing.TestCase):
         )
 
         # Verify the gradient is sparse
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             with tf.GradientTape() as g:
@@ -292,7 +293,7 @@ class DenseTest(testing.TestCase):
         layer.enable_lora(4)
         self.assertLen(layer.trainable_weights, 3)
         self.assertLen(layer.non_trainable_weights, 1)
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             self.assertLen(layer.torch_params, 4)
         self.assertDType(layer.lora_kernel_a, "float32")
         self.assertDType(layer.lora_kernel_b, "float32")
@@ -710,14 +711,14 @@ class DenseTest(testing.TestCase):
     ):
         # Note that saving and loading with lora_enabled and quantized are
         # lossy, so we use a weak correctness test for model outputs (atol=0.5).
-        config = dict(units=16)
-        layer = layers.Dense(**config)
+        layer_config = dict(units=16)
+        layer = layers.Dense(**layer_config)
         layer.build((None, 8))
         layer.enable_lora(4)
         layer.quantize(mode)
         self.assertLen(layer.trainable_weights, num_trainable_weights)
         self.assertLen(layer.non_trainable_weights, num_non_trainable_weights)
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             self.assertLen(layer.torch_params, num_torch_params)
 
         # Try calling fit()
@@ -754,7 +755,7 @@ class DenseTest(testing.TestCase):
             self.get_temp_dir(), "quantized_lora_model.weights.h5"
         )
         model.save_weights(temp_filepath)
-        new_model = models.Sequential([layers.Dense(**config)])
+        new_model = models.Sequential([layers.Dense(**layer_config)])
         new_model.build((None, 8))
         new_model.quantize(mode)
         new_model.load_weights(temp_filepath)
@@ -767,7 +768,7 @@ class DenseTest(testing.TestCase):
         self.assertAllClose(model.predict(x), new_model.predict(x), atol=0.5)
 
         # Test export and TFSMLayer reloading when using tensorflow backend
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
@@ -864,8 +865,8 @@ class DenseTest(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_quantize_float8_fitting(self):
-        config = dict(units=16)
-        layer = layers.Dense(**config)
+        layer_config = dict(units=16)
+        layer = layers.Dense(**layer_config)
         layer.build((None, 8))
         layer.quantize("float8")
         self.assertLen(layer.trainable_weights, 8)
@@ -891,14 +892,14 @@ class DenseTest(testing.TestCase):
             self.get_temp_dir(), "quantized_float8_model.weights.h5"
         )
         model.save_weights(temp_filepath)
-        new_model = models.Sequential([layers.Dense(**config)])
+        new_model = models.Sequential([layers.Dense(**layer_config)])
         new_model.build((None, 8))
         new_model.quantize("float8")
         new_model.load_weights(temp_filepath)
         self.assertAllClose(model.predict(x), new_model.predict(x))
 
         # Test export and TFSMLayer reloading when using tensorflow backend
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")

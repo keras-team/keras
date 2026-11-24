@@ -626,19 +626,19 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
-        reason=f"{backend.backend()} backend doesn't support sparse tensors.",
+        reason=f"{config.backend()} backend doesn't support sparse tensors.",
     )
     def test_convert_to_tensor_sparse(self):
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             x = tf.SparseTensor([[0, 0], [1, 2]], [1.0, 2.0], (2, 3))
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             x = jax_sparse.BCOO(([1.0, 2.0], [[0, 0], [1, 2]]), shape=(2, 3))
         else:
-            self.fail(f"Sparse is unsupported with backend {backend.backend()}")
+            self.fail(f"Sparse is unsupported with backend {config.backend()}")
 
         x_default = ops.convert_to_tensor(x)
         self.assertSparse(x_default)
@@ -656,7 +656,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_RAGGED_TENSORS,
-        reason=f"{backend.backend()} backend doesn't support ragged tensors.",
+        reason=f"{config.backend()} backend doesn't support ragged tensors.",
     )
     def test_convert_to_tensor_ragged(self):
         import tensorflow as tf
@@ -718,7 +718,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
         dy_dx = ops.grad(to_derive)(x)
         self.assertEqual(ops.convert_to_numpy(dy_dx), 1.0)
-        if backend.backend() != "tensorflow":
+        if config.backend() != "tensorflow":
             # TensorFlow's `log` and `exp` gradients are defined at 100.0.
             dz_dx = ops.grad(log1pexp_nan)(x)
             self.assertTrue(ops.isnan(dz_dx))
@@ -931,7 +931,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
     def test_is_tensor(self):
         np_x = np.array([[1, 2, 3], [3, 2, 1]])
         x = backend.ops.convert_to_tensor(np_x)
-        if backend.backend() != "numpy":
+        if config.backend() != "numpy":
             self.assertFalse(ops.is_tensor(np_x))
         self.assertTrue(ops.is_tensor(x))
         self.assertFalse(ops.is_tensor([1, 2, 3]))
@@ -1050,7 +1050,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(carry2, 13)
 
         # Test nested init
-        if backend.backend() != "tensorflow":
+        if config.backend() != "tensorflow":
             # tensorflow doesn't support arbitrary shape/dtype of the output of
             # `f`. It must be the same as `init`.
             def multiply_two(carry, _):
@@ -1237,25 +1237,25 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
-        reason=f"{backend.backend()} backend doesn't support sparse tensors.",
+        reason=f"{config.backend()} backend doesn't support sparse tensors.",
     )
     def test_shape_sparse(self):
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             x = tf.SparseTensor([[0, 0], [1, 2]], [1.0, 2.0], (2, 3))
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             x = jax_sparse.BCOO(([1.0, 2.0], [[0, 0], [1, 2]]), shape=(2, 3))
         else:
-            self.fail(f"Sparse is unsupported with backend {backend.backend()}")
+            self.fail(f"Sparse is unsupported with backend {config.backend()}")
 
         self.assertEqual(core.shape(x), (2, 3))
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
-        reason=f"{backend.backend()} backend doesn't support ragged tensors.",
+        reason=f"{config.backend()} backend doesn't support ragged tensors.",
     )
     def test_shape_ragged(self):
         import tensorflow as tf
@@ -1536,7 +1536,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             self.assertAllClose(o, o_e)
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Dynamic scan fallback is TF-specific.",
     )
     def test_associative_scan_dynamic_scan_body_tf_tensorspec_dynamic_fallback(
@@ -1563,7 +1563,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(run_scan(x1), x1.numpy())
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Dynamic scan fallback is TF-specific.",
     )
     def test_associative_scan_dynamic_scan_body_tf_tensorspec_reverse(self):
@@ -1580,7 +1580,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(result, expected)
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Dynamic scan fallback is TF-specific.",
     )
     def test_associative_scan_dynamic_scan_body_tf_tensorspec_structured_input(
@@ -1601,7 +1601,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(rb, np.cumsum(b.numpy(), axis=0))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Dynamic scan fallback is TF-specific.",
     )
     def test_associative_scan_dynamic_scan_body_tf_function_dynamic_lengths(
@@ -1649,7 +1649,7 @@ class CoreOpsDtypeTest(testing.TestCase):
     INT_DTYPES = [x for x in dtypes.INT_TYPES if x not in ("uint64", "int64")]
     FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
 
-    if backend.backend() == "torch":
+    if config.backend() == "torch":
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint16", "uint32")]
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
 
@@ -1997,7 +1997,7 @@ class CoreOpsBehaviorTests(testing.TestCase):
         self.assertEqual(standardize_dtype(t.dtype), "bool")
 
     @pytest.mark.skipif(
-        backend.backend() != "torch",
+        config.backend() != "torch",
         reason="torch.export graph inspection is torch-only.",
     )
     def test_convert_to_tensor_python_scalar_no_float64_in_export(self):

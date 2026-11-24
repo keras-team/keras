@@ -7,13 +7,13 @@ import pytest
 from absl.testing import parameterized
 
 import keras
-from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import random
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import standardize_dtype
 from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.calibration_run import CalibrationRun
@@ -883,7 +883,7 @@ def _token_dataset(
 
 @pytest.mark.requires_trainable_backend
 @pytest.mark.skipif(
-    backend.backend() == "torch",
+    config.backend() == "torch",
     reason="torch gives low accuracy on CI, but works well locally",
 )
 class TestModelQuantization(testing.TestCase):

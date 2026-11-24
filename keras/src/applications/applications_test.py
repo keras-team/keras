@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import testing
 from keras.src.applications import convnext
 from keras.src.applications import densenet
@@ -183,7 +182,7 @@ class ApplicationsTest(testing.TestCase):
         if (
             image_data_format == "channels_first"
             and len(tf.config.list_physical_devices("GPU")) == 0
-            and backend.backend() == "tensorflow"
+            and config.backend() == "tensorflow"
         ):
             self.skipTest(
                 "Conv2D doesn't support channels_first using CPU with "

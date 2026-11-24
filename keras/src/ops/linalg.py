@@ -1,6 +1,7 @@
 from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import any_symbolic_tensors
 from keras.src.backend.common.dtypes import promote_to_float_dtype
@@ -271,7 +272,7 @@ def lu_factor(x):
 def _lu_factor(x):
     x = backend.ops.convert_to_tensor(x)
     _assert_2d(x)
-    if backend.backend() == "tensorflow":
+    if config.backend() == "tensorflow":
         try:
             _assert_square(x)
         except ValueError as e:

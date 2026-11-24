@@ -4,8 +4,8 @@ import inspect
 import io
 import tempfile
 
-from keras.src import backend
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.export.export_utils import convert_spec_to_tensor
 from keras.src.export.export_utils import get_input_signature
 from keras.src.utils import io_utils
@@ -43,7 +43,7 @@ def export_litert(
             f"'.tflite'. Got: {filepath}"
         )
 
-    if backend.backend() == "torch":
+    if config.backend() == "torch":
         return export_litert_via_torch(
             model,
             filepath,
@@ -52,7 +52,7 @@ def export_litert(
             **kwargs,
         )
 
-    if backend.backend() != "tensorflow":
+    if config.backend() != "tensorflow":
         raise ValueError(
             "The LiteRT export API is currently only available "
             "with the TensorFlow and PyTorch backends."

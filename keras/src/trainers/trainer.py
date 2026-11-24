@@ -259,11 +259,11 @@ class BaseTrainer:
             self._jit_compile = value
 
     def _resolve_auto_jit_compile(self):
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             # jit_compile = "auto" with the pytorch backend defaults to eager
             return False
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             devices = tf.config.list_physical_devices()
@@ -394,7 +394,7 @@ class BaseTrainer:
                 losses.append(loss)
         for loss in self.losses:
             losses.append(self._aggregate_additional_loss(loss))
-        if backend.backend() != "jax" and len(losses) == 0:
+        if config.backend() != "jax" and len(losses) == 0:
             raise ValueError(
                 "No loss to compute. Provide a `loss` argument in `compile()`."
             )
@@ -1233,14 +1233,14 @@ class BaseTrainer:
 def model_supports_jit(model):
     # XLA not supported with TF on MacOS GPU
     if platform.system() == "Darwin" and "arm" in platform.processor().lower():
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             from keras.src.utils.module_utils import tensorflow as tf
 
             if tf.config.list_physical_devices("GPU"):
                 return False
     # XLA not supported by some layers
     if all(x.supports_jit for x in model._flatten_layers()):
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             from tensorflow.python.framework.config import (
                 is_op_determinism_enabled,
             )

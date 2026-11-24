@@ -5,6 +5,7 @@ import pytest
 from keras.src import backend
 from keras.src import initializers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.distribution import distribution_lib
 
 
@@ -15,7 +16,7 @@ class InitializerWithLayout(initializers.Initializer):
         return jax.numpy.ones(shape, dtype=dtype, out_sharding=layout)
 
 
-@pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
+@pytest.mark.skipif(config.backend() != "jax", reason="JAX only")
 @pytest.mark.multi_device
 class InitializersLayoutTest(testing.TestCase):
     def test_initializer_with_data_parallel_layout(self):

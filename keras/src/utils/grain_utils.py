@@ -1,5 +1,6 @@
 from keras.src import backend
 from keras.src import tree
+from keras.src.backend import config
 
 
 def make_batch(values):
@@ -20,7 +21,7 @@ def make_string_batch(values):
 
     def batch_fn(*xs):
         if isinstance(xs[0], str):
-            if backend.backend() == "tensorflow":
+            if config.backend() == "tensorflow":
                 import tensorflow as tf
 
                 xs = [tf.convert_to_tensor(x, dtype=tf.string) for x in xs]

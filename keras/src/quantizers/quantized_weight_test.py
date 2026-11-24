@@ -10,6 +10,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import AutocastScope
 from keras.src.quantizers import packing
 from keras.src.quantizers import strategy_registry
@@ -602,7 +603,7 @@ class QuantizedProjectionGradientTest(testing.TestCase):
         ("einsum_int4_grouped", "einsum", "int4", 4),
     )
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Only TensorFlow runs the eager gradient outside autocast.",
     )
     def test_eager_input_gradient_matches_graph(self, kind, mode, block_size):

@@ -238,7 +238,7 @@ def scale_loss_for_distribution(value):
     Currently, this function is only effective when using the tensorflow backend
     and `tf.distribute`.
     """
-    if backend.backend() == "tensorflow":
+    if config.backend() == "tensorflow":
         import tensorflow as tf
 
         num_replicas = tf.distribute.get_strategy().num_replicas_in_sync
@@ -255,7 +255,7 @@ def unscale_loss_for_distribution(value):
     Currently, this function is only effective when using the tensorflow backend
     and `tf.distribute`.
     """
-    if backend.backend() == "tensorflow":
+    if config.backend() == "tensorflow":
         import tensorflow as tf
 
         num_replicas = tf.distribute.get_strategy().num_replicas_in_sync
