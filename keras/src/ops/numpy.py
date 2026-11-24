@@ -4293,11 +4293,9 @@ def _hypot(x1, x2):
         return backend.ops.numpy.hypot(x1, x2)
     x1 = backend.ops.convert_to_tensor(x1)
     x2 = backend.ops.convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
-    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
-        dtype = config.floatx()
-    elif dtype == "int64":
-        dtype = "float64"
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     x1 = backend.ops.cast(x1, dtype)
     x2 = backend.ops.cast(x2, dtype)
     x1_abs = backend.ops.numpy.absolute(x1)
@@ -4320,7 +4318,8 @@ def _hypot(x1, x2):
     is_inf = backend.ops.numpy.logical_or(
         backend.ops.numpy.isinf(x1_abs), backend.ops.numpy.isinf(x2_abs)
     )
-    return backend.ops.numpy.where(is_inf, float("inf"), result)
+    inf = backend.ops.cast(float("inf"), dtype)
+    return backend.ops.numpy.where(is_inf, inf, result)
 
 
 @keras_export(["keras.ops.identity", "keras.ops.numpy.identity"])
