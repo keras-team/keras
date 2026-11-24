@@ -3177,8 +3177,8 @@ class NNOpsCorrectnessTest(testing.TestCase):
     def test_normalization_over_axes(self, axis, backend_agnostic_ops):
         # A backend kernel normalizes over trailing axes, so any other set of
         # axes exercises the backend moving them into place.
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.arange(120, dtype="float32").reshape((2, 3, 4, 5)) / 120.0
         axes = tuple(axis)
         epsilon = 1e-5
