@@ -37,6 +37,9 @@ from keras.src.layers.convolutional.conv_transpose_test import (
 from keras.src.layers.convolutional.conv_transpose_test import (
     np_conv2d_transpose,
 )
+from keras.src.layers.convolutional.conv_transpose_test import (
+    np_conv3d_transpose,
+)
 from keras.src.layers.convolutional.depthwise_conv_test import (
     np_depthwise_conv2d,
 )
@@ -2305,15 +2308,20 @@ class NNOpsCorrectnessTest(testing.TestCase):
         )
         self.assertAllClose(outputs, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
 
-    @parameterized.product(padding=("valid", "same"))
-    def test_conv_transpose_1d(self, padding):
-        if config.image_data_format() == "channels_last":
+    @parameterized.product(
+        padding=("valid", "same"),
+        data_format=("channels_last", "channels_first"),
+    )
+    def test_conv_transpose_1d(self, padding, data_format):
+        if data_format == "channels_last":
             input_shape = (2, 4, 3)
         else:
             input_shape = (2, 3, 4)
         inputs_1d = np.arange(24, dtype=float).reshape(input_shape)
         kernel = np.arange(30, dtype=float).reshape([2, 5, 3])
-        outputs = knn.conv_transpose(inputs_1d, kernel, 2, padding=padding)
+        outputs = knn.conv_transpose(
+            inputs_1d, kernel, 2, padding=padding, data_format=data_format
+        )
         expected = np_conv1d_transpose(
             inputs_1d,
             kernel,
@@ -2321,14 +2329,18 @@ class NNOpsCorrectnessTest(testing.TestCase):
             strides=2,
             output_padding=None,
             padding=padding,
-            data_format=config.image_data_format(),
+            data_format=data_format,
             dilation_rate=1,
         )
         self.assertAllClose(outputs, expected)
 
-    @parameterized.product(strides=(2, (2, 2)), padding=("valid", "same"))
-    def test_conv_transpose_2d(self, strides, padding):
-        if config.image_data_format() == "channels_last":
+    @parameterized.product(
+        strides=(2, (2, 2)),
+        padding=("valid", "same"),
+        data_format=("channels_last", "channels_first"),
+    )
+    def test_conv_transpose_2d(self, strides, padding, data_format):
+        if data_format == "channels_last":
             input_shape = (2, 4, 4, 3)
         else:
             input_shape = (2, 3, 4, 4)
@@ -2336,7 +2348,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         kernel = np.arange(60, dtype=float).reshape([2, 2, 5, 3])
 
         outputs = knn.conv_transpose(
-            inputs_2d, kernel, strides, padding=padding
+            inputs_2d, kernel, strides, padding=padding, data_format=data_format
         )
         expected = np_conv2d_transpose(
             inputs_2d,
@@ -2345,13 +2357,39 @@ class NNOpsCorrectnessTest(testing.TestCase):
             strides=strides,
             output_padding=None,
             padding=padding,
-            data_format=config.image_data_format(),
+            data_format=data_format,
             dilation_rate=1,
         )
         self.assertAllClose(outputs, expected)
 
-    def test_conv_transpose_functional_model(self):
-        data_format = config.image_data_format()
+    @parameterized.product(
+        padding=("valid", "same"),
+        data_format=("channels_last", "channels_first"),
+    )
+    def test_conv_transpose_3d(self, padding, data_format):
+        if data_format == "channels_last":
+            input_shape = (2, 3, 3, 3, 2)
+        else:
+            input_shape = (2, 2, 3, 3, 3)
+        inputs_3d = np.arange(108, dtype=float).reshape(input_shape)
+        kernel = np.arange(48, dtype=float).reshape([2, 2, 2, 3, 2])
+        outputs = knn.conv_transpose(
+            inputs_3d, kernel, 2, padding=padding, data_format=data_format
+        )
+        expected = np_conv3d_transpose(
+            inputs_3d,
+            kernel,
+            bias_weights=np.zeros(3),
+            strides=2,
+            output_padding=None,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=1,
+        )
+        self.assertAllClose(outputs, expected)
+
+    @parameterized.product(data_format=("channels_last", "channels_first"))
+    def test_conv_transpose_functional_model(self, data_format):
         if data_format == "channels_last":
             input_shape = (4, 4, 3)
             kernel_shape = (2, 2, 5, 3)
@@ -2365,7 +2403,12 @@ class NNOpsCorrectnessTest(testing.TestCase):
         x = keras.layers.Input(shape=input_shape)
         kernel = keras.ops.convert_to_tensor(kernel_data)
         out = knn.conv_transpose(
-            x, kernel, strides=2, padding="valid", output_padding=1
+            x,
+            kernel,
+            strides=2,
+            padding="valid",
+            output_padding=1,
+            data_format=data_format,
         )
         model = keras.Model(inputs=x, outputs=out)
         model_output = model(inputs_data)
@@ -2375,6 +2418,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             strides=2,
             padding="valid",
             output_padding=1,
+            data_format=data_format,
         )
         self.assertAllClose(model_output, eager_output)
 
