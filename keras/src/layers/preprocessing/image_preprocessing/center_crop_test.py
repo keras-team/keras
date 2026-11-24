@@ -5,6 +5,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -161,7 +162,7 @@ class CenterCropTest(testing.TestCase):
         self.assertAllClose(out, ref_out)
 
     def test_tf_data_compatibility(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (2, 10, 12, 3)
             output_shape = (2, 8, 9, 3)
         else:
@@ -175,7 +176,7 @@ class CenterCropTest(testing.TestCase):
 
     # TODO
     # def test_list_compatibility(self):
-    #     if backend.config.image_data_format() == "channels_last":
+    #     if config.image_data_format() == "channels_last":
     #         images = [
     #             np.random.rand(10, 10, 3),
     #             np.random.rand(10, 10, 3),
@@ -189,7 +190,7 @@ class CenterCropTest(testing.TestCase):
     #         output_shape = (2, 3, 6, 5)
     #     output = layers.CenterCrop(height=6, width=5)(images)
     #     ref_output = self.np_center_crop(
-    #         images, 6, 5, data_format=backend.config.image_data_format()
+    #         images, 6, 5, data_format=config.image_data_format()
     #     )
     #     self.assertEqual(tuple(output.shape), output_shape)
     #     self.assertAllClose(ref_output, output)
@@ -224,7 +225,7 @@ class CenterCropTest(testing.TestCase):
         ),
     )
     def test_center_crop_bounding_boxes(self, height, width, expected_boxes):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             image_shape = (10, 8, 3)
         else:
             image_shape = (3, 10, 8)
@@ -264,7 +265,7 @@ class CenterCropTest(testing.TestCase):
     def test_center_crop_tf_data_bounding_boxes(
         self, height, width, expected_boxes
     ):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             image_shape = (1, 10, 8, 3)
         else:
             image_shape = (1, 3, 10, 8)
@@ -295,7 +296,7 @@ class CenterCropTest(testing.TestCase):
         self.assertAllClose(output["bounding_boxes"]["boxes"], expected_boxes)
 
     def test_dynamic_spatial_dims(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             large_input = (2, 25, 30, 3)
             small_input = (2, 6, 7, 3)
         else:

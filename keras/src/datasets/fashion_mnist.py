@@ -61,7 +61,7 @@ def load_data():
     License:
 
     The copyright for Fashion-MNIST is held by Zalando SE.
-    Fashion-MNIST is licensed under the [MIT license](
+    Fashion-MNIST uses the [MIT license](
         https://github.com/zalandoresearch/fashion-mnist/blob/master/LICENSE).
     """
     dirname = os.path.join("datasets", "fashion-mnist")

@@ -3,6 +3,7 @@ import numpy as np
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -60,7 +61,7 @@ class RandomCropTest(testing.TestCase):
     def test_random_crop_full(self):
         np.random.seed(1337)
         height, width = 8, 16
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (12, 8, 16, 3)
         else:
             input_shape = (12, 3, 8, 16)
@@ -70,7 +71,7 @@ class RandomCropTest(testing.TestCase):
         self.assertAllClose(inp, actual_output)
 
     def test_random_crop_partial(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (12, 8, 16, 3)
             output_shape = (12, 8, 8, 3)
         else:
@@ -89,7 +90,7 @@ class RandomCropTest(testing.TestCase):
         )
 
     def test_predicting_with_longer_height(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (12, 8, 16, 3)
             output_shape = (12, 10, 8, 3)
         else:
@@ -108,7 +109,7 @@ class RandomCropTest(testing.TestCase):
         )
 
     def test_predicting_with_longer_width(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (12, 8, 16, 3)
             output_shape = (12, 8, 18, 3)
         else:
@@ -128,7 +129,7 @@ class RandomCropTest(testing.TestCase):
 
     def test_tf_data_compatibility(self):
         layer = layers.RandomCrop(8, 9)
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (2, 10, 12, 3)
             output_shape = (2, 8, 9, 3)
         else:

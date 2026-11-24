@@ -50,12 +50,13 @@ ALLOWED_DTYPES = (
 ALLOWED_DTYPES_SET = frozenset(ALLOWED_DTYPES)
 PYTHON_DTYPES_MAP = {
     bool: "bool",
+    # TensorFlow keeps int32 variables on the CPU, so `int` is int64 there.
     int: "int64" if config.backend() == "tensorflow" else "int32",
     float: "float32",
     str: "string",
     # special case for string value
     "int": "int64" if config.backend() == "tensorflow" else "int32",
-    complex: "complex128" if config.backend() == "tensorflow" else "complex64",
+    complex: "complex64",
 }
 
 # We adapted the type promotion lattice from JAX. Ref:
@@ -209,7 +210,7 @@ def _respect_weak_type(dtype, weak_type):
 
 @functools.lru_cache(maxsize=None)
 def _resolve_weak_type(dtype, precision="32"):
-    """Resolve weak type by the precision of `backend.floatx()`."""
+    """Resolve weak type by the precision of `config.floatx()`."""
     extended_allowed_dtypes = set(ALLOWED_DTYPES).union(WEAK_TYPES)
     if dtype not in extended_allowed_dtypes:
         raise ValueError(
@@ -237,11 +238,9 @@ def _resolve_weak_type(dtype, precision="32"):
 
 
 BIT64_TO_BIT32_DTYPE = {
-    # Since TF variables require int64 to be placed on the GPU, we exclusively
-    # enable the int64 dtype for TF.
-    "int64": "int64" if config.backend() == "tensorflow" else "int32",
+    "int64": "int32",
     "uint64": "uint32",
-    "float64": "float64" if config.backend() == "tensorflow" else "float32",
+    "float64": "float32",
     "complex128": "complex64",
 }
 
@@ -274,6 +273,8 @@ def _lattice_result_type(*args):
     precision = config.floatx()[-2:]
     if out_weak_type:
         out_dtype = _resolve_weak_type(out_dtype, precision=precision)
+        if out_dtype == "float16" and config.floatx() == "bfloat16":
+            out_dtype = "bfloat16"
     return _cap_to_32bit(out_dtype, dtypes, weak_types)
 
 
@@ -345,8 +346,10 @@ def result_type(*dtypes):
 def promote_to_float_dtype(dtype):
     """Returns the dtype to use for an operation that needs a float input.
 
-    Integer and bool dtypes are promoted to `config.floatx()`. Float dtypes are
-    returned unchanged, including `float64`, `bfloat16` and the `float8` types.
+    Under `keras.config.x64_mode()` `"off"`, a 64-bit dtype first becomes its
+    32-bit counterpart. Then `int64` and `uint64` promote to `float64`, as in
+    JAX, other integer and bool dtypes to `config.floatx()`, and float dtypes
+    are returned unchanged, including `bfloat16` and the `float8` types.
 
     This only computes the dtype. Callers do the cast themselves, since `cast`
     is backend specific.
@@ -358,6 +361,10 @@ def promote_to_float_dtype(dtype):
         The float dtype to cast the input to.
     """
     dtype = standardize_dtype(dtype)
+    if config.x64_mode() == "off":
+        dtype = BIT64_TO_BIT32_DTYPE.get(dtype, dtype)
+    if dtype in ("int64", "uint64"):
+        return "float64"
     if "int" in dtype or dtype == "bool":
         return config.floatx()
     return dtype

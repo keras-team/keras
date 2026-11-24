@@ -15,11 +15,13 @@ from keras.src import random
 from keras.src import saving
 from keras.src import testing
 from keras.src.backend.common import standardize_dtype
-from keras.src.quantizers.calibration_run import find_layers_in_block
+from keras.src.quantizers import strategy_registry
+from keras.src.quantizers.calibration_run import CalibrationRun
 from keras.src.quantizers.gptq import _stable_permutation
 from keras.src.quantizers.gptq import gptq_quantize_matrix
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.quantization_config import QuantizationConfig
+from keras.src.quantizers.quantization_test_utils import assert_calibrated
 from keras.src.quantizers.quantization_test_utils import calibrate_layer
 from keras.src.quantizers.quantization_test_utils import calibration_config
 from keras.src.quantizers.quantization_test_utils import tiny_calibration_model
@@ -106,14 +108,14 @@ class GPTQTest(testing.TestCase):
 
         calibrator = _hessian_calibrator(mock_layer)
         self.assertEqual(calibrator.rows, 64)
-        self.assertEqual(calibrator.columns, 128)
+        self.assertEqual(calibrator.view.columns, 128)
         self.assertEqual(calibrator.hessian.shape, (64, 64))
 
     def test_initialization_with_einsumdense_3d(self):
         mock_layer = _get_test_layer("EinsumDense", kernel_shape=(64, 4, 32))
         calibrator = _hessian_calibrator(mock_layer)
         self.assertEqual(calibrator.rows, 64)
-        self.assertEqual(calibrator.columns, 4 * 32)
+        self.assertEqual(calibrator.view.columns, 4 * 32)
         self.assertEqual(calibrator.hessian.shape, (64, 64))
 
     def test_update_hessian(self):
@@ -242,7 +244,6 @@ class GPTQTest(testing.TestCase):
         config = GPTQConfig(
             dataset=None, tokenizer=None, weight_bits=8, group_size=-1
         )
-        layer.quantize("gptq", config=config)
         calibrator = calibrate_layer(layer, config, solve=False)
         calibrator.hessian = ops.eye(32, dtype="float32")
         calibrator.quantize()
@@ -256,13 +257,6 @@ class GPTQTest(testing.TestCase):
         self.assertAllEqual(layer.quantized_kernel, ops.cast(expected, "uint8"))
 
     def test_initialization_errors(self):
-        # A 4-D einsum kernel has no 2-D calibration view.
-        four_d = layers.EinsumDense(
-            "abc,cdef->abdef", output_shape=(3, 2, 3, 2)
-        )
-        four_d.build((None, 3, 4))
-        with self.assertRaisesRegex(ValueError, "only supports 2D or 3D"):
-            _hessian_calibrator(four_d)
         # An unbuilt layer is refused by the check `Layer.quantize` runs.
         with self.assertRaisesRegex(ValueError, "did not set kernel_shape"):
             _hessian_calibrator(layers.Dense(4))
@@ -487,7 +481,6 @@ class GPTQTest(testing.TestCase):
                 group_size=-1,
                 activation_order=use_activation_order,
             )
-            layer.quantize("gptq", config=config)
 
             calibrator = calibrate_layer(layer, config, solve=False)
             calibrator.hessian = hessian_matrix
@@ -595,12 +588,12 @@ class GPTQTest(testing.TestCase):
             self.assertGreaterEqual(quantized_values.min(), 0)
             self.assertLessEqual(quantized_values.max(), 2**W_BITS - 1)
 
-    def test_find_layers_in_block_includes_layers_with_sub_layers(self):
-        """`Dense`/`EinsumDense` are collected even when they own sub-layers.
+    def test_run_covers_layers_with_sub_layers(self):
+        """`Dense`/`EinsumDense` are covered even when they own sub-layers.
 
         A `Dense` whose activation is a `Layer` owns that `Layer`, so a leaf
-        filter would wrongly hide it from calibration. `find_layers_in_block`
-        must return both such a `Dense` and a plain `Dense`.
+        filter would wrongly hide it from calibration. The run must cover
+        both such a `Dense` and a plain `Dense`, and not the activation.
         """
         block = models.Sequential(
             [
@@ -609,13 +602,22 @@ class GPTQTest(testing.TestCase):
             ]
         )
         block.build((None, 8))
+        config = GPTQConfig(
+            dataset=[np.zeros((1, 8), "int32")],
+            tokenizer=lambda text: text,
+            num_samples=1,
+            sequence_length=8,
+        )
 
-        found = find_layers_in_block(block)
+        run = CalibrationRun(
+            strategy_registry.get_strategy("gptq"),
+            config,
+            {"pre_block_layers": [], "sequential_blocks": [block]},
+        )
 
-        self.assertEqual(len(found), 2)
         for dense in block.layers:
-            self.assertIn(dense.path, found)
-            self.assertIs(found[dense.path], dense)
+            self.assertTrue(run.covers(dense))
+        self.assertFalse(run.covers(block.layers[0].activation))
 
     @parameterized.named_parameters(
         ("per_channel", -1, 1),
@@ -691,7 +693,7 @@ class GPTQTest(testing.TestCase):
         model.quantize("gptq", config=config)
 
         dense = structure["sequential_blocks"][0].layers[0]
-        self.assertFalse(dense.calibration_pending)
+        assert_calibrated(self, dense, "gptq")
         self.assertEqual(tuple(dense.kernel_scale.shape), (1, 4))
         self.assertEqual(tuple(dense.kernel_zero.shape), (1, 4))
 
@@ -1118,8 +1120,7 @@ class TestModelQuantization(testing.TestCase):
 
         # In-structure Dense layers are quantized and calibrated.
         for dense in block.layers:
-            self.assertEqual(dense.quantization_mode, "gptq")
-            self.assertFalse(dense.calibration_pending)
+            assert_calibrated(self, dense, "gptq")
 
         # Out-of-structure layers must stay completely untouched.
         self.assertIsNone(getattr(head, "quantization_mode", None))
@@ -1146,7 +1147,7 @@ class TestModelQuantization(testing.TestCase):
 
         The activation `Layer` makes the `Dense` a non-leaf, but GPTQ must
         still discover and calibrate it: after `quantize("gptq")` the layer
-        is in `gptq` mode with its calibration no longer pending.
+        is in `gptq` mode and holds no float kernel.
         """
         keras.utils.set_random_seed(123)
         embed_dim = 8
@@ -1174,8 +1175,7 @@ class TestModelQuantization(testing.TestCase):
         model.quantize("gptq", config=config)
 
         act_dense = structure["sequential_blocks"][0].layers[0]
-        self.assertEqual(act_dense.quantization_mode, "gptq")
-        self.assertFalse(act_dense.calibration_pending)
+        assert_calibrated(self, act_dense, "gptq")
 
     def test_gptq_missing_structure_leaves_model_unmodified(self):
         """A config without a structure raises before any layer is mutated."""
@@ -1208,6 +1208,12 @@ class TestModelQuantization(testing.TestCase):
         model, structure = tiny_calibration_model(
             [
                 layers.Dense(embed_dim, activation="relu"),
+                # Gemma's `[heads, d_model, head_dim]` query projection,
+                # whose contracted axis does not lead the kernel.
+                layers.EinsumDense(
+                    "btd,ndh->btnh", output_shape=(seq_len, 2, 2)
+                ),
+                layers.Reshape((seq_len, embed_dim)),
                 layers.EinsumDense(
                     "abc,cd->abd", output_shape=(seq_len, embed_dim)
                 ),
@@ -1260,6 +1266,9 @@ class TestModelQuantization(testing.TestCase):
             getattr(restored_dense, "quantization_mode", None), "gptq"
         )
         self.assertTrue(hasattr(restored_dense, "quantized_kernel"))
-        self.assertIsNone(
-            restored_dense.quantization_config.quantization_layer_structure
+        # A calibrated layer stores no config, so no structure either.
+        self.assertIsNone(restored_dense.quantization_config)
+        # Stored by the model width: 4 rows of 4 columns packed to 2 bytes.
+        self.assertEqual(
+            tuple(restored_block.layers[1].quantized_kernel.shape), (4, 2)
         )

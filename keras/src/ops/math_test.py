@@ -2,6 +2,7 @@ import itertools
 import math
 
 import jax.numpy as jnp
+import jax.scipy.special
 import numpy as np
 import pytest
 import scipy.signal
@@ -15,6 +16,8 @@ from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
 from keras.src.ops import math as kmath
 from keras.src.ops import numpy as knp
+from keras.src.testing.op_test_case import UnaryOpTest
+from keras.src.testing.op_test_case import X
 from keras.src.testing.test_utils import named_product
 
 
@@ -153,11 +156,6 @@ class MathOpsDynamicShapeTest(testing.TestCase):
 
         z = kmath.cdist(x, y)
         self.assertEqual(z.shape, (None, 2, 4))
-
-    def test_erf(self):
-        x = KerasTensor((None, 2, 3))
-        y = kmath.erf(x)
-        self.assertEqual(y.shape, (None, 2, 3))
 
     def test_erfc(self):
         x = KerasTensor((None, 2, 3))
@@ -386,11 +384,6 @@ class MathOpsStaticShapeTest(testing.TestCase):
 
         z = kmath.cdist(x, y)
         self.assertEqual(z.shape, (1, 2, 4))
-
-    def test_erf(self):
-        x = KerasTensor((1, 2, 3))
-        y = kmath.erf(x)
-        self.assertEqual(y.shape, (1, 2, 3))
 
     def test_erfc(self):
         x = KerasTensor((1, 2, 3))
@@ -1105,36 +1098,6 @@ class MathOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(kmath.rsqrt(x), 1 / np.sqrt(x))
         self.assertAllClose(kmath.Rsqrt()(x), 1 / np.sqrt(x))
 
-    def test_erf_operation_basic(self):
-        # Sample values for testing
-        sample_values = np.array([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0])
-
-        # Expected output using numpy's approximation of the error function
-        expected_output = scipy.special.erf(sample_values)
-
-        # Output from the erf operation in keras_core
-        output_from_erf_op = kmath.erf(sample_values)
-
-        # Assert that the outputs are close
-        self.assertAllClose(output_from_erf_op, expected_output, atol=1e-4)
-
-    def test_erf_operation_dtype(self):
-        # Test for float32 and float64 data types
-        for dtype in ("float32", "float64"):
-            sample_values = np.array(
-                [-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], dtype=dtype
-            )
-            expected_output = scipy.special.erf(sample_values)
-            output_from_erf_op = kmath.erf(sample_values)
-            self.assertAllClose(output_from_erf_op, expected_output, atol=1e-4)
-
-    def test_erf_operation_edge_cases(self):
-        # Test for edge cases
-        edge_values = np.array([1e5, -1e5, 1e-5, -1e-5], dtype=np.float64)
-        expected_output = scipy.special.erf(edge_values)
-        output_from_edge_erf_op = kmath.erf(edge_values)
-        self.assertAllClose(output_from_edge_erf_op, expected_output, atol=1e-4)
-
     def test_erfc_operation_basic(self):
         sample_values = np.array([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0])
 
@@ -1344,22 +1307,6 @@ class MathDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
-    def test_erf(self, dtype):
-        import jax.lax as lax
-        import jax.numpy as jnp
-
-        x = knp.ones((1,), dtype=dtype)
-        x_jax = jnp.ones((1,), dtype=dtype)
-
-        expected_dtype = standardize_dtype(lax.erf(x_jax).dtype)
-
-        self.assertEqual(standardize_dtype(kmath.erf(x).dtype), expected_dtype)
-        self.assertEqual(
-            standardize_dtype(kmath.Erf().symbolic_call(x).dtype),
-            expected_dtype,
-        )
-
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_erfc(self, dtype):
         import jax.numpy as jnp
         import jax.scipy.special as special
@@ -1378,7 +1325,9 @@ class MathDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @parameterized.named_parameters(
+        named_product(dtype=FLOAT_DTYPES + INT_DTYPES)
+    )
     def test_erfinv(self, dtype):
         import jax.numpy as jnp
         import jax.scipy.special as special
@@ -1468,14 +1417,14 @@ class MathDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    @parameterized.named_parameters(
+        named_product(dtype=FLOAT_DTYPES + INT_DTYPES)
+    )
     def test_rsqrt(self, dtype):
-        import jax.lax as lax
-
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
 
-        expected_dtype = standardize_dtype(lax.rsqrt(x_jax).dtype)
+        expected_dtype = standardize_dtype((1 / jnp.sqrt(x_jax)).dtype)
 
         self.assertEqual(
             standardize_dtype(kmath.rsqrt(x).dtype),
@@ -2156,3 +2105,15 @@ class ViewAsComplexRealTest(testing.TestCase):
         self.assertEqual(result.shape, expected.shape)
         self.assertEqual(standardize_dtype(result.dtype), expected.dtype)
         self.assertAllClose(result, expected)
+
+
+class ErfTest(UnaryOpTest):
+    op, op_class = kmath.erf, kmath.Erf
+    reference_fn, jax_fn = scipy.special.erf, jax.scipy.special.erf
+    cases = {  # The first case feeds the dtype tests.
+        "standard": ((X,), {}),
+        "signs_and_magnitudes": (
+            (np.array([[-1e5, -3.0, -1e-5], [1e-5, 3.0, 1e5]], "float32"),),
+            {},
+        ),
+    }

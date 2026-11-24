@@ -1,12 +1,14 @@
 import math
 import warnings
 
-from keras.src import backend
 from keras.src import initializers
 from keras.src import layers
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import config
+from keras.src.backend.common import standardize_data_format
 from keras.src.backend.common import standardize_dtype
+from keras.src.utils import argument_validation
 from keras.src.utils.module_utils import scipy
 
 
@@ -146,6 +148,15 @@ class STFTSpectrogram(layers.Layer):
         data_format=None,
         **kwargs,
     ):
+        frame_length = argument_validation.validate_int(
+            "frame_length", frame_length, min_value=1
+        )
+        frame_step = argument_validation.validate_int(
+            "frame_step", frame_step, allow_none=True
+        )
+        fft_length = argument_validation.validate_int(
+            "fft_length", fft_length, allow_none=True
+        )
         if frame_step is not None and (
             frame_step > frame_length or frame_step < 1
         ):
@@ -208,7 +219,7 @@ class STFTSpectrogram(layers.Layer):
         self.scaling = scaling
         self.padding = padding
         self.expand_dims = expand_dims
-        self.data_format = backend.standardize_data_format(data_format)
+        self.data_format = standardize_data_format(data_format)
         self.input_spec = layers.input_spec.InputSpec(ndim=3)
 
     def build(self, input_shape):
@@ -330,13 +341,13 @@ class STFTSpectrogram(layers.Layer):
                 )
             )
         linear_stft = self._adjust_shapes(
-            ops.sqrt(ops.maximum(power, backend.epsilon()))
+            ops.sqrt(ops.maximum(power, config.epsilon()))
         )
 
         if self.mode == "magnitude":
             return linear_stft
         else:
-            return ops.log(ops.maximum(linear_stft, backend.epsilon()))
+            return ops.log(ops.maximum(linear_stft, config.epsilon()))
 
     def compute_output_shape(self, input_shape):
         if self.data_format == "channels_last":

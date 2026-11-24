@@ -2,6 +2,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.layers.preprocessing.data_layer import DataLayer
 from keras.src.utils import argument_validation
@@ -159,7 +160,7 @@ class Discretization(DataLayer):
 
     @property
     def input_dtype(self):
-        return backend.floatx()
+        return config.floatx()
 
     @property
     def output_dtype(self):

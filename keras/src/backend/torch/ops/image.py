@@ -7,10 +7,12 @@ import torch
 import torch._dynamo as dynamo
 import torch.nn.functional as F
 
-from keras.src import backend
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import is_int_dtype
+from keras.src.backend.common import result_type
+from keras.src.backend.common import standardize_data_format
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.dtypes import promote_to_float_dtype
 from keras.src.backend.torch.ops.core import cast
 from keras.src.backend.torch.ops.core import convert_to_tensor
 from keras.src.backend.torch.ops.core import get_device
@@ -51,7 +53,7 @@ SCALE_AND_TRANSLATE_METHODS = {
 
 def rgb_to_grayscale(images, data_format=None):
     images = convert_to_tensor(images)
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if images.ndim not in (3, 4):
         raise ValueError(
             "Invalid images rank: expected rank 3 (single image) "
@@ -80,7 +82,7 @@ def rgb_to_hsv(images, data_format=None):
     # Ref: dm_pix
     images = convert_to_tensor(images)
     dtype = images.dtype
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     channels_axis = -1 if data_format == "channels_last" else -3
     if len(images.shape) not in (3, 4):
         raise ValueError(
@@ -130,7 +132,7 @@ def hsv_to_rgb(images, data_format=None):
     # Ref: dm_pix
     images = convert_to_tensor(images)
     dtype = images.dtype
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     channels_axis = -1 if data_format == "channels_last" else -3
     if len(images.shape) not in (3, 4):
         raise ValueError(
@@ -211,7 +213,7 @@ def resize(
     fill_value=0.0,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if (
         interpolation not in RESIZE_INTERPOLATIONS
         and interpolation not in LANCZOS_INTERPOLATIONS
@@ -392,7 +394,7 @@ def affine_transform(
     fill_value=0,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
@@ -457,6 +459,7 @@ def affine_transform(
     a2 = transform[:, 2].clone()
     b1 = transform[:, 4].clone()
     b2 = transform[:, 5].clone()
+    transform = transform.clone()
     transform[:, 0] = b1
     transform[:, 2] = b2
     transform[:, 4] = a0
@@ -466,7 +469,7 @@ def affine_transform(
     transform = torch.nn.functional.pad(
         transform, pad=[0, 1, 0, 0], mode="constant", value=1
     )
-    transform = torch.reshape(transform, (batch_size, 3, 3))
+    transform = torch.reshape(transform, (-1, 3, 3))
     offset = transform[:, 0:2, 2].clone()
     offset = torch.nn.functional.pad(offset, pad=[0, 1, 0, 0])
     transform[:, 0:2, 2] = 0
@@ -474,7 +477,9 @@ def affine_transform(
     # transform the indices
     coordinates = torch.einsum("Bhwij, Bjk -> Bhwik", indices, transform)
     coordinates = torch.moveaxis(coordinates, source=-1, destination=1)
-    coordinates += torch.reshape(offset, shape=(*offset.shape, 1, 1, 1))
+    coordinates = coordinates + torch.reshape(
+        offset, shape=(*offset.shape, 1, 1, 1)
+    )
 
     # Note: torch.stack is faster than torch.vmap when the batch size is small.
     affined = torch.stack(
@@ -505,7 +510,7 @@ def perspective_transform(
     fill_value=0,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
 
     images = convert_to_tensor(images)
     dtype = standardize_dtype(images.dtype)
@@ -608,9 +613,11 @@ def perspective_transform(
 def compute_homography_matrix(start_points, end_points):
     start_points = convert_to_tensor(start_points)
     end_points = convert_to_tensor(end_points)
-    dtype = backend.result_type(start_points.dtype, end_points.dtype, float)
+    dtype = promote_to_float_dtype(
+        result_type(start_points.dtype, end_points.dtype)
+    )
     # `torch.linalg.solve` requires float32.
-    compute_dtype = backend.result_type(dtype, "float32")
+    compute_dtype = result_type(dtype, "float32")
     start_points = cast(start_points, dtype)
     end_points = cast(end_points, dtype)
 
@@ -908,7 +915,7 @@ def gaussian_blur(
         kernel = kernel.view(1, 1, kernel_size[0], kernel_size[1])
         return kernel
 
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     images = convert_to_tensor(images)
     kernel_size = tuple(int(size) for size in kernel_size)
     sigma = convert_to_tensor(sigma)
@@ -984,7 +991,7 @@ def elastic_transform(
     seed=None,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
@@ -1137,7 +1144,7 @@ _kernels = {
 def _compute_weight_mat(
     input_size, output_size, scale, translation, kernel, antialias
 ):
-    dtype = to_torch_dtype(backend.result_type(scale.dtype, translation.dtype))
+    dtype = to_torch_dtype(result_type(scale.dtype, translation.dtype))
     inv_scale = 1.0 / scale
     kernel_scale = (
         torch.maximum(
@@ -1234,7 +1241,7 @@ def scale_and_translate(
     scale = convert_to_tensor(scale)
     translation = convert_to_tensor(translation)
     kernel = _kernels[method]
-    dtype = backend.result_type(scale.dtype, translation.dtype)
+    dtype = result_type(scale.dtype, translation.dtype)
     scale = cast(scale, dtype)
     translation = cast(translation, dtype)
     return _scale_and_translate(

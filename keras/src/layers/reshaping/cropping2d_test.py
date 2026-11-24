@@ -1,10 +1,10 @@
 import numpy as np
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 
 
 class Cropping2DTest(testing.TestCase):
@@ -62,12 +62,12 @@ class Cropping2DTest(testing.TestCase):
         )
 
     def test_cropping_2d_with_dynamic_spatial_dim(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_layer = layers.Input(batch_shape=(1, 7, None, 5))
         else:
             input_layer = layers.Input(batch_shape=(1, 5, 7, None))
         cropped = layers.Cropping2D(((1, 2), (3, 4)))(input_layer)
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             self.assertEqual(cropped.shape, (1, 4, None, 5))
         else:
             self.assertEqual(cropped.shape, (1, 5, 4, None))
@@ -131,3 +131,10 @@ class Cropping2DTest(testing.TestCase):
                 cropping=cropping, data_format=data_format
             )
             _ = layer(inputs)
+
+    def test_numpy_integer_cropping(self):
+        layer = layers.Cropping2D(cropping=np.int64(2))
+        self.assertEqual(layer.cropping, ((2, 2), (2, 2)))
+        for pair in layer.cropping:
+            for v in pair:
+                self.assertIs(type(v), int)

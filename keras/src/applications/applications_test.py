@@ -21,6 +21,7 @@ from keras.src.applications import resnet_v2
 from keras.src.applications import vgg16
 from keras.src.applications import vgg19
 from keras.src.applications import xception
+from keras.src.backend import config
 from keras.src.layers import Conv2D
 from keras.src.layers import Input
 from keras.src.saving import serialization_lib
@@ -123,11 +124,11 @@ def _get_elephant(target_size):
 class ApplicationsTest(testing.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.original_image_data_format = backend.image_data_format()
+        cls.original_image_data_format = config.image_data_format()
 
     @classmethod
     def tearDownClass(cls):
-        backend.set_image_data_format(cls.original_image_data_format)
+        config.set_image_data_format(cls.original_image_data_format)
 
     def skip_if_invalid_image_data_format_for_model(
         self, app, image_data_format
@@ -151,7 +152,7 @@ class ApplicationsTest(testing.TestCase):
         self, app, last_dim, _, image_data_format
     ):
         self.skip_if_invalid_image_data_format_for_model(app, image_data_format)
-        backend.set_image_data_format(image_data_format)
+        config.set_image_data_format(image_data_format)
 
         # Test compatibility with 1 channel
         if image_data_format == "channels_first":
@@ -189,7 +190,7 @@ class ApplicationsTest(testing.TestCase):
                 "tensorflow backend"
             )
         self.skip_if_invalid_image_data_format_for_model(app, image_data_format)
-        backend.set_image_data_format(image_data_format)
+        config.set_image_data_format(image_data_format)
 
         # Can be instantiated with default arguments
         model = app(weights="imagenet")
@@ -208,8 +209,10 @@ class ApplicationsTest(testing.TestCase):
         self.assertIn("African_elephant", names[:3])
 
         # Can be serialized and deserialized
-        config = serialization_lib.serialize_keras_object(model)
-        reconstructed_model = serialization_lib.deserialize_keras_object(config)
+        model_config = serialization_lib.serialize_keras_object(model)
+        reconstructed_model = serialization_lib.deserialize_keras_object(
+            model_config
+        )
         self.assertEqual(len(model.weights), len(reconstructed_model.weights))
 
     @parameterized.named_parameters(test_parameters)
@@ -217,7 +220,7 @@ class ApplicationsTest(testing.TestCase):
         self, app, last_dim, _, image_data_format
     ):
         self.skip_if_invalid_image_data_format_for_model(app, image_data_format)
-        backend.set_image_data_format(image_data_format)
+        config.set_image_data_format(image_data_format)
 
         if image_data_format == "channels_first":
             input_shape = (3, 123, 123)
@@ -234,7 +237,7 @@ class ApplicationsTest(testing.TestCase):
         self, app, last_dim, _, image_data_format
     ):
         self.skip_if_invalid_image_data_format_for_model(app, image_data_format)
-        backend.set_image_data_format(image_data_format)
+        config.set_image_data_format(image_data_format)
 
         if image_data_format == "channels_first":
             input_shape = (4, 200, 200)
@@ -254,7 +257,7 @@ class ApplicationsTest(testing.TestCase):
     @parameterized.named_parameters(test_parameters)
     def test_application_pooling(self, app, last_dim, _, image_data_format):
         self.skip_if_invalid_image_data_format_for_model(app, image_data_format)
-        backend.set_image_data_format(image_data_format)
+        config.set_image_data_format(image_data_format)
 
         model = app(weights=None, include_top=False, pooling="max")
         output_shape = list(model.outputs[0].shape)

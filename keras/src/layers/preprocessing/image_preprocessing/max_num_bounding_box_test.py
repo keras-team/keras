@@ -1,8 +1,8 @@
 import numpy as np
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -25,7 +25,7 @@ class MaxNumBoundingBoxesTest(testing.TestCase):
         )
 
     def test_output_shapes(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             image_shape = (10, 8, 3)
         else:
             image_shape = (3, 10, 8)
@@ -49,7 +49,7 @@ class MaxNumBoundingBoxesTest(testing.TestCase):
         self.assertEqual(output["bounding_boxes"]["labels"].shape, (40,))
 
     def test_output_shapes_with_tf_data(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             image_shape = (1, 10, 8, 3)
         else:
             image_shape = (1, 3, 10, 8)

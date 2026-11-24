@@ -7,6 +7,7 @@ from keras.src import ops
 from keras.src import random
 from keras.src.api_export import keras_export
 from keras.src.applications import imagenet_utils
+from keras.src.backend import config
 from keras.src.backend.common import is_keras_tensor
 from keras.src.layers.layer import Layer
 from keras.src.models import Functional
@@ -392,7 +393,7 @@ def ConvNeXt(
     Returns:
         A model instance.
     """
-    if backend.image_data_format() == "channels_first":
+    if config.image_data_format() == "channels_first":
         raise ValueError(
             "ConvNeXt does not support the `channels_first` image data "
             "format. Switch to `channels_last` by editing your local "
@@ -418,7 +419,7 @@ def ConvNeXt(
         input_shape,
         default_size=default_size,
         min_size=32,
-        data_format=backend.image_data_format(),
+        data_format=config.image_data_format(),
         require_flatten=include_top,
         weights=weights,
     )
@@ -439,9 +440,7 @@ def ConvNeXt(
         x = inputs
 
     if include_preprocessing:
-        channel_axis = (
-            3 if backend.image_data_format() == "channels_last" else 1
-        )
+        channel_axis = 3 if config.image_data_format() == "channels_last" else 1
         num_channels = input_shape[channel_axis - 1]
         if num_channels == 3:
             x = PreStem(name=name)(x)
@@ -773,7 +772,7 @@ def preprocess_input(x, data_format=None):
         x: A floating point `numpy.array` or a tensor.
         data_format: Optional data format of the image tensor/array. Defaults to
             None, in which case the global setting
-            `keras.backend.image_data_format()` is used
+            `keras.config.image_data_format()` is used
             (unless you changed it, it defaults to `"channels_last"`).{mode}
 
     Returns:

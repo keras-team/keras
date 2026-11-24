@@ -1,5 +1,6 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.common import standardize_data_format
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.utils import argument_validation
@@ -60,14 +61,8 @@ class ZeroPadding3D(Layer):
         self, padding=((1, 1), (1, 1), (1, 1)), data_format=None, **kwargs
     ):
         super().__init__(**kwargs)
-        self.data_format = backend.standardize_data_format(data_format)
-        if isinstance(padding, int):
-            self.padding = (
-                (padding, padding),
-                (padding, padding),
-                (padding, padding),
-            )
-        elif hasattr(padding, "__len__"):
+        self.data_format = standardize_data_format(data_format)
+        if hasattr(padding, "__len__"):
             if len(padding) != 3:
                 raise ValueError(
                     f"`padding` should have 3 elements. Received: {padding}."
@@ -83,14 +78,13 @@ class ZeroPadding3D(Layer):
             )
             self.padding = (dim1_padding, dim2_padding, dim3_padding)
         else:
-            raise ValueError(
-                "`padding` should be either an int, a tuple of 3 ints "
-                "(symmetric_dim1_pad, symmetric_dim2_pad, symmetric_dim3_pad), "
-                "or a tuple of 3 tuples of 2 ints "
-                "((left_dim1_pad, right_dim1_pad),"
-                " (left_dim2_pad, right_dim2_pad),"
-                " (left_dim3_pad, right_dim2_pad)). "
-                f"Received: padding={padding}."
+            padding = argument_validation.validate_int(
+                "padding", padding, min_value=0
+            )
+            self.padding = (
+                (padding, padding),
+                (padding, padding),
+                (padding, padding),
             )
         self.input_spec = InputSpec(ndim=5)
 

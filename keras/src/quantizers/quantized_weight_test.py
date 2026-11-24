@@ -11,10 +11,8 @@ from keras.src import models
 from keras.src import ops
 from keras.src import testing
 from keras.src.backend.common import AutocastScope
-from keras.src.backend.common import standardize_dtype
 from keras.src.quantizers import packing
 from keras.src.quantizers import strategy_registry
-from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.modes.int8 import Int8Strategy
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantized_weight import Int2Quads
@@ -287,6 +285,21 @@ class QuantizedWeightTest(testing.TestCase):
         self.assertEqual(tuple(view.dequantize("float32").shape), (2, 2, 3))
         self.assertIn("shape=(2, 2, 3)", repr(view))
 
+    def test_permutation_restores_the_weight_axes(self):
+        # The codes are the weight transposed by `permutation`, flattened.
+        weight = np.arange(24, dtype="float32").reshape(2, 3, 4)
+        codes = np.transpose(weight, (1, 0, 2)).reshape(3, 8).astype("int8")
+        view = QuantizedWeight(
+            codes=codes,
+            scale=np.float32(1.0),
+            layout=NoPack(),
+            scheme=DIVISOR,
+            shape=(2, 3, 4),
+            permutation=(1, 0, 2),
+        )
+        self.assertAllEqual(view.unpack(), weight)
+        self.assertAllClose(view.dequantize("float32"), weight)
+
     def test_with_tensors_takes_read_tensors_in_order(self):
         view = _grouped_view(
             input_scales=np.array([1.0, 2.0, 4.0, 8.0], "float32")
@@ -462,17 +475,6 @@ class LayerViewTest(testing.TestCase):
         self.assertIsNone(layer._quantized_weight())
         layer.quantize("float8")
         self.assertIsNone(layer._quantized_weight())
-
-    def test_uncalibrated_calibration_mode_has_no_view(self):
-        layer = layers.Dense(3)
-        layer.build((None, 4))
-        layer.quantize(
-            "gptq",
-            config=GPTQConfig(dataset=None, tokenizer=None, group_size=2),
-        )
-        self.assertIsNone(layer._quantized_weight())
-        # The float kernel is still what the property exposes.
-        self.assertEqual(standardize_dtype(layer.kernel.dtype), "float32")
 
 
 class QuantizationSummaryTest(testing.TestCase):

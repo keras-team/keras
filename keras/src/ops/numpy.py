@@ -11,6 +11,8 @@ from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import any_symbolic_tensors
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_float_dtype
+from keras.src.backend.common import is_int_dtype
+from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
@@ -210,8 +212,7 @@ class Fabs(Operation):
             raise TypeError(
                 f"fabs does not support complex inputs. Received: dtype={dtype}"
             )
-        if "int" in dtype or dtype == "bool":
-            dtype = backend.floatx()
+        dtype = dtypes.promote_to_float_dtype(dtype)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
 
@@ -251,8 +252,7 @@ def _fabs(x):
         backend.ops.numpy, "fabs"
     ):
         return backend.ops.numpy.fabs(x)
-    if "int" in dtype or dtype == "bool":
-        x = backend.ops.cast(x, config.floatx())
+    x = backend.ops.cast(x, dtypes.promote_to_float_dtype(dtype))
     return backend.ops.numpy.absolute(x)
 
 
@@ -439,9 +439,9 @@ class Angle(Operation):
         return _angle(x)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(getattr(x, "dtype", backend.floatx()))
+        dtype = standardize_dtype(getattr(x, "dtype", config.floatx()))
         if dtype == "int64":
-            dtype = backend.floatx()
+            dtype = config.floatx()
         else:
             dtype = dtypes.result_type(dtype, float)
         return KerasTensor(x.shape, dtype=dtype)
@@ -481,7 +481,7 @@ def _angle(x):
         x_real = backend.ops.numpy.real(x)
     else:
         if dtype == "int64":
-            dtype = backend.floatx()
+            dtype = config.floatx()
         else:
             dtype = dtypes.result_type(dtype, float)
         x_real = backend.ops.cast(x, dtype)
@@ -715,11 +715,9 @@ class Arccos(Operation):
         return backend.ops.numpy.arccos(x)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(getattr(x, "dtype", backend.floatx()))
-        if dtype == "int64":
-            dtype = backend.floatx()
-        else:
-            dtype = dtypes.result_type(dtype, float)
+        dtype = dtypes.promote_to_float_dtype(
+            getattr(x, "dtype", config.floatx())
+        )
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -751,11 +749,9 @@ class Arccosh(Operation):
         return backend.ops.numpy.arccosh(x)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(getattr(x, "dtype", backend.floatx()))
-        if dtype == "int64":
-            dtype = backend.floatx()
-        else:
-            dtype = dtypes.result_type(dtype, float)
+        dtype = dtypes.promote_to_float_dtype(
+            getattr(x, "dtype", config.floatx())
+        )
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -784,11 +780,9 @@ class Arcsin(Operation):
         return backend.ops.numpy.arcsin(x)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(getattr(x, "dtype", backend.floatx()))
-        if dtype == "int64":
-            dtype = backend.floatx()
-        else:
-            dtype = dtypes.result_type(dtype, float)
+        dtype = dtypes.promote_to_float_dtype(
+            getattr(x, "dtype", config.floatx())
+        )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
@@ -819,11 +813,9 @@ class Arcsinh(Operation):
         return backend.ops.numpy.arcsinh(x)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(getattr(x, "dtype", backend.floatx()))
-        if dtype == "int64":
-            dtype = backend.floatx()
-        else:
-            dtype = dtypes.result_type(dtype, float)
+        dtype = dtypes.promote_to_float_dtype(
+            getattr(x, "dtype", config.floatx())
+        )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
@@ -853,11 +845,9 @@ class Arctan(Operation):
         return backend.ops.numpy.arctan(x)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(getattr(x, "dtype", backend.floatx()))
-        if dtype == "int64":
-            dtype = backend.floatx()
-        else:
-            dtype = dtypes.result_type(dtype, float)
+        dtype = dtypes.promote_to_float_dtype(
+            getattr(x, "dtype", config.floatx())
+        )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
@@ -891,9 +881,11 @@ class Arctan2(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         outputs_shape = broadcast_shapes(x1_shape, x2_shape)
-        x1_dtype = standardize_dtype(getattr(x1, "dtype", backend.floatx()))
-        x2_dtype = standardize_dtype(getattr(x2, "dtype", backend.floatx()))
-        dtype = dtypes.result_type(x1_dtype, x2_dtype, float)
+        x1_dtype = dtypes.result_type(getattr(x1, "dtype", type(x1)))
+        x2_dtype = dtypes.result_type(getattr(x2, "dtype", type(x2)))
+        dtype = dtypes.promote_to_float_dtype(
+            dtypes.result_type(x1_dtype, x2_dtype)
+        )
         return KerasTensor(outputs_shape, dtype=dtype)
 
 
@@ -946,11 +938,9 @@ class Arctanh(Operation):
         return backend.ops.numpy.arctanh(x)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(getattr(x, "dtype", backend.floatx()))
-        if dtype == "int64":
-            dtype = backend.floatx()
-        else:
-            dtype = dtypes.result_type(dtype, float)
+        dtype = dtypes.promote_to_float_dtype(
+            getattr(x, "dtype", config.floatx())
+        )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
@@ -1237,7 +1227,7 @@ class Average(Operation):
         return backend.ops.numpy.average(x, weights=weights, axis=self.axis)
 
     def compute_output_spec(self, x, weights=None):
-        dtypes_to_resolve = [getattr(x, "dtype", type(x)), float]
+        dtypes_to_resolve = [getattr(x, "dtype", type(x))]
         if weights is not None:
             shape_match = shape_equal(x.shape, weights.shape, allow_none=True)
             if self.axis is not None:
@@ -1255,7 +1245,9 @@ class Average(Operation):
                         [x.shape[self.axis]], weights.shape, allow_none=True
                     )
             dtypes_to_resolve.append(getattr(weights, "dtype", type(weights)))
-        dtype = dtypes.result_type(*dtypes_to_resolve)
+        dtype = dtypes.promote_to_float_dtype(
+            dtypes.result_type(*dtypes_to_resolve)
+        )
         if self.axis is None:
             if weights is None or shape_match:
                 return KerasTensor([], dtype=dtype)
@@ -1401,7 +1393,26 @@ def hamming(x):
             f"Hamming operation does not support symbolic tensors. "
             f"Received input x = {x} of type {type(x)}"
         )
-    return backend.ops.numpy.hamming(x)
+    return _hamming(x)
+
+
+def _hamming(x):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "hamming"
+    ):
+        return backend.ops.numpy.hamming(x)
+    dtype = config.floatx()
+    compute_dtype = result_type(dtype, "float32")
+    x = backend.ops.cast(x, "int32")
+    n = backend.ops.numpy.arange(x, dtype=compute_dtype)
+    x_minus_1 = backend.ops.cast(x - 1, compute_dtype)
+    phase = (
+        python_math.pi
+        * (2 * n - x_minus_1)
+        / backend.ops.numpy.maximum(x_minus_1, 1.0)
+    )
+    window = 0.54 + 0.46 * backend.ops.numpy.cos(phase)
+    return backend.ops.cast(window, dtype)
 
 
 @keras_export(["keras.ops.hanning", "keras.ops.numpy.hanning"])
@@ -1427,7 +1438,26 @@ def hanning(x):
             f"Hanning operation does not support symbolic tensors. "
             f"Received input x = {x} of type {type(x)}"
         )
-    return backend.ops.numpy.hanning(x)
+    return _hanning(x)
+
+
+def _hanning(x):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "hanning"
+    ):
+        return backend.ops.numpy.hanning(x)
+    dtype = config.floatx()
+    compute_dtype = result_type(dtype, "float32")
+    x = backend.ops.cast(x, "int32")
+    n = backend.ops.numpy.arange(x, dtype=compute_dtype)
+    x_minus_1 = backend.ops.cast(x - 1, compute_dtype)
+    phase = (
+        python_math.pi
+        * (2 * n - x_minus_1)
+        / backend.ops.numpy.maximum(x_minus_1, 1.0)
+    )
+    window = 0.5 + 0.5 * backend.ops.numpy.cos(phase)
+    return backend.ops.cast(window, dtype)
 
 
 class Heaviside(Operation):
@@ -1435,11 +1465,9 @@ class Heaviside(Operation):
         return backend.ops.numpy.heaviside(x1, x2)
 
     def compute_output_spec(self, x1, x2):
-        dtype = dtypes.result_type(x1.dtype, x2.dtype)
-        if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
-            dtype = backend.floatx()
-        elif dtype == "int64":
-            dtype = "float64"
+        dtype = dtypes.promote_to_float_dtype(
+            dtypes.result_type(x1.dtype, x2.dtype)
+        )
         return KerasTensor(broadcast_shapes(x1.shape, x2.shape), dtype=dtype)
 
 
@@ -1916,20 +1944,7 @@ class Cbrt(Operation):
         return _cbrt(x)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(x.dtype)
-        if dtype in [
-            "bool",
-            "int8",
-            "int16",
-            "int32",
-            "uint8",
-            "uint16",
-            "uint32",
-        ]:
-            dtype = backend.floatx()
-        elif dtype == "int64":
-            dtype = "float64"
-
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -1957,11 +1972,7 @@ def _cbrt(x):
     ):
         return backend.ops.numpy.cbrt(x)
     x = backend.ops.convert_to_tensor(x)
-    dtype = standardize_dtype(x.dtype)
-    if dtype in ("bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"):
-        dtype = backend.floatx()
-    elif dtype == "int64":
-        dtype = "float64"
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = backend.ops.cast(x, dtype)
     y = backend.ops.numpy.sign(x) * backend.ops.numpy.power(
         backend.ops.numpy.absolute(x), 1.0 / 3.0
@@ -1974,10 +1985,7 @@ class Ceil(Operation):
         return backend.ops.numpy.ceil(x)
 
     def compute_output_spec(self, x):
-        if standardize_dtype(x.dtype) == "int64":
-            dtype = backend.floatx()
-        else:
-            dtype = dtypes.result_type(x.dtype, float)
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
         sparse = getattr(x, "sparse", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
@@ -2159,9 +2167,11 @@ class Copysign(Operation):
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
 
-        x1_type = standardize_dtype(getattr(x1, "dtype", type(x1)))
-        x2_type = standardize_dtype(getattr(x2, "dtype", type(x2)))
-        dtype = dtypes.result_type(x1_type, x2_type, float)
+        x1_type = dtypes.result_type(getattr(x1, "dtype", type(x1)))
+        x2_type = dtypes.result_type(getattr(x2, "dtype", type(x2)))
+        dtype = dtypes.promote_to_float_dtype(
+            dtypes.result_type(x1_type, x2_type)
+        )
         return KerasTensor(output_shape, dtype=dtype)
 
 
@@ -2197,7 +2207,9 @@ def _copysign(x1, x2):
         return backend.ops.numpy.copysign(x1, x2)
     x1 = backend.ops.convert_to_tensor(x1)
     x2 = backend.ops.convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     x1 = backend.ops.cast(x1, dtype)
     x2 = backend.ops.cast(x2, dtype)
     # Negate `x1` exactly when its sign differs from the sign of `x2`.
@@ -2212,11 +2224,9 @@ class Cos(Operation):
         return backend.ops.numpy.cos(x)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(getattr(x, "dtype", backend.floatx()))
-        if dtype == "int64":
-            dtype = backend.floatx()
-        else:
-            dtype = dtypes.result_type(dtype, float)
+        dtype = dtypes.promote_to_float_dtype(
+            getattr(x, "dtype", config.floatx())
+        )
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -2240,11 +2250,9 @@ class Cosh(Operation):
         return backend.ops.numpy.cosh(x)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(getattr(x, "dtype", backend.floatx()))
-        if dtype == "int64":
-            dtype = backend.floatx()
-        else:
-            dtype = dtypes.result_type(dtype, float)
+        dtype = dtypes.promote_to_float_dtype(
+            getattr(x, "dtype", config.floatx())
+        )
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -2510,10 +2518,7 @@ class Deg2rad(Operation):
         return _deg2rad(x)
 
     def compute_output_spec(self, x):
-        if standardize_dtype(x.dtype) == "int64":
-            dtype = config.floatx()
-        else:
-            dtype = dtypes.result_type(x.dtype, float)
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
         return KerasTensor(x.shape, dtype)
 
 
@@ -2548,10 +2553,7 @@ def _deg2rad(x):
     ):
         return backend.ops.numpy.deg2rad(x)
     x = backend.ops.convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = backend.ops.cast(x, dtype)
     return backend.ops.numpy.multiply(x, python_math.pi / 180.0)
 
@@ -2561,10 +2563,7 @@ class Rad2deg(Operation):
         return _rad2deg(x)
 
     def compute_output_spec(self, x):
-        if standardize_dtype(x.dtype) == "int64":
-            dtype = config.floatx()
-        else:
-            dtype = dtypes.result_type(x.dtype, float)
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
         return KerasTensor(x.shape, dtype)
 
 
@@ -2599,10 +2598,7 @@ def _rad2deg(x):
     ):
         return backend.ops.numpy.rad2deg(x)
     x = backend.ops.convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = backend.ops.cast(x, dtype)
     return backend.ops.numpy.multiply(x, 180.0 / python_math.pi)
 
@@ -3500,9 +3496,7 @@ def _exp2(x):
     ):
         return backend.ops.numpy.exp2(x)
     x = backend.ops.convert_to_tensor(x)
-    dtype = standardize_dtype(x.dtype)
-    if "int" in dtype or dtype == "bool":
-        x = backend.ops.cast(x, config.floatx())
+    x = backend.ops.cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return backend.ops.numpy.power(2.0, x)
 
 
@@ -3723,11 +3717,7 @@ class Floor(Operation):
 
     def compute_output_spec(self, x):
         sparse = getattr(x, "sparse", False)
-        dtype = (
-            backend.floatx()
-            if standardize_dtype(x.dtype) == "int64"
-            else dtypes.result_type(x.dtype, float)
-        )
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
 
@@ -3758,7 +3748,7 @@ class Full(Operation):
         return backend.ops.numpy.full(self.shape, fill_value, dtype=self.dtype)
 
     def compute_output_spec(self, fill_value):
-        dtype = backend.floatx() if self.dtype is None else self.dtype
+        dtype = config.floatx() if self.dtype is None else self.dtype
         return KerasTensor(self.shape, dtype=dtype)
 
 
@@ -3813,7 +3803,7 @@ def full_like(x, fill_value, dtype=None):
 
 class Gcd(Operation):
     def call(self, x1, x2):
-        return backend.ops.numpy.gcd(x1, x2)
+        return _gcd(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         x1_shape = getattr(x1, "shape", [])
@@ -3839,7 +3829,47 @@ def gcd(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Gcd().symbolic_call(x1, x2)
-    return backend.ops.numpy.gcd(x1, x2)
+    return _gcd(x1, x2)
+
+
+def _gcd(x1, x2):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "gcd"
+    ):
+        return backend.ops.numpy.gcd(x1, x2)
+    x1 = backend.ops.convert_to_tensor(x1)
+    x2 = backend.ops.convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if not is_int_dtype(dtype):
+        raise ValueError(
+            f"Arguments to gcd must be integers. Received: dtype={dtype}"
+        )
+    x1 = backend.ops.numpy.absolute(backend.ops.cast(x1, dtype))
+    x2 = backend.ops.numpy.absolute(backend.ops.cast(x2, dtype))
+    x1, x2 = (
+        backend.ops.numpy.add(x1, backend.ops.numpy.zeros_like(x2)),
+        backend.ops.numpy.add(x2, backend.ops.numpy.zeros_like(x1)),
+    )
+
+    def cond(x1, x2):
+        return backend.ops.numpy.any(backend.ops.numpy.not_equal(x2, 0))
+
+    def body(x1, x2):
+        x2_is_zero = backend.ops.numpy.equal(x2, 0)
+        x2_safe = backend.ops.numpy.where(
+            x2_is_zero, backend.ops.numpy.ones_like(x2), x2
+        )
+        return (
+            backend.ops.numpy.where(x2_is_zero, x1, x2),
+            backend.ops.numpy.where(
+                x2_is_zero,
+                backend.ops.numpy.zeros_like(x2),
+                backend.ops.numpy.mod(x1, x2_safe),
+            ),
+        )
+
+    x1, _ = backend.ops.while_loop(cond, body, (x1, x2))
+    return x1
 
 
 class GetItem(Operation):
@@ -3932,7 +3962,7 @@ class Geomspace(Operation):
         self.axis = axis
 
     def call(self, start, stop):
-        return backend.ops.numpy.geomspace(
+        return _geomspace(
             start,
             stop,
             num=self.num,
@@ -3953,7 +3983,7 @@ class Geomspace(Operation):
             if self.dtype is not None
             else standardize_dtype(getattr(start, "dtype", type(start)))
         )
-        dtype = backend.result_type(dtype, float)
+        dtype = result_type(dtype, float)
         return KerasTensor(output_shape, dtype=dtype)
 
 
@@ -3987,7 +4017,7 @@ def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
     dtype = None if dtype is None else standardize_dtype(dtype)
     if any_symbolic_tensors((start, stop)):
         return Geomspace(num, endpoint, dtype, axis)(start, stop)
-    return backend.ops.numpy.geomspace(
+    return _geomspace(
         start,
         stop,
         num=num,
@@ -3995,6 +4025,41 @@ def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
         dtype=dtype,
         axis=axis,
     )
+
+
+def _geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "geomspace"
+    ):
+        return backend.ops.numpy.geomspace(
+            start,
+            stop,
+            num=num,
+            endpoint=endpoint,
+            dtype=dtype,
+            axis=axis,
+        )
+    start = backend.ops.convert_to_tensor(start)
+    stop = backend.ops.convert_to_tensor(stop)
+    if dtype is None:
+        dtype = standardize_dtype(start.dtype)
+    dtype = result_type(dtype, float)
+    start = backend.ops.cast(start, dtype)
+    stop = backend.ops.cast(stop, dtype)
+    sign = backend.ops.numpy.sign(start)
+    result = backend.ops.numpy.logspace(
+        backend.ops.numpy.log10(backend.ops.numpy.divide(start, sign)),
+        backend.ops.numpy.log10(backend.ops.numpy.divide(stop, sign)),
+        num=num,
+        endpoint=endpoint,
+        base=10,
+        dtype=dtype,
+        axis=0,
+    )
+    result = backend.ops.numpy.multiply(sign, result)
+    if axis != 0:
+        result = backend.ops.numpy.moveaxis(result, 0, axis)
+    return result
 
 
 class Greater(Operation):
@@ -4184,11 +4249,9 @@ class Hypot(Operation):
         return backend.ops.numpy.hypot(x1, x2)
 
     def compute_output_spec(self, x1, x2):
-        dtype = dtypes.result_type(x1.dtype, x2.dtype)
-        if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
-            dtype = backend.floatx()
-        elif dtype == "int64":
-            dtype = "float64"
+        dtype = dtypes.promote_to_float_dtype(
+            dtypes.result_type(x1.dtype, x2.dtype)
+        )
         return KerasTensor(broadcast_shapes(x1.shape, x2.shape), dtype=dtype)
 
 
@@ -4265,11 +4328,7 @@ class I0(Operation):
         return backend.ops.numpy.i0(x)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(x.dtype)
-        if dtype in ["int64", "float64"]:
-            dtype = "float64"
-        elif dtype not in ["bfloat16", "float16"]:
-            dtype = backend.floatx()
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -4603,10 +4662,9 @@ class Ldexp(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-
-        x1_type = standardize_dtype(getattr(x1, "dtype", type(x1)))
-        x2_type = standardize_dtype(getattr(x2, "dtype", type(x2)))
-        dtype = dtypes.result_type(x1_type, x2_type, float)
+        # The integer exponents in `x2` don't change the dtype.
+        x1_type = dtypes.result_type(getattr(x1, "dtype", type(x1)))
+        dtype = dtypes.promote_to_float_dtype(x1_type)
         return KerasTensor(output_shape, dtype=dtype)
 
 
@@ -4736,7 +4794,7 @@ class Linspace(Operation):
             if self.dtype is not None
             else standardize_dtype(getattr(start, "dtype", type(start)))
         )
-        dtype = backend.result_type(dtype, float)
+        dtype = result_type(dtype, float)
         if self.retstep:
             return (KerasTensor(output_shape, dtype=dtype), None)
         return KerasTensor(output_shape, dtype=dtype)
@@ -4794,11 +4852,7 @@ class Log(Operation):
         return backend.ops.numpy.log(x)
 
     def compute_output_spec(self, x):
-        dtype = (
-            backend.floatx()
-            if standardize_dtype(x.dtype) == "int64"
-            else dtypes.result_type(x.dtype, float)
-        )
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -4822,11 +4876,7 @@ class Log10(Operation):
         return backend.ops.numpy.log10(x)
 
     def compute_output_spec(self, x):
-        dtype = (
-            backend.floatx()
-            if standardize_dtype(x.dtype) == "int64"
-            else dtypes.result_type(x.dtype, float)
-        )
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -4850,11 +4900,7 @@ class Log1p(Operation):
         return backend.ops.numpy.log1p(x)
 
     def compute_output_spec(self, x):
-        dtype = (
-            backend.floatx()
-            if standardize_dtype(x.dtype) == "int64"
-            else dtypes.result_type(x.dtype, float)
-        )
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
         sparse = getattr(x, "sparse", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
@@ -4881,11 +4927,7 @@ class Log2(Operation):
         return backend.ops.numpy.log2(x)
 
     def compute_output_spec(self, x):
-        dtype = (
-            backend.floatx()
-            if standardize_dtype(x.dtype) == "int64"
-            else dtypes.result_type(x.dtype, float)
-        )
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -4912,10 +4954,11 @@ class Logaddexp(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        dtype = dtypes.result_type(
-            getattr(x1, "dtype", type(x1)),
-            getattr(x2, "dtype", type(x2)),
-            float,
+        dtype = dtypes.promote_to_float_dtype(
+            dtypes.result_type(
+                getattr(x1, "dtype", type(x1)),
+                getattr(x2, "dtype", type(x2)),
+            )
         )
         return KerasTensor(output_shape, dtype=dtype)
 
@@ -4947,10 +4990,11 @@ class Logaddexp2(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        dtype = dtypes.result_type(
-            getattr(x1, "dtype", type(x1)),
-            getattr(x2, "dtype", type(x2)),
-            float,
+        dtype = dtypes.promote_to_float_dtype(
+            dtypes.result_type(
+                getattr(x1, "dtype", type(x1)),
+                getattr(x2, "dtype", type(x2)),
+            )
         )
         return KerasTensor(output_shape, dtype=dtype)
 
@@ -5109,7 +5153,7 @@ class Logspace(Operation):
             if self.dtype is not None
             else standardize_dtype(getattr(start, "dtype", type(start)))
         )
-        dtype = backend.result_type(dtype, float)
+        dtype = result_type(dtype, float)
         return KerasTensor(output_shape, dtype=dtype)
 
 
@@ -5384,10 +5428,7 @@ class Median(Operation):
         output_shape = reduce_shape(
             x.shape, axis=self.axis, keepdims=self.keepdims
         )
-        if standardize_dtype(x.dtype) == "int64":
-            dtype = backend.floatx()
-        else:
-            dtype = dtypes.result_type(x.dtype, float)
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
         return KerasTensor(output_shape, dtype=dtype)
 
 
@@ -6131,7 +6172,7 @@ class Nanmax(Operation):
         return _nanmax(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
+        dtype = dtypes.result_type(getattr(x, "dtype", config.floatx()))
 
         if backend.backend() == "torch" and dtype == "uint32":
             dtype = "int32"
@@ -6211,7 +6252,7 @@ class Nanmean(Operation):
         return _nanmean(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        dtype = dtypes.result_type(x.dtype, float)
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
             dtype=dtype,
@@ -6260,7 +6301,7 @@ def _nanmean(x, axis=None, keepdims=False):
     ):
         return backend.ops.numpy.nanmean(x, axis=axis, keepdims=keepdims)
     x = backend.ops.convert_to_tensor(x)
-    dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = backend.ops.cast(x, dtype)
     if axis == () or axis == []:
         return x
@@ -6285,7 +6326,7 @@ class Nanmedian(Operation):
         return _nanmedian(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        dtype = dtypes.result_type(x.dtype, float)
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
             dtype=dtype,
@@ -6338,7 +6379,7 @@ def _nanmedian(x, axis=None, keepdims=False):
         return backend.ops.numpy.nanmedian(x, axis=axis, keepdims=keepdims)
     x = backend.ops.convert_to_tensor(x)
     if axis == () or axis == []:
-        return backend.ops.cast(x, dtypes.result_type(x.dtype, float))
+        return backend.ops.cast(x, dtypes.promote_to_float_dtype(x.dtype))
     return _nanquantile(x, 0.5, axis=axis, keepdims=keepdims)
 
 
@@ -6352,7 +6393,7 @@ class Nanmin(Operation):
         return _nanmin(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
+        dtype = dtypes.result_type(getattr(x, "dtype", config.floatx()))
 
         if backend.backend() == "torch" and dtype == "uint32":
             dtype = "int32"
@@ -6446,10 +6487,7 @@ class Nanpercentile(Operation):
         elif isinstance(q, (list, tuple)):
             output_shape = (len(q),) + output_shape
 
-        if standardize_dtype(x.dtype) == "int64":
-            dtype = config.floatx()
-        else:
-            dtype = dtypes.result_type(x.dtype, float)
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
 
         return KerasTensor(output_shape, dtype=dtype)
 
@@ -6621,10 +6659,7 @@ class Nanquantile(Operation):
         elif isinstance(q, (list, tuple)) and len(q) > 1:
             output_shape = (len(q),) + output_shape
 
-        if standardize_dtype(x.dtype) == "int64":
-            dtype = backend.floatx()
-        else:
-            dtype = dtypes.result_type(x.dtype, float)
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
 
         return KerasTensor(output_shape, dtype=dtype)
 
@@ -6695,10 +6730,7 @@ def _nanquantile(x, q, axis=None, method="linear", keepdims=False):
             f"'midpoint', or 'nearest'. Received: method={method}"
         )
     x = backend.ops.convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = backend.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = backend.ops.cast(x, dtype)
     q = backend.ops.convert_to_tensor(q, dtype=dtype)
     x_shape = backend.ops.shape(x)
@@ -6785,7 +6817,7 @@ class Nanstd(Operation):
         return _nanstd(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        output_dtype = backend.result_type(getattr(x, "dtype", type(x)), float)
+        output_dtype = dtypes.promote_to_float_dtype(x.dtype)
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
             dtype=output_dtype,
@@ -6845,7 +6877,7 @@ class Nansum(Operation):
         return _nansum(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
+        dtype = dtypes.result_type(getattr(x, "dtype", config.floatx()))
 
         if dtype in ("bool", "int8", "int16"):
             dtype = "int32"
@@ -6917,7 +6949,7 @@ class Nanvar(Operation):
         return _nanvar(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        output_dtype = backend.result_type(getattr(x, "dtype", type(x)), float)
+        output_dtype = dtypes.promote_to_float_dtype(x.dtype)
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
             dtype=output_dtype,
@@ -6965,7 +6997,7 @@ def _nanvar(x, axis=None, keepdims=False):
     ):
         return backend.ops.numpy.nanvar(x, axis=axis, keepdims=keepdims)
     x = backend.ops.convert_to_tensor(x)
-    dtype = backend.result_type(x.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = backend.ops.cast(x, dtype)
     nan_mask = backend.ops.numpy.isnan(x)
     mean = _nanmean(x, axis=axis, keepdims=True)
@@ -7179,7 +7211,7 @@ class Outer(Operation):
         else:
             x2_flatten_shape = python_math.prod(x2_shape)
         output_shape = (x1_flatten_shape, x2_flatten_shape)
-        output_dtype = backend.result_type(
+        output_dtype = result_type(
             getattr(x1, "dtype", type(x1)),
             getattr(x2, "dtype", type(x2)),
         )
@@ -7333,10 +7365,7 @@ class Percentile(Operation):
         elif isinstance(q, (list, tuple)):
             output_shape = (len(q),) + output_shape
 
-        if not is_float_dtype(x.dtype):
-            dtype = backend.floatx()
-        else:
-            dtype = x.dtype
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
         return KerasTensor(output_shape, dtype=dtype)
 
 
@@ -7545,10 +7574,7 @@ class Quantile(Operation):
                 output_shape = (q.shape[0],) + output_shape
         elif isinstance(q, (list, tuple)) and len(q) > 1:
             output_shape = (len(q),) + output_shape
-        if standardize_dtype(x.dtype) == "int64":
-            dtype = backend.floatx()
-        else:
-            dtype = dtypes.result_type(x.dtype, float)
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
         return KerasTensor(output_shape, dtype=dtype)
 
 
@@ -7696,7 +7722,8 @@ class Reciprocal(Operation):
         return backend.ops.numpy.reciprocal(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape)
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(
@@ -7991,11 +8018,9 @@ class Sin(Operation):
         return backend.ops.numpy.sin(x)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(getattr(x, "dtype", backend.floatx()))
-        if dtype == "int64":
-            dtype = backend.floatx()
-        else:
-            dtype = dtypes.result_type(dtype, float)
+        dtype = dtypes.promote_to_float_dtype(
+            getattr(x, "dtype", config.floatx())
+        )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
@@ -8020,11 +8045,9 @@ class Sinc(Operation):
         return backend.ops.numpy.sinc(x)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(getattr(x, "dtype", backend.floatx()))
-        if dtype == "int64":
-            dtype = backend.floatx()
-        else:
-            dtype = dtypes.result_type(dtype, float)
+        dtype = dtypes.promote_to_float_dtype(
+            getattr(x, "dtype", config.floatx())
+        )
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -8057,11 +8080,9 @@ class Sinh(Operation):
         return backend.ops.numpy.sinh(x)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(getattr(x, "dtype", backend.floatx()))
-        if dtype == "int64":
-            dtype = backend.floatx()
-        else:
-            dtype = dtypes.result_type(dtype, float)
+        dtype = dtypes.promote_to_float_dtype(
+            getattr(x, "dtype", config.floatx())
+        )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
@@ -8300,10 +8321,8 @@ class Std(Operation):
         return backend.ops.numpy.std(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        output_dtype = standardize_dtype(x.dtype)
-        if "int" in output_dtype or output_dtype == "bool":
-            output_dtype = backend.floatx()
-        elif output_dtype == "complex64":
+        output_dtype = dtypes.promote_to_float_dtype(x.dtype)
+        if output_dtype == "complex64":
             output_dtype = "float32"
         elif output_dtype == "complex128":
             output_dtype = "float64"
@@ -8454,11 +8473,9 @@ class Tan(Operation):
         return backend.ops.numpy.tan(x)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(getattr(x, "dtype", backend.floatx()))
-        if dtype == "int64":
-            dtype = backend.floatx()
-        else:
-            dtype = dtypes.result_type(dtype, float)
+        dtype = dtypes.promote_to_float_dtype(
+            getattr(x, "dtype", config.floatx())
+        )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
@@ -8483,11 +8500,9 @@ class Tanh(Operation):
         return backend.ops.numpy.tanh(x)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(getattr(x, "dtype", backend.floatx()))
-        if dtype == "int64":
-            dtype = backend.floatx()
-        else:
-            dtype = dtypes.result_type(dtype, float)
+        dtype = dtypes.promote_to_float_dtype(
+            getattr(x, "dtype", config.floatx())
+        )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
@@ -9162,10 +9177,11 @@ class Divide(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        output_dtype = dtypes.result_type(
-            getattr(x1, "dtype", type(x1)),
-            getattr(x2, "dtype", type(x2)),
-            float,
+        output_dtype = dtypes.promote_to_float_dtype(
+            dtypes.result_type(
+                getattr(x1, "dtype", type(x1)),
+                getattr(x2, "dtype", type(x2)),
+            )
         )
         x1_sparse = getattr(x1, "sparse", False)
         x2_sparse = getattr(x2, "sparse", False)
@@ -9201,10 +9217,11 @@ class DivideNoNan(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        output_dtype = dtypes.result_type(
-            getattr(x1, "dtype", type(x1)),
-            getattr(x2, "dtype", type(x2)),
-            float,
+        output_dtype = dtypes.promote_to_float_dtype(
+            dtypes.result_type(
+                getattr(x1, "dtype", type(x1)),
+                getattr(x2, "dtype", type(x2)),
+            )
         )
         x1_sparse = getattr(x1, "sparse", False)
         x2_sparse = getattr(x2, "sparse", False)
@@ -9239,10 +9256,11 @@ def _divide_no_nan(x1, x2):
         x1 = backend.ops.convert_to_tensor(x1)
     if not isinstance(x2, (int, float)):
         x2 = backend.ops.convert_to_tensor(x2)
-    dtype = dtypes.result_type(
-        getattr(x1, "dtype", type(x1)),
-        getattr(x2, "dtype", type(x2)),
-        float,
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
     )
     x1 = backend.ops.cast(x1, dtype)
     x2 = backend.ops.cast(x2, dtype)
@@ -9261,10 +9279,11 @@ class TrueDivide(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
-        output_dtype = dtypes.result_type(
-            getattr(x1, "dtype", type(x1)),
-            getattr(x2, "dtype", type(x2)),
-            float,
+        output_dtype = dtypes.promote_to_float_dtype(
+            dtypes.result_type(
+                getattr(x1, "dtype", type(x1)),
+                getattr(x2, "dtype", type(x2)),
+            )
         )
         x1_sparse = getattr(x1, "sparse", False)
         x2_sparse = getattr(x2, "sparse", False)
@@ -9326,9 +9345,11 @@ class FloatPower(Operation):
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
 
-        x1_type = standardize_dtype(getattr(x1, "dtype", type(x1)))
-        x2_type = standardize_dtype(getattr(x2, "dtype", type(x2)))
-        dtype = dtypes.result_type(x1_type, x2_type, float)
+        x1_type = dtypes.result_type(getattr(x1, "dtype", type(x1)))
+        x2_type = dtypes.result_type(getattr(x2, "dtype", type(x2)))
+        dtype = dtypes.promote_to_float_dtype(
+            dtypes.result_type(x1_type, x2_type)
+        )
         return KerasTensor(output_shape, dtype=dtype)
 
 
@@ -9365,7 +9386,9 @@ def _float_power(x1, x2):
         return backend.ops.numpy.float_power(x1, x2)
     x1 = backend.ops.convert_to_tensor(x1)
     x2 = backend.ops.convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     x1 = backend.ops.cast(x1, dtype)
     x2 = backend.ops.cast(x2, dtype)
     return backend.ops.numpy.power(x1, x2)
@@ -9400,9 +9423,11 @@ class Nextafter(Operation):
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
 
-        x1_type = standardize_dtype(getattr(x1, "dtype", type(x1)))
-        x2_type = standardize_dtype(getattr(x2, "dtype", type(x2)))
-        dtype = dtypes.result_type(x1_type, x2_type, float)
+        x1_type = dtypes.result_type(getattr(x1, "dtype", type(x1)))
+        x2_type = dtypes.result_type(getattr(x2, "dtype", type(x2)))
+        dtype = dtypes.promote_to_float_dtype(
+            dtypes.result_type(x1_type, x2_type)
+        )
         return KerasTensor(output_shape, dtype=dtype)
 
 
@@ -9467,11 +9492,7 @@ class Sqrt(Operation):
         return backend.ops.numpy.sqrt(x)
 
     def compute_output_spec(self, x):
-        dtype = (
-            backend.floatx()
-            if standardize_dtype(x.dtype) == "int64"
-            else dtypes.result_type(x.dtype, float)
-        )
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
         sparse = getattr(x, "sparse", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
@@ -9586,7 +9607,7 @@ class Trapezoid(Operation):
         out_shape = list(y.shape)
         if self.axis is not None and len(out_shape) > 0:
             out_shape.pop(self.axis % len(out_shape))
-        dtype = backend.result_type(getattr(y, "dtype", type(y)), float)
+        dtype = dtypes.promote_to_float_dtype(y.dtype)
         return KerasTensor(tuple(out_shape), dtype=dtype)
 
 
@@ -9626,9 +9647,7 @@ class Mean(Operation):
         return backend.ops.numpy.mean(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        result_dtype = standardize_dtype(x.dtype)
-        if "int" in result_dtype or result_dtype == "bool":
-            result_dtype = config.floatx()
+        result_dtype = dtypes.promote_to_float_dtype(x.dtype)
         sparse = getattr(x, "sparse", False)
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
@@ -9739,7 +9758,7 @@ class Var(Operation):
         return backend.ops.numpy.var(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        output_dtype = backend.result_type(getattr(x, "dtype", type(x)), float)
+        output_dtype = dtypes.promote_to_float_dtype(x.dtype)
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
             dtype=output_dtype,
@@ -9777,7 +9796,7 @@ class Sum(Operation):
         return backend.ops.numpy.sum(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
+        dtype = dtypes.result_type(getattr(x, "dtype", config.floatx()))
         # follow jax's rule
         if dtype in ("bool", "int8", "int16"):
             dtype = "int32"
@@ -9935,11 +9954,7 @@ class Corrcoef(Operation):
         return _corrcoef(x)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(getattr(x, "dtype", config.floatx()))
-        if dtype == "int64":
-            dtype = "float64"
-        else:
-            dtype = dtypes.result_type(dtype, float)
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
         if len(x.shape) > 2:
             raise ValueError(
                 "Input tensor must have at most 2 dimensions. "
@@ -10016,14 +10031,12 @@ class Correlate(Operation):
                 "`mode` must be either `valid`, `same`, or `full`, but"
                 f"received: {self.mode}"
             )
-        output_dtype = dtypes.result_type(
-            getattr(x1, "dtype", type(x1)),
-            getattr(x2, "dtype", type(x2)),
+        output_dtype = dtypes.promote_to_float_dtype(
+            dtypes.result_type(
+                getattr(x1, "dtype", type(x1)),
+                getattr(x2, "dtype", type(x2)),
+            )
         )
-        if output_dtype == "int64":
-            output_dtype = "float64"
-        elif "int" in output_dtype or output_dtype == "bool":
-            output_dtype = "float32"
         return KerasTensor(output_shape, dtype=output_dtype)
 
 
@@ -10075,11 +10088,9 @@ def _correlate(x1, x2, mode="valid"):
             "`x1` and `x2` must be 1-dimensional tensors. "
             f"Received: x1.shape={x1.shape}, x2.shape={x2.shape}"
         )
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
-    if dtype == "int64":
-        dtype = "float64"
-    elif "int" in dtype or dtype == "bool":
-        dtype = "float32"
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     x1 = backend.ops.cast(x1, dtype)
     x2 = backend.ops.cast(x2, dtype)
     x1_len = backend.ops.shape(x1)[0]
@@ -10830,11 +10841,7 @@ class Cov(Operation):
         return _cov(x)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(getattr(x, "dtype", backend.floatx()))
-        if dtype == "int64":
-            dtype = "float64"
-        else:
-            dtype = dtypes.result_type(dtype, float)
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
         if len(x.shape) > 2:
             raise ValueError(
                 "Input tensor must have at most 2 dimensions. "
@@ -10879,11 +10886,7 @@ def _cov(x):
             "Input tensor must have at most 2 dimensions. "
             f"Received: x.shape={x.shape}"
         )
-    dtype = standardize_dtype(x.dtype)
-    if dtype == "int64":
-        dtype = "float64"
-    else:
-        dtype = dtypes.result_type(dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x.dtype)
     x = backend.ops.cast(x, dtype)
     # A 0D input has no observations to vary over, as in `np.cov`.
     if len(x.shape) == 0:

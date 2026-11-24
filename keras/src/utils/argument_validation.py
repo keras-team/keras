@@ -1,6 +1,94 @@
 import numpy as np
 
 
+def validate_int(name, value, allow_none=False, min_value=None):
+    """Validates an integer argument and converts it to a Python `int`.
+
+    A Python `int` or a NumPy integer, such as `np.int64(2)`, is accepted.
+    A `bool` is not accepted.
+
+    Args:
+        name: string. The name of the argument, e.g. `"units"`. This is only
+            used to format error messages.
+        value: The value of the argument.
+        allow_none: bool, defaults to `False`. If `True`, `None` is accepted
+            and returned unchanged.
+        min_value: int, optional. The smallest accepted value. For example,
+            use `1` for a positive integer and `0` for a non-negative
+            integer. Defaults to `None`, which accepts any integer.
+
+    Returns:
+        The value as a Python `int`, or `None` if `value` is `None` and
+        `allow_none` is `True`.
+
+    Raises:
+        TypeError: If `value` is not an integer.
+        ValueError: If `value` is smaller than `min_value`.
+    """
+    if value is None and allow_none:
+        return None
+    if not isinstance(value, (int, np.integer)) or isinstance(value, bool):
+        expected = "an integer or `None`" if allow_none else "an integer"
+        raise TypeError(
+            f"Expected `{name}` to be {expected}. "
+            f"Received: {name}={value!r} of type {type(value).__name__}"
+        )
+    value = int(value)
+    if min_value is not None and value < min_value:
+        raise ValueError(
+            f"Expected `{name}` to be an integer >= {min_value}. "
+            f"Received: {name}={value}"
+        )
+    return value
+
+
+def validate_int_sequence(
+    name, value, length=None, allow_none=False, min_value=None
+):
+    """Validates a list or a tuple of integers.
+
+    Each element is validated with `validate_int()`.
+
+    Args:
+        name: string. The name of the argument, e.g. `"noise_shape"`. This is
+            only used to format error messages.
+        value: list or tuple. The value of the argument.
+        length: int, optional. The required number of elements. Defaults to
+            `None`, which accepts any number of elements.
+        allow_none: bool, defaults to `False`. If `True`, an element can be
+            `None`, e.g. for an unknown dimension in a shape.
+        min_value: int, optional. The smallest accepted value of an element.
+            Defaults to `None`, which accepts any integer.
+
+    Returns:
+        A list if `value` is a list, else a tuple, with each element as a
+        Python `int` (or `None`).
+
+    Raises:
+        TypeError: If `value` is not a list or a tuple, or if an element is
+            not an integer.
+        ValueError: If `value` does not have `length` elements, or if an
+            element is smaller than `min_value`.
+    """
+    if not isinstance(value, (list, tuple)):
+        raise TypeError(
+            f"Expected `{name}` to be a list or a tuple of integers. "
+            f"Received: {name}={value!r} of type {type(value).__name__}"
+        )
+    if length is not None and len(value) != length:
+        raise ValueError(
+            f"Expected `{name}` to have {length} elements. "
+            f"Received: {name}={value!r}"
+        )
+    result = [
+        validate_int(
+            f"{name}[{i}]", v, allow_none=allow_none, min_value=min_value
+        )
+        for i, v in enumerate(value)
+    ]
+    return result if isinstance(value, list) else tuple(result)
+
+
 def standardize_tuple(value, n, name, allow_zero=False):
     """Transforms non-negative/positive integer/integers into an integer tuple.
 

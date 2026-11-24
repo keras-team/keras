@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 import tensorflow as tf
 import torch
+from absl.testing import parameterized
 
 from keras.src import Sequential
 from keras.src import backend
@@ -17,9 +18,12 @@ from keras.src.trainers.data_adapters import tf_dataset_adapter
 
 
 class TestTFDatasetAdapter(data_adapter_test_base.DataAdapterTest):
-    def test_basic_flow(self):
-        x = tf.random.normal((34, 4))
-        y = tf.random.normal((34, 2))
+    @parameterized.named_parameters(
+        ("float32", "float32"), ("bfloat16", "bfloat16")
+    )
+    def test_basic_flow(self, dtype):
+        x = tf.random.normal((34, 4), dtype=dtype)
+        y = tf.random.normal((34, 2), dtype=dtype)
         base_ds = tf.data.Dataset.from_tensor_slices((x, y)).batch(16)
         adapter = tf_dataset_adapter.TFDatasetAdapter(base_ds)
 
@@ -47,7 +51,15 @@ class TestTFDatasetAdapter(data_adapter_test_base.DataAdapterTest):
             self.assertIsInstance(bx, expected_class)
             self.assertIsInstance(by, expected_class)
             self.assertEqual(bx.dtype, by.dtype)
-            self.assertContainsExactSubsequence(str(bx.dtype), "float32")
+            self.assertContainsExactSubsequence(str(bx.dtype), dtype)
+            # Verify we're reusing the underlying tf tensors, not copying.
+            # Note that bfloat16 is handled differently.
+            if isinstance(bx, np.ndarray) and dtype != "bfloat16":
+                self.assertFalse(bx.flags.owndata)
+                self.assertFalse(bx.flags.writeable)
+            if isinstance(by, np.ndarray) and dtype != "bfloat16":
+                self.assertFalse(by.flags.owndata)
+                self.assertFalse(by.flags.writeable)
             if i < 2:
                 self.assertEqual(bx.shape, (16, 4))
                 self.assertEqual(by.shape, (16, 2))

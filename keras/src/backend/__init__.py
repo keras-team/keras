@@ -7,15 +7,6 @@ if backend() == "torch":
     import torch
 
 from keras.src.api_export import keras_export
-from keras.src.backend.common.dtypes import result_type
-from keras.src.backend.config import PLUGGABLE_BACKENDS
-from keras.src.backend.config import epsilon
-from keras.src.backend.config import floatx
-from keras.src.backend.config import image_data_format
-from keras.src.backend.config import set_epsilon
-from keras.src.backend.config import set_floatx
-from keras.src.backend.config import set_image_data_format
-from keras.src.backend.config import standardize_data_format
 from keras.src.utils.module_utils import get_pluggable_backend_module
 
 # Import backend functions.

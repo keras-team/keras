@@ -79,7 +79,7 @@ class BackendUtilsTest(testing.TestCase):
     def test_dynamic_backend_invalid_name(self):
         dynamic_backend = backend_utils.DynamicBackend()
         with self.assertRaisesRegex(ValueError, "Available backends are"):
-            dynamic_backend.set_backend("abc")
+            dynamic_backend.set_backend("invalid-backend")
 
     def test_in_tf_graph_inside_tf_graph_scope(self):
         self.assertFalse(backend_utils.in_tf_graph())

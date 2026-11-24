@@ -4,6 +4,7 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -28,7 +29,7 @@ class RandomRotationTest(testing.TestCase):
         )
 
     def test_random_rotation_correctness(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (1, 5, 5, 1)
         else:
             input_shape = (1, 1, 5, 5)
@@ -58,7 +59,7 @@ class RandomRotationTest(testing.TestCase):
         self.assertAllClose(actual_output, input_image)
 
     def test_tf_data_compatibility(self):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (1, 5, 5, 1)
         else:
             input_shape = (1, 1, 5, 5)

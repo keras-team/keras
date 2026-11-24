@@ -6,20 +6,31 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import testing
 from keras.src.backend import config
+from keras.src.backend.common import result_type
 from keras.src.testing.test_utils import x64_mode_scope
 
 X64_SUPPORTED = backend.backend() in config._X64_BACKENDS
 
 
 class X64ModeTest(testing.TestCase):
-    def test_default_is_off(self):
-        self.assertEqual(config.x64_mode(), "off")
+    def test_default_mode(self):
+        is_tf = backend.backend() == "tensorflow"
+        self.assertEqual(config.x64_mode(), "explicit_x64" if is_tf else "off")
 
     @pytest.mark.skipif(not X64_SUPPORTED, reason="Unsupported backend.")
     def test_set_and_restore(self):
+        default = config.x64_mode()
         with x64_mode_scope("explicit_x64"):
             self.assertEqual(config.x64_mode(), "explicit_x64")
-        self.assertEqual(config.x64_mode(), "off")
+        self.assertEqual(config.x64_mode(), default)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="TensorFlow only."
+    )
+    def test_off_raises_on_tensorflow(self):
+        with self.assertRaisesRegex(ValueError, "not supported on the tensor"):
+            config.set_x64_mode("off")
+        self.assertEqual(config.x64_mode(), "explicit_x64")
 
     def test_unknown_mode_raises(self):
         with self.assertRaisesRegex(ValueError, "Unknown `x64_mode`"):
@@ -72,7 +83,7 @@ class X64ModeTest(testing.TestCase):
                 config.set_x64_mode(mode)
             # Keras keeps its own mode and does not follow JAX's flags.
             self.assertEqual(config.x64_mode(), mode)
-            self.assertEqual(backend.result_type("int64", "int64"), expected)
+            self.assertEqual(result_type("int64", "int64"), expected)
         finally:
             jax.config.update(flag, previous)
             config.set_x64_mode("off")

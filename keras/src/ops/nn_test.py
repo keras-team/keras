@@ -2,8 +2,11 @@ import math
 from itertools import combinations
 from unittest import mock
 
+import jax
+import jax.scipy.special
 import numpy as np
 import pytest
+import scipy.special
 from absl.testing import parameterized
 
 import keras
@@ -15,8 +18,10 @@ from keras.src import losses
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import dtypes
+from keras.src.backend.common import result_type
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.torch.distributed_test_utils import (
     TorchDistributedTestMixin,
@@ -41,6 +46,9 @@ from keras.src.layers.pooling.max_pooling_test import np_maxpool1d
 from keras.src.layers.pooling.max_pooling_test import np_maxpool2d
 from keras.src.ops import nn as knn
 from keras.src.ops import numpy as knp
+from keras.src.testing.op_test_case import UnaryOpTest
+from keras.src.testing.op_test_case import X
+from keras.src.testing.op_test_case import Z
 from keras.src.testing.test_utils import named_product
 
 
@@ -103,10 +111,6 @@ class NNOpsDynamicShapeTest(testing.TestCase):
     def test_relu6(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.relu6(x).shape, (None, 2, 3))
-
-    def test_sigmoid(self):
-        x = KerasTensor([None, 2, 3])
-        self.assertEqual(knn.sigmoid(x).shape, (None, 2, 3))
 
     def test_sparse_sigmoid(self):
         x = KerasTensor([None, 2, 3])
@@ -193,12 +197,6 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.sparse_plus(x).shape, (None, 2, 3))
 
-    def test_softmax(self):
-        x = KerasTensor([None, 2, 3])
-        self.assertEqual(knn.softmax(x).shape, (None, 2, 3))
-        self.assertEqual(knn.softmax(x, axis=1).shape, (None, 2, 3))
-        self.assertEqual(knn.softmax(x, axis=-1).shape, (None, 2, 3))
-
     def test_softmax_in_graph(self):
         class SoftmaxLayer(keras.Layer):
             def call(self, x):
@@ -215,14 +213,6 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         x = ops.array([[1.0, 2.0, 3.0, 4.0]])
         model.predict(x)
 
-    def test_log_softmax(self):
-        x = KerasTensor([None, 2, 3])
-        self.assertEqual(knn.log_softmax(x).shape, (None, 2, 3))
-        self.assertEqual(knn.log_softmax(x, axis=1).shape, (None, 2, 3))
-        self.assertEqual(knn.log_softmax(x, axis=-1).shape, (None, 2, 3))
-        with self.assertRaises(ValueError):
-            knn.log_softmax(x, axis=3)
-
     def test_sparsemax(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.sparsemax(x).shape, (None, 2, 3))
@@ -230,7 +220,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
             knn.sparsemax(x, axis=3)
 
     def test_max_pool(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_shape = (None, 8, 3)
         else:
@@ -273,7 +263,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         )
 
     def test_average_pool(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_shape = (None, 8, 3)
         else:
@@ -445,7 +435,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         self.assertSparse(out, sparse)
 
     def test_conv(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         # Test 1D conv.
         if data_format == "channels_last":
             input_shape = (None, 20, 3)
@@ -581,7 +571,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         )
 
     def test_depthwise_conv(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         # Test 1D depthwise conv.
         if data_format == "channels_last":
             input_shape = (None, 20, 3)
@@ -661,7 +651,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         )
 
     def test_separable_conv(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         # Test 1D separable conv.
         if data_format == "channels_last":
             input_shape = (None, 20, 3)
@@ -729,7 +719,7 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         )
 
     def test_conv_transpose(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_shape = (None, 4, 3)
         else:
@@ -923,10 +913,6 @@ class NNOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.relu6(x).shape, (1, 2, 3))
 
-    def test_sigmoid(self):
-        x = KerasTensor([1, 2, 3])
-        self.assertEqual(knn.sigmoid(x).shape, (1, 2, 3))
-
     def test_sparse_sigmoid(self):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.sparse_sigmoid(x).shape, (1, 2, 3))
@@ -1007,24 +993,12 @@ class NNOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.sparse_plus(x).shape, (1, 2, 3))
 
-    def test_softmax(self):
-        x = KerasTensor([1, 2, 3])
-        self.assertEqual(knn.softmax(x).shape, (1, 2, 3))
-        self.assertEqual(knn.softmax(x, axis=1).shape, (1, 2, 3))
-        self.assertEqual(knn.softmax(x, axis=-1).shape, (1, 2, 3))
-
-    def test_log_softmax(self):
-        x = KerasTensor([1, 2, 3])
-        self.assertEqual(knn.log_softmax(x).shape, (1, 2, 3))
-        self.assertEqual(knn.log_softmax(x, axis=1).shape, (1, 2, 3))
-        self.assertEqual(knn.log_softmax(x, axis=-1).shape, (1, 2, 3))
-
     def test_sparsemax(self):
         x = KerasTensor([1, 2, 3])
         self.assertEqual(knn.sparsemax(x).shape, (1, 2, 3))
 
     def test_max_pool(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_shape = (1, 8, 3)
         else:
@@ -1058,7 +1032,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         )
 
     def test_average_pool(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_shape = (1, 8, 3)
         else:
@@ -1092,7 +1066,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         )
 
     def test_conv(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         # Test 1D conv.
         if data_format == "channels_last":
             input_shape = (2, 20, 3)
@@ -1172,7 +1146,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         )
 
     def test_depthwise_conv(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         # Test 1D depthwise conv.
         if data_format == "channels_last":
             input_shape = (2, 20, 3)
@@ -1220,7 +1194,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         )
 
     def test_separable_conv(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         # Test 1D max pooling.
         if data_format == "channels_last":
             input_shape = (2, 20, 3)
@@ -1276,7 +1250,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         )
 
     def test_conv_input_channel_validation(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_shape = (2, 10, 3)
         else:
@@ -1322,7 +1296,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         )
 
     def test_conv_transpose(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_shape = (2, 4, 3)
         else:
@@ -1370,7 +1344,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         )
 
     def test_conv_transpose_input_channel_validation(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_shape = (2, 4, 3)
         else:
@@ -1402,7 +1376,7 @@ class NNOpsStaticShapeTest(testing.TestCase):
         )
         out = knn.multi_hot(unbatched_input, 5, -1)
         self.assertEqual(out.shape, (5,))
-        self.assertEqual(out.dtype, backend.floatx())
+        self.assertEqual(out.dtype, config.floatx())
         self.assertEqual(knn.multi_hot(unbatched_input, 5, 0).shape, (5,))
         self.assertEqual(knn.multi_hot(x, 5).shape, (2, 1, 5))
         self.assertEqual(knn.multi_hot(x, 5, 1).shape, (2, 3, 1))
@@ -1588,12 +1562,6 @@ class NNOpsCorrectnessTest(testing.TestCase):
     def test_relu6(self):
         x = np.array([-1, 0, 1, 2, 3, 4, 5, 6, 7], dtype=np.float32)
         self.assertAllClose(knn.relu6(x), [0, 0, 1, 2, 3, 4, 5, 6, 6])
-
-    def test_sigmoid(self):
-        x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
-        self.assertAllClose(
-            knn.sigmoid(x), [0.26894143, 0.5, 0.7310586, 0.880797, 0.95257413]
-        )
 
     def test_sparse_sigmoid(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
@@ -1797,82 +1765,6 @@ class NNOpsCorrectnessTest(testing.TestCase):
             standardize_dtype(knn.sparse_plus(x_int).dtype),
         )
 
-    def test_softmax(self):
-        x = np.array([[1, 2, 3], [1, 2, 3]], dtype=np.float32)
-        self.assertAllClose(
-            knn.softmax(x, axis=None),  # Reduce on all axes.
-            [[0.045015, 0.122364, 0.33262], [0.045015, 0.122364, 0.33262]],
-        )
-        self.assertAllClose(
-            knn.softmax(x, axis=0),
-            [[0.5, 0.5, 0.5], [0.5, 0.5, 0.5]],
-        )
-        self.assertAllClose(
-            knn.softmax(x, axis=-1),
-            [
-                [0.09003057, 0.24472848, 0.66524094],
-                [0.09003057, 0.24472848, 0.66524094],
-            ],
-        )
-        self.assertAllClose(
-            knn.softmax(x),  # Default axis should be -1.
-            [
-                [0.09003057, 0.24472848, 0.66524094],
-                [0.09003057, 0.24472848, 0.66524094],
-            ],
-        )
-
-    def test_softmax_correctness_with_axis_tuple(self):
-        input = np.array([[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]])
-        combination = combinations(range(3), 2)
-        for axis in list(combination):
-            result = keras.ops.nn.softmax(input, axis=axis)
-            normalized_sum_by_axis = np.sum(
-                ops.convert_to_numpy(result), axis=axis
-            )
-            self.assertAllClose(normalized_sum_by_axis, np.ones((2,)))
-
-    def test_log_softmax(self):
-        x = np.array([[1, 2, 3], [1, 2, 3]], dtype=np.float32)
-        self.assertAllClose(
-            knn.log_softmax(x, axis=None),  # Reduce on all axes.
-            [
-                [-3.100753, -2.100753, -1.100753],
-                [-3.100753, -2.100753, -1.100753],
-            ],
-        )
-        self.assertAllClose(
-            knn.log_softmax(x, axis=0),
-            [
-                [-0.693147, -0.693147, -0.693147],
-                [-0.693147, -0.693147, -0.693147],
-            ],
-        )
-        self.assertAllClose(
-            knn.log_softmax(x, axis=-1),
-            [
-                [-2.407606, -1.407606, -0.407606],
-                [-2.407606, -1.407606, -0.407606],
-            ],
-        )
-        self.assertAllClose(
-            knn.log_softmax(x),  # Default axis should be -1.
-            [
-                [-2.407606, -1.407606, -0.407606],
-                [-2.407606, -1.407606, -0.407606],
-            ],
-        )
-
-    def test_log_softmax_correctness_with_axis_tuple(self):
-        input = np.array([[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]])
-        combination = combinations(range(3), 2)
-        for axis in list(combination):
-            result = keras.ops.nn.log_softmax(input, axis=axis)
-            normalized_sum_by_axis = np.sum(
-                np.exp(ops.convert_to_numpy(result)), axis=axis
-            )
-            self.assertAllClose(normalized_sum_by_axis, np.ones((2,)))
-
     @pytest.mark.skipif(
         not backend.SUPPORTS_COMPLEX_DTYPES,
         reason=f"{backend.backend()} backend doesn't support complex dtypes.",
@@ -1905,7 +1797,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knn.sparsemax(x), [0.0, 0.25, 0.75])
 
     def test_max_pool(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         # Test 1D max pooling.
         if data_format == "channels_last":
             input_shape = (2, 20, 3)
@@ -1963,7 +1855,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(y_cf.shape, (2, 3, 32, 32))
 
     def test_average_pool_valid_padding(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         # Test 1D average pooling.
         if data_format == "channels_last":
             input_shape = (2, 20, 3)
@@ -1987,7 +1879,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         )
 
     def test_average_pool_same_padding(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         # Test 1D average pooling.
         if data_format == "channels_last":
             input_shape = (2, 20, 3)
@@ -2153,7 +2045,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.product(strides=(1, 2), dilation_rate=(1, (2, 1)))
     def test_conv_2d_group_2(self, strides, dilation_rate):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (2, 10, 10, 4)
         else:
             input_shape = (2, 4, 10, 10)
@@ -2172,7 +2064,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             bias_weights=np.zeros((6,)),
             strides=strides,
             padding="same",
-            data_format=backend.config.image_data_format(),
+            data_format=config.image_data_format(),
             dilation_rate=dilation_rate,
             groups=1,
         )
@@ -2415,7 +2307,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.product(padding=("valid", "same"))
     def test_conv_transpose_1d(self, padding):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (2, 4, 3)
         else:
             input_shape = (2, 3, 4)
@@ -2429,14 +2321,14 @@ class NNOpsCorrectnessTest(testing.TestCase):
             strides=2,
             output_padding=None,
             padding=padding,
-            data_format=backend.config.image_data_format(),
+            data_format=config.image_data_format(),
             dilation_rate=1,
         )
         self.assertAllClose(outputs, expected)
 
     @parameterized.product(strides=(2, (2, 2)), padding=("valid", "same"))
     def test_conv_transpose_2d(self, strides, padding):
-        if backend.config.image_data_format() == "channels_last":
+        if config.image_data_format() == "channels_last":
             input_shape = (2, 4, 4, 3)
         else:
             input_shape = (2, 3, 4, 4)
@@ -2453,13 +2345,13 @@ class NNOpsCorrectnessTest(testing.TestCase):
             strides=strides,
             output_padding=None,
             padding=padding,
-            data_format=backend.config.image_data_format(),
+            data_format=config.image_data_format(),
             dilation_rate=1,
         )
         self.assertAllClose(outputs, expected)
 
     def test_conv_transpose_functional_model(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_shape = (4, 4, 3)
             kernel_shape = (2, 2, 5, 3)
@@ -2659,7 +2551,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         symbolic = knn.binary_crossentropy(
             KerasTensor((4,), "float32"), KerasTensor((4,), output_dtype)
         )
-        self.assertEqual(symbolic.dtype, backend.floatx())
+        self.assertEqual(symbolic.dtype, config.floatx())
 
     @parameterized.product(
         target_dtype=["int32", "bool", "float32"],
@@ -3612,24 +3504,6 @@ class NNOpsDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
-    def test_log_softmax(self, dtype):
-        import jax.nn as jnn
-        import jax.numpy as jnp
-
-        x = knp.ones((10,), dtype=dtype)
-        x_jax = jnp.ones((10,), dtype=dtype)
-        expected_dtype = standardize_dtype(jnn.log_softmax(x_jax).dtype)
-
-        self.assertEqual(
-            standardize_dtype(knn.log_softmax(x).dtype),
-            expected_dtype,
-        )
-        self.assertEqual(
-            standardize_dtype(knn.LogSoftmax().symbolic_call(x).dtype),
-            expected_dtype,
-        )
-
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_relu(self, dtype):
         import jax.nn as jnn
         import jax.numpy as jnp
@@ -3680,24 +3554,6 @@ class NNOpsDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knn.Selu().symbolic_call(x).dtype),
-            expected_dtype,
-        )
-
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
-    def test_sigmoid(self, dtype):
-        import jax.nn as jnn
-        import jax.numpy as jnp
-
-        x = knp.ones((), dtype=dtype)
-        x_jax = jnp.ones((), dtype=dtype)
-        expected_dtype = standardize_dtype(jnn.sigmoid(x_jax).dtype)
-
-        self.assertEqual(
-            standardize_dtype(knn.sigmoid(x).dtype),
-            expected_dtype,
-        )
-        self.assertEqual(
-            standardize_dtype(knn.Sigmoid().symbolic_call(x).dtype),
             expected_dtype,
         )
 
@@ -3776,24 +3632,6 @@ class NNOpsDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
-    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
-    def test_softmax(self, dtype):
-        import jax.nn as jnn
-        import jax.numpy as jnp
-
-        x = knp.ones((10,), dtype=dtype)
-        x_jax = jnp.ones((10,), dtype=dtype)
-        expected_dtype = standardize_dtype(jnn.softmax(x_jax).dtype)
-
-        self.assertEqual(
-            standardize_dtype(knn.softmax(x).dtype),
-            expected_dtype,
-        )
-        self.assertEqual(
-            standardize_dtype(knn.Softmax().symbolic_call(x).dtype),
-            expected_dtype,
-        )
-
     @parameterized.named_parameters(
         named_product(dtype=FLOAT_DTYPES + INT_DTYPES + ["bool"])
     )
@@ -3869,7 +3707,7 @@ class NNOpsDtypeTest(testing.TestCase):
             [[[0.4, 0.8, 0.4], [0.2, 0.8, 0.3], [0.9, 0.4, 0.5]]], dtype=dtype
         )
         sequence_length = knp.array([3])
-        expected_dtype = backend.result_type(dtype, "float32")
+        expected_dtype = result_type(dtype, "float32")
 
         # Test strategy="greedy"
         decoded, scores = knn.ctc_decode(
@@ -3908,7 +3746,7 @@ class NNOpsDtypeTest(testing.TestCase):
         query = knp.ones((2, 3, 3, 8), dtype=query_dtype)
         key = knp.ones((2, 3, 3, 8), dtype=key_value_dtype)
         value = knp.ones((2, 3, 3, 8), dtype=key_value_dtype)
-        expected_dtype = backend.result_type(*dtypes)
+        expected_dtype = result_type(*dtypes)
 
         self.assertDType(
             knn.dot_product_attention(query, key, value), expected_dtype
@@ -3947,6 +3785,18 @@ class NNOpsDtypeTest(testing.TestCase):
         )
         self.assertDType(
             knn.LayerNorm().symbolic_call(inputs, gamma, beta), expected_dtype
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtype=FLOAT_DTYPES + INT_DTYPES, order=(1, 2))
+    )
+    def test_normalize(self, dtype, order):
+        x = knp.ones((2, 3), dtype=dtype)
+        expected_dtype = config.floatx() if "int" in dtype else dtype
+
+        self.assertDType(knn.normalize(x, order=order), expected_dtype)
+        self.assertDType(
+            knn.Normalize(order=order).symbolic_call(x), expected_dtype
         )
 
 
@@ -4614,3 +4464,55 @@ class TorchNNDistributedTest(TorchDistributedTestMixin, testing.TestCase):
             is_causal=True,
         )
         self.assertAllClose(result_mask, expected_mask)
+
+
+def np_softmax(x, axis=-1):
+    """`scipy.special.softmax` in float64, with Keras's default `axis`.
+
+    In the input dtype, `x - max(x)` wraps around for unsigned integers.
+    """
+    return scipy.special.softmax(x.astype("float64"), axis=axis)
+
+
+def np_log_softmax(x, axis=-1):
+    """`scipy.special.log_softmax` in float64, like `np_softmax`."""
+    return scipy.special.log_softmax(x.astype("float64"), axis=axis)
+
+
+class SigmoidTest(UnaryOpTest):
+    op, op_class = knn.sigmoid, knn.Sigmoid
+    # `jax.nn.sigmoid` rejects integers; `expit` is the same function.
+    reference_fn = scipy.special.expit
+    jax_fn = jax.scipy.special.expit
+
+
+class SoftmaxTest(UnaryOpTest):
+    op, op_class = knn.softmax, knn.Softmax
+    reference_fn, jax_fn = np_softmax, jax.nn.softmax
+    cases = {
+        "last": ((X,), {}),
+        "axis0": ((X,), {"axis": 0}),
+        "all": ((X,), {"axis": None}),
+        "axes": ((Z,), {"axis": (1, 2)}),
+        "negative_axes": ((Z,), {"axis": (-1, 0)}),
+    }
+
+    def test_input_dtypes_bool(self):
+        self.skipTest("JAX's softmax functions reject bool inputs.")
+
+    @pytest.mark.skipif(
+        config.x64_mode() == "explicit_x64" and jax.__version_info__ < (0, 11),
+        reason="Before JAX 0.11, `jnp.max`, which JAX's softmax functions "
+        "use, raises for int64 inputs in `explicit_x64`.",
+    )
+    def test_input_dtypes_int64(self):
+        self.check_input_dtypes(("int64",))
+
+
+class LogSoftmaxTest(SoftmaxTest):
+    op, op_class = knn.log_softmax, knn.LogSoftmax
+    reference_fn, jax_fn = np_log_softmax, jax.nn.log_softmax
+
+    def test_invalid_axis(self):
+        with self.assertRaises(ValueError):
+            knn.log_softmax(KerasTensor((None, 2, 3)), axis=3)

@@ -6,6 +6,7 @@ from keras.src import initializers
 from keras.src import layers
 from keras.src.api_export import keras_export
 from keras.src.applications import imagenet_utils
+from keras.src.backend import config
 from keras.src.backend.common import is_keras_tensor
 from keras.src.models import Functional
 from keras.src.ops import operation_utils
@@ -616,7 +617,7 @@ def MBConvBlock(
     name=None,
 ):
     """MBConv block: Mobile Inverted Residual Bottleneck."""
-    bn_axis = 3 if backend.image_data_format() == "channels_last" else 1
+    bn_axis = 3 if config.image_data_format() == "channels_last" else 1
 
     if name is None:
         name = backend.get_uid("block0")
@@ -631,7 +632,7 @@ def MBConvBlock(
                 strides=1,
                 kernel_initializer=CONV_KERNEL_INITIALIZER,
                 padding="same",
-                data_format=backend.image_data_format(),
+                data_format=config.image_data_format(),
                 use_bias=False,
                 name=f"{name}expand_conv",
             )(inputs)
@@ -652,7 +653,7 @@ def MBConvBlock(
             strides=strides,
             depthwise_initializer=CONV_KERNEL_INITIALIZER,
             padding="same",
-            data_format=backend.image_data_format(),
+            data_format=config.image_data_format(),
             use_bias=False,
             name=f"{name}dwconv2",
         )(x)
@@ -697,7 +698,7 @@ def MBConvBlock(
             strides=1,
             kernel_initializer=CONV_KERNEL_INITIALIZER,
             padding="same",
-            data_format=backend.image_data_format(),
+            data_format=config.image_data_format(),
             use_bias=False,
             name=f"{name}project_conv",
         )(x)
@@ -732,7 +733,7 @@ def FusedMBConvBlock(
     name=None,
 ):
     """Fuses the proj conv1x1 and depthwise_conv into a conv2d."""
-    bn_axis = 3 if backend.image_data_format() == "channels_last" else 1
+    bn_axis = 3 if config.image_data_format() == "channels_last" else 1
 
     if name is None:
         name = backend.get_uid("block0")
@@ -745,7 +746,7 @@ def FusedMBConvBlock(
                 kernel_size=kernel_size,
                 strides=strides,
                 kernel_initializer=CONV_KERNEL_INITIALIZER,
-                data_format=backend.image_data_format(),
+                data_format=config.image_data_format(),
                 padding="same",
                 use_bias=False,
                 name=f"{name}expand_conv",
@@ -913,7 +914,7 @@ def EfficientNetV2(
         input_shape,
         default_size=default_size,
         min_size=32,
-        data_format=backend.image_data_format(),
+        data_format=config.image_data_format(),
         require_flatten=include_top,
         weights=weights,
     )
@@ -926,7 +927,7 @@ def EfficientNetV2(
         else:
             img_input = input_tensor
 
-    bn_axis = 3 if backend.image_data_format() == "channels_last" else 1
+    bn_axis = 3 if config.image_data_format() == "channels_last" else 1
 
     x = img_input
 
@@ -1029,7 +1030,7 @@ def EfficientNetV2(
         strides=1,
         kernel_initializer=CONV_KERNEL_INITIALIZER,
         padding="same",
-        data_format=backend.image_data_format(),
+        data_format=config.image_data_format(),
         use_bias=False,
         name="top_conv",
     )(x)
@@ -1350,7 +1351,7 @@ def preprocess_input(x, data_format=None):
         x: A floating point `numpy.array` or a tensor.
         data_format: Optional data format of the image tensor/array. Defaults to
             None, in which case the global setting
-            `keras.backend.image_data_format()` is used
+            `keras.config.image_data_format()` is used
             (unless you changed it, it defaults to "channels_last").{mode}
 
     Returns:

@@ -1,6 +1,3 @@
-# flake8: noqa
-
-
 import numpy as np
 
 from keras.src import backend
@@ -75,6 +72,7 @@ class AdafactorTest(testing.TestCase):
         first_grads = np.full((10,), 0.01)
 
         # fmt: off
+        # ruff: disable[E501]
         golden = np.array(
             [[0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55],
             [0.3031, 0.3026, 0.3025, 0.3024, 0.3024, 0.3024, 0.3024, 0.3024, 0.3024, 0.3024],
@@ -82,6 +80,7 @@ class AdafactorTest(testing.TestCase):
             [0.0923, 0.0916, 0.0915, 0.0914, 0.0914, 0.0914, 0.0914, 0.0914, 0.0914, 0.0914],
             [0.0554, 0.0548, 0.0546, 0.0546, 0.0546, 0.0546, 0.0546, 0.0545, 0.0545, 0.0545]]
         )
+        # ruff: enable[E501]
         # fmt: on
 
         optimizer.apply_gradients(zip([first_grads], [x]))

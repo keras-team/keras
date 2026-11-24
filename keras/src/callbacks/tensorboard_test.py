@@ -1,5 +1,6 @@
 import collections
 import contextlib
+import io
 import os
 import random
 import sys
@@ -18,7 +19,10 @@ from keras.src import models
 from keras.src import ops
 from keras.src import optimizers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.optimizers import schedules
+from keras.src.utils import file_utils
+from keras.src.utils.module_utils import tensorflow
 
 # A summary that was emitted during a test. Fields:
 #   logdir: str. The logdir of the FileWriter to which the summary was
@@ -145,7 +149,7 @@ class TestTensorBoardV2(testing.TestCase):
         return model
 
     @pytest.mark.requires_trainable_backend
-    def test_TensorBoard_basic(self):
+    def test_tensorboard_basic(self):
         model = self._get_model()
         x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
         logdir, train_dir, validation_dir = self._get_log_dirs()
@@ -175,14 +179,84 @@ class TestTensorBoardV2(testing.TestCase):
         )
 
     @pytest.mark.requires_trainable_backend
-    def test_TensorBoard_across_invocations(self):
-        """Regression test for summary writer resource use-after-free."""
+    def test_tensorboard_evaluate(self):
         model = self._get_model()
         x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
         logdir, train_dir, validation_dir = self._get_log_dirs()
         tb_cbk = callbacks.TensorBoard(logdir)
 
-        for _ in (1, 2):
+        model.predict(x, batch_size=2, callbacks=[tb_cbk])
+        self.assertEqual(tb_cbk._writers, {})
+        model.evaluate(x, y, batch_size=2, callbacks=[tb_cbk])
+
+        summary_file = list_summaries(logdir)
+        self.assertEqual(
+            summary_file.scalars,
+            {
+                _ObservedSummary(
+                    logdir=validation_dir,
+                    tag="evaluation_loss_vs_iterations",
+                ),
+            },
+        )
+        self.assertEqual(
+            summary_file.tensors,
+            {_ObservedSummary(logdir=train_dir, tag="keras")},
+        )
+
+    @pytest.mark.skipif(
+        tensorflow.available, reason="Uses tensorboardX without TensorFlow."
+    )
+    @pytest.mark.requires_trainable_backend
+    def test_tensorboard_remote_log_dir(self):
+        class RemoteStream(io.IOBase):
+            def __init__(self, f):
+                self._f = f
+
+            def write(self, b):
+                return self._f.write(b)
+
+            def flush(self):
+                self._f.flush()
+
+            def close(self):
+                super().close()
+                self._f.close()
+
+        model = self._get_model()
+        x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
+        logdir, train_dir, validation_dir = self._get_log_dirs()
+        remote_logdir = "gs://bucket/tb"
+
+        def to_local(path):
+            self.assertTrue(path.startswith(remote_logdir), msg=path)
+            suffix = path[len(remote_logdir) :].strip("/")
+            return (
+                os.path.join(logdir, *suffix.split("/")) if suffix else logdir
+            )
+
+        tb_cbk = callbacks.TensorBoard(remote_logdir)
+        with (
+            mock.patch.object(
+                file_utils,
+                "exists",
+                side_effect=lambda path: os.path.exists(to_local(path)),
+            ),
+            mock.patch.object(
+                file_utils,
+                "makedirs",
+                side_effect=lambda path: os.makedirs(
+                    to_local(path), exist_ok=True
+                ),
+            ),
+            mock.patch.object(
+                file_utils,
+                "File",
+                side_effect=lambda path, mode="r": RemoteStream(
+                    open(to_local(path), mode)
+                ),
+            ),
+        ):
             model.fit(
                 x,
                 y,
@@ -205,9 +279,46 @@ class TestTensorBoardV2(testing.TestCase):
                 ),
             },
         )
+        self.assertEqual(
+            summary_file.tensors,
+            {_ObservedSummary(logdir=train_dir, tag="keras")},
+        )
 
     @pytest.mark.requires_trainable_backend
-    def test_TensorBoard_no_spurious_event_files(self):
+    def test_tensorboard_across_invocations(self):
+        """Regression test for summary writer resource use-after-free."""
+        model = self._get_model()
+        x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
+        logdir, train_dir, validation_dir = self._get_log_dirs()
+        tb_cbk = callbacks.TensorBoard(logdir)
+
+        for _ in (1, 2):
+            model.fit(
+                x,
+                y,
+                batch_size=2,
+                epochs=2,
+                validation_data=(x, y),
+                callbacks=[tb_cbk],
+            )
+        model.evaluate(x, y, batch_size=2, callbacks=[tb_cbk])
+
+        summary_file = list_summaries(logdir)
+        self.assertEqual(
+            summary_file.scalars,
+            {
+                _ObservedSummary(logdir=train_dir, tag="epoch_loss"),
+                _ObservedSummary(logdir=validation_dir, tag="epoch_loss"),
+                _ObservedSummary(logdir=train_dir, tag="epoch_learning_rate"),
+                _ObservedSummary(
+                    logdir=validation_dir,
+                    tag="evaluation_loss_vs_iterations",
+                ),
+            },
+        )
+
+    @pytest.mark.requires_trainable_backend
+    def test_tensorboard_no_spurious_event_files(self):
         model = self._get_model()
         x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
         logdir, train_dir, _ = self._get_log_dirs()
@@ -221,7 +332,7 @@ class TestTensorBoardV2(testing.TestCase):
         self.assertEqual(events_file_run_basenames, {"train"})
 
     @pytest.mark.requires_trainable_backend
-    def test_TensorBoard_batch_metrics(self):
+    def test_tensorboard_batch_metrics(self):
         model = self._get_model()
         x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
         logdir, train_dir, validation_dir = self._get_log_dirs()
@@ -252,7 +363,7 @@ class TestTensorBoardV2(testing.TestCase):
         )
 
     @pytest.mark.requires_trainable_backend
-    def test_TensorBoard_learning_rate_schedules(self):
+    def test_tensorboard_learning_rate_schedules(self):
         model = self._get_model(compile_model=False)
         opt = optimizers.SGD(schedules.CosineDecay(0.01, 1))
         model.compile(opt, "mse")
@@ -277,7 +388,7 @@ class TestTensorBoardV2(testing.TestCase):
         )
 
     @pytest.mark.requires_trainable_backend
-    def test_TensorBoard_global_step(self):
+    def test_tensorboard_global_step(self):
         model = self._get_model(compile_model=False)
         opt = optimizers.SGD(schedules.CosineDecay(0.01, 1))
         model.compile(opt, "mse")
@@ -317,7 +428,7 @@ class TestTensorBoardV2(testing.TestCase):
         )
 
     @pytest.mark.requires_trainable_backend
-    def test_TensorBoard_weight_histograms(self):
+    def test_tensorboard_weight_histograms(self):
         model = self._get_model()
         x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
         logdir, train_dir, validation_dir = self._get_log_dirs()
@@ -351,8 +462,8 @@ class TestTensorBoardV2(testing.TestCase):
         )
 
     @pytest.mark.requires_trainable_backend
-    def test_TensorBoard_weight_images(self):
-        if backend.config.image_data_format() == "channels_last":
+    def test_tensorboard_weight_images(self):
+        if config.image_data_format() == "channels_last":
             input_shape = (10, 10, 1)
             x_shape = (10, 10, 10, 1)
         else:
@@ -410,7 +521,7 @@ class TestTensorBoardV2(testing.TestCase):
         )
 
     @pytest.mark.requires_trainable_backend
-    def test_TensorBoard_projector_callback(self):
+    def test_tensorboard_projector_callback(self):
         model = models.Sequential(
             [
                 layers.Input((10,)),
@@ -452,6 +563,9 @@ class TestTensorBoardV2(testing.TestCase):
             )
 
     @pytest.mark.requires_trainable_backend
+    @pytest.mark.skipif(
+        not tensorflow.available, reason="Custom summaries require TensorFlow."
+    )
     def test_custom_summary(self):
         default_writers = []
         written = []
@@ -557,7 +671,7 @@ class TestTensorBoardV2(testing.TestCase):
         reason="Torch backend requires blocking numpy conversion.",
     )
     @pytest.mark.requires_trainable_backend
-    def test_TensorBoard_non_blocking(self):
+    def test_tensorboard_non_blocking(self):
         logdir, _, _ = self._get_log_dirs()
         model = models.Sequential([layers.Dense(1)])
         model.optimizer = optimizers.Adam()
@@ -637,7 +751,7 @@ class TestTensorBoardV2(testing.TestCase):
                     if "input" not in layer.name:
                         self.assertIn(layer.name, graph_def_str)
 
-    def test_TensorBoard_write_sequential_model_no_input_shape(self):
+    def test_tensorboard_write_sequential_model_no_input_shape(self):
         # TODO: Requires to_json implementation in trainer
         # model = models.Sequential(
         #     [
@@ -650,7 +764,7 @@ class TestTensorBoardV2(testing.TestCase):
         # self.fitModelAndAssertKerasModelWritten(model)
         pass
 
-    def test_TensorBoard_write_sequential_model_with_input_shape(self):
+    def test_tensorboard_write_sequential_model_with_input_shape(self):
         # TODO: Requires to_json implementation in trainer
         # model = models.Sequential(
         #     [
@@ -664,7 +778,7 @@ class TestTensorBoardV2(testing.TestCase):
         # self.fitModelAndAssertKerasModelWritten(model)
         pass
 
-    def test_TensorBoard_write_model(self):
+    def test_tensorboard_write_model(self):
         # TODO: Requires to_json implementation in trainer
         # See https://github.com/keras-team/keras/blob/ \
         # a8d4a7f1ffc9de3c5932828a107e4e95e8803fb4/ \
@@ -683,7 +797,7 @@ class TestTensorBoardV2(testing.TestCase):
         backend.backend() not in ("jax", "tensorflow"),
         reason="The profiling test can only run with TF and JAX backends.",
     )
-    def test_TensorBoard_auto_trace(self):
+    def test_tensorboard_auto_trace(self):
         logdir, train_dir, validation_dir = self._get_log_dirs()
         model = models.Sequential(
             [

@@ -10,6 +10,7 @@ from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.layers.rnn.dropout_rnn_cell import DropoutRNNCell
 from keras.src.layers.rnn.rnn import RNN
+from keras.src.utils import argument_validation
 
 
 @keras_export("keras.layers.LSTMCell")
@@ -106,11 +107,7 @@ class LSTMCell(Layer, DropoutRNNCell):
         seed=None,
         **kwargs,
     ):
-        if units <= 0:
-            raise ValueError(
-                "Received an invalid value for argument `units`, "
-                f"expected a positive integer, got {units}."
-            )
+        units = argument_validation.validate_int("units", units, min_value=1)
         implementation = kwargs.pop("implementation", 2)
         super().__init__(**kwargs)
         self.implementation = implementation
@@ -250,10 +247,10 @@ class LSTMCell(Layer, DropoutRNNCell):
             x_o = ops.matmul(inputs_o, k_o)
             if self.use_bias:
                 b_i, b_f, b_c, b_o = ops.split(self.bias, 4, axis=0)
-                x_i += b_i
-                x_f += b_f
-                x_c += b_c
-                x_o += b_o
+                x_i = x_i + b_i
+                x_f = x_f + b_f
+                x_c = x_c + b_c
+                x_o = x_o + b_o
 
             if training and 0.0 < self.recurrent_dropout < 1.0:
                 rec_dp_mask = self.get_recurrent_dropout_mask(h_tm1)

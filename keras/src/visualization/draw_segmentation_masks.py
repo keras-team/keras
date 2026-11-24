@@ -1,8 +1,8 @@
 import numpy as np
 
-from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import is_int_dtype
 from keras.src.backend.common import standardize_dtype
 
@@ -55,7 +55,7 @@ def draw_segmentation_masks(
         ValueError: If the input `images` is not a 4D tensor or NumPy array.
         TypeError: If the input `segmentation_masks` is not an integer type.
     """
-    data_format = data_format or backend.image_data_format()
+    data_format = data_format or config.image_data_format()
     images_shape = ops.shape(images)
     if len(images_shape) != 4:
         raise ValueError(

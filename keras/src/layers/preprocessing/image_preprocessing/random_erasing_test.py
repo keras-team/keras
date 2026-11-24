@@ -1,8 +1,8 @@
 import numpy as np
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -48,7 +48,7 @@ class RandomErasingTest(testing.TestCase):
         self.assertAllClose(inputs, output)
 
     def test_random_erasing_basic(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             inputs = np.ones((2, 2, 1))
             expected_output = np.array([[[[0.0], [1.0]], [[1.0], [1.0]]]])
@@ -77,7 +77,7 @@ class RandomErasingTest(testing.TestCase):
         self.assertAllClose(output, expected_output)
 
     def test_tf_data_compatibility(self):
-        data_format = backend.config.image_data_format()
+        data_format = config.image_data_format()
         if data_format == "channels_last":
             input_data = np.random.random((2, 8, 8, 3))
         else:

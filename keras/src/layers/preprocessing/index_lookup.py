@@ -3,6 +3,7 @@ import collections
 import numpy as np
 
 from keras.src import backend
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import is_keras_tensor
 from keras.src.layers.layer import Layer
@@ -172,16 +173,15 @@ class IndexLookup(Layer):
                     "`salt` can only be used when `oov_method='farmhash'`. "
                     f"Received: oov_method={oov_method}"
                 )
-            if isinstance(salt, (tuple, list)) and len(salt) == 2:
-                salt = list(salt)
-            elif isinstance(salt, int):
-                salt = [salt, salt]
-            else:
-                raise ValueError(
-                    "The `salt` argument for `IndexLookup` can only be a tuple "
-                    "of 2 integers, or a single integer. "
-                    f"Received: salt={salt}."
+            if isinstance(salt, (tuple, list)):
+                salt = list(
+                    argument_validation.validate_int_sequence(
+                        "salt", salt, length=2
+                    )
                 )
+            else:
+                salt = argument_validation.validate_int("salt", salt)
+                salt = [salt, salt]
 
         # Support deprecated names for output_modes.
         if output_mode == "binary":
@@ -306,7 +306,7 @@ class IndexLookup(Layer):
             if idf_weights is not None:
                 self.idf_weights = tf.Variable(
                     idf_weights,
-                    dtype=backend.floatx(),
+                    dtype=config.floatx(),
                     trainable=False,
                 )
                 self.idf_weights_const = self.idf_weights.value()
@@ -604,7 +604,7 @@ class IndexLookup(Layer):
                 "constant",
                 constant_values=(front_padding_value, back_padding_value),
             )
-            weights = tf.convert_to_tensor(weights, dtype=backend.floatx())
+            weights = tf.convert_to_tensor(weights, dtype=config.floatx())
             self.idf_weights = tf.Variable(
                 weights,
                 trainable=False,
@@ -648,7 +648,7 @@ class IndexLookup(Layer):
         if self.output_mode == "int":
             output_dtype = "int64"
         else:
-            output_dtype = backend.floatx()
+            output_dtype = config.floatx()
         output_shape = self.compute_output_shape(inputs.shape)
         return KerasTensor(output_shape, dtype=output_dtype)
 
@@ -766,7 +766,7 @@ class IndexLookup(Layer):
             idf_weights = self._inverse_document_frequency(
                 token_document_counts, self.num_documents
             )
-            idf_weights = tf.cast(idf_weights, backend.floatx())
+            idf_weights = tf.cast(idf_weights, config.floatx())
             # Pad the front of idf_weights with the average idf weight for OOV
             # tokens.  We cannot compute the real idf weight of OOV in a single
             # pass.
@@ -784,7 +784,7 @@ class IndexLookup(Layer):
                 )
             self.idf_weights = tf.Variable(
                 idf_weights,
-                dtype=backend.floatx(),
+                dtype=config.floatx(),
                 trainable=False,
             )
             self.idf_weights_const = self.idf_weights.value()

@@ -1,6 +1,7 @@
 """Tests for ONNX exporting utilities."""
 
 import os
+from unittest import mock
 
 import numpy as np
 import onnxruntime
@@ -13,10 +14,12 @@ from keras.src import models
 from keras.src import ops
 from keras.src import testing
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.export import onnx
 from keras.src.layers.input_spec import InputSpec as InputSpec
 from keras.src.saving import saving_lib
 from keras.src.testing.test_utils import named_product
+from keras.src.utils import module_utils
 
 
 class CustomModel(models.Model):
@@ -78,6 +81,23 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
     ),
 )
 class ExportONNXTest(testing.TestCase):
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="The tf2onnx version check is specific to TensorFlow.",
+    )
+    def test_tf2onnx_minimum_version(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model = get_model()
+        model(np.zeros((1, 10), dtype="float32"))
+
+        with mock.patch.object(module_utils.tf2onnx, "__version__", "1.16.1"):
+            with self.assertRaisesRegex(
+                ImportError,
+                r"requires `tf2onnx>=1\.17\.0`, but found "
+                r"`tf2onnx==1\.16\.1`",
+            ):
+                onnx.export_onnx(model, temp_filepath, verbose=False)
+
     @parameterized.named_parameters(
         named_product(
             model_type=["sequential", "functional", "subclass", "lstm"]
@@ -323,7 +343,7 @@ class ExportONNXTest(testing.TestCase):
         """
 
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
-        channels_last = backend.image_data_format() == "channels_last"
+        channels_last = config.image_data_format() == "channels_last"
 
         # Define input shapes based on dynamic type, ordered for the active
         # image data format so the channel axis is always static. The torch CI
@@ -406,7 +426,7 @@ class ExportONNXTest(testing.TestCase):
         """Test ONNX export with multi-input model having dynamic shapes."""
 
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
-        channels_last = backend.image_data_format() == "channels_last"
+        channels_last = config.image_data_format() == "channels_last"
 
         # Create multi-input model with dynamic shapes. The image input is
         # ordered for the active data format so the dynamic spatial axes never
@@ -562,7 +582,7 @@ class ExportONNXTest(testing.TestCase):
         length is static.
         """
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
-        channels_last = backend.image_data_format() == "channels_last"
+        channels_last = config.image_data_format() == "channels_last"
         seq_input = layers.Input(shape=(10, 16), name="seq_input")
         image_input = layers.Input(
             shape=(None, None, 3) if channels_last else (3, None, None),

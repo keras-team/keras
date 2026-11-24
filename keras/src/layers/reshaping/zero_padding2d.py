@@ -1,5 +1,6 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend.common import standardize_data_format
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.utils import argument_validation
@@ -69,10 +70,8 @@ class ZeroPadding2D(Layer):
 
     def __init__(self, padding=(1, 1), data_format=None, **kwargs):
         super().__init__(**kwargs)
-        self.data_format = backend.standardize_data_format(data_format)
-        if isinstance(padding, int):
-            self.padding = ((padding, padding), (padding, padding))
-        elif hasattr(padding, "__len__"):
+        self.data_format = standardize_data_format(data_format)
+        if hasattr(padding, "__len__"):
             if len(padding) != 2:
                 raise ValueError(
                     "`padding` should have two elements. "
@@ -86,13 +85,10 @@ class ZeroPadding2D(Layer):
             )
             self.padding = (height_padding, width_padding)
         else:
-            raise ValueError(
-                "`padding` should be either an int, a tuple of 2 ints "
-                "(symmetric_height_crop, symmetric_width_crop), "
-                "or a tuple of 2 tuples of 2 ints "
-                "((top_crop, bottom_crop), (left_crop, right_crop)). "
-                f"Received: padding={padding}."
+            padding = argument_validation.validate_int(
+                "padding", padding, min_value=0
             )
+            self.padding = ((padding, padding), (padding, padding))
         self.input_spec = InputSpec(ndim=4)
 
     def compute_output_shape(self, input_shape):
