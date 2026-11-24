@@ -4,6 +4,7 @@ import math
 import os
 
 from keras.src import backend
+from keras.src.backend.common import standardize_dtype
 from keras.src.distribution import distribution as get_distribution
 from keras.src.utils import dtype_utils
 from keras.src.utils import file_utils
@@ -30,17 +31,22 @@ def _leaf_bytes(leaf):
     dtype = getattr(leaf, "dtype", None)
     if shape is None or dtype is None:
         return 0
+    # A dimension can be dynamic (`None` or a symbolic object) on an unbuilt
+    # variable; count it as 1 rather than failing on `math.prod`.
+    static_shape = [d if isinstance(d, int) else 1 for d in shape]
     return (
-        math.prod(shape)
-        * dtype_utils.dtype_size(backend.standardize_dtype(dtype))
+        math.prod(static_shape)
+        * dtype_utils.dtype_size(standardize_dtype(dtype))
         // 8
     )
 
 
 def _sum_leaf_bytes(tree):
-    """Sum `_leaf_bytes` over every array leaf of a nested dict."""
+    """Sum `_leaf_bytes` over every array leaf of a nested structure."""
     if isinstance(tree, dict):
         return sum(_sum_leaf_bytes(v) for v in tree.values())
+    if isinstance(tree, (list, tuple)):
+        return sum(_sum_leaf_bytes(v) for v in tree)
     return _leaf_bytes(tree)
 
 
