@@ -644,12 +644,23 @@ class SerializationLibTest(testing.TestCase):
 
     def test_global_state_and_dataset_apis_rejected(self):
         for module, name in (
+            # Canonical export names.
             ("keras.config", "set_floatx"),
             ("keras.config", "set_max_epochs"),
             ("keras.datasets.mnist", "load_data"),
             ("keras.distribution", "initialize"),
             ("keras.legacy.saving", "deserialize_keras_object"),
             ("keras.utils", "set_random_seed"),
+            # Secondary export names for the same symbols.
+            ("keras.backend", "set_epsilon"),
+            ("keras.backend", "set_floatx"),
+            ("keras.backend", "set_image_data_format"),
+            ("keras.mixed_precision", "set_dtype_policy"),
+            ("keras.mixed_precision", "set_global_policy"),
+            ("keras.utils", "disable_interactive_logging"),
+            ("keras.utils", "enable_interactive_logging"),
+            ("keras.utils.legacy", "deserialize_keras_object"),
+            ("keras.utils.legacy", "serialize_keras_object"),
         ):
             with self.assertRaisesRegex(ValueError, "not a modeling function"):
                 serialization_lib.deserialize_keras_object(
