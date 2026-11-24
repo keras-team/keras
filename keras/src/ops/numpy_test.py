@@ -3495,8 +3495,8 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_hypot(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [6, 5, 4]])
         self.assertAllClose(knp.hypot(x, y), np.hypot(x, y))
@@ -3518,8 +3518,8 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         reason="Backend does not support gradients.",
     )
     def test_hypot_gradients(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         # Covers |x| == |y|, a zero component, and sign combinations.
         # Exact values: d/dx = x / h, d/dy = y / h,
         # d2/dx2 = y**2 / h**3, d2/dy2 = x**2 / h**3, with h = hypot(x, y).
@@ -11361,8 +11361,8 @@ class NumpyDtypeTest(testing.TestCase):
     def test_hypot(self, backend_agnostic_ops, dtypes):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
 
         dtype1, dtype2 = dtypes
         x1 = knp.ones((1, 1), dtype=dtype1)
