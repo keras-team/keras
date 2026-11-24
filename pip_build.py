@@ -40,6 +40,8 @@ def export_version_string(version, is_nightly=False, rc_index=None):
     """Export Version and Package Name."""
     if is_nightly:
         date = datetime.datetime.now()
+        # Strip any suffix such as `.dev0` before adding the nightly suffix.
+        version = re.sub(r"([0-9]+\.[0-9]+\.[0-9]+).*", r"\1", version)
         version += f".dev{date:%Y%m%d%H}"
         # Update `name = "keras"` with "keras-nightly"
         pyproj_pth = pathlib.Path("pyproject.toml")
@@ -60,6 +62,7 @@ def export_version_string(version, is_nightly=False, rc_index=None):
             init_contents,
         )
         f.write(init_contents)
+    return version
 
 
 def ignore_files(_, filenames):
@@ -93,8 +96,8 @@ def build(root_path, is_nightly=False, rc_index=None):
 
         from keras.src.version import __version__  # noqa: E402
 
-        export_version_string(__version__, is_nightly, rc_index)
-        return build_and_save_output(root_path, __version__)
+        version = export_version_string(__version__, is_nightly, rc_index)
+        return build_and_save_output(root_path, version)
     finally:
         shutil.rmtree(build_directory)
 
