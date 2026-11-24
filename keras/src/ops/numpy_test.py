@@ -6016,6 +6016,21 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(out.shape[0], x)
         self.assertAllClose(out, expected)
 
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    @pytest.mark.skipif(config.backend() != "jax", reason="Uses jax.jit")
+    def test_window_in_jax_jit(self, backend_agnostic_ops):
+        import jax
+
+        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        self.assertAllClose(jax.jit(lambda: knp.bartlett(5))(), np.bartlett(5))
+        self.assertAllClose(jax.jit(lambda: knp.blackman(5))(), np.blackman(5))
+        self.assertAllClose(jax.jit(lambda: knp.hamming(5))(), np.hamming(5))
+        self.assertAllClose(jax.jit(lambda: knp.hanning(5))(), np.hanning(5))
+        self.assertAllClose(
+            jax.jit(lambda: knp.kaiser(5, 14.0))(), np.kaiser(5, 14.0)
+        )
+
     def test_kaiser(self):
         x = 1 + 2 ** int(np.random.randint(1, 5 + 1))
         beta = float(np.random.randint(10, 20 + 1))

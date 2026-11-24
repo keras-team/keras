@@ -63,17 +63,14 @@ def add(x1, x2):
 
 
 def bartlett(x):
-    x = convert_to_tensor(x)
     return cast(jnp.bartlett(x), config.floatx())
 
 
 def hamming(x):
-    x = convert_to_tensor(x)
     return cast(jnp.hamming(x), config.floatx())
 
 
 def hanning(x):
-    x = convert_to_tensor(x)
     return cast(jnp.hanning(x), config.floatx())
 
 
@@ -100,7 +97,6 @@ def hypot(x1, x2):
 
 
 def kaiser(x, beta):
-    x = convert_to_tensor(x)
     return cast(jnp.kaiser(x, beta), config.floatx())
 
 
@@ -611,7 +607,6 @@ def right_shift(x, y):
 
 
 def blackman(x):
-    x = convert_to_tensor(x)
     return cast(jnp.blackman(x), config.floatx())
 
 
