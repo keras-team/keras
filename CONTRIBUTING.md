@@ -279,8 +279,8 @@ Both code paths must be tested. Parameterize the test with the
 ```python
 @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
 def test_my_op(self, backend_agnostic_ops):
-    backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-    self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+    config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+    self.addCleanup(config._set_use_backend_agnostic_ops, False)
     x = np.array([1.0, 2.0, 3.0])
     self.assertAllClose(knp.my_op(x), np.my_op(x))
     self.assertAllClose(knp.MyOp()(x), np.my_op(x))
