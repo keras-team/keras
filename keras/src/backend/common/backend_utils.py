@@ -1,5 +1,6 @@
 import functools
 import math
+import numbers
 import operator
 import re
 import warnings
@@ -740,3 +741,29 @@ def empty_scan_ys_spec(compute_output_spec, f, init, xs):
         )
     _, ys_spec = compute_output_spec(f, init_spec, xs_spec)
     return ys_spec
+
+
+def normalize_slice_start_indices(start_indices, input_shape):
+    """Convert NumPy-style negative slice starts to non-negative offsets.
+
+    Only rewrites integral Python starts when the matching dimension size is a
+    static `int`. Dynamic dims are left unchanged for the backend to resolve.
+    """
+    if not isinstance(start_indices, (list, tuple)):
+        return start_indices
+    normalized = []
+    for i, start in enumerate(start_indices):
+        if (
+            isinstance(start, numbers.Integral)
+            and int(start) < 0
+            and isinstance(input_shape[i], int)
+        ):
+            start = int(start) + input_shape[i]
+        elif isinstance(start, numbers.Integral) and not isinstance(
+            start, bool
+        ):
+            start = int(start)
+        normalized.append(start)
+    if isinstance(start_indices, tuple):
+        return tuple(normalized)
+    return normalized

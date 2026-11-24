@@ -1336,6 +1336,25 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             np.array([[1, 2, 3], [4, 10, 11], [7, 12, 13]]),
         )
 
+        # Negative starts should count from the end (NumPy-style).
+        inputs = np.zeros((4,), dtype="float32")
+        self.assertAllClose(
+            core.slice_update(
+                inputs, [-1], np.array([9.0], dtype="float32")
+            ),
+            np.array([0.0, 0.0, 0.0, 9.0], dtype="float32"),
+        )
+        inputs = np.zeros((3, 3), dtype="float32")
+        self.assertAllClose(
+            core.slice_update(
+                inputs, [-1, -1], np.array([[7.0]], dtype="float32")
+            ),
+            np.array(
+                [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 7.0]],
+                dtype="float32",
+            ),
+        )
+
     @pytest.mark.requires_trainable_backend
     def test_stop_gradient(self):
         class ExampleLayer(layers.Layer):

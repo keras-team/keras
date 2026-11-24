@@ -19,6 +19,7 @@ from keras.src.backend.common import get_stateless_scope
 from keras.src.backend.common import global_state
 from keras.src.backend.common import in_stateless_scope
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.backend_utils import normalize_slice_start_indices
 from keras.src.backend.common.backend_utils import standardize_argnums
 from keras.src.backend.common.name_scope import name_scope as base_name_scope
 from keras.src.backend.jax import distribution_lib
@@ -620,6 +621,17 @@ def slice(inputs, start_indices, shape):
 
 
 def slice_update(inputs, start_indices, updates):
+    inputs = convert_to_tensor(inputs)
+    updates = convert_to_tensor(updates)
+    # Match NumPy: negative starts count from the end of each axis.
+    if isinstance(start_indices, (list, tuple)):
+        start_indices = normalize_slice_start_indices(
+            start_indices, inputs.shape
+        )
+    else:
+        starts = jnp.asarray(start_indices)
+        dims = jnp.asarray(inputs.shape[: starts.shape[0]], dtype=starts.dtype)
+        start_indices = jnp.where(starts < 0, starts + dims, starts)
     return jax.lax.dynamic_update_slice(inputs, updates, start_indices)
 
 
