@@ -10,13 +10,13 @@ import pytest
 from absl.testing import parameterized
 from jax import export as jax_export
 
-from keras.src import backend
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.ops import numpy as knp
 
 
 @pytest.mark.skipif(
-    backend.backend() != "jax" or testing.uses_gpu() or testing.uses_tpu(),
+    config.backend() != "jax" or testing.uses_gpu() or testing.uses_tpu(),
     reason="XLA CPU specific test",
 )
 class Int8MatmulTest(testing.TestCase):
@@ -95,7 +95,7 @@ def int8_einsum_reference(equation, x, kernel):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "jax" or testing.uses_gpu() or testing.uses_tpu(),
+    config.backend() != "jax" or testing.uses_gpu() or testing.uses_tpu(),
     reason="XLA CPU specific test",
 )
 class Int8EinsumTest(testing.TestCase):

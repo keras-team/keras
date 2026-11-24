@@ -8,6 +8,7 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import initializers
 from keras.src import ops
+from keras.src.backend import config
 from keras.src.backend.common import StatelessScope
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
@@ -177,7 +178,7 @@ class VariablePropertiesTest(test_case.TestCase):
         v.trainable = False
         self.assertFalse(v.trainable)
 
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             v.trainable = True
             self.assertTrue(v._value.requires_grad)
             v.trainable = False
@@ -351,7 +352,7 @@ class VariablePropertiesTest(test_case.TestCase):
     )
     def test_standardize_dtype(self, dtype):
         """Tests standardize_dtype for all ALLOWED_DTYPES except string."""
-        if backend.backend() == "torch" and dtype in (
+        if config.backend() == "torch" and dtype in (
             "uint16",
             "uint32",
             "uint64",
@@ -360,7 +361,7 @@ class VariablePropertiesTest(test_case.TestCase):
         ):
             self.skipTest(f"torch backend does not support dtype {dtype}")
 
-        if backend.backend() == "jax":
+        if config.backend() == "jax":
             if dtype in ("complex128",):
                 self.skipTest(f"jax backend does not support dtype {dtype}")
             import jax
@@ -522,7 +523,7 @@ class VariableNumpyValueAndAssignmentTest(test_case.TestCase):
         self.assertAllClose(v.numpy(), np.array([1.0, 2.0, 3.0]))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Tests for MirroredVariable under tf backend",
     )
     def test_variable_numpy_scalar(self):
@@ -983,12 +984,12 @@ class VariableOpsDTypeTest(test_case.TestCase):
     INT_DTYPES = [x for x in dtypes.INT_TYPES if x not in ("uint64", "int64")]
     FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
     COMPLEX_DTYPES = ["complex32", "complex64"]
-    if backend.backend() == "torch":
+    if config.backend() == "torch":
         ALL_DTYPES = [
             x for x in ALL_DTYPES if x not in ("uint16", "uint32", "complex64")
         ]
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
-    elif backend.backend() == "tensorflow":
+    elif config.backend() == "tensorflow":
         # TODO(hongyu): Re-enable uint32 tests once we determine how to handle
         # dtypes.result_type(uint32, int*) -> int64 promotion.
         # Since TF variables require int64 to be placed on the GPU, we
@@ -1280,7 +1281,7 @@ class VariableOpsDTypeTest(test_case.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "torch",
+    config.backend() != "torch",
     reason="Tests for standardize_shape with Torch backend",
 )
 class TestStandardizeShapeWithTorch(test_case.TestCase):
@@ -1319,7 +1320,7 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "tensorflow",
+    config.backend() != "tensorflow",
     reason="Tests for standardize_shape with TensorFlow backend",
 )
 class TestStandardizeShapeWithTensorflow(test_case.TestCase):

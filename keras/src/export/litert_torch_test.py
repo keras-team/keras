@@ -15,6 +15,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.export.litert import _preserve_jax_x64_state
 
 # Importing `litert_torch` has the module-level side effect of calling
@@ -68,7 +69,7 @@ def _run_litert_inference(interpreter, input_arrays):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "torch", reason="Requires torch backend"
+    config.backend() != "torch", reason="Requires torch backend"
 )
 @pytest.mark.skipif(
     not _has_litert_torch(), reason="Requires litert-torch and torch"

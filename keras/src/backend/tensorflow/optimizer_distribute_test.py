@@ -6,11 +6,12 @@ from tensorflow.python.eager import context
 
 from keras.src import backend
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.optimizers.sgd import SGD
 
 
 @pytest.mark.skipif(
-    backend.backend() != "tensorflow",
+    config.backend() != "tensorflow",
     reason="The distribute test can only run with TF backend.",
 )
 class OptimizerDistributeTest(testing.TestCase):

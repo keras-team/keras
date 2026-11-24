@@ -12,6 +12,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.distribution import distribution_lib
 from keras.src.trainers.data_adapters import data_adapter_test_base
 from keras.src.trainers.data_adapters import tf_dataset_adapter
@@ -32,13 +33,13 @@ class TestTFDatasetAdapter(data_adapter_test_base.DataAdapterTest):
         self.assertEqual(adapter.has_partial_batch, None)
         self.assertEqual(adapter.partial_batch_size, None)
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.Tensor
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             it = adapter.get_jax_iterator()
             expected_class = np.ndarray
-        elif backend.backend() == "torch":
+        elif config.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
         else:
@@ -305,7 +306,7 @@ class TestTFDatasetAdapter(data_adapter_test_base.DataAdapterTest):
                 self.assertEqual(tuple(by.shape), (2, 2))
 
     @pytest.mark.skipif(
-        not backend.SUPPORTS_SPARSE_TENSORS and backend.backend() != "numpy",
+        not backend.SUPPORTS_SPARSE_TENSORS and config.backend() != "numpy",
         reason="Backend does not support sparse tensors",
     )
     def test_tf_sparse_tensors(self):
@@ -318,13 +319,13 @@ class TestTFDatasetAdapter(data_adapter_test_base.DataAdapterTest):
         base_ds = tf.data.Dataset.from_tensors((x, y))
         adapter = tf_dataset_adapter.TFDatasetAdapter(base_ds)
 
-        if backend.backend() == "numpy":
+        if config.backend() == "numpy":
             it = adapter.get_numpy_iterator()
             expected_class = np.ndarray
-        elif backend.backend() == "tensorflow":
+        elif config.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.SparseTensor
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             it = adapter.get_jax_iterator()
             expected_class = jax.experimental.sparse.BCOO
 
@@ -354,13 +355,13 @@ class TestTFDatasetAdapter(data_adapter_test_base.DataAdapterTest):
         self.assertIsNone(adapter.has_partial_batch)
         self.assertIsNone(adapter.partial_batch_size)
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.Tensor
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             it = adapter.get_jax_iterator()
             expected_class = np.ndarray
-        elif backend.backend() == "torch":
+        elif config.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
         else:
@@ -478,7 +479,7 @@ class TestTFDatasetAdapter(data_adapter_test_base.DataAdapterTest):
         self.assertAllClose(data[1], np.arange(8, 16))
 
     @pytest.mark.skipif(
-        backend.backend() != "jax",
+        config.backend() != "jax",
         reason="JAX only",
     )
     def test_get_jax_iterator_with_super_batch_known_batch_size(self):
@@ -513,7 +514,7 @@ class TestTFDatasetAdapter(data_adapter_test_base.DataAdapterTest):
         )
 
     @pytest.mark.skipif(
-        backend.backend() != "jax",
+        config.backend() != "jax",
         reason="JAX only",
     )
     def test_get_jax_iterator_with_super_batch_unknown_batch_size(self):
@@ -558,7 +559,7 @@ class TestTFDatasetAdapter(data_adapter_test_base.DataAdapterTest):
         )
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="TensorFlow only",
     )
     def test_fit_unknown_rank_dataset_steps_per_execution(self):
@@ -592,7 +593,7 @@ class TestTFDatasetAdapter(data_adapter_test_base.DataAdapterTest):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "jax",
+    config.backend() != "jax",
     reason="Only JAX has the proper backend distribution lib",
 )
 @pytest.mark.multi_device

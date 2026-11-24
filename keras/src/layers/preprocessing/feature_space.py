@@ -4,6 +4,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import standardize_dtype
 from keras.src.layers.layer import Layer
 from keras.src.layers.preprocessing.data_layer import DataLayer
@@ -801,7 +802,7 @@ class FeatureSpace(Layer):
                         f"Received: shape={merged_data.shape}"
                     )
                 if (
-                    backend.backend() != "tensorflow"
+                    config.backend() != "tensorflow"
                     and not backend_utils.in_tf_graph()
                 ):
                     merged_data = np.array(merged_data)
@@ -811,10 +812,7 @@ class FeatureSpace(Layer):
                     if len(x.shape) == 2 and x.shape[0] == 1:
                         merged_data[name] = tf.squeeze(x, axis=0)
 
-        if (
-            backend.backend() != "tensorflow"
-            and not backend_utils.in_tf_graph()
-        ):
+        if config.backend() != "tensorflow" and not backend_utils.in_tf_graph():
             merged_data = tree.map_structure(
                 lambda x: backend.ops.convert_to_tensor(x, dtype=x.dtype),
                 merged_data,

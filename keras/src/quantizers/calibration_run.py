@@ -14,9 +14,9 @@ from contextlib import nullcontext
 import numpy as np
 from absl import logging
 
-from keras.src import backend
 from keras.src import ops
 from keras.src import utils as keras_utils
+from keras.src.backend import config
 from keras.src.quantizers.capture import calibration_scope
 
 
@@ -33,7 +33,7 @@ def calibration_no_grad_scope():
     comfortably otherwise. JAX and TensorFlow build no such graphs in eager
     mode, so this is a no-op there.
     """
-    if backend.backend() == "torch":
+    if config.backend() == "torch":
         import torch
 
         return torch.no_grad()

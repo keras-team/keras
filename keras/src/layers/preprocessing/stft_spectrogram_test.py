@@ -4,7 +4,6 @@ import scipy.signal
 
 from keras import Input
 from keras import Sequential
-from keras.src import backend
 from keras.src import layers
 from keras.src import testing
 from keras.src.backend import config
@@ -100,7 +99,7 @@ class TestSpectrogram(testing.TestCase):
         self.assertAllClose(y_expanded, np.stack(y_singles, axis=-1))
 
     @pytest.mark.skipif(
-        backend.backend() == "tensorflow",
+        config.backend() == "tensorflow",
         reason="TF doesn't support channels_first",
     )
     def test_spectrogram_channels_first(self):
@@ -272,7 +271,7 @@ class TestSpectrogram(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Backend does not support dynamic shapes",
     )
     def test_spectrogram_dynamic_shape(self):
@@ -343,7 +342,7 @@ class TestSpectrogram(testing.TestCase):
             self.assertLess(np.mean(~mask), 2e-4)
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Requires TF tensors for TF-data module.",
     )
     def test_tf_data_compatibility(self):

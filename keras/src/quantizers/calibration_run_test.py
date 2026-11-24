@@ -8,12 +8,12 @@ import pytest
 from absl.testing import parameterized
 
 from keras.src import activations
-from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.calibration_run import CalibrationRun
 from keras.src.quantizers.calibration_run import _execution_stages
@@ -897,11 +897,11 @@ class CalibrationRunModelTest(testing.TestCase):
     def test_calibration_runs_without_grad_tracking(self, mode):
         """On torch, graphs of the calibration forwards would keep every
         activation of the run alive and exhaust GPU memory."""
-        if backend.backend() != "torch":
+        if config.backend() != "torch":
             self.skipTest("gradient tracking is specific to torch")
-        model, config = _tiny_model(mode)
+        model, quant_config = _tiny_model(mode)
         with _spy_on_observe(mode) as observe:
-            model.quantize(mode, config=config)
+            model.quantize(mode, config=quant_config)
         self.assertTrue(observe.called)
         for call in observe.call_args_list:
             self.assertIsNone(getattr(call.args[1], "grad_fn", None))

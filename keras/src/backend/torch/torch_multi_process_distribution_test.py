@@ -15,7 +15,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import optimizers
 from keras.src import testing
-from keras.src.backend import backend
+from keras.src.backend import config
 from keras.src.backend.torch import distribution_lib as torch_distribution_lib
 from keras.src.distribution import distribution_lib
 from keras.src.trainers.data_adapters import tf_dataset_adapter
@@ -28,7 +28,7 @@ class MultiProcessTest:
 
 @pytest.mark.multi_device
 @pytest.mark.no_pytest_xdist
-@pytest.mark.skipif(backend() != "torch", reason="Torch only")
+@pytest.mark.skipif(config.backend() != "torch", reason="Torch only")
 class TorchMultiProcessDistributeTest(
     MultiProcessTest, testing.TestCase, parameterized.TestCase
 ):

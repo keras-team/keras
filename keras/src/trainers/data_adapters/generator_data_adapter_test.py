@@ -10,6 +10,7 @@ from absl.testing import parameterized
 from jax import numpy as jnp
 
 from keras.src import backend
+from keras.src.backend import config
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import data_adapter_test_base
 from keras.src.trainers.data_adapters import generator_data_adapter
@@ -65,15 +66,15 @@ class GeneratorDataAdapterTest(data_adapter_test_base.DataAdapterTest):
         )
 
         adapter = generator_data_adapter.GeneratorDataAdapter(make_generator())
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.Tensor
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             it = adapter.get_jax_iterator()
             expected_class = (
                 jax.Array if generator_type == "jax" else np.ndarray
             )
-        elif backend.backend() == "torch":
+        elif config.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
         else:
@@ -123,11 +124,11 @@ class GeneratorDataAdapterTest(data_adapter_test_base.DataAdapterTest):
 
         adapter = generator_data_adapter.GeneratorDataAdapter(generator())
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             it = adapter.get_jax_iterator()
-        elif backend.backend() == "torch":
+        elif config.backend() == "torch":
             it = adapter.get_torch_dataloader()
         else:
             it = adapter.get_numpy_iterator()
@@ -148,7 +149,7 @@ class GeneratorDataAdapterTest(data_adapter_test_base.DataAdapterTest):
                 self.assertEqual(by.shape, (2, 2))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="tf.data.Dataset specific behavior",
     )
     def test_with_unexpected_shapes(self):
@@ -194,10 +195,10 @@ class GeneratorDataAdapterTest(data_adapter_test_base.DataAdapterTest):
 
         adapter = generator_data_adapter.GeneratorDataAdapter(generate())
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.SparseTensor
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             it = adapter.get_jax_iterator()
             expected_class = jax_sparse.BCOO
 
@@ -227,7 +228,7 @@ class GeneratorDataAdapterTest(data_adapter_test_base.DataAdapterTest):
 
         adapter = generator_data_adapter.GeneratorDataAdapter(generate())
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.RaggedTensor
 
@@ -239,7 +240,7 @@ class GeneratorDataAdapterTest(data_adapter_test_base.DataAdapterTest):
             self.assertEqual(bx.shape, (2, None, 2))
             self.assertEqual(by.shape, (2, None, 2))
 
-    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
+    @pytest.mark.skipif(config.backend() != "jax", reason="JAX only")
     def test_get_jax_iterator_with_super_batch(self):
         # Even batches: 4 batches with super_batch=2 -> 2 super-batches
         gen_even = ((np.ones((16, 4)), np.ones((16, 2))) for _ in range(4))

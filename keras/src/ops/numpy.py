@@ -6174,7 +6174,7 @@ class Nanmax(Operation):
     def compute_output_spec(self, x):
         dtype = dtypes.result_type(getattr(x, "dtype", config.floatx()))
 
-        if backend.backend() == "torch" and dtype == "uint32":
+        if config.backend() == "torch" and dtype == "uint32":
             dtype = "int32"
 
         return KerasTensor(
@@ -6395,7 +6395,7 @@ class Nanmin(Operation):
     def compute_output_spec(self, x):
         dtype = dtypes.result_type(getattr(x, "dtype", config.floatx()))
 
-        if backend.backend() == "torch" and dtype == "uint32":
+        if config.backend() == "torch" and dtype == "uint32":
             dtype = "int32"
 
         return KerasTensor(
@@ -6579,7 +6579,7 @@ class Nanprod(Operation):
         elif dtype in ("uint8", "uint16"):
             dtype = "uint32"
 
-        if backend.backend() == "torch" and dtype == "uint32":
+        if config.backend() == "torch" and dtype == "uint32":
             dtype = "int32"
 
         return KerasTensor(
@@ -6884,7 +6884,7 @@ class Nansum(Operation):
         elif dtype in ("uint8", "uint16"):
             dtype = "uint32"
 
-        if backend.backend() == "torch" and dtype == "uint32":
+        if config.backend() == "torch" and dtype == "uint32":
             dtype = "int32"
         sparse = getattr(x, "sparse", False)
         return KerasTensor(
@@ -7451,7 +7451,7 @@ class Prod(Operation):
             elif dtype in ("uint8", "uint16"):
                 dtype = "uint32"
         # TODO: torch doesn't support uint32
-        if backend.backend() == "torch" and dtype == "uint32":
+        if config.backend() == "torch" and dtype == "uint32":
             dtype = "int32"
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
@@ -8662,7 +8662,7 @@ class Trace(Operation):
             output_dtype = "int32"
         elif output_dtype in ("uint8", "uint16"):
             output_dtype = "uint32"
-        if output_dtype == "uint32" and backend.backend() == "torch":
+        if output_dtype == "uint32" and config.backend() == "torch":
             # Torch backend doesn't support uint32 dtype.
             output_dtype = "int32"
         return KerasTensor(output_shape, dtype=output_dtype)
@@ -9791,7 +9791,7 @@ class Sum(Operation):
         elif dtype in ("uint8", "uint16"):
             dtype = "uint32"
         # TODO: torch doesn't support uint32
-        if backend.backend() == "torch" and dtype == "uint32":
+        if config.backend() == "torch" and dtype == "uint32":
             dtype = "int32"
         sparse = getattr(x, "sparse", False)
         return KerasTensor(

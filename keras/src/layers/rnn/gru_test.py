@@ -4,10 +4,10 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import initializers
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 
 
 class GRUTest(testing.TestCase):
@@ -414,7 +414,7 @@ class GRUTest(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Test only applicable to fixing a bug with symbolic batch size "
         "for TensorFlow backend.",
     )
@@ -437,7 +437,7 @@ class GRUTest(testing.TestCase):
         self.assertEqual(y.shape, (2, 5))
 
     @pytest.mark.skipif(
-        backend.backend() != "torch",
+        config.backend() != "torch",
         reason="Guards the torch-backend cuDNN dispatch path.",
     )
     def test_torch_cudnn_dispatch_fires(self):
@@ -478,7 +478,7 @@ class GRUTest(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() != "torch",
+        config.backend() != "torch",
         reason="Reproduces torch stateful GRU backward (#23462).",
     )
     def test_stateful_backward(self):

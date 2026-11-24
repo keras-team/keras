@@ -417,7 +417,7 @@ def convert_to_sliceable(arrays, target_backend=None):
         if (
             isinstance(x, np.ndarray)
             and str(x.dtype) == "object"
-            and backend.backend() == "tensorflow"
+            and config.backend() == "tensorflow"
             and all(isinstance(e, str) for e in x)
         ):
             x = tf.convert_to_tensor(x, dtype="string")

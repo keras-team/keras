@@ -178,15 +178,15 @@ class ResizingTest(testing.TestCase):
         self.assertEqual(tuple(output_np.shape), output_shape)
         self.assertTrue(backend.ops.is_tensor(output))
         # Ensure the device of the data is on CPU.
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             self.assertIn("CPU", str(output.device).upper())
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             self.assertIn("CPU", str(output.device).upper())
-        elif backend.backend() == "torch":
+        elif config.backend() == "torch":
             self.assertEqual("cpu", str(output.device))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Sequential + tf.data only works with TF backend",
     )
     def test_tf_data_compatibility_sequential(self):

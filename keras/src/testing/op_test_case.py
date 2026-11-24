@@ -217,8 +217,8 @@ class OpTest(TestCase):
                     raise
 
     def test_jit(self):
-        if backend.backend() not in ("jax", "tensorflow", "torch"):
-            self.skipTest(f"No JIT compiler on the {backend.backend()} backend")
+        if config.backend() not in ("jax", "tensorflow", "torch"):
+            self.skipTest(f"No JIT compiler on the {config.backend()} backend")
         for inputs, kwargs in self._cases().values():
             self.check_jit(inputs, kwargs)
 
@@ -236,7 +236,7 @@ class OpTest(TestCase):
 
     def test_gradients(self):
         if not backend.SUPPORTS_GRADIENT:
-            self.skipTest(f"No gradients on the {backend.backend()} backend")
+            self.skipTest(f"No gradients on the {config.backend()} backend")
         self.check_gradients(*self._first_case())
 
     def test_dtype_argument(self):
@@ -246,7 +246,7 @@ class OpTest(TestCase):
             self.check_dtype_argument(inputs, kwargs)
 
     def test_tf_graph(self):
-        if backend.backend() != "tensorflow":
+        if config.backend() != "tensorflow":
             self.skipTest("TensorFlow only")
         for inputs, kwargs in self._cases().values():
             self.check_tf_graph(inputs, kwargs)
@@ -472,7 +472,7 @@ class OpTest(TestCase):
         """
         if inputs is None:
             inputs, kwargs = self._first_case()
-        backend_name = backend.backend()
+        backend_name = config.backend()
         skipped = _SKIPPED_DTYPES.get(backend_name, {})
         if config.x64_mode() == "off":
             skipped = skipped | _SKIPPED_DTYPES_IN_OFF.get(backend_name, {})
@@ -600,20 +600,20 @@ def _array_function(op, inputs, kwargs):
 
 def _jit(fn):
     """`fn` compiled by the backend's JIT, with no fallback to eager."""
-    if backend.backend() == "jax":
+    if config.backend() == "jax":
         import jax
 
         return jax.jit(fn)
-    if backend.backend() == "tensorflow":
+    if config.backend() == "tensorflow":
         import tensorflow as tf
 
         return tf.function(fn, jit_compile=True)
-    if backend.backend() == "torch":
+    if config.backend() == "torch":
         import torch
 
         torch._dynamo.reset()  # Every case compiles anew; the cache holds 8.
         return torch.compile(fn, fullgraph=True)
-    raise ValueError(f"Unsupported backend for JIT: {backend.backend()}")
+    raise ValueError(f"Unsupported backend for JIT: {config.backend()}")
 
 
 def _op_model(op, inputs, kwargs):

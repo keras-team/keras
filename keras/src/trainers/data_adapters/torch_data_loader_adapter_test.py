@@ -6,6 +6,7 @@ import torch
 from absl.testing import parameterized
 
 from keras.src import backend
+from keras.src.backend import config
 from keras.src.distribution import distribution_lib as dist_lib
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import data_adapter_test_base
@@ -34,13 +35,13 @@ class TestTorchDataLoaderAdapter(data_adapter_test_base.DataAdapterTest):
         self.assertEqual(adapter.has_partial_batch, True)
         self.assertEqual(adapter.partial_batch_size, 2)
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.Tensor
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             it = adapter.get_jax_iterator()
             expected_class = np.ndarray
-        elif backend.backend() == "torch":
+        elif config.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
         else:
@@ -83,7 +84,7 @@ class TestTorchDataLoaderAdapter(data_adapter_test_base.DataAdapterTest):
         self.assertEqual(batch["x"].shape, (2, 2))
         self.assertEqual(batch["y"].shape, (2,))
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             ds = TorchDataLoaderAdapter(dataloader).get_tf_dataset()
             self.assertIsInstance(ds.element_spec, dict)
             self.assertEqual(set(ds.element_spec), {"x", "y"})
@@ -111,7 +112,7 @@ class TestTorchDataLoaderAdapter(data_adapter_test_base.DataAdapterTest):
         self.assertIsInstance(batch, np.ndarray)
         self.assertEqual(batch.shape, (2, 3))
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             ds = TorchDataLoaderAdapter(dataloader).get_tf_dataset()
             self.assertIsInstance(ds.element_spec, tf.TensorSpec)
             self.assertEqual(ds.element_spec.shape, (None, 3))
@@ -157,13 +158,13 @@ class TestTorchDataLoaderAdapter(data_adapter_test_base.DataAdapterTest):
             self.assertIsNone(adapter.has_partial_batch)
             self.assertIsNone(adapter.partial_batch_size)
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.Tensor
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             it = adapter.get_jax_iterator()
             expected_class = np.ndarray
-        elif backend.backend() == "torch":
+        elif config.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
         else:
@@ -211,11 +212,11 @@ class TestTorchDataLoaderAdapter(data_adapter_test_base.DataAdapterTest):
         self.assertEqual(adapter.has_partial_batch, True)
         self.assertEqual(adapter.partial_batch_size, 2)
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             it = adapter.get_jax_iterator()
-        elif backend.backend() == "torch":
+        elif config.backend() == "torch":
             it = adapter.get_torch_dataloader()
         else:
             it = adapter.get_numpy_iterator()
@@ -336,7 +337,7 @@ class TestTorchDataLoaderAdapter(data_adapter_test_base.DataAdapterTest):
                 "tensorflow": "get_tf_dataset",
                 "jax": "get_jax_iterator",
                 "torch": "get_torch_dataloader",
-            }.get(backend.backend())
+            }.get(config.backend())
             if backend_it_method:
                 it_methods.append(backend_it_method)
 
@@ -411,7 +412,7 @@ class TestTorchDataLoaderAdapter(data_adapter_test_base.DataAdapterTest):
                 self.assertNotAllClose(order1, order3)
 
     @pytest.mark.skipif(
-        backend.backend() != "jax",
+        config.backend() != "jax",
         reason="JAX only",
     )
     def test_get_jax_iterator_with_super_batch(self):

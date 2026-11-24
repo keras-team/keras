@@ -1,5 +1,6 @@
 import keras.src.backend
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.layers.layer import Layer
 from keras.src.random.seed_generator import SeedGenerator
 from keras.src.utils import backend_utils
@@ -140,7 +141,7 @@ class DataLayer(Layer):
                 "The `seed` and `generator` variable must be set in the "
                 "`__init__` method before calling `_get_seed_generator()`."
             )
-        if backend is None or backend == keras.backend.backend():
+        if backend is None or backend == config.backend():
             return self.generator
         if not hasattr(self, "_backend_generators"):
             self._backend_generators = {}
@@ -152,7 +153,7 @@ class DataLayer(Layer):
 
     def convert_weight(self, weight):
         """Convert the weight if it is from the a different backend."""
-        if self.backend.name == keras.backend.backend():
+        if self.backend.name == config.backend():
             return weight
         else:
             weight = keras.ops.convert_to_numpy(weight)

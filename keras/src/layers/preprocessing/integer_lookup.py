@@ -2,6 +2,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.layers.preprocessing.index_lookup import IndexLookup
 from keras.src.utils import backend_utils
 from keras.src.utils.module_utils import tensorflow as tf
@@ -366,7 +367,7 @@ class IntegerLookup(IndexLookup):
                 "must >= 0. Received: num_oov_indices="
                 f"{num_oov_indices}"
             )
-        if sparse and backend.backend() != "tensorflow":
+        if sparse and config.backend() != "tensorflow":
             raise ValueError(
                 "`sparse=True` can only be used with the TensorFlow backend."
             )

@@ -1,6 +1,7 @@
 from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.callbacks.callback import Callback
 
 
@@ -139,7 +140,7 @@ class SwapEMAWeights(Callback):
                             "`use_ema=True` is set on the optimizer. "
                             f"Received: use_ema={opt.use_ema}"
                         )
-                    if backend.backend() == "tensorflow":
+                    if config.backend() == "tensorflow":
                         tf_fn(opt)
                     else:
                         backend_fn(opt)
@@ -150,7 +151,7 @@ class SwapEMAWeights(Callback):
                     "`use_ema=True` is set on the optimizer. "
                     f"Received: use_ema={optimizer.use_ema}"
                 )
-            if backend.backend() == "tensorflow":
+            if config.backend() == "tensorflow":
                 tf_fn(optimizer)
             else:
                 backend_fn(optimizer)

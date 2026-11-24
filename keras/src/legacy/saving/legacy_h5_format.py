@@ -6,6 +6,7 @@ import numpy as np
 from absl import logging
 
 from keras.src import backend
+from keras.src.backend import config
 from keras.src.backend.common import global_state
 from keras.src.legacy.saving import json_utils
 from keras.src.legacy.saving import saving_options
@@ -217,7 +218,7 @@ def save_weights_to_hdf5_group(group, model):
         "layer_names",
         [layer.name.encode("utf8") for layer in model.layers],
     )
-    group.attrs["backend"] = backend.backend().encode("utf8")
+    group.attrs["backend"] = config.backend().encode("utf8")
     group.attrs["keras_version"] = str(keras_version).encode("utf8")
 
     # Sort model layers by layer name to ensure that group names are strictly
