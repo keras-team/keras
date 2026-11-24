@@ -13641,8 +13641,8 @@ class NumpyDtypeTest(testing.TestCase):
 class HistogramTest(testing.TestCase):
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_histogram_default_args(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         hist_op = knp.histogram
         input_tensor = np.random.rand(8)
 
@@ -13664,8 +13664,8 @@ class HistogramTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_histogram_custom_bins(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         hist_op = knp.histogram
         input_tensor = np.random.rand(8)
         bins = 5
@@ -13682,8 +13682,8 @@ class HistogramTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_histogram_custom_range(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         hist_op = knp.histogram
         input_tensor = np.random.rand(10)
         range_specified = (2, 8)
@@ -13741,8 +13741,8 @@ class HistogramTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_histogram_large_values(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         hist_op = knp.histogram
         input_tensor = np.array([1e10, 2e10, 3e10, 4e10, 5e10])
 
@@ -13755,8 +13755,8 @@ class HistogramTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_histogram_float_input(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         hist_op = knp.histogram
         input_tensor = np.random.rand(8)
 
@@ -13778,8 +13778,8 @@ class HistogramTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_histogram_values_on_edges(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         hist_op = knp.histogram
         input_tensor = np.array([0.0, 2.0, 4.0, 8.0, 10.0])
         bins = 5
@@ -13802,8 +13802,8 @@ class HistogramTest(testing.TestCase):
         ),
     )
     def test_histogram_predict(self, backend_agnostic_ops, jit_compile):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
 
         class HistogramLayer(keras.layers.Layer):
             def call(self, x):
