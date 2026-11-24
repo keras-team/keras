@@ -53,7 +53,7 @@ def clear_session(free_memory=True):
       # With `clear_session()` called at the beginning,
       # Keras starts with a blank state at each iteration
       # and memory consumption is constant over time.
-      keras.backend.clear_session()
+      keras.utils.clear_session()
       model = keras.Sequential([
           keras.layers.Dense(10) for _ in range(10)])
     ```
@@ -64,7 +64,7 @@ def clear_session(free_memory=True):
     >>> new_layer = keras.layers.Dense(10)
     >>> print(new_layer.name)
     dense_10
-    >>> keras.backend.clear_session()
+    >>> keras.utils.clear_session()
     >>> new_layer = keras.layers.Dense(10)
     >>> print(new_layer.name)
     dense

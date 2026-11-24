@@ -74,9 +74,9 @@ class DynamicBackend:
 
     ```python
     backend = DynamicBackend("tensorflow")
-    y = backend.square(tf.constant(...))
+    y = backend.ops.numpy.square(tf.constant(...))
     backend.set_backend("jax")
-    y = backend.square(jax.numpy.array(...))
+    y = backend.ops.numpy.square(jax.numpy.array(...))
     ```
 
     Args:
