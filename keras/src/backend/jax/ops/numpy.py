@@ -1466,6 +1466,23 @@ def sort(x, axis=-1):
 
 def split(x, indices_or_sections, axis=0):
     x = convert_to_tensor(x)
+    if (
+        isinstance(indices_or_sections, (list, tuple))
+        or getattr(indices_or_sections, "ndim", 0) > 0
+    ):
+        # Like NumPy, wrap negative indices and clip them to the axis length.
+        # Older JAX versions turn out-of-range indices into negative sizes.
+        size = x.shape[axis]
+
+        def resolve(i):
+            if not isinstance(size, int) or not isinstance(
+                i, (int, np.integer)
+            ):
+                return i
+            i = int(i)
+            return builtins.min(builtins.max(i + size if i < 0 else i, 0), size)
+
+        indices_or_sections = [resolve(i) for i in indices_or_sections]
     return jnp.split(x, indices_or_sections, axis=axis)
 
 
