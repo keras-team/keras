@@ -265,6 +265,36 @@ def cond(pred, true_fn, false_fn):
 
 
 def vectorized_map(function, elements):
+    elements = tree.map_structure(convert_to_tensor, elements)
+    flat = tree.flatten(elements)
+    if not flat:
+        raise ValueError("`elements` cannot be empty.")
+    for x in flat:
+        if len(x.shape) < 1:
+            raise ValueError(
+                "All inputs to `vectorized_map` must have rank >= 1. "
+                f"Received an input with shape {x.shape}."
+            )
+    batch_size = flat[0].shape[0]
+    for i, x in enumerate(flat):
+        if x.shape[0] != batch_size:
+            raise ValueError(
+                "All elements passed to `vectorized_map` must have the "
+                f"same batch size (dimension 0). Element at index 0 has "
+                f"batch size {batch_size}, but element at index {i} has "
+                f"batch size {x.shape[0]}."
+            )
+    # tf.vectorized_map indexes batch 0; empty batches fail with
+    # "indices[0] = 0 is not in [0, 0)". Trace output specs instead.
+    if isinstance(batch_size, int) and batch_size == 0:
+        elem_spec = tree.map_structure(
+            lambda t: KerasTensor(t.shape[1:], t.dtype), elements
+        )
+        out_spec = compute_output_spec(function, elem_spec)
+        return tree.map_structure(
+            lambda y: tf.zeros((0,) + tuple(y.shape), dtype=y.dtype),
+            out_spec,
+        )
     return tf.vectorized_map(function, elements)
 
 

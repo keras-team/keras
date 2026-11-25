@@ -959,8 +959,10 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(tuple(nested_empty["b"].shape), (0, 3))
 
         # Domain-restricted ops must not be evaluated on dummy zeros.
+        # Add eye so shape tracing stays invertible under compute_output_spec.
         inv_out = ops.map(
-            ops.linalg.inv, np.zeros((0, 2, 2), dtype="float32")
+            lambda x: ops.linalg.inv(x + ops.eye(2)),
+            np.zeros((0, 2, 2), dtype="float32"),
         )
         self.assertEqual(tuple(inv_out.shape), (0, 2, 2))
 
@@ -1486,8 +1488,10 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             )
 
         # Domain-restricted ops must not be evaluated on dummy zeros.
+        # Add eye so shape tracing stays invertible under compute_output_spec.
         inv_out = ops.vectorized_map(
-            ops.linalg.inv, np.zeros((0, 2, 2), dtype="float32")
+            lambda x: ops.linalg.inv(x + ops.eye(2)),
+            np.zeros((0, 2, 2), dtype="float32"),
         )
         self.assertEqual(tuple(inv_out.shape), (0, 2, 2))
 
