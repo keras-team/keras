@@ -445,3 +445,14 @@ class F1ScoreTest(testing.TestCase):
         fbeta.update_state(y_true, y_pred)
         f1.update_state(y_true, y_pred)
         self.assertAllClose(fbeta.result(), f1.result(), atol=1e-6)
+
+    def test_nonbinary_y_true_stays_in_unit_interval(self):
+        y_true = np.array([[1], [2], [1], [1]], dtype="float32")
+        y_pred = np.array([[1], [2], [2], [1]], dtype="float32")
+        for threshold in (None, 0.5):
+            metric = f_score_metrics.F1Score(threshold=threshold)
+            metric.update_state(y_true, y_pred)
+            result = float(metric.result())
+            self.assertGreaterEqual(result, 0.0)
+            self.assertLessEqual(result, 1.0)
+            self.assertAllClose(result, 1.0)
