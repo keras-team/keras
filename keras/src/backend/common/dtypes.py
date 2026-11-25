@@ -2,7 +2,6 @@ import functools
 
 from keras.src.api_export import keras_export
 from keras.src.backend import config
-from keras.src.backend.common.variables import standardize_dtype
 
 BOOL_TYPES = ("bool",)
 INT_TYPES = (
@@ -58,6 +57,46 @@ PYTHON_DTYPES_MAP = {
     "int": "int64" if config.backend() == "tensorflow" else "int32",
     complex: "complex64",
 }
+
+
+@keras_export(
+    ["keras.utils.standardize_dtype", "keras.backend.standardize_dtype"]
+)
+def standardize_dtype(dtype):
+    # Fast path: an already-canonical dtype string is by far the common case
+    # and needs none of the normalization below.
+    if isinstance(dtype, str) and dtype in ALLOWED_DTYPES_SET:
+        return dtype
+    if dtype is None:
+        return config.floatx()
+    dtype = PYTHON_DTYPES_MAP.get(dtype, dtype)
+    if hasattr(dtype, "name"):
+        dtype = dtype.name.lower()
+    elif hasattr(dtype, "__name__"):
+        dtype = dtype.__name__
+    elif hasattr(dtype, "__str__") and (
+        "torch" in str(dtype)
+        or "jax.numpy" in str(dtype)
+        or "mlx" in str(dtype)
+    ):
+        dtype = str(dtype).split(".")[-1]
+
+    if dtype not in ALLOWED_DTYPES_SET:
+        raise ValueError(f"Invalid dtype: {dtype}")
+    return dtype
+
+
+@keras_export("keras.backend.is_float_dtype")
+def is_float_dtype(dtype):
+    dtype = standardize_dtype(dtype)
+    return dtype.startswith("float") or dtype.startswith("bfloat")
+
+
+@keras_export("keras.backend.is_int_dtype")
+def is_int_dtype(dtype):
+    dtype = standardize_dtype(dtype)
+    return dtype.startswith("int") or dtype.startswith("uint")
+
 
 # We adapted the type promotion lattice from JAX. Ref:
 # https://github.com/google/jax/blob/main/jax/_src/dtypes.py
