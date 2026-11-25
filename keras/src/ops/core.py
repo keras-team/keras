@@ -979,10 +979,10 @@ def _saturate_cast(x, dtype, backend_module=None):
     # to a value less than the true saturation limit, but this is the best we
     # can do in order to avoid UB without backend op.
     min_limit = np.maximum(in_min, out_min).astype(in_dtype)
-    if min_limit < out_min:
+    if min_limit.item() < out_min:
         min_limit = np.nextafter(min_limit, 0, dtype=in_dtype)
     max_limit = np.minimum(in_max, out_max).astype(in_dtype)
-    if max_limit > out_max:
+    if max_limit.item() > out_max:
         max_limit = np.nextafter(max_limit, 0, dtype=in_dtype)
 
     # Unconditionally apply `clip` to fix `inf` behavior.
