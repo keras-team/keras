@@ -161,7 +161,8 @@ class FBetaScore(Metric):
         self._built = True
 
     def update_state(self, y_true, y_pred, sample_weight=None):
-        y_true = backend.ops.convert_to_tensor(y_true, dtype=self.dtype)
+        # Convert y_true as bool indicators up front (same as confusion metrics).
+        y_true = backend.ops.convert_to_tensor(y_true, dtype="bool")
         y_pred = backend.ops.convert_to_tensor(y_pred, dtype=self.dtype)
         if not self._built:
             self._build(y_true.shape, y_pred.shape)
@@ -177,10 +178,7 @@ class FBetaScore(Metric):
             y_pred = y_pred > self.threshold
 
         y_pred = backend.ops.cast(y_pred, dtype=self.dtype)
-        # Treat y_true as boolean indicators (same as confusion-matrix metrics).
-        y_true = backend.ops.cast(
-            backend.ops.cast(y_true, dtype="bool"), dtype=self.dtype
-        )
+        y_true = backend.ops.cast(y_true, dtype=self.dtype)
         if sample_weight is not None:
             sample_weight = backend.ops.convert_to_tensor(
                 sample_weight, dtype=self.dtype

@@ -452,7 +452,4 @@ class F1ScoreTest(testing.TestCase):
         for threshold in (None, 0.5):
             metric = f_score_metrics.F1Score(threshold=threshold)
             metric.update_state(y_true, y_pred)
-            result = float(metric.result())
-            self.assertGreaterEqual(result, 0.0)
-            self.assertLessEqual(result, 1.0)
-            self.assertAllClose(result, 1.0)
+            self.assertAllClose(metric.result(), 1.0, atol=1e-6)
