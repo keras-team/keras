@@ -3,6 +3,7 @@
 import concurrent.futures
 import threading
 
+import ml_dtypes
 import numpy as np
 import pytest
 import torch
@@ -174,6 +175,128 @@ class TorchCoreTest(testing.TestCase):
         self.assertTrue(
             torch.equal(as_bytes(filled), as_bytes(expected).repeat(2))
         )
+
+    def _bfloat16_array(self):
+        x = np.arange(-6, 6, dtype="float32").reshape(3, 4) / 4
+        return x.astype(ml_dtypes.bfloat16)
+
+    def test_convert_to_tensor_bfloat16_ndarray(self):
+        x = self._bfloat16_array()
+        result = convert_to_tensor(x)
+        self.assertEqual(result.dtype, torch.bfloat16)
+        self.assertEqual(tuple(result.shape), x.shape)
+        self.assertAllClose(result.to(torch.float32), x.astype("float32"))
+        # Explicitly requesting bfloat16 gives the same result.
+        result = convert_to_tensor(x, dtype="bfloat16")
+        self.assertEqual(result.dtype, torch.bfloat16)
+        self.assertAllClose(result.to(torch.float32), x.astype("float32"))
+        # Scalar and empty arrays.
+        result = convert_to_tensor(np.array(1.5, dtype=ml_dtypes.bfloat16))
+        self.assertEqual(result.dtype, torch.bfloat16)
+        self.assertEqual(tuple(result.shape), ())
+        self.assertEqual(result.item(), 1.5)
+        result = convert_to_tensor(np.zeros((0, 3), dtype=ml_dtypes.bfloat16))
+        self.assertEqual(result.dtype, torch.bfloat16)
+        self.assertEqual(tuple(result.shape), (0, 3))
+
+    @pytest.mark.skipif(
+        "cpu" not in get_device(),
+        reason="Memory can only be shared with NumPy on CPU.",
+    )
+    def test_convert_to_tensor_bfloat16_ndarray_shares_memory(self):
+        x = self._bfloat16_array()
+        result = convert_to_tensor(x)
+        self.assertEqual(result.data_ptr(), x.ctypes.data)
+        x[0, 0] = 100.0
+        self.assertEqual(result[0, 0].item(), 100.0)
+
+    @parameterized.named_parameters(
+        ("negative_strides", lambda x: x[::-1, ::-1], False),
+        ("non_contiguous", lambda x: x[:, ::2], True),
+        ("transposed", lambda x: x.T, True),
+        ("fortran_order", np.asfortranarray, True),
+    )
+    def test_convert_to_tensor_bfloat16_ndarray_layouts(self, fn, shares):
+        x = fn(self._bfloat16_array())
+        result = convert_to_tensor(x)
+        self.assertEqual(result.dtype, torch.bfloat16)
+        self.assertEqual(tuple(result.shape), x.shape)
+        self.assertAllClose(result.to(torch.float32), x.astype("float32"))
+        if "cpu" in get_device():
+            shared = np.shares_memory(x, result.view(torch.uint16).numpy())
+            self.assertEqual(shared, shares)
+
+    def test_convert_to_tensor_bfloat16_ndarray_non_writable(self):
+        x = self._bfloat16_array()
+        x.flags.writeable = False
+        result = convert_to_tensor(x)
+        self.assertEqual(result.dtype, torch.bfloat16)
+        self.assertAllClose(result.to(torch.float32), x.astype("float32"))
+        # A non-writable array is copied, the tensor can be written to.
+        result[0, 0] = 100.0
+        self.assertEqual(x[0, 0], -1.5)
+
+    def test_convert_to_tensor_bfloat16_ndarray_from_bytes(self):
+        # ml_dtypes has no byte-swapped bfloat16, a big-endian buffer has to
+        # be decoded through uint16 and comes out in native byte order.
+        x = self._bfloat16_array()
+        big_endian = x.view(np.uint16).astype(">u2").tobytes()
+        decoded = np.frombuffer(big_endian, dtype=">u2").astype(np.uint16)
+        result = convert_to_tensor(decoded.view(ml_dtypes.bfloat16))
+        self.assertEqual(result.dtype, torch.bfloat16)
+        self.assertAllClose(
+            result.to(torch.float32), x.astype("float32").reshape(-1)
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtype=["float16", "float32", "float64", "int32"])
+    )
+    def test_convert_to_tensor_bfloat16_ndarray_explicit_dtype(self, dtype):
+        x = self._bfloat16_array()
+        result = convert_to_tensor(x, dtype=dtype)
+        self.assertEqual(result.dtype, to_torch_dtype(dtype))
+        self.assertAllClose(result, x.astype(dtype))
+        # The source array is not modified by the cast.
+        self.assertAllClose(
+            x.astype("float32"), self._bfloat16_array().astype("float32")
+        )
+
+    @parameterized.named_parameters(
+        named_product(
+            dtype=["bool", "uint8", "int32", "int64", "float16", "float32"]
+            + ["float64"]
+        )
+    )
+    def test_convert_to_tensor_ndarray_does_not_share_memory(self, dtype):
+        # Only bfloat16 arrays are converted without a copy.
+        x = np.ones((2, 3), dtype=dtype)
+        result = convert_to_tensor(x)
+        self.assertEqual(standardize_dtype(result.dtype), dtype)
+        self.assertAllClose(result, x)
+        result = result.cpu()
+        result[0, 0] = 0
+        self.assertEqual(x[0, 0], 1)
+
+    def test_convert_to_tensor_uint32_ndarray(self):
+        x = np.array([0, 1, 2**32 - 1], dtype="uint32")
+        result = convert_to_tensor(x)
+        self.assertEqual(result.dtype, torch.int64)
+        self.assertListEqual(result.tolist(), [0, 1, 2**32 - 1])
+
+    def test_variable_does_not_share_memory_with_bfloat16_ndarray(self):
+        x = self._bfloat16_array()
+        expected = x.astype("float32")
+        v = Variable(x)
+        self.assertEqual(v.dtype, "bfloat16")
+        v.assign_add(np.ones(x.shape, dtype="float32"))
+        self.assertAllClose(x.astype("float32"), expected)
+        self.assertAllClose(v.value.to(torch.float32), expected + 1)
+        # Assigning converts without a copy and then copies into the variable.
+        y = self._bfloat16_array()
+        v.assign(y)
+        v.assign_add(np.ones(x.shape, dtype="float32"))
+        self.assertAllClose(y.astype("float32"), expected)
+        self.assertAllClose(v.value.to(torch.float32), expected + 1)
 
     def _get_other_device(self):
         """Returns a device type that is not the type of `get_device()`."""
