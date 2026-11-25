@@ -18,10 +18,7 @@ from keras.src.backend.common import get_stateless_scope
 from keras.src.backend.common import global_state
 from keras.src.backend.common import in_stateless_scope
 from keras.src.backend.common import standardize_dtype
-from keras.src.backend.common.backend_utils import empty_batch_like
 from keras.src.backend.common.backend_utils import empty_scan_ys_spec
-from keras.src.backend.common.backend_utils import leading_batch_size
-from keras.src.backend.common.backend_utils import sample_batch_element
 from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.backend.common.backend_utils import standardize_argnums
 from keras.src.backend.common.dtypes import result_type
@@ -623,45 +620,43 @@ def cond(pred, true_fn, false_fn):
 
 def vectorized_map(function, elements):
     elements = tree.map_structure(convert_to_tensor, elements)
-    # `torch.vmap` indexes batch dim 0; size-0 batches need an empty result
-    # shaped from one dummy element instead. Only branch on a statically
-    # known empty batch so SymInt dynamic dims do not graph-break.
-    batch_size = leading_batch_size(elements)
+    flat = tree.flatten(elements)
+    if not flat:
+        raise ValueError("`elements` cannot be empty.")
+    for x in flat:
+        if not hasattr(x, "ndim") or x.ndim < 1:
+            raise ValueError(
+                "All inputs to `vectorized_map` must have rank >= 1. "
+                f"Received an input with shape {getattr(x, 'shape', None)}."
+            )
+    batch_size = flat[0].shape[0]
+    for i, x in enumerate(flat):
+        if x.shape[0] != batch_size:
+            raise ValueError(
+                "All elements passed to `vectorized_map` must have the "
+                f"same batch size (dimension 0). Element at index 0 has "
+                f"batch size {batch_size}, but element at index {i} has "
+                f"batch size {x.shape[0]}."
+            )
+    # `torch.vmap` indexes batch dim 0; for a statically empty batch, trace
+    # the output spec instead of calling `function` on dummy zeros.
     if isinstance(batch_size, int) and batch_size == 0:
-        sample = sample_batch_element(
-            elements,
-            lambda shape, dtype, t: torch.zeros(
-                shape, dtype=dtype, device=t.device
-            ),
+        elem_spec = tree.map_structure(
+            lambda t: KerasTensor(t.shape[1:], t.dtype), elements
         )
-        return empty_batch_like(
-            function(sample),
+        out_spec = compute_output_spec(function, elem_spec)
+        return tree.map_structure(
             lambda y: torch.zeros(
-                (0, *y.shape), dtype=y.dtype, device=y.device
+                (0, *y.shape),
+                dtype=to_torch_dtype(y.dtype),
+                device=get_device(),
             ),
+            out_spec,
         )
     return torch.vmap(function)(elements)
 
 
 def map(f, xs):
-    xs = tree.map_structure(convert_to_tensor, xs)
-    # Avoid scanning with an empty carry over a size-0 batch: that path still
-    # assumes a non-empty structure when stacking outputs.
-    batch_size = leading_batch_size(xs)
-    if isinstance(batch_size, int) and batch_size == 0:
-        sample = sample_batch_element(
-            xs,
-            lambda shape, dtype, t: torch.zeros(
-                shape, dtype=dtype, device=t.device
-            ),
-        )
-        return empty_batch_like(
-            f(sample),
-            lambda y: torch.zeros(
-                (0, *y.shape), dtype=y.dtype, device=y.device
-            ),
-        )
-
     def g(_, x):
         return (), f(x)
 

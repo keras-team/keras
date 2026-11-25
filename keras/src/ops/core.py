@@ -20,7 +20,16 @@ class Map(Operation):
         return backend.ops.core.map(f, xs)
 
     def compute_output_spec(self, f, xs):
-        x = tree.map_structure(lambda t: t[0], xs)
+        # Avoid t[0] so size-0 leading axes (e.g. (0, 3)) still work.
+        x = tree.map_structure(
+            lambda t: KerasTensor(
+                shape=t.shape[1:],
+                dtype=t.dtype,
+                sparse=t.sparse,
+                ragged=t.ragged,
+            ),
+            xs,
+        )
         n = tree.flatten(xs)[0].shape[0]
         y = backend.compute_output_spec(f, x)
 
@@ -1149,7 +1158,16 @@ class VectorizedMap(Operation):
         return backend.ops.core.vectorized_map(self.function, elements)
 
     def compute_output_spec(self, elements):
-        x = tree.map_structure(lambda t: t[0], elements)
+        # Avoid t[0] so size-0 leading axes (e.g. (0, 3)) still work.
+        x = tree.map_structure(
+            lambda t: KerasTensor(
+                shape=t.shape[1:],
+                dtype=t.dtype,
+                sparse=t.sparse,
+                ragged=t.ragged,
+            ),
+            elements,
+        )
         n = tree.flatten(elements)[0].shape[0]
         y = backend.compute_output_spec(self.function, x)
 
