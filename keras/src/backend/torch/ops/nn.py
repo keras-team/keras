@@ -110,8 +110,11 @@ def squareplus(x, b=4):
     float_dtype = dtypes.promote_to_float_dtype(x.dtype)
     if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
-    b = convert_to_tensor(b)
-    y = x + torch.sqrt(x**2 + b)
+    b = convert_to_tensor(b, dtype=x.dtype)
+    # `hypot` avoids the overflow of `x**2`, and the `x < 0` branch avoids
+    # the cancellation in `x + sqrt(x**2 + b)`.
+    sqz = torch.hypot(x, torch.sqrt(b))
+    y = torch.where(x < 0, b / (sqz - torch.clamp(x, max=0)), x + sqz)
     return y / 2
 
 

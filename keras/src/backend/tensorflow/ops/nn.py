@@ -23,6 +23,7 @@ from keras.src.backend.common.backend_utils import (
 )
 from keras.src.backend.tensorflow.ops.core import cast
 from keras.src.backend.tensorflow.ops.core import convert_to_tensor
+from keras.src.backend.tensorflow.ops.numpy import hypot
 
 
 @functools.lru_cache(maxsize=None)
@@ -119,7 +120,10 @@ def squareplus(x, b=4):
     if float_dtype != standardize_dtype(x.dtype):
         x = cast(x, float_dtype)
     b = convert_to_tensor(b, dtype=x.dtype)
-    y = x + tf.sqrt(tf.square(x) + b)
+    # `hypot` avoids the overflow of `x**2`, and the `x < 0` branch avoids
+    # the cancellation in `x + sqrt(x**2 + b)`.
+    sqz = hypot(x, tf.sqrt(b))
+    y = tf.where(x < 0, b / (sqz - tf.minimum(x, 0)), x + sqz)
     return y / 2
 
 
