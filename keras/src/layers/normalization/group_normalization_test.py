@@ -1,5 +1,7 @@
 import numpy as np
+from absl.testing import parameterized
 
+from keras.src import backend
 from keras.src import constraints
 from keras.src import initializers
 from keras.src import layers
@@ -10,6 +12,111 @@ from keras.src.backend.common import AutocastScope
 
 
 class GroupNormalizationTest(testing.TestCase):
+    @parameterized.named_parameters(("eager", False), ("graph", True))
+    def test_input_gradient_scaling_near_constant(self, graph):
+        if backend.backend() != "tensorflow":
+            self.skipTest("Uses TensorFlow gradients.")
+        import tensorflow as tf
+
+        # The sum of normalized values has zero input gradient when gamma=1.
+        # Near-constant inputs expose cancellation in that gradient.
+        inputs = tf.constant(
+            10.0
+            + np.random.default_rng(0)
+            .normal(scale=1e-3, size=(2, 16, 16, 32))
+            .astype("float32")
+        )
+        layer = layers.GroupNormalization(groups=2, epsilon=1e-4)
+        layer.build(inputs.shape)
+
+        def gradients(inputs):
+            with tf.GradientTape(persistent=True) as tape:
+                tape.watch(inputs)
+                outputs = layer(inputs)
+            upstream = tf.ones_like(outputs)
+            first = tape.gradient(outputs, inputs, output_gradients=upstream)
+            scaled = tape.gradient(
+                outputs, inputs, output_gradients=-3.0 * upstream
+            )
+            del tape
+            return first, scaled
+
+        if graph:
+            gradients = tf.function(gradients)
+        first, scaled = gradients(inputs)
+        self.assertAllClose(scaled, -3.0 * first, atol=1e-5, rtol=1e-3)
+        self.assertAllClose(first, tf.zeros_like(first), atol=1e-5)
+
+    def test_near_constant_inputs_match_float64_reference(self):
+        inputs = (
+            10.0
+            + np.random.default_rng(0).normal(scale=1e-3, size=(2, 16, 16, 32))
+        ).astype("float32")
+        gamma = np.linspace(0.5, 1.5, 32)
+        layer = layers.GroupNormalization(
+            groups=2,
+            epsilon=1e-4,
+            gamma_initializer=initializers.Constant(gamma),
+            beta_initializer=initializers.Constant(0.25),
+        )
+        grouped = inputs.astype("float64").reshape(2, 16, 16, 2, 16)
+        mean = np.mean(grouped, axis=(1, 2, 4), keepdims=True)
+        variance = np.var(grouped, axis=(1, 2, 4), keepdims=True)
+        expected = (grouped - mean) / np.sqrt(variance + 1e-4)
+        expected = expected.reshape(inputs.shape) * gamma + 0.25
+        self.assertAllClose(layer(inputs), expected, atol=1e-6, rtol=1e-5)
+
+    @parameterized.named_parameters(("eager", False), ("graph", True))
+    def test_centered_mean_overflow_preserves_beta(self, graph):
+        if graph and backend.backend() != "tensorflow":
+            self.skipTest("Uses TensorFlow graph execution.")
+        inputs = ops.convert_to_tensor(
+            [[1.7e38, 0.8e38, -2.7e38, -2.4e38]], dtype="float32"
+        )
+        layer = layers.GroupNormalization(
+            groups=1, beta_initializer=initializers.Constant(5.0)
+        )
+        # Variance is infinite in float32, so finite centered values normalize
+        # to zero. Overflow in the extra mean reduction must not create NaNs.
+        call = layer
+        if graph:
+            import tensorflow as tf
+
+            call = tf.function(layer)
+        self.assertAllClose(call(inputs), ops.full((1, 4), 5.0))
+
+    @parameterized.named_parameters(
+        ("nan", float("nan")),
+        ("positive_inf", float("inf")),
+        ("negative_inf", -float("inf")),
+    )
+    def test_nonfinite_inputs_propagate(self, value):
+        inputs = ops.convert_to_tensor([[0.0, value, 0.0, 0.0]])
+        layer = layers.GroupNormalization(groups=1)
+        outputs = ops.convert_to_numpy(layer(inputs))
+        self.assertTrue(np.all(np.isnan(outputs)))
+
+    @parameterized.named_parameters(("eager", False), ("graph", True))
+    def test_infinite_variance_input_gradient(self, graph):
+        if backend.backend() != "tensorflow":
+            self.skipTest("Uses TensorFlow gradients.")
+        import tensorflow as tf
+
+        inputs = tf.constant([[1.7e38, 0.8e38, -2.7e38, -2.4e38]])
+        upstream = tf.constant([[0.001, -0.002, 0.0015, -0.0001]])
+        layer = layers.GroupNormalization(groups=1)
+        layer.build(inputs.shape)
+
+        def gradient(inputs):
+            with tf.GradientTape() as tape:
+                tape.watch(inputs)
+                outputs = layer(inputs)
+            return tape.gradient(outputs, inputs, output_gradients=upstream)
+
+        if graph:
+            gradient = tf.function(gradient)
+        self.assertAllClose(gradient(inputs), tf.zeros_like(inputs))
+
     def test_groupnorm(self):
         self.run_layer_test(
             layers.GroupNormalization,
