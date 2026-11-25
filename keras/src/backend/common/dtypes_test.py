@@ -299,3 +299,32 @@ class DtypesTest(test_case.TestCase):
             self.assertEqual(dtypes.promote_to_float_dtype(dtype), off)
         with x64_mode_scope("explicit_x64"):
             self.assertEqual(dtypes.promote_to_float_dtype(dtype), explicit_x64)
+
+    @parameterized.named_parameters(
+        ("int8", "int8", "int8"),
+        ("int64", "int64", "int32"),
+        ("uint64", "uint64", "uint32"),
+        ("float64", "float64", "float32"),
+        ("complex128", "complex128", "complex64"),
+    )
+    @pytest.mark.skipif(
+        not X64_SUPPORTED or config.backend() == "tensorflow",
+        reason="Needs `off` and `explicit_x64`.",
+    )
+    def test_canonicalize_dtype(self, dtype, off):
+        with x64_mode_scope("off"):
+            self.assertEqual(dtypes.canonicalize_dtype(dtype), off)
+        with x64_mode_scope("explicit_x64"):
+            self.assertEqual(dtypes.canonicalize_dtype(dtype), dtype)
+
+    @pytest.mark.skipif(
+        not X64_SUPPORTED or config.backend() == "tensorflow",
+        reason="Needs `off`.",
+    )
+    def test_result_type_with_mixed_widths_in_off(self):
+        # As in JAX, a 64-bit input acts as its 32-bit counterpart before the
+        # promotion, so `uint64` with `int32` gives `int32`, not `float32`.
+        with x64_mode_scope("off"):
+            self.assertEqual(result_type("int32", "uint64"), "int32")
+            self.assertEqual(result_type("int8", "uint64"), "int32")
+            self.assertEqual(result_type("int64", "float32"), "float32")

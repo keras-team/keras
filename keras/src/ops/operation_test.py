@@ -413,16 +413,15 @@ class OperationTest(testing.TestCase):
         backend.backend() == "tensorflow",
         reason="TensorFlow has no `x64_mode='off'`",
     )
-    def test_symbolic_call_with_64bit_inputs(self):
+    def test_compute_output_spec_with_64bit_inputs(self):
+        # `Negative` uses `ElementwiseUnaryOperation`'s spec, `Square` its own.
         x = KerasTensor((2,), dtype="int64")
-        with x64_mode_scope("off"):
-            y = knp.square(x)
-        self.assertEqual(y.dtype, "int32")
-        # The graph keeps the original input.
-        node = y._keras_history.operation._inbound_nodes[0]
-        self.assertIs(node.arguments.keras_tensors[0], x)
-        with x64_mode_scope("explicit_x64"):
-            self.assertEqual(knp.square(x).dtype, "int64")
+        for op in (knp.Negative(), knp.Square()):
+            with x64_mode_scope("off"):
+                self.assertEqual(op.compute_output_spec(x).dtype, "int32")
+                self.assertEqual(op(x).dtype, "int32")
+            with x64_mode_scope("explicit_x64"):
+                self.assertEqual(op.compute_output_spec(x).dtype, "int64")
 
 
 class ElementwiseUnaryOperationTest(testing.TestCase):

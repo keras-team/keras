@@ -7,6 +7,7 @@ from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import is_int_dtype
 from keras.src.backend.common import standardize_data_format
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.dtypes import canonicalize_dtype
 from keras.src.backend.common.dtypes import promote_to_float_dtype
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import compute_conv_output_shape
@@ -38,7 +39,9 @@ class RGBToGrayscale(Operation):
                 f"Received input with shape: images.shape={tuple(images_shape)}"
             )
         images_shape[channels_axis] = 1
-        return KerasTensor(shape=images_shape, dtype=images.dtype)
+        return KerasTensor(
+            shape=images_shape, dtype=canonicalize_dtype(images.dtype)
+        )
 
 
 @keras_export("keras.ops.image.rgb_to_grayscale")
@@ -116,7 +119,9 @@ class RGBToHSV(Operation):
                 "Input images must have 3 channels, but received images with "
                 f"{channels} channels."
             )
-        return KerasTensor(shape=images_shape, dtype=images.dtype)
+        return KerasTensor(
+            shape=images_shape, dtype=canonicalize_dtype(images.dtype)
+        )
 
 
 @keras_export("keras.ops.image.rgb_to_hsv")
@@ -197,7 +202,9 @@ class HSVToRGB(Operation):
                 "Input images must have 3 channels, but received images with "
                 f"{channels} channels."
             )
-        return KerasTensor(shape=images_shape, dtype=images.dtype)
+        return KerasTensor(
+            shape=images_shape, dtype=canonicalize_dtype(images.dtype)
+        )
 
 
 @keras_export("keras.ops.image.hsv_to_rgb")
@@ -295,7 +302,9 @@ class Resize(Operation):
             height_axis, width_axis = -2, -1
         images_shape[height_axis] = self.size[0]
         images_shape[width_axis] = self.size[1]
-        return KerasTensor(shape=images_shape, dtype=images.dtype)
+        return KerasTensor(
+            shape=images_shape, dtype=canonicalize_dtype(images.dtype)
+        )
 
 
 @keras_export("keras.ops.image.resize")
@@ -486,7 +495,7 @@ class AffineTransform(Operation):
                 "Invalid transform shape: expected the last dimension to be 8. "
                 f"Received: transform.shape={transform.shape}"
             )
-        return KerasTensor(images.shape, dtype=images.dtype)
+        return KerasTensor(images.shape, dtype=canonicalize_dtype(images.dtype))
 
 
 @keras_export("keras.ops.image.affine_transform")
@@ -659,7 +668,9 @@ class ExtractPatches(Operation):
         else:
             if original_ndim == 3:
                 out_shape = out_shape[1:]
-        return KerasTensor(shape=out_shape, dtype=images.dtype)
+        return KerasTensor(
+            shape=out_shape, dtype=canonicalize_dtype(images.dtype)
+        )
 
     def get_config(self):
         return {
@@ -1056,7 +1067,9 @@ class ReconstructPatches(Operation):
 
         if original_ndim == expected_ndim_batched:
             out_shape = [batch] + out_shape
-        return KerasTensor(shape=tuple(out_shape), dtype=patches.dtype)
+        return KerasTensor(
+            shape=tuple(out_shape), dtype=canonicalize_dtype(patches.dtype)
+        )
 
     def get_config(self):
         return {
@@ -1629,7 +1642,9 @@ class MapCoordinates(Operation):
                 "Invalid coordinates rank: expected at least rank 2."
                 f" Received input with shape: {coordinates.shape}"
             )
-        return KerasTensor(coordinates.shape[1:], dtype=inputs.dtype)
+        return KerasTensor(
+            coordinates.shape[1:], dtype=canonicalize_dtype(inputs.dtype)
+        )
 
 
 @keras_export("keras.ops.image.map_coordinates")
@@ -1871,7 +1886,9 @@ class PadImages(Operation):
 
         images_shape[height_axis] = target_height
         images_shape[width_axis] = target_width
-        return KerasTensor(shape=images_shape, dtype=images.dtype)
+        return KerasTensor(
+            shape=images_shape, dtype=canonicalize_dtype(images.dtype)
+        )
 
 
 @keras_export("keras.ops.image.pad_images")
@@ -2150,7 +2167,9 @@ class CropImages(Operation):
 
         images_shape[height_axis] = target_height
         images_shape[width_axis] = target_width
-        return KerasTensor(shape=images_shape, dtype=images.dtype)
+        return KerasTensor(
+            shape=images_shape, dtype=canonicalize_dtype(images.dtype)
+        )
 
 
 @keras_export("keras.ops.image.crop_images")
@@ -2352,7 +2371,7 @@ class PerspectiveTransform(Operation):
                 f" Received start_points.shape={start_points.shape}, "
                 f"end_points.shape={end_points.shape}"
             )
-        return KerasTensor(images.shape, dtype=images.dtype)
+        return KerasTensor(images.shape, dtype=canonicalize_dtype(images.dtype))
 
 
 @keras_export("keras.ops.image.perspective_transform")
@@ -2479,7 +2498,7 @@ class GaussianBlur(Operation):
                 "or rank 4 (batch of images). Received input with shape: "
                 f"images.shape={images.shape}"
             )
-        return KerasTensor(images.shape, dtype=images.dtype)
+        return KerasTensor(images.shape, dtype=canonicalize_dtype(images.dtype))
 
 
 @keras_export("keras.ops.image.gaussian_blur")
@@ -2578,7 +2597,7 @@ class ElasticTransform(Operation):
                 "or rank 4 (batch of images). Received input with shape: "
                 f"images.shape={images.shape}"
             )
-        return KerasTensor(images.shape, dtype=images.dtype)
+        return KerasTensor(images.shape, dtype=canonicalize_dtype(images.dtype))
 
 
 @keras_export("keras.ops.image.elastic_transform")
@@ -2687,7 +2706,7 @@ class ScaleAndTranslate(Operation):
         )
 
     def compute_output_spec(self, images, output_shape, scale, translation):
-        return KerasTensor(output_shape, dtype=images.dtype)
+        return KerasTensor(output_shape, dtype=canonicalize_dtype(images.dtype))
 
 
 @keras_export("keras.ops.image.scale_and_translate")
@@ -2796,7 +2815,9 @@ class SobelEdges(Operation):
             )
         # Output adds an extra dimension of size 2 for [dy, dx]
         output_shape = images_shape + [2]
-        return KerasTensor(shape=output_shape, dtype=images.dtype)
+        return KerasTensor(
+            shape=output_shape, dtype=canonicalize_dtype(images.dtype)
+        )
 
 
 @keras_export("keras.ops.image.sobel_edges")
@@ -2892,7 +2913,9 @@ class SSIM(Operation):
             output_shape = ()
         else:
             output_shape = (image1.shape[0],)
-        return KerasTensor(shape=output_shape, dtype=image1.dtype)
+        return KerasTensor(
+            shape=output_shape, dtype=canonicalize_dtype(image1.dtype)
+        )
 
 
 @keras_export("keras.ops.image.ssim")

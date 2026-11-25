@@ -2102,10 +2102,10 @@ class CoreOpsBehaviorTests(testing.TestCase):
         ]
         while_loop = core.WhileLoop(cond, body, maximum_iterations=None)
         output_specs = while_loop.compute_output_spec(keras_loop_vars)
-        self.assertEqual(output_specs[0].shape, keras_loop_vars[0].shape)
-        self.assertEqual(output_specs[0].dtype, keras_loop_vars[0].dtype)
-        self.assertEqual(output_specs[1].shape, keras_loop_vars[1].shape)
-        self.assertEqual(output_specs[1].dtype, keras_loop_vars[1].dtype)
+        for spec, x in zip(output_specs, keras_loop_vars):
+            self.assertEqual(spec.shape, x.shape)
+            # NumPy's 64-bit dtypes become 32-bit under `x64_mode="off"`.
+            self.assertEqual(spec.dtype, dtypes.canonicalize_dtype(x.dtype))
 
     def test_unstack_unknown_axis_num(self):
         x = KerasTensor((2, None, None))

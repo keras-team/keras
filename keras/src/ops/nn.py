@@ -21,6 +21,7 @@ from keras.src.backend.common.backend_utils import (
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
+from keras.src.backend.common.dtypes import canonicalize_dtype
 from keras.src.ops import operation_utils
 from keras.src.ops.operation import ElementwiseUnaryOperation
 from keras.src.ops.operation import Operation
@@ -692,7 +693,7 @@ class Glu(Operation):
                     f"Received: x.shape={x.shape} with axis={self.axis}"
                 )
             output_shape[self.axis] = output_shape[self.axis] // 2
-        return KerasTensor(output_shape, dtype=x.dtype)
+        return KerasTensor(output_shape, dtype=canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.glu", "keras.ops.nn.glu"])
@@ -1015,7 +1016,7 @@ class Sparsemax(Operation):
 
     def compute_output_spec(self, x):
         canonicalize_axis(self.axis, len(x.shape))
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return KerasTensor(x.shape, dtype=canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.sparsemax", "keras.ops.nn.sparsemax"])
@@ -1081,7 +1082,7 @@ class MaxPool(Operation):
             self.padding,
             self.data_format,
         )
-        return KerasTensor(output_shape, dtype=inputs.dtype)
+        return KerasTensor(output_shape, dtype=canonicalize_dtype(inputs.dtype))
 
 
 @keras_export(["keras.ops.max_pool", "keras.ops.nn.max_pool"])
@@ -1162,7 +1163,7 @@ class AdaptiveMaxPool(Operation):
             )
         else:
             output_shape = (inputs.shape[0], inputs.shape[1]) + spatial_dims
-        return KerasTensor(output_shape, dtype=inputs.dtype)
+        return KerasTensor(output_shape, dtype=canonicalize_dtype(inputs.dtype))
 
 
 @keras_export(["keras.ops.adaptive_max_pool", "keras.ops.nn.adaptive_max_pool"])
@@ -1251,7 +1252,7 @@ class AveragePool(Operation):
             self.padding,
             self.data_format,
         )
-        return KerasTensor(output_shape, dtype=inputs.dtype)
+        return KerasTensor(output_shape, dtype=canonicalize_dtype(inputs.dtype))
 
 
 @keras_export(
@@ -1337,7 +1338,7 @@ class AdaptiveAveragePool(Operation):
             )
         else:
             output_shape = (inputs.shape[0], inputs.shape[1]) + spatial_dims
-        return KerasTensor(output_shape, dtype=inputs.dtype)
+        return KerasTensor(output_shape, dtype=canonicalize_dtype(inputs.dtype))
 
 
 @keras_export(
@@ -1436,7 +1437,7 @@ class Conv(Operation):
             data_format,
             self.dilation_rate,
         )
-        return KerasTensor(output_shape, dtype=inputs.dtype)
+        return KerasTensor(output_shape, dtype=canonicalize_dtype(inputs.dtype))
 
 
 @keras_export(["keras.ops.conv", "keras.ops.nn.conv"])
@@ -1533,7 +1534,7 @@ class DepthwiseConv(Operation):
             data_format,
             self.dilation_rate,
         )
-        return KerasTensor(output_shape, dtype=inputs.dtype)
+        return KerasTensor(output_shape, dtype=canonicalize_dtype(inputs.dtype))
 
 
 @keras_export(
@@ -1646,7 +1647,7 @@ class SeparableConv(Operation):
             output_shape[-1] = pointwise_kernel.shape[-1]
         else:
             output_shape[1] = pointwise_kernel.shape[-1]
-        return KerasTensor(output_shape, dtype=inputs.dtype)
+        return KerasTensor(output_shape, dtype=canonicalize_dtype(inputs.dtype))
 
 
 @keras_export(
@@ -1772,7 +1773,7 @@ class ConvTranspose(Operation):
             data_format,
             self.dilation_rate,
         )
-        return KerasTensor(output_shape, dtype=inputs.dtype)
+        return KerasTensor(output_shape, dtype=canonicalize_dtype(inputs.dtype))
 
 
 @keras_export(
@@ -1942,7 +1943,7 @@ class BinaryCrossentropy(Operation):
                 "Received: "
                 f"target.shape={target.shape}, output.shape={output.shape}"
             )
-        dtype = standardize_dtype(output.dtype)
+        dtype = canonicalize_dtype(output.dtype)
         if not is_float_dtype(dtype):
             dtype = config.floatx()
         return KerasTensor(output.shape, dtype=dtype)
@@ -2021,7 +2022,8 @@ class CategoricalCrossentropy(Operation):
             )
         axis = canonicalize_axis(self.axis, len(output.shape))
         return KerasTensor(
-            output.shape[:axis] + output.shape[axis + 1 :], dtype=output.dtype
+            output.shape[:axis] + output.shape[axis + 1 :],
+            dtype=canonicalize_dtype(output.dtype),
         )
 
 
@@ -2113,7 +2115,9 @@ class SparseCategoricalCrossentropy(Operation):
                 "up until the last dimension: "
                 f"target.shape={target.shape}, output.shape={output.shape}"
             )
-        return KerasTensor(output_shape_without_class, dtype=output.dtype)
+        return KerasTensor(
+            output_shape_without_class, dtype=canonicalize_dtype(output.dtype)
+        )
 
 
 @keras_export(
@@ -2277,11 +2281,11 @@ class Moments(Operation):
         return (
             KerasTensor(
                 reduce_shape(x.shape, axis=self.axes, keepdims=self.keepdims),
-                dtype=x.dtype,
+                dtype=canonicalize_dtype(x.dtype),
             ),
             KerasTensor(
                 reduce_shape(x.shape, axis=self.axes, keepdims=self.keepdims),
-                dtype=x.dtype,
+                dtype=canonicalize_dtype(x.dtype),
             ),
         )
 
@@ -2361,7 +2365,7 @@ class BatchNorm(Operation):
             self._check_shape("offset", tuple(offset.shape), shape)
         if scale is not None:
             self._check_shape("scale", tuple(scale.shape), shape)
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return KerasTensor(x.shape, dtype=canonicalize_dtype(x.dtype))
 
 
 @keras_export(
@@ -2920,7 +2924,7 @@ class RMSNorm(Operation):
         self.epsilon = epsilon
 
     def compute_output_spec(self, x, scale):
-        return KerasTensor(shape=x.shape, dtype=x.dtype)
+        return KerasTensor(shape=x.shape, dtype=canonicalize_dtype(x.dtype))
 
     def call(self, x, scale=None):
         return _rms_normalization(
@@ -3011,7 +3015,7 @@ class LayerNorm(Operation):
         self.rms_scaling = rms_scaling
 
     def compute_output_spec(self, x, gamma, beta):
-        return KerasTensor(shape=x.shape, dtype=x.dtype)
+        return KerasTensor(shape=x.shape, dtype=canonicalize_dtype(x.dtype))
 
     def call(self, x, gamma=None, beta=None):
         return _layer_normalization(
@@ -3253,7 +3257,10 @@ class Unfold(Operation):
 
         outH = out_size(H, kH, dH, pH, sH)
         outW = out_size(W, kW, dW, pW, sW)
-        return KerasTensor(shape=(N, C * kH * kW, outH * outW), dtype=x.dtype)
+        return KerasTensor(
+            shape=(N, C * kH * kW, outH * outW),
+            dtype=canonicalize_dtype(x.dtype),
+        )
 
     def call(self, x):
         return _unfold(
@@ -3351,7 +3358,9 @@ class Fold(Operation):
             )
 
         C = CKK // (kH * kW) if CKK is not None else None
-        return KerasTensor(shape=(N, C, oH, oW), dtype=x.dtype)
+        return KerasTensor(
+            shape=(N, C, oH, oW), dtype=canonicalize_dtype(x.dtype)
+        )
 
     def call(self, x):
         return backend.ops.nn.fold(
@@ -3455,7 +3464,7 @@ class DepthToSpace(Operation):
         else:
             output_shape = (b, new_c, new_h, new_w)
 
-        return KerasTensor(output_shape, dtype=x.dtype)
+        return KerasTensor(output_shape, dtype=canonicalize_dtype(x.dtype))
 
     def call(self, x):
         return backend.ops.nn.depth_to_space(
@@ -3559,7 +3568,7 @@ class SpaceToDepth(Operation):
         else:
             output_shape = (b, new_c, new_h, new_w)
 
-        return KerasTensor(output_shape, dtype=x.dtype)
+        return KerasTensor(output_shape, dtype=canonicalize_dtype(x.dtype))
 
     def call(self, x):
         return backend.ops.nn.space_to_depth(
