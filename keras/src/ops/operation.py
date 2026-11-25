@@ -511,7 +511,7 @@ class ElementwiseUnaryOperation(Operation):
         elif self.promote_to_float:
             dtype = dtypes.promote_to_float_dtype(x.dtype)
         else:
-            dtype = x.dtype
+            dtype = dtypes.canonicalize_dtype(x.dtype)
         sparse = self.preserves_sparse and getattr(x, "sparse", False)
         ragged = getattr(x, "ragged", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse, ragged=ragged)

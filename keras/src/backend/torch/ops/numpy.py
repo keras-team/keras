@@ -1239,8 +1239,7 @@ def isreal(x):
 
 
 def kron(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    x1, x2, _ = convert_to_tensors_of_same_dtype(x1, x2)
     # `torch.kron` raises for non-contiguous inputs, e.g. a transpose
     # (https://github.com/pytorch/pytorch/issues/54135).
     return torch.kron(x1.contiguous(), x2.contiguous())

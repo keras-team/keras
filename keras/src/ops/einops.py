@@ -3,6 +3,7 @@ import re
 from keras.src.api_export import keras_export
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import any_symbolic_tensors
+from keras.src.backend.common.dtypes import canonicalize_dtype
 from keras.src.ops.core import shape
 from keras.src.ops.numpy import prod
 from keras.src.ops.numpy import reshape
@@ -100,7 +101,9 @@ class Rearrange(Operation):
         grouped_output_axes = _create_grouped_axes(output_axes)
         output_shape = _compute_output_shape(axes_map, grouped_output_axes)
 
-        return KerasTensor(shape=output_shape, dtype=tensor.dtype)
+        return KerasTensor(
+            shape=output_shape, dtype=canonicalize_dtype(tensor.dtype)
+        )
 
 
 @keras_export("keras.ops.rearrange")

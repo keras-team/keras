@@ -18,6 +18,7 @@ from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import normalize_shift_and_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
+from keras.src.backend.common.dtypes import canonicalize_dtype
 from keras.src.ops import operation_utils
 from keras.src.ops.operation import ElementwiseUnaryOperation
 from keras.src.ops.operation import Operation
@@ -62,7 +63,9 @@ class Rot90(Operation):
                 array_shape[axis2],
                 array_shape[axis1],
             )
-        return KerasTensor(shape=array_shape, dtype=array.dtype)
+        return KerasTensor(
+            shape=array_shape, dtype=canonicalize_dtype(array.dtype)
+        )
 
 
 @keras_export(["keras.ops.rot90", "keras.ops.numpy.rot90"])
@@ -1129,7 +1132,9 @@ class Array(Operation):
         return backend.ops.numpy.array(x, dtype=self.dtype)
 
     def compute_output_spec(self, x, dtype=None):
-        dtype = standardize_dtype(x.dtype) if self.dtype is None else self.dtype
+        dtype = (
+            canonicalize_dtype(x.dtype) if self.dtype is None else self.dtype
+        )
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -1166,8 +1171,8 @@ class View(Operation):
         return backend.ops.numpy.view(x, dtype=self.dtype)
 
     def compute_output_spec(self, x):
-        old_dtype = standardize_dtype(x.dtype)
-        new_dtype = standardize_dtype(self.dtype if self.dtype else x.dtype)
+        old_dtype = canonicalize_dtype(x.dtype)
+        new_dtype = standardize_dtype(self.dtype if self.dtype else old_dtype)
 
         old_itemsize = np.dtype(old_dtype).itemsize
         new_itemsize = np.dtype(new_dtype).itemsize
@@ -1907,7 +1912,7 @@ class BroadcastTo(Operation):
     def compute_output_spec(self, x):
         # Catch broadcasting errors for clear error messages.
         broadcast_shapes(x.shape, self.shape)
-        return KerasTensor(self.shape, dtype=x.dtype)
+        return KerasTensor(self.shape, dtype=canonicalize_dtype(x.dtype))
 
 
 @keras_export(
@@ -2018,7 +2023,7 @@ class Clip(Operation):
         return backend.ops.numpy.clip(x, self.x_min, self.x_max)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(x.dtype)
+        dtype = canonicalize_dtype(x.dtype)
         if dtype == "bool":
             dtype = "int32"
         return KerasTensor(x.shape, dtype=dtype)
@@ -2442,7 +2447,7 @@ class Cumprod(Operation):
             canonicalize_axis(self.axis, len(x.shape))
             output_shape = x.shape
         output_dtype = (
-            standardize_dtype(x.dtype) if self.dtype is None else self.dtype
+            canonicalize_dtype(x.dtype) if self.dtype is None else self.dtype
         )
         if output_dtype == "bool":
             output_dtype = "int32"
@@ -2487,7 +2492,7 @@ class Cumsum(Operation):
             canonicalize_axis(self.axis, len(x.shape))
             output_shape = x.shape
         output_dtype = (
-            standardize_dtype(x.dtype) if self.dtype is None else self.dtype
+            canonicalize_dtype(x.dtype) if self.dtype is None else self.dtype
         )
         if output_dtype == "bool":
             output_dtype = "int32"
@@ -2637,7 +2642,7 @@ class Diag(Operation):
             raise ValueError(
                 f"`x` must be 1-D or 2-D, but received shape {x.shape}."
             )
-        return KerasTensor(output_shape, dtype=x.dtype)
+        return KerasTensor(output_shape, dtype=canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.diag", "keras.ops.numpy.diag"])
@@ -2713,7 +2718,7 @@ class Diagflat(Operation):
                 flat_size + int(np.abs(self.k)),
             ]
 
-        return KerasTensor(output_shape, dtype=x.dtype)
+        return KerasTensor(output_shape, dtype=canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.diagflat", "keras.ops.numpy.diagflat"])
@@ -2784,7 +2789,7 @@ class Diagonal(Operation):
                 int(np.maximum(0, np.minimum(remaining, shorter_side)))
             ]
         output_shape = output_shape + diag_shape
-        return KerasTensor(output_shape, dtype=x.dtype)
+        return KerasTensor(output_shape, dtype=canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.diagonal", "keras.ops.numpy.diagonal"])
@@ -2872,7 +2877,7 @@ class Diff(Operation):
         size = shape[axis]
         if size is not None:
             shape[axis] = builtins.max(size - self.n, 0)
-        return KerasTensor(shape, dtype=a.dtype)
+        return KerasTensor(shape, dtype=canonicalize_dtype(a.dtype))
 
 
 @keras_export(["keras.ops.diff", "keras.ops.numpy.diff"])
@@ -3405,7 +3410,9 @@ class EmptyLike(Operation):
         return _empty_like(x, dtype=self.dtype)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(x.dtype) if self.dtype is None else self.dtype
+        dtype = (
+            canonicalize_dtype(x.dtype) if self.dtype is None else self.dtype
+        )
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -3540,7 +3547,9 @@ class ExpandDims(Operation):
             x.shape, self.axis
         )
         sparse = getattr(x, "sparse", False)
-        return KerasTensor(output_shape, dtype=x.dtype, sparse=sparse)
+        return KerasTensor(
+            output_shape, dtype=canonicalize_dtype(x.dtype), sparse=sparse
+        )
 
 
 @keras_export(
@@ -3599,7 +3608,7 @@ class Flip(Operation):
     def compute_output_spec(self, x):
         if self.axis is not None:
             canonicalize_axes(self.axis, len(x.shape))
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return KerasTensor(x.shape, dtype=canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.flip", "keras.ops.numpy.flip"])
@@ -3631,7 +3640,7 @@ class Fliplr(Operation):
                 "`fliplr` requires input with 2 or more dimensions. "
                 f"Received: x.shape={x.shape}"
             )
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return KerasTensor(x.shape, dtype=canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.fliplr", "keras.ops.numpy.fliplr"])
@@ -3677,7 +3686,7 @@ class Flipud(Operation):
                 "`flipud` requires input with 1 or more dimensions. "
                 f"Received: x.shape={x.shape}"
             )
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return KerasTensor(x.shape, dtype=canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.flipud", "keras.ops.numpy.flipud"])
@@ -3781,7 +3790,9 @@ class FullLike(Operation):
         return backend.ops.numpy.full_like(x, fill_value, dtype=self.dtype)
 
     def compute_output_spec(self, x, fill_value):
-        dtype = standardize_dtype(x.dtype) if self.dtype is None else self.dtype
+        dtype = (
+            canonicalize_dtype(x.dtype) if self.dtype is None else self.dtype
+        )
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -3944,7 +3955,7 @@ class GetItem(Operation):
                 raise ValueError(
                     f"Unsupported key type for array slice. Received: `{key}`"
                 )
-        return KerasTensor(tuple(new_shape), dtype=x.dtype)
+        return KerasTensor(tuple(new_shape), dtype=canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.get_item", "keras.ops.numpy.get_item"])
@@ -4617,21 +4628,19 @@ class Kron(Operation):
         return backend.ops.numpy.kron(x1, x2)
 
     def compute_output_spec(self, x1, x2):
-        x1_shape = getattr(x1, "shape", [])
-        x2_shape = getattr(x2, "shape", [])
-
-        def _mul_shape_dim(a, b):
-            if a is None or b is None:
-                return None
-            return a * b
-
+        # As in NumPy, the input of lower rank gets leading dimensions of 1.
+        x1_shape = tuple(getattr(x1, "shape", ()))
+        x2_shape = tuple(getattr(x2, "shape", ()))
+        ndim = builtins.max(len(x1_shape), len(x2_shape))
+        x1_shape = (1,) * (ndim - len(x1_shape)) + x1_shape
+        x2_shape = (1,) * (ndim - len(x2_shape)) + x2_shape
         output_shape = tuple(
-            _mul_shape_dim(a, b) for a, b in zip(x1_shape, x2_shape)
+            None if a is None or b is None else a * b
+            for a, b in zip(x1_shape, x2_shape)
         )
-
-        x1_type = standardize_dtype(getattr(x1, "dtype", type(x1)))
-        x2_type = standardize_dtype(getattr(x2, "dtype", type(x2)))
-        dtype = dtypes.result_type(x1_type, x2_type)
+        dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)), getattr(x2, "dtype", type(x2))
+        )
         return KerasTensor(output_shape, dtype=dtype)
 
 
@@ -5301,7 +5310,7 @@ class Max(Operation):
     def compute_output_spec(self, x):
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
-            dtype=x.dtype,
+            dtype=canonicalize_dtype(x.dtype),
         )
 
 
@@ -5520,7 +5529,8 @@ class Meshgrid(Operation):
         output_shape[0] = output_shape[1]
         output_shape[1] = tmp
         return [
-            KerasTensor(output_shape, dtype=xi.dtype) for _ in range(len(x))
+            KerasTensor(output_shape, dtype=canonicalize_dtype(xi.dtype))
+            for _ in range(len(x))
         ]
 
 
@@ -5579,7 +5589,7 @@ class Min(Operation):
     def compute_output_spec(self, x):
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
-            dtype=x.dtype,
+            dtype=canonicalize_dtype(x.dtype),
         )
 
 
@@ -5875,7 +5885,7 @@ class Moveaxis(Operation):
             output_shape[i] = x_shape[j]
             i += 1
             j += 1
-        return KerasTensor(output_shape, dtype=x.dtype)
+        return KerasTensor(output_shape, dtype=canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.moveaxis", "keras.ops.numpy.moveaxis"])
@@ -6075,7 +6085,7 @@ class Nancumsum(Operation):
             output_shape = x.shape
 
         output_dtype = (
-            standardize_dtype(x.dtype) if self.dtype is None else self.dtype
+            canonicalize_dtype(x.dtype) if self.dtype is None else self.dtype
         )
 
         if output_dtype == "bool":
@@ -6147,7 +6157,7 @@ class Nancumprod(Operation):
             output_shape = x.shape
 
         output_dtype = (
-            standardize_dtype(x.dtype) if self.dtype is None else self.dtype
+            canonicalize_dtype(x.dtype) if self.dtype is None else self.dtype
         )
 
         if output_dtype == "bool":
@@ -6608,7 +6618,7 @@ class Nanprod(Operation):
         return _nanprod(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(x.dtype)
+        dtype = canonicalize_dtype(x.dtype)
 
         if dtype == "bool":
             dtype = "int32"
@@ -7175,7 +7185,9 @@ class OnesLike(Operation):
         return backend.ops.numpy.ones_like(x, dtype=self.dtype)
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(x.dtype) if self.dtype is None else self.dtype
+        dtype = (
+            canonicalize_dtype(x.dtype) if self.dtype is None else self.dtype
+        )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
@@ -7206,7 +7218,9 @@ class ZerosLike(Operation):
         return backend.ops.numpy.zeros_like(x, dtype=self.dtype)
 
     def compute_output_spec(self, x, dtype=None):
-        dtype = standardize_dtype(x.dtype) if self.dtype is None else self.dtype
+        dtype = (
+            canonicalize_dtype(x.dtype) if self.dtype is None else self.dtype
+        )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
 
@@ -7339,7 +7353,7 @@ class Pad(Operation):
                 output_shape[i] = None
             else:
                 output_shape[i] += pad_width[i][0] + pad_width[i][1]
-        return KerasTensor(output_shape, dtype=x.dtype)
+        return KerasTensor(output_shape, dtype=canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.pad", "keras.ops.numpy.pad"])
@@ -7481,7 +7495,7 @@ class Prod(Operation):
         if self.dtype is not None:
             dtype = self.dtype
         else:
-            dtype = standardize_dtype(x.dtype)
+            dtype = canonicalize_dtype(x.dtype)
             if dtype == "bool":
                 dtype = "int32"
             elif dtype in ("int8", "int16"):
@@ -7533,7 +7547,7 @@ class Ptp(Operation):
         )
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(x.dtype)
+        dtype = canonicalize_dtype(x.dtype)
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
             dtype=dtype,
@@ -7664,7 +7678,7 @@ class Ravel(Operation):
             output_shape = (None,)
         else:
             output_shape = (python_math.prod(x.shape),)
-        return KerasTensor(output_shape, dtype=x.dtype)
+        return KerasTensor(output_shape, dtype=canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.ravel", "keras.ops.numpy.ravel"])
@@ -7708,7 +7722,8 @@ class UnravelIndex(Operation):
                     output_shapes = [[None] for _ in self.shape]
 
         return [
-            KerasTensor(shape, dtype=indices.dtype) for shape in output_shapes
+            KerasTensor(shape, dtype=canonicalize_dtype(indices.dtype))
+            for shape in output_shapes
         ]
 
 
@@ -7805,7 +7820,7 @@ class Repeat(Operation):
 
         if self.axis is None:
             if None in x_shape:
-                return KerasTensor([None], dtype=x.dtype)
+                return KerasTensor([None], dtype=canonicalize_dtype(x.dtype))
 
             x_flatten_size = python_math.prod(x_shape)
             if broadcast:
@@ -7818,11 +7833,11 @@ class Repeat(Operation):
                 )
             else:
                 output_shape = (builtins.sum(repeats),)
-            return KerasTensor(output_shape, dtype=x.dtype)
+            return KerasTensor(output_shape, dtype=canonicalize_dtype(x.dtype))
 
         size_on_ax = x_shape[self.axis]
         if size_on_ax is None:
-            return KerasTensor(x_shape, dtype=x.dtype)
+            return KerasTensor(x_shape, dtype=canonicalize_dtype(x.dtype))
 
         output_shape = x_shape
         if broadcast:
@@ -7835,7 +7850,7 @@ class Repeat(Operation):
             )
         else:
             output_shape[self.axis] = builtins.sum(repeats)
-        return KerasTensor(output_shape, dtype=x.dtype)
+        return KerasTensor(output_shape, dtype=canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.repeat", "keras.ops.numpy.repeat"])
@@ -7869,7 +7884,9 @@ class Reshape(Operation):
             x.shape, self.newshape, "newshape"
         )
         sparse = getattr(x, "sparse", False)
-        return KerasTensor(output_shape, dtype=x.dtype, sparse=sparse)
+        return KerasTensor(
+            output_shape, dtype=canonicalize_dtype(x.dtype), sparse=sparse
+        )
 
 
 @keras_export(["keras.ops.reshape", "keras.ops.numpy.reshape"])
@@ -7904,7 +7921,7 @@ class Roll(Operation):
         if self.axis is not None:
             _, axes = normalize_shift_and_axis(self.shift, self.axis)
             canonicalize_axes(axes, len(x.shape))
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return KerasTensor(x.shape, dtype=canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.roll", "keras.ops.numpy.roll"])
@@ -8176,9 +8193,9 @@ class Sort(Operation):
                 output_shape = (None,)
             else:
                 output_shape = (python_math.prod(x.shape),)
-            return KerasTensor(output_shape, x.dtype)
+            return KerasTensor(output_shape, canonicalize_dtype(x.dtype))
         canonicalize_axis(self.axis, len(x.shape))
-        return KerasTensor(x.shape, x.dtype)
+        return KerasTensor(x.shape, canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.sort", "keras.ops.numpy.sort"])
@@ -8206,7 +8223,7 @@ def _compute_split_output_spec(x, indices_or_sections, axis):
         if x_size_on_axis is None:
             x_shape[axis] = None
             return [
-                KerasTensor(x_shape, dtype=x.dtype)
+                KerasTensor(x_shape, dtype=canonicalize_dtype(x.dtype))
                 for _ in range(indices_or_sections)
             ]
 
@@ -8221,7 +8238,7 @@ def _compute_split_output_spec(x, indices_or_sections, axis):
         size = x_size_on_axis // indices_or_sections
         x_shape[axis] = size
         return [
-            KerasTensor(x_shape, dtype=x.dtype)
+            KerasTensor(x_shape, dtype=canonicalize_dtype(x.dtype))
             for _ in range(indices_or_sections)
         ]
 
@@ -8237,7 +8254,9 @@ def _compute_split_output_spec(x, indices_or_sections, axis):
             output_size = end - start
         output_shape = list(x_shape)
         output_shape[axis] = output_size
-        outputs.append(KerasTensor(output_shape, dtype=x.dtype))
+        outputs.append(
+            KerasTensor(output_shape, dtype=canonicalize_dtype(x.dtype))
+        )
 
     return outputs
 
@@ -8394,7 +8413,7 @@ class Swapaxes(Operation):
         ax2 = canonicalize_axis(self.axis2, ndim)
         x_shape = list(x.shape)
         x_shape[ax1], x_shape[ax2] = x_shape[ax2], x_shape[ax1]
-        return KerasTensor(x_shape, dtype=x.dtype)
+        return KerasTensor(x_shape, dtype=canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.swapaxes", "keras.ops.numpy.swapaxes"])
@@ -8431,11 +8450,13 @@ class Take(Operation):
             indices_shape = list(getattr(np.array(indices), "shape", []))
             ragged = False
         if self.axis is None:
-            return KerasTensor(indices_shape, dtype=x.dtype)
+            return KerasTensor(indices_shape, dtype=canonicalize_dtype(x.dtype))
 
         axis = canonicalize_axis(self.axis, len(x_shape))
         output_shape = x_shape[:axis] + indices_shape + x_shape[axis + 1 :]
-        return KerasTensor(output_shape, dtype=x.dtype, ragged=ragged)
+        return KerasTensor(
+            output_shape, dtype=canonicalize_dtype(x.dtype), ragged=ragged
+        )
 
 
 @keras_export(["keras.ops.take", "keras.ops.numpy.take"])
@@ -8468,7 +8489,7 @@ class TakeAlongAxis(Operation):
         output_shape = operation_utils.compute_take_along_axis_output_shape(
             x.shape, indices.shape, self.axis
         )
-        return KerasTensor(output_shape, dtype=x.dtype)
+        return KerasTensor(output_shape, dtype=canonicalize_dtype(x.dtype))
 
 
 @keras_export(
@@ -8642,7 +8663,7 @@ class Tile(Operation):
                 output_shape.append(x_size * repeat)
             else:
                 output_shape.append(None)
-        return KerasTensor(output_shape, dtype=x.dtype)
+        return KerasTensor(output_shape, dtype=canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.tile", "keras.ops.numpy.tile"])
@@ -8695,7 +8716,7 @@ class Trace(Operation):
         x_shape[axis1] = -1
         x_shape[axis2] = -1
         output_shape = [d for d in x_shape if d != -1]
-        output_dtype = standardize_dtype(x.dtype)
+        output_dtype = canonicalize_dtype(x.dtype)
         if output_dtype in ("bool", "int8", "int16"):
             output_dtype = "int32"
         elif output_dtype in ("uint8", "uint16"):
@@ -8767,7 +8788,7 @@ class Tril(Operation):
         return backend.ops.numpy.tril(x, k=self.k)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return KerasTensor(x.shape, dtype=canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.tril", "keras.ops.numpy.tril"])
@@ -8799,7 +8820,7 @@ class Triu(Operation):
         return backend.ops.numpy.triu(x, k=self.k)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        return KerasTensor(x.shape, dtype=canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.triu", "keras.ops.numpy.triu"])
@@ -9491,7 +9512,7 @@ class Square(Operation):
 
     def compute_output_spec(self, x):
         sparse = getattr(x, "sparse", False)
-        dtype = standardize_dtype(x.dtype)
+        dtype = canonicalize_dtype(x.dtype)
         if dtype == "bool":
             dtype = "int32"
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
@@ -9553,7 +9574,9 @@ class Squeeze(Operation):
         axis = to_tuple_or_list(self.axis)
         if axis is None:
             output_shape = [d for d in input_shape if d != 1]
-            return KerasTensor(output_shape, dtype=x.dtype, sparse=sparse)
+            return KerasTensor(
+                output_shape, dtype=canonicalize_dtype(x.dtype), sparse=sparse
+            )
         else:
             for a in axis:
                 if input_shape[a] != 1:
@@ -9564,7 +9587,9 @@ class Squeeze(Operation):
             axis = [canonicalize_axis(a, len(input_shape)) for a in axis]
             for a in sorted(axis, reverse=True):
                 del input_shape[a]
-            return KerasTensor(input_shape, dtype=x.dtype, sparse=sparse)
+            return KerasTensor(
+                input_shape, dtype=canonicalize_dtype(x.dtype), sparse=sparse
+            )
 
 
 @keras_export(["keras.ops.squeeze", "keras.ops.numpy.squeeze"])
@@ -9597,7 +9622,9 @@ class Transpose(Operation):
             x.shape, self.axes
         )
         sparse = getattr(x, "sparse", False)
-        return KerasTensor(output_shape, dtype=x.dtype, sparse=sparse)
+        return KerasTensor(
+            output_shape, dtype=canonicalize_dtype(x.dtype), sparse=sparse
+        )
 
 
 @keras_export(["keras.ops.transpose", "keras.ops.numpy.transpose"])
@@ -9717,7 +9744,7 @@ class Vander(Operation):
             N = self.N
 
         out_shape = x.shape + (N,)
-        return KerasTensor(tuple(out_shape), dtype=x.dtype)
+        return KerasTensor(tuple(out_shape), dtype=canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.vander", "keras.ops.numpy.vander"])
@@ -10233,8 +10260,8 @@ class Slogdet(Operation):
         return backend.ops.numpy.slogdet(x)
 
     def compute_output_spec(self, x):
-        sign = KerasTensor(x.shape[:-2], dtype=x.dtype)
-        logabsdet = KerasTensor(x.shape[:-2], dtype=x.dtype)
+        sign = KerasTensor(x.shape[:-2], dtype=canonicalize_dtype(x.dtype))
+        logabsdet = KerasTensor(x.shape[:-2], dtype=canonicalize_dtype(x.dtype))
         return (sign, logabsdet)
 
 
@@ -10359,8 +10386,10 @@ class Histogram(Operation):
 
     def compute_output_spec(self, x):
         return (
-            KerasTensor(shape=(self.bins,), dtype=x.dtype),
-            KerasTensor(shape=(self.bins + 1,), dtype=x.dtype),
+            KerasTensor(shape=(self.bins,), dtype=canonicalize_dtype(x.dtype)),
+            KerasTensor(
+                shape=(self.bins + 1,), dtype=canonicalize_dtype(x.dtype)
+            ),
         )
 
 
@@ -10488,7 +10517,10 @@ class ArraySplit(Operation):
             base_shape[axis] = None
             for _ in range(num_splits):
                 output_specs.append(
-                    KerasTensor(shape=tuple(base_shape), dtype=x.dtype)
+                    KerasTensor(
+                        shape=tuple(base_shape),
+                        dtype=canonicalize_dtype(x.dtype),
+                    )
                 )
             return tuple(output_specs)
 
@@ -10501,7 +10533,11 @@ class ArraySplit(Operation):
             size = split_size + (1 if i < remainder else 0)
             shape = base_shape.copy()
             shape[axis] = size
-            output_specs.append(KerasTensor(shape=tuple(shape), dtype=x.dtype))
+            output_specs.append(
+                KerasTensor(
+                    shape=tuple(shape), dtype=canonicalize_dtype(x.dtype)
+                )
+            )
 
         return list(output_specs)
 
@@ -10625,7 +10661,9 @@ class Unique(Operation):
             values_shape = list(input_shape)
             values_shape[axis] = u_dim
 
-        outputs = [KerasTensor(tuple(values_shape), dtype=x.dtype)]
+        outputs = [
+            KerasTensor(tuple(values_shape), dtype=canonicalize_dtype(x.dtype))
+        ]
 
         # Indices of first occurrences shape is 1D
         # with length matching the unique values

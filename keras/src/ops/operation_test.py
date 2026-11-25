@@ -10,6 +10,7 @@ from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import standardize_dtype
 from keras.src.ops import numpy as knp
 from keras.src.ops import operation
+from keras.src.testing.test_utils import x64_mode_scope
 from keras.src.utils import traceback_utils
 
 
@@ -407,6 +408,20 @@ class OperationTest(testing.TestCase):
             ValueError, "must be a string and cannot contain character `/`."
         ):
             OpWithMultipleOutputs(name="test/op")
+
+    @pytest.mark.skipif(
+        backend.backend() == "tensorflow",
+        reason="TensorFlow has no `x64_mode='off'`",
+    )
+    def test_compute_output_spec_with_64bit_inputs(self):
+        # `Negative` uses `ElementwiseUnaryOperation`'s spec, `Square` its own.
+        x = KerasTensor((2,), dtype="int64")
+        for op in (knp.Negative(), knp.Square()):
+            with x64_mode_scope("off"):
+                self.assertEqual(op.compute_output_spec(x).dtype, "int32")
+                self.assertEqual(op(x).dtype, "int32")
+            with x64_mode_scope("explicit_x64"):
+                self.assertEqual(op.compute_output_spec(x).dtype, "int64")
 
 
 class ElementwiseUnaryOperationTest(testing.TestCase):

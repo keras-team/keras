@@ -47,18 +47,6 @@ _SKIPPED_DTYPES = {
     },
 }
 
-# Also skipped in `off`: NumPy and torch keep 64-bit inputs but cap only some
-# results to 32 bits, so eager, symbolic and JAX disagree (#24040).
-_OFF_REASON = "In `off`, 64-bit results are capped unevenly (#24040)"
-_SKIPPED_DTYPES_IN_OFF = {
-    "numpy": {
-        "int64": _OFF_REASON,
-        "uint64": _OFF_REASON,
-        "float64": _OFF_REASON,
-    },
-    "torch": {"int64": _OFF_REASON, "float64": _OFF_REASON},
-}
-
 # Tolerance of the value checks when an output or its reference is a 16-bit
 # float, whose 8 (bfloat16) or 11 (float16) significant bits round early.
 _TOLERANCES = {"bfloat16": 1e-2, "float16": 1e-3}
@@ -472,10 +460,7 @@ class OpTest(TestCase):
         """
         if inputs is None:
             inputs, kwargs = self._first_case()
-        backend_name = config.backend()
-        skipped = _SKIPPED_DTYPES.get(backend_name, {})
-        if config.x64_mode() == "off":
-            skipped = skipped | _SKIPPED_DTYPES_IN_OFF.get(backend_name, {})
+        skipped = _SKIPPED_DTYPES.get(config.backend(), {})
         for dtype in dtypes:
             if dtype in skipped:
                 self.skipTest(f"{dtype}: {skipped[dtype]}")

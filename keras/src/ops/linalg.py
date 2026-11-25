@@ -4,6 +4,7 @@ from keras.src.api_export import keras_export
 from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import any_symbolic_tensors
+from keras.src.backend.common.dtypes import canonicalize_dtype
 from keras.src.backend.common.dtypes import promote_to_float_dtype
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import reduce_shape
@@ -20,7 +21,7 @@ class Cholesky(Operation):
     def compute_output_spec(self, x):
         _assert_2d(x)
         _assert_square(x)
-        return KerasTensor(x.shape, x.dtype)
+        return KerasTensor(x.shape, canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.cholesky", "keras.ops.linalg.cholesky"])
@@ -61,7 +62,7 @@ class CholeskyInverse(Operation):
     def compute_output_spec(self, x):
         _assert_2d(x)
         _assert_square(x)
-        return KerasTensor(x.shape, x.dtype)
+        return KerasTensor(x.shape, canonicalize_dtype(x.dtype))
 
 
 @keras_export(
@@ -103,7 +104,7 @@ class Det(Operation):
     def compute_output_spec(self, x):
         _assert_2d(x)
         _assert_square(x)
-        return KerasTensor(x.shape[:-2], x.dtype)
+        return KerasTensor(x.shape[:-2], canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.det", "keras.ops.linalg.det"])
@@ -137,8 +138,8 @@ class Eig(Operation):
         _assert_square(x)
         _assert_2d(x)
         return (
-            KerasTensor(x.shape[:-1], x.dtype),
-            KerasTensor(x.shape, x.dtype),
+            KerasTensor(x.shape[:-1], canonicalize_dtype(x.dtype)),
+            KerasTensor(x.shape, canonicalize_dtype(x.dtype)),
         )
 
 
@@ -173,8 +174,8 @@ class Eigh(Operation):
         _assert_square(x)
         _assert_2d(x)
         return (
-            KerasTensor(x.shape[:-1], x.dtype),
-            KerasTensor(x.shape, x.dtype),
+            KerasTensor(x.shape[:-1], canonicalize_dtype(x.dtype)),
+            KerasTensor(x.shape, canonicalize_dtype(x.dtype)),
         )
 
 
@@ -209,7 +210,7 @@ class Inv(Operation):
     def compute_output_spec(self, x):
         _assert_2d(x)
         _assert_square(x)
-        return KerasTensor(x.shape, x.dtype)
+        return KerasTensor(x.shape, canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.inv", "keras.ops.linalg.inv"])
@@ -245,7 +246,7 @@ class LuFactor(Operation):
         m, n = x.shape[-2:]
         k = min(m, n)
         return (
-            KerasTensor(batch_shape + (m, n), x.dtype),
+            KerasTensor(batch_shape + (m, n), canonicalize_dtype(x.dtype)),
             # The pivots are indices, not values drawn from `x`.
             KerasTensor(batch_shape + (k,), "int32"),
         )
@@ -428,13 +429,17 @@ class Qr(Operation):
         base = tuple(x.shape[:-2])
         if self.mode == "reduced":
             return (
-                KerasTensor(shape=base + (m, k), dtype=x.dtype),
-                KerasTensor(shape=base + (k, n), dtype=x.dtype),
+                KerasTensor(
+                    shape=base + (m, k), dtype=canonicalize_dtype(x.dtype)
+                ),
+                KerasTensor(
+                    shape=base + (k, n), dtype=canonicalize_dtype(x.dtype)
+                ),
             )
         # 'complete' mode.
         return (
-            KerasTensor(shape=base + (m, m), dtype=x.dtype),
-            KerasTensor(shape=base + (m, n), dtype=x.dtype),
+            KerasTensor(shape=base + (m, m), dtype=canonicalize_dtype(x.dtype)),
+            KerasTensor(shape=base + (m, n), dtype=canonicalize_dtype(x.dtype)),
         )
 
     def call(self, x):
@@ -481,7 +486,7 @@ class Solve(Operation):
         _assert_square(a)
         _assert_1d(b)
         _assert_a_b_compat(a, b)
-        return KerasTensor(b.shape, b.dtype)
+        return KerasTensor(b.shape, canonicalize_dtype(b.dtype))
 
 
 @keras_export(["keras.ops.solve", "keras.ops.linalg.solve"])
@@ -526,7 +531,7 @@ class SolveTriangular(Operation):
         _assert_square(a)
         _assert_1d(b)
         _assert_a_b_compat(a, b)
-        return KerasTensor(b.shape, b.dtype)
+        return KerasTensor(b.shape, canonicalize_dtype(b.dtype))
 
 
 @keras_export(
@@ -583,11 +588,11 @@ class SVD(Operation):
 
         if self.compute_uv:
             return (
-                KerasTensor(u_shape, x.dtype),
-                KerasTensor(s_shape, x.dtype),
-                KerasTensor(v_shape, x.dtype),
+                KerasTensor(u_shape, canonicalize_dtype(x.dtype)),
+                KerasTensor(s_shape, canonicalize_dtype(x.dtype)),
+                KerasTensor(v_shape, canonicalize_dtype(x.dtype)),
             )
-        return KerasTensor(s_shape, x.dtype)
+        return KerasTensor(s_shape, canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.svd", "keras.ops.linalg.svd"])
@@ -641,9 +646,9 @@ class Lstsq(Operation):
             )
         if len(b.shape) == 2:
             k = b.shape[1]
-            x = KerasTensor((n, k), dtype=a.dtype)
+            x = KerasTensor((n, k), dtype=canonicalize_dtype(a.dtype))
         else:
-            x = KerasTensor((n,), dtype=a.dtype)
+            x = KerasTensor((n,), dtype=canonicalize_dtype(a.dtype))
         return x
 
 
@@ -747,7 +752,7 @@ class MatrixPower(Operation):
     def compute_output_spec(self, x):
         _assert_2d(x)
         _assert_square(x)
-        return KerasTensor(x.shape, x.dtype)
+        return KerasTensor(x.shape, canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.matrix_power", "keras.ops.linalg.matrix_power"])
@@ -801,7 +806,7 @@ class Pinv(Operation):
         _assert_2d(x)
         batch_shape = x.shape[:-2]
         m, n = x.shape[-2:]
-        return KerasTensor(batch_shape + (n, m), x.dtype)
+        return KerasTensor(batch_shape + (n, m), canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.pinv", "keras.ops.linalg.pinv"])

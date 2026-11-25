@@ -482,7 +482,7 @@ class CheckInputDtypesTest(testing.TestCase):
             off = outcomes(Case)["test_input_dtypes_int64"]
         with x64_mode_scope("explicit_x64"):
             explicit = outcomes(Case)["test_input_dtypes_int64"]
-        self.assertNotIn("failed", off)  # Passed on JAX, skipped elsewhere.
+        self.assertNotIn("failed", off)  # JAX also computes in 32 bits.
         self.assertRegex(
             explicit, r"Output dtype differs from JAX for inputs int64\[2, 3\]"
         )

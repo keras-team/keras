@@ -245,8 +245,28 @@ BIT64_TO_BIT32_DTYPE = {
 }
 
 
+def canonicalize_dtype(dtype):
+    """Returns the dtype that ops compute in for an input of `dtype`.
+
+    Under `keras.config.x64_mode()` `"off"`, a 64-bit dtype becomes its
+    32-bit counterpart, as in JAX. The other modes keep it.
+
+    Args:
+        dtype: The dtype of the input.
+
+    Returns:
+        The dtype, as a standardized string.
+    """
+    dtype = standardize_dtype(dtype)
+    if config.x64_mode() == "off":
+        return BIT64_TO_BIT32_DTYPE.get(dtype, dtype)
+    return dtype
+
+
 def _lattice_result_type(*args):
     dtypes, weak_types = zip(*(_dtype_and_weaktype(arg) for arg in args))
+    # In `off`, a 64-bit input acts as its 32-bit counterpart, as in JAX.
+    dtypes = tuple(canonicalize_dtype(d) for d in dtypes)
     if len(dtypes) == 1:
         out_dtype = dtypes[0]
         out_weak_type = weak_types[0]
@@ -360,9 +380,7 @@ def promote_to_float_dtype(dtype):
     Returns:
         The float dtype to cast the input to.
     """
-    dtype = standardize_dtype(dtype)
-    if config.x64_mode() == "off":
-        dtype = BIT64_TO_BIT32_DTYPE.get(dtype, dtype)
+    dtype = canonicalize_dtype(dtype)
     if dtype in ("int64", "uint64"):
         return "float64"
     if "int" in dtype or dtype == "bool":

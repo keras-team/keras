@@ -23,6 +23,7 @@ from keras.src.layers.core import input_layer
 from keras.src.ops import core
 from keras.src.saving import object_registration
 from keras.src.testing.test_utils import named_product
+from keras.src.testing.test_utils import x64_mode_scope
 from keras.src.utils import traceback_utils
 
 
@@ -1724,6 +1725,17 @@ class CoreOpsDtypeTest(testing.TestCase):
 
         self.assertDType(ops.convert_to_tensor(x, dtype=dtype), dtype)
 
+    @pytest.mark.skipif(
+        backend.backend() not in ("numpy", "torch"),
+        reason="Only NumPy and PyTorch hold 64-bit tensors in `off`.",
+    )
+    def test_convert_to_tensor_with_64bit_input_in_off(self):
+        with x64_mode_scope("off"):
+            x = ops.convert_to_tensor(np.ones((2,)), dtype="int64")
+            for value in (x, np.ones((2,), dtype="int64")):
+                self.assertDType(ops.convert_to_tensor(value), "int32")
+                self.assertDType(ops.convert_to_tensor(value, "int64"), "int64")
+
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_saturate_cast(self, dtype):
         x = np.ones((1,))
@@ -2090,10 +2102,10 @@ class CoreOpsBehaviorTests(testing.TestCase):
         ]
         while_loop = core.WhileLoop(cond, body, maximum_iterations=None)
         output_specs = while_loop.compute_output_spec(keras_loop_vars)
-        self.assertEqual(output_specs[0].shape, keras_loop_vars[0].shape)
-        self.assertEqual(output_specs[0].dtype, keras_loop_vars[0].dtype)
-        self.assertEqual(output_specs[1].shape, keras_loop_vars[1].shape)
-        self.assertEqual(output_specs[1].dtype, keras_loop_vars[1].dtype)
+        for spec, x in zip(output_specs, keras_loop_vars):
+            self.assertEqual(spec.shape, x.shape)
+            # NumPy's 64-bit dtypes become 32-bit under `x64_mode="off"`.
+            self.assertEqual(spec.dtype, dtypes.canonicalize_dtype(x.dtype))
 
     def test_unstack_unknown_axis_num(self):
         x = KerasTensor((2, None, None))

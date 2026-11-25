@@ -329,11 +329,6 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.isin(x, y).shape, (None, 3))
 
-    def test_kron(self):
-        x = KerasTensor((None, 3))
-        y = KerasTensor((2, None))
-        self.assertEqual(knp.kron(x, y).shape, (None, None))
-
     def test_lcm(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
@@ -1027,11 +1022,6 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
 
         x = KerasTensor((2, 3))
         self.assertEqual(knp.isin(x, 2).shape, (2, 3))
-
-    def test_kron(self):
-        x = KerasTensor((2, 3))
-        y = KerasTensor((2, 3))
-        self.assertEqual(knp.kron(x, y).shape, (4, 9))
 
     def test_lcm(self):
         x = KerasTensor((2, 3))
@@ -4502,15 +4492,6 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             knp.IsIn(assume_unique=True, invert=True)(x, y),
             np.isin(x, y, assume_unique=True, invert=True),
         )
-
-    def test_kron(self):
-        x = np.array([[1, 2, 3], [3, 2, 1]])
-        y = np.array([[4, 5, 6], [3, 2, 1]])
-        self.assertAllClose(knp.kron(x, y), np.kron(x, y))
-        self.assertAllClose(knp.Kron()(x, y), np.kron(x, y))
-
-        x = np.arange(6.0).reshape(2, 3)
-        self.assertAllClose(knp.kron(x, x.T), np.kron(x, x.T))
 
     def test_lcm(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -11527,27 +11508,6 @@ class NumpyDtypeTest(testing.TestCase):
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(INT_DTYPES, 2))
     )
-    def test_kron(self, dtypes):
-        import jax.numpy as jnp
-
-        dtype1, dtype2 = dtypes
-        x1 = knp.ones((), dtype=dtype1)
-        x2 = knp.ones((), dtype=dtype2)
-        x1_jax = jnp.ones((), dtype=dtype1)
-        x2_jax = jnp.ones((), dtype=dtype2)
-        expected_dtype = standardize_dtype(jnp.kron(x1_jax, x2_jax).dtype)
-
-        self.assertEqual(
-            standardize_dtype(knp.kron(x1, x2).dtype), expected_dtype
-        )
-        self.assertEqual(
-            standardize_dtype(knp.Kron().symbolic_call(x1, x2).dtype),
-            expected_dtype,
-        )
-
-    @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(INT_DTYPES, 2))
-    )
     def test_lcm(self, dtypes):
         import jax.numpy as jnp
 
@@ -14070,3 +14030,11 @@ class SqueezeTest(UnaryOpTest):
             knp.squeeze(KerasTensor((None, 1)), axis=0)
         with self.assertRaises(ValueError):
             knp.squeeze(KerasTensor((2, 1, 3)), axis=0)
+
+
+class KronTest(BinaryOpTest):
+    op, op_class = knp.kron, knp.Kron
+    reference_fn, jax_fn = np.kron, jnp.kron
+
+    def test_input_dtypes_bool_bool(self):
+        self.skipTest("`jnp.kron` does not support bool inputs.")

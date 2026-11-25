@@ -9,6 +9,7 @@ from keras.src.backend.common import any_symbolic_tensors
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import slice_along_axis
+from keras.src.backend.common.dtypes import canonicalize_dtype
 from keras.src.ops.operation import ElementwiseUnaryOperation
 from keras.src.ops.operation import Operation
 from keras.src.saving import serialization_lib
@@ -303,7 +304,7 @@ class Scatter(Operation):
         return backend.ops.core.scatter(indices, values, self.shape)
 
     def compute_output_spec(self, indices, values):
-        return KerasTensor(self.shape, dtype=values.dtype)
+        return KerasTensor(self.shape, dtype=canonicalize_dtype(values.dtype))
 
 
 @keras_export("keras.ops.scatter")
@@ -348,7 +349,7 @@ class ScatterUpdate(Operation):
         )
 
     def compute_output_spec(self, inputs, indices, updates):
-        return KerasTensor(inputs.shape, dtype=inputs.dtype)
+        return KerasTensor(inputs.shape, dtype=canonicalize_dtype(inputs.dtype))
 
 
 @keras_export("keras.ops.scatter_update")
@@ -465,7 +466,7 @@ class Slice(Operation):
                 final_shape.append(None)
             else:
                 final_shape.append(input_dim - start_indices[i])
-        return KerasTensor(final_shape, dtype=inputs.dtype)
+        return KerasTensor(final_shape, dtype=canonicalize_dtype(inputs.dtype))
 
 
 @keras_export("keras.ops.slice")
@@ -504,7 +505,7 @@ class SliceUpdate(Operation):
         return backend.ops.core.slice_update(inputs, start_indices, updates)
 
     def compute_output_spec(self, inputs, start_indices, updates):
-        return KerasTensor(inputs.shape, dtype=inputs.dtype)
+        return KerasTensor(inputs.shape, dtype=canonicalize_dtype(inputs.dtype))
 
 
 @keras_export("keras.ops.slice_update")
@@ -611,7 +612,8 @@ class WhileLoop(Operation):
 
     def compute_output_spec(self, loop_vars):
         return tree.map_structure(
-            lambda v: KerasTensor(v.shape, dtype=v.dtype), loop_vars
+            lambda v: KerasTensor(v.shape, dtype=canonicalize_dtype(v.dtype)),
+            loop_vars,
         )
 
 
@@ -717,7 +719,9 @@ class ForiLoop(Operation):
         )
 
     def compute_output_spec(self, init_val):
-        return KerasTensor(init_val.shape, dtype=init_val.dtype)
+        return KerasTensor(
+            init_val.shape, dtype=canonicalize_dtype(init_val.dtype)
+        )
 
 
 @keras_export("keras.ops.fori_loop")
@@ -772,7 +776,8 @@ class Unstack(Operation):
                 "explicitly pass the `num` argument."
             )
         output = [
-            KerasTensor(shape=output_shapes, dtype=x.dtype) for _ in range(num)
+            KerasTensor(shape=output_shapes, dtype=canonicalize_dtype(x.dtype))
+            for _ in range(num)
         ]
         return output
 
@@ -1004,7 +1009,9 @@ class ConvertToTensor(Operation):
         )
 
     def compute_output_spec(self, x):
-        dtype = standardize_dtype(x.dtype) if self.dtype is None else self.dtype
+        dtype = (
+            canonicalize_dtype(x.dtype) if self.dtype is None else self.dtype
+        )
         sparse = (
             False if self.sparse is not None and not self.sparse else x.sparse
         )

@@ -7,6 +7,7 @@ from keras.src.api_export import keras_export
 from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import any_symbolic_tensors
+from keras.src.backend.common.dtypes import canonicalize_dtype
 from keras.src.backend.common.dtypes import promote_to_float_dtype
 from keras.src.backend.common.dtypes import result_type
 from keras.src.ops.operation import ElementwiseUnaryOperation
@@ -46,7 +47,9 @@ class SegmentReduction(Operation):
 
     def compute_output_spec(self, data, _):
         output_shape = (self.num_segments,) + tuple(data.shape[1:])
-        return KerasTensor(shape=output_shape, dtype=data.dtype)
+        return KerasTensor(
+            shape=output_shape, dtype=canonicalize_dtype(data.dtype)
+        )
 
 
 class SegmentSum(SegmentReduction):
@@ -246,7 +249,7 @@ class TopK(Operation):
         output_shape[-1] = self.k
         # Return a tuple (values, indices).
         return (
-            KerasTensor(shape=output_shape, dtype=x.dtype),
+            KerasTensor(shape=output_shape, dtype=canonicalize_dtype(x.dtype)),
             KerasTensor(shape=output_shape, dtype="int32"),
         )
 
@@ -457,7 +460,7 @@ class ExtractSequences(Operation):
         else:
             num_sequences = None
         new_shape = x.shape[:-1] + (num_sequences, self.sequence_length)
-        return KerasTensor(shape=new_shape, dtype=x.dtype)
+        return KerasTensor(shape=new_shape, dtype=canonicalize_dtype(x.dtype))
 
     def call(self, x):
         return backend.ops.math.extract_sequences(
@@ -538,8 +541,8 @@ class FFT(Operation):
             )
 
         return (
-            KerasTensor(shape=real.shape, dtype=real.dtype),
-            KerasTensor(shape=imag.shape, dtype=imag.dtype),
+            KerasTensor(shape=real.shape, dtype=canonicalize_dtype(real.dtype)),
+            KerasTensor(shape=imag.shape, dtype=canonicalize_dtype(imag.dtype)),
         )
 
     def call(self, x):
@@ -607,8 +610,8 @@ class FFT2(Operation):
             )
 
         return (
-            KerasTensor(shape=real.shape, dtype=real.dtype),
-            KerasTensor(shape=imag.shape, dtype=imag.dtype),
+            KerasTensor(shape=real.shape, dtype=canonicalize_dtype(real.dtype)),
+            KerasTensor(shape=imag.shape, dtype=canonicalize_dtype(imag.dtype)),
         )
 
     def call(self, x):
@@ -718,8 +721,8 @@ class IFFT2(Operation):
             )
 
         return (
-            KerasTensor(shape=real.shape, dtype=real.dtype),
-            KerasTensor(shape=imag.shape, dtype=imag.dtype),
+            KerasTensor(shape=real.shape, dtype=canonicalize_dtype(real.dtype)),
+            KerasTensor(shape=imag.shape, dtype=canonicalize_dtype(imag.dtype)),
         )
 
     def call(self, x):
@@ -778,8 +781,8 @@ class RFFT(Operation):
         new_shape = x.shape[:-1] + (new_last_dimension,)
 
         return (
-            KerasTensor(shape=new_shape, dtype=x.dtype),
-            KerasTensor(shape=new_shape, dtype=x.dtype),
+            KerasTensor(shape=new_shape, dtype=canonicalize_dtype(x.dtype)),
+            KerasTensor(shape=new_shape, dtype=canonicalize_dtype(x.dtype)),
         )
 
     def call(self, x):
@@ -861,7 +864,9 @@ class IRFFT(Operation):
             else:
                 new_last_dimension = None
         new_shape = real.shape[:-1] + (new_last_dimension,)
-        return KerasTensor(shape=new_shape, dtype=real.dtype)
+        return KerasTensor(
+            shape=new_shape, dtype=canonicalize_dtype(real.dtype)
+        )
 
     def call(self, x):
         return backend.ops.math.irfft(x, fft_length=self.fft_length)
@@ -941,8 +946,8 @@ class STFT(Operation):
             num_sequences = None
         new_shape = x.shape[:-1] + (num_sequences, self.fft_length // 2 + 1)
         return (
-            KerasTensor(shape=new_shape, dtype=x.dtype),
-            KerasTensor(shape=new_shape, dtype=x.dtype),
+            KerasTensor(shape=new_shape, dtype=canonicalize_dtype(x.dtype)),
+            KerasTensor(shape=new_shape, dtype=canonicalize_dtype(x.dtype)),
         )
 
     def call(self, x):
@@ -1071,7 +1076,9 @@ class ISTFT(Operation):
             if self.length is not None:
                 output_size = self.length
         new_shape = real.shape[:-2] + (output_size,)
-        return KerasTensor(shape=new_shape, dtype=real.dtype)
+        return KerasTensor(
+            shape=new_shape, dtype=canonicalize_dtype(real.dtype)
+        )
 
     def call(self, x):
         return backend.ops.math.istft(
@@ -1266,7 +1273,7 @@ class Logdet(Operation):
         return backend.ops.math.logdet(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape[:-2], dtype=x.dtype)
+        return KerasTensor(x.shape[:-2], dtype=canonicalize_dtype(x.dtype))
 
 
 @keras_export(["keras.ops.logdet"])
