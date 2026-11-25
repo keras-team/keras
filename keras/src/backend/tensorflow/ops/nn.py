@@ -1289,7 +1289,13 @@ def conv_transpose(
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     check_conv_transpose_input_channels(inputs, kernel, data_format)
-    tf_data_format = _convert_data_format(data_format, len(inputs.shape))
+    # `tf.nn.conv_transpose` does not support `channels_first` on CPU.
+    # Transpose to `channels_last`, compute, and transpose back.
+    need_transpose = data_format == "channels_first" and _cpu_only()
+    conv_data_format = "channels_last" if need_transpose else data_format
+    tf_data_format = _convert_data_format(conv_data_format, len(inputs.shape))
+    if need_transpose:
+        inputs = _transpose_spatial_inputs(inputs)
     kernel_size = kernel.shape[:-2]
     filters = kernel.shape[-2]
     input_shape = list(inputs.shape)
@@ -1304,11 +1310,11 @@ def conv_transpose(
         strides,
         padding,
         output_padding,
-        data_format,
+        conv_data_format,
         dilation_rate,
     )
 
-    return tf.nn.conv_transpose(
+    outputs = tf.nn.conv_transpose(
         inputs,
         kernel,
         output_shape,
@@ -1317,6 +1323,9 @@ def conv_transpose(
         data_format=tf_data_format,
         dilations=dilation_rate,
     )
+    if need_transpose:
+        outputs = _transpose_spatial_outputs(outputs)
+    return outputs
 
 
 def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):

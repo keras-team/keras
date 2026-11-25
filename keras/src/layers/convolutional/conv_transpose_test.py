@@ -210,7 +210,7 @@ def np_conv3d_transpose(
         strides,
         padding,
         output_padding,
-        data_format,
+        "channels_last",
         dilation_rate,
     )
     jax_padding = compute_conv_transpose_padding_args_for_jax(
@@ -319,6 +319,17 @@ class ConvTransposeBasicTest(testing.TestCase):
             "input_shape": (2, 8, 4),
             "output_shape": (2, 16, 6),
         },
+        {
+            "filters": 6,
+            "kernel_size": (2,),
+            "strides": (2,),
+            "padding": "valid",
+            "output_padding": None,
+            "data_format": "channels_first",
+            "dilation_rate": 1,
+            "input_shape": (2, 4, 8),
+            "output_shape": (2, 6, 16),
+        },
     )
     def test_conv1d_transpose_basic(
         self,
@@ -409,9 +420,6 @@ class ConvTransposeBasicTest(testing.TestCase):
         input_shape,
         output_shape,
     ):
-        if data_format == "channels_first" and config.backend() == "tensorflow":
-            pytest.skip("channels_first unsupported on CPU with TF")
-
         self.run_layer_test(
             layers.Conv2DTranspose,
             init_kwargs={
@@ -464,6 +472,17 @@ class ConvTransposeBasicTest(testing.TestCase):
             "dilation_rate": (1, 1, 1),
             "input_shape": (2, 8, 8, 8, 4),
             "output_shape": (2, 16, 9, 17, 6),
+        },
+        {
+            "filters": 6,
+            "kernel_size": (2, 2, 3),
+            "strides": (2, 1, 2),
+            "padding": "valid",
+            "output_padding": None,
+            "data_format": "channels_first",
+            "dilation_rate": (1, 1, 1),
+            "input_shape": (2, 4, 8, 8, 8),
+            "output_shape": (2, 6, 16, 9, 17),
         },
     )
     def test_conv3d_transpose_basic(
