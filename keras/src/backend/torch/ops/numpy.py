@@ -2530,37 +2530,18 @@ def slogdet(x):
 
 
 def argpartition(x, kth, axis=-1):
-    x = convert_to_tensor(x, "int32")
-
+    x = convert_to_tensor(x)
     if axis is None:
-        x = torch.flatten(x)
-        axis = 0
-        original_axis = None
-    else:
-        original_axis = axis
-
-    x = torch.transpose(x, axis, -1)
-
-    bottom_ind = torch.topk(-x, kth + 1)[1]
-
-    def set_to_zero(a, i):
-        a = a.clone()
-        a[i] = 0
-        return a
-
-    for _ in range(x.dim() - 1):
-        set_to_zero = torch.vmap(set_to_zero)
-
-    proxy = set_to_zero(torch.ones_like(x, dtype=torch.int32), bottom_ind)
-
-    top_ind = torch.topk(proxy, x.shape[-1] - kth - 1)[1]
-
-    out = torch.cat([bottom_ind, top_ind], dim=-1)
-
-    if original_axis is None:
-        return cast(out, "int32")
-
-    return cast(torch.transpose(out, -1, axis), "int32")
+        x = x.reshape(-1)
+        axis = -1
+    size = x.shape[axis]
+    if not -size <= kth < size:
+        raise ValueError(
+            f"kth must be in the range [-{size}, {size}) for an axis of size "
+            f"{size}. Received: kth={kth}"
+        )
+    # A full sort is a valid partition for every `kth`.
+    return argsort(x, axis=axis)
 
 
 def histogram(x, bins=10, range=None):
