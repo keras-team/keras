@@ -40,6 +40,20 @@ class MockRemat:
         return wrapped_func
 
 
+class _TrackingLayer(layers.Layer):
+    """Bare layer used as a parent in `__delattr__` tracking tests.
+
+    Unlike Model, a plain layer locks its tracker once built, so these tests
+    also cover untracking on a locked tracker.
+    """
+
+    def build(self, input_shape):
+        pass
+
+    def call(self, inputs):
+        return inputs
+
+
 class LayerTest(testing.TestCase):
     def test_compute_output_spec(self):
         # Test that implementing compute_output_shape
@@ -2205,6 +2219,145 @@ class LayerTest(testing.TestCase):
             # `training=False`/`None` never update the running stats, so
             # they are still mean 0 / variance 1.
             self.assertAllClose(y, x / np.sqrt(1.0 + 1e-3), atol=1e-3)
+
+    def test_delattr_untrack_layer(self):
+        helper = layers.Dense(3)
+        helper.build((None, 4))
+        parent = _TrackingLayer()
+        parent.helper = helper
+        parent.build((None, 4))
+        self.assertTrue(parent._tracker.locked)
+        self.assertIn(helper, parent._layers)
+        self.assertIn(helper.weights[0], parent.weights)
+
+        del parent.helper
+        self.assertNotIn(helper, parent._layers)
+        self.assertNotIn(helper.weights[0], parent.weights)
+
+    def test_delattr_untrack_container(self):
+        helpers = [layers.Dense(3), layers.Dense(4)]
+        helper_by_name = {"a": layers.Dense(3), "b": [layers.Dense(4)]}
+        for h in [*helpers, helper_by_name["a"], *helper_by_name["b"]]:
+            h.build((None, 4))
+        parent = _TrackingLayer()
+        parent.helpers = helpers
+        parent.helper_by_name = helper_by_name
+        parent.build((None, 4))
+        self.assertTrue(parent._tracker.locked)
+        self.assertTrue(parent.weights)
+
+        del parent.helpers
+        for h in helpers:
+            self.assertNotIn(h, parent._layers)
+
+        # Mappings and nested containers are handled as well.
+        del parent.helper_by_name
+        self.assertNotIn(helper_by_name["a"], parent._layers)
+        self.assertNotIn(helper_by_name["b"][0], parent._layers)
+        self.assertFalse(parent.weights)
+
+    def test_delattr_untrack_alias(self):
+        enc, dec = layers.Dense(3), layers.Dense(3)
+        enc.build((None, 4))
+        dec.build((None, 4))
+        scale = backend.Variable(1.0)
+        parent = _TrackingLayer()
+        parent.encoder = enc
+        parent.blocks = [enc, dec]
+        parent.alias = enc
+        parent.scale = scale
+        parent.scales = [scale]
+        parent.build((None, 4))
+        self.assertTrue(parent._tracker.locked)
+
+        # The tracker stores each object once by id, so deleting one alias
+        # must not untrack an object another attribute still reaches. This
+        # includes direct attribute aliases, which on the torch backend
+        # live in the module registry instead of `__dict__`.
+        del parent.encoder
+        self.assertIn(enc, parent._layers)
+
+        del parent.blocks
+        self.assertIn(enc, parent._layers)
+        self.assertNotIn(dec, parent._layers)
+
+        del parent.alias
+        self.assertNotIn(enc, parent._layers)
+
+        # Variables behave the same way.
+        del parent.scale
+        self.assertIn(scale, parent._trainable_variables)
+
+        del parent.scales
+        self.assertNotIn(scale, parent._trainable_variables)
+
+    def test_delattr_read_only_property(self):
+        class Parent(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self._helper = layers.Dense(3)
+
+            def build(self, input_shape):
+                self._helper.build(input_shape)
+
+            @property
+            def helper(self):
+                return self._helper
+
+        parent = Parent()
+        parent.build((None, 4))
+        self.assertTrue(parent._tracker.locked)
+        helper = parent.helper
+        self.assertIn(helper, parent._layers)
+
+        # A read-only property is not stored state: deleting it raises
+        # AttributeError and must not untrack the layer it returns.
+        with self.assertRaises(AttributeError):
+            del parent.helper
+        self.assertIn(helper, parent._layers)
+
+    def test_delattr_untrack_from_functional_model(self):
+        # Unlike plain layers, Functional models never lock their tracker,
+        # so attributes can also be attached and removed after the model
+        # is built.
+        inputs = Input((4,))
+        model = Model(inputs, layers.Dense(4)(inputs))
+        initial_num_weights = len(model.weights)
+        self.assertFalse(model._tracker.locked)
+
+        helper = layers.Dense(3)
+        helper.build((None, 4))
+        model.helper = helper
+        self.assertGreater(len(model.weights), initial_num_weights)
+
+        del model.helper
+        self.assertEqual(len(model.weights), initial_num_weights)
+        self.assertNotIn(helper, model.layers)
+        self.assertFalse(model._tracker.locked)
+
+    def test_delattr_untrack_metric(self):
+        my_metric = metrics.Mean()
+        parent = _TrackingLayer()
+        parent.my_metric = my_metric
+        parent.build((None, 4))
+        self.assertTrue(parent._tracker.locked)
+        self.assertIn(my_metric, parent.metrics)
+
+        del parent.my_metric
+        self.assertNotIn(my_metric, parent.metrics)
+
+    def test_delattr_untrack_seed_generator(self):
+        my_seed_gen = random.SeedGenerator()
+        parent = _TrackingLayer()
+        parent.my_seed_gen = my_seed_gen
+        parent.build((None, 4))
+        self.assertTrue(parent._tracker.locked)
+        self.assertIn(my_seed_gen, parent._seed_generators)
+        self.assertIn(my_seed_gen.state, parent.variables)
+
+        del parent.my_seed_gen
+        self.assertNotIn(my_seed_gen, parent._seed_generators)
+        self.assertNotIn(my_seed_gen.state, parent.variables)
 
 
 class _LoraLessProjection(layers.Layer):
