@@ -1,4 +1,9 @@
+import datetime
+import functools
+import importlib.metadata
 import json
+import platform
+import sys
 import time
 
 import numpy as np
@@ -89,10 +94,30 @@ class KerasCoreBenchmarkMetricsCallback(keras.callbacks.Callback):
         self._callback.on_predict_batch_end(batch, logs)
 
 
-def _print_result_json(layer_name, mode, throughput):
-    if FLAGS.print_results_json:
-        result = {"layer": layer_name, "mode": mode, "throughput": throughput}
-        print("BENCHMARK_RESULT:" + json.dumps(result))
+@functools.cache
+def _environment():
+    backend = keras.backend.backend()
+    backend_version = getattr(sys.modules.get(backend), "__version__", None)
+    if backend_version is None:
+        # mlx only sets __version__ on mlx.core.
+        try:
+            backend_version = importlib.metadata.version(backend)
+        except importlib.metadata.PackageNotFoundError:
+            pass
+    try:
+        devices = keras.distribution.list_devices()
+        device = devices[0] if devices else None
+    except AttributeError:
+        # Backends without a distribution_lib, like numpy.
+        device = None
+    return {
+        "backend": backend,
+        "backend_version": backend_version,
+        "keras_version": keras.__version__,
+        "device": device,
+        "platform": platform.platform(),
+        "python_version": platform.python_version(),
+    }
 
 
 class LayerBenchmark:
@@ -140,6 +165,24 @@ class LayerBenchmark:
             outputs = self._keras_layer(inputs)
         return keras.Model(inputs=inputs, outputs=outputs)
 
+    def _print_result_json(self, mode, throughput, num_samples, batch_size):
+        if not FLAGS.print_results_json:
+            return
+        result = {
+            "layer": self.layer_name,
+            "mode": mode,
+            "throughput": throughput,
+            "input_shape": self.input_shape,
+            "num_samples": num_samples,
+            "batch_size": batch_size,
+            "jit_compile": self._keras_model.jit_compile,
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(
+                timespec="seconds"
+            ),
+            **_environment(),
+        }
+        print("BENCHMARK_RESULT:" + json.dumps(result))
+
     def benchmark_predict(self, num_samples, batch_size, data=None):
         if data is None:
             # Generate default data if not provided.
@@ -167,7 +210,9 @@ class LayerBenchmark:
             f"Keras 3 throughput of forward pass of {self.layer_name}: "
             f"{keras_throughput:.2f} samples/sec."
         )
-        _print_result_json(self.layer_name, "predict", keras_throughput)
+        self._print_result_json(
+            "predict", keras_throughput, num_samples, batch_size
+        )
 
     def benchmark_train(self, num_samples, batch_size, data=None, label=None):
         if data is None:
@@ -209,4 +254,6 @@ class LayerBenchmark:
             f"Keras 3 throughput of forward & backward pass of "
             f"{self.layer_name}: {keras_throughput:.2f} samples/sec."
         )
-        _print_result_json(self.layer_name, "train", keras_throughput)
+        self._print_result_json(
+            "train", keras_throughput, num_samples, batch_size
+        )

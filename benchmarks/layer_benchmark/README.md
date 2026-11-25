@@ -23,3 +23,6 @@ python3 -m benchmarks.layer_benchmark.run_multi_backend \
     benchmarks.layer_benchmark.conv_benchmark \
     --benchmark_name=benchmark_conv2D
 ```
+
+Pass `--output_file=results.json` to also save every result with its backend,
+versions, device and settings.
