@@ -36,7 +36,7 @@ dist_directory = "dist"
 to_copy = ["pyproject.toml", "README.md"]
 
 
-def export_version_string(version, is_nightly=False, rc_index=None):
+def export_version_string(version, is_nightly=False):
     """Export Version and Package Name."""
     if is_nightly:
         date = datetime.datetime.now()
@@ -49,8 +49,6 @@ def export_version_string(version, is_nightly=False, rc_index=None):
             'name = "keras"', 'name = "keras-nightly"'
         )
         pyproj_pth.write_text(pyproj_str)
-    elif rc_index is not None:
-        version += f"rc{str(rc_index)}"
 
     # Make sure to export the __version__ string
     with open(os.path.join(package, "src", "version.py")) as f:
@@ -86,7 +84,7 @@ def copy_source_to_build_directory(root_path):
     os.chdir(build_directory)
 
 
-def build(root_path, is_nightly=False, rc_index=None):
+def build(root_path, is_nightly=False):
     build_directory_path = os.path.join(root_path, build_directory)
     if os.path.exists(build_directory_path):
         raise ValueError(f"Directory already exists: {build_directory_path}")
@@ -96,7 +94,7 @@ def build(root_path, is_nightly=False, rc_index=None):
 
         from keras.src.version import __version__  # noqa: E402
 
-        version = export_version_string(__version__, is_nightly, rc_index)
+        version = export_version_string(__version__, is_nightly)
         return build_and_save_output(root_path, version)
     finally:
         shutil.rmtree(build_directory)
@@ -154,13 +152,8 @@ if __name__ == "__main__":
         action="store_true",
         help="Whether to generate nightly wheel file.",
     )
-    parser.add_argument(
-        "--rc",
-        type=int,
-        help="Specify `[0-9] when generating RC wheels.",
-    )
     args = parser.parse_args()
     root_path = pathlib.Path(__file__).parent.resolve()
-    whl_path = build(root_path, args.nightly, args.rc)
+    whl_path = build(root_path, args.nightly)
     if whl_path and args.install:
         install_whl(whl_path)
