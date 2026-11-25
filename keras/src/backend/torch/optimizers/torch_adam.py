@@ -1,5 +1,6 @@
 import torch
 
+from keras.src import backend
 from keras.src import ops
 from keras.src import optimizers
 from keras.src.backend.torch.optimizers import torch_parallel_optimizer
@@ -16,12 +17,17 @@ class Adam(torch_parallel_optimizer.TorchParallelOptimizer, optimizers.Adam):
         variables = [v.value for v in variables]
 
         dtype = variables[0].dtype
-        lr = ops.cast(learning_rate, dtype)
-        local_step = ops.cast(self.iterations + 1, dtype)
+        # The bias correction is computed in at least float32: in bfloat16,
+        # beta_2=0.999 rounds to 1.0, which makes alpha 0 and every update 0.
+        coef_dtype = backend.result_type(keras_variables[0].dtype, "float32")
+        lr = ops.cast(learning_rate, coef_dtype)
+        local_step = ops.cast(self.iterations + 1, coef_dtype)
 
-        beta_1_power = ops.power(ops.cast(self.beta_1, dtype), local_step)
-        beta_2_power = ops.power(ops.cast(self.beta_2, dtype), local_step)
-        alpha = lr * ops.sqrt(1 - beta_2_power) / (1 - beta_1_power)
+        beta_1_power = ops.power(ops.cast(self.beta_1, coef_dtype), local_step)
+        beta_2_power = ops.power(ops.cast(self.beta_2, coef_dtype), local_step)
+        alpha = ops.cast(
+            lr * ops.sqrt(1 - beta_2_power) / (1 - beta_1_power), dtype
+        )
 
         m_list = [
             self._momentums[self._get_variable_index(variable)].value
