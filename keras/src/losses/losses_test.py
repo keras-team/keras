@@ -2628,6 +2628,10 @@ class CTCTest(testing.TestCase):
         output = losses.CTC()(y_true, logits)
         self.assertAllClose(output, per_sequence[0])
 
+        all_masked = ops.convert_to_tensor([[False] * 4, [False] * 4])
+        set_keras_mask(logits, all_masked)
+        self.assertAllClose(losses.CTC()(y_true, logits), 0.0)
+
 
 class DiceTest(testing.TestCase):
     def test_config(self):
