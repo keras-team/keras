@@ -5250,6 +5250,15 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 
     @pytest.mark.skipif(
         config.backend() != "tensorflow",
+        reason="TF previously raised UnboundLocalError for bad method",
+    )
+    def test_quantile_invalid_method_raises(self):
+        x = knp.array([1.0, 2.0, 3.0])
+        with self.assertRaisesRegex(ValueError, r"`method` must be one of"):
+            knp.quantile(x, 0.5, method="__invalid_choice__")
+
+    @pytest.mark.skipif(
+        config.backend() != "tensorflow",
         reason="Only test tensorflow backend",
     )
     def test_quantile_in_tf_function(self):
