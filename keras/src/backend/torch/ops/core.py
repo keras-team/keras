@@ -1017,13 +1017,6 @@ def unstack(x, num=None, axis=0):
     return x.unbind(axis)
 
 
-def random_seed_dtype():
-    # uint32 doesn't exist in torch. Seeds are conceptually uint32 values;
-    # int32 is used and the bit pattern is reinterpreted as uint32 at each
-    # call site (torch_seed_generator / torch.manual_seed) via & 0xFFFFFFFF.
-    return "int32"
-
-
 def remat(f):
     """Implementation of rematerialization.
 

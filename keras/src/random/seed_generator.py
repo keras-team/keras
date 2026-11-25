@@ -86,7 +86,7 @@ class SeedGenerator:
             self.state = self.backend.Variable(
                 seed_initializer,
                 shape=(2,),
-                dtype=self.backend.ops.random_seed_dtype(),
+                dtype=self.backend.random.seed_dtype(),
                 trainable=False,
                 aggregation="none",
                 name="seed_generator_state",
@@ -148,7 +148,7 @@ def draw_seed(seed):
         return seed.next()
     elif isinstance(seed, (int, np.integer)):
         seed = int(seed)
-        dtype = backend.ops.random_seed_dtype()
+        dtype = backend.random.seed_dtype()
         # Seeds are conceptually uint32 values but some backends declare
         # their seed dtype as a signed type (e.g. "int32"). np.array(x,
         # dtype="int32") raises OverflowError on NumPy >= 1.24 for values
