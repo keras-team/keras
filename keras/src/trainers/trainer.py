@@ -1096,13 +1096,12 @@ class BaseTrainer:
         current_state = {
             layer: layer.trainable for layer in self._flatten_layers()
         }
-        # Skip layers created after `compile()` so that a model built in
-        # `fit()` does not warn.
-        changed_layers = [
-            layer.name
-            for layer, trainable in current_state.items()
-            if self._compiled_trainable_state.get(layer, trainable) != trainable
-        ]
+        changed_layers = []
+        for layer, trainable in current_state.items():
+            if layer not in self._compiled_trainable_state:
+                changed_layers.append(layer.name)
+            elif trainable != self._compiled_trainable_state[layer]:
+                changed_layers.append(layer.name)
 
         if changed_layers:
             warnings.warn(
@@ -1111,13 +1110,21 @@ class BaseTrainer:
                 "compiled optimizer and loss functions may not track the "
                 "correct variables. Please recompile your model "
                 "(e.g. `model.compile(...)`) before calling `fit()` or "
-                "`evaluate()` so the change takes effect. "
+                "`train_on_batch()` so the change takes effect. "
                 f"Changed layers: {changed_layers}",
                 stacklevel=2,
             )
-        if current_state != self._compiled_trainable_state:
-            # Record new layers and warn only once per change.
+            # Update the state so we only warn once per compile
             self._compiled_trainable_state = current_state
+
+    def _post_build(self):
+        super()._post_build()
+        # Layers built after `compile()` use their state at build as baseline.
+        if hasattr(self, "_compiled_trainable_state"):
+            for layer in self._flatten_layers():
+                self._compiled_trainable_state.setdefault(
+                    layer, layer.trainable
+                )
 
     def _assert_compile_called(self, method_name=None):
         if not self.compiled:

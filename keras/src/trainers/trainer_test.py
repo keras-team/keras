@@ -2234,50 +2234,72 @@ class TestTrainer(testing.TestCase):
         out3 = model.predict_on_batch(np.ones((2, 20)))
         self.assertNotAllClose(out2, out3)
 
+    @parameterized.named_parameters(
+        # Only its input layer is built in `fit()`, so it must not warn.
+        ("sequential", "sequential"),
+        # The frozen layer is built in `fit()`, so it must still warn.
+        ("layers_built_in_fit", "builds_layers"),
+    )
     @pytest.mark.requires_trainable_backend
-    def test_warns_when_trainable_changes_after_compile(self):
-        def trainable_warnings(fn, *args):
+    def test_warns_when_trainable_changes_after_compile(self, model_kind):
+        def trainable_warnings(fn, *args, expect_error=False, **kwargs):
             with warnings.catch_warnings(record=True) as caught:
                 warnings.simplefilter("always")
-                fn(*args)
+                if expect_error:
+                    with self.assertRaisesRegex(
+                        ValueError, "optimizer_variables"
+                    ):
+                        fn(*args, **kwargs)
+                else:
+                    fn(*args, **kwargs)
             return [w for w in caught if "`trainable` state" in str(w.message)]
 
         class BuildsLayers(models.Model):
             def build(self, input_shape):
+                self.hidden = layers.Dense(3)
+                self.hidden.build(input_shape)
                 self.dense = layers.Dense(1)
-                self.dense.build(input_shape)
+                self.dense.build((input_shape[0], 3))
 
             def call(self, x):
-                return self.dense(x)
+                return self.dense(self.hidden(x))
+
+        def make_model():
+            if model_kind == "sequential":
+                return models.Sequential([layers.Dense(3), layers.Dense(1)])
+            return BuildsLayers()
 
         x = np.ones((4, 2))
         y = np.ones((4, 1))
-        # Both models create layers after `compile()`.
-        for model in (
-            models.Sequential([layers.Dense(3), layers.Dense(1)]),
-            BuildsLayers(),
-        ):
-            model.compile(optimizer="sgd", loss="mse")
-            for _ in range(2):
-                self.assertEmpty(trainable_warnings(model.fit, x, y))
-            self.assertEmpty(trainable_warnings(model.train_on_batch, x, y))
+        model = make_model()
+        model.compile(optimizer="sgd", loss="mse")
+        for _ in range(2):
+            self.assertEmpty(trainable_warnings(model.fit, x, y, verbose=0))
+        self.assertEmpty(trainable_warnings(model.train_on_batch, x, y))
 
-            layer = model.layers[-1]
-            layer.trainable = False
-            check = model._assert_compile_called
-            self.assertEmpty(trainable_warnings(check, "evaluate"))
-            self.assertEmpty(trainable_warnings(check, "test_on_batch"))
-            caught = trainable_warnings(check, "fit")
-            self.assertLen(caught, 1)
-            self.assertIn(layer.name, str(caught[0].message))
-            self.assertEmpty(trainable_warnings(check, "fit"))
+        model = make_model()
+        model.compile(optimizer="sgd", loss="mse")
+        self.assertEmpty(trainable_warnings(model.fit, x, y, verbose=0))
 
+        layer = model.layers[-1]
+        layer.trainable = False
+        self.assertEmpty(trainable_warnings(model.evaluate, x, y, verbose=0))
+        self.assertEmpty(trainable_warnings(model.test_on_batch, x, y))
+        # JAX fails after the warning and can't train until recompiled.
+        is_jax = config.backend() == "jax"
+        caught = trainable_warnings(
+            model.fit, x, y, verbose=0, expect_error=is_jax
+        )
+        self.assertLen(caught, 1)
+        self.assertIn(layer.name, str(caught[0].message))
+        if not is_jax:
+            self.assertEmpty(trainable_warnings(model.fit, x, y, verbose=0))
             layer.trainable = True
-            self.assertLen(trainable_warnings(check, "train_on_batch"), 1)
-
+            self.assertLen(trainable_warnings(model.train_on_batch, x, y), 1)
             layer.trainable = False
-            model.compile(optimizer="sgd", loss="mse")
-            self.assertEmpty(trainable_warnings(check, "fit"))
+
+        model.compile(optimizer="sgd", loss="mse")
+        self.assertEmpty(trainable_warnings(model.fit, x, y, verbose=0))
 
     @pytest.mark.requires_trainable_backend
     def test_recompile(self):
