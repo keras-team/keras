@@ -1121,10 +1121,11 @@ class BaseTrainer:
         super()._post_build()
         # Layers built after `compile()` use their state at build as baseline.
         if hasattr(self, "_compiled_trainable_state"):
+            # A new dict, since TF can't save a tracked one that was mutated.
+            state = dict(self._compiled_trainable_state)
             for layer in self._flatten_layers():
-                self._compiled_trainable_state.setdefault(
-                    layer, layer.trainable
-                )
+                state.setdefault(layer, layer.trainable)
+            self._compiled_trainable_state = state
 
     def _assert_compile_called(self, method_name=None):
         if not self.compiled:
