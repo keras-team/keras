@@ -42,12 +42,12 @@ class SeedGeneratorTest(testing.TestCase):
 
     def test_seed_generator_dtype(self):
         gen = seed_generator.SeedGenerator(seed=42)
-        self.assertEqual(gen.state.dtype, backend.ops.random_seed_dtype())
+        self.assertEqual(gen.state.dtype, backend.random.seed_dtype())
         seed = gen.next()
-        self.assertEqual(gen.state.dtype, backend.ops.random_seed_dtype())
+        self.assertEqual(gen.state.dtype, backend.random.seed_dtype())
         self.assertEqual(
             standardize_dtype(seed.dtype),
-            backend.ops.random_seed_dtype(),
+            backend.random.seed_dtype(),
         )
 
     def test_draw_seed_from_seed_generator(self):
@@ -60,7 +60,7 @@ class SeedGeneratorTest(testing.TestCase):
         self.assertTrue(backend.ops.is_tensor(seed2))
         self.assertEqual(
             standardize_dtype(seed2.dtype),
-            backend.ops.random_seed_dtype(),
+            backend.random.seed_dtype(),
         )
 
     def test_draw_seed_from_large_integer(self):
@@ -71,7 +71,7 @@ class SeedGeneratorTest(testing.TestCase):
             self.assertTrue(backend.ops.is_tensor(seed))
             self.assertEqual(
                 standardize_dtype(seed.dtype),
-                backend.ops.random_seed_dtype(),
+                backend.random.seed_dtype(),
             )
             # Verify the seed can be consumed by a random op without error.
             res = random.uniform((2, 2), seed=s)

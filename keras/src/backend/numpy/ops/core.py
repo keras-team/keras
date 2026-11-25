@@ -456,10 +456,6 @@ def unstack(x, num=None, axis=0):
     return list(np.moveaxis(x, axis, 0))
 
 
-def random_seed_dtype():
-    return "uint32"
-
-
 class custom_gradient:
     """Decorator for custom gradients.
 
