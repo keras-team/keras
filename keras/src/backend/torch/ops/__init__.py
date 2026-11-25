@@ -4,4 +4,25 @@ from keras.src.backend.torch.ops import linalg
 from keras.src.backend.torch.ops import math
 from keras.src.backend.torch.ops import nn
 from keras.src.backend.torch.ops import numpy
-from keras.src.backend.torch.ops.core import *  # noqa: F403
+from keras.src.backend.torch.ops.core import associative_scan
+from keras.src.backend.torch.ops.core import cast
+from keras.src.backend.torch.ops.core import cond
+from keras.src.backend.torch.ops.core import convert_to_numpy
+from keras.src.backend.torch.ops.core import convert_to_tensor
+from keras.src.backend.torch.ops.core import custom_gradient
+from keras.src.backend.torch.ops.core import fori_loop
+from keras.src.backend.torch.ops.core import grad
+from keras.src.backend.torch.ops.core import is_tensor
+from keras.src.backend.torch.ops.core import map
+from keras.src.backend.torch.ops.core import remat
+from keras.src.backend.torch.ops.core import scan
+from keras.src.backend.torch.ops.core import scatter
+from keras.src.backend.torch.ops.core import scatter_update
+from keras.src.backend.torch.ops.core import shape
+from keras.src.backend.torch.ops.core import slice
+from keras.src.backend.torch.ops.core import slice_update
+from keras.src.backend.torch.ops.core import stop_gradient
+from keras.src.backend.torch.ops.core import switch
+from keras.src.backend.torch.ops.core import unstack
+from keras.src.backend.torch.ops.core import vectorized_map
+from keras.src.backend.torch.ops.core import while_loop
