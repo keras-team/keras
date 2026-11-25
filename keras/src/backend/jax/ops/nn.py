@@ -1136,12 +1136,16 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     output_length = convert_to_tensor(output_length, "int32")
     batch_size, max_input_length, num_classes = output.shape
     batch_size, max_label_length = target.shape
-    validate_ctc_loss_lengths(
-        max_label_length,
-        max_input_length,
-        np.asarray(target_length).reshape(-1),
-        np.asarray(output_length).reshape(-1),
-    )
+    # Skip under jax.jit: length values are tracers and cannot be concretized.
+    if not isinstance(target_length, jax.core.Tracer) and not isinstance(
+        output_length, jax.core.Tracer
+    ):
+        validate_ctc_loss_lengths(
+            max_label_length,
+            max_input_length,
+            np.asarray(target_length).reshape(-1),
+            np.asarray(output_length).reshape(-1),
+        )
     log_epsilon = -1e5
 
     # Ensure that the dtype promotion behavior matches that of `tf.nn.ctc_loss`
