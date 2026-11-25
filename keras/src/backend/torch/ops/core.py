@@ -398,8 +398,14 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if ragged:
         raise ValueError("`ragged=True` is not supported with torch backend")
     inferred_dtype = dtype is None
-    if inferred_dtype and hasattr(x, "dtype") and x64_mode() == "off":
+    if (
+        inferred_dtype
+        and hasattr(x, "dtype")
+        and not isinstance(x, Variable)
+        and x64_mode() == "off"
+    ):
         # In `off`, a 64-bit input acts as its 32-bit counterpart, as in JAX.
+        # Variables keep their dtype, which comes from the dtype policy.
         dtype = BIT64_TO_BIT32_DTYPE.get(standardize_dtype(x.dtype))
     if isinstance(x, Variable) or is_tensor(x):
         if isinstance(x, Variable):

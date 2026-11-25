@@ -1732,8 +1732,7 @@ class CoreOpsDtypeTest(testing.TestCase):
     def test_convert_to_tensor_with_64bit_input_in_off(self):
         with x64_mode_scope("off"):
             x = ops.convert_to_tensor(np.ones((2,)), dtype="int64")
-            variable = backend.Variable(x, dtype="int64", trainable=False)
-            for value in (x, variable, np.ones((2,), dtype="int64")):
+            for value in (x, np.ones((2,), dtype="int64")):
                 self.assertDType(ops.convert_to_tensor(value), "int32")
                 self.assertDType(ops.convert_to_tensor(value, "int64"), "int64")
 
