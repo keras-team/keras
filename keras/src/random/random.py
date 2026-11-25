@@ -142,14 +142,12 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
 
     Args:
         shape: The shape of the random values to generate.
-        minval: Float, defaults to 0. Lower bound of the range of
+        minval: Integer. Lower bound of the range of
             random values to generate (inclusive).
-        maxval: Float, defaults to 1. Upper bound of the range of
+        maxval: Integer. Upper bound of the range of
             random values to generate (exclusive).
         dtype: Optional dtype of the tensor. Only integer types are
-            supported. If not specified, `keras.config.floatx()` is used,
-            which defaults to `float32` unless you configured it otherwise (via
-            `keras.config.set_floatx(float_dtype)`)
+            supported. Defaults to `"int32"`.
         seed: Optional Python integer or instance of
            `keras.random.SeedGenerator`.
             By default, the `seed` argument is `None`, and an internal global
