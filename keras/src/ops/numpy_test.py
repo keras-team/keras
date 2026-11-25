@@ -4719,7 +4719,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         start = np.array(0.3, dtype="float32")
         stop = np.array(1.4, dtype="float32")
         self.assertAllEqual(
-            knp.logspace(start, stop, 3)[-1], np.power(10, stop)
+            knp.logspace(start, stop, 3)[-1], knp.power(10, stop)
         )
 
     def test_maximum(self):
