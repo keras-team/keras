@@ -1,5 +1,4 @@
 from keras.src import backend
-from keras.src import ops
 from keras.src import random
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
@@ -59,11 +58,11 @@ class AlphaDropout(Layer):
             scale = 1.0507009873554804934193349852946
             alpha_p = -alpha * scale
 
-            kept_idx = ops.greater_equal(
+            kept_idx = backend.ops.greater_equal(
                 random.uniform(noise_shape, seed=self.seed_generator),
                 self.rate,
             )
-            kept_idx = ops.cast(kept_idx, inputs.dtype)
+            kept_idx = backend.ops.cast(kept_idx, inputs.dtype)
 
             # Compute affine transformation parameters
             a = ((1 - self.rate) * (1 + self.rate * alpha_p**2)) ** -0.5
@@ -80,9 +79,9 @@ class AlphaDropout(Layer):
 
     def _get_concrete_noise_shape(self, inputs, noise_shape):
         if noise_shape is None:
-            return ops.shape(inputs)
+            return backend.ops.shape(inputs)
 
-        concrete_inputs_shape = ops.shape(inputs)
+        concrete_inputs_shape = backend.ops.shape(inputs)
         concrete_noise_shape = []
         for i, value in enumerate(noise_shape):
             concrete_noise_shape.append(
