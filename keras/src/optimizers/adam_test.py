@@ -5,6 +5,7 @@ import keras
 from keras.src import backend
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.optimizers.adam import Adam
 
 
@@ -148,7 +149,7 @@ class AdamTest(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="The IndexedSlices test can only run with TF backend.",
     )
     def test_clipnorm_indexed_slices(self):

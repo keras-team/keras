@@ -109,7 +109,7 @@ class Discretization(DataLayer):
 
         if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
             raise ValueError(
-                f"`sparse=True` cannot be used with backend {backend.backend()}"
+                f"`sparse=True` cannot be used with backend {config.backend()}"
             )
         if sparse and output_mode == "int":
             raise ValueError(

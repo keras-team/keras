@@ -3,11 +3,11 @@ import os
 import pytest
 from tensorflow import data as tf_data
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import standardize_dtype
 from keras.src.layers.preprocessing import feature_space
 from keras.src.saving import saving_api
@@ -227,7 +227,7 @@ class FeatureSpaceTest(testing.TestCase):
         self.assertEqual(out.shape, (out_dim,))
 
         # Test unbatched call on tensors
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             data = self._get_train_data_dict(as_tensors=True)
             data = {key: value[0] for key, value in data.items()}
             out = fs(data)
@@ -238,7 +238,7 @@ class FeatureSpaceTest(testing.TestCase):
         self.assertEqual(out.shape, (10, out_dim))
 
         # Test batched call on tensors
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             out = fs(self._get_train_data_dict(as_tensors=True))
             self.assertEqual(out.shape, (10, out_dim))
 
@@ -279,7 +279,7 @@ class FeatureSpaceTest(testing.TestCase):
         self.assertEqual(out["string_2_X_int_2"].shape, (10, 32))
 
         # Test batched call on tensors
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             out = fs(self._get_train_data_dict(as_tensors=True))
             self.assertIsInstance(out, dict)
             self.assertLen(out, 10)
@@ -329,7 +329,7 @@ class FeatureSpaceTest(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="Requires string dtype."
+        config.backend() != "tensorflow", reason="Requires string dtype."
     )
     def test_functional_api_sync_processing(self):
         fs = feature_space.FeatureSpace(
@@ -520,7 +520,7 @@ class FeatureSpaceTest(testing.TestCase):
         self.assertAllClose(out["float_1"], float_out, atol=1e-3)
 
     @pytest.mark.skipif(
-        backend.backend() in ("numpy", "torch"),
+        config.backend() in ("numpy", "torch"),
         reason=(
             "TODO: When using FeatureSpace as a Model in torch and numpy, "
             "the error is large."

@@ -205,8 +205,8 @@ class OpTest(TestCase):
                     raise
 
     def test_jit(self):
-        if backend.backend() not in ("jax", "tensorflow", "torch"):
-            self.skipTest(f"No JIT compiler on the {backend.backend()} backend")
+        if config.backend() not in ("jax", "tensorflow", "torch"):
+            self.skipTest(f"No JIT compiler on the {config.backend()} backend")
         for inputs, kwargs in self._cases().values():
             self.check_jit(inputs, kwargs)
 
@@ -224,7 +224,7 @@ class OpTest(TestCase):
 
     def test_gradients(self):
         if not backend.SUPPORTS_GRADIENT:
-            self.skipTest(f"No gradients on the {backend.backend()} backend")
+            self.skipTest(f"No gradients on the {config.backend()} backend")
         self.check_gradients(*self._first_case())
 
     def test_dtype_argument(self):
@@ -234,7 +234,7 @@ class OpTest(TestCase):
             self.check_dtype_argument(inputs, kwargs)
 
     def test_tf_graph(self):
-        if backend.backend() != "tensorflow":
+        if config.backend() != "tensorflow":
             self.skipTest("TensorFlow only")
         for inputs, kwargs in self._cases().values():
             self.check_tf_graph(inputs, kwargs)
@@ -397,7 +397,7 @@ class OpTest(TestCase):
         Without float array inputs, float outputs must have dtype `floatx`.
         """
         default = config.floatx()
-        backend.set_floatx(floatx)
+        config.set_floatx(floatx)
         try:
             self.check_eager(self.op, self.reference_fn, inputs, kwargs)
             if _arrays(inputs):
@@ -414,7 +414,7 @@ class OpTest(TestCase):
                         f"{_describe(inputs, kwargs)}",
                     )
         finally:
-            backend.set_floatx(default)
+            config.set_floatx(default)
 
     def check_symbolic(self, inputs, kwargs, symbolic_shapes=None):
         """Checks the symbolic outputs against the eager ones.
@@ -460,7 +460,7 @@ class OpTest(TestCase):
         """
         if inputs is None:
             inputs, kwargs = self._first_case()
-        skipped = _SKIPPED_DTYPES.get(backend.backend(), {})
+        skipped = _SKIPPED_DTYPES.get(config.backend(), {})
         for dtype in dtypes:
             if dtype in skipped:
                 self.skipTest(f"{dtype}: {skipped[dtype]}")
@@ -585,20 +585,20 @@ def _array_function(op, inputs, kwargs):
 
 def _jit(fn):
     """`fn` compiled by the backend's JIT, with no fallback to eager."""
-    if backend.backend() == "jax":
+    if config.backend() == "jax":
         import jax
 
         return jax.jit(fn)
-    if backend.backend() == "tensorflow":
+    if config.backend() == "tensorflow":
         import tensorflow as tf
 
         return tf.function(fn, jit_compile=True)
-    if backend.backend() == "torch":
+    if config.backend() == "torch":
         import torch
 
         torch._dynamo.reset()  # Every case compiles anew; the cache holds 8.
         return torch.compile(fn, fullgraph=True)
-    raise ValueError(f"Unsupported backend for JIT: {backend.backend()}")
+    raise ValueError(f"Unsupported backend for JIT: {config.backend()}")
 
 
 def _op_model(op, inputs, kwargs):

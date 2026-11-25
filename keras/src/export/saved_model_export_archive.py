@@ -5,6 +5,7 @@ import contextlib
 from keras.src import backend
 from keras.src import layers
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.export.export_utils import make_tf_tensor_spec
 from keras.src.utils.module_utils import tensorflow as tf
 
@@ -22,7 +23,7 @@ class BaseSavedModelExportArchive:
     """
 
     def __init__(self):
-        if backend.backend() not in ("tensorflow", "jax", "torch"):
+        if config.backend() not in ("tensorflow", "jax", "torch"):
             raise NotImplementedError(
                 "`ExportArchive` is only compatible with TensorFlow, JAX and "
                 "Torch backends."
@@ -94,18 +95,18 @@ class BaseSavedModelExportArchive:
 
     def _backend_track_layer(self, layer):
         raise NotImplementedError(
-            f"`ExportArchive` is not supported by backend {backend.backend()}."
+            f"`ExportArchive` is not supported by backend {config.backend()}."
         )
 
     def add_endpoint(self, name, fn, input_signature=None, **kwargs):
         if name in self._endpoint_names:
             raise ValueError(f"Endpoint name '{name}' is already taken.")
 
-        if backend.backend() != "jax":
+        if config.backend() != "jax":
             if "jax2tf_kwargs" in kwargs or "is_static" in kwargs:
                 raise ValueError(
                     "'jax2tf_kwargs' and 'is_static' are only supported with "
-                    f"the jax backend. Current backend: {backend.backend()}"
+                    f"the jax backend. Current backend: {config.backend()}"
                 )
 
         # The fast path if `fn` is already a `tf.function`.
@@ -156,7 +157,7 @@ class BaseSavedModelExportArchive:
 
     def _backend_add_endpoint(self, name, fn, input_signature, **kwargs):
         raise NotImplementedError(
-            f"`ExportArchive` is not supported by backend {backend.backend()}."
+            f"`ExportArchive` is not supported by backend {config.backend()}."
         )
 
     def track_and_add_endpoint(self, name, resource, input_signature, **kwargs):

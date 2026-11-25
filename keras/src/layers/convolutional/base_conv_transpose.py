@@ -5,7 +5,7 @@ from keras.src import constraints
 from keras.src import initializers
 from keras.src import ops
 from keras.src import regularizers
-from keras.src.backend import standardize_data_format
+from keras.src.backend.common import standardize_data_format
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )

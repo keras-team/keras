@@ -13,6 +13,7 @@ from keras.src import models
 from keras.src import optimizers
 from keras.src import testing
 from keras.src.api_export import REGISTERED_NAMES_TO_OBJS
+from keras.src.backend import config
 
 
 class OptimizerTest(testing.TestCase):
@@ -250,7 +251,7 @@ class OptimizerTest(testing.TestCase):
         self.assertAllClose(optimizer._iterations, 4)
         self.assertAllClose(optimizer.iterations, 1)
 
-    @pytest.mark.skipif(backend.backend() != "tensorflow", reason="Requires TF")
+    @pytest.mark.skipif(config.backend() != "tensorflow", reason="Requires TF")
     def test_tf_checkpointing(self):
         import tensorflow as tf
 
@@ -427,7 +428,7 @@ class OptimizerTest(testing.TestCase):
         self.assertEqual(optimizer.get_config(), reloaded.get_config())
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="The tf.Variable test can only run with TensorFlow backend.",
     )
     def test_mixed_with_tf_variables(self):

@@ -16,6 +16,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.global_state import clear_session
 from keras.src.backend.torch import distribution_lib
@@ -63,7 +64,7 @@ def _get_backed_symfloat(hint=2):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "torch", reason="Requires torch backend"
+    config.backend() != "torch", reason="Requires torch backend"
 )
 class TorchCoreTest(testing.TestCase):
     def _assert_sym_convert(
@@ -302,7 +303,7 @@ class TorchCoreTest(testing.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "torch", reason="Requires torch backend"
+    config.backend() != "torch", reason="Requires torch backend"
 )
 @pytest.mark.skipif(
     not torch.backends.mps.is_available(), reason="MPS device not available"
@@ -359,7 +360,7 @@ class TorchCoreMpsTest(testing.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "torch", reason="Requires torch backend"
+    config.backend() != "torch", reason="Requires torch backend"
 )
 @pytest.mark.no_pytest_xdist
 class TorchCoreDistributedTest(TorchDistributedTestMixin, testing.TestCase):

@@ -157,11 +157,6 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.float_power(x, y).shape, (2, 3))
 
-    def test_divide(self):
-        x = KerasTensor((None, 3))
-        y = KerasTensor((2, None))
-        self.assertEqual(knp.divide(x, y).shape, (2, 3))
-
     def test_divide_no_nan(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
@@ -779,19 +774,6 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 3))
         y = KerasTensor((1, 3))
         self.assertEqual(knp.float_power(x, y).shape, (2, 3))
-
-    def test_divide(self):
-        x = KerasTensor((2, 3))
-        y = KerasTensor((2, 3))
-        self.assertEqual(knp.divide(x, y).shape, (2, 3))
-
-        x = KerasTensor((2, 3))
-        self.assertEqual(knp.divide(x, 2).shape, (2, 3))
-
-        with self.assertRaises(ValueError):
-            x = KerasTensor((2, 3))
-            y = KerasTensor((2, 3, 4))
-            knp.divide(x, y)
 
     def test_divide_no_nan(self):
         x = KerasTensor((2, 3))
@@ -1640,22 +1622,22 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_blackman(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.random.randint(1, 100 + 1)
         self.assertEqual(knp.blackman(x).shape[0], x)
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_hamming(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.random.randint(1, 100 + 1)
         self.assertEqual(knp.hamming(x).shape[0], x)
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_hanning(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.random.randint(1, 100 + 1)
         self.assertEqual(knp.hanning(x).shape[0], x)
 
@@ -3501,7 +3483,10 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.heaviside(x, y), np.heaviside(x, y))
         self.assertAllClose(knp.Heaviside()(x, y), np.heaviside(x, y))
 
-    def test_hypot(self):
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_hypot(self, backend_agnostic_ops):
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [6, 5, 4]])
         self.assertAllClose(knp.hypot(x, y), np.hypot(x, y))
@@ -3517,11 +3502,14 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.hypot(x, y), np.hypot(x, y))
         self.assertAllClose(knp.Hypot()(x, y), np.hypot(x, y))
 
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     @pytest.mark.skipif(
         not backend.SUPPORTS_GRADIENT,
         reason="Backend does not support gradients.",
     )
-    def test_hypot_gradients(self):
+    def test_hypot_gradients(self, backend_agnostic_ops):
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         # Covers |x| == |y|, a zero component, and sign combinations.
         # Exact values: d/dx = x / h, d/dy = y / h,
         # d2/dx2 = y**2 / h**3, d2/dy2 = x**2 / h**3, with h = hypot(x, y).
@@ -3535,7 +3523,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(ops.convert_to_numpy(dx), x_np / h_np)
         self.assertAllClose(ops.convert_to_numpy(dy), y_np / h_np)
 
-        if backend.backend() in ("tensorflow", "jax"):
+        if config.backend() in ("tensorflow", "jax"):
             # Second-order gradients including when one component is zero.
             x2_np = np.array([0.0, 3.0, 3.0], dtype="float32")
             y2_np = np.array([3.0, 0.0, -4.0], dtype="float32")
@@ -3555,7 +3543,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
                 ops.convert_to_numpy(dyy_b), [1.0 / 3.0 + 1.0 / 4.0] * 3
             )
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             dxx_all = ops.grad(ops.grad(knp.hypot, argnums=0), argnums=0)(x, y)
             dyy_all = ops.grad(ops.grad(knp.hypot, argnums=1), argnums=1)(x, y)
             self.assertAllClose(
@@ -3630,7 +3618,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
     )
     def test_matmul_sparse(self, dtype, x_shape, y_shape, x_sparse, y_sparse):
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             if x_sparse and y_sparse and dtype in ("float16", "int32"):
@@ -3640,7 +3628,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
                 )
 
             dense_to_sparse = tf.sparse.from_dense
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             if (
@@ -3696,7 +3684,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         )
     )
     def test_matmul_int8(self, x_shape, values):
-        if backend.backend() == "tensorflow" and len(x_shape) == 1:
+        if config.backend() == "tensorflow" and len(x_shape) == 1:
             pytest.skip("TensorFlow returns int8 for a rank-1 int8 `matmul`")
         y_shape = (x_shape[-1], 256)
         if values == "random":
@@ -3742,8 +3730,8 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_float_power(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
         self.assertAllClose(knp.float_power(x, y), np.float_power(x, y))
@@ -3754,20 +3742,10 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.float_power(x, y), np.float_power(x, y))
         self.assertAllClose(knp.FloatPower()(x, y), np.float_power(x, y))
 
-    def test_divide(self):
-        x = np.array([[1, 2, 3], [3, 2, 1]])
-        y = np.array([[4, 5, 6], [3, 2, 1]])
-        z = np.array([[[1, 2, 3], [3, 2, 1]]])
-        self.assertAllClose(knp.divide(x, y), np.divide(x, y))
-        self.assertAllClose(knp.divide(x, z), np.divide(x, z))
-
-        self.assertAllClose(knp.Divide()(x, y), np.divide(x, y))
-        self.assertAllClose(knp.Divide()(x, z), np.divide(x, z))
-
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_divide_no_nan(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array(
             [[2, 1, 0], [np.inf, -np.inf, np.nan], [np.inf, -np.inf, np.nan]]
         )
@@ -3786,8 +3764,8 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         reason="Backend does not support gradients.",
     )
     def test_divide_no_nan_gradients(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         expected_x1_grad = np.array([0.0, 0.5], dtype="float32")
         expected_x2_grad = np.array([0.0, -0.5], dtype="float32")
 
@@ -4144,8 +4122,8 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Einsum(",ijk")(5, y), np.einsum(",ijk", 5, y))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
-        reason=f"{backend.backend()} doesn't implement custom ops for einsum.",
+        config.backend() != "tensorflow",
+        reason=f"{config.backend()} doesn't implement custom ops for einsum.",
     )
     def test_einsum_custom_ops_for_tensorflow(self):
         subscripts = "a,b->ab"
@@ -4312,8 +4290,8 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_gcd(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[48, 18, 89, -12], [0, 7, 270, 5]])
         y = np.array([[18, 48, 55, 18], [0, 13, 192, 0]])
         self.assertAllClose(knp.gcd(x, y), np.gcd(x, y))
@@ -4326,8 +4304,8 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_geomspace(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         self.assertAllClose(knp.geomspace(1, 1000, 4), np.geomspace(1, 1000, 4))
         self.assertAllClose(
             knp.geomspace(1, 1000, 4, endpoint=False),
@@ -4414,8 +4392,8 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_allclose(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([1], dtype="int32")
         y = np.array([2], dtype="int32")
         self.assertAllClose(knp.allclose(x, y, rtol=0.1, atol=1e-8), False)
@@ -4738,8 +4716,8 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_fmax(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[1.0, np.nan], [3.0, np.nan]])
         y = np.array([[5.0, 6.0], [np.nan, 8.0]])
         self.assertAllClose(knp.fmax(x, y), np.fmax(x, y))
@@ -4768,8 +4746,8 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_fmin(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[1.0, np.nan], [3.0, 4.0]])
         y = np.array([[5.0, 6.0], [np.nan, 8.0]])
         self.assertAllClose(knp.fmin(x, y), np.fmin(x, y))
@@ -4793,8 +4771,8 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_fmod(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[-3, 7], [5, -2]])
         y = np.array([[2, -3], [3, 4]])
         self.assertAllClose(knp.fmod(x, y), np.fmod(x, y))
@@ -4814,8 +4792,8 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_nanpercentile(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array(
             [
                 [[np.nan, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]],
@@ -4933,8 +4911,8 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_nanquantile(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array(
             [
                 [[np.nan, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]],
@@ -5052,8 +5030,8 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_copysign(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[1, -2, 3], [-3, 2, -1]])
         y = np.array([[-4, 5, -6], [3, -2, 1]])
         self.assertAllClose(knp.copysign(x, y), np.copysign(x, y))
@@ -5193,7 +5171,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Only test tensorflow backend",
     )
     def test_percentile_in_tf_function(self):
@@ -5252,7 +5230,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             )
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Only test tensorflow backend",
     )
     def test_quantile_in_tf_function(self):
@@ -5334,11 +5312,11 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         rng = np.random.default_rng(0)
         x = (4 * rng.standard_normal((3, 4, 5))).astype(dtype)
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             indices = tf.SparseTensor([[0, 0], [1, 2]], [-1, 2], (2, 3))
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             indices = jax_sparse.BCOO(([-1, 2], [[0, 0], [1, 2]]), shape=(2, 3))
@@ -5375,7 +5353,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         rng = np.random.default_rng(0)
         x = (4 * rng.standard_normal((3, 4, 5))).astype(dtype)
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             indices = tf.ragged.constant([[2], [0, -1, 1]])
@@ -5540,8 +5518,8 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_array_split(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[1, 2, 3], [4, 5, 6]])
 
         # Even split (axis=0)
@@ -5713,8 +5691,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_fabs(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[-1, 2, -3], [3, -2, 1]])
         self.assertAllClose(knp.fabs(x), np.fabs(x))
 
@@ -5960,15 +5938,15 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_blackman(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.random.randint(1, 100 + 1)
         self.assertAllClose(knp.blackman(x), np.blackman(x))
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_blackman_length_1(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = 1
         x_tensor = keras.ops.convert_to_tensor(x)
         expected = np.blackman(x)
@@ -5980,10 +5958,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         named_product(BACKEND_AGNOSTIC_OPS, floatx=["float16", "bfloat16"])
     )
     def test_blackman_low_precision_floatx(self, backend_agnostic_ops, floatx):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
-        self.addCleanup(backend.set_floatx, config.floatx())
-        backend.set_floatx(floatx)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
+        self.addCleanup(config.set_floatx, config.floatx())
+        config.set_floatx(floatx)
         x = 4097
         out = knp.blackman(x)
         self.assertEqual(out.shape[0], x)
@@ -5991,15 +5969,15 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_hamming(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.random.randint(1, 100 + 1)
         self.assertAllClose(knp.hamming(x), np.hamming(x))
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_hamming_length_1(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = 1
         x_tensor = keras.ops.convert_to_tensor(x)
         expected = np.hamming(x)
@@ -6009,21 +5987,36 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_hanning(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.random.randint(1, 100 + 1)
         self.assertAllClose(knp.hanning(x), np.hanning(x))
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_hanning_length_1(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = 1
         x_tensor = keras.ops.convert_to_tensor(x)
         expected = np.hanning(x)
         out = knp.hanning(x_tensor)
         self.assertEqual(out.shape[0], x)
         self.assertAllClose(out, expected)
+
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    @pytest.mark.skipif(config.backend() != "jax", reason="Uses jax.jit")
+    def test_window_in_jax_jit(self, backend_agnostic_ops):
+        import jax
+
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
+        self.assertAllClose(jax.jit(lambda: knp.bartlett(5))(), np.bartlett(5))
+        self.assertAllClose(jax.jit(lambda: knp.blackman(5))(), np.blackman(5))
+        self.assertAllClose(jax.jit(lambda: knp.hamming(5))(), np.hamming(5))
+        self.assertAllClose(jax.jit(lambda: knp.hanning(5))(), np.hanning(5))
+        self.assertAllClose(
+            jax.jit(lambda: knp.kaiser(5, 14.0))(), np.kaiser(5, 14.0)
+        )
 
     def test_kaiser(self):
         x = 1 + 2 ** int(np.random.randint(1, 5 + 1))
@@ -6074,12 +6067,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         if sparse_input:
             indices = np.array([[1], [3], [5], [7], [9], [11], [13], [15]])
 
-            if backend.backend() == "tensorflow":
+            if config.backend() == "tensorflow":
                 import tensorflow as tf
 
                 x = tf.SparseTensor(indices, x, (16,))
                 weights = tf.SparseTensor(indices, weights, (16,))
-            elif backend.backend() == "jax":
+            elif config.backend() == "jax":
                 from jax.experimental import sparse as jax_sparse
 
                 x = jax_sparse.BCOO((x, indices), shape=(16,))
@@ -6244,12 +6237,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         reason="Backend does not support sparse tensors.",
     )
     def test_concatenate_sparse(self, axis):
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             x = tf.SparseTensor([[0, 0], [1, 2]], [1.0, 2.0], (2, 3))
             y = tf.SparseTensor([[0, 0], [1, 1]], [4.0, 5.0], (2, 3))
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             x = jax_sparse.BCOO(([1.0, 2.0], [[0, 0], [1, 2]]), shape=(2, 3))
@@ -6290,7 +6283,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_COMPLEX_DTYPES,
-        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+        reason=f"{config.backend()} backend doesn't support complex dtypes.",
     )
     def test_conjugate(self):
         x = np.array([[1 + 2j, 2 + 3j], [3 + 4j, 4 + 5j]])
@@ -6299,7 +6292,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_COMPLEX_DTYPES,
-        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+        reason=f"{config.backend()} backend doesn't support complex dtypes.",
     )
     def test_conj(self):
         x = np.array([[1 + 2j, 2 + 3j], [3 + 4j, 4 + 5j]])
@@ -6313,8 +6306,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_corrcoef(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.corrcoef(x), np.corrcoef(x))
         self.assertAllClose(knp.Corrcoef()(x), np.corrcoef(x))
@@ -6342,8 +6335,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_cov(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[1.0, 2.0, 3.0], [3.0, 2.0, 1.0]])
         self.assertAllClose(knp.cov(x), np.cov(x))
         self.assertAllClose(knp.Cov()(x), np.cov(x))
@@ -6446,16 +6439,16 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_deg2rad(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.random.uniform(-360, 360, size=(3, 3))
         self.assertAllClose(knp.deg2rad(x), np.deg2rad(x))
         self.assertAllClose(knp.Deg2rad()(x), np.deg2rad(x))
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_rad2deg(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.random.uniform(-2 * np.pi, 2 * np.pi, size=(3, 3))
         self.assertAllClose(knp.rad2deg(x), np.rad2deg(x))
         self.assertAllClose(knp.Rad2deg()(x), np.rad2deg(x))
@@ -6481,8 +6474,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_diagflat(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([1, 2, 3])
         self.assertAllClose(knp.diagflat(x), np.diagflat(x))
         self.assertAllClose(knp.diagflat(x, k=1), np.diagflat(x, k=1))
@@ -6584,8 +6577,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_exp2(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.exp2(x), np.exp2(x))
         self.assertAllClose(knp.Exp2()(x), np.exp2(x))
@@ -6640,8 +6633,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_fliplr(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[1, 2, 3], [4, 5, 6]])
         self.assertAllClose(knp.fliplr(x), np.fliplr(x))
         self.assertAllClose(knp.Fliplr()(x), np.fliplr(x))
@@ -6655,8 +6648,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_flipud(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[1, 2, 3], [4, 5, 6]])
         self.assertAllClose(knp.flipud(x), np.flipud(x))
         self.assertAllClose(knp.Flipud()(x), np.flipud(x))
@@ -6708,7 +6701,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_COMPLEX_DTYPES,
-        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+        reason=f"{config.backend()} backend doesn't support complex dtypes.",
     )
     def test_imag(self):
         x = np.array([[1 + 1j, 2 + 2j, 3 + 3j], [3 + 3j, 2 + 2j, 1 + 1j]])
@@ -6746,7 +6739,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_COMPLEX_DTYPES,
-        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+        reason=f"{config.backend()} backend doesn't support complex dtypes.",
     )
     def test_isreal(self):
         x = np.array([1 + 1j, 1 + 0j, 4.5, 3, 2, 2j], dtype=complex)
@@ -6972,7 +6965,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         ):
             self.assertAllClose(mg_knp, mg_np)
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             # Arguments to `jax.numpy.meshgrid` must be 1D now.
             x = np.ones([1, 2, 3])
             y = np.ones([4, 5, 6, 6])
@@ -7018,7 +7011,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(knp.ndim(x), np.ndim(x))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Only test tensorflow backend",
     )
     def test_ndim_tf_ragged(self):
@@ -7103,7 +7096,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
 
         # 5D (pad arbitrary dimensions)
-        if backend.backend() == "torch" and mode != "constant":
+        if config.backend() == "torch" and mode != "constant":
             self.skipTest(
                 "reflect and symmetric padding for arbitrary dimensions "
                 "are not supported by torch"
@@ -7231,7 +7224,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_COMPLEX_DTYPES,
-        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+        reason=f"{config.backend()} backend doesn't support complex dtypes.",
     )
     def test_real(self):
         x = np.array([[1, 2, 3 - 3j], [3, 2, 1 + 5j]])
@@ -7482,7 +7475,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             self.assertAllClose(split_knp, split_np)
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Only test tensorflow backend",
     )
     def test_split_with_jit_in_tf(self):
@@ -7504,8 +7497,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_hsplit(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.arange(18).reshape((3, 6))
 
         self.assertIsInstance(knp.hsplit(x, 3), list)
@@ -7577,8 +7570,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_vsplit(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.arange(18).reshape((6, 3))
 
         self.assertIsInstance(knp.vsplit(x, 3), list)
@@ -7616,8 +7609,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_dsplit(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.arange(24).reshape((2, 2, 6))
         self.assertIsInstance(knp.dsplit(x, 3), list)
 
@@ -7745,7 +7738,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             self.assertAllClose(knp.tril(x, k), np.tril(x, k))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Only test tensorflow backend",
     )
     def test_tril_triu_with_tensor_k_in_tf(self):
@@ -7781,7 +7774,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(result2, np.tril(np.ones((2, 2)), k=-1))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Only test tensorflow backend",
     )
     def test_tril_with_jit_in_tf(self):
@@ -7837,7 +7830,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(result2, np.triu(np.ones((2, 2)), k=-1))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Only test tensorflow backend",
     )
     def test_triu_with_jit_in_tf(self):
@@ -7871,8 +7864,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_dstack(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [6, 5, 4]])
         self.assertAllClose(knp.dstack([x, y]), np.dstack([x, y]))
@@ -7936,8 +7929,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_correlate(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([1, 2, 3])
         y = np.array([0, 1, 0.5])
         self.assertAllClose(knp.correlate(x, y), np.correlate(x, y))
@@ -7958,8 +7951,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_correlate_invalid_mode(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([1, 2, 3])
         y = np.array([0, 1, 0.5])
         with self.assertRaises(ValueError):
@@ -7979,8 +7972,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
     )
     def test_correlate_different_size(self, backend_agnostic_ops, x, y):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array(x)
         y = np.array(y)
         self.assertAllClose(knp.correlate(x, y), np.correlate(x, y))
@@ -8052,8 +8045,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_nanargmax(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[1.0, np.nan, -np.inf], [np.nan, 2.0, -1.0]])
 
         self.assertAllClose(knp.nanargmax(x), np.nanargmax(x))
@@ -8103,8 +8096,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_nanargmin(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[1.0, np.nan, np.inf], [np.nan, 2.0, -1.0]])
 
         self.assertAllClose(knp.nanargmin(x), np.nanargmin(x))
@@ -8154,8 +8147,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_nancumsum(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, -1.0]])
 
         self.assertAllClose(knp.nancumsum(x), np.nancumsum(x))
@@ -8202,8 +8195,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_nancumprod(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, -1.0]])
 
         self.assertAllClose(knp.nancumprod(x), np.nancumprod(x))
@@ -8244,8 +8237,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_nanmax(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, -np.inf]])
 
         self.assertAllClose(knp.nanmax(x), np.nanmax(x))
@@ -8289,8 +8282,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_nanmean(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[1.0, np.nan, 3.0, 4.0], [np.nan, 2.0, np.inf, -np.inf]])
 
         self.assertAllClose(knp.nanmean(x), np.nanmean(x))
@@ -8336,8 +8329,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_nanmedian(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array(
             [
                 [1.0, np.nan, 3.0, 4.0, 5.0],
@@ -8388,8 +8381,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_nanmin(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, np.inf]])
 
         self.assertAllClose(knp.nanmin(x), np.nanmin(x))
@@ -8433,8 +8426,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_nanprod(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, 1.0]])
 
         self.assertAllClose(knp.nanprod(x), np.nanprod(x))
@@ -8474,8 +8467,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_nanstd(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[[1.0, np.nan, 3.0], [np.nan, 2.0, 1.0]]])
 
         self.assertAllClose(knp.nanstd(x), np.nanstd(x))
@@ -8516,8 +8509,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_nansum(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, 1.0]])
 
         self.assertAllClose(knp.nansum(x), np.nansum(x))
@@ -8557,8 +8550,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_nanvar(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[[1.0, np.nan, 3.0], [np.nan, 2.0, 1.0]]])
 
         self.assertAllClose(knp.nanvar(x), np.nanvar(x))
@@ -8641,8 +8634,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_argpartition(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([3, 4, 2, 1])
         self.assertAllClose(knp.argpartition(x, 2), np.argpartition(x, 2))
         self.assertAllClose(knp.Argpartition(2)(x), np.argpartition(x, 2))
@@ -8675,8 +8668,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
     def test_angle(self, backend_agnostic_ops):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
         self.assertAllClose(knp.angle(x), np.angle(x))
 
@@ -8945,7 +8938,7 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.product(k=[5, -5], jit_compile=[False, True])
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Only test tensorflow backend",
     )
     def test_out_of_range_offset_dynamic_shape(self, k, jit_compile):
@@ -9027,11 +9020,11 @@ def create_sparse_tensor(x, indices_from=None, start=0, delta=2):
         flat_indices = np.arange(start, size, delta)
         indices = np.stack(np.where(np.ones_like(x)), axis=1)[flat_indices]
 
-    if backend.backend() == "tensorflow":
+    if config.backend() == "tensorflow":
         import tensorflow as tf
 
         return tf.SparseTensor(indices, tf.gather_nd(x, indices), x.shape)
-    elif backend.backend() == "jax":
+    elif config.backend() == "jax":
         import jax
         import jax.experimental.sparse as jax_sparse
 
@@ -9042,13 +9035,13 @@ def create_sparse_tensor(x, indices_from=None, start=0, delta=2):
 def create_indexed_slices(x, indices_from=None, start=0, delta=2):
     indices = np.arange(start, x.shape[0], delta)
 
-    if backend.backend() == "tensorflow":
+    if config.backend() == "tensorflow":
         import tensorflow as tf
 
         if indices_from is not None:
             indices = indices_from.indices
         return tf.IndexedSlices(tf.gather(x, indices), indices, x.shape)
-    elif backend.backend() == "jax":
+    elif config.backend() == "jax":
         import jax
         import jax.experimental.sparse as jax_sparse
 
@@ -9544,10 +9537,10 @@ class NumpyDtypeTest(testing.TestCase):
     INT_DTYPES = [x for x in dtypes.INT_TYPES if x not in ("uint64", "int64")]
     FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
 
-    if backend.backend() == "torch":
+    if config.backend() == "torch":
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint16", "uint32")]
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
-    elif backend.backend() == "tensorflow":
+    elif config.backend() == "tensorflow":
         # TODO(hongyu): Re-enable uint32 tests once we determine how to handle
         # dtypes.result_type(uint32, int*) -> int64 promotion.
         # Since TF variables require int64 to be placed on the GPU, we
@@ -9557,7 +9550,7 @@ class NumpyDtypeTest(testing.TestCase):
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint32",)]
 
     BINARY_DTYPES = ALL_DTYPES + (
-        ["float64"] if backend.backend() == "torch" else []
+        ["float64"] if config.backend() == "torch" else []
     )
 
     @parameterized.named_parameters(
@@ -9566,8 +9559,8 @@ class NumpyDtypeTest(testing.TestCase):
     def test_array_split(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((1, 2), dtype=dtype)
         x_jax = jnp.ones((1, 2), dtype=dtype)
         expected_dtype = standardize_dtype(
@@ -9592,8 +9585,8 @@ class NumpyDtypeTest(testing.TestCase):
         named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
     )
     def test_blackman(self, backend_agnostic_ops, dtype):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((), dtype=dtype)
         expected_dtype = config.floatx()
 
@@ -9605,8 +9598,8 @@ class NumpyDtypeTest(testing.TestCase):
         named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
     )
     def test_hamming(self, backend_agnostic_ops, dtype):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((), dtype=dtype)
         expected_dtype = config.floatx()
 
@@ -9618,8 +9611,8 @@ class NumpyDtypeTest(testing.TestCase):
         named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
     )
     def test_hanning(self, backend_agnostic_ops, dtype):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((), dtype=dtype)
         expected_dtype = config.floatx()
 
@@ -9641,7 +9634,7 @@ class NumpyDtypeTest(testing.TestCase):
     def test_bincount(self, dtype):
         import jax.numpy as jnp
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             if tf.test.is_gpu_available():
@@ -9862,8 +9855,8 @@ class NumpyDtypeTest(testing.TestCase):
         named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
     )
     def test_fabs(self, backend_agnostic_ops, dtype):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         if "complex" in standardize_dtype(dtype):
             self.skipTest("fabs does not support complex types")
 
@@ -9983,8 +9976,8 @@ class NumpyDtypeTest(testing.TestCase):
     def test_argpartition(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         if dtype == "bool":
             self.skipTest("argpartition doesn't support bool dtype")
 
@@ -10467,8 +10460,8 @@ class NumpyDtypeTest(testing.TestCase):
     def test_corrcoef(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
 
         x = knp.ones((2, 4), dtype=dtype)
         x_jax = jnp.ones((2, 4), dtype=dtype)
@@ -10488,8 +10481,8 @@ class NumpyDtypeTest(testing.TestCase):
     def test_cov(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((2, 4), dtype=dtype)
         x_jax = jnp.ones((2, 4), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.cov(x_jax).dtype)
@@ -10507,8 +10500,8 @@ class NumpyDtypeTest(testing.TestCase):
         )
     )
     def test_correlate(self, backend_agnostic_ops, dtypes):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
@@ -10595,8 +10588,8 @@ class NumpyDtypeTest(testing.TestCase):
     def test_deg2rad(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.deg2rad(x_jax).dtype)
@@ -10616,8 +10609,8 @@ class NumpyDtypeTest(testing.TestCase):
     def test_rad2deg(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.rad2deg(x_jax).dtype)
@@ -10649,8 +10642,8 @@ class NumpyDtypeTest(testing.TestCase):
         named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
     )
     def test_diagflat(self, backend_agnostic_ops, dtype):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         import jax.numpy as jnp
 
         x = knp.ones((1,), dtype=dtype)
@@ -10732,9 +10725,9 @@ class NumpyDtypeTest(testing.TestCase):
             dtypes=itertools.combinations(BINARY_DTYPES, 2),
         )
     )
-    def test_divide(self, backend_agnostic_ops, dtypes):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+    def test_divide_no_nan(self, backend_agnostic_ops, dtypes):
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
@@ -10744,31 +10737,10 @@ class NumpyDtypeTest(testing.TestCase):
         x2_jax = jnp.ones((1,), dtype=dtype2)
         expected_dtype = standardize_dtype(jnp.divide(x1_jax, x2_jax).dtype)
 
-        self.assertDType(knp.divide(x1, x2), expected_dtype)
-        self.assertDType(knp.Divide().symbolic_call(x1, x2), expected_dtype)
         self.assertDType(knp.divide_no_nan(x1, x2), expected_dtype)
         self.assertDType(
             knp.DivideNoNan().symbolic_call(x1, x2), expected_dtype
         )
-
-    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
-    def test_divide_python_types(self, dtype):
-        import jax.numpy as jnp
-
-        x = knp.ones((), dtype=dtype)
-        x_jax = jnp.ones((), dtype=dtype)
-
-        # python int
-        expected_dtype = standardize_dtype(jnp.divide(x_jax, 1).dtype)
-
-        self.assertDType(knp.divide(x, 1), expected_dtype)
-        self.assertDType(knp.Divide().symbolic_call(x, 1), expected_dtype)
-
-        # python float
-        expected_dtype = standardize_dtype(jnp.divide(x_jax, 1.0).dtype)
-
-        self.assertDType(knp.divide(x, 1.0), expected_dtype)
-        self.assertDType(knp.Divide().symbolic_call(x, 1.0), expected_dtype)
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
@@ -10794,8 +10766,8 @@ class NumpyDtypeTest(testing.TestCase):
         )
     )
     def test_dstack(self, backend_agnostic_ops, dtypes):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes
@@ -10904,8 +10876,8 @@ class NumpyDtypeTest(testing.TestCase):
         )
     )
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
-        reason=f"{backend.backend()} doesn't implement custom ops for einsum.",
+        config.backend() != "tensorflow",
+        reason=f"{config.backend()} doesn't implement custom ops for einsum.",
     )
     def test_einsum_custom_ops_for_tensorflow(self, dtypes):
         import jax.numpy as jnp
@@ -10984,8 +10956,8 @@ class NumpyDtypeTest(testing.TestCase):
         named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
     )
     def test_empty_like(self, backend_agnostic_ops, dtype):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         import jax.numpy as jnp
 
         x_jax = jnp.empty([2, 3, 4], dtype=dtype)
@@ -11045,8 +11017,8 @@ class NumpyDtypeTest(testing.TestCase):
     def test_exp2(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
 
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
@@ -11232,8 +11204,8 @@ class NumpyDtypeTest(testing.TestCase):
     def test_gcd(self, backend_agnostic_ops, dtypes):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
 
         dtype1, dtype2 = dtypes
         x1 = knp.ones((), dtype=dtype1)
@@ -11362,10 +11334,16 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+        named_product(
+            BACKEND_AGNOSTIC_OPS,
+            dtypes=itertools.combinations(ALL_DTYPES, 2),
+        )
     )
-    def test_hypot(self, dtypes):
+    def test_hypot(self, backend_agnostic_ops, dtypes):
         import jax.numpy as jnp
+
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
 
         dtype1, dtype2 = dtypes
         x1 = knp.ones((1, 1), dtype=dtype1)
@@ -11807,8 +11785,8 @@ class NumpyDtypeTest(testing.TestCase):
     def test_geomspace(self, backend_agnostic_ops, start_and_stop, num, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         start, stop = start_and_stop
         expected_dtype = standardize_dtype(
             jnp.geomspace(start, stop, num, dtype=dtype).dtype
@@ -11959,8 +11937,8 @@ class NumpyDtypeTest(testing.TestCase):
     def test_fmax(self, backend_agnostic_ops, dtypes):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         dtype1, dtype2 = dtypes
         x1 = knp.ones((), dtype=dtype1)
         x2 = knp.ones((), dtype=dtype2)
@@ -12092,8 +12070,8 @@ class NumpyDtypeTest(testing.TestCase):
     def test_fmin(self, backend_agnostic_ops, dtypes):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         dtype1, dtype2 = dtypes
         x1 = knp.ones((), dtype=dtype1)
         x2 = knp.ones((), dtype=dtype2)
@@ -12139,8 +12117,8 @@ class NumpyDtypeTest(testing.TestCase):
     def test_fmod(self, backend_agnostic_ops, dtypes):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         dtype1, dtype2 = dtypes
         x1 = knp.ones((), dtype=dtype1)
         x2 = knp.ones((), dtype=dtype2)
@@ -12177,8 +12155,8 @@ class NumpyDtypeTest(testing.TestCase):
     def test_nanargmax(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((3,), dtype=dtype)
         x_jax = jnp.ones((3,), dtype=dtype)
 
@@ -12200,8 +12178,8 @@ class NumpyDtypeTest(testing.TestCase):
     def test_nanargmin(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((3,), dtype=dtype)
         x_jax = jnp.ones((3,), dtype=dtype)
 
@@ -12223,8 +12201,8 @@ class NumpyDtypeTest(testing.TestCase):
     def test_nancumsum(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
 
@@ -12246,8 +12224,8 @@ class NumpyDtypeTest(testing.TestCase):
     def test_nancumprod(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
 
@@ -12269,13 +12247,13 @@ class NumpyDtypeTest(testing.TestCase):
     def test_nanmax(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.nanmax(x_jax).dtype)
 
-        if backend.backend() == "torch" and expected_dtype == "uint32":
+        if config.backend() == "torch" and expected_dtype == "uint32":
             expected_dtype = "int32"
 
         self.assertEqual(standardize_dtype(knp.nanmax(x).dtype), expected_dtype)
@@ -12290,13 +12268,13 @@ class NumpyDtypeTest(testing.TestCase):
     def test_nanmean(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.nanmean(x_jax).dtype)
 
-        if backend.backend() == "torch" and expected_dtype == "uint32":
+        if config.backend() == "torch" and expected_dtype == "uint32":
             expected_dtype = "int32"
 
         self.assertEqual(
@@ -12313,13 +12291,13 @@ class NumpyDtypeTest(testing.TestCase):
     def test_nanmedian(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.nanmedian(x_jax).dtype)
 
-        if backend.backend() == "torch" and expected_dtype == "uint32":
+        if config.backend() == "torch" and expected_dtype == "uint32":
             expected_dtype = "int32"
 
         self.assertEqual(
@@ -12336,13 +12314,13 @@ class NumpyDtypeTest(testing.TestCase):
     def test_nanmin(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.nanmin(x_jax).dtype)
 
-        if backend.backend() == "torch" and expected_dtype == "uint32":
+        if config.backend() == "torch" and expected_dtype == "uint32":
             expected_dtype = "int32"
 
         self.assertEqual(standardize_dtype(knp.nanmin(x).dtype), expected_dtype)
@@ -12357,8 +12335,8 @@ class NumpyDtypeTest(testing.TestCase):
     def test_nanpercentile(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((3,), dtype=dtype)
         x_jax = jnp.ones((3,), dtype=dtype)
 
@@ -12381,13 +12359,13 @@ class NumpyDtypeTest(testing.TestCase):
     def test_nanprod(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((1, 1, 1), dtype=dtype)
         x_jax = jnp.ones((1, 1, 1), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.nanprod(x_jax).dtype)
 
-        if backend.backend() == "torch" and expected_dtype == "uint32":
+        if config.backend() == "torch" and expected_dtype == "uint32":
             expected_dtype = "int32"
 
         self.assertEqual(
@@ -12403,8 +12381,8 @@ class NumpyDtypeTest(testing.TestCase):
         named_product(BACKEND_AGNOSTIC_OPS, dtype=ALL_DTYPES)
     )
     def test_nanquantile(self, backend_agnostic_ops, dtype):
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         import jax.numpy as jnp
 
         x = knp.ones((3,), dtype=dtype)
@@ -12428,14 +12406,14 @@ class NumpyDtypeTest(testing.TestCase):
     def test_nanstd(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
 
         expected_dtype = standardize_dtype(jnp.nanstd(x_jax).dtype)
 
-        if backend.backend() == "torch" and expected_dtype == "uint32":
+        if config.backend() == "torch" and expected_dtype == "uint32":
             expected_dtype = "int32"
 
         self.assertEqual(
@@ -12454,13 +12432,13 @@ class NumpyDtypeTest(testing.TestCase):
     def test_nansum(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.nansum(x_jax).dtype)
 
-        if backend.backend() == "torch" and expected_dtype == "uint32":
+        if config.backend() == "torch" and expected_dtype == "uint32":
             expected_dtype = "int32"
 
         self.assertEqual(standardize_dtype(knp.nansum(x).dtype), expected_dtype)
@@ -12475,14 +12453,14 @@ class NumpyDtypeTest(testing.TestCase):
     def test_nanvar(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
 
         expected_dtype = standardize_dtype(jnp.nanvar(x_jax).dtype)
 
-        if backend.backend() == "torch" and expected_dtype == "uint32":
+        if config.backend() == "torch" and expected_dtype == "uint32":
             expected_dtype = "int32"
 
         self.assertEqual(standardize_dtype(knp.nanvar(x).dtype), expected_dtype)
@@ -12517,8 +12495,8 @@ class NumpyDtypeTest(testing.TestCase):
     def test_copysign(self, backend_agnostic_ops, dtypes):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         dtype1, dtype2 = dtypes
         x1 = knp.ones((), dtype=dtype1)
         x2 = knp.ones((), dtype=dtype2)
@@ -12684,8 +12662,8 @@ class NumpyDtypeTest(testing.TestCase):
     def test_float_power(self, backend_agnostic_ops, dtypes):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         dtype1, dtype2 = dtypes
         x1 = knp.ones((), dtype=dtype1)
         x2 = knp.ones((), dtype=dtype2)
@@ -12712,7 +12690,7 @@ class NumpyDtypeTest(testing.TestCase):
         x_jax = jnp.ones((1, 1, 1), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.prod(x_jax).dtype)
         # TODO: torch doesn't support uint32
-        if backend.backend() == "torch" and expected_dtype == "uint32":
+        if config.backend() == "torch" and expected_dtype == "uint32":
             expected_dtype = "int32"
 
         self.assertEqual(
@@ -13024,8 +13002,8 @@ class NumpyDtypeTest(testing.TestCase):
     def test_hsplit(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((2, 1), dtype=dtype)
         x_jax = jnp.ones((2, 1), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.hsplit(x_jax, [1])[0].dtype)
@@ -13061,8 +13039,8 @@ class NumpyDtypeTest(testing.TestCase):
     def test_vsplit(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((1, 2), dtype=dtype)
         x_jax = jnp.ones((1, 2), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.vsplit(x_jax, [1])[0].dtype)
@@ -13082,8 +13060,8 @@ class NumpyDtypeTest(testing.TestCase):
     def test_dsplit(self, backend_agnostic_ops, dtype):
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((1, 1, 2), dtype=dtype)
         x_jax = jnp.ones((1, 1, 2), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.dsplit(x_jax, [1])[0].dtype)
@@ -13143,14 +13121,14 @@ class NumpyDtypeTest(testing.TestCase):
     )
     def test_std_complex_symbolic_dtype(self, input_dtype, expected_dtype):
         x = KerasTensor((None, 2), dtype=input_dtype)
-        if backend.config.x64_mode() == "off":
+        if config.x64_mode() == "off":
             self.assertEqual(knp.std(x, axis=-1).dtype, "float32")
-        if backend.backend() in backend.config._X64_BACKENDS:
+        if config.backend() in config._X64_BACKENDS:
             with x64_mode_scope("explicit_x64"):
                 self.assertEqual(knp.std(x, axis=-1).dtype, expected_dtype)
 
     def test_std_complex_functional_output_dtype(self):
-        if backend.backend() == "openvino":
+        if config.backend() == "openvino":
             self.skipTest("OpenVINO does not support complex tensors")
         inputs = keras.Input(shape=(2,), dtype="complex64")
         model = keras.Model(inputs, knp.std(inputs, axis=-1))
@@ -13302,7 +13280,7 @@ class NumpyDtypeTest(testing.TestCase):
         # for bool inputs
         if dtype == "bool":
             expected_dtype = "int32"
-        if dtype == "uint8" and backend.backend() == "torch":
+        if dtype == "uint8" and config.backend() == "torch":
             # Torch backend doesn't support uint32 dtype.
             expected_dtype = "int32"
 
@@ -13585,8 +13563,8 @@ class NumpyDtypeTest(testing.TestCase):
 
         import jax.numpy as jnp
 
-        backend.config._set_use_backend_agnostic_ops(backend_agnostic_ops)
-        self.addCleanup(backend.config._set_use_backend_agnostic_ops, False)
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.angle(x_jax).dtype)
@@ -13633,7 +13611,10 @@ class NumpyDtypeTest(testing.TestCase):
     reason="histogram op not implemented for torch on gpu",
 )
 class HistogramTest(testing.TestCase):
-    def test_histogram_default_args(self):
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_histogram_default_args(self, backend_agnostic_ops):
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         hist_op = knp.histogram
         input_tensor = np.random.rand(8)
 
@@ -13653,7 +13634,10 @@ class HistogramTest(testing.TestCase):
         self.assertAllClose(counts, expected_counts)
         self.assertAllClose(edges, expected_edges)
 
-    def test_histogram_custom_bins(self):
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_histogram_custom_bins(self, backend_agnostic_ops):
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         hist_op = knp.histogram
         input_tensor = np.random.rand(8)
         bins = 5
@@ -13668,7 +13652,10 @@ class HistogramTest(testing.TestCase):
         self.assertEqual(edges.shape, expected_edges.shape)
         self.assertAllClose(edges, expected_edges)
 
-    def test_histogram_custom_range(self):
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_histogram_custom_range(self, backend_agnostic_ops):
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         hist_op = knp.histogram
         input_tensor = np.random.rand(10)
         range_specified = (2, 8)
@@ -13724,7 +13711,10 @@ class HistogramTest(testing.TestCase):
         ):
             hist_op(input_tensor, range=(5, 1))
 
-    def test_histogram_large_values(self):
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_histogram_large_values(self, backend_agnostic_ops):
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         hist_op = knp.histogram
         input_tensor = np.array([1e10, 2e10, 3e10, 4e10, 5e10])
 
@@ -13735,7 +13725,10 @@ class HistogramTest(testing.TestCase):
         self.assertAllClose(counts, expected_counts)
         self.assertAllClose(edges, expected_edges)
 
-    def test_histogram_float_input(self):
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_histogram_float_input(self, backend_agnostic_ops):
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         hist_op = knp.histogram
         input_tensor = np.random.rand(8)
 
@@ -13755,7 +13748,10 @@ class HistogramTest(testing.TestCase):
         ):
             hist_op(input_tensor)
 
-    def test_histogram_values_on_edges(self):
+    @parameterized.named_parameters(named_product(BACKEND_AGNOSTIC_OPS))
+    def test_histogram_values_on_edges(self, backend_agnostic_ops):
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
         hist_op = knp.histogram
         input_tensor = np.array([0.0, 2.0, 4.0, 8.0, 10.0])
         bins = 5
@@ -13768,17 +13764,19 @@ class HistogramTest(testing.TestCase):
 
     # TODO: Fix predict for NumPy.
     @parameterized.named_parameters(
-        ("jit_compile_false", False),
-        ("jit_compile_true", True),
+        named_product(BACKEND_AGNOSTIC_OPS, jit_compile=[False, True])
     )
     @pytest.mark.skipif(
-        backend.backend() == "numpy",
+        config.backend() == "numpy",
         reason=(
             "`predict` errors out with 'autodetected range of [nan, nan] is "
             "not finite' on the NumPy backend. To be fixed."
         ),
     )
-    def test_histogram_predict(self, jit_compile):
+    def test_histogram_predict(self, backend_agnostic_ops, jit_compile):
+        config._set_use_backend_agnostic_ops(backend_agnostic_ops)
+        self.addCleanup(config._set_use_backend_agnostic_ops, False)
+
         class HistogramLayer(keras.layers.Layer):
             def call(self, x):
                 shape = ops.shape(x)
@@ -13870,15 +13868,6 @@ class CbrtTest(UnaryOpTest):
         "negative": ((np.array([[-8, -1, 0], [1, 8, 27]], "float32"),), {}),
     }
 
-    @pytest.mark.skipif(
-        keras.config.x64_mode() == "explicit_x64"
-        and backend.backend() in ("jax", "numpy", "tensorflow"),
-        reason="TODO: `Cbrt.compute_output_spec` returns uint64 while the "
-        "eager output is float64 (#24040).",
-    )
-    def test_input_dtypes_uint64(self):
-        self.check_input_dtypes(("uint64",))
-
 
 class SqrtTest(UnaryOpTest):
     op, op_class = knp.sqrt, knp.Sqrt
@@ -13890,7 +13879,7 @@ class AddTest(BinaryOpTest):
     reference_fn, jax_fn = np.add, jnp.add
 
     @pytest.mark.skipif(
-        backend.backend() == "tensorflow",
+        config.backend() == "tensorflow",
         reason="TODO: `tf.add` has no bool kernel.",
     )
     def test_input_dtypes_bool_bool(self):
@@ -13905,7 +13894,7 @@ class AddTest(BinaryOpTest):
         reason="Backend does not support ragged tensors.",
     )
     def test_ragged(self):
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             x = tf.ragged.constant(
@@ -13930,7 +13919,7 @@ class AddTest(BinaryOpTest):
         self.assertAllClose(knp.add(z, x), np.add(z, x_np) * x_mask_np)
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Backend does not support strings.",
     )
     def test_strings(self):
@@ -13968,12 +13957,21 @@ class PowerTest(BinaryOpTest):
             knp.power(KerasTensor((2, 3)), KerasTensor((2, 3, 4)))
 
 
+class DivideTest(BinaryOpTest):
+    op, op_class = knp.divide, knp.Divide
+    reference_fn, jax_fn = np.divide, jnp.divide
+
+    def test_incompatible_shapes(self):
+        with self.assertRaises(ValueError):
+            knp.divide(KerasTensor((2, 3)), KerasTensor((2, 3, 4)))
+
+
 class SumTest(ReductionOpTest):
     op, op_class = knp.sum, knp.Sum
     reference_fn, jax_fn = np.sum, jnp.sum
 
     @pytest.mark.skipif(
-        backend.backend() == "torch",
+        config.backend() == "torch",
         reason="`Sum.compute_output_spec` returns int32 on torch, which has no "
         "uint32; JAX returns uint32.",
     )

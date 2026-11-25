@@ -2,8 +2,8 @@ import warnings
 
 from packaging.version import parse as parse_version
 
-from keras.src import backend
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.export.export_utils import convert_spec_to_tensor
 from keras.src.export.export_utils import get_input_signature
 from keras.src.export.export_utils import make_tf_tensor_spec
@@ -97,7 +97,7 @@ def export_onnx(
         for i, spec in enumerate(specs_for_names)
     ]
 
-    if backend.backend() == "tensorflow":
+    if config.backend() == "tensorflow":
         from keras.src.utils.module_utils import tf2onnx
 
         if parse_version(tf2onnx.__version__) < parse_version("1.17.0"):
@@ -122,10 +122,10 @@ def export_onnx(
             output_path=filepath,
         )
 
-    elif backend.backend() == "jax":
+    elif config.backend() == "jax":
         _export_onnx_jax(model, filepath, input_signature, opset_version)
 
-    elif backend.backend() == "torch":
+    elif config.backend() == "torch":
         import torch
 
         # Flatten `input_signature` so nested structures (e.g. dict, list,
@@ -387,6 +387,6 @@ def get_concrete_fn(model, input_signature, **kwargs):
     export_archive.track_and_add_endpoint(
         DEFAULT_ENDPOINT_NAME, model, input_signature, **kwargs
     )
-    if backend.backend() == "tensorflow":
+    if config.backend() == "tensorflow":
         export_archive._filter_and_track_resources()
     return export_archive._get_concrete_fn(DEFAULT_ENDPOINT_NAME)

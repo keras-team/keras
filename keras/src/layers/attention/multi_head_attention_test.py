@@ -16,6 +16,7 @@ from keras.src import random
 from keras.src import saving
 from keras.src import testing
 from keras.src import utils
+from keras.src.backend import config
 from keras.src.backend.common import get_keras_mask
 from keras.src.backend.common import set_keras_mask
 from keras.src.backend.config import disable_flash_attention
@@ -109,12 +110,12 @@ class MultiHeadAttentionTest(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() not in ("jax", "torch"),
+        config.backend() not in ("jax", "torch"),
         reason="Flash attention only supported on JAX and Torch",
     )
     def test_basics_with_flash_attention(self):
         enable_flash_attention()
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             try:
                 self.run_layer_test(
                     layers.MultiHeadAttention,
@@ -156,7 +157,7 @@ class MultiHeadAttentionTest(testing.TestCase):
                         )
                         in str(e.args[0])
                     )
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             try:
                 self.run_layer_test(
                     layers.MultiHeadAttention,
@@ -943,7 +944,7 @@ class MultiHeadAttentionTest(testing.TestCase):
         self.assertDType(layer._value_dense._kernel, "int8")
 
     def test_flash_attention_with_errors(self):
-        if backend.backend() in ("numpy", "tensorflow"):
+        if config.backend() in ("numpy", "tensorflow"):
             pytest.skip(
                 reason=(
                     "Flash attention is not supported on tensorflow and numpy."

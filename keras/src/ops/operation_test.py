@@ -394,7 +394,7 @@ class OperationTest(testing.TestCase):
         x = np.ones((2,))
         y = np.ones((2,))
         z = knp.ones((2,))  # mix
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             z = z.cpu()
         op = OpWithMultipleInputs()
         out = op(x, y, z)
@@ -502,7 +502,7 @@ class ElementwiseUnaryOperationTest(testing.TestCase):
                 "keras.src.ops."
             ) or cls.__module__.endswith("_test"):
                 continue
-            if cls.__name__ == "Imag" and backend.backend() == "torch":
+            if cls.__name__ == "Imag" and config.backend() == "torch":
                 continue
             op = cls(0.5, 0.0) if cls.__name__ == "Threshold" else cls()
             dt = "int32" if "Bitwise" in cls.__name__ else "float32"

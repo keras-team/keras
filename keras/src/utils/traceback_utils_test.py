@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
-from keras.src import backend
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.ops.operation import Operation
 from keras.src.utils import traceback_utils
@@ -166,7 +166,7 @@ class TracebackUtilsTest(testing.TestCase):
         self.assertTrue(getattr(e, "_keras_call_info_injected", False))
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="Tensorflow error only"
+        config.backend() != "tensorflow", reason="Tensorflow error only"
     )
     def test_tf_op_error_preserves_type_and_error_code(self):
         """Regression test for the `tf.errors.OpError` reconstruction branch

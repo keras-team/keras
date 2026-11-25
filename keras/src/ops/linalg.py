@@ -4,7 +4,7 @@ from keras.src.api_export import keras_export
 from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import any_symbolic_tensors
-from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.dtypes import promote_to_float_dtype
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import reduce_shape
 
@@ -272,7 +272,7 @@ def lu_factor(x):
 def _lu_factor(x):
     x = backend.ops.convert_to_tensor(x)
     _assert_2d(x)
-    if backend.backend() == "tensorflow":
+    if config.backend() == "tensorflow":
         try:
             _assert_square(x)
         except ValueError as e:
@@ -298,9 +298,7 @@ class Norm(Operation):
         self.keepdims = keepdims
 
     def compute_output_spec(self, x):
-        output_dtype = standardize_dtype(x.dtype)
-        if "int" in output_dtype or output_dtype == "bool":
-            output_dtype = config.floatx()
+        output_dtype = promote_to_float_dtype(x.dtype)
         if self.axis is None:
             num_axes = len(x.shape)
         elif isinstance(self.axis, int):

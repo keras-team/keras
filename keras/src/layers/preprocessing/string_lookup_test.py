@@ -11,6 +11,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.ops import convert_to_tensor
 
 
@@ -120,7 +121,7 @@ class StringLookupTest(testing.TestCase):
         self.assertAllClose(output, np.array([2, 3, 0]))
 
     @pytest.mark.skipif(
-        not backend.backend() == "tensorflow", reason="Requires tf.SparseTensor"
+        not config.backend() == "tensorflow", reason="Requires tf.SparseTensor"
     )
     def test_sparse_inputs(self):
         layer = layers.StringLookup(
@@ -157,7 +158,7 @@ class StringLookupTest(testing.TestCase):
         output = next(iter(ds)).numpy()
         self.assertAllClose(output, np.array([2, 3, 0]))
 
-    @pytest.mark.skipif(not backend.backend() == "tensorflow", reason="tf only")
+    @pytest.mark.skipif(not config.backend() == "tensorflow", reason="tf only")
     def test_tensor_as_vocab(self):
         vocab = convert_to_tensor(["a", "b", "c", "d"])
         data = [["a", "c", "d"], ["d", "z", "b"]]
@@ -167,7 +168,7 @@ class StringLookupTest(testing.TestCase):
         output = layer(data)
         self.assertAllClose(output, np.array([[1, 3, 4], [4, 0, 2]]))
 
-    @pytest.mark.skipif(backend.backend() != "torch", reason="Only torch")
+    @pytest.mark.skipif(config.backend() != "torch", reason="Only torch")
     def test_torch_backend_compatibility(self):
         import torch
 
@@ -198,7 +199,7 @@ class StringLookupTest(testing.TestCase):
         self.assertEqual(output_string, expected_string)
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="invert=True requires TensorFlow string tensors",
     )
     def test_invert_lookup_basic(self):
@@ -253,7 +254,7 @@ class StringLookupTest(testing.TestCase):
         self.assertEqual(int(output[0]), 0)
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Requires tf.SparseTensor",
     )
     def test_sparse_output_in_multi_hot(self):
@@ -276,7 +277,7 @@ class StringLookupTest(testing.TestCase):
         self.assertEqual(vocab, ["a", "b", "c"])
 
     @pytest.mark.skipif(
-        backend.backend() == "numpy",
+        config.backend() == "numpy",
         reason=(
             "StringLookup symbolic string Input not supported on numpy backend."
         ),

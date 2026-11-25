@@ -7,6 +7,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import optimizers
 from keras.src import testing
+from keras.src.backend import config
 
 
 class ScatterUpdateOptimizer(optimizers.Optimizer):
@@ -156,13 +157,13 @@ class OptimizerSparseTest(testing.TestCase):
         # Mocking "tensorflow.Variable" won't work as it gets substituted with
         # the resource variable class.
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             grad = tf.IndexedSlices(0.5 * ops.ones((3, 10)), (0, 2, 4), (5, 10))
             sparse_class = tf.IndexedSlices
             variable_class = model_variable._value.__class__
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             grad = jax_sparse.BCOO(
@@ -171,7 +172,7 @@ class OptimizerSparseTest(testing.TestCase):
             sparse_class = jax_sparse.JAXSparse
             variable_class = model_variable.__class__
         else:
-            self.fail(f"Sparse is unsupported with backend {backend.backend()}")
+            self.fail(f"Sparse is unsupported with backend {config.backend()}")
 
         optimizer_to_patch = (
             optimizer.inner_optimizer
@@ -257,7 +258,7 @@ class OptimizerSparseTest(testing.TestCase):
         optimizer_dense = optimizer_class(**init_kwargs)
         var_sparse = backend.Variable(initializer="ones", shape=(5, 3, 2))
         var_dense = backend.Variable(initializer="ones", shape=(5, 3, 2))
-        stateless = backend.backend() == "jax"
+        stateless = config.backend() == "jax"
         if stateless:
             optimizer_sparse.build([var_sparse])
             optimizer_dense.build([var_dense])
@@ -268,7 +269,7 @@ class OptimizerSparseTest(testing.TestCase):
         var_dense_values = [var_dense.value]
 
         for i in range(5):
-            if backend.backend() == "tensorflow":
+            if config.backend() == "tensorflow":
                 import tensorflow as tf
 
                 grad_sparse = tf.IndexedSlices(
@@ -276,7 +277,7 @@ class OptimizerSparseTest(testing.TestCase):
                     indices=(0, 2, 4),
                     dense_shape=(5, 3, 2),
                 )
-            elif backend.backend() == "jax":
+            elif config.backend() == "jax":
                 import jax.experimental.sparse as jax_sparse
 
                 grad_sparse = jax_sparse.BCOO(
@@ -285,7 +286,7 @@ class OptimizerSparseTest(testing.TestCase):
                 )
             else:
                 self.fail(
-                    f"Sparse is unsupported with backend {backend.backend()}"
+                    f"Sparse is unsupported with backend {config.backend()}"
                 )
 
             grad_dense = ops.convert_to_tensor(grad_sparse, sparse=False)

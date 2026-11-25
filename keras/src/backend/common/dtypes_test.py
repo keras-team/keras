@@ -12,7 +12,7 @@ from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
 from keras.src.testing.test_utils import x64_mode_scope
 
-X64_SUPPORTED = backend.backend() in config._X64_BACKENDS
+X64_SUPPORTED = config.backend() in config._X64_BACKENDS
 
 
 class DtypesTest(test_case.TestCase):
@@ -31,14 +31,14 @@ class DtypesTest(test_case.TestCase):
         )
         + dtypes.FLOAT8_TYPES  # Remove float8 dtypes for the following tests
     ] + [None]
-    if backend.backend() == "torch":
+    if config.backend() == "torch":
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint16", "uint32")]
     if not backend.SUPPORTS_COMPLEX_DTYPES:
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("complex64",)]
 
     # The 64-bit dtypes, kept under `x64_mode="explicit_x64"`.
     X64_DTYPES = ["int64", "float64"]
-    if backend.backend() != "torch":  # No uint64 kernels in torch.
+    if config.backend() != "torch":  # No uint64 kernels in torch.
         X64_DTYPES += ["uint64"]
     if backend.SUPPORTS_COMPLEX_DTYPES:
         X64_DTYPES += ["complex128"]
@@ -269,7 +269,7 @@ class DtypesTest(test_case.TestCase):
 
     def test_standardize_int(self):
         # TensorFlow keeps int32 variables on the CPU.
-        expected = "int64" if backend.backend() == "tensorflow" else "int32"
+        expected = "int64" if config.backend() == "tensorflow" else "int32"
         self.assertEqual(dtypes.standardize_dtype(int), expected)
         self.assertEqual(dtypes.standardize_dtype("int"), expected)
 
@@ -291,7 +291,7 @@ class DtypesTest(test_case.TestCase):
         ("float64", "float64", "float32", "float64"),
     )
     @pytest.mark.skipif(
-        not X64_SUPPORTED or backend.backend() == "tensorflow",
+        not X64_SUPPORTED or config.backend() == "tensorflow",
         reason="Needs `off` and `explicit_x64`.",
     )
     def test_promote_to_float_dtype(self, dtype, off, explicit_x64):

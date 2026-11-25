@@ -2,9 +2,9 @@ import warnings
 
 import numpy as np
 
-from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.callbacks.monitor_callback import (
     MonitorCallback,  # For metric monitoring logic
 )
@@ -28,7 +28,7 @@ def _get_state_tree(model):
     """Get the complete model state as a nested tree structure."""
     # For JAX backend, preserve native arrays for performance
     # For other backends, convert to numpy arrays
-    if backend.backend() == "jax":
+    if config.backend() == "jax":
         state_tree = model.get_state_tree()
         did_numpy_conversion = False
     else:
@@ -189,7 +189,7 @@ class OrbaxCheckpoint(MonitorCallback):
     def _is_multihost_initialized(self):
         """Check if multi-host environment is initialized."""
         # Multi-host checkpointing is only supported on JAX backend
-        if backend.backend() != "jax":
+        if config.backend() != "jax":
             return False
 
         multihost = ocp.multihost

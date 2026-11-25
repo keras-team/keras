@@ -4,9 +4,9 @@ import typing
 import warnings
 from collections.abc import Callable
 
-from keras.src import backend
 from keras.src import utils
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend import config as backend_config
 from keras.src.layers.core.input_layer import InputLayer
 from keras.src.layers.layer import Layer
@@ -21,13 +21,13 @@ from keras.src.utils import summary_utils
 from keras.src.utils import traceback_utils
 from keras.src.utils.module_utils import get_pluggable_backend_module
 
-if backend.backend() == "tensorflow":
+if config.backend() == "tensorflow":
     from keras.src.backend.tensorflow.trainer import Trainer
-elif backend.backend() == "jax":
+elif config.backend() == "jax":
     from keras.src.backend.jax.trainer import Trainer
-elif backend.backend() == "torch":
+elif config.backend() == "torch":
     from keras.src.backend.torch.trainer import Trainer
-elif backend.backend() == "numpy":
+elif config.backend() == "numpy":
     from keras.src.backend.numpy.trainer import Trainer
 else:
     backend_trainer_module = get_pluggable_backend_module("src.trainer")
@@ -713,7 +713,7 @@ class Model(Trainer, Layer):
         return summary_utils.print_quantization_summary(self, verbose=verbose)
 
     def _post_quantize(self, mode, **kwargs):
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             # Local import: `sequential` imports this module.
             from keras.src.models.sequential import Sequential
 
@@ -977,7 +977,7 @@ class Model(Trainer, Layer):
 
         # Check if LiteRT export is available (requires TensorFlow or
         # PyTorch backend)
-        if format == "litert" and backend.backend() not in (
+        if format == "litert" and config.backend() not in (
             "tensorflow",
             "torch",
         ):
@@ -986,7 +986,7 @@ class Model(Trainer, Layer):
             )
 
         # Check if Torch export is available (requires PyTorch backend)
-        if format == "torch" and backend.backend() != "torch":
+        if format == "torch" and config.backend() != "torch":
             raise ValueError("Torch export requires PyTorch backend.")
 
         # Check if XLA SavedModel export is available (requires JAX backend)

@@ -7,6 +7,7 @@ from functools import wraps
 from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import global_state
 from keras.src.backend.common import standardize_dtype
 
@@ -226,7 +227,7 @@ def inject_argument_info_in_error(e, fn, args, kwargs, object_name=None):
         original exception unmodified if no argument info could be recovered.
         The returned exception has its traceback set to `e.__traceback__`.
     """
-    if backend.backend() == "tensorflow":
+    if config.backend() == "tensorflow":
         from tensorflow import errors as tf_errors
     else:
         tf_errors = None
@@ -273,13 +274,13 @@ def format_argument_value(value):
     if backend.ops.is_tensor(value):
         # Simplified representation for eager / graph tensors
         # to keep messages readable
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             tensor_cls = "tf.Tensor"
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             tensor_cls = "jnp.ndarray"
-        elif backend.backend() == "torch":
+        elif config.backend() == "torch":
             tensor_cls = "torch.Tensor"
-        elif backend.backend() == "numpy":
+        elif config.backend() == "numpy":
             tensor_cls = "np.ndarray"
         else:
             tensor_cls = "array"

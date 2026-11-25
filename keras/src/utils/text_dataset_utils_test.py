@@ -5,8 +5,8 @@ from unittest import mock
 
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.utils import file_utils
 from keras.src.utils import text_dataset_utils
 
@@ -72,7 +72,7 @@ class TextDatasetFromDirectoryTest(testing.TestCase):
         )
         batch = next(iter(dataset))
         # We just return the texts, no labels
-        if format == "tf" or backend.backend() == "tensorflow":
+        if format == "tf" or config.backend() == "tensorflow":
             self.assertEqual(list(batch.shape), [5])
             self.assertDType(batch, "string")
         else:
@@ -102,7 +102,7 @@ class TextDatasetFromDirectoryTest(testing.TestCase):
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        if format == "tf" or backend.backend() == "tensorflow":
+        if format == "tf" or config.backend() == "tensorflow":
             self.assertEqual(batch[0].shape, (8,))
             self.assertDType(batch[0], "string")
             self.assertEqual(len(batch[0].numpy()[0]), 10)  # Test max_length
@@ -121,7 +121,7 @@ class TextDatasetFromDirectoryTest(testing.TestCase):
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        if format == "tf" or backend.backend() == "tensorflow":
+        if format == "tf" or config.backend() == "tensorflow":
             self.assertEqual(list(batch[0].shape), [8])
             self.assertEqual(batch[0].dtype.name, "string")
         else:
@@ -138,7 +138,7 @@ class TextDatasetFromDirectoryTest(testing.TestCase):
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        if format == "tf" or backend.backend() == "tensorflow":
+        if format == "tf" or config.backend() == "tensorflow":
             self.assertEqual(list(batch[0].shape), [8])
             self.assertEqual(batch[0].dtype.name, "string")
         else:
@@ -188,7 +188,7 @@ class TextDatasetFromDirectoryTest(testing.TestCase):
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        if format == "tf" or backend.backend() == "tensorflow":
+        if format == "tf" or config.backend() == "tensorflow":
             self.assertEqual(list(batch[0].shape), [8])
             self.assertEqual(batch[0].dtype.name, "string")
         else:
@@ -202,7 +202,7 @@ class TextDatasetFromDirectoryTest(testing.TestCase):
         )
         batch = next(iter(dataset))
         self.assertLen(batch, 2)
-        if format == "tf" or backend.backend() == "tensorflow":
+        if format == "tf" or config.backend() == "tensorflow":
             self.assertEqual(list(batch[0].shape), [8])
             self.assertEqual(batch[0].dtype.name, "string")
         else:

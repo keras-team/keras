@@ -5,12 +5,12 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import get_keras_mask
 from keras.src.backend.common import standardize_dtype
 from keras.src.quantizers.gptq_config import GPTQConfig
@@ -145,7 +145,7 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         self.assertEqual(output_data.shape, (4, 10, 100))
         self.assertDType(output_data, "float32")
 
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             import torch
 
             if not torch.cuda.is_available():

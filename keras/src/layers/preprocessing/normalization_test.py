@@ -6,6 +6,7 @@ from tensorflow import data as tf_data
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.trainers.data_adapters.py_dataset_adapter import PyDataset
 
 
@@ -98,7 +99,7 @@ class NormalizationTest(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() != "torch",
+        config.backend() != "torch",
         reason="Test symbolic call for torch meta device.",
     )
     def test_call_on_meta_device_after_built(self):

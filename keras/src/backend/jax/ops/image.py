@@ -3,10 +3,10 @@ import functools
 import jax
 import jax.numpy as jnp
 
-from keras.src import backend
 from keras.src.backend.common import is_float_dtype
-from keras.src.backend.common import result_type
+from keras.src.backend.common import standardize_data_format
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.dtypes import promote_to_float_dtype
 from keras.src.backend.jax.ops.core import convert_to_tensor
 from keras.src.random.seed_generator import draw_seed
 
@@ -49,7 +49,7 @@ SCALE_AND_TRANSLATE_METHODS = {
 
 def rgb_to_grayscale(images, data_format=None):
     images = convert_to_tensor(images)
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     channels_axis = -1 if data_format == "channels_last" else -3
     if len(images.shape) not in (3, 4):
         raise ValueError(
@@ -66,7 +66,7 @@ def rgb_to_grayscale(images, data_format=None):
         return images
     # Convert to floats
     original_dtype = images.dtype
-    compute_dtype = result_type(images.dtype, float)
+    compute_dtype = promote_to_float_dtype(images.dtype)
     images = images.astype(compute_dtype)
 
     # Ref: tf.image.rgb_to_grayscale
@@ -82,7 +82,7 @@ def rgb_to_hsv(images, data_format=None):
     # Ref: dm_pix
     images = convert_to_tensor(images)
     dtype = images.dtype
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     channels_axis = -1 if data_format == "channels_last" else -3
     if len(images.shape) not in (3, 4):
         raise ValueError(
@@ -132,7 +132,7 @@ def hsv_to_rgb(images, data_format=None):
     # Ref: dm_pix
     images = convert_to_tensor(images)
     dtype = images.dtype
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     channels_axis = -1 if data_format == "channels_last" else -3
     if len(images.shape) not in (3, 4):
         raise ValueError(
@@ -179,7 +179,7 @@ def resize(
     fill_value=0.0,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if interpolation not in RESIZE_INTERPOLATIONS:
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
@@ -418,7 +418,7 @@ def affine_transform(
     fill_value=0,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
@@ -521,7 +521,7 @@ def perspective_transform(
     fill_value=0,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
@@ -715,7 +715,7 @@ def gaussian_blur(
         ]
         return kernel
 
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     images = convert_to_tensor(images)
     dtype = standardize_dtype(images.dtype)
     sigma = convert_to_tensor(sigma, dtype=dtype)
@@ -768,7 +768,7 @@ def elastic_transform(
     seed=None,
     data_format=None,
 ):
-    data_format = backend.standardize_data_format(data_format)
+    data_format = standardize_data_format(data_format)
     if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS.keys():
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "

@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.trainers import data_adapters
 from keras.src.trainers import epoch_iterator
 from keras.src.utils.module_utils import tensorflow as tf
@@ -98,7 +98,7 @@ class TestEpochIterator(testing.TestCase):
             _ = epoch_iterator.EpochIterator(x=x, sample_weight=sample_weights)
 
     @pytest.mark.skipif(
-        backend.backend() != "torch", reason="Need to import torch"
+        config.backend() != "torch", reason="Need to import torch"
     )
     def test_torch_dataloader(self):
         import torch
@@ -127,7 +127,7 @@ class TestEpochIterator(testing.TestCase):
             self.assertEqual(batch[1].shape, (8, 1))
 
     @pytest.mark.skipif(
-        backend.backend() != "torch", reason="Need to import torch"
+        config.backend() != "torch", reason="Need to import torch"
     )
     def test_unsupported_y_arg_torch_dataloader(self):
         import torch
@@ -158,7 +158,7 @@ class TestEpochIterator(testing.TestCase):
             _ = epoch_iterator.EpochIterator(x=x, y=y)
 
     @pytest.mark.skipif(
-        backend.backend() != "torch", reason="Need to import torch"
+        config.backend() != "torch", reason="Need to import torch"
     )
     def test_unsupported_sample_weights_arg_torch_dataloader(self):
         import torch

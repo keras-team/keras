@@ -9,6 +9,7 @@ from keras.src import ops
 from keras.src import random
 from keras.src import testing
 from keras.src import utils
+from keras.src.backend import config
 from keras.src.backend.common import AutocastScope
 from keras.src.losses import MeanSquaredError
 from keras.src.models import Model
@@ -149,7 +150,7 @@ class BatchNormalizationTest(testing.TestCase):
 
     @parameterized.product(
         synchronized=(
-            (False, True) if backend.backend == "tensorflow" else (False,)
+            (False, True) if config.backend() == "tensorflow" else (False,)
         ),
     )
     def test_input_fully_masked(self, synchronized):
@@ -258,7 +259,7 @@ class BatchNormalizationTest(testing.TestCase):
         self.assertAllClose(layer.moving_variance, ops.zeros((4,)), atol=1e-6)
 
     @parameterized.named_parameters(("unmasked", False), ("masked", True))
-    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
+    @pytest.mark.skipif(config.backend() != "torch", reason="Torch only test.")
     def test_torch_compile_fullgraph(self, use_mask):
         import torch
 

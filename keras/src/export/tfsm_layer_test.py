@@ -9,6 +9,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import testing
 from keras.src import utils
+from keras.src.backend import config
 from keras.src.export import saved_model
 from keras.src.export import tfsm_layer
 from keras.src.export.saved_model_test import get_model
@@ -16,7 +17,7 @@ from keras.src.saving import saving_lib
 
 
 @pytest.mark.skipif(
-    backend.backend() != "tensorflow",
+    config.backend() != "tensorflow",
     reason="TFSM Layer reloading is only for the TF backend.",
 )
 class TestTFSMLayer(testing.TestCase):

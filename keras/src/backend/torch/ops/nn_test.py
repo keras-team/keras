@@ -5,13 +5,13 @@ import pytest
 import torch
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 
 
 @pytest.mark.skipif(
-    backend.backend() != "torch",
+    config.backend() != "torch",
     reason="This test is only applicable to the PyTorch backend.",
 )
 class DotProductAttentionCompileTest(testing.TestCase):
@@ -57,7 +57,7 @@ class DotProductAttentionCompileTest(testing.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "torch",
+    config.backend() != "torch",
     reason="This test is only applicable to the PyTorch backend.",
 )
 class PoolingChannelsLastContiguityTest(testing.TestCase):

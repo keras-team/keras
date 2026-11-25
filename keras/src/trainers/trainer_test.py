@@ -467,7 +467,7 @@ class TestTrainer(testing.TestCase):
         self.assertEqual(combined.metrics[1], combined._compile_metrics)
 
     @pytest.mark.skipif(
-        backend.backend() != "torch",
+        config.backend() != "torch",
         reason="torch backend runs in eager mode for jit_compile='auto'",
     )
     def test_compile_eager_vs_jit_torch(self):
@@ -652,11 +652,11 @@ class TestTrainer(testing.TestCase):
     ):
         jit_compile = True
         if dataset_kwargs.get("use_multiprocessing", False):
-            if backend.backend() == "jax":
+            if config.backend() == "jax":
                 pytest.skip("Multiprocessing not supported with JAX backend")
-            elif backend.backend() == "tensorflow":
+            elif config.backend() == "tensorflow":
                 pytest.skip("Multiprocessing hangs on Tensorflow")
-        if dataset_type == "grain_dataset" and backend.backend() == "torch":
+        if dataset_type == "grain_dataset" and config.backend() == "torch":
             # Grain datasets are not supported with torch + jit_compile.
             jit_compile = False
 
@@ -729,7 +729,7 @@ class TestTrainer(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_fit_with_custom_train_step(self):
-        if backend.backend() == "jax":
+        if config.backend() == "jax":
             model = JaxCustomTrainTestStepModel(units=3)
         else:
             model = CustomTrainTestStepModel(units=3)
@@ -783,7 +783,7 @@ class TestTrainer(testing.TestCase):
             model.fit(dataset)
 
         # JAX does not produce sparse gradients the way we use it.
-        if backend.backend() != "jax":
+        if config.backend() != "jax":
             # Verify tensors did not get densified along the way.
             self.assertTrue(sparse_variable_updates)
 
@@ -818,7 +818,7 @@ class TestTrainer(testing.TestCase):
     @parameterized.named_parameters([("flat", False), ("dict", True)])
     @pytest.mark.requires_trainable_backend
     def test_evaluate_with_custom_test_step(self, return_dict):
-        if backend.backend() == "jax":
+        if config.backend() == "jax":
             model = JaxCustomTrainTestStepModel(units=3)
         else:
             model = CustomTrainTestStepModel(units=3)
@@ -929,7 +929,7 @@ class TestTrainer(testing.TestCase):
         self.assertEqual(len(y), dataset_size)
 
     @pytest.mark.skipif(
-        backend.backend() != "jax",
+        config.backend() != "jax",
         reason="Memory optimization is only implemented in JAX",
     )
     def test_fit_eval_flow_for_jax_model_weights(self):
@@ -1055,7 +1055,7 @@ class TestTrainer(testing.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="`unrolled_steps_per_execution` is only "
         "available with the tensorflow backend.",
     )
@@ -1798,7 +1798,7 @@ class TestTrainer(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
-        backend.backend() == "torch",
+        config.backend() == "torch",
         reason="half precision unsupported on torch CPU.",
     )
     def test_loss_scaling_prevents_underflow(self):
@@ -1865,7 +1865,7 @@ class TestTrainer(testing.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     def test_on_batch_methods(self, run_eagerly, jit_compile):
-        if backend.backend() == "torch" and jit_compile:
+        if config.backend() == "torch" and jit_compile:
             self.skipTest(
                 "test_on_batch with jit_compile=True not supported in torch "
                 "backend yet."
@@ -1936,7 +1936,7 @@ class TestTrainer(testing.TestCase):
         ]
     )
     def test_on_batch_methods_without_training(self, run_eagerly, jit_compile):
-        if backend.backend() == "torch" and jit_compile:
+        if config.backend() == "torch" and jit_compile:
             self.skipTest(
                 "test_on_batch with jit_compile=True not supported in torch "
                 "backend yet."
@@ -2187,7 +2187,7 @@ class TestTrainer(testing.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
-        keras.backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Only tensorflow supports raggeds",
     )
     def test_trainer_with_raggeds(self, model_class):
@@ -2354,7 +2354,7 @@ class TestTrainer(testing.TestCase):
         self.assertEqual(recorder.val_counter, 4)
 
     @pytest.mark.skipif(
-        backend.backend() != "jax",
+        config.backend() != "jax",
         reason="Only JAX backend uses _maybe_symbolic_build.",
     )
     @pytest.mark.requires_trainable_backend
@@ -2829,7 +2829,7 @@ class TestTrainer(testing.TestCase):
             self.assertAllClose(v, 0.0)
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="This test is only applicable to TensorFlow.",
     )
     @pytest.mark.requires_trainable_backend
@@ -2851,7 +2851,7 @@ class TestTrainer(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
-        backend.backend() == "torch",
+        config.backend() == "torch",
         reason="Torch uses a Python bundling loop; side-effect counters "
         "will increment for every batch even after compilation.",
     )
@@ -2888,12 +2888,12 @@ class TestTrainer(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
-        backend.backend() == "torch",
+        config.backend() == "torch",
         reason="Torch uses a Python bundling loop; side-effect counters "
         "will increment for every batch even after compilation.",
     )
     @pytest.mark.skipif(
-        backend.backend() == "tensorflow",
+        config.backend() == "tensorflow",
         reason="`predict_function` with `steps_per_execution` is not "
         "optimized for tensorflow yet",
     )
@@ -2930,7 +2930,7 @@ class JAXTrainerCorrectnessTest(test_case.TestCase, parameterized.TestCase):
         ("single_device", False),
         ("distributed", True),
     )
-    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
+    @pytest.mark.skipif(config.backend() != "jax", reason="JAX only")
     def test_jit_fit_with_out_shardings_logic(self, distributed):
         x = np.random.rand(64, 8).astype("float32")
         y = np.random.rand(64, 1).astype("float32")
@@ -2974,7 +2974,7 @@ class JAXTrainerCorrectnessTest(test_case.TestCase, parameterized.TestCase):
                 self.assertListEqual(actual_shardings, expected_shardings)
 
     @parameterized.named_parameters(("one_step", 1), ("two_steps", 2))
-    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
+    @pytest.mark.skipif(config.backend() != "jax", reason="JAX only")
     def test_fit_evaluate_predict_keep_int64_inputs(self, steps_per_execution):
         # 3 rows, so `steps_per_execution=2` also leaves a partial batch.
         x = np.array([[2**40 + 1], [2**40 + 2], [2**40 + 3]], "int64")

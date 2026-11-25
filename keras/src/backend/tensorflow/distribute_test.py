@@ -10,11 +10,12 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.tensorflow import trainer as tf_trainer
 
 
 @pytest.mark.skipif(
-    backend.backend() != "tensorflow",
+    config.backend() != "tensorflow",
     reason="The distribute test can only run with TF backend.",
 )
 class DistributeTest(testing.TestCase):

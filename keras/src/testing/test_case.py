@@ -10,6 +10,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import tree
 from keras.src import utils
+from keras.src.backend import config
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import standardize_dtype
@@ -125,14 +126,14 @@ class TestCase(parameterized.TestCase):
     def assertSparse(self, x, sparse=True):
         if isinstance(x, KerasTensor):
             self.assertEqual(x.sparse, sparse)
-        elif backend.backend() == "tensorflow":
+        elif config.backend() == "tensorflow":
             import tensorflow as tf
 
             if sparse:
                 self.assertIsInstance(x, tf.SparseTensor)
             else:
                 self.assertNotIsInstance(x, tf.SparseTensor)
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             if sparse:
@@ -142,13 +143,13 @@ class TestCase(parameterized.TestCase):
         else:
             self.assertFalse(
                 sparse,
-                f"Backend {backend.backend()} does not support sparse tensors",
+                f"Backend {config.backend()} does not support sparse tensors",
             )
 
     def assertRagged(self, x, ragged=True):
         if isinstance(x, KerasTensor):
             self.assertEqual(x.ragged, ragged)
-        elif backend.backend() == "tensorflow":
+        elif config.backend() == "tensorflow":
             import tensorflow as tf
 
             if ragged:
@@ -158,7 +159,7 @@ class TestCase(parameterized.TestCase):
         else:
             self.assertFalse(
                 ragged,
-                f"Backend {backend.backend()} does not support ragged tensors",
+                f"Backend {config.backend()} does not support ragged tensors",
             )
 
     def assertDType(self, x, dtype, msg=None):
@@ -409,7 +410,7 @@ class TestCase(parameterized.TestCase):
                     msg="Unexpected number of seed_generators",
                 )
             if (
-                backend.backend() == "torch"
+                config.backend() == "torch"
                 and expected_num_trainable_weights is not None
                 and expected_num_non_trainable_weights is not None
                 and expected_num_seed_generators is not None
@@ -491,7 +492,7 @@ class TestCase(parameterized.TestCase):
             model = TestModel(layer)
 
             data = (input_data, output_data)
-            if backend.backend() == "torch":
+            if config.backend() == "torch":
                 data = tree.map_structure(backend.ops.convert_to_numpy, data)
 
             def data_generator():
@@ -517,7 +518,7 @@ class TestCase(parameterized.TestCase):
             #    TORCHDYNAMO_VERBOSE=1
             #    TORCHDYNAMO_REPORT_GUARD_FAILURES=1
             jit_compile = "auto"
-            if backend.backend() == "tensorflow" and input_sparse:
+            if config.backend() == "tensorflow" and input_sparse:
                 jit_compile = False
             model.compile(
                 optimizer="sgd", loss=TestLoss(), jit_compile=jit_compile
@@ -615,7 +616,7 @@ class TestCase(parameterized.TestCase):
                 run_training_step(layer, input_data, output_data)
 
             # Never test mixed precision on torch CPU. Torch lacks support.
-            if run_mixed_precision_check and backend.backend() == "torch":
+            if run_mixed_precision_check and config.backend() == "torch":
                 import torch
 
                 run_mixed_precision_check = torch.cuda.is_available()
@@ -676,11 +677,11 @@ def _torch_uses(device_type):
 
 def uses_gpu():
     if not hasattr(uses_gpu, "_value"):
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             uses_gpu._value = _tensorflow_uses("gpu")
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             uses_gpu._value = _jax_uses("gpu")
-        elif backend.backend() == "torch":
+        elif config.backend() == "torch":
             uses_gpu._value = _torch_uses("gpu")
         else:
             uses_gpu._value = False
@@ -689,9 +690,9 @@ def uses_gpu():
 
 def uses_tpu():
     if not hasattr(uses_tpu, "_value"):
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             uses_tpu._value = _tensorflow_uses("tpu")
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             uses_tpu._value = _jax_uses("tpu")
         else:
             uses_tpu._value = False
@@ -699,23 +700,23 @@ def uses_tpu():
 
 
 def jax_uses_gpu():
-    return backend.backend() == "jax" and uses_gpu()
+    return config.backend() == "jax" and uses_gpu()
 
 
 def jax_uses_tpu():
-    return backend.backend() == "jax" and uses_tpu()
+    return config.backend() == "jax" and uses_tpu()
 
 
 def tensorflow_uses_gpu():
-    return backend.backend() == "tensorflow" and uses_gpu()
+    return config.backend() == "tensorflow" and uses_gpu()
 
 
 def tensorflow_uses_tpu():
-    return backend.backend() == "tensorflow" and uses_tpu()
+    return config.backend() == "tensorflow" and uses_tpu()
 
 
 def torch_uses_gpu():
-    return backend.backend() == "torch" and uses_gpu()
+    return config.backend() == "torch" and uses_gpu()
 
 
 def create_keras_tensors(input_shape, dtype, sparse, ragged):
@@ -759,7 +760,7 @@ def create_eager_tensors(input_shape, dtype, sparse, ragged):
         )
 
     if sparse:
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             def create_fn(shape, dt):
@@ -768,7 +769,7 @@ def create_eager_tensors(input_shape, dtype, sparse, ragged):
                 x = np.multiply(x, rng.random(shape) < 0.7)
                 return tf.sparse.from_dense(x)
 
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
             def create_fn(shape, dt):
@@ -779,11 +780,11 @@ def create_eager_tensors(input_shape, dtype, sparse, ragged):
 
         else:
             raise ValueError(
-                f"Sparse is unsupported with backend {backend.backend()}"
+                f"Sparse is unsupported with backend {config.backend()}"
             )
 
     elif ragged:
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             def create_fn(shape, dt):
@@ -794,7 +795,7 @@ def create_eager_tensors(input_shape, dtype, sparse, ragged):
 
         else:
             raise ValueError(
-                f"Ragged is unsupported with backend {backend.backend()}"
+                f"Ragged is unsupported with backend {config.backend()}"
             )
 
     else:

@@ -2,6 +2,7 @@ import pytest
 
 from keras.src import backend
 from keras.src import testing
+from keras.src.backend import config
 
 
 class DeviceTest(testing.TestCase):
@@ -45,7 +46,7 @@ class DeviceTest(testing.TestCase):
             t = backend.ops.numpy.ones((2, 1))
             self.assertEqual(t.device, jax.devices("gpu")[0])
 
-    @pytest.mark.skipif(backend.backend() != "jax", reason="jax only")
+    @pytest.mark.skipif(config.backend() != "jax", reason="jax only")
     def test_invalid_jax_device(self):
         with self.assertRaisesRegex(ValueError, "Received: device_name='123'"):
             backend.device(123).__enter__()
@@ -72,12 +73,12 @@ class DeviceTest(testing.TestCase):
             t = backend.ops.numpy.ones((2, 1))
             self.assertEqual(t.device, torch.device("cuda", 0))
 
-    @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
+    @pytest.mark.skipif(config.backend() != "torch", reason="torch only")
     def test_invalid_torch_device(self):
         with self.assertRaisesRegex(ValueError, "Received: device_name='123'"):
             backend.device(123).__enter__()
 
-    @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
+    @pytest.mark.skipif(config.backend() != "torch", reason="torch only")
     def test_torch_meta_device(self):
         import torch
 

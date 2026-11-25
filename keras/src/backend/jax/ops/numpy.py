@@ -63,34 +63,40 @@ def add(x1, x2):
 
 
 def bartlett(x):
-    x = convert_to_tensor(x)
     return cast(jnp.bartlett(x), config.floatx())
 
 
 def hamming(x):
-    x = convert_to_tensor(x)
     return cast(jnp.hamming(x), config.floatx())
 
 
 def hanning(x):
-    x = convert_to_tensor(x)
     return cast(jnp.hanning(x), config.floatx())
 
 
 def heaviside(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
     return jnp.heaviside(x1, x2)
 
 
 def hypot(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
     return jnp.hypot(x1, x2)
 
 
 def kaiser(x, beta):
-    x = convert_to_tensor(x)
     return cast(jnp.kaiser(x, beta), config.floatx())
 
 
@@ -474,7 +480,9 @@ def arctan(x):
 def arctan2(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     x1 = cast(x1, dtype)
     x2 = cast(x2, dtype)
     return jnp.arctan2(x1, x2)
@@ -599,7 +607,6 @@ def right_shift(x, y):
 
 
 def blackman(x):
-    x = convert_to_tensor(x)
     return cast(jnp.blackman(x), config.floatx())
 
 
@@ -669,6 +676,11 @@ def copy(x):
 def copysign(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
     return jnp.copysign(x1, x2)
 
 
@@ -1079,7 +1091,9 @@ def log2(x):
 def logaddexp(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     x1 = cast(x1, dtype)
     x2 = cast(x2, dtype)
     return jnp.logaddexp(x1, x2)
@@ -1088,7 +1102,9 @@ def logaddexp(x1, x2):
 def logaddexp2(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     x1 = cast(x1, dtype)
     x2 = cast(x2, dtype)
     return jnp.logaddexp2(x1, x2)
@@ -1593,14 +1609,29 @@ def where(condition, x1=None, x2=None):
 
 @sparse.elementwise_division
 def divide(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
     return jnp.divide(x1, x2)
 
 
 def divide_no_nan(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
     safe_x2 = jnp.where(x2 == 0, 1, x2)
     return jnp.where(x2 == 0, 0, jnp.divide(x1, safe_x2))
 
@@ -1626,6 +1657,11 @@ def power(x1, x2):
 def float_power(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
     return jnp.float_power(x1, x2)
 
 
@@ -1638,6 +1674,11 @@ def negative(x):
 def nextafter(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
     return jnp.nextafter(x1, x2)
 
 
@@ -1756,6 +1797,11 @@ def corrcoef(x):
 def correlate(x1, x2, mode="valid"):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
     return jnp.correlate(x1, x2, mode)
 
 

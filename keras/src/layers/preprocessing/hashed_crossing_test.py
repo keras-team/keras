@@ -3,9 +3,9 @@ import pytest
 import tensorflow as tf
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import standardize_dtype
 from keras.src.testing.test_utils import named_product
 
@@ -47,7 +47,7 @@ class HashedCrossingTest(testing.TestCase):
     @parameterized.named_parameters(
         named_product(
             sparse=(
-                [True, False] if backend.backend() == "tensorflow" else [False]
+                [True, False] if config.backend() == "tensorflow" else [False]
             )
         )
     )
@@ -141,7 +141,7 @@ class HashedCrossingTest(testing.TestCase):
             layers.HashedCrossing(num_bins=10)([np.array(1)])
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Need sparse tensor support.",
     )
     def test_sparse_input_fails(self):
@@ -160,7 +160,7 @@ class HashedCrossingTest(testing.TestCase):
             )
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Need string tensor support.",
     )
     def test_tf_string(self):

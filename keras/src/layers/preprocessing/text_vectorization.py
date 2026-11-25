@@ -240,11 +240,11 @@ class TextVectorization(Layer):
                 "Layer TextVectorization requires TensorFlow. "
                 "Install it via `pip install tensorflow`."
             )
-        if sparse and backend.backend() != "tensorflow":
+        if sparse and config.backend() != "tensorflow":
             raise ValueError(
                 "`sparse=True` can only be used with the TensorFlow backend."
             )
-        if ragged and backend.backend() != "tensorflow":
+        if ragged and config.backend() != "tensorflow":
             raise ValueError(
                 "`ragged=True` can only be used with the TensorFlow backend."
             )
@@ -585,10 +585,7 @@ class TextVectorization(Layer):
         ) and backend.ops.is_tensor(inputs):
             inputs = backend.ops.convert_to_numpy(inputs)
         with tf.device("CPU:0"):
-            if (
-                callable(self._standardize)
-                and backend.backend() != "tensorflow"
-            ):
+            if callable(self._standardize) and config.backend() != "tensorflow":
                 # On non-TensorFlow backends, hand the user-provided callable
                 # a NumPy array of unicode strings so it can use `np.char` /
                 # `np.strings` ops rather than `tf.strings` (which would

@@ -5,12 +5,12 @@ import warnings
 from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend import config
-from keras.src.backend import standardize_data_format
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import any_symbolic_tensors
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import is_float_dtype
 from keras.src.backend.common import result_type
+from keras.src.backend.common import standardize_data_format
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
@@ -84,6 +84,7 @@ def relu6(x):
 
 class Sigmoid(ElementwiseUnaryOperation):
     call_fn = backend.ops.nn.sigmoid
+    promote_to_float = True
 
 
 @keras_export(["keras.ops.sigmoid", "keras.ops.nn.sigmoid"])
@@ -869,18 +870,41 @@ def threshold(x, threshold, default_value):
     return backend.ops.nn.threshold(x, threshold, default_value)
 
 
+def _apply_over_axes(fn, x, axis):
+    """Applies `fn(x, axis=...)` over one axis, or a tuple or list of axes.
+
+    Several axes move last and merge into one, so `fn` only reduces a single
+    axis. The merge reads the dynamic shape, for unknown dimensions on
+    TensorFlow.
+    """
+    if not isinstance(axis, (tuple, list)):
+        return fn(x, axis=axis)
+    x = backend.ops.convert_to_tensor(x)
+    axis = canonicalize_axes(axis, len(x.shape))
+    axis_to_keep = [v for v in range(len(x.shape)) if v not in axis]
+    x = backend.ops.numpy.transpose(x, axes=(*axis_to_keep, *axis))
+    shape = backend.ops.shape(x)
+    x = backend.ops.numpy.reshape(x, (*shape[: len(axis_to_keep)], -1))
+    x = backend.ops.numpy.reshape(fn(x, axis=-1), shape)
+    combined = [*axis_to_keep, *axis]
+    return backend.ops.numpy.transpose(
+        x, axes=sorted(range(len(combined)), key=combined.__getitem__)
+    )
+
+
 class Softmax(Operation):
     def __init__(self, axis=-1, *, name=None):
         super().__init__(name=name)
         self.axis = axis
 
     def call(self, x):
-        return backend.ops.nn.softmax(x, axis=self.axis)
+        return _apply_over_axes(backend.ops.nn.softmax, x, self.axis)
 
     def compute_output_spec(self, x):
         if self.axis is not None:
             canonicalize_axes(self.axis, len(x.shape))
-        return KerasTensor(x.shape, dtype=x.dtype)
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.softmax", "keras.ops.nn.softmax"])
@@ -911,6 +935,8 @@ def softmax(x, axis=-1):
     array([0.09003057, 0.24472847, 0.66524096], shape=(3,), dtype=float64)
 
     """
+    if not any_symbolic_tensors((x,)):
+        x = backend.ops.convert_to_tensor(x)
     # Don't use `backend.ops.shape` since TensorFlow returns
     # symbolic tensors for unknown shape which can trigger
     # an error in TensorFlow graph execution.
@@ -921,34 +947,14 @@ def softmax(x, axis=-1):
     ):
         warnings.warn(
             f"You are using a softmax over axis {axis} "
-            f"of a tensor of shape {x.shape}. This axis "
+            f"of a tensor of shape {tuple(x.shape)}. This axis "
             "has size 1. The softmax operation will always return "
             "the value 1, which is likely not what you intended. "
             "Did you mean to use a sigmoid instead?"
         )
     if any_symbolic_tensors((x,)):
         return Softmax(axis).symbolic_call(x)
-    if isinstance(axis, tuple):
-        axis_to_keep = [v for v in range(len(x.shape)) if v not in axis]
-
-        x_transposed = backend.ops.numpy.transpose(
-            x, axes=(*axis_to_keep, *axis)
-        )
-        x_reshaped = backend.ops.numpy.reshape(
-            x_transposed, (*[x.shape[v] for v in axis_to_keep], -1)
-        )
-
-        x = backend.ops.nn.softmax(x_reshaped, axis=-1)
-
-        x = backend.ops.numpy.reshape(x, x_transposed.shape)
-        combined = [*axis_to_keep, *axis]
-        x = backend.ops.numpy.transpose(
-            x,
-            axes=sorted(range(len(combined)), key=combined.__getitem__),
-        )
-        return x
-    else:
-        return backend.ops.nn.softmax(x, axis=axis)
+    return _apply_over_axes(backend.ops.nn.softmax, x, axis)
 
 
 class LogSoftmax(Operation):
@@ -957,12 +963,13 @@ class LogSoftmax(Operation):
         self.axis = axis
 
     def call(self, x):
-        return backend.ops.nn.log_softmax(x, axis=self.axis)
+        return _apply_over_axes(backend.ops.nn.log_softmax, x, self.axis)
 
     def compute_output_spec(self, x):
         if self.axis is not None:
             canonicalize_axes(self.axis, len(x.shape))
-        return KerasTensor(x.shape, dtype=x.dtype)
+        dtype = dtypes.promote_to_float_dtype(x.dtype)
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(
@@ -995,27 +1002,7 @@ def log_softmax(x, axis=-1):
     """
     if any_symbolic_tensors((x,)):
         return LogSoftmax(axis).symbolic_call(x)
-    if isinstance(axis, tuple):
-        axis_to_keep = [v for v in range(len(x.shape)) if v not in axis]
-
-        x_transposed = backend.ops.numpy.transpose(
-            x, axes=(*axis_to_keep, *axis)
-        )
-        x_reshaped = backend.ops.numpy.reshape(
-            x_transposed, (*[x.shape[v] for v in axis_to_keep], -1)
-        )
-
-        x = backend.ops.nn.log_softmax(x_reshaped, axis=-1)
-
-        x = backend.ops.numpy.reshape(x, x_transposed.shape)
-        combined = [*axis_to_keep, *axis]
-        x = backend.ops.numpy.transpose(
-            x,
-            axes=sorted(range(len(combined)), key=combined.__getitem__),
-        )
-        return x
-    else:
-        return backend.ops.nn.log_softmax(x, axis=axis)
+    return _apply_over_axes(backend.ops.nn.log_softmax, x, axis)
 
 
 class Sparsemax(Operation):
@@ -2620,7 +2607,9 @@ class Normalize(Operation):
     def compute_output_spec(self, x):
         if self.axis is not None:
             canonicalize_axes(self.axis, len(x.shape))
-        return KerasTensor(shape=x.shape)
+        return KerasTensor(
+            shape=x.shape, dtype=dtypes.promote_to_float_dtype(x.dtype)
+        )
 
     def call(self, x):
         return _normalize(
@@ -2673,6 +2662,7 @@ def _normalize(x, axis=-1, order=2, epsilon=None):
             f"Argument `order` must be an int >= 1. Received: order={order}"
         )
     x = backend.ops.convert_to_tensor(x)
+    x = backend.ops.cast(x, dtypes.promote_to_float_dtype(x.dtype))
     if len(x.shape) == 0:
         x = backend.ops.numpy.expand_dims(x, axis=0)
     if epsilon is None:
@@ -2883,7 +2873,7 @@ def dot_product_attention(
     (2, 4, 8, 16)
     """
     if attn_logits_soft_cap is not None:
-        if backend.backend() == "jax":
+        if config.backend() == "jax":
             import jax
 
             if jax.devices()[0].platform != "tpu":
@@ -3041,7 +3031,7 @@ class LayerNorm(Operation):
     ]
 )
 def layer_normalization(
-    x, gamma=None, beta=None, axis=-1, epsilon=None, **kwargs
+    x, gamma=None, beta=None, axis=-1, epsilon=None, *, rms_scaling=False
 ):
     """Layer normalization layer (Ba et al., 2016).
 
@@ -3058,6 +3048,8 @@ def layer_normalization(
             `-1`.
         epsilon: A lower bound value for the norm.
             Defaults to `config.epsilon()`.
+        rms_scaling: Deprecated. Please use `keras.ops.rms_normalization` /
+            `keras.ops.nn.rms_normalization` instead. Defaults to `False`.
 
     Returns:
         The normalized array.
@@ -3068,7 +3060,6 @@ def layer_normalization(
     >>> keras.ops.layer_normalization(x)
     array([-1.4142135, -0.70710677, 0.0, 0.7071067, 1.4142135])
     """
-    rms_scaling = kwargs.pop("rms_scaling", False)
     if rms_scaling:
         warnings.warn(
             "You passed `rms_scaling=True`, which is deprecated. This argument "

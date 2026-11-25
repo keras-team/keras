@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import constraints
 from keras.src import export
 from keras.src import layers
@@ -17,6 +16,7 @@ from keras.src import quantizers
 from keras.src import random
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.common import standardize_dtype
 from keras.src.layers.core.einsum_dense import _analyze_einsum_string
 from keras.src.quantizers.awq_config import AWQConfig
@@ -475,7 +475,7 @@ class EinsumDenseTest(testing.TestCase):
         layer.enable_lora(2)
         self.assertLen(layer.trainable_weights, 2)
         self.assertLen(layer.non_trainable_weights, 1)
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             self.assertLen(layer.torch_params, 3)
         self.assertDType(layer.lora_kernel_a, "float32")
         self.assertDType(layer.lora_kernel_b, "float32")
@@ -983,16 +983,16 @@ class EinsumDenseTest(testing.TestCase):
         expected_non_trainable,
         expected_torch_params,
     ):
-        config = dict(
+        layer_config = dict(
             equation=equation, output_shape=output_shape[1:], bias_axes=None
         )
-        layer = layers.EinsumDense(**config)
+        layer = layers.EinsumDense(**layer_config)
         layer.build(input_shape)
         layer.enable_lora(2)
         layer.quantize(quantization_mode)
         self.assertLen(layer.trainable_weights, 2)
         self.assertLen(layer.non_trainable_weights, expected_non_trainable)
-        if backend.backend() == "torch":
+        if config.backend() == "torch":
             self.assertLen(layer.torch_params, expected_torch_params)
 
         # Try calling fit()
@@ -1029,7 +1029,7 @@ class EinsumDenseTest(testing.TestCase):
             self.get_temp_dir(), "quantized_lora_model.weights.h5"
         )
         model.save_weights(temp_filepath)
-        new_model = models.Sequential([layers.EinsumDense(**config)])
+        new_model = models.Sequential([layers.EinsumDense(**layer_config)])
         new_model.build(input_shape)
         new_model.quantize(quantization_mode)
         new_model.load_weights(temp_filepath)
@@ -1042,7 +1042,7 @@ class EinsumDenseTest(testing.TestCase):
         self.assertAllClose(model.predict(x), new_model.predict(x), atol=0.5)
 
         # Test export and TFSMLayer reloading when using tensorflow backend
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
@@ -1140,12 +1140,12 @@ class EinsumDenseTest(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_quantize_float8_fitting(self):
-        config = dict(
+        layer_config = dict(
             equation="ab,bcd->acd",
             output_shape=(8, 32),
             bias_axes="d",
         )
-        layer = layers.EinsumDense(**config)
+        layer = layers.EinsumDense(**layer_config)
         layer.build((None, 3))
         layer.quantize("float8")
         self.assertLen(layer.trainable_weights, 8)
@@ -1171,14 +1171,14 @@ class EinsumDenseTest(testing.TestCase):
             self.get_temp_dir(), "quantized_lora_model.weights.h5"
         )
         model.save_weights(temp_filepath)
-        new_model = models.Sequential([layers.EinsumDense(**config)])
+        new_model = models.Sequential([layers.EinsumDense(**layer_config)])
         new_model.build((None, 3))
         new_model.quantize("float8")
         new_model.load_weights(temp_filepath)
         self.assertAllClose(model.predict(x), new_model.predict(x))
 
         # Test export and TFSMLayer reloading when using tensorflow backend
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             import tensorflow as tf
 
             temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")

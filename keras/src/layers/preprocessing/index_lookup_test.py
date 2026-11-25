@@ -5,7 +5,6 @@ import pytest
 import tensorflow as tf
 from tensorflow import data as tf_data
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
@@ -16,7 +15,7 @@ from keras.src.trainers.data_adapters import py_dataset_adapter
 
 
 @pytest.mark.skipif(
-    backend.backend() == "numpy", reason="Failing for numpy backend."
+    config.backend() == "numpy", reason="Failing for numpy backend."
 )
 class IndexLookupLayerTest(testing.TestCase):
     def test_basics_string_vocab(self):
@@ -41,7 +40,7 @@ class IndexLookupLayerTest(testing.TestCase):
         )
         output = layer(input_data)
         self.assertEqual(list(output), [2, 3, 1])
-        if backend.backend() != "torch":
+        if config.backend() != "torch":
             self.run_class_serialization_test(layer)
 
         # Case: numpy array input
@@ -60,7 +59,7 @@ class IndexLookupLayerTest(testing.TestCase):
         )
         output = layer(input_data)
         self.assertEqual(list(output), [2, 3, 1])
-        if backend.backend() != "torch":
+        if config.backend() != "torch":
             self.run_class_serialization_test(layer)
 
         # Case: fixed vocab with special tokens + list inputs
@@ -77,7 +76,7 @@ class IndexLookupLayerTest(testing.TestCase):
         )
         output = layer(input_data)
         self.assertEqual(list(output), [2, 3, 1])
-        if backend.backend() != "torch":
+        if config.backend() != "torch":
             self.run_class_serialization_test(layer)
 
         # Case: set vocabulary
@@ -92,7 +91,7 @@ class IndexLookupLayerTest(testing.TestCase):
         )
         output = layer(input_data)
         self.assertEqual(list(output), [2, 3, 1])
-        if backend.backend() != "torch":
+        if config.backend() != "torch":
             self.run_class_serialization_test(layer)
 
         # Case: set vocabulary (with special tokens)
@@ -107,7 +106,7 @@ class IndexLookupLayerTest(testing.TestCase):
         )
         output = layer(input_data)
         self.assertEqual(list(output), [2, 3, 1])
-        if backend.backend() != "torch":
+        if config.backend() != "torch":
             self.run_class_serialization_test(layer)
 
     def test_basics_integer_vocab(self):
@@ -130,7 +129,7 @@ class IndexLookupLayerTest(testing.TestCase):
         )
         output = layer(input_data)
         self.assertEqual(list(output), [2, 3, 1])
-        if backend.backend() != "torch":
+        if config.backend() != "torch":
             self.run_class_serialization_test(layer)
 
         # Case: numpy array input
@@ -147,7 +146,7 @@ class IndexLookupLayerTest(testing.TestCase):
         )
         output = layer(input_data)
         self.assertEqual(list(output), [2, 3, 1])
-        if backend.backend() != "torch":
+        if config.backend() != "torch":
             self.run_class_serialization_test(layer)
 
         # Case: fixed vocab with special tokens + list inputs
@@ -162,7 +161,7 @@ class IndexLookupLayerTest(testing.TestCase):
         )
         output = layer(input_data)
         self.assertEqual(list(output), [2, 3, 1])
-        if backend.backend() != "torch":
+        if config.backend() != "torch":
             self.run_class_serialization_test(layer)
 
         # Case: set vocabulary
@@ -175,7 +174,7 @@ class IndexLookupLayerTest(testing.TestCase):
         )
         output = layer(input_data)
         self.assertEqual(list(output), [2, 3, 1])
-        if backend.backend() != "torch":
+        if config.backend() != "torch":
             self.run_class_serialization_test(layer)
 
         # Case: set vocabulary (with special tokens)
@@ -188,7 +187,7 @@ class IndexLookupLayerTest(testing.TestCase):
         )
         output = layer(input_data)
         self.assertEqual(list(output), [2, 3, 1])
-        if backend.backend() != "torch":
+        if config.backend() != "torch":
             self.run_class_serialization_test(layer)
 
     def test_max_tokens_adapt(self):
@@ -210,7 +209,7 @@ class IndexLookupLayerTest(testing.TestCase):
         )
         output = layer(input_data)
         self.assertEqual(list(output), [2, 3, 1, 1])
-        if backend.backend() != "torch":
+        if config.backend() != "torch":
             self.run_class_serialization_test(layer)
 
     def test_pad_to_max_tokens(self):
@@ -229,7 +228,7 @@ class IndexLookupLayerTest(testing.TestCase):
         layer = layers.IndexLookup(**kwargs)
         output = layer(input_data)
         self.assertAllClose(output, [0, 1, 1, 0, 0])
-        if backend.backend() != "torch":
+        if config.backend() != "torch":
             self.run_class_serialization_test(layer)
 
     def test_output_modes(self):
@@ -347,7 +346,7 @@ class IndexLookupLayerTest(testing.TestCase):
         self.assertEqual(output_spec.dtype, config.floatx())
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="Sparse outputs are only supported with TensorFlow backend.",
     )
     def test_sparse_outputs(self):
@@ -433,7 +432,7 @@ class IndexLookupLayerTest(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="Requires string input dtype"
+        config.backend() != "tensorflow", reason="Requires string input dtype"
     )
     def test_saving(self):
         # Test with adapt()
@@ -503,7 +502,7 @@ class IndexLookupLayerTest(testing.TestCase):
         )
         output = layer(input_data)
         self.assertEqual(list(output), [2, 3, 1])
-        if backend.backend() != "torch":
+        if config.backend() != "torch":
             self.run_class_serialization_test(layer)
 
     def test_max_tokens_less_than_two(self):
@@ -819,7 +818,7 @@ class IndexLookupLayerTest(testing.TestCase):
             oov_method="farmhash",
             salt=[137, 42],
         )
-        if backend.backend() != "torch":
+        if config.backend() != "torch":
             self.run_class_serialization_test(layer)
 
     def test_salt_valid_and_invalid_formats(self):

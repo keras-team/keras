@@ -246,7 +246,7 @@ class OpTestTest(testing.TestCase):
             op, reference_fn = ops.ones, np.ones
             inputs = ((2, 3),)
 
-        no_jit = backend.backend() not in ("jax", "torch", "tensorflow")
+        no_jit = config.backend() not in ("jax", "torch", "tensorflow")
         self.assertEqual(
             outcomes(Ones),
             {
@@ -259,7 +259,7 @@ class OpTestTest(testing.TestCase):
                     "skipped: No array inputs, so no symbolic path"
                 ),
                 "test_jit": (
-                    f"skipped: No JIT compiler on the {backend.backend()} "
+                    f"skipped: No JIT compiler on the {config.backend()} "
                     "backend"
                     if no_jit
                     else "passed"
@@ -276,13 +276,13 @@ class OpTestTest(testing.TestCase):
                 "test_gradients": (
                     "skipped: No array inputs, so no gradients"
                     if backend.SUPPORTS_GRADIENT
-                    else f"skipped: No gradients on the {backend.backend()} "
+                    else f"skipped: No gradients on the {config.backend()} "
                     "backend"
                 ),
                 "test_dtype_argument": "passed",
                 "test_tf_graph": (
                     "skipped: No array inputs, so no unknown dimensions"
-                    if backend.backend() == "tensorflow"
+                    if config.backend() == "tensorflow"
                     else "skipped: TensorFlow only"
                 ),
                 "test_floatx_bfloat16": "passed",
@@ -296,7 +296,7 @@ class OpTestTest(testing.TestCase):
 
         out = outcomes(Case)
         self.assertEqual(out["test_eager"], "passed")
-        if backend.backend() not in ("jax", "torch", "tensorflow"):
+        if config.backend() not in ("jax", "torch", "tensorflow"):
             self.assertRegex(out["test_jit"], "^skipped: No JIT compiler")
         else:
             self.assertRegex(out["test_jit"], "^failed: ")
@@ -361,7 +361,7 @@ class OpTestTest(testing.TestCase):
 
         out = outcomes(Case)
         self.assertEqual(out["test_eager"], "passed")
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             self.assertEqual(out["test_jit"], "passed")
             self.assertRegex(
                 out["test_tf_graph"],
@@ -471,7 +471,7 @@ class CheckInputDtypesTest(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() == "tensorflow",
+        config.backend() == "tensorflow",
         reason="TensorFlow has no `x64_mode='off'`",
     )
     def test_capped_op_fails_only_in_explicit_x64(self):
@@ -506,7 +506,7 @@ class CheckInputDtypesTest(testing.TestCase):
             case.check_input_dtypes(("float16",), (np.array([1e5]),), {})
 
     def test_skipped_dtype_has_reason(self):
-        skipped = {backend.backend(): {"int8": "no int8 here"}}
+        skipped = {config.backend(): {"int8": "no int8 here"}}
         with mock.patch.dict(op_test_case._SKIPPED_DTYPES, skipped):
             self.assertEqual(
                 outcomes(SquareTest)["test_input_dtypes_int8"],

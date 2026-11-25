@@ -1025,7 +1025,7 @@ class SavingTest(testing.TestCase):
         self.assertIn("model.keras", os.listdir(Path(filepath).parent))
 
     @pytest.mark.skipif(
-        backend.backend() == "jax",
+        config.backend() == "jax",
         reason="JAX backend doesn't support Python's multiprocessing",
     )
     @pytest.mark.skipif(

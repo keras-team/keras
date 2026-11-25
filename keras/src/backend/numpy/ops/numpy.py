@@ -226,7 +226,9 @@ def arctan(x):
 def arctan2(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     x1 = x1.astype(dtype)
     x2 = x2.astype(dtype)
     return np.arctan2(x1, x2)
@@ -319,11 +321,9 @@ def heaviside(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
 
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
-    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
-        dtype = config.floatx()
-    elif dtype in ["int64"]:
-        dtype = "float64"
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
 
     return np.heaviside(x1, x2).astype(dtype)
 
@@ -484,7 +484,9 @@ def copy(x):
 def copysign(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     return np.copysign(x1, x2).astype(dtype)
 
 
@@ -729,11 +731,9 @@ def hypot(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
 
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
-    if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
-        dtype = config.floatx()
-    elif dtype in ["int64"]:
-        dtype = "float64"
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
 
     return np.hypot(x1, x2).astype(dtype)
 
@@ -814,7 +814,7 @@ def lcm(x1, x2):
 def ldexp(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(x1.dtype)
 
     if standardize_dtype(x2.dtype) not in dtypes.INT_TYPES:
         raise TypeError(
@@ -881,7 +881,9 @@ def log2(x):
 def logaddexp(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     x1 = x1.astype(dtype)
     x2 = x2.astype(dtype)
     return np.logaddexp(x1, x2)
@@ -890,7 +892,9 @@ def logaddexp(x1, x2):
 def logaddexp2(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     return np.logaddexp2(x1, x2).astype(dtype)
 
 
@@ -1493,10 +1497,11 @@ def divide(x1, x2):
         x1 = convert_to_tensor(x1)
     if not isinstance(x2, (int, float)):
         x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(
-        getattr(x1, "dtype", type(x1)),
-        getattr(x2, "dtype", type(x2)),
-        float,
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
     )
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
@@ -1508,10 +1513,11 @@ def divide_no_nan(x1, x2):
         x1 = convert_to_tensor(x1)
     if not isinstance(x2, (int, float)):
         x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(
-        getattr(x1, "dtype", type(x1)),
-        getattr(x2, "dtype", type(x2)),
-        float,
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
     )
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
@@ -1541,7 +1547,9 @@ def power(x1, x2):
 def float_power(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
     return np.float_power(x1, x2).astype(dtype)
 
 
@@ -1552,7 +1560,9 @@ def negative(x):
 def nextafter(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
 
     return np.nextafter(x1, x2).astype(dtype)
 
@@ -1650,15 +1660,12 @@ def corrcoef(x):
 
 
 def correlate(x1, x2, mode="valid"):
-    dtype = dtypes.result_type(
-        getattr(x1, "dtype", type(x1)),
-        getattr(x2, "dtype", type(x2)),
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
     )
-    if dtype == "int64":
-        dtype = "float64"
-    elif dtype not in ["bfloat16", "float16", "float64"]:
-        dtype = "float32"
-
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
     return np.correlate(x1, x2, mode)

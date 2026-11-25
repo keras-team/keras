@@ -11,6 +11,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.backend.torch.ops.core import get_device
 from keras.src.saving.serialization_lib import SafeModeScope
 from keras.src.utils.torch_utils import TorchModuleWrapper
@@ -57,7 +58,7 @@ class ClassifierWithNoSpecialCasing(models.Model):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "torch", reason="Requires torch backend"
+    config.backend() != "torch", reason="Requires torch backend"
 )
 class TorchUtilsTest(testing.TestCase):
     @parameterized.parameters(

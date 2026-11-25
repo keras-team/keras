@@ -5,7 +5,6 @@ import pytest
 import tensorflow as tf
 from tensorflow.python.eager import context
 
-from keras.src import backend
 from keras.src import callbacks
 from keras.src import layers
 from keras.src import losses
@@ -13,6 +12,7 @@ from keras.src import metrics
 from keras.src import optimizers
 from keras.src import saving
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.models import Sequential
 from keras.src.testing import test_utils
 from keras.src.utils import numerical_utils
@@ -163,7 +163,7 @@ class SwapEMAWeightsTest(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
+        config.backend() != "tensorflow",
         reason="The distribute test can only run with TF backend.",
     )
     def test_swap_ema_weights_with_tf_distribute(self):

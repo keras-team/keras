@@ -7,6 +7,7 @@ import warnings
 
 from keras.src import backend as backend_module
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import global_state
 from keras.src.backend.config import BUILT_IN_BACKENDS
 from keras.src.backend.config import PLUGGABLE_BACKENDS
@@ -26,7 +27,7 @@ def in_tf_graph():
 
 
 def convert_tf_tensor(outputs, dtype=None):
-    if backend_module.backend() != "tensorflow" and not in_tf_graph():
+    if config.backend() != "tensorflow" and not in_tf_graph():
         outputs = backend_module.ops.convert_to_tensor(outputs, dtype=dtype)
     return outputs
 
@@ -73,9 +74,9 @@ class DynamicBackend:
 
     ```python
     backend = DynamicBackend("tensorflow")
-    y = backend.square(tf.constant(...))
+    y = backend.ops.numpy.square(tf.constant(...))
     backend.set_backend("jax")
-    y = backend.square(jax.numpy.array(...))
+    y = backend.ops.numpy.square(jax.numpy.array(...))
     ```
 
     Args:
@@ -83,7 +84,7 @@ class DynamicBackend:
     """
 
     def __init__(self, backend=None):
-        self._backend = backend or backend_module.backend()
+        self._backend = backend or config.backend()
         self._cached_modules = {}
         self._get_module()
 
@@ -103,7 +104,7 @@ class DynamicBackend:
         self._get_module()
 
     def reset(self):
-        self._backend = backend_module.backend()
+        self._backend = config.backend()
         self._get_module()
 
     @property

@@ -11,12 +11,12 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import losses
 from keras.src import ops
 from keras.src import testing
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.backend.common import standardize_dtype
 from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
 from keras.src.layers.core.input_layer import Input
@@ -841,11 +841,11 @@ class ModelTest(testing.TestCase):
                 self.assertEqual(layer.dtype_policy.quantization_mode, mode)
         if mode == "int8":
             self.assertLen(model.variables, 6)
-            if backend.backend() == "torch":
+            if config.backend() == "torch":
                 self.assertLen(list(model.named_parameters()), 6)
         elif mode == "float8":
             self.assertLen(model.variables, 16)
-            if backend.backend() == "torch":
+            if config.backend() == "torch":
                 self.assertLen(list(model.named_parameters()), 16)
 
     @parameterized.named_parameters(
@@ -964,7 +964,7 @@ class ModelTest(testing.TestCase):
         ("sequential_in_functional", "sequential_in_functional"),
         ("sequential_in_subclassed", "sequential_in_subclassed"),
     )
-    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
+    @pytest.mark.skipif(config.backend() != "torch", reason="Torch only test.")
     def test_quantize_sequential_retracks_torch_params(self, structure):
         if structure == "sequential":
             model = Sequential([Input((8,)), layers.Dense(16), layers.Dense(4)])
@@ -1624,6 +1624,6 @@ class ModelTest(testing.TestCase):
             model.export(temp_filepath, format="bad_format")
 
         # Bad backend
-        if backend.backend() not in ("tensorflow", "jax", "torch"):
+        if config.backend() not in ("tensorflow", "jax", "torch"):
             with self.assertRaises(NotImplementedError):
                 model.export(temp_filepath, format="tf_saved_model")

@@ -6,13 +6,13 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import ops
 from keras.src import quantizers
 from keras.src import random
 from keras.src import testing
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.quantizers import strategy_registry
 from keras.src.quantizers.quantizers import compute_quantization_parameters
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
@@ -22,7 +22,7 @@ from keras.src.quantizers.quantizers import quantize_with_zero_point
 from keras.src.quantizers.quantizers import ternarize
 from keras.src.testing.test_utils import named_product
 
-if backend.backend() == "torch":
+if config.backend() == "torch":
     from keras.src.backend.torch.test_utils import capture_cuda_graph
     from keras.src.backend.torch.test_utils import skip_unless_cuda
 
@@ -1147,7 +1147,7 @@ class TernarizeTest(testing.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "torch", reason="Captures a torch CUDA graph."
+    config.backend() != "torch", reason="Captures a torch CUDA graph."
 )
 class CudaGraphCaptureTest(testing.TestCase):
     """Quantized layer calls capture in a CUDA graph.

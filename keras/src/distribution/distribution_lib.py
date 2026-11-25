@@ -372,7 +372,7 @@ class Distribution:
 
         Returns:
             The `TensorLayout` for the data, which can be used by
-            `backend.distribute_value()` to redistribute a input data.
+            `keras.distribution.distribute_tensor()` to distribute input data.
         """
         raise NotImplementedError()
 
@@ -384,7 +384,7 @@ class Distribution:
 
         return:
             The `TensorLayout` for the variable, which can be used by
-            `backend.distribute_value()` to redistribute a variable.
+            `keras.distribution.distribute_tensor()` to distribute a variable.
         """
         raise NotImplementedError()
 
@@ -396,8 +396,8 @@ class Distribution:
 
         return:
             The `TensorLayout` for the intermediate tensor, which can be used
-            by `backend.relayout()` to reshard the tensor. Could also return
-            None.
+            by `keras.distribution.distribute_tensor()` to distribute the
+            tensor. Can also return None.
         """
         raise NotImplementedError()
 

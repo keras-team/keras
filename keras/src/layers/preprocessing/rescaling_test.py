@@ -81,17 +81,17 @@ class RescalingTest(testing.TestCase):
 
         self.assertTrue(backend.ops.is_tensor(output))
         # Ensure the device of the data is on CPU.
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             self.assertIn("CPU", str(output.device).upper())
-        elif backend.backend() == "jax":
+        elif config.backend() == "jax":
             self.assertIn("CPU", str(output.device).upper())
-        elif backend.backend() == "torch":
+        elif config.backend() == "torch":
             self.assertEqual("cpu", str(output.device))
 
     def test_rescaling_with_channels_first_and_vector_scale(self):
         image_data_format = config.image_data_format()
-        self.addCleanup(backend.set_image_data_format, image_data_format)
-        backend.set_image_data_format("channels_first")
+        self.addCleanup(config.set_image_data_format, image_data_format)
+        config.set_image_data_format("channels_first")
         layer = layers.Rescaling(
             scale=[1.0 / 255, 1.5 / 255, 2.0 / 255], offset=0.5
         )

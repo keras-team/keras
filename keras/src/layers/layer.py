@@ -31,6 +31,7 @@ from keras.src import regularizers
 from keras.src import tree
 from keras.src import utils
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.backend.common import AutocastScope
 from keras.src.backend.common import KerasTensor
 from keras.src.backend.common import StatelessScope
@@ -63,13 +64,13 @@ from keras.src.utils import traceback_utils
 from keras.src.utils import tracking
 from keras.src.utils.module_utils import get_pluggable_backend_module
 
-if backend.backend() == "tensorflow":
+if config.backend() == "tensorflow":
     from keras.src.backend.tensorflow.layer import TFLayer as BackendLayer
-elif backend.backend() == "jax":
+elif config.backend() == "jax":
     from keras.src.backend.jax.layer import JaxLayer as BackendLayer
-elif backend.backend() == "torch":
+elif config.backend() == "torch":
     from keras.src.backend.torch.layer import TorchLayer as BackendLayer
-elif backend.backend() == "numpy":
+elif config.backend() == "numpy":
     from keras.src.backend.numpy.layer import NumpyLayer as BackendLayer
 else:
     backend_layer_module = get_pluggable_backend_module(
@@ -390,7 +391,7 @@ class Layer(BackendLayer, Operation):
             },
             exclusions={"non_trainable_variables": ["trainable_variables"]},
         )
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             # Remove attribute tracking for lists (TF-specific attribute)
             _self_setattr_tracking = getattr(
                 self, "_self_setattr_tracking", True
@@ -403,7 +404,7 @@ class Layer(BackendLayer, Operation):
         self._metrics = metrics
         self._seed_generators = seed_generators
 
-        if backend.backend() == "tensorflow":
+        if config.backend() == "tensorflow":
             # Reset attribute tracking (TF-specific)
             self._self_setattr_tracking = _self_setattr_tracking
 
@@ -2023,7 +2024,7 @@ class Layer(BackendLayer, Operation):
         # `_compiled_trainable_state` is a dict keyed by layer objects,
         # which flax's attribute scanning cannot process.
         if (
-            backend.backend() == "jax"
+            config.backend() == "jax"
             and is_nnx_enabled()
             and name
             in (
@@ -2067,7 +2068,7 @@ class Layer(BackendLayer, Operation):
                     self.input_spec, arg_0, layer_name=self.name
                 )
             except SystemError:
-                if backend.backend() == "torch":
+                if config.backend() == "torch":
                     # TODO: The torch backend failed the ONNX CI with the error:
                     # SystemError: <method '__int__' of 'torch._C.TensorBase'
                     # objects> returned a result with an exception set

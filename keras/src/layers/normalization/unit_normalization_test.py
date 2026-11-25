@@ -5,6 +5,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
+from keras.src.backend import config
 
 
 def squared_l2_norm(x):
@@ -68,7 +69,7 @@ class UnitNormalizationTest(testing.TestCase):
         for axis in layer.axis:
             self.assertIs(type(axis), int)
 
-    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
+    @pytest.mark.skipif(config.backend() != "torch", reason="Torch only test.")
     def test_torch_compile_fullgraph(self):
         import torch
 

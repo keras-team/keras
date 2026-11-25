@@ -2,11 +2,11 @@ import enum
 
 import pytest
 
-from keras.src import backend
 from keras.src import testing
+from keras.src.backend import config
 from keras.src.legacy.saving import json_utils
 
-if backend.backend() == "tensorflow":
+if config.backend() == "tensorflow":
     import tensorflow as tf
 
 
@@ -36,7 +36,7 @@ class JsonUtilsTestAllBackends(testing.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "tensorflow",
+    config.backend() != "tensorflow",
     reason="These JSON serialization tests are specific to TF components.",
 )
 class JsonUtilsTestTF(testing.TestCase):

@@ -1,7 +1,7 @@
 """Library for exporting SavedModel for Keras models/layers."""
 
-from keras.src import backend
 from keras.src.api_export import keras_export
+from keras.src.backend import config
 from keras.src.export.export_utils import get_input_signature
 
 # Re-export for backward compatibility (used by tfsm_layer.py)
@@ -11,13 +11,13 @@ from keras.src.export.saved_model_export_archive import (  # noqa: F401
 from keras.src.export.xla_saved_model_archive import XLASavedModelArchive
 from keras.src.utils.module_utils import get_pluggable_backend_module
 
-if backend.backend() == "tensorflow":
+if config.backend() == "tensorflow":
     from keras.src.backend.tensorflow.export import SavedModelExportArchive
-elif backend.backend() == "jax":
+elif config.backend() == "jax":
     from keras.src.backend.jax.export import SavedModelExportArchive
-elif backend.backend() == "torch":
+elif config.backend() == "torch":
     from keras.src.backend.torch.export import SavedModelExportArchive
-elif backend.backend() == "numpy":
+elif config.backend() == "numpy":
     from keras.src.export.saved_model_export_archive import (
         BaseSavedModelExportArchive as SavedModelExportArchive,
     )

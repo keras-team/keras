@@ -1,7 +1,7 @@
 import warnings
 
-from keras.src import backend
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.export.export_utils import convert_spec_to_tensor
 from keras.src.export.export_utils import get_input_signature
 from keras.src.export.export_utils import make_tf_tensor_spec
@@ -62,18 +62,18 @@ def export_openvino(
     if input_signature is None:
         input_signature = get_input_signature(model)
 
-    if backend.backend() == "openvino":
+    if config.backend() == "openvino":
         from keras_openvino.src.openvino_export import (
             get_model_for_openvino_export,
         )
 
         ov_model = get_model_for_openvino_export(model, input_signature)
-    elif backend.backend() in ("tensorflow", "jax"):
+    elif config.backend() in ("tensorflow", "jax"):
         inputs = tree.map_structure(make_tf_tensor_spec, input_signature)
         decorated_fn = get_concrete_fn(model, inputs, **kwargs)
         ov_model = ov.convert_model(decorated_fn)
         set_names(ov_model, inputs)
-    elif backend.backend() == "torch":
+    elif config.backend() == "torch":
         import torch
 
         sample_inputs = tree.map_structure(
@@ -151,12 +151,12 @@ def _check_jax_kwargs(kwargs):
 
 
 def get_concrete_fn(model, input_signature, **kwargs):
-    if backend.backend() == "jax":
+    if config.backend() == "jax":
         kwargs = _check_jax_kwargs(kwargs)
     export_archive = ExportArchive()
     export_archive.track_and_add_endpoint(
         DEFAULT_ENDPOINT_NAME, model, input_signature, **kwargs
     )
-    if backend.backend() == "tensorflow":
+    if config.backend() == "tensorflow":
         export_archive._filter_and_track_resources()
     return export_archive._get_concrete_fn(DEFAULT_ENDPOINT_NAME)
