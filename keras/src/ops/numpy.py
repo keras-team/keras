@@ -4248,7 +4248,7 @@ def _hsplit(x, indices_or_sections):
 
 class Hypot(Operation):
     def call(self, x1, x2):
-        return backend.ops.numpy.hypot(x1, x2)
+        return _hypot(x1, x2)
 
     def compute_output_spec(self, x1, x2):
         dtype = dtypes.promote_to_float_dtype(
@@ -4285,7 +4285,43 @@ def hypot(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Hypot().symbolic_call(x1, x2)
-    return backend.ops.numpy.hypot(x1, x2)
+    return _hypot(x1, x2)
+
+
+def _hypot(x1, x2):
+    if not config._use_backend_agnostic_ops() and hasattr(
+        backend.ops.numpy, "hypot"
+    ):
+        return backend.ops.numpy.hypot(x1, x2)
+    x1 = backend.ops.convert_to_tensor(x1)
+    x2 = backend.ops.convert_to_tensor(x2)
+    dtype = dtypes.promote_to_float_dtype(
+        dtypes.result_type(x1.dtype, x2.dtype)
+    )
+    x1 = backend.ops.cast(x1, dtype)
+    x2 = backend.ops.cast(x2, dtype)
+    x1_abs = backend.ops.numpy.absolute(x1)
+    x2_abs = backend.ops.numpy.absolute(x2)
+    scale = backend.ops.numpy.maximum(x1_abs, x2_abs)
+    both_zero = backend.ops.numpy.equal(scale, 0)
+    scale = backend.ops.stop_gradient(
+        backend.ops.numpy.where(both_zero, 1, scale)
+    )
+    sum_sq = backend.ops.numpy.add(
+        backend.ops.numpy.square(backend.ops.numpy.divide(x1, scale)),
+        backend.ops.numpy.square(backend.ops.numpy.divide(x2, scale)),
+    )
+    sum_sq = backend.ops.numpy.where(both_zero, 1, sum_sq)
+    result = backend.ops.numpy.where(
+        both_zero,
+        0,
+        backend.ops.numpy.multiply(scale, backend.ops.numpy.sqrt(sum_sq)),
+    )
+    is_inf = backend.ops.numpy.logical_or(
+        backend.ops.numpy.isinf(x1_abs), backend.ops.numpy.isinf(x2_abs)
+    )
+    inf = backend.ops.cast(float("inf"), dtype)
+    return backend.ops.numpy.where(is_inf, inf, result)
 
 
 @keras_export(["keras.ops.identity", "keras.ops.numpy.identity"])
