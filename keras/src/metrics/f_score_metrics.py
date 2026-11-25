@@ -19,6 +19,11 @@ class FBetaScore(Metric):
     Its output range is `[0, 1]`. It works for both multi-class
     and multi-label classification.
 
+    `y_true` must be a binary indicator matrix (one-hot or multi-hot), with
+    values treated as boolean labels (nonzero entries count as positive).
+    Integer class ids such as `{1, 2}` are not supported; convert them with
+    `keras.utils.to_categorical` (or an equivalent multi-hot encoding) first.
+
     Args:
         average: Type of averaging to be performed across per-class results
             in the multi-class case.
@@ -156,7 +161,8 @@ class FBetaScore(Metric):
         self._built = True
 
     def update_state(self, y_true, y_pred, sample_weight=None):
-        y_true = backend.ops.convert_to_tensor(y_true, dtype=self.dtype)
+        # Convert y_true as bool indicators up front (same as confusion metrics).
+        y_true = backend.ops.convert_to_tensor(y_true, dtype="bool")
         y_pred = backend.ops.convert_to_tensor(y_pred, dtype=self.dtype)
         if not self._built:
             self._build(y_true.shape, y_pred.shape)
@@ -267,6 +273,11 @@ class F1Score(FBetaScore):
     This is the harmonic mean of precision and recall.
     Its output range is `[0, 1]`. It works for both multi-class
     and multi-label classification.
+
+    `y_true` must be a binary indicator matrix (one-hot or multi-hot), with
+    values treated as boolean labels (nonzero entries count as positive).
+    Integer class ids such as `{1, 2}` are not supported; convert them with
+    `keras.utils.to_categorical` (or an equivalent multi-hot encoding) first.
 
     Args:
         average: Type of averaging to be performed on data.
