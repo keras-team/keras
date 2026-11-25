@@ -708,10 +708,12 @@ def _analyze_split_string(
         input_shape_at_dim = input_shape[input_dim_map[dim]]
         if dim in output_dim_map:
             output_shape_at_dim = output_shape[output_dim_map[dim]]
-            if (
-                output_shape_at_dim is not None
-                and output_shape_at_dim != input_shape_at_dim
-            ):
+            if output_shape_at_dim is None:
+                # A shared axis whose output size is left unspecified is
+                # fully determined by the input, so fill it in rather than
+                # letting `None` leak into the reported output shape.
+                output_shape[output_dim_map[dim]] = input_shape_at_dim
+            elif output_shape_at_dim != input_shape_at_dim:
                 raise ValueError(
                     "Input shape and output shape do not match at shared "
                     f"dimension '{dim}'. Input shape is {input_shape_at_dim}, "
