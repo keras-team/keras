@@ -2351,12 +2351,12 @@ class Cross(Operation):
 
         if x1_value_size is not None and x1_value_size not in (2, 3):
             raise ValueError(
-                "`x1`'s dim on `axis={axisa}` must be either 2 or 3, but "
+                f"`x1`'s dim on `axis={self.axisa}` must be either 2 or 3, but "
                 f"received: {x1_value_size}"
             )
         if x2_value_size is not None and x2_value_size not in (2, 3):
             raise ValueError(
-                "`x2`'s dim on `axis={axisb}` must be either 2 or 3, but "
+                f"`x2`'s dim on `axis={self.axisb}` must be either 2 or 3, but "
                 f"received: {x2_value_size}"
             )
 
@@ -5496,7 +5496,7 @@ class Meshgrid(Operation):
         if indexing not in ("xy", "ij"):
             raise ValueError(
                 "Valid values for `indexing` are 'xy' and 'ij', "
-                "but received {index}."
+                f"but received {indexing}."
             )
         self.indexing = indexing
 

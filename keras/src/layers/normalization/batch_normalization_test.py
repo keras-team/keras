@@ -332,11 +332,11 @@ class BatchNormalizationTest(testing.TestCase):
             layers.BatchNormalization(
                 renorm=True, renorm_clipping={"random_key": 1.0}
             )
-        with self.assertRaisesRegex(ValueError, "rmax should be"):
+        with self.assertRaisesRegex(ValueError, "rmax=0.0, rmin=1.0"):
             layers.BatchNormalization(
                 renorm=True, renorm_clipping={"rmax": 0.0, "rmin": 1.0}
             )
-        with self.assertRaisesRegex(ValueError, "dmax should be non-negative"):
+        with self.assertRaisesRegex(ValueError, "dmax=-1.0"):
             layers.BatchNormalization(
                 renorm=True, renorm_clipping={"rmax": 1.0, "dmax": -1.0}
             )
