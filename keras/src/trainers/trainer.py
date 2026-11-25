@@ -215,6 +215,7 @@ class BaseTrainer:
                 stacklevel=2,
             )
 
+        self._jit_compile = None
         self.jit_compile = jit_compile
         self.run_eagerly = run_eagerly
         self.stop_training = False
@@ -278,7 +279,7 @@ class BaseTrainer:
                 # Disable XLA on CPU-only machines.
                 return False
 
-            if self._distribute_strategy:
+            if self._distribute_strategy or tf.distribute.has_strategy():
                 # Disable XLA with tf.distribute
                 return False
 
