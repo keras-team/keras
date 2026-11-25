@@ -243,6 +243,27 @@ class GroupedQueryAttentionTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, r"must be equal"):
             layer.compute_output_shape(query_shape, value_shape, key_shape)
 
+    def test_invalid_scalar_args_rejected(self):
+        for bad, error in ((0, ValueError), (-2, ValueError), (1.5, TypeError)):
+            with self.assertRaisesRegex(error, "Expected `head_dim`"):
+                layers.GroupedQueryAttention(
+                    head_dim=bad,
+                    num_query_heads=2,
+                    num_key_value_heads=1,
+                )
+            with self.assertRaisesRegex(error, "Expected `num_query_heads`"):
+                layers.GroupedQueryAttention(
+                    head_dim=2,
+                    num_query_heads=bad,
+                    num_key_value_heads=1,
+                )
+            with self.assertRaisesRegex(error, "Expected `num_key_value_heads`"):
+                layers.GroupedQueryAttention(
+                    head_dim=2,
+                    num_query_heads=2,
+                    num_key_value_heads=bad,
+                )
+
     def test_symbolic_shape_with_return_attention_scores(self):
         layer = layers.GroupedQueryAttention(
             num_query_heads=4,

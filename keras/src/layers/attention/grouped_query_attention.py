@@ -123,6 +123,15 @@ class GroupedQueryAttention(Layer):
         seed=None,
         **kwargs,
     ):
+        head_dim = argument_validation.validate_int(
+            "head_dim", head_dim, min_value=1
+        )
+        num_query_heads = argument_validation.validate_int(
+            "num_query_heads", num_query_heads, min_value=1
+        )
+        num_key_value_heads = argument_validation.validate_int(
+            "num_key_value_heads", num_key_value_heads, min_value=1
+        )
         super().__init__(**kwargs)
         self.supports_masking = True
         self.head_dim = head_dim
