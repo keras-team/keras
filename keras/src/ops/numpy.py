@@ -3440,7 +3440,8 @@ def _empty_like(x, dtype=None):
         backend.ops.numpy, "empty_like"
     ):
         return backend.ops.numpy.empty_like(x, dtype=dtype)
-    return backend.ops.numpy.zeros_like(x, dtype=dtype)
+    x = backend.ops.convert_to_tensor(x)
+    return backend.ops.numpy.empty(backend.ops.shape(x), dtype=dtype or x.dtype)
 
 
 class Equal(Operation):
